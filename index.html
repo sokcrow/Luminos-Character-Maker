@@ -1138,8 +1138,17 @@
                 <h1>Estados y Efectos</h1>
                 <p>Referencia de los efectos alteradores disponibles en el combate.</p>
             </div>
-            <div id="estados-grid" class="estados-grid">
-                <!-- Estados se generarán aquí -->
+            <div class="phase-header" style="margin-top: 30px; border-bottom: none;">
+                <h2 style="color: var(--green-success); border-left: 3px solid var(--green-success);">Estados Positivos</h2>
+            </div>
+            <div id="estados-positivos-grid" class="estados-grid">
+                <!-- Estados positivos se generarán aquí -->
+            </div>
+            <div class="phase-header" style="margin-top: 40px; border-bottom: none;">
+                <h2 style="color: var(--red-neon); border-left: 3px solid var(--red-neon);">Estados Negativos</h2>
+            </div>
+            <div id="estados-negativos-grid" class="estados-grid">
+                <!-- Estados negativos se generarán aquí -->
             </div>
         </div>
 
@@ -1938,37 +1947,37 @@
         };
 
         const efectosDeEstado = [
-            { id: 'defense_level_down', nombre: 'Defense Level Down', tipo: 'Single', icono: 'https://i.imgur.com/s2jUtlo.png', desc: 'Defense Level Baja igual a la Count hasta el final de la Ronda.' },
-            { id: 'defense_level_up', nombre: 'Defense Level Up', tipo: 'Single', icono: 'https://i.imgur.com/C0apZVL.png', desc: 'Defense Level Sube igual al Count hasta el final de la Ronda.' },
-            { id: 'defense_power_down', nombre: 'Defense Power Down', tipo: 'Single', icono: 'https://i.imgur.com/MGdXCaC.png', desc: 'Skills Defensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
-            { id: 'defense_power_up', nombre: 'Defense Power Up', tipo: 'Single', icono: 'https://i.imgur.com/AkiiCza.png', desc: 'Skills Defensivas Ganan Poder Final Igual Count Hasta el final de la Ronda.' },
-            { id: 'damage_down', nombre: 'Damage Down', tipo: 'Single', icono: 'https://i.imgur.com/bo7reA0.png', desc: 'Baja 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
-            { id: 'damage_up', nombre: 'Damage Up', tipo: 'Single', icono: 'https://i.imgur.com/KDLYRCR.png', desc: 'Aumenta 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
-            { id: 'hp_healing_down', nombre: 'HP Healing Down', tipo: 'Single', icono: 'https://i.imgur.com/5WYFFVt.png', desc: 'Baja 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
-            { id: 'hp_healing_up', nombre: 'HP Healing Up', tipo: 'Single', icono: 'https://i.imgur.com/uynjNTN.png', desc: 'Sube 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
-            { id: 'clash_power_down', nombre: 'Clash Power Down', tipo: 'Single', icono: 'https://i.imgur.com/TppbWXb.png', desc: 'Poder de Choque disminuye Igual al Count Hasta el Final de la Ronda.' },
-            { id: 'clash_power_up', nombre: 'Clash Power Up', tipo: 'Single', icono: 'https://i.imgur.com/Q49TCVN.png', desc: 'Poder de Choque aumenta Igual al Count Hasta el Final de la Ronda.' },
-            { id: 'offensive_level_down', nombre: 'Offensive Level Down', tipo: 'Single', icono: 'https://i.imgur.com/usBnT9m.png', desc: 'Offensive Level Baja igual a la Count hasta el final de la Ronda.' },
-            { id: 'offensive_level_up', nombre: 'Offensive Level Up', tipo: 'Single', icono: 'https://i.imgur.com/p70Fei4.png', desc: 'Offensive Level Sube igual a la Count hasta el final de la Ronda.' },
-            { id: 'attack_power_down', nombre: 'Attack Power Down', tipo: 'Single', icono: 'https://i.imgur.com/g69L38F.png', desc: 'Skills Ofensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
-            { id: 'attack_power_up', nombre: 'Attack Power UP', tipo: 'Single', icono: 'https://i.imgur.com/JbDs4X0.png', desc: 'Skills Ofensivas Ganan Poder Final Igual Count hasta el Final de la Ronda.' },
-            { id: 'fragile', nombre: 'Fragile', tipo: 'Single', icono: 'https://i.imgur.com/wSFboZT.png', desc: 'Recibes 10% más daño por cada count hasta el Final de la Ronda.' },
-            { id: 'protection', nombre: 'Protection', tipo: 'Single', icono: 'https://i.imgur.com/yjPgnjd.png', desc: 'Recibes 10% menos daño por cada count hasta el Final de la Ronda.' },
-            { id: 'bind', nombre: 'Bind', tipo: 'Single', icono: 'https://i.imgur.com/QndWew8.png', desc: 'Tu speed se reduce en 1 por count hasta el Final de la Ronda.' },
-            { id: 'haste', nombre: 'Haste', tipo: 'Single', icono: 'https://i.imgur.com/zxUsYIN.png', desc: 'Tu speed se aumenta en 1 por count hasta el Final de la Ronda.' },
-            { id: 'sinking', nombre: 'Sinking', tipo: 'Double', icono: 'https://i.imgur.com/ZnulGzZ.png', desc: 'Al recibir daño pierdes SP igual al Potency y luego el Count baja en 1' },
-            { id: 'charge', nombre: 'Charge', tipo: 'Double', icono: 'https://i.imgur.com/GzJzNPV.png', desc: 'Un recurso que puede usarse en skills. Pierde 1 Count al Final de la Ronda.' },
-            { id: 'poise', nombre: 'Poise', tipo: 'Double', icono: 'https://i.imgur.com/KFEmJB5.png', desc: 'Ganan 5% de Probabilidad de Crítico igual por cada Potency. Al hacer Crítico el Count Baja en 1. Al Final de la Ronda el Count Baja en 1.' },
-            { id: 'paralysis', nombre: 'Paralysis', tipo: 'Single', icono: 'https://i.imgur.com/9TkO8Ce.png', desc: 'Vuelve el resultado individual de cada moneda a 0. Baja 1 Count cada vez que lanza una moneda el portador. Se pierde todo el efecto al final de la Ronda.' },
-            { id: 'burn', nombre: 'Burn', tipo: 'Double', icono: 'https://i.imgur.com/L4bRd44.png', desc: 'Al inicio de la ronda recibes daño de fuego igual al Potency y Pierdes 1 Count.' },
-            { id: 'rupture', nombre: 'Rupture', tipo: 'Double', icono: 'https://i.imgur.com/g5LTeDs.png', desc: 'Al recibir daño pierdes HP igual al Potency y luego el Count baja en 1' },
-            { id: 'bleed', nombre: 'Bleed', tipo: 'Double', icono: 'https://i.imgur.com/mp9fbme.png', desc: 'Cada Choque y Golpe te hace perder HP Igual al Potency y Pierdes 1 Count.' },
-            { id: 'tremor', nombre: 'Tremor', tipo: 'Double', icono: 'https://i.imgur.com/fuDGjpn.png', desc: 'Al activar Tremor Burst aumenta el Threshold Igual al Potency y Pierdes 1 Count. Al final de la Ronda pierdes 1 Count.' },
-            { id: 'acid', nombre: 'Acid', tipo: 'Double', icono: 'https://i.imgur.com/SRVLqLb.png', desc: 'Al inicio de la ronda Recibes daño ácido igual al Potency y Pierdes 1 Count. El poder Base se Reduce en 2 hasta perder el efecto.' },
-            { id: 'toxin', nombre: 'Toxin', tipo: 'Single', icono: 'https://i.imgur.com/kif8Atj.png', desc: 'Al inicio de la Ronda Multiplica el Poison igual al Count y luego pierdes este efecto.' },
-            { id: 'poison', nombre: 'Poison', tipo: 'Double', icono: 'https://i.imgur.com/RCOGKtP.png', desc: 'Al inicio de la Ronda recibes daño de veneno igual al Potency y Pierdes la mitad del Count. Si solo hay 1 Count al inicio de la ronda se pierde el efecto.' },
-            { id: 'cold', nombre: 'Cold', tipo: 'Double', icono: 'https://i.imgur.com/7sdhMDZ.png', desc: 'Al inicio de la ronda Recibes daño de frío igual al Potency y Pierdes 1 Count. El speed se Reduce en 1 por cada 3 Potency.' },
-            { id: 'shock', nombre: 'Shock', tipo: 'Double', icono: 'https://i.imgur.com/AJsmGbo.png', desc: 'Al inicio de la ronda Recibes daño eléctrico igual al Potency y Pierdes 1 Count. El poder de moneda se Reduce en 2 hasta perder el efecto.' }
+            { id: 'defense_level_down', nombre: 'Defense Level Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/s2jUtlo.png', desc: 'Defense Level Baja igual a la Count hasta el final de la Ronda.' },
+            { id: 'defense_level_up', nombre: 'Defense Level Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/C0apZVL.png', desc: 'Defense Level Sube igual al Count hasta el final de la Ronda.' },
+            { id: 'defense_power_down', nombre: 'Defense Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/MGdXCaC.png', desc: 'Skills Defensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'defense_power_up', nombre: 'Defense Power Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/AkiiCza.png', desc: 'Skills Defensivas Ganan Poder Final Igual Count Hasta el final de la Ronda.' },
+            { id: 'damage_down', nombre: 'Damage Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/bo7reA0.png', desc: 'Baja 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
+            { id: 'damage_up', nombre: 'Damage Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/KDLYRCR.png', desc: 'Aumenta 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
+            { id: 'hp_healing_down', nombre: 'HP Healing Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/5WYFFVt.png', desc: 'Baja 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
+            { id: 'hp_healing_up', nombre: 'HP Healing Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/uynjNTN.png', desc: 'Sube 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
+            { id: 'clash_power_down', nombre: 'Clash Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/TppbWXb.png', desc: 'Poder de Choque disminuye Igual al Count Hasta el Final de la Ronda.' },
+            { id: 'clash_power_up', nombre: 'Clash Power Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/Q49TCVN.png', desc: 'Poder de Choque aumenta Igual al Count Hasta el Final de la Ronda.' },
+            { id: 'offensive_level_down', nombre: 'Offensive Level Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/usBnT9m.png', desc: 'Offensive Level Baja igual a la Count hasta el final de la Ronda.' },
+            { id: 'offensive_level_up', nombre: 'Offensive Level Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/p70Fei4.png', desc: 'Offensive Level Sube igual a la Count hasta el final de la Ronda.' },
+            { id: 'attack_power_down', nombre: 'Attack Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/g69L38F.png', desc: 'Skills Ofensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'attack_power_up', nombre: 'Attack Power UP', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/JbDs4X0.png', desc: 'Skills Ofensivas Ganan Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'fragile', nombre: 'Fragile', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/wSFboZT.png', desc: 'Recibes 10% más daño por cada count hasta el Final de la Ronda.' },
+            { id: 'protection', nombre: 'Protection', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/yjPgnjd.png', desc: 'Recibes 10% menos daño por cada count hasta el Final de la Ronda.' },
+            { id: 'bind', nombre: 'Bind', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/QndWew8.png', desc: 'Tu speed se reduce en 1 por count hasta el Final de la Ronda.' },
+            { id: 'haste', nombre: 'Haste', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/zxUsYIN.png', desc: 'Tu speed se aumenta en 1 por count hasta el Final de la Ronda.' },
+            { id: 'sinking', nombre: 'Sinking', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/ZnulGzZ.png', desc: 'Al recibir daño pierdes SP igual al Potency y luego el Count baja en 1' },
+            { id: 'charge', nombre: 'Charge', clasificacion: 'positivo', tipo: 'Double', icono: 'https://i.imgur.com/GzJzNPV.png', desc: 'Un recurso que puede usarse en skills. Pierde 1 Count al Final de la Ronda.' },
+            { id: 'poise', nombre: 'Poise', clasificacion: 'positivo', tipo: 'Double', icono: 'https://i.imgur.com/KFEmJB5.png', desc: 'Ganan 5% de Probabilidad de Crítico igual por cada Potency. Al hacer Crítico el Count Baja en 1. Al Final de la Ronda el Count Baja en 1.' },
+            { id: 'paralysis', nombre: 'Paralysis', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/9TkO8Ce.png', desc: 'Vuelve el resultado individual de cada moneda a 0. Baja 1 Count cada vez que lanza una moneda el portador. Se pierde todo el efecto al final de la Ronda.' },
+            { id: 'burn', nombre: 'Burn', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/L4bRd44.png', desc: 'Al inicio de la ronda recibes daño de fuego igual al Potency y Pierdes 1 Count.' },
+            { id: 'rupture', nombre: 'Rupture', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/g5LTeDs.png', desc: 'Al recibir daño pierdes HP igual al Potency y luego el Count baja en 1' },
+            { id: 'bleed', nombre: 'Bleed', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/mp9fbme.png', desc: 'Cada Choque y Golpe te hace perder HP Igual al Potency y Pierdes 1 Count.' },
+            { id: 'tremor', nombre: 'Tremor', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/fuDGjpn.png', desc: 'Al activar Tremor Burst aumenta el Threshold Igual al Potency y Pierdes 1 Count. Al final de la Ronda pierdes 1 Count.' },
+            { id: 'acid', nombre: 'Acid', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/SRVLqLb.png', desc: 'Al inicio de la ronda Recibes daño ácido igual al Potency y Pierdes 1 Count. El poder Base se Reduce en 2 hasta perder el efecto.' },
+            { id: 'toxin', nombre: 'Toxin', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/kif8Atj.png', desc: 'Al inicio de la Ronda Multiplica el Poison igual al Count y luego pierdes este efecto.' },
+            { id: 'poison', nombre: 'Poison', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/RCOGKtP.png', desc: 'Al inicio de la Ronda recibes daño de veneno igual al Potency y Pierdes la mitad del Count. Si solo hay 1 Count al inicio de la ronda se pierde el efecto.' },
+            { id: 'cold', nombre: 'Cold', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/7sdhMDZ.png', desc: 'Al inicio de la ronda Recibes daño de frío igual al Potency y Pierdes 1 Count. El speed se Reduce en 1 por cada 3 Potency.' },
+            { id: 'shock', nombre: 'Shock', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/AJsmGbo.png', desc: 'Al inicio de la ronda Recibes daño eléctrico igual al Potency y Pierdes 1 Count. El poder de moneda se Reduce en 2 hasta perder el efecto.' }
         ];
 
         // 2. Base de Datos Fase 1
@@ -2625,9 +2634,11 @@
         }
 
         function renderEstados() {
-            const grid = document.getElementById('estados-grid');
-            if (!grid) return;
-            grid.innerHTML = '';
+            const gridPositivos = document.getElementById('estados-positivos-grid');
+            const gridNegativos = document.getElementById('estados-negativos-grid');
+            if (!gridPositivos || !gridNegativos) return;
+            gridPositivos.innerHTML = '';
+            gridNegativos.innerHTML = '';
 
             efectosDeEstado.forEach(efecto => {
                 const card = document.createElement('div');
@@ -2640,7 +2651,11 @@
                         <div class="estado-desc">${efecto.desc}</div>
                     </div>
                 `;
-                grid.appendChild(card);
+                if (efecto.clasificacion === 'positivo') {
+                    gridPositivos.appendChild(card);
+                } else {
+                    gridNegativos.appendChild(card);
+                }
             });
         }
 
