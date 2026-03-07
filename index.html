@@ -655,7 +655,7 @@
             <div class="tabs-header" style="margin-top: 20px; border-bottom: 1px solid #444;">
                 <button class="tab-btn active sub-tab-btn" data-subtab="subtab-mecanicas">Mecánicas de Rol</button>
                 <button class="tab-btn sub-tab-btn" data-subtab="subtab-stats">Stats de Combates</button>
-                <button class="tab-btn sub-tab-btn" disabled style="cursor: not-allowed; opacity: 0.5;">Skills (Próximamente)</button>
+                <button class="tab-btn sub-tab-btn" data-subtab="subtab-skills">Skills</button>
             </div>
 
             <div id="subtab-mecanicas" class="sub-tab-content active">
@@ -846,6 +846,116 @@
                     </div>
                 </div>
             </div> <!-- End subtab-stats -->
+
+            <div id="subtab-skills" class="sub-tab-content">
+                <div class="phase-header">
+                    <h1>Habilidades (Skills)</h1>
+                    <p>Toda unidad —tanto aliada como enemiga— posee un conjunto de Habilidades (Skills) y Pasivas que pueden utilizar durante el combate.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">El Arsenal Base:</strong> Cada personaje posee al menos 3 Habilidades de Ataque de distinto poder y 1 Habilidad de Defensa. Adicionalmente, cuentan con una Pasiva de Combate y una Pasiva de Soporte que se activan dependiendo de si están activamente peleando o en la retaguardia.</li>
+                            <li><strong style="color: var(--green-success);">Mazo de Habilidades (Skill Deck):</strong> En combate, las unidades extraen sus ataques de un "Mazo" que contiene una cantidad específica de copias de cada Habilidad. Este mazo solo se baraja y reinicia cuando todas las Habilidades se han agotado. La cantidad de copias es inversamente proporcional al poder de la Skill (ej. el mazo tiene 3 copias de la Habilidad 1, pero solo 1 copia de la poderosa Habilidad 3).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Propiedades de las Habilidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Al revisar la información de una Habilidad, encontrarás siempre las siguientes propiedades matemáticas:</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Poder Base (Base Power):</strong> El valor numérico con el que inicia la Habilidad antes de lanzar cualquier moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Poder de Moneda (Coin Power):</strong> La cantidad de Poder que se suma (o resta) por cada Moneda que caiga en Cara (Heads). El valor final tras el lanzamiento de monedas se denomina <strong>Poder Final</strong>.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad de Monedas (Coin Amount):</strong> El número de monedas que lanza la Habilidad. Toda Habilidad tiene al menos 1 moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Nivel Ofensivo/Defensivo (Offense/Defense Level):</strong> Un modificador numérico exclusivo de esa Habilidad específica que aumenta o disminuye el Nivel Ofensivo/Defensivo general de la unidad al usarla.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad en el Mazo (Skill Amount):</strong> Dicta cuántas copias de esta Habilidad hay en el Mazo de la unidad, definiendo qué tan a menudo estará disponible. (Las habilidades enemigas no usan esta propiedad).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Tipos de Daño y Afinidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p><strong style="color: var(--green-success);">Tipo de Daño (Damage Type):</strong> Define la naturaleza física o mágica de la Habilidad y cómo interactúa con las resistencias del objetivo. Se divide en las siguientes categorías:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Akf25L5.png" alt="Cortante" style="width: 20px; height: 20px;"> Cortante (Slashing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/slcQlpc.png" alt="Perforante" style="width: 20px; height: 20px;"> Perforante (Piercing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/cg8Wh4w.png" alt="Contundente" style="width: 20px; height: 20px;"> Contundente (Bludgeoning)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/jaHFSfB.png" alt="Ácido" style="width: 20px; height: 20px;"> Ácido (Acid)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0br4gK4.png" alt="Fuego" style="width: 20px; height: 20px;"> Fuego (Fire)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/kJY0rBP.png" alt="Frío" style="width: 20px; height: 20px;"> Frío (Cold)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/KMQuv3T.png" alt="Eléctrico" style="width: 20px; height: 20px;"> Eléctrico (Electric)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/qjPIdi6.png" alt="Fuerza" style="width: 20px; height: 20px;"> Fuerza (Force)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Xjt7U8a.png" alt="Necrótico" style="width: 20px; height: 20px;"> Necrótico (Necrotic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/adZpZuN.png" alt="Veneno" style="width: 20px; height: 20px;"> Veneno (Poison)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7MGMPB0.png" alt="Psíquico" style="width: 20px; height: 20px;"> Psíquico (Psychic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/RmU2HGK.png" alt="Radiante" style="width: 20px; height: 20px;"> Radiante (Radiant)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7VcSDjq.png" alt="Trueno" style="width: 20px; height: 20px;"> Trueno (Thunder)</li>
+                        </ul>
+                        <p style="margin-top: 15px;"><strong style="color: var(--green-success);">Afinidad de Pecado (Sin Affinity):</strong> Determina qué tipo de recurso mágico (E.G.O Resource) genera la Habilidad, cómo interactúa con las Resonancias y el daño que inflige frente a las Resistencias de Pecado del objetivo. Existen siete afinidades:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Nn33MJR.png" alt="Ira" style="width: 20px; height: 20px;"> Ira (Wrath)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/bF7bHHT.png" alt="Lujuria" style="width: 20px; height: 20px;"> Lujuria (Lust)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/igYFF1I.png" alt="Pereza" style="width: 20px; height: 20px;"> Pereza (Sloth)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0KArwDU.png" alt="Gula" style="width: 20px; height: 20px;"> Gula (Gluttony)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/DCTX5Jy.png" alt="Melancolía" style="width: 20px; height: 20px;"> Melancolía (Gloom)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/w6z9THA.png" alt="Orgullo" style="width: 20px; height: 20px;"> Orgullo (Pride)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/SuNHY9D.png" alt="Envidia" style="width: 20px; height: 20px;"> Envidia (Envy)</li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades (usualmente las de Defensa) carecen de afinidad. Se representan en color neutro sin decoraciones ni recursos asociados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Peso de Ataque (Atk Weight)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Attack Weight:</strong> Es la cantidad máxima de <em>Slots</em> que una sola Habilidad puede marcar como objetivo simultáneamente.</li>
+                            <li><strong style="color: var(--cyan-tech);">Resistencia de Slot (Slot Weight):</strong> Algunos enemigos gigantes o jefes pueden tener Slots que "pesan" más de 1. Esto obliga a la Habilidad a consumir más Attack Weight para afectarlos.
+                                <ul>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 1:</em> Una Habilidad con 5 de Atk Weight puede golpear 5 Slots distintos si cada uno pesa 1. (5 ⇒ 1|1|1|1|1).</li>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 2:</em> Esa misma Habilidad solo podrá golpear a 3 Slots si los primeros dos pesan 2 (Gasta 2 de peso en el primer slot, 2 en el segundo, y sobra 1 para un tercer slot). (5 ⇒ 2|2|1).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades pueden aumentar su Atk Weight al cumplir ciertas condiciones en combate, priorizando siempre a objetivos con baja salud o que aún no han sido seleccionados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        4. Las Monedas (Coins)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Cada Habilidad requiere lanzar Monedas para alcanzar su potencial. Dependiendo de si caen en Cara o Cruz, alteran el Poder Final de la Habilidad (y por tanto, su daño o capacidad de ganar Choques). La probabilidad de sacar Cara está dictada estrictamente por los Puntos de Sanidad (SP) de la unidad.</p>
+                        <p><strong style="color: var(--green-success);">Tipos de Moneda Base:</strong></p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech); display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda Positiva" style="width: 20px; height: 20px;"> Moneda Normal (Positiva):</strong> Si sale Cara (Éxito), suma su Poder de Moneda al Poder Base. A mayor SP, más probabilidad de sacar Cara.</li>
+                            <li><strong style="color: var(--red-neon); display: flex; align-items: center; gap: 5px;"> Moneda Negativa:</strong> Si sale Cara (Éxito), resta su Poder de Moneda al Poder Base. Estas habilidades están diseñadas para funcionar mejor cuando tu SP está por los suelos (buscando que salga Cruz/Fallo para evitar la resta).</li>
+                        </ul>
+
+                        <h3 style="color: var(--red-bright); margin-top: 20px; display: flex; align-items: center; gap: 10px;">
+                            <img src="https://i.imgur.com/yCxmI84.png" alt="Moneda Irrompible" style="width: 24px; height: 24px;"> Monedas Irrompibles (Unbreakable Coins)
+                        </h3>
+                        <p>Son una variante única y letal dentro del sistema, indicadas por su color rojo especial.</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Mecánica de Grieta:</strong> A diferencia de las monedas normales, las Monedas Irrompibles <strong>NO se destruyen</strong> si pierdes un Choque (Clash). En su lugar, se "Agrietan" (Cracked).</li>
+                            <li><strong style="color: var(--cyan-tech);">Contraataque Agrietado:</strong> Las monedas agrietadas se dispararán sobre el enemigo después de perder el Choque (funcionando casi como un contraataque), pero su Poder de Moneda queda fijado permanentemente en <strong>1</strong> (+1 para monedas positivas, -1 para monedas negativas).</li>
+                            <li><strong style="color: var(--cyan-tech);">Interacciones:</strong> La fijación del poder a 1 ocurre <em>antes</em> de aplicar bonificadores externos. Esto significa que si una Skill dice "Poder de Moneda +2 si el objetivo sangra", la moneda agrietada subirá de 1 a 3. Del mismo modo, estados negativos como Parálisis pueden reducir este valor a 0.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cancelación:</strong> Si el usuario de la Habilidad es empujado al estado de Aturdimiento (Stagger) durante el Choque, las Monedas Irrompibles se cancelan y no se disparan.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div> <!-- End subtab-skills -->
         </div> <!-- End tab-guia -->
 
         <!-- TAB CREADOR -->
