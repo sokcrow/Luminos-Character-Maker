@@ -647,4 +647,55 @@
                 </div>
             </div>
 
-            <div class="card-body" style="background-
+        </div> <!-- End tab-guia -->
+
+        <!-- TAB CREATOR -->
+        <div id="tab-creator" class="tab-content">
+            <div class="phase-header">
+                <h1>Creación de Personaje</h1>
+                <p>Herramienta en desarrollo...</p>
+            </div>
+        </div>
+
+        <!-- TAB ESTADOS -->
+        <div id="tab-estados" class="tab-content">
+            <div class="phase-header">
+                <h1>Estados</h1>
+                <p>Lista de estados próximamente...</p>
+            </div>
+        </div>
+
+        <!-- TAB HABILIDADES -->
+        <div id="tab-habilidades" class="tab-content">
+            <div class="phase-header">
+                <h1>Atributos y Habilidades</h1>
+                <p>Lista de habilidades próximamente...</p>
+            </div>
+        </div>
+
+    </div> <!-- End luminous-container -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remove active from all
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+
+                    // Add active to clicked
+                    btn.classList.add('active');
+                    const tabId = btn.getAttribute('data-tab');
+                    const target = document.getElementById(tabId);
+                    if (target) {
+                        target.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
