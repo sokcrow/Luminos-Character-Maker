@@ -550,6 +550,14 @@
             display: block;
         }
 
+        .sub-tab-content {
+            display: none;
+        }
+
+        .sub-tab-content.active {
+            display: block;
+        }
+
         .btn-proximamente {
             position: fixed;
             bottom: 20px;
@@ -637,17 +645,24 @@
     <div class="luminous-container">
 
         <div class="tabs-header">
-            <button class="tab-btn active" data-tab="tab-guia">Guía del Sistema</button>
+            <button class="tab-btn active" data-tab="tab-guia">Guía</button>
             <button class="tab-btn" data-tab="tab-estados">Estados</button>
             <button class="tab-btn" data-tab="tab-habilidades">Atributos y Habilidades</button>
         </div>
 
         <!-- TAB GUIA -->
         <div id="tab-guia" class="tab-content active">
-            <div class="phase-header">
-                <h1>Guía del Sistema: Mecánicas de Rol</h1>
-                <p>Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
+            <div class="tabs-header" style="margin-top: 20px; border-bottom: 1px solid #444;">
+                <button class="tab-btn active sub-tab-btn" data-subtab="subtab-mecanicas">Mecánicas de Rol</button>
+                <button class="tab-btn sub-tab-btn" data-subtab="subtab-stats">Stats de Combates</button>
+                <button class="tab-btn sub-tab-btn" disabled style="cursor: not-allowed; opacity: 0.5;">Skills (Próximamente)</button>
             </div>
+
+            <div id="subtab-mecanicas" class="sub-tab-content active">
+                <div class="phase-header">
+                    <h1>Mecánicas de Rol</h1>
+                    <p>Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
+                </div>
 
             <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
@@ -696,7 +711,134 @@
                     <p style="color: var(--red-neon); font-style: italic;">Úsala sabiamente: la Ciudad no perdona a los que malgastan sus milagros.</p>
                 </div>
             </div>
-        </div>
+            </div> <!-- End subtab-mecanicas -->
+
+            <div id="subtab-stats" class="sub-tab-content">
+                <div class="phase-header">
+                    <h1>Stats de Combates</h1>
+                    <p>El combate en la Ciudad es un choque simultáneo de voluntades y acero. Sobrevivir requiere entender la velocidad, la gestión de tu cordura y tu economía de acciones.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Atributos Vitales y Recursos
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">HP (Puntos de Salud):</strong> Tu vitalidad física. Si llega a 0, mueres o quedas fuera de combate. El HP máximo se calcula con la siguiente fórmula: HP = HP_Base + (Coef × DEF_LVL).
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">HP Base:</strong> Un valor inicial de vitalidad que se establece entre 60 y 90.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Coeficiente (Coef):</strong> Un multiplicador fijo determinado por tu Clase:
+                                        <br>Bárbaro: 3.38 | Guerrero: 3.27 | Paladín: 3.17 | Monje: 2.96 | Druida: 2.87
+                                        <br>Artífice: 2.75 | Ranger: 2.67 | Clérigo: 2.56 | Pícaro: 2.48
+                                        <br>Hechicero: 2.36 | Bardo: 2.26 | Brujo: 2.17 | Mago: 2.16
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Nivel Defensivo (DEF LVL):</strong> El multiplicador principal del coeficiente. El DEF LVL base es igual a tu nivel actual de personaje. Las armaduras, accesorios y armas que lleves pueden aplicar bonificadores o penalizadores a este nivel, alterando directamente tu HP máximo.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Escudo (Shield):</strong> Algunas Habilidades (Skills), Ventajas (Perks) y estados alterados otorgan una barrera temporal que protege tu vitalidad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad:</strong> El escudo tiene prioridad absoluta al recibir ataques. Siempre absorberá el daño primero antes de que toque tu HP.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Daño Excedente:</strong> Si un ataque es lo suficientemente fuerte como para reducir el escudo a 0, cualquier daño restante traspasará la barrera y se restará directamente a tu HP.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Speed (Velocidad):</strong> Al inicio de la ronda, todas las unidades lanzan un número aleatorio que determina su Velocidad. Esto define quién golpea con prioridad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad de Ataque:</strong> La regla de oro es que la unidad más rápida siempre ataca primero a su objetivo seleccionado, a menos que el objetivo bloquee ese ataque con otra Skill para forzar un Choque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Ataques Unilaterales:</strong> Si una unidad intenta golpear a otra que es más rápida que ella (y no hay un Choque forzado):
+                                        <ul>
+                                            <li>La Skill de la unidad más rápida se vuelve [Sin Choque] y golpea primero.</li>
+                                            <li>La Skill de la unidad más lenta se vuelve [Sin Oposición], pero debe esperar a que su turno de Velocidad llegue en la ronda para ejecutarse.</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Stagger Threshold (Umbral de Aturdimiento):</strong> Tu barra de HP tiene marcas o umbrales basados en porcentajes de tu salud máxima. Dependiendo de tus ventajas (perks) y la armadura que lleves, puedes tener entre 1 y 3 Umbrales de Aturdimiento. Si recibes suficiente daño para cruzar una de estas líneas en una sola ronda, tu guardia se rompe.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Penalización de Acción:</strong> Al entrar en Stagger, pierdes tu capacidad de actuar en la ronda en la que se activó el estado y durante toda la ronda siguiente. Eres completamente vulnerable.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Niveles de Stagger:</strong> Romper múltiples umbrales dentro de la misma ronda aumenta la severidad del estado y el multiplicador de todo el daño que recibas mientras estés aturdido:
+                                        <ul>
+                                            <li><strong style="color: var(--red-neon);">Stagger</strong> (1 umbral roto): El daño recibido se multiplica por 2 (x2).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger+</strong> (2 umbrales rotos): El daño recibido se multiplica por 2.5 (x2.5).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger++</strong> (3 umbrales rotos): El daño recibido se multiplica por 3 (x3).</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Límite de Ronda:</strong> No se pueden activar ni acumular más niveles de Stagger si el combate pasa a la siguiente ronda. Para alcanzar un Stagger+ o Stagger++, los umbrales deben ser destruidos dentro de la misma ronda de ataques.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">SP (Puntos de Sanidad):</strong> Tu estabilidad mental y el combustible de tu voluntad. Afecta directamente la probabilidad de que tus monedas caigan en Cara y sirve como recurso principal para lanzar magia.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Recuperación en Combate:</strong> Recuperas Sanidad usando la fórmula: 10 + Cantidad de Choques en los que participes.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Pérdida por Trauma:</strong> Pierdes 10 de Sanidad de forma automática e inmediata cada vez que un aliado cae en combate.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Costo de Spells (Hechizos):</strong> Lanzar magia consume tu cordura. El costo drena entre 0 y 45 SP, dependiendo del nivel de poder del Spell.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Slots de Acción (Economía de Acciones):</strong> Representan cuántos movimientos o interacciones puedes realizar en un turno. Generalmente, una unidad posee entre 1 y 3 slots, pudiendo superar este límite solo en situaciones muy especiales.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Ataque y Defensa:</strong> Usar una Habilidad (Skill) Ofensiva, Defensiva o conjurar un Spell consume 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Checks de Habilidad y Entorno:</strong> El primer Check de Habilidad del turno es gratis, única y estrictamente si no requiere interactuar con más de una unidad (ej. evaluar el estado de un aliado a la distancia o buscar una debilidad visual en un enemigo). Cualquier Check de Habilidad adicional en el mismo turno costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Objetos (Items):</strong> El costo de acción depende del objeto. Algunos consumen 1 slot desde el primer uso. Los objetos clasificados como "de uso gratis" no consumen slot la primera vez que se usan en el turno, pero cualquier uso adicional del mismo objeto o de otro similar costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Vulnerabilidad y Slots Expuestos:</strong> Gestionar esta economía es de vida o muerte. Si dejas uno de tus slots expuesto (sin asignarle una acción o defensa), este puede ser atacado por múltiples enemigos simultáneamente. Todo ataque dirigido a un slot vacío o no defendido se considera una acción [Sin Oposición], lo que significa que recibirás el daño de lleno sin oportunidad de forzar un Choque.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Offense Level y Defense Level
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Estas estadísticas escalan directamente con el Nivel de la unidad y afectan tanto el Poder de Choque (Clash Power) como el daño final de las Habilidades. El Offense/Defense Level nunca puede ser menor a 1.</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Cálculo de Nivel:</strong> Toda unidad posee un Offense/Defense Level base igual a su Nivel actual. Además, cada Habilidad (de Ataque, Defensa o E.G.O.) puede tener un modificador único que aumenta o disminuye este nivel general.<br>
+                                <span style="color: var(--cyan-tech); font-family: 'Share Tech Mono', monospace;">Fórmula de cálculo: Nivel = Nivel_Unidad + Modificador</span>
+                            </li>
+                        </ul>
+                        <p>Estos Niveles afectan el combate en dos formas principales:</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">1. Resolución de Choques (Clashes):</strong> En un Choque entre dos Habilidades, la que tenga el Offense/Defense Level más alto gana Poder de Choque adicional.
+                                <ul>
+                                    <li>Obtienes +1 de Poder por cada 3 niveles de diferencia, redondeado hacia abajo (Ej. Una ventaja de 4 niveles otorga +1 de Poder).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Excepción:</strong> En un Choque entre un Ataque y una Habilidad de Defensa que no puede chocar (non-Clashable), solo la Habilidad de Defensa puede ganar poder gracias a esta diferencia de niveles, y lo obtiene como Poder Final en lugar de Poder de Choque.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">2. Modificador de Daño:</strong> Al hacer daño con Habilidades de Ataque, la diferencia entre el Offense Level del atacante y el Defense Level del defensor modifica porcentualmente el daño infligido. Este cálculo se aplica por encima de las Resistencias.
+                                <br>La fórmula exacta del modificador de daño es:
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">M</strong> es el modificador de daño (en %).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Off</strong> es el Offense Level de la Habilidad de Ataque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Def</strong> es el Defense Level del defensor (Si usa una Habilidad de Defensa, se usa el nivel de esa habilidad; si no, se usa el Nivel Defensivo base de su cuerpo o de la parte objetivo).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Multiplicadores y Resistencias
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Crítico:</strong> Un golpe perfecto cuyo cálculo se aplica al final de toda la cadena de daño. Otorga un +20% adicional base al daño total, calculándose estrictamente después de haber aplicado todas las reducciones (Niveles Defensivos, Resistencias) o aumentos (Niveles Ofensivos, Debilidades, multiplicadores por Stagger). Existen efectos de estado, Habilidades (Skills) y Ventajas (Perks) que pueden aumentar este multiplicador de daño crítico por encima del 20% base.</li>
+                            <li><strong style="color: var(--green-success);">Resistencias de Daño:</strong> Todas las criaturas tienen resistencias a los distintos tipos de daño (Corte, Perforación, Contundente, Fuego, Frío, Radiante, Necrótico, etc., utilizando la lista tradicional de D&D). Estas resistencias se dividen en las siguientes categorías de multiplicación de daño:
+                                <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
+                                    <li><strong style="color: var(--red-neon);">Fatal:</strong> x2 (Recibe el doble de daño). Nota: Este nivel de vulnerabilidad extrema casi nunca es innato. Por lo general, alcanzar un multiplicador Fatal (o superior) solo es posible en situaciones tácticas específicas, principalmente cuando se rompen los umbrales del objetivo y este entra en los distintos niveles de Aturdimiento (Stagger).</li>
+                                    <li><strong style="color: var(--red-bright);">Débil:</strong> x1.5</li>
+                                    <li><strong style="color: var(--text-main);">Normal:</strong> x1 (El daño se aplica tal cual).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Resistente:</strong> x0.5 (Recibe la mitad del daño).</li>
+                                    <li><strong style="color: var(--green-success);">Inefectivo:</strong> x0.25 (Apenas sufre daño).</li>
+                                    <li><strong style="color: #444;">Inmune:</strong> x0 (No recibe daño alguno).</li>
+                                    <li><strong style="color: var(--border-accent);">Absorbido:</strong> x-1 (El daño sana a la criatura en lugar de herirla).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div> <!-- End subtab-stats -->
+        </div> <!-- End tab-guia -->
 
         <!-- TAB CREADOR -->
         <div id="tab-creator" class="tab-content">
@@ -2335,7 +2477,7 @@
         // 8. Inicialización
 
         function initTabs() {
-            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabBtns = document.querySelectorAll('.tab-btn:not(.sub-tab-btn)');
             tabBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
                     // Remover active de todos los botones y contenidos
@@ -2345,6 +2487,20 @@
                     // Activar el clickeado
                     btn.classList.add('active');
                     const tabId = btn.dataset.tab;
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        function initSubTabs() {
+            const subTabBtns = document.querySelectorAll('.sub-tab-btn');
+            subTabBtns.forEach(btn => {
+                if(btn.disabled) return;
+                btn.addEventListener('click', () => {
+                    subTabBtns.forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    const tabId = btn.dataset.subtab;
                     document.getElementById(tabId).classList.add('active');
                 });
             });
@@ -2374,6 +2530,7 @@
             try {
                 initDOM();
                 initTabs();
+                initSubTabs();
                 renderOrigins();
                 renderPhase1();
                 renderEstados();
