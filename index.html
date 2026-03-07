@@ -550,6 +550,23 @@
             display: block;
         }
 
+        .btn-proximamente {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #111;
+            border: 1px solid #333;
+            color: #555;
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            cursor: not-allowed;
+            text-transform: uppercase;
+            border-radius: 4px;
+            text-align: center;
+        }
+
         /* Estados Tab Grid */
         .estados-grid {
             display: grid;
@@ -615,11 +632,12 @@
 </head>
 <body>
 
+    <button class="btn-proximamente" disabled>Comenzar Creación de Personaje<br>(Próximamente)</button>
+
     <div class="luminous-container">
 
         <div class="tabs-header">
             <button class="tab-btn active" data-tab="tab-guia">Guía del Sistema</button>
-            <button class="tab-btn" data-tab="tab-creator">Comenzar Creación de Personaje</button>
             <button class="tab-btn" data-tab="tab-estados">Estados</button>
             <button class="tab-btn" data-tab="tab-habilidades">Atributos y Habilidades</button>
         </div>
