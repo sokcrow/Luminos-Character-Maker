@@ -151,7 +151,18 @@
 </head>
 <body>
     <div id="app">
-        <div id="phase1" class="phase">
+        <div id="phase-intro" class="phase">
+            <div class="background-glow"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 10;">
+                <p id="intro-dialogue-text" class="golden-text" style="animation: none; opacity: 1;"></p>
+                <div id="name-input-container" class="hidden" style="margin-top: 20px; text-align: center;">
+                    <input type="text" id="character-name-input" style="background: transparent; border: 1px solid #FFD700; color: #FFD700; font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; padding: 10px; text-align: center; outline: none;">
+                    <button id="confirm-name-btn" style="background: transparent; border: 1px solid #FFD700; color: #FFD700; font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; padding: 10px; cursor: pointer; margin-left: 10px; outline: none; transition: background 0.3s, color 0.3s;" onmouseover="this.style.background='#FFD700'; this.style.color='black'" onmouseout="this.style.background='transparent'; this.style.color='#FFD700'">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="phase1" class="phase hidden">
             <h1 class="question">¿Que eres?</h1>
             <div class="roulette-container">
                 <ul class="roulette" id="roulette-list">
@@ -187,6 +198,149 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const phaseIntro = document.getElementById('phase-intro');
+            const introDialogueText = document.getElementById('intro-dialogue-text');
+            const nameInputContainer = document.getElementById('name-input-container');
+            const characterNameInput = document.getElementById('character-name-input');
+            const confirmNameBtn = document.getElementById('confirm-name-btn');
+
+            let introStep = 0;
+            let isIntroTyping = false;
+            let typingTimeout;
+            let characterName = "";
+
+            const introDialogues = [
+                "Vaya...",
+                "No esperaba a nadie...<br>Aún...<br>Debes estar algo inquieto...",
+                "¿Cómo te llamas?",
+                "Lastima...",
+                "No lo recordarás si sigues avanzando...",
+                "¿Que eres?"
+            ];
+
+            function typeIntroText(htmlText) {
+                introDialogueText.innerHTML = "";
+                isIntroTyping = true;
+
+                // We need to handle <br> tags properly, so we create a temporary element
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlText;
+
+                let nodes = Array.from(tempDiv.childNodes);
+                let currentText = "";
+                let nodeIndex = 0;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (nodeIndex >= nodes.length) {
+                        isIntroTyping = false;
+                        if (introStep === 2) { // ¿Cómo te llamas?
+                            nameInputContainer.classList.remove('hidden');
+                            characterNameInput.focus();
+                        }
+                        if (introStep === 5) { // ¿Que eres?
+                            finishIntroPhase();
+                        }
+                        return;
+                    }
+
+                    let node = nodes[nodeIndex];
+
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        if (charIndex < node.textContent.length) {
+                            currentText += node.textContent.charAt(charIndex);
+                            introDialogueText.innerHTML = currentText;
+                            charIndex++;
+                            typingTimeout = setTimeout(typeNext, 50);
+                        } else {
+                            nodeIndex++;
+                            charIndex = 0;
+                            typeNext();
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+                        currentText += "<br>";
+                        introDialogueText.innerHTML = currentText;
+                        nodeIndex++;
+                        charIndex = 0;
+                        typingTimeout = setTimeout(typeNext, 50);
+                    } else {
+                        // For other elements, just append them (not strictly needed here since we only use <br>)
+                        currentText += node.outerHTML;
+                        introDialogueText.innerHTML = currentText;
+                        nodeIndex++;
+                        charIndex = 0;
+                        typeNext();
+                    }
+                }
+
+                typeNext();
+            }
+
+            function finishIntroPhase() {
+                setTimeout(() => {
+                    phaseIntro.classList.add('fade-out');
+                    setTimeout(() => {
+                        phaseIntro.classList.add('hidden');
+                        phase1.classList.remove('hidden');
+                    }, 1500);
+                }, 1000); // Wait a bit after typing finishes before transitioning
+            }
+
+            function handleIntroAdvance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                // If we are waiting for name input, don't advance on click
+                if (introStep === 2 && !isIntroTyping) return;
+                // If we are at the last step, the transition handles itself
+                if (introStep === 5) return;
+
+                if (isIntroTyping) {
+                    clearTimeout(typingTimeout);
+                    introDialogueText.innerHTML = introDialogues[introStep];
+                    isIntroTyping = false;
+
+                    if (introStep === 2) {
+                        nameInputContainer.classList.remove('hidden');
+                        characterNameInput.focus();
+                    }
+                    if (introStep === 5) {
+                        finishIntroPhase();
+                    }
+                } else {
+                    introStep++;
+                    if (introStep < introDialogues.length) {
+                        typeIntroText(introDialogues[introStep]);
+                    }
+                }
+            }
+
+            phaseIntro.addEventListener('click', handleIntroAdvance);
+            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+
+            // Prevent clicks on the input from advancing the phase
+            nameInputContainer.addEventListener('click', (e) => e.stopPropagation());
+            nameInputContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+
+            confirmNameBtn.addEventListener('click', () => {
+                const name = characterNameInput.value.trim();
+                if (name) {
+                    characterName = name;
+                    nameInputContainer.classList.add('hidden');
+                    introStep++;
+                    typeIntroText(introDialogues[introStep]);
+                }
+            });
+
+            characterNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    confirmNameBtn.click();
+                }
+            });
+
+            // Start intro
+            typeIntroText(introDialogues[introStep]);
+
+
             const phase1 = document.getElementById('phase1');
             const phaseDialogue = document.getElementById('phase-dialogue');
             const dialogueText = document.getElementById('dialogue-text');
