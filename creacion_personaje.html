@@ -395,6 +395,43 @@
             100% { opacity: 0.8; }
         }
 
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake {
+            animation: shake 0.5s;
+            animation-iteration-count: 1;
+        }
+
+        /* Purple Buttons */
+        .purple-btn {
+            background-color: transparent;
+            color: rgba(138, 43, 226, 0.5);
+            border: 1px solid rgba(138, 43, 226, 0.5);
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 1.2rem;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .purple-btn:hover {
+            color: rgba(138, 43, 226, 1);
+            border-color: rgba(138, 43, 226, 1);
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+        }
+
         /* Purple Phase Styles */
         .purple-text {
             color: #8A2BE2;
@@ -466,10 +503,30 @@
             </div>
         </div>
 
+
         <div id="phase-dialogue-2" class="phase hidden">
             <div class="background-glow"></div>
-            <p id="dialogue-text-2" class="golden-text"></p>
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 10; width: 100%;">
+                <p id="dialogue-text-2" class="golden-text"></p>
+                <div id="name-input-container-2" class="hidden" style="margin-top: 20px; text-align: center;">
+                    <input type="text" id="character-name-input-2" style="background: transparent; border: 1px solid #FFD700; color: #FFD700; font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; padding: 10px; text-align: center; outline: none;">
+                    <button id="confirm-name-btn-2" style="background: transparent; border: 1px solid #FFD700; color: #FFD700; font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; padding: 10px; cursor: pointer; margin-left: 10px; outline: none; transition: background 0.3s, color 0.3s;" onmouseover="this.style.background='#FFD700'; this.style.color='black'" onmouseout="this.style.background='transparent'; this.style.color='#FFD700'">Confirmar</button>
+                </div>
+            </div>
         </div>
+
+        <div id="phase-purple-intervention" class="phase hidden">
+            <div class="background-glow-purple"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 10; width: 80%;">
+                <p id="purple-intervention-text" class="purple-text" style="font-style: italic;"></p>
+                <div id="purple-buttons-container" class="hidden" style="margin-top: 30px; display: flex; justify-content: center;">
+                    <button class="purple-btn" data-action="Aprender">[ Aprender ]</button>
+                    <button class="purple-btn" data-action="Fortalecerme">[ Fortalecerme ]</button>
+                    <button class="purple-btn" data-action="Meditar">[ Meditar ]</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -2147,6 +2204,25 @@
             const phase2 = document.getElementById('phase2');
             const phaseDialogue2 = document.getElementById('phase-dialogue-2');
             const dialogueText2 = document.getElementById('dialogue-text-2');
+            const nameInputContainer2 = document.getElementById('name-input-container-2');
+            const characterNameInput2 = document.getElementById('character-name-input-2');
+            const confirmNameBtn2 = document.getElementById('confirm-name-btn-2');
+
+            let dialogue2Step = 0;
+            let dialogue2Phrases = [];
+            let isTypingDialogue2 = false;
+            let typingTimeout2;
+
+            const nameTrapResponses = [
+                "No...",
+                "¿Quién?",
+                "Ese eco hace mucho que se apagó. Intenta de nuevo.",
+                "No juegues conmigo.",
+                "Ese nombre no te pertenece.",
+                "Un fantasma no tiene lugar aquí. Dime tu verdadero nombre.",
+                "Ese espacio ya fue reclamado por el olvido. Elige otro.",
+                "No pronuncies lo que no entiendes. ¿Cómo te llaman?"
+            ];
 
             btnConfirmarTrasfondo.addEventListener('click', () => {
                 if (btnConfirmarTrasfondo.disabled) return;
@@ -2154,6 +2230,13 @@
                 // Get selected background's response
                 const selectedBg = backgroundsData.find(bg => bg.id === luminousState.backgroundId);
                 const responseText = selectedBg ? selectedBg.entityResponse : "...";
+
+                dialogue2Phrases = [
+                    responseText,
+                    "Ya veo...",
+                    "¿Qué nombre te dieron?"
+                ];
+                dialogue2Step = 0;
 
                 // Transition to Phase Dialogue 2
                 phase2.classList.add('fade-out');
@@ -2164,24 +2247,99 @@
 
                     // Show dialogue 2
                     phaseDialogue2.classList.remove('hidden');
-                    showDialogue2(responseText);
+                    typeDialogue2(dialogue2Phrases[dialogue2Step]);
                 }, 1500); // Wait for fade out
             });
 
-            // Handle dialogue 2 progression (Redirect to main creator)
-            phaseDialogue2.addEventListener('click', () => {
-                phaseDialogue2.classList.add('fade-out');
-                setTimeout(() => {
-                    window.location.href = 'index.html?tab=creator';
-                }, 1000);
+            function typeDialogue2(text) {
+                dialogueText2.innerHTML = "";
+                isTypingDialogue2 = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        dialogueText2.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        typingTimeout2 = setTimeout(typeNext, 50);
+                    } else {
+                        isTypingDialogue2 = false;
+                        if (dialogue2Step === 2) { // ¿Qué nombre te dieron?
+                            nameInputContainer2.classList.remove('hidden');
+                            characterNameInput2.focus();
+                        }
+                    }
+                }
+                typeNext();
+            }
+
+            function handleDialogue2Advance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                // If waiting for input, don't advance
+                if (dialogue2Step === 2 && !isTypingDialogue2) return;
+
+                if (isTypingDialogue2) {
+                    clearTimeout(typingTimeout2);
+                    dialogueText2.innerHTML = dialogue2Phrases[dialogue2Step];
+                    isTypingDialogue2 = false;
+                    if (dialogue2Step === 2) {
+                        nameInputContainer2.classList.remove('hidden');
+                        characterNameInput2.focus();
+                    }
+                } else {
+                    dialogue2Step++;
+                    if (dialogue2Step < dialogue2Phrases.length) {
+                        typeDialogue2(dialogue2Phrases[dialogue2Step]);
+                    }
+                }
+            }
+
+            phaseDialogue2.addEventListener('click', handleDialogue2Advance);
+            phaseDialogue2.addEventListener('touchstart', handleDialogue2Advance, {passive: false});
+
+            nameInputContainer2.addEventListener('click', (e) => e.stopPropagation());
+            nameInputContainer2.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+
+            confirmNameBtn2.addEventListener('click', () => {
+                const name = characterNameInput2.value.trim();
+                if (!name) return;
+
+                if (name.toLowerCase() === "midra") {
+                    // Trap triggered
+                    document.body.classList.add('shake');
+                    setTimeout(() => document.body.classList.remove('shake'), 500);
+                    characterNameInput2.value = "";
+
+                    const randomResponse = nameTrapResponses[Math.floor(Math.random() * nameTrapResponses.length)];
+                    dialogueText2.innerHTML = randomResponse;
+                    nameInputContainer2.classList.add('hidden');
+
+                    // After short delay, ask again
+                    setTimeout(() => {
+                        typeDialogue2(dialogue2Phrases[2]); // "¿Qué nombre te dieron?"
+                    }, 2000);
+                } else {
+                    // Valid name
+                    characterName = name;
+                    nameInputContainer2.classList.add('hidden');
+
+                    // Fade out Golden Entity to absolute darkness
+                    phaseDialogue2.classList.add('fade-out');
+                    setTimeout(() => {
+                        phaseDialogue2.classList.add('hidden');
+                        phaseDialogue2.classList.remove('fade-out');
+
+                        // Start Purple Intervention Phase
+                        startPurpleIntervention();
+                    }, 1500);
+                }
             });
 
-            function showDialogue2(text) {
-                dialogueText2.style.animation = 'none';
-                dialogueText2.offsetHeight; /* trigger reflow */
-                dialogueText2.style.animation = null;
-                dialogueText2.textContent = text;
-            }
+            characterNameInput2.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    confirmNameBtn2.click();
+                }
+            });
 
             function showDialogue(step) {
                 // Remove animation to re-trigger it
@@ -2191,6 +2349,179 @@
 
                 dialogueText.textContent = dialogues[step];
             }
+
+            // Logic for Phase Purple Intervention
+            const phasePurpleIntervention = document.getElementById('phase-purple-intervention');
+            const purpleInterventionText = document.getElementById('purple-intervention-text');
+            const purpleButtonsContainer = document.getElementById('purple-buttons-container');
+            const purpleBtns = document.querySelectorAll('.purple-btn');
+
+            let pIntervStep = 0;
+            let isTypingPInterv = false;
+            let typingTimeoutPInterv;
+            let isReadingResult = false; // Flag to prevent advancing while reading result
+
+            const pIntervPhrases = [
+                "Perdió el interés en ti.",
+                "De momento.",
+                "Eso nos da algo de tiempo.",
+                "Veo que has crecido...",
+                "El tiempo aquí fluye distinto, pero para ti... han pasado años.",
+                "Dime...",
+                "¿En qué te enfocaste para sobrevivir a esa etapa?"
+            ];
+
+            function startPurpleIntervention() {
+                phasePurpleIntervention.classList.remove('hidden');
+                pIntervStep = 0;
+                typePIntervText(pIntervPhrases[pIntervStep]);
+            }
+
+            function typePIntervText(text) {
+                purpleInterventionText.innerHTML = "";
+                isTypingPInterv = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        purpleInterventionText.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        typingTimeoutPInterv = setTimeout(typeNext, 50);
+                    } else {
+                        isTypingPInterv = false;
+                        if (pIntervStep === pIntervPhrases.length - 1) {
+                            purpleButtonsContainer.classList.remove('hidden');
+                        }
+                    }
+                }
+                typeNext();
+            }
+
+            function handlePIntervAdvance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                // If waiting for button click or result interaction, don't advance
+                if (pIntervStep >= pIntervPhrases.length - 1 && !isReadingResult) return;
+
+                if (isReadingResult) {
+                    if (isTypingPInterv) {
+                        clearTimeout(typingTimeoutPInterv);
+                        purpleInterventionText.innerHTML = "Ya veo...";
+                        isTypingPInterv = false;
+                    } else {
+                        // Fade out and go to index
+                        phasePurpleIntervention.classList.add('fade-out');
+                        setTimeout(() => {
+                            window.location.href = 'index.html?tab=creator';
+                        }, 1000);
+                    }
+                    return;
+                }
+
+                if (isTypingPInterv) {
+                    clearTimeout(typingTimeoutPInterv);
+                    purpleInterventionText.innerHTML = pIntervPhrases[pIntervStep];
+                    isTypingPInterv = false;
+                    if (pIntervStep === pIntervPhrases.length - 1) {
+                        purpleButtonsContainer.classList.remove('hidden');
+                    }
+                } else {
+                    pIntervStep++;
+                    if (pIntervStep < pIntervPhrases.length) {
+                        typePIntervText(pIntervPhrases[pIntervStep]);
+                    }
+                }
+            }
+
+            phasePurpleIntervention.addEventListener('click', handlePIntervAdvance);
+            phasePurpleIntervention.addEventListener('touchstart', handlePIntervAdvance, {passive: false});
+
+            purpleButtonsContainer.addEventListener('click', (e) => e.stopPropagation());
+            purpleButtonsContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+
+            purpleBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action; // Aprender, Fortalecerme, Meditar
+                    purpleButtonsContainer.classList.add('hidden');
+
+                    // Determine Social Stratum
+                    const bgId = luminousState.backgroundId;
+                    let stratum = "";
+                    const bg = backgroundsData.find(b => b.id === bgId);
+                    if (bg) {
+                        if (bg.category === "Privilegio y Poder") stratum = "Alta Sociedad";
+                        else if (bg.category === "La Espada y la Fe" || bg.category === "Gremios y Tierras") stratum = "Trabajadores";
+                        else if (bg.category === "Las Sombras y el Margen") stratum = "Bajos Fondos";
+                        else if (bg.category === "Trabajo Duro y Servidumbre") stratum = "Eruditos";
+                    }
+
+                    let response = "";
+                    let bonusStat = "";
+
+                    if (stratum === "Alta Sociedad") {
+                        if (action === "Aprender") { response = "Pasaste tu juventud encerrado en bibliotecas inmensas y despachos polvorientos. Tus tutores te enseñaron idiomas muertos, historia de guerras pasadas y el sutil arte de leer la política en las cenas familiares. Tu mente se volvió un archivo implacable.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
+                        else if (action === "Fortalecerme") { response = "No querías ser solo un nombre en un papel. Te sometiste a la disciplina de los maestros de esgrima, a las cacerías en la nieve bajo cero y a tolerar pequeñas dosis de veneno en tu té. Tu cuerpo se forjó a la altura de tu apellido.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
+                        else if (action === "Meditar") { response = "Los pasillos de tu hogar eran fríos y llenos de expectativas que te aplastaban. Aprendiste a aislarte de los murmullos, a sentarte en silencio en salones vacíos y a endurecer tu espíritu contra la constante decepción de tus padres.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
+                    } else if (stratum === "Trabajadores") {
+                        if (action === "Aprender") { response = "Entre el ruido de los talleres y las marchas, aprendiste observando. Entendiste cómo encajan los engranajes, cómo leer un mapa gastado y cómo llevar los números de los suministros para que siempre cuadraran sin que nadie lo notara.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
+                        else if (action === "Fortalecerme") { response = "Cargar peso, marchar con el estómago vacío y soportar jornadas de trabajo interminables. La fatiga intentó romperte incontables veces, pero al final, tus músculos se acostumbraron al castigo constante.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
+                        else if (action === "Meditar") { response = "El cansancio mental era peor que el físico. Encontraste formas de mantener la cordura: un rezo silencioso antes de dormir, el sonido rítmico de un martillo, o simplemente la capacidad de apagar tu mente para dejar de sentir las horas.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
+                    } else if (stratum === "Bajos Fondos") {
+                        if (action === "Aprender") { response = "La calle fue tu escuela. Aprendiste a leer descifrando letreros rotos, a memorizar los horarios de las patrullas de guardia y a saber, con solo mirar los ojos de alguien, si tenía intenciones de apuñalarte por unas monedas.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
+                        else if (action === "Fortalecerme") { response = "Cada día era una pelea por las sobras. Correr por los tejados, recibir palizas en callejones sin salida y soportar el invierno sin un abrigo decente. Te convertiste en algo muy difícil de matar.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
+                        else if (action === "Meditar") { response = "Cuando el hambre y el frío eran demasiado fuertes, tuviste que buscar refugio dentro de ti mismo. Aprendiste a quedarte completamente inmóvil en las sombras, tragándote el miedo y aceptando la oscuridad sin volverte loco.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
+                    } else if (stratum === "Eruditos") {
+                        if (action === "Aprender") { response = "Rodeado de las sobras del conocimiento o los documentos de los cobradores, tu curiosidad te salvó. Leíste a escondidas libros prohibidos, o aprendiste a encontrar los vacíos legales en los pagarés que condenaron a los tuyos.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
+                        else if (action === "Fortalecerme") { response = "El trabajo de servidumbre y el peso de las deudas exigen resistencia. Fregar pisos de piedra hasta sangrar, cavar en tierra helada o soportar los golpes de los acreedores te dieron una tolerancia al dolor que pocos entienden.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
+                        else if (action === "Meditar") { response = "Tu vida le pertenecía a otros, así que tu mente fue tu único santuario. La fe inquebrantable en un monasterio silencioso, o la estoica aceptación de que algún día serías libre, forjaron en ti una voluntad inquebrantable.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
+                    }
+
+                    if (bonusStat) {
+                        luminousState.baseStats[bonusStat] += 2;
+                    }
+
+                    isReadingResult = true;
+                    purpleInterventionText.innerHTML = response; // Show immediately for reading
+
+                    // Add listener to go to 'Ya veo...'
+                    const transitionFn = (evt) => {
+                        evt.preventDefault();
+                        purpleInterventionText.innerHTML = "";
+                        typePIntervText("Ya veo...");
+
+                        // Overwrite transition
+                        phasePurpleIntervention.removeEventListener('click', transitionFn);
+                        phasePurpleIntervention.removeEventListener('touchstart', transitionFn);
+
+                        const finalTransition = (ev2) => {
+                            ev2.preventDefault();
+                            if (isTypingPInterv) {
+                                clearTimeout(typingTimeoutPInterv);
+                                purpleInterventionText.innerHTML = "Ya veo...";
+                                isTypingPInterv = false;
+                            } else {
+                                phasePurpleIntervention.classList.add('fade-out');
+                                setTimeout(() => {
+                                    window.location.href = 'index.html?tab=creator';
+                                }, 1000);
+                            }
+                        };
+                        phasePurpleIntervention.addEventListener('click', finalTransition);
+                        phasePurpleIntervention.addEventListener('touchstart', finalTransition, {passive: false});
+                    };
+
+                    // We remove the main advance listener and add our specific result listener
+                    phasePurpleIntervention.removeEventListener('click', handlePIntervAdvance);
+                    phasePurpleIntervention.removeEventListener('touchstart', handlePIntervAdvance);
+
+                    // Add timeout so they don't instantly click through it if they click the button fast
+                    setTimeout(() => {
+                        phasePurpleIntervention.addEventListener('click', transitionFn);
+                        phasePurpleIntervention.addEventListener('touchstart', transitionFn, {passive: false});
+                    }, 100);
+                });
+            });
+
         });
     </script>
 </body>
