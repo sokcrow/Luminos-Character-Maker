@@ -394,10 +394,42 @@
             0% { opacity: 0.3; }
             100% { opacity: 0.8; }
         }
+
+        /* Purple Phase Styles */
+        .purple-text {
+            color: #8A2BE2;
+            font-size: 2.5rem;
+            text-align: center;
+            text-shadow: 0 0 15px rgba(138, 43, 226, 0.8), 0 0 30px rgba(138, 43, 226, 0.5);
+            z-index: 10;
+            padding: 20px;
+            max-width: 80%;
+            opacity: 0;
+            animation: textFadeIn 2s forwards ease-in-out;
+        }
+
+        .background-glow-purple {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 100vh;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.05) 0%, rgba(0, 0, 0, 1) 70%);
+            z-index: 1;
+            animation: pulseGlow 5s infinite alternate ease-in-out;
+        }
     </style>
 </head>
 <body>
     <div id="app">
+        <div id="phase-purple-intro" class="phase hidden">
+            <div class="background-glow-purple"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 10;">
+                <p id="purple-dialogue-text" class="purple-text" style="animation: none; opacity: 1;"></p>
+            </div>
+        </div>
+
         <div id="phase-intro" class="phase">
             <div class="background-glow"></div>
             <div style="display: flex; flex-direction: column; align-items: center; z-index: 10;">
@@ -1804,7 +1836,102 @@
             }
         }
 
-            const phaseIntro = document.getElementById('phase-intro');
+            // Referencias a los contenedores
+            const phasePurpleIntro = document.getElementById('phase-purple-intro');
+            const purpleDialogueText = document.getElementById('purple-dialogue-text');
+            const phaseIntro = document.getElementById('phase-intro'); // La entidad dorada original
+
+            // Diálogos de la entidad morada
+            const purpleDialogues = [
+                "Oh...",
+                "Estás a punto de abrir los ojos.",
+                "Debo advertirte...",
+                "El mundo al que estás por entrar es... turbulento. Está roto.",
+                "A veces, puede ser muy cruel.",
+                "Me asusta pensar en las heridas que podrías llevarte allá afuera.",
+                "Pero...",
+                "Quiero prometerte algo.",
+                "Si prestas suficiente atención...",
+                "Encontrarás destellos de una belleza inmensa, incluso en el centro de todo este caos.",
+                "Por favor... cuídate mucho."
+            ];
+
+            let purpleStep = 0;
+            let isPurpleTyping = false;
+            let purpleTypingTimeout;
+
+            // Función para escribir el texto letra por letra
+            function typePurpleText(text) {
+                purpleDialogueText.innerHTML = "";
+                isPurpleTyping = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        purpleDialogueText.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        purpleTypingTimeout = setTimeout(typeNext, 60); // 60ms da un ritmo suave y sereno
+                    } else {
+                        isPurpleTyping = false; // Terminó de escribir
+                    }
+                }
+                typeNext();
+            }
+
+            // Función que maneja los clics del jugador
+            function handlePurpleClick(e) {
+                // Prevenir comportamientos raros en móviles
+                if (e.type === 'touchstart') e.preventDefault();
+
+                if (isPurpleTyping) {
+                    // 1. Si está escribiendo, el clic autocompleta la oración
+                    clearTimeout(purpleTypingTimeout);
+                    purpleDialogueText.innerHTML = purpleDialogues[purpleStep];
+                    isPurpleTyping = false;
+                } else {
+                    // 2. Si ya terminó de escribir, avanza al siguiente paso
+                    purpleStep++;
+
+                    if (purpleStep < purpleDialogues.length) {
+                        // Escribir la siguiente oración
+                        typePurpleText(purpleDialogues[purpleStep]);
+                    } else {
+                        // 3. Ya no hay más diálogos, iniciar la transición
+                        finishPurplePhase();
+                    }
+                }
+            }
+
+            // Función para limpiar la fase morada y dar paso a la dorada
+            function finishPurplePhase() {
+                // Remover los eventos de clic para que no interfieran después
+                phasePurpleIntro.removeEventListener('click', handlePurpleClick);
+                phasePurpleIntro.removeEventListener('touchstart', handlePurpleClick);
+
+                // Guardar en el navegador que el jugador ya vio este intro
+                localStorage.setItem('sok_hasSeenPurpleIntro', 'true');
+
+                // Desvanecer la pantalla morada
+                phasePurpleIntro.classList.add('fade-out');
+
+                // Esperar a que termine el fade-out (asumiendo transición CSS de 1.5s)
+                setTimeout(() => {
+                    phasePurpleIntro.classList.add('hidden');
+
+                    // Revelar a la entidad dorada
+                    phaseIntro.classList.remove('hidden');
+                    phaseIntro.classList.remove('fade-out');
+
+                    // Iniciar la secuencia de la entidad dorada
+                    // Asegúrate de que introStep esté en 0 en tu código original
+                    typeIntroText(introDialogues[introStep]);
+                }, 1500);
+            }
+
+            // Asignar los eventos de clic a la pantalla completa de la fase morada
+            phasePurpleIntro.addEventListener('click', handlePurpleClick);
+            phasePurpleIntro.addEventListener('touchstart', handlePurpleClick, {passive: false});
+
             const introDialogueText = document.getElementById('intro-dialogue-text');
             const nameInputContainer = document.getElementById('name-input-container');
             const characterNameInput = document.getElementById('character-name-input');
@@ -1944,8 +2071,22 @@
                 }
             });
 
-            // Start intro
-            typeIntroText(introDialogues[introStep]);
+            // Verificar si es la primera vez que entra a la página usando localStorage
+            const hasSeenPurpleIntro = localStorage.getItem('sok_hasSeenPurpleIntro');
+
+            if (!hasSeenPurpleIntro) {
+                // Es la primera vez: Ocultar dorada, mostrar morada e iniciar
+                phaseIntro.classList.add('hidden');
+                phasePurpleIntro.classList.remove('hidden');
+                typePurpleText(purpleDialogues[purpleStep]);
+            } else {
+                // Ya lo vio antes: Ocultar morada, mostrar dorada e iniciar la dorada
+                phasePurpleIntro.classList.add('hidden');
+                phaseIntro.classList.remove('hidden');
+
+                // Aquí invocas la función de tipeo de la entidad dorada que ya tienes
+                typeIntroText(introDialogues[introStep]);
+            }
 
 
             const phase1 = document.getElementById('phase1');
