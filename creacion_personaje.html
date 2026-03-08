@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creación de Personaje</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            color: white;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none; /* Prevent text selection */
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .phase {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            display: none !important;
+        }
+
+        /* Fade out logic */
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .fade-in {
+            opacity: 1;
+        }
+
+        /* Question Phase */
+        .question {
+            color: yellow;
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        .roulette-container {
+            height: 50vh;
+            width: 100%;
+            max-width: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            /* Hide scrollbar for a cleaner look */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            position: relative;
+            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        }
+
+        .roulette-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .roulette {
+            list-style: none;
+            padding: 50vh 0; /* Add padding to allow scrolling past the first/last item */
+            margin: 0;
+            text-align: center;
+        }
+
+        .roulette li {
+            font-size: 2rem;
+            padding: 15px 0;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.6);
+            transition: color 0.3s, transform 0.3s, text-shadow 0.3s;
+        }
+
+        .roulette li:hover {
+            color: white;
+            transform: scale(1.1);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Dialogue Phase */
+        #phase-dialogue {
+            cursor: pointer;
+            display: flex;
+        }
+
+        .golden-text {
+            color: #FFD700;
+            font-size: 2.5rem;
+            text-align: center;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.5);
+            z-index: 10;
+            padding: 20px;
+            max-width: 80%;
+            opacity: 0;
+            animation: textFadeIn 2s forwards ease-in-out;
+        }
+
+        @keyframes textFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Background Glow Animation */
+        .background-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 100vh;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.05) 0%, rgba(0, 0, 0, 1) 70%);
+            z-index: 1;
+            animation: pulseGlow 5s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="phase1" class="phase">
+            <h1 class="question">¿Que eres?</h1>
+            <div class="roulette-container">
+                <ul class="roulette" id="roulette-list">
+                    <li>Humano</li>
+                    <li>Lizalin</li>
+                    <li>Kobold</li>
+                    <li>Kenku</li>
+                    <li>Centauro</li>
+                    <li>Goliat</li>
+                    <li>Goblin</li>
+                    <li>Hada</li>
+                    <li>Aasimar</li>
+                    <li>Tiefling</li>
+                    <li>Warforged</li>
+                    <li>Felinae</li>
+                    <li>Semi Dragón</li>
+                    <li>Lupae</li>
+                    <li>Moonfae</li>
+                    <li>Undae</li>
+                    <li>Elnae</li>
+                    <li>Yuan-ti Pura Sangre</li>
+                    <li>Lanae</li>
+                    <li>Tsune</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="phase-dialogue" class="phase hidden">
+            <div class="background-glow"></div>
+            <p id="dialogue-text" class="golden-text"></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const phase1 = document.getElementById('phase1');
+            const phaseDialogue = document.getElementById('phase-dialogue');
+            const dialogueText = document.getElementById('dialogue-text');
+            const rouletteItems = document.querySelectorAll('.roulette li');
+
+            let currentDialogueStep = 0;
+            const dialogues = [
+                "Interesante....",
+                "Te Observarse por un tiempo...",
+                "Tal vez sea interesante..."
+            ];
+
+            // Handle option selection
+            rouletteItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    // Transition to Phase 2 (Black screen + first dialogue)
+                    phase1.classList.add('fade-out');
+
+                    setTimeout(() => {
+                        phase1.classList.add('hidden');
+                        phase1.classList.remove('fade-out');
+
+                        // Show dialogue phase
+                        phaseDialogue.classList.remove('hidden');
+                        showDialogue(currentDialogueStep);
+                    }, 1500); // Wait for fade out
+                });
+            });
+
+            // Handle dialogue progression
+            phaseDialogue.addEventListener('click', () => {
+                currentDialogueStep++;
+
+                if (currentDialogueStep < dialogues.length) {
+                    showDialogue(currentDialogueStep);
+                } else {
+                    // Redirect to the main character creator tab
+                    // Fade out before redirecting
+                    phaseDialogue.classList.add('fade-out');
+                    setTimeout(() => {
+                        window.location.href = 'index.html?tab=creator';
+                    }, 1000);
+                }
+            });
+
+            function showDialogue(step) {
+                // Remove animation to re-trigger it
+                dialogueText.style.animation = 'none';
+                dialogueText.offsetHeight; /* trigger reflow */
+                dialogueText.style.animation = null;
+
+                dialogueText.textContent = dialogues[step];
+            }
+        });
+    </script>
+</body>
+</html>
