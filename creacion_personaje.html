@@ -423,6 +423,21 @@
             <div class="background-glow"></div>
             <p id="dialogue-text" class="golden-text"></p>
         </div>
+
+        <div id="phase2" class="phase hidden" style="justify-content: flex-start; padding-top: 50px; overflow-y: auto;">
+            <h1 class="question">¿De dónde vienes?</h1>
+            <div id="background-grid" class="origin-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí con JavaScript -->
+            </div>
+            <div class="nav-buttons" style="margin-bottom: 50px;">
+                <button id="btn-confirmar-trasfondo" class="btn" disabled>Confirmar Origen</button>
+            </div>
+        </div>
+
+        <div id="phase-dialogue-2" class="phase hidden">
+            <div class="background-glow"></div>
+            <p id="dialogue-text-2" class="golden-text"></p>
+        </div>
     </div>
 
     <script>
@@ -435,6 +450,189 @@
             "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
             "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo"
         ].sort();
+
+        const backgroundsData = [
+            {
+                id: 'alta_nobleza',
+                name: 'Alta Nobleza',
+                category: 'Privilegio y Poder',
+                desc: 'Naciste en una cuna de oro, rodeado de blasones y linajes antiguos. Tu infancia estuvo dictada por el protocolo, las alianzas y las expectativas de tu apellido.',
+                benefit: '+3 en Negociación.',
+                funds: '150,000 Ahn. Comienzas con un Anillo de Sello de tu casa.',
+                entityResponse: "Se alzaron sobre pedestales, creyendo que el cielo les pertenecía... Qué frágil es la corona que forja el mortal."
+            },
+            {
+                id: 'aristocracia_mercantil',
+                name: 'Aristocracia Mercantil',
+                category: 'Privilegio y Poder',
+                desc: 'Tu familia no tenía títulos, pero tenía flotas, caravanas y monopolios. Creciste aprendiendo que todo en este mundo tiene un precio.',
+                benefit: '+3 en Manejo.',
+                funds: '200,000 Ahn. Comienzas con un libro de contabilidad familiar.',
+                entityResponse: "Pusieron precio a la tierra, al mar y al espíritu. Ilusos que intentan comprar la eternidad con metales muertos."
+            },
+            {
+                id: 'nobleza_caida',
+                name: 'Nobleza Caída',
+                category: 'Privilegio y Poder',
+                desc: 'Tu apellido alguna vez inspiró respeto, pero la guerra, la traición o las deudas lo redujeron a cenizas. Creciste escuchando historias de una grandeza que nunca viviste.',
+                benefit: '+3 en Presencia.',
+                funds: '50,000 Ahn. Comienzas con un blasón desgastado o una reliquia rota.',
+                entityResponse: "Aferrados a nombres que el viento ya borró. El orgullo es un alimento amargo cuando no hay pan."
+            },
+            {
+                id: 'cuna_de_eruditos',
+                name: 'Cuna de Eruditos',
+                category: 'Privilegio y Poder',
+                desc: 'Creciste en los pasillos de una academia o biblioteca. Tus padres valoraban el conocimiento por encima de cualquier otra cosa.',
+                benefit: '+3 en Memoria.',
+                funds: '100,000 Ahn. Comienzas con un tomo de historia antiguo.',
+                entityResponse: "Acumularon palabras en torres de marfil, ciegos a las verdades que no pueden ser escritas con tinta."
+            },
+            {
+                id: 'linaje_militar',
+                name: 'Linaje Militar',
+                category: 'La Espada y la Fe',
+                desc: 'Generaciones de tu familia han marchado a la guerra. Creciste en campamentos o fortalezas, donde la disciplina era la única forma de afecto.',
+                benefit: '+3 en Fortaleza.',
+                funds: '40,000 Ahn. Comienzas con un arma heredada (Tier 1).',
+                entityResponse: "Forjados para sangrar por causas ajenas. Tu herencia es el filo y la cicatriz, un ciclo que nunca termina."
+            },
+            {
+                id: 'guardia_local',
+                name: 'Guardia Local',
+                category: 'La Espada y la Fe',
+                desc: 'Tus padres eran los encargados de mantener el orden en las calles o las fronteras de tu hogar. Aprendiste rápido a identificar quién es una amenaza.',
+                benefit: '+3 en Percepción.',
+                funds: '30,000 Ahn. Comienzas con una insignia de la guardia.',
+                entityResponse: "Ojos que vigilan en la noche, creyendo que pueden contener la oscuridad... ignorando que la oscuridad ya está dentro."
+            },
+            {
+                id: 'pupilo_del_templo',
+                name: 'Pupilo del Templo',
+                category: 'La Espada y la Fe',
+                desc: 'Entregado a los clérigos desde joven. Creciste bajo la estricta mirada de los dogmas, rodeado de incienso y coros solemnes.',
+                benefit: '+3 en Fe.',
+                funds: '20,000 Ahn. Comienzas con un símbolo sagrado.',
+                entityResponse: "Rodillas gastadas sobre piedra fría, elevando plegarias a un silencio absoluto. La devoción es el refugio de los temerosos."
+            },
+            {
+                id: 'heredero_de_mercenarios',
+                name: 'Heredero de Mercenarios',
+                category: 'La Espada y la Fe',
+                desc: 'Vidas nómadas vendiendo la espada al mejor postor. Aprendiste que la lealtad es un lujo que solo los ricos pueden pagar.',
+                benefit: '+3 en Reflejos.',
+                funds: '50,000 Ahn. Comienzas con un contrato antiguo.',
+                entityResponse: "Vidas entregadas a quienes ofrecen más oro. Tu lealtad tiene el peso exacto de la moneda que cae en tu palma."
+            },
+            {
+                id: 'familia_de_granjeros',
+                name: 'Familia de Granjeros',
+                category: 'Gremios y Tierras',
+                desc: 'Naciste con las manos en la tierra. Tu infancia fue marcada por las estaciones, las cosechas, las sequías y el trabajo extenuante bajo el sol.',
+                benefit: '+3 en Vigor.',
+                funds: '10,000 Ahn. Comienzas con semillas de tu región.',
+                entityResponse: "Atados a la tierra y al capricho del clima. Una vida simple, esperando una cosecha que siempre se marchita."
+            },
+            {
+                id: 'gremio_de_artesanos',
+                name: 'Gremio de Artesanos',
+                category: 'Gremios y Tierras',
+                desc: 'Herreros, carpinteros o tejedores. Creciste rodeado de herramientas y aprendiste el valor de crear cosas duraderas con tus propias manos.',
+                benefit: '+3 en Análisis.',
+                funds: '35,000 Ahn. Comienzas con herramientas de artesano de buena calidad.',
+                entityResponse: "Manos marcadas por el esfuerzo de dar forma a lo inerte. Crean afanosamente, olvidando que el tiempo, inevitablemente, lo destruirá todo."
+            },
+            {
+                id: 'comerciantes_itinerantes',
+                name: 'Comerciantes Itinerantes',
+                category: 'Gremios y Tierras',
+                desc: 'Tu hogar fue una caravana en constante movimiento. Aprendiste a tratar con extraños, a regatear y a leer las intenciones de la gente en el camino.',
+                benefit: '+3 en Carisma.',
+                funds: '25,000 Ahn. Comienzas con un mapa gastado de rutas comerciales.',
+                entityResponse: "Condenados a caminar sin descanso, trazando senderos en un mundo que siempre vuelve a borrar sus huellas."
+            },
+            {
+                id: 'artistas_y_juglares',
+                name: 'Artistas y Juglares',
+                category: 'Gremios y Tierras',
+                desc: 'Naciste en medio de un espectáculo ambulante. Tu vida estuvo llena de música, historias, máscaras y aplausos efímeros.',
+                benefit: '+3 en Seducción.',
+                funds: '15,000 Ahn. Comienzas con un instrumento musical o una máscara teatral.',
+                entityResponse: "Danzantes en el teatro de la ilusión. Tejen mentiras hermosas para aquellos que no soportan mirar la realidad."
+            },
+            {
+                id: 'huerfano_de_los_callejones',
+                name: 'Huérfano de los Callejones',
+                category: 'Las Sombras y el Margen',
+                desc: 'No conociste a tus padres o los perdiste muy pronto. La calle te enseñó a correr, a esconderte y a pelear por las sobras.',
+                benefit: '+3 en Agilidad.',
+                funds: '500 Ahn.',
+                entityResponse: "Nacido de la ruina, aferrándote a la decadencia. Eres el remanente que perdura cuando los grandes cimientos colapsan."
+            },
+            {
+                id: 'linaje_de_ladrones',
+                name: 'Linaje de Ladrones',
+                category: 'Las Sombras y el Margen',
+                desc: 'Creciste en una familia o gremio donde tomar lo ajeno era la norma. Te enseñaron a caminar sin hacer ruido y a abrir aquello que estaba cerrado.',
+                benefit: '+3 en Sigilo.',
+                funds: '10,000 Ahn. Comienzas con ganzúas.',
+                entityResponse: "Lo que el mundo niega, la sombra lo arrebata. Vives en los resquicios de las leyes que otros fingen respetar."
+            },
+            {
+                id: 'estafadores_de_cuna',
+                name: 'Estafadores de Cuna',
+                category: 'Las Sombras y el Margen',
+                desc: 'Tus mentores te enseñaron que la gente quiere ser engañada. Aprendiste a fabricar historias y a vivir de la credulidad de los demás.',
+                benefit: '+3 en Engaño.',
+                funds: '15,000 Ahn. Comienzas con dados trucados o cartas marcadas.',
+                entityResponse: "La verdad es solo arcilla en tus manos. Has descubierto que la mentira es la moneda más valiosa entre los vivos."
+            },
+            {
+                id: 'desterrados',
+                name: 'Desterrados',
+                category: 'Las Sombras y el Margen',
+                desc: 'Tu familia fue expulsada de su tierra natal. Creciste como un forastero en todas partes, aprendiendo a confiar únicamente en tus propios instintos.',
+                benefit: '+3 en Instinto.',
+                funds: '2,000 Ahn. Comienzas con tierra o un recuerdo de tu antiguo hogar.',
+                entityResponse: "Marcados por el repudio. El mundo les arrebató un hogar, entregándoles a cambio la más cruel y vasta de las libertades."
+            },
+            {
+                id: 'prole_de_sirvientes',
+                name: 'Prole de Sirvientes',
+                category: 'Trabajo Duro y Servidumbre',
+                desc: 'Tus padres limpiaban los pasillos de los nobles. Aprendiste desde niño a ser invisible, a anticipar necesidades y a nunca mirar a los ojos.',
+                benefit: '+3 en Empatía.',
+                funds: '4,000 Ahn.',
+                entityResponse: "Existir únicamente para sostener las copas de quienes se creen dueños de todo. Has dominado el triste arte de ser una sombra."
+            },
+            {
+                id: 'trabajadores_de_la_mina',
+                name: 'Trabajadores de la Mina',
+                category: 'Trabajo Duro y Servidumbre',
+                desc: 'Creciste en las profundidades, picando piedra o extrayendo minerales bajo condiciones brutales. Tus pulmones y músculos conocen bien el castigo.',
+                benefit: '+3 en Atletismo.',
+                funds: '5,000 Ahn. Comienzas con un pico o una linterna minera.',
+                entityResponse: "Enterrados en vida para arrancar fragmentos del corazón del mundo. Tu herencia es únicamente el polvo y la oscuridad."
+            },
+            {
+                id: 'heredero_de_deudas',
+                name: 'Heredero de Deudas',
+                category: 'Trabajo Duro y Servidumbre',
+                desc: 'Tus padres te dejaron un papel con una cifra impagable. Creciste calculando cada centavo, sabiendo que tu vida le pertenece a alguien más.',
+                benefit: '+3 en Prudencia.',
+                funds: '0 Ahn. Comienzas con un pagaré a tu nombre.',
+                entityResponse: "Nacer con el peso de los pecados ajenos... Qué irónico que un trozo de papel dicte el valor de tu existencia antes de tu primer respiro."
+            },
+            {
+                id: 'enterradores___sepultureros',
+                name: 'Enterradores / Sepultureros',
+                category: 'Trabajo Duro y Servidumbre',
+                desc: 'Alguien tiene que lidiar con los muertos. Creciste entre tumbas, aprendiendo a lidiar con el olor a tierra removida y el peso de la mortalidad.',
+                benefit: '+3 en Represión.',
+                funds: '8,000 Ahn. Comienzas con una pala pequeña o incienso funerario.',
+                entityResponse: "Creciste a la sombra del final, ordenando los restos de lo que alguna vez respiró. Al menos los que ya no están no te mienten."
+            },
+        ];
 
         const racesData = [
             {
@@ -1426,6 +1624,60 @@
             displayDiv.innerHTML = statsHtml;
         }
 
+
+
+        function renderBackgrounds() {
+            let bgGridContainer = document.getElementById('background-grid');
+            if (!bgGridContainer) return;
+            bgGridContainer.innerHTML = '';
+
+            backgroundsData.forEach(bg => {
+                const card = document.createElement('div');
+                card.className = 'origin-card';
+                card.dataset.id = bg.id;
+                card.dataset.response = bg.entityResponse;
+
+                card.innerHTML = `
+                    <div class="card-header" style="text-align: left;">
+                        <h2>${bg.name}</h2>
+                        <span style="font-size: 0.8rem; color: #FFD700; font-style: italic;">${bg.category}</span>
+                    </div>
+                    <div class="card-body" style="text-align: left; padding: 15px;">
+                        <p style="margin-bottom: 10px; font-size: 0.9rem;"><strong>Descripción:</strong> ${bg.desc}</p>
+                        <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--green-success);"><strong>Beneficio:</strong> ${bg.benefit}</p>
+                        <p style="font-size: 0.9rem; color: var(--cyan-tech);"><strong>Fondos y Posesiones:</strong> ${bg.funds}</p>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    seleccionarBackground(bg.id);
+                });
+
+                bgGridContainer.appendChild(card);
+            });
+        }
+
+        function seleccionarBackground(id) {
+            luminousState.backgroundId = id;
+
+            const cards = document.querySelectorAll('#background-grid .origin-card');
+            cards.forEach(card => {
+                if (card.dataset.id === id) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            const bgGridContainer = document.getElementById('background-grid');
+            bgGridContainer.classList.add('has-selection');
+
+            const btnConfirmarTrasfondo = document.getElementById('btn-confirmar-trasfondo');
+            if(btnConfirmarTrasfondo) {
+                btnConfirmarTrasfondo.disabled = false;
+            }
+        }
+
         // 6. Lógica de Selección y Validación
         function seleccionarOrigen(id) {
             luminousState.originId = id;
@@ -1701,10 +1953,14 @@
             const dialogueText = document.getElementById('dialogue-text');
 
             let currentDialogueStep = 0;
-            const dialogues = [
-                "Interesante....",
-                "Te Observarse por un tiempo...",
-                "Tal vez sea interesante..."
+                        const dialogues = [
+                "Interesante...",
+                "Te he observado por un tiempo...",
+                "Tal vez sea interesante...",
+                "¿Acaso importa de dónde vienes?",
+                "Muchos creen que la sangre dicta el destino...",
+                "Otros, que es solo el combustible para el fuego.",
+                "Dime... ¿En qué rincón del mundo te dejaron tus predecesores?"
             ];
 
             let gridContainer = document.getElementById('origin-grid');
@@ -1735,14 +1991,60 @@
                 if (currentDialogueStep < dialogues.length) {
                     showDialogue(currentDialogueStep);
                 } else {
-                    // Redirect to the main character creator tab
-                    // Fade out before redirecting
+                    // Transition to Phase 2 (Background Selection)
                     phaseDialogue.classList.add('fade-out');
                     setTimeout(() => {
-                        window.location.href = 'index.html?tab=creator';
+                        phaseDialogue.classList.add('hidden');
+                        phaseDialogue.classList.remove('fade-out');
+
+                        const phase2 = document.getElementById('phase2');
+                        phase2.classList.remove('hidden');
+                        renderBackgrounds();
                     }, 1000);
                 }
             });
+
+
+            // Logic for Phase 2 (Backgrounds)
+            let btnConfirmarTrasfondo = document.getElementById('btn-confirmar-trasfondo');
+            const phase2 = document.getElementById('phase2');
+            const phaseDialogue2 = document.getElementById('phase-dialogue-2');
+            const dialogueText2 = document.getElementById('dialogue-text-2');
+
+            btnConfirmarTrasfondo.addEventListener('click', () => {
+                if (btnConfirmarTrasfondo.disabled) return;
+
+                // Get selected background's response
+                const selectedBg = backgroundsData.find(bg => bg.id === luminousState.backgroundId);
+                const responseText = selectedBg ? selectedBg.entityResponse : "...";
+
+                // Transition to Phase Dialogue 2
+                phase2.classList.add('fade-out');
+
+                setTimeout(() => {
+                    phase2.classList.add('hidden');
+                    phase2.classList.remove('fade-out');
+
+                    // Show dialogue 2
+                    phaseDialogue2.classList.remove('hidden');
+                    showDialogue2(responseText);
+                }, 1500); // Wait for fade out
+            });
+
+            // Handle dialogue 2 progression (Redirect to main creator)
+            phaseDialogue2.addEventListener('click', () => {
+                phaseDialogue2.classList.add('fade-out');
+                setTimeout(() => {
+                    window.location.href = 'index.html?tab=creator';
+                }, 1000);
+            });
+
+            function showDialogue2(text) {
+                dialogueText2.style.animation = 'none';
+                dialogueText2.offsetHeight; /* trigger reflow */
+                dialogueText2.style.animation = null;
+                dialogueText2.textContent = text;
+            }
 
             function showDialogue(step) {
                 // Remove animation to re-trigger it
