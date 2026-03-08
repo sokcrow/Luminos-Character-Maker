@@ -519,7 +519,7 @@
             <div class="background-glow-purple"></div>
             <div style="display: flex; flex-direction: column; align-items: center; z-index: 10; width: 80%;">
                 <p id="purple-intervention-text" class="purple-text" style="font-style: italic;"></p>
-                <div id="purple-buttons-container" class="hidden" style="margin-top: 30px; display: flex; justify-content: center;">
+                <div id="purple-buttons-container" class="hidden" style="margin-top: 30px; display: flex; justify-content: center; flex-wrap: wrap; max-height: 50vh; overflow-y: auto;">
                     <button class="purple-btn" data-action="Aprender">[ Aprender ]</button>
                     <button class="purple-btn" data-action="Fortalecerme">[ Fortalecerme ]</button>
                     <button class="purple-btn" data-action="Meditar">[ Meditar ]</button>
@@ -537,7 +537,8 @@
             "Vigor", "Instinto", "Fortaleza", "Carisma", "Perspicacia", "Seducción",
             "Agilidad", "Análisis", "Sigilo", "Presencia", "Engaño", "Percepción",
             "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
-            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo"
+            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo",
+            "Lore", "Investigación", "Arcana"
         ].sort();
 
         const backgroundsData = [
@@ -2350,47 +2351,127 @@
                 dialogueText.textContent = dialogues[step];
             }
 
+
             // Logic for Phase Purple Intervention
             const phasePurpleIntervention = document.getElementById('phase-purple-intervention');
             const purpleInterventionText = document.getElementById('purple-intervention-text');
             const purpleButtonsContainer = document.getElementById('purple-buttons-container');
-            const purpleBtns = document.querySelectorAll('.purple-btn');
 
             let pIntervStep = 0;
             let isTypingPInterv = false;
             let typingTimeoutPInterv;
-            let isReadingResult = false; // Flag to prevent advancing while reading result
+            let purplePhaseState = 0; // 0: initial, 1: focus selected, 2: skill selected, 3: reading final
+            let primaryFocus = "";
 
             const pIntervPhrases = [
                 "Perdió el interés en ti.",
-                "De momento.",
-                "Eso nos da algo de tiempo.",
+                "De momento. Eso nos da algo de tiempo.",
                 "Veo que has crecido...",
-                "El tiempo aquí fluye distinto, pero para ti... han pasado años.",
-                "Dime...",
-                "¿En qué te enfocaste para sobrevivir a esa etapa?"
+                "Dime... ¿En qué te enfocaste para sobrevivir a esa etapa?"
             ];
+
+            const skillOptions = {
+                "Aprender": {
+                    question: "El conocimiento en este mundo es un arma de doble filo. ¿Cuál fue la hoja que más afilaste?",
+                    options: [
+                        { text: "Recordé cada rostro, cada error y cada mapa que vi.", skill: "Memoria" },
+                        { text: "Desarmé la lógica de los problemas para encontrar sus fallas.", skill: "Análisis" },
+                        { text: "Estudié la anatomía, los químicos y las máquinas.", skill: "Ciencia" },
+                        { text: "Desenterré la historia oculta del mundo y sus verdaderos dueños.", skill: "Lore" },
+                        { text: "Aprendí a buscar pistas y rastrear lo que no quería ser encontrado.", skill: "Investigación" },
+                        { text: "Leí el lenguaje corporal para descubrir las mentiras de los demás.", skill: "Perspicacia" },
+                        { text: "Aprendí el arte de llegar a acuerdos y regatear por mi vida.", skill: "Negociación" },
+                        { text: "Usé el encanto y la manipulación emocional para abrir puertas.", skill: "Seducción" },
+                        { text: "Tejí fachadas y mentiras tan perfectas que se volvieron reales.", skill: "Engaño" },
+                        { text: "Calculé los riesgos y me preparé táctica y cautelosamente.", skill: "Prudencia" },
+                        { text: "Me volví un líder capaz de inspirar a otros a seguirme.", skill: "Carisma" }
+                    ]
+                },
+                "Fortalecerme": {
+                    question: "El castigo físico rompe a los débiles. ¿Cómo adaptaste tu carne para sobrevivir?",
+                    options: [
+                        { text: "Entrené mis pulmones para correr y resistir sin agotarme.", skill: "Cardio" },
+                        { text: "Aumenté mi fuerza bruta para derribar obstáculos y enemigos.", skill: "Fortaleza" },
+                        { text: "Endurecí mi cuerpo para soportar el clima extremo, el hambre y el dolor.", skill: "Vigor" },
+                        { text: "Dejé que mi lado más animal me guiara para reaccionar antes de pensar.", skill: "Instinto" },
+                        { text: "Agudicé mi vista y oído para detectar las emboscadas en la oscuridad.", skill: "Percepción" },
+                        { text: "Entrené mi equilibrio para trepar y moverme por donde otros caerían.", skill: "Agilidad" },
+                        { text: "Eduqué mis manos para ser preciso con herramientas, armas y mecanismos.", skill: "Manejo" },
+                        { text: "Pulí mis reacciones físicas para esquivar ataques en una fracción de segundo.", skill: "Reflejos" },
+                        { text: "Aprendí a caminar sin hacer ruido y a desaparecer en las sombras.", skill: "Sigilo" }
+                    ]
+                },
+                "Meditar": {
+                    question: "El alma humana es un fuego extraño y frágil. ¿Cómo mantuviste el tuyo encendido?",
+                    options: [
+                        { text: "Conectando genuinamente con el dolor de otros para no perder mi humanidad.", skill: "Empatía" },
+                        { text: "Forjando una determinación violenta e inquebrantable que me impedía rendirme.", skill: "Voluntad" },
+                        { text: "Aferrándome a una creencia o dogma absoluto que me servía de escudo.", skill: "Fe" },
+                        { text: "Enterrando mis miedos y traumas tan profundo que ya no podían paralizarme.", skill: "Represión" },
+                        { text: "Manteniendo una frialdad y paciencia aterradoras bajo la peor de las presiones.", skill: "Templanza" },
+                        { text: "Volviéndome alguien imponente, dominando a otros con mi sola presencia.", skill: "Presencia" },
+                        { text: "Sintiendo y comprendiendo los flujos de las energías extrañas del mundo.", skill: "Arcana" }
+                    ]
+                }
+            };
+
+            const finalDialogueText = [
+                "Comprendo...",
+                "Así fue como forjaste tu camino, tallando tus talentos.",
+                "Pero para sostener eso, tuviste que dejar partes de ti atrás.",
+                "Nadie puede abarcarlo todo sin romperse.",
+                "Dime... en los raros momentos donde te permitías ser algo más... ¿qué parte de ti te negaste a dejar morir por completo?"
+            ];
+
+            const finalOptions = {
+                "Aprender": [
+                    { text: "[ Mi resistencia física ]", benefit: { stat: "cuerpo", val: 1 }, penalty: { stat: "alma", val: -1 } },
+                    { text: "[ Mi paz espiritual ]", benefit: { stat: "alma", val: 1 }, penalty: { stat: "cuerpo", val: -1 } }
+                ],
+                "Fortalecerme": [
+                    { text: "[ Mi sed de conocimiento ]", benefit: { stat: "mente", val: 1 }, penalty: { stat: "alma", val: -1 } },
+                    { text: "[ Mi fe interior ]", benefit: { stat: "alma", val: 1 }, penalty: { stat: "mente", val: -1 } }
+                ],
+                "Meditar": [
+                    { text: "[ El filo de mi intelecto ]", benefit: { stat: "mente", val: 1 }, penalty: { stat: "cuerpo", val: -1 } },
+                    { text: "[ La fuerza de mi sangre ]", benefit: { stat: "cuerpo", val: 1 }, penalty: { stat: "mente", val: -1 } }
+                ]
+            };
 
             function startPurpleIntervention() {
                 phasePurpleIntervention.classList.remove('hidden');
                 pIntervStep = 0;
+                purplePhaseState = 0;
+
+                // Clear previous buttons
+                purpleButtonsContainer.innerHTML = `
+                    <button class="purple-btn focus-btn" data-action="Aprender">[ Aprender ]</button>
+                    <button class="purple-btn focus-btn" data-action="Fortalecerme">[ Fortalecerme ]</button>
+                    <button class="purple-btn focus-btn" data-action="Meditar">[ Meditar ]</button>
+                `;
+
                 typePIntervText(pIntervPhrases[pIntervStep]);
             }
 
-            function typePIntervText(text) {
+            function typePIntervText(text, showButtonsCallback) {
                 purpleInterventionText.innerHTML = "";
                 isTypingPInterv = true;
                 let charIndex = 0;
 
                 function typeNext() {
                     if (charIndex < text.length) {
-                        purpleInterventionText.innerHTML += text.charAt(charIndex);
-                        charIndex++;
+                        if (text.substr(charIndex, 4) === "<br>") {
+                            purpleInterventionText.innerHTML += "<br>";
+                            charIndex += 4;
+                        } else {
+                            purpleInterventionText.innerHTML += text.charAt(charIndex);
+                            charIndex++;
+                        }
                         typingTimeoutPInterv = setTimeout(typeNext, 50);
                     } else {
                         isTypingPInterv = false;
-                        if (pIntervStep === pIntervPhrases.length - 1) {
-                            purpleButtonsContainer.classList.remove('hidden');
+                        if (showButtonsCallback) {
+                            showButtonsCallback();
                         }
                     }
                 }
@@ -2400,35 +2481,46 @@
             function handlePIntervAdvance(e) {
                 if (e.type === 'touchstart') e.preventDefault();
 
-                // If waiting for button click or result interaction, don't advance
-                if (pIntervStep >= pIntervPhrases.length - 1 && !isReadingResult) return;
-
-                if (isReadingResult) {
-                    if (isTypingPInterv) {
-                        clearTimeout(typingTimeoutPInterv);
-                        purpleInterventionText.innerHTML = "Ya veo...";
-                        isTypingPInterv = false;
-                    } else {
-                        // Fade out and go to index
-                        phasePurpleIntervention.classList.add('fade-out');
-                        setTimeout(() => {
-                            window.location.href = 'index.html?tab=creator';
-                        }, 1000);
-                    }
-                    return;
-                }
+                // We only advance by click on text when we are NOT waiting for a button click
+                if (!purpleButtonsContainer.classList.contains('hidden')) return;
 
                 if (isTypingPInterv) {
                     clearTimeout(typingTimeoutPInterv);
-                    purpleInterventionText.innerHTML = pIntervPhrases[pIntervStep];
+                    if (purplePhaseState === 0) {
+                        purpleInterventionText.innerHTML = pIntervPhrases[pIntervStep];
+                    } else if (purplePhaseState === 1) {
+                        purpleInterventionText.innerHTML = skillOptions[primaryFocus].question;
+                    } else if (purplePhaseState === 2) {
+                        purpleInterventionText.innerHTML = finalDialogueText[pIntervStep];
+                    }
                     isTypingPInterv = false;
-                    if (pIntervStep === pIntervPhrases.length - 1) {
+
+                    if (purplePhaseState === 0 && pIntervStep === pIntervPhrases.length - 1) {
+                        purpleButtonsContainer.classList.remove('hidden');
+                    } else if (purplePhaseState === 1) {
+                        purpleButtonsContainer.classList.remove('hidden');
+                    } else if (purplePhaseState === 2 && pIntervStep === finalDialogueText.length - 1) {
                         purpleButtonsContainer.classList.remove('hidden');
                     }
                 } else {
-                    pIntervStep++;
-                    if (pIntervStep < pIntervPhrases.length) {
-                        typePIntervText(pIntervPhrases[pIntervStep]);
+                    if (purplePhaseState === 0) {
+                        pIntervStep++;
+                        if (pIntervStep < pIntervPhrases.length) {
+                            typePIntervText(pIntervPhrases[pIntervStep], () => {
+                                if (pIntervStep === pIntervPhrases.length - 1) {
+                                    purpleButtonsContainer.classList.remove('hidden');
+                                }
+                            });
+                        }
+                    } else if (purplePhaseState === 2) {
+                        pIntervStep++;
+                        if (pIntervStep < finalDialogueText.length) {
+                            typePIntervText(finalDialogueText[pIntervStep], () => {
+                                if (pIntervStep === finalDialogueText.length - 1) {
+                                    purpleButtonsContainer.classList.remove('hidden');
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -2436,93 +2528,87 @@
             phasePurpleIntervention.addEventListener('click', handlePIntervAdvance);
             phasePurpleIntervention.addEventListener('touchstart', handlePIntervAdvance, {passive: false});
 
-            purpleButtonsContainer.addEventListener('click', (e) => e.stopPropagation());
-            purpleButtonsContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+            purpleButtonsContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (e.target.classList.contains('focus-btn')) {
+                    const action = e.target.dataset.action;
+                    primaryFocus = action;
+                    purpleButtonsContainer.classList.add('hidden');
+                    purplePhaseState = 1;
 
-            purpleBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const action = btn.dataset.action; // Aprender, Fortalecerme, Meditar
+                    // Populate skill buttons
+                    purpleButtonsContainer.innerHTML = "";
+                    skillOptions[primaryFocus].options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = 'purple-btn skill-btn';
+                        btn.style.display = 'block';
+                        btn.style.width = '100%';
+                        btn.style.margin = '5px 0';
+                        btn.style.textAlign = 'left';
+                        btn.innerHTML = `${opt.text} <span style='color: var(--cyan-tech);'>(+2 ${opt.skill})</span>`;
+                        btn.dataset.skill = opt.skill;
+                        purpleButtonsContainer.appendChild(btn);
+                    });
+
+                    typePIntervText(skillOptions[primaryFocus].question, () => {
+                        purpleButtonsContainer.classList.remove('hidden');
+                    });
+                } else if (e.target.closest('.skill-btn')) {
+                    const btn = e.target.closest('.skill-btn');
+                    const skill = btn.dataset.skill;
                     purpleButtonsContainer.classList.add('hidden');
 
-                    // Determine Social Stratum
-                    const bgId = luminousState.backgroundId;
-                    let stratum = "";
-                    const bg = backgroundsData.find(b => b.id === bgId);
-                    if (bg) {
-                        if (bg.category === "Privilegio y Poder") stratum = "Alta Sociedad";
-                        else if (bg.category === "La Espada y la Fe" || bg.category === "Gremios y Tierras") stratum = "Trabajadores";
-                        else if (bg.category === "Las Sombras y el Margen") stratum = "Bajos Fondos";
-                        else if (bg.category === "Trabajo Duro y Servidumbre") stratum = "Eruditos";
-                    }
+                    // Apply skill modifier
+                    luminousState.modifiers[skill] = (luminousState.modifiers[skill] || 0) + 2;
 
-                    let response = "";
-                    let bonusStat = "";
+                    // Move to final question
+                    purplePhaseState = 2;
+                    pIntervStep = 0;
 
-                    if (stratum === "Alta Sociedad") {
-                        if (action === "Aprender") { response = "Pasaste tu juventud encerrado en bibliotecas inmensas y despachos polvorientos. Tus tutores te enseñaron idiomas muertos, historia de guerras pasadas y el sutil arte de leer la política en las cenas familiares. Tu mente se volvió un archivo implacable.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
-                        else if (action === "Fortalecerme") { response = "No querías ser solo un nombre en un papel. Te sometiste a la disciplina de los maestros de esgrima, a las cacerías en la nieve bajo cero y a tolerar pequeñas dosis de veneno en tu té. Tu cuerpo se forjó a la altura de tu apellido.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
-                        else if (action === "Meditar") { response = "Los pasillos de tu hogar eran fríos y llenos de expectativas que te aplastaban. Aprendiste a aislarte de los murmullos, a sentarte en silencio en salones vacíos y a endurecer tu espíritu contra la constante decepción de tus padres.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
-                    } else if (stratum === "Trabajadores") {
-                        if (action === "Aprender") { response = "Entre el ruido de los talleres y las marchas, aprendiste observando. Entendiste cómo encajan los engranajes, cómo leer un mapa gastado y cómo llevar los números de los suministros para que siempre cuadraran sin que nadie lo notara.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
-                        else if (action === "Fortalecerme") { response = "Cargar peso, marchar con el estómago vacío y soportar jornadas de trabajo interminables. La fatiga intentó romperte incontables veces, pero al final, tus músculos se acostumbraron al castigo constante.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
-                        else if (action === "Meditar") { response = "El cansancio mental era peor que el físico. Encontraste formas de mantener la cordura: un rezo silencioso antes de dormir, el sonido rítmico de un martillo, o simplemente la capacidad de apagar tu mente para dejar de sentir las horas.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
-                    } else if (stratum === "Bajos Fondos") {
-                        if (action === "Aprender") { response = "La calle fue tu escuela. Aprendiste a leer descifrando letreros rotos, a memorizar los horarios de las patrullas de guardia y a saber, con solo mirar los ojos de alguien, si tenía intenciones de apuñalarte por unas monedas.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
-                        else if (action === "Fortalecerme") { response = "Cada día era una pelea por las sobras. Correr por los tejados, recibir palizas en callejones sin salida y soportar el invierno sin un abrigo decente. Te convertiste en algo muy difícil de matar.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
-                        else if (action === "Meditar") { response = "Cuando el hambre y el frío eran demasiado fuertes, tuviste que buscar refugio dentro de ti mismo. Aprendiste a quedarte completamente inmóvil en las sombras, tragándote el miedo y aceptando la oscuridad sin volverte loco.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
-                    } else if (stratum === "Eruditos") {
-                        if (action === "Aprender") { response = "Rodeado de las sobras del conocimiento o los documentos de los cobradores, tu curiosidad te salvó. Leíste a escondidas libros prohibidos, o aprendiste a encontrar los vacíos legales en los pagarés que condenaron a los tuyos.<br><br><span style='color: var(--cyan-tech);'>( Obtienes +2 en Mente )</span>"; bonusStat = "mente"; }
-                        else if (action === "Fortalecerme") { response = "El trabajo de servidumbre y el peso de las deudas exigen resistencia. Fregar pisos de piedra hasta sangrar, cavar en tierra helada o soportar los golpes de los acreedores te dieron una tolerancia al dolor que pocos entienden.<br><br><span style='color: var(--green-success);'>( Obtienes +2 en Cuerpo )</span>"; bonusStat = "cuerpo"; }
-                        else if (action === "Meditar") { response = "Tu vida le pertenecía a otros, así que tu mente fue tu único santuario. La fe inquebrantable en un monasterio silencioso, o la estoica aceptación de que algún día serías libre, forjaron en ti una voluntad inquebrantable.<br><br><span style='color: var(--border-accent);'>( Obtienes +2 en Alma )</span>"; bonusStat = "alma"; }
-                    }
+                    // Populate final buttons
+                    purpleButtonsContainer.innerHTML = "";
+                    finalOptions[primaryFocus].forEach(opt => {
+                        const btn2 = document.createElement('button');
+                        btn2.className = 'purple-btn final-btn';
+                        btn2.style.display = 'block';
+                        btn2.style.width = '100%';
+                        btn2.style.margin = '10px 0';
+                        btn2.innerHTML = `${opt.text}`;
+                        btn2.dataset.benefitStat = opt.benefit.stat;
+                        btn2.dataset.benefitVal = opt.benefit.val;
+                        btn2.dataset.penaltyStat = opt.penalty.stat;
+                        btn2.dataset.penaltyVal = opt.penalty.val;
+                        purpleButtonsContainer.appendChild(btn2);
+                    });
 
-                    if (bonusStat) {
-                        luminousState.baseStats[bonusStat] += 2;
-                    }
+                    typePIntervText(finalDialogueText[pIntervStep], () => {
+                        if (pIntervStep === finalDialogueText.length - 1) {
+                            purpleButtonsContainer.classList.remove('hidden');
+                        }
+                    });
+                } else if (e.target.classList.contains('final-btn')) {
+                    const btn = e.target;
+                    const bStat = btn.dataset.benefitStat;
+                    const bVal = parseInt(btn.dataset.benefitVal);
+                    const pStat = btn.dataset.penaltyStat;
+                    const pVal = parseInt(btn.dataset.penaltyVal);
 
-                    isReadingResult = true;
-                    purpleInterventionText.innerHTML = response; // Show immediately for reading
+                    purpleButtonsContainer.classList.add('hidden');
 
-                    // Add listener to go to 'Ya veo...'
-                    const transitionFn = (evt) => {
-                        evt.preventDefault();
-                        purpleInterventionText.innerHTML = "";
-                        typePIntervText("Ya veo...");
+                    luminousState.baseStats[bStat] += bVal;
+                    luminousState.baseStats[pStat] += pVal;
 
-                        // Overwrite transition
-                        phasePurpleIntervention.removeEventListener('click', transitionFn);
-                        phasePurpleIntervention.removeEventListener('touchstart', transitionFn);
-
-                        const finalTransition = (ev2) => {
-                            ev2.preventDefault();
-                            if (isTypingPInterv) {
-                                clearTimeout(typingTimeoutPInterv);
-                                purpleInterventionText.innerHTML = "Ya veo...";
-                                isTypingPInterv = false;
-                            } else {
-                                phasePurpleIntervention.classList.add('fade-out');
-                                setTimeout(() => {
-                                    window.location.href = 'index.html?tab=creator';
-                                }, 1000);
-                            }
-                        };
-                        phasePurpleIntervention.addEventListener('click', finalTransition);
-                        phasePurpleIntervention.addEventListener('touchstart', finalTransition, {passive: false});
-                    };
-
-                    // We remove the main advance listener and add our specific result listener
-                    phasePurpleIntervention.removeEventListener('click', handlePIntervAdvance);
-                    phasePurpleIntervention.removeEventListener('touchstart', handlePIntervAdvance);
-
-                    // Add timeout so they don't instantly click through it if they click the button fast
+                    // Fade out and go to index
+                    phasePurpleIntervention.classList.add('fade-out');
                     setTimeout(() => {
-                        phasePurpleIntervention.addEventListener('click', transitionFn);
-                        phasePurpleIntervention.addEventListener('touchstart', transitionFn, {passive: false});
-                    }, 100);
-                });
+                        window.location.href = 'index.html?tab=creator';
+                    }, 1000);
+                }
             });
+            purpleButtonsContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
 
         });
+
     </script>
 </body>
 </html>
