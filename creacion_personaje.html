@@ -572,42 +572,172 @@
             "Lore", "Investigación", "Arcana"
         ].sort();
 
-        const backgroundsData = [
+                        const backgroundsData = [
+            // LA ALTA SOCIEDAD
             {
-                "id": "alta_sociedad",
-                "name": "La Alta Sociedad",
+                "id": "alta_cuna",
+                "name": "Alta Cuna",
                 "category": "La Alta Sociedad",
-                "desc": "Nacido en la abundancia, protegido de la verdadera crudeza de la Ciudad.",
-                "benefit": "...",
-                "funds": "20,000,000 Ahn",
-                "entityResponse": "..."
+                "desc": "Nacido en la opulencia, educado por tutores privados y protegido de la crudeza del mundo exterior. Tu vida siempre ha estado planificada.",
+                "benefit": "+1 Empatía, +1 Negociación, -1 Supervivencia",
+                "funds": "25,000 Ahn",
+                "entityResponse": "Oro y seda. Qué fragilidad. Veamos si tus modales de salón te sirven aquí."
             },
             {
-                "id": "trabajadores",
-                "name": "Trabajadores, Milicia y Gremios",
+                "id": "aristocracia_mercantil",
+                "name": "Aristocracia Mercantil",
+                "category": "La Alta Sociedad",
+                "desc": "Tu linaje proviene de exitosos comerciantes. Entiendes el valor de un Ahn y cómo manipular el mercado.",
+                "benefit": "+2 Negociación, +1 Engaño, -1 Vigor",
+                "funds": "30,000 Ahn",
+                "entityResponse": "El valor lo es todo, ¿verdad? Dime, ¿a cuánto cotiza tu alma hoy?"
+            },
+            {
+                "id": "nobleza_caida",
+                "name": "Nobleza Caída",
+                "category": "La Alta Sociedad",
+                "desc": "Tu apellido alguna vez inspiró respeto, pero ahora solo quedan deudas y el recuerdo de la grandeza. Tienes que sobrevivir con tu ingenio.",
+                "benefit": "+1 Presencia, +1 Sigilo",
+                "funds": "5,000 Ahn",
+                "entityResponse": "Las grandes caídas resuenan más fuerte. Tu orgullo es tu única riqueza restante."
+            },
+            {
+                "id": "cuna_de_eruditos",
+                "name": "Cuna de Eruditos",
+                "category": "La Alta Sociedad",
+                "desc": "Creciste rodeado de bibliotecas y laboratorios. La búsqueda del conocimiento siempre fue más importante que las relaciones sociales.",
+                "benefit": "+2 Ciencia, +1 Lore, -1 Carisma",
+                "funds": "15,000 Ahn",
+                "entityResponse": "Tantos libros leídos, tantas pantallas escudriñadas. Y aún así, ignoras lo fundamental."
+            },
+            // TRABAJADORES, MILICIA Y GREMIOS
+            {
+                "id": "linaje_militar",
+                "name": "Linaje Militar",
                 "category": "Trabajadores, Milicia y Gremios",
-                "desc": "Forjado en el sudor, la disciplina y el trabajo duro.",
-                "benefit": "...",
-                "funds": "5,000,000 Ahn",
-                "entityResponse": "..."
+                "desc": "Las historias antes de dormir eran sobre batallas y tácticas. Naciste para seguir órdenes y liderar escuadrones.",
+                "benefit": "+1 Fortaleza, +1 Manejo",
+                "funds": "8,000 Ahn",
+                "entityResponse": "Soldaditos de plomo marchando hacia el abismo. Al menos sabes cómo formar fila."
             },
             {
-                "id": "bajos_fondos",
-                "name": "Los Bajos Fondos y Olvidados",
+                "id": "familia_de_granjeros",
+                "name": "Familia de Granjeros",
+                "category": "Trabajadores, Milicia y Gremios",
+                "desc": "Trabajo duro bajo soles artificiales o naturales. Conoces el ciclo de la vida, la tierra y el sudor honesto.",
+                "benefit": "+1 Vigor, +1 Supervivencia",
+                "funds": "3,000 Ahn",
+                "entityResponse": "Polvo eres y en polvo te convertirás. Estás muy familiarizado con tu destino."
+            },
+            {
+                "id": "artesano_independiente",
+                "name": "Artesano Independiente",
+                "category": "Trabajadores, Milicia y Gremios",
+                "desc": "Manos callosas y atención al detalle. Aprendiste un oficio que te permite ganarte la vida, pero siempre al borde de la quiebra.",
+                "benefit": "+1 Reflejos, +1 Análisis",
+                "funds": "6,000 Ahn",
+                "entityResponse": "Crear para que otros destruyan. Una existencia admirablemente fútil."
+            },
+            {
+                "id": "fuerzas_de_seguridad",
+                "name": "Fuerzas de Seguridad (Bajas)",
+                "category": "Trabajadores, Milicia y Gremios",
+                "desc": "La ley y el orden, o al menos la versión que imponen los de arriba. Has visto lo peor de la sociedad de cerca.",
+                "benefit": "+1 Percepción, +1 Voluntad",
+                "funds": "7,000 Ahn",
+                "entityResponse": "El perro guardián del amo. ¿Qué se siente morder a los de tu propia clase?"
+            },
+            {
+                "id": "burocracia_menor",
+                "name": "Burocracia Menor",
+                "category": "Trabajadores, Milicia y Gremios",
+                "desc": "Sellos, formularios y la lenta muerte por aburrimiento. Eres parte de la maquinaria que mantiene el sistema girando.",
+                "benefit": "+1 Memoria, +1 Prudencia",
+                "funds": "4,500 Ahn",
+                "entityResponse": "El infierno está pavimentado con formularios triplicados. Tú serías un excelente demonio burócrata."
+            },
+            // LOS BAJOS FONDOS Y OLVIDADOS
+            {
+                "id": "huerfano_callejero",
+                "name": "Huérfano Callejero",
                 "category": "Los Bajos Fondos y Olvidados",
-                "desc": "Supervivencia a cualquier costo en las sombras del sistema.",
-                "benefit": "...",
-                "funds": "500,000 Ahn",
-                "entityResponse": "..."
+                "desc": "Criado por las ratas y el neón parpadeante. Aprendiste a ser invisible y a tomar lo que no es tuyo para sobrevivir.",
+                "benefit": "+2 Sigilo, +1 Agilidad, -1 Educación Formal (Lore)",
+                "funds": "500 Ahn",
+                "entityResponse": "Nadie lloró tu nacimiento. Asegúrate de que lloren tu muerte."
             },
             {
-                "id": "eruditos",
-                "name": "Eruditos, Siervos y Deudores",
+                "id": "escoria_criminal",
+                "name": "Escoria Criminal",
+                "category": "Los Bajos Fondos y Olvidados",
+                "desc": "Las leyes son sugerencias; la supervivencia es mandato. Extorsión, contrabando o robos menores fueron tu escuela.",
+                "benefit": "+1 Engaño, +1 Seducción",
+                "funds": "2,000 Ahn",
+                "entityResponse": "El crimen no paga, pero al menos da de comer... a veces. Tu moralidad es tan flexible como tus lealtades."
+            },
+            {
+                "id": "exiliado_proscrito",
+                "name": "Exiliado / Proscrito",
+                "category": "Los Bajos Fondos y Olvidados",
+                "desc": "Alguien te quería muerto o lejos. Conseguiste lo segundo. Aprendiste a vivir en los márgenes de la civilización.",
+                "benefit": "+2 Supervivencia, +1 Instinto, -1 Carisma",
+                "funds": "1,000 Ahn",
+                "entityResponse": "Correr es cansado. ¿Cuándo te darás la vuelta y enfrentarás a tus cazadores?"
+            },
+            {
+                "id": "esclavo_liberado",
+                "name": "Esclavo Liberado / Fugitivo",
+                "category": "Los Bajos Fondos y Olvidados",
+                "desc": "Conoces el peso de las cadenas. Escapaste o compraste tu libertad, pero las cicatrices mentales y físicas permanecen.",
+                "benefit": "+2 Voluntad, +1 Templanza, -1 Confianza (Empatía)",
+                "funds": "200 Ahn",
+                "entityResponse": "La libertad tiene un precio. Y tú todavía lo estás pagando. Esas cadenas te sientan demasiado bien."
+            },
+            {
+                "id": "experimento_fallido",
+                "name": "Experimento Fallido",
+                "category": "Los Bajos Fondos y Olvidados",
+                "desc": "Un sujeto de prueba descartado. Memorias fragmentadas, un cuerpo alterado y una resistencia antinatural al dolor.",
+                "benefit": "+2 Resistencia (Fortaleza), +1 Arcana, -1 Apariencia (Presencia)",
+                "funds": "0 Ahn",
+                "entityResponse": "Monstruo de Frankenstein moderno. Tus creadores fueron descuidados, pero al menos eres... interesante."
+            },
+            // ERUDITOS, SIERVOS Y DEUDORES
+            {
+                "id": "academico_desacreditado",
+                "name": "Académico Desacreditado",
                 "category": "Eruditos, Siervos y Deudores",
-                "desc": "Conocimiento, servicio o cadenas; una vida dedicada a otros.",
-                "benefit": "...",
-                "funds": "1,000,000 Ahn",
-                "entityResponse": "..."
+                "desc": "Descubriste una verdad incómoda o cometiste un error fatal. Te quitaron tus credenciales, pero no lo que sabes.",
+                "benefit": "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)",
+                "funds": "1,500 Ahn",
+                "entityResponse": "La verdad duele. Especialmente cuando a nadie le importa y te cuesta la vida que conocías."
+            },
+            {
+                "id": "siervo_corporativo",
+                "name": "Siervo Corporativo (Bajo Rango)",
+                "category": "Eruditos, Siervos y Deudores",
+                "desc": "Tu vida pertenece a un logo. Eres prescindible, un engranaje reemplazable en la colosal máquina corporativa.",
+                "benefit": "+1 Represión, +1 Negociación",
+                "funds": "2,500 Ahn",
+                "entityResponse": "Una hormiga en un nido de plástico y metal. Qué vida tan... eficiente y prescindible."
+            },
+            {
+                "id": "deudor_vitalicio",
+                "name": "Deudor Vitalicio",
+                "category": "Eruditos, Siervos y Deudores",
+                "desc": "Naciste debiendo Ahn. Heredaste las deudas de tus padres y ahora cada respiro que tomas le pertenece al banco.",
+                "benefit": "+2 Atletismo (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)",
+                "funds": "-100,000 Ahn (Comienzas con deuda)",
+                "entityResponse": "El rojo es tu color. En tus cuentas, en tu sangre y en tu destino. Morirás debiendo más."
+            },
+            {
+                "id": "miembro_culto",
+                "name": "Miembro de Culto Menor",
+                "category": "Eruditos, Siervos y Deudores",
+                "desc": "Promesas de salvación susurradas en sótanos oscuros. Dedicaste tu vida a un dogma marginal que exige fe ciega.",
+                "benefit": "+2 Fe, +1 Lore, -1 Razón (Análisis)",
+                "funds": "800 Ahn",
+                "entityResponse": "Falsos dioses para mentes débiles. Pero... la fe mueve montañas, o al menos, nubla el juicio maravillosamente."
             }
         ];
 
