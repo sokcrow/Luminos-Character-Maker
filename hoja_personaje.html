@@ -119,6 +119,11 @@
             text-shadow: 0 0 5px rgba(255, 174, 0, 0.5);
         }
 
+
+        .sheet-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .sheet-col { flex: 1; display: flex; flex-direction: column; }
+        .sheet-col-small { flex: 0.5; }
+
         /* FASE 2: Notebook Desk Aesthetics for parts */
         .sheet-parts-editor-container {
             background: linear-gradient(135deg, #1c1815 0%, #29231f 50%, #151210 100%);
@@ -437,6 +442,184 @@
             margin-top: 15px;
             width: 100%;
         }
+
+
+        .sheet-hide-empty:empty { display: none; }
+
+        /* XP Bar */
+        .sheet-xp-player-container { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .sheet-xp-small { width: 60px; background: #222; color: #fff; border: 1px solid #444; text-align: center; }
+        .sheet-xp-bar-container { flex: 1; background: #222; height: 18px; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden; }
+        .sheet-xp-progress-wrapper { width: 100%; height: 100%; position: relative; }
+        .sheet-xp-fill { position: absolute; left: 0; top: 0; height: 100%; background: #9b59b6; box-shadow: 0 0 5px #9b59b6; z-index: 1; transition: width 0.3s; }
+        .sheet-xp-text { position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-size: 0.8em; line-height: 18px; z-index: 2; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+
+        .sheet-state-xp-bar[value="sheet-xp-0"] ~ * .sheet-xp-fill { width: 0%; }
+        .sheet-state-xp-bar[value="sheet-xp-5"] ~ * .sheet-xp-fill { width: 5%; }
+        .sheet-state-xp-bar[value="sheet-xp-10"] ~ * .sheet-xp-fill { width: 10%; }
+        .sheet-state-xp-bar[value="sheet-xp-15"] ~ * .sheet-xp-fill { width: 15%; }
+        .sheet-state-xp-bar[value="sheet-xp-20"] ~ * .sheet-xp-fill { width: 20%; }
+        .sheet-state-xp-bar[value="sheet-xp-25"] ~ * .sheet-xp-fill { width: 25%; }
+        .sheet-state-xp-bar[value="sheet-xp-30"] ~ * .sheet-xp-fill { width: 30%; }
+        .sheet-state-xp-bar[value="sheet-xp-35"] ~ * .sheet-xp-fill { width: 35%; }
+        .sheet-state-xp-bar[value="sheet-xp-40"] ~ * .sheet-xp-fill { width: 40%; }
+        .sheet-state-xp-bar[value="sheet-xp-45"] ~ * .sheet-xp-fill { width: 45%; }
+        .sheet-state-xp-bar[value="sheet-xp-50"] ~ * .sheet-xp-fill { width: 50%; }
+        .sheet-state-xp-bar[value="sheet-xp-55"] ~ * .sheet-xp-fill { width: 55%; }
+        .sheet-state-xp-bar[value="sheet-xp-60"] ~ * .sheet-xp-fill { width: 60%; }
+        .sheet-state-xp-bar[value="sheet-xp-65"] ~ * .sheet-xp-fill { width: 65%; }
+        .sheet-state-xp-bar[value="sheet-xp-70"] ~ * .sheet-xp-fill { width: 70%; }
+        .sheet-state-xp-bar[value="sheet-xp-75"] ~ * .sheet-xp-fill { width: 75%; }
+        .sheet-state-xp-bar[value="sheet-xp-80"] ~ * .sheet-xp-fill { width: 80%; }
+        .sheet-state-xp-bar[value="sheet-xp-85"] ~ * .sheet-xp-fill { width: 85%; }
+        .sheet-state-xp-bar[value="sheet-xp-90"] ~ * .sheet-xp-fill { width: 90%; }
+        .sheet-state-xp-bar[value="sheet-xp-95"] ~ * .sheet-xp-fill { width: 95%; }
+        .sheet-state-xp-bar[value="sheet-xp-100"] ~ * .sheet-xp-fill { width: 100%; }
+
+        /* Ahn display */
+        .sheet-ahn-display { color: #FFD700; font-size: 1.2em; font-weight: bold; }
+        .sheet-ahn-mod-container { display: flex; align-items: center; gap: 5px; }
+        .sheet-ahn-mod { width: 60px; text-align: center; }
+        .sheet-ahn-btn { background: #333; color: white; border: 1px solid #555; padding: 2px 8px; cursor: pointer; }
+
+        .sheet-ahn-edit-menu { display: none; }
+        .sheet-ahn-edit-toggle[value="1"] ~ .sheet-ahn-edit-menu { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; }
+
+        .sheet-read-only { color: #aaa; font-weight: bold; }
+        .sheet-slash { color: #aaa; margin: 0 5px; }
+
+        /* Switch */
+        .sheet-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .sheet-switch input { opacity: 0; width: 0; height: 0; }
+        .sheet-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 20px; }
+        .sheet-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .sheet-slider { background-color: var(--green-success); }
+        input:checked + .sheet-slider:before { transform: translateX(20px); }
+
+        .sheet-part-header-label { font-weight: bold; margin-left: 10px; color: #333; }
+        .sheet-part-name-input { margin-left: 10px; border-bottom: 1px solid #999; }
+        .sheet-part-icon-select { width: auto; }
+
+        /* View specific styles */
+        .sheet-part-view-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px; }
+        .sheet-part-view-left { display: flex; align-items: center; }
+        .sheet-part-view-center { flex: 1; padding: 0 15px; }
+        .sheet-part-view-right { display: flex; align-items: center; gap: 5px; }
+
+        .sheet-part-icon-bar { width: 30px; height: 30px; object-fit: contain; margin-right: 10px; }
+        .sheet-part-name-bar { font-size: 1.1em; font-weight: bold; color: var(--border-accent); }
+        .sheet-part-hp-track { width: 100%; height: 20px; background: #222; border: 1px solid #444; position: relative; }
+        .sheet-part-hp-fill { height: 100%; background: var(--red-limbus); transition: width 0.3s; }
+        .sheet-part-hp-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; color: white; font-size: 0.8em; line-height: 20px; text-shadow: 1px 1px 2px #000; }
+        .sheet-part-hp-input { width: 40px; background: transparent; border: none; color: white; text-align: right; }
+
+        /* Bar percentages */
+        .sheet-state-part-bar[value="sheet-bar-p100"] ~ * .sheet-part-hp-fill { width: 100%; }
+        .sheet-state-part-bar[value="sheet-bar-p95"] ~ * .sheet-part-hp-fill { width: 95%; }
+        .sheet-state-part-bar[value="sheet-bar-p90"] ~ * .sheet-part-hp-fill { width: 90%; }
+        .sheet-state-part-bar[value="sheet-bar-p85"] ~ * .sheet-part-hp-fill { width: 85%; }
+        .sheet-state-part-bar[value="sheet-bar-p80"] ~ * .sheet-part-hp-fill { width: 80%; }
+        .sheet-state-part-bar[value="sheet-bar-p75"] ~ * .sheet-part-hp-fill { width: 75%; }
+        .sheet-state-part-bar[value="sheet-bar-p70"] ~ * .sheet-part-hp-fill { width: 70%; }
+        .sheet-state-part-bar[value="sheet-bar-p65"] ~ * .sheet-part-hp-fill { width: 65%; }
+        .sheet-state-part-bar[value="sheet-bar-p60"] ~ * .sheet-part-hp-fill { width: 60%; }
+        .sheet-state-part-bar[value="sheet-bar-p55"] ~ * .sheet-part-hp-fill { width: 55%; }
+        .sheet-state-part-bar[value="sheet-bar-p50"] ~ * .sheet-part-hp-fill { width: 50%; }
+        .sheet-state-part-bar[value="sheet-bar-p45"] ~ * .sheet-part-hp-fill { width: 45%; }
+        .sheet-state-part-bar[value="sheet-bar-p40"] ~ * .sheet-part-hp-fill { width: 40%; }
+        .sheet-state-part-bar[value="sheet-bar-p35"] ~ * .sheet-part-hp-fill { width: 35%; }
+        .sheet-state-part-bar[value="sheet-bar-p30"] ~ * .sheet-part-hp-fill { width: 30%; }
+        .sheet-state-part-bar[value="sheet-bar-p25"] ~ * .sheet-part-hp-fill { width: 25%; }
+        .sheet-state-part-bar[value="sheet-bar-p20"] ~ * .sheet-part-hp-fill { width: 20%; }
+        .sheet-state-part-bar[value="sheet-bar-p15"] ~ * .sheet-part-hp-fill { width: 15%; }
+        .sheet-state-part-bar[value="sheet-bar-p10"] ~ * .sheet-part-hp-fill { width: 10%; }
+        .sheet-state-part-bar[value="sheet-bar-p5"] ~ * .sheet-part-hp-fill { width: 5%; }
+        .sheet-state-part-bar[value="sheet-bar-p0"] ~ * .sheet-part-hp-fill { width: 0%; }
+
+        .sheet-stagger-val-sub { color: #888; font-size: 0.8em; margin-right: 5px; }
+        .sheet-part-tremor-input { width: 30px; background: transparent; border: none; border-bottom: 1px solid #ffae00; color: #ffae00; text-align: center; }
+        .sheet-part-status-text { text-transform: uppercase; font-weight: bold; margin-left: 10px; }
+        .sheet-part-status-text[value="active"] { color: var(--green-success); }
+        .sheet-part-status-text[value="broken"] { color: var(--red-neon); }
+        .sheet-part-status-text[value="severed"] { color: #888; text-decoration: line-through; }
+
+        .sheet-part-resistances { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+        .sheet-res-sep { width: 2px; height: 24px; background: #333; margin: 0 5px; }
+        .sheet-res-block-mini { display: flex; align-items: center; background: #111; padding: 2px; border: 1px solid #333; border-radius: 3px; }
+        .sheet-res-block-mini img { width: 16px; height: 16px; margin-right: 2px; }
+        .sheet-res-block-mini input { width: 35px; height: 16px; font-size: 0.8em; background: transparent; border: none; color: white; text-align: center; }
+
+        /* Modifiers badges */
+        .sheet-skill-badge, .sheet-equip-badge { background: #222; color: #ccc; border: 1px solid #444; padding: 2px 5px; font-size: 0.7em; border-radius: 3px; }
+
+        /* Visibility of elements depending on toggle/state */
+        .sheet-state-parts-editor[value="1"] ~ .sheet-parts-editor-container { display: block; }
+        .sheet-state-parts-editor[value="0"] ~ .sheet-parts-editor-container { display: none; }
+
+        /* Fix abnormality parts visibility based on active state */
+        .sheet-state-part-active[value="0"] ~ .sheet-part-view-bar,
+        .sheet-state-part-active[value="0"] ~ .sheet-part-resistances { display: none; }
+
+        /* Abnormality logic */
+        .sheet-state-char-type[value="player"] ~ * .sheet-abno-parts-container,
+        .sheet-state-char-type[value="npc"] ~ * .sheet-abno-parts-container,
+        .sheet-state-char-type[value="player"] ~ * .sheet-abno-stagger-values,
+        .sheet-state-char-type[value="npc"] ~ * .sheet-abno-stagger-values,
+        .sheet-state-char-type[value="player"] ~ * .sheet-abno-stagger-markers,
+        .sheet-state-char-type[value="npc"] ~ * .sheet-abno-stagger-markers,
+        .sheet-state-char-type[value="player"] ~ .sheet-tabs .sheet-show-parts-btn,
+        .sheet-state-char-type[value="npc"] ~ .sheet-tabs .sheet-show-parts-btn { display: none !important; }
+
+        /* Abilities List */
+        .sheet-skill-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .sheet-skill-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; }
+        .sheet-skill-name-text { font-size: 1.1em; font-weight: bold; color: var(--border-accent); margin-right: 10px; }
+        .sheet-btn-clash { background: var(--border-accent); color: #000; border: none; padding: 2px 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 2px; }
+        .sheet-btn-damage { background: var(--red-neon); color: #000; border: none; padding: 2px 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 2px; }
+        .sheet-btn-defend { background: var(--cyan-tech); color: #000; border: none; padding: 2px 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 2px; }
+        .sheet-skill-stats { display: flex; gap: 15px; font-size: 0.9em; color: #ccc; }
+        .sheet-skill-coins { display: flex; gap: 2px; }
+        .sheet-coin-icon { width: 14px; height: 14px; }
+        .sheet-dmg-type-icon { width: 16px; height: 16px; vertical-align: middle; }
+
+        .sheet-skill-effects-view { font-size: 0.85em; color: #aaa; margin-top: 5px; }
+        .sheet-clash-power { font-weight: bold; color: var(--border-accent); font-size: 1.1em; }
+
+        /* Icons */
+        .sheet-sin-icon { width: 40px; height: 40px; border-radius: 5px; }
+        .sheet-sin-overlay-container { position: relative; width: 40px; height: 40px; margin-right: 10px; }
+        .sheet-sin-overlay-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+
+        /* Attack vs Defense Toggles */
+        .sheet-state-skill-type[value="attack"] ~ * .sheet-creator-attack { display: block; }
+        .sheet-state-skill-type[value="defense"] ~ * .sheet-creator-attack { display: none; }
+        .sheet-state-skill-type[value="defense"] ~ * .sheet-creator-defense { display: block; }
+        .sheet-state-skill-type[value="attack"] ~ * .sheet-creator-defense { display: none; }
+
+        .sheet-state-skill-type-row[value="attack"] ~ .sheet-skill-view .sheet-show-attack { display: block; }
+        .sheet-state-skill-type-row[value="defense"] ~ .sheet-skill-view .sheet-show-attack { display: none; }
+        .sheet-state-skill-type-row[value="defense"] ~ .sheet-skill-view .sheet-show-defense { display: block; }
+        .sheet-state-skill-type-row[value="attack"] ~ .sheet-skill-view .sheet-show-defense { display: none; }
+
+        .sheet-state-def-type-row[value="Guard"] ~ .sheet-skill-view .sheet-show-guard-evade,
+        .sheet-state-def-type-row[value="Evade"] ~ .sheet-skill-view .sheet-show-guard-evade { display: block; }
+        .sheet-state-def-type-row[value="Counter"] ~ .sheet-skill-view .sheet-show-guard-evade { display: none; }
+        .sheet-state-def-type-row[value="Counter"] ~ .sheet-skill-view .sheet-show-counter { display: block; }
+        .sheet-state-def-type-row[value="Guard"] ~ .sheet-skill-view .sheet-show-counter,
+        .sheet-state-def-type-row[value="Evade"] ~ .sheet-skill-view .sheet-show-counter { display: none; }
+
+        .sheet-state-def-level-row[value="Main"] ~ .sheet-skill-view .sheet-show-def-main { display: inline; }
+        .sheet-state-def-level-row[value="Sub"] ~ .sheet-skill-view .sheet-show-def-main { display: none; }
+
+        /* Stats */
+        .sheet-stat-base { font-size: 1.2em; font-weight: bold; color: white; margin-right: 5px; }
+        .sheet-stat-coin { font-size: 1.1em; color: var(--cyan-tech); }
+        .sheet-stat-atk-weight { font-weight: bold; color: var(--red-neon); letter-spacing: 2px; }
+
+        .sheet-skill-header-group { display: flex; align-items: center; }
+
+        /* Fixes for overlapping */
+        .sheet-xp-reward-value { color: white; margin-left: 5px; }
 
         /* CRT Scanlines */
         body::before {
