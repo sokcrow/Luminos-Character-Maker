@@ -542,6 +542,22 @@
             </div>
         </div>
 
+        <div id="phase-dialogue-4" class="phase hidden">
+            <div class="background-glow"></div>
+            <p id="dialogue-text-4" class="golden-text"></p>
+        </div>
+
+        <div id="phase4" class="phase hidden" style="justify-content: flex-start; padding-top: 50px; overflow-y: auto;">
+            <h1 class="question">¿Cuál fue tu vida antes de esto?</h1>
+            <div id="psychological-grid" class="origin-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí con JavaScript -->
+            </div>
+            <div class="nav-buttons" style="margin-bottom: 50px;">
+                <button id="btn-confirmar-psicologia" class="btn" disabled>Confirmar Trasfondo Psicológico</button>
+            </div>
+        </div>
+
+
     </div>
 
     <script>
@@ -1129,188 +1145,929 @@
             }
         ];
 
-        const backgroundsData = [
+                const psychologicalBackgroundsData = [
+    {
+        "id": "el_atormentado",
+        "name": "El Atormentado",
+        "desc": "Eres el único testigo de un suceso que la lógica de la Ciudad no puede procesar. No fue un accidente común; fue una fractura en tu realidad que te eligió como espectador. Mientras los demás caminan ignorantes, tú llevas el peso de algo que no puede ser nombrado. Tu sistema nervioso se encarga de recordártelo cada vez que el silencio se vuelve demasiado denso.",
+        "quote": "Vamos a abrir tu expediente. Miremos cada paso ciego que diste hacia el abismo. Veamos cómo construiste tu propia jaula antes de perderlo todo.",
+        "ideales": [
             {
-                id: 'alta_nobleza',
-                name: 'Alta Nobleza',
-                category: 'Privilegio y Poder',
-                desc: 'Naciste en una cuna de oro, rodeado de blasones y linajes antiguos. Tu infancia estuvo dictada por el protocolo, las alianzas y las expectativas de tu apellido.',
-                benefit: '+3 en Negociación.',
-                funds: '1,500,000 Ahn. Comienzas con un Anillo de Sello de tu casa.',
-                entityResponse: "Se alzaron sobre pedestales, creyendo que el cielo les pertenecía... Qué frágil es la corona que forja el mortal."
+                "nombre": "Verdad",
+                "desc": "Las mentiras de la Ciudad son una jaula; solo la realidad cruda importa."
             },
             {
-                id: 'aristocracia_mercantil',
-                name: 'Aristocracia Mercantil',
-                category: 'Privilegio y Poder',
-                desc: 'Tu familia no tenía títulos, pero tenía flotas, caravanas y monopolios. Creciste aprendiendo que todo en este mundo tiene un precio.',
-                benefit: '+3 en Manejo.',
-                funds: '2,000,000 Ahn. Comienzas con un libro de contabilidad familiar.',
-                entityResponse: "Pusieron precio a la tierra, al mar y al espíritu. Ilusos que intentan comprar la eternidad con metales muertos."
+                "nombre": "Compasión",
+                "desc": "Nadie más debería experimentar el colapso que yo viví."
             },
             {
-                id: 'nobleza_caida',
-                name: 'Nobleza Caída',
-                category: 'Privilegio y Poder',
-                desc: 'Tu apellido alguna vez inspiró respeto, pero la guerra, la traición o las deudas lo redujeron a cenizas. Creciste escuchando historias de una grandeza que nunca viviste.',
-                benefit: '+3 en Presencia.',
-                funds: '500,000 Ahn. Comienzas con un blasón desgastado o una reliquia rota.',
-                entityResponse: "Aferrados a nombres que el viento ya borró. El orgullo es un alimento amargo cuando no hay pan."
+                "nombre": "Supervivencia",
+                "desc": "Soy el único registro vivo de lo que pasó; debo persistir."
             },
             {
-                id: 'cuna_de_eruditos',
-                name: 'Cuna de Eruditos',
-                category: 'Privilegio y Poder',
-                desc: 'Creciste en los pasillos de una academia o biblioteca. Tus padres valoraban el conocimiento por encima de cualquier otra cosa.',
-                benefit: '+3 en Memoria.',
-                funds: '1,000,000 Ahn. Comienzas con un tomo de historia antiguo.',
-                entityResponse: "Acumularon palabras en torres de marfil, ciegos a las verdades que no pueden ser escritas con tinta."
+                "nombre": "Propósito",
+                "desc": "Este dolor debe tener un significado mayor que el simple azar."
             },
             {
-                id: 'linaje_militar',
-                name: 'Linaje Militar',
-                category: 'La Espada y la Fe',
-                desc: 'Generaciones de tu familia han marchado a la guerra. Creciste en campamentos o fortalezas, donde la disciplina era la única forma de afecto.',
-                benefit: '+3 en Fortaleza.',
-                funds: '400,000 Ahn. Comienzas con un arma heredada (Tier 1).',
-                entityResponse: "Forjados para sangrar por causas ajenas. Tu herencia es el filo y la cicatriz, un ciclo que nunca termina."
+                "nombre": "Venganza",
+                "desc": "Si el mundo me rompió, yo encontraré la forma de romperlo de vuelta."
             },
             {
-                id: 'guardia_local',
-                name: 'Guardia Local',
-                category: 'La Espada y la Fe',
-                desc: 'Tus padres eran los encargados de mantener el orden en las calles o las fronteras de tu hogar. Aprendiste rápido a identificar quién es una amenaza.',
-                benefit: '+3 en Percepción.',
-                funds: '300,000 Ahn. Comienzas con una insignia de la guardia.',
-                entityResponse: "Ojos que vigilan en la noche, creyendo que pueden contener la oscuridad... ignorando que la oscuridad ya está dentro."
+                "nombre": "Conocimiento",
+                "desc": "Nombrar el trauma es la única forma de no ser devorado por él."
             },
             {
-                id: 'pupilo_del_templo',
-                name: 'Pupilo del Templo',
-                category: 'La Espada y la Fe',
-                desc: 'Entregado a los clérigos desde joven. Creciste bajo la estricta mirada de los dogmas, rodeado de incienso y coros solemnes.',
-                benefit: '+3 en Fe.',
-                funds: '200,000 Ahn. Comienzas con un símbolo sagrado.',
-                entityResponse: "Rodillas gastadas sobre piedra fría, elevando plegarias a un silencio absoluto. La devoción es el refugio de los temerosos."
+                "nombre": "Aislamiento",
+                "desc": "Mi sola presencia es un recordatorio de la fragilidad de los demás."
             },
             {
-                id: 'heredero_de_mercenarios',
-                name: 'Heredero de Mercenarios',
-                category: 'La Espada y la Fe',
-                desc: 'Vidas nómadas vendiendo la espada al mejor postor. Aprendiste que la lealtad es un lujo que solo los ricos pueden pagar.',
-                benefit: '+3 en Reflejos.',
-                funds: '500,000 Ahn. Comienzas con un contrato antiguo.',
-                entityResponse: "Vidas entregadas a quienes ofrecen más oro. Tu lealtad tiene el peso exacto de la moneda que cae en tu palma."
+                "nombre": "Poder",
+                "desc": "Si sobreviví a aquello, nada en esta Ciudad puede volver a hacerme daño."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Respuesta Somática",
+                "desc": "Sensación física de una mano en tu hombro en habitaciones oscuras."
             },
             {
-                id: 'familia_de_granjeros',
-                name: 'Familia de Granjeros',
-                category: 'Gremios y Tierras',
-                desc: 'Naciste con las manos en la tierra. Tu infancia fue marcada por las estaciones, las cosechas, las sequías y el trabajo extenuante bajo el sol.',
-                benefit: '+3 en Vigor.',
-                funds: '100,000 Ahn. Comienzas con semillas de tu región.',
-                entityResponse: "Atados a la tierra y al capricho del clima. Una vida simple, esperando una cosecha que siempre se marchita."
+                "nombre": "Disonancia Sensorial",
+                "desc": "Un estímulo específico (olor, luz) provoca parálisis inmediata."
             },
             {
-                id: 'gremio_de_artesanos',
-                name: 'Gremio de Artesanos',
-                category: 'Gremios y Tierras',
-                desc: 'Herreros, carpinteros o tejedores. Creciste rodeado de herramientas y aprendiste el valor de crear cosas duraderas con tus propias manos.',
-                benefit: '+3 en Análisis.',
-                funds: '350,000 Ahn. Comienzas con herramientas de artesano de buena calidad.',
-                entityResponse: "Manos marcadas por el esfuerzo de dar forma a lo inerte. Crean afanosamente, olvidando que el tiempo, inevitablemente, lo destruirá todo."
+                "nombre": "Amnesia Selectiva",
+                "desc": "Un \"bloque muerto\" en tu memoria para evitar el colapso."
             },
             {
-                id: 'comerciantes_itinerantes',
-                name: 'Comerciantes Itinerantes',
-                category: 'Gremios y Tierras',
-                desc: 'Tu hogar fue una caravana en constante movimiento. Aprendiste a tratar con extraños, a regatear y a leer las intenciones de la gente en el camino.',
-                benefit: '+3 en Carisma.',
-                funds: '250,000 Ahn. Comienzas con un mapa gastado de rutas comerciales.',
-                entityResponse: "Condenados a caminar sin descanso, trazando senderos en un mundo que siempre vuelve a borrar sus huellas."
+                "nombre": "Anclaje Táctil",
+                "desc": "Un objeto de alguien que perdiste; te da pánico soltarlo."
             },
             {
-                id: 'artistas_y_juglares',
-                name: 'Artistas y Juglares',
-                category: 'Gremios y Tierras',
-                desc: 'Naciste en medio de un espectáculo ambulante. Tu vida estuvo llena de música, historias, máscaras y aplausos efímeros.',
-                benefit: '+3 en Seducción.',
-                funds: '150,000 Ahn. Comienzas con un instrumento musical o una máscara teatral.',
-                entityResponse: "Danzantes en el teatro de la ilusión. Tejen mentiras hermosas para aquellos que no soportan mirar la realidad."
+                "nombre": "Compulsión de Seguridad",
+                "desc": "Ritual repetitivo necesario para \"mantener el mundo en su sitio\"."
             },
             {
-                id: 'huerfano_de_los_callejones',
-                name: 'Huérfano de los Callejones',
-                category: 'Las Sombras y el Margen',
-                desc: 'No conociste a tus padres o los perdiste muy pronto. La calle te enseñó a correr, a esconderte y a pelear por las sobras.',
-                benefit: '+3 en Agilidad.',
-                funds: '5,000 Ahn.',
-                entityResponse: "Nacido de la ruina, aferrándote a la decadencia. Eres el remanente que perdura cuando los grandes cimientos colapsan."
+                "nombre": "Despersonalización",
+                "desc": "Convicción de que no sobreviviste y eres solo un eco observando."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Paranoia",
+                "desc": "Las sombras se mueven con intenciones que solo tú notas."
             },
             {
-                id: 'linaje_de_ladrones',
-                name: 'Linaje de Ladrones',
-                category: 'Las Sombras y el Margen',
-                desc: 'Creciste en una familia o gremio donde tomar lo ajeno era la norma. Te enseñaron a caminar sin hacer ruido y a abrir aquello que estaba cerrado.',
-                benefit: '+3 en Sigilo.',
-                funds: '100,000 Ahn. Comienzas con ganzúas.',
-                entityResponse: "Lo que el mundo niega, la sombra lo arrebata. Vives en los resquicios de las leyes que otros fingen respetar."
+                "nombre": "Obsesión",
+                "desc": "Todo es una pista y cada silencio es una amenaza encubierta."
             },
             {
-                id: 'estafadores_de_cuna',
-                name: 'Estafadores de Cuna',
-                category: 'Las Sombras y el Margen',
-                desc: 'Tus mentores te enseñaron que la gente quiere ser engañada. Aprendiste a fabricar historias y a vivir de la credulidad de los demás.',
-                benefit: '+3 en Engaño.',
-                funds: '150,000 Ahn. Comienzas con dados trucados o cartas marcadas.',
-                entityResponse: "La verdad es solo arcilla en tus manos. Has descubierto que la mentira es la moneda más valiosa entre los vivos."
+                "nombre": "Vacío",
+                "desc": "Tus emociones se quedaron en aquel lugar; ahora solo queda análisis frío."
             },
             {
-                id: 'desterrados',
-                name: 'Desterrados',
-                category: 'Las Sombras y el Margen',
-                desc: 'Tu familia fue expulsada de su tierra natal. Creciste como un forastero en todas partes, aprendiendo a confiar únicamente en tus propios instintos.',
-                benefit: '+3 en Instinto.',
-                funds: '20,000 Ahn. Comienzas con tierra o un recuerdo de tu antiguo hogar.',
-                entityResponse: "Marcados por el repudio. El mundo les arrebató un hogar, entregándoles a cambio la más cruel y vasta de las libertades."
+                "nombre": "Temeridad",
+                "desc": "Estás convencido de que lo peor ya pasó; el riesgo ya no genera miedo."
             },
             {
-                id: 'prole_de_sirvientes',
-                name: 'Prole de Sirvientes',
-                category: 'Trabajo Duro y Servidumbre',
-                desc: 'Tus padres limpiaban los pasillos de los nobles. Aprendiste desde niño a ser invisible, a anticipar necesidades y a nunca mirar a los ojos.',
-                benefit: '+3 en Empatía.',
-                funds: '40,000 Ahn.',
-                entityResponse: "Existir únicamente para sostener las copas de quienes se creen dueños de todo. Has dominado el triste arte de ser una sombra."
+                "nombre": "Culpabilidad",
+                "desc": "Buscas constantemente una razón lógica de por qué tú sigues aquí."
             },
             {
-                id: 'trabajadores_de_la_mina',
-                name: 'Trabajadores de la Mina',
-                category: 'Trabajo Duro y Servidumbre',
-                desc: 'Creciste en las profundidades, picando piedra o extrayendo minerales bajo condiciones brutales. Tus pulmones y músculos conocen bien el castigo.',
-                benefit: '+3 en Atletismo.',
-                funds: '50,000 Ahn. Comienzas con un pico o una linterna minera.',
-                entityResponse: "Enterrados en vida para arrancar fragmentos del corazón del mundo. Tu herencia es únicamente el polvo y la oscuridad."
+                "nombre": "Secretismo",
+                "desc": "Si supieran tu nivel de distorsión, te tratarían como a un error del sistema."
+            }
+        ]
+    },
+    {
+        "id": "el_trasgresor",
+        "name": "El Trasgresor",
+        "desc": "Cruzaste una línea que juraste nunca tocar por miedo o ambición. El peso de ese acto es una mancha en tu conciencia. Eres un profesional del bajo mundo que descubrió que su propia moralidad tenía un precio, y ahora vives con el eco de la traición que lo cambió todo.",
+        "quote": "La lealtad es el chiste más viejo de la Ciudad. Afilaste el cuchillo, se lo pusiste en la mano y luego les diste la espalda. ¿De verdad te sorprendió sentir el acero?",
+        "ideales": [
+            {
+                "nombre": "Pragmatismo",
+                "desc": "Los principios son un lujo que los vivos no pueden permitirse."
             },
             {
-                id: 'heredero_de_deudas',
-                name: 'Heredero de Deudas',
-                category: 'Trabajo Duro y Servidumbre',
-                desc: 'Tus padres te dejaron un papel con una cifra impagable. Creciste calculando cada centavo, sabiendo que tu vida le pertenece a alguien más.',
-                benefit: '+3 en Prudencia.',
-                funds: '0 Ahn. Comienzas con un pagaré a tu nombre.',
-                entityResponse: "Nacer con el peso de los pecados ajenos... Qué irónico que un trozo de papel dicte el valor de tu existencia antes de tu primer respiro."
+                "nombre": "Redención",
+                "desc": "Mis acciones actuales deben pesar más que mi crimen pasado."
             },
             {
-                id: 'enterradores___sepultureros',
-                name: 'Enterradores / Sepultureros',
-                category: 'Trabajo Duro y Servidumbre',
-                desc: 'Alguien tiene que lidiar con los muertos. Creciste entre tumbas, aprendiendo a lidiar con el olor a tierra removida y el peso de la mortalidad.',
-                benefit: '+3 en Represión.',
-                funds: '80,000 Ahn. Comienzas con una pala pequeña o incienso funerario.',
-                entityResponse: "Creciste a la sombra del final, ordenando los restos de lo que alguna vez respiró. Al menos los que ya no están no te mienten."
+                "nombre": "Nihilismo",
+                "desc": "Si nada tiene valor moral, no hay por qué pedir perdón."
             },
-        ];
+            {
+                "nombre": "Orden",
+                "desc": "Crucé la línea para evitar un caos mayor."
+            },
+            {
+                "nombre": "Ambición",
+                "desc": "Solo los que se ensucian las manos llegan a la cima."
+            },
+            {
+                "nombre": "Castigo",
+                "desc": "Merezco cada gramo de dolor que el destino me arroje."
+            },
+            {
+                "nombre": "Autonomía",
+                "desc": "No sigo leyes, solo mis instintos de supervivencia."
+            },
+            {
+                "nombre": "Cinismo",
+                "desc": "Todos son trasgresores; yo solo fui el descubierto."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Memoria Táctil",
+                "desc": "Peso imaginario de sangre en las manos; lavado compulsivo."
+            },
+            {
+                "nombre": "Anclaje de Culpa",
+                "desc": "El objeto obtenido por traición; náuseas al verlo pero incapaz de tirarlo."
+            },
+            {
+                "nombre": "Fijación Nominal",
+                "desc": "Repetir el nombre de tu víctima como mantra bajo presión."
+            },
+            {
+                "nombre": "Evitación de Reflejos",
+                "desc": "Incapacidad de mirar tu propio rostro en un espejo."
+            },
+            {
+                "nombre": "Flashback Auditivo",
+                "desc": "El sonido de la última súplica ignorada suena en el silencio."
+            },
+            {
+                "nombre": "Compulsión Reparadora",
+                "desc": "Necesidad irracional de ayudar a desconocidos que te recuerdan a tu víctima."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Autosabotaje",
+                "desc": "Arruinas tus planes porque sientes que no mereces el éxito."
+            },
+            {
+                "nombre": "Desconfianza Proyectada",
+                "desc": "Asumes que todos van a traicionarte."
+            },
+            {
+                "nombre": "Mudez Selectiva",
+                "desc": "Bloqueo mental ante palabras que disparan el recuerdo del acto."
+            },
+            {
+                "nombre": "Frigidez Emocional",
+                "desc": "Capacidad de sentir afecto anulada para evitar el peso moral."
+            },
+            {
+                "nombre": "Necesidad de Confesión",
+                "desc": "Impulso peligroso de contar la verdad en momentos vulnerables."
+            },
+            {
+                "nombre": "Justificación Agresiva",
+                "desc": "Violencia inmediata si alguien cuestiona tu moralidad."
+            }
+        ]
+    },
+    {
+        "id": "el_caido",
+        "name": "El Caído",
+        "desc": "Tuviste poder, nombre y respeto. La caída no fue solo financiera, fue una demolición de tu identidad. Caminas por las calles que antes mirabas desde las alturas, y la herida de tu fracaso se infecta con cada mirada de desprecio.",
+        "quote": "Estabas en la cima mirando a las ratas, hasta que el piso resultó ser de cristal. La caída siempre rompe más a los que vuelan alto.",
+        "ideales": [
+            {
+                "nombre": "Estatus",
+                "desc": "Sin poder no somos nada; debo recuperarlo."
+            },
+            {
+                "nombre": "Justicia",
+                "desc": "Manipularon el sistema para tirarme; la verdad debe salir."
+            },
+            {
+                "nombre": "Resentimiento",
+                "desc": "La Ciudad me dio la espalda; yo le mostraré mi peor cara."
+            },
+            {
+                "nombre": "Humildad",
+                "desc": "He visto el fondo y aprendido lo que realmente importa."
+            },
+            {
+                "nombre": "Superioridad",
+                "desc": "Mi intelecto no desapareció con mi dinero; sigo estando por encima."
+            },
+            {
+                "nombre": "Venganza",
+                "desc": "Solo quiero ver arder a quienes me quitaron mi vida."
+            },
+            {
+                "nombre": "Seguridad",
+                "desc": "Nunca volveré a ser vulnerable ante el capricho ajeno."
+            },
+            {
+                "nombre": "Legado",
+                "desc": "Mis acciones aún deben significar algo para el futuro."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Disonancia Cognitiva",
+                "desc": "Sigues dando órdenes a gente que ya no te conoce."
+            },
+            {
+                "nombre": "Fetiche de Estatus",
+                "desc": "Un accesorio de lujo roto que es lo único que no te embargaron."
+            },
+            {
+                "nombre": "Lista de Agravios",
+                "desc": "Registro mental de cada persona que celebró tu ruina."
+            },
+            {
+                "nombre": "Agorafobia Selectiva",
+                "desc": "Pánico a ser reconocido en zonas donde antes eras importante."
+            },
+            {
+                "nombre": "Somatización del Fracaso",
+                "desc": "Asfixia al ver el logo de tu antigua corporación o grupo."
+            },
+            {
+                "nombre": "Idealización del Pasado",
+                "desc": "Distorsión donde tus errores desaparecen y solo queda el \"paraíso\"."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Arrogancia Defensiva",
+                "desc": "Tratar a otros como inferiores para ocultar tu inseguridad."
+            },
+            {
+                "nombre": "Incapacidad de Adaptación",
+                "desc": "Negativa a realizar tareas \"bajas\" aunque tu vida dependa de ello."
+            },
+            {
+                "nombre": "Despilfarro",
+                "desc": "Gastar recursos en lujos para mantener la ilusión de éxito."
+            },
+            {
+                "nombre": "Vulnerabilidad a la Adulación",
+                "desc": "Manipulable por cualquiera que te trate con \"respeto\"."
+            },
+            {
+                "nombre": "Vergüenza Paralizante",
+                "desc": "Incapacidad de pedir ayuda; prefieres morir antes que mendigar."
+            },
+            {
+                "nombre": "Mendacidad",
+                "desc": "Mentiras constantes sobre tu situación actual para no colapsar."
+            }
+        ]
+    },
+    {
+        "id": "la_herramienta_rota",
+        "name": "La Herramienta Rota",
+        "desc": "Fuiste diseñado o entrenado para una función. Pero algo falló: un error técnico o un colapso mental. Te desecharon como un engranaje desgastado. Ahora tienes una libertad que no sabes usar y un propósito que ya no existe.",
+        "quote": "La Ciudad no desperdicia nada. Si estás aquí afuera es porque ya no sirves ni para reciclaje. Eres el sobrante de una ecuación cerrada.",
+        "ideales": [
+            {
+                "nombre": "Eficiencia",
+                "desc": "El mundo funciona mejor cuando cada pieza hace lo que debe."
+            },
+            {
+                "nombre": "Libertad",
+                "desc": "Ser inútil es la única forma de ser libre del sistema."
+            },
+            {
+                "nombre": "Relevancia",
+                "desc": "Debo encontrar un nuevo propósito para no desaparecer."
+            },
+            {
+                "nombre": "Autodestrucción",
+                "desc": "Una herramienta rota solo sirve para ser destruida."
+            },
+            {
+                "nombre": "Curiosidad",
+                "desc": "Quiero saber qué hay fuera de mi protocolo original."
+            },
+            {
+                "nombre": "Resentimiento",
+                "desc": "Seré la arena en los engranajes de quienes me usaron."
+            },
+            {
+                "nombre": "Perfección",
+                "desc": "Me repararé para demostrar que se equivocaron conmigo."
+            },
+            {
+                "nombre": "Pertenencia",
+                "desc": "Busco desesperadamente a alguien que me diga qué hacer."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Eco de Protocolo",
+                "desc": "Despertar y realizar rutinas de mantenimiento para equipo inexistente."
+            },
+            {
+                "nombre": "Fobia a la Inspección",
+                "desc": "Miedo irracional a que alguien encuentre el \"error\" en tu mente."
+            },
+            {
+                "nombre": "Despersonalización Funcional",
+                "desc": "Referirse a uno mismo en tercera persona o como objeto."
+            },
+            {
+                "nombre": "Dependencia de Órdenes",
+                "desc": "Ansiedad y desorientación si no hay instrucciones claras."
+            },
+            {
+                "nombre": "Somatización del Error",
+                "desc": "Tic nervioso que coincide con el momento en que \"fallaste\"."
+            },
+            {
+                "nombre": "Fijación con el Creador",
+                "desc": "Obsesión por encontrar a quien te fabricó o entrenó."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Apatía Programada",
+                "desc": "Incapacidad de sentir interés por nada que no sea una tarea."
+            },
+            {
+                "nombre": "Rigidez Mental",
+                "desc": "Dificultad extrema para improvisar si el plan se desvía."
+            },
+            {
+                "nombre": "Obsesión por la Limpieza",
+                "desc": "Limpieza compulsiva para evitar el \"desgaste\" final."
+            },
+            {
+                "nombre": "Sumisión Involuntaria",
+                "desc": "Obedecer a cualquier figura de autoridad sin cuestionar."
+            },
+            {
+                "nombre": "Falta de Instinto",
+                "desc": "Incapacidad de reconocer el peligro personal; no fuiste diseñado para ello."
+            },
+            {
+                "nombre": "Vacío de Identidad",
+                "desc": "No tener gustos propios; ser un reflejo de quienes te rodean."
+            }
+        ]
+    },
+    {
+        "id": "el_aspirante",
+        "name": "El Aspirante",
+        "desc": "Tu motor es la presión de un futuro que aún no alcanzas. Has memorizado protocolos y entrenado hasta el cansancio. Tu conflicto es la ansiedad de ser el \"novato perfecto\" en un mundo que devora a los inexpertos.",
+        "quote": "Mírate, tan limpio. Eres como un libro nuevo esperando que la Ciudad escriba su primera tragedia. ¿Crees que tu disciplina te salvará?",
+        "ideales": [
+            {
+                "nombre": "Ambición",
+                "desc": "La cima es el único lugar para respirar."
+            },
+            {
+                "nombre": "Disciplina",
+                "desc": "Si sigo el manual a la perfección, nada saldrá mal."
+            },
+            {
+                "nombre": "Reconocimiento",
+                "desc": "Mi nombre debe significar algo en los registros."
+            },
+            {
+                "nombre": "Superación",
+                "desc": "Cada fallo es un dato para mejorar mi siguiente versión."
+            },
+            {
+                "nombre": "Lealtad",
+                "desc": "Serviré a quien me dé la oportunidad de demostrar mi valor."
+            },
+            {
+                "nombre": "Perfección",
+                "desc": "El error no es una opción, es una mancha."
+            },
+            {
+                "nombre": "Curiosidad",
+                "desc": "Ver hasta dónde llega el agujero de este oficio."
+            },
+            {
+                "nombre": "Pragmatismo",
+                "desc": "Busco un contrato que me saque de la calle."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Memoria Muscular Rígida",
+                "desc": "Posturas de combate automáticas ante ruidos fuertes."
+            },
+            {
+                "nombre": "Hiper-vigilancia de Estatus",
+                "desc": "Analizar equipo ajeno para medir peligrosidad instintivamente."
+            },
+            {
+                "nombre": "Anclaje de Rutina",
+                "desc": "Necesidad de ejercicios técnicos diarios para sentir control."
+            },
+            {
+                "nombre": "Fijación con el Mentor",
+                "desc": "Proyectar la voz de un superior criticando tus fallos."
+            },
+            {
+                "nombre": "Somatización del Rendimiento",
+                "desc": "Temblor en manos cuando no cumples expectativas."
+            },
+            {
+                "nombre": "Dependencia de Validación",
+                "desc": "Buscar la aprobación visual de aliados tras cada acción."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Exceso de Confianza",
+                "desc": "Creer que el manual es igual a la realidad del peligro."
+            },
+            {
+                "nombre": "Inflexibilidad",
+                "desc": "Bloqueo cuando la situación sale de los protocolos memorizados."
+            },
+            {
+                "nombre": "Ansiedad por el Éxito",
+                "desc": "Miedo paralizante a ser considerado \"promedio\"."
+            },
+            {
+                "nombre": "Temeridad Ingenua",
+                "desc": "Exposición innecesaria para impresionar a autoridades."
+            },
+            {
+                "nombre": "Ceguera Jerárquica",
+                "desc": "Ignorar consejos de quienes consideras de rango inferior."
+            },
+            {
+                "nombre": "Frustración Explosiva",
+                "desc": "Ira desmedida ante tus propios errores técnicos."
+            }
+        ]
+    },
+    {
+        "id": "el_archivista",
+        "name": "El Archivista",
+        "desc": "Eres un almacén de secretos ajenos. Tu mente es un catálogo de hechos y te cuesta distinguir entre tus recuerdos y los expedientes que has procesado.",
+        "quote": "Has pasado tanto tiempo leyendo vidas ajenas que olvidaste la tuya. ¿Qué harás cuando la realidad no tenga índice ni glosario?",
+        "ideales": [
+            {
+                "nombre": "Orden",
+                "desc": "El caos es solo información no clasificada."
+            },
+            {
+                "nombre": "Objetividad",
+                "desc": "Los sentimientos son ruido que ensucia los hechos."
+            },
+            {
+                "nombre": "Verdad",
+                "desc": "La historia es lo que quedó registrado."
+            },
+            {
+                "nombre": "Preservación",
+                "desc": "Nada debe perderse; el olvido es el enemigo."
+            },
+            {
+                "nombre": "Curiosidad",
+                "desc": "Cada secreto es un rompecabezas por resolver."
+            },
+            {
+                "nombre": "Neutralidad",
+                "desc": "Solo registro; no es mi función juzgar."
+            },
+            {
+                "nombre": "Utilidad",
+                "desc": "El conocimiento es la herramienta más afilada."
+            },
+            {
+                "nombre": "Discreción",
+                "desc": "El archivista es invisible; la información es lo que brilla."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Filtrado Sensorial",
+                "desc": "Bloqueo de estímulos \"irrelevantes\" para la tarea actual."
+            },
+            {
+                "nombre": "Catalogación Compulsiva",
+                "desc": "Clasificar mentalmente a personas por utilidad o riesgo."
+            },
+            {
+                "nombre": "Disonancia de Memoria",
+                "desc": "Recordar traumas de expedientes leídos como propios."
+            },
+            {
+                "nombre": "Fijación con el Dato",
+                "desc": "Necesidad de tocar registros físicos para calmar la ansiedad."
+            },
+            {
+                "nombre": "Sinestesia Informativa",
+                "desc": "Datos complejos provocan sensaciones físicas (frío/calor)."
+            },
+            {
+                "nombre": "Desapego del Observador",
+                "desc": "Sentirse frente a una pantalla incluso en la acción real."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Indiferencia Social",
+                "desc": "Ver el dolor ajeno como una estadística más."
+            },
+            {
+                "nombre": "Parálisis por Análisis",
+                "desc": "Bloqueo intentando procesar todas las variables antes de actuar."
+            },
+            {
+                "nombre": "Obsesión por el Detalle",
+                "desc": "Perder de vista el problema general por un dato mínimo."
+            },
+            {
+                "nombre": "Arrogancia Intelectual",
+                "desc": "Desprecio a quienes no manejan la información con precisión."
+            },
+            {
+                "nombre": "Dificultad de Acción",
+                "desc": "Incomodidad física al decidir por intuición y no por datos."
+            },
+            {
+                "nombre": "Amnesia de lo Cotidiano",
+                "desc": "Recordar códigos antiguos pero olvidar dónde dejaste tu equipo."
+            }
+        ]
+    },
+    {
+        "id": "el_artesano",
+        "name": "El Artesano",
+        "desc": "Tu conexión con la materia es más fuerte que con las personas. En un mundo de desechables, tú entiendes cómo funcionan las tripas de la Ciudad.",
+        "quote": "Crees que arreglas cosas, pero solo retrasas lo inevitable. ¿Quién te arreglará a ti cuando el desgaste te alcance?",
+        "ideales": [
+            {
+                "nombre": "Calidad",
+                "desc": "Un trabajo bien hecho es la única inmortalidad."
+            },
+            {
+                "nombre": "Funcionalidad",
+                "desc": "Si no sirve para nada, no debería existir."
+            },
+            {
+                "nombre": "Innovación",
+                "desc": "Siempre hay una forma más eficiente."
+            },
+            {
+                "nombre": "Resiliencia",
+                "desc": "Todo puede repararse con las piezas correctas."
+            },
+            {
+                "nombre": "Autonomía",
+                "desc": "Mi valor reside en mi habilidad, no en quien me contrata."
+            },
+            {
+                "nombre": "Estética",
+                "desc": "La forma sigue a la función, con belleza cruel."
+            },
+            {
+                "nombre": "Honestidad",
+                "desc": "Los materiales te dicen la verdad si sabes escuchar."
+            },
+            {
+                "nombre": "Curiosidad Técnica",
+                "desc": "Necesidad de saber cómo está construido todo."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Sensibilidad Háptica",
+                "desc": "Identificar fallos solo por la vibración en los dedos."
+            },
+            {
+                "nombre": "Fetiche de Herramienta",
+                "desc": "Ansiedad física extrema si te separan de tu equipo."
+            },
+            {
+                "nombre": "Visión de Despiece",
+                "desc": "Descomponer mentalmente todo (y a todos) en componentes."
+            },
+            {
+                "nombre": "Somatización del Desgaste",
+                "desc": "Dolor en articulaciones al ver máquinas mal mantenidas."
+            },
+            {
+                "nombre": "Compulsión de Ajuste",
+                "desc": "Intentar \"arreglar\" objetos ajenos sin permiso."
+            },
+            {
+                "nombre": "Silencio Operativo",
+                "desc": "Incapacidad de hablar mientras realizas una tarea técnica."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Materialismo Estricto",
+                "desc": "Si no se puede medir o tocar, no existe."
+            },
+            {
+                "nombre": "Perfeccionismo Paralizante",
+                "desc": "Negativa a terminar algo si no es perfecto."
+            },
+            {
+                "nombre": "Deshumanización",
+                "desc": "Tratar a aliados como piezas de equipo que se mantienen o reemplazan."
+            },
+            {
+                "nombre": "Rigidez Metódica",
+                "desc": "Ira si alguien altera el orden de tus herramientas."
+            },
+            {
+                "nombre": "Obsesión por el Reciclaje",
+                "desc": "Acumular chatarra con la convicción de que \"servirá\"."
+            },
+            {
+                "nombre": "Falta de Tacto Social",
+                "desc": "Decir verdades crudas como si fueras un informe técnico."
+            }
+        ]
+    },
+    {
+        "id": "el_residente",
+        "name": "El Residente",
+        "desc": "Eres el producto estándar de los Distritos. Sobrevives a base de rutinas y ruido. Eres la estadística que sigue caminando, pero la monotonía ha marcado tu mente.",
+        "quote": "Eres el ruido de fondo. El engranaje que nadie nota hasta que deja de girar. ¿Qué queda de ti sin tu rutina?",
+        "ideales": [
+            {
+                "nombre": "Estabilidad",
+                "desc": "El orden es lo único que nos salva del hambre."
+            },
+            {
+                "nombre": "Invisibilidad",
+                "desc": "Si nadie te nota, nadie te cobra deudas."
+            },
+            {
+                "nombre": "Solidaridad",
+                "desc": "Los de abajo somos los únicos que nos cuidamos."
+            },
+            {
+                "nombre": "Resiliencia",
+                "desc": "No necesito ser fuerte, solo durar un día más."
+            },
+            {
+                "nombre": "Curiosidad",
+                "desc": "Observar es la única forma de viajar que conozco."
+            },
+            {
+                "nombre": "Pragmatismo",
+                "desc": "No busco justicia, solo que no me corten la luz."
+            },
+            {
+                "nombre": "Paciencia",
+                "desc": "La Ciudad devora a los que corren demasiado."
+            },
+            {
+                "nombre": "Deseo",
+                "desc": "Algún día estaré del otro lado del cristal."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Agorafobia Urbana",
+                "desc": "Necesidad del ruido de la multitud para no entrar en pánico."
+            },
+            {
+                "nombre": "Fijación con el Horario",
+                "desc": "La pérdida de tiempo provoca taquicardia real."
+            },
+            {
+                "nombre": "Somatización del Hambre",
+                "desc": "Vacío doloroso en el estómago al sentirse inseguro."
+            },
+            {
+                "nombre": "Dependencia de la Multitud",
+                "desc": "Sentir que dejas de existir si estás solo."
+            },
+            {
+                "nombre": "Memoria Táctil de Llaves",
+                "desc": "Tocar pertenencias constantemente por miedo al robo."
+            },
+            {
+                "nombre": "Respuesta a la Sirena",
+                "desc": "Alerta máxima automática ante alarmas corporativas."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Pasividad",
+                "desc": "Esperar que otros tomen las decisiones difíciles."
+            },
+            {
+                "nombre": "Miedo al Cambio",
+                "desc": "Bloqueo ante cualquier plan que requiera improvisar."
+            },
+            {
+                "nombre": "Falta de Aspiración",
+                "desc": "Desconfianza de cualquier oportunidad \"buena\"."
+            },
+            {
+                "nombre": "Cinismo Popular",
+                "desc": "Desprecio a ideales elevados; considerarlos mentiras."
+            },
+            {
+                "nombre": "Acumulación",
+                "desc": "Guardar basura por miedo irracional a necesitarla."
+            },
+            {
+                "nombre": "Sumisión al Uniforme",
+                "desc": "Dificultad para desobedecer a cualquier autoridad."
+            }
+        ]
+    },
+    {
+        "id": "el_mensajero",
+        "name": "El Mensajero",
+        "desc": "Tu vida es movimiento y velocidad. Conoces atajos y grietas, pero tu mente nunca se detiene. El miedo a llegar tarde es tu motor.",
+        "quote": "Corre, pequeño ratón. ¿Qué pasará cuando dejes de correr y el silencio te alcance?",
+        "ideales": [
+            {
+                "nombre": "Velocidad",
+                "desc": "El movimiento es la única libertad."
+            },
+            {
+                "nombre": "Neutralidad",
+                "desc": "No leo el mensaje; la información no es mi problema."
+            },
+            {
+                "nombre": "Confiabilidad",
+                "desc": "Mi palabra es lo único que poseo."
+            },
+            {
+                "nombre": "Autonomía",
+                "desc": "Nadie encadena a quien siempre va un paso por delante."
+            },
+            {
+                "nombre": "Conocimiento",
+                "desc": "Conocer los caminos es poseer la Ciudad."
+            },
+            {
+                "nombre": "Eficiencia",
+                "desc": "El camino más corto es el más valioso."
+            },
+            {
+                "nombre": "Sigilo",
+                "desc": "El éxito es ser un fantasma en el sistema."
+            },
+            {
+                "nombre": "Desapego",
+                "desc": "No me quedo lo suficiente para echar raíces."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Inquietud Motora",
+                "desc": "Incapacidad de estar quieto; piernas en movimiento constante."
+            },
+            {
+                "nombre": "Hiper-fijación de Rutas",
+                "desc": "Calcular salidas de emergencia en cada habitación."
+            },
+            {
+                "nombre": "Sinestesia de Presión",
+                "desc": "Sentir el peso del tiempo como presión física."
+            },
+            {
+                "nombre": "Fobia al Encierro",
+                "desc": "Espacios sin múltiples salidas provocan asfixia."
+            },
+            {
+                "nombre": "Dependencia de Adrenalina",
+                "desc": "Vacío profundo si no hay riesgo o urgencia."
+            },
+            {
+                "nombre": "Anclaje Espacial",
+                "desc": "Memorizar puntos de referencia para mantener la identidad."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Impulsividad",
+                "desc": "Actuar antes de pensar; movimiento sobre estrategia."
+            },
+            {
+                "nombre": "Falta de Atención",
+                "desc": "Aburrimiento rápido de planes detallados."
+            },
+            {
+                "nombre": "Dificultad de Vínculo",
+                "desc": "No confías porque siempre planeas tu salida."
+            },
+            {
+                "nombre": "Ansiedad Anticipatoria",
+                "desc": "Preocupación obsesiva por problemas que no han pasado."
+            },
+            {
+                "nombre": "Irresponsabilidad",
+                "desc": "Ignorar el daño que causan tus entregas."
+            },
+            {
+                "nombre": "Fatiga Crónica Ignorada",
+                "desc": "Llevar el cuerpo al límite sin admitir cansancio."
+            }
+        ]
+    },
+    {
+        "id": "el_mediador",
+        "name": "El Mediador",
+        "desc": "Eres el lubricante social. Sabes qué decir y a quién, pero tu personalidad es un reflejo de lo que otros quieren ver. No sabes quién eres solo.",
+        "quote": "Qué máscara tan bonita. Si te la quitas descubrirás que debajo no queda nada.",
+        "ideales": [
+            {
+                "nombre": "Equilibrio",
+                "desc": "Todo conflicto es un fallo de comunicación."
+            },
+            {
+                "nombre": "Influencia",
+                "desc": "No necesito armas si controlo a quien las empuña."
+            },
+            {
+                "nombre": "Discreción",
+                "desc": "Los secretos son la moneda más valiosa."
+            },
+            {
+                "nombre": "Empatía",
+                "desc": "Entender el deseo ajeno es la clave para dominarlo."
+            },
+            {
+                "nombre": "Paz",
+                "desc": "La violencia es ineficiente; prefiero el comercio."
+            },
+            {
+                "nombre": "Pragmatismo",
+                "desc": "No hay amigos, solo intereses temporales."
+            },
+            {
+                "nombre": "Prestigio",
+                "desc": "Mi reputación es mi único escudo."
+            },
+            {
+                "nombre": "Adaptabilidad",
+                "desc": "Soy el agua que toma la forma del recipiente."
+            }
+        ],
+        "vinculos": [
+            {
+                "nombre": "Reflejo Especular",
+                "desc": "Copiar gestos y tono de voz ajenos inconscientemente."
+            },
+            {
+                "nombre": "Detección Somática",
+                "desc": "Náusea real ante mentiras o incongruencias."
+            },
+            {
+                "nombre": "Vacío de Identidad",
+                "desc": "Ansiedad al estar solo por no tener a quién proyectar."
+            },
+            {
+                "nombre": "Hiper-análisis",
+                "desc": "Incapacidad de aceptar amabilidad sin buscar el beneficio oculto."
+            },
+            {
+                "nombre": "Necesidad de Aprobación",
+                "desc": "Impulso de suavizar tensiones innecesariamente."
+            },
+            {
+                "nombre": "Somatización del Compromiso",
+                "desc": "Opresión en garganta al romper un acuerdo."
+            }
+        ],
+        "grietas": [
+            {
+                "nombre": "Manipulación Compulsiva",
+                "desc": "Intentar controlar situaciones sociales siempre."
+            },
+            {
+                "nombre": "Indecisión",
+                "desc": "Tratar de quedar bien con ambos bandos hasta que es tarde."
+            },
+            {
+                "nombre": "Falsedad Habitual",
+                "desc": "Mentiras pequeñas por pura costumbre."
+            },
+            {
+                "nombre": "Miedo a la Confrontación",
+                "desc": "Evitar problemas directos hasta que explotan."
+            },
+            {
+                "nombre": "Superficialidad",
+                "desc": "Centrarse en etiquetas e ignorar problemas reales."
+            },
+            {
+                "nombre": "Vulnerabilidad al Chantaje",
+                "desc": "Pánico a que tu verdadera opinión sea pública."
+            }
+        ]
+    }
+]
+;
 
         const racesData = [
             {
@@ -2091,6 +2848,10 @@
             backgroundId: null,
             professionId: null,
             professionPerkId: null,
+            psychologicalBackgroundId: null,
+            psychologicalIdeal: null,
+            psychologicalVinculo: null,
+            psychologicalGrieta: null,
             modifiers: {}, // Mods de atributos (Vigor, etc.)
             humanPerks: [],
             baseStats: { cuerpo: 0, mente: 0, alma: 0 } // Stats principales
@@ -3361,6 +4122,181 @@
                 validarProfesion();
             }
 
+
+            // Logic for Phase 4 (Psychological Backgrounds)
+            function renderPsychologicalBackgrounds() {
+                let psychoGridContainer = document.getElementById('psychological-grid');
+                if (!psychoGridContainer) return;
+                psychoGridContainer.innerHTML = '';
+
+                psychologicalBackgroundsData.forEach(bg => {
+                    const card = document.createElement('div');
+                    card.className = 'origin-card psycho-card';
+                    card.dataset.id = bg.id;
+
+                    let idealOptionsHtml = '<option value="" disabled selected>Selecciona un Ideal</option>';
+                    if (bg.ideales) {
+                        bg.ideales.forEach(p => {
+                            idealOptionsHtml += `<option value="${p.nombre}">${p.nombre}</option>`;
+                        });
+                    }
+
+                    let vinculoOptionsHtml = '<option value="" disabled selected>Selecciona un Vínculo</option>';
+                    if (bg.vinculos) {
+                        bg.vinculos.forEach(p => {
+                            vinculoOptionsHtml += `<option value="${p.nombre}">${p.nombre}</option>`;
+                        });
+                    }
+
+                    let grietaOptionsHtml = '<option value="" disabled selected>Selecciona una Grieta</option>';
+                    if (bg.grietas) {
+                        bg.grietas.forEach(p => {
+                            grietaOptionsHtml += `<option value="${p.nombre}">${p.nombre}</option>`;
+                        });
+                    }
+
+                    card.innerHTML = `
+                        <div class="card-header" style="text-align: left;">
+                            <h2>${bg.name}</h2>
+                        </div>
+                        <div class="card-body" style="text-align: left; padding: 15px; display: flex; flex-direction: column;">
+                            <div class="concept-text" style="font-style: italic; color: #FFD700; margin-bottom: 10px;">"${bg.quote}"</div>
+                            <div class="concept-text">${bg.desc}</div>
+
+                            <div class="psycho-selects-container" style="display: none; flex-direction: column; gap: 10px; margin-top: auto; border-top: 1px dashed #444; padding-top: 10px;">
+                                <div>
+                                    <select class="choice-select psycho-ideal-select" data-psycho-id="${bg.id}" style="width: 100%;">
+                                        ${idealOptionsHtml}
+                                    </select>
+                                    <div class="perk-desc" id="psycho-ideal-desc-${bg.id}" style="font-size: 11px; color: var(--text-muted); display: none; margin-top: 5px;"></div>
+                                </div>
+                                <div>
+                                    <select class="choice-select psycho-vinculo-select" data-psycho-id="${bg.id}" style="width: 100%;">
+                                        ${vinculoOptionsHtml}
+                                    </select>
+                                    <div class="perk-desc" id="psycho-vinculo-desc-${bg.id}" style="font-size: 11px; color: var(--text-muted); display: none; margin-top: 5px;"></div>
+                                </div>
+                                <div>
+                                    <select class="choice-select psycho-grieta-select" data-psycho-id="${bg.id}" style="width: 100%;">
+                                        ${grietaOptionsHtml}
+                                    </select>
+                                    <div class="perk-desc" id="psycho-grieta-desc-${bg.id}" style="font-size: 11px; color: var(--text-muted); display: none; margin-top: 5px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add CSS dynamically for selected state to show selects
+                    if (!document.getElementById('psycho-styles')) {
+                        const style = document.createElement('style');
+                        style.id = 'psycho-styles';
+                        style.innerHTML = `
+                            .psycho-card.selected .psycho-selects-container {
+                                display: flex !important;
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+
+                    // Handle card click
+                    const handleCardClick = (e) => {
+                        if (e.type === 'touchstart') e.preventDefault();
+                        if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                        seleccionarPsychologicalBackground(bg.id);
+                    };
+                    card.addEventListener('click', handleCardClick);
+                    card.addEventListener('touchstart', handleCardClick, {passive: false});
+
+                    // Handle dropdown changes
+                    const idealSelect = card.querySelector('.psycho-ideal-select');
+                    idealSelect.addEventListener('change', (e) => {
+                        const val = e.target.value;
+                        const descDiv = card.querySelector(`#psycho-ideal-desc-${bg.id}`);
+                        const itemData = bg.ideales.find(p => p.nombre === val);
+                        if (itemData && descDiv) {
+                            descDiv.innerHTML = `<strong>${itemData.nombre}:</strong> ${itemData.desc}`;
+                            descDiv.style.display = 'block';
+                        }
+                        validarPsychologicalBackground();
+                    });
+
+                    const vinculoSelect = card.querySelector('.psycho-vinculo-select');
+                    vinculoSelect.addEventListener('change', (e) => {
+                        const val = e.target.value;
+                        const descDiv = card.querySelector(`#psycho-vinculo-desc-${bg.id}`);
+                        const itemData = bg.vinculos.find(p => p.nombre === val);
+                        if (itemData && descDiv) {
+                            descDiv.innerHTML = `<strong>${itemData.nombre}:</strong> ${itemData.desc}`;
+                            descDiv.style.display = 'block';
+                        }
+                        validarPsychologicalBackground();
+                    });
+
+                    const grietaSelect = card.querySelector('.psycho-grieta-select');
+                    grietaSelect.addEventListener('change', (e) => {
+                        const val = e.target.value;
+                        const descDiv = card.querySelector(`#psycho-grieta-desc-${bg.id}`);
+                        const itemData = bg.grietas.find(p => p.nombre === val);
+                        if (itemData && descDiv) {
+                            descDiv.innerHTML = `<strong>${itemData.nombre}:</strong> ${itemData.desc}`;
+                            descDiv.style.display = 'block';
+                        }
+                        validarPsychologicalBackground();
+                    });
+
+                    psychoGridContainer.appendChild(card);
+                });
+            }
+
+            function seleccionarPsychologicalBackground(id) {
+                luminousState.psychologicalBackgroundId = id;
+
+                const cards = document.querySelectorAll('#psychological-grid .psycho-card');
+                cards.forEach(card => {
+                    if (card.dataset.id === id) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                });
+
+                const psychoGridContainer = document.getElementById('psychological-grid');
+                if (id) {
+                    psychoGridContainer.classList.add('has-selection');
+                } else {
+                    psychoGridContainer.classList.remove('has-selection');
+                }
+
+                validarPsychologicalBackground();
+            }
+
+            function validarPsychologicalBackground() {
+                const btnConfirmarPsicologia = document.getElementById('btn-confirmar-psicologia');
+                if (!luminousState.psychologicalBackgroundId) {
+                    btnConfirmarPsicologia.disabled = true;
+                    return;
+                }
+
+                const selectedCard = document.querySelector(`.psycho-card[data-id="${luminousState.psychologicalBackgroundId}"]`);
+                if (!selectedCard) {
+                    btnConfirmarPsicologia.disabled = true;
+                    return;
+                }
+
+                const idealSelect = selectedCard.querySelector('.psycho-ideal-select');
+                const vinculoSelect = selectedCard.querySelector('.psycho-vinculo-select');
+                const grietaSelect = selectedCard.querySelector('.psycho-grieta-select');
+
+                if (!idealSelect.value || !vinculoSelect.value || !grietaSelect.value) {
+                    btnConfirmarPsicologia.disabled = true;
+                } else {
+                    luminousState.psychologicalIdeal = idealSelect.value;
+                    luminousState.psychologicalVinculo = vinculoSelect.value;
+                    luminousState.psychologicalGrieta = grietaSelect.value;
+                    btnConfirmarPsicologia.disabled = false;
+                }
+            }
+
             function validarProfesion() {
                 const btnConfirmarProfesion = document.getElementById('btn-confirmar-profesion');
                 if (!luminousState.professionId) {
@@ -3400,14 +4336,101 @@
                     // For now, save state locally (or send it somewhere if you want)
                     localStorage.setItem('luminousState', JSON.stringify(luminousState));
 
-                    // Transition out
+                    // Transition out to Phase 4
                     phase3.classList.add('fade-out');
                     setTimeout(() => {
-                        window.location.href = 'index.html?tab=creator';
+                        phase3.classList.add('hidden');
+                        phase3.classList.remove('fade-out');
+                        startDialogue4();
                     }, 1000);
                 };
                 btnConfirmarProfesion.addEventListener('click', handleConfirmProfClick);
                 btnConfirmarProfesion.addEventListener('touchstart', handleConfirmProfClick, {passive: false});
+            }
+
+
+            // Logic for Phase Dialogue 4
+            const phaseDialogue4 = document.getElementById('phase-dialogue-4');
+            const dialogueText4 = document.getElementById('dialogue-text-4');
+            const phase4 = document.getElementById('phase4');
+
+            let dialogue4Step = 0;
+            let isTypingDialogue4 = false;
+            let typingTimeout4;
+
+            const dialogue4Phrases = [
+                "Bien... ya tenemos tu molde.",
+                "Pero todos en esta Ciudad cargan con fantasmas.",
+                "Dime... ¿qué sombras te perseguían antes de llegar aquí?"
+            ];
+
+            function startDialogue4() {
+                phaseDialogue4.classList.remove('hidden');
+                dialogue4Step = 0;
+                typeDialogue4(dialogue4Phrases[dialogue4Step]);
+            }
+
+            function typeDialogue4(text) {
+                dialogueText4.innerHTML = "";
+                isTypingDialogue4 = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        dialogueText4.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        typingTimeout4 = setTimeout(typeNext, 40);
+                    } else {
+                        isTypingDialogue4 = false;
+                    }
+                }
+                typeNext();
+            }
+
+            function handleDialogue4Advance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                if (isTypingDialogue4) {
+                    clearTimeout(typingTimeout4);
+                    dialogueText4.innerHTML = dialogue4Phrases[dialogue4Step];
+                    isTypingDialogue4 = false;
+                } else {
+                    dialogue4Step++;
+                    if (dialogue4Step < dialogue4Phrases.length) {
+                        typeDialogue4(dialogue4Phrases[dialogue4Step]);
+                    } else {
+                        // Transition to Phase 4
+                        phaseDialogue4.classList.add('fade-out');
+                        setTimeout(() => {
+                            phaseDialogue4.classList.add('hidden');
+                            phaseDialogue4.classList.remove('fade-out');
+                            phase4.classList.remove('hidden');
+                            renderPsychologicalBackgrounds();
+                        }, 1000);
+                    }
+                }
+            }
+
+            phaseDialogue4.addEventListener('click', handleDialogue4Advance);
+            phaseDialogue4.addEventListener('touchstart', handleDialogue4Advance, {passive: false});
+
+            const btnConfirmarPsicologia = document.getElementById('btn-confirmar-psicologia');
+            if(btnConfirmarPsicologia) {
+                const handleConfirmPsychoClick = (e) => {
+                    if (e.type === 'touchstart') e.preventDefault();
+                    if (btnConfirmarPsicologia.disabled) return;
+
+                    // Save state
+                    localStorage.setItem('luminousState', JSON.stringify(luminousState));
+
+                    // Transition out
+                    phase4.classList.add('fade-out');
+                    setTimeout(() => {
+                        window.location.href = 'index.html?tab=creator';
+                    }, 1000);
+                };
+                btnConfirmarPsicologia.addEventListener('click', handleConfirmPsychoClick);
+                btnConfirmarPsicologia.addEventListener('touchstart', handleConfirmPsychoClick, {passive: false});
             }
 
         });
