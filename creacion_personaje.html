@@ -527,6 +527,21 @@
             </div>
         </div>
 
+        <div id="phase-dialogue-3" class="phase hidden">
+            <div class="background-glow"></div>
+            <p id="dialogue-text-3" class="golden-text"></p>
+        </div>
+
+        <div id="phase3" class="phase hidden" style="justify-content: flex-start; padding-top: 50px; overflow-y: auto;">
+            <h1 class="question">¿Cuál fue tu truco para sobrevivir?</h1>
+            <div id="profession-grid" class="origin-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí con JavaScript -->
+            </div>
+            <div class="nav-buttons" style="margin-bottom: 50px;">
+                <button id="btn-confirmar-profesion" class="btn" disabled>Confirmar Profesión</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -540,6 +555,579 @@
             "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo",
             "Lore", "Investigación", "Arcana"
         ].sort();
+
+        const professionsData = [
+            {
+                "id": "medico_cirujano",
+                "name": "Médico Cirujano / Anatomista",
+                "category": "Educación Superior y Academia",
+                "cost": 2500000,
+                "attributes": "+2 Ciencia, -1 Instinto",
+                "mods": {
+                    "Ciencia": 2,
+                    "Instinto": -1
+                },
+                "perks": [
+                    {
+                        "id": "precision_quirurgica",
+                        "nombre": "Precisión Quirúrgica",
+                        "desc": "Nunca tratas con basura. Cualquier botiquín común (Tier 1) se considera automáticamente de 1 Tier superior en tus manos. Al curar fuera de combate recuperas 15 + 10% del HP Máx adicional."
+                    },
+                    {
+                        "id": "autopsia_expres",
+                        "nombre": "Autopsia Exprés",
+                        "desc": "Tienes +3 en Investigación o Ciencia para determinar la causa exacta de muerte, hora, y extraer un recuerdo residual o traza química útil de un cadáver fresco."
+                    },
+                    {
+                        "id": "mercado_rojo",
+                        "nombre": "Mercado Rojo",
+                        "desc": "Sabes cómo conservar la carne. Puedes extraer implantes cibernéticos o biomateriales intactos de cadáveres en minutos para venderlos en el mercado negro sin que pierdan su Tier."
+                    },
+                    {
+                        "id": "falso_diagnostico",
+                        "nombre": "Falso Diagnóstico",
+                        "desc": "Tienes +3 en Engaño o Perspicacia al tratar con NPCs heridos o enfermos, convenciéndolos de que tienen una afección letal que solo tú puedes tratar para extorsionarlos o interrogarlos."
+                    },
+                    {
+                        "id": "inyecciones",
+                        "nombre": "Inyecciones",
+                        "desc": "En tus descansos, creas estimulantes (Tier 2). Si es un descanso corto, creas 2; si es largo, 4. Pueden usarse para mantener a alguien despierto por días o darle energía antes de un interrogatorio."
+                    }
+                ]
+            },
+            {
+                "id": "ingeniero_mecanico",
+                "name": "Ingeniero / Artífice Mecánico",
+                "category": "Educación Superior y Academia",
+                "cost": 2000000,
+                "attributes": "+2 Manejo, -1 Empatía",
+                "mods": {
+                    "Manejo": 2,
+                    "Empatía": -1
+                },
+                "perks": [
+                    {
+                        "id": "mantenimiento_eficiente",
+                        "nombre": "Mantenimiento Eficiente",
+                        "desc": "Puedes tomar chatarra y hacerla funcional. Un arma mecánica o prótesis en la que trabajes en un descanso largo (pasando el DC), sube 1 Tier."
+                    },
+                    {
+                        "id": "cortocircuito",
+                        "nombre": "Cortocircuito",
+                        "desc": "Usas 10 minutos para desactivar, puentear o reprogramar puertas de seguridad, cámaras o cerraduras electrónicas sin dejar rastro de forzamiento (Tienes +3 en Manejo para esto)."
+                    },
+                    {
+                        "id": "chatarrero",
+                        "nombre": "Chatarrero",
+                        "desc": "Encuentras piezas donde otros ven basura. Al saquear enemigos mecánicos o ruinas, obtienes siempre materiales equivalentes a 1 Tier superior."
+                    },
+                    {
+                        "id": "ingenieria_inversa",
+                        "nombre": "Ingeniería Inversa",
+                        "desc": "Si pasas 1 hora analizando un dispositivo, trampa o arma desconocida (incluso tecnología corporativa), descubres quién la fabricó, su propósito exacto y cómo desactivarla de forma segura."
+                    },
+                    {
+                        "id": "sabotaje_sutil",
+                        "nombre": "Sabotaje Sutil",
+                        "desc": "Puedes alterar el equipo de un NPC (vehículo, arma de fuego, prótesis) para que falle catastróficamente horas o días después de tu intervención, dejándote con una coartada perfecta."
+                    }
+                ]
+            },
+            {
+                "id": "erudito_academico",
+                "name": "Erudito / Investigador Académico",
+                "category": "Educación Superior y Academia",
+                "cost": 1500000,
+                "attributes": "+2 Lore, -1 Vigor",
+                "mods": {
+                    "Lore": 2,
+                    "Vigor": -1
+                },
+                "perks": [
+                    {
+                        "id": "rata_de_biblioteca",
+                        "nombre": "Rata de Biblioteca",
+                        "desc": "Obtienes un +3 automático a cualquier check de Investigación o Lore relacionado con identificar la función, origen o Tier real de artefactos y contratos corporativos."
+                    },
+                    {
+                        "id": "conocimiento_prohibido",
+                        "nombre": "Conocimiento Prohibido",
+                        "desc": "Sabes cosas que rompen la mente. Puedes gastar 10 SP antes de tirar Análisis sobre criaturas anormales para obtener un +3 y descubrir mecánicas ocultas que el DJ debe revelarte."
+                    },
+                    {
+                        "id": "lenguas_muertas",
+                        "nombre": "Lenguas Muertas",
+                        "desc": "Entiendes cualquier idioma antiguo, corporativo encriptado o no humano. Tienes +3 en interacciones sociales con criaturas \"salvajes\" o habitantes de las Afueras."
+                    },
+                    {
+                        "id": "credenciales_falsificadas",
+                        "nombre": "Credenciales Falsificadas",
+                        "desc": "Tu dominio de la burocracia académica te permite entrar a zonas de cuarentena, archivos corporativos o bibliotecas privadas alegando \"investigación oficial\", otorgándote +3 en Engaño ante guardias."
+                    },
+                    {
+                        "id": "mente_aislada",
+                        "nombre": "Mente Aislada",
+                        "desc": "Has leído tantas atrocidades que la realidad ya no te afecta. Tienes ventaja en tiradas de salvación contra Miedo, Locura o Pánico, y recuperas +5 SP adicionales en cualquier descanso."
+                    }
+                ]
+            },
+            {
+                "id": "abogado_burocrata",
+                "name": "Abogado / Burócrata de Alto Nivel",
+                "category": "Educación Superior y Academia",
+                "cost": 1800000,
+                "attributes": "+2 Negociación, -1 Fortaleza",
+                "mods": {
+                    "Negociación": 2,
+                    "Fortaleza": -1
+                },
+                "perks": [
+                    {
+                        "id": "letra_pequena",
+                        "nombre": "Letra Pequeña",
+                        "desc": "Empiezas con credenciales corporativas Tier 2. Tienes +3 en Negociación para sobornar o manipular contratos con los guardias oficiales."
+                    },
+                    {
+                        "id": "burocracia_asfixiante",
+                        "nombre": "Burocracia Asfixiante",
+                        "desc": "Si un guardia o NPC intenta arrestarte, multarte o prohibirte el paso, tiras Negociación (+3). Si pasas, los enredas en tanto papeleo y tecnicismos que te dejan ir solo para no lidiar contigo."
+                    },
+                    {
+                        "id": "extorsion",
+                        "nombre": "Extorsión",
+                        "desc": "Tienes +5 en checks de Negociación o Engaño siempre que tengas al menos un secreto, deuda o dato comprometedor sobre el objetivo con el que hablas."
+                    },
+                    {
+                        "id": "ejecucion_hipotecaria",
+                        "nombre": "Ejecución Hipotecaria",
+                        "desc": "Eres experto en leer la miseria financiera ajena. Tienes +3 en Perspicacia para saber al instante el mayor miedo o la deuda aplastante de un NPC con solo hablar 5 minutos con él."
+                    },
+                    {
+                        "id": "inmunidad_diplomatica_falsa",
+                        "nombre": "Inmunidad Diplomática Falsa",
+                        "desc": "Portas un sello o documento (Tier 2) que te da estatus de intocable temporal. Los NPCs comunes te temen y los guardias dudan en registrar tus pertenencias, dándote ventaja en puntos de control."
+                    }
+                ]
+            },
+            {
+                "id": "chef_gastronomico",
+                "name": "Chef Gastronómico / Nutricionista",
+                "category": "Gremios y Oficios Especializados",
+                "cost": 800000,
+                "attributes": "+2 Instinto, -1 Presencia",
+                "mods": {
+                    "Instinto": 2,
+                    "Presencia": -1
+                },
+                "perks": [
+                    {
+                        "id": "paladar_absoluto",
+                        "nombre": "Paladar Absoluto",
+                        "desc": "Te niegas a servir basura Tier 1. La comida que preparas sube 1 Tier. Tus platillos restauran +10 SP adicionales a todos y otorgan un escudo de 10 + 5% del HP Máx al grupo."
+                    },
+                    {
+                        "id": "dulce_veneno_social",
+                        "nombre": "Dulce Veneno Social",
+                        "desc": "Tus postres o bebidas abren bocas. Un NPC que pruebe tus bocadillos \"especiales\" baja sus defensas mentales, dándote un +3 en checks de Seducción o Engaño para sacarle información."
+                    },
+                    {
+                        "id": "cocina_de_supervivencia",
+                        "nombre": "Cocina de Supervivencia",
+                        "desc": "Puedes preparar una comida decente (Tier 1) con literalmente cualquier cosa (carne de monstruo, maleza, ratas, sobras). Nadie se enfermará y el grupo no gastará Ahn en raciones ese día."
+                    },
+                    {
+                        "id": "raciones_de_combate",
+                        "nombre": "Raciones de Combate",
+                        "desc": "Puedes hacer 3 raciones rápidas (Tier 2) por descanso largo. Consumirlas en combate cuesta 1 Slot de Acción y cura 5 HP y SP instantáneamente."
+                    },
+                    {
+                        "id": "banquete_de_negocios",
+                        "nombre": "Banquete de Negocios",
+                        "desc": "Si cocinas un festín privado para un líder de facción o un PNJ clave, su disposición hacia el grupo mejora automáticamente un nivel de favorabilidad, facilitando alianzas o sobornos."
+                    }
+                ]
+            },
+            {
+                "id": "herrero_armero",
+                "name": "Herrero / Armero",
+                "category": "Gremios y Oficios Especializados",
+                "cost": 600000,
+                "attributes": "+2 Fortaleza, -1 Sigilo",
+                "mods": {
+                    "Fortaleza": 2,
+                    "Sigilo": -1
+                },
+                "perks": [
+                    {
+                        "id": "forja_de_combate",
+                        "nombre": "Forja de Combate",
+                        "desc": "Dar mantenimiento a armas no mecánicas en un descanso las eleva 1 Tier superando el DC correspondiente durante ese día."
+                    },
+                    {
+                        "id": "tasador_de_sangre",
+                        "nombre": "Tasador de Sangre",
+                        "desc": "Con solo ver el arma o armadura de un PNJ desde lejos, sabes su Tier, si tiene buen mantenimiento, y deduces su estilo de lucha, otorgándote +3 en Perspicacia o Análisis al hablar con mercenarios."
+                    },
+                    {
+                        "id": "reparacion_estructural",
+                        "nombre": "Reparación Estructural",
+                        "desc": "Tienes el conocimiento arquitectónico para apuntalar techos a punto de colapsar, forzar puertas de metal oxidadas o crear barricadas impenetrables usando los escombros de la zona."
+                    },
+                    {
+                        "id": "marca_del_artesano",
+                        "nombre": "Marca del Artesano",
+                        "desc": "Tus armas tienen una firma reconocible. Puedes usar tu reputación de armero para ganar audiencias pacíficas o descuentos con líderes de sindicatos que siempre buscan buen acero."
+                    },
+                    {
+                        "id": "temple_de_acero",
+                        "nombre": "Temple de Acero",
+                        "desc": "Tu piel está curtida por la forja. El estado Burn baja 1 Count adicional por turno, y pierdes 1 menos de SP ante ataques o daños Psíquicos."
+                    }
+                ]
+            },
+            {
+                "id": "boticario_alquimista",
+                "name": "Boticario / Alquimista",
+                "category": "Gremios y Oficios Especializados",
+                "cost": 900000,
+                "attributes": "+2 Ciencia, -1 Cardio",
+                "mods": {
+                    "Ciencia": 2,
+                    "Cardio": -1
+                },
+                "perks": [
+                    {
+                        "id": "destilacion_pura",
+                        "nombre": "Destilación Pura",
+                        "desc": "Refinas líquidos basura para que suban a Tier 2. Tus venenos u objetos consumibles aplican +2 Potency. Las pociones curativas restauran 5 + 5% del HP Máx adicional."
+                    },
+                    {
+                        "id": "nariz_quimica",
+                        "nombre": "Nariz Química",
+                        "desc": "Tu olfato detecta venenos, drogas, gas o enfermedades infecciosas en el aire o comida automáticamente. El DJ no puede envenenarte por sorpresa sin que tengas una oportunidad clara de notarlo."
+                    },
+                    {
+                        "id": "suero_de_la_verdad_casero",
+                        "nombre": "Suero de la Verdad Casero",
+                        "desc": "Fabrías un vial de suero interrogatorio por descanso largo. El NPC que lo ingiera sufre un -6 a sus tiradas para mentir y hablará de más durante 10 minutos seguidos de manera dócil."
+                    },
+                    {
+                        "id": "tolerancia_adquirida",
+                        "nombre": "Tolerancia Adquirida",
+                        "desc": "Sabes automedicarte. Las drogas recreativas, el alcohol industrial o los analgésicos de este mundo no te generan adicción ni penalizaciones de SP, pudiendo fingir embriaguez sin estarlo."
+                    },
+                    {
+                        "id": "traficante_de_alivio",
+                        "nombre": "Traficante de Alivio",
+                        "desc": "Puedes destilar analgésicos altamente adictivos (Tier 2). Te permite regalar dosis para ganar favores garantizados de PNJs adoloridos, adictos o guardias estresados en las calles."
+                    }
+                ]
+            },
+            {
+                "id": "sastre_tejedor",
+                "name": "Sastre / Tejedor de Armaduras",
+                "category": "Gremios y Oficios Especializados",
+                "cost": 500000,
+                "attributes": "+2 Manejo, -1 Atletismo",
+                "mods": {
+                    "Manejo": 2,
+                    "Atletismo": -1
+                },
+                "perks": [
+                    {
+                        "id": "seda_y_acero",
+                        "nombre": "Seda y Acero",
+                        "desc": "Modificas ropa civil común (Tier 1) para que funcione como armadura ligera balística (Tier 2). Tus modificaciones otorgan +2 Slots de Inventario Activo ocultos bajo la tela."
+                    },
+                    {
+                        "id": "sastre_de_identidades",
+                        "nombre": "Sastre de Identidades",
+                        "desc": "Ajustas uniformes robados o ropa de otras facciones en solo 10 minutos para que te queden a ti o a tus aliados a la perfección. Nadie dudará de tu disfraz por culpa de la talla o el ajuste (+3 Engaño colectivo)."
+                    },
+                    {
+                        "id": "costuras_ocultas",
+                        "nombre": "Costuras Ocultas",
+                        "desc": "Sabes esconder objetos pequeños (ganzúas, chips, viales, navajas) en los dobladillos. Un registro físico estándar de la guardia jamás los detectará a menos que rompan físicamente tu ropa."
+                    },
+                    {
+                        "id": "limpiador_de_escenas",
+                        "nombre": "Limpiador de Escenas",
+                        "desc": "Conoces la química de la tela. Sabes cómo lavar y alterar ropa para eliminar cualquier rastro de sangre, pólvora o veneno en minutos, destruyendo la evidencia física de un asesinato."
+                    },
+                    {
+                        "id": "etiqueta_de_alta_costura",
+                        "nombre": "Etiqueta de Alta Costura",
+                        "desc": "Con un simple vistazo a la ropa de alguien, descubres su clase social real, su poder adquisitivo y si lleva armas o chalecos ocultos bajo la tela (Tienes +3 en Percepción al observar humanoides)."
+                    }
+                ]
+            },
+            {
+                "id": "ladron_de_guante_blanco",
+                "name": "Ladrón de Guante Blanco / Asaltante",
+                "category": "La Universidad de la Calle",
+                "cost": 0,
+                "attributes": "+2 Sigilo, -1 Fe",
+                "mods": {
+                    "Sigilo": 2,
+                    "Fe": -1
+                },
+                "perks": [
+                    {
+                        "id": "ojo_de_tasador",
+                        "nombre": "Ojo de Tasador",
+                        "desc": "Sabes distinguir la basura del oro. Al entrar a una zona, el Director de Juego debe indicarte cuál es el objeto de mayor Tier o valor de la habitación sin que tengas que buscarlo."
+                    },
+                    {
+                        "id": "memoria_arquitectonica",
+                        "nombre": "Memoria Arquitectónica",
+                        "desc": "Si pasas 1 minuto observando un edificio desde la calle, sabes instintivamente dónde están los puntos ciegos de seguridad, las posibles bóvedas o las entradas de servicio ocultas."
+                    },
+                    {
+                        "id": "ladron_de_identidad",
+                        "nombre": "Ladrón de Identidad",
+                        "desc": "Si robas ropa, una placa o un pase de alguien, puedes imitar su comportamiento, postura y forma de hablar de manera tan natural que obtienes +3 en Engaño al infiltrarte en su lugar de trabajo."
+                    },
+                    {
+                        "id": "contacto_ciego",
+                        "nombre": "Contacto Ciego",
+                        "desc": "Conoces el lenguaje de señas del bajo mundo y las marcas de los gremios en las paredes. Puedes dejar, leer mensajes ocultos y encontrar refugios seguros que la guardia jamás notará."
+                    },
+                    {
+                        "id": "manos_de_seda",
+                        "nombre": "Manos de Seda",
+                        "desc": "Puedes robar objetos pequeños de los bolsillos de un NPC (tarjetas, llaves, monedas) o plantar evidencia incriminatoria en ellos durante una conversación social sin necesidad de tirar dados, siempre que el NPC esté distraído."
+                    }
+                ]
+            },
+            {
+                "id": "contrabandista_traficante",
+                "name": "Contrabandista / Traficante",
+                "category": "La Universidad de la Calle",
+                "cost": 150000,
+                "attributes": "+2 Engaño, -1 Represión",
+                "mods": {
+                    "Engaño": 2,
+                    "Represión": -1
+                },
+                "perks": [
+                    {
+                        "id": "doble_fondo",
+                        "nombre": "Doble Fondo",
+                        "desc": "Obtienes un contacto en los bajos fondos en cada distrito nuevo y posees compartimentos en tus mochilas/vehículos imposibles de detectar en registros visuales o de seguridad estándar."
+                    },
+                    {
+                        "id": "mercado_negro",
+                        "nombre": "Mercado Negro",
+                        "desc": "Puedes comprar y vender objetos de Tier 2 en cualquier ciudad sin hacer preguntas, y siempre tienes la opción de conseguir un 20% de descuento en el mercado criminal."
+                    },
+                    {
+                        "id": "ojo_para_el_corrupto",
+                        "nombre": "Ojo para el Corrupto",
+                        "desc": "Sabes a quién puedes sobornar. Con una sola charla, el DJ te dirá qué guardia es comprable, qué precio aproximado tiene, o qué vicio padece para chantajearlo a futuro."
+                    },
+                    {
+                        "id": "mentiroso_patologico",
+                        "nombre": "Mentiroso Patológico",
+                        "desc": "Tienes +3 en checks de Engaño. Si te atrapan en una mentira en un diálogo, puedes inventar otra completamente distinta inmediatamente sin penalización por parte del NPC. (Al tercer intento la penalización es de -6)."
+                    },
+                    {
+                        "id": "tarifas_de_aduana",
+                        "nombre": "Tarifas de Aduana",
+                        "desc": "Al interactuar con inspectores o guardias de peajes, sabes exactamente cuánto Ahn u objetos ofrecer para que miren a otro lado sin ofenderlos por ofrecer de menos, ni desperdiciar oro ofreciendo de más."
+                    }
+                ]
+            },
+            {
+                "id": "cazarrecompensas_rastreador",
+                "name": "Cazarrecompensas / Rastreador",
+                "category": "La Universidad de la Calle",
+                "cost": 250000,
+                "attributes": "+2 Percepción, -1 Empatía",
+                "mods": {
+                    "Percepción": 2,
+                    "Empatía": -1
+                },
+                "perks": [
+                    {
+                        "id": "licencia_de_persecucion",
+                        "nombre": "Licencia de Persecución",
+                        "desc": "Tienes una placa del gremio. Cuando interrogas a civiles sobre el paradero de alguien, tienes +3 en Presencia y legalmente no pueden negarse a darte información básica sin meterse en problemas."
+                    },
+                    {
+                        "id": "marca_del_depredador",
+                        "nombre": "Marca del Depredador",
+                        "desc": "Memorizas la forma de caminar y respirar de tu objetivo. Tienes +3 en Perspicacia para saber si un NPC te está tendiendo una trampa, y puedes seguir un rastro de huellas en una multitud sin perderte."
+                    },
+                    {
+                        "id": "reputacion_implacable",
+                        "nombre": "Reputación Implacable",
+                        "desc": "Tu presencia asfixia a la escoria. Tienes +3 en Presencia al intimidar a criminales de bajo nivel. Si ceden y te dan información, recuperas 5 SP por la satisfacción del dominio absoluto."
+                    },
+                    {
+                        "id": "red_de_informantes_locales",
+                        "nombre": "Red de Informantes Locales",
+                        "desc": "En cada distrito tienes un matón, adicto o vagabundo que te debe la vida (o teme tu nombre), asegurando un refugio temporal o información rápida sobre quién entró o salió del área."
+                    },
+                    {
+                        "id": "ojo_de_la_calle",
+                        "nombre": "Ojo de la Calle",
+                        "desc": "Identificas de inmediato las fronteras invisibles del territorio de pandillas o corporaciones solo por los grafitis, la basura y el comportamiento de la gente, evitando entrar a zonas calientes por accidente."
+                    }
+                ]
+            },
+            {
+                "id": "informante_espia",
+                "name": "Informante / Espía",
+                "category": "La Universidad de la Calle",
+                "cost": 50000,
+                "attributes": "+2 Perspicacia, -1 Vigor",
+                "mods": {
+                    "Perspicacia": 2,
+                    "Vigor": -1
+                },
+                "perks": [
+                    {
+                        "id": "red_de_susurros",
+                        "nombre": "Red de Susurros",
+                        "desc": "Al llegar a cualquier zona nueva, recolectas información pasivamente para saber quién está al mando en la sombra, qué facciones operan y cuáles son las reglas no escritas del lugar."
+                    },
+                    {
+                        "id": "lectura_de_labios",
+                        "nombre": "Lectura de Labios",
+                        "desc": "No necesitas escuchar para saber qué traman. Puedes entender conversaciones a la perfección desde lejos, a través de cristales o en bares ruidosos, siempre que puedas ver la boca de los hablantes."
+                    },
+                    {
+                        "id": "camaleon_social",
+                        "nombre": "Camaleón Social",
+                        "desc": "Eres psicológicamente invisible en multitudes. Si estás rodeado de al menos 3 civiles, la guardia local o los sicarios que te busquen a pie serán incapaces de distinguirte como una amenaza."
+                    },
+                    {
+                        "id": "falsificador_agil",
+                        "nombre": "Falsificador Ágil",
+                        "desc": "Eres un experto replicando firmas y sellos. Con una hora y materiales básicos, puedes crear documentos falsos (Tier 1 o 2) que pasarán cualquier inspección visual humana o de burócratas cansados."
+                    },
+                    {
+                        "id": "memoria_fotografica",
+                        "nombre": "Memoria Fotográfica",
+                        "desc": "Tienes +3 en checks de Memoria para recordar planos de seguridad, códigos, rostros o conversaciones exactas. Nunca te pierdes en un edificio si has visto el plano de evacuación una sola vez."
+                    }
+                ]
+            },
+            {
+                "id": "musico_artista",
+                "name": "Músico / Artista Escénico",
+                "category": "Artes, Servicio y Combate",
+                "cost": 100000,
+                "attributes": "+2 Carisma, -1 Prudencia",
+                "mods": {
+                    "Carisma": 2,
+                    "Prudencia": -1
+                },
+                "perks": [
+                    {
+                        "id": "audiencia_cautiva",
+                        "nombre": "Audiencia Cautiva",
+                        "desc": "En un descanso corto, interpretas para el grupo. Los aliados que te toleren y escuchen recuperan 10 SP adicionales en ese momento. Su moral queda condicionada, ganando +1 Attack Power Up solo durante la primera ronda de su próximo combate."
+                    },
+                    {
+                        "id": "centro_de_atencion",
+                        "nombre": "Centro de Atención",
+                        "desc": "Puedes iniciar una actuación pública que atrae instintivamente las miradas de los guardias y NPCs civiles en la zona, dando un bono de +5 automático a las tiradas de Sigilo de tus aliados mientras te escuchan."
+                    },
+                    {
+                        "id": "acto_de_tragedia",
+                        "nombre": "Acto de Tragedia",
+                        "desc": "La primera vez en combate que tu HP cae bajo el 25% o sufres Stagger, finges un colapso cataclísmico o la muerte misma. Los enemigos humanoides cancelarán sus ataques apuntados a ti esa ronda para ir por otra presa, asumiendo que ya eres un cadáver."
+                    },
+                    {
+                        "id": "melodia_de_cuna",
+                        "nombre": "Melodía de Cuna",
+                        "desc": "Tienes +3 en checks de Seducción o Carisma en interacciones pacíficas. Si tocas una canción durante un descanso largo, el sueño del grupo es profundo y sin pesadillas, curando 20 HP extra al despertar."
+                    },
+                    {
+                        "id": "pase_vip",
+                        "nombre": "Pase VIP",
+                        "desc": "Tu carisma te precede. Tienes +3 en Engaño para convencer a los guardias de eventos exclusivos o corporativos de que eres el entretenimiento contratado o un invitado excéntrico, dejando pasar al grupo como tu \"staff\"."
+                    }
+                ]
+            },
+            {
+                "id": "clerigo_fanatico",
+                "name": "Clérigo / Fanático Religioso",
+                "category": "Artes, Servicio y Combate",
+                "cost": 300000,
+                "attributes": "+2 Fe, -1 Análisis",
+                "mods": {
+                    "Fe": 2,
+                    "Análisis": -1
+                },
+                "perks": [
+                    {
+                        "id": "palabra_sagrada",
+                        "nombre": "Palabra Sagrada",
+                        "desc": "Tu fanatismo te aísla de la realidad. Eres completamente inmune al primer efecto de reducción de SP o al primer chequeo de daño mental (Pánico/Terror) que sufras cada día."
+                    },
+                    {
+                        "id": "confesionario",
+                        "nombre": "Confesionario",
+                        "desc": "Tu aura de devoción o fanatismo incita la culpa. Tienes +3 en Empatía para lograr que un NPC quebrado o asustado te revele sus crímenes, contraseñas o pecados ocultos a cambio de tu \"absolución\"."
+                    },
+                    {
+                        "id": "inquisidor",
+                        "nombre": "Inquisidor",
+                        "desc": "Tienes un +3 automático en checks de Análisis o Investigación exclusivamente cuando se trata de rastrear escondites de herejes, sectas del bajo mundo u objetos profanos ocultos en la ciudad."
+                    },
+                    {
+                        "id": "diezmo_de_los_desesperados",
+                        "nombre": "Diezmo de los Desesperados",
+                        "desc": "En zonas de baja clase, puedes predicar durante 1 hora para conseguir refugio seguro, raciones de Tier 1 y pequeñas donaciones de información de los creyentes sin tener que gastar un solo Ahn."
+                    },
+                    {
+                        "id": "funeral_apropiado",
+                        "nombre": "Funeral Apropiado",
+                        "desc": "Si pasas 10 minutos dando los ritos funerarios a un cadáver en el camino o a un aliado caído, recuperas 15 SP y tu mente se blinda, volviéndote inmune a los efectos pasivos de Miedo por el resto del día."
+                    }
+                ]
+            },
+            {
+                "id": "guardia_soldado",
+                "name": "Guardia / Soldado Raso",
+                "category": "Artes, Servicio y Combate",
+                "cost": 0,
+                "attributes": "+2 Atletismo, -1 Engaño",
+                "mods": {
+                    "Atletismo": 2,
+                    "Engaño": -1
+                },
+                "perks": [
+                    {
+                        "id": "centinela",
+                        "nombre": "Centinela",
+                        "desc": "Tu cuerpo está hecho para vigilar. Ignoras las penalizaciones de tiradas por falta de sueño o luz baja en tus checks de Percepción mientras montas guardia."
+                    },
+                    {
+                        "id": "ojo_marcial",
+                        "nombre": "Ojo Marcial",
+                        "desc": "Con solo ver la postura, cicatrices y equipo de un NPC, sabes exactamente su nivel de entrenamiento, qué armas oculta bajo el abrigo y si es un soldado organizado o un simple matón de callejón."
+                    },
+                    {
+                        "id": "jerga_de_cuartel",
+                        "nombre": "Jerga de Cuartel",
+                        "desc": "Sabes cómo piensan los perros de la corporación. Tienes +3 en Engaño o Negociación al interactuar con patrullas militares o mercenarios, fingiendo ser un veterano o usando códigos de radio correctos."
+                    },
+                    {
+                        "id": "marcha_forzada",
+                        "nombre": "Marcha Forzada",
+                        "desc": "Puedes guiar al grupo para viajar por túneles, páramos o ruinas durante la noche o el doble de rápido sin que nadie en el equipo sufra penalizaciones mecánicas por fatiga al día siguiente."
+                    },
+                    {
+                        "id": "disciplina_militar",
+                        "nombre": "Disciplina Militar",
+                        "desc": "Eres resistente al interrogatorio físico. Si eres capturado, tienes +5 en tiradas de Voluntad para no revelar los planes de tu grupo ni las contraseñas, incluso bajo tortura directa."
+                    }
+                ]
+            }
+        ];
 
         const backgroundsData = [
             {
@@ -1500,6 +2088,9 @@
         const luminousState = {
             originId: null,
             subraceId: null,
+            backgroundId: null,
+            professionId: null,
+            professionPerkId: null,
             modifiers: {}, // Mods de atributos (Vigor, etc.)
             humanPerks: [],
             baseStats: { cuerpo: 0, mente: 0, alma: 0 } // Stats principales
@@ -2598,14 +3189,226 @@
                     luminousState.baseStats[bStat] += bVal;
                     luminousState.baseStats[pStat] += pVal;
 
-                    // Fade out and go to index
+                    // Fade out and go to phase-dialogue-3
                     phasePurpleIntervention.classList.add('fade-out');
                     setTimeout(() => {
-                        window.location.href = 'index.html?tab=creator';
-                    }, 1000);
+                        phasePurpleIntervention.classList.add('hidden');
+                        phasePurpleIntervention.classList.remove('fade-out');
+                        startDialogue3();
+                    }, 1500);
                 }
             });
             purpleButtonsContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+
+            // Logic for Phase Dialogue 3 and Phase 3 (Professions)
+            const phaseDialogue3 = document.getElementById('phase-dialogue-3');
+            const dialogueText3 = document.getElementById('dialogue-text-3');
+            const phase3 = document.getElementById('phase3');
+
+            let dialogue3Step = 0;
+            let isTypingDialogue3 = false;
+            let typingTimeout3;
+
+            const dialogue3Phrases = [
+                "Vaya...",
+                "La compasión siempre me ha parecido un desperdicio de tiempo.",
+                "Al final, a este mundo no le importa lo que sufriste en tu juventud.",
+                "Solo le importa para qué sirves.",
+                "El conocimiento cuesta. La experiencia duele. Y ese trozo de papel que dice que eres útil... te endeuda hasta la médula.",
+                "Dime... ¿En qué decidiste desperdiciar tu tiempo para intentar salir del fondo y cuál fue tu truco para sobrevivir?"
+            ];
+
+            function startDialogue3() {
+                phaseDialogue3.classList.remove('hidden');
+                dialogue3Step = 0;
+                typeDialogue3(dialogue3Phrases[dialogue3Step]);
+            }
+
+            function typeDialogue3(text) {
+                dialogueText3.innerHTML = "";
+                isTypingDialogue3 = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        dialogueText3.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        // Faster typing speed (20ms) for "tajos rápidos y precisos"
+                        typingTimeout3 = setTimeout(typeNext, 20);
+                    } else {
+                        isTypingDialogue3 = false;
+                    }
+                }
+                typeNext();
+            }
+
+            function handleDialogue3Advance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                if (isTypingDialogue3) {
+                    clearTimeout(typingTimeout3);
+                    dialogueText3.innerHTML = dialogue3Phrases[dialogue3Step];
+                    isTypingDialogue3 = false;
+                } else {
+                    dialogue3Step++;
+                    if (dialogue3Step < dialogue3Phrases.length) {
+                        typeDialogue3(dialogue3Phrases[dialogue3Step]);
+                    } else {
+                        // Transition to Phase 3
+                        phaseDialogue3.classList.add('fade-out');
+                        setTimeout(() => {
+                            phaseDialogue3.classList.add('hidden');
+                            phaseDialogue3.classList.remove('fade-out');
+                            phase3.classList.remove('hidden');
+                            renderProfessions();
+                        }, 1000);
+                    }
+                }
+            }
+
+            phaseDialogue3.addEventListener('click', handleDialogue3Advance);
+            phaseDialogue3.addEventListener('touchstart', handleDialogue3Advance, {passive: false});
+
+            function renderProfessions() {
+                let profGridContainer = document.getElementById('profession-grid');
+                if (!profGridContainer) return;
+                profGridContainer.innerHTML = '';
+
+                professionsData.forEach(prof => {
+                    const card = document.createElement('div');
+                    card.className = 'origin-card profession-card';
+                    card.dataset.id = prof.id;
+
+                    let perksOptionsHtml = '<option value="" disabled selected>Selecciona UN Perk</option>';
+                    if (prof.perks) {
+                        prof.perks.forEach(p => {
+                            perksOptionsHtml += `<option value="${p.id}">${p.nombre}</option>`;
+                        });
+                    }
+
+                    // Format cost with commas
+                    const costString = prof.cost.toLocaleString('en-US') + ' Ahn';
+
+                    card.innerHTML = `
+                        <div class="card-header" style="text-align: left;">
+                            <h2>${prof.name}</h2>
+                            <span style="font-size: 0.8rem; color: #FFD700; font-style: italic;">${prof.category}</span>
+                        </div>
+                        <div class="card-body" style="text-align: left; padding: 15px; display: flex; flex-direction: column;">
+                            <div style="margin-bottom: 10px; font-size: 0.9rem;">
+                                <span style="color: var(--cyan-tech);"><strong>Costo:</strong> -${costString}</span><br>
+                                <span style="color: var(--green-success);"><strong>Atributos:</strong> ${prof.attributes}</span>
+                            </div>
+
+                            <div style="margin-top: auto; border-top: 1px dashed #444; padding-top: 10px;">
+                                <select class="choice-select profession-perk-select" data-prof-id="${prof.id}" style="width: 100%; margin-bottom: 5px;">
+                                    ${perksOptionsHtml}
+                                </select>
+                                <div class="perk-desc" id="prof-perk-desc-${prof.id}" style="font-size: 11px; color: var(--text-muted); display: none;"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Handle card click
+                    const handleCardClick = (e) => {
+                        if (e.type === 'touchstart') e.preventDefault();
+                        // Don't select the card if clicking the dropdown itself
+                        if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                        seleccionarProfesion(prof.id);
+                    };
+                    card.addEventListener('click', handleCardClick);
+                    card.addEventListener('touchstart', handleCardClick, {passive: false});
+
+                    // Handle perk dropdown change
+                    const selectEl = card.querySelector('.profession-perk-select');
+                    selectEl.addEventListener('change', (e) => {
+                        const perkId = e.target.value;
+                        const descDiv = card.querySelector(`#prof-perk-desc-${prof.id}`);
+                        const perkData = prof.perks.find(p => p.id === perkId);
+
+                        if (perkData && descDiv) {
+                            descDiv.innerHTML = `<strong>${perkData.nombre}:</strong> ${perkData.desc}`;
+                            descDiv.style.display = 'block';
+                        }
+
+                        // We must re-validate the profession selection to see if Confirm should be enabled
+                        validarProfesion();
+                    });
+
+                    profGridContainer.appendChild(card);
+                });
+            }
+
+            function seleccionarProfesion(id) {
+                luminousState.professionId = id;
+
+                const cards = document.querySelectorAll('#profession-grid .profession-card');
+                cards.forEach(card => {
+                    if (card.dataset.id === id) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                });
+
+                const profGridContainer = document.getElementById('profession-grid');
+                if (id) {
+                    profGridContainer.classList.add('has-selection');
+                } else {
+                    profGridContainer.classList.remove('has-selection');
+                }
+
+                validarProfesion();
+            }
+
+            function validarProfesion() {
+                const btnConfirmarProfesion = document.getElementById('btn-confirmar-profesion');
+                if (!luminousState.professionId) {
+                    btnConfirmarProfesion.disabled = true;
+                    return;
+                }
+
+                const selectedCard = document.querySelector(`.profession-card[data-id="${luminousState.professionId}"]`);
+                if (!selectedCard) {
+                    btnConfirmarProfesion.disabled = true;
+                    return;
+                }
+
+                const select = selectedCard.querySelector('.profession-perk-select');
+                if (!select || !select.value) {
+                    btnConfirmarProfesion.disabled = true;
+                } else {
+                    luminousState.professionPerkId = select.value;
+                    btnConfirmarProfesion.disabled = false;
+                }
+            }
+
+            const btnConfirmarProfesion = document.getElementById('btn-confirmar-profesion');
+            if(btnConfirmarProfesion) {
+                const handleConfirmProfClick = (e) => {
+                    if (e.type === 'touchstart') e.preventDefault();
+                    if (btnConfirmarProfesion.disabled) return;
+
+                    // Apply profession attributes to state
+                    const prof = professionsData.find(p => p.id === luminousState.professionId);
+                    if (prof && prof.mods) {
+                        for (const [key, val] of Object.entries(prof.mods)) {
+                            luminousState.modifiers[key] = (luminousState.modifiers[key] || 0) + val;
+                        }
+                    }
+
+                    // For now, save state locally (or send it somewhere if you want)
+                    localStorage.setItem('luminousState', JSON.stringify(luminousState));
+
+                    // Transition out
+                    phase3.classList.add('fade-out');
+                    setTimeout(() => {
+                        window.location.href = 'index.html?tab=creator';
+                    }, 1000);
+                };
+                btnConfirmarProfesion.addEventListener('click', handleConfirmProfClick);
+                btnConfirmarProfesion.addEventListener('touchstart', handleConfirmProfClick, {passive: false});
+            }
 
         });
 
