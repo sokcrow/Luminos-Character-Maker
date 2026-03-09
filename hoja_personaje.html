@@ -416,32 +416,9 @@
         }
 
         /* Modal for dice rolls */
-        #roll-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        #roll-modal-content {
-            background: var(--bg-card);
-            border: 2px solid var(--red-limbus);
-            padding: 20px;
-            border-radius: 5px;
-            min-width: 300px;
-            max-width: 500px;
-        }
-        #roll-modal-close {
-            background: #222;
-            color: white;
-            border: 1px solid #555;
-            padding: 5px 10px;
-            cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
-        }
+
+
+
 
 
         .sheet-hide-empty:empty { display: none; }
@@ -4112,7 +4089,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
         { id: "experimento_fallido", name: "Experimento Fallido", funds: "0 Ahn", benefit: "+2 Resistencia (Fortaleza), +1 Arcana, -1 Apariencia (Presencia)" },
         { id: "academico_desacreditado", name: "Académico Desacreditado", funds: "1,500 Ahn", benefit: "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)" },
         { id: "siervo_corporativo", name: "Siervo Corporativo (Bajo Rango)", funds: "2,500 Ahn", benefit: "+1 Represión, +1 Negociación" },
-        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-100,000 Ahn", benefit: "+2 Atletismo (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
+        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-100,000 Ahn", benefit: "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
         { id: "miembro_culto", name: "Miembro de Culto Menor", funds: "800 Ahn", benefit: "+2 Fe, +1 Lore, -1 Razón (Análisis)" }
     ];
 
@@ -4325,28 +4302,117 @@ button[type="action"].sheet-ahn-edit-btn:hover,
             callback(results);
         };
 
-        window.finishRoll = function(rollId, computedObj) {
-            showRollModal(computedObj.result);
+                window.finishRoll = function(rollId, computedObj, resultsData) {
+            showRollModal(computedObj.result, resultsData);
         };
 
-        function showRollModal(resultText) {
+
+        function showRollModal(resultText, resultsData) {
             let modal = document.getElementById('roll-modal');
+
+            // Check if styles exist, if not create
+            if(!document.getElementById('roll-modal-style')) {
+                const style = document.createElement('style');
+                style.id = 'roll-modal-style';
+                style.innerHTML = `
+                    #roll-modal-close:hover {
+                        background: rgba(0, 255, 255, 0.1) !important;
+                        box-shadow: 0 0 10px var(--cyan-tech) !important;
+                    }
+                    .roll-modal-coin {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        transition: transform 0.3s ease;
+                    }
+                    .roll-modal-coin.head {
+                        filter: drop-shadow(0 0 8px rgba(196, 154, 0, 0.8));
+                    }
+                    .roll-modal-coin.tail {
+                        filter: drop-shadow(0 0 3px rgba(139, 0, 0, 0.8)) grayscale(0.8);
+                        opacity: 0.6;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
             if(!modal) {
                 modal = document.createElement('div');
                 modal.id = 'roll-modal';
+                modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: opacity 0.2s;';
+
                 modal.innerHTML = `
-                    <div id="roll-modal-content">
-                        <h2 style="color:var(--border-accent); margin-top:0; text-align:center;">Resultado de Tirada</h2>
-                        <div id="roll-modal-result" style="font-size: 2em; text-align: center; color: var(--green-success); margin: 20px 0;"></div>
-                        <button id="roll-modal-close">Cerrar</button>
+                    <div id="roll-modal-content" style="background: linear-gradient(135deg, #111 0%, #222 100%); border: 2px solid var(--border-accent); border-radius: 8px; padding: 25px; min-width: 320px; max-width: 90%; box-shadow: 0 0 25px rgba(196, 154, 0, 0.3), inset 0 0 15px rgba(0,0,0,0.8); font-family: 'Share Tech Mono', monospace; text-align: center; position: relative; overflow: hidden;">
+                        <!-- Scanline effect overlay -->
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px); pointer-events: none; z-index: 1;"></div>
+
+                        <div style="position: relative; z-index: 2;">
+                            <h2 id="roll-modal-title" style="color:var(--border-accent); margin-top:0; border-bottom: 1px dashed #555; padding-bottom: 10px; font-size: 1.4em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(196,154,0,0.5);">Resultado</h2>
+
+                            <div style="display: flex; justify-content: space-between; margin: 15px 0; color: var(--cyan-tech); font-size: 1.1em;">
+                                <span id="roll-modal-base" style="background: rgba(0,255,255,0.1); padding: 2px 8px; border-radius: 3px;">Base: 0</span>
+                                <span id="roll-modal-sp" style="background: rgba(0,255,255,0.1); padding: 2px 8px; border-radius: 3px;">SP: 0</span>
+                            </div>
+
+                            <div id="roll-modal-coins" style="display: flex; justify-content: center; gap: 15px; margin: 25px 0; min-height: 40px;">
+                                <!-- Coins will be injected here -->
+                            </div>
+
+                            <div style="font-size: 1.1em; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px;">Poder Final</div>
+                            <div id="roll-modal-result" style="font-size: 4em; font-weight: bold; color: var(--golden-entity); margin: 0 0 25px 0; text-shadow: 0 0 15px rgba(196, 154, 0, 0.8), 2px 2px 0px #000; line-height: 1;"></div>
+
+                            <button id="roll-modal-close" style="background: #1a1a1a; color: var(--cyan-tech); border: 1px solid var(--cyan-tech); padding: 12px 20px; font-family: 'Share Tech Mono'; font-size: 1.2em; cursor: pointer; border-radius: 4px; transition: all 0.2s; width: 100%; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; position: relative; overflow: hidden;">Confirmar</button>
+                        </div>
                     </div>
                 `;
+
                 document.body.appendChild(modal);
-                document.getElementById('roll-modal-close').onclick = () => modal.style.display = 'none';
+                document.getElementById('roll-modal-close').onclick = () => {
+                    modal.style.opacity = '0';
+                    setTimeout(() => modal.style.display = 'none', 200);
+                };
             }
+
+            // Populate Data
+            if(resultsData) {
+                document.getElementById('roll-modal-title').textContent = resultsData.name || "Tirada";
+                document.getElementById('roll-modal-base').textContent = `Base: ${resultsData.base || 0}`;
+                document.getElementById('roll-modal-sp').textContent = `SP: ${attributes['sp'] || 0}`;
+
+                const coinsContainer = document.getElementById('roll-modal-coins');
+                coinsContainer.innerHTML = '';
+
+                // Add coins based on result
+                for(let i=1; i<=5; i++) {
+                    const coinResult = resultsData.results && resultsData.results['c'+i];
+                    if(coinResult) {
+                        const isHead = coinResult.result === 1;
+                        const imgSrc = isHead ? "https://i.imgur.com/yshLPnQ.png" : "https://i.imgur.com/XDx0ICt.png";
+                        const coinImg = document.createElement('img');
+                        coinImg.src = imgSrc;
+                        coinImg.className = `roll-modal-coin ${isHead ? 'head' : 'tail'}`;
+                        coinImg.title = isHead ? "Cara (+Poder)" : "Cruz (+0)";
+                        coinsContainer.appendChild(coinImg);
+                    }
+                }
+            } else {
+                 document.getElementById('roll-modal-title').textContent = "Resultado";
+                 document.getElementById('roll-modal-base').textContent = `Base: -`;
+                 document.getElementById('roll-modal-sp').textContent = `SP: -`;
+                 document.getElementById('roll-modal-coins').innerHTML = '';
+            }
+
             document.getElementById('roll-modal-result').textContent = resultText;
+
+            // Show with tiny fade in
             modal.style.display = 'flex';
+
+            // Force reflow
+            void modal.offsetWidth;
+
+            modal.style.opacity = '1';
         }
+
 
         document.addEventListener('change', (e) => {
             if (e.target.name && e.target.name.startsWith('attr_')) {
@@ -5063,10 +5129,10 @@ button[type="action"].sheet-ahn-edit-btn:hover,
             // 4. Cálculo Final
             const finalValue = (headsCount * coinPower) + basePower;
 
-            // 5. Sobrescribir {{result}} usando computed::
+                        // 5. Sobrescribir {{result}} usando computed::
             finishRoll(results.rollId, {
                 result: finalValue
-            });
+            }, results);
         });
     };
 
