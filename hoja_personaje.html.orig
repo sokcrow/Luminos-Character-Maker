@@ -218,10 +218,6 @@
             color: var(--red-neon);
         }
 
-        .skill-mod.neutral {
-            color: var(--cyan-tech);
-        }
-
         /* Perks List */
         .perks-list {
             list-style: none;
@@ -3715,14 +3711,6 @@
             }
         ];
 
-        const atributosLista = [
-            "Vigor", "Instinto", "Fortaleza", "Carisma", "Perspicacia", "Seducción",
-            "Agilidad", "Análisis", "Sigilo", "Presencia", "Engaño", "Percepción",
-            "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
-            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo",
-            "Lore", "Investigación", "Arcana"
-        ].sort();
-
         document.addEventListener('DOMContentLoaded', () => {
             const savedStateStr = localStorage.getItem('luminousState');
 
@@ -3789,21 +3777,26 @@
 
                 // Skills
                 const skillsContainer = document.getElementById('skills-container');
-                skillsContainer.innerHTML = '';
-                atributosLista.forEach(skill => {
-                    let val = 0;
-                    if (state.modifiers && state.modifiers[skill] !== undefined) {
-                        val = state.modifiers[skill];
-                    }
-                    const sign = val > 0 ? '+' : '';
-                    const classStr = val < 0 ? 'negative' : (val === 0 ? 'neutral' : '');
-                    skillsContainer.innerHTML += `
-                        <div class="skill-item">
-                            <span class="skill-name">${skill}</span>
-                            <span class="skill-mod ${classStr}">${sign}${val}</span>
-                        </div>
-                    `;
-                });
+                if (state.modifiers && Object.keys(state.modifiers).length > 0) {
+                    skillsContainer.innerHTML = '';
+                    // Sort skills alphabetically
+                    const sortedSkills = Object.keys(state.modifiers).sort();
+                    sortedSkills.forEach(skill => {
+                        const val = state.modifiers[skill];
+                        if (val !== 0) {
+                            const sign = val > 0 ? '+' : '';
+                            const classStr = val < 0 ? 'negative' : '';
+                            skillsContainer.innerHTML += `
+                                <div class="skill-item">
+                                    <span class="skill-name">${skill}</span>
+                                    <span class="skill-mod ${classStr}">${sign}${val}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                } else {
+                    skillsContainer.innerHTML = '<p style="color:var(--text-muted); font-size:0.9em;">No hay modificadores de habilidad.</p>';
+                }
 
                 // Perks
                 const perksContainer = document.getElementById('perks-container');
