@@ -665,6 +665,14 @@
         }
 
 /* Reset default Roll20 button styles for icon buttons */
+button[type="action"].sheet-config-btn,
+button[type="action"].sheet-reset-stagger-btn,
+button[type="action"].sheet-arrow-btn,
+button[type="action"].sheet-btn-edit,
+button[type="action"].sheet-btn-save,
+button[type="roll"].sheet-view-name-btn,
+button[type="roll"].sheet-speed-label-btn,
+button[type="action"].sheet-ahn-edit-btn,
 .sheet-config-btn,
 .sheet-reset-stagger-btn,
 .sheet-arrow-btn,
@@ -673,16 +681,25 @@
 .sheet-view-name-btn,
 .sheet-speed-label-btn,
 .sheet-ahn-edit-btn {
-    background: transparent;
-    background-color: transparent;
-    border: none;
-    box-shadow: none;
+    background-image: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     padding: 0;
     margin: 0;
     cursor: pointer;
     text-shadow: none;
 }
 
+button[type="action"].sheet-config-btn:hover,
+button[type="action"].sheet-reset-stagger-btn:hover,
+button[type="action"].sheet-arrow-btn:hover,
+button[type="action"].sheet-btn-edit:hover,
+button[type="action"].sheet-btn-save:hover,
+button[type="roll"].sheet-view-name-btn:hover,
+button[type="roll"].sheet-speed-label-btn:hover,
+button[type="action"].sheet-ahn-edit-btn:hover,
 .sheet-config-btn:hover,
 .sheet-reset-stagger-btn:hover,
 .sheet-arrow-btn:hover,
@@ -691,10 +708,11 @@
 .sheet-view-name-btn:hover,
 .sheet-speed-label-btn:hover,
 .sheet-ahn-edit-btn:hover {
-    background: transparent;
-    background-color: transparent;
-    border: none;
-    box-shadow: none;
+    background-image: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     filter: brightness(1.2);
 }
 
@@ -4431,7 +4449,10 @@
                         // Apply modifiers
                         if (state.modifiers) {
                             for (const [skill, val] of Object.entries(state.modifiers)) {
-                                update[`skill_${skill.toLowerCase()}_mod`] = val;
+                                let normalized = skill.toLowerCase()
+                                    .normalize("NFD").replace(/[̀-ͯ]/g, "") // remove accents
+                                    .replace(/ñ/g, 'n');
+                                update[`skill_${normalized}_mod`] = val;
                             }
                         }
 
@@ -4467,6 +4488,11 @@
                             update.identity_notes = `Ideal: ${state.psychologicalIdeal || 'N/A'}\n` +
                                                     `Vínculo: ${state.psychologicalVinculo || 'N/A'}\n` +
                                                     `Grieta: ${state.psychologicalGrieta || 'N/A'}`;
+                        }
+
+                        // Also retrieve the character's given name if any
+                        if (state.characterName) {
+                            update.character_name = state.characterName;
                         }
 
                         // Give starting Ahn based on background
@@ -4520,6 +4546,14 @@
 
                         // Set HP and other derived stats explicitly so sheet worker calculates
                         trigger('change:hp_base', {sourceAttribute: 'hp_base'});
+
+                        // Fire stats change events
+                        trigger('change:cuerpo_base', {sourceAttribute: 'cuerpo_base'});
+                        trigger('change:mente_base', {sourceAttribute: 'mente_base'});
+                        trigger('change:alma_base', {sourceAttribute: 'alma_base'});
+
+                        // Delete luminousState to prevent overriding manually adjusted values next reload
+                        localStorage.removeItem('luminousState');
 
                     } catch(e) {
                         console.error("Error loading luminousState:", e);

@@ -3932,6 +3932,7 @@
 
         // 4. Estado Global
         const luminousState = {
+            characterName: null,
             originId: null,
             subraceId: null,
             backgroundId: null,
@@ -4557,6 +4558,7 @@
             confirmNameBtn.addEventListener('click', () => {
                 const name = characterNameInput.value.trim();
                 if (name) {
+                    luminousState.characterName = name;
                     characterName = name;
                     nameInputContainer.classList.add('hidden');
                     introStep++;
@@ -4762,6 +4764,7 @@
                     }, 2000);
                 } else {
                     // Valid name
+                    luminousState.characterName = name;
                     characterName = name;
                     nameInputContainer2.classList.add('hidden');
 
