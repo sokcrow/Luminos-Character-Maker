@@ -568,8 +568,7 @@
             "Vigor", "Instinto", "Fortaleza", "Carisma", "Perspicacia", "Seducción",
             "Agilidad", "Análisis", "Sigilo", "Presencia", "Engaño", "Percepción",
             "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
-            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Atletismo",
-            "Lore", "Investigación", "Arcana"
+            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Lore", "Investigación", "Arcana"
         ].sort();
 
                         const backgroundsData = [
@@ -726,7 +725,7 @@
                 "name": "Deudor Vitalicio",
                 "category": "Eruditos, Siervos y Deudores",
                 "desc": "Naciste debiendo Ahn. Heredaste las deudas de tus padres y ahora cada respiro que tomas le pertenece al banco.",
-                "benefit": "+2 Atletismo (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)",
+                "benefit": "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)",
                 "funds": "-100,000 Ahn (Comienzas con deuda)",
                 "entityResponse": "El rojo es tu color. En tus cuentas, en tu sangre y en tu destino. Morirás debiendo más."
             },
@@ -1013,10 +1012,10 @@
                 "name": "Sastre / Tejedor de Armaduras",
                 "category": "Gremios y Oficios Especializados",
                 "cost": 500000,
-                "attributes": "+2 Manejo, -1 Atletismo",
+                "attributes": "+2 Manejo, -1 Agilidad",
                 "mods": {
                     "Manejo": 2,
-                    "Atletismo": -1
+                    "Agilidad": -1
                 },
                 "perks": [
                     {
@@ -1279,9 +1278,9 @@
                 "name": "Guardia / Soldado Raso",
                 "category": "Artes, Servicio y Combate",
                 "cost": 0,
-                "attributes": "+2 Atletismo, -1 Engaño",
+                "attributes": "+2 Agilidad, -1 Engaño",
                 "mods": {
-                    "Atletismo": 2,
+                    "Agilidad": 2,
                     "Engaño": -1
                 },
                 "perks": [
@@ -3500,7 +3499,7 @@
                     {
                         id: 'felinae_mistico',
                         nombre: 'Felinae Místico',
-                        mods: { cuspide: 'Ciencia', excelente: 'Agilidad', bueno: 'Memoria', deficiente: 'Vigor', punto_ciego: 'Fortaleza', critica: 'Atletismo' },
+                        mods: { cuspide: 'Ciencia', excelente: 'Agilidad', bueno: 'Memoria', deficiente: 'Vigor', punto_ciego: 'Fortaleza', critica: 'Agilidad' },
                         perks: [
                             { id: 'misticismo_felino', nombre: 'Misticismo Felino', desc: 'Aprendes un Truco de tu elección. Tu Alma es tu estadística de lanzamiento.' },
                             { id: 'estudiante_magia', nombre: 'Estudiante de la Magia', desc: 'Obtienes +3 de poder de check en Arcanos.' },
@@ -3603,7 +3602,7 @@
                     {
                         id: 'semi_dragon_bronce',
                         nombre: 'Ascendencia Bronce (Eléctrico / Línea)',
-                        mods: { cuspide: 'Fortaleza', excelente: 'Vigor', bueno: 'Atletismo', deficiente: 'Sigilo', punto_ciego: 'Engaño', critica: 'Agilidad' },
+                        mods: { cuspide: 'Fortaleza', excelente: 'Vigor', bueno: 'Agilidad', deficiente: 'Sigilo', punto_ciego: 'Engaño', critica: 'Agilidad' },
                         perks: [
                             { id: 'aliento_bronce', nombre: 'Aliento Eléctrico (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Shock.' },
                             { id: 'sangre_bronce', nombre: 'Sangre de Bronce', desc: 'Resistencia al daño Eléctrico.' },
@@ -3684,7 +3683,7 @@
                     {
                         id: 'moonfae_azul',
                         nombre: 'Ciclo: Luna Azul',
-                        mods: { cuspide: 'Carisma', excelente: 'Perspicacia', bueno: 'Voluntad', deficiente: 'Vigor', punto_ciego: 'Atletismo', critica: 'Fortaleza' },
+                        mods: { cuspide: 'Carisma', excelente: 'Perspicacia', bueno: 'Voluntad', deficiente: 'Vigor', punto_ciego: 'Agilidad', critica: 'Fortaleza' },
                         perks: [
                             { id: 'suerte_conejo', nombre: 'Suerte del Conejo', desc: 'Después de un descanso largo, obtienes 3 usos de Suerte Adicionales (el Máximo de Suerte pasa a 9). Puedes gastar 1 uso para sumar +3 al poder final de un check tuyo o de un aliado a 10 ft.' },
                             { id: 'accion_favorable', nombre: 'Acción Favorable', desc: 'Puedes aplicar +2 Attack Power Up o +2 Defense Power Up a un aliado en tu turno usando 1 punto de tu suerte.' }
@@ -3707,7 +3706,7 @@
                     {
                         id: 'undae_guerra',
                         nombre: 'Undae de Guerra',
-                        mods: { cuspide: 'Vigor', excelente: 'Atletismo', bueno: 'Presencia', deficiente: 'Engaño', punto_ciego: 'Ciencia', critica: 'Seducción' },
+                        mods: { cuspide: 'Vigor', excelente: 'Agilidad', bueno: 'Presencia', deficiente: 'Engaño', punto_ciego: 'Ciencia', critica: 'Seducción' },
                         perks: [
                             { id: 'entrenamiento_marcial', nombre: 'Entrenamiento Marcial', desc: 'Obtienes +1 al poder base de espadas largas, cortas, lanzas o arcos largos.' },
                             { id: 'tenacidad_acuatica', nombre: 'Tenacidad Acuática', desc: 'Tu velocidad de nado es de 60 ft.' },
@@ -3727,7 +3726,7 @@
                     {
                         id: 'undae_mistico',
                         nombre: 'Undae Místico',
-                        mods: { cuspide: 'Empatía', excelente: 'Carisma', bueno: 'Fe', deficiente: 'Vigor', punto_ciego: 'Atletismo', critica: 'Presencia' },
+                        mods: { cuspide: 'Empatía', excelente: 'Carisma', bueno: 'Fe', deficiente: 'Vigor', punto_ciego: 'Agilidad', critica: 'Presencia' },
                         perks: [
                             { id: 'magia_anfibia', nombre: 'Magia Anfibia', desc: 'Aprendes los trucos Magia Druídica y Controlar Agua. Tu Alma es tu estadística de lanzamiento.' },
                             { id: 'aura_reconfortante', nombre: 'Aura Reconfortante', desc: 'Gasta un Slot de Acción para curar 15 HP a un aliado.' },
@@ -3774,7 +3773,7 @@
                     {
                         id: 'yuanti_rojo',
                         nombre: 'Ojos Rojos (Ira)',
-                        mods: { cuspide: 'Vigor', excelente: 'Atletismo', bueno: 'Reflejos', deficiente: 'Templanza', punto_ciego: 'Empatía', critica: 'Fe' },
+                        mods: { cuspide: 'Vigor', excelente: 'Agilidad', bueno: 'Reflejos', deficiente: 'Templanza', punto_ciego: 'Empatía', critica: 'Fe' },
                         perks: [
                             { id: 'furia_fria', nombre: 'Furia Fría', desc: 'Permite contraatacar con una reacción.' },
                             { id: 'bono_ira', nombre: 'Instinto Agresivo', desc: 'Obtienes +3 en Fortaleza y Agilidad.' }
@@ -3932,6 +3931,7 @@
 
         // 4. Estado Global
         const luminousState = {
+            characterName: null,
             originId: null,
             subraceId: null,
             backgroundId: null,
@@ -4557,6 +4557,7 @@
             confirmNameBtn.addEventListener('click', () => {
                 const name = characterNameInput.value.trim();
                 if (name) {
+                    luminousState.characterName = name;
                     characterName = name;
                     nameInputContainer.classList.add('hidden');
                     introStep++;
@@ -4762,6 +4763,7 @@
                     }, 2000);
                 } else {
                     // Valid name
+                    luminousState.characterName = name;
                     characterName = name;
                     nameInputContainer2.classList.add('hidden');
 
