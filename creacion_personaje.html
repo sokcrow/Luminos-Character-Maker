@@ -5161,9 +5161,9 @@
 
                     // Handle card click
                     const handleCardClick = (e) => {
-                        if (e.type === 'touchstart') e.preventDefault();
                         // Don't select the card if clicking the dropdown itself
                         if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                        if (e.type === 'touchstart') e.preventDefault();
                         seleccionarProfesion(prof.id);
                     };
                     card.addEventListener('click', handleCardClick);
@@ -5289,8 +5289,8 @@
 
                     // Handle card click
                     const handleCardClick = (e) => {
-                        if (e.type === 'touchstart') e.preventDefault();
                         if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                        if (e.type === 'touchstart') e.preventDefault();
                         seleccionarPsychologicalBackground(bg.id);
                     };
                     card.addEventListener('click', handleCardClick);
