@@ -4796,16 +4796,18 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 20px;
-    font-size: 12px;
+    padding: 5px 25px;
+    font-size: 13px;
+    font-weight: 600;
     color: #fff;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
     pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
 .sheet-phone-statusbar::after {
@@ -4814,11 +4816,12 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 120px;
-    height: 20px;
-    background: #222;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
+    width: 100px;
+    height: 25px;
+    background: rgba(0, 0, 0, 0.8);
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 
 /* Screen Area */
@@ -4877,25 +4880,31 @@ input.sheet-state-bg[value="bg3"] ~ * .sheet-phone-screen {
     cursor: pointer;
     font-family: inherit;
     text-transform: none;
-    transition: transform 0.2s;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .sheet-app-btn:hover {
-    transform: scale(1.1);
+    transform: scale(1.05) translateY(-2px);
+}
+
+.sheet-app-btn:hover .sheet-app-icon {
+    box-shadow: 0 8px 15px rgba(0,0,0,0.7), 0 0 10px rgba(255,255,255,0.2) inset;
 }
 
 .sheet-app-icon {
     width: 60px;
     height: 60px;
-    background: rgba(20, 20, 20, 0.8);
-    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: box-shadow 0.3s ease;
 }
 
 .sheet-app-btn span {
@@ -4912,10 +4921,14 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-icon { border-color: var(--
 
 /* In-App Headers */
 .sheet-app-header {
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.6);
     padding: 10px 15px;
     border-bottom: 2px solid var(--border-accent); /* Override via JS/CSS var if needed */
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .sheet-app-header h2 {
@@ -4950,15 +4963,21 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
 /* Navbar */
 .sheet-phone-navbar {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
     height: 50px;
-    background: #0a0a0a;
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-top: 1px solid #222;
+    border-radius: 30px;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    z-index: 20;
 }
 
 .sheet-home-btn {
@@ -4968,11 +4987,12 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
     font-size: 24px;
     cursor: pointer;
     opacity: 0.7;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, transform 0.2s;
 }
 
 .sheet-home-btn:hover {
     opacity: 1;
+    transform: scale(1.1);
 }
 
 /* Visibility Fix for New Structure */
