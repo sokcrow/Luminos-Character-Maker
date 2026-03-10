@@ -4976,7 +4976,7 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
 }
 
 /* Visibility Fix for New Structure */
-.sheet-tab-content { display: none !important; height: 100%; flex-direction: column; overflow: hidden; pointer-events: auto; }
+.sheet-tab-content { display: none !important; height: 100%; flex-direction: column; overflow-y: auto; pointer-events: auto; }
 .sheet-tab-apego { pointer-events: auto !important; }
 input[name="attr_tab"][value="home"] ~ .sheet-phone-screen .sheet-tab-home,
 input[name="attr_tab"][value="stats"] ~ .sheet-phone-screen .sheet-tab-stats,
@@ -5047,7 +5047,7 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     .sheet-limbus-main { padding: 0 !important; width: 100% !important; min-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; }
 
     .sheet-phone-wrapper { height: 100vh !important; width: 100% !important; max-width: 100% !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
-    .sheet-phone-screen { flex: 1 !important; width: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; padding-top: 10px !important; padding-bottom: 20px !important; display: flex !important; flex-direction: column !important; }
+    .sheet-phone-screen { flex: 1 !important; width: 100% !important; overflow-y: hidden !important; overflow-x: hidden !important; padding-top: 10px !important; padding-bottom: 20px !important; display: flex !important; flex-direction: column !important; }
 
     .sheet-phone-back-btn { display: none !important; }
     .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; }
