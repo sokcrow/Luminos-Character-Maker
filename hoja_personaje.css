@@ -2359,9 +2359,66 @@ button[type="action"].sheet-ahn-edit-btn:hover,
     transition: all 0.3s ease;
 }
 
-.sheet-limbus-main input.sheet-state-apego-creator[value="1"] ~ .sheet-apego-creator-container {
+.sheet-limbus-main input.sheet-state-apego-creator[value="1"] ~ .sheet-apego-creator-container,
+.sheet-limbus-main input.sheet-state-apego-creator[value="1"] ~ .sheet-app-body .sheet-apego-creator-container {
     display: block;
     animation: fadeIn 0.3s;
+}
+
+/* Contact Card Styling (Apego) */
+.sheet-contact-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-accent);
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sheet-contact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+
+.sheet-contact-name {
+    font-weight: bold;
+    color: #fff;
+    font-size: 1.1em;
+    width: 60%;
+    background: transparent;
+    border: none;
+}
+
+.sheet-contact-name:focus {
+    outline: none;
+    border-bottom: 1px solid var(--text-main);
+}
+
+.sheet-contact-level-badge {
+    background: var(--limbus-red);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-weight: bold;
+    font-size: 0.9em;
+    box-shadow: 0 0 5px rgba(139,0,0,0.8);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sheet-contact-pr-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
 }
 
 /* --- Skill Creator Visibility --- */

@@ -3029,72 +3029,65 @@
 
         <!-- Apego Tab Content -->
         <div class="sheet-tab-content sheet-tab-apego">
-            <input type="hidden" name="attr_show_apego_creator" class="sheet-state-apego-creator" value="0" />
-
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; margin-bottom: 15px; padding-bottom: 5px;">
-                <h3 class="sheet-config-title" style="margin: 0; border: none; padding: 0;">Apego (Vínculos)</h3>
-                <button type="action" name="act_toggle_apego_creator" class="sheet-btn-rest" style="width: auto; padding: 0 10px; font-size: 0.8em;">TOGGLE CREATOR</button>
+            <div class="sheet-app-header">
+                <h2>Contactos</h2>
+                <button type="action" name="act_toggle_apego_creator" class="sheet-icon-btn">➕</button>
             </div>
 
-            <div class="sheet-apego-creator-container">
-                <div class="sheet-row" style="background: #111; padding: 10px; border-radius: 5px; border: 1px solid #333;">
-                    <div class="sheet-col">
-                        <label>Nombre del Personaje</label>
-                        <input type="text" name="attr_new_apego_name" placeholder="Name" />
-                    </div>
-                    <div class="sheet-col" style="flex: 0 0 auto;">
-                        <label>&nbsp;</label>
-                        <button type="action" name="act_add_apego" class="sheet-btn-rest" style="width: auto; padding: 0 10px;">ADD</button>
-                    </div>
+            <div class="sheet-app-body">
+                <input type="hidden" name="attr_show_apego_creator" class="sheet-state-apego-creator" value="0" />
 
-                </div>
-            </div>
-
-            <div class="sheet-row">
-                <fieldset class="repeating_apego">
-                    <div class="sheet-skill-card" style="margin-bottom: 10px; padding: 10px; border: 1px solid #FFD700; background: #0a0a0a;">
-                        <div class="sheet-row">
-                            <div class="sheet-col" style="flex: 2;">
-                                <label style="color: #FFD700; font-size: 0.8em; margin: 0;">Nombre del Personaje</label>
-                                <input type="text" name="attr_name" style="width: 100%; background: transparent; border: none; border-bottom: 1px solid #444; color: #fff; font-weight: bold; font-size: 1.1em;" />
-                            </div>
-                            <div class="sheet-col" style="flex: 1; text-align: center;">
-                                <label style="color: #FFD700; font-size: 0.8em; margin: 0;">Nivel</label>
-                                <span name="attr_level" style="color: #aaa; font-size: 1.1em; display: block; margin-top: 5px;">1</span>
-                            </div>
-                            <div class="sheet-col" style="flex: 1; text-align: center;">
-                                <label style="color: #FFD700; font-size: 0.8em; margin: 0;">PR</label>
-                                <input type="number" name="attr_pr" value="0" style="width: 80%; background: #111; color: #FFD700; font-weight: bold; border: 1px solid #444; text-align: center; margin-top: 2px;" />
-                            </div>
+                <div class="sheet-apego-creator-container sheet-add-form">
+                    <div class="sheet-row" style="background: var(--bg-card); padding: 10px; border-radius: 8px; border: 1px solid var(--border-accent); margin-bottom: 15px;">
+                        <div class="sheet-col">
+                            <label>Nuevo Contacto</label>
+                            <input type="text" name="attr_new_apego_name" placeholder="Nombre" class="sheet-input-dark" style="width: 100%; margin-bottom: 5px;" />
                         </div>
+                        <div class="sheet-col" style="flex: 0 0 auto; display: flex; align-items: flex-end; margin-bottom: 5px;">
+                            <button type="action" name="act_add_apego" class="sheet-btn-rest" style="width: auto; padding: 5px 15px;">Añadir</button>
+                        </div>
+                    </div>
+                </div>
 
-                        <!-- Progress Bar -->
-                        <div class="sheet-row" style="margin-top: 10px; margin-bottom: 5px;">
-                            <div class="sheet-col" style="flex: 1; display: block; width: 100%;">
-                                <div class="sheet-xp-bar-container" style="display: flex; width: 100%; height: 18px; background: #222; border: 1px solid #444; border-radius: 3px; position: relative;">
-                                    <input type="hidden" name="attr_pr_bar_class" class="sheet-state-xp-bar" value="sheet-xp-0" />
-                                    <div class="sheet-xp-progress-wrapper" style="flex: 1; width: 100%; height: 100%; position: relative;">
-                                        <div class="sheet-xp-fill" style="position: absolute; left: 0; top: 0; height: 100%; background: #9b59b6; box-shadow: 0 0 5px #9b59b6; z-index: 1;"></div>
-                                        <span class="sheet-xp-text" style="position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-size: 0.8em; line-height: 18px; z-index: 2; font-weight: bold; text-shadow: 1px 1px 2px #000;">Faltan: <span name="attr_pr_missing">10</span> PR</span>
+                <div class="sheet-row">
+                    <fieldset class="repeating_apego">
+                        <div class="sheet-contact-card">
+                            <div class="sheet-contact-header">
+                                <input type="text" name="attr_name" class="sheet-contact-name" placeholder="Nombre" />
+                                <div class="sheet-contact-level-badge">Nvl <span name="attr_level">1</span></div>
+                            </div>
+
+                            <div class="sheet-contact-pr-row">
+                                <div style="display: flex; align-items: center; gap: 5px;">
+                                    <label style="margin: 0; color: var(--text-muted); font-size: 0.9em;">Afinidad (PR):</label>
+                                    <input type="number" name="attr_pr" value="0" style="width: 50px; background: #111; color: var(--text-main); font-weight: bold; border: 1px solid #444; text-align: center; border-radius: 3px;" />
+                                </div>
+                                <div style="font-size: 0.9em; color: var(--text-muted); font-style: italic;">
+                                    <span name="attr_title">Desconocido</span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="sheet-row" style="margin-top: 5px; margin-bottom: 5px;">
+                                <div class="sheet-col" style="flex: 1; display: block; width: 100%;">
+                                    <div class="sheet-xp-bar-container" style="display: flex; width: 100%; height: 18px; background: #222; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden;">
+                                        <input type="hidden" name="attr_pr_bar_class" class="sheet-state-xp-bar" value="sheet-xp-0" />
+                                        <div class="sheet-xp-progress-wrapper" style="flex: 1; width: 100%; height: 100%; position: relative;">
+                                            <div class="sheet-xp-fill" style="position: absolute; left: 0; top: 0; height: 100%; background: #9b59b6; box-shadow: 0 0 5px #9b59b6; z-index: 1;"></div>
+                                            <span class="sheet-xp-text" style="position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-size: 0.8em; line-height: 18px; z-index: 2; font-weight: bold; text-shadow: 1px 1px 2px #000;">Faltan: <span name="attr_pr_missing">10</span> PR</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="sheet-row" style="margin-top: 5px;">
-                            <div class="sheet-col" style="flex: 1;">
-                                <label style="color: #FFD700; font-size: 0.8em; margin: 0;">Título</label>
-                                <span name="attr_title" style="color: #aaa; font-style: italic;">Desconocido</span>
-                            </div>
-                        </div>
-                        <div class="sheet-row" style="margin-top: 5px; border-top: 1px solid #333; padding-top: 5px;">
-                            <div class="sheet-col" style="flex: 1;">
-                                <label style="color: #FFD700; font-size: 0.8em; margin: 0;">Comportamiento del PNJ</label>
-                                <span name="attr_behavior" style="color: #ccc; display: block; min-height: 20px;">Trato neutral o puramente funcional.</span>
-                            </div>
-                        </div>
 
-                    </div>
-                </fieldset>
+                            <div class="sheet-row" style="margin-top: 5px; border-top: 1px dashed #444; padding-top: 5px;">
+                                <div class="sheet-col" style="flex: 1;">
+                                    <span name="attr_behavior" style="color: #ccc; display: block; font-size: 0.85em; min-height: 18px;">Trato neutral o puramente funcional.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
             </div>
         </div>
 
