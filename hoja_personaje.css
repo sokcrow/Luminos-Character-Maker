@@ -4700,6 +4700,7 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
 
 /* Phone Wrapper */
 .sheet-phone-wrapper {
+    width: 100%;
     max-width: 400px;
     height: 800px;
     margin: 0 auto;
@@ -4746,6 +4747,7 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
 /* Screen Area */
 .sheet-phone-screen {
     flex: 1;
+    width: 100%;
     overflow: hidden;
     position: relative;
     padding-top: 30px; /* Space for status bar */
