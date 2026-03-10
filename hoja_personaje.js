@@ -425,11 +425,50 @@
                     trigger(`clicked:${roll}`, { sourceAttribute: roll });
                 } else if(['cuerpo', 'mente', 'alma'].includes(roll)) {
                     trigger(`clicked:${roll}`, { sourceAttribute: roll });
+                } else if(roll === 'perk') {
+                    // Check if it's a perk roll inside a repeating section
+                    const rowDiv = rollBtn.closest('.reprow');
+                    if (rowDiv) {
+                        const rowId = rowDiv.getAttribute('data-rowid');
+                        const nameAttr = attributes[`repeating_skills_${rowId}_skill_name`] || "Perk";
+                        const descAttr = attributes[`repeating_skills_${rowId}_skill_description`] || "";
+                        showRollModal(descAttr, { name: nameAttr, base: 0 });
+                    }
+                } else if(roll === 'speed_check') {
+                    let min = parseInt(attributes['minspeed'] || 1);
+                    let max = parseInt(attributes['maxspeed'] || 6);
+                    let res = Math.floor(Math.random() * (max - min + 1)) + min;
+                    showRollModal(res, { name: "SPEED CHECK", base: min });
+                } else if(roll === 'clash' || roll === 'damage' || roll === 'defend' || roll === 'counter_damage') {
+                    const rowDiv = rollBtn.closest('.reprow');
+                    if (rowDiv) {
+                        const rowId = rowDiv.getAttribute('data-rowid');
+                        const prefix = `repeating_abilities_${rowId}`;
+                        const name = attributes[`${prefix}_skill_name`] || "Skill";
+                        const base = parseInt(attributes[`${prefix}_skill_base`] || 0);
+                        const coinPower = parseInt(attributes[`${prefix}_skill_coin_power`] || 0);
+                        const red = parseInt(attributes[`${prefix}_skill_coin_red`] || 0);
+                        const normal = parseInt(attributes[`${prefix}_skill_coin_normal`] || 0);
+
+                        let sp = parseInt(attributes['sp'] || 0);
+                        let chance = 50 + sp;
+                        let heads = 0;
+                        let resultsData = { name: name.toUpperCase() + " " + roll.toUpperCase(), base: base, results: {} };
+
+                        for(let i=1; i<= (red+normal); i++) {
+                            let r = Math.floor(Math.random() * 100) + 1;
+                            let isHead = r <= chance ? 1 : 0;
+                            resultsData.results['c'+i] = { result: isHead };
+                            heads += isHead;
+                        }
+
+                        let total = base + (heads * coinPower);
+                        showRollModal(total, resultsData);
+                    }
                 } else {
-                    // It's a standard roll button, try to parse it
+                    // Fallback
                     let val = rollBtn.value;
                     if(val) {
-                        // Replace @{xxx} with values
                         val = val.replace(/@{([^}]+)}/g, (m, p1) => attributes[p1.toLowerCase()] || 0);
                         showRollModal("Roll Command: " + val);
                     }
