@@ -477,6 +477,15 @@
         });
 
         window.addEventListener('DOMContentLoaded', () => {
+            // Toggle Phone Logic
+            const toggleBtn = document.getElementById('btn-toggle-phone');
+            const phoneWrapper = document.querySelector('.sheet-phone-wrapper');
+            if (toggleBtn && phoneWrapper) {
+                toggleBtn.addEventListener('click', () => {
+                    phoneWrapper.classList.toggle('phone-hidden');
+                });
+            }
+
             document.querySelectorAll('fieldset[class^="repeating_"]').forEach(fieldset => {
                 const section = fieldset.className.split(' ')[0];
                 templates[section] = fieldset.innerHTML;
