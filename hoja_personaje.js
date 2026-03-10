@@ -449,6 +449,11 @@
             if (charsheetSaveStr) {
                 try {
                     savedAttrs = JSON.parse(charsheetSaveStr);
+                    // Ensure 'tab' is valid so we don't get a blank screen on load
+                    const validTabs = ['home', 'stats', 'equipment', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+                    if (!savedAttrs.tab || !validTabs.includes(savedAttrs.tab)) {
+                        savedAttrs.tab = 'home';
+                    }
                 } catch(e) {}
             }
 
@@ -2165,3 +2170,13 @@ try {
             setAttrs(update);
         }
     });
+
+// --- Navigation Tabs ---
+const tabs = ['home', 'stats', 'equipment', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+tabs.forEach(tab => {
+    on(`clicked:tab_${tab}`, function() {
+        setAttrs({
+            tab: tab
+        });
+    });
+});
