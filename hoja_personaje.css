@@ -4789,6 +4789,7 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: transform 0.4s ease-in-out;
 }
 
 /* Phone Notch / Status Bar */
@@ -5089,4 +5090,31 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     .sheet-limbus-main .sheet-hp-bar-container { max-width: 100% !important; width: 100% !important; }
     .sheet-limbus-main .sheet-vitals-hud { flex-direction: column !important; align-items: center !important; }
     .sheet-limbus-main .sheet-vital-box { width: 100% !important; max-width: 150px !important; }
+}
+
+/* Toggle Button Styles */
+.btn-toggle-phone {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: var(--bg-card);
+    color: var(--border-accent);
+    border: 2px solid var(--border-accent);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.btn-toggle-phone:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(196, 154, 0, 0.8);
+}
+
+.phone-hidden {
+    transform: translateY(120vh) !important;
 }
