@@ -3326,66 +3326,7 @@
 </div>
 </div> <!-- End Phone Wrapper -->
 
-<!-- Roll Template -->
-<rolltemplate class="sheet-rolltemplate-coin">
-    <div class="sheet-rt-container">
-        <div class="sheet-rt-header">{{name}}</div>
-        <div class="sheet-rt-content">
-            {{#base}}
-            <div class="sheet-rt-row">
-                <span class="sheet-rt-label">Base Power:</span>
-                <span class="sheet-rt-value">{{base}}</span>
-            </div>
-            {{/base}}
 
-            <div class="sheet-rt-coins">
-                <div class="sheet-coin-wrapper">
-                    {{#rollTotal() c1 1}}<img src="https://i.imgur.com/yshLPnQ.png" class="sheet-coin-head">{{/rollTotal() c1 1}}
-                    {{#rollTotal() c1 0}}<img src="https://i.imgur.com/XDx0ICt.png" class="sheet-coin-tail">{{/rollTotal() c1 0}}
-                </div>
-                <div class="sheet-coin-wrapper">
-                    {{#rollTotal() c2 1}}<img src="https://i.imgur.com/yshLPnQ.png" class="sheet-coin-head">{{/rollTotal() c2 1}}
-                    {{#rollTotal() c2 0}}<img src="https://i.imgur.com/XDx0ICt.png" class="sheet-coin-tail">{{/rollTotal() c2 0}}
-                </div>
-                <div class="sheet-coin-wrapper">
-                    {{#rollTotal() c3 1}}<img src="https://i.imgur.com/yshLPnQ.png" class="sheet-coin-head">{{/rollTotal() c3 1}}
-                    {{#rollTotal() c3 0}}<img src="https://i.imgur.com/XDx0ICt.png" class="sheet-coin-tail">{{/rollTotal() c3 0}}
-                </div>
-                <div class="sheet-coin-wrapper">
-                    {{#rollTotal() c4 1}}<img src="https://i.imgur.com/yshLPnQ.png" class="sheet-coin-head">{{/rollTotal() c4 1}}
-                    {{#rollTotal() c4 0}}<img src="https://i.imgur.com/XDx0ICt.png" class="sheet-coin-tail">{{/rollTotal() c4 0}}
-                </div>
-                <div class="sheet-coin-wrapper">
-                    {{#rollTotal() c5 1}}<img src="https://i.imgur.com/yshLPnQ.png" class="sheet-coin-head">{{/rollTotal() c5 1}}
-                    {{#rollTotal() c5 0}}<img src="https://i.imgur.com/XDx0ICt.png" class="sheet-coin-tail">{{/rollTotal() c5 0}}
-                </div>
-            </div>
-
-            <div class="sheet-rt-result">
-                <span class="sheet-rt-result-value">{{computed::result}}</span>
-            </div>
-        </div>
-    </div>
-</rolltemplate>
-
-<rolltemplate class="sheet-rolltemplate-perk">
-    <div class="sheet-rt-container">
-        <div class="sheet-rt-header">{{name}}</div>
-        <div class="sheet-rt-content">
-            {{#allprops() name description}}
-            <div class="sheet-rt-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding: 4px 0;">
-                <span class="sheet-rt-label" style="font-size: 0.9em; color: #aaa; padding-right: 10px;">{{key}}</span>
-                <span class="sheet-rt-value" style="font-size: 1em; font-weight: bold;">{{value}}</span>
-            </div>
-            {{/allprops() name description}}
-            {{#description}}
-            <div class="sheet-rt-row" style="margin-top: 5px;">
-                <span class="sheet-rt-value" style="text-align: left; font-weight: normal; white-space: pre-wrap;">{{description}}</span>
-            </div>
-            {{/description}}
-        </div>
-    </div>
-</rolltemplate>
 
 
 
