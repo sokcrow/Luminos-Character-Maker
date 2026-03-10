@@ -5116,5 +5116,6 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
 }
 
 .phone-hidden {
-    transform: translateY(120vh) !important;
+    transform: translateY(150vh) !important;
+    opacity: 0 !important;
 }
