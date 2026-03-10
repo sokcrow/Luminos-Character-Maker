@@ -4898,15 +4898,15 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
 
 /* Visibility Fix for New Structure */
 .sheet-tab-content { display: none !important; height: 100%; flex-direction: column; }
-.sheet-state-tab[value="home"] ~ .sheet-phone-wrapper .sheet-tab-home,
-.sheet-state-tab[value="stats"] ~ .sheet-phone-wrapper .sheet-tab-stats,
-.sheet-state-tab[value="equipment"] ~ .sheet-phone-wrapper .sheet-tab-equipment,
-.sheet-state-tab[value="skills"] ~ .sheet-phone-wrapper .sheet-tab-skills,
-.sheet-state-tab[value="abilities"] ~ .sheet-phone-wrapper .sheet-tab-abilities,
-.sheet-state-tab[value="parts"] ~ .sheet-phone-wrapper .sheet-tab-parts,
-.sheet-state-tab[value="profile"] ~ .sheet-phone-wrapper .sheet-tab-profile,
-.sheet-state-tab[value="apego"] ~ .sheet-phone-wrapper .sheet-tab-apego,
-.sheet-state-tab[value="settings"] ~ .sheet-phone-wrapper .sheet-tab-settings {
+input[name="attr_tab"][value="home"] ~ .sheet-phone-screen .sheet-tab-home,
+input[name="attr_tab"][value="stats"] ~ .sheet-phone-screen .sheet-tab-stats,
+input[name="attr_tab"][value="equipment"] ~ .sheet-phone-screen .sheet-tab-equipment,
+input[name="attr_tab"][value="skills"] ~ .sheet-phone-screen .sheet-tab-skills,
+input[name="attr_tab"][value="abilities"] ~ .sheet-phone-screen .sheet-tab-abilities,
+input[name="attr_tab"][value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
+input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile,
+input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
+input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings {
     display: flex !important;
 }
 
@@ -4956,4 +4956,37 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
         border-radius: 0;
         box-shadow: none;
     }
+}
+
+
+/* ---- MOBILE OVERRIDES ---- */
+@media (max-width: 600px) {
+    html, body { padding: 0 !important; margin: 0 !important; overflow-x: hidden !important; width: 100% !important; height: 100% !important; box-sizing: border-box !important; }
+    * { box-sizing: inherit !important; }
+
+    .sheet-limbus-main { padding: 0 !important; width: 100% !important; min-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; }
+
+    .sheet-phone-wrapper { height: 100vh !important; width: 100% !important; max-width: 100% !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+    .sheet-phone-screen { flex: 1 !important; width: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; padding-top: 10px !important; padding-bottom: 20px !important; display: flex !important; flex-direction: column !important; }
+
+    .sheet-phone-back-btn { display: none !important; }
+    .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; }
+
+    /* Stats Grid Adjustments */
+    .sheet-limbus-main .sheet-attributes-grid { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important; width: 100% !important; padding: 0 10px !important; }
+    .sheet-limbus-main .sheet-attr-group { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+    .sheet-limbus-main .sheet-skill-row { flex-wrap: nowrap !important; width: 100% !important; gap: 5px !important; padding: 5px 10px !important; }
+    .sheet-limbus-main .sheet-skill-inputs { flex-shrink: 0 !important; gap: 2px !important; }
+    .sheet-limbus-main .sheet-skill-inputs input[type="number"] { width: 25px !important; font-size: 0.8em !important; padding: 1px !important; }
+    .sheet-limbus-main .sheet-skill-total { width: 20px !important; font-size: 0.9em !important; }
+    .sheet-limbus-main button.sheet-roll-skill { text-overflow: ellipsis !important; white-space: nowrap !important; overflow: hidden !important; font-size: 0.85em !important; }
+    .sheet-limbus-main .sheet-skill-list-header { font-size: 0.65em !important; gap: 10px !important; }
+    .sheet-limbus-main .sheet-header-col { width: 25px !important; }
+
+    .sheet-app-body-scroll, .sheet-app-body { padding: 10px !important; width: 100% !important; overflow-x: hidden !important; }
+    .sheet-limbus-main .sheet-header { grid-template-columns: 1fr !important; padding: 15px 10px !important; }
+    .sheet-limbus-main .sheet-hp-sp-row { flex-direction: column !important; gap: 10px !important; padding: 0 10px !important; }
+    .sheet-limbus-main .sheet-hp-bar-container { max-width: 100% !important; width: 100% !important; }
+    .sheet-limbus-main .sheet-vitals-hud { flex-direction: column !important; align-items: center !important; }
+    .sheet-limbus-main .sheet-vital-box { width: 100% !important; max-width: 150px !important; }
 }
