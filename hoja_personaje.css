@@ -4945,3 +4945,15 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
     width: 100%;
     margin-bottom: 5px;
 }
+
+
+/* Make the phone wrapper take full width and height on mobile devices */
+@media (max-width: 600px) {
+    .sheet-phone-wrapper {
+        max-width: 100%;
+        height: 100vh;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+}
