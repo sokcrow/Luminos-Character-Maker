@@ -5002,55 +5002,91 @@ input.sheet-state-bg[value="bg3"] ~ * .sheet-phone-screen {
 }
 
 .sheet-app-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    padding: 20px;
-    width: 100%;
+  display: grid;
+  /* Auto-ajusta las columnas para que se distribuyan de forma equitativa */
+  grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+  gap: 24px; /* Gap más amplio para respirar entre apps */
+  justify-content: center;
+  align-items: start;
+  padding: 24px 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sheet-app-btn {
-    background: transparent !important;
-    border: none !important;
-    color: #fff;
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    font-family: inherit;
-    text-transform: none;
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; /* Crea el margen exacto entre el icono y el texto debajo */
 
-.sheet-app-btn:hover {
-    transform: scale(1.05) translateY(-2px);
-}
+  background: rgba(20, 20, 20, 0.8) !important; /* Fondo oscuro translúcido */
+  border: 1px solid rgba(139, 0, 0, 0.4) !important; /* Borde sutil rojo apagado */
+  border-radius: 12px; /* App tiles modernos */
+  padding: 14px 8px;
 
-.sheet-app-btn:hover .sheet-app-icon {
-    box-shadow: 0 8px 15px rgba(0,0,0,0.7), 0 0 10px rgba(255,255,255,0.2) inset;
+  /* Sombra de profundidad */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+
+  /* Glassmorphism sutil */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  /* Estilos de texto */
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  color: #ccc;
+  text-align: center;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  /* Limpieza de estilos por defecto en botones */
+  outline: none;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sheet-app-icon {
-    width: 60px;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    transition: box-shadow 0.3s ease;
+  font-size: 34px; /* Foco principal */
+  color: #e0e0e0;
+
+  /* Resplandor base para fuentes de iconos */
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+
+  /* Resplandor base por si el icono es una etiqueta <img> o <svg> */
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+
+  transition: all 0.2s ease;
 }
 
-.sheet-app-btn span {
-    font-size: 12px;
-    font-weight: bold;
-    text-shadow: 0 1px 3px #000;
+/* ==========================================================
+   INTERACCIONES (Hover y Active)
+   ========================================================== */
+
+/* Hover: Se ilumina la tarjeta y el borde resalta */
+.sheet-app-btn:hover {
+  background: rgba(35, 35, 35, 0.85) !important;
+  border-color: #8b0000 !important; /* Borde rojo neón/corporativo */
+  box-shadow: 0 0 12px rgba(139, 0, 0, 0.4);
+}
+
+/* Hover: El icono gana brillo */
+.sheet-app-btn:hover .sheet-app-icon {
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
+}
+
+/* Active (Clic): Efecto de compresión/presionado */
+.sheet-app-btn:active {
+  transform: scale(0.95);
+  background: rgba(15, 15, 15, 0.9) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+  border-color: rgba(139, 0, 0, 0.8) !important;
 }
 
 /* Theme Colors Logic */
