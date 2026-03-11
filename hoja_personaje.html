@@ -108,6 +108,31 @@
 <div class="sheet-phone-screen">
  <!-- Home Tab -->
  <div class="sheet-tab-content sheet-tab-home">
+ <div class="sheet-weather-widget">
+   <div class="sheet-weather-header">
+     <div class="sheet-weather-time">
+       <span class="sheet-widget-time">12:00</span>
+       <span class="sheet-widget-date">Día 1 del Mes 1</span>
+     </div>
+     <div class="sheet-weather-current">
+       <span class="sheet-widget-weather-icon">☀️</span>
+       <span class="sheet-widget-weather-text">Despejado</span>
+     </div>
+   </div>
+   <div class="sheet-weather-forecast">
+     <div class="sheet-forecast-title">PRONÓSTICO (SIGUIENTE DÍA)</div>
+     <div class="sheet-forecast-probs">
+       <span id="prob-despejado">☀️ 0%</span>
+       <span id="prob-nublado">☁️ 0%</span>
+       <span id="prob-lluvia">🌧️ 0%</span>
+       <span id="prob-tormenta">⛈️ 0%</span>
+     </div>
+   </div>
+   <div class="sheet-weather-hazard">
+     <span class="sheet-hazard-label">⚠️ RIESGO DE HAZARD:</span>
+     <span class="sheet-hazard-value" id="prob-hazard">0% (Ninguno)</span>
+   </div>
+ </div>
  <div class="sheet-app-grid">
  <button type="action" name="act_tab_profile" class="sheet-app-btn"><div class="sheet-app-icon">👤</div><span>Perfil</span></button>
  <button type="action" name="act_tab_vitals" class="sheet-app-btn"><div class="sheet-app-icon">❤️</div><span>Vitales</span></button>
@@ -3350,20 +3375,129 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // Referencia al nodo de la hora en la base de datos
-  const timeRef = db.ref('campaña/hora_actual');
-
-  // Escuchar cambios en tiempo real (equivalente a onValue en v8)
-  timeRef.on('value', (snapshot) => {
-    const horaActual = snapshot.val();
-    if (horaActual) {
-      // Actualizar el div por su clase
-      const timeDisplay = document.querySelector('.sheet-time-display');
-      if (timeDisplay) {
-        timeDisplay.innerText = horaActual;
-      }
+  // LÓGICA DE CALENDARIO Y CLIMA AUTOMÁTICO
+  const calendarioMeses = [
+    {
+      nombre: "Mes 1 (Frío y Seco)",
+      transiciones: {
+        1: {1: 0.7, 2: 0.2, 3: 0.05, 4: 0.05},
+        2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
+        3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
+        4: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3}
+      },
+      hazards: { "Nevada Extrema": 0.15, "Ninguno": 0.85 }
+    },
+    {
+      nombre: "Mes 2 (Deshielo)",
+      transiciones: {
+        1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+        2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+        3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+        4: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0}
+      },
+      hazards: { "Niebla Densa": 0.2, "Ninguno": 0.8 }
+    },
+    {
+      nombre: "Mes 3 (Lluvias Ácidas)",
+      transiciones: {
+        1: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
+        2: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+        3: {1: 0.1, 2: 0.3, 3: 0.5, 4: 0.1},
+        4: {1: 0, 2: 0.3, 3: 0.5, 4: 0.2}
+      },
+      hazards: { "Lluvia Ácida": 0.25, "Ninguno": 0.75 }
+    },
+    {
+      nombre: "Mes 4 (Primavera Contaminada)",
+      transiciones: {
+        1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+        2: {1: 0.4, 2: 0.5, 3: 0.1, 4: 0},
+        3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+        4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
+      },
+      hazards: { "Niebla Densa": 0.1, "Ninguno": 0.9 }
+    },
+    {
+      nombre: "Mes 5 (Vientos Fuertes)",
+      transiciones: {
+        1: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
+        2: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+        3: {1: 0.2, 2: 0.5, 3: 0.3, 4: 0},
+        4: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0}
+      },
+      hazards: { "Vientos Huracanados": 0.2, "Ninguno": 0.8 }
+    },
+    {
+      nombre: "Mes 6 (Inicio del Calor)",
+      transiciones: {
+        1: {1: 0.7, 2: 0.2, 3: 0.1, 4: 0},
+        2: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+        3: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+        4: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0}
+      },
+      hazards: { "Ola de Calor": 0.1, "Ninguno": 0.9 }
+    },
+    {
+      nombre: "Mes 7 (Verano Sofocante)",
+      transiciones: {
+        1: {1: 0.8, 2: 0.15, 3: 0.05, 4: 0},
+        2: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+        3: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
+        4: {1: 0.8, 2: 0.1, 3: 0.1, 4: 0}
+      },
+      hazards: { "Ola de Calor": 0.3, "Ninguno": 0.7 }
+    },
+    {
+      nombre: "Mes 8 (Tormentas de Verano)",
+      transiciones: {
+        1: {1: 0.4, 2: 0.3, 3: 0.1, 4: 0.2},
+        2: {1: 0.3, 2: 0.3, 3: 0.2, 4: 0.2},
+        3: {1: 0.2, 2: 0.3, 3: 0.3, 4: 0.2},
+        4: {1: 0.1, 2: 0.2, 3: 0.2, 4: 0.5}
+      },
+      hazards: { "Tormenta Eléctrica": 0.25, "Lluvia Ácida": 0.1, "Ninguno": 0.65 }
+    },
+    {
+      nombre: "Mes 9 (Otoño Húmedo)",
+      transiciones: {
+        1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+        2: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
+        3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+        4: {1: 0.4, 2: 0.3, 3: 0.3, 4: 0}
+      },
+      hazards: { "Niebla Densa": 0.15, "Ninguno": 0.85 }
+    },
+    {
+      nombre: "Mes 10 (Descenso de Temperaturas)",
+      transiciones: {
+        1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+        2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+        3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+        4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
+      },
+      hazards: { "Vientos Huracanados": 0.1, "Ninguno": 0.9 }
+    },
+    {
+      nombre: "Mes 11 (Vientos Helados)",
+      transiciones: {
+        1: {1: 0.5, 2: 0.4, 3: 0.05, 4: 0.05},
+        2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
+        3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
+        4: {1: 0.2, 2: 0.4, 3: 0.1, 4: 0.3}
+      },
+      hazards: { "Nevada Extrema": 0.1, "Ninguno": 0.9 }
+    },
+    {
+      nombre: "Mes 12 (Invierno Crudo)",
+      transiciones: {
+        1: {1: 0.4, 2: 0.4, 3: 0, 4: 0.2},
+        2: {1: 0.2, 2: 0.5, 3: 0.1, 4: 0.2},
+        3: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3},
+        4: {1: 0.1, 2: 0.3, 3: 0.1, 4: 0.5}
+      },
+      hazards: { "Nevada Extrema": 0.25, "Ninguno": 0.75 }
     }
-  });
+  ];
 
   const climaNombres = {
     1: "Despejado",
@@ -3372,16 +3506,93 @@
     4: "Tormenta/Nieve"
   };
 
+  const climaIconos = {
+    1: "☀️",
+    2: "☁️",
+    3: "🌧️",
+    4: "⛈️"
+  };
+
+  // Referencia al nodo de la hora en la base de datos
+  const timeRef = db.ref('campaña/hora_actual');
+
+  // Escuchar cambios en tiempo real (equivalente a onValue en v8)
+  timeRef.on('value', (snapshot) => {
+    const horaActual = snapshot.val();
+    if (horaActual) {
+      // Actualizar el div por su clase (Status bar)
+      const timeDisplay = document.querySelector('.sheet-time-display');
+      if (timeDisplay) {
+        timeDisplay.innerText = horaActual;
+      }
+
+      // Actualizar el widget
+      const widgetTime = document.querySelector('.sheet-widget-time');
+      if (widgetTime) {
+        widgetTime.innerText = horaActual;
+      }
+    }
+  });
+
   db.ref('campaña/calendario').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
+      const dia = data.dia || 1;
+      const mes = data.mes || 1;
+      const climaIndex = data.clima || 1;
+
+      // Top status bar format: | Día X del Mes Y |
       const dateDisplay = document.querySelector('.sheet-date-display');
       if (dateDisplay) {
-        let texto = `| D${data.dia || 1}/M${data.mes || 1} | ${climaNombres[data.clima || 1]}`;
+        let texto = `| Día ${dia} del Mes ${mes} | ${climaNombres[climaIndex]}`;
         if (data.hazard && data.hazard !== "Ninguno") {
           texto += ` | ⚠️ ${data.hazard}`;
         }
         dateDisplay.innerText = texto;
+      }
+
+      // Update Widget Date
+      const widgetDate = document.querySelector('.sheet-widget-date');
+      if (widgetDate) {
+        widgetDate.innerText = `Día ${dia} del Mes ${mes}`;
+      }
+
+      // Update Widget Current Weather
+      const widgetWeatherIcon = document.querySelector('.sheet-widget-weather-icon');
+      const widgetWeatherText = document.querySelector('.sheet-widget-weather-text');
+      if (widgetWeatherIcon && widgetWeatherText) {
+        widgetWeatherIcon.innerText = climaIconos[climaIndex];
+        widgetWeatherText.innerText = climaNombres[climaIndex];
+      }
+
+      // Update Widget Forecast Probabilities
+      if (calendarioMeses[mes - 1]) {
+        const transiciones = calendarioMeses[mes - 1].transiciones[climaIndex];
+        document.getElementById('prob-despejado').innerText = `☀️ ${Math.round((transiciones[1] || 0) * 100)}%`;
+        document.getElementById('prob-nublado').innerText = `☁️ ${Math.round((transiciones[2] || 0) * 100)}%`;
+        document.getElementById('prob-lluvia').innerText = `🌧️ ${Math.round((transiciones[3] || 0) * 100)}%`;
+        document.getElementById('prob-tormenta').innerText = `⛈️ ${Math.round((transiciones[4] || 0) * 100)}%`;
+
+        // Update Hazard Probability
+        const hazards = calendarioMeses[mes - 1].hazards;
+        let totalHazardProb = 0;
+        let currentHazardNames = [];
+
+        for (const [haz, prob] of Object.entries(hazards)) {
+          if (haz !== "Ninguno") {
+            totalHazardProb += prob;
+            currentHazardNames.push(haz);
+          }
+        }
+
+        const probHazardEl = document.getElementById('prob-hazard');
+        if (probHazardEl) {
+          if (totalHazardProb > 0) {
+            probHazardEl.innerText = `${Math.round(totalHazardProb * 100)}% (${currentHazardNames.join(', ')})`;
+          } else {
+            probHazardEl.innerText = `0% (Ninguno)`;
+          }
+        }
       }
     }
   });

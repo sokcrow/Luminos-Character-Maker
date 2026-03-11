@@ -4845,6 +4845,125 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     white-space: nowrap;
 }
 
+/* Weather Widget */
+.sheet-weather-widget {
+    margin: 15px 20px 0 20px;
+    background: rgba(20, 20, 20, 0.6);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 15px;
+    font-family: inherit;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sheet-weather-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.sheet-weather-time {
+    display: flex;
+    flex-direction: column;
+}
+
+.sheet-widget-time {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--cyan-tech);
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
+    line-height: 1;
+}
+
+.sheet-widget-date {
+    font-size: 0.85em;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+.sheet-weather-current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sheet-widget-weather-icon {
+    font-size: 2em;
+    line-height: 1;
+}
+
+.sheet-widget-weather-text {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    color: #ccc;
+    font-weight: bold;
+    margin-top: 2px;
+}
+
+.sheet-weather-forecast {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sheet-forecast-title {
+    font-size: 0.65em;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
+
+.sheet-forecast-probs {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.sheet-forecast-probs span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.sheet-weather-hazard {
+    background: rgba(139, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sheet-hazard-label {
+    font-size: 0.75em;
+    color: #ff6666;
+    font-weight: bold;
+}
+
+.sheet-hazard-value {
+    font-size: 0.8em;
+    color: #fff;
+    font-weight: bold;
+}
+
+/* Theme Colors Logic for Weather Widget */
+input.sheet-state-theme[value="red"] ~ * .sheet-weather-widget { border-color: rgba(139, 0, 0, 0.3); }
+input.sheet-state-theme[value="blue"] ~ * .sheet-weather-widget { border-color: rgba(0, 255, 255, 0.2); }
+input.sheet-state-theme[value="green"] ~ * .sheet-weather-widget { border-color: rgba(51, 255, 51, 0.2); }
+input.sheet-state-theme[value="gold"] ~ * .sheet-weather-widget { border-color: rgba(196, 154, 0, 0.3); }
+
 /* Screen Area */
 .sheet-phone-screen {
     flex: 1;
