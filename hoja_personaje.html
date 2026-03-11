@@ -433,38 +433,15 @@
                 <input type="hidden" name="attr_ahn" value="0" />
             </div>
             <div class="sheet-banco-account-info">
-                <span>CUENTA: L-CORP-984</span>
+                <span>CUERPO: <span name="attr_character_name">Nombre</span></span>
                 <span class="sheet-banco-status-active">ACTIVA</span>
             </div>
         </div>
 
         <div class="sheet-banco-transactions">
             <h4 class="sheet-banco-subtitle">ÚLTIMAS TRANSACCIONES</h4>
-            <div class="sheet-transaction-list">
-                <div class="sheet-transaction-item">
-                    <div class="sheet-tx-icon sheet-tx-in">↓</div>
-                    <div class="sheet-tx-details">
-                        <span class="sheet-tx-title">Transferencia L-Corp</span>
-                        <span class="sheet-tx-date">12:00 | Hoy</span>
-                    </div>
-                    <div class="sheet-tx-amount sheet-tx-in-amount">+500 Ahn</div>
-                </div>
-                <div class="sheet-transaction-item">
-                    <div class="sheet-tx-icon sheet-tx-out">↑</div>
-                    <div class="sheet-tx-details">
-                        <span class="sheet-tx-title">Compra - Vending Machine</span>
-                        <span class="sheet-tx-date">Ayer</span>
-                    </div>
-                    <div class="sheet-tx-amount sheet-tx-out-amount">-120 Ahn</div>
-                </div>
-                <div class="sheet-transaction-item">
-                    <div class="sheet-tx-icon sheet-tx-out">↑</div>
-                    <div class="sheet-tx-details">
-                        <span class="sheet-tx-title">Mantenimiento de Equipo</span>
-                        <span class="sheet-tx-date">Hace 3 días</span>
-                    </div>
-                    <div class="sheet-tx-amount sheet-tx-out-amount">-350 Ahn</div>
-                </div>
+            <div class="sheet-transaction-list" id="lista-transacciones-banco">
+                <!-- Generado dinámicamente -->
             </div>
         </div>
     </div>
@@ -3609,6 +3586,16 @@
     }
   });
 
+  function obtenerTiempoRelativo(timestamp) {
+    const ahora = Date.now();
+    const diffMilisegundos = ahora - timestamp;
+    const diffDias = Math.floor(diffMilisegundos / (1000 * 60 * 60 * 24));
+
+    if (diffDias === 0) return "Hoy";
+    if (diffDias === 1) return "Ayer";
+    return `Hace ${diffDias} días`;
+  }
+
   // --- SINCRONIZACIÓN FANTASMA (Fase 4.2) ---
   let currentPlayerName = null;
   let isUpdatingFromFirebase = false;
@@ -3625,6 +3612,7 @@
         if (currentName !== currentPlayerName) {
           if (currentPlayerName) {
             db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).off();
+            db.ref(`campaña/jugadores/${currentPlayerName}/transacciones`).off();
           }
 
           currentPlayerName = currentName;
@@ -3650,6 +3638,45 @@
                    setTimeout(() => { isUpdatingFromFirebase = false; }, 500);
                 }
               }
+            }
+          });
+
+          db.ref(`campaña/jugadores/${currentPlayerName}/transacciones`).on('value', (snapshot) => {
+            const transaccionesContainer = document.getElementById('lista-transacciones-banco');
+            if (!transaccionesContainer) return;
+
+            transaccionesContainer.innerHTML = '';
+            const transaccionesData = snapshot.val();
+
+            if (transaccionesData) {
+              // Convert object to array and sort by timestamp descending
+              const transaccionesArray = Object.values(transaccionesData).sort((a, b) => b.timestamp - a.timestamp);
+
+              transaccionesArray.forEach(tx => {
+                const esIngreso = tx.monto > 0;
+                const icono = esIngreso ? '↓' : '↑';
+                const claseIcono = esIngreso ? 'sheet-tx-in' : 'sheet-tx-out';
+                const claseMonto = esIngreso ? 'sheet-tx-in-amount' : 'sheet-tx-out-amount';
+                const montoTexto = esIngreso ? `+${tx.monto} Ahn` : `${tx.monto} Ahn`;
+
+                const date = new Date(tx.timestamp);
+                const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                const relativeTime = obtenerTiempoRelativo(tx.timestamp);
+
+                const itemHtml = `
+                  <div class="sheet-transaction-item">
+                      <div class="sheet-tx-icon ${claseIcono}">${icono}</div>
+                      <div class="sheet-tx-details">
+                          <span class="sheet-tx-title">${tx.concepto}</span>
+                          <span class="sheet-tx-date">${timeString} | ${relativeTime}</span>
+                      </div>
+                      <div class="sheet-tx-amount ${claseMonto}">${montoTexto}</div>
+                  </div>
+                `;
+                transaccionesContainer.insertAdjacentHTML('beforeend', itemHtml);
+              });
+            } else {
+              transaccionesContainer.innerHTML = '<span style="color: #666; font-size: 0.9em; text-align: center; width: 100%; display: inline-block; padding: 10px;">No hay transacciones recientes.</span>';
             }
           });
         }
