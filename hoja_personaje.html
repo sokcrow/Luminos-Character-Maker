@@ -3486,6 +3486,37 @@
     "Vientos Huracanados": "🌪️"
   };
 
+  let currentHora = "12:00";
+  let currentCalendario = { año: 984, mes: 1, dia: 1, clima: "Despejado" };
+
+  function updateUI() {
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const fecha = new Date(currentCalendario.año, currentCalendario.mes - 1, currentCalendario.dia);
+    const diaSemana = dias[fecha.getDay()];
+
+    const timeDisplay = document.querySelector('.sheet-time-display');
+    if (timeDisplay) {
+      timeDisplay.innerText = `${currentHora} | ${diaSemana}`;
+    }
+
+    const dateDisplay = document.querySelector('.sheet-date-display');
+    if (dateDisplay) {
+      dateDisplay.innerText = "";
+    }
+
+    const widgetTime = document.querySelector('.sheet-widget-time');
+    if (widgetTime) {
+      widgetTime.innerText = currentHora;
+    }
+
+    const widgetDate = document.querySelector('.sheet-widget-date');
+    if (widgetDate) {
+      const diaStr = String(currentCalendario.dia).padStart(2, '0');
+      const mesStr = String(currentCalendario.mes).padStart(2, '0');
+      widgetDate.innerText = `${diaStr}/${mesStr}/${currentCalendario.año}`;
+    }
+  }
+
   // Referencia al nodo de la hora en la base de datos
   const timeRef = db.ref('campaña/hora_actual');
 
@@ -3493,40 +3524,24 @@
   timeRef.on('value', (snapshot) => {
     const horaActual = snapshot.val();
     if (horaActual) {
-      // Actualizar el div por su clase (Status bar)
-      const timeDisplay = document.querySelector('.sheet-time-display');
-      if (timeDisplay) {
-        timeDisplay.innerText = horaActual;
-      }
-
-      // Actualizar el widget
-      const widgetTime = document.querySelector('.sheet-widget-time');
-      if (widgetTime) {
-        widgetTime.innerText = horaActual;
-      }
+      currentHora = horaActual;
+      updateUI();
     }
   });
 
   db.ref('campaña/calendario').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const año = data.año || 984;
-      const dia = data.dia || 1;
-      const mes = data.mes || 1;
-      const climaNodo = data.clima || "Despejado";
+      currentCalendario.año = data.año || 984;
+      currentCalendario.dia = data.dia || 1;
+      currentCalendario.mes = data.mes || 1;
+      currentCalendario.clima = data.clima || "Despejado";
+
+      updateUI();
+
+      const climaNodo = currentCalendario.clima;
+      const mes = currentCalendario.mes;
       const iconoClima = climaIconos[climaNodo] || "☀️";
-
-      // Top status bar format: | Día X de Mes Y, Año Z | Emoji Nodo
-      const dateDisplay = document.querySelector('.sheet-date-display');
-      if (dateDisplay) {
-        dateDisplay.innerText = `| Día ${dia} de Mes ${mes}, Año ${año} | ${iconoClima} ${climaNodo}`;
-      }
-
-      // Update Widget Date
-      const widgetDate = document.querySelector('.sheet-widget-date');
-      if (widgetDate) {
-        widgetDate.innerText = `Día ${dia} del Mes ${mes}, Año ${año}`;
-      }
 
       // Update Widget Current Weather
       const widgetWeatherIcon = document.querySelector('.sheet-widget-weather-icon');
