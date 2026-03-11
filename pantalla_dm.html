@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de DM - Luminous</title>
+  <style>
+    body {
+      background-color: #0f0f14;
+      color: #fff;
+      font-family: 'Share Tech Mono', monospace, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #dm-time-panel {
+      background-color: rgba(15, 15, 20, 0.9);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #8b0000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+    }
+    #dm-time-panel label {
+      font-size: 18px;
+      color: #c49a00;
+    }
+    #dm-time-input {
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #222;
+      color: #0df;
+      font-family: inherit;
+      font-size: 16px;
+    }
+    #btn-fijar-hora {
+      padding: 10px 20px;
+      border-radius: 4px;
+      border: 1px solid #c49a00;
+      background: #8b0000;
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    #btn-fijar-hora:hover {
+      background: #a00000;
+      box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="dm-time-panel">
+    <label for="dm-time-input">Reloj Global:</label>
+    <input type="time" id="dm-time-input">
+    <button id="btn-fijar-hora">Fijar Hora</button>
+  </div>
+
+  <!-- Firebase App (núcleo) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <!-- Firebase Realtime Database -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+      authDomain: "luminous-system.firebaseapp.com",
+      databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+      projectId: "luminous-system",
+      storageBucket: "luminous-system.firebasestorage.app",
+      messagingSenderId: "330473029689",
+      appId: "1:330473029689:web:44a05e870d493a3b294de8",
+      measurementId: "G-X775P4YS7W"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    document.getElementById('btn-fijar-hora').addEventListener('click', () => {
+      const newTime = document.getElementById('dm-time-input').value;
+
+      if (newTime) {
+        // Guardar (set) el valor en el nodo de Firebase
+        db.ref('campaña/hora_actual').set(newTime)
+          .then(() => {
+            console.log('Hora global actualizada a:', newTime);
+            alert('Hora fijada a: ' + newTime);
+          })
+          .catch((error) => {
+            console.error('Error al actualizar la hora:', error);
+            alert('Error al fijar la hora.');
+          });
+      }
+    });
+  </script>
+
+</body>
+</html>
