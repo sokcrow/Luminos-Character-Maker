@@ -99,7 +99,10 @@
  <!-- Stats Tab Content -->
 
 <div class="sheet-phone-statusbar">
- <div class="sheet-statusbar-left">12:00</div>
+ <div class="sheet-statusbar-left">
+   <span class="sheet-time-display">12:00</span>
+   <span class="sheet-date-display" style="margin-left: 8px; font-size: 0.85em; opacity: 0.8;">| D1/M1 | Despejado</span>
+ </div>
  <div class="sheet-statusbar-right">📶 100% 🔋</div>
 </div>
 <div class="sheet-phone-screen">
@@ -3355,9 +3358,30 @@
     const horaActual = snapshot.val();
     if (horaActual) {
       // Actualizar el div por su clase
-      const statusBarLeft = document.querySelector('.sheet-statusbar-left');
-      if (statusBarLeft) {
-        statusBarLeft.innerHTML = horaActual;
+      const timeDisplay = document.querySelector('.sheet-time-display');
+      if (timeDisplay) {
+        timeDisplay.innerText = horaActual;
+      }
+    }
+  });
+
+  const climaNombres = {
+    1: "Despejado",
+    2: "Nublado",
+    3: "Lluvia",
+    4: "Tormenta/Nieve"
+  };
+
+  db.ref('campaña/calendario').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      const dateDisplay = document.querySelector('.sheet-date-display');
+      if (dateDisplay) {
+        let texto = `| D${data.dia || 1}/M${data.mes || 1} | ${climaNombres[data.clima || 1]}`;
+        if (data.hazard && data.hazard !== "Ninguno") {
+          texto += ` | ⚠️ ${data.hazard}`;
+        }
+        dateDisplay.innerText = texto;
       }
     }
   });

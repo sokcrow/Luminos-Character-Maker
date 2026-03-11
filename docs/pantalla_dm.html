@@ -65,6 +65,51 @@
     <button id="btn-fijar-hora">Fijar Hora</button>
   </div>
 
+  <div id="dm-auto-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center;">
+    <h3 style="margin: 0; color: #c49a00;">ZONA 1: PILOTO AUTOMÁTICO</h3>
+    <div style="font-size: 16px;">Fecha Actual: <span id="lbl-auto-fecha">Día 1 / Mes 1</span></div>
+    <div style="font-size: 16px;">Clima Actual: <span id="lbl-auto-clima">Despejado</span></div>
+    <div style="font-size: 16px;">Hazard: <span id="lbl-auto-hazard">Ninguno</span></div>
+    <button id="btn-avanzar-dia" style="padding: 15px 30px; font-size: 18px; margin-top: 10px; background: #004400; border-color: #00ff00; color: white; cursor: pointer; border-radius: 4px;">Avanzar Día y Generar Clima</button>
+  </div>
+
+  <div id="dm-debug-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center;">
+    <h3 style="margin: 0; color: #ff4444;">ZONA 2: MODO DEBUG</h3>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <label>Día:</label>
+      <input type="number" id="debug-dia" min="1" max="30" value="1" style="width: 50px; padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+
+      <label>Mes:</label>
+      <input type="number" id="debug-mes" min="1" max="12" value="1" style="width: 50px; padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <label>Clima Base:</label>
+      <select id="debug-clima" style="padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+        <option value="1">Despejado</option>
+        <option value="2">Nublado</option>
+        <option value="3">Lluvia</option>
+        <option value="4">Tormenta / Nieve</option>
+      </select>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <label>Hazard:</label>
+      <select id="debug-hazard" style="padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+        <option value="Ninguno">Ninguno</option>
+        <option value="Lluvia Ácida">Lluvia Ácida</option>
+        <option value="Niebla Densa">Niebla Densa</option>
+        <option value="Tormenta Eléctrica">Tormenta Eléctrica</option>
+        <option value="Vientos Huracanados">Vientos Huracanados</option>
+        <option value="Ola de Calor">Ola de Calor</option>
+        <option value="Nevada Extrema">Nevada Extrema</option>
+      </select>
+    </div>
+
+    <button id="btn-forzar-estado" style="padding: 10px 20px; font-size: 16px; margin-top: 10px; background: #8b0000; border-color: #ff0000; color: white;">FORZAR ESTADO EN FIREBASE</button>
+  </div>
+
   <!-- Firebase App (núcleo) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <!-- Firebase Realtime Database -->
@@ -86,6 +131,194 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // --- LÓGICA DE CALENDARIO Y CLIMA AUTOMÁTICO ---
+
+    // 1: Despejado, 2: Nublado, 3: Lluvia, 4: Tormenta/Nieve
+    // Transiciones: { 1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0}, ... }
+    const calendarioMeses = [
+      {
+        nombre: "Mes 1 (Frío y Seco)",
+        transiciones: {
+          1: {1: 0.7, 2: 0.2, 3: 0.05, 4: 0.05},
+          2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
+          3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
+          4: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3}
+        },
+        hazards: { "Nevada Extrema": 0.15, "Ninguno": 0.85 }
+      },
+      {
+        nombre: "Mes 2 (Deshielo)",
+        transiciones: {
+          1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+          2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+          3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+          4: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0}
+        },
+        hazards: { "Niebla Densa": 0.2, "Ninguno": 0.8 }
+      },
+      {
+        nombre: "Mes 3 (Lluvias Ácidas)",
+        transiciones: {
+          1: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
+          2: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+          3: {1: 0.1, 2: 0.3, 3: 0.5, 4: 0.1},
+          4: {1: 0, 2: 0.3, 3: 0.5, 4: 0.2}
+        },
+        hazards: { "Lluvia Ácida": 0.25, "Ninguno": 0.75 }
+      },
+      {
+        nombre: "Mes 4 (Primavera Contaminada)",
+        transiciones: {
+          1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+          2: {1: 0.4, 2: 0.5, 3: 0.1, 4: 0},
+          3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+          4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
+        },
+        hazards: { "Niebla Densa": 0.1, "Ninguno": 0.9 }
+      },
+      {
+        nombre: "Mes 5 (Vientos Fuertes)",
+        transiciones: {
+          1: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
+          2: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+          3: {1: 0.2, 2: 0.5, 3: 0.3, 4: 0},
+          4: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0}
+        },
+        hazards: { "Vientos Huracanados": 0.2, "Ninguno": 0.8 }
+      },
+      {
+        nombre: "Mes 6 (Inicio del Calor)",
+        transiciones: {
+          1: {1: 0.7, 2: 0.2, 3: 0.1, 4: 0},
+          2: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+          3: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+          4: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0}
+        },
+        hazards: { "Ola de Calor": 0.1, "Ninguno": 0.9 }
+      },
+      {
+        nombre: "Mes 7 (Verano Sofocante)",
+        transiciones: {
+          1: {1: 0.8, 2: 0.15, 3: 0.05, 4: 0},
+          2: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+          3: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
+          4: {1: 0.8, 2: 0.1, 3: 0.1, 4: 0}
+        },
+        hazards: { "Ola de Calor": 0.3, "Ninguno": 0.7 }
+      },
+      {
+        nombre: "Mes 8 (Tormentas de Verano)",
+        transiciones: {
+          1: {1: 0.4, 2: 0.3, 3: 0.1, 4: 0.2},
+          2: {1: 0.3, 2: 0.3, 3: 0.2, 4: 0.2},
+          3: {1: 0.2, 2: 0.3, 3: 0.3, 4: 0.2},
+          4: {1: 0.1, 2: 0.2, 3: 0.2, 4: 0.5}
+        },
+        hazards: { "Tormenta Eléctrica": 0.25, "Lluvia Ácida": 0.1, "Ninguno": 0.65 }
+      },
+      {
+        nombre: "Mes 9 (Otoño Húmedo)",
+        transiciones: {
+          1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
+          2: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
+          3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
+          4: {1: 0.4, 2: 0.3, 3: 0.3, 4: 0}
+        },
+        hazards: { "Niebla Densa": 0.15, "Ninguno": 0.85 }
+      },
+      {
+        nombre: "Mes 10 (Descenso de Temperaturas)",
+        transiciones: {
+          1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
+          2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
+          3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
+          4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
+        },
+        hazards: { "Vientos Huracanados": 0.1, "Ninguno": 0.9 }
+      },
+      {
+        nombre: "Mes 11 (Vientos Helados)",
+        transiciones: {
+          1: {1: 0.5, 2: 0.4, 3: 0.05, 4: 0.05},
+          2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
+          3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
+          4: {1: 0.2, 2: 0.4, 3: 0.1, 4: 0.3}
+        },
+        hazards: { "Nevada Extrema": 0.1, "Ninguno": 0.9 }
+      },
+      {
+        nombre: "Mes 12 (Invierno Crudo)",
+        transiciones: {
+          1: {1: 0.4, 2: 0.4, 3: 0, 4: 0.2},
+          2: {1: 0.2, 2: 0.5, 3: 0.1, 4: 0.2},
+          3: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3},
+          4: {1: 0.1, 2: 0.3, 3: 0.1, 4: 0.5}
+        },
+        hazards: { "Nevada Extrema": 0.25, "Ninguno": 0.75 }
+      }
+    ];
+
+    const climaNombres = {
+      1: "Despejado",
+      2: "Nublado",
+      3: "Lluvia",
+      4: "Tormenta/Nieve"
+    };
+
+    function calcularSiguienteClima(climaActual, mesActual) {
+      const transiciones = calendarioMeses[mesActual - 1].transiciones[climaActual];
+      const rand = Math.random();
+      let sum = 0;
+      for (const [siguiente, prob] of Object.entries(transiciones)) {
+        sum += prob;
+        if (rand <= sum) {
+          return parseInt(siguiente);
+        }
+      }
+      return climaActual;
+    }
+
+    function calcularHazard(mesActual) {
+      const hazards = calendarioMeses[mesActual - 1].hazards;
+      const rand = Math.random();
+      let sum = 0;
+      for (const [hazard, prob] of Object.entries(hazards)) {
+        sum += prob;
+        if (rand <= sum) {
+          return hazard;
+        }
+      }
+      return "Ninguno";
+    }
+
+    let estadoActual = {
+      dia: 1,
+      mes: 1,
+      clima: 1, // 1: Despejado
+      hazard: "Ninguno"
+    };
+
+    // Escuchar el estado actual desde Firebase para inicializar las variables locales
+    db.ref('campaña/calendario').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        estadoActual.dia = data.dia || 1;
+        estadoActual.mes = data.mes || 1;
+        estadoActual.clima = data.clima || 1;
+        estadoActual.hazard = data.hazard || "Ninguno";
+
+        // Actualizar UI
+        document.getElementById('lbl-auto-fecha').innerText = `Día ${estadoActual.dia} / Mes ${estadoActual.mes}`;
+        document.getElementById('lbl-auto-clima').innerText = climaNombres[estadoActual.clima];
+        document.getElementById('lbl-auto-hazard').innerText = estadoActual.hazard;
+
+        document.getElementById('debug-dia').value = estadoActual.dia;
+        document.getElementById('debug-mes').value = estadoActual.mes;
+        document.getElementById('debug-clima').value = estadoActual.clima;
+        document.getElementById('debug-hazard').value = estadoActual.hazard;
+      }
+    });
+
     document.getElementById('btn-fijar-hora').addEventListener('click', () => {
       const newTime = document.getElementById('dm-time-input').value;
 
@@ -101,6 +334,62 @@
             alert('Error al fijar la hora.');
           });
       }
+    });
+
+    document.getElementById('btn-avanzar-dia').addEventListener('click', () => {
+      let nuevoDia = estadoActual.dia + 1;
+      let nuevoMes = estadoActual.mes;
+
+      if (nuevoDia > 30) {
+        nuevoDia = 1;
+        nuevoMes++;
+        if (nuevoMes > 12) {
+          nuevoMes = 1; // Un año nuevo
+        }
+      }
+
+      const nuevoClima = calcularSiguienteClima(estadoActual.clima, nuevoMes);
+      const nuevoHazard = calcularHazard(nuevoMes);
+
+      const nuevoEstado = {
+        dia: nuevoDia,
+        mes: nuevoMes,
+        clima: nuevoClima,
+        hazard: nuevoHazard
+      };
+
+      db.ref('campaña/calendario').set(nuevoEstado)
+        .then(() => {
+          console.log('Calendario (Auto) actualizado:', nuevoEstado);
+        })
+        .catch((error) => {
+          console.error('Error al actualizar calendario (Auto):', error);
+          alert('Error al actualizar calendario.');
+        });
+    });
+
+    document.getElementById('btn-forzar-estado').addEventListener('click', () => {
+      const debugDia = parseInt(document.getElementById('debug-dia').value) || 1;
+      const debugMes = parseInt(document.getElementById('debug-mes').value) || 1;
+      const debugClima = parseInt(document.getElementById('debug-clima').value) || 1;
+      const debugHazard = document.getElementById('debug-hazard').value || "Ninguno";
+
+      const estadoForzado = {
+        dia: debugDia,
+        mes: debugMes,
+        clima: debugClima,
+        hazard: debugHazard
+      };
+
+      db.ref('campaña/calendario').set(estadoForzado)
+        .then(() => {
+          console.log('Calendario (Debug) actualizado:', estadoForzado);
+          alert('Estado del calendario forzado con éxito.');
+        })
+        .catch((error) => {
+          console.error('Error al forzar calendario:', error);
+          alert('Error al forzar calendario.');
+        });
     });
   </script>
 
