@@ -591,10 +591,10 @@
         .sheet-xp-reward-value { color: white; margin-left: 5px; }
 
         /* CRT Scanlines */
-        body::before {
+        .sheet-phone-wrapper::before {
             content: " ";
             display: block;
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             bottom: 0;
@@ -608,10 +608,10 @@
             z-index: 999;
             pointer-events: none;
         }
-        body::after {
+        .sheet-phone-wrapper::after {
             content: " ";
             display: block;
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             bottom: 0;
@@ -629,8 +629,8 @@
             pointer-events: none;
         }
         @keyframes scanline {
-            0% { transform: translateY(-100vh); }
-            100% { transform: translateY(100vh); }
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
         }
 
 /* Reset default Roll20 button styles for icon buttons */
@@ -4823,6 +4823,26 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.sheet-statusbar-left {
+    display: flex;
+    align-items: center;
+    max-width: calc(50% - 60px);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sheet-date-display {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.sheet-statusbar-right {
+    white-space: nowrap;
 }
 
 /* Screen Area */
