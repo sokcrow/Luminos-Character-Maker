@@ -113,6 +113,15 @@
 
   <div id="dm-banco-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
     <h3 style="margin: 0; color: #0df;">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
+
+    <div style="background: #111; padding: 15px; border-radius: 6px; border: 1px solid #c49a00; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;">
+      <h4 style="margin: 0; color: #c49a00; width: 100%; text-align: center;">Terminal Bancaria</h4>
+      <input type="text" id="banco-nombre" placeholder="Nombre del Personaje" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
+      <input type="number" id="banco-monto" placeholder="Monto (+ o -)" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
+      <input type="text" id="banco-concepto" placeholder="Concepto" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
+      <button id="btn-ejecutar-tx" style="padding: 8px 15px; background: #004400; border: 1px solid #00ff00; color: white; border-radius: 4px; cursor: pointer;">Ejecutar Transacción</button>
+    </div>
+
     <div id="banco-jugadores-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%;">
       <!-- Tarjetas de jugadores generadas por JS -->
     </div>
@@ -431,6 +440,38 @@
       } else {
         bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
       }
+    });
+
+    document.getElementById('btn-ejecutar-tx').addEventListener('click', () => {
+      const nombre = document.getElementById('banco-nombre').value.trim();
+      const monto = parseInt(document.getElementById('banco-monto').value) || 0;
+      const concepto = document.getElementById('banco-concepto').value.trim();
+
+      if (!nombre) { alert("El nombre del personaje es requerido."); return; }
+      if (!concepto) { alert("El concepto es requerido."); return; }
+      if (monto === 0) { alert("El monto no puede ser cero."); return; }
+
+      const playerRef = db.ref(`campaña/jugadores/${nombre}`);
+      playerRef.child('ahn').once('value').then((snapshot) => {
+        const currentAhn = parseInt(snapshot.val()) || 0;
+        const newAhn = currentAhn + monto;
+
+        // Actualizar saldo
+        playerRef.update({ ahn: newAhn }).then(() => {
+          // Guardar transacción
+          const transaccion = {
+            monto: monto,
+            concepto: concepto,
+            timestamp: Date.now()
+          };
+          playerRef.child('transacciones').push(transaccion).then(() => {
+            alert(`Transacción ejecutada con éxito. Nuevo saldo de ${nombre}: ${newAhn} Ahn.`);
+            document.getElementById('banco-nombre').value = '';
+            document.getElementById('banco-monto').value = '';
+            document.getElementById('banco-concepto').value = '';
+          });
+        }).catch(e => alert('Error actualizando saldo: ' + e));
+      }).catch(e => alert('Error leyendo saldo actual: ' + e));
     });
 
 
