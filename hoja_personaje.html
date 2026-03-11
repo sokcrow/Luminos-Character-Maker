@@ -3335,13 +3335,11 @@
         </div>
 
         <div class="inventory-tab-content" id="inv-shop">
-            <div class="inv-shop-grid">
-                <!-- Shop item dummy -->
-                <div class="inv-shop-item">
-                    <div class="inv-shop-item-name">Estimulante Básico</div>
-                    <div class="inv-shop-item-price">50 Ahn</div>
-                    <button class="inv-shop-buy-btn">Comprar</button>
-                </div>
+            <select id="shop-selector" style="width: 100%; margin-bottom: 15px; padding: 5px; background: #111; color: var(--cyan-tech); border: 1px solid var(--cyan-tech);">
+                <option value="">Selecciona una tienda...</option>
+            </select>
+            <div class="inv-shop-grid" id="inv-shop-grid">
+                <!-- Shop items will be injected here via JS -->
             </div>
         </div>
     </div>

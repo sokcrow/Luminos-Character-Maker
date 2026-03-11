@@ -2276,4 +2276,145 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- Dynamic Shop System Logic ---
+    const shopSelector = document.getElementById('shop-selector');
+    const invShopGrid = document.getElementById('inv-shop-grid');
+    let currentShopsData = {};
+
+    if (shopSelector && invShopGrid && window.db) {
+        // 1. Fetch shops from Firebase
+        db.ref('campaña/tiendas').on('value', (snapshot) => {
+            currentShopsData = snapshot.val() || {};
+
+            // Re-populate selector keeping the current selection if possible
+            const selectedShopId = shopSelector.value;
+            shopSelector.innerHTML = '<option value="">Selecciona una tienda...</option>';
+
+            for (const [idTienda, tiendaData] of Object.entries(currentShopsData)) {
+                const opt = document.createElement('option');
+                opt.value = idTienda;
+                opt.innerText = `${tiendaData.nombre} (Restock: ${tiendaData.dia_restock})`;
+                if (idTienda === selectedShopId) opt.selected = true;
+                shopSelector.appendChild(opt);
+            }
+
+            // Force re-render of current shop
+            renderShopItems(selectedShopId);
+        });
+
+        // 2. Render items on selection change
+        shopSelector.addEventListener('change', (e) => {
+            renderShopItems(e.target.value);
+        });
+
+        function renderShopItems(shopId) {
+            invShopGrid.innerHTML = '';
+            if (!shopId || !currentShopsData[shopId] || !currentShopsData[shopId].items) {
+                invShopGrid.innerHTML = '<div style="color: #666; width: 100%; text-align: center; padding: 20px;">Sin ítems disponibles.</div>';
+                return;
+            }
+
+            const items = currentShopsData[shopId].items;
+            for (const [itemId, itemData] of Object.entries(items)) {
+                let stockDisplay = itemData.stock_actual === -1 ? '∞ Ilimitado' : itemData.stock_actual;
+                let isAgotado = itemData.stock_actual === 0;
+
+                const itemCard = document.createElement('div');
+                itemCard.className = 'inv-shop-item';
+                itemCard.innerHTML = `
+                    <div class="inv-shop-item-name" style="color: #FFD700; font-size: 1.1em; text-shadow: 0 0 5px rgba(196,154,0,0.5);">${itemData.nombre}</div>
+                    <div style="font-size: 0.8em; color: #aaa;">[${itemData.tipo}]</div>
+                    <div class="inv-shop-item-price" style="color: #0df; font-weight: bold; margin: 5px 0;">${itemData.costo} Ahn</div>
+                    <div style="font-size: 0.85em; color: ${isAgotado ? '#ff4444' : '#fff'}; margin-bottom: 10px;">Stock: ${stockDisplay}</div>
+                    <button class="inv-shop-buy-btn" data-shop-id="${shopId}" data-item-id="${itemId}" ${isAgotado ? 'disabled style="background:#555; cursor:not-allowed;"' : 'style="background:var(--green-success); color:#000;"'}>
+                        ${isAgotado ? 'AGOTADO' : 'COMPRAR'}
+                    </button>
+                `;
+                invShopGrid.appendChild(itemCard);
+            }
+        }
+
+        // 3. Purchase Logic via Event Delegation
+        invShopGrid.addEventListener('click', (e) => {
+            if (e.target.classList.contains('inv-shop-buy-btn') && !e.target.disabled) {
+                const shopId = e.target.getAttribute('data-shop-id');
+                const itemId = e.target.getAttribute('data-item-id');
+
+                const characterNameInput = document.querySelector('input[name="attr_character_name"]');
+                const ahnInput = document.querySelector('input[name="attr_ahn"]');
+
+                if (!characterNameInput || !ahnInput) {
+                    alert("Error: No se encuentra la hoja de personaje (Falta Nombre o Ahn).");
+                    return;
+                }
+
+                const playerName = characterNameInput.value.trim();
+                const currentAhn = parseInt(ahnInput.value) || 0;
+
+                if (!playerName) {
+                    alert("El personaje necesita un nombre para comprar.");
+                    return;
+                }
+
+                // Verify item exists and check stock locally first to avoid unnecessary writes
+                const itemData = currentShopsData[shopId]?.items?.[itemId];
+                if (!itemData) {
+                    alert("Error: Ítem no encontrado.");
+                    return;
+                }
+
+                if (itemData.stock_actual === 0) {
+                    alert("AGOTADO");
+                    return;
+                }
+
+                if (currentAhn < itemData.costo) {
+                    alert("FONDOS INSUFICIENTES");
+                    return;
+                }
+
+                // Deduct locally and trigger standard sync
+                const newAhn = currentAhn - itemData.costo;
+                if (window.setAttrs) {
+                    window.setAttrs({ ahn: newAhn });
+                } else {
+                    ahnInput.value = newAhn;
+                    const displays = document.querySelectorAll('span[name="attr_ahn_display"]');
+                    displays.forEach(el => el.innerText = newAhn.toLocaleString('en-US'));
+                }
+
+                // Update Firebase Stock
+                const stockRef = db.ref(`campaña/tiendas/${shopId}/items/${itemId}/stock_actual`);
+                if (itemData.stock_actual !== -1) {
+                    stockRef.transaction(currentStock => {
+                        if (currentStock === null || currentStock <= 0) return 0;
+                        return currentStock - 1;
+                    });
+                }
+
+                // Add to Player's Inventory (Stash)
+                db.ref(`campaña/jugadores/${playerName}/inventario_stash`).push(itemData);
+
+                // Add Transaction Log
+                db.ref(`campaña/jugadores/${playerName}/transacciones`).push({
+                    monto: -itemData.costo,
+                    concepto: `Compra - ${itemData.nombre}`,
+                    timestamp: Date.now()
+                });
+
+                // Small visual feedback on the button
+                const originalText = e.target.innerText;
+                const originalBg = e.target.style.background;
+                e.target.innerText = "¡COMPRADO!";
+                e.target.style.background = "#00ffff";
+                setTimeout(() => {
+                    if(e.target) {
+                        e.target.innerText = originalText;
+                        e.target.style.background = originalBg;
+                    }
+                }, 1000);
+            }
+        });
+    }
 });
