@@ -55,7 +55,7 @@
         }
 
         .sheet-state-tab[value="stats"] ~ * .sheet-tab-stats,
-        .sheet-state-tab[value="equipment"] ~ * .sheet-tab-equipment,
+        .sheet-state-tab[value="banco"] ~ * .sheet-tab-banco,
         .sheet-state-tab[value="skills"] ~ * .sheet-tab-skills,
         .sheet-state-tab[value="abilities"] ~ * .sheet-tab-abilities,
         .sheet-state-tab[value="parts"] ~ * .sheet-tab-parts,
@@ -99,7 +99,7 @@
         }
 
         .sheet-state-tab[value="stats"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_stats"],
-        .sheet-state-tab[value="equipment"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_equipment"],
+        .sheet-state-tab[value="banco"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_banco"],
         .sheet-state-tab[value="skills"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_skills"],
         .sheet-state-tab[value="abilities"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_abilities"],
         .sheet-state-tab[value="parts"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_parts"],
@@ -1302,7 +1302,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 
 /* Mostrar el tab activo leyendo el atributo directamente */
 .sheet-limbus-main input[name="attr_tab"][value="stats"] ~ .sheet-main-content .sheet-tab-stats,
-.sheet-limbus-main input[name="attr_tab"][value="equipment"] ~ .sheet-main-content .sheet-tab-equipment,
+.sheet-limbus-main input[name="attr_tab"][value="banco"] ~ .sheet-main-content .sheet-tab-banco,
 .sheet-limbus-main input[name="attr_tab"][value="abilities"] ~ .sheet-main-content .sheet-tab-abilities,
 .sheet-limbus-main input[name="attr_tab"][value="skills"] ~ .sheet-main-content .sheet-tab-skills,
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-main-content .sheet-tab-parts,
@@ -1330,7 +1330,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 
 /* Active Tab Logic (Hidden Text Input Attribute Selectors) */
 .sheet-limbus-main input[name="attr_tab"][value="stats"] ~ .sheet-tabs button[name="act_tab_stats"],
-.sheet-limbus-main input[name="attr_tab"][value="equipment"] ~ .sheet-tabs button[name="act_tab_equipment"],
+.sheet-limbus-main input[name="attr_tab"][value="banco"] ~ .sheet-tabs button[name="act_tab_banco"],
 .sheet-limbus-main input[name="attr_tab"][value="skills"] ~ .sheet-tabs button[name="act_tab_skills"],
 .sheet-limbus-main input[name="attr_tab"][value="abilities"] ~ .sheet-tabs button[name="act_tab_abilities"],
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-tabs button[name="act_tab_parts"],
@@ -5176,7 +5176,7 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
 .sheet-tab-apego { pointer-events: auto !important; }
 input[name="attr_tab"][value="home"] ~ .sheet-phone-screen .sheet-tab-home,
 input[name="attr_tab"][value="stats"] ~ .sheet-phone-screen .sheet-tab-stats,
-input[name="attr_tab"][value="equipment"] ~ .sheet-phone-screen .sheet-tab-equipment,
+input[name="attr_tab"][value="banco"] ~ .sheet-phone-screen .sheet-tab-banco,
 input[name="attr_tab"][value="skills"] ~ .sheet-phone-screen .sheet-tab-skills,
 input[name="attr_tab"][value="abilities"] ~ .sheet-phone-screen .sheet-tab-abilities,
 input[name="attr_tab"][value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
@@ -5221,6 +5221,351 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     width: 100%;
     margin-bottom: 5px;
 }
+
+
+/* --- BANCO TAB STYLES --- */
+.sheet-banco-balance-card {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+    border: 2px solid var(--border-accent);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(196, 154, 0, 0.2), inset 0 0 10px rgba(0,0,0,0.8);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.sheet-banco-balance-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(196, 154, 0, 0.03) 10px, rgba(196, 154, 0, 0.03) 20px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.sheet-banco-title {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin: 0 0 10px 0;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 2;
+}
+
+.sheet-banco-amount-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.sheet-banco-currency-icon {
+    font-size: 1.5em;
+    color: var(--border-accent);
+    font-weight: bold;
+}
+
+.sheet-banco-amount-display {
+    font-size: 3em;
+    font-weight: 900;
+    color: var(--cyan-tech);
+    text-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+    line-height: 1;
+}
+
+.sheet-banco-account-info {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    color: #666;
+    border-top: 1px dashed #333;
+    padding-top: 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.sheet-banco-status-active {
+    color: var(--green-success);
+    font-weight: bold;
+}
+
+.sheet-banco-transactions {
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.sheet-banco-subtitle {
+    color: #888;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    text-transform: uppercase;
+}
+
+.sheet-transaction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sheet-transaction-item {
+    display: flex;
+    align-items: center;
+    background: #111;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 2px solid #444;
+}
+
+.sheet-tx-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.sheet-tx-in {
+    background: rgba(51, 255, 51, 0.2);
+    color: var(--green-success);
+    border: 1px solid var(--green-success);
+}
+
+.sheet-tx-out {
+    background: rgba(255, 51, 51, 0.2);
+    color: var(--red-neon);
+    border: 1px solid var(--red-neon);
+}
+
+.sheet-tx-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.sheet-tx-title {
+    color: #ccc;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.sheet-tx-date {
+    color: #666;
+    font-size: 0.75em;
+}
+
+.sheet-tx-amount {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.sheet-tx-in-amount { color: var(--green-success); }
+.sheet-tx-out-amount { color: var(--red-neon); }
+
+/* --- GLOBAL INVENTORY BUTTON --- */
+.btn-global-inventory {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    z-index: 9999;
+    background: #111;
+    color: var(--border-accent);
+    border: 2px solid var(--border-accent);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(196, 154, 0, 0.5), inset 0 0 5px rgba(0,0,0,0.8);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-global-inventory:hover {
+    transform: scale(1.1);
+    background: #222;
+    box-shadow: 0 0 20px rgba(196, 154, 0, 0.8), inset 0 0 5px rgba(0,0,0,0.8);
+}
+
+/* --- INVENTORY MODAL --- */
+.inventory-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.inventory-modal.active {
+    display: flex;
+    animation: fadeInModal 0.3s ease;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.inventory-modal-content {
+    background: linear-gradient(135deg, #111 0%, #0a0a0a 100%);
+    border: 2px solid var(--cyan-tech);
+    width: 90%;
+    max-width: 800px;
+    height: 80vh;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.inventory-modal-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 10;
+    line-height: 1;
+}
+
+.inventory-modal-close:hover { color: var(--red-neon); }
+
+.inventory-tabs {
+    display: flex;
+    background: #1a1a1a;
+    border-bottom: 2px solid var(--cyan-tech);
+    padding: 15px 15px 0 15px;
+    gap: 10px;
+}
+
+.inv-tab-btn {
+    background: #0d0d0d;
+    color: var(--text-muted);
+    border: 1px solid #333;
+    border-bottom: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1em;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.inv-tab-btn.active {
+    background: var(--cyan-tech);
+    color: #000;
+    border-color: var(--cyan-tech);
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+}
+
+.inventory-tab-content {
+    display: none;
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.inventory-tab-content.active {
+    display: block;
+}
+
+/* Tab: Inventario Activo */
+.inv-active-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 15px;
+}
+
+.inv-slot {
+    aspect-ratio: 1;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    transition: all 0.2s;
+}
+.inv-slot:hover { border-color: var(--cyan-tech); }
+
+/* Tab: Stash */
+.inv-stash-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inv-stash-table th, .inv-stash-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #333;
+}
+
+.inv-stash-table th {
+    color: var(--cyan-tech);
+    font-size: 0.9em;
+    text-transform: uppercase;
+}
+
+/* Tab: Shop */
+.inv-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.inv-shop-item {
+    background: #111;
+    border: 1px solid #444;
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.inv-shop-item-name {
+    color: #fff;
+    font-weight: bold;
+}
+
+.inv-shop-item-price {
+    color: var(--border-accent);
+    font-size: 1.2em;
+}
+
+.inv-shop-buy-btn {
+    background: var(--green-success);
+    color: #000;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+.inv-shop-buy-btn:hover { box-shadow: 0 0 10px rgba(51, 255, 51, 0.5); }
 
 
 /* Make the phone wrapper take full width and height on mobile devices */

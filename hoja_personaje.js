@@ -498,7 +498,7 @@
                 try {
                     savedAttrs = JSON.parse(charsheetSaveStr);
                     // Ensure 'tab' is valid so we don't get a blank screen on load
-                    const validTabs = ['home', 'stats', 'equipment', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+                    const validTabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
                     if (!savedAttrs.tab || !validTabs.includes(savedAttrs.tab)) {
                         savedAttrs.tab = 'home';
                     }
@@ -1096,7 +1096,7 @@ try {
     // clicked:tab_profile
     // clicked:tab_apego
     // clicked:tab_equipment
-    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "equipment"];
+    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco"];
     tabsList.forEach(tab => {
         on(`clicked:tab_${tab}`, function() {
             setAttrs({
@@ -2220,11 +2220,60 @@ try {
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'equipment', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
             tab: tab
+        });
+    });
+});
+
+// --- Inventory Modal Logic ---
+window.addEventListener('DOMContentLoaded', () => {
+    const invBtn = document.getElementById('btn-global-inventory');
+    const invModal = document.getElementById('inventory-modal');
+    const invClose = document.getElementById('inventory-modal-close');
+    const invTabBtns = document.querySelectorAll('.inv-tab-btn');
+    const invTabContents = document.querySelectorAll('.inventory-tab-content');
+
+    if (invBtn && invModal) {
+        invBtn.addEventListener('click', () => {
+            invModal.classList.add('active');
+        });
+    }
+
+    if (invClose && invModal) {
+        invClose.addEventListener('click', () => {
+            invModal.classList.remove('active');
+        });
+    }
+
+    // Modal background click to close
+    if (invModal) {
+        invModal.addEventListener('click', (e) => {
+            if (e.target === invModal) {
+                invModal.classList.remove('active');
+            }
+        });
+    }
+
+    // Tab switching inside modal
+    invTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active from all buttons and contents
+            invTabBtns.forEach(b => b.classList.remove('active'));
+            invTabContents.forEach(c => c.classList.remove('active'));
+
+            // Add active to clicked button
+            btn.classList.add('active');
+
+            // Show target content
+            const targetId = btn.getAttribute('data-tab');
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
         });
     });
 });

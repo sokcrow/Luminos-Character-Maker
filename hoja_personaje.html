@@ -130,7 +130,7 @@
  <button type="action" name="act_tab_profile" class="sheet-app-btn"><div class="sheet-app-icon">👤</div><span>Perfil</span></button>
  <button type="action" name="act_tab_vitals" class="sheet-app-btn"><div class="sheet-app-icon">❤️</div><span>Vitales</span></button>
  <button type="action" name="act_tab_stats" class="sheet-app-btn"><div class="sheet-app-icon">📊</div><span>Stats</span></button>
- <button type="action" name="act_tab_equipment" class="sheet-app-btn"><div class="sheet-app-icon">🎒</div><span>Equipo</span></button>
+ <button type="action" name="act_tab_banco" class="sheet-app-btn"><div class="sheet-app-icon">🏦</div><span>Banco</span></button>
  <button type="action" name="act_tab_skills" class="sheet-app-btn"><div class="sheet-app-icon">⭐</div><span>Perks</span></button>
  <button type="action" name="act_tab_abilities" class="sheet-app-btn"><div class="sheet-app-icon">⚔️</div><span>Skills</span></button>
  <button type="action" name="act_tab_apego" class="sheet-app-btn"><div class="sheet-app-icon">🤝</div><span>Apego</span></button>
@@ -421,73 +421,53 @@
 
 
  </div>
-        <!-- Equipo Tab -->
- <div class="sheet-tab-content sheet-tab-equipment">
- <input type="hidden" name="attr_show_equip_creator" class="sheet-state-equip-creator" value="0" />
+        <!-- Banco Tab -->
+ <div class="sheet-tab-content sheet-tab-banco">
+    <div class="sheet-app-header"><h2>Banco</h2></div>
+    <div class="sheet-app-body">
+        <div class="sheet-banco-balance-card">
+            <h3 class="sheet-banco-title">BALANCE ACTUAL</h3>
+            <div class="sheet-banco-amount-wrapper">
+                <span class="sheet-banco-currency-icon">Ahn</span>
+                <span name="attr_ahn" class="sheet-banco-amount-display">0</span>
+                <input type="hidden" name="attr_ahn" value="0" />
+            </div>
+            <div class="sheet-banco-account-info">
+                <span>CUENTA: L-CORP-984</span>
+                <span class="sheet-banco-status-active">ACTIVA</span>
+            </div>
+        </div>
 
- <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; margin-bottom: 15px; padding-bottom: 5px;">
- <h3 class="sheet-config-title" style="margin: 0; border: none; padding: 0;">EQUIPAMIENTO</h3>
- <button type="action" name="act_toggle_equip_creator" class="sheet-btn-rest" style="width: auto; padding: 0 10px; font-size: 0.8em;">TOGGLE CREATOR</button>
- </div>
-
- <!-- Equipment Creator Area -->
- <div class="sheet-equip-creator-container" style="background: #1a1a1a; padding: 15px; border: 1px solid #FFD700; margin-bottom: 20px; border-radius: 5px;">
- <div class="sheet-row" style="margin-bottom: 10px;">
- <div class="sheet-col" style="flex: 2;">
- <label style="color: #FFD700;">Nombre del Equipo</label>
- <input type="text" name="attr_new_weapon_name" placeholder="Ej: LCB Espada Larga" style="width: 100%; background: #111; color: #fff; border: 1px solid #444;" />
- </div>
- <div class="sheet-col" style="flex: 2;">
- <label style="color: #FFD700;">Etiquetas</label>
- <input type="text" name="attr_new_weapon_tags" placeholder="Ej: LCB, Filo" style="width: 100%; background: #111; color: #fff; border: 1px solid #444;" />
- </div>
- </div>
- <div class="sheet-row" style="margin-bottom: 10px; gap: 10px;">
- <div class="sheet-col">
- <label style="color: #FFD700;">Offense Level Mod</label>
- <input type="number" name="attr_new_weapon_offense" value="0" style="width: 100%; background: #111; color: #fff; border: 1px solid #444;" />
- </div>
- <div class="sheet-col">
- <label style="color: #FFD700;">Defense Level Mod</label>
- <input type="number" name="attr_new_weapon_defense" value="0" style="width: 100%; background: #111; color: #fff; border: 1px solid #444;" />
- </div>
- </div>
- <div style="text-align: right;">
- <button type="action" name="act_add_equipment" class="sheet-btn-rest" style="width: 150px; border-color: #00ff00; color: #00ff00;">ADD EQUIP</button>
- </div>
- </div>
-
- <fieldset class="repeating_equipment">
- <div class="sheet-skill-card" style="padding: 10px; border: 1px solid #FFD700; background: #0a0a0a; margin-bottom: 5px; display: flex; align-items: center; justify-content: flex-start;">
-
- <input type="checkbox" name="attr_equipped" class="sheet-equip-active-toggle" value="1" title="Equipar/Desequipar" style="width: 20px; height: 20px; accent-color: #ffae00; margin-right: 15px;" />
-
- <div class="sheet-equip-content" style="display: flex; flex: 1; justify-content: space-between; align-items: center;">
- <div style="display: flex; flex-direction: column;">
- <input type="text" name="attr_weapon_name" placeholder="Nombre del Equipo" style="background: transparent; border: none; color: #fff; font-size: 1.1em; font-weight: bold; width: 250px;" />
- <div style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
- <input type="hidden" name="attr_weapon_tags" />
- <input type="hidden" name="attr_tag_1" class="sheet-tag-hide" value="" /><span name="attr_tag_1" class="sheet-equip-badge"></span>
- <input type="hidden" name="attr_tag_2" class="sheet-tag-hide" value="" /><span name="attr_tag_2" class="sheet-equip-badge"></span>
- <input type="hidden" name="attr_tag_3" class="sheet-tag-hide" value="" /><span name="attr_tag_3" class="sheet-equip-badge"></span>
- <input type="hidden" name="attr_tag_4" class="sheet-tag-hide" value="" /><span name="attr_tag_4" class="sheet-equip-badge"></span>
- </div>
- </div>
-
- <div style="display: flex; gap: 15px; align-items: center;">
- <div class="sheet-col" style="text-align: center;">
- <label style="font-size: 0.7em; color: #aaa;">OFF LVL</label>
- <input type="number" name="attr_weapon_offense" value="0" style="width: 50px; background: #111; color: #fff; border: 1px solid #333; text-align: center;" />
- </div>
- <div class="sheet-col" style="text-align: center;">
- <label style="font-size: 0.7em; color: #aaa;">DEF LVL</label>
- <input type="number" name="attr_weapon_defense" value="0" style="width: 50px; background: #111; color: #fff; border: 1px solid #333; text-align: center;" />
- </div>
- </div>
- </div>
-
- </div>
- </fieldset>
+        <div class="sheet-banco-transactions">
+            <h4 class="sheet-banco-subtitle">ÚLTIMAS TRANSACCIONES</h4>
+            <div class="sheet-transaction-list">
+                <div class="sheet-transaction-item">
+                    <div class="sheet-tx-icon sheet-tx-in">↓</div>
+                    <div class="sheet-tx-details">
+                        <span class="sheet-tx-title">Transferencia L-Corp</span>
+                        <span class="sheet-tx-date">12:00 | Hoy</span>
+                    </div>
+                    <div class="sheet-tx-amount sheet-tx-in-amount">+500 Ahn</div>
+                </div>
+                <div class="sheet-transaction-item">
+                    <div class="sheet-tx-icon sheet-tx-out">↑</div>
+                    <div class="sheet-tx-details">
+                        <span class="sheet-tx-title">Compra - Vending Machine</span>
+                        <span class="sheet-tx-date">Ayer</span>
+                    </div>
+                    <div class="sheet-tx-amount sheet-tx-out-amount">-120 Ahn</div>
+                </div>
+                <div class="sheet-transaction-item">
+                    <div class="sheet-tx-icon sheet-tx-out">↑</div>
+                    <div class="sheet-tx-details">
+                        <span class="sheet-tx-title">Mantenimiento de Equipo</span>
+                        <span class="sheet-tx-date">Hace 3 días</span>
+                    </div>
+                    <div class="sheet-tx-amount sheet-tx-out-amount">-350 Ahn</div>
+                </div>
+            </div>
+        </div>
+    </div>
  </div>
 
  <!-- Perks Tab -->
@@ -3343,6 +3323,52 @@
 </div>
 </div> <!-- End Phone Wrapper -->
 </div> <!-- End Limbus Main -->
+
+<!-- Global Inventory Button -->
+<button class="btn-global-inventory" id="btn-global-inventory" title="Inventario Global">🎒</button>
+
+<!-- Inventory Modal -->
+<div id="inventory-modal" class="inventory-modal">
+    <div class="inventory-modal-content">
+        <button id="inventory-modal-close" class="inventory-modal-close">×</button>
+        <div class="inventory-tabs">
+            <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
+            <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
+            <button class="inv-tab-btn" data-tab="inv-shop">Tienda / Mercado</button>
+        </div>
+
+        <div class="inventory-tab-content active" id="inv-active">
+            <div class="inv-active-grid">
+                <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
+                <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
+            </div>
+        </div>
+
+        <div class="inventory-tab-content" id="inv-stash">
+            <table class="inv-stash-table">
+                <thead>
+                    <tr><th>Item</th><th>Tier</th><th>Cant.</th></tr>
+                </thead>
+                <tbody>
+                    <!-- Dummy items -->
+                    <tr><td>Balas LCB</td><td>1</td><td>30</td></tr>
+                    <tr><td>Módulo Cibernético Roto</td><td>2</td><td>1</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="inventory-tab-content" id="inv-shop">
+            <div class="inv-shop-grid">
+                <!-- Shop item dummy -->
+                <div class="inv-shop-item">
+                    <div class="inv-shop-item-name">Estimulante Básico</div>
+                    <div class="inv-shop-item-price">50 Ahn</div>
+                    <button class="inv-shop-buy-btn">Comprar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Toggle Button -->
 <button class="btn-toggle-phone" id="btn-toggle-phone" title="Alternar Celular">📱</button>
