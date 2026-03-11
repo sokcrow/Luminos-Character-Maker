@@ -101,7 +101,7 @@
 <div class="sheet-phone-statusbar">
  <div class="sheet-statusbar-left">
    <span class="sheet-time-display">12:00</span>
-   <span class="sheet-date-display" style="margin-left: 8px; font-size: 0.85em; opacity: 0.8;">| D1/M1 | Despejado</span>
+   <span class="sheet-date-display" style="margin-left: 8px; font-size: 0.85em; opacity: 0.8;">| Día 1 de Mes 1, Año 984 | ☀️ Despejado</span>
  </div>
  <div class="sheet-statusbar-right">📶 100% 🔋</div>
 </div>
@@ -112,7 +112,7 @@
    <div class="sheet-weather-header">
      <div class="sheet-weather-time">
        <span class="sheet-widget-time">12:00</span>
-       <span class="sheet-widget-date">Día 1 del Mes 1</span>
+       <span class="sheet-widget-date">Día 1 del Mes 1, Año 984</span>
      </div>
      <div class="sheet-weather-current">
        <span class="sheet-widget-weather-icon">☀️</span>
@@ -120,17 +120,10 @@
      </div>
    </div>
    <div class="sheet-weather-forecast">
-     <div class="sheet-forecast-title">PRONÓSTICO (SIGUIENTE DÍA)</div>
-     <div class="sheet-forecast-probs">
-       <span id="prob-despejado">☀️ 0%</span>
-       <span id="prob-nublado">☁️ 0%</span>
-       <span id="prob-lluvia">🌧️ 0%</span>
-       <span id="prob-tormenta">⛈️ 0%</span>
+     <div class="sheet-forecast-title">PRONÓSTICO (RED CLIMÁTICA)</div>
+     <div class="sheet-forecast-probs" id="dynamic-forecast-probs">
+       <!-- Generado dinámicamente en JS -->
      </div>
-   </div>
-   <div class="sheet-weather-hazard">
-     <span class="sheet-hazard-label">⚠️ RIESGO DE HAZARD:</span>
-     <span class="sheet-hazard-value" id="prob-hazard">0% (Ninguno)</span>
    </div>
  </div>
  <div class="sheet-app-grid">
@@ -3376,141 +3369,121 @@
   const db = firebase.database();
 
   // LÓGICA DE CALENDARIO Y CLIMA AUTOMÁTICO
-  const calendarioMeses = [
-    {
-      nombre: "Mes 1 (Frío y Seco)",
-      transiciones: {
-        1: {1: 0.7, 2: 0.2, 3: 0.05, 4: 0.05},
-        2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
-        3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
-        4: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3}
-      },
-      hazards: { "Nevada Extrema": 0.15, "Ninguno": 0.85 }
+  // Red Climatica Hexagonal por Meses
+  const redClimatica = {
+    1: { // Frío y Seco
+      "Despejado": { "Despejado": 0.6, "Nublado": 0.2, "Vientos Fuertes": 0.1, "Nieve": 0.1 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.5, "Nieve": 0.2 },
+      "Vientos Fuertes": { "Despejado": 0.4, "Nublado": 0.3, "Vientos Huracanados": 0.1, "Vientos Fuertes": 0.2 },
+      "Vientos Huracanados": { "Vientos Fuertes": 0.7, "Despejado": 0.3 },
+      "Nieve": { "Nublado": 0.4, "Nieve": 0.4, "Nevada Extrema": 0.2 },
+      "Nevada Extrema": { "Nieve": 0.8, "Nublado": 0.2 }
     },
-    {
-      nombre: "Mes 2 (Deshielo)",
-      transiciones: {
-        1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
-        2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
-        3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
-        4: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0}
-      },
-      hazards: { "Niebla Densa": 0.2, "Ninguno": 0.8 }
+    2: { // Deshielo
+      "Despejado": { "Despejado": 0.4, "Nublado": 0.3, "Niebla": 0.2, "Húmedo": 0.1 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.4, "Lluvia": 0.2, "Niebla": 0.1 },
+      "Niebla": { "Despejado": 0.2, "Nublado": 0.2, "Niebla": 0.5, "Niebla Densa": 0.1 },
+      "Niebla Densa": { "Niebla": 0.8, "Lluvia": 0.2 },
+      "Húmedo": { "Despejado": 0.2, "Nublado": 0.4, "Lluvia": 0.4 },
+      "Lluvia": { "Nublado": 0.5, "Lluvia": 0.4, "Húmedo": 0.1 }
     },
-    {
-      nombre: "Mes 3 (Lluvias Ácidas)",
-      transiciones: {
-        1: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
-        2: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
-        3: {1: 0.1, 2: 0.3, 3: 0.5, 4: 0.1},
-        4: {1: 0, 2: 0.3, 3: 0.5, 4: 0.2}
-      },
-      hazards: { "Lluvia Ácida": 0.25, "Ninguno": 0.75 }
+    3: { // Lluvias Ácidas
+      "Despejado": { "Nublado": 0.5, "Húmedo": 0.5 },
+      "Nublado": { "Despejado": 0.1, "Nublado": 0.3, "Húmedo": 0.3, "Lluvia": 0.3 },
+      "Húmedo": { "Nublado": 0.3, "Húmedo": 0.4, "Lluvia": 0.3 },
+      "Lluvia": { "Húmedo": 0.2, "Nublado": 0.3, "Lluvia": 0.3, "Lluvia Ácida": 0.2 },
+      "Lluvia Ácida": { "Lluvia": 0.7, "Tormenta": 0.3 },
+      "Tormenta": { "Lluvia": 0.6, "Nublado": 0.4 }
     },
-    {
-      nombre: "Mes 4 (Primavera Contaminada)",
-      transiciones: {
-        1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
-        2: {1: 0.4, 2: 0.5, 3: 0.1, 4: 0},
-        3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
-        4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
-      },
-      hazards: { "Niebla Densa": 0.1, "Ninguno": 0.9 }
+    4: { // Primavera Contaminada
+      "Despejado": { "Despejado": 0.4, "Nublado": 0.3, "Niebla": 0.2, "Húmedo": 0.1 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.4, "Lluvia": 0.2, "Niebla": 0.1 },
+      "Niebla": { "Nublado": 0.3, "Niebla": 0.5, "Niebla Densa": 0.2 },
+      "Niebla Densa": { "Niebla": 0.9, "Lluvia Ácida": 0.1 },
+      "Húmedo": { "Nublado": 0.5, "Lluvia": 0.5 },
+      "Lluvia": { "Nublado": 0.6, "Lluvia": 0.4 },
+      "Lluvia Ácida": { "Lluvia": 0.8, "Niebla Densa": 0.2 }
     },
-    {
-      nombre: "Mes 5 (Vientos Fuertes)",
-      transiciones: {
-        1: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
-        2: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
-        3: {1: 0.2, 2: 0.5, 3: 0.3, 4: 0},
-        4: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0}
-      },
-      hazards: { "Vientos Huracanados": 0.2, "Ninguno": 0.8 }
+    5: { // Vientos Fuertes
+      "Despejado": { "Despejado": 0.4, "Nublado": 0.2, "Vientos Fuertes": 0.4 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.4, "Lluvia": 0.2, "Vientos Fuertes": 0.1 },
+      "Vientos Fuertes": { "Despejado": 0.2, "Nublado": 0.2, "Vientos Fuertes": 0.4, "Vientos Huracanados": 0.2 },
+      "Vientos Huracanados": { "Vientos Fuertes": 0.8, "Tormenta": 0.2 },
+      "Lluvia": { "Nublado": 0.5, "Lluvia": 0.3, "Tormenta": 0.2 },
+      "Tormenta": { "Lluvia": 0.6, "Vientos Huracanados": 0.4 }
     },
-    {
-      nombre: "Mes 6 (Inicio del Calor)",
-      transiciones: {
-        1: {1: 0.7, 2: 0.2, 3: 0.1, 4: 0},
-        2: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
-        3: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
-        4: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0}
-      },
-      hazards: { "Ola de Calor": 0.1, "Ninguno": 0.9 }
+    6: { // Inicio del Calor
+      "Despejado": { "Despejado": 0.6, "Nublado": 0.2, "Ola de Calor": 0.2 },
+      "Nublado": { "Despejado": 0.4, "Nublado": 0.4, "Lluvia": 0.2 },
+      "Ola de Calor": { "Despejado": 0.7, "Ola de Calor": 0.3 },
+      "Lluvia": { "Nublado": 0.7, "Lluvia": 0.3 }
     },
-    {
-      nombre: "Mes 7 (Verano Sofocante)",
-      transiciones: {
-        1: {1: 0.8, 2: 0.15, 3: 0.05, 4: 0},
-        2: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
-        3: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0},
-        4: {1: 0.8, 2: 0.1, 3: 0.1, 4: 0}
-      },
-      hazards: { "Ola de Calor": 0.3, "Ninguno": 0.7 }
+    7: { // Verano Sofocante
+      "Despejado": { "Despejado": 0.5, "Ola de Calor": 0.4, "Nublado": 0.1 },
+      "Ola de Calor": { "Despejado": 0.4, "Ola de Calor": 0.6 },
+      "Nublado": { "Despejado": 0.6, "Nublado": 0.2, "Tormenta": 0.2 },
+      "Tormenta": { "Nublado": 0.7, "Despejado": 0.3 }
     },
-    {
-      nombre: "Mes 8 (Tormentas de Verano)",
-      transiciones: {
-        1: {1: 0.4, 2: 0.3, 3: 0.1, 4: 0.2},
-        2: {1: 0.3, 2: 0.3, 3: 0.2, 4: 0.2},
-        3: {1: 0.2, 2: 0.3, 3: 0.3, 4: 0.2},
-        4: {1: 0.1, 2: 0.2, 3: 0.2, 4: 0.5}
-      },
-      hazards: { "Tormenta Eléctrica": 0.25, "Lluvia Ácida": 0.1, "Ninguno": 0.65 }
+    8: { // Tormentas de Verano
+      "Despejado": { "Despejado": 0.3, "Nublado": 0.3, "Ola de Calor": 0.2, "Húmedo": 0.2 },
+      "Ola de Calor": { "Despejado": 0.5, "Tormenta": 0.5 },
+      "Nublado": { "Despejado": 0.2, "Nublado": 0.3, "Lluvia": 0.2, "Tormenta": 0.3 },
+      "Húmedo": { "Despejado": 0.2, "Nublado": 0.2, "Lluvia": 0.3, "Tormenta": 0.3 },
+      "Lluvia": { "Nublado": 0.3, "Lluvia": 0.3, "Tormenta": 0.4 },
+      "Tormenta": { "Nublado": 0.2, "Lluvia": 0.2, "Tormenta": 0.4, "Tormenta Eléctrica": 0.2 },
+      "Tormenta Eléctrica": { "Tormenta": 0.8, "Lluvia Ácida": 0.2 },
+      "Lluvia Ácida": { "Lluvia": 0.8, "Tormenta": 0.2 }
     },
-    {
-      nombre: "Mes 9 (Otoño Húmedo)",
-      transiciones: {
-        1: {1: 0.5, 2: 0.3, 3: 0.2, 4: 0},
-        2: {1: 0.3, 2: 0.4, 3: 0.3, 4: 0},
-        3: {1: 0.2, 2: 0.4, 3: 0.4, 4: 0},
-        4: {1: 0.4, 2: 0.3, 3: 0.3, 4: 0}
-      },
-      hazards: { "Niebla Densa": 0.15, "Ninguno": 0.85 }
+    9: { // Otoño Húmedo
+      "Despejado": { "Despejado": 0.3, "Nublado": 0.4, "Húmedo": 0.3 },
+      "Nublado": { "Despejado": 0.2, "Nublado": 0.4, "Húmedo": 0.2, "Lluvia": 0.2 },
+      "Húmedo": { "Nublado": 0.3, "Húmedo": 0.4, "Niebla": 0.3 },
+      "Lluvia": { "Nublado": 0.4, "Lluvia": 0.4, "Tormenta": 0.2 },
+      "Tormenta": { "Lluvia": 0.7, "Nublado": 0.3 },
+      "Niebla": { "Húmedo": 0.4, "Niebla": 0.4, "Niebla Densa": 0.2 },
+      "Niebla Densa": { "Niebla": 0.8, "Lluvia": 0.2 }
     },
-    {
-      nombre: "Mes 10 (Descenso de Temperaturas)",
-      transiciones: {
-        1: {1: 0.6, 2: 0.3, 3: 0.1, 4: 0},
-        2: {1: 0.4, 2: 0.4, 3: 0.2, 4: 0},
-        3: {1: 0.3, 2: 0.5, 3: 0.2, 4: 0},
-        4: {1: 0.5, 2: 0.4, 3: 0.1, 4: 0}
-      },
-      hazards: { "Vientos Huracanados": 0.1, "Ninguno": 0.9 }
+    10: { // Descenso de Temperaturas
+      "Despejado": { "Despejado": 0.4, "Nublado": 0.3, "Vientos Fuertes": 0.3 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.4, "Lluvia": 0.3 },
+      "Lluvia": { "Nublado": 0.6, "Lluvia": 0.4 },
+      "Vientos Fuertes": { "Despejado": 0.3, "Nublado": 0.3, "Vientos Fuertes": 0.3, "Vientos Huracanados": 0.1 },
+      "Vientos Huracanados": { "Vientos Fuertes": 0.9, "Tormenta": 0.1 },
+      "Tormenta": { "Lluvia": 0.8, "Vientos Fuertes": 0.2 }
     },
-    {
-      nombre: "Mes 11 (Vientos Helados)",
-      transiciones: {
-        1: {1: 0.5, 2: 0.4, 3: 0.05, 4: 0.05},
-        2: {1: 0.3, 2: 0.5, 3: 0.1, 4: 0.1},
-        3: {1: 0.2, 2: 0.5, 3: 0.2, 4: 0.1},
-        4: {1: 0.2, 2: 0.4, 3: 0.1, 4: 0.3}
-      },
-      hazards: { "Nevada Extrema": 0.1, "Ninguno": 0.9 }
+    11: { // Vientos Helados
+      "Despejado": { "Despejado": 0.5, "Nublado": 0.2, "Vientos Fuertes": 0.2, "Nieve": 0.1 },
+      "Nublado": { "Despejado": 0.3, "Nublado": 0.4, "Nieve": 0.3 },
+      "Vientos Fuertes": { "Despejado": 0.4, "Nublado": 0.3, "Vientos Huracanados": 0.2, "Nieve": 0.1 },
+      "Vientos Huracanados": { "Vientos Fuertes": 0.8, "Nevada Extrema": 0.2 },
+      "Nieve": { "Nublado": 0.4, "Nieve": 0.4, "Nevada Extrema": 0.2 },
+      "Nevada Extrema": { "Nieve": 0.7, "Vientos Huracanados": 0.3 }
     },
-    {
-      nombre: "Mes 12 (Invierno Crudo)",
-      transiciones: {
-        1: {1: 0.4, 2: 0.4, 3: 0, 4: 0.2},
-        2: {1: 0.2, 2: 0.5, 3: 0.1, 4: 0.2},
-        3: {1: 0.1, 2: 0.4, 3: 0.2, 4: 0.3},
-        4: {1: 0.1, 2: 0.3, 3: 0.1, 4: 0.5}
-      },
-      hazards: { "Nevada Extrema": 0.25, "Ninguno": 0.75 }
+    12: { // Invierno Crudo
+      "Despejado": { "Nublado": 0.4, "Nieve": 0.4, "Vientos Fuertes": 0.2 },
+      "Nublado": { "Despejado": 0.1, "Nublado": 0.3, "Nieve": 0.6 },
+      "Nieve": { "Nublado": 0.3, "Nieve": 0.5, "Nevada Extrema": 0.2 },
+      "Nevada Extrema": { "Nieve": 0.8, "Vientos Huracanados": 0.2 },
+      "Vientos Fuertes": { "Nublado": 0.4, "Nieve": 0.4, "Vientos Huracanados": 0.2 },
+      "Vientos Huracanados": { "Vientos Fuertes": 0.5, "Nevada Extrema": 0.5 }
     }
-  ];
-
-  const climaNombres = {
-    1: "Despejado",
-    2: "Nublado",
-    3: "Lluvia",
-    4: "Tormenta/Nieve"
   };
 
   const climaIconos = {
-    1: "☀️",
-    2: "☁️",
-    3: "🌧️",
-    4: "⛈️"
+    "Despejado": "☀️",
+    "Nublado": "☁️",
+    "Húmedo": "💧",
+    "Lluvia": "🌧️",
+    "Lluvia Ácida": "☣️",
+    "Tormenta": "⛈️",
+    "Tormenta Eléctrica": "🌩️",
+    "Niebla": "🌫️",
+    "Niebla Densa": "🌁",
+    "Ola de Calor": "🔥",
+    "Nieve": "❄️",
+    "Nevada Extrema": "🏔️",
+    "Vientos Fuertes": "💨",
+    "Vientos Huracanados": "🌪️"
   };
 
   // Referencia al nodo de la hora en la base de datos
@@ -3537,62 +3510,59 @@
   db.ref('campaña/calendario').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
+      const año = data.año || 984;
       const dia = data.dia || 1;
       const mes = data.mes || 1;
-      const climaIndex = data.clima || 1;
+      const climaNodo = data.clima || "Despejado";
+      const iconoClima = climaIconos[climaNodo] || "☀️";
 
-      // Top status bar format: | Día X del Mes Y |
+      // Top status bar format: | Día X de Mes Y, Año Z | Emoji Nodo
       const dateDisplay = document.querySelector('.sheet-date-display');
       if (dateDisplay) {
-        let texto = `| Día ${dia} del Mes ${mes} | ${climaNombres[climaIndex]}`;
-        if (data.hazard && data.hazard !== "Ninguno") {
-          texto += ` | ⚠️ ${data.hazard}`;
-        }
-        dateDisplay.innerText = texto;
+        dateDisplay.innerText = `| Día ${dia} de Mes ${mes}, Año ${año} | ${iconoClima} ${climaNodo}`;
       }
 
       // Update Widget Date
       const widgetDate = document.querySelector('.sheet-widget-date');
       if (widgetDate) {
-        widgetDate.innerText = `Día ${dia} del Mes ${mes}`;
+        widgetDate.innerText = `Día ${dia} del Mes ${mes}, Año ${año}`;
       }
 
       // Update Widget Current Weather
       const widgetWeatherIcon = document.querySelector('.sheet-widget-weather-icon');
       const widgetWeatherText = document.querySelector('.sheet-widget-weather-text');
       if (widgetWeatherIcon && widgetWeatherText) {
-        widgetWeatherIcon.innerText = climaIconos[climaIndex];
-        widgetWeatherText.innerText = climaNombres[climaIndex];
+        widgetWeatherIcon.innerText = iconoClima;
+        widgetWeatherText.innerText = climaNodo;
       }
 
       // Update Widget Forecast Probabilities
-      if (calendarioMeses[mes - 1]) {
-        const transiciones = calendarioMeses[mes - 1].transiciones[climaIndex];
-        document.getElementById('prob-despejado').innerText = `☀️ ${Math.round((transiciones[1] || 0) * 100)}%`;
-        document.getElementById('prob-nublado').innerText = `☁️ ${Math.round((transiciones[2] || 0) * 100)}%`;
-        document.getElementById('prob-lluvia').innerText = `🌧️ ${Math.round((transiciones[3] || 0) * 100)}%`;
-        document.getElementById('prob-tormenta').innerText = `⛈️ ${Math.round((transiciones[4] || 0) * 100)}%`;
+      if (redClimatica[mes] && redClimatica[mes][climaNodo]) {
+        const transiciones = redClimatica[mes][climaNodo];
+        const probsContainer = document.getElementById('dynamic-forecast-probs');
 
-        // Update Hazard Probability
-        const hazards = calendarioMeses[mes - 1].hazards;
-        let totalHazardProb = 0;
-        let currentHazardNames = [];
+        if (probsContainer) {
+          probsContainer.innerHTML = ''; // Limpiar anteriores
 
-        for (const [haz, prob] of Object.entries(hazards)) {
-          if (haz !== "Ninguno") {
-            totalHazardProb += prob;
-            currentHazardNames.push(haz);
+          for (const [nodoSiguiente, prob] of Object.entries(transiciones)) {
+            const probPct = Math.round(prob * 100);
+            const icono = climaIconos[nodoSiguiente] || "☀️";
+            const span = document.createElement('span');
+            span.innerText = `${icono} ${probPct}%`;
+
+            // Highlight extreme nodes (Hazards) with a slightly different color if desired
+            if (probPct < 30 && ["Lluvia Ácida", "Tormenta Eléctrica", "Niebla Densa", "Ola de Calor", "Nevada Extrema", "Vientos Huracanados"].includes(nodoSiguiente)) {
+              span.style.color = 'var(--red-neon)';
+              span.style.textShadow = '0 0 5px var(--red-neon)';
+            }
+
+            probsContainer.appendChild(span);
           }
         }
-
-        const probHazardEl = document.getElementById('prob-hazard');
-        if (probHazardEl) {
-          if (totalHazardProb > 0) {
-            probHazardEl.innerText = `${Math.round(totalHazardProb * 100)}% (${currentHazardNames.join(', ')})`;
-          } else {
-            probHazardEl.innerText = `0% (Ninguno)`;
-          }
-        }
+      } else {
+        // Fallback clear
+        const probsContainer = document.getElementById('dynamic-forecast-probs');
+        if (probsContainer) probsContainer.innerHTML = '<span>Sin datos</span>';
       }
     }
   });
