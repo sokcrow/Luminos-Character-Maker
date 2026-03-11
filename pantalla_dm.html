@@ -56,6 +56,271 @@
       background: #a00000;
       box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
     }
+
+    /* --- ESTILOS CYBERPUNK PARA FORJA Y MERCADO --- */
+    .panel-cyber {
+      background-color: rgba(15, 15, 20, 0.95);
+      border: 1px solid #0df;
+      box-shadow: 0 0 15px rgba(0, 221, 255, 0.3);
+      padding: 25px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 1200px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .panel-cyber h3 {
+      color: #0df;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 0;
+      text-shadow: 0 0 5px #0df;
+      text-align: center;
+      border-bottom: 1px solid #0df;
+      padding-bottom: 10px;
+    }
+
+    .form-cyber-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: space-around;
+      border-bottom: 1px solid #444;
+      padding-bottom: 20px;
+    }
+    .form-cyber {
+      background: #111;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-width: 300px;
+      max-width: 400px;
+    }
+    .form-cyber h4 {
+      color: #c49a00;
+      margin: 0 0 10px 0;
+      text-align: center;
+    }
+    .form-cyber input, .form-cyber select, .form-cyber textarea {
+      padding: 10px;
+      border-radius: 4px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #555;
+      font-family: inherit;
+    }
+    .form-cyber input:focus, .form-cyber select:focus, .form-cyber textarea:focus {
+      outline: none;
+      border-color: #0df;
+      box-shadow: 0 0 5px rgba(0, 221, 255, 0.5);
+    }
+    .btn-cyber {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .btn-red {
+      background: #8b0000;
+      color: white;
+      border: 1px solid #ff0000;
+    }
+    .btn-red:hover {
+      background: #a00000;
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
+    }
+    .btn-green {
+      background: #004400;
+      color: white;
+      border: 1px solid #00ff00;
+    }
+    .btn-green:hover {
+      background: #006600;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+    }
+    .btn-giant-green {
+      background: #006600;
+      color: white;
+      border: 2px solid #00ff00;
+      font-size: 20px;
+      padding: 15px;
+      width: 100%;
+      margin-top: 20px;
+      text-shadow: 0 0 5px #000;
+    }
+    .btn-giant-green:hover {
+      background: #008800;
+      box-shadow: 0 0 15px #00ff00;
+    }
+
+    /* Grids de Tarjetas */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .card-cyber {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+    .card-cyber:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+    .card-item { border-left: 3px solid #0df; }
+    .card-store {
+      border-left: 3px solid #c49a00;
+      cursor: pointer;
+    }
+    .card-store:hover {
+      box-shadow: 0 0 15px rgba(196, 154, 0, 0.5);
+    }
+    .card-cyber img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #555;
+    }
+    .card-cyber h5 {
+      margin: 0;
+      font-size: 16px;
+      color: #fff;
+    }
+    .card-cyber span {
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    /* Modal de Edición de Tienda */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-cyber {
+      background: #111;
+      border: 1px solid #c49a00;
+      box-shadow: 0 0 20px rgba(196, 154, 0, 0.4);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 15px;
+      border-bottom: 1px solid #444;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { margin: 0; color: #c49a00; }
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: #ff4444;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .modal-body {
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Fila de Ítem en el Modal */
+    .modal-item-row {
+      display: flex;
+      align-items: center;
+      background: #222;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #333;
+      gap: 15px;
+    }
+    .modal-item-row img {
+      width: 40px; height: 40px; border-radius: 4px; object-fit: cover;
+    }
+    .modal-item-info { flex: 1; }
+    .modal-item-info h5 { margin: 0; color: #fff; font-size: 15px; }
+    .modal-item-info span { font-size: 12px; color: #888; }
+
+    .modal-item-inputs {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .modal-item-inputs input[type="number"] {
+      width: 80px;
+      padding: 5px;
+      background: #111;
+      color: #0df;
+      border: 1px solid #444;
+      border-radius: 3px;
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #444;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #0df;
+      box-shadow: 0 0 10px #0df;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
   </style>
 </head>
 <body>
@@ -127,57 +392,77 @@
     </div>
   </div>
 
-  <div id="dm-forja-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
-    <h3 style="margin: 0; color: #c49a00;">ZONA B: LA FORJA Y EL MERCADO</h3>
-    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px;">
-      <input type="text" id="forja-nombre" placeholder="Nombre del Ítem" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <select id="forja-tipo" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;">
-        <option value="Arma">Arma</option>
-        <option value="Armadura">Armadura</option>
-        <option value="Consumible">Consumible</option>
-        <option value="Clave">Clave</option>
-      </select>
-      <input type="number" id="forja-costo" placeholder="Costo en Ahn" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <textarea id="forja-desc" placeholder="Descripción" rows="3" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444; resize: vertical;"></textarea>
-      <button id="btn-crear-item" style="padding: 10px 20px; font-size: 16px; background: #8b0000; border-color: #ff0000; color: white; cursor: pointer; border-radius: 4px;">Crear Ítem Global</button>
+  <!-- NUEVO DASHBOARD: ZONA DE FORJA Y MERCADO -->
+  <div id="dashboard-mercado" class="panel-cyber">
+    <h3>Dashboard: Forja y Mercado</h3>
+
+    <div class="form-cyber-container">
+      <!-- Formulario: Forjar Ítem -->
+      <div class="form-cyber">
+        <h4>Forjar Nuevo Ítem Global</h4>
+        <input type="text" id="forja-nombre" placeholder="Nombre del Ítem" />
+        <input type="url" id="forja-icono" placeholder="URL de Imagen/Ícono" />
+        <select id="forja-tipo">
+          <option value="Arma">Arma</option>
+          <option value="Armadura">Armadura</option>
+          <option value="Consumible">Consumible</option>
+          <option value="Clave">Clave</option>
+        </select>
+        <input type="number" id="forja-costo" placeholder="Costo Base en Ahn" />
+        <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" />
+        <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
+        <button id="btn-crear-item" class="btn-cyber btn-red">Crear Ítem</button>
+      </div>
+
+      <!-- Formulario: Crear Tienda -->
+      <div class="form-cyber">
+        <h4>Registrar Nueva Tienda</h4>
+        <input type="text" id="tienda-nombre" placeholder="Nombre de la Tienda" />
+        <input type="url" id="tienda-icono" placeholder="URL de Imagen/Ícono de Tienda" />
+        <select id="tienda-restock-dia">
+          <option value="Lunes">Lunes</option>
+          <option value="Martes">Martes</option>
+          <option value="Miércoles">Miércoles</option>
+          <option value="Jueves">Jueves</option>
+          <option value="Viernes">Viernes</option>
+          <option value="Sábado">Sábado</option>
+          <option value="Domingo">Domingo</option>
+        </select>
+        <button id="btn-crear-tienda" class="btn-cyber btn-green" style="margin-top: auto;">Crear Tienda</button>
+      </div>
     </div>
 
-    <h4 style="color: #fff; border-bottom: 1px solid #444; width: 100%; padding-bottom: 5px; margin-top: 20px;">Base de Datos de Ítems</h4>
-    <div id="forja-lista-items" style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
-      <!-- Lista de ítems generada por JS -->
+    <!-- Visualización de Datos -->
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 300px;">
+        <h4 style="color: #0df; border-bottom: 1px solid #444; padding-bottom: 5px;">Base de Datos de Ítems (Global)</h4>
+        <div id="grid-items-globales" class="grid-container">
+          <!-- Tarjetas de ítems inyectadas por JS -->
+        </div>
+      </div>
+
+      <div style="flex: 1; min-width: 300px;">
+        <h4 style="color: #c49a00; border-bottom: 1px solid #444; padding-bottom: 5px;">Tiendas Activas (Click para Editar)</h4>
+        <div id="grid-tiendas" class="grid-container">
+          <!-- Tarjetas de tiendas inyectadas por JS -->
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="dm-tiendas-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
-    <h3 style="margin: 0; color: #c49a00;">Gestión de Tiendas</h3>
-
-    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px; padding-bottom: 15px; border-bottom: 1px solid #444;">
-      <h4 style="margin: 0; color: #0df;">Crear Nueva Tienda</h4>
-      <input type="text" id="tienda-nombre" placeholder="Nombre de la Tienda" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <select id="tienda-restock-dia" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;">
-        <option value="Lunes">Lunes</option>
-        <option value="Martes">Martes</option>
-        <option value="Miércoles">Miércoles</option>
-        <option value="Jueves">Jueves</option>
-        <option value="Viernes">Viernes</option>
-        <option value="Sábado">Sábado</option>
-        <option value="Domingo">Domingo</option>
-      </select>
-      <button id="btn-crear-tienda" style="padding: 10px 20px; font-size: 16px; background: #004400; border-color: #00ff00; color: white; cursor: pointer; border-radius: 4px;">Crear Tienda</button>
-    </div>
-
-    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px;">
-      <h4 style="margin: 0; color: #0df;">Añadir Ítem a Tienda</h4>
-      <select id="select-destino-tienda" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;">
-        <option value="">Selecciona una tienda...</option>
-      </select>
-      <select id="select-item-tienda" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;">
-        <option value="">Selecciona un ítem...</option>
-      </select>
-      <input type="number" id="tienda-item-costo" placeholder="Costo en Ahn" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <input type="number" id="tienda-item-stock" placeholder="Stock Máximo (-1 para infinito)" value="-1" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
-      <button id="btn-anadir-item-tienda" style="padding: 10px 20px; font-size: 16px; background: #8b0000; border-color: #ff0000; color: white; cursor: pointer; border-radius: 4px;">Añadir a Tienda</button>
+  <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
+  <div id="modal-editar-tienda" class="modal-overlay">
+    <div class="modal-cyber">
+      <div class="modal-header">
+        <h3 id="modal-tienda-titulo">Editando Tienda: ???</h3>
+        <button class="btn-close" id="btn-cerrar-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-tienda-lista-items">
+        <!-- Filas de ítems inyectadas por JS -->
+      </div>
+      <div style="padding: 15px; border-top: 1px solid #444;">
+        <button id="btn-guardar-inventario" class="btn-cyber btn-giant-green">Guardar Inventario de la Tienda</button>
+      </div>
     </div>
   </div>
 
@@ -535,23 +820,29 @@
     });
 
 
-    // --- ZONA B: LA FORJA Y EL MERCADO ---
+    // --- LÓGICA DEL DASHBOARD DE FORJA Y MERCADO ---
+
+    let dbItemsCache = {}; // Caché local de TODOS los ítems globales
+    let tiendaActualEditada = null; // ID de la tienda abierta en el modal
+
+    // CREAR ÍTEM GLOBAL
     document.getElementById('btn-crear-item').addEventListener('click', () => {
        const nombre = document.getElementById('forja-nombre').value.trim();
        if (!nombre) { alert("El nombre es requerido"); return; }
 
+       const icono = document.getElementById('forja-icono').value.trim();
        const tipo = document.getElementById('forja-tipo').value;
        const costo = parseInt(document.getElementById('forja-costo').value) || 0;
        const usos = parseInt(document.getElementById('forja-usos').value) || 0;
        const desc = document.getElementById('forja-desc').value.trim();
 
-       const item = { nombre, tipo, costo, usos, descripcion: desc };
+       const item = { nombre, icono, tipo, costo, usos, descripcion: desc };
 
        db.ref(`campaña/base_datos_items/${nombre}`).set(item)
          .then(() => {
             alert('Ítem creado exitosamente');
-            // Limpiar form
             document.getElementById('forja-nombre').value = '';
+            document.getElementById('forja-icono').value = '';
             document.getElementById('forja-costo').value = '';
             document.getElementById('forja-usos').value = '';
             document.getElementById('forja-desc').value = '';
@@ -559,124 +850,174 @@
          .catch(e => alert('Error creando ítem: ' + e));
     });
 
-    const forjaLista = document.getElementById('forja-lista-items');
-    const selectItemTienda = document.getElementById('select-item-tienda');
-    let dbItemsCache = {}; // Cache for item selection
-
+    // RENDERIZAR ÍTEMS GLOBALES EN GRID
+    const gridItemsGlobales = document.getElementById('grid-items-globales');
     db.ref('campaña/base_datos_items').on('value', (snapshot) => {
-       forjaLista.innerHTML = '';
-       selectItemTienda.innerHTML = '<option value="">Selecciona un ítem...</option>';
+       gridItemsGlobales.innerHTML = '';
        const items = snapshot.val();
        dbItemsCache = items || {};
 
        if (items) {
           for (const [key, data] of Object.entries(items)) {
-             // Populate old forge list
-             const row = document.createElement('div');
-             row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 10px; border: 1px solid #333; border-radius: 4px;';
+             const card = document.createElement('div');
+             card.className = 'card-cyber card-item';
 
-             const info = document.createElement('div');
-             info.innerHTML = `<strong style="color:#c49a00;">${data.nombre}</strong> [${data.tipo}] - <span style="color:#0df;">${data.costo} Ahn</span>`;
-
-             const btnAñadir = document.createElement('button');
-             btnAñadir.innerText = 'Añadir a Tienda Actual';
-             btnAñadir.style.cssText = 'background: #004400; border: 1px solid #00ff00; color: white; padding: 5px 10px; border-radius: 3px; cursor: pointer;';
-             btnAñadir.onclick = () => {
-                db.ref(`campaña/tienda_actual/${data.nombre}`).set(data)
-                  .then(() => alert(`Añadido a tienda: ${data.nombre}`))
-                  .catch(e => alert('Error: ' + e));
-             };
-
-             row.appendChild(info);
-             row.appendChild(btnAñadir);
-             forjaLista.appendChild(row);
-
-             // Populate Add to Shop select
-             const opt = document.createElement('option');
-             opt.value = key;
-             opt.innerText = data.nombre;
-             selectItemTienda.appendChild(opt);
+             const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/00ddff?text=?';
+             card.innerHTML = `
+                <img src="${imgUrl}" alt="${data.nombre}">
+                <h5>${data.nombre}</h5>
+                <span>${data.tipo}</span>
+                <span style="color:#0df; font-weight:bold;">${data.costo} Ahn</span>
+             `;
+             gridItemsGlobales.appendChild(card);
           }
        } else {
-          forjaLista.innerHTML = '<span style="color: #888;">No hay ítems en la base de datos.</span>';
+          gridItemsGlobales.innerHTML = '<span style="color: #888;">No hay ítems registrados.</span>';
        }
     });
 
-    // Autofill cost when an item is selected
-    selectItemTienda.addEventListener('change', (e) => {
-        const selectedKey = e.target.value;
-        if (selectedKey && dbItemsCache[selectedKey]) {
-            document.getElementById('tienda-item-costo').value = dbItemsCache[selectedKey].costo;
-        } else {
-            document.getElementById('tienda-item-costo').value = '';
-        }
-    });
-
-    // --- GESTIÓN DE TIENDAS ---
-    const selectDestinoTienda = document.getElementById('select-destino-tienda');
-
-    db.ref('campaña/tiendas').on('value', (snapshot) => {
-        selectDestinoTienda.innerHTML = '<option value="">Selecciona una tienda...</option>';
-        const tiendas = snapshot.val();
-        if (tiendas) {
-            for (const [key, data] of Object.entries(tiendas)) {
-                const opt = document.createElement('option');
-                opt.value = key;
-                opt.innerText = data.nombre;
-                selectDestinoTienda.appendChild(opt);
-            }
-        }
-    });
-
+    // CREAR TIENDA
     document.getElementById('btn-crear-tienda').addEventListener('click', () => {
         const nombre = document.getElementById('tienda-nombre').value.trim();
+        const icono = document.getElementById('tienda-icono').value.trim();
         const diaRestock = document.getElementById('tienda-restock-dia').value;
 
         if (!nombre) { alert("El nombre de la tienda es requerido."); return; }
 
-        // Generate a URL-friendly ID for the node
         const idTienda = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
         db.ref(`campaña/tiendas/${idTienda}`).set({
             nombre: nombre,
+            icono: icono,
             dia_restock: diaRestock,
             items: {} // Empty initially
         }).then(() => {
             alert('Tienda creada exitosamente.');
             document.getElementById('tienda-nombre').value = '';
+            document.getElementById('tienda-icono').value = '';
         }).catch(e => alert('Error creando tienda: ' + e));
     });
 
-    document.getElementById('btn-anadir-item-tienda').addEventListener('click', () => {
-        const idTienda = document.getElementById('select-destino-tienda').value;
-        const nombreItem = document.getElementById('select-item-tienda').value; // Using name/key
-        const costo = parseInt(document.getElementById('tienda-item-costo').value);
-        const stockMax = parseInt(document.getElementById('tienda-item-stock').value) || -1;
+    // RENDERIZAR TIENDAS EN GRID
+    const gridTiendas = document.getElementById('grid-tiendas');
+    db.ref('campaña/tiendas').on('value', (snapshot) => {
+        gridTiendas.innerHTML = '';
+        const tiendas = snapshot.val();
 
-        if (!idTienda) { alert("Selecciona una tienda."); return; }
-        if (!nombreItem) { alert("Selecciona un ítem."); return; }
-        if (isNaN(costo)) { alert("El costo debe ser numérico."); return; }
+        if (tiendas) {
+            for (const [idTienda, data] of Object.entries(tiendas)) {
+                const card = document.createElement('div');
+                card.className = 'card-cyber card-store';
 
-        const itemData = dbItemsCache[nombreItem];
-        if (!itemData) { alert("Error buscando el ítem en la base de datos local."); return; }
+                const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/c49a00?text=$';
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="${data.nombre}">
+                    <h5 style="color:#c49a00;">${data.nombre}</h5>
+                    <span>Restock: ${data.dia_restock}</span>
+                `;
 
-        // Create full object for the shop combining base stats, price and stock logic
-        const shopItem = {
-            ...itemData, // Include nombre, tipo, usos, descripcion
-            costo: costo,
-            stock_maximo: stockMax,
-            stock_actual: stockMax
-        };
+                // Evento para abrir el Editor Interactivo
+                card.addEventListener('click', () => {
+                    abrirModalTienda(idTienda, data);
+                });
 
-        db.ref(`campaña/tiendas/${idTienda}/items/${nombreItem}`).set(shopItem)
+                gridTiendas.appendChild(card);
+            }
+        } else {
+            gridTiendas.innerHTML = '<span style="color: #888;">No hay tiendas creadas.</span>';
+        }
+    });
+
+    // --- LÓGICA DEL MODAL EDITOR DE TIENDAS ---
+    const modalEditar = document.getElementById('modal-editar-tienda');
+    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
+    const btnGuardarInventario = document.getElementById('btn-guardar-inventario');
+    const listaItemsModal = document.getElementById('modal-tienda-lista-items');
+
+    btnCerrarModal.addEventListener('click', () => {
+        modalEditar.style.display = 'none';
+        tiendaActualEditada = null;
+    });
+
+    function abrirModalTienda(idTienda, dataTienda) {
+        tiendaActualEditada = idTienda;
+        document.getElementById('modal-tienda-titulo').innerText = `Editando Tienda: ${dataTienda.nombre}`;
+
+        listaItemsModal.innerHTML = '';
+        const itemsTienda = dataTienda.items || {};
+
+        // Iterar sobre TODOS los ítems globales para mostrarlos
+        for (const [keyItem, dataGlobal] of Object.entries(dbItemsCache)) {
+            const itemEnTienda = itemsTienda[keyItem]; // Existe en la tienda?
+
+            const isChecked = itemEnTienda ? 'checked' : '';
+            const precioActual = itemEnTienda ? itemEnTienda.costo : dataGlobal.costo;
+            const stockActual = itemEnTienda ? itemEnTienda.stock_maximo : -1;
+
+            const row = document.createElement('div');
+            row.className = 'modal-item-row';
+            // Data attributes for easy saving
+            row.dataset.key = keyItem;
+
+            const imgUrl = dataGlobal.icono || 'https://via.placeholder.com/40/222222/00ddff?text=?';
+
+            row.innerHTML = `
+                <img src="${imgUrl}" alt="${dataGlobal.nombre}">
+                <div class="modal-item-info">
+                    <h5>${dataGlobal.nombre}</h5>
+                    <span>${dataGlobal.tipo}</span>
+                </div>
+                <div class="modal-item-inputs">
+                    <label style="font-size: 12px; color: #aaa;">Precio:</label>
+                    <input type="number" class="input-precio" value="${precioActual}">
+                    <label style="font-size: 12px; color: #aaa;">Stock:</label>
+                    <input type="number" class="input-stock" value="${stockActual}" title="-1 para infinito">
+                </div>
+                <label class="switch">
+                    <input type="checkbox" class="toggle-item" ${isChecked}>
+                    <span class="slider"></span>
+                </label>
+            `;
+
+            listaItemsModal.appendChild(row);
+        }
+
+        modalEditar.style.display = 'flex';
+    }
+
+    // GUARDAR INVENTARIO
+    btnGuardarInventario.addEventListener('click', () => {
+        if (!tiendaActualEditada) return;
+
+        const updates = {};
+        const filas = listaItemsModal.querySelectorAll('.modal-item-row');
+
+        filas.forEach(fila => {
+            const toggle = fila.querySelector('.toggle-item');
+            if (toggle.checked) {
+                const keyItem = fila.dataset.key;
+                const dataGlobal = dbItemsCache[keyItem];
+                const precio = parseInt(fila.querySelector('.input-precio').value) || dataGlobal.costo;
+                const stockMax = parseInt(fila.querySelector('.input-stock').value) || -1;
+
+                // Construir el objeto del ítem para la tienda
+                updates[keyItem] = {
+                    ...dataGlobal,
+                    costo: precio,
+                    stock_maximo: stockMax,
+                    stock_actual: stockMax // Se resetea al máximo al guardar
+                };
+            }
+        });
+
+        // Sobrescribir el nodo 'items' de la tienda con el nuevo objeto updates
+        db.ref(`campaña/tiendas/${tiendaActualEditada}/items`).set(updates)
             .then(() => {
-                alert(`Ítem '${nombreItem}' añadido a la tienda exitosamente.`);
-                // Reset inputs
-                document.getElementById('select-item-tienda').value = '';
-                document.getElementById('tienda-item-costo').value = '';
-                document.getElementById('tienda-item-stock').value = '-1';
+                alert('Inventario de la tienda actualizado exitosamente.');
+                modalEditar.style.display = 'none';
+                tiendaActualEditada = null;
             })
-            .catch(e => alert('Error añadiendo ítem a la tienda: ' + e));
+            .catch(e => alert('Error guardando inventario: ' + e));
     });
 
   </script>
