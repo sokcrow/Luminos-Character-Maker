@@ -10,9 +10,10 @@
       color: #fff;
       font-family: 'Share Tech Mono', monospace, sans-serif;
       display: flex;
-      justify-content: center;
       align-items: center;
-      height: 100vh;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 40px 0;
       margin: 0;
     }
     #dm-time-panel {
@@ -107,6 +108,36 @@
     </div>
 
     <button id="btn-forzar-estado" style="padding: 10px 20px; font-size: 16px; margin-top: 10px; background: #8b0000; border-color: #ff0000; color: white;">FORZAR ESTADO EN FIREBASE</button>
+  </div>
+
+
+  <div id="dm-banco-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
+    <h3 style="margin: 0; color: #0df;">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
+    <div id="banco-jugadores-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%;">
+      <!-- Tarjetas de jugadores generadas por JS -->
+    </div>
+  </div>
+
+  <div id="dm-forja-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
+    <h3 style="margin: 0; color: #c49a00;">ZONA B: LA FORJA Y EL MERCADO</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px;">
+      <input type="text" id="forja-nombre" placeholder="Nombre del Ítem" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
+      <select id="forja-tipo" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;">
+        <option value="Arma">Arma</option>
+        <option value="Armadura">Armadura</option>
+        <option value="Consumible">Consumible</option>
+        <option value="Clave">Clave</option>
+      </select>
+      <input type="number" id="forja-costo" placeholder="Costo en Ahn" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
+      <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444;" />
+      <textarea id="forja-desc" placeholder="Descripción" rows="3" style="padding: 10px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444; resize: vertical;"></textarea>
+      <button id="btn-crear-item" style="padding: 10px 20px; font-size: 16px; background: #8b0000; border-color: #ff0000; color: white; cursor: pointer; border-radius: 4px;">Crear Ítem Global</button>
+    </div>
+
+    <h4 style="color: #fff; border-bottom: 1px solid #444; width: 100%; padding-bottom: 5px; margin-top: 20px;">Base de Datos de Ítems</h4>
+    <div id="forja-lista-items" style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
+      <!-- Lista de ítems generada por JS -->
+    </div>
   </div>
 
   <!-- Firebase App (núcleo) -->
@@ -360,6 +391,104 @@
           alert('Error al forzar calendario.');
         });
     });
+
+    // --- ZONA A: RED BANCARIA ---
+    const bancoContainer = document.getElementById('banco-jugadores-container');
+
+    db.ref('campaña/jugadores/').on('value', (snapshot) => {
+      bancoContainer.innerHTML = '';
+      const jugadores = snapshot.val();
+
+      if (jugadores) {
+        for (const [nombre, data] of Object.entries(jugadores)) {
+          const tarjeta = document.createElement('div');
+          tarjeta.style.cssText = 'background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px;';
+
+          const title = document.createElement('strong');
+          title.style.color = '#fff';
+          title.innerText = nombre;
+
+          const inputAhn = document.createElement('input');
+          inputAhn.type = 'number';
+          inputAhn.value = data.ahn || 0;
+          inputAhn.style.cssText = 'padding: 5px; width: 80%; text-align: center; background: #111; color: #0df; border: 1px solid #c49a00; border-radius: 3px; font-size: 16px; font-weight: bold;';
+
+          const btnForzar = document.createElement('button');
+          btnForzar.innerText = 'Forzar Transacción';
+          btnForzar.style.cssText = 'background: #8b0000; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; width: 100%;';
+          btnForzar.onclick = () => {
+             const nuevoAhn = parseInt(inputAhn.value) || 0;
+             db.ref(`campaña/jugadores/${nombre}`).update({ ahn: nuevoAhn })
+               .then(() => alert(`Ahn actualizado para ${nombre}`))
+               .catch(e => alert('Error: ' + e));
+          };
+
+          tarjeta.appendChild(title);
+          tarjeta.appendChild(inputAhn);
+          tarjeta.appendChild(btnForzar);
+          bancoContainer.appendChild(tarjeta);
+        }
+      } else {
+        bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
+      }
+    });
+
+
+    // --- ZONA B: LA FORJA Y EL MERCADO ---
+    document.getElementById('btn-crear-item').addEventListener('click', () => {
+       const nombre = document.getElementById('forja-nombre').value.trim();
+       if (!nombre) { alert("El nombre es requerido"); return; }
+
+       const tipo = document.getElementById('forja-tipo').value;
+       const costo = parseInt(document.getElementById('forja-costo').value) || 0;
+       const usos = parseInt(document.getElementById('forja-usos').value) || 0;
+       const desc = document.getElementById('forja-desc').value.trim();
+
+       const item = { nombre, tipo, costo, usos, descripcion: desc };
+
+       db.ref(`campaña/base_datos_items/${nombre}`).set(item)
+         .then(() => {
+            alert('Ítem creado exitosamente');
+            // Limpiar form
+            document.getElementById('forja-nombre').value = '';
+            document.getElementById('forja-costo').value = '';
+            document.getElementById('forja-usos').value = '';
+            document.getElementById('forja-desc').value = '';
+         })
+         .catch(e => alert('Error creando ítem: ' + e));
+    });
+
+    const forjaLista = document.getElementById('forja-lista-items');
+    db.ref('campaña/base_datos_items').on('value', (snapshot) => {
+       forjaLista.innerHTML = '';
+       const items = snapshot.val();
+
+       if (items) {
+          for (const [key, data] of Object.entries(items)) {
+             const row = document.createElement('div');
+             row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 10px; border: 1px solid #333; border-radius: 4px;';
+
+             const info = document.createElement('div');
+             info.innerHTML = `<strong style="color:#c49a00;">${data.nombre}</strong> [${data.tipo}] - <span style="color:#0df;">${data.costo} Ahn</span>`;
+
+             const btnAñadir = document.createElement('button');
+             btnAñadir.innerText = 'Añadir a Tienda Actual';
+             btnAñadir.style.cssText = 'background: #004400; border: 1px solid #00ff00; color: white; padding: 5px 10px; border-radius: 3px; cursor: pointer;';
+             btnAñadir.onclick = () => {
+                db.ref(`campaña/tienda_actual/${data.nombre}`).set(data)
+                  .then(() => alert(`Añadido a tienda: ${data.nombre}`))
+                  .catch(e => alert('Error: ' + e));
+             };
+
+             row.appendChild(info);
+             row.appendChild(btnAñadir);
+             forjaLista.appendChild(row);
+          }
+       } else {
+          forjaLista.innerHTML = '<span style="color: #888;">No hay ítems en la base de datos.</span>';
+       }
+    });
+
   </script>
 
 </body>

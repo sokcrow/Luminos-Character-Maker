@@ -3600,6 +3600,7 @@
             probsContainer.appendChild(span);
           }
         }
+
       } else {
         // Fallback clear
         const probsContainer = document.getElementById('dynamic-forecast-probs');
@@ -3607,6 +3608,62 @@
       }
     }
   });
+
+  // --- SINCRONIZACIÓN FANTASMA (Fase 4.2) ---
+  let currentPlayerName = null;
+  let isUpdatingFromFirebase = false;
+
+  setInterval(() => {
+    const nameInput = document.querySelector('input[name="attr_character_name"]');
+    const ahnInput = document.querySelector('input[name="attr_ahn"]');
+
+    if (nameInput && ahnInput) {
+      const currentName = nameInput.value.trim();
+      const currentAhn = parseInt(ahnInput.value) || 0;
+
+      if (currentName !== "") {
+        if (currentName !== currentPlayerName) {
+          if (currentPlayerName) {
+            db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).off();
+          }
+
+          currentPlayerName = currentName;
+
+          db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).on('value', (snapshot) => {
+            const remoteAhn = snapshot.val();
+            if (remoteAhn !== null && remoteAhn !== undefined) {
+              const localAhn = parseInt(document.querySelector('input[name="attr_ahn"]').value) || 0;
+              if (remoteAhn !== localAhn) {
+                isUpdatingFromFirebase = true;
+                window._lastSentAhn = remoteAhn; // Prevent redundant push back to Firebase
+                if (window.setAttrs) {
+                   window.setAttrs({ ahn: remoteAhn }, () => {
+                       setTimeout(() => { isUpdatingFromFirebase = false; }, 500);
+                   });
+                } else {
+                   // Fallback for vanilla JS if setAttrs is not injected
+                   const inputs = document.querySelectorAll('input[name="attr_ahn"]');
+                   inputs.forEach(el => el.value = remoteAhn);
+                   // Also update display spans if any
+                   const displays = document.querySelectorAll('span[name="attr_ahn_display"]');
+                   displays.forEach(el => el.innerText = remoteAhn.toLocaleString('en-US'));
+                   setTimeout(() => { isUpdatingFromFirebase = false; }, 500);
+                }
+              }
+            }
+          });
+        }
+
+        if (currentPlayerName && !isUpdatingFromFirebase) {
+          if (window._lastSentAhn !== currentAhn) {
+             window._lastSentAhn = currentAhn;
+             db.ref(`campaña/jugadores/${currentPlayerName}`).update({ ahn: currentAhn });
+          }
+        }
+      }
+    }
+  }, 1000);
+
 </script>
 
 <script src="hoja_personaje.js"></script>
