@@ -477,6 +477,44 @@
         });
 
         window.addEventListener('DOMContentLoaded', () => {
+    // --- HUD Modals Logic ---
+    const hudBtns = document.querySelectorAll('.btn-hud');
+    const hudModals = document.querySelectorAll('.custom-hud-modal');
+    const hudCloseBtns = document.querySelectorAll('.inventory-modal-close');
+
+    hudBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const targetModal = document.getElementById(targetId);
+            if (targetModal) {
+                targetModal.classList.add('active');
+            }
+        });
+    });
+
+    hudCloseBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modalId = btn.getAttribute('data-modal');
+            if (modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) modal.classList.remove('active');
+            } else {
+                // Fallback for inventory modal
+                const modal = btn.closest('.inventory-modal');
+                if (modal) modal.classList.remove('active');
+            }
+        });
+    });
+
+    // Close modals on clicking outside content
+    hudModals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+
             // Toggle Phone Logic
             const toggleBtn = document.getElementById('btn-toggle-phone');
             const phoneWrapper = document.querySelector('.sheet-phone-wrapper');
@@ -2229,7 +2267,7 @@ try {
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+const tabs = ['home', 'contratos', 'codex', 'mapa', 'notas', 'banco', 'parts', 'profile', 'vitals', 'settings'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
