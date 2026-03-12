@@ -464,6 +464,20 @@
     </div>
   </div>
 
+  <!-- NUEVO DASHBOARD: TERMINAL DE COMUNICACIONES -->
+  <div id="dashboard-comunicaciones" class="panel-cyber" style="margin-top: 20px;">
+    <h3>Terminal de Comunicaciones</h3>
+    <div class="form-cyber-container">
+      <div class="form-cyber" style="width: 100%; max-width: 600px;">
+        <select id="comms-jugador"><option value="">Selecciona Jugador...</option></select>
+        <input type="text" id="comms-remitente" placeholder="Remitente (Ej: L-Corp RRHH)" />
+        <input type="text" id="comms-asunto" placeholder="Asunto" />
+        <textarea id="comms-mensaje" placeholder="Mensaje..." style="height: 150px; resize: vertical;"></textarea>
+        <button id="btn-enviar-mail">Enviar Transmisión</button>
+      </div>
+    </div>
+  </div>
+
   <!-- NUEVO DASHBOARD: ZONA DE FORJA Y MERCADO -->
   <div id="dashboard-mercado" class="panel-cyber">
     <h3>Dashboard: Forja y Mercado</h3>
@@ -877,9 +891,49 @@
           tarjeta.appendChild(btnForzar);
           bancoContainer.appendChild(tarjeta);
         }
+
+        // --- Populate Terminal de Comunicaciones Select ---
+        const commsJugadorSelect = document.getElementById('comms-jugador');
+        if (commsJugadorSelect) {
+            commsJugadorSelect.innerHTML = '<option value="">Selecciona Jugador...</option>';
+            for (const nombre of Object.keys(jugadores)) {
+                const option = document.createElement('option');
+                option.value = nombre;
+                option.textContent = nombre;
+                commsJugadorSelect.appendChild(option);
+            }
+        }
       } else {
         bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
       }
+    });
+
+    // --- TERMINAL DE COMUNICACIONES LOGIC ---
+    document.getElementById('btn-enviar-mail').addEventListener('click', () => {
+        const jugador = document.getElementById('comms-jugador').value;
+        const remitente = document.getElementById('comms-remitente').value.trim();
+        const asunto = document.getElementById('comms-asunto').value.trim();
+        const mensaje = document.getElementById('comms-mensaje').value.trim();
+
+        if(!jugador || !remitente || !asunto || !mensaje) {
+            alert('Completa todos los campos para enviar la transmisión.');
+            return;
+        }
+
+        db.ref(`campaña/jugadores/${jugador}/correos`).push({
+            remitente: remitente,
+            asunto: asunto,
+            mensaje: mensaje,
+            fecha: Date.now(),
+            leido: false
+        }).then(() => {
+            document.getElementById('comms-asunto').value = '';
+            document.getElementById('comms-mensaje').value = '';
+            alert(`Transmisión enviada a ${jugador} exitosamente.`);
+        }).catch((err) => {
+            console.error("Error al enviar correo: ", err);
+            alert("Hubo un error al enviar el correo.");
+        });
     });
 
     document.getElementById('btn-ejecutar-tx').addEventListener('click', () => {

@@ -2229,7 +2229,7 @@ try {
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings'];
+const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
@@ -2240,6 +2240,51 @@ tabs.forEach(tab => {
 
 // --- Inventory Modal Logic ---
 window.addEventListener('DOMContentLoaded', () => {
+    // Mail Tab Logic
+    let mailListenerActive = false;
+    const mailTabBtn = document.querySelector('button[name="act_tab_mail"]');
+    if (mailTabBtn) {
+        mailTabBtn.addEventListener('click', () => {
+            if (mailListenerActive) return;
+            mailListenerActive = true;
+
+            const charNameInput = document.querySelector('input[name="attr_character_name"]');
+            const playerName = charNameInput ? charNameInput.value.trim() : "";
+            if (!playerName) return;
+
+            db.ref(`campaña/jugadores/${playerName}/correos`).on('value', snapshot => {
+                const correos = [];
+                snapshot.forEach(child => {
+                    correos.push({ id: child.key, ...child.val() });
+                });
+
+                // Sort newest to oldest
+                correos.sort((a, b) => b.fecha - a.fecha);
+
+                const inboxList = document.querySelector('.mail-inbox-list');
+                const readArea = document.querySelector('.mail-read-area');
+                if (!inboxList || !readArea) return;
+
+                inboxList.innerHTML = '';
+                correos.forEach(correo => {
+                    const item = document.createElement('div');
+                    item.className = `mail-item ${correo.leido ? '' : 'unread'}`;
+                    item.innerHTML = `<strong>${correo.asunto}</strong><br><small>${correo.remitente}</small>`;
+
+                    item.addEventListener('click', () => {
+                        readArea.innerHTML = `<h3>${correo.asunto}</h3><h4>De: ${correo.remitente}</h4><hr><p style="white-space: pre-wrap;">${correo.mensaje}</p>`;
+                        item.classList.remove('unread');
+
+                        // Mark as read in Firebase so it persists
+                        db.ref(`campaña/jugadores/${playerName}/correos/${correo.id}`).update({ leido: true });
+                    });
+
+                    inboxList.appendChild(item);
+                });
+            });
+        });
+    }
+
     const invBtn = document.getElementById('btn-global-inventory');
     const invModal = document.getElementById('inventory-modal');
     const invClose = document.getElementById('inventory-modal-close');
