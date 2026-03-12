@@ -372,6 +372,30 @@
             animation: textFadeIn 2s forwards ease-in-out;
         }
 
+        .text-dothy {
+            color: #44ff44;
+            font-size: 2.5rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(68, 255, 68, 0.8);
+            z-index: 10;
+            padding: 20px;
+            max-width: 80%;
+            opacity: 0;
+            animation: textFadeIn 2s forwards ease-in-out;
+        }
+
+        .text-midra {
+            color: #aaffff;
+            font-size: 2.5rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(170, 255, 255, 0.8);
+            z-index: 10;
+            padding: 20px;
+            max-width: 80%;
+            opacity: 0;
+            animation: textFadeIn 2s forwards ease-in-out;
+        }
+
         @keyframes textFadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -4343,6 +4367,76 @@
             critica: { label: 'Crítica', val: -3, class: 'stat-val-neg' }
         };
 
+        const dothyResponses = {
+            origenes: {
+                "humano": "La humanidad siempre es un buen lienzo...",
+                "humano_mutante": "Interesante... el cambio es parte de la evolución.",
+                "humano_cyborg": "Metal y carne unidos... una combinación muy peculiar.",
+                "tiefling": "Un legado del inframundo. No te preocupes, aquí no juzgamos a nadie.",
+                "warforged": "Un alma forjada en acero. Eres alguien bastante especial.",
+                "felinae": "Agilidad y gracia... siempre viene bien en estos rumbos.",
+                "semi_dragon": "Sangre antigua y poderosa. Una elección formidable.",
+                "lupae": "Un espíritu salvaje. La lealtad será tu mayor fuerza.",
+                "moonfae": "Magia y misterio de la luna. Será fascinante verte en acción.",
+                "undae": "El fluir del agua en tu interior... muy refrescante.",
+                "elnae": "Ligeros como el viento. Tu perspectiva será de gran ayuda.",
+                "yuanti_pura_sangre": "Una herencia venenosa, pero muy intrigante. Me agrada.",
+                "lanae": "Una fortaleza nacida en las montañas. Impresionante.",
+                "tsune": "Astucia e ilusiones... esto será muy divertido."
+            },
+            trasfondos: {
+                "alta_cuna": "Ah, una vida de comodidades... veamos cómo te adaptas aquí.",
+                "aristocracia_mercantil": "Los negocios son importantes, el trueque siempre abre puertas.",
+                "nobleza_caida": "Las caídas son duras, pero siempre se puede volver a brillar.",
+                "cuna_de_eruditos": "El conocimiento es poder, y tú tienes mucho potencial.",
+                "linaje_militar": "Disciplina y honor... valores muy útiles en esta ciudad.",
+                "familia_de_granjeros": "El trabajo duro forja el carácter. Admiro tu persistencia.",
+                "artesano_independiente": "La creatividad es una herramienta maravillosa.",
+                "fuerzas_de_seguridad": "Conoces el orden desde adentro, eso te dará ventaja.",
+                "burocracia_menor": "Paciencia y detalle... habilidades muy infravaloradas.",
+                "huerfano_callejero": "La calle te enseñó a sobrevivir, y eso no se olvida.",
+                "escoria_criminal": "A veces hay que romper las reglas para avanzar.",
+                "exiliado_proscrito": "Un lobo solitario... pero quizás aquí encuentres una manada.",
+                "esclavo_liberado": "La libertad es invaluable. Me alegra que la tengas.",
+                "experimento_fallido": "Las cicatrices son solo muestra de que sobreviviste.",
+                "academico_desacreditado": "A veces la verdad es incómoda. Aquí podrás usarla.",
+                "siervo_corporativo": "Conoces los engranajes de la máquina. Eres muy valioso.",
+                "deudor_vitalicio": "Una carga pesada... pero te prometo que te ayudaré a aliviarla.",
+                "miembro_culto": "La fe mueve montañas, aunque a veces las direcciones cambien."
+            },
+            profesiones: {
+                "medico_cirujano": "La curación es un arte noble... y muy solicitado.",
+                "ingeniero_mecanico": "Construir y reparar... siempre necesitamos a alguien así.",
+                "erudito_academico": "Siempre es bueno tener a alguien que entienda los misterios.",
+                "abogado_burocrata": "Las palabras pueden ser armas más afiladas que las espadas.",
+                "chef_gastronomico": "¡Oh! Una buena comida siempre levanta el ánimo.",
+                "herrero_armero": "La forja es el corazón de la defensa. Excelente elección.",
+                "boticario_alquimista": "Pociones y remedios... un conocimiento muy práctico.",
+                "sastre_tejedor": "El estilo y la protección pueden ir de la mano.",
+                "ladron_de_guante_blanco": "Silencio y elegancia. Serás muy útil en las sombras.",
+                "contrabandista_traficante": "Saber mover cosas siempre tiene su valor.",
+                "cazarrecompensas_rastreador": "Un cazador siempre encuentra su presa. Impresionante.",
+                "informante_espia": "Los secretos son la verdadera moneda de este mundo.",
+                "musico_artista": "El arte y la música alegran incluso los corazones más oscuros.",
+                "clerigo_fanatico": "La devoción te guiará cuando la oscuridad intente cegarte.",
+                "guardia_soldado": "Firmeza y vigilancia. Eres un pilar seguro."
+            },
+            psicologia: {
+                "el_apostador": "El riesgo es parte de la vida, solo intenta no perderlo todo.",
+                "el_inestable": "Tus emociones son intensas, pero te ayudarán a sentirte vivo.",
+                "el_ex_soldado": "El campo de batalla forjó tu mente. Tu experiencia es invaluable.",
+                "el_paria": "A veces sentirse fuera de lugar es el primer paso para encontrarse.",
+                "el_atormentado": "Lidiar con los recuerdos no es fácil, pero aquí estarás a salvo.",
+                "el_trasgresor": "Todos cruzamos líneas alguna vez. Lo importante es qué hacemos después.",
+                "el_caido": "La altura da vértigo, pero te enseñó mucho antes de caer.",
+                "la_herramienta_rota": "Quizás solo necesitas un nuevo propósito, y yo te ayudaré a encontrarlo.",
+                "el_aspirante": "La ambición te llevará lejos, siempre y cuando no te consuma.",
+                "el_archivista": "Tu mente es un tesoro de información.",
+                "el_artesano": "Entender cómo funcionan las cosas te da una ventaja única.",
+                "el_residente": "La paciencia y la observación son virtudes que pocos tienen."
+            }
+        };
+
         // 4. Estado Global
         const luminousState = {
             characterName: null,
@@ -4359,7 +4453,11 @@
             hpCoef: null,
             modifiers: {}, // Mods de atributos (Vigor, etc.)
             humanPerks: [],
-            baseStats: { cuerpo: 0, mente: 0, alma: 0 } // Stats principales
+            baseStats: { cuerpo: 0, mente: 0, alma: 0 }, // Stats principales
+            activeEntity: 'golden',
+            midraAttempts: 0,
+            dothyBlessing: false,
+            midraAmulet: false
         };
 
         function renderOrigins() {
@@ -4857,14 +4955,12 @@
             let typingTimeout;
             let characterName = "";
 
-            const introDialogues = [
-                "Vaya...",
-                "No esperaba a nadie...",
-                "Aún...",
-                "Debes estar algo inquieto...",
-                "¿Cómo te llamas?",
-                "Lastima...",
-                "No lo recordarás si sigues avanzando..."
+            const introPhrases = [
+                "Vaya..",
+                "no esperaba a nadie...",
+                "Aún..",
+                "Debes estar inquieto...",
+                "¿Cómo te llamas?"
             ];
 
             function typeIntroText(htmlText) {
@@ -4886,9 +4982,6 @@
                         if (introStep === 4) { // ¿Cómo te llamas?
                             nameInputContainer.classList.remove('hidden');
                             characterNameInput.focus();
-                        }
-                        if (introStep === 6) { // Last one before transition
-                            finishIntroPhase();
                         }
                         return;
                     }
@@ -4940,25 +5033,20 @@
 
                 // If we are waiting for name input, don't advance on click
                 if (introStep === 4 && !isIntroTyping) return;
-                // If we are at the last step, the transition handles itself
-                if (introStep === 6) return;
 
                 if (isIntroTyping) {
                     clearTimeout(typingTimeout);
-                    introDialogueText.innerHTML = introDialogues[introStep];
+                    introDialogueText.innerHTML = introPhrases[introStep];
                     isIntroTyping = false;
 
                     if (introStep === 4) {
                         nameInputContainer.classList.remove('hidden');
                         characterNameInput.focus();
                     }
-                    if (introStep === 6) {
-                        finishIntroPhase();
-                    }
                 } else {
                     introStep++;
-                    if (introStep < introDialogues.length) {
-                        typeIntroText(introDialogues[introStep]);
+                    if (introStep < introPhrases.length) {
+                        typeIntroText(introPhrases[introStep]);
                     }
                 }
             }
@@ -4970,14 +5058,99 @@
             nameInputContainer.addEventListener('click', (e) => e.stopPropagation());
             nameInputContainer.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
 
+            function typeSequence(phrases, cssClass, callback) {
+                introDialogueText.innerHTML = "";
+                introDialogueText.className = cssClass; // apply the required text class
+                let seqStep = 0;
+                let seqTyping = false;
+                let seqTimeout;
+
+                function typeNextPhrase(text) {
+                    introDialogueText.innerHTML = "";
+                    seqTyping = true;
+                    let charIndex = 0;
+
+                    function typeNextChar() {
+                        if (charIndex < text.length) {
+                            introDialogueText.innerHTML += text.charAt(charIndex);
+                            charIndex++;
+                            seqTimeout = setTimeout(typeNextChar, 50);
+                        } else {
+                            seqTyping = false;
+                        }
+                    }
+                    typeNextChar();
+                }
+
+                function advanceSequence(e) {
+                    if (e && e.type === 'touchstart') e.preventDefault();
+                    if (seqTyping) {
+                        clearTimeout(seqTimeout);
+                        introDialogueText.innerHTML = phrases[seqStep];
+                        seqTyping = false;
+                    } else {
+                        seqStep++;
+                        if (seqStep < phrases.length) {
+                            typeNextPhrase(phrases[seqStep]);
+                        } else {
+                            phaseIntro.removeEventListener('click', advanceSequence);
+                            phaseIntro.removeEventListener('touchstart', advanceSequence);
+                            callback();
+                        }
+                    }
+                }
+
+                // Temporarily replace the main event listener
+                phaseIntro.removeEventListener('click', handleIntroAdvance);
+                phaseIntro.removeEventListener('touchstart', handleIntroAdvance);
+
+                phaseIntro.addEventListener('click', advanceSequence);
+                phaseIntro.addEventListener('touchstart', advanceSequence, {passive: false});
+
+                typeNextPhrase(phrases[seqStep]);
+            }
+
             confirmNameBtn.addEventListener('click', () => {
                 const name = characterNameInput.value.trim();
-                if (name) {
+                if (!name) return;
+
+                const nameLower = name.toLowerCase();
+                const group1 = ['pierre', 'calipsys', 'jeske', 'dalzay', 'ishamon', 'angelo', 'agatha'];
+                const group2 = ['shajady', 'lysbe', 'annelize', 'so', 'lyon', 'aubellyon', 'xae', 'xaelunyar'];
+
+                if (group1.includes(nameLower)) {
+                    characterNameInput.value = '';
+                    nameInputContainer.classList.add('hidden');
+                    const phrases = ["No comas ansias...", "Tal vez me explique mal...", "No busco a quien representas", "Aún...", "Solo quisiera saber...", "Que esencia es la que está aquí..."];
+                    typeSequence(phrases, 'golden-text', () => {
+                        // Restore intro state
+                        introDialogueText.className = 'golden-text';
+                        introDialogueText.innerHTML = introPhrases[introStep];
+                        nameInputContainer.classList.remove('hidden');
+                        phaseIntro.addEventListener('click', handleIntroAdvance);
+                        phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                    });
+                } else if (group2.includes(nameLower)) {
+                    luminousState.activeEntity = 'dothy';
+                    luminousState.dothyBlessing = true;
+                    nameInputContainer.classList.add('hidden');
+                    // Hide golden glow
+                    const glow = phaseIntro.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+
+                    const phrases = ["¿Tal vez te cansaste de perseguir dragones y magos?...", "Intentas escapar de la Asension...", "Pero ambos sabemos que esta realidad solo será un descanso...", "No te preocupes te Guiare por este camino...", "Y Sembrare la Bases para encontrarnos...", "¿Mi Nombre?", "Ah.", "Soy Dothy...", "Tal vez aun no signifique nada para ti", "Pero en el futuro...", "Estoy segura que nos encontraremos..."];
+                    typeSequence(phrases, 'text-dothy', () => {
+                        // Note: characterName is assigned at the very end
+                        luminousState.characterName = name;
+                        characterName = name;
+                        nameInputContainer.classList.add('hidden');
+                        finishIntroPhase();
+                    });
+                } else {
                     luminousState.characterName = name;
                     characterName = name;
                     nameInputContainer.classList.add('hidden');
-                    introStep++;
-                    typeIntroText(introDialogues[introStep]);
+                    finishIntroPhase();
                 }
             });
 
@@ -5001,7 +5174,7 @@
                 phaseIntro.classList.remove('hidden');
 
                 // Aquí invocas la función de tipeo de la entidad dorada que ya tienes
-                typeIntroText(introDialogues[introStep]);
+                typeIntroText(introPhrases[introStep]);
             }
 
 
@@ -5010,7 +5183,7 @@
             const dialogueText = document.getElementById('dialogue-text');
 
             let currentDialogueStep = 0;
-            const dialogues = [
+            let dialogues = [
                 "Interesante...",
                 "Te he observado por un tiempo...",
                 "Tal vez sea interesante..."
@@ -5023,6 +5196,15 @@
 
             btnConfirmarOrigen.addEventListener('click', () => {
                 if (btnConfirmarOrigen.disabled) return;
+
+                if (luminousState.activeEntity === 'dothy' && luminousState.originId) {
+                    const reaction = dothyResponses.origenes[luminousState.originId] || "Tienes potencial...";
+                    dialogues = [
+                        reaction,
+                        "Me intriga...",
+                        "Veamos qué más hay en ti..."
+                    ];
+                }
 
                 // Transition to Phase 2 (Black screen + first dialogue)
                 phase1.classList.add('fade-out');
@@ -5090,11 +5272,21 @@
                 const selectedBg = backgroundsData.find(bg => bg.id === luminousState.backgroundId);
                 const responseText = selectedBg ? selectedBg.entityResponse : "...";
 
-                dialogue2Phrases = [
-                    responseText,
-                    "Ya veo...",
-                    "¿Qué nombre te dieron?"
-                ];
+                if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.trasfondos[luminousState.backgroundId] || "Interesante elección...";
+                    dialogue2Phrases = [
+                        reaction,
+                        "Es fascinante ver de dónde vienes.",
+                        "¿Y cómo te haces llamar?"
+                    ];
+                } else {
+                    dialogue2Phrases = [
+                        responseText,
+                        "Ya veo...",
+                        "¿Qué nombre te dieron?"
+                    ];
+                }
+
                 dialogue2Step = 0;
 
                 // Transition to Phase Dialogue 2
@@ -5111,6 +5303,18 @@
             });
 
             function typeDialogue2(text) {
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogueText2.className = 'text-dothy';
+                    const glow = phaseDialogue2.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogueText2.className = 'text-midra';
+                    const glow = phaseDialogue2.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    dialogueText2.className = 'golden-text';
+                }
+
                 dialogueText2.innerHTML = "";
                 isTypingDialogue2 = true;
                 let charIndex = 0;
@@ -5159,24 +5363,107 @@
             nameInputContainer2.addEventListener('click', (e) => e.stopPropagation());
             nameInputContainer2.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
 
+            function typeSequence2(phrases, cssClass, callback) {
+                dialogueText2.innerHTML = "";
+                dialogueText2.className = cssClass;
+                let seqStep = 0;
+                let seqTyping = false;
+                let seqTimeout;
+
+                function typeNextPhrase(text) {
+                    dialogueText2.innerHTML = "";
+                    seqTyping = true;
+                    let charIndex = 0;
+
+                    function typeNextChar() {
+                        if (charIndex < text.length) {
+                            dialogueText2.innerHTML += text.charAt(charIndex);
+                            charIndex++;
+                            seqTimeout = setTimeout(typeNextChar, 50);
+                        } else {
+                            seqTyping = false;
+                        }
+                    }
+                    typeNextChar();
+                }
+
+                function advanceSequence(e) {
+                    if (e && e.type === 'touchstart') e.preventDefault();
+                    if (seqTyping) {
+                        clearTimeout(seqTimeout);
+                        dialogueText2.innerHTML = phrases[seqStep];
+                        seqTyping = false;
+                    } else {
+                        seqStep++;
+                        if (seqStep < phrases.length) {
+                            typeNextPhrase(phrases[seqStep]);
+                        } else {
+                            phaseDialogue2.removeEventListener('click', advanceSequence);
+                            phaseDialogue2.removeEventListener('touchstart', advanceSequence);
+                            callback();
+                        }
+                    }
+                }
+
+                // Temporarily replace the main event listener
+                phaseDialogue2.removeEventListener('click', handleDialogue2Advance);
+                phaseDialogue2.removeEventListener('touchstart', handleDialogue2Advance);
+
+                phaseDialogue2.addEventListener('click', advanceSequence);
+                phaseDialogue2.addEventListener('touchstart', advanceSequence, {passive: false});
+
+                typeNextPhrase(phrases[seqStep]);
+            }
+
             confirmNameBtn2.addEventListener('click', () => {
                 const name = characterNameInput2.value.trim();
                 if (!name) return;
 
                 if (name.toLowerCase() === "midra") {
-                    // Trap triggered
-                    document.body.classList.add('shake');
-                    setTimeout(() => document.body.classList.remove('shake'), 500);
-                    characterNameInput2.value = "";
+                    luminousState.midraAttempts += 1;
+                    if (luminousState.midraAttempts < 5) {
+                        characterNameInput2.value = '';
+                        nameInputContainer2.classList.add('hidden');
+                        const glow = phaseDialogue2.querySelector('.background-glow');
+                        if (glow) glow.style.display = 'none';
 
-                    const randomResponse = nameTrapResponses[Math.floor(Math.random() * nameTrapResponses.length)];
-                    dialogueText2.innerHTML = randomResponse;
-                    nameInputContainer2.classList.add('hidden');
+                        // Show temporary warning
+                        const phrases = ["...", "Mi maestro está indispuesto.", "Pero yo tengo el poder suficiente para ayudar..."];
+                        typeSequence2(phrases, 'text-dothy', () => {
+                            if (glow && luminousState.activeEntity === 'golden') glow.style.display = '';
 
-                    // After short delay, ask again
-                    setTimeout(() => {
-                        typeDialogue2(dialogue2Phrases[2]); // "¿Qué nombre te dieron?"
-                    }, 2000);
+                            if (luminousState.activeEntity === 'dothy') {
+                                dialogueText2.className = 'text-dothy';
+                            } else {
+                                dialogueText2.className = 'golden-text';
+                            }
+
+                            dialogueText2.innerHTML = dialogue2Phrases[2];
+                            nameInputContainer2.classList.remove('hidden');
+
+                            // Restore main listener
+                            phaseDialogue2.addEventListener('click', handleDialogue2Advance);
+                            phaseDialogue2.addEventListener('touchstart', handleDialogue2Advance, {passive: false});
+                        });
+                    } else {
+                        luminousState.activeEntity = 'midra';
+                        luminousState.midraAmulet = true;
+                        nameInputContainer2.classList.add('hidden');
+                        const glow = phaseDialogue2.querySelector('.background-glow');
+                        if (glow) glow.style.display = 'none';
+
+                        const phrases = ["...", "Veo que siguen igual de necios...", "Es bueno verlos, viejos amigos.", "Aunque sea en esta extraña realidad.", "Fui borrado de ese mundo, pero mi esencia en Ox los recuerda.", "Les dejo esto para el camino. Sobrevivan."];
+                        typeSequence2(phrases, 'text-midra', () => {
+                            luminousState.characterName = "Midra"; // Assign name Midra explicitly
+                            characterName = "Midra";
+                            phaseDialogue2.classList.add('fade-out');
+                            setTimeout(() => {
+                                phaseDialogue2.classList.add('hidden');
+                                phaseDialogue2.classList.remove('fade-out');
+                                startPurpleIntervention();
+                            }, 1500);
+                        });
+                    }
                 } else {
                     // Valid name
                     luminousState.characterName = name;
@@ -5202,6 +5489,19 @@
             });
 
             function showDialogue(step) {
+                const dialogueContainer = document.getElementById('phase-dialogue');
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogueText.className = 'text-dothy';
+                    const glow = dialogueContainer.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogueText.className = 'text-midra';
+                    const glow = dialogueContainer.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    dialogueText.className = 'golden-text';
+                }
+
                 // Remove animation to re-trigger it
                 dialogueText.style.animation = 'none';
                 dialogueText.offsetHeight; /* trigger reflow */
@@ -5222,7 +5522,7 @@
             let purplePhaseState = 0; // 0: initial, 1: focus selected, 2: skill selected, 3: reading final
             let primaryFocus = "";
 
-            const pIntervPhrases = [
+            let pIntervPhrases = [
                 "Perdió el interés en ti.",
                 "De momento. Eso nos da algo de tiempo.",
                 "Veo que has crecido...",
@@ -5274,7 +5574,7 @@
                 }
             };
 
-            const finalDialogueText = [
+            let finalDialogueText = [
                 "Comprendo...",
                 "Así fue como forjaste tu camino, tallando tus talentos.",
                 "Pero para sostener ese poder, tuviste que dejar algo atrás.",
@@ -5297,6 +5597,34 @@
             };
 
             function startPurpleIntervention() {
+                if (luminousState.activeEntity === 'dothy') {
+                    pIntervPhrases = [
+                        "Ya se fue...",
+                        "Tienes tiempo para respirar, no te preocupes.",
+                        "Se nota que has crecido desde entonces...",
+                        "Dime, ¿En qué te enfocaste para superar esa etapa?"
+                    ];
+                    finalDialogueText = [
+                        "Entiendo...",
+                        "Así fue como encontraste tu camino y afinaste tus talentos.",
+                        "Pero todo en este mundo exige un precio, algo que debiste dejar atrás.",
+                        "Dime... ¿Qué parte de ti decidiste abandonar?"
+                    ];
+                } else if (luminousState.activeEntity === 'midra') {
+                    pIntervPhrases = [
+                        "...",
+                        "Pudimos despistarla un poco.",
+                        "Te has endurecido.",
+                        "Dime... ¿En qué te enfocaste para sobrevivir a esa etapa?"
+                    ];
+                    finalDialogueText = [
+                        "Comprendo...",
+                        "Así fue como forjaste tu camino, tallando tus talentos.",
+                        "Pero para sostener ese poder, tuviste que dejar algo atrás.",
+                        "Dime... ¿Qué parte de ti dejaste morir por completo?"
+                    ];
+                }
+
                 phasePurpleIntervention.classList.remove('hidden');
                 pIntervStep = 0;
                 purplePhaseState = 0;
@@ -5312,6 +5640,18 @@
             }
 
             function typePIntervText(text, showButtonsCallback) {
+                if (luminousState.activeEntity === 'dothy') {
+                    purpleInterventionText.className = 'text-dothy';
+                    const glow = phasePurpleIntervention.querySelector('.background-glow-purple');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    purpleInterventionText.className = 'text-midra';
+                    const glow = phasePurpleIntervention.querySelector('.background-glow-purple');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    purpleInterventionText.className = 'purple-text';
+                }
+
                 purpleInterventionText.innerHTML = "";
                 isTypingPInterv = true;
                 let charIndex = 0;
@@ -5468,7 +5808,7 @@
             let isTypingDialogue3 = false;
             let typingTimeout3;
 
-            const dialogue3Phrases = [
+            let dialogue3Phrases = [
                 "Vaya...",
                 "La compasión siempre me ha parecido un desperdicio de tiempo.",
                 "Al final, a este mundo no le importa lo que sufriste en tu juventud.",
@@ -5478,12 +5818,43 @@
             ];
 
             function startDialogue3() {
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogue3Phrases = [
+                        "Ya veo...",
+                        "A veces compadecerse de uno mismo es natural, ¿no crees?",
+                        "Pero al mundo exterior le importa poco tu historia.",
+                        "Solo les importa de qué les sirves.",
+                        "El conocimiento es poder, pero la experiencia duele. Y ese papel que asegura tu valía... cuesta mucho más que Ahn.",
+                        "Cuéntame... ¿A qué te dedicaste para abrirte paso y cuál fue tu truco para no rendirte?"
+                    ];
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogue3Phrases = [
+                        "Vaya...",
+                        "La compasión siempre me ha parecido un desperdicio de tiempo.",
+                        "Al final, a este mundo no le importa lo que sufriste en tu juventud.",
+                        "Solo le importa para qué sirves.",
+                        "El conocimiento cuesta. La experiencia duele. Y ese trozo de papel que dice que eres útil... te endeuda hasta la médula.",
+                        "Dime... ¿En qué decidiste desperdiciar tu tiempo para intentar salir del fondo y cuál fue tu truco para sobrevivir?"
+                    ];
+                }
                 phaseDialogue3.classList.remove('hidden');
                 dialogue3Step = 0;
                 typeDialogue3(dialogue3Phrases[dialogue3Step]);
             }
 
             function typeDialogue3(text) {
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogueText3.className = 'text-dothy';
+                    const glow = phaseDialogue3.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogueText3.className = 'text-midra';
+                    const glow = phaseDialogue3.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    dialogueText3.className = 'golden-text';
+                }
+
                 dialogueText3.innerHTML = "";
                 isTypingDialogue3 = true;
                 let charIndex = 0;
@@ -5856,19 +6227,45 @@
             let isTypingDialogue4 = false;
             let typingTimeout4;
 
-            const dialogue4Phrases = [
+            let dialogue4Phrases = [
                 "Bien... ya tenemos tu molde.",
                 "Pero todos en esta Ciudad cargan con fantasmas.",
                 "Dime... ¿qué sombras te perseguían antes de llegar aquí?"
             ];
 
             function startDialogue4() {
+                if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.profesiones[luminousState.professionId] || "Muy bien... ya tenemos una idea clara.";
+                    dialogue4Phrases = [
+                        reaction,
+                        "Pero nadie escapa de su pasado, todos cargamos con algún fantasma.",
+                        "Cuéntame... ¿Qué sombras te acompañaban antes de llegar hasta aquí?"
+                    ];
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogue4Phrases = [
+                        "Bien... ya tenemos tu molde.",
+                        "Pero todos en esta Ciudad cargan con fantasmas.",
+                        "Dime... ¿qué sombras te perseguían antes de llegar aquí?"
+                    ];
+                }
                 phaseDialogue4.classList.remove('hidden');
                 dialogue4Step = 0;
                 typeDialogue4(dialogue4Phrases[dialogue4Step]);
             }
 
             function typeDialogue4(text) {
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogueText4.className = 'text-dothy';
+                    const glow = phaseDialogue4.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogueText4.className = 'text-midra';
+                    const glow = phaseDialogue4.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    dialogueText4.className = 'golden-text';
+                }
+
                 dialogueText4.innerHTML = "";
                 isTypingDialogue4 = true;
                 let charIndex = 0;
@@ -5921,19 +6318,45 @@
             let isTypingDialogue5 = false;
             let typingTimeout5;
 
-            const dialogue5Phrases = [
+            let dialogue5Phrases = [
                 "Tu mente está lista. Tus demonios te conocen.",
                 "Pero cuando la Ciudad exija sangre...",
                 "¿Con qué le vas a pagar?"
             ];
 
             function startDialogue5() {
+                if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.psicologia[luminousState.psychologicalBackgroundId] || "Tu mente está despejada...";
+                    dialogue5Phrases = [
+                        reaction,
+                        "Ya sabes a qué te enfrentas, pero cuando llegue el momento...",
+                        "¿Cómo decidirás luchar?"
+                    ];
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogue5Phrases = [
+                        "Tu mente está lista. Tus demonios te conocen.",
+                        "Pero cuando la Ciudad exija sangre...",
+                        "¿Con qué le vas a pagar?"
+                    ];
+                }
                 phaseDialogue5.classList.remove('hidden');
                 dialogue5Step = 0;
                 typeDialogue5(dialogue5Phrases[dialogue5Step]);
             }
 
             function typeDialogue5(text) {
+                if (luminousState.activeEntity === 'dothy') {
+                    dialogueText5.className = 'text-dothy';
+                    const glow = phaseDialogue5.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else if (luminousState.activeEntity === 'midra') {
+                    dialogueText5.className = 'text-midra';
+                    const glow = phaseDialogue5.querySelector('.background-glow');
+                    if (glow) glow.style.display = 'none';
+                } else {
+                    dialogueText5.className = 'golden-text';
+                }
+
                 dialogueText5.innerHTML = "";
                 isTypingDialogue5 = true;
                 let charIndex = 0;
