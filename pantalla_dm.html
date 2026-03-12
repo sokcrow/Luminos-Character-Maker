@@ -479,6 +479,7 @@
           <option value="Armadura">Armadura</option>
           <option value="Consumible">Consumible</option>
           <option value="Clave">Clave</option>
+          <option value="Cosmetico">Cosmético (Carcasa)</option>
         </select>
         <select id="forja-tier">
           <option value="I">Tier I</option>
@@ -965,11 +966,24 @@
 
              const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/00ddff?text=?';
              card.innerHTML = `
+                <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Ítem">🗑️</button>
                 <img src="${imgUrl}" alt="${data.nombre}">
                 <h5>${data.nombre}</h5>
                 <span>${data.tipo}</span>
                 <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.costo}</span>
              `;
+
+             // Evento para eliminar
+             const btnDelete = card.querySelector('.btn-delete-item');
+             btnDelete.addEventListener('click', (e) => {
+                 e.stopPropagation();
+                 if (confirm('¿Estás seguro de eliminar este ítem permanentemente?')) {
+                     db.ref('campaña/base_datos_items/' + key).remove()
+                         .then(() => alert('Ítem eliminado.'))
+                         .catch(err => alert('Error al eliminar: ' + err));
+                 }
+             });
+
              gridItemsGlobales.appendChild(card);
           }
           // Llamar al filtro después de renderizar para mantener el estado de búsqueda actual
@@ -1060,10 +1074,22 @@
 
                 const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/c49a00?text=$';
                 card.innerHTML = `
+                    <button class="btn-delete-store" data-id="${idTienda}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Tienda">🗑️</button>
                     <img src="${imgUrl}" alt="${data.nombre}">
                     <h5 style="color:#c49a00;">${data.nombre}</h5>
                     <span>Restock: ${data.dia_restock}</span>
                 `;
+
+                // Evento para eliminar
+                const btnDelete = card.querySelector('.btn-delete-store');
+                btnDelete.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm('¿Estás seguro de eliminar esta tienda permanentemente?')) {
+                        db.ref('campaña/tiendas/' + idTienda).remove()
+                            .then(() => alert('Tienda eliminada.'))
+                            .catch(err => alert('Error al eliminar: ' + err));
+                    }
+                });
 
                 // Evento para abrir el Editor Interactivo
                 card.addEventListener('click', () => {

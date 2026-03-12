@@ -4848,8 +4848,15 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: transform 0.4s ease-in-out;
+    transition: transform 0.4s ease-in-out, border-color 0.3s, box-shadow 0.3s;
 }
+
+/* Phone Wrapper Colors based on Theme */
+input.sheet-state-theme[value="red"] ~ .sheet-phone-wrapper { border-color: #8b0000; box-shadow: 0 0 15px rgba(139,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5); }
+input.sheet-state-theme[value="blue"] ~ .sheet-phone-wrapper { border-color: #00ffff; box-shadow: 0 0 15px rgba(0,255,255,0.5), inset 0 0 10px rgba(0,0,0,0.5); }
+input.sheet-state-theme[value="green"] ~ .sheet-phone-wrapper { border-color: #33ff33; box-shadow: 0 0 15px rgba(51,255,51,0.5), inset 0 0 10px rgba(0,0,0,0.5); }
+input.sheet-state-theme[value="gold"] ~ .sheet-phone-wrapper { border-color: #c49a00; box-shadow: 0 0 15px rgba(196,154,0,0.5), inset 0 0 10px rgba(0,0,0,0.5); }
+input.sheet-state-theme[value="black"] ~ .sheet-phone-wrapper { border-color: #222; box-shadow: none; }
 
 /* Phone Notch / Status Bar */
 .sheet-phone-statusbar {
