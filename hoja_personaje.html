@@ -1624,10 +1624,320 @@
  <!-- Codex Tab -->
  <div class="sheet-tab-content sheet-tab-codex">
  <div class="sheet-app-header"><h2>Codex</h2></div>
- <div class="sheet-app-body">
- <p style="color: #aaa; text-align: center; margin-top: 20px;">[Base de datos de conocimiento...]</p>
- </div>
- </div>
+ <div class="sheet-app-body" style="height: calc(100% - 50px); display: flex; flex-direction: column;">
+
+    <input type="hidden" name="attr_codex_tab" class="sheet-state-codex-tab" value="mechanics" />
+
+    <div class="sheet-codex-nav" style="display: flex; justify-content: center; gap: 5px; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px; margin-top: 10px; flex-shrink: 0;">
+        <button type="action" name="act_codex_mechanics" class="sheet-codex-nav-btn">Mecánicas</button>
+        <button type="action" name="act_codex_stats" class="sheet-codex-nav-btn">Combate</button>
+        <button type="action" name="act_codex_skills" class="sheet-codex-nav-btn">Skills</button>
+    </div>
+
+    <div class="sheet-app-body-scroll sheet-codex-content" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+
+        <div class="sheet-codex-section sheet-codex-mechanics">
+            <div class="phase-header">
+                    <h1>Mecánicas de Rol</h1>
+                    <p>Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
+                </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda" style="width: 24px; height: 24px;">
+                    1. Checks de Habilidad (La Tirada)
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>Cuando intentes una acción con riesgo de fallar (mentirle a un guardia, saltar un abismo, forzar una cerradura), el Director de Juego (DJ) te pedirá un Check de Habilidad.</p>
+                    <ul>
+                        <li>Para resolverlo, tomarás tu valor base de Habilidad y lanzarás exactamente <strong>5 Monedas</strong>.</li>
+                        <li>Cada moneda que caiga de tu lado (Cara/Éxito) suma un <strong>+3</strong> directo a tu tirada.</li>
+                    </ul>
+                    <p style="color: var(--cyan-tech); font-family: 'Share Tech Mono', monospace; font-size: 16px;">Fórmula de éxito: Nivel de Habilidad + (Número de Caras × 3) = Resultado Final</p>
+                    <p style="color: var(--text-muted); font-style: italic;">Ejemplo: Si tu Habilidad de Sigilo es 4 y sacas 3 caras al lanzar las monedas (3 x 3 = 9), tu resultado final es 13 (4 + 9).</p>
+                </div>
+            </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/mrm9j1b.png" alt="Dificultad" style="width: 24px; height: 24px;">
+                    2. Clases de Dificultad (DC)
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>Toda acción tiene un obstáculo a superar. El DJ establecerá una Clase de Dificultad (DC) que tu Resultado Final debe igualar o superar. La escala de dificultad en este sistema sube de 3 en 3, con un tope máximo de 30.</p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/LPVzoUw.png" alt="Trivial" style="width: 20px; height: 20px;"><strong style="color: var(--green-success);">DC 3 a 6: Trivial / Muy Fácil</strong> <span>(Casi automático para alguien con buena habilidad).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/cVHvEKb.png" alt="Fácil" style="width: 20px; height: 20px;"><strong style="color: var(--cyan-tech);">DC 9 a 12: Fácil / Medio</strong> <span>(El estándar para acciones bajo presión).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/0kog02u.png" alt="Difícil" style="width: 20px; height: 20px;"><strong style="color: var(--border-accent);">DC 15 a 18: Difícil / Muy Difícil</strong> <span>(Requiere verdadera habilidad y suerte con las monedas).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/DDIlSeT.png" alt="Extremo" style="width: 20px; height: 20px;"><strong style="color: var(--red-neon);">DC 21 a 27: Extremo / Heroico</strong> <span>(Solo los verdaderos expertos en su campo lo logran).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/mrm9j1b.png" alt="Imposible" style="width: 20px; height: 20px;"><strong style="color: var(--red-bright);">DC 30: Imposible</strong> <span>(El límite absoluto del sistema; un milagro estadístico que requiere 5 caras y pura maestría).</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/OZ0LX7h.png" alt="Suerte" style="width: 24px; height: 24px;">
+                    3. La Suerte
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>La Suerte es un recurso vital y limitado. Si sientes que las monedas te van a traicionar o necesitas asegurar un éxito de vida o muerte, puedes gastar un punto de Suerte.</p>
+                    <ul>
+                        <li>Gastar Suerte en un Check de Habilidad suma un <strong>+3 directo</strong> a tu tirada final (esencialmente, te regala el valor de una moneda extra perfecta).</li>
+                        <li>La cantidad de Suerte máxima que posees depende de la construcción de tu personaje, pero todo el mundo comienza con un mínimo de <strong>4 usos</strong>.</li>
+                    </ul>
+                    <p style="color: var(--red-neon); font-style: italic;">Úsala sabiamente: la Ciudad no perdona a los que malgastan sus milagros.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="sheet-codex-section sheet-codex-stats">
+            <div class="phase-header">
+                    <h1>Stats de Combates</h1>
+                    <p>El combate en la Ciudad es un choque simultáneo de voluntades y acero. Sobrevivir requiere entender la velocidad, la gestión de tu cordura y tu economía de acciones.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Atributos Vitales y Recursos
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">HP (Puntos de Salud):</strong> Tu vitalidad física. Si llega a 0, mueres o quedas fuera de combate. El HP máximo se calcula con la siguiente fórmula: HP = HP_Base + (Coef × DEF_LVL).
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">HP Base:</strong> Un valor inicial de vitalidad que se establece entre 60 y 90.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Coeficiente (Coef):</strong> Un multiplicador fijo determinado por tu Clase:
+                                        <br>Bárbaro: 3.38 | Guerrero: 3.27 | Paladín: 3.17 | Monje: 2.96 | Druida: 2.87
+                                        <br>Artífice: 2.75 | Ranger: 2.67 | Clérigo: 2.56 | Pícaro: 2.48
+                                        <br>Hechicero: 2.36 | Bardo: 2.26 | Brujo: 2.17 | Mago: 2.16
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Nivel Defensivo (DEF LVL):</strong> El multiplicador principal del coeficiente. El DEF LVL base es igual a tu nivel actual de personaje. Las armaduras, accesorios y armas que lleves pueden aplicar bonificadores o penalizadores a este nivel, alterando directamente tu HP máximo.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Escudo (Shield):</strong> Algunas Habilidades (Skills), Ventajas (Perks) y estados alterados otorgan una barrera temporal que protege tu vitalidad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad:</strong> El escudo tiene prioridad absoluta al recibir ataques. Siempre absorberá el daño primero antes de que toque tu HP.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Daño Excedente:</strong> Si un ataque es lo suficientemente fuerte como para reducir el escudo a 0, cualquier daño restante traspasará la barrera y se restará directamente a tu HP.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Speed (Velocidad):</strong> Al inicio de la ronda, todas las unidades lanzan un número aleatorio que determina su Velocidad. Esto define quién golpea con prioridad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad de Ataque:</strong> La regla de oro es que la unidad más rápida siempre ataca primero a su objetivo seleccionado, a menos que el objetivo bloquee ese ataque con otra Skill para forzar un Choque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Ataques Unilaterales:</strong> Si una unidad intenta golpear a otra que es más rápida que ella (y no hay un Choque forzado):
+                                        <ul>
+                                            <li>La Skill de la unidad más rápida se vuelve [Sin Choque] y golpea primero.</li>
+                                            <li>La Skill de la unidad más lenta se vuelve [Sin Oposición], pero debe esperar a que su turno de Velocidad llegue en la ronda para ejecutarse.</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Stagger Threshold (Umbral de Aturdimiento):</strong> Tu barra de HP tiene marcas o umbrales basados en porcentajes de tu salud máxima. Dependiendo de tus ventajas (perks) y la armadura que lleves, puedes tener entre 1 y 3 Umbrales de Aturdimiento. Si recibes suficiente daño para cruzar una de estas líneas en una sola ronda, tu guardia se rompe.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Penalización de Acción:</strong> Al entrar en Stagger, pierdes tu capacidad de actuar en la ronda en la que se activó el estado y durante toda la ronda siguiente. Eres completamente vulnerable.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Niveles de Stagger:</strong> Romper múltiples umbrales dentro de la misma ronda aumenta la severidad del estado y el multiplicador de todo el daño que recibas mientras estés aturdido:
+                                        <ul>
+                                            <li><strong style="color: var(--red-neon);">Stagger</strong> (1 umbral roto): El daño recibido se multiplica por 2 (x2).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger+</strong> (2 umbrales rotos): El daño recibido se multiplica por 2.5 (x2.5).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger++</strong> (3 umbrales rotos): El daño recibido se multiplica por 3 (x3).</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Límite de Ronda:</strong> No se pueden activar ni acumular más niveles de Stagger si el combate pasa a la siguiente ronda. Para alcanzar un Stagger+ o Stagger++, los umbrales deben ser destruidos dentro de la misma ronda de ataques.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">SP (Puntos de Sanidad):</strong> Tu estabilidad mental y el combustible de tu voluntad. Afecta directamente la probabilidad de que tus monedas caigan en Cara y sirve como recurso principal para lanzar magia.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Recuperación en Combate:</strong> Recuperas Sanidad usando la fórmula: 10 + Cantidad de Choques en los que participes.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Pérdida por Trauma:</strong> Pierdes 10 de Sanidad de forma automática e inmediata cada vez que un aliado cae en combate.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Costo de Spells (Hechizos):</strong> Lanzar magia consume tu cordura. El costo drena entre 0 y 45 SP, dependiendo del nivel de poder del Spell.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Slots de Acción (Economía de Acciones):</strong> Representan cuántos movimientos o interacciones puedes realizar en un turno. Generalmente, una unidad posee entre 1 y 3 slots, pudiendo superar este límite solo en situaciones muy especiales.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Ataque y Defensa:</strong> Usar una Habilidad (Skill) Ofensiva, Defensiva o conjurar un Spell consume 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Checks de Habilidad y Entorno:</strong> El primer Check de Habilidad del turno es gratis, única y estrictamente si no requiere interactuar con más de una unidad (ej. evaluar el estado de un aliado a la distancia o buscar una debilidad visual en un enemigo). Cualquier Check de Habilidad adicional en el mismo turno costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Objetos (Items):</strong> El costo de acción depende del objeto. Algunos consumen 1 slot desde el primer uso. Los objetos clasificados como "de uso gratis" no consumen slot la primera vez que se usan en el turno, pero cualquier uso adicional del mismo objeto o de otro similar costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Vulnerabilidad y Slots Expuestos:</strong> Gestionar esta economía es de vida o muerte. Si dejas uno de tus slots expuesto (sin asignarle una acción o defensa), este puede ser atacado por múltiples enemigos simultáneamente. Todo ataque dirigido a un slot vacío o no defendido se considera una acción [Sin Oposición], lo que significa que recibirás el daño de lleno sin oportunidad de forzar un Choque.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Offense Level y Defense Level
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Estas estadísticas escalan directamente con el Nivel de la unidad y afectan tanto el Poder de Choque (Clash Power) como el daño final de las Habilidades. El Offense/Defense Level nunca puede ser menor a 1.</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Cálculo de Nivel:</strong> Toda unidad posee un Offense/Defense Level base igual a su Nivel actual. Además, cada Habilidad (de Ataque, Defensa o E.G.O.) puede tener un modificador único que aumenta o disminuye este nivel general.<br>
+                                <span style="color: var(--cyan-tech); font-family: 'Share Tech Mono', monospace;">Fórmula de cálculo: Nivel = Nivel_Unidad + Modificador</span>
+                            </li>
+                        </ul>
+                        <p>Estos Niveles afectan el combate en dos formas principales:</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">1. Resolución de Choques (Clashes):</strong> En un Choque entre dos Habilidades, la que tenga el Offense/Defense Level más alto gana Poder de Choque adicional.
+                                <ul>
+                                    <li>Obtienes +1 de Poder por cada 3 niveles de diferencia, redondeado hacia abajo (Ej. Una ventaja de 4 niveles otorga +1 de Poder).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Excepción:</strong> En un Choque entre un Ataque y una Habilidad de Defensa que no puede chocar (non-Clashable), solo la Habilidad de Defensa puede ganar poder gracias a esta diferencia de niveles, y lo obtiene como Poder Final en lugar de Poder de Choque.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">2. Modificador de Daño:</strong> Al hacer daño con Habilidades de Ataque, la diferencia entre el Offense Level del atacante y el Defense Level del defensor modifica porcentualmente el daño infligido. Este cálculo se aplica por encima de las Resistencias.
+                                <br>La fórmula exacta del modificador de daño es:
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px 0; font-family: 'Share Tech Mono', monospace; font-size: 20px; color: var(--cyan-tech);">
+                                    <span>M = </span>
+                                    <div style="display: flex; flex-direction: column; align-items: center;">
+                                        <span style="border-bottom: 2px solid var(--cyan-tech); padding: 0 10px 2px 10px;">Off - Def</span>
+                                        <span style="padding: 2px 10px 0 10px;">|Off - Def| + 25</span>
+                                    </div>
+                                    <span>&times; 100</span>
+                                </div>
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">M</strong> es el modificador de daño (en %).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Off</strong> es el Offense Level de la Habilidad de Ataque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Def</strong> es el Defense Level del defensor (Si usa una Habilidad de Defensa, se usa el nivel de esa habilidad; si no, se usa el Nivel Defensivo base de su cuerpo o de la parte objetivo).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Multiplicadores y Resistencias
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Crítico:</strong> Un golpe perfecto cuyo cálculo se aplica al final de toda la cadena de daño. Otorga un +20% adicional base al daño total, calculándose estrictamente después de haber aplicado todas las reducciones (Niveles Defensivos, Resistencias) o aumentos (Niveles Ofensivos, Debilidades, multiplicadores por Stagger). Existen efectos de estado, Habilidades (Skills) y Ventajas (Perks) que pueden aumentar este multiplicador de daño crítico por encima del 20% base.</li>
+                            <li><strong style="color: var(--green-success);">Resistencias de Daño:</strong> Todas las criaturas tienen resistencias a los distintos tipos de daño (Corte, Perforación, Contundente, Fuego, Frío, Radiante, Necrótico, etc., utilizando la lista tradicional de D&D). Estas resistencias se dividen en las siguientes categorías de multiplicación de daño:
+                                <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
+                                    <li><strong style="color: var(--red-neon);">Fatal:</strong> x2 (Recibe el doble de daño). Nota: Este nivel de vulnerabilidad extrema casi nunca es innato. Por lo general, alcanzar un multiplicador Fatal (o superior) solo es posible en situaciones tácticas específicas, principalmente cuando se rompen los umbrales del objetivo y este entra en los distintos niveles de Aturdimiento (Stagger).</li>
+                                    <li><strong style="color: var(--red-bright);">Débil:</strong> x1.5</li>
+                                    <li><strong style="color: var(--text-main);">Normal:</strong> x1 (El daño se aplica tal cual).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Resistente:</strong> x0.5 (Recibe la mitad del daño).</li>
+                                    <li><strong style="color: var(--green-success);">Inefectivo:</strong> x0.25 (Apenas sufre daño).</li>
+                                    <li><strong style="color: #444;">Inmune:</strong> x0 (No recibe daño alguno).</li>
+                                    <li><strong style="color: var(--border-accent);">Absorbido:</strong> x-1 (El daño sana a la criatura en lugar de herirla).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+        </div>
+
+        <div class="sheet-codex-section sheet-codex-skills">
+            <div class="phase-header">
+                    <h1>Habilidades (Skills)</h1>
+                    <p>Toda unidad —tanto aliada como enemiga— posee un conjunto de Habilidades (Skills) y Pasivas que pueden utilizar durante el combate.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">El Arsenal Base:</strong> Cada personaje posee al menos 3 Habilidades de Ataque de distinto poder y 1 Habilidad de Defensa. Adicionalmente, cuentan con una Pasiva de Combate y una Pasiva de Soporte que se activan dependiendo de si están activamente peleando o en la retaguardia.</li>
+                            <li><strong style="color: var(--green-success);">Mazo de Habilidades (Skill Deck):</strong> En combate, las unidades extraen sus ataques de un "Mazo" que contiene una cantidad específica de copias de cada Habilidad. Este mazo solo se baraja y reinicia cuando todas las Habilidades se han agotado. La cantidad de copias es inversamente proporcional al poder de la Skill (ej. el mazo tiene 3 copias de la Habilidad 1, pero solo 1 copia de la poderosa Habilidad 3).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Propiedades de las Habilidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Al revisar la información de una Habilidad, encontrarás siempre las siguientes propiedades matemáticas:</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Poder Base (Base Power):</strong> El valor numérico con el que inicia la Habilidad antes de lanzar cualquier moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Poder de Moneda (Coin Power):</strong> La cantidad de Poder que se suma (o resta) por cada Moneda que caiga en Cara (Heads). El valor final tras el lanzamiento de monedas se denomina <strong>Poder Final</strong>.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad de Monedas (Coin Amount):</strong> El número de monedas que lanza la Habilidad. Toda Habilidad tiene al menos 1 moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Nivel Ofensivo/Defensivo (Offense/Defense Level):</strong> Un modificador numérico exclusivo de esa Habilidad específica que aumenta o disminuye el Nivel Ofensivo/Defensivo general de la unidad al usarla.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad en el Mazo (Skill Amount):</strong> Dicta cuántas copias de esta Habilidad hay en el Mazo de la unidad, definiendo qué tan a menudo estará disponible. (Las habilidades enemigas no usan esta propiedad).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Tipos de Daño y Afinidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p><strong style="color: var(--green-success);">Tipo de Daño (Damage Type):</strong> Define la naturaleza física o mágica de la Habilidad y cómo interactúa con las resistencias del objetivo. Se divide en las siguientes categorías:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Akf25L5.png" alt="Cortante" style="width: 20px; height: 20px;"> Cortante (Slashing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/slcQlpc.png" alt="Perforante" style="width: 20px; height: 20px;"> Perforante (Piercing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/cg8Wh4w.png" alt="Contundente" style="width: 20px; height: 20px;"> Contundente (Bludgeoning)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/jaHFSfB.png" alt="Ácido" style="width: 20px; height: 20px;"> Ácido (Acid)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0br4gK4.png" alt="Fuego" style="width: 20px; height: 20px;"> Fuego (Fire)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/kJY0rBP.png" alt="Frío" style="width: 20px; height: 20px;"> Frío (Cold)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/KMQuv3T.png" alt="Eléctrico" style="width: 20px; height: 20px;"> Eléctrico (Electric)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/qjPIdi6.png" alt="Fuerza" style="width: 20px; height: 20px;"> Fuerza (Force)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Xjt7U8a.png" alt="Necrótico" style="width: 20px; height: 20px;"> Necrótico (Necrotic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/adZpZuN.png" alt="Veneno" style="width: 20px; height: 20px;"> Veneno (Poison)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7MGMPB0.png" alt="Psíquico" style="width: 20px; height: 20px;"> Psíquico (Psychic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/RmU2HGK.png" alt="Radiante" style="width: 20px; height: 20px;"> Radiante (Radiant)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7VcSDjq.png" alt="Trueno" style="width: 20px; height: 20px;"> Trueno (Thunder)</li>
+                        </ul>
+                        <p style="margin-top: 15px;"><strong style="color: var(--green-success);">Afinidad de Pecado (Sin Affinity):</strong> Determina qué tipo de recurso mágico (E.G.O Resource) genera la Habilidad, cómo interactúa con las Resonancias y el daño que inflige frente a las Resistencias de Pecado del objetivo. Existen siete afinidades:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Nn33MJR.png" alt="Ira" style="width: 20px; height: 20px;"> Ira (Wrath)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/bF7bHHT.png" alt="Lujuria" style="width: 20px; height: 20px;"> Lujuria (Lust)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/igYFF1I.png" alt="Pereza" style="width: 20px; height: 20px;"> Pereza (Sloth)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0KArwDU.png" alt="Gula" style="width: 20px; height: 20px;"> Gula (Gluttony)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/DCTX5Jy.png" alt="Melancolía" style="width: 20px; height: 20px;"> Melancolía (Gloom)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/w6z9THA.png" alt="Orgullo" style="width: 20px; height: 20px;"> Orgullo (Pride)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/SuNHY9D.png" alt="Envidia" style="width: 20px; height: 20px;"> Envidia (Envy)</li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades (usualmente las de Defensa) carecen de afinidad. Se representan en color neutro sin decoraciones ni recursos asociados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Peso de Ataque (Atk Weight)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Attack Weight:</strong> Es la cantidad máxima de <em>Slots</em> que una sola Habilidad puede marcar como objetivo simultáneamente.</li>
+                            <li><strong style="color: var(--cyan-tech);">Resistencia de Slot (Slot Weight):</strong> Algunos enemigos gigantes o jefes pueden tener Slots que "pesan" más de 1. Esto obliga a la Habilidad a consumir más Attack Weight para afectarlos.
+                                <ul>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 1:</em> Una Habilidad con 5 de Atk Weight puede golpear 5 Slots distintos si cada uno pesa 1. (5 ⇒ 1|1|1|1|1).</li>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 2:</em> Esa misma Habilidad solo podrá golpear a 3 Slots si los primeros dos pesan 2 (Gasta 2 de peso en el primer slot, 2 en el segundo, y sobra 1 para un tercer slot). (5 ⇒ 2|2|1).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades pueden aumentar su Atk Weight al cumplir ciertas condiciones en combate, priorizando siempre a objetivos con baja salud o que aún no han sido seleccionados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        4. Las Monedas (Coins)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Cada Habilidad requiere lanzar Monedas para alcanzar su potencial. Dependiendo de si caen en Cara o Cruz, alteran el Poder Final de la Habilidad (y por tanto, su daño o capacidad de ganar Choques). La probabilidad de sacar Cara está dictada estrictamente por los Puntos de Sanidad (SP) de la unidad.</p>
+                        <p><strong style="color: var(--green-success);">Tipos de Moneda Base:</strong></p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech); display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda Positiva" style="width: 20px; height: 20px;"> Moneda Normal (Positiva):</strong> Si sale Cara (Éxito), suma su Poder de Moneda al Poder Base. A mayor SP, más probabilidad de sacar Cara.</li>
+                            <li><strong style="color: var(--red-neon); display: flex; align-items: center; gap: 5px;"> Moneda Negativa:</strong> Si sale Cara (Éxito), resta su Poder de Moneda al Poder Base. Estas habilidades están diseñadas para funcionar mejor cuando tu SP está por los suelos (buscando que salga Cruz/Fallo para evitar la resta).</li>
+                        </ul>
+
+                        <h3 style="color: var(--red-bright); margin-top: 20px; display: flex; align-items: center; gap: 10px;">
+                            <img src="https://i.imgur.com/yCxmI84.png" alt="Moneda Irrompible" style="width: 24px; height: 24px;"> Monedas Irrompibles (Unbreakable Coins)
+                        </h3>
+                        <p>Son una variante única y letal dentro del sistema, indicadas por su color rojo especial.</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Mecánica de Grieta:</strong> A diferencia de las monedas normales, las Monedas Irrompibles <strong>NO se destruyen</strong> si pierdes un Choque (Clash). En su lugar, se "Agrietan" (Cracked).</li>
+                            <li><strong style="color: var(--cyan-tech);">Contraataque Agrietado:</strong> Las monedas agrietadas se dispararán sobre el enemigo después de perder el Choque (funcionando casi como un contraataque), pero su Poder de Moneda queda fijado permanentemente en <strong>1</strong> (+1 para monedas positivas, -1 para monedas negativas).</li>
+                            <li><strong style="color: var(--cyan-tech);">Interacciones:</strong> La fijación del poder a 1 ocurre <em>antes</em> de aplicar bonificadores externos. Esto significa que si una Skill dice "Poder de Moneda +2 si el objetivo sangra", la moneda agrietada subirá de 1 a 3. Del mismo modo, estados negativos como Parálisis pueden reducir este valor a 0.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cancelación:</strong> Si el usuario de la Habilidad es empujado al estado de Aturdimiento (Stagger) durante el Choque, las Monedas Irrompibles se cancelan y no se disparan.</li>
+                        </ul>
+                    </div>
+                </div>
+        </div>
+
+    </div> <!-- /sheet-app-body-scroll -->
+ </div> <!-- /sheet-app-body -->
+ </div> <!-- /sheet-tab-codex -->
 
  <!-- Mapa Tab -->
  <div class="sheet-tab-content sheet-tab-mapa">

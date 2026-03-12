@@ -6048,3 +6048,38 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: flex !important;
     animation: fadeInModal 0.3s ease;
 }
+
+/* Codex sub-tabs */
+.sheet-state-codex-tab[value="mechanics"] ~ .sheet-codex-content .sheet-codex-mechanics,
+.sheet-state-codex-tab[value="stats"] ~ .sheet-codex-content .sheet-codex-stats,
+.sheet-state-codex-tab[value="skills"] ~ .sheet-codex-content .sheet-codex-skills {
+    display: block;
+}
+
+.sheet-codex-section {
+    display: none;
+}
+
+.sheet-codex-nav-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #ccc !important;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.sheet-codex-nav-btn:hover {
+    color: white !important;
+}
+
+.sheet-state-codex-tab[value="mechanics"] ~ .sheet-codex-nav button[name="act_codex_mechanics"],
+.sheet-state-codex-tab[value="stats"] ~ .sheet-codex-nav button[name="act_codex_stats"],
+.sheet-state-codex-tab[value="skills"] ~ .sheet-codex-nav button[name="act_codex_skills"] {
+    color: white !important;
+    background-color: #333 !important;
+    border-radius: 3px;
+}

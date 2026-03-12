@@ -2627,3 +2627,16 @@ hudModalsList.forEach(modal => {
 on('clicked:hud_close', function() {
     setAttrs({ active_hud_modal: '' });
 });
+
+// Codex Navigation Tabs
+on('clicked:codex_mechanics', function() {
+    setAttrs({ "codex_tab": "mechanics" });
+});
+
+on('clicked:codex_stats', function() {
+    setAttrs({ "codex_tab": "stats" });
+});
+
+on('clicked:codex_skills', function() {
+    setAttrs({ "codex_tab": "skills" });
+});
