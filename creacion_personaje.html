@@ -4367,6 +4367,76 @@
             critica: { label: 'Crítica', val: -3, class: 'stat-val-neg' }
         };
 
+        const dothyResponses = {
+            origenes: {
+                "humano": "La humanidad siempre es un buen lienzo...",
+                "humano_mutante": "Interesante... el cambio es parte de la evolución.",
+                "humano_cyborg": "Metal y carne unidos... una combinación muy peculiar.",
+                "tiefling": "Un legado del inframundo. No te preocupes, aquí no juzgamos a nadie.",
+                "warforged": "Un alma forjada en acero. Eres alguien bastante especial.",
+                "felinae": "Agilidad y gracia... siempre viene bien en estos rumbos.",
+                "semi_dragon": "Sangre antigua y poderosa. Una elección formidable.",
+                "lupae": "Un espíritu salvaje. La lealtad será tu mayor fuerza.",
+                "moonfae": "Magia y misterio de la luna. Será fascinante verte en acción.",
+                "undae": "El fluir del agua en tu interior... muy refrescante.",
+                "elnae": "Ligeros como el viento. Tu perspectiva será de gran ayuda.",
+                "yuanti_pura_sangre": "Una herencia venenosa, pero muy intrigante. Me agrada.",
+                "lanae": "Una fortaleza nacida en las montañas. Impresionante.",
+                "tsune": "Astucia e ilusiones... esto será muy divertido."
+            },
+            trasfondos: {
+                "alta_cuna": "Ah, una vida de comodidades... veamos cómo te adaptas aquí.",
+                "aristocracia_mercantil": "Los negocios son importantes, el trueque siempre abre puertas.",
+                "nobleza_caida": "Las caídas son duras, pero siempre se puede volver a brillar.",
+                "cuna_de_eruditos": "El conocimiento es poder, y tú tienes mucho potencial.",
+                "linaje_militar": "Disciplina y honor... valores muy útiles en esta ciudad.",
+                "familia_de_granjeros": "El trabajo duro forja el carácter. Admiro tu persistencia.",
+                "artesano_independiente": "La creatividad es una herramienta maravillosa.",
+                "fuerzas_de_seguridad": "Conoces el orden desde adentro, eso te dará ventaja.",
+                "burocracia_menor": "Paciencia y detalle... habilidades muy infravaloradas.",
+                "huerfano_callejero": "La calle te enseñó a sobrevivir, y eso no se olvida.",
+                "escoria_criminal": "A veces hay que romper las reglas para avanzar.",
+                "exiliado_proscrito": "Un lobo solitario... pero quizás aquí encuentres una manada.",
+                "esclavo_liberado": "La libertad es invaluable. Me alegra que la tengas.",
+                "experimento_fallido": "Las cicatrices son solo muestra de que sobreviviste.",
+                "academico_desacreditado": "A veces la verdad es incómoda. Aquí podrás usarla.",
+                "siervo_corporativo": "Conoces los engranajes de la máquina. Eres muy valioso.",
+                "deudor_vitalicio": "Una carga pesada... pero te prometo que te ayudaré a aliviarla.",
+                "miembro_culto": "La fe mueve montañas, aunque a veces las direcciones cambien."
+            },
+            profesiones: {
+                "medico_cirujano": "La curación es un arte noble... y muy solicitado.",
+                "ingeniero_mecanico": "Construir y reparar... siempre necesitamos a alguien así.",
+                "erudito_academico": "Siempre es bueno tener a alguien que entienda los misterios.",
+                "abogado_burocrata": "Las palabras pueden ser armas más afiladas que las espadas.",
+                "chef_gastronomico": "¡Oh! Una buena comida siempre levanta el ánimo.",
+                "herrero_armero": "La forja es el corazón de la defensa. Excelente elección.",
+                "boticario_alquimista": "Pociones y remedios... un conocimiento muy práctico.",
+                "sastre_tejedor": "El estilo y la protección pueden ir de la mano.",
+                "ladron_de_guante_blanco": "Silencio y elegancia. Serás muy útil en las sombras.",
+                "contrabandista_traficante": "Saber mover cosas siempre tiene su valor.",
+                "cazarrecompensas_rastreador": "Un cazador siempre encuentra su presa. Impresionante.",
+                "informante_espia": "Los secretos son la verdadera moneda de este mundo.",
+                "musico_artista": "El arte y la música alegran incluso los corazones más oscuros.",
+                "clerigo_fanatico": "La devoción te guiará cuando la oscuridad intente cegarte.",
+                "guardia_soldado": "Firmeza y vigilancia. Eres un pilar seguro."
+            },
+            psicologia: {
+                "el_apostador": "El riesgo es parte de la vida, solo intenta no perderlo todo.",
+                "el_inestable": "Tus emociones son intensas, pero te ayudarán a sentirte vivo.",
+                "el_ex_soldado": "El campo de batalla forjó tu mente. Tu experiencia es invaluable.",
+                "el_paria": "A veces sentirse fuera de lugar es el primer paso para encontrarse.",
+                "el_atormentado": "Lidiar con los recuerdos no es fácil, pero aquí estarás a salvo.",
+                "el_trasgresor": "Todos cruzamos líneas alguna vez. Lo importante es qué hacemos después.",
+                "el_caido": "La altura da vértigo, pero te enseñó mucho antes de caer.",
+                "la_herramienta_rota": "Quizás solo necesitas un nuevo propósito, y yo te ayudaré a encontrarlo.",
+                "el_aspirante": "La ambición te llevará lejos, siempre y cuando no te consuma.",
+                "el_archivista": "Tu mente es un tesoro de información.",
+                "el_artesano": "Entender cómo funcionan las cosas te da una ventaja única.",
+                "el_residente": "La paciencia y la observación son virtudes que pocos tienen."
+            }
+        };
+
         // 4. Estado Global
         const luminousState = {
             characterName: null,
@@ -5127,6 +5197,15 @@
             btnConfirmarOrigen.addEventListener('click', () => {
                 if (btnConfirmarOrigen.disabled) return;
 
+                if (luminousState.activeEntity === 'dothy' && luminousState.originId) {
+                    const reaction = dothyResponses.origenes[luminousState.originId] || "Tienes potencial...";
+                    dialogues = [
+                        reaction,
+                        "Me intriga...",
+                        "Veamos qué más hay en ti..."
+                    ];
+                }
+
                 // Transition to Phase 2 (Black screen + first dialogue)
                 phase1.classList.add('fade-out');
 
@@ -5194,10 +5273,11 @@
                 const responseText = selectedBg ? selectedBg.entityResponse : "...";
 
                 if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.trasfondos[luminousState.backgroundId] || "Interesante elección...";
                     dialogue2Phrases = [
-                        "Interesante elección...",
-                        "Me pregunto...",
-                        "¿Qué nombre te dieron?"
+                        reaction,
+                        "Es fascinante ver de dónde vienes.",
+                        "¿Y cómo te haces llamar?"
                     ];
                 } else {
                     dialogue2Phrases = [
@@ -6155,8 +6235,9 @@
 
             function startDialogue4() {
                 if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.profesiones[luminousState.professionId] || "Muy bien... ya tenemos una idea clara.";
                     dialogue4Phrases = [
-                        "Muy bien... ya tenemos una idea clara.",
+                        reaction,
                         "Pero nadie escapa de su pasado, todos cargamos con algún fantasma.",
                         "Cuéntame... ¿Qué sombras te acompañaban antes de llegar hasta aquí?"
                     ];
@@ -6245,9 +6326,10 @@
 
             function startDialogue5() {
                 if (luminousState.activeEntity === 'dothy') {
+                    const reaction = dothyResponses.psicologia[luminousState.psychologicalBackgroundId] || "Tu mente está despejada...";
                     dialogue5Phrases = [
-                        "Tu mente está despejada, y ya sabes a qué te enfrentas.",
-                        "Pero cuando llegue el momento de defender tu vida...",
+                        reaction,
+                        "Ya sabes a qué te enfrentas, pero cuando llegue el momento...",
                         "¿Cómo decidirás luchar?"
                     ];
                 } else if (luminousState.activeEntity === 'midra') {
