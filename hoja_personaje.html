@@ -1624,8 +1624,75 @@
  <!-- Codex Tab -->
  <div class="sheet-tab-content sheet-tab-codex">
  <div class="sheet-app-header"><h2>Codex</h2></div>
- <div class="sheet-app-body">
- <p style="color: #aaa; text-align: center; margin-top: 20px;">[Base de datos de conocimiento...]</p>
+ <div class="sheet-app-body-scroll" style="padding: 15px; overflow-y: auto; height: calc(100% - 50px);">
+    <div style="margin-bottom: 20px;">
+        <h3 style="color: #ffae00; font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 5px;">Mecánicas de Rol</h3>
+        <p style="color: #ccc; font-size: 0.9em; margin-top: 10px; font-style: italic;">Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">1. Checks de Habilidad (La Tirada)</h4>
+            <ul style="color: #ccc; font-size: 0.85em; padding-left: 20px; margin: 0;">
+                <li>Lanza exactamente <strong>5 Monedas</strong> para resolver acciones de riesgo.</li>
+                <li>Cada Cara (Éxito) suma <strong>+3</strong> a tu valor base de Habilidad.</li>
+            </ul>
+            <p style="color: #00ffff; font-size: 0.9em; font-family: monospace; margin: 10px 0 0 0;">Fórmula: Habilidad + (Caras × 3) = Total</p>
+        </div>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">2. Clases de Dificultad (DC)</h4>
+            <ul style="color: #ccc; font-size: 0.85em; list-style: none; padding: 0; margin: 0;">
+                <li><strong style="color: #44ff44;">DC 3-6:</strong> Trivial / Muy Fácil</li>
+                <li><strong style="color: #00ffff;">DC 9-12:</strong> Fácil / Medio</li>
+                <li><strong style="color: #ffae00;">DC 15-18:</strong> Difícil / Muy Difícil</li>
+                <li><strong style="color: #ff4444;">DC 21-27:</strong> Extremo / Heroico</li>
+                <li><strong style="color: #ff0000;">DC 30+:</strong> Imposible</li>
+            </ul>
+        </div>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">3. La Suerte</h4>
+            <p style="color: #ccc; font-size: 0.85em; margin: 0;">Gastar Suerte en un Check suma un <strong>+3 directo</strong> (equivale a una moneda extra perfecta). Úsala sabiamente; es un recurso muy limitado.</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <h3 style="color: #ffae00; font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 5px;">Stats de Combates</h3>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">Atributos Vitales</h4>
+            <ul style="color: #ccc; font-size: 0.85em; padding-left: 20px; margin: 0;">
+                <li><strong style="color: #44ff44;">HP:</strong> Vida. HP_Base + (Coef × DEF_LVL).</li>
+                <li><strong style="color: #44ff44;">Escudo:</strong> Prioridad absoluta al recibir daño.</li>
+                <li><strong style="color: #44ff44;">Speed:</strong> Determina la prioridad de ataque.</li>
+                <li><strong style="color: #44ff44;">Stagger:</strong> Romper umbrales inhabilita y aumenta el daño recibido (x2, x2.5, x3).</li>
+                <li><strong style="color: #44ff44;">SP:</strong> Sanidad. Define probabilidad de monedas Cara. Baja al morir aliados, sube en Choques.</li>
+                <li><strong style="color: #44ff44;">Slots:</strong> Economía de acción. Si dejas un slot sin defensa, recibes golpes <em>Sin Oposición</em>.</li>
+            </ul>
+        </div>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">Resolución y Multiplicadores</h4>
+            <ul style="color: #ccc; font-size: 0.85em; padding-left: 20px; margin: 0;">
+                <li><strong>Choques (Clashes):</strong> Ventaja de Nivel otorga +1 de Poder cada 3 niveles de diferencia.</li>
+                <li><strong>Crítico:</strong> +20% al daño total base tras resistencias.</li>
+                <li><strong>Resistencias:</strong> Fatal (x2), Débil (x1.5), Normal (x1), Resistente (x0.5), Inefectivo (x0.25), Inmune (x0), Absorbido (x-1).</li>
+            </ul>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <h3 style="color: #ffae00; font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 5px;">Habilidades (Skills)</h3>
+
+        <div style="background: #1e1e1e; border: 1px solid #444; border-radius: 6px; padding: 15px; margin-top: 15px;">
+            <h4 style="color: #ffae00; margin: 0 0 10px 0;">Propiedades</h4>
+            <ul style="color: #ccc; font-size: 0.85em; padding-left: 20px; margin: 0;">
+                <li><strong>Poder Base:</strong> Valor inicial.</li>
+                <li><strong>Poder de Moneda:</strong> Se suma (o resta) si la moneda es Cara.</li>
+                <li><strong>Monedas Irrompibles (Rojas):</strong> Si pierden un choque, no se rompen, se <em>Agrietan</em> y se fijan a poder 1 (contraataque).</li>
+                <li><strong>Atk Weight:</strong> Cantidad de Slots que una habilidad puede marcar.</li>
+            </ul>
+        </div>
+    </div>
  </div>
  </div>
 
