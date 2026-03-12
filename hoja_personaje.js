@@ -23,24 +23,24 @@
     ];
 
     const backgroundsData = [
-        { id: "alta_cuna", name: "Alta Cuna", funds: "25,000 Ahn", benefit: "+1 Empatía, +1 Negociación, -1 Supervivencia" },
-        { id: "aristocracia_mercantil", name: "Aristocracia Mercantil", funds: "30,000 Ahn", benefit: "+2 Negociación, +1 Engaño, -1 Vigor" },
-        { id: "nobleza_caida", name: "Nobleza Caída", funds: "5,000 Ahn", benefit: "+1 Presencia, +1 Sigilo" },
-        { id: "cuna_de_eruditos", name: "Cuna de Eruditos", funds: "15,000 Ahn", benefit: "+2 Ciencia, +1 Lore, -1 Carisma" },
-        { id: "linaje_militar", name: "Linaje Militar", funds: "8,000 Ahn", benefit: "+1 Fortaleza, +1 Manejo" },
-        { id: "familia_de_granjeros", name: "Familia de Granjeros", funds: "3,000 Ahn", benefit: "+1 Vigor, +1 Supervivencia" },
-        { id: "artesano_independiente", name: "Artesano Independiente", funds: "6,000 Ahn", benefit: "+1 Reflejos, +1 Análisis" },
-        { id: "fuerzas_de_seguridad", name: "Fuerzas de Seguridad (Bajas)", funds: "7,000 Ahn", benefit: "+1 Percepción, +1 Voluntad" },
-        { id: "burocracia_menor", name: "Burocracia Menor", funds: "4,500 Ahn", benefit: "+1 Memoria, +1 Prudencia" },
-        { id: "huerfano_callejero", name: "Huérfano Callejero", funds: "500 Ahn", benefit: "+2 Sigilo, +1 Agilidad, -1 Educación Formal (Lore)" },
-        { id: "escoria_criminal", name: "Escoria Criminal", funds: "2,000 Ahn", benefit: "+1 Engaño, +1 Seducción" },
-        { id: "exiliado_proscrito", name: "Exiliado / Proscrito", funds: "1,000 Ahn", benefit: "+2 Supervivencia, +1 Instinto, -1 Carisma" },
-        { id: "esclavo_liberado", name: "Esclavo Liberado / Fugitivo", funds: "200 Ahn", benefit: "+2 Voluntad, +1 Templanza, -1 Confianza (Empatía)" },
+        { id: "alta_cuna", name: "Alta Cuna", funds: "375,000 Ahn", benefit: "+1 Empatía, +1 Negociación, -1 Supervivencia" },
+        { id: "aristocracia_mercantil", name: "Aristocracia Mercantil", funds: "450,000 Ahn", benefit: "+2 Negociación, +1 Engaño, -1 Vigor" },
+        { id: "nobleza_caida", name: "Nobleza Caída", funds: "75,000 Ahn", benefit: "+1 Presencia, +1 Sigilo" },
+        { id: "cuna_de_eruditos", name: "Cuna de Eruditos", funds: "225,000 Ahn", benefit: "+2 Ciencia, +1 Lore, -1 Carisma" },
+        { id: "linaje_militar", name: "Linaje Militar", funds: "120,000 Ahn", benefit: "+1 Fortaleza, +1 Manejo" },
+        { id: "familia_de_granjeros", name: "Familia de Granjeros", funds: "45,000 Ahn", benefit: "+1 Vigor, +1 Supervivencia" },
+        { id: "artesano_independiente", name: "Artesano Independiente", funds: "90,000 Ahn", benefit: "+1 Reflejos, +1 Análisis" },
+        { id: "fuerzas_de_seguridad", name: "Fuerzas de Seguridad (Bajas)", funds: "105,000 Ahn", benefit: "+1 Percepción, +1 Voluntad" },
+        { id: "burocracia_menor", name: "Burocracia Menor", funds: "67,500 Ahn", benefit: "+1 Memoria, +1 Prudencia" },
+        { id: "huerfano_callejero", name: "Huérfano Callejero", funds: "7,500 Ahn", benefit: "+2 Sigilo, +1 Agilidad, -1 Educación Formal (Lore)" },
+        { id: "escoria_criminal", name: "Escoria Criminal", funds: "30,000 Ahn", benefit: "+1 Engaño, +1 Seducción" },
+        { id: "exiliado_proscrito", name: "Exiliado / Proscrito", funds: "15,000 Ahn", benefit: "+2 Supervivencia, +1 Instinto, -1 Carisma" },
+        { id: "esclavo_liberado", name: "Esclavo Liberado / Fugitivo", funds: "3,000 Ahn", benefit: "+2 Voluntad, +1 Templanza, -1 Confianza (Empatía)" },
         { id: "experimento_fallido", name: "Experimento Fallido", funds: "0 Ahn", benefit: "+2 Resistencia (Fortaleza), +1 Arcana, -1 Apariencia (Presencia)" },
-        { id: "academico_desacreditado", name: "Académico Desacreditado", funds: "1,500 Ahn", benefit: "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)" },
-        { id: "siervo_corporativo", name: "Siervo Corporativo (Bajo Rango)", funds: "2,500 Ahn", benefit: "+1 Represión, +1 Negociación" },
-        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-100,000 Ahn", benefit: "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
-        { id: "miembro_culto", name: "Miembro de Culto Menor", funds: "800 Ahn", benefit: "+2 Fe, +1 Lore, -1 Razón (Análisis)" }
+        { id: "academico_desacreditado", name: "Académico Desacreditado", funds: "22,500 Ahn", benefit: "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)" },
+        { id: "siervo_corporativo", name: "Siervo Corporativo (Bajo Rango)", funds: "37,500 Ahn", benefit: "+1 Represión, +1 Negociación" },
+        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-1,500,000 Ahn", benefit: "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
+        { id: "miembro_culto", name: "Miembro de Culto Menor", funds: "12,000 Ahn", benefit: "+2 Fe, +1 Lore, -1 Razón (Análisis)" }
     ];
 
     const professionsData = [
