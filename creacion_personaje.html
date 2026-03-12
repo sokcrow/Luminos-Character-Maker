@@ -5277,23 +5277,22 @@
             const finalDialogueText = [
                 "Comprendo...",
                 "Así fue como forjaste tu camino, tallando tus talentos.",
-                "Pero para sostener eso, tuviste que dejar partes de ti atrás.",
-                "Nadie puede abarcarlo todo sin romperse.",
-                "Dime... en los raros momentos donde te permitías ser algo más... ¿qué parte de ti te negaste a dejar morir por completo?"
+                "Pero para sostener ese poder, tuviste que dejar algo atrás.",
+                "Dime... ¿Qué parte de ti dejaste morir por completo?"
             ];
 
             const finalOptions = {
                 "Aprender": [
-                    { text: "[ Mi resistencia física ]", benefit: { stat: "cuerpo", val: 1 }, penalty: { stat: "alma", val: -1 } },
-                    { text: "[ Mi paz espiritual ]", benefit: { stat: "alma", val: 1 }, penalty: { stat: "cuerpo", val: -1 } }
+                    { text: "[ Mi resistencia física ]", sacrificeBranch: "Cuerpo" },
+                    { text: "[ Mi paz espiritual ]", sacrificeBranch: "Alma" }
                 ],
                 "Fortalecerme": [
-                    { text: "[ Mi sed de conocimiento ]", benefit: { stat: "mente", val: 1 }, penalty: { stat: "alma", val: -1 } },
-                    { text: "[ Mi fe interior ]", benefit: { stat: "alma", val: 1 }, penalty: { stat: "mente", val: -1 } }
+                    { text: "[ Mi sed de conocimiento ]", sacrificeBranch: "Mente" },
+                    { text: "[ Mi fe interior ]", sacrificeBranch: "Alma" }
                 ],
                 "Meditar": [
-                    { text: "[ El filo de mi intelecto ]", benefit: { stat: "mente", val: 1 }, penalty: { stat: "cuerpo", val: -1 } },
-                    { text: "[ La fuerza de mi sangre ]", benefit: { stat: "cuerpo", val: 1 }, penalty: { stat: "mente", val: -1 } }
+                    { text: "[ El filo de mi intelecto ]", sacrificeBranch: "Mente" },
+                    { text: "[ La fuerza de mi sangre ]", sacrificeBranch: "Cuerpo" }
                 ]
             };
 
@@ -5389,38 +5388,28 @@
 
             purpleButtonsContainer.addEventListener('click', (e) => {
                 e.stopPropagation();
+
+                const branchMapping = {
+                    "Aprender": "Mente",
+                    "Fortalecerme": "Cuerpo",
+                    "Meditar": "Alma"
+                };
+
                 if (e.target.classList.contains('focus-btn')) {
                     const action = e.target.dataset.action;
                     primaryFocus = action;
                     purpleButtonsContainer.classList.add('hidden');
-                    purplePhaseState = 1;
 
-                    // Populate skill buttons
-                    purpleButtonsContainer.innerHTML = "";
-                    skillOptions[primaryFocus].options.forEach(opt => {
-                        const btn = document.createElement('button');
-                        btn.className = 'purple-btn skill-btn';
-                        btn.style.display = 'block';
-                        btn.style.width = '100%';
-                        btn.style.margin = '5px 0';
-                        btn.style.textAlign = 'left';
-                        btn.innerHTML = `${opt.text} <span style='color: var(--cyan-tech);'>(+2 ${opt.skill})</span>`;
-                        btn.dataset.skill = opt.skill;
-                        purpleButtonsContainer.appendChild(btn);
-                    });
+                    const focusBranch = branchMapping[primaryFocus];
 
-                    typePIntervText(skillOptions[primaryFocus].question, () => {
-                        purpleButtonsContainer.classList.remove('hidden');
-                    });
-                } else if (e.target.closest('.skill-btn')) {
-                    const btn = e.target.closest('.skill-btn');
-                    const skill = btn.dataset.skill;
-                    purpleButtonsContainer.classList.add('hidden');
+                    // Apply +2 to all skills in the focused branch
+                    if (skillsTree[focusBranch]) {
+                        skillsTree[focusBranch].forEach(skill => {
+                            luminousState.modifiers[skill] = (luminousState.modifiers[skill] || 0) + 2;
+                        });
+                    }
 
-                    // Apply skill modifier
-                    luminousState.modifiers[skill] = (luminousState.modifiers[skill] || 0) + 2;
-
-                    // Move to final question
+                    // Skip the skill selection (purplePhaseState = 1) and go directly to final question
                     purplePhaseState = 2;
                     pIntervStep = 0;
 
@@ -5433,10 +5422,7 @@
                         btn2.style.width = '100%';
                         btn2.style.margin = '10px 0';
                         btn2.innerHTML = `${opt.text}`;
-                        btn2.dataset.benefitStat = opt.benefit.stat;
-                        btn2.dataset.benefitVal = opt.benefit.val;
-                        btn2.dataset.penaltyStat = opt.penalty.stat;
-                        btn2.dataset.penaltyVal = opt.penalty.val;
+                        btn2.dataset.sacrificeBranch = opt.sacrificeBranch;
                         purpleButtonsContainer.appendChild(btn2);
                     });
 
@@ -5447,15 +5433,20 @@
                     });
                 } else if (e.target.classList.contains('final-btn')) {
                     const btn = e.target;
-                    const bStat = btn.dataset.benefitStat;
-                    const bVal = parseInt(btn.dataset.benefitVal);
-                    const pStat = btn.dataset.penaltyStat;
-                    const pVal = parseInt(btn.dataset.penaltyVal);
+                    const sacrificeBranch = btn.dataset.sacrificeBranch;
 
                     purpleButtonsContainer.classList.add('hidden');
 
-                    luminousState.baseStats[bStat] += bVal;
-                    luminousState.baseStats[pStat] += pVal;
+                    const allBranches = ["Cuerpo", "Mente", "Alma"];
+                    const focusBranch = branchMapping[primaryFocus];
+                    const leftoverBranch = allBranches.find(b => b !== focusBranch && b !== sacrificeBranch);
+
+                    // Apply +1 to the remaining branch
+                    if (skillsTree[leftoverBranch]) {
+                        skillsTree[leftoverBranch].forEach(skill => {
+                            luminousState.modifiers[skill] = (luminousState.modifiers[skill] || 0) + 1;
+                        });
+                    }
 
                     // Fade out and go to phase-dialogue-3
                     phasePurpleIntervention.classList.add('fade-out');
