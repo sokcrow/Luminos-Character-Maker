@@ -2274,8 +2274,77 @@ window.addEventListener('DOMContentLoaded', () => {
             if (targetContent) {
                 targetContent.classList.add('active');
             }
+
+            // Hide detail card and reset selection when switching tabs
+            const detailCard = document.getElementById('item-detail-card');
+            if (detailCard) detailCard.classList.remove('active');
+            document.querySelectorAll('.item-slot.active').forEach(s => s.classList.remove('active'));
         });
     });
+
+    // --- Mock Data & Rendering for Inventory Grids ---
+    const mockItems = [
+        { id: 1, name: "Balas LCB", tier: "I", cost: 10, tags: ["Consumible", "Munición"], desc: "Balas estándar emitidas por Limbus Company. Son baratas, confiables y matan lo que tengan en frente, la mayoría de las veces.", img: "https://i.imgur.com/yshLPnQ.png", cant: 30 },
+        { id: 2, name: "Cuchillo Térmico", tier: "II", cost: 150, tags: ["Arma", "Burn"], desc: "Una hoja que alcanza altas temperaturas. Cauteriza la herida al mismo tiempo que corta. Muy usada en los callejones traseros.", img: "https://i.imgur.com/Akf25L5.png", cant: 1 },
+        { id: 3, name: "Inyector de Enkephalina", tier: "III", cost: 500, tags: ["Medicina", "SP", "Peligro"], desc: "Un tubo brillante verde. Restaura cordura al instante, pero el abuso de esta sustancia te dejará babeando en un rincón.", img: "https://i.imgur.com/DCTX5Jy.png", cant: 3 },
+        { id: 4, name: "Módulo Cibernético Roto", tier: "I", cost: 25, tags: ["Chatarra", "Crafting"], desc: "Un pedazo de tecnología que fue arrancado de un cíborg menos afortunado. Todavía tiene algo de cobre aprovechable.", img: "https://i.imgur.com/0KArwDU.png", cant: 5 }
+    ];
+
+    function renderInventoryGrid(gridId, items) {
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        // Fill slots with items
+        items.forEach(item => {
+            const slot = document.createElement('div');
+            slot.className = 'item-slot';
+            slot.innerHTML = `
+                <img src="${item.img}" alt="${item.name}" />
+                <div class="item-quantity">x${item.cant}</div>
+            `;
+
+            slot.addEventListener('click', () => {
+                // Remove active from all slots
+                document.querySelectorAll('.item-slot').forEach(s => s.classList.remove('active'));
+                slot.classList.add('active');
+
+                // Show detail card
+                const detailCard = document.getElementById('item-detail-card');
+                detailCard.classList.add('active');
+
+                // Populate data
+                document.getElementById('detail-icon').src = item.img;
+                document.getElementById('detail-tier-val').innerText = item.tier;
+                document.getElementById('detail-cost-val').innerText = item.cost;
+                document.getElementById('detail-title').innerText = item.name;
+                document.getElementById('detail-desc').innerText = item.desc;
+
+                const tagsContainer = document.getElementById('detail-tags-val');
+                tagsContainer.innerHTML = '';
+                item.tags.forEach(tag => {
+                    const t = document.createElement('span');
+                    t.className = 'detail-tag';
+                    t.innerText = `[${tag}]`;
+                    tagsContainer.appendChild(t);
+                });
+            });
+
+            grid.appendChild(slot);
+        });
+
+        // Fill remaining empty slots up to 25 to make it look like a grid
+        const emptySlotsNeeded = Math.max(0, 25 - items.length);
+        for(let i = 0; i < emptySlotsNeeded; i++) {
+            const emptySlot = document.createElement('div');
+            emptySlot.className = 'item-slot';
+            grid.appendChild(emptySlot);
+        }
+    }
+
+    renderInventoryGrid('inv-active-grid', mockItems.slice(0, 2)); // Just 2 in active
+    renderInventoryGrid('inv-stash-grid', mockItems); // All in stash
 
     // --- Dynamic Shop System Logic ---
     const shopSelector = document.getElementById('shop-selector');
