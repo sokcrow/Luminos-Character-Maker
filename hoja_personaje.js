@@ -2318,7 +2318,28 @@ window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('detail-icon').src = item.img;
                 document.getElementById('detail-tier-val').innerText = item.tier;
                 document.getElementById('detail-cost-val').innerText = item.cost;
-                document.getElementById('detail-title').innerText = item.name;
+
+                const titleBadge = document.getElementById('detail-title');
+                titleBadge.innerText = item.name;
+
+                // Limpiar clases de tier anteriores
+                titleBadge.classList.remove('tier-i-ii', 'tier-iii-iv', 'tier-v-vi', 'tier-vii-viii', 'tier-ix-x');
+
+                // Aplicar nueva clase según el tier
+                if (item.tier === 'I' || item.tier === 'II') {
+                    titleBadge.classList.add('tier-i-ii');
+                } else if (item.tier === 'III' || item.tier === 'IV') {
+                    titleBadge.classList.add('tier-iii-iv');
+                } else if (item.tier === 'V' || item.tier === 'VI') {
+                    titleBadge.classList.add('tier-v-vi');
+                } else if (item.tier === 'VII' || item.tier === 'VIII') {
+                    titleBadge.classList.add('tier-vii-viii');
+                } else if (item.tier === 'IX' || item.tier === 'X') {
+                    titleBadge.classList.add('tier-ix-x');
+                } else {
+                    titleBadge.classList.add('tier-i-ii'); // Default fallback
+                }
+
                 document.getElementById('detail-desc').innerText = item.desc;
 
                 const tagsContainer = document.getElementById('detail-tags-val');
