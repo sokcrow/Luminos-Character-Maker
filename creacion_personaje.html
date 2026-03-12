@@ -557,6 +557,23 @@
             </div>
         </div>
 
+        <div id="phase-dialogue-5" class="phase hidden">
+            <div class="background-glow"></div>
+            <p id="dialogue-text-5" class="golden-text"></p>
+        </div>
+
+        <div id="phase5" class="phase hidden" style="justify-content: flex-start; padding-top: 50px; overflow-y: auto;">
+            <h1 class="question">¿Cómo enfrentas a La Ciudad?</h1>
+            <div id="class-grid" class="origin-grid"></div>
+
+            <h1 class="question" style="margin-top: 40px; font-size: 2rem;">Especialización (<span id="points-counter" style="color: var(--cyan-tech);">20</span> Puntos)</h1>
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">Distribuye hasta un máximo de +3 por habilidad.</p>
+            <div id="skills-point-buy" class="origin-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
+
+            <div class="nav-buttons" style="margin-bottom: 50px;">
+                <button id="btn-confirmar-clase" class="btn" disabled>Despertar (Finalizar)</button>
+            </div>
+        </div>
 
     </div>
 
@@ -570,6 +587,26 @@
             "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
             "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Lore", "Investigación", "Arcana"
         ].sort();
+
+        const classesData = [
+            { id: "barbaro", name: "Bárbaro", hpCoef: 3.38, stats: { cuerpo: 3, mente: 0, alma: 0 } },
+            { id: "guerrero", name: "Guerrero", hpCoef: 3.27, stats: { cuerpo: 2, mente: 1, alma: 0 } },
+            { id: "paladin", name: "Paladín", hpCoef: 3.17, stats: { cuerpo: 2, mente: 0, alma: 1 } },
+            { id: "monje", name: "Monje", hpCoef: 2.96, stats: { cuerpo: 1, mente: 1, alma: 1 } },
+            { id: "druida", name: "Druida", hpCoef: 2.87, stats: { cuerpo: 1, mente: 0, alma: 2 } },
+            { id: "artifice", name: "Artífice", hpCoef: 2.75, stats: { cuerpo: 1, mente: 2, alma: 0 } },
+            { id: "ranger", name: "Ranger", hpCoef: 2.67, stats: { cuerpo: 1, mente: 1, alma: 1 } },
+            { id: "clerigo", name: "Clérigo", hpCoef: 2.56, stats: { cuerpo: 0, mente: 1, alma: 2 } },
+            { id: "picaro", name: "Pícaro", hpCoef: 2.48, stats: { cuerpo: 1, mente: 2, alma: 0 } },
+            { id: "hechicero", name: "Hechicero", hpCoef: 2.36, stats: { cuerpo: 0, mente: 0, alma: 3 } },
+            { id: "bardo", name: "Bardo", hpCoef: 2.26, stats: { cuerpo: 0, mente: 1, alma: 2 } },
+            { id: "brujo", name: "Brujo", hpCoef: 2.17, stats: { cuerpo: 0, mente: 1, alma: 2 } },
+            { id: "mago", name: "Mago", hpCoef: 2.16, stats: { cuerpo: 0, mente: 3, alma: 0 } }
+        ];
+
+        let puntosRestantes = 20;
+        let puntosDistribuidos = {};
+        atributosLista.forEach(attr => puntosDistribuidos[attr] = 0);
 
                         const backgroundsData = [
             // LA ALTA SOCIEDAD
@@ -4312,6 +4349,8 @@
             psychologicalIdeal: null,
             psychologicalVinculo: null,
             psychologicalGrieta: null,
+            clase: null,
+            hpCoef: null,
             modifiers: {}, // Mods de atributos (Vigor, etc.)
             humanPerks: [],
             baseStats: { cuerpo: 0, mente: 0, alma: 0 } // Stats principales
@@ -5876,23 +5915,264 @@
             phaseDialogue4.addEventListener('click', handleDialogue4Advance);
             phaseDialogue4.addEventListener('touchstart', handleDialogue4Advance, {passive: false});
 
+            // Phase 5 Logic
+            const phaseDialogue5 = document.getElementById('phase-dialogue-5');
+            const dialogueText5 = document.getElementById('dialogue-text-5');
+            const phase5 = document.getElementById('phase5');
+
+            let dialogue5Step = 0;
+            let isTypingDialogue5 = false;
+            let typingTimeout5;
+
+            const dialogue5Phrases = [
+                ">"
+            ];
+
+            function startDialogue5() {
+                phaseDialogue5.classList.remove('hidden');
+                dialogue5Step = 0;
+                typeDialogue5(dialogue5Phrases[dialogue5Step]);
+            }
+
+            function typeDialogue5(text) {
+                dialogueText5.innerHTML = "";
+                isTypingDialogue5 = true;
+                let charIndex = 0;
+
+                function typeNext() {
+                    if (charIndex < text.length) {
+                        dialogueText5.innerHTML += text.charAt(charIndex);
+                        charIndex++;
+                        typingTimeout5 = setTimeout(typeNext, 40);
+                    } else {
+                        isTypingDialogue5 = false;
+                    }
+                }
+                typeNext();
+            }
+
+            function handleDialogue5Advance(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+
+                if (isTypingDialogue5) {
+                    clearTimeout(typingTimeout5);
+                    dialogueText5.innerHTML = dialogue5Phrases[dialogue5Step];
+                    isTypingDialogue5 = false;
+                } else {
+                    dialogue5Step++;
+                    if (dialogue5Step < dialogue5Phrases.length) {
+                        typeDialogue5(dialogue5Phrases[dialogue5Step]);
+                    } else {
+                        // Transition to Phase 5
+                        phaseDialogue5.classList.add('fade-out');
+                        setTimeout(() => {
+                            phaseDialogue5.classList.add('hidden');
+                            phaseDialogue5.classList.remove('fade-out');
+                            phase5.classList.remove('hidden');
+                            renderClasses();
+                            renderPointBuy();
+                        }, 1000);
+                    }
+                }
+            }
+
+            phaseDialogue5.addEventListener('click', handleDialogue5Advance);
+            phaseDialogue5.addEventListener('touchstart', handleDialogue5Advance, {passive: false});
+
             const btnConfirmarPsicologia = document.getElementById('btn-confirmar-psicologia');
             if(btnConfirmarPsicologia) {
                 const handleConfirmPsychoClick = (e) => {
                     if (e.type === 'touchstart') e.preventDefault();
                     if (btnConfirmarPsicologia.disabled) return;
 
-                    // Save state
-                    localStorage.setItem('luminousState', JSON.stringify(luminousState));
-
-                    // Transition out
+                    // Transition out to phase 5
                     phase4.classList.add('fade-out');
                     setTimeout(() => {
-                        window.location.href = 'index.html?tab=creator';
+                        phase4.classList.add('hidden');
+                        phase4.classList.remove('fade-out');
+
+                        // Begin Phase 5 dialogue transition
+                        const phaseDialogue5 = document.getElementById('phase-dialogue-5');
+                        phaseDialogue5.classList.remove('hidden');
+
+                        // We will add logic for Phase 5 here
+                        startDialogue5();
+
                     }, 1000);
                 };
                 btnConfirmarPsicologia.addEventListener('click', handleConfirmPsychoClick);
                 btnConfirmarPsicologia.addEventListener('touchstart', handleConfirmPsychoClick, {passive: false});
+            }
+
+            function renderClasses() {
+                const classGrid = document.getElementById('class-grid');
+                if (!classGrid) return;
+                classGrid.innerHTML = '';
+
+                classesData.forEach(clase => {
+                    const card = document.createElement('div');
+                    card.className = 'origin-card class-card';
+                    card.dataset.id = clase.id;
+
+                    const statsText = Object.entries(clase.stats)
+                        .filter(([_, val]) => val > 0)
+                        .map(([key, val]) => `+${val} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
+                        .join(', ');
+
+                    card.innerHTML = `
+                        <div class="card-header" style="text-align: left;">
+                            <h2>${clase.name}</h2>
+                            <span style="font-size: 0.8rem; color: #FFD700; font-style: italic;">Coeficiente de HP: ${clase.hpCoef}</span>
+                        </div>
+                        <div class="card-body" style="text-align: left; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.9rem; color: var(--green-success);"><strong>Estadísticas Base:</strong><br>${statsText}</div>
+                        </div>
+                    `;
+
+                    const handleCardClick = (e) => {
+                        if (e.type === 'touchstart') e.preventDefault();
+                        seleccionarClase(clase.id);
+                    };
+                    card.addEventListener('click', handleCardClick);
+                    card.addEventListener('touchstart', handleCardClick, {passive: false});
+
+                    classGrid.appendChild(card);
+                });
+            }
+
+            function seleccionarClase(id) {
+                const selectedClass = classesData.find(c => c.id === id);
+                if (!selectedClass) return;
+
+                luminousState.clase = selectedClass.name;
+                luminousState.hpCoef = selectedClass.hpCoef;
+
+                const cards = document.querySelectorAll('#class-grid .class-card');
+                cards.forEach(card => {
+                    if (card.dataset.id === id) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                });
+
+                const classGridContainer = document.getElementById('class-grid');
+                classGridContainer.classList.add('has-selection');
+
+                validarFase5();
+            }
+
+            function renderPointBuy() {
+                const skillsGrid = document.getElementById('skills-point-buy');
+                const pointsCounter = document.getElementById('points-counter');
+                if (!skillsGrid || !pointsCounter) return;
+                skillsGrid.innerHTML = '';
+
+                // Add grid styling specific for skills
+                const skillCardStyle = `
+                    background-color: var(--bg-card);
+                    border: 1px solid #333;
+                    border-radius: 6px;
+                    padding: 10px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                `;
+
+                const btnStyle = `
+                    background: transparent;
+                    color: var(--text-main);
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    padding: 5px 10px;
+                    cursor: pointer;
+                    font-family: 'Share Tech Mono', monospace;
+                    font-size: 14px;
+                `;
+
+                atributosLista.forEach(skill => {
+                    const card = document.createElement('div');
+                    card.style.cssText = skillCardStyle;
+
+                    card.innerHTML = `
+                        <span style="font-weight: bold; font-size: 14px; color: var(--text-main);">${skill}</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="point-btn point-minus" data-skill="${skill}" style="${btnStyle}">-</button>
+                            <span class="point-val" id="point-val-${skill}" style="font-size: 16px; color: var(--cyan-tech); width: 20px; text-align: center;">0</span>
+                            <button class="point-btn point-plus" data-skill="${skill}" style="${btnStyle}">+</button>
+                        </div>
+                    `;
+
+                    skillsGrid.appendChild(card);
+                });
+
+                if (!skillsGrid.dataset.listenerAttached) {
+                    skillsGrid.dataset.listenerAttached = "true";
+                    skillsGrid.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('point-minus')) {
+                            const skill = e.target.dataset.skill;
+                            if (puntosDistribuidos[skill] > 0) {
+                                puntosDistribuidos[skill]--;
+                                puntosRestantes++;
+                                document.getElementById(`point-val-${skill}`).textContent = puntosDistribuidos[skill];
+                                pointsCounter.textContent = puntosRestantes;
+                                validarFase5();
+                            }
+                        } else if (e.target.classList.contains('point-plus')) {
+                            const skill = e.target.dataset.skill;
+                            if (puntosDistribuidos[skill] < 3 && puntosRestantes > 0) {
+                                puntosDistribuidos[skill]++;
+                                puntosRestantes--;
+                                document.getElementById(`point-val-${skill}`).textContent = puntosDistribuidos[skill];
+                                pointsCounter.textContent = puntosRestantes;
+                                validarFase5();
+                            }
+                        }
+                    });
+                }
+            }
+
+            function validarFase5() {
+                const btnConfirmarClase = document.getElementById('btn-confirmar-clase');
+                if (!btnConfirmarClase) return;
+
+                if (luminousState.clase && puntosRestantes === 0) {
+                    btnConfirmarClase.disabled = false;
+                } else {
+                    btnConfirmarClase.disabled = true;
+                }
+            }
+
+            const btnConfirmarClase = document.getElementById('btn-confirmar-clase');
+            if (btnConfirmarClase) {
+                const handleConfirmClaseClick = (e) => {
+                    if (e.type === 'touchstart') e.preventDefault();
+                    if (btnConfirmarClase.disabled) return;
+
+                    // 1. Add class stats to baseStats
+                    const selectedClassData = classesData.find(c => c.name === luminousState.clase);
+                    if (selectedClassData && selectedClassData.stats) {
+                        for (const [key, val] of Object.entries(selectedClassData.stats)) {
+                            luminousState.baseStats[key] = (luminousState.baseStats[key] || 0) + val;
+                        }
+                    }
+
+                    // 2. Add distributed points to modifiers
+                    for (const [skill, val] of Object.entries(puntosDistribuidos)) {
+                        if (val > 0) {
+                            luminousState.modifiers[skill] = (luminousState.modifiers[skill] || 0) + val;
+                        }
+                    }
+
+                    // 3. Save to localStorage
+                    localStorage.setItem('luminousState', JSON.stringify(luminousState));
+
+                    // 4. Redirect
+                    window.location.href = 'hoja_personaje.html';
+                };
+
+                btnConfirmarClase.addEventListener('click', handleConfirmClaseClick);
+                btnConfirmarClase.addEventListener('touchstart', handleConfirmClaseClick, {passive: false});
             }
 
         });
