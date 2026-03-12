@@ -3,101 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LUMINOUS SYSTEM</title>
+    <title>Luminous</title>
+    <script>
+        // Catch any global errors before other scripts run
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.addEventListener('DOMContentLoaded', function() {
+                var el = document.getElementById('origin-grid');
+                if(el) {
+                    el.innerHTML = '<div style="background:red;color:white;padding:20px;">' +
+                        '<h3>Error Global (Syntax/Load)</h3>' +
+                        '<p>' + message + '</p>' +
+                        '<p>Linea: ' + lineno + '</p>' +
+                        '</div>';
+                }
+            });
+            return false;
+        };
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+:root {
+            --bg-main: #121212;
+            --bg-card: #1e1e1e;
+            --border-accent: #ffae00;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --red-dark: #500000;
+            --red-bright: #ff0000;
+            --red-neon: #ff4444;
+            --green-success: #44ff44;
+            --cyan-tech: #00ffff;
+        }
 
-        body, html {
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
             margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            position: relative;
+    min-height: 100vh;
+}
+
+        .luminous-container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .phase-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .phase-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .phase-header {
+            border-bottom: 2px solid var(--border-accent);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .phase-header h1 {
+            color: var(--border-accent);
+            font-size: 28px;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .phase-header h2 {
+            color: var(--text-main);
+            font-size: 20px;
+            margin: 20px 0 5px 0;
+            text-transform: uppercase;
+            border-left: 3px solid var(--red-bright);
+            padding-left: 10px;
+            text-align: left;
+        }
+
+        .phase-header p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin: 0;
+            font-style: italic;
+        }
+
+        .origin-grid, .social-grid, .nature-grid, .interest-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .origin-card, .social-card, .nature-card, .interest-card {
+            background-color: var(--bg-card);
+            border: 1px solid #333;
+            border-radius: 6px;
             overflow: hidden;
-            background-color: #000;
-            font-family: 'Share Tech Mono', sans-serif; /* sans-serif fallback as requested, though Share Tech Mono is monospace */
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            display: flex;
+            flex-direction: column;
             cursor: pointer;
         }
 
-        /* Dark background generic image with a dark overlay */
-        .background-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-image: url('https://i.imgur.com/kS9Tz6F.png'); /* Generic dark placeholder */
-            background-size: cover;
-            background-position: center;
-            z-index: 1;
+        /* Logic for opacity when one is selected in a specific grid */
+        .origin-grid.has-selection .origin-card:not(.selected),
+        .social-grid.has-selection .social-card:not(.selected),
+        .nature-grid.has-selection .nature-card:not(.selected),
+        .interest-grid.has-selection .interest-card:not(.selected) {
+            opacity: 0.5;
+            transform: scale(0.98);
         }
 
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 2;
+        .origin-card:hover, .social-card:hover, .nature-card:hover, .interest-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--border-accent);
+            box-shadow: 0 5px 15px rgba(255, 174, 0, 0.1);
+            opacity: 1 !important;
         }
 
-        /* Content layout */
-        .content {
-            position: relative;
-            z-index: 3;
-            width: 100vw;
-            height: 100vh;
+        .origin-card.selected, .social-card.selected, .nature-card.selected, .interest-card.selected {
+            border-color: var(--border-accent);
+            transform: translateY(-5px) scale(1.02);
+            opacity: 1;
+            animation: flicker 2s infinite alternate;
+        }
+
+        .nature-select-container, .interest-select-container {
+            display: none;
+            margin-top: 15px;
+            border-top: 1px dashed #444;
+            padding-top: 10px;
+        }
+
+        .nature-card.selected .nature-select-container,
+        .interest-card.selected .interest-select-container {
+            display: block;
+        }
+
+        .card-header {
+            background: linear-gradient(to right, var(--red-dark), #2a0000);
+            padding: 15px;
+            border-bottom: 1px solid var(--red-bright);
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        .card-body {
+            padding: 15px;
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+        }
+
+        .concept-text {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .stats-box {
+            background-color: #111;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            color: #ffffff;
+            font-size: 13px;
         }
 
-        /* Logo / Large Title */
-        .logo-title {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Requested sans-serif */
-            font-size: 5rem;
+        .stat-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-name-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-label {
             font-weight: bold;
-            text-align: center;
-            margin: 0;
-            letter-spacing: 5px;
-            color: #ffffff;
-            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 40px #00ffff; /* Cyan glow */
-            /* Alternativamente, dorado: text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 40px #ffd700; */
+            color: var(--text-main);
         }
 
-        @media (max-width: 768px) {
-            .logo-title {
-                font-size: 3rem;
-            }
+        .stat-val-pos {
+            color: var(--green-success);
+            font-weight: bold;
         }
 
-        /* Blinking text */
-        .blinking-text {
-            margin-top: 40px;
-            font-size: 1.5rem;
-            letter-spacing: 2px;
-            animation: blink 1.5s infinite;
-            color: #00ffff; /* subtle cyan to match glow */
+        .stat-val-neg {
+            color: var(--red-neon);
+            font-weight: bold;
         }
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
+        .stat-val-skill {
+            color: var(--cyan-tech);
+            font-weight: bold;
         }
 
-        /* Bottom copyright */
-        .copyright {
-            position: absolute;
-            bottom: 20px;
-            font-size: 0.9rem;
-            color: #aaaaaa;
+        .trait-box {
+            margin-top: auto;
+            border-top: 1px dashed #444;
+            padding-top: 10px;
+        }
+
+        .trait-title {
+            font-size: 12px;
+            color: var(--border-accent);
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .trait-desc {
+            font-size: 12px;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+
+        .human-selects, .subrace-container {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .origin-card.selected .human-selects,
+        .origin-card.selected .subrace-container {
+            display: flex;
+        }
+
+        .human-select-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .human-select-row label {
+            font-size: 12px;
+            color: var(--text-main);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .choice-select {
+            width: 100%;
+            background-color: #111;
+            color: var(--text-main);
+            border: 1px solid #444;
+            padding: 6px;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .choice-select.error {
+            border-color: var(--red-neon);
+            box-shadow: 0 0 5px var(--red-neon);
+        }
+
+        .choice-select:focus {
+            border-color: var(--border-accent);
+        }
+
+        .nav-buttons {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn {
+            background-color: var(--red-dark);
+            color: var(--text-main);
+            border: 1px solid var(--red-bright);
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
             letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
-        /* CRT Scanlines and overlay effects for cyberpunk feel */
-        .content::before {
+        .btn:hover:not(:disabled) {
+            background-color: var(--red-bright);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+            transform: scale(1.02);
+        }
+
+        .btn:disabled {
+            background-color: #333;
+            border-color: #555;
+            color: #777;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .human-error-msg {
+            color: var(--red-neon);
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        /* CRT Scanlines */
+        body::before {
             content: " ";
             display: block;
             position: fixed;
@@ -114,59 +354,2346 @@
             z-index: 999;
             pointer-events: none;
         }
-    </style>
+
+        /* Moving scanline */
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(0, 255, 255, 0) 0%,
+                rgba(0, 255, 255, 0.05) 10%,
+                rgba(0, 255, 255, 0) 100%
+            );
+            opacity: 0.5;
+            background-size: 100% 100%;
+            animation: scanline 8s linear infinite;
+            z-index: 998;
+            pointer-events: none;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+
+        /* Phosphor Glow and Clinical Typography */
+        .card-header h2, .stat-val-pos, .stat-val-neg, .stat-val-neutral, .trait-title, .phase-header h1 {
+            font-family: 'Share Tech Mono', monospace;
+            text-shadow: 0 0 5px currentColor;
+            letter-spacing: 1px;
+        }
+
+        /* Flicker animation for selected cards */
+        @keyframes flicker {
+            0% { box-shadow: 0 0 10px var(--border-accent); border-color: var(--border-accent); }
+            50% { box-shadow: 0 0 25px var(--border-accent), 0 0 5px inset var(--border-accent); border-color: #ffcc55; }
+            100% { box-shadow: 0 0 10px var(--border-accent); border-color: var(--border-accent); }
+        }
+
+        /* FASE 2: Notebook Desk Aesthetics */
+        .phase-2-table {
+            background: linear-gradient(135deg, #1c1815 0%, #29231f 50%, #151210 100%);
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+            padding: 40px;
+            border-radius: 8px;
+            border: 2px solid #3d3228;
+            position: relative;
+        }
+
+        .notebook-container {
+            background-color: #fdf5e6;
+            color: #222;
+            font-family: 'Special Elite', cursive, monospace;
+            padding: 40px 40px 40px 60px;
+            border-radius: 4px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5), -2px 0 5px rgba(0,0,0,0.2);
+            position: relative;
+            background-image:
+                linear-gradient(#99ccff 1px, transparent 1px);
+            background-size: 100% 30px;
+            line-height: 30px;
+        }
+
+        /* Red margin line */
+        .notebook-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 40px;
+            width: 2px;
+            background-color: #ff6666;
+            opacity: 0.7;
+        }
+
+        .notebook-header {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            display: inline-block;
+            padding: 0 15px;
+            background: #fdf5e6; /* cover grid line behind header */
+        }
+
+        .notebook-block {
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 2; /* sit above the grid */
+        }
+
+        .notebook-block-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #000;
+            display: flex;
+            align-items: center;
+            background: #fdf5e6;
+            display: inline-block;
+            padding-right: 10px;
+        }
+
+        .notebook-select {
+            font-family: 'Special Elite', cursive, monospace;
+            font-size: 16px;
+            color: #003366;
+            background: transparent;
+            border: none;
+            border-bottom: 2px dashed #000;
+            outline: none;
+            padding: 0 5px;
+            width: 300px;
+            cursor: pointer;
+            margin-left: 10px;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .notebook-select:focus {
+            border-bottom: 2px solid #003366;
+        }
+
+        .notebook-select option {
+            background-color: #fdf5e6;
+            color: #000;
+        }
+
+        /* Lower opacity CRT for Phase 2 Table */
+        #phase-2.active ~ body::after,
+        .phase-section#phase-2.active .notebook-container {
+            /* Keep CRT over notebook, but notebook remains readable */
+            z-index: 10;
+        }
+
+        /* Specialized red stamp text */
+        .stamp-text {
+            color: #cc0000;
+            font-size: 14px;
+            border: 2px solid #cc0000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            transform: rotate(-5deg);
+            display: inline-block;
+            margin-left: 15px;
+            opacity: 0.8;
+            font-weight: bold;
+        }
+
+        /* Tabs Styles */
+        .tabs-header {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            background: #111;
+            border: 1px solid #333;
+            border-bottom: none;
+            color: var(--text-muted);
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: #222;
+        }
+
+        .tab-btn.active {
+            color: var(--border-accent);
+            border-color: var(--border-accent);
+            background: var(--bg-card);
+            text-shadow: 0 0 5px rgba(255, 174, 0, 0.5);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .sub-tab-content {
+            display: none;
+        }
+
+        .sub-tab-content.active {
+            display: block;
+        }
+
+        .btn-proximamente {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #111;
+            border: 1px solid #333;
+            color: #555;
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            cursor: not-allowed;
+            text-transform: uppercase;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        /* Estados Tab Grid */
+        .estados-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .estado-card {
+            background-color: var(--bg-card);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            transition: border-color 0.2s ease;
+        }
+
+        .estado-card:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 0 10px rgba(255, 174, 0, 0.1);
+        }
+
+        .estado-icon {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: 4px;
+            background-color: transparent;
+        }
+
+        .estado-info {
+            flex-grow: 1;
+        }
+
+        .estado-name {
+            color: var(--border-accent);
+            font-size: 16px;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .estado-tipo {
+            font-size: 11px;
+            color: var(--cyan-tech);
+            background: rgba(0, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .estado-desc {
+            font-size: 13px;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+
+</style>
 </head>
 <body>
-    <div class="background-container"></div>
-    <div class="overlay"></div>
 
-    <div class="content">
-        <h1 class="logo-title">LUMINOUS SYSTEM</h1>
-        <div class="blinking-text">[ PULSE PARA INICIAR CONEXIÓN ]</div>
-        <div class="copyright">Ver. 1.0.4 - Lobotomy Corp</div>
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px;">
+        <button class="btn-proximamente" style="position: static;" onclick="window.location.href='hoja_personaje.html'">Hoja de Personaje</button>
+        <button class="btn-proximamente" style="position: static;" onclick="window.location.href='creacion_personaje.html'">Comenzar Creación de Personaje</button>
+    </div>
+
+    <div class="luminous-container">
+
+        <div class="tabs-header">
+            <button class="tab-btn active" data-tab="tab-guia">Guía</button>
+            <button class="tab-btn" data-tab="tab-estados">Estados</button>
+            <button class="tab-btn" data-tab="tab-habilidades">Atributos y Habilidades</button>
+        </div>
+
+        <!-- TAB GUIA -->
+        <div id="tab-guia" class="tab-content active">
+            <div class="tabs-header" style="margin-top: 20px; border-bottom: 1px solid #444;">
+                <button class="tab-btn active sub-tab-btn" data-subtab="subtab-mecanicas">Mecánicas de Rol</button>
+                <button class="tab-btn sub-tab-btn" data-subtab="subtab-stats">Stats de Combates</button>
+                <button class="tab-btn sub-tab-btn" data-subtab="subtab-skills">Skills</button>
+            </div>
+
+            <div id="subtab-mecanicas" class="sub-tab-content active">
+                <div class="phase-header">
+                    <h1>Mecánicas de Rol</h1>
+                    <p>Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
+                </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda" style="width: 24px; height: 24px;">
+                    1. Checks de Habilidad (La Tirada)
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>Cuando intentes una acción con riesgo de fallar (mentirle a un guardia, saltar un abismo, forzar una cerradura), el Director de Juego (DJ) te pedirá un Check de Habilidad.</p>
+                    <ul>
+                        <li>Para resolverlo, tomarás tu valor base de Habilidad y lanzarás exactamente <strong>5 Monedas</strong>.</li>
+                        <li>Cada moneda que caiga de tu lado (Cara/Éxito) suma un <strong>+3</strong> directo a tu tirada.</li>
+                    </ul>
+                    <p style="color: var(--cyan-tech); font-family: 'Share Tech Mono', monospace; font-size: 16px;">Fórmula de éxito: Nivel de Habilidad + (Número de Caras × 3) = Resultado Final</p>
+                    <p style="color: var(--text-muted); font-style: italic;">Ejemplo: Si tu Habilidad de Sigilo es 4 y sacas 3 caras al lanzar las monedas (3 x 3 = 9), tu resultado final es 13 (4 + 9).</p>
+                </div>
+            </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/mrm9j1b.png" alt="Dificultad" style="width: 24px; height: 24px;">
+                    2. Clases de Dificultad (DC)
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>Toda acción tiene un obstáculo a superar. El DJ establecerá una Clase de Dificultad (DC) que tu Resultado Final debe igualar o superar. La escala de dificultad en este sistema sube de 3 en 3, con un tope máximo de 30.</p>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/LPVzoUw.png" alt="Trivial" style="width: 20px; height: 20px;"><strong style="color: var(--green-success);">DC 3 a 6: Trivial / Muy Fácil</strong> <span>(Casi automático para alguien con buena habilidad).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/cVHvEKb.png" alt="Fácil" style="width: 20px; height: 20px;"><strong style="color: var(--cyan-tech);">DC 9 a 12: Fácil / Medio</strong> <span>(El estándar para acciones bajo presión).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/0kog02u.png" alt="Difícil" style="width: 20px; height: 20px;"><strong style="color: var(--border-accent);">DC 15 a 18: Difícil / Muy Difícil</strong> <span>(Requiere verdadera habilidad y suerte con las monedas).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/DDIlSeT.png" alt="Extremo" style="width: 20px; height: 20px;"><strong style="color: var(--red-neon);">DC 21 a 27: Extremo / Heroico</strong> <span>(Solo los verdaderos expertos en su campo lo logran).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/mrm9j1b.png" alt="Imposible" style="width: 20px; height: 20px;"><strong style="color: var(--red-bright);">DC 30: Imposible</strong> <span>(El límite absoluto del sistema; un milagro estadístico que requiere 5 caras y pura maestría).</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                    <img src="https://i.imgur.com/OZ0LX7h.png" alt="Suerte" style="width: 24px; height: 24px;">
+                    3. La Suerte
+                </h2>
+                <div class="concept-text" style="font-size: 15px;">
+                    <p>La Suerte es un recurso vital y limitado. Si sientes que las monedas te van a traicionar o necesitas asegurar un éxito de vida o muerte, puedes gastar un punto de Suerte.</p>
+                    <ul>
+                        <li>Gastar Suerte en un Check de Habilidad suma un <strong>+3 directo</strong> a tu tirada final (esencialmente, te regala el valor de una moneda extra perfecta).</li>
+                        <li>La cantidad de Suerte máxima que posees depende de la construcción de tu personaje, pero todo el mundo comienza con un mínimo de <strong>4 usos</strong>.</li>
+                    </ul>
+                    <p style="color: var(--red-neon); font-style: italic;">Úsala sabiamente: la Ciudad no perdona a los que malgastan sus milagros.</p>
+                </div>
+            </div>
+            </div> <!-- End subtab-mecanicas -->
+
+            <div id="subtab-stats" class="sub-tab-content">
+                <div class="phase-header">
+                    <h1>Stats de Combates</h1>
+                    <p>El combate en la Ciudad es un choque simultáneo de voluntades y acero. Sobrevivir requiere entender la velocidad, la gestión de tu cordura y tu economía de acciones.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Atributos Vitales y Recursos
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">HP (Puntos de Salud):</strong> Tu vitalidad física. Si llega a 0, mueres o quedas fuera de combate. El HP máximo se calcula con la siguiente fórmula: HP = HP_Base + (Coef × DEF_LVL).
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">HP Base:</strong> Un valor inicial de vitalidad que se establece entre 60 y 90.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Coeficiente (Coef):</strong> Un multiplicador fijo determinado por tu Clase:
+                                        <br>Bárbaro: 3.38 | Guerrero: 3.27 | Paladín: 3.17 | Monje: 2.96 | Druida: 2.87
+                                        <br>Artífice: 2.75 | Ranger: 2.67 | Clérigo: 2.56 | Pícaro: 2.48
+                                        <br>Hechicero: 2.36 | Bardo: 2.26 | Brujo: 2.17 | Mago: 2.16
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Nivel Defensivo (DEF LVL):</strong> El multiplicador principal del coeficiente. El DEF LVL base es igual a tu nivel actual de personaje. Las armaduras, accesorios y armas que lleves pueden aplicar bonificadores o penalizadores a este nivel, alterando directamente tu HP máximo.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Escudo (Shield):</strong> Algunas Habilidades (Skills), Ventajas (Perks) y estados alterados otorgan una barrera temporal que protege tu vitalidad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad:</strong> El escudo tiene prioridad absoluta al recibir ataques. Siempre absorberá el daño primero antes de que toque tu HP.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Daño Excedente:</strong> Si un ataque es lo suficientemente fuerte como para reducir el escudo a 0, cualquier daño restante traspasará la barrera y se restará directamente a tu HP.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Speed (Velocidad):</strong> Al inicio de la ronda, todas las unidades lanzan un número aleatorio que determina su Velocidad. Esto define quién golpea con prioridad.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Prioridad de Ataque:</strong> La regla de oro es que la unidad más rápida siempre ataca primero a su objetivo seleccionado, a menos que el objetivo bloquee ese ataque con otra Skill para forzar un Choque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Ataques Unilaterales:</strong> Si una unidad intenta golpear a otra que es más rápida que ella (y no hay un Choque forzado):
+                                        <ul>
+                                            <li>La Skill de la unidad más rápida se vuelve [Sin Choque] y golpea primero.</li>
+                                            <li>La Skill de la unidad más lenta se vuelve [Sin Oposición], pero debe esperar a que su turno de Velocidad llegue en la ronda para ejecutarse.</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Stagger Threshold (Umbral de Aturdimiento):</strong> Tu barra de HP tiene marcas o umbrales basados en porcentajes de tu salud máxima. Dependiendo de tus ventajas (perks) y la armadura que lleves, puedes tener entre 1 y 3 Umbrales de Aturdimiento. Si recibes suficiente daño para cruzar una de estas líneas en una sola ronda, tu guardia se rompe.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Penalización de Acción:</strong> Al entrar en Stagger, pierdes tu capacidad de actuar en la ronda en la que se activó el estado y durante toda la ronda siguiente. Eres completamente vulnerable.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Niveles de Stagger:</strong> Romper múltiples umbrales dentro de la misma ronda aumenta la severidad del estado y el multiplicador de todo el daño que recibas mientras estés aturdido:
+                                        <ul>
+                                            <li><strong style="color: var(--red-neon);">Stagger</strong> (1 umbral roto): El daño recibido se multiplica por 2 (x2).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger+</strong> (2 umbrales rotos): El daño recibido se multiplica por 2.5 (x2.5).</li>
+                                            <li><strong style="color: var(--red-neon);">Stagger++</strong> (3 umbrales rotos): El daño recibido se multiplica por 3 (x3).</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong style="color: var(--cyan-tech);">Límite de Ronda:</strong> No se pueden activar ni acumular más niveles de Stagger si el combate pasa a la siguiente ronda. Para alcanzar un Stagger+ o Stagger++, los umbrales deben ser destruidos dentro de la misma ronda de ataques.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">SP (Puntos de Sanidad):</strong> Tu estabilidad mental y el combustible de tu voluntad. Afecta directamente la probabilidad de que tus monedas caigan en Cara y sirve como recurso principal para lanzar magia.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Recuperación en Combate:</strong> Recuperas Sanidad usando la fórmula: 10 + Cantidad de Choques en los que participes.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Pérdida por Trauma:</strong> Pierdes 10 de Sanidad de forma automática e inmediata cada vez que un aliado cae en combate.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Costo de Spells (Hechizos):</strong> Lanzar magia consume tu cordura. El costo drena entre 0 y 45 SP, dependiendo del nivel de poder del Spell.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">Slots de Acción (Economía de Acciones):</strong> Representan cuántos movimientos o interacciones puedes realizar en un turno. Generalmente, una unidad posee entre 1 y 3 slots, pudiendo superar este límite solo en situaciones muy especiales.
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">Ataque y Defensa:</strong> Usar una Habilidad (Skill) Ofensiva, Defensiva o conjurar un Spell consume 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Checks de Habilidad y Entorno:</strong> El primer Check de Habilidad del turno es gratis, única y estrictamente si no requiere interactuar con más de una unidad (ej. evaluar el estado de un aliado a la distancia o buscar una debilidad visual en un enemigo). Cualquier Check de Habilidad adicional en el mismo turno costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Objetos (Items):</strong> El costo de acción depende del objeto. Algunos consumen 1 slot desde el primer uso. Los objetos clasificados como "de uso gratis" no consumen slot la primera vez que se usan en el turno, pero cualquier uso adicional del mismo objeto o de otro similar costará 1 slot.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Vulnerabilidad y Slots Expuestos:</strong> Gestionar esta economía es de vida o muerte. Si dejas uno de tus slots expuesto (sin asignarle una acción o defensa), este puede ser atacado por múltiples enemigos simultáneamente. Todo ataque dirigido a un slot vacío o no defendido se considera una acción [Sin Oposición], lo que significa que recibirás el daño de lleno sin oportunidad de forzar un Choque.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Offense Level y Defense Level
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Estas estadísticas escalan directamente con el Nivel de la unidad y afectan tanto el Poder de Choque (Clash Power) como el daño final de las Habilidades. El Offense/Defense Level nunca puede ser menor a 1.</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Cálculo de Nivel:</strong> Toda unidad posee un Offense/Defense Level base igual a su Nivel actual. Además, cada Habilidad (de Ataque, Defensa o E.G.O.) puede tener un modificador único que aumenta o disminuye este nivel general.<br>
+                                <span style="color: var(--cyan-tech); font-family: 'Share Tech Mono', monospace;">Fórmula de cálculo: Nivel = Nivel_Unidad + Modificador</span>
+                            </li>
+                        </ul>
+                        <p>Estos Niveles afectan el combate en dos formas principales:</p>
+                        <ul>
+                            <li><strong style="color: var(--green-success);">1. Resolución de Choques (Clashes):</strong> En un Choque entre dos Habilidades, la que tenga el Offense/Defense Level más alto gana Poder de Choque adicional.
+                                <ul>
+                                    <li>Obtienes +1 de Poder por cada 3 niveles de diferencia, redondeado hacia abajo (Ej. Una ventaja de 4 niveles otorga +1 de Poder).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Excepción:</strong> En un Choque entre un Ataque y una Habilidad de Defensa que no puede chocar (non-Clashable), solo la Habilidad de Defensa puede ganar poder gracias a esta diferencia de niveles, y lo obtiene como Poder Final en lugar de Poder de Choque.</li>
+                                </ul>
+                            </li>
+                            <li><strong style="color: var(--green-success);">2. Modificador de Daño:</strong> Al hacer daño con Habilidades de Ataque, la diferencia entre el Offense Level del atacante y el Defense Level del defensor modifica porcentualmente el daño infligido. Este cálculo se aplica por encima de las Resistencias.
+                                <br>La fórmula exacta del modificador de daño es:
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px 0; font-family: 'Share Tech Mono', monospace; font-size: 20px; color: var(--cyan-tech);">
+                                    <span>M = </span>
+                                    <div style="display: flex; flex-direction: column; align-items: center;">
+                                        <span style="border-bottom: 2px solid var(--cyan-tech); padding: 0 10px 2px 10px;">Off - Def</span>
+                                        <span style="padding: 2px 10px 0 10px;">|Off - Def| + 25</span>
+                                    </div>
+                                    <span>&times; 100</span>
+                                </div>
+                                <ul>
+                                    <li><strong style="color: var(--cyan-tech);">M</strong> es el modificador de daño (en %).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Off</strong> es el Offense Level de la Habilidad de Ataque.</li>
+                                    <li><strong style="color: var(--cyan-tech);">Def</strong> es el Defense Level del defensor (Si usa una Habilidad de Defensa, se usa el nivel de esa habilidad; si no, se usa el Nivel Defensivo base de su cuerpo o de la parte objetivo).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Multiplicadores y Resistencias
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">Crítico:</strong> Un golpe perfecto cuyo cálculo se aplica al final de toda la cadena de daño. Otorga un +20% adicional base al daño total, calculándose estrictamente después de haber aplicado todas las reducciones (Niveles Defensivos, Resistencias) o aumentos (Niveles Ofensivos, Debilidades, multiplicadores por Stagger). Existen efectos de estado, Habilidades (Skills) y Ventajas (Perks) que pueden aumentar este multiplicador de daño crítico por encima del 20% base.</li>
+                            <li><strong style="color: var(--green-success);">Resistencias de Daño:</strong> Todas las criaturas tienen resistencias a los distintos tipos de daño (Corte, Perforación, Contundente, Fuego, Frío, Radiante, Necrótico, etc., utilizando la lista tradicional de D&D). Estas resistencias se dividen en las siguientes categorías de multiplicación de daño:
+                                <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
+                                    <li><strong style="color: var(--red-neon);">Fatal:</strong> x2 (Recibe el doble de daño). Nota: Este nivel de vulnerabilidad extrema casi nunca es innato. Por lo general, alcanzar un multiplicador Fatal (o superior) solo es posible en situaciones tácticas específicas, principalmente cuando se rompen los umbrales del objetivo y este entra en los distintos niveles de Aturdimiento (Stagger).</li>
+                                    <li><strong style="color: var(--red-bright);">Débil:</strong> x1.5</li>
+                                    <li><strong style="color: var(--text-main);">Normal:</strong> x1 (El daño se aplica tal cual).</li>
+                                    <li><strong style="color: var(--cyan-tech);">Resistente:</strong> x0.5 (Recibe la mitad del daño).</li>
+                                    <li><strong style="color: var(--green-success);">Inefectivo:</strong> x0.25 (Apenas sufre daño).</li>
+                                    <li><strong style="color: #444;">Inmune:</strong> x0 (No recibe daño alguno).</li>
+                                    <li><strong style="color: var(--border-accent);">Absorbido:</strong> x-1 (El daño sana a la criatura en lugar de herirla).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div> <!-- End subtab-stats -->
+
+            <div id="subtab-skills" class="sub-tab-content">
+                <div class="phase-header">
+                    <h1>Habilidades (Skills)</h1>
+                    <p>Toda unidad —tanto aliada como enemiga— posee un conjunto de Habilidades (Skills) y Pasivas que pueden utilizar durante el combate.</p>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--green-success);">El Arsenal Base:</strong> Cada personaje posee al menos 3 Habilidades de Ataque de distinto poder y 1 Habilidad de Defensa. Adicionalmente, cuentan con una Pasiva de Combate y una Pasiva de Soporte que se activan dependiendo de si están activamente peleando o en la retaguardia.</li>
+                            <li><strong style="color: var(--green-success);">Mazo de Habilidades (Skill Deck):</strong> En combate, las unidades extraen sus ataques de un "Mazo" que contiene una cantidad específica de copias de cada Habilidad. Este mazo solo se baraja y reinicia cuando todas las Habilidades se han agotado. La cantidad de copias es inversamente proporcional al poder de la Skill (ej. el mazo tiene 3 copias de la Habilidad 1, pero solo 1 copia de la poderosa Habilidad 3).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        1. Propiedades de las Habilidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Al revisar la información de una Habilidad, encontrarás siempre las siguientes propiedades matemáticas:</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Poder Base (Base Power):</strong> El valor numérico con el que inicia la Habilidad antes de lanzar cualquier moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Poder de Moneda (Coin Power):</strong> La cantidad de Poder que se suma (o resta) por cada Moneda que caiga en Cara (Heads). El valor final tras el lanzamiento de monedas se denomina <strong>Poder Final</strong>.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad de Monedas (Coin Amount):</strong> El número de monedas que lanza la Habilidad. Toda Habilidad tiene al menos 1 moneda.</li>
+                            <li><strong style="color: var(--cyan-tech);">Nivel Ofensivo/Defensivo (Offense/Defense Level):</strong> Un modificador numérico exclusivo de esa Habilidad específica que aumenta o disminuye el Nivel Ofensivo/Defensivo general de la unidad al usarla.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cantidad en el Mazo (Skill Amount):</strong> Dicta cuántas copias de esta Habilidad hay en el Mazo de la unidad, definiendo qué tan a menudo estará disponible. (Las habilidades enemigas no usan esta propiedad).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        2. Tipos de Daño y Afinidades
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p><strong style="color: var(--green-success);">Tipo de Daño (Damage Type):</strong> Define la naturaleza física o mágica de la Habilidad y cómo interactúa con las resistencias del objetivo. Se divide en las siguientes categorías:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Akf25L5.png" alt="Cortante" style="width: 20px; height: 20px;"> Cortante (Slashing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/slcQlpc.png" alt="Perforante" style="width: 20px; height: 20px;"> Perforante (Piercing)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/cg8Wh4w.png" alt="Contundente" style="width: 20px; height: 20px;"> Contundente (Bludgeoning)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/jaHFSfB.png" alt="Ácido" style="width: 20px; height: 20px;"> Ácido (Acid)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0br4gK4.png" alt="Fuego" style="width: 20px; height: 20px;"> Fuego (Fire)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/kJY0rBP.png" alt="Frío" style="width: 20px; height: 20px;"> Frío (Cold)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/KMQuv3T.png" alt="Eléctrico" style="width: 20px; height: 20px;"> Eléctrico (Electric)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/qjPIdi6.png" alt="Fuerza" style="width: 20px; height: 20px;"> Fuerza (Force)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Xjt7U8a.png" alt="Necrótico" style="width: 20px; height: 20px;"> Necrótico (Necrotic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/adZpZuN.png" alt="Veneno" style="width: 20px; height: 20px;"> Veneno (Poison)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7MGMPB0.png" alt="Psíquico" style="width: 20px; height: 20px;"> Psíquico (Psychic)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/RmU2HGK.png" alt="Radiante" style="width: 20px; height: 20px;"> Radiante (Radiant)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/7VcSDjq.png" alt="Trueno" style="width: 20px; height: 20px;"> Trueno (Thunder)</li>
+                        </ul>
+                        <p style="margin-top: 15px;"><strong style="color: var(--green-success);">Afinidad de Pecado (Sin Affinity):</strong> Determina qué tipo de recurso mágico (E.G.O Resource) genera la Habilidad, cómo interactúa con las Resonancias y el daño que inflige frente a las Resistencias de Pecado del objetivo. Existen siete afinidades:</p>
+                        <ul style="list-style-type: none; padding-left: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/Nn33MJR.png" alt="Ira" style="width: 20px; height: 20px;"> Ira (Wrath)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/bF7bHHT.png" alt="Lujuria" style="width: 20px; height: 20px;"> Lujuria (Lust)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/igYFF1I.png" alt="Pereza" style="width: 20px; height: 20px;"> Pereza (Sloth)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/0KArwDU.png" alt="Gula" style="width: 20px; height: 20px;"> Gula (Gluttony)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/DCTX5Jy.png" alt="Melancolía" style="width: 20px; height: 20px;"> Melancolía (Gloom)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/w6z9THA.png" alt="Orgullo" style="width: 20px; height: 20px;"> Orgullo (Pride)</li>
+                            <li style="display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/SuNHY9D.png" alt="Envidia" style="width: 20px; height: 20px;"> Envidia (Envy)</li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades (usualmente las de Defensa) carecen de afinidad. Se representan en color neutro sin decoraciones ni recursos asociados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        3. Peso de Ataque (Atk Weight)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Attack Weight:</strong> Es la cantidad máxima de <em>Slots</em> que una sola Habilidad puede marcar como objetivo simultáneamente.</li>
+                            <li><strong style="color: var(--cyan-tech);">Resistencia de Slot (Slot Weight):</strong> Algunos enemigos gigantes o jefes pueden tener Slots que "pesan" más de 1. Esto obliga a la Habilidad a consumir más Attack Weight para afectarlos.
+                                <ul>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 1:</em> Una Habilidad con 5 de Atk Weight puede golpear 5 Slots distintos si cada uno pesa 1. (5 ⇒ 1|1|1|1|1).</li>
+                                    <li><em style="color: var(--text-muted);">Ejemplo 2:</em> Esa misma Habilidad solo podrá golpear a 3 Slots si los primeros dos pesan 2 (Gasta 2 de peso en el primer slot, 2 en el segundo, y sobra 1 para un tercer slot). (5 ⇒ 2|2|1).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <p style="color: var(--text-muted); font-style: italic; font-size: 13px;">Nota: Algunas Habilidades pueden aumentar su Atk Weight al cumplir ciertas condiciones en combate, priorizando siempre a objetivos con baja salud o que aún no han sido seleccionados.</p>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
+                        4. Las Monedas (Coins)
+                    </h2>
+                    <div class="concept-text" style="font-size: 15px;">
+                        <p>Cada Habilidad requiere lanzar Monedas para alcanzar su potencial. Dependiendo de si caen en Cara o Cruz, alteran el Poder Final de la Habilidad (y por tanto, su daño o capacidad de ganar Choques). La probabilidad de sacar Cara está dictada estrictamente por los Puntos de Sanidad (SP) de la unidad.</p>
+                        <p><strong style="color: var(--green-success);">Tipos de Moneda Base:</strong></p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech); display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda Positiva" style="width: 20px; height: 20px;"> Moneda Normal (Positiva):</strong> Si sale Cara (Éxito), suma su Poder de Moneda al Poder Base. A mayor SP, más probabilidad de sacar Cara.</li>
+                            <li><strong style="color: var(--red-neon); display: flex; align-items: center; gap: 5px;"> Moneda Negativa:</strong> Si sale Cara (Éxito), resta su Poder de Moneda al Poder Base. Estas habilidades están diseñadas para funcionar mejor cuando tu SP está por los suelos (buscando que salga Cruz/Fallo para evitar la resta).</li>
+                        </ul>
+
+                        <h3 style="color: var(--red-bright); margin-top: 20px; display: flex; align-items: center; gap: 10px;">
+                            <img src="https://i.imgur.com/yCxmI84.png" alt="Moneda Irrompible" style="width: 24px; height: 24px;"> Monedas Irrompibles (Unbreakable Coins)
+                        </h3>
+                        <p>Son una variante única y letal dentro del sistema, indicadas por su color rojo especial.</p>
+                        <ul>
+                            <li><strong style="color: var(--cyan-tech);">Mecánica de Grieta:</strong> A diferencia de las monedas normales, las Monedas Irrompibles <strong>NO se destruyen</strong> si pierdes un Choque (Clash). En su lugar, se "Agrietan" (Cracked).</li>
+                            <li><strong style="color: var(--cyan-tech);">Contraataque Agrietado:</strong> Las monedas agrietadas se dispararán sobre el enemigo después de perder el Choque (funcionando casi como un contraataque), pero su Poder de Moneda queda fijado permanentemente en <strong>1</strong> (+1 para monedas positivas, -1 para monedas negativas).</li>
+                            <li><strong style="color: var(--cyan-tech);">Interacciones:</strong> La fijación del poder a 1 ocurre <em>antes</em> de aplicar bonificadores externos. Esto significa que si una Skill dice "Poder de Moneda +2 si el objetivo sangra", la moneda agrietada subirá de 1 a 3. Del mismo modo, estados negativos como Parálisis pueden reducir este valor a 0.</li>
+                            <li><strong style="color: var(--cyan-tech);">Cancelación:</strong> Si el usuario de la Habilidad es empujado al estado de Aturdimiento (Stagger) durante el Choque, las Monedas Irrompibles se cancelan y no se disparan.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div> <!-- End subtab-skills -->
+        </div> <!-- End tab-guia -->
+
+        <!-- TAB CREADOR -->
+        <div id="tab-creator" class="tab-content">
+
+        <!-- FASE 0 -->
+        <div id="phase-0" class="phase-section active">
+            <div class="phase-header">
+                <h1>Fase 0: El Origen</h1>
+                <p>La base biológica de tu existencia. Selecciona tu raza.</p>
+            </div>
+
+            <div id="origin-grid" class="origin-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí con JavaScript -->
+            </div>
+
+            <div class="nav-buttons">
+                <button id="btn-confirmar-origen" class="btn" disabled>Confirmar Origen</button>
+            </div>
+        </div>
+
+        <!-- FASE 1 -->
+        <div id="phase-1" class="phase-section">
+            <div class="phase-header">
+                <h1>Fase 1: Clase Social y Educación</h1>
+                <p>Define tu trasfondo social y tu actitud durante la infancia.</p>
+            </div>
+
+            <div class="phase-header">
+                <h2>1A: Clase Social</h2>
+            </div>
+            <div id="social-grid" class="social-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí -->
+            </div>
+
+            <div class="phase-header">
+                <h2>1B: Naturaleza Temprana (Infancia)</h2>
+            </div>
+            <div id="nature-grid" class="nature-grid">
+                <!-- Las tarjetas se generarán dinámicamente aquí -->
+            </div>
+
+            <div class="nav-buttons">
+                <button id="btn-confirmar-infancia" class="btn" disabled>Confirmar Infancia</button>
+            </div>
+        </div>
+
+        <!-- FASE 2 -->
+        <div id="phase-2" class="phase-section">
+            <div class="phase-header">
+                <h1>Fase 2: Formación Académica (Expediente Escolar)</h1>
+                <p>En qué enfocaste tu tiempo durante la adolescencia. Define tu formación técnica.</p>
+            </div>
+
+            <div class="phase-2-table">
+                <div class="notebook-container">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <span class="notebook-header">Expediente Escolar</span>
+                        <span class="stamp-text">CLASIFICADO</span>
+                    </div>
+
+                    <div class="notebook-block">
+                        <span class="notebook-block-title">Bloque A (Ciencias):</span>
+                        <select id="select-bloque-a" class="notebook-select">
+                            <option value="" disabled selected>...anotación pendiente...</option>
+                            <option value="Cálculo Avanzado">Cálculo Avanzado</option>
+                            <option value="Bio-Ingeniería">Bio-Ingeniería</option>
+                            <option value="Protocolos de Archivo">Protocolos de Archivo</option>
+                        </select>
+                    </div>
+
+                    <div class="notebook-block">
+                        <span class="notebook-block-title">Bloque B (Físico):</span>
+                        <select id="select-bloque-b" class="notebook-select">
+                            <option value="" disabled selected>...anotación pendiente...</option>
+                            <option value="Defensa Personal">Defensa Personal</option>
+                            <option value="Gimnasia">Gimnasia</option>
+                            <option value="Resistencia de Campo">Resistencia de Campo</option>
+                        </select>
+                    </div>
+
+                    <div class="notebook-block">
+                        <span class="notebook-block-title">Bloque C (Humanidades):</span>
+                        <select id="select-bloque-c" class="notebook-select">
+                            <option value="" disabled selected>...anotación pendiente...</option>
+                            <option value="Retórica">Retórica</option>
+                            <option value="Psicología de Masas">Psicología de Masas</option>
+                            <option value="Ética y Ciudadanía">Ética y Ciudadanía</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button id="btn-confirmar-formacion" class="btn" disabled>Registrar Formación</button>
+            </div>
+        </div>
+
+        </div> <!-- Fin tab-creator -->
+
+
+        <!-- TAB HABILIDADES -->
+        <div id="tab-habilidades" class="tab-content">
+            <div class="phase-header">
+                <h1>Atributos y Habilidades</h1>
+                <p>Referencia de los atributos principales y sus habilidades derivadas.</p>
+            </div>
+
+            <div class="estados-grid">
+                <!-- CUERPO -->
+                <div class="estado-card" style="flex-direction: column;">
+                    <h3 class="estado-name" style="color: var(--green-success);">CUERPO</h3>
+                    <div class="estado-desc" style="margin-bottom: 10px; font-style: italic;">
+                        Salvación física para resistir venenos, enfermedades, toxinas y fatiga extrema.
+                    </div>
+                    <ul class="estado-desc" style="padding-left: 20px; margin: 0;">
+                        <li><strong style="color: var(--cyan-tech);">Cardio:</strong> Esfuerzos físicos prolongados, persecuciones a pie y resistencia al agotamiento.</li>
+                        <li><strong style="color: var(--cyan-tech);">Fortaleza:</strong> Pruebas de fuerza física, levantar peso, derribar obstáculos y forcejeos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Vigor:</strong> Aguante físico ante el dolor, privaciones y resistencia a climas extremos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Instinto:</strong> Reacciones de supervivencia inmediatas y actos reflejos primarios.</li>
+                        <li><strong style="color: var(--cyan-tech);">Percepción:</strong> Detección visual o auditiva de emboscadas, trampas y detalles ocultos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Agilidad:</strong> Acrobacias, saltos, equilibrio y movilidad en terreno difícil o parkour.</li>
+                        <li><strong style="color: var(--cyan-tech);">Manejo:</strong> Uso delicado de herramientas, reparaciones manuales y manipulación de mecanismos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Reflejos:</strong> Capacidad de reacción física y evasión instintiva de peligros repentinos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Sigilo:</strong> Infiltración, ocultamiento y movimiento indetectable frente a observadores.</li>
+                    </ul>
+                </div>
+
+                <!-- MENTE -->
+                <div class="estado-card" style="flex-direction: column;">
+                    <h3 class="estado-name" style="color: var(--cyan-tech);">MENTE</h3>
+                    <div class="estado-desc" style="margin-bottom: 10px; font-style: italic;">
+                        Salvación lógica para resistir ilusiones, engaños mentales y sobrecarga de información.
+                    </div>
+                    <ul class="estado-desc" style="padding-left: 20px; margin: 0;">
+                        <li><strong style="color: var(--cyan-tech);">Memoria:</strong> Recordar datos específicos, contraseñas, rostros o información del pasado.</li>
+                        <li><strong style="color: var(--cyan-tech);">Análisis:</strong> Deducción lógica, identificación de patrones y resolución de acertijos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Ciencia:</strong> Conocimiento teórico y aplicado de medicina, química, biología o física.</li>
+                        <li><strong style="color: var(--cyan-tech);">Lore:</strong> Conocimiento general e historia sobre las Alas, los Dedos y la Ciudad.</li>
+                        <li><strong style="color: var(--cyan-tech);">Investigación:</strong> Búsqueda activa de pistas, rastreo sistemático y recopilación de datos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Perspicacia:</strong> Interpretar el lenguaje corporal y detectar mentiras o intenciones ocultas.</li>
+                        <li><strong style="color: var(--cyan-tech);">Negociación:</strong> Llegar a acuerdos, regateo de recursos y tratos diplomáticos o comerciales.</li>
+                        <li><strong style="color: var(--cyan-tech);">Seducción:</strong> Manipulación emocional, encanto interpersonal y persuasión física.</li>
+                        <li><strong style="color: var(--cyan-tech);">Engaño:</strong> Creación de coartadas, mentiras directas, actuación y uso de fachadas.</li>
+                        <li><strong style="color: var(--cyan-tech);">Prudencia:</strong> Evaluación de riesgos tácticos y prevención lógica antes de actuar.</li>
+                        <li><strong style="color: var(--cyan-tech);">Carisma:</strong> Liderazgo, simpatía e inspiración social para ganarse la confianza de otros.</li>
+                    </ul>
+                </div>
+
+                <!-- ALMA -->
+                <div class="estado-card" style="flex-direction: column;">
+                    <h3 class="estado-name" style="color: var(--border-accent);">ALMA</h3>
+                    <div class="estado-desc" style="margin-bottom: 10px; font-style: italic;">
+                        Salvación emocional para mantener la cordura, la convicción y resistir traumas o desesperación.
+                    </div>
+                    <ul class="estado-desc" style="padding-left: 20px; margin: 0;">
+                        <li><strong style="color: var(--cyan-tech);">Empatía:</strong> Conexión emocional profunda y comprensión genuina de los sentimientos ajenos.</li>
+                        <li><strong style="color: var(--cyan-tech);">Voluntad:</strong> Fuerza mental para mantener la determinación frente a la adversidad extrema.</li>
+                        <li><strong style="color: var(--cyan-tech);">Fe:</strong> Firmeza ideológica y resistencia contra la manipulación de las creencias propias.</li>
+                        <li><strong style="color: var(--cyan-tech);">Represión:</strong> Supresión temporal de miedos, fobias o dudas para poder actuar en crisis.</li>
+                        <li><strong style="color: var(--cyan-tech);">Templanza:</strong> Mantenimiento de la frialdad, paciencia y control de impulsos bajo presión.</li>
+                        <li><strong style="color: var(--cyan-tech);">Presencia:</strong> Imposición de respeto, intimidación o dominio mediante el aura del personaje.</li>
+                        <li><strong style="color: var(--cyan-tech);">Arcana:</strong> Sentir y comprender energías, rituales y la naturaleza de artefactos arcanos.</li>
+                    </ul>
+                </div>
+
+                <!-- SUERTE -->
+                <div class="estado-card" style="flex-direction: column;">
+                    <h3 class="estado-name" style="color: var(--red-neon);">SUERTE</h3>
+                    <div class="estado-desc" style="margin-bottom: 10px; font-style: italic;">
+                        Tiradas de azar puro y resolución de factores externos fuera del control del personaje.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB ESTADOS -->
+        <div id="tab-estados" class="tab-content">
+            <div class="phase-header">
+                <h1>Estados y Efectos</h1>
+                <p>Referencia de los efectos alteradores disponibles en el combate.</p>
+            </div>
+            <div class="phase-header" style="margin-top: 30px; border-bottom: none;">
+                <h2 style="color: var(--green-success); border-left: 3px solid var(--green-success);">Estados Positivos</h2>
+            </div>
+            <div id="estados-positivos-grid" class="estados-grid">
+                <!-- Estados positivos se generarán aquí -->
+            </div>
+            <div class="phase-header" style="margin-top: 40px; border-bottom: none;">
+                <h2 style="color: var(--red-neon); border-left: 3px solid var(--red-neon);">Estados Negativos</h2>
+            </div>
+            <div id="estados-negativos-grid" class="estados-grid">
+                <!-- Estados negativos se generarán aquí -->
+            </div>
+        </div>
+
     </div>
 
     <script>
-        document.body.addEventListener('click', function() {
-            // Optional: visual connection delay simulation
-            const blinkText = document.querySelector('.blinking-text');
-            blinkText.textContent = "[ CONECTANDO... ]";
-            blinkText.style.animation = "none";
-            blinkText.style.opacity = 1;
-            blinkText.style.color = "#44ff44"; // green success
+        // 1. Base de Datos de Razas
+        const atributosLista = [
+            "Vigor", "Instinto", "Fortaleza", "Carisma", "Perspicacia", "Seducción",
+            "Agilidad", "Análisis", "Sigilo", "Presencia", "Engaño", "Percepción",
+            "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
+            "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Lore", "Investigación", "Arcana"
+        ].sort();
 
-            // Optional: Simple beep sound using AudioContext
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
+        const racesData = [
+            {
+                id: 'humano',
+                nombre: 'Humano',
+                isHuman: true,
+                perksSelection: 2,
+                perks: [
+                    { id: 'adaptable', nombre: 'Adaptable', desc: 'Obtienes +1 en 2 Habilidades de tu elección.' },
+                    { id: 'dulces_suenos', nombre: 'Dulces Sueños', desc: 'En un descanso Largo despiertas con +5 de SP.' },
+                    { id: 'determinado', nombre: 'Determinado', desc: 'Cuando tu HP llega a 40% o menos, ganas 2 de SP por turno.' },
+                    { id: 'rencoroso', nombre: 'Rencoroso', desc: 'Cuando recibes daño, obtienes +1 de Damage Up (Max 3) la siguiente ronda.' },
+                    { id: 'terco', nombre: 'Terco', desc: 'Una vez por descanso largo, puedes repetir una tirada de Habilidad fallida.' },
+                    { id: 'mente_fria', nombre: 'Mente Fría', desc: 'Comienzas cada combate con +5 de SP.' },
+                    { id: 'endurecido', nombre: 'Endurecido', desc: 'Cuando tu SP está en números negativos (menor a 0), obtienes +1 de Protection.' },
+                    { id: 'superviviente', nombre: 'Superviviente', desc: 'Al llegar a 20% o menos HP, la siguiente ronda obtienes +20 SP.' },
+                    { id: 'alerta', nombre: 'Alerta', desc: 'No puedes ser sorprendido, +1 Min Speed, +2 Max Speed.' },
+                    { id: 'oportunista', nombre: 'Oportunista', desc: 'Al asestar el golpe letal a un enemigo, recuperas 5 de SP.' },
+                    { id: 'firme', nombre: 'Firme', desc: 'Reduces tu primer umbral de Aturdimiento (Stagger) en un 10%.' },
+                    { id: 'euforico', nombre: 'Eufórico', desc: 'Al ganar un Choque, recuperas 2 de SP adicional.' },
+                    { id: 'evasivo', nombre: 'Evasivo', desc: 'Poder Base de Evade +1, poder de moneda de Evade +3.' },
+                    { id: 'desesperado', nombre: 'Desesperado', desc: 'Cuando tu SP llega a -20 o menos, obtienes +1 al Poder Base de tus habilidades.' },
+                    { id: 'preparado', nombre: 'Preparado', desc: 'Comienzas cada combate con un Escudo equivalente al 10% de tu HP máximo.' }
+                ]
+            },
+            {
+                id: 'lizalin',
+                nombre: 'Lizalin',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Vigor', excelente: 'Instinto', bueno: 'Fortaleza', deficiente: 'Carisma', punto_ciego: 'Perspicacia', critica: 'Seducción' },
+                perks: [
+                    { id: 'fauces_hambrientas', nombre: 'Fauces Hambrientas', desc: 'Al acertar un ataque de Mordida, recuperas 5 HP.' },
+                    { id: 'piel_escamosa', nombre: 'Piel Escamosa', desc: 'El Poder de Moneda de tus habilidades de tipo "Guard" aumenta en +3.' },
+                    { id: 'pulmones_pantano', nombre: 'Pulmones de Pantano', desc: 'Puedes aguantar la respiración hasta por 30 minutos sin sufrir penalizadores.' },
+                    { id: 'artesano_astuto', nombre: 'Artesano Astuto', desc: 'Puedes fabricar armas usando cadáveres. Las armas creadas son siempre Tier 3.' }
+                ]
+            },
+            {
+                id: 'kobold',
+                nombre: 'Kobold',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Agilidad', excelente: 'Análisis', bueno: 'Sigilo', deficiente: 'Vigor', punto_ciego: 'Presencia', critica: 'Fortaleza' },
+                perks: [
+                    { id: 'tactica_manada', nombre: 'Táctica de Manada', desc: 'Obtienes +1 Attack Power UP por cada aliado a 5ft del mismo objetivo (Máx. 3).' },
+                    { id: 'suplicio_distractor', nombre: 'Suplicio Distractor', desc: 'Al usarlo, el objetivo obtiene +2 Attack Power Down.' },
+                    { id: 'ingenieria_tunel', nombre: 'Ingeniería de Túnel', desc: 'Obtienes +3 de poder de check para desarmar trampas o piratear accesos mecánicos.' }
+                ]
+            },
+            {
+                id: 'kenku',
+                nombre: 'Kenku',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Engaño', excelente: 'Sigilo', bueno: 'Percepción', deficiente: 'Voluntad', punto_ciego: 'Carisma', critica: 'Presencia' },
+                perks: [
+                    { id: 'imitacion', nombre: 'Imitación', desc: 'Puedes copiar voces y sonidos a la perfección (requiere haberlos escuchado antes).' },
+                    { id: 'comunicacion_limitada', nombre: 'Comunicación Limitada', desc: 'No posees voz propia; solo puedes hablar usando sonidos y frases memorizadas.' },
+                    { id: 'falsificador_experto', nombre: 'Falsificador Experto', desc: 'Obtienes +3 en Engaño para falsificar documentos u objetos.' }
+                ]
+            },
+            {
+                id: 'centauro',
+                nombre: 'Centauro',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Fortaleza', excelente: 'Cardio', bueno: 'Instinto', deficiente: 'Manejo', punto_ciego: 'Agilidad', critica: 'Sigilo' },
+                perks: [
+                    { id: 'embestida', nombre: 'Embestida', desc: 'Si tu Speed es 10+, obtienes +2 Clash Power Up.' },
+                    { id: 'complexion_equina', nombre: 'Complexión Equina', desc: 'Tus Slots de Inventario Activo aumentan +5. Tienes -3 en Checks de Agilidad para escalar o moverte por espacios estrechos.' }
+                ]
+            },
+            {
+                id: 'goliat',
+                nombre: 'Goliat',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Fortaleza', excelente: 'Vigor', bueno: 'Voluntad', deficiente: 'Reflejos', punto_ciego: 'Sigilo', critica: 'Agilidad' },
+                perks: [
+                    { id: 'resistencia_petrea', nombre: 'Resistencia Pétrea', desc: 'Al inicio del combate, obtienes un Escudo igual al 15% de tu HP Máximo.' },
+                    { id: 'nacido_cumbre', nombre: 'Nacido en la Cumbre', desc: 'Eres resistente al daño de Hielo y estás aclimatado a las grandes alturas.' }
+                ]
+            },
+            {
+                id: 'goblin',
+                nombre: 'Goblin',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Agilidad', excelente: 'Engaño', bueno: 'Sigilo', deficiente: 'Templanza', punto_ciego: 'Prudencia', critica: 'Presencia' },
+                perks: [
+                    { id: 'escabullirse', nombre: 'Escabullirse', desc: 'Al poder de tus monedas de Evade se les suma tu Agilidad.' },
+                    { id: 'furia_pequenos', nombre: 'Furia de los Pequeños', desc: 'Antes de golpear, si el enemigo es de un tamaño mayor al tuyo, obtienes +2 de Damage Up.' }
+                ]
+            },
+            {
+                id: 'hada',
+                nombre: 'Hada',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'hada_fuego',
+                        nombre: 'Hada de Fuego',
+                        mods: { cuspide: 'Reflejos', excelente: 'Presencia', bueno: 'Agilidad', deficiente: 'Empatía', punto_ciego: 'Prudencia', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'resistencia_fuego', nombre: 'Resistencia al Fuego', desc: 'Absorbe el daño de Fuego y tiene vulnerabilidad al Frío.' },
+                            { id: 'llama_ignea', nombre: 'Llama Ígnea', desc: 'Al iniciar tu turno: Enemigos a 5 ft obtienen +3 Burn Potency. Aliados a 5 ft pierden 1 Burn Count.' }
+                        ]
+                    },
+                    {
+                        id: 'hada_flores',
+                        nombre: 'Hada de las Flores',
+                        mods: { cuspide: 'Empatía', excelente: 'Carisma', bueno: 'Agilidad', deficiente: 'Vigor', punto_ciego: 'Represión', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'empatia_floral', nombre: 'Empatía Floral', desc: 'Puedes comunicarte telepáticamente con plantas a 30 ft.' },
+                            { id: 'aromas_calmantes', nombre: 'Aromas Calmantes', desc: 'En tu turno, aliados a 5 ft recuperan +3 SP. Si están por debajo de -15 SP, recuperan +6 SP.' }
+                        ]
+                    },
+                    {
+                        id: 'hada_hielo',
+                        nombre: 'Hada de Hielo',
+                        mods: { cuspide: 'Templanza', excelente: 'Reflejos', bueno: 'Agilidad', deficiente: 'Empatía', punto_ciego: 'Carisma', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'resistencia_frio', nombre: 'Resistencia al Frío', desc: 'Absorbe el daño de Frío y tiene vulnerabilidad al Fuego.' },
+                            { id: 'toque_helado', nombre: 'Toque Helado', desc: 'Al iniciar tu turno: Enemigos a 5 ft obtienen +3 Cold Potency. Aliados a 5 ft pierden 1 Cold Count.' }
+                        ]
+                    },
+                    {
+                        id: 'hada_luz',
+                        nombre: 'Hada de Luz',
+                        mods: { cuspide: 'Presencia', excelente: 'Carisma', bueno: 'Agilidad', deficiente: 'Sigilo', punto_ciego: 'Vigor', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'luz_brillante', nombre: 'Luz Brillante', desc: 'Tu brillo aumenta a 40 ft de luz brillante y tenue.' },
+                            { id: 'bendicion_hadas', nombre: 'Bendición de las Hadas', desc: 'En tu turno, aliados a 5 ft recuperan +5 HP.' },
+                            { id: 'destello_cegador', nombre: 'Destello Cegador', desc: 'Una vez por descanso largo, gastas 1 Slot de Acción para emitir luz cegadora. Criaturas a 10 ft hacen salvación de Percepción o quedan Cegadas hasta el final de su próximo turno.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vuelo', nombre: 'Vuelo', desc: 'Obtienes velocidad de vuelo de 30 ft. Para usarla, debes transformarte a tamaño Pequeño y no llevar armadura media o pesada.' },
+                    { id: 'brillo_natural', nombre: 'Brillo Natural', desc: 'Emites luz brillante a voluntad en tu forma de hada en 10 ft y luz tenue en otros 10 ft.' },
+                    { id: 'forma_hada', nombre: 'Forma de Hada', desc: 'Gastas 1 Slot de Acción para hacerte de tamaño Diminuto (toma 30 seg). Te vuelves muy débil y frágil al daño. Tu efecto de hada cambia dependiendo de tu elemento.' }
+                ]
+            },
+            {
+                id: 'aasimar',
+                nombre: 'Aasimar',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'aasimar_protector',
+                        nombre: 'Aasimar Protector',
+                        mods: { cuspide: 'Fe', excelente: 'Presencia', bueno: 'Voluntad', deficiente: 'Engaño', punto_ciego: 'Sigilo', critica: 'Seducción' },
+                        perks: [
+                            { id: 'revelacion_radiante', nombre: 'Revelación Radiante', desc: 'Requiere un Descanso Largo. Gastas 1 Slot de Acción. Durante 10 rondas ganas velocidad de vuelo (30 ft). Además, aliados a 10 ft obtienen un escudo igual al 10% de tu HP Max, y en tu turno obtienes +2 de Protection.' }
+                        ]
+                    },
+                    {
+                        id: 'aasimar_azotador',
+                        nombre: 'Aasimar Azotador (Scourge)',
+                        mods: { cuspide: 'Presencia', excelente: 'Fortaleza', bueno: 'Voluntad', deficiente: 'Empatía', punto_ciego: 'Sigilo', critica: 'Engaño' },
+                        perks: [
+                            { id: 'consumo_divino', nombre: 'Consumo Divino', desc: 'Requiere un Descanso Largo. Gastas 1 Slot de Acción. Durante 10 rondas, al final de tu turno, todas las criaturas a 10 ft reciben daño radiante fijo igual al 10% de tu HP Max y obtienes +2 Damage Up.' }
+                        ]
+                    },
+                    {
+                        id: 'aasimar_caido',
+                        nombre: 'Aasimar Caído (Fallen)',
+                        mods: { cuspide: 'Vigor', excelente: 'Presencia', bueno: 'Fortaleza', deficiente: 'Fe', punto_ciego: 'Empatía', critica: 'Prudencia' },
+                        perks: [
+                            { id: 'presencia_aterradora', nombre: 'Presencia Aterradora', desc: 'Requiere un Descanso Largo. Gastas 1 Slot de Acción. En tu turno, todos a 10 ft deben hacer una salvación de Alma o reciben 5 de Offensive Level Down, y en tu turno obtienes +2 Damage Up.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'resistencia_celestial', nombre: 'Resistencia Celestial', desc: 'Tienes Resistencia al daño Radiante y al daño Necrótico.' },
+                    { id: 'portador_luz', nombre: 'Portador de la Luz', desc: 'Emites luz pasiva a tu alrededor a voluntad (10 ft brillante y 10 ft tenue).' },
+                    { id: 'manos_sanadoras', nombre: 'Manos Sanadoras', desc: 'Curas a un aliado tocado por 10 HP + tu Alma.' }
+                ]
+            },
+            {
+                id: 'tiefling',
+                nombre: 'Tiefling',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'tiefling_asmodeo',
+                        nombre: 'Herencia de Asmodeo',
+                        mods: { cuspide: 'Represión', excelente: 'Presencia', bueno: 'Análisis', deficiente: 'Empatía', punto_ciego: 'Seducción', critica: 'Fe' },
+                        perks: [
+                            { id: 'llama_tirano', nombre: 'Llama del Tirano', desc: 'Gastas 1 Slot de Acción. Enemigos a 10 ft obtienen +3 Burn Potency y +2 Burn Count.' },
+                            { id: 'hechizos_asmodeo', nombre: 'Magia de Asmodeo', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Taumaturgia. Nivel 15: Represión Infernal. Nivel 25: Oscuridad.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_baalzebul',
+                        nombre: 'Herencia de Baalzebul',
+                        mods: { cuspide: 'Engaño', excelente: 'Presencia', bueno: 'Análisis', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Templanza' },
+                        perks: [
+                            { id: 'toque_putrido', nombre: 'Toque Pútrido', desc: 'Tus ataques cuerpo a cuerpo aplican +1 Potency y +1 Count al Golpear.' },
+                            { id: 'hechizos_baalzebul', nombre: 'Magia de Baalzebul', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Taumaturgia. Nivel 15: Rayo de Dolor. Nivel 25: Corona de la Locura.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_dispater',
+                        nombre: 'Herencia de Dispater',
+                        mods: { cuspide: 'Análisis', excelente: 'Presencia', bueno: 'Engaño', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'piel_dis', nombre: 'Piel de Dis', desc: 'Aumenta tu Defensive Lvl +2.' },
+                            { id: 'hechizos_dispater', nombre: 'Magia de Dispater', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Taumaturgia. Nivel 15: Disfrazarse. Nivel 25: Detectar Pensamiento.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_glasya',
+                        nombre: 'Herencia de Glasya',
+                        mods: { cuspide: 'Sigilo', excelente: 'Engaño', bueno: 'Presencia', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Represión' },
+                        perks: [
+                            { id: 'paso_enganoso', nombre: 'Paso Engañoso', desc: 'Tu poder de moneda para las habilidades de Evade aumenta en +3.' },
+                            { id: 'hechizos_glasya', nombre: 'Magia de Glasya', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Ilusión Menor. Nivel 15: Disfrazarse. Nivel 25: Invisibilidad.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_fierna',
+                        nombre: 'Herencia de Fierna',
+                        mods: { cuspide: 'Carisma', excelente: 'Empatía', bueno: 'Seducción', deficiente: 'Represión', punto_ciego: 'Fe', critica: 'Prudencia' },
+                        perks: [
+                            { id: 'palabras_flegethos', nombre: 'Palabras de Flegethos', desc: 'Al ganar un Choque (Clash) de una habilidad ofensiva, el objetivo pierde 3 de SP.' },
+                            { id: 'hechizos_fierna', nombre: 'Magia de Fierna', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Amistad. Nivel 15: Encantar Persona. Nivel 25: Sugestión.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_levistus',
+                        nombre: 'Herencia de Levistus',
+                        mods: { cuspide: 'Templanza', excelente: 'Presencia', bueno: 'Fortaleza', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Agilidad' },
+                        perks: [
+                            { id: 'corazon_congelado', nombre: 'Corazón Congelado', desc: 'Cambias tu Resistencia Infernal de Fuego a Hielo. Si un enemigo te golpea, recibe +1 Cold Potency.' },
+                            { id: 'hechizos_levistus', nombre: 'Magia de Levistus', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Rayo de Hielo. Nivel 15: Armadura de Agathys. Nivel 25: Oscuridad.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_mammon',
+                        nombre: 'Herencia de Mammon',
+                        mods: { cuspide: 'Negociación', excelente: 'Análisis', bueno: 'Prudencia', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Seducción' },
+                        perks: [
+                            { id: 'manos_codiciosas', nombre: 'Manos Codiciosas', desc: 'Obtienes +2 Slots de Inventario Activo y +3 en tiradas de Manejo, robo o manipulación de cerraduras.' },
+                            { id: 'hechizos_mammon', nombre: 'Magia de Mammon', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Mano de Mago. Nivel 15: Disco Flotante. Nivel 25: Cerradura Arcana.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_mefistofeles',
+                        nombre: 'Herencia de Mefistófeles',
+                        mods: { cuspide: 'Ciencia', excelente: 'Análisis', bueno: 'Presencia', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Sigilo' },
+                        perks: [
+                            { id: 'hoja_llameante', nombre: 'Hoja Llameante', desc: 'Tus habilidades que cuesten SP para activarse ganan +1 Damage Up.' },
+                            { id: 'hechizos_mefistofeles', nombre: 'Magia de Mefistófeles', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Mano de Mago. Nivel 15: Manos Ardientes. Nivel 25: Filo Llameante.' }
+                        ]
+                    },
+                    {
+                        id: 'tiefling_zariel',
+                        nombre: 'Herencia de Zariel',
+                        mods: { cuspide: 'Vigor', excelente: 'Presencia', bueno: 'Fortaleza', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Prudencia' },
+                        perks: [
+                            { id: 'golpe_marcador', nombre: 'Golpe Marcador', desc: 'Al inicio de tu turno, puedes aplicar 1 de Fragile a un enemigo a 5 ft.' },
+                            { id: 'hechizos_zariel', nombre: 'Magia de Zariel', desc: 'Tu Alma es tu estadística de lanzamiento. Truco: Taumaturgia. Nivel 15: Golpe Abrasador. Nivel 25: Golpe Marcador.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'resistencia_infernal', nombre: 'Resistencia Infernal', desc: 'Tienes Resistencia al daño de Fuego.' }
+                ]
+            },
+            {
+                id: 'warforged',
+                nombre: 'Warforged',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'warforged_envoy',
+                        nombre: 'Modelo: Envoy',
+                        mods: { cuspide: 'Análisis', excelente: 'Manejo', bueno: 'Negociación', deficiente: 'Instinto', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'diseno_especializado', nombre: 'Diseño Especializado', desc: 'Obtienes +3 de poder de check en una Habilidad a tu elección y en Manejo, y aprendes un idioma adicional.' },
+                            { id: 'herramienta_integrada', nombre: 'Herramienta Integrada', desc: 'Tu herramienta elegida está integrada en tu cuerpo. No ocupa Slots de Inventario Activo, siempre puedes usarla si tienes las manos libres y te da +3 en la tarea que fue diseñada.' }
+                        ]
+                    },
+                    {
+                        id: 'warforged_juggernaut',
+                        nombre: 'Modelo: Juggernaut',
+                        mods: { cuspide: 'Fortaleza', excelente: 'Vigor', bueno: 'Voluntad', deficiente: 'Agilidad', punto_ciego: 'Seducción', critica: 'Empatía' },
+                        perks: [
+                            { id: 'punos_hierro', nombre: 'Puños de Hierro', desc: 'Tu ataque Desarmado es de Poder Base 5 + Fortaleza y Poder de Moneda 6 + Fortaleza.' },
+                            { id: 'refuerzo_corporal', nombre: 'Refuerzo Corporal', desc: 'Tu armadura está integrada directamente. Obtienes +2 de Defense Level de forma pasiva y permanente.' }
+                        ]
+                    },
+                    {
+                        id: 'warforged_skirmisher',
+                        nombre: 'Modelo: Skirmisher',
+                        mods: { cuspide: 'Agilidad', excelente: 'Sigilo', bueno: 'Reflejos', deficiente: 'Carisma', punto_ciego: 'Presencia', critica: 'Empatía' },
+                        perks: [
+                            { id: 'veloz', nombre: 'Veloz', desc: 'Tu velocidad base aumenta a 35 ft., +2 Min Speed y +2 Max Speed.' },
+                            { id: 'reconocimiento_solitario', nombre: 'Reconocimiento Solitario', desc: 'Si no tienes aliados a 10 ft de ti, obtienes +2 de Haste en tu turno y +3 a tus checks de Sigilo.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'resistencia_warforged', nombre: 'Resistencia Warforged', desc: 'Eres inmune a los estados de Poison y Toxin, y a las enfermedades. No necesitas comer, beber ni dormir, y eres inmune a efectos de Sueño.' },
+                    { id: 'inactividad_centinela', nombre: 'Inactividad Centinela', desc: 'Durante un descanso largo, pareces apagado pero permaneces consciente, pudiendo ver y oír normalmente.' }
+                ]
+            },
+            {
+                id: 'felinae',
+                nombre: 'Felinae',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'felinae_ordinario',
+                        nombre: 'Felinae Ordinario',
+                        mods: { cuspide: 'Agilidad', excelente: 'Sigilo', bueno: 'Reflejos', deficiente: 'Fortaleza', punto_ciego: 'Represión', critica: 'Ciencia' },
+                        perks: [
+                            { id: 'ligero_pies', nombre: 'Ligero de Pies', desc: 'Tu velocidad base aumenta a 40 ft.' },
+                            { id: 'pisada_felina', nombre: 'Pisada Felina', desc: 'Obtienes +3 de poder de check en Sigilo.' },
+                            { id: 'nueve_vidas', nombre: 'Nueve Vidas', desc: 'Reduces un 70% el daño por caída.' }
+                        ]
+                    },
+                    {
+                        id: 'felinae_grande',
+                        nombre: 'Felinae Grande',
+                        mods: { cuspide: 'Vigor', excelente: 'Agilidad', bueno: 'Fortaleza', deficiente: 'Sigilo', punto_ciego: 'Memoria', critica: 'Ciencia' },
+                        perks: [
+                            { id: 'garras_grandes', nombre: 'Garras Grandes', desc: 'El daño de tus garras aumenta. Ahora tu ataque desarmado tiene Poder Base 6 + Fortaleza y Poder de Moneda 6 + Fortaleza.' },
+                            { id: 'cuerpo_poderoso', nombre: 'Cuerpo Poderoso', desc: 'Cuentas como una criatura Grande para cargar peso. Obtienes +5 Slots de Inventario Activo.' },
+                            { id: 'depredador_silencioso', nombre: 'Depredador Silencioso', desc: 'Obtienes +3 de poder de check en Sigilo.' }
+                        ]
+                    },
+                    {
+                        id: 'felinae_mistico',
+                        nombre: 'Felinae Místico',
+                        mods: { cuspide: 'Ciencia', excelente: 'Agilidad', bueno: 'Memoria', deficiente: 'Vigor', punto_ciego: 'Fortaleza', critica: 'Agilidad' },
+                        perks: [
+                            { id: 'misticismo_felino', nombre: 'Misticismo Felino', desc: 'Aprendes un Truco de tu elección. Tu Alma es tu estadística de lanzamiento.' },
+                            { id: 'estudiante_magia', nombre: 'Estudiante de la Magia', desc: 'Obtienes +3 de poder de check en Arcanos.' },
+                            { id: 'lenguaje_extra', nombre: 'Lenguaje Extra', desc: 'Aprendes un idioma adicional de tu elección.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'garras_naturales', nombre: 'Garras Naturales', desc: 'Tu ataque desarmado es de daño Cortante. Tiene Poder Base 4 + Agilidad y Poder de Moneda 4 + Agilidad.' },
+                    { id: 'reflejos_felinos', nombre: 'Reflejos Felinos', desc: 'Obtienes +1 Min Speed y +1 Max Speed.' }
+                ]
+            },
+            {
+                id: 'semi_dragon',
+                nombre: 'Semi Dragón',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'semi_dragon_rojo',
+                        nombre: 'Ascendencia Roja (Fuego / Cono)',
+                        mods: { cuspide: 'Presencia', excelente: 'Vigor', bueno: 'Fortaleza', deficiente: 'Sigilo', punto_ciego: 'Agilidad', critica: 'Empatía' },
+                        perks: [
+                            { id: 'aliento_rojo', nombre: 'Aliento de Fuego (Cono)', desc: 'Área: Cono 15 ft. Poder Base: 12 + Alma. Poder de Moneda: 10. Estado: Burn.' },
+                            { id: 'sangre_roja', nombre: 'Sangre Roja', desc: 'Resistencia al daño de Fuego.' },
+                            { id: 'indomable', nombre: 'Indomable', desc: 'Eres inmune a estados que induzcan Miedo o Encantamiento.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_negro',
+                        nombre: 'Ascendencia Negra (Ácido / Línea)',
+                        mods: { cuspide: 'Vigor', excelente: 'Fortaleza', bueno: 'Instinto', deficiente: 'Carisma', punto_ciego: 'Seducción', critica: 'Empatía' },
+                        perks: [
+                            { id: 'aliento_negro', nombre: 'Aliento de Ácido (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Acid.' },
+                            { id: 'sangre_negra', nombre: 'Sangre Negra', desc: 'Resistencia al daño de Ácido.' },
+                            { id: 'fuerza_implacable', nombre: 'Fuerza Implacable', desc: 'Añades tu Fortaleza al Poder de Moneda de tu Aliento de Dragón.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_verde',
+                        nombre: 'Ascendencia Verde (Veneno / Cono)',
+                        mods: { cuspide: 'Engaño', excelente: 'Presencia', bueno: 'Perspicacia', deficiente: 'Vigor', punto_ciego: 'Fortaleza', critica: 'Fe' },
+                        perks: [
+                            { id: 'aliento_verde', nombre: 'Aliento de Veneno (Cono)', desc: 'Área: Cono 15 ft. Poder Base: 12 + Alma. Poder de Moneda: 10. Estado: Poison.' },
+                            { id: 'sangre_verde', nombre: 'Sangre Verde', desc: 'Resistencia al daño de Veneno.' },
+                            { id: 'embaucador_dotado', nombre: 'Embaucador Dotado', desc: 'Obtienes +3 en poder de check de Engaño. Aprendes el hechizo Disfrazarse.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_blanco',
+                        nombre: 'Ascendencia Blanca (Hielo / Cono)',
+                        mods: { cuspide: 'Instinto', excelente: 'Vigor', bueno: 'Percepción', deficiente: 'Carisma', punto_ciego: 'Negociación', critica: 'Empatía' },
+                        perks: [
+                            { id: 'aliento_blanco', nombre: 'Aliento de Hielo (Cono)', desc: 'Área: Cono 15 ft. Poder Base: 12 + Alma. Poder de Moneda: 10. Estado: Cold.' },
+                            { id: 'sangre_blanca', nombre: 'Sangre Blanca', desc: 'Resistencia al daño de Hielo/Frío.' },
+                            { id: 'cazador_habil', nombre: 'Cazador Hábil', desc: 'Obtienes +3 en poder de check de Supervivencia. En tu turno, en Choques con objetivos con menor Speed obtienes +1 Damage Up.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_azul',
+                        nombre: 'Ascendencia Azul (Eléctrico / Línea)',
+                        mods: { cuspide: 'Sigilo', excelente: 'Vigor', bueno: 'Agilidad', deficiente: 'Empatía', punto_ciego: 'Fe', critica: 'Ciencia' },
+                        perks: [
+                            { id: 'aliento_azul', nombre: 'Aliento Eléctrico (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Shock.' },
+                            { id: 'sangre_azul', nombre: 'Sangre Azul', desc: 'Resistencia al daño Eléctrico.' },
+                            { id: 'depredador_desierto', nombre: 'Depredador del Desierto', desc: 'Obtienes velocidad de excavar (15 ft) en tierra suelta. Enemigos tienen -8 a Percepción para detectarte si estás enterrado.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_oro',
+                        nombre: 'Ascendencia Oro (Fuego / Cono)',
+                        mods: { cuspide: 'Perspicacia', excelente: 'Presencia', bueno: 'Fe', deficiente: 'Sigilo', punto_ciego: 'Engaño', critica: 'Agilidad' },
+                        perks: [
+                            { id: 'aliento_oro', nombre: 'Aliento de Fuego (Cono)', desc: 'Área: Cono 15 ft. Poder Base: 12 + Alma. Poder de Moneda: 10. Estado: Burn. (Inflige daño Radiante contra Demonios y No-Muertos).' },
+                            { id: 'sangre_dorada', nombre: 'Sangre Dorada', desc: 'Resistencia al daño de Fuego.' },
+                            { id: 'companero_reservado', nombre: 'Compañero Reservado', desc: 'Obtienes +3 en poder de check de Instinto.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_laton',
+                        nombre: 'Ascendencia Latón (Fuego / Línea)',
+                        mods: { cuspide: 'Negociación', excelente: 'Carisma', bueno: 'Presencia', deficiente: 'Fortaleza', punto_ciego: 'Vigor', critica: 'Sigilo' },
+                        perks: [
+                            { id: 'aliento_laton', nombre: 'Aliento de Fuego (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Burn.' },
+                            { id: 'sangre_laton', nombre: 'Sangre de Latón', desc: 'Resistencia al daño de Fuego.' },
+                            { id: 'audazmente_hablador', nombre: 'Audazmente Hablador', desc: 'Obtienes +3 en poder de check de Negociación. Eres inmune a ser puesto a dormir mágicamente.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_cobre',
+                        nombre: 'Ascendencia Cobre (Ácido / Línea)',
+                        mods: { cuspide: 'Carisma', excelente: 'Engaño', bueno: 'Agilidad', deficiente: 'Fortaleza', punto_ciego: 'Vigor', critica: 'Represión' },
+                        perks: [
+                            { id: 'aliento_cobre', nombre: 'Aliento de Ácido (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Acid.' },
+                            { id: 'sangre_cobre', nombre: 'Sangre de Cobre', desc: 'Resistencia al daño de Ácido.' },
+                            { id: 'anfitrion_jugueton', nombre: 'Anfitrión Juguetón', desc: 'Obtienes +3 en poder de check de Carisma. Aprendes el truco Burla Viciosa.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_bronce',
+                        nombre: 'Ascendencia Bronce (Eléctrico / Línea)',
+                        mods: { cuspide: 'Fortaleza', excelente: 'Vigor', bueno: 'Agilidad', deficiente: 'Sigilo', punto_ciego: 'Engaño', critica: 'Agilidad' },
+                        perks: [
+                            { id: 'aliento_bronce', nombre: 'Aliento Eléctrico (Línea)', desc: 'Área: Línea. Poder Base: 14 + Alma. Poder de Moneda: 10. Estado: Shock.' },
+                            { id: 'sangre_bronce', nombre: 'Sangre de Bronce', desc: 'Resistencia al daño Eléctrico.' },
+                            { id: 'dragon_costa', nombre: 'Dragón de la Costa', desc: 'Puedes respirar bajo el agua y tienes velocidad de nado de 30 ft.' }
+                        ]
+                    },
+                    {
+                        id: 'semi_dragon_plata',
+                        nombre: 'Ascendencia Plata (Hielo / Cono)',
+                        mods: { cuspide: 'Templanza', excelente: 'Presencia', bueno: 'Análisis', deficiente: 'Sigilo', punto_ciego: 'Engaño', critica: 'Agilidad' },
+                        perks: [
+                            { id: 'aliento_plata', nombre: 'Aliento Paralizante (Cono)', desc: 'Área: Cono 15 ft. Poder Base: 12 + Alma. Poder de Moneda: 10. Estado: Cold. (En lugar de daño y estado normal, puedes soltar gas que aplica +8 Paralysis Count a los afectados).' },
+                            { id: 'sangre_plateada', nombre: 'Sangre Plateada', desc: 'Resistencia al daño de Hielo/Frío.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'aliento_dragon_base', nombre: 'Aliento de Dragón', desc: 'Una vez por descanso largo, gastas 1 Slot de Acción para exhalar tu elemento. Reciben 10 de daño fijo de tu elemento y aplicas +3 Potency y +2 Count del estado asociado. Usa 1 Red Coin (Las estadísticas exactas y la forma dependen de tu ascendencia).' }
+                ]
+            },
+            {
+                id: 'lupae',
+                nombre: 'Lupae',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Fortaleza', excelente: 'Percepción', bueno: 'Instinto', deficiente: 'Seducción', punto_ciego: 'Engaño', critica: 'Ciencia' },
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'sentidos_agudos', nombre: 'Sentidos Agudos', desc: 'Obtienes +3 de poder de check en Percepción que involucren el olfato o el oído.' },
+                    { id: 'dureza_canis', nombre: 'Dureza Canis', desc: 'Eres resistente al daño de Veneno y a las enfermedades.' },
+                    { id: 'colmillos', nombre: 'Colmillos', desc: 'Tu ataque desarmado hace daño Perforante. Tiene Poder Base 4 + Fortaleza y Poder de Moneda 4 + Fortaleza. Si el objetivo es de tamaño menor que tú y le asestas un golpe, le aplicas 10 de Bind.' },
+                    { id: 'tactica_manada', nombre: 'Táctica de Manada', desc: 'Si tienes aliados a 5 ft del objetivo, obtienes +1 Clash Power Up por aliado cercano (Max 3).' }
+                ]
+            },
+            {
+                id: 'moonfae',
+                nombre: 'Moonfae',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'moonfae_llena',
+                        nombre: 'Ciclo: Luna Llena',
+                        mods: { cuspide: 'Presencia', excelente: 'Fortaleza', bueno: 'Vigor', deficiente: 'Agilidad', punto_ciego: 'Sigilo', critica: 'Ciencia' },
+                        perks: [
+                            { id: 'cuerpo_poderoso', nombre: 'Cuerpo Poderoso', desc: 'Cuentas como una criatura Grande. Eres inmune a estados que induzcan Miedo.' },
+                            { id: 'estocada', nombre: 'Estocada', desc: 'Si no te moviste en el turno anterior, tus ataques cuerpo a cuerpo obtienen +5 ft. de alcance y +3 Offensive Level Up.' }
+                        ]
+                    },
+                    {
+                        id: 'moonfae_creciente',
+                        nombre: 'Ciclo: Luna Creciente',
+                        mods: { cuspide: 'Agilidad', excelente: 'Reflejos', bueno: 'Cardio', deficiente: 'Fortaleza', punto_ciego: 'Vigor', critica: 'Ciencia' },
+                        perks: [
+                            { id: 'rapido', nombre: 'Rápido', desc: 'Tu velocidad base aumenta a 35 ft y +1 Min/Max Speed.' },
+                            { id: 'escape_agil', nombre: 'Escape Ágil', desc: 'Como reacción cuando un enemigo te hace un unopposed attack, usas Evade y obtienes +1 Defense Power Up (Max 3).' }
+                        ]
+                    },
+                    {
+                        id: 'moonfae_nueva',
+                        nombre: 'Ciclo: Luna Nueva',
+                        mods: { cuspide: 'Perspicacia', excelente: 'Empatía', bueno: 'Sigilo', deficiente: 'Presencia', punto_ciego: 'Vigor', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'magia_lunar', nombre: 'Magia Lunar', desc: 'Tu Alma es tu estadística de lanzamiento. Nivel 15: Detectar Magia. Nivel 25: Rayo Lunar.' },
+                            { id: 'empatia', nombre: 'Empatía', desc: 'Con un Slot de Acción, tocas a una criatura. Puedes restaurarle 7 SP o hacerle perder 7 SP basándote en su estado emocional.' }
+                        ]
+                    },
+                    {
+                        id: 'moonfae_carmesi',
+                        nombre: 'Ciclo: Luna Carmesí',
+                        mods: { cuspide: 'Engaño', excelente: 'Fe', bueno: 'Instinto', deficiente: 'Empatía', punto_ciego: 'Prudencia', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'magia_mas_alla', nombre: 'Magia del Más Allá', desc: 'Tu Alma es tu estadística de lanzamiento. Nivel 15: Brazos de Hadar. Nivel 25: Hoja de Sombras.' },
+                            { id: 'conocimiento_inquietante', nombre: 'Conocimiento Inquietante', desc: 'Al inicio de tu turno, puedes aplicar 4 de Defense Level Down a un enemigo a 15 ft.' }
+                        ]
+                    },
+                    {
+                        id: 'moonfae_azul',
+                        nombre: 'Ciclo: Luna Azul',
+                        mods: { cuspide: 'Carisma', excelente: 'Perspicacia', bueno: 'Voluntad', deficiente: 'Vigor', punto_ciego: 'Agilidad', critica: 'Fortaleza' },
+                        perks: [
+                            { id: 'suerte_conejo', nombre: 'Suerte del Conejo', desc: 'Después de un descanso largo, obtienes 3 usos de Suerte Adicionales (el Máximo de Suerte pasa a 9). Puedes gastar 1 uso para sumar +3 al poder final de un check tuyo o de un aliado a 10 ft.' },
+                            { id: 'accion_favorable', nombre: 'Acción Favorable', desc: 'Puedes aplicar +2 Attack Power Up o +2 Defense Power Up a un aliado en tu turno usando 1 punto de tu suerte.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'audicion_aguda', nombre: 'Audición Aguda', desc: 'Obtienes +3 de poder de check en Percepción que involucren el oído.' },
+                    { id: 'magia_moonfae', nombre: 'Magia Moonfae', desc: 'Aprendes el truco Taumaturgia. Tu Alma es tu estadística de lanzamiento.' },
+                    { id: 'transformacion_lunar', nombre: 'Transformación Lunar', desc: 'Gastas 1 Slot de Acción para tomar la forma de un conejo pequeño (tu equipo desaparece temporalmente). Tu velocidad aumenta a 40 ft y obtienes +2 Min Speed y +2 Max Speed, obtienes +6 en Percepción, pero sufres -6 en checks de Fortaleza.' }
+                ]
+            },
+            {
+                id: 'undae',
+                nombre: 'Undae',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'undae_guerra',
+                        nombre: 'Undae de Guerra',
+                        mods: { cuspide: 'Vigor', excelente: 'Agilidad', bueno: 'Presencia', deficiente: 'Engaño', punto_ciego: 'Ciencia', critica: 'Seducción' },
+                        perks: [
+                            { id: 'entrenamiento_marcial', nombre: 'Entrenamiento Marcial', desc: 'Obtienes +1 al poder base de espadas largas, cortas, lanzas o arcos largos.' },
+                            { id: 'tenacidad_acuatica', nombre: 'Tenacidad Acuática', desc: 'Tu velocidad de nado es de 60 ft.' },
+                            { id: 'intimidacion_natural', nombre: 'Intimidación Natural', desc: 'Obtienes +3 de poder de check en Presencia.' }
+                        ]
+                    },
+                    {
+                        id: 'undae_roca',
+                        nombre: 'Undae de Roca',
+                        mods: { cuspide: 'Fortaleza', excelente: 'Voluntad', bueno: 'Templanza', deficiente: 'Agilidad', punto_ciego: 'Reflejos', critica: 'Carisma' },
+                        perks: [
+                            { id: 'piel_gruesa', nombre: 'Piel Gruesa', desc: 'Tienes Resistencia al daño Cortante pero eres débil al Perforante.' },
+                            { id: 'paso_estable', nombre: 'Paso Estable', desc: 'Obtienes +2 Defense Level Up pasivo, y tu Poder de Moneda de Guard aumenta en +5.' },
+                            { id: 'tenazas', nombre: 'Tenaza/s', desc: 'Tu ataque Desarmado hace daño Perforante. Tiene un Poder Base y Poder de Moneda de 4 + Fortaleza. Al golpear a un objetivo aplicas +3 de Bind.' }
+                        ]
+                    },
+                    {
+                        id: 'undae_mistico',
+                        nombre: 'Undae Místico',
+                        mods: { cuspide: 'Empatía', excelente: 'Carisma', bueno: 'Fe', deficiente: 'Vigor', punto_ciego: 'Agilidad', critica: 'Presencia' },
+                        perks: [
+                            { id: 'magia_anfibia', nombre: 'Magia Anfibia', desc: 'Aprendes los trucos Magia Druídica y Controlar Agua. Tu Alma es tu estadística de lanzamiento.' },
+                            { id: 'aura_reconfortante', nombre: 'Aura Reconfortante', desc: 'Gasta un Slot de Acción para curar 15 HP a un aliado.' },
+                            { id: 'presencia_calmante', nombre: 'Presencia Calmante', desc: 'Obtienes +3 en poder de check de Negociación cuando hablas con criaturas heridas o con el SP negativo.' }
+                        ]
+                    },
+                    {
+                        id: 'undae_silvestre',
+                        nombre: 'Undae Silvestre',
+                        mods: { cuspide: 'Instinto', excelente: 'Sigilo', bueno: 'Empatía', deficiente: 'Manejo', punto_ciego: 'Análisis', critica: 'Represión' },
+                        perks: [
+                            { id: 'lengua_selva', nombre: 'Lengua de la Selva', desc: 'Puedes comunicarte con bestias y plantas.' },
+                            { id: 'paso_silencioso', nombre: 'Paso Silencioso', desc: 'Obtienes +3 en poder de check de Sigilo en terreno natural.' },
+                            { id: 'amigo_vida', nombre: 'Amigo de la Vida', desc: 'Cuando curas a un aliado o lo estabilizas, ese aliado obtiene +3 HP Healing Up para el resto de la ronda.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'anfibio', nombre: 'Anfibio', desc: 'Puedes respirar tanto aire como agua.' },
+                    { id: 'inmunidad_veneno', nombre: 'Inmunidad al Veneno', desc: 'Eres inmune al daño de Veneno.' },
+                    { id: 'regeneracion_undae', nombre: 'Regeneración Undae', desc: 'Al comienzo de la Ronda, recuperas un 5% de tu HP Máximo si no recibiste daño de Fuego o Ácido en la Ronda anterior. (No funciona si tu HP llega a 0).' }
+                ]
+            },
+            {
+                id: 'elnae',
+                nombre: 'Elnae',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Agilidad', excelente: 'Percepción', bueno: 'Cardio', deficiente: 'Represión', punto_ciego: 'Vigor', critica: 'Fortaleza' },
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Puedes ver en la oscuridad hasta 60 ft.' },
+                    { id: 'vuelo_elnae', nombre: 'Vuelo', desc: 'Tu velocidad de vuelo es de 50 ft. No puedes llevar armaduras medianas para usar esta habilidad.' },
+                    { id: 'huesos_fragiles', nombre: 'Huesos Ligeros y Frágiles', desc: 'No puedes usar ni obtener competencia en armaduras pesadas y tus Threshold aumentan un 10%, Evade +3 en suelo y +6 al volar.' },
+                    { id: 'parte_naturaleza', nombre: 'Parte de la Naturaleza', desc: 'Aprendes el truco Magia Druídica. Tu Alma es tu estadística de lanzamiento. A Nivel 15 aprendes Enredar. A Nivel 25 aprendes Crecimiento de Espinas.' }
+                ]
+            },
+            {
+                id: 'yuanti_pura_sangre',
+                nombre: 'Yuan-ti Pura Sangre',
+                isHuman: false,
+                perksSelection: 0,
+                subrazas: [
+                    {
+                        id: 'yuanti_rojo',
+                        nombre: 'Ojos Rojos (Ira)',
+                        mods: { cuspide: 'Vigor', excelente: 'Agilidad', bueno: 'Reflejos', deficiente: 'Templanza', punto_ciego: 'Empatía', critica: 'Fe' },
+                        perks: [
+                            { id: 'furia_fria', nombre: 'Furia Fría', desc: 'Permite contraatacar con una reacción.' },
+                            { id: 'bono_ira', nombre: 'Instinto Agresivo', desc: 'Obtienes +3 en Fortaleza y Agilidad.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_morado',
+                        nombre: 'Ojos Morados (Envidia)',
+                        mods: { cuspide: 'Engaño', excelente: 'Análisis', bueno: 'Percepción', deficiente: 'Voluntad', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'magia_envidia', nombre: 'Mente Codiciosa', desc: 'Tienes acceso a Detectar Magia.' },
+                            { id: 'bono_envidia', nombre: 'Aprendiz Veloz', desc: 'Obtienes +3 en Engaño o Arcana.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_cyan',
+                        nombre: 'Ojos Cyan (Melancolía)',
+                        mods: { cuspide: 'Voluntad', excelente: 'Templanza', bueno: 'Perspicacia', deficiente: 'Vigor', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'magia_melancolia', nombre: 'Ecos de la Antigüedad', desc: 'Puedes lanzar Santuario.' },
+                            { id: 'bono_melancolia', nombre: 'Influencia Sutil', desc: 'Obtienes +3 a Negociación.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_azul',
+                        nombre: 'Ojos Azules (Orgullo)',
+                        mods: { cuspide: 'Memoria', excelente: 'Presencia', bueno: 'Represión', deficiente: 'Agilidad', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'magia_orgullo', nombre: 'Escudo del Linaje', desc: 'Tienes acceso al conjuro Escudo.' },
+                            { id: 'bono_orgullo', nombre: 'Memoria Heráldica', desc: 'Ganan +3 en Historia y dos idiomas.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_verde',
+                        nombre: 'Ojos Verdes (Gula)',
+                        mods: { cuspide: 'Percepción', excelente: 'Análisis', bueno: 'Instinto', deficiente: 'Templanza', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'impulso_voraz', nombre: 'Impulso Voraz', desc: 'Recuperas 5 de HP y SP al derrotar a una criatura.' },
+                            { id: 'bono_gula', nombre: 'Rapiñar Conocimientos', desc: 'Suman +3 a Investigación o Percepción.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_naranja',
+                        nombre: 'Ojos Naranjas (Lujuria)',
+                        mods: { cuspide: 'Ciencia', excelente: 'Memoria', bueno: 'Análisis', deficiente: 'Prudencia', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'magia_lujuria', nombre: 'Revelación Prohibida', desc: 'Puedes lanzar Identificar.' },
+                            { id: 'bono_lujuria', nombre: 'Obsesión Brillante', desc: 'Suman +3 a Arcana o Lore.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_amarillo',
+                        nombre: 'Ojos Amarillos (Pereza)',
+                        mods: { cuspide: 'Análisis', excelente: 'Presencia', bueno: 'Negociación', deficiente: 'Cardio', punto_ciego: 'Fe', critica: 'Empatía' },
+                        perks: [
+                            { id: 'magia_pereza', nombre: 'Dominio Táctico', desc: 'Puedes lanzar Orden Imperiosa.' },
+                            { id: 'bono_pereza', nombre: 'Optimización Letal', desc: 'Obtienen +3 en Negociación o Presencia.' }
+                        ]
+                    },
+                    {
+                        id: 'yuanti_palido',
+                        nombre: 'Los Pálidos (Mutaciones Empáticas)',
+                        mods: { cuspide: 'Empatía', excelente: 'Perspicacia', bueno: 'Manejo', deficiente: 'Represión', punto_ciego: 'Voluntad', critica: 'Presencia' },
+                        perks: [
+                            { id: 'magia_palido', nombre: 'Empatía Latente', desc: 'Puedes lanzar Calmar Emociones.' },
+                            { id: 'bono_palido', nombre: 'Chispa de Sentir', desc: 'Suman +3 a Perspicacia y obtienen +2 a una habilidad a elección.' }
+                        ]
+                    }
+                ],
+                perks: [
+                    { id: 'vision_oscuridad', nombre: 'Visión en la Oscuridad', desc: 'Tienes visión en la oscuridad hasta 60 pies.' },
+                    { id: 'inmunidad_veneno', nombre: 'Inmunidad al Veneno', desc: 'Posees inmunidad total al daño por veneno.' },
+                    { id: 'magia_innata', nombre: 'Magia Innata', desc: 'Conoces el truco Espray Venenoso y Amistad Animal (las serpientes tienen -9 al salvar). Al nivel 15 obtienes Sugestión. Alma es tu atributo de lanzamiento.' },
+                    { id: 'resistencia_magica', nombre: 'Resistencia Mágica', desc: 'Tienes ventaja en las tiradas de salvación contra magia.' }
+                ]
+            },
+            {
+                id: 'lanae',
+                nombre: 'Lanae',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Empatía', excelente: 'Vigor', bueno: 'Templanza', deficiente: 'Engaño', punto_ciego: 'Manejo', critica: 'Presencia' },
+                perks: [
+                    {
+                        id: 'velocidad_lanae',
+                        nombre: 'Montañés',
+                        desc: 'Tu velocidad de desplazamiento es de 30 ft. Además, tienes una velocidad de escalada de 30 ft.'
+                    },
+                    {
+                        id: 'magia_lanae',
+                        nombre: 'Magia Lanae',
+                        desc: 'Puedes lanzar el conjuro Calmar Emociones una vez por descanso largo sin gastar espacio de conjuro. Tu Alma es tu estadística de lanzamiento. Además, la magia no puede hacer que te duermas.'
+                    },
+                    {
+                        id: 'resiliencia_comunitaria',
+                        nombre: 'Resiliencia Comunitaria',
+                        desc: 'Si fallas un check o tirada de salvación, puedes apoyarte en tus lazos para obtener una bonificación a la tirada igual al número de aliados que puedas ver en un radio de 30 ft (máximo bonificación de +5). Puedes usar este rasgo 5 Veces por descanso largo.'
+                    },
+                    {
+                        id: 'nacido_montana',
+                        nombre: 'Nacido en la Montaña',
+                        desc: 'Tienes Resistencia al daño de Hielo/Frío y estás aclimatado a altitudes elevadas.'
+                    },
+                    {
+                        id: 'cuernos_lanae',
+                        nombre: 'Cuernos',
+                        desc: 'Tus cuernos son armas naturales de combate cuerpo a cuerpo. Tu ataque desarmado hace daño Contundente, tiene Poder Base 4 + Fortaleza y Poder de Moneda 4 + Fortaleza.'
+                    }
+                ]
+            },
+            {
+                id: 'tsune',
+                nombre: 'Tsune',
+                isHuman: false,
+                perksSelection: 0,
+                mods: { cuspide: 'Engaño', excelente: 'Agilidad', bueno: 'Seducción', deficiente: 'Vigor', punto_ciego: 'Prudencia', critica: 'Fortaleza' },
+                perks: [
+                    {
+                        id: 'vision_oscuridad',
+                        nombre: 'Visión en la Oscuridad',
+                        desc: 'Puedes ver en la oscuridad hasta 60 ft.'
+                    },
+                    {
+                        id: 'naturaleza_enganosa',
+                        nombre: 'Naturaleza Engañosa',
+                        desc: 'Eres un maestro de las medias verdades. Obtienes +3 de poder de check en Engaño.'
+                    },
+                    {
+                        id: 'magia_tsune',
+                        nombre: 'Magia de Tsune',
+                        desc: 'Aprendes el truco Ilusión Menor. A nivel 15 aprendes Disfrazarse. A nivel 25 aprendes Invisibilidad. Tu Alma es tu estadística de lanzamiento.'
+                    },
+                    {
+                        id: 'forma_vulpina',
+                        nombre: 'Forma Vulpina',
+                        desc: 'Gastas 1 Slot de Acción para transformarte en un zorro pequeño. Velocidad 40 ft y +2 Min/Max Speed. Obtienes +6 en checks de Sigilo, pero sufres -6 en checks de Fortaleza.'
+                    },
+                    {
+                        id: 'fuego_fatuo',
+                        nombre: 'Fuego Fatuo',
+                        desc: 'Ataque mágico a 30 ft. Poder Base 4 + Alma y Poder de Moneda 5 + Alma. Al golpear, infliges daño de Fuego y aplicas +2 Burn Count.'
+                    }
+                ]
+            }
+        ];
 
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        const modValues = {
+            cuspide: { label: 'Cúspide', val: 3, class: 'stat-val-pos' },
+            excelente: { label: 'Excelente', val: 2, class: 'stat-val-pos' },
+            bueno: { label: 'Bueno', val: 1, class: 'stat-val-pos' },
+            deficiente: { label: 'Deficiente', val: -1, class: 'stat-val-neg' },
+            punto_ciego: { label: 'Punto Ciego', val: -2, class: 'stat-val-neg' },
+            critica: { label: 'Crítica', val: -3, class: 'stat-val-neg' }
+        };
 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+        const estados = {
+            cegado: {
+                nombre: 'Cegado',
+                efectos: [
+                    'No puedes ver hasta perder este efecto.',
+                    'Checks de Percepción que dependan de la vista obtienen -6.',
+                    'Offensive Level y Defensive Level bajan en 10.'
+                ]
+            }
+        };
 
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.1);
-            } catch (e) {
-                // Ignore audio errors if not supported or blocked by policy
-                console.log("Audio no soportado o bloqueado");
+        const efectosDeEstado = [
+            { id: 'defense_level_down', nombre: 'Defense Level Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/s2jUtlo.png', desc: 'Defense Level Baja igual a la Count hasta el final de la Ronda.' },
+            { id: 'defense_level_up', nombre: 'Defense Level Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/C0apZVL.png', desc: 'Defense Level Sube igual al Count hasta el final de la Ronda.' },
+            { id: 'defense_power_down', nombre: 'Defense Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/MGdXCaC.png', desc: 'Skills Defensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'defense_power_up', nombre: 'Defense Power Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/AkiiCza.png', desc: 'Skills Defensivas Ganan Poder Final Igual Count Hasta el final de la Ronda.' },
+            { id: 'damage_down', nombre: 'Damage Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/bo7reA0.png', desc: 'Baja 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
+            { id: 'damage_up', nombre: 'Damage Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/KDLYRCR.png', desc: 'Aumenta 10% el daño aplicado por cada Count hasta el Final de la Ronda.' },
+            { id: 'hp_healing_down', nombre: 'HP Healing Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/5WYFFVt.png', desc: 'Baja 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
+            { id: 'hp_healing_up', nombre: 'HP Healing Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/uynjNTN.png', desc: 'Sube 10% la curación de Perks y Skills por cada Count hasta el Final de la Ronda.' },
+            { id: 'clash_power_down', nombre: 'Clash Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/TppbWXb.png', desc: 'Poder de Choque disminuye Igual al Count Hasta el Final de la Ronda.' },
+            { id: 'clash_power_up', nombre: 'Clash Power Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/Q49TCVN.png', desc: 'Poder de Choque aumenta Igual al Count Hasta el Final de la Ronda.' },
+            { id: 'offensive_level_down', nombre: 'Offensive Level Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/usBnT9m.png', desc: 'Offensive Level Baja igual a la Count hasta el final de la Ronda.' },
+            { id: 'offensive_level_up', nombre: 'Offensive Level Up', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/p70Fei4.png', desc: 'Offensive Level Sube igual a la Count hasta el final de la Ronda.' },
+            { id: 'attack_power_down', nombre: 'Attack Power Down', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/g69L38F.png', desc: 'Skills Ofensivas Pierden Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'attack_power_up', nombre: 'Attack Power UP', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/JbDs4X0.png', desc: 'Skills Ofensivas Ganan Poder Final Igual Count hasta el Final de la Ronda.' },
+            { id: 'fragile', nombre: 'Fragile', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/wSFboZT.png', desc: 'Recibes 10% más daño por cada count hasta el Final de la Ronda.' },
+            { id: 'protection', nombre: 'Protection', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/yjPgnjd.png', desc: 'Recibes 10% menos daño por cada count hasta el Final de la Ronda.' },
+            { id: 'bind', nombre: 'Bind', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/QndWew8.png', desc: 'Tu speed se reduce en 1 por count hasta el Final de la Ronda.' },
+            { id: 'haste', nombre: 'Haste', clasificacion: 'positivo', tipo: 'Single', icono: 'https://i.imgur.com/zxUsYIN.png', desc: 'Tu speed se aumenta en 1 por count hasta el Final de la Ronda.' },
+            { id: 'sinking', nombre: 'Sinking', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/ZnulGzZ.png', desc: 'Al recibir daño pierdes SP igual al Potency y luego el Count baja en 1' },
+            { id: 'charge', nombre: 'Charge', clasificacion: 'positivo', tipo: 'Double', icono: 'https://i.imgur.com/GzJzNPV.png', desc: 'Un recurso que puede usarse en skills. Pierde 1 Count al Final de la Ronda.' },
+            { id: 'poise', nombre: 'Poise', clasificacion: 'positivo', tipo: 'Double', icono: 'https://i.imgur.com/KFEmJB5.png', desc: 'Ganan 5% de Probabilidad de Crítico igual por cada Potency. Al hacer Crítico el Count Baja en 1. Al Final de la Ronda el Count Baja en 1.' },
+            { id: 'paralysis', nombre: 'Paralysis', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/9TkO8Ce.png', desc: 'Vuelve el resultado individual de cada moneda a 0. Baja 1 Count cada vez que lanza una moneda el portador. Se pierde todo el efecto al final de la Ronda.' },
+            { id: 'burn', nombre: 'Burn', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/L4bRd44.png', desc: 'Al inicio de la ronda recibes daño de fuego igual al Potency y Pierdes 1 Count.' },
+            { id: 'rupture', nombre: 'Rupture', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/g5LTeDs.png', desc: 'Al recibir daño pierdes HP igual al Potency y luego el Count baja en 1' },
+            { id: 'bleed', nombre: 'Bleed', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/mp9fbme.png', desc: 'Cada Choque y Golpe te hace perder HP Igual al Potency y Pierdes 1 Count.' },
+            { id: 'tremor', nombre: 'Tremor', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/fuDGjpn.png', desc: 'Al activar Tremor Burst aumenta el Threshold Igual al Potency y Pierdes 1 Count. Al final de la Ronda pierdes 1 Count.' },
+            { id: 'acid', nombre: 'Acid', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/SRVLqLb.png', desc: 'Al inicio de la ronda Recibes daño ácido igual al Potency y Pierdes 1 Count. El poder Base se Reduce en 2 hasta perder el efecto.' },
+            { id: 'toxin', nombre: 'Toxin', clasificacion: 'negativo', tipo: 'Single', icono: 'https://i.imgur.com/kif8Atj.png', desc: 'Al inicio de la Ronda Multiplica el Poison igual al Count y luego pierdes este efecto.' },
+            { id: 'poison', nombre: 'Poison', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/RCOGKtP.png', desc: 'Al inicio de la Ronda recibes daño de veneno igual al Potency y Pierdes la mitad del Count. Si solo hay 1 Count al inicio de la ronda se pierde el efecto.' },
+            { id: 'cold', nombre: 'Cold', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/7sdhMDZ.png', desc: 'Al inicio de la ronda Recibes daño de frío igual al Potency y Pierdes 1 Count. El speed se Reduce en 1 por cada 3 Potency.' },
+            { id: 'shock', nombre: 'Shock', clasificacion: 'negativo', tipo: 'Double', icono: 'https://i.imgur.com/AJsmGbo.png', desc: 'Al inicio de la ronda Recibes daño eléctrico igual al Potency y Pierdes 1 Count. El poder de moneda se Reduce en 2 hasta perder el efecto.' }
+        ];
+
+        // 2. Base de Datos Fase 1
+        const socialClasses = [
+            {
+                id: 'alta',
+                nombre: 'Alta (Cuna de Pluma)',
+                desc: 'Acceso a educación y tecnología, pero físico atrofiado por la comodidad.',
+                mods: { mente: 1, cuerpo: -1 }
+            },
+            {
+                id: 'media',
+                nombre: 'Media (Engranaje)',
+                desc: 'Físicamente curtido por el trabajo en Talleres, pero desensibilizado por la rutina.',
+                mods: { cuerpo: 1, alma: -1 }
+            },
+            {
+                id: 'baja',
+                nombre: 'Baja (Rata de Cuneta)',
+                desc: 'Voluntad inquebrantable para sobrevivir, pero carente de educación formal.',
+                mods: { alma: 1, mente: -1 }
+            }
+        ];
+
+        const childhoodNatures = [
+            { id: 'curioso', nombre: 'Curioso', desc: 'Todo lo tocabas, todo lo preguntabas, desarmabas tus juguetes.', skills: ['Ciencia', 'Análisis', 'Memoria'] },
+            { id: 'alegre', nombre: 'Alegre', desc: 'Siempre sonreías sin importar lo gris que fuera la Ciudad.', skills: ['Carisma', 'Empatía', 'Perspicacia'] },
+            { id: 'serio', nombre: 'Serio', desc: 'Un niño que parecía un adulto en miniatura; formal y calculador.', skills: ['Represión', 'Análisis', 'Prudencia'] },
+            { id: 'enojon', nombre: 'Enojón', desc: 'Hacías rabietas, peleabas y siempre estabas a la defensiva.', skills: ['Vigor', 'Fortaleza', 'Presencia'] },
+            { id: 'timido', nombre: 'Tímido', desc: 'Te escondías detrás de las piernas de los adultos y evitabas hablar.', skills: ['Sigilo', 'Percepción', 'Represión'] },
+            { id: 'valiente', nombre: 'Valiente', desc: 'El primero en saltar, el primero en defender a otros niños.', skills: ['Voluntad', 'Instinto', 'Fortaleza'] },
+            { id: 'miedoso', nombre: 'Miedoso', desc: 'Saltabas con cada ruido de la Ciudad, siempre listo para huir.', skills: ['Reflejos', 'Cardio', 'Percepción'] },
+            { id: 'travieso', nombre: 'Travieso', desc: 'Te encantaba hacer bromas, robar dulces y salirte con la tuya.', skills: ['Agilidad', 'Sigilo', 'Engaño'] },
+            { id: 'sensible', nombre: 'Sensible', desc: 'Llorabas fácil, sentías mucho el dolor ajeno y de los animales.', skills: ['Empatía', 'Perspicacia', 'Fe'] },
+            { id: 'mandon', nombre: 'Mandón', desc: 'Jugabas a ser el jefe del callejón o del grupo de amigos.', skills: ['Presencia', 'Carisma', 'Negociación'] },
+            { id: 'callado', nombre: 'Callado', desc: 'Hablabas muy poco, pero te fijabas y recordabas todo.', skills: ['Percepción', 'Memoria', 'Templanza'] },
+            { id: 'sonador', nombre: 'Soñador', desc: 'Siempre tenías la cabeza en las nubes, imaginando historias irreales.', skills: ['Fe', 'Perspicacia', 'Voluntad'] },
+            { id: 'egoista', nombre: 'Egoísta', desc: 'Tus juguetes eran tuyos. Tu comida era tuya. No compartías nada.', skills: ['Engaño', 'Negociación', 'Instinto'] },
+            { id: 'amable', nombre: 'Amable', desc: 'Compartías tu pan, consolabas a los demás y evitabas los conflictos.', skills: ['Empatía', 'Templanza', 'Carisma'] },
+            { id: 'terco', nombre: 'Terco', desc: 'Cuando decías "no", era "no", sin importar el castigo.', skills: ['Voluntad', 'Fortaleza', 'Represión'] },
+            { id: 'rebelde', nombre: 'Rebelde', desc: 'Desobedecías cada regla que te ponían. La autoridad era tu enemigo natural.', skills: ['Voluntad', 'Agilidad', 'Presencia'] }
+        ];
+
+        // 4. Estado Global
+        const luminousState = {
+            originId: null,
+            subraceId: null,
+            modifiers: {}, // Mods de atributos (Vigor, etc.)
+            humanPerks: [],
+            baseStats: { cuerpo: 0, mente: 0, alma: 0 }, // Stats principales
+            socialClassId: null,
+            natureId: null,
+            natureSkill: null,
+            schoolSubjects: { bloqueA: '', bloqueB: '', bloqueC: '' }
+        };
+
+        // 5. Referencias del DOM (Se inicializan en initDOM())
+        let gridContainer, socialGrid, natureGrid;
+        let selectBloqueA, selectBloqueB, selectBloqueC;
+        let btnConfirmarOrigen, btnConfirmarInfancia, btnConfirmarFormacion;
+        let phase0, phase1, phase2;
+
+        function initDOM() {
+            gridContainer = document.getElementById('origin-grid');
+            socialGrid = document.getElementById('social-grid');
+            natureGrid = document.getElementById('nature-grid');
+
+            selectBloqueA = document.getElementById('select-bloque-a');
+            selectBloqueB = document.getElementById('select-bloque-b');
+            selectBloqueC = document.getElementById('select-bloque-c');
+
+            btnConfirmarOrigen = document.getElementById('btn-confirmar-origen');
+            btnConfirmarInfancia = document.getElementById('btn-confirmar-infancia');
+            btnConfirmarFormacion = document.getElementById('btn-confirmar-formacion');
+            phase0 = document.getElementById('phase-0');
+            phase1 = document.getElementById('phase-1');
+            phase2 = document.getElementById('phase-2');
+
+            // Listeners
+            btnConfirmarOrigen.addEventListener('click', () => {
+                if (btnConfirmarOrigen.disabled) return;
+                console.log("--- FASE 0 COMPLETADA ---", luminousState);
+                phase0.classList.remove('active');
+                phase1.classList.add('active');
+                window.scrollTo(0, 0);
+            });
+
+            btnConfirmarInfancia.addEventListener('click', () => {
+                if (btnConfirmarInfancia.disabled) return;
+                // Sumar mods de Clase Social
+                const socialElegida = socialClasses.find(s => s.id === luminousState.socialClassId);
+                for (const [stat, val] of Object.entries(socialElegida.mods)) {
+                    luminousState.baseStats[stat] += val;
+                }
+
+                // Guardar la Habilidad de Naturaleza elegida y sumar el +1 a los modificadores
+                const natureSkill = document.querySelector(`.nature-card[data-id="${luminousState.natureId}"] .skill-gain`).value;
+                luminousState.natureSkill = natureSkill;
+                if (natureSkill) {
+                    luminousState.modifiers[natureSkill] = (luminousState.modifiers[natureSkill] || 0) + 1;
+                }
+
+                console.log("--- FASE 1 COMPLETADA ---", JSON.parse(JSON.stringify(luminousState)));
+
+                // Transición a Fase 2
+                phase1.classList.remove('active');
+                phase2.classList.add('active');
+                window.scrollTo(0, 0);
+            });
+
+            btnConfirmarFormacion.addEventListener('click', () => {
+                if (btnConfirmarFormacion.disabled) return;
+
+                // Guardar las materias
+                luminousState.schoolSubjects.bloqueA = selectBloqueA.value;
+                luminousState.schoolSubjects.bloqueB = selectBloqueB.value;
+                luminousState.schoolSubjects.bloqueC = selectBloqueC.value;
+
+                console.log("--- FASE 2 COMPLETADA ---");
+                console.log("Estado Final de Creación:", JSON.parse(JSON.stringify(luminousState)));
+                alert("Formación Registrada Correctamente. Revisa la consola para ver los datos finales.");
+            });
+
+            // Listeners Fase 2
+            selectBloqueA.addEventListener('change', validarFase2);
+            selectBloqueB.addEventListener('change', validarFase2);
+            selectBloqueC.addEventListener('change', validarFase2);
+        }
+
+        // 5. Funciones de Renderizado
+        function renderOrigins() {
+            if (!gridContainer) return;
+            gridContainer.innerHTML = '';
+
+            let optionsHtml = '<option value="" disabled selected>Selecciona Atributo</option>';
+            atributosLista.forEach(attr => {
+                optionsHtml += `<option value="${attr}">${attr}</option>`;
+            });
+
+            racesData.forEach(raza => {
+                const card = document.createElement('div');
+                card.className = 'origin-card';
+                card.dataset.id = raza.id;
+
+                let bodyHtml = '';
+
+                if (raza.isHuman) {
+                    let selectsHtml = '';
+                    for (const [key, data] of Object.entries(modValues)) {
+                        const sign = data.val > 0 ? '+' : '';
+                        selectsHtml += `
+                            <div class="human-select-row">
+                                <label>
+                                    <span>${data.label}</span>
+                                    <span class="${data.class}">${sign}${data.val}</span>
+                                </label>
+                                <select class="choice-select human-mod-select" data-mod="${key}">
+                                    ${optionsHtml}
+                                </select>
+                            </div>
+                        `;
+                    }
+
+                    let perksOptionsHtml = '<option value="" disabled selected>Selecciona Perk</option>';
+                    if (raza.perks) {
+                        raza.perks.forEach(p => {
+                            perksOptionsHtml += `<option value="${p.id}">${p.nombre}</option>`;
+                        });
+                    }
+
+                    let perksSelectsHtml = '';
+                    if (raza.perksSelection) {
+                        for (let i = 0; i < raza.perksSelection; i++) {
+                            perksSelectsHtml += `
+                                <div class="human-select-row" style="margin-top: 10px; display: block;">
+                                    <select class="choice-select human-perk-select" data-index="${i}" style="width: 100%;">
+                                        ${perksOptionsHtml}
+                                    </select>
+                                    <div class="perk-desc" id="human-perk-desc-${i}" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none;"></div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    bodyHtml = `
+                        <div class="stats-box">
+                            <div style="font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 5px;">Personaliza tus atributos</div>
+                            <div class="human-selects">
+                                ${selectsHtml}
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 15px; margin-bottom: 5px; border-top: 1px dashed #444; padding-top: 10px;">Elige ${raza.perksSelection || 0} Perks</div>
+                            <div class="human-perk-selects">
+                                ${perksSelectsHtml}
+                            </div>
+                            <div class="human-error-msg" id="human-error" style="margin-top: 10px;">Hay opciones repetidas o sin seleccionar.</div>
+                        </div>
+                    `;
+                } else if (raza.subrazas) {
+                    let subraceOptions = '<option value="" disabled selected>Selecciona Subraza</option>';
+                    raza.subrazas.forEach(sr => {
+                        subraceOptions += `<option value="${sr.id}">${sr.nombre}</option>`;
+                    });
+
+                    let perksHtml = '';
+                    if (raza.perks) {
+                        perksHtml = `<div class="trait-box" style="margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;">`;
+                        raza.perks.forEach(p => {
+                            perksHtml += `
+                                <div style="margin-bottom: 8px;">
+                                    <div class="trait-title">${p.nombre}</div>
+                                    <div class="trait-desc">${p.desc}</div>
+                                </div>
+                            `;
+                        });
+                        perksHtml += `</div>`;
+                    }
+
+                    bodyHtml = `
+                        <div class="stats-box">
+                            <div class="subrace-container">
+                                <select class="choice-select subrace-select" data-race="${raza.id}">
+                                    ${subraceOptions}
+                                </select>
+                                <div class="subrace-stats-display" style="margin-top: 10px; display: grid; gap: 8px;"></div>
+                            </div>
+                        </div>
+                        ${perksHtml}
+                    `;
+                } else {
+                    let statsHtml = '';
+                    for (const [key, attrName] of Object.entries(raza.mods)) {
+                        const data = modValues[key];
+                        const sign = data.val > 0 ? '+' : '';
+                        statsHtml += `
+                            <div class="stat-row">
+                                <div class="stat-col">
+                                    <span class="stat-name-label">${data.label}</span>
+                                    <span class="stat-label">${attrName}</span>
+                                </div>
+                                <span class="${data.class}">${sign}${data.val}</span>
+                            </div>
+                        `;
+                    }
+
+                    let perksHtml = '';
+                    if (raza.perks) {
+                        perksHtml = `<div class="trait-box" style="margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;">`;
+                        raza.perks.forEach(p => {
+                            perksHtml += `
+                                <div style="margin-bottom: 8px;">
+                                    <div class="trait-title">${p.nombre}</div>
+                                    <div class="trait-desc">${p.desc}</div>
+                                </div>
+                            `;
+                        });
+                        perksHtml += `</div>`;
+                    }
+
+                    bodyHtml = `
+                        <div class="stats-box">
+                            ${statsHtml}
+                        </div>
+                        ${perksHtml}
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h2>${raza.nombre}</h2>
+                    </div>
+                    <div class="card-body">
+                        ${bodyHtml}
+                    </div>
+                `;
+
+                card.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                    seleccionarOrigen(raza.id);
+                });
+
+                gridContainer.appendChild(card);
+            });
+
+            gridContainer.addEventListener('change', (e) => {
+                if (e.target.classList.contains('human-mod-select') || e.target.classList.contains('human-perk-select')) {
+                    if (e.target.classList.contains('human-perk-select')) {
+                        const index = e.target.dataset.index;
+                        const descDiv = document.getElementById(`human-perk-desc-${index}`);
+                        const humanRace = racesData.find(r => r.id === 'humano');
+                        const perkData = humanRace.perks.find(p => p.id === e.target.value);
+                        if (perkData && descDiv) {
+                            descDiv.textContent = perkData.desc;
+                            descDiv.style.display = 'block';
+                        }
+                    }
+                    validarHumano();
+                } else if (e.target.classList.contains('subrace-select')) {
+                    const raceId = e.target.dataset.race;
+                    const subraceId = e.target.value;
+                    mostrarStatsSubraza(raceId, subraceId, e.target.nextElementSibling);
+                    validarOrigenConSubraza();
+                }
+            });
+        }
+
+        function mostrarStatsSubraza(raceId, subraceId, displayDiv) {
+            const raza = racesData.find(r => r.id === raceId);
+            const subraza = raza.subrazas.find(sr => sr.id === subraceId);
+            let statsHtml = '';
+            for (const [key, attrName] of Object.entries(subraza.mods)) {
+                const data = modValues[key];
+                const sign = data.val > 0 ? '+' : '';
+                statsHtml += `
+                    <div class="stat-row">
+                        <div class="stat-col">
+                            <span class="stat-name-label">${data.label}</span>
+                            <span class="stat-label">${attrName}</span>
+                        </div>
+                        <span class="${data.class}">${sign}${data.val}</span>
+                    </div>
+                `;
             }
 
-            // Redirect logic with slight delay
-            setTimeout(() => {
-                const charName = localStorage.getItem('luminous_char_name');
-                if (!charName) {
-                    // Empty or null
-                    window.location.href = 'creacion_personaje.html';
-                } else {
-                    // Has data
-                    window.location.href = 'hoja_personaje.html';
+            if (subraza.perks) {
+                statsHtml += `<div class="trait-box" style="margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;">`;
+                subraza.perks.forEach(p => {
+                    statsHtml += `
+                        <div style="margin-bottom: 8px;">
+                            <div class="trait-title" style="color: var(--green-success);">${p.nombre}</div>
+                            <div class="trait-desc">${p.desc}</div>
+                        </div>
+                    `;
+                });
+                statsHtml += `</div>`;
+            }
+
+            displayDiv.innerHTML = statsHtml;
+        }
+
+        function renderPhase1() {
+            // Render Social Classes
+            socialGrid.innerHTML = '';
+            socialClasses.forEach(social => {
+                const card = document.createElement('div');
+                card.className = 'social-card';
+                card.dataset.id = social.id;
+
+                let statsHtml = '';
+                for (const [stat, val] of Object.entries(social.mods)) {
+                    const sign = val > 0 ? '+' : '';
+                    const valClass = val > 0 ? 'stat-val-pos' : 'stat-val-neg';
+                    const statLabel = stat.charAt(0).toUpperCase() + stat.slice(1);
+                    statsHtml += `
+                        <div class="stat-row">
+                            <span class="stat-label">${statLabel}</span>
+                            <span class="${valClass}">${sign}${val}</span>
+                        </div>
+                    `;
                 }
-            }, 500); // 500ms delay to simulate connection
-        });
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h2>${social.nombre}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="concept-text">
+                            ${social.desc}
+                        </div>
+                        <div class="stats-box">
+                            ${statsHtml}
+                        </div>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    seleccionarSocial(social.id);
+                });
+
+                socialGrid.appendChild(card);
+            });
+
+            // Render Natures
+            natureGrid.innerHTML = '';
+            childhoodNatures.forEach(nature => {
+                const card = document.createElement('div');
+                card.className = 'nature-card';
+                card.dataset.id = nature.id;
+
+                let optionsHtml = '<option value="" disabled selected>Selecciona +1 Habilidad</option>';
+                nature.skills.forEach(skill => {
+                    optionsHtml += `<option value="${skill}">+1 ${skill}</option>`;
+                });
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h2>${nature.nombre}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="concept-text">
+                            ${nature.desc}
+                        </div>
+                        <div class="nature-select-container">
+                            <label style="font-size: 12px; color: var(--text-main); display: block; margin-bottom: 5px;">Aumento de Habilidad:</label>
+                            <select class="choice-select skill-gain">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                    </div>
+                `;
+
+                card.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+                    seleccionarNaturaleza(nature.id);
+                });
+
+                natureGrid.appendChild(card);
+            });
+
+            natureGrid.addEventListener('change', (e) => {
+                if (e.target.classList.contains('skill-gain')) {
+                    validarFase1();
+                }
+            });
+        }
+
+        // 6. Lógica de Selección y Validación
+        function seleccionarOrigen(id) {
+            luminousState.originId = id;
+
+            const cards = document.querySelectorAll('.origin-card');
+            cards.forEach(card => {
+                if (card.dataset.id === id) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            if (id) {
+                gridContainer.classList.add('has-selection');
+            } else {
+                gridContainer.classList.remove('has-selection');
+            }
+
+            if (id === 'humano') {
+                validarHumano();
+            } else {
+                const raza = racesData.find(r => r.id === id);
+                if (raza.subrazas) {
+                    validarOrigenConSubraza();
+                } else {
+                    luminousState.modifiers = {};
+                    for (const [key, attrName] of Object.entries(raza.mods)) {
+                        luminousState.modifiers[attrName] = modValues[key].val;
+                    }
+                    btnConfirmarOrigen.disabled = false;
+                }
+            }
+        }
+
+        function validarOrigenConSubraza() {
+            const raza = racesData.find(r => r.id === luminousState.originId);
+            if (!raza || !raza.subrazas) return;
+
+            const selectedCard = document.querySelector(`.origin-card[data-id="${luminousState.originId}"]`);
+            const select = selectedCard.querySelector('.subrace-select');
+
+            if (!select.value) {
+                btnConfirmarOrigen.disabled = true;
+            } else {
+                luminousState.subraceId = select.value;
+                const subraza = raza.subrazas.find(sr => sr.id === select.value);
+                luminousState.modifiers = {};
+                for (const [key, attrName] of Object.entries(subraza.mods)) {
+                    luminousState.modifiers[attrName] = modValues[key].val;
+                }
+                btnConfirmarOrigen.disabled = false;
+            }
+        }
+
+        function validarHumano() {
+            if (luminousState.originId !== 'humano') return;
+
+            const modSelects = document.querySelectorAll('.human-mod-select');
+            const perkSelects = document.querySelectorAll('.human-perk-select');
+            const errorMsg = document.getElementById('human-error');
+            const modValuesSelected = [];
+            const perkValuesSelected = [];
+            let isValid = true;
+
+            modSelects.forEach(s => s.classList.remove('error'));
+            perkSelects.forEach(s => s.classList.remove('error'));
+
+            // Validar modificadores
+            modSelects.forEach(select => {
+                const val = select.value;
+                if (!val) {
+                    isValid = false;
+                } else if (modValuesSelected.includes(val)) {
+                    isValid = false;
+                    select.classList.add('error');
+                    const firstDuplicate = Array.from(modSelects).find(s => s.value === val);
+                    if (firstDuplicate) firstDuplicate.classList.add('error');
+                } else {
+                    modValuesSelected.push(val);
+                }
+            });
+
+            // Validar perks
+            perkSelects.forEach(select => {
+                const val = select.value;
+                if (!val) {
+                    isValid = false;
+                } else if (perkValuesSelected.includes(val)) {
+                    isValid = false;
+                    select.classList.add('error');
+                    const firstDuplicate = Array.from(perkSelects).find(s => s.value === val);
+                    if (firstDuplicate) firstDuplicate.classList.add('error');
+                } else {
+                    perkValuesSelected.push(val);
+                }
+            });
+
+            if (!isValid) {
+                errorMsg.style.display = 'block';
+                btnConfirmarOrigen.disabled = true;
+            } else {
+                errorMsg.style.display = 'none';
+                btnConfirmarOrigen.disabled = false;
+
+                // Actualizar estado de modificadores
+                luminousState.modifiers = {};
+                modSelects.forEach(select => {
+                    const modKey = select.dataset.mod;
+                    const attrName = select.value;
+                    luminousState.modifiers[attrName] = modValues[modKey].val;
+                });
+
+                // Actualizar estado de perks de humano
+                luminousState.humanPerks = [];
+                const humanRace = racesData.find(r => r.id === 'humano');
+                perkSelects.forEach(select => {
+                    const perkId = select.value;
+                    const perkData = humanRace.perks.find(p => p.id === perkId);
+                    if (perkData) {
+                        luminousState.humanPerks.push(perkData);
+                    }
+                });
+            }
+        }
+
+        function seleccionarSocial(id) {
+            luminousState.socialClassId = id;
+
+            const cards = document.querySelectorAll('.social-card');
+            cards.forEach(card => {
+                if (card.dataset.id === id) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            if (id) {
+                socialGrid.classList.add('has-selection');
+            }
+
+            validarFase1();
+        }
+
+        function seleccionarNaturaleza(id) {
+            luminousState.natureId = id;
+
+            const cards = document.querySelectorAll('.nature-card');
+            cards.forEach(card => {
+                if (card.dataset.id === id) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                    const select = card.querySelector('.skill-gain');
+                    if(select) {
+                        select.value = "";
+                        select.classList.remove('error');
+                    }
+                }
+            });
+
+            if (id) {
+                natureGrid.classList.add('has-selection');
+            } else {
+                natureGrid.classList.remove('has-selection');
+            }
+
+            validarFase1();
+        }
+
+        function validarFase1() {
+            let isValid = true;
+
+            if (!luminousState.socialClassId || !luminousState.natureId) {
+                isValid = false;
+            } else {
+                const selectedCard = document.querySelector(`.nature-card[data-id="${luminousState.natureId}"]`);
+                const select = selectedCard.querySelector('.skill-gain');
+                if (!select.value) {
+                    isValid = false;
+                    select.classList.add('error');
+                } else {
+                    select.classList.remove('error');
+                }
+            }
+
+            btnConfirmarInfancia.disabled = !isValid;
+        }
+
+        function validarFase2() {
+            if (selectBloqueA.value && selectBloqueB.value && selectBloqueC.value) {
+                btnConfirmarFormacion.disabled = false;
+            } else {
+                btnConfirmarFormacion.disabled = true;
+            }
+        }
+
+        // 8. Inicialización
+
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn:not(.sub-tab-btn)');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remover active de todos los botones y contenidos
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                    // Activar el clickeado
+                    btn.classList.add('active');
+                    const tabId = btn.dataset.tab;
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        function initSubTabs() {
+            const subTabBtns = document.querySelectorAll('.sub-tab-btn');
+            subTabBtns.forEach(btn => {
+                if(btn.disabled) return;
+                btn.addEventListener('click', () => {
+                    subTabBtns.forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    const tabId = btn.dataset.subtab;
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        function renderEstados() {
+            const gridPositivos = document.getElementById('estados-positivos-grid');
+            const gridNegativos = document.getElementById('estados-negativos-grid');
+            if (!gridPositivos || !gridNegativos) return;
+            gridPositivos.innerHTML = '';
+            gridNegativos.innerHTML = '';
+
+            efectosDeEstado.forEach(efecto => {
+                const card = document.createElement('div');
+                card.className = 'estado-card';
+                card.innerHTML = `
+                    <img src="${efecto.icono}" alt="${efecto.nombre}" class="estado-icon" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'50\\' height=\\'50\\'><rect width=\\'50\\' height=\\'50\\' fill=\\'%23333\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'white\\' font-family=\\'monospace\\' font-size=\\'10\\'>?</text></svg>'">
+                    <div class="estado-info">
+                        <h3 class="estado-name">${efecto.nombre}</h3>
+                        <div class="estado-tipo">${efecto.tipo}</div>
+                        <div class="estado-desc">${efecto.desc}</div>
+                    </div>
+                `;
+                if (efecto.clasificacion === 'positivo') {
+                    gridPositivos.appendChild(card);
+                } else {
+                    gridNegativos.appendChild(card);
+                }
+            });
+        }
+
+        function runApp() {
+            try {
+                initDOM();
+                initTabs();
+                initSubTabs();
+                renderOrigins();
+                renderPhase1();
+                renderEstados();
+            } catch (error) {
+                console.error("Error al inicializar:", error);
+                var errDiv = document.getElementById('origin-grid');
+                if (errDiv) {
+                    errDiv.innerHTML = `
+                        <div style="grid-column: 1 / -1; background: #500000; padding: 20px; border: 2px solid #ff0000; color: white;">
+                            <h3>Error de carga de scripts</h3>
+                            <p>El código JavaScript falló al ejecutarse. Esto suele pasar si tu navegador no soporta algunas funciones modernas.</p>
+                            <p style="font-family: monospace; background: #000; padding: 10px; word-break: break-all;">${error.message}</p>
+                            <p style="font-family: monospace; background: #000; padding: 10px; font-size: 10px; word-break: break-all;">${error.stack}</p>
+                        </div>
+                    `;
+                } else {
+                    alert("Fatal Error: " + error.message);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', runApp);
+        } else {
+            runApp();
+        }
+
     </script>
 </body>
 </html>
