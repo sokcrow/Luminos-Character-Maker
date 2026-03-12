@@ -65,10 +65,19 @@
             pointer-events: none;
         }
 
+        .fade-to-black {
+            opacity: 1;
+            background-color: black;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity 1.5s ease, background-color 1.5s ease;
+        }
+
         /* VISTA 1: TITLE SCREEN */
         #title-screen {
             cursor: pointer;
             z-index: 10;
+            transition: opacity 1.5s ease;
         }
 
         .luminous-title {
@@ -311,7 +320,10 @@
 
             titleScreen.addEventListener('click', () => {
                 if (!hasSave) {
-                    window.location.href = 'creacion_personaje.html';
+                    titleScreen.classList.add('fade-to-black');
+                    setTimeout(() => {
+                        window.location.href = 'creacion_personaje.html';
+                    }, 1500);
                 } else {
                     const name = saveData.nombre || saveData.Nombre_Personaje || saveData.name || "Nombre Desconocido";
                     const level = saveData.nivel || saveData.level || "Desconocido";
