@@ -3314,32 +3314,44 @@
             <button class="inv-tab-btn" data-tab="inv-shop">Tienda / Mercado</button>
         </div>
 
-        <div class="inventory-tab-content active" id="inv-active">
-            <div class="inv-active-grid">
-                <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
-                <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
+        <div class="inventory-body-wrapper">
+            <div class="inventory-left-panel">
+                <div class="inventory-tab-content active" id="inv-active">
+                    <div class="inv-grid" id="inv-active-grid">
+                        <!-- Items injectados via JS -->
+                    </div>
+                </div>
+
+                <div class="inventory-tab-content" id="inv-stash">
+                    <div class="inv-grid" id="inv-stash-grid">
+                        <!-- Items injectados via JS -->
+                    </div>
+                </div>
+
+                <div class="inventory-tab-content" id="inv-shop">
+                    <select id="shop-selector" style="width: 100%; margin-bottom: 15px; padding: 5px; background: #111; color: var(--cyan-tech); border: 1px solid var(--cyan-tech);">
+                        <option value="">Selecciona una tienda...</option>
+                    </select>
+                    <div class="inv-shop-grid" id="inv-shop-grid">
+                        <!-- Shop items will be injected here via JS -->
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="inventory-tab-content" id="inv-stash">
-            <table class="inv-stash-table">
-                <thead>
-                    <tr><th>Item</th><th>Tier</th><th>Cant.</th></tr>
-                </thead>
-                <tbody>
-                    <!-- Dummy items -->
-                    <tr><td>Balas LCB</td><td>1</td><td>30</td></tr>
-                    <tr><td>Módulo Cibernético Roto</td><td>2</td><td>1</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="inventory-tab-content" id="inv-shop">
-            <select id="shop-selector" style="width: 100%; margin-bottom: 15px; padding: 5px; background: #111; color: var(--cyan-tech); border: 1px solid var(--cyan-tech);">
-                <option value="">Selecciona una tienda...</option>
-            </select>
-            <div class="inv-shop-grid" id="inv-shop-grid">
-                <!-- Shop items will be injected here via JS -->
+            <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
+            <div class="item-detail-card" id="item-detail-card">
+                <div class="detail-left">
+                    <div class="detail-icon-box">
+                        <img id="detail-icon" src="" alt="Icono" />
+                    </div>
+                    <div class="detail-tier">Tier: <span id="detail-tier-val" class="tier-orange">I</span></div>
+                    <div class="detail-cost">Costo: <span style="color:var(--border-accent);">[A]</span> <span id="detail-cost-val">0</span></div>
+                    <div class="detail-tags" id="detail-tags-val"></div>
+                </div>
+                <div class="detail-right">
+                    <div class="detail-title-badge" id="detail-title">Nombre del Item</div>
+                    <div class="detail-desc" id="detail-desc">Descripción del item detallada para lectura cómoda.</div>
+                </div>
             </div>
         </div>
     </div>
