@@ -5261,10 +5261,10 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     padding: 15px;
 }
 
-.sheet-attributes-grid {
+.sheet-limbus-main .sheet-attributes-grid {
     flex-direction: column;
 }
-.sheet-attr-group {
+.sheet-limbus-main .sheet-attr-group {
     width: 100%;
 }
 
