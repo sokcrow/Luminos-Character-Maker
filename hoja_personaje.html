@@ -3323,6 +3323,17 @@
                 </div>
 
                 <div class="inventory-tab-content" id="inv-stash">
+                    <!-- Barra de Herramientas del Stash -->
+                    <div class="inventory-toolbar">
+                        <input type="text" id="buscador-items-stash" class="inv-search-input" placeholder="Buscar por nombre, tier o tag...">
+                        <div class="inv-filters" id="filtros-stash">
+                            <button class="inv-filter-btn active" data-filter="Todo">Todo</button>
+                            <button class="inv-filter-btn" data-filter="Arma">Armas</button>
+                            <button class="inv-filter-btn" data-filter="Consumible">Consumibles</button>
+                            <button class="inv-filter-btn" data-filter="Material">Materiales</button>
+                            <button class="inv-filter-btn" data-filter="Chatarra">Chatarra</button>
+                        </div>
+                    </div>
                     <div class="inv-grid" id="inv-stash-grid">
                         <!-- Items injectados via JS -->
                     </div>
@@ -3345,7 +3356,7 @@
                         <img id="detail-icon" src="" alt="Icono" />
                     </div>
                     <div class="detail-tier">Tier: <span id="detail-tier-val" class="tier-orange">I</span></div>
-                    <div class="detail-cost">Costo: <span style="color:var(--border-accent);">[A]</span> <span id="detail-cost-val">0</span></div>
+                    <div class="detail-cost">Costo: <span class="currency-symbol">₳</span> <span id="detail-cost-val">0</span></div>
                     <div class="detail-tags" id="detail-tags-val"></div>
                 </div>
                 <div class="detail-right">

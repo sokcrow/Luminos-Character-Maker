@@ -321,6 +321,78 @@
     input:checked + .slider:before {
       transform: translateX(26px);
     }
+
+    /* Currency Symbol */
+    .currency-symbol {
+        color: #FFD700;
+        text-shadow: 0 0 5px rgba(196, 154, 0, 0.8), 0 0 2px #000;
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-right: 2px;
+    }
+
+    /* DM Toolbar */
+    .dm-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 15px;
+        background: rgba(20, 20, 20, 0.8);
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #333;
+    }
+
+    .dm-search-input {
+        width: 100%;
+        padding: 8px 12px;
+        background: #000;
+        color: var(--cyan-tech, #0df);
+        border: 1px solid #444;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 0.95em;
+        box-sizing: border-box;
+    }
+
+    .dm-search-input:focus {
+        outline: none;
+        border-color: var(--cyan-tech, #0df);
+        box-shadow: 0 0 5px rgba(0, 221, 255, 0.4);
+    }
+
+    .dm-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .dm-filter-btn {
+        background: #111;
+        color: #aaa;
+        border: 1px solid #444;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+    }
+
+    .dm-filter-btn:hover {
+        background: #222;
+        color: #fff;
+        border-color: #666;
+    }
+
+    .dm-filter-btn.active {
+        background: rgba(0, 221, 255, 0.15);
+        color: var(--cyan-tech, #0df);
+        border-color: var(--cyan-tech, #0df);
+        font-weight: bold;
+        box-shadow: 0 0 8px rgba(0, 221, 255, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -448,6 +520,17 @@
     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
       <div style="flex: 1; min-width: 300px;">
         <h4 style="color: #0df; border-bottom: 1px solid #444; padding-bottom: 5px;">Base de Datos de Ítems (Global)</h4>
+        <!-- Barra de Herramientas DM -->
+        <div class="dm-toolbar">
+            <input type="text" id="buscador-items-dm" class="dm-search-input" placeholder="Buscar por nombre, tier o tipo...">
+            <div class="dm-filters" id="filtros-dm">
+                <button class="dm-filter-btn active" data-filter="Todo">Todo</button>
+                <button class="dm-filter-btn" data-filter="Arma">Armas</button>
+                <button class="dm-filter-btn" data-filter="Armadura">Armaduras</button>
+                <button class="dm-filter-btn" data-filter="Consumible">Consumibles</button>
+                <button class="dm-filter-btn" data-filter="Clave">Clave</button>
+            </div>
+        </div>
         <div id="grid-items-globales" class="grid-container">
           <!-- Tarjetas de ítems inyectadas por JS -->
         </div>
@@ -875,18 +958,71 @@
              const card = document.createElement('div');
              card.className = 'card-cyber card-item';
 
+             // Guardar info para los filtros
+             card.dataset.name = data.nombre.toLowerCase();
+             card.dataset.tier = (data.tier || '').toLowerCase();
+             card.dataset.tipo = (data.tipo || '').toLowerCase();
+
              const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/00ddff?text=?';
              card.innerHTML = `
                 <img src="${imgUrl}" alt="${data.nombre}">
                 <h5>${data.nombre}</h5>
                 <span>${data.tipo}</span>
-                <span style="color:#0df; font-weight:bold;">${data.costo} Ahn</span>
+                <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.costo}</span>
              `;
              gridItemsGlobales.appendChild(card);
           }
+          // Llamar al filtro después de renderizar para mantener el estado de búsqueda actual
+          filterDMItems();
        } else {
           gridItemsGlobales.innerHTML = '<span style="color: #888;">No hay ítems registrados.</span>';
        }
+    });
+
+    // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---
+    const searchInputDM = document.getElementById('buscador-items-dm');
+    const filterBtnsDM = document.querySelectorAll('#filtros-dm .dm-filter-btn');
+
+    function filterDMItems() {
+        const query = searchInputDM ? searchInputDM.value.toLowerCase() : '';
+        let activeFilter = 'todo';
+
+        filterBtnsDM.forEach(btn => {
+            if (btn.classList.contains('active')) {
+                activeFilter = btn.getAttribute('data-filter').toLowerCase();
+            }
+        });
+
+        const dmGrid = document.getElementById('grid-items-globales');
+        if (dmGrid) {
+            const cards = dmGrid.querySelectorAll('.card-item');
+            cards.forEach(card => {
+                const name = card.dataset.name || '';
+                const tier = card.dataset.tier || '';
+                const tipo = card.dataset.tipo || '';
+
+                const matchesQuery = name.includes(query) || tier.includes(query) || tipo.includes(query);
+                const matchesFilter = activeFilter === 'todo' || tipo === activeFilter;
+
+                if (matchesQuery && matchesFilter) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    if (searchInputDM) {
+        searchInputDM.addEventListener('input', filterDMItems);
+    }
+
+    filterBtnsDM.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtnsDM.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterDMItems();
+        });
     });
 
     // CREAR TIENDA

@@ -2300,6 +2300,12 @@ window.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             const slot = document.createElement('div');
             slot.className = 'item-slot';
+
+            // Guardar info para los filtros
+            slot.dataset.name = item.name.toLowerCase();
+            slot.dataset.tier = item.tier.toLowerCase();
+            slot.dataset.tags = item.tags.join(',').toLowerCase();
+
             slot.innerHTML = `
                 <img src="${item.img}" alt="${item.name}" />
                 <div class="item-quantity">x${item.cant}</div>
@@ -2346,8 +2352,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 tagsContainer.innerHTML = '';
                 item.tags.forEach(tag => {
                     const t = document.createElement('span');
-                    t.className = 'detail-tag';
-                    t.innerText = `[${tag}]`;
+                    t.className = 'tag-pill';
+                    t.innerText = tag;
                     tagsContainer.appendChild(t);
                 });
             });
@@ -2359,13 +2365,59 @@ window.addEventListener('DOMContentLoaded', () => {
         const emptySlotsNeeded = Math.max(0, 25 - items.length);
         for(let i = 0; i < emptySlotsNeeded; i++) {
             const emptySlot = document.createElement('div');
-            emptySlot.className = 'item-slot';
+            emptySlot.className = 'item-slot empty-slot';
             grid.appendChild(emptySlot);
         }
     }
 
     renderInventoryGrid('inv-active-grid', mockItems.slice(0, 2)); // Just 2 in active
     renderInventoryGrid('inv-stash-grid', mockItems); // All in stash
+
+    // --- Inventory Search & Filter Logic (Stash) ---
+    const searchInputStash = document.getElementById('buscador-items-stash');
+    const filterBtnsStash = document.querySelectorAll('#filtros-stash .inv-filter-btn');
+
+    function filterStashItems() {
+        const query = searchInputStash ? searchInputStash.value.toLowerCase() : '';
+        let activeFilter = 'Todo';
+
+        filterBtnsStash.forEach(btn => {
+            if (btn.classList.contains('active')) {
+                activeFilter = btn.getAttribute('data-filter').toLowerCase();
+            }
+        });
+
+        const stashGrid = document.getElementById('inv-stash-grid');
+        if (stashGrid) {
+            const slots = stashGrid.querySelectorAll('.item-slot:not(.empty-slot)');
+            slots.forEach(slot => {
+                const name = slot.dataset.name || '';
+                const tier = slot.dataset.tier || '';
+                const tags = slot.dataset.tags || '';
+
+                const matchesQuery = name.includes(query) || tier.includes(query) || tags.includes(query);
+                const matchesFilter = activeFilter === 'todo' || tags.includes(activeFilter);
+
+                if (matchesQuery && matchesFilter) {
+                    slot.style.display = 'flex';
+                } else {
+                    slot.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    if (searchInputStash) {
+        searchInputStash.addEventListener('input', filterStashItems);
+    }
+
+    filterBtnsStash.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtnsStash.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterStashItems();
+        });
+    });
 
     // --- Dynamic Shop System Logic ---
     const shopSelector = document.getElementById('shop-selector');
@@ -2415,7 +2467,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 itemCard.innerHTML = `
                     <div class="inv-shop-item-name" style="color: #FFD700; font-size: 1.1em; text-shadow: 0 0 5px rgba(196,154,0,0.5);">${itemData.nombre}</div>
                     <div style="font-size: 0.8em; color: #aaa;">[${itemData.tipo}]</div>
-                    <div class="inv-shop-item-price" style="color: #0df; font-weight: bold; margin: 5px 0;">${itemData.costo} Ahn</div>
+                    <div class="inv-shop-item-price" style="color: #0df; font-weight: bold; margin: 5px 0;"><span class="currency-symbol">₳</span> ${itemData.costo}</div>
                     <div style="font-size: 0.85em; color: ${isAgotado ? '#ff4444' : '#fff'}; margin-bottom: 10px;">Stock: ${stockDisplay}</div>
                     <button class="inv-shop-buy-btn" data-shop-id="${shopId}" data-item-id="${itemId}" ${isAgotado ? 'disabled style="background:#555; cursor:not-allowed;"' : 'style="background:var(--green-success); color:#000;"'}>
                         ${isAgotado ? 'AGOTADO' : 'COMPRAR'}
