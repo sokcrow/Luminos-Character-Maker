@@ -695,6 +695,15 @@ try {
         });
     });
 
+    on('clicked:toggle_profile_edit', () => {
+        getAttrs(['show_profile_edit'], (v) => {
+            const current = parseIntOr0(v.show_profile_edit);
+            setAttrs({
+                show_profile_edit: current === 0 ? 1 : 0
+            });
+        });
+    });
+
     on('clicked:toggle_perk_creator', () => {
         getAttrs(['show_perk_creator'], (v) => {
             const current = parseIntOr0(v.show_perk_creator);
