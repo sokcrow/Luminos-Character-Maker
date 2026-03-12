@@ -1307,7 +1307,8 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 .sheet-limbus-main input[name="attr_tab"][value="skills"] ~ .sheet-main-content .sheet-tab-skills,
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-main-content .sheet-tab-parts,
 .sheet-limbus-main input[name="attr_tab"][value="profile"] ~ .sheet-main-content .sheet-tab-profile,
-.sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-main-content .sheet-tab-apego {
+.sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-main-content .sheet-tab-apego,
+.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-main-content .sheet-tab-mail {
     display: block !important;
 }
 
@@ -1335,7 +1336,8 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 .sheet-limbus-main input[name="attr_tab"][value="abilities"] ~ .sheet-tabs button[name="act_tab_abilities"],
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-tabs button[name="act_tab_parts"],
 .sheet-limbus-main input[name="attr_tab"][value="profile"] ~ .sheet-tabs button[name="act_tab_profile"],
-.sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-tabs button[name="act_tab_apego"] {
+.sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-tabs button[name="act_tab_apego"],
+.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-tabs button[name="act_tab_mail"] {
     background: #8B0000; color: #fff; border-color: #FFD700;
     box-shadow: 0 0 10px rgba(139, 0, 0, 0.4);
 }
@@ -5248,6 +5250,7 @@ input[name="attr_tab"][value="abilities"] ~ .sheet-phone-screen .sheet-tab-abili
 input[name="attr_tab"][value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
 input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile,
 input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
+input[name="attr_tab"][value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
 input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings {
     display: flex !important;
 }
@@ -5924,3 +5927,19 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     transform: translateY(150vh) !important;
     opacity: 0 !important;
 }
+
+/* ========================================================= */
+/* --- MAIL APP STYLES --- */
+/* ========================================================= */
+.sheet-tab-mail { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; }
+.mail-inbox-list { width: 35%; background: #0a0a0c; border-right: 1px solid #0df; overflow-y: auto; padding: 5px; box-sizing: border-box; }
+.mail-read-area { width: 65%; background: rgba(10, 10, 12, 0.9); padding: 15px; overflow-y: auto; color: #fff; box-sizing: border-box; }
+.mail-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; color: #ccc; transition: background 0.2s, border-left 0.2s; border-left: 3px solid transparent; }
+.mail-item.unread { font-weight: bold; color: #0df; border-left: 3px solid #0df; background: rgba(0, 221, 255, 0.05); }
+.mail-item:hover { background: #1a1a20; border-left: 3px solid #ccc; }
+.mail-item strong { display: block; margin-bottom: 3px; font-size: 1.05em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-item small { color: #888; }
+.mail-read-area h3 { color: #0df; margin-top: 0; margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+.mail-read-area h4 { color: #aaa; margin-top: 0; margin-bottom: 15px; font-size: 0.9em; }
+.mail-read-area hr { border: 0; border-top: 1px solid #333; margin-bottom: 15px; }
+.mail-read-area p { line-height: 1.5; color: #ddd; font-family: 'Courier New', Courier, monospace; }

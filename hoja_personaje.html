@@ -128,7 +128,7 @@
  </div>
  <div class="sheet-app-grid">
  <button type="action" name="act_tab_profile" class="sheet-app-btn"><div class="sheet-app-icon">👤</div><span>Perfil</span></button>
- <button type="action" name="act_tab_vitals" class="sheet-app-btn"><div class="sheet-app-icon">❤️</div><span>Vitales</span></button>
+ <button type="action" name="act_tab_mail" class="sheet-app-btn"><div class="sheet-app-icon">✉️</div><span>Mail</span></button>
  <button type="action" name="act_tab_stats" class="sheet-app-btn"><div class="sheet-app-icon">📊</div><span>Stats</span></button>
  <button type="action" name="act_tab_banco" class="sheet-app-btn"><div class="sheet-app-icon">🏦</div><span>Banco</span></button>
  <button type="action" name="act_tab_skills" class="sheet-app-btn"><div class="sheet-app-icon">⭐</div><span>Perks</span></button>
@@ -139,155 +139,12 @@
  </div>
  </div>
 
- <!-- Vitals Tab -->
- <div class="sheet-tab-content sheet-tab-vitals">
- <div class="sheet-app-header"><h2>Vitales</h2></div>
- <div class="sheet-app-body">
- <div class="sheet-header-right">
- <div class="sheet-resistance-row">
- <div class="sheet-res-block"><img src="https://i.imgur.com/Akf25L5.png" class="sheet-res-icon" title="Slashing"><input type="number" step="0.25" value="1.0" name="attr_Resist_Slashing" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/slcQlpc.png" class="sheet-res-icon" title="Piercing"><input type="number" step="0.25" value="1.0" name="attr_Resist_Piercing" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/cg8Wh4w.png" class="sheet-res-icon" title="Bludgeoning"><input type="number" step="0.25" value="1.0" name="attr_Resist_Bludgeoning" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/jaHFSfB.png" class="sheet-res-icon" title="Acid"><input type="number" step="0.25" value="1.0" name="attr_Resist_Acid" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/0br4gK4.png" class="sheet-res-icon" title="Fire"><input type="number" step="0.25" value="1.0" name="attr_Resist_Fire" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/kJY0rBP.png" class="sheet-res-icon" title="Cold"><input type="number" step="0.25" value="1.0" name="attr_Resist_Cold" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/KMQuv3T.png" class="sheet-res-icon" title="Electric"><input type="number" step="0.25" value="1.0" name="attr_Resist_Electric" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/qjPIdi6.png" class="sheet-res-icon" title="Force"><input type="number" step="0.25" value="1.0" name="attr_Resist_Force" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/Xjt7U8a.png" class="sheet-res-icon" title="Necrotic"><input type="number" step="0.25" value="1.0" name="attr_Resist_Necrotic" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/adZpZuN.png" class="sheet-res-icon" title="Poison"><input type="number" step="0.25" value="1.0" name="attr_Resist_Poison" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/7MGMPB0.png" class="sheet-res-icon" title="Psychic"><input type="number" step="0.25" value="1.0" name="attr_Resist_Psychic" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/RmU2HGK.png" class="sheet-res-icon" title="Radiant"><input type="number" step="0.25" value="1.0" name="attr_Resist_Radiant" class="sheet-res-input"></div>
- <div class="sheet-res-block"><img src="https://i.imgur.com/7VcSDjq.png" class="sheet-res-icon" title="Thunder"><input type="number" step="0.25" value="1.0" name="attr_Resist_Thunder" class="sheet-res-input"></div>
- </div>
- <div class="sheet-vitals-hud">
- <div class="sheet-vital-box">
- <label>HP</label>
- <!-- Gear Button for Mini Config -->
- <button type="action" name="act_toggle_config" class="sheet-config-btn" title="Configuración Rápida"><img src="https://i.imgur.com/c5hKFeC.png" class="sheet-icon-cfg" /></button>
- <div class="sheet-vital-values">
- <input type="number" name="attr_hp" placeholder="Cur" />
- <span class="sheet-slash">/</span>
- <input type="number" name="attr_hp_max" placeholder="Max" />
- </div>
- </div>
- <!-- Moved Rest Buttons: Vertical Stack on Right -->
- <div class="sheet-rest-buttons">
- <button type="action" name="act_short_rest" class="sheet-btn-rest">SHORT REST</button>
- <button type="action" name="act_long_rest" class="sheet-btn-rest">LONG REST</button>
- </div>
- </div>
- <!-- Secondary Vitals Row -->
- <div class="sheet-vitals-sub">
- <div class="sheet-vital-box sheet-vital-box-speed">
- <button type="roll" name="roll_speed_check" class="sheet-speed-label-btn" >SPEED</button>
- <div class="sheet-vital-values">
- <span name="attr_MinSpeed" class="sheet-speed-display"></span>
- <span class="sheet-slash">-</span>
- <span name="attr_MaxSpeed" class="sheet-speed-display"></span>
- </div>
- </div>
- <div class="sheet-vital-box">
- <label>OFF. LVL</label>
- <span name="attr_total_off_level" class="sheet-read-only">0</span>
- </div>
- <div class="sheet-vital-box">
- <label>DEF. LVL</label>
- <span name="attr_total_def_level" class="sheet-read-only">0</span>
- </div>
- </div>
- </div>
- <div class="sheet-config-panel">
- <h3 class="sheet-config-title">Configuración Rápida</h3>
- <div class="sheet-row">
- <div class="sheet-col">
- <label>Base HP</label>
- <input type="number" name="attr_hp_base" value="0" />
- </div>
- <div class="sheet-col">
- <label>Coef. (X)</label>
- <input type="number" name="attr_hp_coefficient" value="0" step="0.01" />
- </div>
- </div>
- <div class="sheet-row">
- <div class="sheet-col">
- <label>Stagger Thresholds</label>
- <select name="attr_stagger_count" style="width: 100%; background: #111; color: #fff; border: 1px solid #444;">
- <option value="1">1 (Hide 2/3)</option>
- <option value="2">2 (Hide 3)</option>
- <option value="3" selected>3 (Show All)</option>
- </select>
- </div>
- </div>
- <div class="sheet-row">
- <div class="sheet-col"><label>% I</label><input type="number" name="attr_stagger_1_percent" value="70" /></div>
- <div class="sheet-col"><label>% II</label><input type="number" name="attr_stagger_2_percent" value="40" /></div>
- <div class="sheet-col"><label>% III</label><input type="number" name="attr_stagger_3_percent" value="20" /></div>
- </div>
- </div>
- <div class="sheet-hp-sp-row">
- <div class="sheet-hp-bar-container">
- <div class="sheet-hp-bar-fill"></div>
- <!-- Markers (Visibility controlled by CSS & stagger count) -->
- <!-- Inline style defaults are overridden by shadow input rules -->
- <div class="sheet-stagger-marker sheet-marker-1"></div>
- <div class="sheet-stagger-marker sheet-marker-2"></div>
- <div class="sheet-stagger-marker sheet-marker-3"></div>
- <div class="sheet-abno-stagger-markers">
- <div class="sheet-stagger-marker sheet-marker-4"></div>
- <div class="sheet-stagger-marker sheet-marker-5"></div>
- <div class="sheet-stagger-marker sheet-marker-6"></div>
- <div class="sheet-stagger-marker sheet-marker-7"></div>
- <div class="sheet-stagger-marker sheet-marker-8"></div>
- <div class="sheet-stagger-marker sheet-marker-9"></div>
- <div class="sheet-stagger-marker sheet-marker-10"></div>
- <div class="sheet-stagger-marker sheet-marker-11"></div>
- <div class="sheet-stagger-marker sheet-marker-12"></div>
- </div>
- </div>
- <div class="sheet-vital-box sheet-vital-box-sp">
- <label>SP</label>
- <div class="sheet-vital-values">
- <input type="number" name="attr_sp" placeholder="SP" />
- <input type="hidden" name="attr_sp_max" value="45" />
- </div>
- </div>
- <div class="sheet-vital-box sheet-vital-box-luz">
- <label>LUZ</label>
- <div class="sheet-vital-values">
- <input type="number" name="attr_luz" placeholder="Luz" min="0" value="0" />
- </div>
- </div>
- </div>
- <div class="sheet-stagger-bar">
- <div class="sheet-stagger-item sheet-stagger-item-1">
- <label>Stagger I</label>
- <span name="attr_stagger_1_value" class="sheet-stagger-value">0</span>
- </div>
- <div class="sheet-stagger-item sheet-stagger-item-2">
- <label>Stagger II</label>
- <span name="attr_stagger_2_value" class="sheet-stagger-value">0</span>
- </div>
- <div class="sheet-stagger-item sheet-stagger-item-3">
- <label>Stagger III</label>
- <span name="attr_stagger_3_value" class="sheet-stagger-value">0</span>
- </div>
- <div class="sheet-abno-stagger-values" style="display:contents;">
- <div class="sheet-stagger-item sheet-stagger-item-4"><label>IV</label><span name="attr_stagger_4_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-5"><label>V</label><span name="attr_stagger_5_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-6"><label>VI</label><span name="attr_stagger_6_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-7"><label>VII</label><span name="attr_stagger_7_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-8"><label>VIII</label><span name="attr_stagger_8_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-9"><label>IX</label><span name="attr_stagger_9_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-10"><label>X</label><span name="attr_stagger_10_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-11"><label>XI</label><span name="attr_stagger_11_value" class="sheet-stagger-value">0</span></div>
- <div class="sheet-stagger-item sheet-stagger-item-12"><label>XII</label><span name="attr_stagger_12_value" class="sheet-stagger-value">0</span></div>
- </div>
- <div class="sheet-stagger-item sheet-tremor-item" style="border-color: #FFAE00;">
- <label style="color: #FFAE00;">TREMOR</label>
- <input type="number" name="attr_tremor_burst" value="0" class="sheet-stagger-value" style="width: 100%; background: transparent; border: none; text-align: center; color: #FFAE00; padding: 0;" />
- </div>
- <button type="action" name="act_reset_stagger" class="sheet-reset-stagger-btn" title="Reset Stagger Thresholds"><img src="https://i.imgur.com/5aGqkum.png" class="sheet-icon-reset" /></button>
- </div>
+ <!-- Mail Tab -->
+ <div class="sheet-tab-content sheet-tab-mail">
+ <div class="sheet-app-header"><h2>Mail</h2></div>
+ <div class="sheet-app-body-mail" style="display: flex; height: calc(100% - 60px); width: 100%;">
+   <div class="mail-inbox-list"></div>
+   <div class="mail-read-area"></div>
  </div>
  </div>
 
