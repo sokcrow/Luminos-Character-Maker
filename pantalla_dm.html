@@ -560,6 +560,46 @@
     </div>
   </div>
 
+  <!-- NUEVO DASHBOARD: GESTOR DE TABLAS DE BOTÍN -->
+  <div id="dashboard-loot" class="panel-cyber" style="margin-top: 20px;">
+    <h3>Gestor de Tablas de Botín</h3>
+    <div class="form-cyber-container">
+
+      <!-- A. Crear Tabla -->
+      <div class="form-cyber">
+        <h4 style="color: #0df;">A. Crear Nueva Tabla</h4>
+        <input type="text" id="loot-nombre-tabla" placeholder="Nombre de Enemigo/Tabla (Ej: Matón de Callejón)" />
+        <button id="btn-crear-tabla-loot" class="btn-cyber btn-green">Crear Tabla</button>
+      </div>
+
+      <!-- B. Añadir Ítem a Tabla -->
+      <div class="form-cyber">
+        <h4 style="color: #c49a00;">B. Añadir Ítem a Tabla</h4>
+        <select id="loot-select-tabla">
+          <option value="">Cargando Tablas...</option>
+        </select>
+        <select id="loot-select-item">
+          <option value="">Cargando Ítems...</option>
+        </select>
+        <input type="number" id="loot-probabilidad" placeholder="Probabilidad % (1-100)" min="1" max="100" />
+        <button id="btn-anadir-item-loot" class="btn-cyber" style="background: #222; color: #fff; border: 1px solid #c49a00;">Añadir a Tabla</button>
+      </div>
+
+      <!-- C. Generador de Botín -->
+      <div class="form-cyber" style="border: 1px solid #8b0000; box-shadow: 0 0 10px rgba(139,0,0,0.5);">
+        <h4 style="color: #ff4444;">C. Generador de Botín</h4>
+        <select id="loot-select-jugador">
+          <option value="">Cargando Jugadores...</option>
+        </select>
+        <select id="loot-select-tabla-roll">
+          <option value="">Cargando Tablas...</option>
+        </select>
+        <button id="btn-tirar-loot" class="btn-cyber" style="background: #c49a00; color: #000; font-size: 18px; padding: 15px; border: 2px solid #fff;">Tirar Dados de Loot</button>
+        <div id="loot-log" style="margin-top: 10px; font-size: 14px; color: #aaa; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #444; min-height: 50px; white-space: pre-wrap;">Esperando tirada...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
   <div id="modal-editar-tienda" class="modal-overlay">
     <div class="modal-cyber">
@@ -904,6 +944,18 @@
                 commsJugadorSelect.appendChild(option);
             }
         }
+
+        // --- Populate Generador de Botín Jugador Select ---
+        const lootJugadorSelect = document.getElementById('loot-select-jugador');
+        if (lootJugadorSelect) {
+            lootJugadorSelect.innerHTML = '<option value="">Selecciona Jugador...</option>';
+            for (const nombre of Object.keys(jugadores)) {
+                const option = document.createElement('option');
+                option.value = nombre;
+                option.textContent = nombre;
+                lootJugadorSelect.appendChild(option);
+            }
+        }
       } else {
         bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
       }
@@ -1044,6 +1096,22 @@
           filterDMItems();
        } else {
           gridItemsGlobales.innerHTML = '<span style="color: #888;">No hay ítems registrados.</span>';
+       }
+
+       // --- Populate Añadir Ítem a Tabla Select ---
+       const lootItemSelect = document.getElementById('loot-select-item');
+       if (lootItemSelect) {
+           lootItemSelect.innerHTML = '<option value="">Selecciona Ítem Global...</option>';
+           if (items) {
+               // Ordenar ítems alfabéticamente
+               const sortedKeys = Object.keys(items).sort();
+               for (const key of sortedKeys) {
+                   const option = document.createElement('option');
+                   option.value = key;
+                   option.textContent = items[key].nombre;
+                   lootItemSelect.appendChild(option);
+               }
+           }
        }
     });
 
@@ -1247,6 +1315,143 @@
                 tiendaActualEditada = null;
             })
             .catch(e => alert('Error guardando inventario: ' + e));
+    });
+
+    // --- LÓGICA DE TABLAS DE LOOT ---
+    let dbTablasCache = {};
+
+    // A. CREAR TABLA DE LOOT
+    document.getElementById('btn-crear-tabla-loot').addEventListener('click', () => {
+        const nombreInput = document.getElementById('loot-nombre-tabla').value.trim();
+        if (!nombreInput) { alert("Ingresa un nombre para la tabla de loot."); return; }
+
+        const idTabla = nombreInput.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+        db.ref(`campaña/tablas_loot/${idTabla}`).set({
+            nombre: nombreInput,
+            items: {} // Inicializamos vacío para luego agregarle items
+        }).then(() => {
+            alert(`Tabla '${nombreInput}' creada exitosamente.`);
+            document.getElementById('loot-nombre-tabla').value = '';
+        }).catch(e => alert('Error creando tabla de loot: ' + e));
+    });
+
+    // B. ESCUCHAR TABLAS DE LOOT (Para Selects y Caché)
+    db.ref('campaña/tablas_loot').on('value', (snapshot) => {
+        const tablas = snapshot.val();
+        dbTablasCache = tablas || {};
+
+        const selectTablaAdd = document.getElementById('loot-select-tabla');
+        const selectTablaRoll = document.getElementById('loot-select-tabla-roll');
+
+        if (selectTablaAdd && selectTablaRoll) {
+            selectTablaAdd.innerHTML = '<option value="">Selecciona Tabla...</option>';
+            selectTablaRoll.innerHTML = '<option value="">Selecciona Tabla...</option>';
+
+            if (tablas) {
+                for (const [idTabla, data] of Object.entries(tablas)) {
+                    const opt1 = document.createElement('option');
+                    opt1.value = idTabla;
+                    opt1.textContent = data.nombre;
+                    selectTablaAdd.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = idTabla;
+                    opt2.textContent = data.nombre;
+                    selectTablaRoll.appendChild(opt2);
+                }
+            }
+        }
+    });
+
+    // C. AÑADIR ÍTEM A TABLA
+    document.getElementById('btn-anadir-item-loot').addEventListener('click', () => {
+        const idTabla = document.getElementById('loot-select-tabla').value;
+        const idItem = document.getElementById('loot-select-item').value;
+        const probabilidad = parseInt(document.getElementById('loot-probabilidad').value, 10);
+
+        if (!idTabla) { alert("Selecciona una tabla de loot."); return; }
+        if (!idItem) { alert("Selecciona un ítem para añadir."); return; }
+        if (isNaN(probabilidad) || probabilidad < 1 || probabilidad > 100) {
+            alert("Ingresa una probabilidad válida entre 1 y 100.");
+            return;
+        }
+
+        const dataGlobal = dbItemsCache[idItem];
+        if (!dataGlobal) { alert("Ítem no encontrado en base de datos global."); return; }
+
+        db.ref(`campaña/tablas_loot/${idTabla}/items`).push({
+            id_item: idItem,
+            nombre: dataGlobal.nombre,
+            probabilidad: probabilidad
+        }).then(() => {
+            alert(`Ítem '${dataGlobal.nombre}' añadido a la tabla con ${probabilidad}% de probabilidad.`);
+            document.getElementById('loot-probabilidad').value = '';
+            document.getElementById('loot-select-item').value = '';
+        }).catch(e => alert('Error al añadir ítem a la tabla: ' + e));
+    });
+
+    // D. GENERADOR DE BOTÍN (TIRADA)
+    document.getElementById('btn-tirar-loot').addEventListener('click', () => {
+        const idJugador = document.getElementById('loot-select-jugador').value;
+        const idTabla = document.getElementById('loot-select-tabla-roll').value;
+
+        if (!idJugador) { alert("Selecciona un jugador destino para el botín."); return; }
+        if (!idTabla) { alert("Selecciona una tabla de loot para tirar."); return; }
+
+        const tablaData = dbTablasCache[idTabla];
+        if (!tablaData || !tablaData.items) {
+            alert("Esta tabla de loot está vacía o no existe.");
+            return;
+        }
+
+        const logDiv = document.getElementById('loot-log');
+        let logMessage = `--- Tirada de Botín: ${tablaData.nombre} ---\nDestino: ${idJugador}\n\n`;
+        let itemsDropeados = [];
+
+        // Iterar sobre los items de la tabla
+        for (const [keyItemTabla, itemInfo] of Object.entries(tablaData.items)) {
+            const tirada = Math.floor(Math.random() * 100) + 1; // 1-100
+
+            if (tirada <= itemInfo.probabilidad) {
+                // El item cayó
+                const fullItemData = dbItemsCache[itemInfo.id_item];
+                if (fullItemData) {
+                    itemsDropeados.push(fullItemData);
+                    logMessage += `[ÉXITO] ${tirada}% vs ${itemInfo.probabilidad}% -> ¡Cayó ${itemInfo.nombre}!\n`;
+                } else {
+                    logMessage += `[ERROR] El ítem original para ${itemInfo.nombre} ya no existe en la BD.\n`;
+                }
+            } else {
+                // Falló
+                logMessage += `[FALLO] ${tirada}% vs ${itemInfo.probabilidad}% -> No cayó ${itemInfo.nombre}.\n`;
+            }
+        }
+
+        // Entregar items a jugador
+        if (itemsDropeados.length > 0) {
+            logMessage += `\nRESUMEN: Entregando ${itemsDropeados.length} ítem(s) al stash de ${idJugador}...`;
+
+            const promises = itemsDropeados.map(item => {
+                // Hacer push al inventario_stash del jugador
+                return db.ref(`campaña/jugadores/${idJugador}/inventario_stash`).push(item);
+            });
+
+            Promise.all(promises).then(() => {
+                logMessage += `\n[ENTREGA COMPLETADA]`;
+                logDiv.style.color = '#0df';
+                logDiv.innerText = logMessage;
+            }).catch(e => {
+                logMessage += `\n[ERROR AL ENTREGAR] ${e}`;
+                logDiv.style.color = '#ff4444';
+                logDiv.innerText = logMessage;
+            });
+
+        } else {
+            logMessage += `\nRESUMEN: No cayó absolutamente nada.`;
+            logDiv.style.color = '#c49a00';
+            logDiv.innerText = logMessage;
+        }
     });
 
   </script>
