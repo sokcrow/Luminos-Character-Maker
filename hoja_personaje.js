@@ -1105,7 +1105,7 @@ try {
     // clicked:tab_profile
     // clicked:tab_apego
     // clicked:tab_equipment
-    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco"];
+    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas"];
     tabsList.forEach(tab => {
         on(`clicked:tab_${tab}`, function() {
             setAttrs({
@@ -2229,7 +2229,7 @@ try {
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings'];
+const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
@@ -2613,4 +2613,40 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+});
+
+
+
+    });
+
+    // Close buttons
+    hudCloses.forEach(closeBtn => {
+        closeBtn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.hud-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+
+    // Background click to close
+    hudModals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+});
+
+// --- HUD MODAL LOGIC (Roll20 Compatible) ---
+const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
+hudModalsList.forEach(modal => {
+    on(`clicked:hud_${modal}`, function() {
+        setAttrs({ active_hud_modal: modal });
+    });
+});
+
+on('clicked:hud_close', function() {
+    setAttrs({ active_hud_modal: '' });
 });
