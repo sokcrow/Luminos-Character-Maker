@@ -568,7 +568,7 @@
 
             <h1 class="question" style="margin-top: 40px; font-size: 2rem;">Especialización (<span id="points-counter" style="color: var(--cyan-tech);">20</span> Puntos)</h1>
             <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">Distribuye hasta un máximo de +3 por habilidad.</p>
-            <div id="skills-point-buy" class="origin-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
+            <div id="skills-point-buy" style="display: flex; flex-direction: column; gap: 30px; width: 100%; max-width: 1200px; padding: 0 20px; box-sizing: border-box;"></div>
 
             <div class="nav-buttons" style="margin-bottom: 50px;">
                 <button id="btn-confirmar-clase" class="btn" disabled>Despertar (Finalizar)</button>
@@ -587,6 +587,12 @@
             "Voluntad", "Cardio", "Manejo", "Reflejos", "Templanza", "Prudencia",
             "Empatía", "Fe", "Represión", "Memoria", "Ciencia", "Negociación", "Lore", "Investigación", "Arcana"
         ].sort();
+
+        const skillsTree = {
+            Cuerpo: ["Agilidad", "Cardio", "Fortaleza", "Manejo", "Reflejos", "Sigilo", "Vigor", "Instinto", "Presencia"],
+            Mente: ["Análisis", "Ciencia", "Investigación", "Lore", "Memoria", "Percepción", "Prudencia"],
+            Alma: ["Arcana", "Carisma", "Empatía", "Engaño", "Fe", "Negociación", "Perspicacia", "Represión", "Seducción", "Templanza", "Voluntad"]
+        };
 
         const classesData = [
             { id: "barbaro", name: "Bárbaro", hpCoef: 3.38, stats: { cuerpo: 3, mente: 0, alma: 0 } },
@@ -6066,10 +6072,10 @@
             }
 
             function renderPointBuy() {
-                const skillsGrid = document.getElementById('skills-point-buy');
+                const skillsContainer = document.getElementById('skills-point-buy');
                 const pointsCounter = document.getElementById('points-counter');
-                if (!skillsGrid || !pointsCounter) return;
-                skillsGrid.innerHTML = '';
+                if (!skillsContainer || !pointsCounter) return;
+                skillsContainer.innerHTML = '';
 
                 // Add grid styling specific for skills
                 const skillCardStyle = `
@@ -6078,8 +6084,8 @@
                     border-radius: 6px;
                     padding: 10px;
                     display: flex;
-                    justify-content: space-between;
-                    align-items: center;
+                    flex-direction: column;
+                    gap: 5px;
                 `;
 
                 const btnStyle = `
@@ -6093,31 +6099,62 @@
                     font-size: 14px;
                 `;
 
-                atributosLista.forEach(skill => {
-                    const card = document.createElement('div');
-                    card.style.cssText = skillCardStyle;
+                for (const [category, skills] of Object.entries(skillsTree)) {
+                    const sectionWrapper = document.createElement('div');
 
-                    card.innerHTML = `
-                        <span style="font-weight: bold; font-size: 14px; color: var(--text-main);">${skill}</span>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <button class="point-btn point-minus" data-skill="${skill}" style="${btnStyle}">-</button>
-                            <span class="point-val" id="point-val-${skill}" style="font-size: 16px; color: var(--cyan-tech); width: 20px; text-align: center;">0</span>
-                            <button class="point-btn point-plus" data-skill="${skill}" style="${btnStyle}">+</button>
-                        </div>
-                    `;
+                    const header = document.createElement('h3');
+                    header.style.cssText = "color: var(--cyan-tech); border-bottom: 1px solid #444; margin: 0 0 15px 0; padding-bottom: 5px;";
+                    header.textContent = `Rama de ${category}`;
+                    sectionWrapper.appendChild(header);
 
-                    skillsGrid.appendChild(card);
-                });
+                    const innerGrid = document.createElement('div');
+                    innerGrid.className = 'origin-grid';
+                    // Override grid-template-columns inline for these specific grids, making it look dense
+                    innerGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
+                    innerGrid.style.margin = '0';
+                    innerGrid.style.padding = '0';
+                    innerGrid.style.width = '100%';
 
-                if (!skillsGrid.dataset.listenerAttached) {
-                    skillsGrid.dataset.listenerAttached = "true";
-                    skillsGrid.addEventListener('click', (e) => {
+                    skills.forEach(skill => {
+                        const card = document.createElement('div');
+                        card.style.cssText = skillCardStyle;
+
+                        let baseVal = luminousState.modifiers[skill] || 0;
+                        let compradoVal = puntosDistribuidos[skill] || 0;
+                        let totalVal = baseVal + compradoVal;
+
+                        card.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: bold; font-size: 14px; color: var(--text-main);">${skill}</span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <button class="point-btn point-minus" data-skill="${skill}" style="${btnStyle}">-</button>
+                                    <span class="point-val" id="point-val-${skill}" style="font-size: 16px; color: var(--cyan-tech); width: 20px; text-align: center; display: none;">${compradoVal}</span>
+                                    <button class="point-btn point-plus" data-skill="${skill}" style="${btnStyle}">+</button>
+                                </div>
+                            </div>
+                            <span class="skill-total-display" id="skill-display-${skill}" style="font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 5px;">
+                                Base: +${baseVal} | Comprado: +${compradoVal} | Total: +${totalVal}
+                            </span>
+                        `;
+                        innerGrid.appendChild(card);
+                    });
+
+                    sectionWrapper.appendChild(innerGrid);
+                    skillsContainer.appendChild(sectionWrapper);
+                }
+
+                if (!skillsContainer.dataset.listenerAttached) {
+                    skillsContainer.dataset.listenerAttached = "true";
+                    skillsContainer.addEventListener('click', (e) => {
                         if (e.target.classList.contains('point-minus')) {
                             const skill = e.target.dataset.skill;
                             if (puntosDistribuidos[skill] > 0) {
                                 puntosDistribuidos[skill]--;
                                 puntosRestantes++;
-                                document.getElementById(`point-val-${skill}`).textContent = puntosDistribuidos[skill];
+                                let baseVal = luminousState.modifiers[skill] || 0;
+                                let compradoVal = puntosDistribuidos[skill];
+                                let totalVal = baseVal + compradoVal;
+                                document.getElementById(`skill-display-${skill}`).textContent = `Base: +${baseVal} | Comprado: +${compradoVal} | Total: +${totalVal}`;
                                 pointsCounter.textContent = puntosRestantes;
                                 validarFase5();
                             }
@@ -6126,7 +6163,10 @@
                             if (puntosDistribuidos[skill] < 3 && puntosRestantes > 0) {
                                 puntosDistribuidos[skill]++;
                                 puntosRestantes--;
-                                document.getElementById(`point-val-${skill}`).textContent = puntosDistribuidos[skill];
+                                let baseVal = luminousState.modifiers[skill] || 0;
+                                let compradoVal = puntosDistribuidos[skill];
+                                let totalVal = baseVal + compradoVal;
+                                document.getElementById(`skill-display-${skill}`).textContent = `Base: +${baseVal} | Comprado: +${compradoVal} | Total: +${totalVal}`;
                                 pointsCounter.textContent = puntosRestantes;
                                 validarFase5();
                             }
