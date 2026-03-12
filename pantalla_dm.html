@@ -408,6 +408,18 @@
           <option value="Consumible">Consumible</option>
           <option value="Clave">Clave</option>
         </select>
+        <select id="forja-tier">
+          <option value="I">Tier I</option>
+          <option value="II">Tier II</option>
+          <option value="III">Tier III</option>
+          <option value="IV">Tier IV</option>
+          <option value="V">Tier V</option>
+          <option value="VI">Tier VI</option>
+          <option value="VII">Tier VII</option>
+          <option value="VIII">Tier VIII</option>
+          <option value="IX">Tier IX</option>
+          <option value="X">Tier X</option>
+        </select>
         <input type="number" id="forja-costo" placeholder="Costo Base en Ahn" />
         <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" />
         <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
@@ -832,11 +844,12 @@
 
        const icono = document.getElementById('forja-icono').value.trim();
        const tipo = document.getElementById('forja-tipo').value;
+       const tier = document.getElementById('forja-tier').value;
        const costo = parseInt(document.getElementById('forja-costo').value) || 0;
        const usos = parseInt(document.getElementById('forja-usos').value) || 0;
        const desc = document.getElementById('forja-desc').value.trim();
 
-       const item = { nombre, icono, tipo, costo, usos, descripcion: desc };
+       const item = { nombre, icono, tipo, tier, costo, usos, descripcion: desc };
 
        db.ref(`campaña/base_datos_items/${nombre}`).set(item)
          .then(() => {
