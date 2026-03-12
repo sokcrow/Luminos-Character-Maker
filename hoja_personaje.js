@@ -2616,29 +2616,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 
-
-    });
-
-    // Close buttons
-    hudCloses.forEach(closeBtn => {
-        closeBtn.addEventListener('click', (e) => {
-            const modal = e.target.closest('.hud-modal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
-        });
-    });
-
-    // Background click to close
-    hudModals.forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
-    });
-});
-
 // --- HUD MODAL LOGIC (Roll20 Compatible) ---
 const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
 hudModalsList.forEach(modal => {
