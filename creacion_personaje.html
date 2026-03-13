@@ -4439,6 +4439,8 @@
 
         // 4. Estado Global
         const luminousState = {
+            midraAttempts: 0,
+            midraAmulet: false,
             characterName: null,
             originId: null,
             subraceId: null,
@@ -4455,9 +4457,7 @@
             humanPerks: [],
             baseStats: { cuerpo: 0, mente: 0, alma: 0 }, // Stats principales
             activeEntity: 'golden',
-            midraAttempts: 0,
-            dothyBlessing: false,
-            midraAmulet: false
+            dothyBlessing: false
         };
 
         function renderOrigins() {
@@ -5115,6 +5115,75 @@
                 if (!name) return;
 
                 const nameLower = name.toLowerCase();
+                if (nameLower === 'midra') {
+                    luminousState.midraAttempts += 1;
+                    let attempts = luminousState.midraAttempts;
+                    let phase1Container = document.getElementById('phase1');
+
+                    const triggerMidraEvent = (phrases, colorClass, onComplete) => {
+                        phase1Container.classList.add('hidden');
+                        typeSequence(phrases, colorClass, onComplete);
+                    };
+
+                    if (attempts === 1) {
+                        triggerMidraEvent(["...", "Mi maestro está en medio de sus oraciones.", "Apenas estoy aprendiendo de él, no puedo dejar que lo interrumpas."], 'text-dothy', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    } else if (attempts === 2) {
+                        triggerMidraEvent(["...", "¿Otra vez tú?", "Te dije que está ocupado. Sus milagros requieren demasiada concentración para lidiar contigo ahora."], 'text-dothy', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    } else if (attempts === 3) {
+                        triggerMidraEvent(["...", "Empiezas a colmar mi paciencia.", "La fe de mi maestro es inquebrantable, pero la mía no."], 'text-dothy', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    } else if (attempts === 4) {
+                        triggerMidraEvent(["...", "¡Por favor, detente!", "Si rompes su trance de sanación y algo sale mal, las consecuencias recaerán sobre mí..."], 'text-dothy', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    } else if (attempts === 5) {
+                        luminousState.midraAmulet = true;
+                        triggerMidraEvent(["...", "Dothy, está bien. Déjalos pasar.", "Veo que siguen igual de necios...", "Es bueno verlos, viejos amigos.", "Aunque sea en esta extraña realidad.", "Fui borrado de su mundo, pero mi esencia en Ox los recuerda.", "Les dejo esto para el camino. Sobrevivan."], 'text-midra', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    } else if (attempts > 5) {
+                        const annoyedDialogues = [
+                            ["...", "Él ya se fue.", "¿Podemos continuar de verdad?"],
+                            ["...", "No va a volver a salir.", "Dime tu nombre real."],
+                            ["...", "Esto ya no es gracioso.", "Necesito registrar tu esencia, no la de mi maestro."]
+                        ];
+                        let index = (attempts - 6) % annoyedDialogues.length;
+                        triggerMidraEvent(annoyedDialogues[index], 'text-dothy', () => {
+                            characterNameInput.value = ''; phase1Container.classList.remove('hidden');
+                            introDialogueText.className = 'golden-text';
+                            introDialogueText.innerHTML = introPhrases[introStep];
+                            phaseIntro.addEventListener('click', handleIntroAdvance);
+                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
+                        });
+                    }
+                    return;
+                }
+
                 const group1 = ['pierre', 'calipsys', 'jeske', 'dalzay', 'ishamon', 'angelo', 'agatha'];
                 const group2 = ['shajady', 'lysbe', 'annelize', 'so', 'lyon', 'aubellyon', 'xae', 'xaelunyar'];
 
