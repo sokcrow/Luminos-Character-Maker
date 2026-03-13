@@ -5115,81 +5115,6 @@
                 if (!name) return;
 
                 const nameLower = name.toLowerCase();
-                if (nameLower === 'midra') {
-                    luminousState.midraAttempts += 1;
-                    let attempts = luminousState.midraAttempts;
-
-                    const triggerMidraEvent = (phrases, colorClass, onComplete) => {
-                        nameInputContainer.classList.add('hidden');
-                        typeSequence(phrases, colorClass, onComplete);
-                    };
-
-                    const restoreInputState = () => {
-                        characterNameInput.value = '';
-                        introDialogueText.className = 'golden-text';
-                        introDialogueText.innerHTML = introPhrases[introStep];
-                        nameInputContainer.classList.remove('hidden');
-                        phaseIntro.addEventListener('click', handleIntroAdvance);
-                        phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
-                    };
-
-                    if (attempts === 1) {
-                        triggerMidraEvent(["...", "Mi maestro está en medio de sus oraciones.", "Apenas estoy aprendiendo de él, no puedo dejar que lo interrumpas."], 'text-dothy', restoreInputState);
-                    } else if (attempts === 2) {
-                        triggerMidraEvent(["...", "¿Otra vez tú?", "Te dije que está ocupado. Sus milagros requieren demasiada concentración para lidiar contigo ahora."], 'text-dothy', restoreInputState);
-                    } else if (attempts === 3) {
-                        triggerMidraEvent(["...", "Empiezas a colmar mi paciencia.", "La fe de mi maestro es inquebrantable, pero la mía no."], 'text-dothy', restoreInputState);
-                    } else if (attempts === 4) {
-                        triggerMidraEvent(["...", "¡Por favor, detente!", "Si rompes su trance de sanación y algo sale mal, las consecuencias recaerán sobre mí..."], 'text-dothy', restoreInputState);
-                    } else if (attempts === 5) {
-                        luminousState.midraAmulet = true;
-                        triggerMidraEvent(["...", "Dothy, está bien. Déjalos pasar.", "Veo que siguen igual de necios...", "Es bueno verlos, viejos amigos.", "Aunque sea en esta extraña realidad.", "Fui borrado de su mundo, pero mi esencia en Ox los recuerda.", "Les dejo esto para el camino. Sobrevivan."], 'text-midra', () => {
-                            luminousState.activeEntity = 'dothy';
-                            luminousState.dothyBlessing = true;
-                            const glow = phaseIntro.querySelector('.background-glow');
-                            if (glow) glow.style.display = 'none';
-
-                            const dothyPhrases = [
-                                "¿Tal vez te cansaste de perseguir dragones y magos?...",
-                                "Intentas escapar de la Asension...",
-                                "Pero ambos sabemos que esta realidad solo será un descanso...",
-                                "No te preocupes te Guiare por este camino...",
-                                "Y Sembrare la Bases para encontrarnos...",
-                                "¿Mi Nombre?",
-                                "Ah.",
-                                "Soy Dothy...",
-                                "Tal vez aun no signifique nada para ti",
-                                "Pero en el futuro...",
-                                "Estoy segura que nos encontraremos...",
-                                "¿Cual es tu verdadero nombre?"
-                            ];
-                            typeSequence(dothyPhrases, 'text-dothy', () => {
-                                characterNameInput.value = '';
-                                introDialogueText.className = 'text-dothy';
-                                introDialogueText.innerHTML = "¿Cual es tu verdadero nombre?";
-                                nameInputContainer.classList.remove('hidden');
-                                phaseIntro.addEventListener('click', handleIntroAdvance);
-                                phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
-                            });
-                        });
-                    } else if (attempts > 5) {
-                        const annoyedDialogues = [
-                            ["...", "Él ya se fue.", "¿Podemos continuar de verdad?"],
-                            ["...", "No va a volver a salir.", "Dime tu nombre real."],
-                            ["...", "Esto ya no es gracioso.", "Necesito registrar tu esencia, no la de mi maestro."]
-                        ];
-                        let index = (attempts - 6) % annoyedDialogues.length;
-                        triggerMidraEvent(annoyedDialogues[index], 'text-dothy', () => {
-                            characterNameInput.value = '';
-                            introDialogueText.className = luminousState.activeEntity === 'dothy' ? 'text-dothy' : 'golden-text';
-                            introDialogueText.innerHTML = luminousState.activeEntity === 'dothy' ? "¿Cual es tu verdadero nombre?" : introPhrases[introStep];
-                            nameInputContainer.classList.remove('hidden');
-                            phaseIntro.addEventListener('click', handleIntroAdvance);
-                            phaseIntro.addEventListener('touchstart', handleIntroAdvance, {passive: false});
-                        });
-                    }
-                    return;
-                }
 
                 const group1 = ['pierre', 'calipsys', 'jeske', 'dalzay', 'ishamon', 'angelo', 'agatha'];
                 const group2 = ['shajady', 'lysbe', 'annelize', 'so', 'lyon', 'aubellyon', 'xae', 'xaelunyar'];
@@ -5495,20 +5420,88 @@
                 const name = characterNameInput2.value.trim();
                 if (!name) return;
 
-                // Valid name
-                luminousState.characterName = name;
-                characterName = name;
-                nameInputContainer2.classList.add('hidden');
+                if (name.toLowerCase() === "midra") {
+                    luminousState.midraAttempts += 1;
+                    const attempts = luminousState.midraAttempts;
 
-                // Fade out Golden Entity to absolute darkness
-                phaseDialogue2.classList.add('fade-out');
-                setTimeout(() => {
-                    phaseDialogue2.classList.add('hidden');
-                    phaseDialogue2.classList.remove('fade-out');
+                    const triggerMidraEvent2 = (phrases, colorClass, onComplete) => {
+                        nameInputContainer2.classList.add('hidden');
+                        typeSequence2(phrases, colorClass, onComplete);
+                    };
 
-                    // Start Purple Intervention Phase
-                    startPurpleIntervention();
-                }, 1500);
+                    const restoreInputState2 = () => {
+                        characterNameInput2.value = '';
+                        dialogueText2.className = luminousState.activeEntity === 'dothy' ? 'text-dothy' : 'golden-text';
+                        dialogueText2.innerHTML = luminousState.activeEntity === 'dothy' ? "¿Cual es tu verdadero nombre?" : dialogue2Phrases[2];
+                        nameInputContainer2.classList.remove('hidden');
+                        phaseDialogue2.addEventListener('click', handleDialogue2Advance);
+                        phaseDialogue2.addEventListener('touchstart', handleDialogue2Advance, {passive: false});
+                    };
+
+                    if (attempts === 1) {
+                        triggerMidraEvent2(["...", "Mi maestro está en medio de sus oraciones.", "Apenas estoy aprendiendo de él, no puedo dejar que lo interrumpas."], 'text-dothy', restoreInputState2);
+                    } else if (attempts === 2) {
+                        triggerMidraEvent2(["...", "¿Otra vez tú?", "Te dije que está ocupado. Sus milagros requieren demasiada concentración para lidiar contigo ahora."], 'text-dothy', restoreInputState2);
+                    } else if (attempts === 3) {
+                        triggerMidraEvent2(["...", "Empiezas a colmar mi paciencia.", "La fe de mi maestro es inquebrantable, pero la mía no."], 'text-dothy', restoreInputState2);
+                    } else if (attempts === 4) {
+                        triggerMidraEvent2(["...", "¡Por favor, detente!", "Si rompes su trance de sanación y algo sale mal, las consecuencias recaerán sobre mí..."], 'text-dothy', restoreInputState2);
+                    } else if (attempts === 5) {
+                        luminousState.midraAmulet = true;
+                        triggerMidraEvent2(["...", "Dothy, está bien. Déjalos pasar.", "Veo que siguen igual de necios...", "Es bueno verlos, viejos amigos.", "Aunque sea en esta extraña realidad.", "Fui borrado de su mundo, pero mi esencia en Ox los recuerda.", "Les dejo esto para el camino. Sobrevivan."], 'text-midra', () => {
+                            luminousState.activeEntity = 'dothy';
+                            luminousState.dothyBlessing = true;
+                            const glow = phaseDialogue2.querySelector('.background-glow');
+                            if (glow) glow.style.display = 'none';
+
+                            const dothyPhrases = [
+                                "¿Tal vez te cansaste de perseguir dragones y magos?...",
+                                "Intentas escapar de la Asension...",
+                                "Pero ambos sabemos que esta realidad solo será un descanso...",
+                                "No te preocupes te Guiare por este camino...",
+                                "Y Sembrare la Bases para encontrarnos...",
+                                "¿Mi Nombre?",
+                                "Ah.",
+                                "Soy Dothy...",
+                                "Tal vez aun no signifique nada para ti",
+                                "Pero en el futuro...",
+                                "Estoy segura que nos encontraremos...",
+                                "¿Cual es tu verdadero nombre?"
+                            ];
+                            typeSequence2(dothyPhrases, 'text-dothy', () => {
+                                characterNameInput2.value = '';
+                                dialogueText2.className = 'text-dothy';
+                                dialogueText2.innerHTML = "¿Cual es tu verdadero nombre?";
+                                nameInputContainer2.classList.remove('hidden');
+                                phaseDialogue2.addEventListener('click', handleDialogue2Advance);
+                                phaseDialogue2.addEventListener('touchstart', handleDialogue2Advance, {passive: false});
+                            });
+                        });
+                    } else if (attempts > 5) {
+                        const annoyedDialogues = [
+                            ["...", "Él ya se fue.", "¿Podemos continuar de verdad?"],
+                            ["...", "No va a volver a salir.", "Dime tu nombre real."],
+                            ["...", "Esto ya no es gracioso.", "Necesito registrar tu esencia, no la de mi maestro."]
+                        ];
+                        let index = (attempts - 6) % annoyedDialogues.length;
+                        triggerMidraEvent2(annoyedDialogues[index], 'text-dothy', restoreInputState2);
+                    }
+                } else {
+                    // Valid name
+                    luminousState.characterName = name;
+                    characterName = name;
+                    nameInputContainer2.classList.add('hidden');
+
+                    // Fade out Golden Entity to absolute darkness
+                    phaseDialogue2.classList.add('fade-out');
+                    setTimeout(() => {
+                        phaseDialogue2.classList.add('hidden');
+                        phaseDialogue2.classList.remove('fade-out');
+
+                        // Start Purple Intervention Phase
+                        startPurpleIntervention();
+                    }, 1500);
+                }
             });
 
             characterNameInput2.addEventListener('keypress', (e) => {
