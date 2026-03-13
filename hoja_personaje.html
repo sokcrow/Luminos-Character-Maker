@@ -4101,15 +4101,33 @@
     const nameInput = document.querySelector('input[name="attr_character_name"]');
     const ahnInput = document.querySelector('input[name="attr_ahn"]');
 
+    // Additional profile inputs
+    const levelInput = document.querySelector('input[name="attr_level"].sheet-level-player') || document.querySelector('input[name="attr_level"]');
+    const xpInput = document.querySelector('input[name="attr_xp"]');
+    const hpMaxInput = document.querySelector('input[name="attr_hp_max"]');
+    const hpBaseInput = document.querySelector('input[name="attr_hp_base"]');
+    const classInput = document.querySelector('input[name="attr_class"]');
+    const raceInput = document.querySelector('input[name="attr_race"]');
+
     if (nameInput && ahnInput) {
       const currentName = nameInput.value.trim();
       const currentAhn = parseInt(ahnInput.value) || 0;
+
+      const currentPerfil = {
+          level: levelInput ? (parseInt(levelInput.value) || 1) : 1,
+          xp: xpInput ? (parseInt(xpInput.value) || 0) : 0,
+          hp_max: hpMaxInput ? (parseInt(hpMaxInput.value) || 0) : 0,
+          hp_base: hpBaseInput ? (parseInt(hpBaseInput.value) || 0) : 0,
+          clase: classInput ? classInput.value.trim() : "",
+          raza: raceInput ? raceInput.value.trim() : ""
+      };
 
       if (currentName !== "") {
         if (currentName !== currentPlayerName) {
           if (currentPlayerName) {
             db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).off();
             db.ref(`campaña/jugadores/${currentPlayerName}/transacciones`).off();
+            db.ref(`campaña/jugadores/${currentPlayerName}/perfil`).off();
           }
 
           currentPlayerName = currentName;
@@ -4136,6 +4154,28 @@
                 }
               }
             }
+          });
+
+          db.ref(`campaña/jugadores/${currentPlayerName}/perfil`).on('value', (snapshot) => {
+             const remotePerfil = snapshot.val();
+             if (remotePerfil) {
+                 isUpdatingFromFirebase = true;
+                 window._lastSentPerfil = remotePerfil; // Store as object
+                 if (window.setAttrs) {
+                     window.setAttrs({
+                         level: remotePerfil.level,
+                         xp: remotePerfil.xp,
+                         hp_max: remotePerfil.hp_max,
+                         hp_base: remotePerfil.hp_base,
+                         class: remotePerfil.clase,
+                         race: remotePerfil.raza
+                     }, () => {
+                         setTimeout(() => { isUpdatingFromFirebase = false; }, 1000);
+                     });
+                 } else {
+                     setTimeout(() => { isUpdatingFromFirebase = false; }, 1000);
+                 }
+             }
           });
 
           db.ref(`campaña/jugadores/${currentPlayerName}/transacciones`).on('value', (snapshot) => {
@@ -4182,6 +4222,19 @@
           if (window._lastSentAhn !== currentAhn) {
              window._lastSentAhn = currentAhn;
              db.ref(`campaña/jugadores/${currentPlayerName}`).update({ ahn: currentAhn });
+          }
+
+          const lastPerfil = window._lastSentPerfil || {};
+          if (
+              lastPerfil.level !== currentPerfil.level ||
+              lastPerfil.xp !== currentPerfil.xp ||
+              lastPerfil.hp_max !== currentPerfil.hp_max ||
+              lastPerfil.hp_base !== currentPerfil.hp_base ||
+              lastPerfil.clase !== currentPerfil.clase ||
+              lastPerfil.raza !== currentPerfil.raza
+          ) {
+             window._lastSentPerfil = currentPerfil; // Store as object
+             db.ref(`campaña/jugadores/${currentPlayerName}/perfil`).set(currentPerfil);
           }
         }
 

@@ -512,6 +512,7 @@
     <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
     <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
     <button class="dm-tab-btn" data-tab="dashboard-actores">Gestión de Actores</button>
+    <button class="dm-tab-btn" data-tab="dashboard-jugadores">Gestión de Jugadores</button>
     <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">MODO DIRECTOR</button>
   </div>
 
@@ -815,6 +816,16 @@
 
       </div>
     </div>
+    <!-- TAB: GESTIÓN DE JUGADORES -->
+    <div id="dashboard-jugadores" class="dm-tab-pane">
+      <div class="panel-cyber" style="margin-top: 20px;">
+        <h3>Gestión de Jugadores</h3>
+        <div id="grid-jugadores" class="grid-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%;">
+          <!-- Player cards injected via JS -->
+        </div>
+      </div>
+    </div>
+
   </div> <!-- Fin dm-tabs-content -->
 
   <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
@@ -1578,13 +1589,106 @@
 
     // --- ZONA A: RED BANCARIA ---
     const bancoContainer = document.getElementById('banco-jugadores-container');
+    const jugadoresContainer = document.getElementById('grid-jugadores');
 
     db.ref('campaña/jugadores/').on('value', (snapshot) => {
       bancoContainer.innerHTML = '';
       const jugadores = snapshot.val();
+      // Remove cards for players that no longer exist
+      if (jugadoresContainer) {
+          const currentNames = Object.keys(jugadores || {});
+          const existingCards = jugadoresContainer.querySelectorAll('[id^="player-card-"]');
+          existingCards.forEach(card => {
+              const cardName = card.id.replace('player-card-', '');
+              if (!currentNames.includes(cardName)) {
+                  card.remove();
+              }
+          });
+      }
 
       if (jugadores) {
         for (const [nombre, data] of Object.entries(jugadores)) {
+          // --- Populate Gestión de Jugadores ---
+          if (jugadoresContainer) {
+              // Check if card already exists
+              let pCard = document.getElementById(`player-card-${nombre}`);
+
+              const perfil = data.perfil || {};
+              const lvl = perfil.level || 1;
+              const xp = perfil.xp || 0;
+              const hpMax = perfil.hp_max || 0;
+              const hpBase = perfil.hp_base || 0;
+              const clase = perfil.clase || 'Desconocida';
+              const raza = perfil.raza || 'Desconocida';
+
+              if (!pCard) {
+                  pCard = document.createElement('div');
+                  pCard.id = `player-card-${nombre}`;
+                  pCard.style.cssText = 'background: #111; padding: 15px; border-radius: 6px; border: 1px solid #0df; display: flex; flex-direction: column; gap: 10px; width: 300px; position: relative; box-shadow: 0 0 10px rgba(0,221,255,0.2);';
+
+                  pCard.innerHTML = `
+                      <h4 style="margin: 0; color: #0df; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${nombre}</h4>
+                      <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px;">${clase} | ${raza}</div>
+
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">Level:</label>
+                          <input type="number" class="input-lvl" value="${lvl}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
+                      </div>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">XP:</label>
+                          <input type="number" class="input-xp" value="${xp}" style="width:80px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
+                      </div>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">HP Base:</label>
+                          <input type="number" class="input-hpbase" value="${hpBase}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
+                      </div>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">Calc Max HP:</label>
+                          <input type="number" class="input-hpmax" value="${hpMax}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;" readonly title="Calculado por la hoja">
+                      </div>
+
+                      <button class="btn-guardar-perfil" style="margin-top: 10px; background: #004400; color: white; border: 1px solid #00ff00; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Guardar / Forzar Datos</button>
+                  `;
+
+                  const btnGuardar = pCard.querySelector('.btn-guardar-perfil');
+                  btnGuardar.onclick = () => {
+                      const newLvl = parseInt(pCard.querySelector('.input-lvl').value) || 1;
+                      const newXp = parseInt(pCard.querySelector('.input-xp').value) || 0;
+                      const newHpBase = parseInt(pCard.querySelector('.input-hpbase').value) || 0;
+
+                      db.ref(`campaña/jugadores/${nombre}/perfil`).update({
+                          level: newLvl,
+                          xp: newXp,
+                          hp_base: newHpBase
+                      }).then(() => {
+                          const oldText = btnGuardar.innerText;
+                          btnGuardar.innerText = "¡Guardado!";
+                          btnGuardar.style.background = "#0df";
+                          btnGuardar.style.color = "#000";
+                          setTimeout(() => {
+                              btnGuardar.innerText = oldText;
+                              btnGuardar.style.background = "#004400";
+                              btnGuardar.style.color = "white";
+                          }, 1500);
+                      }).catch(e => alert("Error: " + e));
+                  };
+
+                  jugadoresContainer.appendChild(pCard);
+              } else {
+                  // Update existing card ONLY if the inputs are not actively being focused/edited
+                  const lvlInput = pCard.querySelector('.input-lvl');
+                  const xpInput = pCard.querySelector('.input-xp');
+                  const hpBaseInput = pCard.querySelector('.input-hpbase');
+                  const hpMaxInput = pCard.querySelector('.input-hpmax');
+                  const subInfo = pCard.querySelector('.player-subinfo');
+
+                  if (document.activeElement !== lvlInput) lvlInput.value = lvl;
+                  if (document.activeElement !== xpInput) xpInput.value = xp;
+                  if (document.activeElement !== hpBaseInput) hpBaseInput.value = hpBase;
+                  if (document.activeElement !== hpMaxInput) hpMaxInput.value = hpMax;
+                  subInfo.innerText = `${clase} | ${raza}`;
+              }
+          }
           const tarjeta = document.createElement('div');
           tarjeta.style.cssText = 'background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px; position: relative;';
 
