@@ -9,28 +9,48 @@
 
 
 <style>
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mikodacs&display=swap'); /* If Mikodacs isn't strictly on Google Fonts, it might fallback, but we'll try to add it. Often it's imported from Adobe or local, but let's assume standard fallback impact sans-serif */
+
   /* --- THEATRE OF THE MIND STYLES --- */
   .theatre-location {
     position: absolute;
     top: 30px;
     left: 40px;
     background: linear-gradient(to right, rgba(20,20,20,0.95), rgba(0,0,0,0.8));
-    border: 1px solid #8f6c22;
-    border-left: 6px solid #c49a00;
-    border-radius: 2px;
+    border-left: none; /* Removing old borders */
+    border: none;
+    border-radius: 0;
     padding: 12px 25px;
     color: #e8e8e8;
     font-size: 22px;
-    font-family: sans-serif;
+    font-family: 'Mikodacs', impact, sans-serif;
     font-weight: bold;
     box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
     z-index: 2010;
     letter-spacing: 1px;
-    transform: skewX(-10deg);
+    clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%);
+    transform: none; /* remove old skew */
   }
+
+  .theatre-location::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 12px;
+    background: #c49a00;
+    border-radius: 50%;
+    box-shadow: 0 6px 0 0 #555; /* The stick part */
+    /* Hinge illusion */
+  }
+
   .theatre-location span {
     display: inline-block;
-    transform: skewX(10deg); /* un-skew text */
+    transform: none; /* un-skew text */
   }
 
   .theatre-dialogue-wrapper {
@@ -41,6 +61,7 @@
     width: 95%;
     max-width: 1400px;
     z-index: 2020;
+    filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.8));
   }
 
   .theatre-plates-container {
@@ -51,110 +72,100 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0px;
+    filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.8));
   }
 
   .theatre-plate-title {
-    background: linear-gradient(to right, #382415, #1d120a);
+    background: #4a2c11;
     color: #d69c52;
-    border: 2px solid #000;
-    border-left: none; /* will use pseudo element for hinge */
-    padding: 6px 30px 6px 15px;
-    font-family: 'Share Tech Mono', sans-serif;
+    border: none;
+    border-top: 3px solid #d69c52;
+    padding: 6px 40px 6px 20px;
+    font-family: 'Mikodacs', impact, sans-serif;
     font-weight: bold;
     font-size: 18px;
-    box-shadow: 4px 4px 6px rgba(0,0,0,0.8);
-    margin-left: 30px;
+    box-shadow: none;
+    margin-left: 20px;
     text-transform: uppercase;
-    transform: skewX(-12deg);
+    letter-spacing: -0.5px;
+    clip-path: polygon(0 0, 100% 0, 90% 100%, 0% 100%);
+    transform: none;
     position: relative;
-    border-radius: 0 4px 0 0;
+    border-radius: 0;
   }
 
   .theatre-plate-title::before {
     content: '';
     position: absolute;
-    left: -12px;
-    top: -2px;
-    bottom: -2px;
-    width: 12px;
-    background: #a67c43;
-    border: 2px solid #000;
-    border-right: none;
-    border-radius: 4px 0 0 4px;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: #777;
+    border-right: 2px solid #333;
   }
 
   .theatre-plate-title span {
     display: inline-block;
-    transform: skewX(12deg);
+    transform: none;
   }
 
   .theatre-plate-name {
-    background: linear-gradient(to right, #658f96, #416268);
+    background: #416268; /* Default, overridden by JS */
     color: #fff;
-    border: 2px solid #000;
-    border-left: none;
-    padding: 10px 60px 10px 30px;
-    font-family: sans-serif;
+    border: none;
+    padding: 10px 70px 10px 30px;
+    font-family: 'Mikodacs', impact, sans-serif;
     font-weight: 900;
     font-size: 32px;
     text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-    box-shadow: 4px 4px 6px rgba(0,0,0,0.8);
-    transform: skewX(-12deg);
+    box-shadow: none;
+    clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+    transform: none;
     position: relative;
     z-index: 2;
     margin-top: -2px; /* Slight overlap */
-    border-radius: 0 4px 4px 0;
+    border-radius: 0;
   }
 
   .theatre-plate-name::before {
     content: '';
     position: absolute;
-    left: -16px;
-    top: -2px;
-    bottom: -2px;
-    width: 16px;
-    background: #a67c43;
-    border: 2px solid #000;
-    border-right: none;
-    border-radius: 6px 0 0 6px;
+    left: 15px; /* Offset because of the clip path */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 60%;
+    background: #c49a00;
+    border: 1px solid #000;
   }
 
-  /* Mechanical Hinge Line */
   .theatre-plates-container::before {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 5px;
-    bottom: -15px;
-    width: 6px;
-    background: linear-gradient(to right, #444, #222);
-    border: 1px solid #000;
-    border-radius: 4px;
-    z-index: 1;
-    transform: skewX(-12deg);
+    display: none; /* Remove old hinge line */
   }
 
   .theatre-plate-name span {
     display: inline-block;
-    transform: skewX(12deg);
+    transform: none;
   }
 
   .theatre-dialogue-text {
-    background: linear-gradient(to bottom, rgba(15,12,10,0.8) 0%, rgba(5,4,3,0.95) 100%),
-                repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(0, 0, 0, 0.4) 3px, rgba(0, 0, 0, 0.4) 4px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-top: 2px solid rgba(214, 156, 82, 0.3);
-    border-radius: 2px;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.8), rgba(0,0,0,0.8) 2px, rgba(0,0,0,0.9) 2px, rgba(0,0,0,0.9) 4px);
+    border: none;
+    border-radius: 0;
     padding: 50px 70px 40px 70px;
     min-height: 180px;
-    color: #ebdcb8;
-    font-size: 26px;
+    color: #f0f0f0;
+    font-size: 1.1rem;
     line-height: 1.6;
-    font-family: sans-serif;
-    box-shadow: 0 20px 50px rgba(0,0,0,1);
-    text-shadow: 1px 1px 2px #000;
+    font-family: 'Roboto', sans-serif;
+    box-shadow: none;
+    text-shadow: none;
     backdrop-filter: blur(2px);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
   }
+
 </style>
 </head>
 <body>
@@ -4215,13 +4226,16 @@
         } else {
             titlePlate.querySelector('span').innerText = state.titulo || '';
         }
-          titlePlate.style.color = state.color_titulo || '#c49a00';
+          /* The title plate color requirement was: background dark brown, text gold.
+           If the user wants the custom color to apply to text: */
+        titlePlate.style.color = state.color_titulo || '#d69c52';
           titlePlate.style.borderColor = state.color_titulo || '#c49a00';
       }
 
       if (namePlate) {
           namePlate.innerText = state.nombre || 'Desconocido';
-          namePlate.style.color = state.color_nombre || '#ffffff';
+          namePlate.style.backgroundColor = state.color_nombre || '#416268';
+        namePlate.style.color = '#ffffff';
       }
 
       if (textBox) {
