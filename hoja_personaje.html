@@ -3842,6 +3842,7 @@
 
   <!-- Player Input Area -->
   <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
+    <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
     <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
     <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
   </div>
@@ -4291,6 +4292,13 @@
       if (locText && loc) locText.innerText = loc;
   });
 
+  // Listen to background
+  db.ref('campaña/teatro/fondo').on('value', (snap) => {
+      const bg = snap.val();
+      const view = document.getElementById('theatre-view-player');
+      if (view && bg) view.style.backgroundImage = `url('${bg}')`;
+  });
+
   // Listen to current state (the actual dialogue and sprites)
   db.ref('campaña/teatro/estado_actual').on('value', (snap) => {
       const state = snap.val();
@@ -4326,30 +4334,49 @@
       if (!stage) return;
 
       const activeSpriteUrl = state.sprite;
+      const activeName = state.nombre || 'Desconocido';
       if (!activeSpriteUrl) return;
 
-      if (!playerSpritesEnEscena.has(activeSpriteUrl)) {
-          playerSpritesEnEscena.add(activeSpriteUrl);
+      let existingSprite = Array.from(stage.children).find(img => img.dataset.name === activeName);
+
+      if (existingSprite) {
+          existingSprite.src = activeSpriteUrl;
+          existingSprite.dataset.url = activeSpriteUrl;
+          existingSprite.dataset.lastActive = Date.now();
+      } else {
+          playerSpritesEnEscena.add(activeName);
           const img = document.createElement('img');
           img.src = activeSpriteUrl;
           img.dataset.url = activeSpriteUrl;
+          img.dataset.name = activeName;
+          img.dataset.lastActive = Date.now();
           img.style.cssText = 'max-height: 80vh; max-width: 400px; object-fit: contain; transition: all 0.4s ease;';
           stage.appendChild(img);
 
-          if (playerSpritesEnEscena.size > 3) {
-              const oldestImg = stage.firstChild;
-              if (oldestImg) {
-                  playerSpritesEnEscena.delete(oldestImg.dataset.url);
-                  stage.removeChild(oldestImg);
+          while (stage.children.length > 4) {
+              let oldestSprite = Array.from(stage.children).reduce((oldest, current) => {
+                  let oldestTime = parseInt(oldest.dataset.lastActive || 0);
+                  let currentTime = parseInt(current.dataset.lastActive || 0);
+                  return oldestTime < currentTime ? oldest : current;
+              });
+              if (oldestSprite) {
+                  playerSpritesEnEscena.delete(oldestSprite.dataset.name);
+                  stage.removeChild(oldestSprite);
+              } else {
+                  break;
               }
           }
       }
 
       Array.from(stage.children).forEach(img => {
-          if (img.dataset.url === activeSpriteUrl) {
+          if (img.dataset.name === activeName && img.dataset.url === activeSpriteUrl) {
               img.className = 'sprite-active';
+              img.style.filter = 'none'; // Ensure no dimming
+              img.style.transform = 'scale(1)';
           } else {
               img.className = 'sprite-dimmed';
+              img.style.filter = 'brightness(0.4) grayscale(0.5)';
+              img.style.transform = 'scale(0.95)';
           }
       });
   });
@@ -4362,9 +4389,28 @@
               if (actorId) {
                   db.ref(`campaña/actores/${actorId}`).once('value').then(actorSnap => {
                       currentAssignedActor = actorSnap.val();
+                      const selectExp = document.getElementById('player-expression-select');
+                      if (currentAssignedActor && currentAssignedActor.expresiones) {
+                          selectExp.style.display = 'block';
+                          // Only populate if empty or changed to avoid resetting selection constantly
+                          if (selectExp.options.length === 0 || selectExp.getAttribute('data-actor') !== actorId) {
+                              selectExp.innerHTML = '';
+                              for (const [name, url] of Object.entries(currentAssignedActor.expresiones)) {
+                                  const opt = document.createElement('option');
+                                  opt.value = url;
+                                  opt.textContent = name;
+                                  selectExp.appendChild(opt);
+                              }
+                              selectExp.setAttribute('data-actor', actorId);
+                          }
+                      } else {
+                          if (selectExp) selectExp.style.display = 'none';
+                      }
                   });
               } else {
                   currentAssignedActor = null;
+                  const selectExp = document.getElementById('player-expression-select');
+                  if (selectExp) selectExp.style.display = 'none';
               }
           });
       }
@@ -4393,12 +4439,15 @@
               };
           }
 
+          const selectExp = document.getElementById('player-expression-select');
+          const selectedSprite = selectExp && selectExp.style.display !== 'none' ? selectExp.value : actorData.sprite;
+
           const payload = {
               nombre: actorData.nombre,
               titulo: actorData.titulo,
               color_nombre: actorData.color_nombre,
               color_titulo: actorData.color_titulo,
-              sprite: actorData.sprite,
+              sprite: selectedSprite,
               mensaje: msg,
               timestamp: Date.now()
           };
