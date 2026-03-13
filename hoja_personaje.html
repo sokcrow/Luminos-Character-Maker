@@ -13,44 +13,61 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Mikodacs&display=swap'); /* If Mikodacs isn't strictly on Google Fonts, it might fallback, but we'll try to add it. Often it's imported from Adobe or local, but let's assume standard fallback impact sans-serif */
 
+
   /* --- THEATRE OF THE MIND STYLES --- */
   .theatre-location {
     position: absolute;
-    top: 30px;
+    top: 50px;
     left: 40px;
-    background: linear-gradient(to right, rgba(20,20,20,0.95), rgba(0,0,0,0.8));
-    border-left: none; /* Removing old borders */
+    background: linear-gradient(to bottom, #111, #050505);
     border: none;
+    border-top: 3px solid #d4af37;
+    border-bottom: 3px solid #d4af37;
     border-radius: 0;
-    padding: 12px 25px;
-    color: #e8e8e8;
-    font-size: 22px;
+    padding: 12px 30px;
+    color: #f5f5dc;
+    font-size: 24px;
     font-family: 'Mikodacs', impact, sans-serif;
     font-weight: bold;
     box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
     z-index: 2010;
     letter-spacing: 1px;
-    clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%);
-    transform: none; /* remove old skew */
+    text-shadow: 1px 1px 2px black;
+    transform: rotate(-15deg);
+    transform-origin: top left;
   }
 
   .theatre-location::before {
     content: '';
     position: absolute;
-    top: 0;
+    top: -50px;
     left: 50%;
     transform: translateX(-50%);
-    width: 6px;
-    height: 12px;
-    background: #c49a00;
+    width: 8px;
+    height: 50px;
+    background: #d4af37;
+    box-shadow: inset 2px 0 0 rgba(255,255,255,0.4), inset -2px 0 0 rgba(0,0,0,0.4);
+    z-index: -1;
+  }
+
+  .theatre-location::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    background: #555;
+    border: 2px solid #d4af37;
     border-radius: 50%;
-    box-shadow: 0 6px 0 0 #555; /* The stick part */
-    /* Hinge illusion */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    z-index: 2;
   }
 
   .theatre-location span {
     display: inline-block;
-    transform: none; /* un-skew text */
+    transform: none;
   }
 
   .theatre-dialogue-wrapper {
@@ -66,91 +83,92 @@
 
   .theatre-plates-container {
     position: absolute;
-    top: -95px;
-    left: 10px;
+    top: -65px; /* LOWERED: from -100px to -65px to sink it more into the dialogue box */
+    left: 20px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0px;
     filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.8));
+    padding-left: 20px;
+    z-index: 15;
+    transform: rotate(-15deg); /* strictly 15 degrees */
+    transform-origin: bottom left;
   }
 
-  .theatre-plate-title {
-    background: #4a2c11;
-    color: #d69c52;
-    border: none;
-    border-top: 3px solid #d69c52;
-    padding: 6px 40px 6px 20px;
-    font-family: 'Mikodacs', impact, sans-serif;
-    font-weight: bold;
-    font-size: 18px;
-    box-shadow: none;
-    margin-left: 20px;
-    text-transform: uppercase;
-    letter-spacing: -0.5px;
-    clip-path: polygon(0 0, 100% 0, 90% 100%, 0% 100%);
-    transform: none;
-    position: relative;
-    border-radius: 0;
-  }
-
-  .theatre-plate-title::before {
+  .theatre-plates-container::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 0;
-    bottom: 0;
+    top: 5px;
+    bottom: -15px;
+    width: 14px;
+    background: linear-gradient(to right, #444, #222);
+    border: 2px solid #111;
+    border-radius: 4px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.8);
+    z-index: 3;
+  }
+
+  .theatre-plates-container::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 15px;
     width: 8px;
-    background: #777;
-    border-right: 2px solid #333;
+    height: 8px;
+    background: #d4af37;
+    border-radius: 50%;
+    box-shadow: 0 40px 0 #d4af37, 0 70px 0 #d4af37;
+    z-index: 4;
+  }
+
+  .theatre-plate-title {
+    background: linear-gradient(90deg, #5c3a21 0%, #3a2210 100%);
+    color: #d69c52;
+    border: none;
+    border-left: 4px solid #d4af37;
+    padding: 2px 40px 2px 20px;
+    font-family: 'Mikodacs', impact, sans-serif;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    margin-left: 5px;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    position: relative;
+    border-radius: 0;
+    z-index: 1;
   }
 
   .theatre-plate-title span {
     display: inline-block;
-    transform: none;
   }
 
   .theatre-plate-name {
-    background: #416268; /* Default, overridden by JS */
-    color: #fff;
+    background: #416268;
+    color: #ffffff;
     border: none;
-    padding: 10px 70px 10px 30px;
+    border-left: 6px solid #1a1a1a;
+    padding: 4px 60px 4px 30px;
     font-family: 'Mikodacs', impact, sans-serif;
     font-weight: 900;
     font-size: 32px;
-    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-    box-shadow: none;
-    clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
-    transform: none;
+    -webkit-text-stroke: 1px black;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
     position: relative;
     z-index: 2;
-    margin-top: -2px; /* Slight overlap */
+    margin-top: -3px;
     border-radius: 0;
-  }
-
-  .theatre-plate-name::before {
-    content: '';
-    position: absolute;
-    left: 15px; /* Offset because of the clip path */
-    top: 50%;
-    transform: translateY(-50%);
-    width: 8px;
-    height: 60%;
-    background: #c49a00;
-    border: 1px solid #000;
-  }
-
-  .theatre-plates-container::before {
-    display: none; /* Remove old hinge line */
   }
 
   .theatre-plate-name span {
     display: inline-block;
-    transform: none;
   }
 
   .theatre-dialogue-text {
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.8), rgba(0,0,0,0.8) 2px, rgba(0,0,0,0.9) 2px, rgba(0,0,0,0.9) 4px);
+    position: relative;
     border: none;
     border-radius: 0;
     padding: 50px 70px 40px 70px;
@@ -161,9 +179,18 @@
     font-family: 'Roboto', sans-serif;
     box-shadow: none;
     text-shadow: none;
+    z-index: 10;
+  }
+
+  .theatre-dialogue-text::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.8), rgba(0,0,0,0.8) 2px, rgba(0,0,0,0.9) 2px, rgba(0,0,0,0.9) 4px);
     backdrop-filter: blur(2px);
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
-    mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%);
+    z-index: -1;
   }
 
 </style>
