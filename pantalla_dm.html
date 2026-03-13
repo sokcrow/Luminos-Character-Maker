@@ -434,6 +434,155 @@
       text-shadow: 0 0 5px #ff0000;
     }
   </style>
+
+<style>
+  /* --- THEATRE OF THE MIND STYLES --- */
+  .theatre-location {
+    position: absolute;
+    top: 30px;
+    left: 40px;
+    background: linear-gradient(to right, rgba(20,20,20,0.95), rgba(0,0,0,0.8));
+    border: 1px solid #8f6c22;
+    border-left: 6px solid #c49a00;
+    border-radius: 2px;
+    padding: 12px 25px;
+    color: #e8e8e8;
+    font-size: 22px;
+    font-family: sans-serif;
+    font-weight: bold;
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
+    z-index: 2010;
+    letter-spacing: 1px;
+    transform: skewX(-10deg);
+  }
+  .theatre-location span {
+    display: inline-block;
+    transform: skewX(10deg); /* un-skew text */
+  }
+
+  .theatre-dialogue-wrapper {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+    max-width: 1400px;
+    z-index: 2020;
+  }
+
+  .theatre-plates-container {
+    position: absolute;
+    top: -95px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0px;
+  }
+
+  .theatre-plate-title {
+    background: linear-gradient(to right, #382415, #1d120a);
+    color: #d69c52;
+    border: 2px solid #000;
+    border-left: none; /* will use pseudo element for hinge */
+    padding: 6px 30px 6px 15px;
+    font-family: 'Share Tech Mono', sans-serif;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 4px 4px 6px rgba(0,0,0,0.8);
+    margin-left: 30px;
+    text-transform: uppercase;
+    transform: skewX(-12deg);
+    position: relative;
+    border-radius: 0 4px 0 0;
+  }
+
+  .theatre-plate-title::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: -2px;
+    bottom: -2px;
+    width: 12px;
+    background: #a67c43;
+    border: 2px solid #000;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+  }
+
+  .theatre-plate-title span {
+    display: inline-block;
+    transform: skewX(12deg);
+  }
+
+  .theatre-plate-name {
+    background: linear-gradient(to right, #658f96, #416268);
+    color: #fff;
+    border: 2px solid #000;
+    border-left: none;
+    padding: 10px 60px 10px 30px;
+    font-family: sans-serif;
+    font-weight: 900;
+    font-size: 32px;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    box-shadow: 4px 4px 6px rgba(0,0,0,0.8);
+    transform: skewX(-12deg);
+    position: relative;
+    z-index: 2;
+    margin-top: -2px; /* Slight overlap */
+    border-radius: 0 4px 4px 0;
+  }
+
+  .theatre-plate-name::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: -2px;
+    bottom: -2px;
+    width: 16px;
+    background: #a67c43;
+    border: 2px solid #000;
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+  }
+
+  /* Mechanical Hinge Line */
+  .theatre-plates-container::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 5px;
+    bottom: -15px;
+    width: 6px;
+    background: linear-gradient(to right, #444, #222);
+    border: 1px solid #000;
+    border-radius: 4px;
+    z-index: 1;
+    transform: skewX(-12deg);
+  }
+
+  .theatre-plate-name span {
+    display: inline-block;
+    transform: skewX(12deg);
+  }
+
+  .theatre-dialogue-text {
+    background: linear-gradient(to bottom, rgba(15,12,10,0.8) 0%, rgba(5,4,3,0.95) 100%),
+                repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(0, 0, 0, 0.4) 3px, rgba(0, 0, 0, 0.4) 4px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 2px solid rgba(214, 156, 82, 0.3);
+    border-radius: 2px;
+    padding: 50px 70px 40px 70px;
+    min-height: 180px;
+    color: #ebdcb8;
+    font-size: 26px;
+    line-height: 1.6;
+    font-family: sans-serif;
+    box-shadow: 0 20px 50px rgba(0,0,0,1);
+    text-shadow: 1px 1px 2px #000;
+    backdrop-filter: blur(2px);
+  }
+</style>
 </head>
 <body>
 
@@ -811,9 +960,9 @@
   </div> <!-- Fin dm-tabs-content -->
 
   <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
-  <div id="theatre-view-dm" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2000; background: url('https://i.imgur.com/13k5YtK.jpg') center/cover no-repeat; flex-direction: column; overflow: hidden;">
+  <div id="theatre-view-dm" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2000; background: linear-gradient(135deg, #1a1c23 0%, #111 100%) center/cover no-repeat; flex-direction: column; overflow: hidden;">
     <!-- Location Sign -->
-    <div class="theatre-location" style="position: absolute; top: 30px; left: 40px; background: linear-gradient(to right, rgba(20,20,20,0.95), rgba(0,0,0,0.8)); border: 1px solid #8f6c22; border-left: 6px solid #c49a00; border-radius: 2px; padding: 12px 25px; color: #e8e8e8; font-size: 22px; font-family: sans-serif; font-weight: bold; box-shadow: 5px 5px 15px rgba(0,0,0,0.8); z-index: 2010; letter-spacing: 1px;">
+    <div class="theatre-location">
       <span id="theatre-location-text">Unknown Location</span>
     </div>
 
@@ -826,14 +975,14 @@
     </div>
 
     <!-- Dialogue Box Area (Visual) -->
-    <div class="theatre-dialogue-wrapper" style="position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 1000px; z-index: 2020;">
+    <div class="theatre-dialogue-wrapper">
       <!-- Plates -->
-      <div style="position: absolute; top: -75px; left: -10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
-        <div id="theatre-plate-title" style="background: linear-gradient(to right, #382415, #1d120a); color: #d69c52; border: 2px solid #000; border-left: 8px solid #a67c43; padding: 4px 30px 4px 15px; font-family: sans-serif; font-weight: bold; font-size: 16px; box-shadow: 4px 4px 6px rgba(0,0,0,0.8); margin-left: 20px; text-transform: uppercase;">Title</div>
-        <div id="theatre-plate-name" style="background: linear-gradient(to right, #658f96, #416268); color: #fff; border: 2px solid #000; border-left: 8px solid #a67c43; padding: 8px 40px 8px 20px; font-family: sans-serif; font-weight: 900; font-size: 28px; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; box-shadow: 4px 4px 6px rgba(0,0,0,0.8);">Name</div>
+      <div class="theatre-plates-container">
+        <div id="theatre-plate-title" class="theatre-plate-title"><span>Title</span></div>
+        <div id="theatre-plate-name" class="theatre-plate-name"><span>Name</span></div>
       </div>
       <!-- Main Text Box -->
-      <div id="theatre-dialogue-text" style="background: linear-gradient(to bottom, rgba(15,12,10,0.8) 0%, rgba(5,4,3,0.95) 100%); border: 1px solid rgba(255, 255, 255, 0.05); border-top: 2px solid rgba(214, 156, 82, 0.3); border-radius: 2px; padding: 40px 50px 30px 50px; min-height: 140px; color: #ebdcb8; font-size: 24px; line-height: 1.6; font-family: sans-serif; box-shadow: 0 20px 50px rgba(0,0,0,1); text-shadow: 1px 1px 2px #000;">
+      <div id="theatre-dialogue-text" class="theatre-dialogue-text">
         ...
       </div>
     </div>
@@ -2281,7 +2430,11 @@
         const namePlate = document.getElementById('theatre-plate-name');
         const textBox = document.getElementById('theatre-dialogue-text');
 
-        titlePlate.innerText = state.titulo || '';
+        if(titlePlate.querySelector('span')) titlePlate.querySelector('span').innerText = state.titulo || ''; else if(titlePlate.querySelector('span')) {
+            titlePlate.querySelector('span').innerText = state.titulo || '';
+        } else {
+            titlePlate.querySelector('span').innerText = state.titulo || '';
+        }
         titlePlate.style.color = state.color_titulo || '#c49a00';
         titlePlate.style.borderColor = state.color_titulo || '#c49a00';
 
