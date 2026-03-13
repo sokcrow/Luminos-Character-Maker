@@ -6083,3 +6083,32 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background-color: #333 !important;
     border-radius: 3px;
 }
+
+/* --- THEATRE VIEW (PLAYER) --- */
+#theatre-view-player {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 3000; /* Above everything */
+    background: url('https://i.imgur.com/13k5YtK.jpg') center/cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#theatre-view-player.theatre-active {
+    display: flex !important;
+}
+
+.sprite-dimmed {
+    filter: brightness(0.4) grayscale(0.5);
+    transform: scale(0.95);
+    z-index: 1;
+    transition: all 0.4s ease;
+}
+.sprite-active {
+    filter: brightness(1.1) drop-shadow(0 0 15px rgba(255,255,255,0.2));
+    transform: scale(1.05);
+    z-index: 10;
+    transition: all 0.4s ease;
+}
