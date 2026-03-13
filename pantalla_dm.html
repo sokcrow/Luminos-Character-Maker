@@ -1586,7 +1586,19 @@
       if (jugadores) {
         for (const [nombre, data] of Object.entries(jugadores)) {
           const tarjeta = document.createElement('div');
-          tarjeta.style.cssText = 'background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px;';
+          tarjeta.style.cssText = 'background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px; position: relative;';
+
+          const btnEliminar = document.createElement('button');
+          btnEliminar.innerText = '🗑️';
+          btnEliminar.title = 'Eliminar Jugador';
+          btnEliminar.style.cssText = 'position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;';
+          btnEliminar.onclick = () => {
+            if (confirm(`¿Estás seguro de que deseas eliminar permanentemente al jugador "${nombre}"? Esta acción no se puede deshacer.`)) {
+              db.ref(`campaña/jugadores/${nombre}`).remove()
+                .then(() => alert(`Jugador ${nombre} eliminado.`))
+                .catch(e => alert('Error al eliminar jugador: ' + e));
+            }
+          };
 
           const title = document.createElement('strong');
           title.style.color = '#fff';
@@ -1607,6 +1619,7 @@
                .catch(e => alert('Error: ' + e));
           };
 
+          tarjeta.appendChild(btnEliminar);
           tarjeta.appendChild(title);
           tarjeta.appendChild(inputAhn);
           tarjeta.appendChild(btnForzar);
