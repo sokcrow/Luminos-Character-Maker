@@ -580,7 +580,10 @@
         <input type="number" id="forja-costo" placeholder="Costo Base en Ahn" />
         <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" />
         <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
-        <button id="btn-crear-item" class="btn-cyber btn-red">Crear Ítem</button>
+        <div style="display:flex; gap:10px;">
+          <button id="btn-crear-item" class="btn-cyber btn-red" style="flex:1;">Crear Ítem</button>
+          <button id="btn-cancelar-item" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+        </div>
       </div>
 
       <!-- Formulario: Crear Tienda -->
@@ -609,7 +612,10 @@
 
         <input type="number" id="tienda-tasa-defecto" placeholder="Tasa por defecto (Para etiquetas no listadas) %" style="margin-top: 10px;" />
 
-        <button id="btn-crear-tienda" class="btn-cyber btn-green" style="margin-top: auto;">Crear Tienda</button>
+        <div style="display:flex; gap:10px; margin-top: auto;">
+          <button id="btn-crear-tienda" class="btn-cyber btn-green" style="flex:1;">Crear Tienda</button>
+          <button id="btn-cancelar-tienda" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+        </div>
       </div>
     </div>
 
@@ -1243,6 +1249,8 @@
     let dbItemsCache = {}; // Caché local de TODOS los ítems globales
     let tiendaActualEditada = null; // ID de la tienda abierta en el modal
 
+    let editModeItemKey = null;
+
     // --- ETIQUETAS DE ÍTEMS GLOBALES ---
     let currentItemTags = [];
     const forjaTagsContainer = document.getElementById('forja-tags-container');
@@ -1271,7 +1279,24 @@
         }
     });
 
-    // CREAR ÍTEM GLOBAL
+    function resetItemForm() {
+       document.getElementById('forja-nombre').value = '';
+       document.getElementById('forja-icono').value = '';
+       document.getElementById('forja-tier').value = 'I';
+       document.getElementById('forja-tag-input').value = '';
+       currentItemTags = [];
+       renderForjaTags();
+       document.getElementById('forja-costo').value = '';
+       document.getElementById('forja-usos').value = '';
+       document.getElementById('forja-desc').value = '';
+       document.getElementById('btn-crear-item').innerText = 'Crear Ítem';
+       document.getElementById('btn-cancelar-item').style.display = 'none';
+       editModeItemKey = null;
+    }
+
+    document.getElementById('btn-cancelar-item').addEventListener('click', resetItemForm);
+
+    // CREAR O ACTUALIZAR ÍTEM GLOBAL
     document.getElementById('btn-crear-item').addEventListener('click', () => {
        const nombre = document.getElementById('forja-nombre').value.trim();
        if (!nombre) { alert("El nombre es requerido"); return; }
@@ -1286,19 +1311,25 @@
 
        const item = { nombre, icono, tags: currentItemTags, tier, costo, usos, descripcion: desc };
 
-       db.ref(`campaña/base_datos_items/${nombre}`).set(item)
-         .then(() => {
-            alert('Ítem creado exitosamente');
-            document.getElementById('forja-nombre').value = '';
-            document.getElementById('forja-icono').value = '';
-            document.getElementById('forja-tag-input').value = '';
-            currentItemTags = [];
-            renderForjaTags();
-            document.getElementById('forja-costo').value = '';
-            document.getElementById('forja-usos').value = '';
-            document.getElementById('forja-desc').value = '';
-         })
-         .catch(e => alert('Error creando ítem: ' + e));
+       const isEditing = editModeItemKey !== null;
+
+       if (isEditing && editModeItemKey !== nombre) {
+           // Name changed, delete old one
+           db.ref(`campaña/base_datos_items/${editModeItemKey}`).remove()
+             .then(() => db.ref(`campaña/base_datos_items/${nombre}`).set(item))
+             .then(() => {
+                alert('Ítem actualizado exitosamente');
+                resetItemForm();
+             })
+             .catch(e => alert('Error actualizando ítem: ' + e));
+       } else {
+           db.ref(`campaña/base_datos_items/${nombre}`).set(item)
+             .then(() => {
+                alert(isEditing ? 'Ítem actualizado exitosamente' : 'Ítem creado exitosamente');
+                resetItemForm();
+             })
+             .catch(e => alert('Error guardando ítem: ' + e));
+       }
     });
 
     // RENDERIZAR ÍTEMS GLOBALES EN GRID
@@ -1349,6 +1380,28 @@
                          .then(() => alert('Ítem eliminado.'))
                          .catch(err => alert('Error al eliminar: ' + err));
                  }
+             });
+
+             // Evento para editar
+             card.addEventListener('click', () => {
+                 editModeItemKey = key;
+                 document.getElementById('forja-nombre').value = data.nombre || '';
+                 document.getElementById('forja-icono').value = data.icono || '';
+                 document.getElementById('forja-tier').value = data.tier || 'I';
+
+                 currentItemTags = data.tags && Array.isArray(data.tags) ? [...data.tags] :
+                                   (data.tipo ? [data.tipo] : []);
+                 renderForjaTags();
+
+                 document.getElementById('forja-costo').value = data.costo !== undefined ? data.costo : '';
+                 document.getElementById('forja-usos').value = data.usos !== undefined ? data.usos : '';
+                 document.getElementById('forja-desc').value = data.descripcion || '';
+
+                 document.getElementById('btn-crear-item').innerText = 'Actualizar Ítem';
+                 document.getElementById('btn-cancelar-item').style.display = 'block';
+
+                 // Scroll to top/form area smoothly
+                 document.getElementById('dashboard-mercado').scrollIntoView({ behavior: 'smooth' });
              });
 
              gridItemsGlobales.appendChild(card);
@@ -1424,6 +1477,7 @@
 
     // --- LÓGICA DE REGLAS DE TIENDA ---
     let currentTiendaReglas = {};
+    let editModeTiendaKey = null;
     const tiendaReglasContainer = document.getElementById('tienda-reglas-container');
     const tiendaReglaTagInput = document.getElementById('tienda-regla-tag');
     const tiendaReglaPctInput = document.getElementById('tienda-regla-pct');
@@ -1459,7 +1513,22 @@
         }
     });
 
-    // CREAR TIENDA
+    function resetTiendaForm() {
+        document.getElementById('tienda-nombre').value = '';
+        document.getElementById('tienda-icono').value = '';
+        document.getElementById('tienda-restock-dia').value = 'Lunes';
+        document.getElementById('tienda-mod-venta').value = '';
+        document.getElementById('tienda-tasa-defecto').value = '';
+        currentTiendaReglas = {};
+        renderTiendaReglas();
+        document.getElementById('btn-crear-tienda').innerText = 'Crear Tienda';
+        document.getElementById('btn-cancelar-tienda').style.display = 'none';
+        editModeTiendaKey = null;
+    }
+
+    document.getElementById('btn-cancelar-tienda').addEventListener('click', resetTiendaForm);
+
+    // CREAR O ACTUALIZAR TIENDA
     document.getElementById('btn-crear-tienda').addEventListener('click', () => {
         const nombre = document.getElementById('tienda-nombre').value.trim();
         const icono = document.getElementById('tienda-icono').value.trim();
@@ -1470,25 +1539,32 @@
         if (!nombre) { alert("El nombre de la tienda es requerido."); return; }
         if (isNaN(tasaDefecto)) { alert("La tasa por defecto es requerida."); return; }
 
-        const idTienda = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const isEditing = editModeTiendaKey !== null;
+        // In edit mode, if name didn't change enough to alter ID, we use the original.
+        const idTienda = isEditing ? editModeTiendaKey : nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-        db.ref(`campaña/tiendas/${idTienda}`).set({
+        const tiendaData = {
             nombre: nombre,
             icono: icono,
             dia_restock: diaRestock,
             mod_venta: modVenta,
             tasas_por_etiqueta: currentTiendaReglas,
-            tasa_defecto: tasaDefecto,
-            items: {} // Empty initially
-        }).then(() => {
-            alert('Tienda creada exitosamente.');
-            document.getElementById('tienda-nombre').value = '';
-            document.getElementById('tienda-icono').value = '';
-            document.getElementById('tienda-mod-venta').value = '';
-            document.getElementById('tienda-tasa-defecto').value = '';
-            currentTiendaReglas = {};
-            renderTiendaReglas();
-        }).catch(e => alert('Error creando tienda: ' + e));
+            tasa_defecto: tasaDefecto
+        };
+
+        if (isEditing) {
+            db.ref(`campaña/tiendas/${editModeTiendaKey}`).update(tiendaData)
+              .then(() => {
+                  alert('Tienda actualizada exitosamente.');
+                  resetTiendaForm();
+              }).catch(e => alert('Error actualizando tienda: ' + e));
+        } else {
+            tiendaData.items = {}; // Empty initially
+            db.ref(`campaña/tiendas/${idTienda}`).set(tiendaData).then(() => {
+                alert('Tienda creada exitosamente.');
+                resetTiendaForm();
+            }).catch(e => alert('Error creando tienda: ' + e));
+        }
     });
 
     // RENDERIZAR TIENDAS EN GRID
@@ -1505,10 +1581,31 @@
                 const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/c49a00?text=$';
                 card.innerHTML = `
                     <button class="btn-delete-store" data-id="${idTienda}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Tienda">🗑️</button>
+                    <button class="btn-edit-store" data-id="${idTienda}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Info">✏️</button>
                     <img src="${imgUrl}" alt="${data.nombre}">
                     <h5 style="color:#c49a00;">${data.nombre}</h5>
                     <span>Restock: ${data.dia_restock}</span>
                 `;
+
+                // Evento para editar
+                const btnEdit = card.querySelector('.btn-edit-store');
+                btnEdit.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    editModeTiendaKey = idTienda;
+                    document.getElementById('tienda-nombre').value = data.nombre || '';
+                    document.getElementById('tienda-icono').value = data.icono || '';
+                    document.getElementById('tienda-restock-dia').value = data.dia_restock || 'Lunes';
+                    document.getElementById('tienda-mod-venta').value = data.mod_venta !== undefined ? data.mod_venta : '';
+                    document.getElementById('tienda-tasa-defecto').value = data.tasa_defecto !== undefined ? data.tasa_defecto : '';
+
+                    currentTiendaReglas = data.tasas_por_etiqueta || {};
+                    renderTiendaReglas();
+
+                    document.getElementById('btn-crear-tienda').innerText = 'Actualizar Tienda';
+                    document.getElementById('btn-cancelar-tienda').style.display = 'block';
+
+                    document.getElementById('dashboard-mercado').scrollIntoView({ behavior: 'smooth' });
+                });
 
                 // Evento para eliminar
                 const btnDelete = card.querySelector('.btn-delete-store');
