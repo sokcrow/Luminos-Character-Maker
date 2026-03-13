@@ -808,7 +808,17 @@
             <input type="url" id="actor-sprite-enojado" placeholder="Sprite Enojado (Opcional)" />
             <input type="url" id="actor-sprite-sorprendido" placeholder="Sprite Sorprendido (Opcional)" />
 
-            <button id="btn-crear-actor" class="btn-cyber btn-green">Crear Actor</button>
+            <div style="display:flex; gap:10px;">
+              <button id="btn-crear-actor" class="btn-cyber btn-green" style="flex:1;">Crear Actor</button>
+              <button id="btn-cancelar-actor" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="lista-actores-container" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 20px;">
+          <h4 style="color: #0df; margin-bottom: 15px; text-align: center;">Actores Registrados</h4>
+          <div id="grid-actores" class="grid-container">
+            <!-- Actor cards injected via JS -->
           </div>
         </div>
 
@@ -2465,10 +2475,100 @@
 
     // --- LÓGICA GESTIÓN DE ACTORES ---
     let dbActoresCache = {};
+    let editModeActorKey = null;
 
-    // Escuchar actores para el select
+    function resetActorForm() {
+        document.getElementById('actor-nombre').value = '';
+        document.getElementById('actor-titulo').value = '';
+        document.getElementById('actor-color-nombre').value = '#ffffff';
+        document.getElementById('actor-color-titulo').value = '#c49a00';
+        document.getElementById('actor-sprite').value = '';
+        if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = '';
+        if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = '';
+        if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = '';
+        if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = '';
+
+        document.getElementById('btn-crear-actor').innerText = 'Crear Actor';
+        document.getElementById('btn-cancelar-actor').style.display = 'none';
+        editModeActorKey = null;
+    }
+
+    document.getElementById('btn-cancelar-actor').addEventListener('click', resetActorForm);
+
+    function renderListaActores() {
+        const gridActores = document.getElementById('grid-actores');
+        if (!gridActores) return;
+
+        gridActores.innerHTML = '';
+
+        if (Object.keys(dbActoresCache).length === 0) {
+            gridActores.innerHTML = '<span style="color: #888;">No hay actores registrados.</span>';
+            return;
+        }
+
+        for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+            const card = document.createElement('div');
+            card.className = 'card-cyber card-store'; // reusing store card style for the pointer cursor and hover
+
+            const imgUrl = actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
+            card.innerHTML = `
+                <button class="btn-delete-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Actor">🗑️</button>
+                <button class="btn-edit-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Actor">✏️</button>
+                <img src="${imgUrl}" alt="${actorData.nombre}" style="border-radius: 50%; border-color: ${actorData.color_titulo || '#555'};">
+                <h5 style="color:${actorData.color_nombre || '#fff'};">${actorData.nombre}</h5>
+                <span style="color:${actorData.color_titulo || '#c49a00'};">${actorData.titulo || ''}</span>
+            `;
+
+            // Delete event
+            const btnDelete = card.querySelector('.btn-delete-actor');
+            btnDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm(`¿Estás seguro de eliminar permanentemente al actor "${actorData.nombre}"?`)) {
+                    db.ref(`campaña/actores/${actorId}`).remove()
+                        .then(() => alert('Actor eliminado.'))
+                        .catch(err => alert('Error al eliminar: ' + err));
+                }
+            });
+
+            // Edit event
+            const btnEdit = card.querySelector('.btn-edit-actor');
+            btnEdit.addEventListener('click', (e) => {
+                e.stopPropagation();
+                editModeActorKey = actorId;
+
+                document.getElementById('actor-nombre').value = actorData.nombre || '';
+                document.getElementById('actor-titulo').value = actorData.titulo || '';
+                document.getElementById('actor-color-nombre').value = actorData.color_nombre || '#ffffff';
+                document.getElementById('actor-color-titulo').value = actorData.color_titulo || '#c49a00';
+                document.getElementById('actor-sprite').value = actorData.sprite || '';
+
+                if (actorData.expresiones) {
+                    if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = actorData.expresiones['Feliz'] || '';
+                    if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = actorData.expresiones['Triste'] || '';
+                    if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = actorData.expresiones['Enojado'] || '';
+                    if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = actorData.expresiones['Sorprendido'] || '';
+                } else {
+                    if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = '';
+                    if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = '';
+                    if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = '';
+                    if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = '';
+                }
+
+                document.getElementById('btn-crear-actor').innerText = 'Actualizar Actor';
+                document.getElementById('btn-cancelar-actor').style.display = 'block';
+
+                // Scroll to top of actors tab smoothly
+                document.getElementById('dashboard-actores').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            gridActores.appendChild(card);
+        }
+    }
+
+    // Escuchar actores para la lista y el select
     db.ref('campaña/actores').on('value', (snapshot) => {
         dbActoresCache = snapshot.val() || {};
+        renderListaActores();
         renderActorAsignacion();
     });
 
@@ -2768,7 +2868,8 @@
         return;
       }
 
-      const idActor = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const isEditing = editModeActorKey !== null;
+      const idActor = isEditing ? editModeActorKey : nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
       const expresiones = {
           "Neutral": sprite,
@@ -2779,25 +2880,28 @@
       };
       Object.keys(expresiones).forEach(key => !expresiones[key] && delete expresiones[key]);
 
-      db.ref(`campaña/actores/${idActor}`).set({
+      const actorData = {
         nombre: nombre,
         titulo: titulo,
         color_nombre: colorNombre,
         color_titulo: colorTitulo,
         sprite: sprite,
         expresiones: expresiones
-      }).then(() => {
-        alert(`Actor '${nombre}' creado exitosamente.`);
-        document.getElementById('actor-nombre').value = '';
-        document.getElementById('actor-titulo').value = '';
-        document.getElementById('actor-color-nombre').value = '#ffffff';
-        document.getElementById('actor-color-titulo').value = '#c49a00';
-        document.getElementById('actor-sprite').value = '';
-        if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = '';
-        if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = '';
-        if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = '';
-        if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = '';
-      }).catch(e => alert('Error creando actor: ' + e));
+      };
+
+      if (isEditing) {
+          db.ref(`campaña/actores/${editModeActorKey}`).update(actorData)
+            .then(() => {
+                alert(`Actor '${nombre}' actualizado exitosamente.`);
+                resetActorForm();
+            }).catch(e => alert('Error actualizando actor: ' + e));
+      } else {
+          db.ref(`campaña/actores/${idActor}`).set(actorData)
+            .then(() => {
+                alert(`Actor '${nombre}' creado exitosamente.`);
+                resetActorForm();
+            }).catch(e => alert('Error creando actor: ' + e));
+      }
     });
 
   </script>
