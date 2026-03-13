@@ -23,24 +23,24 @@
     ];
 
     const backgroundsData = [
-        { id: "alta_cuna", name: "Alta Cuna", funds: "375,000 Ahn", benefit: "+1 Empatía, +1 Negociación, -1 Supervivencia" },
-        { id: "aristocracia_mercantil", name: "Aristocracia Mercantil", funds: "450,000 Ahn", benefit: "+2 Negociación, +1 Engaño, -1 Vigor" },
-        { id: "nobleza_caida", name: "Nobleza Caída", funds: "75,000 Ahn", benefit: "+1 Presencia, +1 Sigilo" },
-        { id: "cuna_de_eruditos", name: "Cuna de Eruditos", funds: "225,000 Ahn", benefit: "+2 Ciencia, +1 Lore, -1 Carisma" },
-        { id: "linaje_militar", name: "Linaje Militar", funds: "120,000 Ahn", benefit: "+1 Fortaleza, +1 Manejo" },
-        { id: "familia_de_granjeros", name: "Familia de Granjeros", funds: "45,000 Ahn", benefit: "+1 Vigor, +1 Supervivencia" },
-        { id: "artesano_independiente", name: "Artesano Independiente", funds: "90,000 Ahn", benefit: "+1 Reflejos, +1 Análisis" },
-        { id: "fuerzas_de_seguridad", name: "Fuerzas de Seguridad (Bajas)", funds: "105,000 Ahn", benefit: "+1 Percepción, +1 Voluntad" },
-        { id: "burocracia_menor", name: "Burocracia Menor", funds: "67,500 Ahn", benefit: "+1 Memoria, +1 Prudencia" },
-        { id: "huerfano_callejero", name: "Huérfano Callejero", funds: "7,500 Ahn", benefit: "+2 Sigilo, +1 Agilidad, -1 Educación Formal (Lore)" },
-        { id: "escoria_criminal", name: "Escoria Criminal", funds: "30,000 Ahn", benefit: "+1 Engaño, +1 Seducción" },
-        { id: "exiliado_proscrito", name: "Exiliado / Proscrito", funds: "15,000 Ahn", benefit: "+2 Supervivencia, +1 Instinto, -1 Carisma" },
-        { id: "esclavo_liberado", name: "Esclavo Liberado / Fugitivo", funds: "3,000 Ahn", benefit: "+2 Voluntad, +1 Templanza, -1 Confianza (Empatía)" },
+        { id: "alta_cuna", name: "Alta Cuna", funds: "7,500,000 Ahn", benefit: "+1 Empatía, +1 Negociación, -1 Supervivencia" },
+        { id: "aristocracia_mercantil", name: "Aristocracia Mercantil", funds: "9,000,000 Ahn", benefit: "+2 Negociación, +1 Engaño, -1 Vigor" },
+        { id: "nobleza_caida", name: "Nobleza Caída", funds: "1,500,000 Ahn", benefit: "+1 Presencia, +1 Sigilo" },
+        { id: "cuna_de_eruditos", name: "Cuna de Eruditos", funds: "4,500,000 Ahn", benefit: "+2 Ciencia, +1 Lore, -1 Carisma" },
+        { id: "linaje_militar", name: "Linaje Militar", funds: "2,400,000 Ahn", benefit: "+1 Fortaleza, +1 Manejo" },
+        { id: "familia_de_granjeros", name: "Familia de Granjeros", funds: "900,000 Ahn", benefit: "+1 Vigor, +1 Supervivencia" },
+        { id: "artesano_independiente", name: "Artesano Independiente", funds: "1,800,000 Ahn", benefit: "+1 Reflejos, +1 Análisis" },
+        { id: "fuerzas_de_seguridad", name: "Fuerzas de Seguridad (Bajas)", funds: "2,100,000 Ahn", benefit: "+1 Percepción, +1 Voluntad" },
+        { id: "burocracia_menor", name: "Burocracia Menor", funds: "1,350,000 Ahn", benefit: "+1 Memoria, +1 Prudencia" },
+        { id: "huerfano_callejero", name: "Huérfano Callejero", funds: "150,000 Ahn", benefit: "+2 Sigilo, +1 Agilidad, -1 Educación Formal (Lore)" },
+        { id: "escoria_criminal", name: "Escoria Criminal", funds: "600,000 Ahn", benefit: "+1 Engaño, +1 Seducción" },
+        { id: "exiliado_proscrito", name: "Exiliado / Proscrito", funds: "300,000 Ahn", benefit: "+2 Supervivencia, +1 Instinto, -1 Carisma" },
+        { id: "esclavo_liberado", name: "Esclavo Liberado / Fugitivo", funds: "60,000 Ahn", benefit: "+2 Voluntad, +1 Templanza, -1 Confianza (Empatía)" },
         { id: "experimento_fallido", name: "Experimento Fallido", funds: "0 Ahn", benefit: "+2 Resistencia (Fortaleza), +1 Arcana, -1 Apariencia (Presencia)" },
-        { id: "academico_desacreditado", name: "Académico Desacreditado", funds: "22,500 Ahn", benefit: "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)" },
-        { id: "siervo_corporativo", name: "Siervo Corporativo (Bajo Rango)", funds: "37,500 Ahn", benefit: "+1 Represión, +1 Negociación" },
-        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-1,500,000 Ahn", benefit: "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
-        { id: "miembro_culto", name: "Miembro de Culto Menor", funds: "12,000 Ahn", benefit: "+2 Fe, +1 Lore, -1 Razón (Análisis)" }
+        { id: "academico_desacreditado", name: "Académico Desacreditado", funds: "450,000 Ahn", benefit: "+2 Investigación, +1 Ciencia, -1 Reputación (Perspicacia)" },
+        { id: "siervo_corporativo", name: "Siervo Corporativo (Bajo Rango)", funds: "750,000 Ahn", benefit: "+1 Represión, +1 Negociación" },
+        { id: "deudor_vitalicio", name: "Deudor Vitalicio", funds: "-30,000,000 Ahn", benefit: "+2 Agilidad (huyendo de cobradores), +1 Supervivencia, -1 Tranquilidad (Templanza)" },
+        { id: "miembro_culto", name: "Miembro de Culto Menor", funds: "240,000 Ahn", benefit: "+2 Fe, +1 Lore, -1 Razón (Análisis)" }
     ];
 
     const professionsData = [
@@ -571,9 +571,18 @@ try {
                         const bData = backgroundsData.find(b => b.id === state.backgroundId);
                         if (bData) bgName = bData.name;
 
-                        let profName = state.professionId;
-                        const pData = professionsData.find(p => p.id === state.professionId);
-                        if (pData) profName = pData.name;
+
+                        let profName = "";
+                        if (state.professionIds && state.professionIds.length > 0) {
+                            profName = state.professionIds.map(id => {
+                                const pData = professionsData.find(p => p.id === id);
+                                return pData ? pData.name : id;
+                            }).join(' / ');
+                        } else if (state.professionId) {
+                            const pData = professionsData.find(p => p.id === state.professionId);
+                            if (pData) profName = pData.name;
+                        }
+
 
                         let psychoName = state.psychologicalBackgroundId;
                         const psData = psychoData.find(ps => ps.id === state.psychologicalBackgroundId);
@@ -596,14 +605,34 @@ try {
                             update.character_name = state.characterName;
                         }
 
-                        // Give starting Ahn based on background
+
+                        // Give starting Ahn based on background and deduct profession costs
+                        let startingAhn = 0;
                         if (bData && bData.funds) {
-                            // Extract numeric value from funds
-                            const numAhn = bData.funds.replace(/[^0-9-]/g, '');
-                            if (numAhn) {
-                                update.ahn = parseInt(numAhn);
+                            // Extract numeric value from funds (allowing negative numbers)
+                            const numAhnMatch = bData.funds.match(/-?\d[\d,]*/);
+                            if (numAhnMatch) {
+                                startingAhn = parseInt(numAhnMatch[0].replace(/,/g, ''));
                             }
                         }
+
+                        // Deduct profession costs
+                        if (state.professionIds && state.professionIds.length > 0) {
+                            state.professionIds.forEach(id => {
+                                const pData = professionsData.find(p => p.id === id);
+                                if (pData && pData.cost) {
+                                    startingAhn -= pData.cost;
+                                }
+                            });
+                        } else if (state.professionId) {
+                             const pData = professionsData.find(p => p.id === state.professionId);
+                             if (pData && pData.cost) {
+                                  startingAhn -= pData.cost;
+                             }
+                        }
+
+                        update.ahn = startingAhn;
+
 
                         setAttrs(update);
 
@@ -619,8 +648,25 @@ try {
                             });
                         }
 
-                        // Render Profession Perk
-                        if (state.professionId && state.professionPerkId) {
+
+                        // Render Profession Perks
+                        if (state.professionIds && state.professionPerkIds) {
+                            state.professionIds.forEach((profId, i) => {
+                                const pData = professionsData.find(p => p.id === profId);
+                                const perkId = state.professionPerkIds[i];
+                                if (pData && pData.perks && perkId) {
+                                    const perk = pData.perks.find(pk => pk.id === perkId);
+                                    if (perk) {
+                                        const rowId = generateRowID();
+                                        setAttrs({
+                                            [`repeating_skills_${rowId}_skill_name`]: perk.nombre,
+                                            [`repeating_skills_${rowId}_skill_description`]: perk.desc,
+                                            [`repeating_skills_${rowId}_edit_mode`]: "0"
+                                        });
+                                    }
+                                }
+                            });
+                        } else if (state.professionId && state.professionPerkId) {
                             const pData = professionsData.find(p => p.id === state.professionId);
                             if (pData && pData.perks) {
                                 const perk = pData.perks.find(pk => pk.id === state.professionPerkId);
@@ -634,6 +680,7 @@ try {
                                 }
                             }
                         }
+
 
                         // Also add background benefit as a perk
                         if (bData && bData.benefit) {
