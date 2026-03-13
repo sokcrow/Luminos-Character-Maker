@@ -393,6 +393,46 @@
         font-weight: bold;
         box-shadow: 0 0 8px rgba(0, 221, 255, 0.3);
     }
+
+    /* Tags y Reglas */
+    .tag-chip {
+      background: #222;
+      border: 1px solid #0df;
+      color: #0df;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tag-chip:hover {
+      background: rgba(0, 221, 255, 0.2);
+      border-color: #fff;
+    }
+    .rule-item {
+      background: #111;
+      border: 1px solid #c49a00;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-remove-rule {
+      background: transparent;
+      border: none;
+      color: #ff4444;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-remove-rule:hover {
+      text-shadow: 0 0 5px #ff0000;
+    }
   </style>
 </head>
 <body>
@@ -520,13 +560,11 @@
         <h4>Forjar Nuevo Ítem Global</h4>
         <input type="text" id="forja-nombre" placeholder="Nombre del Ítem" />
         <input type="url" id="forja-icono" placeholder="URL de Imagen/Ícono" />
-        <select id="forja-tipo">
-          <option value="Arma">Arma</option>
-          <option value="Armadura">Armadura</option>
-          <option value="Consumible">Consumible</option>
-          <option value="Clave">Clave</option>
-          <option value="Cosmetico">Cosmético (Carcasa)</option>
-        </select>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="forja-tag-input" placeholder="Etiqueta (Ej. Arma, Comida)" style="flex:1;" />
+          <button id="btn-add-tag" class="btn-cyber" style="padding: 10px; font-size: 14px; background: #222; color: #0df; border: 1px solid #0df;">Añadir Etiqueta</button>
+        </div>
+        <div id="forja-tags-container" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
         <select id="forja-tier">
           <option value="I">Tier I</option>
           <option value="II">Tier II</option>
@@ -560,7 +598,17 @@
           <option value="Domingo">Domingo</option>
         </select>
         <input type="number" id="tienda-mod-venta" placeholder="Mod. Venta % (ej. 120)" />
-        <input type="number" id="tienda-mod-compra" placeholder="Mod. Compra % (ej. 80)" />
+
+        <h5 style="color:#0df; margin: 10px 0 5px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">Reglas de Comercio por Etiqueta</h5>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="tienda-regla-tag" placeholder="Etiqueta (Ej. Munición)" style="flex:2;" />
+          <input type="number" id="tienda-regla-pct" placeholder="% Compra" style="flex:1;" />
+          <button id="btn-add-regla" class="btn-cyber" style="padding: 10px; font-size: 14px; background: #222; color: #c49a00; border: 1px solid #c49a00;">Añadir Regla</button>
+        </div>
+        <div id="tienda-reglas-container" style="display:flex;flex-direction:column;gap:5px;"></div>
+
+        <input type="number" id="tienda-tasa-defecto" placeholder="Tasa por defecto (Para etiquetas no listadas) %" style="margin-top: 10px;" />
+
         <button id="btn-crear-tienda" class="btn-cyber btn-green" style="margin-top: auto;">Crear Tienda</button>
       </div>
     </div>
@@ -1195,25 +1243,57 @@
     let dbItemsCache = {}; // Caché local de TODOS los ítems globales
     let tiendaActualEditada = null; // ID de la tienda abierta en el modal
 
+    // --- ETIQUETAS DE ÍTEMS GLOBALES ---
+    let currentItemTags = [];
+    const forjaTagsContainer = document.getElementById('forja-tags-container');
+    const forjaTagInput = document.getElementById('forja-tag-input');
+
+    function renderForjaTags() {
+        forjaTagsContainer.innerHTML = '';
+        currentItemTags.forEach((tag, index) => {
+            const chip = document.createElement('span');
+            chip.className = 'tag-chip';
+            chip.innerHTML = `${tag} <span style="color:#ff4444; font-weight:bold; margin-left:5px;">&times;</span>`;
+            chip.onclick = () => {
+                currentItemTags.splice(index, 1);
+                renderForjaTags();
+            };
+            forjaTagsContainer.appendChild(chip);
+        });
+    }
+
+    document.getElementById('btn-add-tag').addEventListener('click', () => {
+        const val = forjaTagInput.value.trim();
+        if (val && !currentItemTags.includes(val)) {
+            currentItemTags.push(val);
+            renderForjaTags();
+            forjaTagInput.value = '';
+        }
+    });
+
     // CREAR ÍTEM GLOBAL
     document.getElementById('btn-crear-item').addEventListener('click', () => {
        const nombre = document.getElementById('forja-nombre').value.trim();
        if (!nombre) { alert("El nombre es requerido"); return; }
 
        const icono = document.getElementById('forja-icono').value.trim();
-       const tipo = document.getElementById('forja-tipo').value;
        const tier = document.getElementById('forja-tier').value;
        const costo = parseInt(document.getElementById('forja-costo').value) || 0;
        const usos = parseInt(document.getElementById('forja-usos').value) || 0;
        const desc = document.getElementById('forja-desc').value.trim();
 
-       const item = { nombre, icono, tipo, tier, costo, usos, descripcion: desc };
+       if (currentItemTags.length === 0) { alert("Agrega al menos una etiqueta al ítem."); return; }
+
+       const item = { nombre, icono, tags: currentItemTags, tier, costo, usos, descripcion: desc };
 
        db.ref(`campaña/base_datos_items/${nombre}`).set(item)
          .then(() => {
             alert('Ítem creado exitosamente');
             document.getElementById('forja-nombre').value = '';
             document.getElementById('forja-icono').value = '';
+            document.getElementById('forja-tag-input').value = '';
+            currentItemTags = [];
+            renderForjaTags();
             document.getElementById('forja-costo').value = '';
             document.getElementById('forja-usos').value = '';
             document.getElementById('forja-desc').value = '';
@@ -1236,14 +1316,27 @@
              // Guardar info para los filtros
              card.dataset.name = data.nombre.toLowerCase();
              card.dataset.tier = (data.tier || '').toLowerCase();
-             card.dataset.tipo = (data.tipo || '').toLowerCase();
+
+             let tagsStr = '';
+             let tagsLower = '';
+             if (data.tags && Array.isArray(data.tags)) {
+                 tagsStr = data.tags.join(', ');
+                 tagsLower = data.tags.map(t => t.toLowerCase()).join(',');
+             } else if (data.tipo) {
+                 // Fallback para items antiguos en DB
+                 tagsStr = data.tipo;
+                 tagsLower = data.tipo.toLowerCase();
+             } else {
+                 tagsStr = 'Sin etiquetas';
+             }
+             card.dataset.tags = tagsLower;
 
              const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/00ddff?text=?';
              card.innerHTML = `
                 <button class="btn-delete-item" data-id="${key}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Ítem">🗑️</button>
                 <img src="${imgUrl}" alt="${data.nombre}">
                 <h5>${data.nombre}</h5>
-                <span>${data.tipo}</span>
+                <span style="font-size: 0.8em;">${tagsStr}</span>
                 <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.costo}</span>
              `;
 
@@ -1303,10 +1396,10 @@
             cards.forEach(card => {
                 const name = card.dataset.name || '';
                 const tier = card.dataset.tier || '';
-                const tipo = card.dataset.tipo || '';
+                const tags = card.dataset.tags || '';
 
-                const matchesQuery = name.includes(query) || tier.includes(query) || tipo.includes(query);
-                const matchesFilter = activeFilter === 'todo' || tipo === activeFilter;
+                const matchesQuery = name.includes(query) || tier.includes(query) || tags.includes(query);
+                const matchesFilter = activeFilter === 'todo' || tags.includes(activeFilter);
 
                 if (matchesQuery && matchesFilter) {
                     card.style.display = 'flex';
@@ -1329,15 +1422,53 @@
         });
     });
 
+    // --- LÓGICA DE REGLAS DE TIENDA ---
+    let currentTiendaReglas = {};
+    const tiendaReglasContainer = document.getElementById('tienda-reglas-container');
+    const tiendaReglaTagInput = document.getElementById('tienda-regla-tag');
+    const tiendaReglaPctInput = document.getElementById('tienda-regla-pct');
+
+    function renderTiendaReglas() {
+        tiendaReglasContainer.innerHTML = '';
+        for (const [tag, pct] of Object.entries(currentTiendaReglas)) {
+            const ruleItem = document.createElement('div');
+            ruleItem.className = 'rule-item';
+            ruleItem.innerHTML = `
+                <span>[${tag}] - Paga al ${pct}%</span>
+                <button class="btn-remove-rule" title="Eliminar regla">&times;</button>
+            `;
+            ruleItem.querySelector('.btn-remove-rule').onclick = () => {
+                delete currentTiendaReglas[tag];
+                renderTiendaReglas();
+            };
+            tiendaReglasContainer.appendChild(ruleItem);
+        }
+    }
+
+    document.getElementById('btn-add-regla').addEventListener('click', () => {
+        const tag = tiendaReglaTagInput.value.trim();
+        const pct = parseInt(tiendaReglaPctInput.value);
+
+        if (tag && !isNaN(pct)) {
+            currentTiendaReglas[tag] = pct;
+            renderTiendaReglas();
+            tiendaReglaTagInput.value = '';
+            tiendaReglaPctInput.value = '';
+        } else {
+            alert('Ingresa una etiqueta y un porcentaje de compra válido.');
+        }
+    });
+
     // CREAR TIENDA
     document.getElementById('btn-crear-tienda').addEventListener('click', () => {
         const nombre = document.getElementById('tienda-nombre').value.trim();
         const icono = document.getElementById('tienda-icono').value.trim();
         const diaRestock = document.getElementById('tienda-restock-dia').value;
         const modVenta = parseInt(document.getElementById('tienda-mod-venta').value) || 100;
-        const modCompra = parseInt(document.getElementById('tienda-mod-compra').value) || 100;
+        const tasaDefecto = parseInt(document.getElementById('tienda-tasa-defecto').value);
 
         if (!nombre) { alert("El nombre de la tienda es requerido."); return; }
+        if (isNaN(tasaDefecto)) { alert("La tasa por defecto es requerida."); return; }
 
         const idTienda = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
@@ -1346,14 +1477,17 @@
             icono: icono,
             dia_restock: diaRestock,
             mod_venta: modVenta,
-            mod_compra: modCompra,
+            tasas_por_etiqueta: currentTiendaReglas,
+            tasa_defecto: tasaDefecto,
             items: {} // Empty initially
         }).then(() => {
             alert('Tienda creada exitosamente.');
             document.getElementById('tienda-nombre').value = '';
             document.getElementById('tienda-icono').value = '';
             document.getElementById('tienda-mod-venta').value = '';
-            document.getElementById('tienda-mod-compra').value = '';
+            document.getElementById('tienda-tasa-defecto').value = '';
+            currentTiendaReglas = {};
+            renderTiendaReglas();
         }).catch(e => alert('Error creando tienda: ' + e));
     });
 
@@ -1431,13 +1565,22 @@
             // Data attributes for easy saving
             row.dataset.key = keyItem;
 
+            let tagsStr = '';
+            if (dataGlobal.tags && Array.isArray(dataGlobal.tags)) {
+                tagsStr = dataGlobal.tags.join(', ');
+            } else if (dataGlobal.tipo) {
+                tagsStr = dataGlobal.tipo;
+            } else {
+                tagsStr = 'Sin etiquetas';
+            }
+
             const imgUrl = dataGlobal.icono || 'https://via.placeholder.com/40/222222/00ddff?text=?';
 
             row.innerHTML = `
                 <img src="${imgUrl}" alt="${dataGlobal.nombre}">
                 <div class="modal-item-info">
                     <h5>${dataGlobal.nombre}</h5>
-                    <span>${dataGlobal.tipo}</span>
+                    <span style="font-size: 0.8em;">${tagsStr}</span>
                 </div>
                 <div class="modal-item-inputs">
                     <label style="font-size: 12px; color: #aaa;">Precio:</label>
