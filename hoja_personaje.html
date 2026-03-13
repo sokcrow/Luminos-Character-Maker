@@ -3628,6 +3628,38 @@
 <!-- Toggle Button -->
 <button class="btn-toggle-phone" id="btn-toggle-phone" title="Alternar Celular">📱</button>
 
+<!-- VISTA DEL TEATRO (MODO JUGADOR) -->
+<div id="theatre-view-player" style="display: none;">
+  <!-- Location Sign -->
+  <div class="theatre-location" style="position: absolute; top: 20px; left: 20px; background: rgba(10,10,15,0.85); border: 2px solid #c49a00; border-radius: 8px; padding: 10px 20px; color: #fff; font-size: 24px; box-shadow: 0 0 15px rgba(196,154,0,0.5); z-index: 2010;">
+    <span id="player-theatre-location-text">Unknown Location</span>
+  </div>
+
+  <!-- Stage Area -->
+  <div class="theatre-stage" id="player-theatre-stage" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 200px; gap: 50px; position: relative;">
+    <!-- Sprites will be injected here -->
+  </div>
+
+  <!-- Dialogue Box Area (Visual) -->
+  <div class="theatre-dialogue-wrapper" style="position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1000px; z-index: 2020;">
+    <!-- Plates -->
+    <div style="position: absolute; top: -45px; left: -20px; display: flex; flex-direction: column; align-items: flex-start;">
+      <div id="player-theatre-plate-title" style="background: rgba(0,0,0,0.8); color: #c49a00; padding: 5px 15px; border: 1px solid #c49a00; border-bottom: none; font-size: 16px; border-radius: 4px 4px 0 0; text-transform: uppercase;">Title</div>
+      <div id="player-theatre-plate-name" style="background: rgba(15,15,20,0.95); color: #fff; padding: 10px 25px; border: 2px solid #fff; font-size: 28px; font-weight: bold; border-radius: 0 8px 8px 0; box-shadow: 5px 5px 15px rgba(0,0,0,0.8);">Name</div>
+    </div>
+    <!-- Main Text Box -->
+    <div id="player-theatre-dialogue-text" style="background: rgba(10, 10, 15, 0.85); border: 2px solid #555; border-radius: 8px; padding: 30px; padding-left: 50px; min-height: 150px; color: #eee; font-size: 22px; line-height: 1.5; font-family: 'Share Tech Mono', monospace; box-shadow: 0 10px 30px rgba(0,0,0,0.9); backdrop-filter: blur(5px);">
+      ...
+    </div>
+  </div>
+
+  <!-- Player Input Area -->
+  <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
+    <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
+    <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
+  </div>
+</div>
+
 <!-- Firebase App (núcleo) -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <!-- Firebase Realtime Database -->
@@ -3975,6 +4007,166 @@
       }
     }
   }, 1000);
+
+  // --- LÓGICA DEL TEATRO DE LA MENTE (PLAYER VIEW) ---
+  let isTheatreBlocked = false;
+  let currentAssignedActor = null;
+  let playerSpritesEnEscena = new Set();
+
+  // Listen to active state
+  db.ref('campaña/teatro/activo').on('value', (snap) => {
+      const isActivo = snap.val();
+      const theatreView = document.getElementById('theatre-view-player');
+      if (theatreView) {
+          if (isActivo) {
+              theatreView.classList.add('theatre-active');
+          } else {
+              theatreView.classList.remove('theatre-active');
+          }
+      }
+  });
+
+  // Listen to block state
+  db.ref('campaña/teatro/bloqueado').on('value', (snap) => {
+      isTheatreBlocked = snap.val();
+      const input = document.getElementById('player-theatre-input');
+      const btn = document.getElementById('btn-player-theatre-send');
+      if (input && btn) {
+          if (isTheatreBlocked) {
+              input.disabled = true;
+              btn.disabled = true;
+              input.placeholder = "El Director ha bloqueado las interacciones (Modo Lore)...";
+          } else {
+              input.disabled = false;
+              btn.disabled = false;
+              input.placeholder = "¿Qué quieres decir o hacer? (Escribe aquí...)";
+          }
+      }
+  });
+
+  // Listen to location
+  db.ref('campaña/teatro/locacion').on('value', (snap) => {
+      const loc = snap.val();
+      const locText = document.getElementById('player-theatre-location-text');
+      if (locText && loc) locText.innerText = loc;
+  });
+
+  // Listen to current state (the actual dialogue and sprites)
+  db.ref('campaña/teatro/estado_actual').on('value', (snap) => {
+      const state = snap.val();
+      if (!state) return;
+
+      const titlePlate = document.getElementById('player-theatre-plate-title');
+      const namePlate = document.getElementById('player-theatre-plate-name');
+      const textBox = document.getElementById('player-theatre-dialogue-text');
+
+      if (titlePlate) {
+          titlePlate.innerText = state.titulo || '';
+          titlePlate.style.color = state.color_titulo || '#c49a00';
+          titlePlate.style.borderColor = state.color_titulo || '#c49a00';
+      }
+
+      if (namePlate) {
+          namePlate.innerText = state.nombre || 'Desconocido';
+          namePlate.style.color = state.color_nombre || '#ffffff';
+      }
+
+      if (textBox) {
+          textBox.innerText = state.mensaje || '';
+      }
+
+      const stage = document.getElementById('player-theatre-stage');
+      if (!stage) return;
+
+      const activeSpriteUrl = state.sprite;
+      if (!activeSpriteUrl) return;
+
+      if (!playerSpritesEnEscena.has(activeSpriteUrl)) {
+          playerSpritesEnEscena.add(activeSpriteUrl);
+          const img = document.createElement('img');
+          img.src = activeSpriteUrl;
+          img.dataset.url = activeSpriteUrl;
+          img.style.cssText = 'max-height: 80vh; max-width: 400px; object-fit: contain; transition: all 0.4s ease;';
+          stage.appendChild(img);
+
+          if (playerSpritesEnEscena.size > 3) {
+              const oldestImg = stage.firstChild;
+              if (oldestImg) {
+                  playerSpritesEnEscena.delete(oldestImg.dataset.url);
+                  stage.removeChild(oldestImg);
+              }
+          }
+      }
+
+      Array.from(stage.children).forEach(img => {
+          if (img.dataset.url === activeSpriteUrl) {
+              img.className = 'sprite-active';
+          } else {
+              img.className = 'sprite-dimmed';
+          }
+      });
+  });
+
+  // Watch for current player's actor assignment
+  setInterval(() => {
+      if (currentPlayerName) {
+          db.ref(`campaña/jugadores/${currentPlayerName}/actor_id`).once('value').then(snap => {
+              const actorId = snap.val();
+              if (actorId) {
+                  db.ref(`campaña/actores/${actorId}`).once('value').then(actorSnap => {
+                      currentAssignedActor = actorSnap.val();
+                  });
+              } else {
+                  currentAssignedActor = null;
+              }
+          });
+      }
+  }, 5000); // Check every 5 seconds
+
+  // Send Dialogue logic
+  const btnSend = document.getElementById('btn-player-theatre-send');
+  const inputEl = document.getElementById('player-theatre-input');
+
+  if (btnSend && inputEl) {
+      btnSend.addEventListener('click', () => {
+          if (isTheatreBlocked) return;
+          const msg = inputEl.value.trim();
+          if (!msg) return;
+
+          let actorData = currentAssignedActor;
+
+          // Fallback if no actor assigned
+          if (!actorData) {
+              actorData = {
+                  nombre: currentPlayerName || "Jugador",
+                  titulo: "Sin Asignar",
+                  color_nombre: "#ffffff",
+                  color_titulo: "#aaaaaa",
+                  sprite: "https://i.imgur.com/Z8N4rG9.png" // Placeholder transparent or generic
+              };
+          }
+
+          const payload = {
+              nombre: actorData.nombre,
+              titulo: actorData.titulo,
+              color_nombre: actorData.color_nombre,
+              color_titulo: actorData.color_titulo,
+              sprite: actorData.sprite,
+              mensaje: msg,
+              timestamp: Date.now()
+          };
+
+          db.ref('campaña/teatro/cola').push(payload).then(() => {
+              inputEl.value = '';
+          }).catch(e => console.error("Error sending message to queue:", e));
+      });
+
+      inputEl.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+              btnSend.click();
+          }
+      });
+  }
 
 </script>
 
