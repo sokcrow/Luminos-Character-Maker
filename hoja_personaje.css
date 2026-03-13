@@ -5979,6 +5979,166 @@ input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settin
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), inset 0 0 5px rgba(0,0,0,0.8);
 }
 
+/* --- THEATRE OF THE MIND (Visual Novel View) --- */
+#theatre-view {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 15000; /* Superpuesto a todo */
+    background-color: #000;
+    overflow: hidden;
+}
+
+#theatre-view.active {
+    display: block;
+}
+
+.theatre-bg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(2px) brightness(0.5); /* Difuminado por defecto */
+    z-index: -1;
+}
+
+.theatre-location-sign {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(10, 10, 10, 0.8);
+    border: 2px solid var(--border-accent);
+    padding: 10px 20px;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(196, 154, 0, 0.2);
+    z-index: 10;
+}
+
+#theatre-location-text {
+    color: #fff;
+    font-size: 1.2em;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.theatre-sprites-container {
+    position: absolute;
+    bottom: 150px; /* Sobre la caja de diálogo */
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 30px;
+    z-index: 5;
+    pointer-events: none; /* Dejar pasar clicks al fondo si aplica */
+}
+
+.theatre-sprite {
+    max-height: 70vh; /* Altura adaptable */
+    object-fit: contain;
+}
+
+.sprite-dimmed {
+    filter: brightness(0.3);
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.sprite-active {
+    filter: brightness(1);
+    transform: scale(1.05);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.theatre-dialog-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1000px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+}
+
+.theatre-nameplates {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: -5px; /* Solapamiento ligero con la caja principal */
+    z-index: 21;
+    margin-left: 20px;
+}
+
+.theatre-title-plate {
+    background: #3a2c22; /* Marrón oscuro */
+    color: #ccc;
+    font-size: 0.85em;
+    padding: 2px 10px;
+    border: 1px solid #222;
+    border-bottom: none;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.theatre-name-plate {
+    background: var(--red-limbus); /* Default, JS puede inyectar otro */
+    color: #fff;
+    font-size: 1.4em;
+    font-weight: bold;
+    padding: 5px 20px;
+    border: 2px solid #222;
+    border-bottom: none;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+    text-transform: uppercase;
+}
+
+.theatre-dialog-box {
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 25px 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.9);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+/* Líneas horizontales sutiles */
+.theatre-dialog-box::after {
+    content: " ";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.03) 2px,
+        rgba(255, 255, 255, 0.03) 4px
+    );
+    pointer-events: none;
+}
+
+.theatre-dialog-text {
+    color: #eee;
+    font-size: 1.3em;
+    line-height: 1.5;
+    font-family: 'Share Tech Mono', monospace;
+    position: relative;
+    z-index: 2;
+    min-height: 60px; /* Asegurar altura mínima aunque el texto sea corto */
+}
+
+
 /* --- HUD MODALS --- */
 .hud-modal {
     display: none;
@@ -6044,7 +6204,8 @@ input[name="attr_tab"][value="notas"] ~ .sheet-phone-screen .sheet-tab-notas {
 input.sheet-state-hud-modal[value="stats"] ~ .modal-stats,
 input.sheet-state-hud-modal[value="perks"] ~ .modal-perks,
 input.sheet-state-hud-modal[value="skills"] ~ .modal-skills,
-input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
+input.sheet-state-hud-modal[value="apego"] ~ .modal-apego,
+input.sheet-state-hud-modal[value="theatre"] ~ .modal-theatre {
     display: flex !important;
     animation: fadeInModal 0.3s ease;
 }

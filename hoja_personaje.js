@@ -2692,7 +2692,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 // --- HUD MODAL LOGIC (Roll20 Compatible) ---
-const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
+const hudModalsList = ['stats', 'perks', 'skills', 'apego', 'theatre'];
 hudModalsList.forEach(modal => {
     on(`clicked:hud_${modal}`, function() {
         setAttrs({ active_hud_modal: modal });

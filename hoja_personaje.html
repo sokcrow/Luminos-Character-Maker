@@ -1967,6 +1967,7 @@
     <button type="action" name="act_hud_perks" class="btn-hud" title="Perks">⭐</button>
     <button type="action" name="act_hud_skills" class="btn-hud" title="Skills">⚔️</button>
     <button type="action" name="act_hud_apego" class="btn-hud" title="Apego">🤝</button>
+    <button type="action" name="act_hud_theatre" class="btn-hud" title="Teatro de la Mente">🎭</button>
 </div>
 <input type="hidden" name="attr_active_hud_modal" class="sheet-state-hud-modal" value="" />
 
@@ -3556,7 +3557,69 @@
     </div>
 </div>
 
+</div>
+
+<div id="theatre-modal" class="hud-modal modal-theatre">
+    <div class="hud-modal-content">
+        <button type="action" name="act_hud_close" class="hud-modal-close">×</button>
+        <div class="hud-modal-body">
+            <div class="hud-tab-content">
+                <div class="sheet-app-header"><h2>🎭 Control de Diálogo</h2></div>
+                <div class="sheet-app-body" style="padding: 20px;">
+                    <div style="background: #111; padding: 15px; border: 1px solid #444; border-radius: 6px; display: flex; flex-direction: column; gap: 15px;">
+                        <div>
+                            <label style="color: #c49a00; display: block; margin-bottom: 5px;">Expresión (Sprite)</label>
+                            <select id="theatre-player-expression" style="width: 100%; background: #222; color: #fff; padding: 8px; border: 1px solid #555; border-radius: 4px;">
+                                <option value="normal">Normal</option>
+                                <option value="enojado">Enojado</option>
+                                <option value="feliz">Feliz</option>
+                                <option value="triste">Triste</option>
+                                <option value="sorprendido">Sorprendido</option>
+                                <option value="primera_persona">1ra Persona (Sin Sprite)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color: #0df; display: block; margin-bottom: 5px;">Línea de Diálogo</label>
+                            <textarea id="theatre-player-text" style="width: 100%; background: #222; color: #fff; padding: 10px; border: 1px solid #555; border-radius: 4px; height: 100px; resize: vertical; font-family: 'Share Tech Mono', monospace; font-size: 1.1em;" placeholder="¿Qué vas a decir?..."></textarea>
+                        </div>
+                        <button id="btn-theatre-queue" style="background: #8b0000; color: #fff; border: 1px solid #ff4444; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;">
+                            Poner en Cola
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </div> <!-- End Limbus Main -->
+
+<!-- === THEATRE OF THE MIND VIEW === -->
+<div id="theatre-view">
+    <div class="theatre-bg" id="theatre-background" style="background-image: url('https://i.imgur.com/someLimbusBg.jpg');"></div>
+
+    <div class="theatre-location-sign">
+        <span id="theatre-location-text">Aboard Mephistopheles</span>
+    </div>
+
+    <div class="theatre-sprites-container" id="theatre-sprites">
+        <!-- Ejemplo de sprites (Serán inyectados por JS) -->
+        <!-- <img src="..." class="theatre-sprite sprite-dimmed"> -->
+        <!-- <img src="..." class="theatre-sprite sprite-active"> -->
+    </div>
+
+    <div class="theatre-dialog-container">
+        <div class="theatre-nameplates" id="theatre-nameplates">
+            <div class="theatre-title-plate" id="theatre-title">Bus Driver</div>
+            <div class="theatre-name-plate" id="theatre-name" style="background: #8b0000;">Charon</div>
+        </div>
+        <div class="theatre-dialog-box">
+            <div class="theatre-dialog-text" id="theatre-dialog-content">
+                ...Vroom vroom.
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Global Inventory Button -->
 <button class="btn-global-inventory" id="btn-global-inventory" title="Inventario Global">🎒</button>
