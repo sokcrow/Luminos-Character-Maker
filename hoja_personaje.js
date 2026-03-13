@@ -2590,7 +2590,35 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Add to Player's Inventory (Stash)
-                db.ref(`campaña/jugadores/${playerName}/inventario_stash`).push(itemData);
+                // Modificación 4.3: Solo transferimos información base (id, nombre, costo global), ignorando precio inflado de la tienda.
+                // Además, comprobamos si el ítem ya existe para apilarlo (cantidad + 1).
+                const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+                stashRef.once('value', (snap) => {
+                    let foundKey = null;
+                    let currentCant = 0;
+                    snap.forEach(child => {
+                        // Comparamos contra el itemId original de la base global
+                        if (child.val().id === itemId) {
+                            foundKey = child.key;
+                            currentCant = child.val().cantidad || 1;
+                        }
+                    });
+
+                    if (foundKey) {
+                        stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
+                    } else {
+                        stashRef.push({
+                            id: itemId,
+                            nombre: itemData.nombre,
+                            valorBase: itemData.costo, // Conservamos el costo original sin modificadores
+                            tier: itemData.tier || "I",
+                            tipo: itemData.tipo || "Consumible",
+                            icono: itemData.icono || "",
+                            descripcion: itemData.descripcion || "",
+                            cantidad: 1
+                        });
+                    }
+                });
 
                 // Add Transaction Log
                 db.ref(`campaña/jugadores/${playerName}/transacciones`).push({

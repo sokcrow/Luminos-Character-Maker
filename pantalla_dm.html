@@ -448,6 +448,38 @@
   </div>
 
 
+  <!-- NUEVO DASHBOARD: METEOROLOGÍA Y CLIMA -->
+  <div id="dashboard-clima" class="panel-cyber" style="margin-top: 20px; display: flex; flex-direction: row; gap: 20px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 300px;">
+      <h3>Gestión de Climas</h3>
+      <div class="form-cyber" style="width: 100%; max-width: none;">
+        <input type="text" id="clima-nombre" placeholder="Nombre del Clima (Ej. Lluvia Ácida)" />
+        <textarea id="clima-desc" placeholder="Descripción" rows="2"></textarea>
+        <textarea id="clima-efectos" placeholder="Efectos Mecánicos" rows="2"></textarea>
+        <select id="clima-estacion">
+          <option value="Todas">Todas las Estaciones</option>
+          <option value="Primavera">Primavera</option>
+          <option value="Verano">Verano</option>
+          <option value="Otoño">Otoño</option>
+          <option value="Invierno">Invierno</option>
+        </select>
+        <label style="color: #c49a00; display: flex; align-items: center; gap: 10px;">
+          ¿Es Hazard / Peligroso?
+          <input type="checkbox" id="clima-hazard" style="width: auto;" />
+        </label>
+        <input type="number" id="clima-peso" placeholder="Probabilidad / Peso" />
+        <button id="btn-guardar-clima" class="btn-cyber btn-green">Guardar Clima</button>
+      </div>
+    </div>
+
+    <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; align-items: center;">
+      <h3>Visualizador Radial</h3>
+      <div id="clima-radial-container" style="position: relative; width: 300px; height: 300px; border-radius: 50%; border: 2px dashed #444; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+        <!-- Inyectado por JS -->
+      </div>
+    </div>
+  </div>
+
   <div id="dm-banco-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
     <h3 style="margin: 0; color: #0df;">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
 
@@ -527,6 +559,8 @@
           <option value="Sábado">Sábado</option>
           <option value="Domingo">Domingo</option>
         </select>
+        <input type="number" id="tienda-mod-venta" placeholder="Mod. Venta % (ej. 120)" />
+        <input type="number" id="tienda-mod-compra" placeholder="Mod. Compra % (ej. 80)" />
         <button id="btn-crear-tienda" class="btn-cyber btn-green" style="margin-top: auto;">Crear Tienda</button>
       </div>
     </div>
@@ -789,6 +823,11 @@
         document.getElementById('debug-dia').value = estadoActual.dia;
         document.getElementById('debug-mes').value = estadoActual.mes;
         document.getElementById('debug-clima').value = estadoActual.clima;
+
+        // Inyectar/actualizar radial de clima
+        if(typeof renderClimaRadial === 'function') {
+           renderClimaRadial(estadoActual.clima, estadoActual.mes);
+        }
       }
     });
 
@@ -895,6 +934,135 @@
           alert('Error al forzar calendario.');
         });
     });
+
+    // --- NUEVA LÓGICA DE METEOROLOGÍA Y CLIMA ---
+    document.getElementById('btn-guardar-clima').addEventListener('click', () => {
+        const nombre = document.getElementById('clima-nombre').value.trim();
+        const desc = document.getElementById('clima-desc').value.trim();
+        const efectos = document.getElementById('clima-efectos').value.trim();
+        const estacion = document.getElementById('clima-estacion').value;
+        const esHazard = document.getElementById('clima-hazard').checked;
+        const peso = parseFloat(document.getElementById('clima-peso').value) || 0;
+
+        if (!nombre) {
+            alert('El nombre del clima es obligatorio.');
+            return;
+        }
+
+        const idClima = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+        db.ref(`campaña/climas_info/${idClima}`).set({
+            nombre: nombre,
+            descripcion: desc,
+            efectos: efectos,
+            estacion: estacion,
+            es_hazard: esHazard,
+            peso: peso
+        }).then(() => {
+            alert('Clima guardado exitosamente.');
+            document.getElementById('clima-nombre').value = '';
+            document.getElementById('clima-desc').value = '';
+            document.getElementById('clima-efectos').value = '';
+            document.getElementById('clima-hazard').checked = false;
+            document.getElementById('clima-peso').value = '';
+        }).catch(err => {
+            alert('Error guardando clima: ' + err);
+        });
+    });
+
+    // Helper: Determinar Estación
+    function obtenerEstacion(mes) {
+        if (mes >= 3 && mes <= 5) return "Primavera";
+        if (mes >= 6 && mes <= 8) return "Verano";
+        if (mes >= 9 && mes <= 11) return "Otoño";
+        return "Invierno"; // 12, 1, 2
+    }
+
+    // Helper: Actualizar Visualizador Radial
+    function renderClimaRadial(climaActual, mesActual) {
+        const container = document.getElementById('clima-radial-container');
+        if (!container) return;
+
+        const estacionActual = obtenerEstacion(mesActual);
+
+        // Fetch weathers from Firebase to calculate probabilities dynamically
+        db.ref('campaña/climas_info').once('value').then((snapshot) => {
+            const climas = snapshot.val();
+            container.innerHTML = ''; // Limpiar
+
+            // Centro: Clima Actual y Estación
+            const centro = document.createElement('div');
+            centro.style.cssText = 'position: absolute; z-index: 10; background: #222; border: 2px solid #c49a00; border-radius: 50%; padding: 15px; text-align: center; box-shadow: 0 0 15px rgba(196,154,0,0.5); display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100px; height: 100px;';
+            centro.innerHTML = `<strong style="color:#0df; font-size:1.1em;">${climaActual}</strong><span style="font-size:0.8em; color:#aaa;">${estacionActual} (Mes ${mesActual})</span>`;
+            container.appendChild(centro);
+
+            if (!climas) {
+                const errorText = document.createElement('div');
+                errorText.style.cssText = 'position: absolute; bottom: -30px; color: #ff4444;';
+                errorText.innerText = 'No hay climas creados en BD.';
+                container.appendChild(errorText);
+                return;
+            }
+
+            // Filtrar climas por estación y calcular suma de pesos
+            let sumaPesos = 0;
+            const climasPosibles = [];
+
+            for (const [idClima, data] of Object.entries(climas)) {
+                if (data.estacion === "Todas" || data.estacion === estacionActual) {
+                    climasPosibles.push(data);
+                    sumaPesos += data.peso;
+                }
+            }
+
+            if (climasPosibles.length === 0 || sumaPesos === 0) {
+                 const errorText = document.createElement('div');
+                 errorText.style.cssText = 'position: absolute; bottom: -30px; color: #ff4444;';
+                 errorText.innerText = 'Sin climas para esta estación.';
+                 container.appendChild(errorText);
+                 return;
+            }
+
+            const totalNodos = climasPosibles.length;
+            const radio = 110; // Distancia desde el centro
+
+            climasPosibles.forEach((data, i) => {
+                const probPct = Math.round((data.peso / sumaPesos) * 100);
+                const angulo = (i / totalNodos) * (2 * Math.PI) - (Math.PI / 2); // Empezar desde arriba (-90deg)
+
+                const posX = Math.cos(angulo) * radio;
+                const posY = Math.sin(angulo) * radio;
+
+                const orbital = document.createElement('div');
+                orbital.style.cssText = `
+                    position: absolute;
+                    left: calc(50% + ${posX}px - 40px);
+                    top: calc(50% + ${posY}px - 25px);
+                    width: 80px;
+                    background: #111;
+                    border: 1px solid #0df;
+                    border-radius: 6px;
+                    padding: 5px;
+                    text-align: center;
+                    box-shadow: 0 0 10px rgba(0,221,255,0.3);
+                    font-size: 0.85em;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                `;
+
+                if (data.es_hazard) {
+                    orbital.style.borderColor = '#ff4444';
+                    orbital.style.boxShadow = '0 0 10px rgba(255,68,68,0.5)';
+                    orbital.innerHTML = `<strong style="color:#ff4444;">${data.nombre}</strong><span style="color:#fff;">${probPct}%</span>`;
+                } else {
+                    orbital.innerHTML = `<strong style="color:#fff;">${data.nombre}</strong><span style="color:#0df;">${probPct}%</span>`;
+                }
+
+                container.appendChild(orbital);
+            });
+        });
+    }
 
     // --- ZONA A: RED BANCARIA ---
     const bancoContainer = document.getElementById('banco-jugadores-container');
@@ -1166,6 +1334,8 @@
         const nombre = document.getElementById('tienda-nombre').value.trim();
         const icono = document.getElementById('tienda-icono').value.trim();
         const diaRestock = document.getElementById('tienda-restock-dia').value;
+        const modVenta = parseInt(document.getElementById('tienda-mod-venta').value) || 100;
+        const modCompra = parseInt(document.getElementById('tienda-mod-compra').value) || 100;
 
         if (!nombre) { alert("El nombre de la tienda es requerido."); return; }
 
@@ -1175,11 +1345,15 @@
             nombre: nombre,
             icono: icono,
             dia_restock: diaRestock,
+            mod_venta: modVenta,
+            mod_compra: modCompra,
             items: {} // Empty initially
         }).then(() => {
             alert('Tienda creada exitosamente.');
             document.getElementById('tienda-nombre').value = '';
             document.getElementById('tienda-icono').value = '';
+            document.getElementById('tienda-mod-venta').value = '';
+            document.getElementById('tienda-mod-compra').value = '';
         }).catch(e => alert('Error creando tienda: ' + e));
     });
 
@@ -1250,6 +1424,7 @@
             const isChecked = itemEnTienda ? 'checked' : '';
             const precioActual = itemEnTienda ? itemEnTienda.costo : dataGlobal.costo;
             const stockActual = itemEnTienda ? itemEnTienda.stock_maximo : -1;
+            const requisitoActual = itemEnTienda && itemEnTienda.requisito_aparicion ? itemEnTienda.requisito_aparicion : 'Siempre';
 
             const row = document.createElement('div');
             row.className = 'modal-item-row';
@@ -1269,6 +1444,15 @@
                     <input type="number" class="input-precio" value="${precioActual}">
                     <label style="font-size: 12px; color: #aaa;">Stock:</label>
                     <input type="number" class="input-stock" value="${stockActual}" title="-1 para infinito">
+                    <label style="font-size: 12px; color: #aaa;">Req:</label>
+                    <select class="input-requisito" style="padding: 5px; background: #111; color: #0df; border: 1px solid #444; border-radius: 3px;">
+                        <option value="Siempre" ${requisitoActual === 'Siempre' ? 'selected' : ''}>Siempre</option>
+                        <option value="Solo en Primavera" ${requisitoActual === 'Solo en Primavera' ? 'selected' : ''}>Solo en Primavera</option>
+                        <option value="Solo en Verano" ${requisitoActual === 'Solo en Verano' ? 'selected' : ''}>Solo en Verano</option>
+                        <option value="Solo en Otoño" ${requisitoActual === 'Solo en Otoño' ? 'selected' : ''}>Solo en Otoño</option>
+                        <option value="Solo en Invierno" ${requisitoActual === 'Solo en Invierno' ? 'selected' : ''}>Solo en Invierno</option>
+                        <option value="Solo con Lluvia Ácida" ${requisitoActual === 'Solo con Lluvia Ácida' ? 'selected' : ''}>Solo con Lluvia Ácida</option>
+                    </select>
                 </div>
                 <label class="switch">
                     <input type="checkbox" class="toggle-item" ${isChecked}>
@@ -1296,13 +1480,15 @@
                 const dataGlobal = dbItemsCache[keyItem];
                 const precio = parseInt(fila.querySelector('.input-precio').value) || dataGlobal.costo;
                 const stockMax = parseInt(fila.querySelector('.input-stock').value) || -1;
+                const requisito = fila.querySelector('.input-requisito').value;
 
                 // Construir el objeto del ítem para la tienda
                 updates[keyItem] = {
                     ...dataGlobal,
                     costo: precio,
                     stock_maximo: stockMax,
-                    stock_actual: stockMax // Se resetea al máximo al guardar
+                    stock_actual: stockMax, // Se resetea al máximo al guardar
+                    requisito_aparicion: requisito
                 };
             }
         });
