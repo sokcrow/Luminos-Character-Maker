@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creación de Personaje</title>
+    <!-- Firebase App (núcleo) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+            authDomain: "luminous-system.firebaseapp.com",
+            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+            projectId: "luminous-system",
+            storageBucket: "luminous-system.firebasestorage.app",
+            messagingSenderId: "330473029689",
+            appId: "1:330473029689:web:44a05e870d493a3b294de8",
+            measurementId: "G-X775P4YS7W"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
@@ -6664,11 +6682,19 @@
                         }
                     }
 
-                    // 3. Save to localStorage
-                    localStorage.setItem('luminousState', JSON.stringify(luminousState));
-
-                    // 4. Redirect
-                    window.location.href = 'hoja_personaje.html';
+                    // 3. Save to Firebase
+                    const playerId = localStorage.getItem('playerId');
+                    if (playerId) {
+                        db.ref('campaña/jugadores/' + playerId).set(luminousState).then(() => {
+                            window.location.href = 'hoja_personaje.html';
+                        }).catch(err => {
+                            console.error("Error saving to Firebase:", err);
+                            alert("Error al guardar personaje. Revisa la conexión.");
+                        });
+                    } else {
+                        alert("Error: No se encontró el ID de jugador. Vuelve al inicio.");
+                        window.location.href = 'index.html';
+                    }
                 };
 
                 btnConfirmarClase.addEventListener('click', handleConfirmClaseClick);
