@@ -6113,3 +6113,10 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     z-index: 10;
     transition: all 0.4s ease;
 }
+
+.theatre-stage img {
+    aspect-ratio: 16 / 9;
+    max-height: 60vh;
+    object-fit: contain;
+    width: auto;
+}
