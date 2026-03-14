@@ -5255,7 +5255,8 @@ input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile
 input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
 input[name="attr_tab"][value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
 input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings,
-input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
+input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop,
+input[name="attr_tab"][value="crafteo"] ~ .sheet-phone-screen .sheet-tab-crafteo {
     display: flex !important;
 }
 
@@ -5616,6 +5617,17 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     max-width: 80%;
     max-height: 80%;
     object-fit: contain;
+}
+
+.item-tier-indicator {
+    text-shadow: 0 0 5px #ff8c00;
+    color: #ffd700;
+    font-weight: bold;
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 0.8em;
+    z-index: 10;
 }
 
 .item-quantity {
@@ -6134,6 +6146,193 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     width: auto;
 }
 
+/* ==========================================================================
+   Crafting App: Limbus Company Hexagonal UI
+   ========================================================================== */
+
+.cyberpunk-container::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 221, 255, 0.03) 2px,
+        rgba(0, 221, 255, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+
+#btn-sintetizar:hover {
+    background: linear-gradient(135deg, #1a2a3a, #005f73);
+    box-shadow: 0 0 10px rgba(0, 221, 255, 0.4);
+}
+
+#btn-sintetizar:active {
+    background: var(--cyan-tech);
+    color: #000;
+    text-shadow: none;
+}
+
+/* Hexagon Grid Layout */
+.hex-grid-container {
+    position: relative;
+    width: 100%;
+    /* Creates a specific area for absolute positioning of hexes */
+}
+
+.hex-node {
+    position: absolute;
+    width: 60px;
+    height: 70px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: #1a1a24;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #555; /* Inner border simulation */
+    transition: all 0.3s ease;
+    z-index: 5;
+}
+
+/* Simulated outer border for hexagon using drop-shadows or a wrapper */
+.hex-wrapper {
+    position: absolute;
+    width: 64px;
+    height: 74px;
+    background: repeating-linear-gradient(45deg, #ffaa00, #ffaa00 5px, #222 5px, #222 10px);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: filter 0.3s;
+}
+
+.hex-wrapper.missing {
+    background: repeating-linear-gradient(45deg, #ff3333, #ff3333 5px, #222 5px, #222 10px);
+}
+
+.hex-wrapper.empty {
+    background: #333;
+    opacity: 0.3;
+}
+
+.hex-node img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    z-index: 2;
+}
+
+.hex-count {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    background: var(--cyan-tech);
+    color: #000;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 1px 4px;
+    border-radius: 2px;
+    z-index: 10;
+    box-shadow: 0 0 5px var(--cyan-tech);
+}
+
+.hex-count.missing-text {
+    background: var(--red-danger);
+    color: #fff;
+    box-shadow: 0 0 5px var(--red-danger);
+}
+
+.hex-tier {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 14px;
+    font-family: 'Times New Roman', serif;
+    text-shadow: 0 0 5px #ff8c00, 0 0 2px #000;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Result Node Styling */
+.result-node {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    background: #0d1117;
+    border: 2px solid var(--cyan-tech);
+    box-shadow: 0 0 10px rgba(0, 221, 255, 0.3) inset;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.result-node::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 30%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+    pointer-events: none;
+}
+
+.result-node img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    transition: all 0.5s ease;
+}
+
+.result-node img.blacked-out {
+    filter: brightness(0) drop-shadow(0 0 2px rgba(255,255,255,0.2));
+}
+
+.result-tier {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 18px;
+    font-family: 'Times New Roman', serif;
+    text-shadow: 0 0 5px #ff8c00, 0 0 2px #000;
+    z-index: 10;
+}
+
+.result-count {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    color: var(--cyan-tech);
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 0 0 3px #000;
+    z-index: 10;
+}
+
+/* Connecting Lines */
+.hex-line {
+    position: absolute;
+    background: #555;
+    z-index: 1;
+}
+
+/* Positions for 5-hex star/circle layout inside a ~250x180 container */
+/* Center is ~ 125, 90 */
+/* Sizes: Hex Wrapper is 64x74 */
+.hex-pos-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.hex-pos-top-left { top: 20%; left: 25%; transform: translate(-50%, -50%); }
+.hex-pos-top-right { top: 20%; left: 75%; transform: translate(-50%, -50%); }
+.hex-pos-bottom-left { top: 80%; left: 25%; transform: translate(-50%, -50%); }
+.hex-pos-bottom-right { top: 80%; left: 75%; transform: translate(-50%, -50%); }
+.hex-pos-top { top: 15%; left: 50%; transform: translate(-50%, -50%); }
+.hex-pos-bottom { top: 85%; left: 50%; transform: translate(-50%, -50%); }
 
 
 

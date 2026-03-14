@@ -514,6 +514,7 @@
     <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
     <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
     <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
+    <button class="dm-tab-btn" data-tab="tab-crafteo">Gestión de Recetas</button>
     <button class="dm-tab-btn" data-tab="dashboard-actores">Gestión de Actores</button>
     <button class="dm-tab-btn" data-tab="dashboard-jugadores">Gestión de Jugadores</button>
     <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">MODO DIRECTOR</button>
@@ -662,16 +663,16 @@
             </div>
             <div id="forja-tags-container" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
             <select id="forja-tier">
-              <option value="I">Tier I</option>
-              <option value="II">Tier II</option>
-              <option value="III">Tier III</option>
-              <option value="IV">Tier IV</option>
-              <option value="V">Tier V</option>
-              <option value="VI">Tier VI</option>
-              <option value="VII">Tier VII</option>
-              <option value="VIII">Tier VIII</option>
-              <option value="IX">Tier IX</option>
-              <option value="X">Tier X</option>
+              <option value="1">Tier I</option>
+              <option value="2">Tier II</option>
+              <option value="3">Tier III</option>
+              <option value="4">Tier IV</option>
+              <option value="5">Tier V</option>
+              <option value="6">Tier VI</option>
+              <option value="7">Tier VII</option>
+              <option value="8">Tier VIII</option>
+              <option value="9">Tier IX</option>
+              <option value="10">Tier X</option>
             </select>
             <input type="number" id="forja-costo" placeholder="Costo Base en Ahn" />
             <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" />
@@ -794,6 +795,94 @@
             <div id="loot-log" style="margin-top: 10px; font-size: 14px; color: #aaa; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #444; min-height: 50px; white-space: pre-wrap;">Esperando tirada...</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- TAB: GESTIÓN DE RECETAS / CRAFTEO -->
+    <div id="tab-crafteo" class="dm-tab-pane">
+      <div class="panel-cyber" style="margin-top: 20px;">
+        <h3>Gestión de Recetas (Crafteo)</h3>
+
+        <div class="form-cyber-container">
+          <div class="form-cyber" style="max-width: 600px;">
+            <h4 style="color: #0df;">Nueva Receta</h4>
+            <input type="text" id="receta-nombre" placeholder="Nombre de la Receta (Ej. Crear Balas Perforantes)" />
+
+            <div style="display:flex; gap:10px;">
+              <select id="receta-acceso" style="flex:1;">
+                <option value="General">General (Todos)</option>
+                <option value="Restringido">Restringido / Especial</option>
+              </select>
+            </div>
+
+            <div id="receta-jugadores-container" style="display:none; flex-direction:column; gap:5px; background:#222; padding:10px; border:1px solid #444; border-radius:4px;">
+              <h5 style="margin:0; color:#c49a00;">Jugadores Autorizados:</h5>
+              <div id="lista-check-jugadores" style="display:flex; flex-wrap:wrap; gap:10px;">
+                <!-- Generado por JS -->
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <select id="receta-habilidad" style="flex:2;">
+                <option value="manejo">Manejo</option>
+                <option value="ciencia">Ciencia</option>
+                <option value="analisis">Análisis</option>
+                <option value="investigacion">Investigación</option>
+                <option value="medicina">Medicina</option>
+                <option value="supervivencia">Supervivencia</option>
+                <option value="arcana">Arcana</option>
+              </select>
+              <input type="number" id="receta-dc" placeholder="Dificultad (DC)" title="Clase de Dificultad (Ej. 15)" style="flex:1;" />
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:10px; padding-top:10px; border-top: 1px dashed #444;">
+              <div style="flex:2;">
+                <label style="font-size:12px; color:#aaa;">Ítem Resultante:</label>
+                <select id="receta-item-resultado" style="width:100%;">
+                  <option value="">Selecciona Ítem...</option>
+                  <!-- Generado por JS -->
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#aaa;">Tier:</label>
+                <select id="receta-tier-resultado" style="width:100%;">
+                  <option value="1">Tier 1</option>
+                  <option value="2">Tier 2</option>
+                  <option value="3">Tier 3</option>
+                  <option value="4">Tier 4</option>
+                  <option value="5">Tier 5</option>
+                  <option value="6">Tier 6</option>
+                  <option value="7">Tier 7</option>
+                  <option value="8">Tier 8</option>
+                  <option value="9">Tier 9</option>
+                  <option value="10">Tier 10</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#aaa;">Cant:</label>
+                <input type="number" id="receta-cant-resultado" value="1" min="1" style="width:100%;" />
+              </div>
+            </div>
+
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #444;">
+              <h5 style="margin:0 0 10px 0; color:#0df;">Ingredientes Requeridos (Max 5)</h5>
+              <div id="receta-ingredientes-container" style="display:flex; flex-direction:column; gap:5px;">
+                <!-- Filas inyectadas por JS -->
+              </div>
+              <button id="btn-add-ingrediente" class="btn-cyber" style="background:#222; color:#fff; border-color:#555; font-size:12px; padding:5px; margin-top:10px; width:100%;">+ Añadir Ingrediente</button>
+            </div>
+
+            <button id="btn-guardar-receta" class="btn-cyber btn-green" style="margin-top: 20px;">Guardar Receta</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 20px;">
+          <h4 style="color: #c49a00; margin-bottom: 15px; text-align: center;">Recetas Creadas</h4>
+          <div id="grid-recetas" class="grid-container">
+            <!-- Recetas inyectadas por JS -->
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1887,9 +1976,182 @@
                 lootJugadorSelect.appendChild(option);
             }
         }
+
+        // --- Populate Recetas Checkboxes ---
+        const recetaJugadores = document.getElementById('lista-check-jugadores');
+        if (recetaJugadores) {
+            recetaJugadores.innerHTML = '';
+            for (const nombre of Object.keys(jugadores)) {
+                const lbl = document.createElement('label');
+                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;';
+                lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
+                recetaJugadores.appendChild(lbl);
+            }
+        }
       } else {
         bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
       }
+    });
+
+    // --- LÓGICA DE RECETAS / CRAFTEO ---
+    const selectAccesoReceta = document.getElementById('receta-acceso');
+    if (selectAccesoReceta) {
+        selectAccesoReceta.addEventListener('change', (e) => {
+            document.getElementById('receta-jugadores-container').style.display = e.target.value === 'Restringido' ? 'flex' : 'none';
+        });
+    }
+
+    let numIngredientes = 0;
+    const MAX_INGREDIENTES = 5;
+    function agregarFilaIngrediente() {
+        if (numIngredientes >= MAX_INGREDIENTES) {
+            alert('Máximo 5 ingredientes permitidos.');
+            return;
+        }
+
+        const container = document.getElementById('receta-ingredientes-container');
+        const row = document.createElement('div');
+        row.className = 'fila-ingrediente';
+        row.style.cssText = 'display:flex; gap:10px; align-items:center; background:#111; padding:5px; border:1px solid #333; border-radius:3px;';
+
+        const select = document.createElement('select');
+        select.className = 'select-ingrediente';
+        select.style.cssText = 'flex:2; padding:5px; background:#222; color:#fff; border:1px solid #444; border-radius:3px;';
+        select.innerHTML = '<option value="">Selecciona Ítem...</option>';
+
+        if (dbItemsCache) {
+            const sortedKeys = Object.keys(dbItemsCache).sort((a,b) => dbItemsCache[a].nombre.localeCompare(dbItemsCache[b].nombre));
+            for (const key of sortedKeys) {
+                const opt = document.createElement('option');
+                opt.value = key; // Use ID as value
+                opt.textContent = dbItemsCache[key].nombre;
+                select.appendChild(opt);
+            }
+        }
+
+        const inputCant = document.createElement('input');
+        inputCant.type = 'number';
+        inputCant.className = 'cant-ingrediente';
+        inputCant.value = '1';
+        inputCant.min = '1';
+        inputCant.style.cssText = 'flex:1; padding:5px; background:#222; color:#0df; border:1px solid #444; border-radius:3px;';
+
+        const btnRemove = document.createElement('button');
+        btnRemove.innerText = 'X';
+        btnRemove.style.cssText = 'background:transparent; color:#ff4444; border:none; cursor:pointer; font-weight:bold;';
+        btnRemove.onclick = () => {
+            row.remove();
+            numIngredientes--;
+        };
+
+        row.appendChild(select);
+        row.appendChild(inputCant);
+        row.appendChild(btnRemove);
+        container.appendChild(row);
+        numIngredientes++;
+    }
+
+    document.getElementById('btn-add-ingrediente').addEventListener('click', agregarFilaIngrediente);
+
+    document.getElementById('btn-guardar-receta').addEventListener('click', () => {
+        const nombre = document.getElementById('receta-nombre').value.trim();
+        if (!nombre) { alert("El nombre de la receta es obligatorio."); return; }
+
+        const acceso = document.getElementById('receta-acceso').value;
+        const jugadores = {};
+        if (acceso === 'Restringido') {
+            const checks = document.querySelectorAll('.check-jugador-receta:checked');
+            if (checks.length === 0) { alert("Selecciona al menos un jugador para la receta restringida."); return; }
+            checks.forEach(chk => { jugadores[chk.value] = true; });
+        }
+
+        const itemRes = document.getElementById('receta-item-resultado').value;
+        if (!itemRes) { alert("Selecciona un ítem resultante."); return; }
+
+        const tier = parseInt(document.getElementById('receta-tier-resultado').value) || 1;
+        const cant = parseInt(document.getElementById('receta-cant-resultado').value) || 1;
+        const habilidad = document.getElementById('receta-habilidad').value;
+        const dc = parseInt(document.getElementById('receta-dc').value) || 15;
+
+        const ingredientesNodes = document.querySelectorAll('.fila-ingrediente');
+        if (ingredientesNodes.length === 0) { alert("Agrega al menos un ingrediente."); return; }
+
+        const ingredientes = [];
+        let validIng = true;
+        ingredientesNodes.forEach(node => {
+            const selectVal = node.querySelector('.select-ingrediente').value;
+            const cantVal = parseInt(node.querySelector('.cant-ingrediente').value) || 1;
+            if (!selectVal) { validIng = false; }
+            else { ingredientes.push({ id_item: selectVal, cantidad: cantVal }); }
+        });
+
+        if (!validIng) { alert("Asegúrate de seleccionar un ítem para cada ingrediente."); return; }
+
+        const idReceta = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const recetaData = {
+            nombre: nombre,
+            acceso: acceso,
+            jugadores: jugadores,
+            item_resultado: itemRes,
+            tier_resultado: tier,
+            cantidad_resultado: cant,
+            habilidad: habilidad,
+            dc: dc,
+            ingredientes: ingredientes
+        };
+
+        db.ref(`campaña/recetas/${idReceta}`).set(recetaData).then(() => {
+            alert('Receta guardada exitosamente.');
+            // Limpiar form
+            document.getElementById('receta-nombre').value = '';
+            document.getElementById('receta-acceso').value = 'General';
+            document.getElementById('receta-jugadores-container').style.display = 'none';
+            document.querySelectorAll('.check-jugador-receta').forEach(c => c.checked = false);
+            document.getElementById('receta-item-resultado').value = '';
+            document.getElementById('receta-tier-resultado').value = '1';
+            document.getElementById('receta-cant-resultado').value = '1';
+            document.getElementById('receta-dc').value = '';
+            document.getElementById('receta-ingredientes-container').innerHTML = '';
+            numIngredientes = 0;
+        }).catch(err => alert("Error al guardar receta: " + err));
+    });
+
+    db.ref('campaña/recetas').on('value', snap => {
+        const grid = document.getElementById('grid-recetas');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const recetas = snap.val();
+        if (recetas) {
+            for (const [idReceta, data] of Object.entries(recetas)) {
+                const card = document.createElement('div');
+                card.className = 'card-cyber card-store'; // Reuse styling
+                card.style.cursor = 'default';
+
+                const itemData = dbItemsCache ? dbItemsCache[data.item_resultado] : null;
+                const imgUrl = itemData ? itemData.icono : 'https://via.placeholder.com/60/222222/00ddff?text=?';
+                const itemName = itemData ? itemData.nombre : 'Ítem Desconocido';
+
+                card.innerHTML = `
+                    <button class="btn-delete-receta" data-id="${idReceta}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Receta">🗑️</button>
+                    <img src="${imgUrl}" alt="${itemName}">
+                    <h5 style="color:#0df; margin-bottom:5px;">${data.nombre}</h5>
+                    <span style="font-size:12px; color:#c49a00;">${itemName} (Tier ${data.tier_resultado}) x${data.cantidad_resultado}</span>
+                    <span style="font-size:12px; color:#aaa; margin-top:5px;">Check: ${data.habilidad} (DC ${data.dc})</span>
+                    <span style="font-size:11px; color:#888;">Acceso: ${data.acceso}</span>
+                `;
+
+                const btnDelete = card.querySelector('.btn-delete-receta');
+                btnDelete.addEventListener('click', () => {
+                    if (confirm('¿Eliminar esta receta permanentemente?')) {
+                        db.ref(`campaña/recetas/${idReceta}`).remove();
+                    }
+                });
+
+                grid.appendChild(card);
+            }
+        } else {
+            grid.innerHTML = '<span style="color:#888;">No hay recetas creadas.</span>';
+        }
     });
 
     // --- TERMINAL DE COMUNICACIONES LOGIC ---
@@ -1991,7 +2253,7 @@
     function resetItemForm() {
        document.getElementById('forja-nombre').value = '';
        document.getElementById('forja-icono').value = '';
-       document.getElementById('forja-tier').value = 'I';
+       document.getElementById('forja-tier').value = '1';
        document.getElementById('forja-tag-input').value = '';
        currentItemTags = [];
        renderForjaTags();
@@ -2125,7 +2387,7 @@
                  editModeItemKey = key;
                  document.getElementById('forja-nombre').value = data.nombre || '';
                  document.getElementById('forja-icono').value = data.icono || '';
-                 document.getElementById('forja-tier').value = data.tier || 'I';
+                 document.getElementById('forja-tier').value = data.tier || '1';
 
                  currentItemTags = data.tags && Array.isArray(data.tags) ? [...data.tags] :
                                    (data.tipo ? [data.tipo] : []);
@@ -2170,6 +2432,38 @@
                }
            }
        }
+
+       // --- Populate Receta Ítem Resultado Select ---
+       const recetaItemResultado = document.getElementById('receta-item-resultado');
+       if (recetaItemResultado) {
+           recetaItemResultado.innerHTML = '<option value="">Selecciona Ítem...</option>';
+           if (items) {
+               const sortedKeys = Object.keys(items).sort();
+               for (const key of sortedKeys) {
+                   const option = document.createElement('option');
+                   option.value = key;
+                   option.textContent = items[key].nombre;
+                   recetaItemResultado.appendChild(option);
+               }
+           }
+       }
+
+       // Actualizar selects de ingredientes ya creados
+       const selectsIngredientes = document.querySelectorAll('.select-ingrediente');
+       selectsIngredientes.forEach(sel => {
+           const currentVal = sel.value;
+           sel.innerHTML = '<option value="">Selecciona Ítem...</option>';
+           if (items) {
+               const sortedKeys = Object.keys(items).sort();
+               for (const key of sortedKeys) {
+                   const opt = document.createElement('option');
+                   opt.value = key;
+                   opt.textContent = items[key].nombre;
+                   sel.appendChild(opt);
+               }
+           }
+           if (currentVal && items[currentVal]) sel.value = currentVal;
+       });
     });
 
     // --- LÓGICA DE BÚSQUEDA Y FILTRADO (DM) ---

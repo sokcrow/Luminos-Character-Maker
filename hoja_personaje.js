@@ -1202,7 +1202,7 @@
     // clicked:tab_profile
     // clicked:tab_apego
     // clicked:tab_equipment
-    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas"];
+    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas", "crafteo"];
     tabsList.forEach(tab => {
         on(`clicked:tab_${tab}`, function() {
             setAttrs({
@@ -2326,7 +2326,7 @@
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas', 'shop'];
+const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas', 'shop', 'crafteo'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
@@ -2449,13 +2449,18 @@ window.addEventListener('DOMContentLoaded', () => {
             // Ensure array format for tags
             let itemTags = item.tags && Array.isArray(item.tags) ? item.tags : (item.tipo ? [item.tipo] : []);
 
+            const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+            const tIdx = parseInt(item.tier) || 1;
+            const romanTier = romanTiers[tIdx] || "I";
+
             // Guardar info para los filtros
             slot.dataset.name = (item.nombre || '').toLowerCase();
-            slot.dataset.tier = (item.tier || 'I').toLowerCase();
+            slot.dataset.tier = romanTier.toLowerCase();
             slot.dataset.tags = itemTags.join(',').toLowerCase();
 
             const imgSrc = item.icono || "https://via.placeholder.com/40";
             slot.innerHTML = `
+                <div class="item-tier-indicator">${romanTier}</div>
                 <img src="${imgSrc}" alt="${item.nombre || 'Desconocido'}" />
                 <div class="item-quantity">x${item.cantidad || 1}</div>
             `;
@@ -2474,7 +2479,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (iconEl) iconEl.src = imgSrc;
 
                 const tierEl = document.getElementById('detail-tier-val');
-                if (tierEl) tierEl.innerText = item.tier || 'I';
+                if (tierEl) tierEl.innerText = romanTier;
 
                 const costEl = document.getElementById('detail-cost-val');
                 if (costEl) costEl.innerText = item.valorBase || item.costo || 0;
@@ -2486,12 +2491,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     titleBadge.classList.remove('tier-i-ii', 'tier-iii-iv', 'tier-v-vi', 'tier-vii-viii', 'tier-ix-x');
 
                     // Aplicar nueva clase según el tier
-                    const t = item.tier || 'I';
-                    if (t === 'I' || t === 'II') titleBadge.classList.add('tier-i-ii');
-                    else if (t === 'III' || t === 'IV') titleBadge.classList.add('tier-iii-iv');
-                    else if (t === 'V' || t === 'VI') titleBadge.classList.add('tier-v-vi');
-                    else if (t === 'VII' || t === 'VIII') titleBadge.classList.add('tier-vii-viii');
-                    else if (t === 'IX' || t === 'X') titleBadge.classList.add('tier-ix-x');
+                    if (tIdx === 1 || tIdx === 2) titleBadge.classList.add('tier-i-ii');
+                    else if (tIdx === 3 || tIdx === 4) titleBadge.classList.add('tier-iii-iv');
+                    else if (tIdx === 5 || tIdx === 6) titleBadge.classList.add('tier-v-vi');
+                    else if (tIdx === 7 || tIdx === 8) titleBadge.classList.add('tier-vii-viii');
+                    else if (tIdx === 9 || tIdx === 10) titleBadge.classList.add('tier-ix-x');
                     else titleBadge.classList.add('tier-i-ii');
                 }
 
@@ -2746,7 +2750,7 @@ window.addEventListener('DOMContentLoaded', () => {
             let targetCurrentCant = 0;
 
             for (const [k, targetItem] of Object.entries(targetData)) {
-                if (targetItem.nombre === itemData.nombre) {
+                if (targetItem.nombre === itemData.nombre && (targetItem.tier || 1) == (itemData.tier || 1)) {
                     foundKey = k;
                     targetCurrentCant = targetItem.cantidad || 1;
                     break;
@@ -2803,6 +2807,385 @@ window.addEventListener('DOMContentLoaded', () => {
     // --- Dynamic Shop System Logic ---
     // Shop logic is now handled in the main Shop app tab
 });
+
+// LÓGICA DE MESA DE TRABAJO (CRAFTEO)
+let recetasCache = {};
+let currentSelectedRecetaId = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (!window.db) return;
+
+    db.ref('campaña/recetas').on('value', (snapshot) => {
+        recetasCache = snapshot.val() || {};
+        renderRecetasCrafteo();
+    });
+
+    // We also need to re-render if the player name changes, but usually it's set on load
+    setTimeout(() => renderRecetasCrafteo(), 2000);
+});
+
+function renderRecetasCrafteo() {
+    const listaRecetas = document.getElementById('lista-recetas-crafteo');
+    const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+
+    if (!listaRecetas || !playerName) return;
+
+    listaRecetas.innerHTML = '';
+
+    if (Object.keys(recetasCache).length === 0) {
+        listaRecetas.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">No hay recetas disponibles.</div>';
+        return;
+    }
+
+    for (const [idReceta, receta] of Object.entries(recetasCache)) {
+        // Filtrar acceso
+        if (receta.acceso === 'Restringido' && (!receta.jugadores || !receta.jugadores[playerName])) {
+            continue;
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-cyber';
+        btn.style.cssText = 'background:#111; color:#0df; border:1px solid #444; border-left:3px solid #0df; padding:10px; text-align:left; border-radius:4px; font-weight:bold; cursor:pointer; width:100%; transition:all 0.2s;';
+        btn.innerText = receta.nombre;
+
+        btn.onclick = () => {
+            // Deseleccionar otros
+            Array.from(listaRecetas.children).forEach(c => c.style.background = '#111');
+            btn.style.background = '#222';
+
+            seleccionarReceta(idReceta, receta);
+        };
+
+        listaRecetas.appendChild(btn);
+    }
+}
+
+let dbItemsCacheGlobal = {}; // Fetch global items for name/icon lookups
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (!window.db) return;
+        db.ref('campaña/base_datos_items').on('value', snap => {
+            dbItemsCacheGlobal = snap.val() || {};
+        });
+    }, 1500);
+});
+
+function seleccionarReceta(idReceta, receta) {
+    const detalleContainer = document.getElementById('detalle-receta-crafteo');
+    const titulo = document.getElementById('crafteo-titulo-receta');
+    const nodosContainer = document.getElementById('crafteo-nodos-ingredientes');
+    const reqSkill = document.getElementById('crafteo-req-skill');
+    const reqDc = document.getElementById('crafteo-req-dc');
+    const btnSintetizar = document.getElementById('btn-sintetizar');
+    const inputMultiplicador = document.getElementById('crafteo-multiplicador');
+
+    const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+    if (!detalleContainer || !playerName) return;
+
+    currentSelectedRecetaId = idReceta;
+    detalleContainer.style.display = 'block';
+
+    // Result Text
+    const globalResData = dbItemsCacheGlobal[receta.item_resultado];
+    const resName = globalResData ? globalResData.nombre : 'Ítem Desconocido';
+    titulo.innerHTML = `Fabricar: <span style="color:#fff;">${resName} (Tier ${receta.tier_resultado}) x${receta.cantidad_resultado}</span>`;
+
+    reqSkill.innerText = receta.habilidad.toUpperCase();
+    reqDc.innerText = receta.dc;
+    inputMultiplicador.value = 1;
+    inputMultiplicador.max = 99;
+
+    nodosContainer.innerHTML = '<span style="color:#888;">Cargando inventario...</span>';
+    btnSintetizar.disabled = true;
+    btnSintetizar.style.opacity = '0.5';
+
+    // Leer stash del jugador
+    db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once('value').then(snap => {
+        const stash = snap.val() || {};
+        nodosContainer.innerHTML = '';
+
+        let cumpleTodos = true;
+        let maxMultiplicador = 99; // Límite basado en los mats
+
+        // Sumar cantidades en stash (agrupando por ID/key)
+        const stashCants = {};
+        for (const [k, item] of Object.entries(stash)) {
+            // For matching, we rely on the saved 'id' property or fallback to checking the name against dbItemsCacheGlobal
+            const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(k => dbItemsCacheGlobal[k].nombre === item.nombre);
+            if (itemKey) {
+                stashCants[itemKey] = (stashCants[itemKey] || 0) + (parseInt(item.cantidad) || 1);
+            }
+        }
+
+        // 5-Hexagon Layout Positions Mapping
+        const hexPositions = [
+            'hex-pos-center',
+            'hex-pos-top-left',
+            'hex-pos-top-right',
+            'hex-pos-bottom-left',
+            'hex-pos-bottom-right'
+        ];
+
+        receta.ingredientes.forEach((ing, index) => {
+            if (index >= 5) return; // Support up to 5 max visually
+
+            const globalData = dbItemsCacheGlobal[ing.id_item];
+            const name = globalData ? globalData.nombre : 'Desconocido';
+            const imgUrl = globalData ? globalData.icono : 'https://via.placeholder.com/30';
+
+            const tiene = stashCants[ing.id_item] || 0;
+            const requiere = ing.cantidad;
+            const suficiente = tiene >= requiere;
+
+            if (!suficiente) cumpleTodos = false;
+
+            if (requiere > 0) {
+                const posiblesMult = Math.floor(tiene / requiere);
+                if (posiblesMult < maxMultiplicador) maxMultiplicador = posiblesMult;
+            }
+
+            const hexClass = suficiente ? 'hex-wrapper' : 'hex-wrapper missing';
+            const textClass = suficiente ? 'hex-count' : 'hex-count missing-text';
+            const posClass = hexPositions[index] || hexPositions[0];
+
+            // Render Ingredient Hexagon
+            const nodo = document.createElement('div');
+            nodo.className = `hex-node ${posClass}`;
+            nodo.title = `${name}
+Req: ${requiere} | Tienes: ${tiene}`;
+
+            nodo.innerHTML = `
+                <div class="${hexClass}">
+                    <img src="${imgUrl}" alt="${name}">
+                </div>
+                <div class="${textClass}">${tiene}/${requiere}</div>
+            `;
+            nodosContainer.appendChild(nodo);
+        });
+
+        // Fill empty slots up to 5 for visual consistency
+        for (let i = receta.ingredientes.length; i < 5; i++) {
+            const emptyNodo = document.createElement('div');
+            emptyNodo.className = `hex-node ${hexPositions[i]}`;
+            emptyNodo.innerHTML = `<div class="hex-wrapper empty"></div>`;
+            nodosContainer.appendChild(emptyNodo);
+        }
+
+        // --- Render Result Node (Discovery Logic) ---
+        db.ref(`campaña/jugadores/${playerName}/recetas_descubiertas/${idReceta}`).once('value').then(discSnap => {
+            const isDiscovered = !!discSnap.val();
+
+            const globalResData = dbItemsCacheGlobal[receta.item_resultado];
+            const resImgUrl = globalResData ? globalResData.icono : 'https://via.placeholder.com/60';
+            const resName = globalResData ? globalResData.nombre : 'Ítem';
+            const romanTiers = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+            const tierIndex = parseInt(receta.tier_resultado) || 1;
+            const tierStr = romanTiers[Math.min(tierIndex, 10)];
+
+            const resultArea = document.getElementById('crafteo-resultado-area');
+            const imgClass = isDiscovered ? '' : 'blacked-out';
+            const finalName = isDiscovered ? resName : '???';
+
+            resultArea.innerHTML = `
+                <div class="result-node" title="${finalName}
+Cantidad: x${receta.cantidad_resultado}">
+                    <div class="result-tier">${tierStr}</div>
+                    <img src="${resImgUrl}" class="${imgClass}">
+                    <div class="result-count">x${receta.cantidad_resultado}</div>
+                </div>
+            `;
+        });
+
+        if (cumpleTodos && maxMultiplicador > 0) {
+            btnSintetizar.disabled = false;
+            btnSintetizar.style.opacity = '1';
+            inputMultiplicador.max = maxMultiplicador;
+
+            // Synthesis Action Handler
+            btnSintetizar.onclick = () => {
+                const multi = parseInt(inputMultiplicador.value) || 1;
+                if (multi < 1 || multi > maxMultiplicador) {
+                    alert('Multiplicador inválido.');
+                    return;
+                }
+
+                btnSintetizar.disabled = true; // prevent double click
+                btnSintetizar.innerText = 'SINTETIZANDO...';
+
+                // Fetch Skill modifier
+                window.getAttrs([`skill_${receta.habilidad}`], (v) => {
+                    const skillMod = parseInt(v[`skill_${receta.habilidad}`] || 0);
+                    const roll = Math.floor(Math.random() * 20) + 1;
+                    const total = roll + skillMod;
+                    const dc = parseInt(receta.dc);
+
+                    if (total >= dc) {
+                        // ÉXITO
+                        ejecutarSintesis(playerName, receta, multi, stash, true, total);
+                    } else {
+                        // FALLO
+                        ejecutarSintesis(playerName, receta, multi, stash, false, total);
+                    }
+                });
+            };
+
+        } else {
+            btnSintetizar.disabled = true;
+            btnSintetizar.style.opacity = '0.5';
+            inputMultiplicador.max = 1;
+            if (maxMultiplicador <= 0) inputMultiplicador.value = 1; // reset visualmente
+            btnSintetizar.onclick = null;
+        }
+    });
+}
+
+function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollTotal) {
+    const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+    const updates = {};
+    const removes = [];
+
+    if (exito) {
+        // Reducir ingredientes exactamente
+        receta.ingredientes.forEach(ing => {
+            let reqTotal = ing.cantidad * multi;
+            for (const [k, item] of Object.entries(currentStash)) {
+                if (reqTotal <= 0) break;
+                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+
+                if (itemKey === ing.id_item) {
+                    let has = parseInt(item.cantidad) || 1;
+                    if (has <= reqTotal) {
+                        removes.push(k);
+                        reqTotal -= has;
+                        delete currentStash[k]; // update local copy for loop
+                    } else {
+                        updates[`${k}/cantidad`] = has - reqTotal;
+                        reqTotal = 0;
+                    }
+                }
+            }
+        });
+
+        // Marcar receta como descubierta
+        db.ref(`campaña/jugadores/${playerName}/recetas_descubiertas/${receta.id_receta || currentSelectedRecetaId}`).set(true);
+
+        // Crear/Añadir item resultante
+        const resId = receta.item_resultado;
+        const resData = dbItemsCacheGlobal[resId];
+        const cantFinal = (parseInt(receta.cantidad_resultado) || 1) * multi;
+        const tierResult = parseInt(receta.tier_resultado) || 1;
+
+        if (resData) {
+            let foundResKey = null;
+            let currentResCant = 0;
+
+            for (const [k, item] of Object.entries(currentStash)) {
+                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                if (itemKey === resId && (parseInt(item.tier) || 1) === tierResult && !removes.includes(k)) {
+                    foundResKey = k;
+                    currentResCant = parseInt(item.cantidad) || 1;
+                    break;
+                }
+            }
+
+            if (foundResKey) {
+                // If it was already updated in the reduction phase, adjust from the update object
+                const existingUpdate = updates[`${foundResKey}/cantidad`];
+                if (existingUpdate !== undefined) {
+                    updates[`${foundResKey}/cantidad`] = existingUpdate + cantFinal;
+                } else {
+                    updates[`${foundResKey}/cantidad`] = currentResCant + cantFinal;
+                }
+            } else {
+                const newItem = {
+                    id: resId,
+                    nombre: resData.nombre,
+                    valorBase: resData.costo,
+                    tier: tierResult,
+                    tipo: resData.tipo || "Consumible",
+                    icono: resData.icono || "",
+                    descripcion: resData.descripcion || "",
+                    cantidad: cantFinal
+                };
+                if (resData.tags) newItem.tags = resData.tags;
+
+                // Generar nueva key push manualmente
+                const newKey = stashRef.push().key;
+                updates[newKey] = newItem;
+            }
+        }
+
+    } else {
+        // FALLO: Eliminar 1-3 mats aleatorios por cada intento fallido
+        let matsParaPerder = [];
+        for (let i = 0; i < multi; i++) {
+            const numPerder = Math.floor(Math.random() * 3) + 1; // 1 to 3
+            // Aplanar ingredientes para elegir aleatoriamente
+            const pool = [];
+            receta.ingredientes.forEach(ing => {
+                for(let c=0; c<ing.cantidad; c++) pool.push(ing.id_item);
+            });
+
+            // shuffle and pick
+            pool.sort(() => 0.5 - Math.random());
+            matsParaPerder.push(...pool.slice(0, numPerder));
+        }
+
+        // Apply reductions based on matsParaPerder
+        const lostCounts = {};
+        matsParaPerder.forEach(id => {
+            lostCounts[id] = (lostCounts[id] || 0) + 1;
+        });
+
+        for (const [idLost, amountLost] of Object.entries(lostCounts)) {
+            let reqTotal = amountLost;
+            for (const [k, item] of Object.entries(currentStash)) {
+                if (reqTotal <= 0) break;
+                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+
+                if (itemKey === idLost) {
+                    let has = updates[`${k}/cantidad`] !== undefined ? updates[`${k}/cantidad`] : (parseInt(item.cantidad) || 1);
+                    if (has <= reqTotal) {
+                        if(updates[`${k}/cantidad`] !== undefined) delete updates[`${k}/cantidad`];
+                        removes.push(k);
+                        reqTotal -= has;
+                        delete currentStash[k];
+                    } else {
+                        updates[`${k}/cantidad`] = has - reqTotal;
+                        reqTotal = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    // Ejecutar en Firebase
+    const promises = [];
+    if (Object.keys(updates).length > 0) {
+        promises.push(stashRef.update(updates));
+    }
+    removes.forEach(k => {
+        promises.push(stashRef.child(k).remove());
+    });
+
+    Promise.all(promises).then(() => {
+        const btnSintetizar = document.getElementById('btn-sintetizar');
+        btnSintetizar.innerText = 'SINTETIZAR';
+        btnSintetizar.disabled = false;
+
+        if (exito) {
+            alert(`¡Síntesis Exitosa! (Roll: ${rollTotal} vs DC ${receta.dc})\nItems añadidos al alijo.`);
+        } else {
+            alert(`Síntesis Fallida. (Roll: ${rollTotal} vs DC ${receta.dc})\nMateriales inestables destruidos.`);
+        }
+
+        // Recalcular vista
+        seleccionarReceta(currentSelectedRecetaId, receta);
+    }).catch(err => {
+        alert('Error en la síntesis: ' + err);
+        document.getElementById('btn-sintetizar').innerText = 'SINTETIZAR';
+    });
+}
 
 // Listener for active and stash inventory
 let playerInventoryListenerActive = false;
@@ -2943,7 +3326,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     let foundKey = null;
                     let currentCant = 0;
                     stashSnap.forEach(child => {
-                        if (child.val().id === itemId) {
+                        if (child.val().id === itemId && (child.val().tier || 1) == (itemTienda.tier || 1)) {
                             foundKey = child.key;
                             currentCant = child.val().cantidad || 1;
                         }
@@ -2957,7 +3340,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             id: itemId,
                             nombre: itemTienda.nombre,
                             valorBase: itemTienda.costo, // Costo base
-                            tier: itemTienda.tier || "I",
+                            tier: parseInt(itemTienda.tier) || 1,
                             tipo: itemTienda.tipo || "Consumible",
                             icono: itemTienda.icono || "",
                             descripcion: itemTienda.descripcion || "",
@@ -3091,7 +3474,9 @@ function renderizarVender() {
                 }
             }
 
-            const precioVenta = Math.floor((item.valorBase || 0) * (pct / 100));
+            const itemTier = parseInt(item.tier) || 1;
+            const valorConTier = Math.floor((item.valorBase || 0) * (1 + ((itemTier - 1) * 0.25)));
+            const precioVenta = Math.floor(valorConTier * (pct / 100));
 
             const row = document.createElement('div');
             row.style.cssText = 'background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;';
