@@ -3718,6 +3718,15 @@
         const namePlate = document.getElementById('theatre-plate-name');
         const textBox = document.getElementById('theatre-dialogue-text');
 
+        const platesContainer = document.querySelector('.theatre-plates-container');
+        if (platesContainer) {
+            if (!state.nombre || state.nombre.trim() === "") {
+                platesContainer.style.display = 'none';
+            } else {
+                platesContainer.style.display = 'flex';
+            }
+        }
+
         if(titlePlate.querySelector('span')) titlePlate.querySelector('span').innerText = state.titulo || ''; else if(titlePlate.querySelector('span')) {
             titlePlate.querySelector('span').innerText = state.titulo || '';
         } else {
@@ -3758,7 +3767,18 @@
         const activeName = state.nombre || 'Desconocido';
         const actorEscala = state.escala !== undefined ? state.escala : 1.0;
 
-        if (!activeSpriteUrl) return;
+        if (!activeSpriteUrl || activeSpriteUrl.trim() === "") {
+            // Narrator mode: dim all existing sprites and return
+            Array.from(stage.children).forEach(wrapper => {
+                let img = wrapper.querySelector('img');
+                if (img) {
+                    img.className = 'sprite-dimmed';
+                    img.style.filter = 'brightness(0.4) grayscale(0.5)';
+                    img.style.transform = 'translateX(-50%) scale(0.95)';
+                }
+            });
+            return;
+        }
 
         // Ensure we track by name to update expressions instead of duplicating
         let existingWrapper = Array.from(stage.children).find(wrapper => wrapper.dataset.name === activeName);
@@ -3821,22 +3841,40 @@
         const selectedNpcId = activeSpeakerId;
 
         // Priority 1: DM Input (Overrides Queue)
-        if (dmInput && selectedNpcId) {
-            const actorData = dbActoresCache[selectedNpcId];
-            if (actorData) {
-                const exprSelect = document.getElementById('dm-expression-select');
-                const selectedSprite = exprSelect && exprSelect.style.display !== 'none' ? exprSelect.value : actorData.sprite;
+        if (dmInput) {
+            let state;
+            if (selectedNpcId) {
+                const actorData = dbActoresCache[selectedNpcId];
+                if (actorData) {
+                    const exprSelect = document.getElementById('dm-expression-select');
+                    const selectedSprite = exprSelect && exprSelect.style.display !== 'none' ? exprSelect.value : actorData.sprite;
 
-                const state = {
-                    nombre: actorData.nombre,
-                    titulo: actorData.titulo,
-                    color_nombre: actorData.color_nombre,
-                    color_titulo: actorData.color_titulo,
-                    escala: actorData.escala !== undefined ? actorData.escala : 1.0,
-                    sprite: selectedSprite,
+                    state = {
+                        nombre: actorData.nombre,
+                        titulo: actorData.titulo,
+                        color_nombre: actorData.color_nombre,
+                        color_titulo: actorData.color_titulo,
+                        escala: actorData.escala !== undefined ? actorData.escala : 1.0,
+                        sprite: selectedSprite,
+                        mensaje: dmInput,
+                        timestamp: Date.now()
+                    };
+                }
+            } else {
+                // Narrator Mode (No NPC selected)
+                state = {
+                    nombre: "",
+                    titulo: "",
+                    color_nombre: "transparent",
+                    color_titulo: "transparent",
+                    escala: 1.0,
+                    sprite: "",
                     mensaje: dmInput,
                     timestamp: Date.now()
                 };
+            }
+
+            if (state) {
                 db.ref('campaña/teatro/estado_actual').set(state);
                 document.getElementById('dm-theatre-input').value = ''; // clear input
                 return;
