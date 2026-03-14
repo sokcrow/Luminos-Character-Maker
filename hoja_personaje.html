@@ -4425,16 +4425,11 @@
       });
   });
 
-  function getCurrentPlayerName() {
-      const el = document.querySelector('input[name="attr_character_name"]');
-      return el ? el.value.trim() : null;
-  }
-
   // Watch for current player's actor assignment
   setInterval(() => {
-      const currentPlayerName = getCurrentPlayerName();
-      if (currentPlayerName) {
-          db.ref(`campaña/jugadores/${currentPlayerName}/actor_id`).once('value').then(snap => {
+      const playerId = localStorage.getItem('playerId');
+      if (playerId) {
+          db.ref(`campaña/jugadores/${playerId}/actor_id`).once('value').then(snap => {
               const actorId = snap.val();
               if (actorId) {
                   db.ref(`campaña/actores/${actorId}`).once('value').then(actorSnap => {
@@ -4492,9 +4487,10 @@
 
       // Fallback if no actor assigned
       if (!actorData) {
-          const currentPlayerName = getCurrentPlayerName();
+          const charNameInput = document.querySelector('input[name="attr_character_name"]');
+          const fallbackName = charNameInput && charNameInput.value.trim() ? charNameInput.value.trim() : (localStorage.getItem('playerId') || "Jugador");
           actorData = {
-              nombre: currentPlayerName || "Jugador",
+              nombre: fallbackName,
               titulo: "Sin Asignar",
               color_nombre: "#ffffff",
               color_titulo: "#aaaaaa",
