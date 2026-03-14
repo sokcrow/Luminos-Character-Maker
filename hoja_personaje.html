@@ -3942,7 +3942,7 @@
   </div>
 
   <!-- Stage Area -->
-  <div class="theatre-stage" id="player-theatre-stage" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 200px; gap: 10px; position: relative;">
+  <div class="theatre-stage" id="player-theatre-stage" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 200px; gap: 0; position: relative;">
     <!-- Sprites will be injected here -->
   </div>
 
@@ -4353,47 +4353,54 @@
 
       if (!activeSpriteUrl) return;
 
-      let existingSprite = Array.from(stage.children).find(img => img.dataset.name === activeName);
+      let existingWrapper = Array.from(stage.children).find(wrapper => wrapper.dataset.name === activeName);
 
-      if (existingSprite) {
-          existingSprite.src = activeSpriteUrl;
-          existingSprite.dataset.url = activeSpriteUrl;
-          existingSprite.dataset.lastActive = Date.now();
-          existingSprite.style.height = `calc(100vh * ${actorEscala})`;
+      if (existingWrapper) {
+          let img = existingWrapper.querySelector('img');
+          img.src = activeSpriteUrl;
+          existingWrapper.dataset.url = activeSpriteUrl;
+          existingWrapper.dataset.lastActive = Date.now();
+          img.style.height = `calc(100vh * ${actorEscala})`;
       } else {
           playerSpritesEnEscena.add(activeName);
+          const wrapper = document.createElement('div');
+          wrapper.className = 'sprite-wrapper';
+          wrapper.dataset.url = activeSpriteUrl;
+          wrapper.dataset.name = activeName;
+          wrapper.dataset.lastActive = Date.now();
+
           const img = document.createElement('img');
           img.src = activeSpriteUrl;
-          img.dataset.url = activeSpriteUrl;
-          img.dataset.name = activeName;
-          img.dataset.lastActive = Date.now();
           img.style.cssText = `height: calc(100vh * ${actorEscala}); object-fit: contain; transition: all 0.4s ease;`;
-          stage.appendChild(img);
+
+          wrapper.appendChild(img);
+          stage.appendChild(wrapper);
 
           while (stage.children.length > currentMaxSprites) {
-              let oldestSprite = Array.from(stage.children).reduce((oldest, current) => {
+              let oldestWrapper = Array.from(stage.children).reduce((oldest, current) => {
                   let oldestTime = parseInt(oldest.dataset.lastActive || 0);
                   let currentTime = parseInt(current.dataset.lastActive || 0);
                   return oldestTime < currentTime ? oldest : current;
               });
-              if (oldestSprite) {
-                  playerSpritesEnEscena.delete(oldestSprite.dataset.name);
-                  stage.removeChild(oldestSprite);
+              if (oldestWrapper) {
+                  playerSpritesEnEscena.delete(oldestWrapper.dataset.name);
+                  stage.removeChild(oldestWrapper);
               } else {
                   break;
               }
           }
       }
 
-      Array.from(stage.children).forEach(img => {
-          if (img.dataset.name === activeName && img.dataset.url === activeSpriteUrl) {
+      Array.from(stage.children).forEach(wrapper => {
+          let img = wrapper.querySelector('img');
+          if (wrapper.dataset.name === activeName && wrapper.dataset.url === activeSpriteUrl) {
               img.className = 'sprite-active';
               img.style.filter = 'none'; // Ensure no dimming
-              img.style.transform = 'scale(1)';
+              img.style.transform = 'translateX(-50%) scale(1)';
           } else {
               img.className = 'sprite-dimmed';
               img.style.filter = 'brightness(0.4) grayscale(0.5)';
-              img.style.transform = 'scale(0.95)';
+              img.style.transform = 'translateX(-50%) scale(0.95)';
           }
       });
   });

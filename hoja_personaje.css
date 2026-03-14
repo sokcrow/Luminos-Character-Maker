@@ -6360,7 +6360,22 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     aspect-ratio: 16 / 9;
     height: 100vh;
     object-fit: contain;
-    width: auto;
+}
+.sprite-wrapper {
+    position: relative;
+    width: 250px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+}
+.sprite-wrapper img {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform-origin: bottom center;
+    transform: translateX(-50%);
+    max-width: none;
+    transition: all 0.4s ease;
 }
 
 /* ==========================================================================
