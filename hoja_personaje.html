@@ -4194,6 +4194,7 @@
   // --- SINCRONIZACIÓN FANTASMA (Fase 4.2) ---
   let currentPlayerName = null;
   let isUpdatingFromFirebase = false;
+  let hasInitialLoadCompleted = false;
 
   setInterval(() => {
     const nameInput = document.querySelector('input[name="attr_character_name"]');
@@ -4220,7 +4221,7 @@
           raza: raceInput ? raceInput.value.trim() : ""
       };
 
-      if (currentName !== "") {
+      if (currentName !== "" && currentName !== "Nombre") {
         if (currentName !== currentPlayerName) {
           if (currentPlayerName) {
             db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).off();
@@ -4229,6 +4230,7 @@
           }
 
           currentPlayerName = currentName;
+          hasInitialLoadCompleted = false;
 
           db.ref(`campaña/jugadores/${currentPlayerName}/ahn`).on('value', (snapshot) => {
             const remoteAhn = snapshot.val();
@@ -4268,11 +4270,13 @@
                          class: remotePerfil.clase,
                          race: remotePerfil.raza
                      }, () => {
-                         setTimeout(() => { isUpdatingFromFirebase = false; }, 1000);
+                         setTimeout(() => { isUpdatingFromFirebase = false; hasInitialLoadCompleted = true; }, 1000);
                      });
                  } else {
-                     setTimeout(() => { isUpdatingFromFirebase = false; }, 1000);
+                     setTimeout(() => { isUpdatingFromFirebase = false; hasInitialLoadCompleted = true; }, 1000);
                  }
+             } else {
+                 hasInitialLoadCompleted = true;
              }
           });
 
@@ -4316,7 +4320,7 @@
           });
         }
 
-        if (currentPlayerName && !isUpdatingFromFirebase) {
+        if (currentPlayerName && !isUpdatingFromFirebase && hasInitialLoadCompleted) {
           if (window._lastSentAhn !== currentAhn) {
              window._lastSentAhn = currentAhn;
              db.ref(`campaña/jugadores/${currentPlayerName}`).update({ ahn: currentAhn });
@@ -4342,6 +4346,14 @@
             nivel: document.querySelector('input[name="attr_level"]').value || 1,
             ahn: document.querySelector('.sheet-banco-amount-display') ? document.querySelector('.sheet-banco-amount-display').innerText : 0
         }));
+      } else {
+        const savedPlayerId = localStorage.getItem('playerId');
+        if (savedPlayerId) {
+            nameInput.value = savedPlayerId;
+            if (window.setAttrs) {
+                window.setAttrs({ character_name: savedPlayerId });
+            }
+        }
       }
     }
   }, 1000);
