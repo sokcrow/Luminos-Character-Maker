@@ -84,2096 +84,252 @@
         { id: "el_naufragado", name: "El Naufragado" }
     ];
 
-    const Roll20Shim = (function() {
-        const attributes = {};
-        const events = {};
-        const templates = {};
 
-        // Firebase Init for Character Sheet
-        const playerId = localStorage.getItem('playerId');
-        if (!playerId) {
-            window.location.href = 'index.html';
-        }
-        let currentPlayerData = {};
+// Firebase Init for Character Sheet
+const playerId = localStorage.getItem('playerId');
+if (!playerId) {
+    window.location.href = 'index.html'; // Proteccion de ruta
+}
 
-        if (window.db) {
-            db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    currentPlayerData = snapshot.val();
-                    renderCharacterSheet(currentPlayerData);
-                } else {
-                    console.error("No se encontraron datos en Firebase para este jugador.");
-                }
-            });
-        }
+let currentPlayerData = {};
 
-        let isFirebaseUpdate = false;
-
-        function parseNum(v) { return parseFloat(v) || 0; }
-
-        function trigger(eventName, eventInfo) {
-            const cbs = events[eventName.toLowerCase()] || [];
-            cbs.forEach(cb => cb(eventInfo));
-        }
-
-        function updateDOM(attr, val) {
-            document.querySelectorAll(`input[name="attr_${attr}"]`).forEach(el => {
-                if (el.type === 'checkbox' || el.type === 'radio') {
-                    el.checked = (String(el.value) === String(val) || String(val) === "1");
-                    if (el.type === 'checkbox' && String(val) === "1") el.checked = true;
-                    if (el.type === 'checkbox' && String(val) === "0") el.checked = false;
-                } else {
-                    el.value = val;
-                    el.setAttribute('value', val); // For CSS wizardry
-                }
-            });
-            document.querySelectorAll(`select[name="attr_${attr}"]`).forEach(el => {
-                el.value = val;
-            });
-            document.querySelectorAll(`textarea[name="attr_${attr}"]`).forEach(el => el.value = val);
-            document.querySelectorAll(`span[name="attr_${attr}"], div[name="attr_${attr}"]`).forEach(el => {
-                if(!el.classList.contains('sheet-skill-total') && !el.hasAttribute('name')) return;
-                // Specific fix for span values to preserve inline styles if any
-                el.textContent = val;
-            });
-            document.querySelectorAll(`img[name="attr_${attr}"]`).forEach(el => {
-                if(val) el.src = val;
-            });
-        }
-
-        function checkRowExists(attrName) {
-            const match = attrName.match(/^(repeating_[^_]+)_([^_]+)_(.+)$/);
-            if (match) {
-                const section = match[1];
-                const rowId = match[2];
-                let fieldset = document.querySelector(`fieldset.${section}`);
-                if(!fieldset) {
-                    fieldset = document.createElement('fieldset');
-                    fieldset.className = section;
-                    const dummyContainer = document.querySelector(`fieldset.repeating_dummy_placeholder`);
-                    if(dummyContainer) dummyContainer.parentElement.appendChild(fieldset);
-                }
-
-                let repcontainer = fieldset.querySelector('.repcontainer');
-                if(!repcontainer) {
-                    repcontainer = document.createElement('div');
-                    repcontainer.className = 'repcontainer';
-                    fieldset.appendChild(repcontainer);
-                }
-
-                if (!repcontainer.querySelector(`[data-rowid="${rowId}"]`)) {
-                    if(!templates[section]) return;
-                    const rowHTML = templates[section].replace(/attr_/g, `attr_${section}_${rowId}_`).replace(/act_/g, `act_${section}_${rowId}_`).replace(/roll_/g, `roll_${section}_${rowId}_`);
-                    const rowContainer = document.createElement('div');
-                    rowContainer.className = 'reprow';
-                    rowContainer.setAttribute('data-rowid', rowId);
-                    rowContainer.innerHTML = rowHTML;
-
-                    // Add delete button
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'btn btn-danger';
-                    delBtn.textContent = 'Del';
-                    delBtn.style.marginTop = '10px';
-                    delBtn.style.background = '#500';
-                    delBtn.style.color = 'white';
-                    delBtn.style.border = '1px solid red';
-                    delBtn.onclick = () => {
-                        rowContainer.remove();
-                        // Clean up attributes
-                        for(let k in attributes) {
-                            if(k.startsWith(`${section}_${rowId}_`)) delete attributes[k];
-                        }
-                        trigger(`remove:${section}`, { sourceAttribute: attrName });
-                    };
-                    rowContainer.appendChild(delBtn);
-
-                    repcontainer.appendChild(rowContainer);
-                }
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof db !== 'undefined') {
+        db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                currentPlayerData = snapshot.val();
+                renderCharacterSheet(currentPlayerData);
+            } else {
+                console.error("No se encontraron datos para:", playerId);
             }
+        });
+    } else {
+        console.error("Firebase db is not defined. Ensure it is loaded before hoja_personaje.js");
+    }
+});
+
+function renderCharacterSheet(data) {
+    // Datos Básicos
+    if (data.characterName) {
+        document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
+            if (el.tagName === 'INPUT') el.value = data.characterName;
+            else el.innerText = data.characterName;
+        });
+
+        // Custom nameplaces (like the avatar id-name)
+        const idNameEl = document.querySelector('.sheet-id-name');
+        if (idNameEl) idNameEl.innerText = data.characterName;
+    }
+
+    if (data.ahn !== undefined) {
+        document.querySelectorAll('.sheet-banco-amount-display, #display-ahn, input[name="attr_ahn"], span[name="attr_ahn"]').forEach(el => {
+            if (el.tagName === 'INPUT') el.value = data.ahn;
+            else el.innerText = data.ahn;
+        });
+    }
+
+    // Subtitulos y avatares
+    if (data.class) {
+        document.querySelectorAll('span[name="attr_class"]').forEach(el => el.innerText = data.class);
+    }
+    if (data.race) {
+        document.querySelectorAll('span[name="attr_race"]').forEach(el => el.innerText = data.race);
+    }
+    if (data.background) {
+        document.querySelectorAll('span[name="attr_background"]').forEach(el => el.innerText = data.background);
+    }
+    if (data.identity) {
+        document.querySelectorAll('span[name="attr_identity"]').forEach(el => el.innerText = data.identity);
+    }
+
+    // Nivel y XP
+    if (data.level !== undefined) {
+        document.querySelectorAll('span[name="attr_level"]').forEach(el => el.innerText = data.level);
+        document.querySelectorAll('input[name="attr_level"]').forEach(el => el.value = data.level);
+    }
+    if (data.xp !== undefined) {
+        document.querySelectorAll('span[name="attr_xp"]').forEach(el => el.innerText = data.xp);
+        document.querySelectorAll('input[name="attr_xp"]').forEach(el => el.value = data.xp);
+    }
+    if (data.xpMissing !== undefined) {
+        document.querySelectorAll('span[name="attr_xp_missing"]').forEach(el => el.innerText = data.xpMissing);
+    }
+
+    // Render Progress Bar
+    const xpBarClass = document.querySelector('.sheet-state-xp-bar');
+    if (xpBarClass && data.xpPercent !== undefined) {
+        let roundedPercent = Math.floor(data.xpPercent / 5) * 5;
+        xpBarClass.value = `sheet-xp-${roundedPercent}`;
+
+        // Update DOM classes for CSS to trigger
+        const xpBarParent = document.querySelector('.sheet-xp-bar-container');
+        if (xpBarParent) {
+            xpBarParent.className = `sheet-xp-bar-container sheet-xp-${roundedPercent}`;
         }
+    }
 
-        window.getAttrs = function(attrsArray, callback) {
-            const result = {};
-            attrsArray.forEach(a => result[a] = (attributes[a.toLowerCase()] !== undefined ? attributes[a.toLowerCase()] : ''));
-            callback(result);
-        };
+    // Modificadores (Stats)
+    if (data.modifiers) {
+        for (const [stat, value] of Object.entries(data.modifiers)) {
+            // Asume que los inputs en HTML tienen name="attr_stat_en_minuscula"
+            // También manejamos los que empiezan con skill_
+            const selectors = [
+                `input[name="attr_${stat.toLowerCase()}"]`,
+                `span[name="attr_${stat.toLowerCase()}"]`,
+                `input[name="attr_skill_${stat.toLowerCase()}"]`,
+                `span[name="attr_skill_${stat.toLowerCase()}"]`
+            ];
 
-        window.setAttrs = function(updateObj, callback) {
-            const changed = [];
-            for (let key in updateObj) {
-                let k = key.toLowerCase();
-                let val = updateObj[key];
-                if (attributes[k] !== val) {
-                    checkRowExists(k);
-                    attributes[k] = val;
-                    changed.push({ key: k, prev: attributes[k], newVal: val });
-                    updateDOM(k, val);
-                }
-            }
-
-            // Save to Firebase
-            if (!isFirebaseUpdate && Object.keys(changed).length > 0) {
-                if (window.db) {
-                    const updateData = {};
-                    changed.forEach(c => { updateData[c.key] = c.newVal; });
-                    db.ref('campaña/jugadores/' + playerId).update(updateData);
-                }
-            }
-
-            changed.forEach(c => {
-                trigger(`change:${c.key}`, {
-                    sourceAttribute: c.key,
-                    previousValue: c.prev,
-                    newValue: c.newVal
+            selectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => {
+                    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                        el.value = value;
+                    } else {
+                        el.innerText = value;
+                    }
                 });
-                const match = c.key.match(/^(repeating_[^_]+)_[^_]+_(.+)$/);
-                if (match) {
-                    trigger(`change:${match[1]}:${match[2]}`, {
-                        sourceAttribute: c.key,
-                        previousValue: c.prev,
-                        newValue: c.newVal
+            });
+        }
+    }
+
+    // Sincronización de Perks
+    const perkContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perk-creator-container');
+    if (perkContainer) {
+        // Límpialo primero (pero mantén el encabezado si lo hay, aunque en Roll20 es un fieldset)
+        let repContainer = perkContainer.querySelector('.repcontainer');
+        if (!repContainer) {
+            repContainer = document.createElement('div');
+            repContainer.className = 'repcontainer';
+            perkContainer.appendChild(repContainer);
+        } else {
+            repContainer.innerHTML = '';
+        }
+
+        if (data.humanPerks && Array.isArray(data.humanPerks)) {
+            data.humanPerks.forEach(perk => {
+                const perkCard = document.createElement('div');
+                perkCard.className = 'perk-card sheet-perk-row';
+
+                // Formatear etiquetas si existen
+                let tagsHtml = '';
+                if (perk.tags && Array.isArray(perk.tags)) {
+                    tagsHtml = `<div style="text-align: right; margin-bottom: 5px; display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap;">`;
+                    perk.tags.forEach(tag => {
+                        tagsHtml += `<span class="sheet-skill-badge">${tag}</span>`;
                     });
+                    tagsHtml += `</div>`;
                 }
-            });
 
-            if (callback) callback();
-        };
-
-        window.on = function(eventStr, callback) {
-            const evts = eventStr.split(' ');
-            evts.forEach(e => {
-                const ev = e.toLowerCase();
-                if (!events[ev]) events[ev] = [];
-                events[ev].push(callback);
-            });
-        };
-
-        window.getSectionIDs = function(section, callback) {
-            const fieldset = document.querySelector(`fieldset.${section}`);
-            if (!fieldset) return callback([]);
-            const rows = Array.from(fieldset.querySelectorAll('.reprow')).map(el => el.getAttribute('data-rowid'));
-            callback(rows);
-        };
-
-        window.generateRowID = function() {
-            return '-M' + Math.random().toString(36).substr(2, 9);
-        };
-
-        window.startRoll = function(rollString, callback) {
-            const results = { rollId: generateRowID(), results: {} };
-
-            // Very basic parser for 1d100<[[@{sp}+50]]
-            let sp = parseInt(attributes['sp'] || 0);
-            let chance = 50 + sp;
-
-            for(let i=1; i<=5; i++) {
-                let roll = Math.floor(Math.random() * 100) + 1;
-                results.results['c'+i] = { result: roll <= chance ? 1 : 0 };
-            }
-
-            // Extract base and name if possible
-            let nameMatch = rollString.match(/{{name=([^}]+)}}/);
-            if(nameMatch) results.name = nameMatch[1];
-
-            let baseMatch = rollString.match(/{{base=([^}]+)}}/);
-            if(baseMatch) results.base = baseMatch[1];
-
-            callback(results);
-        };
-
-                window.finishRoll = function(rollId, computedObj, resultsData) {
-            showRollModal(computedObj.result, resultsData);
-        };
-
-
-        function showRollModal(resultText, resultsData) {
-            let modal = document.getElementById('roll-modal');
-
-            // Check if styles exist, if not create
-            if(!document.getElementById('roll-modal-style')) {
-                const style = document.createElement('style');
-                style.id = 'roll-modal-style';
-                style.innerHTML = `
-                    #roll-modal-close:hover {
-                        background: rgba(0, 255, 255, 0.1) !important;
-                        box-shadow: 0 0 10px var(--cyan-tech) !important;
-                    }
-                    .roll-modal-coin {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 50%;
-                        transition: transform 0.3s ease;
-                    }
-                    .roll-modal-coin.head {
-                        filter: drop-shadow(0 0 8px rgba(196, 154, 0, 0.8));
-                    }
-                    .roll-modal-coin.tail {
-                        filter: drop-shadow(0 0 3px rgba(139, 0, 0, 0.8)) grayscale(0.8);
-                        opacity: 0.6;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            if(!modal) {
-                modal = document.createElement('div');
-                modal.id = 'roll-modal';
-                modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: opacity 0.2s;';
-
-                modal.innerHTML = `
-                    <div id="roll-modal-content" style="background: linear-gradient(135deg, #111 0%, #222 100%); border: 2px solid var(--border-accent); border-radius: 8px; padding: 25px; min-width: 320px; max-width: 90%; box-shadow: 0 0 25px rgba(196, 154, 0, 0.3), inset 0 0 15px rgba(0,0,0,0.8); font-family: 'Share Tech Mono', monospace; text-align: center; position: relative; overflow: hidden;">
-                        <!-- Scanline effect overlay -->
-                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px); pointer-events: none; z-index: 1;"></div>
-
-                        <div style="position: relative; z-index: 2;">
-                            <h2 id="roll-modal-title" style="color:var(--border-accent); margin-top:0; border-bottom: 1px dashed #555; padding-bottom: 10px; font-size: 1.4em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(196,154,0,0.5);">Resultado</h2>
-
-                            <div style="display: flex; justify-content: space-between; margin: 15px 0; color: var(--cyan-tech); font-size: 1.1em;">
-                                <span id="roll-modal-base" style="background: rgba(0,255,255,0.1); padding: 2px 8px; border-radius: 3px;">Base: 0</span>
-                                <span id="roll-modal-sp" style="background: rgba(0,255,255,0.1); padding: 2px 8px; border-radius: 3px;">SP: 0</span>
+                perkCard.innerHTML = `
+                    <div class="sheet-perk-view">
+                        <div>
+                            ${tagsHtml}
+                            <div class="sheet-perk-header">
+                                <button type="button" class="sheet-view-name-btn" style="pointer-events: none;">
+                                    <span style="font-weight: bold; color: var(--border-accent);">${perk.nombre || 'Perk'}</span>
+                                </button>
                             </div>
-
-                            <div id="roll-modal-coins" style="display: flex; justify-content: center; gap: 15px; margin: 25px 0; min-height: 40px;">
-                                <!-- Coins will be injected here -->
-                            </div>
-
-                            <div style="font-size: 1.1em; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px;">Poder Final</div>
-                            <div id="roll-modal-result" style="font-size: 4em; font-weight: bold; color: var(--golden-entity); margin: 0 0 25px 0; text-shadow: 0 0 15px rgba(196, 154, 0, 0.8), 2px 2px 0px #000; line-height: 1;"></div>
-
-                            <button id="roll-modal-close" style="background: #1a1a1a; color: var(--cyan-tech); border: 1px solid var(--cyan-tech); padding: 12px 20px; font-family: 'Share Tech Mono'; font-size: 1.2em; cursor: pointer; border-radius: 4px; transition: all 0.2s; width: 100%; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; position: relative; overflow: hidden;">Confirmar</button>
+                            <span class="sheet-view-desc">${perk.desc || ''}</span>
                         </div>
                     </div>
                 `;
-
-                document.body.appendChild(modal);
-                document.getElementById('roll-modal-close').onclick = () => {
-                    modal.style.opacity = '0';
-                    setTimeout(() => modal.style.display = 'none', 200);
-                };
-            }
-
-            // Populate Data
-            if(resultsData) {
-                document.getElementById('roll-modal-title').textContent = resultsData.name || "Tirada";
-                document.getElementById('roll-modal-base').textContent = `Base: ${resultsData.base || 0}`;
-                document.getElementById('roll-modal-sp').textContent = `SP: ${attributes['sp'] || 0}`;
-
-                const coinsContainer = document.getElementById('roll-modal-coins');
-                coinsContainer.innerHTML = '';
-
-                // Add coins based on result
-                for(let i=1; i<=5; i++) {
-                    const coinResult = resultsData.results && resultsData.results['c'+i];
-                    if(coinResult) {
-                        const isHead = coinResult.result === 1;
-                        const imgSrc = isHead ? "https://i.imgur.com/yshLPnQ.png" : "https://i.imgur.com/XDx0ICt.png";
-                        const coinImg = document.createElement('img');
-                        coinImg.src = imgSrc;
-                        coinImg.className = `roll-modal-coin ${isHead ? 'head' : 'tail'}`;
-                        coinImg.title = isHead ? "Cara (+Poder)" : "Cruz (+0)";
-                        coinsContainer.appendChild(coinImg);
-                    }
-                }
-            } else {
-                 document.getElementById('roll-modal-title').textContent = "Resultado";
-                 document.getElementById('roll-modal-base').textContent = `Base: -`;
-                 document.getElementById('roll-modal-sp').textContent = `SP: -`;
-                 document.getElementById('roll-modal-coins').innerHTML = '';
-            }
-
-            document.getElementById('roll-modal-result').textContent = resultText;
-
-            // Show with tiny fade in
-            modal.style.display = 'flex';
-
-            // Force reflow
-            void modal.offsetWidth;
-
-            modal.style.opacity = '1';
+                repContainer.appendChild(perkCard);
+            });
         }
+    }
+}
 
-
-        document.addEventListener('change', (e) => {
-            if (e.target.name && e.target.name.startsWith('attr_')) {
-                const attr = e.target.name.replace('attr_', '').toLowerCase();
-                let val = e.target.type === 'checkbox' ? (e.target.checked ? e.target.value : '0') : e.target.value;
-                const prev = attributes[attr];
-                attributes[attr] = val;
-
-                // Save to Firebase immediately on direct UI changes
-                if (!isFirebaseUpdate && window.db) {
-                    db.ref('campaña/jugadores/' + playerId).update({ [attr]: val });
-                }
-
-                updateDOM(attr, val);
-
-                trigger(`change:${attr}`, {
-                    sourceAttribute: attr,
-                    previousValue: prev,
-                    newValue: val
-                });
-
-                const match = attr.match(/^(repeating_[^_]+)_[^_]+_(.+)$/);
-                if (match) {
-                    trigger(`change:${match[1]}:${match[2]}`, {
-                        sourceAttribute: attr,
-                        previousValue: prev,
-                        newValue: val
-                    });
-                }
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            let actionBtn = e.target.closest('button[type="action"]');
-            if (actionBtn && actionBtn.name && actionBtn.name.startsWith('act_')) {
-                let act = actionBtn.name.replace('act_', '').toLowerCase();
-
-                const rowDiv = actionBtn.closest('.reprow');
-                if (rowDiv) {
-                    const section = rowDiv.parentElement.parentElement.className.split(' ')[0];
-                    const rowId = rowDiv.getAttribute('data-rowid');
-                    act = act.replace(`${section}_${rowId}_`, '');
-                    trigger(`clicked:${section}:${act}`, {
-                        sourceAttribute: `${section}_${rowId}_${act}`
-                    });
-                } else {
-                    trigger(`clicked:${act}`, {
-                        sourceAttribute: act
-                    });
-                }
-            }
-
-            let rollBtn = e.target.closest('button[type="roll"]');
-            if (rollBtn && rollBtn.name && rollBtn.name.startsWith('roll_')) {
-                let roll = rollBtn.name.replace('roll_', '').toLowerCase();
-
-                // Hack for stats/skills clicking directly
-                if(roll.startsWith('skill_')) {
-                    trigger(`clicked:${roll}`, { sourceAttribute: roll });
-                } else if(['cuerpo', 'mente', 'alma'].includes(roll)) {
-                    trigger(`clicked:${roll}`, { sourceAttribute: roll });
-                } else if(roll === 'perk') {
-                    // Check if it's a perk roll inside a repeating section
-                    const rowDiv = rollBtn.closest('.reprow');
-                    if (rowDiv) {
-                        const rowId = rowDiv.getAttribute('data-rowid');
-                        const nameAttr = attributes[`repeating_skills_${rowId}_skill_name`] || "Perk";
-                        const descAttr = attributes[`repeating_skills_${rowId}_skill_description`] || "";
-                        showRollModal(descAttr, { name: nameAttr, base: 0 });
-                    }
-                } else if(roll === 'speed_check') {
-                    let min = parseInt(attributes['minspeed'] || 1);
-                    let max = parseInt(attributes['maxspeed'] || 6);
-                    let res = Math.floor(Math.random() * (max - min + 1)) + min;
-                    showRollModal(res, { name: "SPEED CHECK", base: min });
-                } else if(roll === 'clash' || roll === 'damage' || roll === 'defend' || roll === 'counter_damage') {
-                    const rowDiv = rollBtn.closest('.reprow');
-                    if (rowDiv) {
-                        const rowId = rowDiv.getAttribute('data-rowid');
-                        const prefix = `repeating_abilities_${rowId}`;
-                        const name = attributes[`${prefix}_skill_name`] || "Skill";
-                        const base = parseInt(attributes[`${prefix}_skill_base`] || 0);
-                        const coinPower = parseInt(attributes[`${prefix}_skill_coin_power`] || 0);
-                        const red = parseInt(attributes[`${prefix}_skill_coin_red`] || 0);
-                        const normal = parseInt(attributes[`${prefix}_skill_coin_normal`] || 0);
-
-                        let sp = parseInt(attributes['sp'] || 0);
-                        let chance = 50 + sp;
-                        let heads = 0;
-                        let resultsData = { name: name.toUpperCase() + " " + roll.toUpperCase(), base: base, results: {} };
-
-                        for(let i=1; i<= (red+normal); i++) {
-                            let r = Math.floor(Math.random() * 100) + 1;
-                            let isHead = r <= chance ? 1 : 0;
-                            resultsData.results['c'+i] = { result: isHead };
-                            heads += isHead;
-                        }
-
-                        let total = base + (heads * coinPower);
-                        showRollModal(total, resultsData);
-                    }
-                } else {
-                    // Fallback
-                    let val = rollBtn.value;
-                    if(val) {
-                        val = val.replace(/@{([^}]+)}/g, (m, p1) => attributes[p1.toLowerCase()] || 0);
-                        showRollModal("Roll Command: " + val);
-                    }
-                }
-            }
-        });
-
-
-        window.currentPlayerData = {};
-
-        function renderCharacterSheet(data) {
-            isFirebaseUpdate = true;
-
-            // Datos Básicos
-            if (data.characterName) {
-                document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
-                    if (el.tagName === 'INPUT') el.value = data.characterName;
-                    else el.innerText = data.characterName;
-                });
-            }
-            if (data.ahn !== undefined) {
-                document.querySelectorAll('.sheet-banco-amount-display, #display-ahn, input[name="attr_ahn"], span[name="attr_ahn"]').forEach(el => {
-                    if (el.tagName === 'INPUT') el.value = data.ahn;
-                    else el.innerText = data.ahn;
-                });
-            }
-
-            // Modificadores (Stats)
-            if (data.modifiers) {
-                Object.entries(data.modifiers).forEach(([key, val]) => {
-                    const selector = `[name="attr_skill_${key.toLowerCase()}"], [name="attr_${key.toLowerCase()}"]`;
-                    document.querySelectorAll(selector).forEach(el => {
-                        if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
-                            el.value = val;
-                        } else {
-                            el.innerText = val;
-                        }
-                    });
-                });
-            }
-
-            // Perks y Habilidades
-            if (data.humanPerks && Array.isArray(data.humanPerks)) {
-                const perkContainer = document.querySelector('.repeating_skills .repcontainer') || document.querySelector('.sheet-perk-creator-container');
-                if (perkContainer) {
-                    perkContainer.innerHTML = '';
-                    data.humanPerks.forEach(perk => {
-                        const perkCard = document.createElement('div');
-                        perkCard.className = 'perk-card sheet-perk-row';
-                        perkCard.innerHTML = `
-                            <div class="sheet-perk-view">
-                                <div class="sheet-perk-header">
-                                    <span style="font-weight: bold; color: var(--border-accent);">${perk.nombre || 'Perk'}</span>
-                                </div>
-                                <span class="sheet-view-desc">${perk.desc || ''}</span>
-                            </div>
-                        `;
-                        perkContainer.appendChild(perkCard);
-                    });
-                }
-            }
-
-            isFirebaseUpdate = false;
-        }
-
+// UI EVENT LISTENERS
 window.addEventListener('DOMContentLoaded', () => {
-            // Toggle Phone Logic
-            const toggleBtn = document.getElementById('btn-toggle-phone');
-            const phoneWrapper = document.querySelector('.sheet-phone-wrapper');
-            if (toggleBtn && phoneWrapper) {
-                toggleBtn.addEventListener('click', () => {
-                    phoneWrapper.classList.toggle('phone-hidden');
-                });
-            }
-
-            document.querySelectorAll('fieldset[class^="repeating_"]').forEach(fieldset => {
-                const section = fieldset.className.split(' ')[0];
-                templates[section] = fieldset.innerHTML;
-                fieldset.innerHTML = '<div class="repcontainer"></div>';
-            });
-
-            document.querySelectorAll('input[name^="attr_"], select[name^="attr_"], textarea[name^="attr_"]').forEach(el => {
-                const attr = el.name.replace('attr_', '').toLowerCase();
-                if (!(attr in attributes)) {
-                    attributes[attr] = el.type === 'checkbox' ? (el.checked ? el.value : '0') : el.value;
-                    // Do not update DOM here yet, just initialize attributes
-                }
-            });
-
-            // Sync DOM
-            for (let k in attributes) {
-                updateDOM(k, attributes[k]);
-            }
-        });
-    })();
-
-// --- Helpers (K-scaffold inspired) ---
-    const parseIntOr0 = (val) => parseInt(val || 0, 10);
-    const parseFloatOr0 = (val) => parseFloat(val || 0);
-
-    // --- Global Constants ---
-    const partIndices = [1,2,3,4,5,6,7,8];
-    const abnoStaggerIndices = [4,5,6,7,8,9,10,11,12];
-
-    // Helper: Resolve Lowercase Row ID from sourceAttribute
-    const resolveRowId = (section, lowerId, cb) => {
-        getSectionIDs(section, (ids) => {
-            const match = ids.find(id => id.toLowerCase() === lowerId);
-            cb(match || lowerId);
-        });
-    };
-
-    const stats = ['cuerpo', 'mente', 'alma'];
-
-    // Stats Calculation
-    stats.forEach(stat => {
-        on(`change:${stat}_base change:${stat}_mod sheet:opened`, () => {
-            getAttrs([`${stat}_base`, `${stat}_mod`], (values) => {
-                const base = parseIntOr0(values[`${stat}_base`]);
-                const mod = parseIntOr0(values[`${stat}_mod`]);
-                setAttrs({
-                    [stat]: base + mod
-                });
-            });
-        });
-    });
-
-    on('clicked:toggle_profile_edit', () => {
-        getAttrs(['show_profile_edit'], (v) => {
-            const current = parseIntOr0(v.show_profile_edit);
-            setAttrs({
-                show_profile_edit: current === 0 ? 1 : 0
-            });
-        });
-    });
-
-    on('clicked:toggle_perk_creator', () => {
-        getAttrs(['show_perk_creator'], (v) => {
-            const current = parseIntOr0(v.show_perk_creator);
-            const next = current === 1 ? "0" : "1";
-            setAttrs({
-                show_perk_creator: next
-            });
-        });
-    });
-
-    // Level Calculation
-    const updateLevels = () => {
-        getAttrs(['level', 'mod_race_off', 'mod_race_def', 'mod_identity_off', 'mod_identity_def',
-            'hp_base', 'hp_coefficient', 'equipment_offense_mod', 'equipment_defense_mod'
-        ], (values) => {
-            const level = parseIntOr0(values.level);
-            const raceOff = parseIntOr0(values.mod_race_off);
-            const raceDef = parseIntOr0(values.mod_race_def);
-            const idOff = parseIntOr0(values.mod_identity_off);
-            const idDef = parseIntOr0(values.mod_identity_def);
-            const equipOff = parseIntOr0(values.equipment_offense_mod);
-            const equipDef = parseIntOr0(values.equipment_defense_mod);
-
-            // New Logic: Total = Level + Race + Identity + Equip
-            const totalDef = level + raceDef + idDef + equipDef;
-
-            // New Logic: Total Offense
-            const totalOff = level + raceOff + idOff + equipOff;
-
-            // Calculate Max HP: Base + (X * Total Def)
-            const hpBase = parseIntOr0(values.hp_base);
-            const hpCoef = parseFloatOr0(values.hp_coefficient);
-            const maxHP = Math.floor(hpBase + (hpCoef * totalDef));
-
-            setAttrs({
-                total_off_level: totalOff,
-                total_def_level: totalDef,
-                hp_max: maxHP
-            });
-
-            // Update Abnormality Parts
-            updateAllPartsMaxHP(totalDef);
-        });
-    };
-
-    on('change:level change:mod_race_off change:mod_race_def change:mod_identity_off change:mod_identity_def change:hp_base change:hp_coefficient change:equipment_offense_mod change:equipment_defense_mod sheet:opened', () => {
-        updateLevels();
-    });
-
-    // Stagger Threshold & HP Bar Calculation (Main 1-3)
-    const staggerIndices = [1,2,3];
-    const staggerEvents = staggerIndices.map(i => `change:stagger_${i}_percent change:stagger_${i}_active`).join(" ");
-
-    on(`change:hp change:hp_max change:tremor_burst ${staggerEvents} sheet:opened`, () => {
-        const attrsToGet = ['hp', 'hp_max', 'tremor_burst'];
-        staggerIndices.forEach(i => {
-            attrsToGet.push(`stagger_${i}_percent`);
-            attrsToGet.push(`stagger_${i}_active`);
-        });
-
-        getAttrs(attrsToGet, (values) => {
-            const current = parseIntOr0(values.hp);
-            const max = parseIntOr0(values.hp_max);
-            const tremor = parseIntOr0(values.tremor_burst);
-
-            let percent = 0;
-            if(max > 0) percent = Math.floor((current / max) * 100);
-            if (percent < 0) percent = 0;
-            if (percent > 100) percent = 100;
-
-            const classPercent = Math.floor(percent / 5) * 5;
-
-            const update = {
-                hp_bar_class: `sheet-hp-${classPercent}`
-            };
-
-            const getPos = (val, max) => {
-                if(max <= 0) return 0;
-                let p = Math.floor((val / max) * 100);
-                if(p < 0) p = 0;
-                if(p > 100) p = 100;
-                return p;
-            };
-
-            let broken = false;
-
-            staggerIndices.forEach(i => {
-                const pVal = parseIntOr0(values[`stagger_${i}_percent`]);
-                const isActive = values[`stagger_${i}_active`] == "1";
-
-                // Base Threshold
-                const tBase = Math.floor(max * (pVal / 100));
-
-                // Effective Threshold (Add Tremor only if active)
-                let tEff = tBase;
-                if (isActive) tEff += tremor;
-
-                // Update Value & Position
-                update[`stagger_${i}_value`] = tEff;
-                update[`stagger_${i}_pos`] = getPos(tEff, max);
-
-                // Check Break
-                // Only break if active AND current HP drops below effective threshold
-                // Also ignore if percent is 0 (assuming 0% means unused/hidden logic via CSS, but safer to check)
-                if (isActive && pVal > 0 && current <= tEff) {
-                    update[`stagger_${i}_active`] = "0";
-                    broken = true;
-                }
-            });
-
-            if (broken) {
-                update['tremor_burst'] = 0;
-            }
-
-            setAttrs(update);
-        });
-    });
-
-    // --- Skill Visuals Logic ---
-    const SIN_URLS = {
-        "wrath": "https://i.imgur.com/Nn33MJR.png",
-        "envy": "https://i.imgur.com/SuNHY9D.png",
-        "gloom": "https://i.imgur.com/DCTX5Jy.png",
-        "gluttony": "https://i.imgur.com/0KArwDU.png",
-        "lust": "https://i.imgur.com/bF7bHHT.png",
-        "pride": "https://i.imgur.com/w6z9THA.png",
-        "sloth": "https://i.imgur.com/igYFF1I.png"
-    };
-
-    const DAMAGE_URLS = {
-        "slashing": "https://i.imgur.com/Akf25L5.png",
-        "piercing": "https://i.imgur.com/slcQlpc.png",
-        "bludgeoning": "https://i.imgur.com/cg8Wh4w.png",
-        "acid": "https://i.imgur.com/jaHFSfB.png",
-        "fire": "https://i.imgur.com/0br4gK4.png",
-        "cold": "https://i.imgur.com/kJY0rBP.png",
-        "electric": "https://i.imgur.com/KMQuv3T.png",
-        "force": "https://i.imgur.com/qjPIdi6.png",
-        "necrotic": "https://i.imgur.com/Xjt7U8a.png",
-        "poison": "https://i.imgur.com/adZpZuN.png",
-        "psychic": "https://i.imgur.com/7MGMPB0.png",
-        "radiant": "https://i.imgur.com/RmU2HGK.png",
-        "thunder": "https://i.imgur.com/7VcSDjq.png"
-    };
-
-    const DEFENSE_URLS = {
-        "Evade": "https://i.imgur.com/YXyy0mS.png",
-        "Counter": "https://i.imgur.com/dyayioM.png",
-        "Guard": "https://i.imgur.com/c2DI4lM.png"
-    };
-
-    const COIN_URL_RED = "https://i.imgur.com/yCxmI84.png";
-    const COIN_URL_NORMAL = "https://i.imgur.com/yshLPnQ.png";
-    const COIN_URL_EMPTY = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // Transparent
-
-    // Helper: Calculate Clash Power Range
-    const calculateClashRange = (base, coinPower, red, normal) => {
-        const minPower = base;
-        const maxPower = base + (coinPower * (red + normal));
-        return `${minPower} ~ ${maxPower}`;
-    };
-
-    // Helper: Update Single Ability Row
-    const updateAbilityRow = (rowId) => {
-        const prefix = `repeating_abilities_${rowId}`;
-        const attrs = [
-            `${prefix}_skill_sin`,
-            `${prefix}_skill_damage_type`,
-            `${prefix}_skill_coin_red`,
-            `${prefix}_skill_coin_normal`,
-            `${prefix}_skill_atk_weight`,
-            `${prefix}_skill_base`,
-            `${prefix}_skill_coin_power`,
-            `${prefix}_skill_type`,
-            `${prefix}_skill_defense_type`,
-            `${prefix}_skill_defense_level`,
-            `${prefix}_skill_cost`,
-            `${prefix}_skill_cost_type`
-        ];
-
-        getAttrs(attrs, (v) => {
-            const getVal = (key) => v[key] || v[key.toLowerCase()];
-
-            const sin = (getVal(`${prefix}_skill_sin`) || "wrath").toLowerCase();
-            const dmg = (getVal(`${prefix}_skill_damage_type`) || "slashing").toLowerCase();
-            const red = parseIntOr0(getVal(`${prefix}_skill_coin_red`));
-            const normal = parseIntOr0(getVal(`${prefix}_skill_coin_normal`));
-            const weight = parseIntOr0(getVal(`${prefix}_skill_atk_weight`));
-            const base = parseIntOr0(getVal(`${prefix}_skill_base`));
-            const coinPower = parseIntOr0(getVal(`${prefix}_skill_coin_power`));
-
-            const type = (getVal(`${prefix}_skill_type`) || "attack").toLowerCase();
-            const defType = getVal(`${prefix}_skill_defense_type`) || "Guard";
-            const defLevel = getVal(`${prefix}_skill_defense_level`) || "Main";
-
-            const update = {};
-
-            // --- Icon Logic ---
-            const sinUrl = SIN_URLS[sin] || SIN_URLS['wrath'];
-            const defUrl = DEFENSE_URLS[defType] || DEFENSE_URLS['Guard'];
-
-            // 1. Main Icon (Big Left)
-            if (type === "defense") {
-                update[`${prefix}_skill_main_icon_url`] = defUrl;
-            } else {
-                update[`${prefix}_skill_main_icon_url`] = sinUrl;
-            }
-
-            // 2. Overlay Icon (Always Sin, visibility controlled by CSS)
-            update[`${prefix}_skill_sin_url`] = sinUrl;
-
-            // 3. Stats Row Display Icon (Damage Type or Defense Type)
-            if (type === "defense" && (defType === "Evade" || defType === "Guard")) {
-                update[`${prefix}_skill_damage_display_url`] = defUrl;
-            } else {
-                // Attack OR Counter (uses Damage Type)
-                update[`${prefix}_skill_damage_display_url`] = DAMAGE_URLS[dmg] || DAMAGE_URLS['slashing'];
-            }
-
-            // Coins
-            for (let i = 1; i <= 5; i++) {
-                let url = COIN_URL_EMPTY;
-                let show = "0";
-                if (i <= red) {
-                    url = COIN_URL_RED;
-                    show = "1";
-                } else if (i <= red + normal) {
-                    url = COIN_URL_NORMAL;
-                    show = "1";
-                }
-                update[`${prefix}_coin_${i}_url`] = url;
-                update[`${prefix}_coin_${i}_show`] = show;
-            }
-
-            // Atk Weight
-            let squares = "";
-            for(let i=0; i<weight; i++) {
-                squares += "■";
-            }
-            update[`${prefix}_skill_atk_weight_display`] = squares;
-
-            // Clash Power
-            update[`${prefix}_skill_clash_power`] = calculateClashRange(base, coinPower, red, normal);
-
-            setAttrs(update);
-        });
-    };
-
-    on('change:repeating_abilities:skill_sin change:repeating_abilities:skill_damage_type change:repeating_abilities:skill_coin_red change:repeating_abilities:skill_coin_normal change:repeating_abilities:skill_atk_weight change:repeating_abilities:skill_base change:repeating_abilities:skill_coin_power change:repeating_abilities:skill_type change:repeating_abilities:skill_defense_type change:repeating_abilities:skill_defense_level change:repeating_abilities:skill_cost change:repeating_abilities:skill_cost_type', (eventInfo) => {
-        const source = eventInfo.sourceAttribute;
-        if (!source) return;
-
-        // Extract row ID properly to handle Push IDs with underscores
-        const rowId = source.replace('repeating_abilities_', '').replace(/_skill.*/, '');
-        if (rowId) {
-             updateAbilityRow(rowId);
-        }
-    });
-
-    // Update all abilities on open to fix missing values
-    on('sheet:opened', () => {
-        getSectionIDs('repeating_abilities', (ids) => {
-            ids.forEach(id => {
-                updateAbilityRow(id);
-                updateAbilityEffects(id);
-            });
-        });
-    });
-
-    on('clicked:reset_stagger', () => {
-        setAttrs({
-            stagger_1_active: "1",
-            stagger_2_active: "1",
-            stagger_3_active: "1"
-        });
-    });
-
-    // --- Apego (Vínculos) Logic ---
-    on('change:repeating_apego:pr', (eventInfo) => {
-        if (!eventInfo || !eventInfo.newValue) return;
-        const pr = parseIntOr0(eventInfo.newValue);
-        let level = 1;
-        let title = "Desconocido";
-        let behavior = "Trato neutral o puramente funcional.";
-
-        if (pr >= 550) {
-            level = 11;
-            title = "Vínculo Eterno";
-            behavior = "Sacrificio total; unidad absoluta de propósitos y destino.";
-        } else if (pr >= 490) {
-            level = 10;
-            title = "Pareja / Familia";
-            behavior = "Lazo profundo y compromiso significativo de vida.";
-        } else if (pr >= 420) {
-            level = 9;
-            title = "Leal / Protector";
-            behavior = "Arriesgará su posición o seguridad para ayudarte.";
-        } else if (pr >= 340) {
-            level = 8;
-            title = "Amigo Íntimo";
-            behavior = "Vínculo fuerte; el PNJ prioriza tus peticiones sobre las de otros.";
-        } else if (pr >= 260) {
-            level = 7;
-            title = "Confidente";
-            behavior = "Confía plenamente en tu juicio y te busca para pedir consejo.";
-        } else if (pr >= 190) {
-            level = 6;
-            title = "Amigo";
-            behavior = "Te defenderá socialmente y compartirá secretos personales.";
-        } else if (pr >= 130) {
-            level = 5;
-            title = "Compañero";
-            behavior = "Existe una confianza mutua en el ámbito profesional/aventura.";
-        } else if (pr >= 80) {
-            level = 4;
-            title = "Aliado";
-            behavior = "Ayuda en asuntos menores y comparte recursos básicos.";
-        } else if (pr >= 40) {
-            level = 3;
-            title = "Colaborador";
-            behavior = "Está dispuesto a trabajar contigo en tareas simples.";
-        } else if (pr >= 10) {
-            level = 2;
-            title = "Conocido";
-            behavior = "Te reconoce y permite charlas casuales.";
-        } else {
-            level = 1;
-            title = "Desconocido";
-            behavior = "Trato neutral o puramente funcional.";
-        }
-
-
-        let nextPR = 10;
-        let basePR = 0;
-        if (pr >= 550) { nextPR = pr; basePR = 550; }
-        else if (pr >= 490) { nextPR = 550; basePR = 490; }
-        else if (pr >= 420) { nextPR = 490; basePR = 420; }
-        else if (pr >= 340) { nextPR = 420; basePR = 340; }
-        else if (pr >= 260) { nextPR = 340; basePR = 260; }
-        else if (pr >= 190) { nextPR = 260; basePR = 190; }
-        else if (pr >= 130) { nextPR = 190; basePR = 130; }
-        else if (pr >= 80) { nextPR = 130; basePR = 80; }
-        else if (pr >= 40) { nextPR = 80; basePR = 40; }
-        else if (pr >= 10) { nextPR = 40; basePR = 10; }
-        else { nextPR = 10; basePR = 0; }
-
-        let missing = nextPR > pr ? nextPR - pr : 0;
-        let progressPercent = 0;
-        if (nextPR > basePR) {
-            progressPercent = Math.min(Math.max(((pr - basePR) / (nextPR - basePR)) * 100, 0), 100);
-        } else {
-            progressPercent = 100;
-        }
-        let roundedPercent = Math.round(progressPercent / 5) * 5;
-
-        const source = eventInfo.sourceAttribute || '';
-        const rowId = source.replace('repeating_apego_', '').replace(/_pr.*/i, '');
-        if (rowId) {
-            const prefix = `repeating_apego_${rowId}`;
-            const update = {};
-            update[`${prefix}_level`] = level;
-            update[`${prefix}_title`] = title;
-            update[`${prefix}_behavior`] = behavior;
-            update[`${prefix}_pr_missing`] = missing;
-            update[`${prefix}_pr_bar_class`] = `sheet-xp-${roundedPercent}`;
-            setAttrs(update);
-        }
-    });
-
-    // SP Clamp & Visual State
-    on('change:sp sheet:opened', () => {
-        getAttrs(['sp'], (values) => {
-            let sp = parseIntOr0(values.sp);
-            let clamped = Math.min(Math.max(sp, -45), 45);
-
-            let newState = "neutral";
-            if (clamped == 45) newState = "max";
-            else if (clamped > 0) newState = "positive";
-            else if (clamped == 0) newState = "neutral";
-            else if (clamped == -45) newState = "min";
-            else if (clamped < 0) newState = "negative";
-
-            let update = {
-                sp_state: newState,
-                coin_chance: 50 + clamped
-            };
-            if (sp !== clamped) update['sp'] = clamped;
-
-            setAttrs(update);
-        });
-    });
-
-    // Tab Navigation
-    // Dummy strings for regex scanner:
-    // clicked:tab_stats
-    // clicked:tab_skills
-    // clicked:tab_abilities
-    // clicked:tab_parts
-    // clicked:tab_profile
-    // clicked:tab_apego
-    // clicked:tab_equipment
-    const tabsList = ["stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas", "crafteo"];
-    tabsList.forEach(tab => {
-        on(`clicked:tab_${tab}`, function() {
-            setAttrs({
-                tab: tab
-            });
-        });
-    });
-
-    // Config Toggle
-    on('clicked:toggle_config', () => {
-        getAttrs(['config_toggle'], (values) => {
-            const current = values.config_toggle === "1" ? "0" : "1";
-            setAttrs({ config_toggle: current });
-        });
-    });
-
-
-    // Sub Stats Calculation
-    const subStatsList = ['cardio', 'fortaleza', 'vigor', 'instinto', 'percepcion', 'agilidad', 'manejo', 'reflejos', 'sigilo', 'memoria', 'analisis', 'ciencia', 'lore', 'investigacion', 'perspicacia', 'negociacion', 'seduccion', 'engano', 'prudencia', 'carisma', 'empatia', 'voluntad', 'fe', 'represion', 'templanza', 'presencia', 'arcana'];
-    subStatsList.forEach(stat => {
-        on(`change:skill_${stat}_base change:skill_${stat}_mod sheet:opened`, () => {
-            getAttrs([`skill_${stat}_base`, `skill_${stat}_mod`], (values) => {
-                const base = parseIntOr0(values[`skill_${stat}_base`]);
-                const mod = parseIntOr0(values[`skill_${stat}_mod`]);
-                setAttrs({
-                    [`skill_${stat}`]: base + mod
-                });
-            });
-        });
-    });
-
-    // --- MOTOR DEFINITIVO: HYBRID CUSTOM ROLL PARSING ---
-
-    // 1. Configuración de Atributos y Skills
-    const statsList = ['cuerpo', 'mente', 'alma'];
-    const skillDataMap = {
-        'cardio': 'Cardio', 'fortaleza': 'Fortaleza', 'vigor': 'Vigor', 'instinto': 'Instinto',
-        'percepcion': 'Percepción', 'agilidad': 'Agilidad', 'manejo': 'Manejo', 'reflejos': 'Reflejos', 'sigilo': 'Sigilo',
-        'memoria': 'Memoria', 'analisis': 'Análisis', 'ciencia': 'Ciencia', 'lore': 'Lore', 'investigacion': 'Investigación',
-        'perspicacia': 'Perspicacia', 'negociacion': 'Negociación', 'seduccion': 'Seducción', 'engano': 'Engaño', 'prudencia': 'Prudencia', 'carisma': 'Carisma',
-        'empatia': 'Empatía', 'voluntad': 'Voluntad', 'fe': 'Fe', 'represion': 'Represión', 'templanza': 'Templanza', 'presencia': 'Presencia', 'arcana': 'Arcana'
-    };
-
-    // 2. Función Maestra de Tirada
-    const executeLimbusHybridRoll = (name, baseAttr) => {
-        // 1. Poder Base
-        const basePower = baseAttr;
-        const coinPower = 3;
-
-        // 2. String con tiradas de Roll20 nativas para la animación y parser
-        const rollString = `&{template:coin} {{name=${name.toUpperCase()} CHECK}} {{base=${basePower}}} {{c1=[[1d100<[[@{sp}+50]]]]}} {{c2=[[1d100<[[@{sp}+50]]]]}} {{c3=[[1d100<[[@{sp}+50]]]]}} {{c4=[[1d100<[[@{sp}+50]]]]}} {{c5=[[1d100<[[@{sp}+50]]]]}} {{result=[[0]]}}`;
-
-        startRoll(rollString, (results) => {
-            let headsCount = 0;
-
-            // 3. Verificamos cada moneda devuelta por el parser de Roll20
-            for (let i = 1; i <= 5; i++) {
-                const key = 'c' + i;
-                if (results.results[key]) {
-                    headsCount += (results.results[key].result || 0);
-                }
-            }
-
-            // 4. Cálculo Final
-            const finalValue = (headsCount * coinPower) + basePower;
-
-                        // 5. Sobrescribir {{result}} usando computed::
-            finishRoll(results.rollId, {
-                result: finalValue
-            }, results);
-        });
-    };
-
-    // 3. Listeners para Atributos
-    statsList.forEach(stat => {
-        on(`clicked:roll_${stat}`, () => {
-            getAttrs([stat], (v) => {
-                const statVal = parseIntOr0(v[stat]);
-                executeLimbusHybridRoll(stat, statVal);
-            });
-        });
-    });
-
-    // 4. Listeners para Skills
-    Object.keys(skillDataMap).forEach(skillId => {
-        on(`clicked:roll_skill_${skillId}`, () => {
-            getAttrs([`skill_${skillId}`], (v) => {
-                const skillVal = parseIntOr0(v[`skill_${skillId}`]);
-                executeLimbusHybridRoll(skillDataMap[skillId], skillVal);
-            });
-        });
-    });
-
-    // --- Luck Logic ---
-    on('clicked:luck_up', () => {
-        getAttrs(['luck', 'luck_max'], (v) => {
-            const current = parseIntOr0(v.luck);
-            const max = parseIntOr0(v.luck_max);
-            let newVal = current + 1;
-            if (newVal > max) newVal = max;
-            setAttrs({luck: newVal});
-        });
-    });
-
-    on('clicked:luck_down', () => {
-        getAttrs(['luck'], (v) => {
-            const current = parseIntOr0(v.luck);
-            let newVal = current - 1;
-            if (newVal < 0) newVal = 0;
-            setAttrs({luck: newVal});
-        });
-    });
-
-    // Validation
-    on('change:luck change:luck_max sheet:opened', () => {
-        getAttrs(['luck', 'luck_max'], (v) => {
-            let current = parseIntOr0(v.luck);
-            let max = parseIntOr0(v.luck_max);
-            let update = {};
-            let changed = false;
-
-            // Ensure constraints
-            if (current < 0) { current = 0; changed = true; }
-            if (current > max) { current = max; changed = true; }
-
-            // If Max is less than 0? (Shouldn't happen but defensive)
-            if (max < 0) { max = 0; update['luck_max'] = 0; }
-
-            if (changed) {
-                update['luck'] = current;
-                setAttrs(update);
-            }
-        });
-
-    });
-
-    // --- XP Logic (Biphasic) ---
-    on('change:xp change:character_type sheet:opened', () => {
-        getAttrs(['xp', 'character_type'], (values) => {
-            const type = values.character_type || 'player';
-            // If NPC or Abnormality, do NOT auto-calc level from XP (manual override allowed)
-            if (type !== 'player') return;
-
-            const xp = parseIntOr0(values.xp);
-            let level = 1;
-            let percent = 0;
-            let missing = 0;
-
-            const PHASE_1_CAP = 14060;
-            const PHASE_1_STEP = 380;
-            const PHASE_2_STEP = 5500;
-            const MAX_LEVEL = 100;
-
-            let currentLevelStart = 0;
-            let nextLevelStart = 0;
-
-            if (xp < PHASE_1_CAP) {
-                // Phase 1: 0 to 14060
-                level = Math.floor(xp / PHASE_1_STEP) + 1;
-                currentLevelStart = (level - 1) * PHASE_1_STEP;
-                nextLevelStart = level * PHASE_1_STEP;
-            } else {
-                // Phase 2: 14060+
-                const xpExcess = xp - PHASE_1_CAP;
-                const levelsGained = Math.floor(xpExcess / PHASE_2_STEP);
-                // Level 38 starts at 14060.
-                level = 38 + levelsGained;
-
-                currentLevelStart = PHASE_1_CAP + (levelsGained * PHASE_2_STEP);
-                nextLevelStart = currentLevelStart + PHASE_2_STEP;
-            }
-
-            // Cap Level Logic handled below, but calculate Missing/Percent first
-            if (level < MAX_LEVEL) {
-                const range = nextLevelStart - currentLevelStart;
-                const progress = xp - currentLevelStart;
-                missing = nextLevelStart - xp;
-
-                if (range > 0) {
-                    percent = Math.floor((progress / range) * 100);
-                }
-            }
-
-            // Cap Level
-            if (level >= MAX_LEVEL) {
-                level = MAX_LEVEL;
-                percent = 100;
-                missing = 0;
-            }
-
-            // Clamp percent
-            if (percent < 0) percent = 0;
-            if (percent > 100) percent = 100;
-
-            // Round to nearest 5 for class buckets
-            const classPercent = Math.floor(percent / 5) * 5;
-
-            setAttrs({
-                level: level,
-                xp_missing: missing,
-                xp_bar_class: `sheet-xp-${classPercent}`
-            });
-        });
-    });
-
-    // --- Ahn Logic ---
-    on('change:ahn sheet:opened', () => {
-        getAttrs(['ahn'], (values) => {
-            const ahnVal = parseIntOr0(values.ahn);
-            setAttrs({
-                ahn_display: ahnVal.toLocaleString('en-US')
-            });
-        });
-    });
-
-    on('clicked:toggle_ahn_edit', () => {
-        getAttrs(['show_ahn_edit'], (v) => {
-            const current = parseIntOr0(v.show_ahn_edit);
-            setAttrs({
-                show_ahn_edit: current === 0 ? 1 : 0
-            });
-        });
-    });
-
-    on('clicked:add_ahn', () => {
-        const ahnModInput = document.querySelector('input[name="attr_ahn_mod"]');
-        const mod = ahnModInput ? parseIntOr0(ahnModInput.value) : 0;
-        if (window.db) {
-            db.ref('campaña/jugadores/' + localStorage.getItem('playerId')).update({
-                ahn: parseIntOr0(currentPlayerData.ahn) + mod,
-                ahn_mod: 0
-            });
-            if (ahnModInput) ahnModInput.value = 0;
-        }
-    });
-
-    on('clicked:sub_ahn', () => {
-        const ahnModInput = document.querySelector('input[name="attr_ahn_mod"]');
-        const mod = ahnModInput ? parseIntOr0(ahnModInput.value) : 0;
-        if (window.db) {
-            db.ref('campaña/jugadores/' + localStorage.getItem('playerId')).update({
-                ahn: parseIntOr0(currentPlayerData.ahn) - mod,
-                ahn_mod: 0
-            });
-            if (ahnModInput) ahnModInput.value = 0;
-        }
-    });
-
-    // --- Rest Logic ---
-    on('clicked:short_rest', () => {
-        getAttrs(['hp', 'hp_max'], (values) => {
-            const current = parseIntOr0(values.hp);
-            const max = parseIntOr0(values.hp_max);
-
-            // Heal 34% of Max
-            const healAmount = Math.floor(max * 0.34);
-            let newHP = current + healAmount;
-            if (newHP > max) newHP = max;
-
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).update({
-                    hp: newHP,
-                    sp: 0,
-                    stagger_1_active: "1",
-                    stagger_2_active: "1",
-                    stagger_3_active: "1"
-                });
-            }
-        });
-    });
-
-    on('clicked:long_rest', () => {
-        getAttrs(['hp_max'], (values) => {
-            const max = parseIntOr0(values.hp_max);
-
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).update({
-                    hp: max,
-                    sp: 0
-                });
-            }
-        });
-    });
-
-    // --- Perk Logic ---
-
-    // 1. Add Perk (Creator)
-    on('clicked:add_perk', () => {
-        getAttrs(['new_perk_name', 'new_perk_desc'], (v) => {
-            const name = v.new_perk_name || "New Perk";
-            const desc = v.new_perk_desc || "";
-
-            const newId = generateRowID();
-            const update = {};
-
-            const prefix = `repeating_skills_${newId}`;
-            update[`${prefix}_skill_name`] = name;
-            update[`${prefix}_skill_description`] = desc;
-            update[`${prefix}_edit_mode`] = "0"; // View mode by default
-
-            // Clear Creator Inputs
-            update['new_perk_name'] = "";
-            update['new_perk_desc'] = "";
-
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).update(update);
-            }
-        });
-    });
-
-
-
-    // --- Tag Splitting Utility ---
-    const updateTags = (rawTags, prefix = "") => {
-        let update = {};
-        // clear old tags
-        for (let i = 1; i <= 4; i++) {
-            update[`${prefix}tag_${i}`] = "";
-        }
-
-        if (rawTags && typeof rawTags === 'string') {
-            const splitTags = rawTags.split(',').map(s => s.trim()).filter(s => s.length > 0);
-            for (let i = 0; i < Math.min(splitTags.length, 4); i++) {
-                update[`${prefix}tag_${i+1}`] = splitTags[i];
-            }
-        }
-        return update;
-    };
-
-    on('change:repeating_skills:tags', (eventInfo) => {
-        const source = eventInfo.sourceAttribute || '';
-        const rowId = source.replace('repeating_skills_', '').replace(/_tags.*/i, '');
-        if(rowId) {
-            getAttrs([`repeating_skills_${rowId}_tags`], (v) => {
-                const update = updateTags(v[`repeating_skills_${rowId}_tags`], `repeating_skills_${rowId}_`);
-                setAttrs(update);
-            });
-        }
-    });
-
-    on('change:repeating_abilities:tags', (eventInfo) => {
-        const source = eventInfo.sourceAttribute || '';
-        const rowId = source.replace('repeating_abilities_', '').replace(/_tags.*/i, '');
-        if(rowId) {
-            getAttrs([`repeating_abilities_${rowId}_tags`], (v) => {
-                const update = updateTags(v[`repeating_abilities_${rowId}_tags`], `repeating_abilities_${rowId}_`);
-                setAttrs(update);
-            });
-        }
-    });
-
-    on('change:repeating_equipment:weapon_tags', (eventInfo) => {
-        const source = eventInfo.sourceAttribute || '';
-        const rowId = source.replace('repeating_equipment_', '').replace(/_weapon_tags.*/i, '');
-        if(rowId) {
-            getAttrs([`repeating_equipment_${rowId}_weapon_tags`], (v) => {
-                const update = updateTags(v[`repeating_equipment_${rowId}_weapon_tags`], `repeating_equipment_${rowId}_`);
-                setAttrs(update);
-            });
-        }
-    });
-
-    // --- Equipment Creator Logic ---
-    on('clicked:toggle_equip_creator', () => {
-        getAttrs(['show_equip_creator'], (v) => {
-            const current = parseIntOr0(v.show_equip_creator);
-            const next = current === 1 ? "0" : "1";
-            setAttrs({ show_equip_creator: next });
-        });
-    });
-
-    on('clicked:add_equipment', () => {
-        const fields = ['new_weapon_name', 'new_weapon_tags', 'new_weapon_offense', 'new_weapon_defense'];
-        getAttrs(fields, (v) => {
-            const rowId = generateRowID();
-            const prefix = `repeating_equipment_${rowId}_`;
-            let update = {};
-
-            update[`${prefix}equipped`] = "1";
-            update[`${prefix}weapon_name`] = v.new_weapon_name || "Arma Desconocida";
-            update[`${prefix}weapon_tags`] = v.new_weapon_tags || "";
-            update[`${prefix}weapon_offense`] = parseIntOr0(v.new_weapon_offense);
-            update[`${prefix}weapon_defense`] = parseIntOr0(v.new_weapon_defense);
-
-            // Add tags
-            const tagUpdates = updateTags(v.new_weapon_tags || "", prefix);
-            Object.assign(update, tagUpdates);
-
-            // Reset creator
-            update['new_weapon_name'] = "";
-            update['new_weapon_tags'] = "";
-            update['new_weapon_offense'] = 0;
-            update['new_weapon_defense'] = 0;
-            update['show_equip_creator'] = "0"; // close after adding
-
-            setAttrs(update, () => {
-                calculateEquipmentModifiers();
-            });
-        });
-    });
-
-    on('change:repeating_equipment:equipped change:repeating_equipment:weapon_offense change:repeating_equipment:weapon_defense remove:repeating_equipment', () => {
-        calculateEquipmentModifiers();
-    });
-
-    function calculateEquipmentModifiers() {
-        getSectionIDs('repeating_equipment', (ids) => {
-            let fieldsToGet = [];
-            ids.forEach(id => {
-                fieldsToGet.push(`repeating_equipment_${id}_equipped`);
-                fieldsToGet.push(`repeating_equipment_${id}_weapon_offense`);
-                fieldsToGet.push(`repeating_equipment_${id}_weapon_defense`);
-            });
-
-            getAttrs(fieldsToGet, (v) => {
-                let totalOffMod = 0;
-                let totalDefMod = 0;
-
-                ids.forEach(id => {
-                    const equipped = parseIntOr0(v[`repeating_equipment_${id}_equipped`]);
-                    if (equipped === 1) {
-                        totalOffMod += parseIntOr0(v[`repeating_equipment_${id}_weapon_offense`]);
-                        totalDefMod += parseIntOr0(v[`repeating_equipment_${id}_weapon_defense`]);
-                    }
-                });
-
-                // Update base offense/defense levels with equipment mods
-                setAttrs({
-                    equipment_offense_mod: totalOffMod,
-                    equipment_defense_mod: totalDefMod
-                }, () => {
-                    // Force update of final level attributes
-                    // getAttrs(['level'], (vals) => {
-                    //     updateOffenseLevel(parseIntOr0(vals.level));
-                    //     updateDefenseLevel(parseIntOr0(vals.level));
-                    // });
-                    updateTotalLevels();
-                });
-            });
+    // Phone Toggle
+    const toggleBtn = document.getElementById('btn-toggle-phone');
+    const phoneWrapper = document.querySelector('.sheet-phone-wrapper');
+    if (toggleBtn && phoneWrapper) {
+        toggleBtn.addEventListener('click', () => {
+            phoneWrapper.classList.toggle('phone-hidden');
         });
     }
 
-    // Function to calculate final levels including equipment
-    function updateTotalLevels() {
-        getAttrs(['level', 'equipment_offense_mod', 'equipment_defense_mod'], (v) => {
-            const baseLevel = parseIntOr0(v.level);
-            const offMod = parseIntOr0(v.equipment_offense_mod);
-            const defMod = parseIntOr0(v.equipment_defense_mod);
+    // Tabs List Main
+    const tabsList = ["home", "stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas", "shop", "crafteo"];
 
-            setAttrs({
-                offense_level: baseLevel + offMod,
-                defense_level: baseLevel + defMod
+    // Tab switching logic for Main Nav
+    document.querySelectorAll('button[name^="act_tab_"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            let tabName = btn.getAttribute('name').replace('act_tab_', '');
+
+            // Esconder todas las pestañas
+            document.querySelectorAll('.sheet-tab-content').forEach(el => {
+                el.style.display = 'none';
             });
-        });
-    }
 
+            // Mostrar la seleccionada
+            const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
+            if (targetTab) {
+                targetTab.style.display = 'block';
+            }
 
-    // --- Apego Creator Logic ---
-
-
-
-    on('clicked:toggle_apego_creator', () => {
-        getAttrs(['show_apego_creator'], (v) => {
-            const current = parseIntOr0(v.show_apego_creator);
-            const next = current === 1 ? "0" : "1";
-            setAttrs({
-                show_apego_creator: next
-            });
+            // Set state input for CSS if any uses it
+            const stateInput = document.querySelector('.sheet-state-tab');
+            if (stateInput) stateInput.value = tabName;
         });
     });
 
-    on('clicked:add_apego', () => {
-        getAttrs(['new_apego_name', 'new_apego_desc'], (v) => {
-            const name = v.new_apego_name || "Nuevo Vínculo";
-            const desc = v.new_apego_desc || "";
-
-            const newId = generateRowID();
-            const update = {};
-
-            const prefix = `repeating_apego_${newId}`;
-            update[`${prefix}_name`] = name;
-            update[`${prefix}_description`] = desc;
-            update[`${prefix}_pr`] = 0; // Trigger existing event to update Level, Title, Behavior
-
-            // Clear Creator Inputs
-            update['new_apego_name'] = "";
-            update['new_apego_desc'] = "";
-
-            setAttrs(update);
-        });
-    });
-
-    // 2. Toggle Edit Mode (Skills/Perks)
-    on('clicked:repeating_skills:toggle_edit', (eventInfo) => {
-        // Robust ID extraction
-        const lowerId = eventInfo.sourceAttribute
-            .replace(/^repeating_skills_/, '')
-            .replace(/_act_toggle_edit$/, '')
-            .replace(/_toggle_edit$/, '');
-
-        getSectionIDs('repeating_skills', (ids) => {
-            const realId = ids.find(id => id.toLowerCase() === lowerId);
-            if (!realId) return;
-
-            const prefix = `repeating_skills_${realId}`;
-            const attr = `${prefix}_edit_mode`;
-
-            getAttrs([attr], (v) => {
-                 const val = v[attr] || v[attr.toLowerCase()];
-                 const current = parseIntOr0(val);
-                 const next = current === 1 ? "0" : "1";
-                 setAttrs({
-                     [attr]: next
-                 });
-            });
-        });
-    });
-
-    // --- Abilities (Combat Skills) Logic ---
-
-    // Toggle Edit Mode (Abilities)
-    on('clicked:repeating_abilities:toggle_edit', (eventInfo) => {
-        const lowerId = eventInfo.sourceAttribute
-            .replace(/^repeating_abilities_/, '')
-            .replace(/_act_toggle_edit$/, '')
-            .replace(/_toggle_edit$/, '');
-
-        getSectionIDs('repeating_abilities', (ids) => {
-            const realId = ids.find(id => id.toLowerCase() === lowerId);
-            if (!realId) return;
-
-            const prefix = `repeating_abilities_${realId}`;
-            const attr = `${prefix}_edit_mode`;
-
-            getAttrs([attr], (v) => {
-                 const val = v[attr] || v[attr.toLowerCase()];
-                 const current = parseIntOr0(val);
-                 const next = current === 1 ? "0" : "1";
-                 setAttrs({
-                     [attr]: next
-                 });
-            });
-        });
-    });
-
-
-    // Skill Creator Toggle
-    on('clicked:toggle_skill_creator', () => {
-        getAttrs(['show_skill_creator'], (v) => {
-            const current = parseIntOr0(v.show_skill_creator);
-            const next = current === 1 ? "0" : "1";
-            setAttrs({
-                show_skill_creator: next
-            });
-        });
-    });
-
-    // Skill Type Toggle (Creator)
-    on('change:new_skill_type', () => {
-        getAttrs(['new_skill_type'], (v) => {
-            setAttrs({
-                new_skill_type_toggle: v.new_skill_type || 'attack'
-            });
-        });
-    });
-
-    // Add Skill Logic
-    on('clicked:add_skill', () => {
-        const props = ['new_skill_name', 'new_skill_base', 'new_skill_coin_power', 'new_skill_coin_red', 'new_skill_coin_normal', 'new_skill_sp', 'new_skill_cost_type', 'new_skill_cost', 'new_skill_color', 'new_skill_desc',
-            'new_skill_sin', 'new_skill_damage_type', 'new_skill_atk_weight', 'new_skill_type', 'new_skill_defense_type', 'new_skill_defense_level', 'new_skill_tags'];
-        for(let i=1; i<=5; i++) {
-            props.push(`new_skill_effect_${i}_tag`);
-            props.push(`new_skill_effect_${i}_status`);
-            props.push(`new_skill_effect_${i}_potency`);
-            props.push(`new_skill_effect_${i}_count`);
-            props.push(`new_skill_effect_${i}_desc`);
-        }
-
-        getAttrs(props, (v) => {
-            const newId = generateRowID();
-            const update = {};
-            const prefix = `repeating_abilities_${newId}`;
-
-            const type = v.new_skill_type || "attack";
-            const defType = v.new_skill_defense_type || "Guard";
-            const defLevel = v.new_skill_defense_level || "Main";
-
-            update[`${prefix}_skill_name`] = v.new_skill_name || "New Skill";
-            update[`${prefix}_skill_base`] = v.new_skill_base || "0";
-            update[`${prefix}_skill_coin_power`] = v.new_skill_coin_power || "0";
-            update[`${prefix}_skill_coin_red`] = v.new_skill_coin_red || "0";
-            update[`${prefix}_skill_coin_normal`] = v.new_skill_coin_normal || "0";
-            update[`${prefix}_skill_atk_weight`] = v.new_skill_atk_weight || "1";
-            update[`${prefix}_skill_sp`] = v.new_skill_sp || "auto";
-            update[`${prefix}_skill_cost_type`] = v.new_skill_cost_type || "Luz";
-            update[`${prefix}_skill_cost`] = v.new_skill_cost || "0";
-            update[`${prefix}_skill_color`] = v.new_skill_color || "normal";
-            update[`${prefix}_skill_desc`] = v.new_skill_desc || "";
-            update[`${prefix}_skill_sin`] = v.new_skill_sin || "wrath";
-            update[`${prefix}_skill_damage_type`] = v.new_skill_damage_type || "slashing";
-            update[`${prefix}_skill_type`] = type;
-            update[`${prefix}_skill_defense_type`] = defType;
-            update[`${prefix}_skill_defense_level`] = defLevel;
-            update[`${prefix}_edit_mode`] = "0"; // View Mode
-            update[`${prefix}_tags`] = v.new_skill_tags || "";
-
-            const tagUpdates = updateTags(v.new_skill_tags || "", prefix + "_");
-            Object.assign(update, tagUpdates);
-
-
-            // --- Pre-Calculate Derived Values ---
-            const base = parseIntOr0(v.new_skill_base);
-            const coinPower = parseIntOr0(v.new_skill_coin_power);
-            const red = parseIntOr0(v.new_skill_coin_red);
-            const normal = parseIntOr0(v.new_skill_coin_normal);
-            const weight = parseIntOr0(v.new_skill_atk_weight);
-            const sin = (v.new_skill_sin || "wrath").toLowerCase();
-            const dmg = (v.new_skill_damage_type || "slashing").toLowerCase();
-
-            // 1. Clash Power Range
-            update[`${prefix}_skill_clash_power`] = calculateClashRange(base, coinPower, red, normal);
-
-            // --- Icon Logic ---
-            const sinUrl = SIN_URLS[sin] || SIN_URLS['wrath'];
-            const defUrl = DEFENSE_URLS[defType] || DEFENSE_URLS['Guard'];
-
-            // 2. Main Icon (Big Left)
-            if (type === "defense") {
-                update[`${prefix}_skill_main_icon_url`] = defUrl;
-            } else {
-                update[`${prefix}_skill_main_icon_url`] = sinUrl;
-            }
-
-            // 3. Overlay Icon
-            update[`${prefix}_skill_sin_url`] = sinUrl;
-
-            // 4. Stats Row Display Icon
-            if (type === "defense" && (defType === "Evade" || defType === "Guard")) {
-                update[`${prefix}_skill_damage_display_url`] = defUrl;
-            } else {
-                update[`${prefix}_skill_damage_display_url`] = DAMAGE_URLS[dmg] || DAMAGE_URLS['slashing'];
-            }
-
-            // 5. Coin Images & Visibility
-            for (let i = 1; i <= 5; i++) {
-                let url = COIN_URL_EMPTY;
-                let show = "0";
-                if (i <= red) {
-                    url = COIN_URL_RED;
-                    show = "1";
-                } else if (i <= red + normal) {
-                    url = COIN_URL_NORMAL;
-                    show = "1";
-                }
-                update[`${prefix}_coin_${i}_url`] = url;
-                update[`${prefix}_coin_${i}_show`] = show;
-            }
-
-            // 5. Atk Weight Display
-            let squares = "";
-            for(let i=0; i<weight; i++) {
-                squares += "■";
-            }
-            update[`${prefix}_skill_atk_weight_display`] = squares;
-            // ------------------------------------
-
-            // Initialize Effects
-            for(let i=1; i<=5; i++) {
-                update[`${prefix}_skill_effect_${i}_tag`] = v[`new_skill_effect_${i}_tag`] || "";
-                update[`${prefix}_skill_effect_${i}_status`] = v[`new_skill_effect_${i}_status`] || "";
-                update[`${prefix}_skill_effect_${i}_potency`] = v[`new_skill_effect_${i}_potency`] || "0";
-                update[`${prefix}_skill_effect_${i}_count`] = v[`new_skill_effect_${i}_count`] || "0";
-                update[`${prefix}_skill_effect_${i}_desc`] = v[`new_skill_effect_${i}_desc`] || "";
-            }
-
-            // Clear inputs
-            props.forEach(p => update[p] = (p === 'new_skill_sp' ? 'auto' : (p === 'new_skill_cost_type' ? 'Luz' : (p === 'new_skill_color' ? 'normal' : (p === 'new_skill_sin' ? 'wrath' : (p === 'new_skill_damage_type' ? 'slashing' : ''))))));
-            // Reset numbers to 0 explicitly if needed, but empty string usually fine for text inputs. For numbers, maybe "0".
-            update['new_skill_base'] = 0;
-            update['new_skill_coin_power'] = 0;
-            update['new_skill_coin_red'] = 0;
-            update['new_skill_coin_normal'] = 0;
-            update['new_skill_atk_weight'] = 1;
-            update['new_skill_cost'] = 0;
-
-            for(let i=1; i<=5; i++) {
-                update[`new_skill_effect_${i}_tag`] = "";
-                update[`new_skill_effect_${i}_status`] = "";
-                update[`new_skill_effect_${i}_potency`] = 0;
-                update[`new_skill_effect_${i}_count`] = 0;
-                update[`new_skill_effect_${i}_desc`] = "";
-            }
-
-            setAttrs(update, () => {
-                updateAbilityEffects(newId);
-            });
-        });
-    });
-
-    // Helper: Update Skill Effects
-    const updateAbilityEffects = (rowId) => {
-        const prefix = `repeating_abilities_${rowId}`;
-        const props = [];
-        for(let i=1; i<=5; i++) {
-            props.push(`${prefix}_skill_effect_${i}_tag`);
-            props.push(`${prefix}_skill_effect_${i}_status`);
-            props.push(`${prefix}_skill_effect_${i}_potency`);
-            props.push(`${prefix}_skill_effect_${i}_count`);
-            props.push(`${prefix}_skill_effect_${i}_desc`);
-        }
-
-        getAttrs(props, (v) => {
-            const update = {};
-            let descParts = [];
-
-            for(let i=1; i<=5; i++) {
-                const tag = v[`${prefix}_skill_effect_${i}_tag`] || "";
-                const status = v[`${prefix}_skill_effect_${i}_status`] || "";
-                const potency = parseIntOr0(v[`${prefix}_skill_effect_${i}_potency`]);
-                const count = parseIntOr0(v[`${prefix}_skill_effect_${i}_count`]);
-                const desc = v[`${prefix}_skill_effect_${i}_desc`] || "";
-
-                let display = "";
-                if (tag) display += `${tag} `;
-                if (status) display += `${status} `;
-                // Send the exact X/Y format LCM expects
-                display += `${potency}/${count} `;
-                if (desc) display += `(${desc}) `;
-
-                display = display.trim();
-                update[`${prefix}_skill_effect_${i}_display`] = display;
-
-                // Also generate a legacy-compatible hidden version without 0/0 empty formatting if no status exists
-                if (tag || status || potency !== 0 || count !== 0 || desc) {
-                    descParts.push(display);
-                }
-            }
-
-            update[`${prefix}_skill_desc`] = descParts.join(' | ');
-            setAttrs(update);
-        });
-    };
-
-    const effectChangeEvents = [];
-    for(let i=1; i<=5; i++) {
-        effectChangeEvents.push(`change:repeating_abilities:skill_effect_${i}_tag`);
-        effectChangeEvents.push(`change:repeating_abilities:skill_effect_${i}_status`);
-        effectChangeEvents.push(`change:repeating_abilities:skill_effect_${i}_potency`);
-        effectChangeEvents.push(`change:repeating_abilities:skill_effect_${i}_count`);
-        effectChangeEvents.push(`change:repeating_abilities:skill_effect_${i}_desc`);
-    }
-
-    on(effectChangeEvents.join(' '), (eventInfo) => {
-        const source = eventInfo.sourceAttribute || '';
-        const rowId = source.replace('repeating_abilities_', '').replace(/_skill_effect.*/, '');
-        if (rowId) {
-            updateAbilityEffects(rowId);
-        }
-    });
-
-
-
-
-    // --- Abnormality Parts Logic (Static 1-8) ---
-
-    // 1. Max HP Calculation
-    const updatePartMaxHP = (i, totalDef) => {
-        const prefix = `part_${i}`;
-        getAttrs([`${prefix}_hp_base`, `${prefix}_hp_coefficient`], (v) => {
-             const base = parseIntOr0(v[`${prefix}_hp_base`]);
-             const coefStr = v[`${prefix}_hp_coefficient`];
-             const coef = parseFloat(coefStr === undefined ? 1.0 : coefStr);
-             const max = Math.floor(base + (coef * totalDef));
-             setAttrs({ [`${prefix}_hp_max`]: max });
-        });
-    };
-
-    const updateAllPartsMaxHP = (totalDef) => {
-        for(let i=1; i<=8; i++) updatePartMaxHP(i, totalDef);
-    };
-
-    // Listeners for Base/Coef changes
-    const partsChangeEvents = [];
-    for(let i=1; i<=8; i++) {
-        partsChangeEvents.push(`change:part_${i}_hp_base`);
-        partsChangeEvents.push(`change:part_${i}_hp_coefficient`);
-    }
-
-    on(partsChangeEvents.join(" "), (eventInfo) => {
-        const source = eventInfo.sourceAttribute;
-        // Extract number
-        const match = source.match(/part_(\d+)_/);
-        if (match) {
-             const i = match[1];
-             getAttrs(['total_def_level'], (v) => {
-                 const def = parseIntOr0(v.total_def_level);
-                 updatePartMaxHP(i, def);
-             });
-        }
-    });
-
-    // 2. Damage Propagation & Status Check
-    const hpChangeEvents = [];
-    for(let i=1; i<=8; i++) hpChangeEvents.push(`change:part_${i}_hp`);
-
-    on(hpChangeEvents.join(" "), (eventInfo) => {
-        const source = eventInfo.sourceAttribute;
-        const prevValStr = eventInfo.previousValue;
-        if (prevValStr === undefined || prevValStr === null) return;
-
-        const match = source.match(/part_(\d+)_hp/);
-        if (!match) return;
-        const i = match[1];
-        const prefix = `part_${i}`;
-
-        const attrsToGet = [
-            `${prefix}_hp`, `${prefix}_hp_max`, `${prefix}_status`,
-            `${prefix}_severable`, `${prefix}_destructible`, `saved_resistances_${i}`,
-            'hp',
-            `${prefix}_res_slashing`, `${prefix}_res_piercing`, `${prefix}_res_bludgeoning`,
-            `${prefix}_res_acid`, `${prefix}_res_fire`, `${prefix}_res_cold`, `${prefix}_res_electric`,
-            `${prefix}_res_force`, `${prefix}_res_necrotic`, `${prefix}_res_poison`,
-            `${prefix}_res_psychic`, `${prefix}_res_radiant`, `${prefix}_res_thunder`
-        ];
-
-        getAttrs(attrsToGet, (v) => {
-            const currentHP = parseIntOr0(v[`${prefix}_hp`]);
-            const prevHP = parseIntOr0(prevValStr);
-            const status = v[`${prefix}_status`] || "active";
-
-            if (currentHP < prevHP) {
-                const damage = prevHP - currentHP;
-                const coreHP = parseIntOr0(v.hp);
-                setAttrs({ hp: coreHP - damage });
-            }
-
-            if (currentHP <= 0 && status === "active") {
-                const severable = v[`${prefix}_severable`] === "1";
-                const destructible = v[`${prefix}_destructible`] === "1";
-                const update = {};
-
-                if (severable) {
-                    update[`${prefix}_status`] = "severed";
-                    update[`${prefix}_active`] = "0"; // Auto-disable severable part
-                } else if (destructible) {
-                    update[`${prefix}_status`] = "broken";
-
-                    const resKeys = ['slashing', 'piercing', 'bludgeoning', 'acid', 'fire', 'cold', 'electric', 'force', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'];
-                    const savedRes = {};
-
-                    resKeys.forEach(key => {
-                        const attrKey = `${prefix}_res_${key}`;
-                        const val = parseFloat(v[attrKey] || 1.0);
-                        savedRes[key] = val;
-                        if (val > 0.1) update[attrKey] = 2.0;
-                    });
-
-                    update[`saved_resistances_${i}`] = JSON.stringify(savedRes);
-                }
-                setAttrs(update);
-            }
-        });
-    });
-
-    // 3. Visual Bar Class
-    const hpMaxChangeEvents = [];
-    for(let i=1; i<=8; i++) {
-        hpMaxChangeEvents.push(`change:part_${i}_hp`);
-        hpMaxChangeEvents.push(`change:part_${i}_hp_max`);
-    }
-
-    on(hpMaxChangeEvents.join(" ") + " sheet:opened", (eventInfo) => {
-        // If sheet opened, update all
-        if (eventInfo.sourceAttribute === 'sheet:opened') {
-            const attrs = [];
-            for(let i=1; i<=8; i++) {
-                attrs.push(`part_${i}_hp`);
-                attrs.push(`part_${i}_hp_max`);
-            }
-            getAttrs(attrs, (v) => {
-                const update = {};
-                for(let i=1; i<=8; i++) {
-                    const cur = parseIntOr0(v[`part_${i}_hp`]);
-                    const max = parseIntOr0(v[`part_${i}_hp_max`]);
-                    let percent = 0;
-                    if(max > 0) percent = Math.floor((cur / max) * 100);
-                    if(percent < 0) percent = 0; if(percent > 100) percent = 100;
-                    const classPercent = Math.floor(percent / 5) * 5;
-                    update[`part_${i}_bar_class`] = `sheet-bar-p${classPercent}`;
-                }
-                setAttrs(update);
-            });
-            return;
-        }
-
-        const match = eventInfo.sourceAttribute.match(/part_(\d+)_/);
-        if (match) {
-            const i = match[1];
-            getAttrs([`part_${i}_hp`, `part_${i}_hp_max`], (v) => {
-                 const cur = parseIntOr0(v[`part_${i}_hp`]);
-                 const max = parseIntOr0(v[`part_${i}_hp_max`]);
-                 let percent = 0;
-                 if(max > 0) percent = Math.floor((cur / max) * 100);
-                 if(percent < 0) percent = 0; if(percent > 100) percent = 100;
-                 const classPercent = Math.floor(percent / 5) * 5;
-                 setAttrs({ [`part_${i}_bar_class`]: `sheet-bar-p${classPercent}` });
+    // Show Home by default
+    document.querySelectorAll('.sheet-tab-content').forEach(el => el.style.display = 'none');
+    const homeTab = document.querySelector('.sheet-tab-home');
+    if (homeTab) homeTab.style.display = 'block';
+
+    // HUD Modals Logic
+    const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
+    hudModalsList.forEach(modal => {
+        const btn = document.querySelector(`button[name="act_hud_${modal}"]`);
+        const modalEl = document.querySelector(`.modal-${modal}`);
+
+        if (btn && modalEl) {
+            btn.addEventListener('click', () => {
+                // Close others
+                document.querySelectorAll('.hud-modal').forEach(m => m.style.display = 'none');
+                // Open this
+                modalEl.style.display = 'flex';
+
+                // Update state input
+                const stateInput = document.querySelector('.sheet-state-hud-modal');
+                if (stateInput) stateInput.value = modal;
             });
         }
     });
 
-    // 4. Reset Abnormality
-    on('clicked:reset_abno', () => {
-        getAttrs(['hp_max'], (v) => {
-            const max = v.hp_max;
-            const update = { hp: max };
-
-            // We need to fetch all parts data to restore resistances
-            const attrs = [];
-            for(let i=1; i<=8; i++) {
-                attrs.push(`part_${i}_hp_max`);
-                attrs.push(`saved_resistances_${i}`);
-            }
-
-            getAttrs(attrs, (vals) => {
-                for(let i=1; i<=8; i++) {
-                    update[`part_${i}_hp`] = vals[`part_${i}_hp_max`];
-                    update[`part_${i}_status`] = "active";
-
-                    const savedJSON = vals[`saved_resistances_${i}`];
-                    if (savedJSON) {
-                        try {
-                            const saved = JSON.parse(savedJSON);
-                            for (const [key, val] of Object.entries(saved)) {
-                                update[`part_${i}_res_${key}`] = val;
-                            }
-                        } catch(e) {}
-                        update[`saved_resistances_${i}`] = "";
-                    }
-                }
-                setAttrs(update);
-            });
+    // Close HUD Modals
+    document.querySelectorAll('.hud-modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.hud-modal').forEach(m => m.style.display = 'none');
+            const stateInput = document.querySelector('.sheet-state-hud-modal');
+            if (stateInput) stateInput.value = '';
         });
     });
 
-    // XP Reward Update (Static parts count)
-    const updateXPReward = () => {
-        getAttrs(['level', 'character_type'], (v) => {
-            const level = parseIntOr0(v.level);
-            const type = v.character_type || 'player';
-            if (type === 'player') return;
+    // Codex internal tabs
+    const codexTabs = ['mechanics', 'stats', 'skills'];
+    codexTabs.forEach(tab => {
+        const btn = document.querySelector(`button[name="act_codex_${tab}"]`);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.sheet-codex-section').forEach(el => el.style.display = 'none');
+                const target = document.querySelector(`.sheet-codex-${tab}`);
+                if (target) target.style.display = 'block';
 
-            if (type === 'npc') {
-                setAttrs({ xp_reward: Math.floor(level * 6.25) });
-            } else if (type === 'abnormality') {
-                // Count active parts
-                const activeAttrs = [];
-                for(let i=1; i<=8; i++) activeAttrs.push(`part_${i}_active`);
-
-                getAttrs(activeAttrs, (vals) => {
-                    let partsCount = 0;
-                    for(let i=1; i<=8; i++) {
-                        if (vals[`part_${i}_active`] == "1") partsCount++;
-                    }
-                    const reward = (level * 50) + (partsCount * 25);
-                    setAttrs({ xp_reward: reward });
-                });
-            }
-        });
-    };
-
-    // Listener for active checkboxes
-    const activeChangeEvents = [];
-    for(let i=1; i<=8; i++) activeChangeEvents.push(`change:part_${i}_active`);
-
-    on(activeChangeEvents.join(" ") + " change:level change:character_type sheet:opened", () => {
-        updateXPReward();
-    });
-
-    // --- Mirror Link Attribute ---
-    const linkChangeEvents = partIndices.map(i => `change:part_${i}_stagger_link`).join(" ");
-    on(linkChangeEvents + " sheet:opened", (eventInfo) => {
-        if (eventInfo && eventInfo.sourceAttribute) {
-            const source = eventInfo.sourceAttribute;
-            const match = source.match(/part_(\d+)_/);
-            if(match) {
-                const i = match[1];
-                const val = eventInfo.newValue;
-                setAttrs({ [`part_${i}_stagger_link_view`]: val });
-            }
-        } else {
-            // on sheet:opened, sync all link views
-            const attrsToGet = partIndices.map(i => `part_${i}_stagger_link`);
-            getAttrs(attrsToGet, (v) => {
-                const update = {};
-                partIndices.forEach(i => {
-                    update[`part_${i}_stagger_link_view`] = v[`part_${i}_stagger_link`] || "";
-                });
-                setAttrs(update);
+                const codexStateInput = document.querySelector('.sheet-state-codex-tab');
+                if (codexStateInput) codexStateInput.value = tab;
             });
         }
     });
 
-    // --- Part Stagger Logic (4-12) ---
-    // Listen for changes in Parts (HP, Max, Tremor, Link) and Stagger Configs (4-12)
-    const partEvents = [];
-    partIndices.forEach(i => {
-        partEvents.push(`change:part_${i}_hp`);
-        partEvents.push(`change:part_${i}_hp_max`);
-        partEvents.push(`change:part_${i}_tremor`);
-        partEvents.push(`change:part_${i}_stagger_link`);
-    });
-    abnoStaggerIndices.forEach(i => {
-        partEvents.push(`change:stagger_${i}_percent`);
-        partEvents.push(`change:stagger_${i}_active`);
-    });
-
-    on(partEvents.join(" ") + " sheet:opened", () => {
-        const attrsToGet = [];
-        // Parts
-        partIndices.forEach(i => {
-            attrsToGet.push(`part_${i}_hp`);
-            attrsToGet.push(`part_${i}_hp_max`);
-            attrsToGet.push(`part_${i}_tremor`);
-            attrsToGet.push(`part_${i}_stagger_link`);
-        });
-        // Staggers
-        abnoStaggerIndices.forEach(i => {
-            attrsToGet.push(`stagger_${i}_percent`);
-            attrsToGet.push(`stagger_${i}_active`);
-        });
-
-        getAttrs(attrsToGet, (v) => {
-            const update = {};
-
-            // Helper: Find which Part is linked to Stagger Y
-            // Map Stagger ID -> Part Index (Allows multiple stagger levels per part)
-            const staggerMap = {};
-            partIndices.forEach(i => {
-                // Now a string input like "4 5 10"
-                const linkStr = (v[`part_${i}_stagger_link`] || "").toString();
-                // Split by spaces, commas, or other delimiters
-                const linkIds = linkStr.split(/[\s,;]+/).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
-
-                linkIds.forEach(link => {
-                     if (link >= 4 && link <= 12) {
-                        staggerMap[link] = i;
-                    }
-                });
-            });
-
-            // Calculate Stagger 4-12
-            abnoStaggerIndices.forEach(sID => {
-                const partID = staggerMap[sID];
-
-                // Defaults if unassigned
-                let tBase = 0;
-                let tEff = 0;
-                let max = 0;
-                let hp = 0;
-
-                if (partID) {
-                    const percent = parseIntOr0(v[`stagger_${sID}_percent`]);
-                    const isActive = v[`stagger_${sID}_active`] == "1";
-                    max = parseIntOr0(v[`part_${partID}_hp_max`]);
-                    hp = parseIntOr0(v[`part_${partID}_hp`]);
-                    const tremor = parseIntOr0(v[`part_${partID}_tremor`]);
-
-                    tBase = Math.floor(max * (percent / 100));
-                    tEff = tBase;
-                    if (isActive) tEff += tremor;
-
-                    // Update Position (Global input used for CSS left%)
-                    let pos = 0;
-                    if(max > 0) pos = Math.floor((tEff / max) * 100);
-                    if(pos < 0) pos = 0;
-                    if(pos > 100) pos = 100;
-
-                    update[`stagger_${sID}_value`] = tEff;
-                    update[`stagger_${sID}_pos`] = pos;
-
-                    // Check Break
-                    if (isActive && percent > 0 && hp <= tEff) {
-                        update[`stagger_${sID}_active`] = "0";
-                        update[`part_${partID}_tremor`] = 0; // Reset tremor on break
-                    }
-                }
-            });
-
-            setAttrs(update);
-        });
-    });
-
-    // Toggle Parts Editor
-    on('clicked:toggle_parts_editor', () => {
-        getAttrs(['show_parts_editor'], (v) => {
-            const current = parseIntOr0(v.show_parts_editor);
-            const next = current === 1 ? "0" : "1";
-            setAttrs({
-                show_parts_editor: next
-            });
-        });
-    });
-
-
-    // Type URL Change Logic
-    const typeChangeEvents = [];
-    for(let i=1; i<=8; i++) {
-        typeChangeEvents.push(`change:part_${i}_type_url`);
-    }
-
-    on(typeChangeEvents.join(" "), (eventInfo) => {
-        if (!eventInfo || !eventInfo.sourceAttribute) return;
-        const source = eventInfo.sourceAttribute;
-        const match = source.match(/part_(\d+)_/);
-        if (match) {
-            const i = match[1];
-            const val = eventInfo.newValue;
-            const update = {};
-            if (val && val.includes("gvomn3Z")) { // Destructible
-                update[`part_${i}_destructible`] = "1";
-                update[`part_${i}_severable`] = "0";
-            } else if (val && val.includes("CcEEbCw")) { // Severable
-                update[`part_${i}_destructible`] = "0";
-                update[`part_${i}_severable`] = "1";
-            }
-            setAttrs(update);
-        }
-    });
-
-// --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas', 'shop', 'crafteo'];
-tabs.forEach(tab => {
-    on(`clicked:tab_${tab}`, function() {
-        setAttrs({
-            tab: tab
-        });
-    });
+    // Show first codex tab
+    document.querySelectorAll('.sheet-codex-section').forEach(el => el.style.display = 'none');
+    const mechTab = document.querySelector('.sheet-codex-mechanics');
+    if (mechTab) mechTab.style.display = 'block';
 });
-
 // --- Inventory Modal Logic ---
 window.addEventListener('DOMContentLoaded', () => {
     // Mail Tab Logic
@@ -2487,7 +643,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const { itemKey, itemData, isStash } = e.detail;
         const charNameInput = document.querySelector('input[name="attr_character_name"]');
         const playerName = charNameInput ? charNameInput.value.trim() : "";
-        if (!playerName || !window.db) return;
+        if (!playerName || !typeof db !== 'undefined') return;
 
         const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
         const reqItemName = itemData.vinculo_item;
@@ -2497,8 +653,8 @@ window.addEventListener('DOMContentLoaded', () => {
         // Function to find and consume the required items across both active and stash
         const consumeItems = async () => {
             let totalFound = 0;
-            const activeRef = window.db.ref(`campaña/jugadores/${playerName}/inventario_activo`);
-            const stashRef = window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+            const activeRef = db.ref(`campaña/jugadores/${playerName}/inventario_activo`);
+            const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
 
             const activeSnap = await activeRef.once('value');
             const stashSnap = await stashRef.once('value');
@@ -2552,7 +708,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // Increment charges
             const currentCargas = parseInt(itemData.carga_actual) || 0;
             const targetList = isStash ? 'inventario_stash' : 'inventario_activo';
-            await window.db.ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`).update({
+            await db.ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`).update({
                 carga_actual: currentCargas + 1
             });
 
@@ -2571,13 +727,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const { itemKey, itemData, fromStash } = e.detail;
         const charNameInput = document.querySelector('input[name="attr_character_name"]');
         const playerName = charNameInput ? charNameInput.value.trim() : "";
-        if (!playerName || !window.db) return;
+        if (!playerName || !typeof db !== 'undefined') return;
 
         const sourceListName = fromStash ? 'inventario_stash' : 'inventario_activo';
         const targetListName = fromStash ? 'inventario_activo' : 'inventario_stash';
 
-        const sourceRef = window.db.ref(`campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`);
-        const targetRef = window.db.ref(`campaña/jugadores/${playerName}/${targetListName}`);
+        const sourceRef = db.ref(`campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`);
+        const targetRef = db.ref(`campaña/jugadores/${playerName}/${targetListName}`);
 
         // Move 1 unit
         let itemToMove = { ...itemData, cantidad: 1 };
@@ -2652,12 +808,7 @@ let recetasCache = {};
 let currentSelectedRecetaId = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    if (!window.db) return;
-
-    db.ref('campaña/recetas').on('value', (snapshot) => {
-        recetasCache = snapshot.val() || {};
-        renderRecetasCrafteo();
-    });
+    if (typeof db === 'undefined') return;
 
     // We also need to re-render if the player name changes, but usually it's set on load
     setTimeout(() => renderRecetasCrafteo(), 2000);
@@ -2702,7 +853,7 @@ function renderRecetasCrafteo() {
 let dbItemsCacheGlobal = {}; // Fetch global items for name/icon lookups
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        if (!window.db) return;
+        if (typeof db === 'undefined') return;
         db.ref('campaña/base_datos_items').on('value', snap => {
             dbItemsCacheGlobal = snap.val() || {};
         });
@@ -2852,8 +1003,11 @@ Cantidad: x${receta.cantidad_resultado}">
                 btnSintetizar.innerText = 'SINTETIZANDO...';
 
                 // Fetch Skill modifier
-                window.getAttrs([`skill_${receta.habilidad}`], (v) => {
-                    const skillMod = parseInt(v[`skill_${receta.habilidad}`] || 0);
+                // Fetch Skill modifier from currentPlayerData
+                const skillMod = (currentPlayerData.modifiers && currentPlayerData.modifiers[receta.habilidad])
+                    ? parseInt(currentPlayerData.modifiers[receta.habilidad])
+                    : 0;
+                {
                     const roll = Math.floor(Math.random() * 20) + 1;
                     const total = roll + skillMod;
                     const dc = parseInt(receta.dc);
@@ -2865,7 +1019,7 @@ Cantidad: x${receta.cantidad_resultado}">
                         // FALLO
                         ejecutarSintesis(playerName, receta, multi, stash, false, total);
                     }
-                });
+                }
             };
 
         } else {
@@ -3031,7 +1185,7 @@ let playerInventoryListenerActive = false;
 window.addEventListener('DOMContentLoaded', () => {
     // Wait slightly to ensure Firebase is initialized
     setTimeout(() => {
-        if (!window.db) return;
+        if (typeof db === 'undefined') return;
         const charNameInput = document.querySelector('input[name="attr_character_name"]');
 
         // Use a generic interval or function to check when playerName is available
@@ -3044,7 +1198,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 playerInventoryListenerActive = true;
 
                 // Listen to Stash
-                window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on('value', snap => {
+                db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on('value', snap => {
                     const items = snap.val() || {};
                     // Re-use render function, passing true for isStash
                     if(typeof window.renderInventoryGrid === 'function') {
@@ -3056,7 +1210,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Listen to Activo
-                window.db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on('value', snap => {
+                db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on('value', snap => {
                     const items = snap.val() || {};
                     if(typeof window.renderInventoryGrid === 'function') {
                         window.renderInventoryGrid('inv-active-grid', items, false);
@@ -3077,9 +1231,9 @@ let tiendaFisicaActivaId = null; // ID de la tienda seleccionada en el modal
 // Helper array para convertir Tier en romano (ya existe en otro lado pero lo necesitamos aquí)
 const romanTiersShop = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
-// Esperar a que el DOM y window.db existan
+// Esperar a que el DOM y typeof db !== 'undefined' existan
 window.addEventListener('DOMContentLoaded', () => {
-    if (!window.db) return;
+    if (typeof db === 'undefined') return;
 
     // Abrir/Cerrar el modal de tienda física
     const badgeFisica = document.getElementById('tienda-fisica-badge');
@@ -3143,15 +1297,15 @@ window.addEventListener('DOMContentLoaded', () => {
             tiendaActivaId = null;
             const tabInput = document.querySelector('input[name="attr_tab"]');
             if (tabInput && tabInput.value === 'shop') {
-                if (window.setAttrs) {
-                    window.setAttrs({ tab: 'home' });
-                } else {
-                    tabInput.value = 'home';
-                }
+                // Here we would normally change tab
+                const homeBtn = document.querySelector('button[name="act_tab_home"]');
+                if (homeBtn) homeBtn.click();
             }
         }
 
         // Actualizar UI Física (Badge)
+        const badgeFisica = document.getElementById('tienda-fisica-badge');
+        const shopModal = document.getElementById('shop-modal');
         if (badgeFisica) {
             if (Object.keys(tiendasFisicasDisponibles).length > 0) {
                 badgeFisica.src = badgeImageSrc;
@@ -3469,8 +1623,8 @@ function renderizarVender() {
     const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
     if (!grid || !tiendaActivaData || !playerName) return;
 
-    // Use window.db inside functions to ensure it's available
-    window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once('value', snap => {
+    // Use typeof db !== 'undefined' inside functions to ensure it's available
+    db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once('value', snap => {
         grid.innerHTML = '';
         const stash = snap.val();
 
@@ -3530,27 +1684,116 @@ function renderizarVender() {
 }
 
 
-// --- HUD MODAL LOGIC (Roll20 Compatible) ---
-const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
-hudModalsList.forEach(modal => {
-    on(`clicked:hud_${modal}`, function() {
-        setAttrs({ active_hud_modal: modal });
-    });
-});
 
-on('clicked:hud_close', function() {
-    setAttrs({ active_hud_modal: '' });
-});
+
+
 
 // Codex Navigation Tabs
-on('clicked:codex_mechanics', function() {
-    setAttrs({ "codex_tab": "mechanics" });
-});
 
-on('clicked:codex_stats', function() {
-    setAttrs({ "codex_tab": "stats" });
-});
 
-on('clicked:codex_skills', function() {
-    setAttrs({ "codex_tab": "skills" });
+
+
+
+
+// NATIVE BUTTON LISTENERS
+window.addEventListener('DOMContentLoaded', () => {
+    // Escuchar clicks globales para botones de acción (simulando Roll20)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[type="action"]');
+        if (!btn) return;
+
+        const actName = btn.getAttribute('name');
+        if (!actName || typeof db === 'undefined') return;
+
+        // --- Ejemplos de Lógica Reescrita ---
+
+        // Banco
+        if (actName === 'act_add_ahn') {
+            const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
+            if (inputMod) {
+                const modVal = parseInt(inputMod.value) || 0;
+                const current = parseInt(currentPlayerData.ahn) || 0;
+                db.ref('campaña/jugadores/' + playerId).update({ ahn: current + modVal });
+                inputMod.value = 0;
+            }
+        }
+
+        if (actName === 'act_sub_ahn') {
+            const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
+            if (inputMod) {
+                const modVal = parseInt(inputMod.value) || 0;
+                const current = parseInt(currentPlayerData.ahn) || 0;
+                db.ref('campaña/jugadores/' + playerId).update({ ahn: current - modVal });
+                inputMod.value = 0;
+            }
+        }
+
+        // --- Descansos ---
+        if (actName === 'act_short_rest') {
+            const currentHP = parseInt(currentPlayerData.hp) || 0;
+            const maxHP = parseInt(currentPlayerData.hp_max) || 0;
+            const heal = Math.floor(maxHP * 0.34);
+            let newHP = currentHP + heal;
+            if (newHP > maxHP) newHP = maxHP;
+
+            db.ref('campaña/jugadores/' + playerId).update({
+                hp: newHP,
+                sp: 0,
+                stagger_1_active: "1",
+                stagger_2_active: "1",
+                stagger_3_active: "1"
+            });
+        }
+
+        if (actName === 'act_long_rest') {
+            const maxHP = parseInt(currentPlayerData.hp_max) || 0;
+            db.ref('campaña/jugadores/' + playerId).update({
+                hp: maxHP,
+                sp: 0
+            });
+        }
+
+        // --- Suerte ---
+        if (actName === 'act_luck_up') {
+            const current = parseInt(currentPlayerData.luck) || 0;
+            const max = parseInt(currentPlayerData.luck_max) || 0;
+            if (current < max) {
+                db.ref('campaña/jugadores/' + playerId).update({ luck: current + 1 });
+            }
+        }
+
+        if (actName === 'act_luck_down') {
+            const current = parseInt(currentPlayerData.luck) || 0;
+            if (current > 0) {
+                db.ref('campaña/jugadores/' + playerId).update({ luck: current - 1 });
+            }
+        }
+    });
+
+    // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
+    document.addEventListener('change', (e) => {
+        if (!e.target.name || !e.target.name.startsWith('attr_')) return;
+
+        const attrName = e.target.name.replace('attr_', '');
+        const val = e.target.type === 'checkbox' ? (e.target.checked ? e.target.value : '0') : e.target.value;
+
+        // Match lowercase key against actual modifier keys
+        let matchedStatKey = null;
+        if (currentPlayerData && currentPlayerData.modifiers) {
+            for (const key of Object.keys(currentPlayerData.modifiers)) {
+                if (key.toLowerCase() === attrName.toLowerCase()) {
+                    matchedStatKey = key;
+                    break;
+                }
+            }
+        }
+
+        // Si el valor pertenece a modifier
+        if (matchedStatKey) {
+            db.ref('campaña/jugadores/' + playerId + '/modifiers').update({ [matchedStatKey]: val });
+        } else if (typeof db !== 'undefined') {
+            // Guardar directamente en la raiz
+            db.ref('campaña/jugadores/' + playerId).update({ [attrName]: val });
+        }
+    });
 });
