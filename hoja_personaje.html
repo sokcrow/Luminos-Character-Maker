@@ -4319,6 +4319,14 @@
   let isTheatreBlocked = false;
   let currentAssignedActor = null;
   let playerSpritesEnEscena = new Set();
+  let currentMaxSprites = 4;
+
+  db.ref('campaña/teatro/max_sprites').on('value', (snap) => {
+      const val = snap.val();
+      if (val) {
+          currentMaxSprites = parseInt(val) || 4;
+      }
+  });
 
   // Listen to active state
   db.ref('campaña/teatro/activo').on('value', (snap) => {
@@ -4419,10 +4427,10 @@
           img.dataset.url = activeSpriteUrl;
           img.dataset.name = activeName;
           img.dataset.lastActive = Date.now();
-          img.style.cssText = `height: calc(100vh * ${actorEscala}); max-width: 1500px; object-fit: contain; transition: all 0.4s ease;`;
+          img.style.cssText = `height: calc(100vh * ${actorEscala}); object-fit: contain; transition: all 0.4s ease;`;
           stage.appendChild(img);
 
-          while (stage.children.length > 4) {
+          while (stage.children.length > currentMaxSprites) {
               let oldestSprite = Array.from(stage.children).reduce((oldest, current) => {
                   let oldestTime = parseInt(oldest.dataset.lastActive || 0);
                   let currentTime = parseInt(current.dataset.lastActive || 0);

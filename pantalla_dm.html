@@ -917,6 +917,11 @@
           <label style="color: #ff4444; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #ff4444; cursor: pointer;">
             <input type="checkbox" id="dm-theatre-lock" /> MODO LORE (Bloquear Jugadores)
           </label>
+
+          <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #0df;">
+            Max Sprites:
+            <input type="number" id="dm-theatre-max-sprites" value="4" min="1" max="10" style="width: 50px; padding: 4px; background: #111; color: #fff; border: 1px solid #444; border-radius: 4px; text-align: center;" />
+          </label>
         </div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -3074,6 +3079,12 @@
         db.ref('campaña/teatro').update({ bloqueado: e.target.checked });
     });
 
+    // Max Sprites Change
+    document.getElementById('dm-theatre-max-sprites').addEventListener('change', (e) => {
+        const val = parseInt(e.target.value) || 4;
+        db.ref('campaña/teatro').update({ max_sprites: val });
+    });
+
     // Desbloquear Alijo (Stash) a Jugadores
     const stashToggle = document.getElementById('dm-stash-unlock');
     if (stashToggle) {
@@ -3197,6 +3208,18 @@
         }
     });
 
+    let currentMaxSprites = 4;
+    db.ref('campaña/teatro/max_sprites').on('value', (snap) => {
+        const val = snap.val();
+        if (val) {
+            currentMaxSprites = parseInt(val) || 4;
+            const maxSpritesInput = document.getElementById('dm-theatre-max-sprites');
+            if (maxSpritesInput) {
+                maxSpritesInput.value = currentMaxSprites;
+            }
+        }
+    });
+
     // Render Stage and UI based on current state locally to see what players see
     let currentSpritesEnEscena = new Set();
 
@@ -3250,11 +3273,11 @@
             img.dataset.url = activeSpriteUrl;
             img.dataset.name = activeName;
             img.dataset.lastActive = Date.now();
-            img.style.cssText = `height: calc(100vh * ${actorEscala}); max-width: 1500px; object-fit: contain; transition: all 0.4s ease;`;
+            img.style.cssText = `height: calc(100vh * ${actorEscala}); object-fit: contain; transition: all 0.4s ease;`;
             stage.appendChild(img);
 
-            // Limit to max 4 sprites for visual clarity, remove oldest if needed
-            while (stage.children.length > 4) {
+            // Limit to max sprites for visual clarity, remove oldest if needed
+            while (stage.children.length > currentMaxSprites) {
                 let oldestSprite = Array.from(stage.children).reduce((oldest, current) => {
                     let oldestTime = parseInt(oldest.dataset.lastActive || 0);
                     let currentTime = parseInt(current.dataset.lastActive || 0);
