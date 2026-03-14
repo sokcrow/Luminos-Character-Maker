@@ -3940,7 +3940,6 @@
   <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
     <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
     <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
-    <button id="btn-player-theatre-react" style="background: #222; color: #0df; border: 1px solid #0df; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 221, 255, 0.3);">REACCIONAR</button>
     <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
   </div>
 </div>
@@ -4416,17 +4415,14 @@
       isTheatreBlocked = snap.val();
       const input = document.getElementById('player-theatre-input');
       const btn = document.getElementById('btn-player-theatre-send');
-      const btnReact = document.getElementById('btn-player-theatre-react');
       if (input && btn) {
           if (isTheatreBlocked) {
               input.disabled = true;
               btn.disabled = true;
-              if (btnReact) btnReact.disabled = true;
               input.placeholder = "El Director ha bloqueado las interacciones (Modo Lore)...";
           } else {
               input.disabled = false;
               btn.disabled = false;
-              if (btnReact) btnReact.disabled = false;
               input.placeholder = "¿Qué quieres decir o hacer? (Escribe aquí...)";
           }
       }
@@ -4598,7 +4594,6 @@
 
   // Send Dialogue logic
   const btnSend = document.getElementById('btn-player-theatre-send');
-  const btnReact = document.getElementById('btn-player-theatre-react');
   const inputEl = document.getElementById('player-theatre-input');
 
   function sendTheatreMessage(msgText) {
@@ -4645,12 +4640,6 @@
           if (!msg) return;
           sendTheatreMessage(msg);
       });
-
-      if (btnReact) {
-          btnReact.addEventListener('click', () => {
-              sendTheatreMessage("");
-          });
-      }
 
       inputEl.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
