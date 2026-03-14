@@ -4307,6 +4307,15 @@
       const namePlate = document.getElementById('player-theatre-plate-name');
       const textBox = document.getElementById('player-theatre-dialogue-text');
 
+      const platesContainer = document.querySelector('.theatre-plates-container');
+      if (platesContainer) {
+          if (!state.nombre || state.nombre.trim() === "") {
+              platesContainer.style.display = 'none';
+          } else {
+              platesContainer.style.display = 'flex';
+          }
+      }
+
       if (titlePlate) {
           if(titlePlate.querySelector('span')) titlePlate.querySelector('span').innerText = state.titulo || ''; else if(titlePlate.querySelector('span')) {
             titlePlate.querySelector('span').innerText = state.titulo || '';
@@ -4351,7 +4360,18 @@
       const activeName = state.nombre || 'Desconocido';
       const actorEscala = state.escala !== undefined ? state.escala : 1.0;
 
-      if (!activeSpriteUrl) return;
+      if (!activeSpriteUrl || activeSpriteUrl.trim() === "") {
+          // Narrator mode: dim all existing sprites and return
+          Array.from(stage.children).forEach(wrapper => {
+              let img = wrapper.querySelector('img');
+              if (img) {
+                  img.className = 'sprite-dimmed';
+                  img.style.filter = 'brightness(0.4) grayscale(0.5)';
+                  img.style.transform = 'translateX(-50%) scale(0.95)';
+              }
+          });
+          return;
+      }
 
       let existingWrapper = Array.from(stage.children).find(wrapper => wrapper.dataset.name === activeName);
 
@@ -4407,8 +4427,9 @@
 
   // Watch for current player's actor assignment
   setInterval(() => {
-      if (currentPlayerName) {
-          db.ref(`campaña/jugadores/${currentPlayerName}/actor_id`).once('value').then(snap => {
+      const playerId = localStorage.getItem('playerId');
+      if (playerId) {
+          db.ref(`campaña/jugadores/${playerId}/actor_id`).once('value').then(snap => {
               const actorId = snap.val();
               if (actorId) {
                   db.ref(`campaña/actores/${actorId}`).once('value').then(actorSnap => {
@@ -4466,8 +4487,10 @@
 
       // Fallback if no actor assigned
       if (!actorData) {
+          const charNameInput = document.querySelector('input[name="attr_character_name"]');
+          const fallbackName = charNameInput && charNameInput.value.trim() ? charNameInput.value.trim() : (localStorage.getItem('playerId') || "Jugador");
           actorData = {
-              nombre: currentPlayerName || "Jugador",
+              nombre: fallbackName,
               titulo: "Sin Asignar",
               color_nombre: "#ffffff",
               color_titulo: "#aaaaaa",
