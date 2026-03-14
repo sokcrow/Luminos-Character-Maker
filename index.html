@@ -334,16 +334,62 @@
                 btnLogin.disabled = true;
 
                 db.ref('campaña/jugadores/' + userId).once('value').then(snapshot => {
+                    const localStateStr = localStorage.getItem('luminousState');
+                    let localState = null;
+                    if (localStateStr) {
+                        try {
+                            localState = JSON.parse(localStateStr);
+                        } catch (e) {
+                            console.error("Error parsing local luminousState:", e);
+                        }
+                    }
+
+                    const hasMatchingLocalState = localState &&
+                                                  localState.characterName &&
+                                                  localState.characterName.replace(/\s+/g, '') === userId;
+
                     if (snapshot.exists()) {
-                        loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                        setTimeout(() => {
-                            window.location.href = 'hoja_personaje.html';
-                        }, 800);
+                        if (hasMatchingLocalState) {
+                            loginStatus.textContent = "Sincronizando datos locales con la nube...";
+                            db.ref('campaña/jugadores/' + userId).update(localState).then(() => {
+                                loginStatus.textContent = "Datos sincronizados. Redirigiendo...";
+                                setTimeout(() => {
+                                    window.location.href = 'hoja_personaje.html';
+                                }, 800);
+                            }).catch(err => {
+                                console.error("Firebase update error:", err);
+                                loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
+                                setTimeout(() => {
+                                    window.location.href = 'hoja_personaje.html';
+                                }, 800);
+                            });
+                        } else {
+                            loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
+                            setTimeout(() => {
+                                window.location.href = 'hoja_personaje.html';
+                            }, 800);
+                        }
                     } else {
-                        loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                        setTimeout(() => {
-                            window.location.href = 'creacion_personaje.html';
-                        }, 800);
+                        if (hasMatchingLocalState) {
+                            loginStatus.textContent = "Recuperando datos locales. Guardando en la nube...";
+                            db.ref('campaña/jugadores/' + userId).set(localState).then(() => {
+                                loginStatus.textContent = "Datos recuperados. Redirigiendo...";
+                                setTimeout(() => {
+                                    window.location.href = 'hoja_personaje.html';
+                                }, 800);
+                            }).catch(err => {
+                                console.error("Firebase save error:", err);
+                                loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
+                                setTimeout(() => {
+                                    window.location.href = 'creacion_personaje.html';
+                                }, 800);
+                            });
+                        } else {
+                            loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
+                            setTimeout(() => {
+                                window.location.href = 'creacion_personaje.html';
+                            }, 800);
+                        }
                     }
                 }).catch(err => {
                     console.error("Firebase error:", err);
