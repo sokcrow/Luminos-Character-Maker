@@ -5475,6 +5475,223 @@ input[name="attr_tab"][value="crafteo"] ~ .sheet-phone-screen .sheet-tab-crafteo
     box-shadow: 0 0 20px rgba(196, 154, 0, 0.8), inset 0 0 5px rgba(0,0,0,0.8);
 }
 
+#tienda-fisica-badge {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #00ffff;
+    box-shadow: 0 0 10px #00ffff;
+    object-fit: cover;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 5px #00ffff; }
+    50% { transform: scale(1.2); box-shadow: 0 0 15px #00ffff; }
+    100% { transform: scale(1); box-shadow: 0 0 5px #00ffff; }
+}
+
+/* Limbus Dispensary Style Shop Modal */
+.shop-modal-content {
+    background: rgba(10, 10, 10, 0.95);
+    border: 2px solid #00ffff;
+    width: 95%;
+    max-width: 1200px;
+    height: 85vh;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0,0,0,0.9);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.shop-modal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.shop-sidebar {
+    width: 250px;
+    background: rgba(0, 0, 0, 0.8);
+    border-right: 2px solid #333;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 10px;
+    gap: 15px;
+    overflow-y: auto;
+}
+
+.shop-btn {
+    background: linear-gradient(90deg, #111, #222);
+    color: #fff;
+    border: 1px solid #444;
+    border-left: 4px solid #00ffff;
+    padding: 15px 10px;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: inherit;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0 4px 4px 0;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shop-btn:hover, .shop-btn.active {
+    background: linear-gradient(90deg, #1a1a1a, #00ffff);
+    color: #000;
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.shop-btn img {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.shop-main-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px);
+    position: relative;
+}
+
+.shop-header {
+    padding: 20px;
+    border-bottom: 2px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, rgba(0,0,0,0.8), transparent);
+}
+
+.shop-header h2 {
+    margin: 0;
+    color: #00ffff;
+    text-transform: uppercase;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(0,255,255,0.5);
+}
+
+.shop-items-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.shop-item-card {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+}
+
+.shop-item-card:hover {
+    border-color: #00ffff;
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,255,255,0.2);
+}
+
+.shop-item-image-container {
+    height: 120px;
+    background: #0d0d0d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid #333;
+}
+
+.shop-item-image-container img {
+    max-width: 80%;
+    max-height: 80%;
+    object-fit: contain;
+    z-index: 2;
+}
+
+.shop-item-tier {
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 0 0 5px #ff8c00, 0 0 2px #000;
+    z-index: 3;
+}
+
+.shop-item-details {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.shop-item-name {
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.shop-item-buy-btn {
+    background: linear-gradient(180deg, #ffd700 0%, #c49a00 100%);
+    color: #000;
+    border: 1px solid #ffcc00;
+    padding: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-top: auto;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.shop-item-buy-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffe033 0%, #d4a900 100%);
+    box-shadow: 0 0 10px #ffd700;
+}
+
+.shop-item-buy-btn:disabled {
+    background: #333;
+    color: #666;
+    border-color: #444;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 /* --- INVENTORY MODAL --- */
 .inventory-modal {
     display: none;

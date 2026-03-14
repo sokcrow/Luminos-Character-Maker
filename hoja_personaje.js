@@ -3083,24 +3083,65 @@ window.addEventListener('DOMContentLoaded', () => {
 // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
 let tiendaActivaData = null;
 let tiendaActivaId = null;
+let tiendasFisicasDisponibles = {}; // Para el modal físico
+let tiendaFisicaActivaId = null; // ID de la tienda seleccionada en el modal
+
+// Helper array para convertir Tier en romano (ya existe en otro lado pero lo necesitamos aquí)
+const romanTiersShop = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
 // Esperar a que el DOM y window.db existan
 window.addEventListener('DOMContentLoaded', () => {
     if (!window.db) return;
 
+    // Abrir/Cerrar el modal de tienda física
+    const badgeFisica = document.getElementById('tienda-fisica-badge');
+    const shopModal = document.getElementById('shop-modal');
+    const shopModalClose = document.getElementById('shop-modal-close');
+
+    if (badgeFisica && shopModal) {
+        badgeFisica.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evitar que abra el inventario normal
+            shopModal.classList.add('active');
+            // Por defecto, seleccionar la primera tienda de la lista si hay
+            const storeKeys = Object.keys(tiendasFisicasDisponibles);
+            if (storeKeys.length > 0) {
+                seleccionarTiendaFisica(storeKeys[0]);
+            }
+        });
+    }
+
+    if (shopModalClose && shopModal) {
+        shopModalClose.addEventListener('click', () => {
+            shopModal.classList.remove('active');
+            tiendaFisicaActivaId = null;
+        });
+    }
+
     db.ref('campaña/tiendas').on('value', (snapshot) => {
         const tiendas = snapshot.val() || {};
         let encontrada = false;
 
+        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+
+        tiendasFisicasDisponibles = {};
+        let badgeImageSrc = null;
+
         for (const [id, data] of Object.entries(tiendas)) {
+            // Lógica App (En línea)
             if (data.activa === true) {
                 encontrada = true;
                 tiendaActivaId = id;
                 tiendaActivaData = data;
-                break;
+            }
+
+            // Lógica Física
+            if (data.fisica_activa === true && playerName && data.jugadores_presentes && data.jugadores_presentes[playerName]) {
+                tiendasFisicasDisponibles[id] = data;
+                if (!badgeImageSrc) badgeImageSrc = data.icono_fisico || data.icono || 'https://i.imgur.com/kP8s7Ww.png';
             }
         }
 
+        // Actualizar UI App
         const btnShop = document.getElementById('btn-app-shop');
         const shopApp = document.getElementById('shop-app');
 
@@ -3112,7 +3153,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnShop) btnShop.style.display = 'none';
             tiendaActivaData = null;
             tiendaActivaId = null;
-            // Si el jugador está dentro de la app, sacarlo al home
             const tabInput = document.querySelector('input[name="attr_tab"]');
             if (tabInput && tabInput.value === 'shop') {
                 if (window.setAttrs) {
@@ -3122,7 +3162,105 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        // Actualizar UI Física (Badge)
+        if (badgeFisica) {
+            if (Object.keys(tiendasFisicasDisponibles).length > 0) {
+                badgeFisica.src = badgeImageSrc;
+                badgeFisica.style.display = 'block';
+                renderizarSidebarFisica();
+
+                // Si el modal está abierto, re-renderizar la grid actual
+                if (shopModal && shopModal.classList.contains('active') && tiendaFisicaActivaId) {
+                    if (tiendasFisicasDisponibles[tiendaFisicaActivaId]) {
+                        renderizarGridFisica(tiendaFisicaActivaId);
+                    } else {
+                        const storeKeys = Object.keys(tiendasFisicasDisponibles);
+                        if (storeKeys.length > 0) seleccionarTiendaFisica(storeKeys[0]);
+                        else shopModal.classList.remove('active');
+                    }
+                }
+            } else {
+                badgeFisica.style.display = 'none';
+                if (shopModal) shopModal.classList.remove('active');
+            }
+        }
     });
+
+    function renderizarSidebarFisica() {
+        const sidebar = document.getElementById('shop-sidebar-list');
+        if (!sidebar) return;
+
+        sidebar.innerHTML = '';
+
+        for (const [id, data] of Object.entries(tiendasFisicasDisponibles)) {
+            const btn = document.createElement('button');
+            btn.className = 'shop-btn';
+            if (id === tiendaFisicaActivaId) btn.classList.add('active');
+
+            const iconUrl = data.icono_fisico || data.icono || 'https://i.imgur.com/kP8s7Ww.png';
+            btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}`;
+
+            btn.addEventListener('click', () => {
+                seleccionarTiendaFisica(id);
+            });
+
+            sidebar.appendChild(btn);
+        }
+    }
+
+    function seleccionarTiendaFisica(id) {
+        tiendaFisicaActivaId = id;
+        renderizarSidebarFisica();
+        renderizarGridFisica(id);
+    }
+
+    function renderizarGridFisica(idTienda) {
+        const grid = document.getElementById('shop-items-grid');
+        const title = document.getElementById('shop-active-name');
+        if (!grid || !title) return;
+
+        const data = tiendasFisicasDisponibles[idTienda];
+        if (!data) return;
+
+        title.innerText = data.nombre;
+        grid.innerHTML = '';
+
+        const items = data.items || {};
+        const modVenta = data.mod_venta || 100;
+
+        if (Object.keys(items).length === 0) {
+            grid.innerHTML = '<div style="color:#666; font-size: 20px; padding: 20px; grid-column: 1 / -1; text-align: center;">Sin inventario.</div>';
+            return;
+        }
+
+        for (const [itemId, item] of Object.entries(items)) {
+            const itemTier = parseInt(item.tier) || 1;
+            const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
+            const precio = Math.floor(valorConTier * (modVenta / 100));
+            const isAgotado = item.stock_actual === 0;
+            const stockStr = item.stock_actual === -1 ? '∞' : item.stock_actual;
+            const tierStr = romanTiersShop[Math.min(itemTier, 10)] || 'I';
+
+            const card = document.createElement('div');
+            card.className = 'shop-item-card';
+
+            card.innerHTML = `
+                <div class="shop-item-image-container">
+                    <div class="shop-item-tier">${tierStr}</div>
+                    <img src="${item.icono || 'https://via.placeholder.com/80'}" alt="${item.nombre}">
+                </div>
+                <div class="shop-item-details">
+                    <h4 class="shop-item-name">${item.nombre}</h4>
+                    <div style="font-size: 12px; color: #888; text-align: center;">Stock: ${stockStr}</div>
+                    <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio}" ${isAgotado ? 'disabled' : ''}>
+                        <span class="currency-symbol">₳</span> ${precio}
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+    }
 
     // Función para manejar las pestañas internas de la app de tienda
     document.addEventListener('click', (e) => {
@@ -3148,72 +3286,122 @@ window.addEventListener('DOMContentLoaded', () => {
         const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
         if (!playerName) return;
 
-        // LÓGICA DE COMPRAR
-        if (e.target.classList.contains('btn-comprar-item') && !e.target.disabled) {
-            const itemId = e.target.getAttribute('data-id');
-            const precio = parseInt(e.target.getAttribute('data-precio'));
-            const itemTienda = tiendaActivaData.items[itemId];
+        // LÓGICA DE COMPRAR (App u Offline/Física)
+        const btnCompra = e.target.closest('.btn-comprar-item, .btn-comprar-fisico');
+        if (btnCompra && !btnCompra.disabled) {
+
+            const isFisico = btnCompra.classList.contains('btn-comprar-fisico');
+
+            const itemId = isFisico ? btnCompra.getAttribute('data-item') : btnCompra.getAttribute('data-id');
+            const precio = parseInt(btnCompra.getAttribute('data-precio'));
+
+            let idTiendaActual = null;
+            let tiendaActualData = null;
+
+            if (isFisico) {
+                idTiendaActual = btnCompra.getAttribute('data-tienda');
+                tiendaActualData = tiendasFisicasDisponibles[idTiendaActual];
+            } else {
+                idTiendaActual = tiendaActivaId;
+                tiendaActualData = tiendaActivaData;
+            }
+
+            if (!tiendaActualData || !tiendaActualData.items || !tiendaActualData.items[itemId]) return;
+            const itemTienda = tiendaActualData.items[itemId];
 
             db.ref(`campaña/jugadores/${playerName}/ahn`).once('value', snap => {
-                const currentAhn = snap.val() || 0;
-                if (currentAhn < precio) {
-                    alert('Ahn insuficiente.');
+                const ahn_actual = snap.val() || 0;
+                if (ahn_actual < precio) {
+                    alert('Fondos insuficientes.');
                     return;
                 }
 
-                // Restar Ahn
-                db.ref(`campaña/jugadores/${playerName}`).update({ ahn: currentAhn - precio });
+                // Restar Ahn estrictamente
+                db.ref(`campaña/jugadores/${playerName}/ahn`).set(ahn_actual - precio);
 
                 // Reducir Stock
                 if (itemTienda.stock_actual !== -1) {
-                    db.ref(`campaña/tiendas/${tiendaActivaId}/items/${itemId}/stock_actual`).transaction(current => {
+                    db.ref(`campaña/tiendas/${idTiendaActual}/items/${itemId}/stock_actual`).transaction(current => {
                         return (current || 0) - 1;
                     });
                 }
 
-                // Añadir al Stash (Update si existe, Push si no)
-                const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
-                stashRef.once('value', stashSnap => {
-                    let foundKey = null;
-                    let currentCant = 0;
-                    stashSnap.forEach(child => {
-                        if (child.val().id === itemId && (child.val().tier || 1) == (itemTienda.tier || 1)) {
-                            foundKey = child.key;
-                            currentCant = child.val().cantidad || 1;
+                const itemToSave = {
+                    id: itemId,
+                    nombre: itemTienda.nombre,
+                    valorBase: itemTienda.costo, // Costo base
+                    tier: parseInt(itemTienda.tier) || 1,
+                    tipo: itemTienda.tipo || "Consumible",
+                    icono: itemTienda.icono || "",
+                    descripcion: itemTienda.descripcion || "",
+                    cantidad: 1
+                };
+                if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
+
+
+                if (isFisico) {
+                    // Añadir directo al Stash (Física)
+                    const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+                    stashRef.once('value', stashSnap => {
+                        let foundKey = null;
+                        let currentCant = 0;
+                        stashSnap.forEach(child => {
+                            if (child.val().id === itemId && (child.val().tier || 1) == (itemTienda.tier || 1)) {
+                                foundKey = child.key;
+                                currentCant = child.val().cantidad || 1;
+                            }
+                        });
+
+                        if (foundKey) {
+                            stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
+                        } else {
+                            stashRef.push(itemToSave);
                         }
+
+                        // Feedback visual Físico
+                        const originalHtml = btnCompra.innerHTML;
+                        btnCompra.innerText = "COMPRADO";
+                        btnCompra.style.background = "#0df";
+                        btnCompra.style.color = "#000";
+                        setTimeout(() => {
+                            if(btnCompra) {
+                                btnCompra.innerHTML = originalHtml;
+                                btnCompra.style.background = "";
+                                btnCompra.style.color = "";
+                            }
+                        }, 500);
                     });
+                } else {
+                    // Añadir a entregas pendientes (App En línea)
+                    const diasEntrega = tiendaActualData.dias_entrega || 0;
 
-                    if (foundKey) {
-                        stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
-                    } else {
-                        // Construir el objeto a guardar
-                        const itemToSave = {
-                            id: itemId,
-                            nombre: itemTienda.nombre,
-                            valorBase: itemTienda.costo, // Costo base
-                            tier: parseInt(itemTienda.tier) || 1,
-                            tipo: itemTienda.tipo || "Consumible",
-                            icono: itemTienda.icono || "",
-                            descripcion: itemTienda.descripcion || "",
-                            cantidad: 1
-                        };
-                        if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
-
-                        stashRef.push(itemToSave);
-                    }
-
-                    // Feedback visual
-                    const originalText = e.target.innerText;
-                    const originalBg = e.target.style.background;
-                    e.target.innerText = "¡OK!";
-                    e.target.style.background = "#0df";
-                    setTimeout(() => {
-                        if(e.target) {
-                            e.target.innerText = originalText;
-                            e.target.style.background = originalBg;
+                    db.ref('campaña/calendario').once('value').then(calSnap => {
+                        let diaLlegada = diasEntrega; // Fallback si no hay calendario
+                        const calendario = calSnap.val();
+                        if (calendario) {
+                            diaLlegada = calendario.dia + diasEntrega;
                         }
-                    }, 500);
-                });
+
+                        const entrega = {
+                            ...itemToSave,
+                            diaDeLlegada: diaLlegada
+                        };
+
+                        db.ref(`campaña/jugadores/${playerName}/entregasPendientes`).push(entrega).then(() => {
+                            // Feedback visual App
+                            const originalText = btnCompra.innerText;
+                            const originalBg = btnCompra.style.background;
+                            btnCompra.innerText = "¡OK!";
+                            btnCompra.style.background = "#0df";
+                            setTimeout(() => {
+                                if(btnCompra) {
+                                    btnCompra.innerText = originalText;
+                                    btnCompra.style.background = originalBg;
+                                }
+                            }, 500);
+                        });
+                    });
+                }
             });
         }
 

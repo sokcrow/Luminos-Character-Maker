@@ -697,7 +697,18 @@
             <h4>Registrar Nueva Tienda</h4>
             <input type="text" id="tienda-nombre" placeholder="Nombre de la Tienda" />
             <input type="url" id="tienda-icono" placeholder="URL de Imagen/Ícono de Tienda" />
-            <select id="tienda-restock-dia">
+            <input type="url" id="tienda-icono-fisico" placeholder="URL de Icono Físico (Mapa/HUD)" />
+            <div style="display:flex;gap:10px;align-items:center;">
+              <label style="color:#0df; font-size:14px; cursor:pointer;"><input type="checkbox" id="tienda-fisica-activa" /> Tienda Física Activa</label>
+              <input type="number" id="tienda-dias-entrega" placeholder="Días Envío (App)" style="flex:1;" />
+            </div>
+            <div style="display:flex;gap:10px;align-items:center; margin-top:5px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
+                <label style="color:#aaa; font-size:12px;">Jugadores Presentes:</label>
+                <div id="tienda-jugadores-presentes" style="display:flex; gap:5px; flex-wrap:wrap; flex:1;">
+                    <!-- Se inyectarán checkboxes de jugadores aquí -->
+                </div>
+            </div>
+            <select id="tienda-restock-dia" style="margin-top: 10px;">
               <option value="Lunes">Lunes</option>
               <option value="Martes">Martes</option>
               <option value="Miércoles">Miércoles</option>
@@ -1987,8 +1998,22 @@
                 recetaJugadores.appendChild(lbl);
             }
         }
+
+        // --- Populate Tienda Jugadores Presentes Checkboxes ---
+        const tiendaJugadoresPresentes = document.getElementById('tienda-jugadores-presentes');
+        if (tiendaJugadoresPresentes) {
+            tiendaJugadoresPresentes.innerHTML = '';
+            for (const nombre of Object.keys(jugadores)) {
+                const lbl = document.createElement('label');
+                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;';
+                lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
+                tiendaJugadoresPresentes.appendChild(lbl);
+            }
+        }
       } else {
         bancoContainer.innerHTML = '<span style="color: #888;">No hay jugadores activos.</span>';
+        const tiendaJugadoresPresentes = document.getElementById('tienda-jugadores-presentes');
+        if (tiendaJugadoresPresentes) tiendaJugadoresPresentes.innerHTML = '<span style="color:#888; font-size:12px;">Sin jugadores</span>';
       }
     });
 
@@ -2552,6 +2577,10 @@
     function resetTiendaForm() {
         document.getElementById('tienda-nombre').value = '';
         document.getElementById('tienda-icono').value = '';
+        document.getElementById('tienda-icono-fisico').value = '';
+        document.getElementById('tienda-fisica-activa').checked = false;
+        document.getElementById('tienda-dias-entrega').value = '';
+        document.querySelectorAll('.tienda-jugador-cb').forEach(cb => cb.checked = false);
         document.getElementById('tienda-restock-dia').value = 'Lunes';
         document.getElementById('tienda-mod-venta').value = '';
         document.getElementById('tienda-tasa-defecto').value = '';
@@ -2568,12 +2597,26 @@
     document.getElementById('btn-crear-tienda').addEventListener('click', () => {
         const nombre = document.getElementById('tienda-nombre').value.trim();
         const icono = document.getElementById('tienda-icono').value.trim();
+        let iconoFisico = document.getElementById('tienda-icono-fisico').value.trim();
+        const fisicaActiva = document.getElementById('tienda-fisica-activa').checked;
+        const diasEntrega = parseInt(document.getElementById('tienda-dias-entrega').value) || 0;
         const diaRestock = document.getElementById('tienda-restock-dia').value;
         const modVenta = parseInt(document.getElementById('tienda-mod-venta').value) || 100;
         const tasaDefecto = parseInt(document.getElementById('tienda-tasa-defecto').value);
 
         if (!nombre) { alert("El nombre de la tienda es requerido."); return; }
         if (isNaN(tasaDefecto)) { alert("La tasa por defecto es requerida."); return; }
+
+        if (fisicaActiva && !iconoFisico) {
+            iconoFisico = 'https://i.imgur.com/kP8s7Ww.png'; // Ciberpunk default icon
+        }
+
+        const jugadoresPresentes = {};
+        document.querySelectorAll('.tienda-jugador-cb').forEach(cb => {
+            if (cb.checked) {
+                jugadoresPresentes[cb.value] = true;
+            }
+        });
 
         const isEditing = editModeTiendaKey !== null;
         // In edit mode, if name didn't change enough to alter ID, we use the original.
@@ -2582,6 +2625,10 @@
         const tiendaData = {
             nombre: nombre,
             icono: icono,
+            icono_fisico: iconoFisico,
+            fisica_activa: fisicaActiva,
+            dias_entrega: diasEntrega,
+            jugadores_presentes: jugadoresPresentes,
             dia_restock: diaRestock,
             mod_venta: modVenta,
             tasas_por_etiqueta: currentTiendaReglas,
@@ -2634,6 +2681,12 @@
                     editModeTiendaKey = idTienda;
                     document.getElementById('tienda-nombre').value = data.nombre || '';
                     document.getElementById('tienda-icono').value = data.icono || '';
+                    document.getElementById('tienda-icono-fisico').value = data.icono_fisico || '';
+                    document.getElementById('tienda-fisica-activa').checked = data.fisica_activa || false;
+                    document.getElementById('tienda-dias-entrega').value = data.dias_entrega !== undefined ? data.dias_entrega : '';
+                    document.querySelectorAll('.tienda-jugador-cb').forEach(cb => {
+                        cb.checked = !!(data.jugadores_presentes && data.jugadores_presentes[cb.value]);
+                    });
                     document.getElementById('tienda-restock-dia').value = data.dia_restock || 'Lunes';
                     document.getElementById('tienda-mod-venta').value = data.mod_venta !== undefined ? data.mod_venta : '';
                     document.getElementById('tienda-tasa-defecto').value = data.tasa_defecto !== undefined ? data.tasa_defecto : '';

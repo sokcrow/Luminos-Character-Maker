@@ -3843,7 +3843,30 @@
 </div> <!-- End Limbus Main -->
 
 <!-- Global Inventory Button -->
-<button class="btn-global-inventory" id="btn-global-inventory" title="Inventario Global">🎒</button>
+<button class="btn-global-inventory" id="btn-global-inventory" title="Inventario Global">
+  🎒
+  <img id="tienda-fisica-badge" src="" style="display: none;">
+</button>
+
+<!-- Shop Modal (Limbus Dispensary Style) -->
+<div id="shop-modal" class="inventory-modal">
+    <div class="shop-modal-content">
+        <button id="shop-modal-close" class="inventory-modal-close">×</button>
+        <div class="shop-modal-body">
+            <div class="shop-sidebar" id="shop-sidebar-list">
+                <!-- Shop buttons injected via JS -->
+            </div>
+            <div class="shop-main-panel">
+                <div class="shop-header">
+                    <h2 id="shop-active-name">Selecciona una tienda</h2>
+                </div>
+                <div id="shop-items-grid" class="shop-items-grid">
+                    <!-- Items injected via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Inventory Modal -->
 <div id="inventory-modal" class="inventory-modal">
