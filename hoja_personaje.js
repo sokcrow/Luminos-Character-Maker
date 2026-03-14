@@ -432,6 +432,17 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             // Lógica para cerrar ventanas
+
+            // Lógica para pestañas del Codex
+            if (actionName.startsWith('act_codex_')) {
+                const tabName = actionName.replace('act_codex_', '');
+                const codexStateInputs = document.querySelectorAll('.sheet-state-codex-tab');
+                codexStateInputs.forEach(input => {
+                    input.value = tabName;
+                    input.setAttribute('value', tabName);
+                });
+            }
+
             if (actionName === 'act_hud_close') {
                 document.querySelectorAll('.sheet-modal-container, .sheet-modal, .hud-modal').forEach(m => {
                     m.style.display = 'none';
