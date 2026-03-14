@@ -94,6 +94,18 @@
         if (!playerId) {
             window.location.href = 'index.html';
         }
+        let currentPlayerData = {};
+
+        if (window.db) {
+            db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    currentPlayerData = snapshot.val();
+                    renderCharacterSheet(currentPlayerData);
+                } else {
+                    console.error("No se encontraron datos en Firebase para este jugador.");
+                }
+            });
+        }
 
         let isFirebaseUpdate = false;
 
@@ -498,64 +510,56 @@
         function renderCharacterSheet(data) {
             isFirebaseUpdate = true;
 
-            // Textos Básicos
-            if (data.character_name !== undefined) {
-                const nameInputs = document.querySelectorAll('input[name="attr_character_name"]');
-                nameInputs.forEach(el => el.value = data.character_name);
-            }
-            if (data.clase !== undefined) {
-                const classInputs = document.querySelectorAll('input[name="attr_class"]');
-                classInputs.forEach(el => el.value = data.clase);
+            // Datos Básicos
+            if (data.characterName) {
+                document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
+                    if (el.tagName === 'INPUT') el.value = data.characterName;
+                    else el.innerText = data.characterName;
+                });
             }
             if (data.ahn !== undefined) {
-                const ahnDisplays = document.querySelectorAll('.sheet-banco-amount-display, #display-ahn');
-                ahnDisplays.forEach(el => el.innerText = data.ahn);
+                document.querySelectorAll('.sheet-banco-amount-display, #display-ahn, input[name="attr_ahn"], span[name="attr_ahn"]').forEach(el => {
+                    if (el.tagName === 'INPUT') el.value = data.ahn;
+                    else el.innerText = data.ahn;
+                });
             }
 
-            // Mapeo nativo de setAttrs para mantener la hoja viva sin romper Roll20Shim
-            // pero limpiando primero las repeticiones para cumplir "Limpia los contenedores... y vuelve a iterar"
-
-            // Limpia contenedores (Listas Dinámicas)
-            const repeatingSections = ['skills', 'abilities', 'equipment', 'apego'];
-            repeatingSections.forEach(section => {
-                const fieldset = document.querySelector(`fieldset.repeating_${section}`);
-                if (fieldset) {
-                    const repcontainer = fieldset.querySelector('.repcontainer');
-                    if (repcontainer) {
-                        repcontainer.innerHTML = ''; // Limpia el HTML
-                    }
-                }
-
-                // Limpia los atributos cacheados para evitar fantasmas
-                for (let k in attributes) {
-                    if (k.startsWith(`repeating_${section}_`)) {
-                        delete attributes[k];
-                    }
-                }
-            });
-
-            // Vuelve a iterar y renderizar (vía setAttrs que llama a checkRowExists)
-            const validTabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings', 'codex', 'mapa', 'notas', 'shop', 'mail', 'contratos'];
-            if (!data.tab || !validTabs.includes(data.tab)) {
-                data.tab = 'home';
+            // Modificadores (Stats)
+            if (data.modifiers) {
+                Object.entries(data.modifiers).forEach(([key, val]) => {
+                    const selector = `[name="attr_skill_${key.toLowerCase()}"], [name="attr_${key.toLowerCase()}"]`;
+                    document.querySelectorAll(selector).forEach(el => {
+                        if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                            el.value = val;
+                        } else {
+                            el.innerText = val;
+                        }
+                    });
+                });
             }
 
-            // Sync repeating attributes manually before setAttrs to recreate the divs
-            for (let k in data) {
-                if (k.startsWith('repeating_')) {
-                    attributes[k] = data[k];
-                    checkRowExists(k);
+            // Perks y Habilidades
+            if (data.humanPerks && Array.isArray(data.humanPerks)) {
+                const perkContainer = document.querySelector('.repeating_skills .repcontainer') || document.querySelector('.sheet-perk-creator-container');
+                if (perkContainer) {
+                    perkContainer.innerHTML = '';
+                    data.humanPerks.forEach(perk => {
+                        const perkCard = document.createElement('div');
+                        perkCard.className = 'perk-card sheet-perk-row';
+                        perkCard.innerHTML = `
+                            <div class="sheet-perk-view">
+                                <div class="sheet-perk-header">
+                                    <span style="font-weight: bold; color: var(--border-accent);">${perk.nombre || 'Perk'}</span>
+                                </div>
+                                <span class="sheet-view-desc">${perk.desc || ''}</span>
+                            </div>
+                        `;
+                        perkContainer.appendChild(perkCard);
+                    });
                 }
             }
 
-            // Usa el puente de Roll20 para re-vincular los eventos visuales
-            setAttrs(data, () => {
-                isFirebaseUpdate = false;
-                trigger('sheet:opened', { sourceAttribute: 'sheet:opened' });
-            });
-
-            // Inventory rendering is handled by the generic listeners outside this block,
-            // but if there are specific UI updates needed per the prompt they go here.
+            isFirebaseUpdate = false;
         }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -586,20 +590,6 @@ window.addEventListener('DOMContentLoaded', () => {
             for (let k in attributes) {
                 updateDOM(k, attributes[k]);
             }
-
-            // Firebase Listener
-                    // Firebase Listener
-        if (window.db) {
-            db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    window.currentPlayerData = snapshot.val();
-                    renderCharacterSheet(window.currentPlayerData);
-                } else {
-                    console.error("No se encontraron datos en Firebase para este jugador.");
-                }
-            });
-        }
-
         });
     })();
 
@@ -1270,29 +1260,27 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     on('clicked:add_ahn', () => {
-        getAttrs(['ahn', 'ahn_mod'], (values) => {
-            let ahn = parseIntOr0(values.ahn);
-            const mod = parseIntOr0(values.ahn_mod);
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).update({
-                    ahn: ahn + mod,
-                    ahn_mod: 0
-                });
-            }
-        });
+        const ahnModInput = document.querySelector('input[name="attr_ahn_mod"]');
+        const mod = ahnModInput ? parseIntOr0(ahnModInput.value) : 0;
+        if (window.db) {
+            db.ref('campaña/jugadores/' + localStorage.getItem('playerId')).update({
+                ahn: parseIntOr0(currentPlayerData.ahn) + mod,
+                ahn_mod: 0
+            });
+            if (ahnModInput) ahnModInput.value = 0;
+        }
     });
 
     on('clicked:sub_ahn', () => {
-        getAttrs(['ahn', 'ahn_mod'], (values) => {
-            let ahn = parseIntOr0(values.ahn);
-            const mod = parseIntOr0(values.ahn_mod);
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).update({
-                    ahn: ahn - mod,
-                    ahn_mod: 0
-                });
-            }
-        });
+        const ahnModInput = document.querySelector('input[name="attr_ahn_mod"]');
+        const mod = ahnModInput ? parseIntOr0(ahnModInput.value) : 0;
+        if (window.db) {
+            db.ref('campaña/jugadores/' + localStorage.getItem('playerId')).update({
+                ahn: parseIntOr0(currentPlayerData.ahn) - mod,
+                ahn_mod: 0
+            });
+            if (ahnModInput) ahnModInput.value = 0;
+        }
     });
 
     // --- Rest Logic ---
