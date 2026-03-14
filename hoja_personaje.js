@@ -109,6 +109,17 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.renderCharacterSheet = function(data) {
+    // 1. Stats Principales (Cuerpo, Mente, Alma)
+    const coreStats = ['cuerpo', 'mente', 'alma'];
+    coreStats.forEach(stat => {
+        const statValue = (data.stats && data.stats[stat]) !== undefined ? data.stats[stat] : data[stat];
+        const elements = document.querySelectorAll(`[name="attr_${stat}"]`);
+        elements.forEach(el => {
+            if (el.tagName === 'INPUT') el.value = statValue || 0;
+            else el.innerText = statValue || 0;
+        });
+    });
+
     // Datos Básicos
     if (data.characterName) {
         document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
@@ -192,50 +203,73 @@ window.renderCharacterSheet = function(data) {
         }
     }
 
-    // Sincronización de Perks
-    const perkContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perk-creator-container');
-    if (perkContainer) {
-        // Límpialo primero (pero mantén el encabezado si lo hay, aunque en Roll20 es un fieldset)
-        let repContainer = perkContainer.querySelector('.repcontainer');
-        if (!repContainer) {
-            repContainer = document.createElement('div');
-            repContainer.className = 'repcontainer';
-            perkContainer.appendChild(repContainer);
-        } else {
-            repContainer.innerHTML = '';
-        }
-
-        if (data.humanPerks && Array.isArray(data.humanPerks)) {
-            data.humanPerks.forEach(perk => {
-                const perkCard = document.createElement('div');
-                perkCard.className = 'perk-card sheet-perk-row';
-
-                // Formatear etiquetas si existen
-                let tagsHtml = '';
-                if (perk.tags && Array.isArray(perk.tags)) {
-                    tagsHtml = `<div style="text-align: right; margin-bottom: 5px; display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap;">`;
-                    perk.tags.forEach(tag => {
-                        tagsHtml += `<span class="sheet-skill-badge">${tag}</span>`;
-                    });
-                    tagsHtml += `</div>`;
-                }
-
-                perkCard.innerHTML = `
-                    <div class="sheet-perk-view">
-                        <div>
-                            ${tagsHtml}
-                            <div class="sheet-perk-header">
-                                <button type="button" class="sheet-view-name-btn" style="pointer-events: none;">
-                                    <span style="font-weight: bold; color: var(--border-accent);">${perk.nombre || 'Perk'}</span>
-                                </button>
-                            </div>
-                            <span class="sheet-view-desc">${perk.desc || ''}</span>
-                        </div>
+    // 2. Inventario (Stash)
+    // Nota para Jules: Firebase puede devolver arrays como objetos si sufrieron mutaciones. Usa Object.values.
+    const stashContainer = document.getElementById('inv-stash-grid') || document.querySelector('.inventory-grid') || document.getElementById('inventory-list');
+    if (stashContainer) {
+        stashContainer.innerHTML = ''; // Limpiar antes de renderizar
+        const stashItems = data.stash ? Object.values(data.stash) : [];
+        stashItems.forEach(item => {
+            stashContainer.innerHTML += `
+                <div class="inventory-item-card" style="border: 1px solid #444; padding: 5px; margin-bottom: 5px; background: #1a1a1a; display: flex; justify-content: space-between;">
+                    <div>
+                        <span style="color: #fff; font-family: 'Mikodacs';">${item.nombre || 'Ítem Desconocido'}</span>
+                        <span style="color: #aaa; font-size: 0.8em; display: block;">${item.tag || 'Suministro'}</span>
                     </div>
-                `;
-                repContainer.appendChild(perkCard);
-            });
-        }
+                    <div style="text-align: right;">
+                        <span style="color: #ffd700; font-weight: bold;">Tier ${item.tier || 'I'}</span>
+                        <span style="color: #00ffff; display: block;">x${item.cantidad || 1}</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // 3. Perks y Habilidades
+    const perksContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perks-list') || document.getElementById('perks-container');
+    if (perksContainer) {
+        perksContainer.innerHTML = '';
+        const perks = data.humanPerks ? Object.values(data.humanPerks) : [];
+        perks.forEach(perk => {
+            perksContainer.innerHTML += `
+                <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111;">
+                    <div style="color: #00ffff; font-weight: bold;">${perk.nombre}</div>
+                    <div style="color: #ccc; font-size: 0.9em;">${perk.desc}</div>
+                </div>
+            `;
+        });
+    }
+
+    // 4. Mails (Apps del Celular)
+    const mailsContainer = document.querySelector('.mail-inbox-list') || document.getElementById('mails-list') || document.querySelector('.mails-container');
+    if (mailsContainer) {
+        mailsContainer.innerHTML = '';
+        const mails = data.mails ? Object.values(data.mails) : [];
+        mails.forEach(mail => {
+            mailsContainer.innerHTML += `
+                <div class="mail-item" style="border-bottom: 1px solid #333; padding: 8px;">
+                    <strong style="color: #fff;">De: ${mail.remitente}</strong>
+                    <p style="color: #aaa; margin: 2px 0;">${mail.asunto}</p>
+                </div>
+            `;
+        });
+    }
+
+    // 5. Transacciones (Apps del Celular)
+    const transContainer = document.getElementById('lista-transacciones-banco') || document.getElementById('transactions-list') || document.querySelector('.transactions-container');
+    if (transContainer) {
+        transContainer.innerHTML = '';
+        const transacciones = data.transactions ? Object.values(data.transactions) : [];
+        transacciones.forEach(tx => {
+            const color = tx.tipo === 'ingreso' ? '#00ff00' : '#ff4444';
+            const signo = tx.tipo === 'ingreso' ? '+' : '-';
+            transContainer.innerHTML += `
+                <div class="tx-item" style="display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding: 5px;">
+                    <span style="color: #ccc;">${tx.concepto}</span>
+                    <span style="color: ${color}; font-weight: bold;">${signo}₳${tx.monto}</span>
+                </div>
+            `;
+        });
     }
 }
 
