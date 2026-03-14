@@ -959,6 +959,7 @@
           <select id="dm-expression-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 150px; display: none;">
             <!-- Injected via JS -->
           </select>
+          <button id="btn-dm-theatre-react" class="btn-cyber" style="background: #222; color: #0df; border: 1px solid #0df; padding: 8px; height: 40px; box-sizing: border-box;" title="Cambiar Expresión sin diálogo">REACCIONAR</button>
           <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del actor seleccionado..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; border-radius: 4px;"></textarea>
         </div>
       </div>
@@ -3225,7 +3226,7 @@
                 // Update Expressions
                 const exprSelect = document.getElementById('dm-expression-select');
                 exprSelect.innerHTML = '';
-                if (actorData.expresiones) {
+                if (actorData.expresiones && Object.keys(actorData.expresiones).length > 1) {
                     exprSelect.style.display = 'block';
                     for (const [name, url] of Object.entries(actorData.expresiones)) {
                         const opt = document.createElement('option');
@@ -3444,6 +3445,32 @@
                 img.style.transform = 'scale(0.95)';
             }
         });
+    });
+
+    // Reaccionar sin diálogo
+    document.getElementById('btn-dm-theatre-react').addEventListener('click', () => {
+        const selectedNpcId = activeSpeakerId;
+        if (selectedNpcId) {
+            const actorData = dbActoresCache[selectedNpcId];
+            if (actorData) {
+                const exprSelect = document.getElementById('dm-expression-select');
+                const selectedSprite = exprSelect && exprSelect.style.display !== 'none' ? exprSelect.value : actorData.sprite;
+
+                const state = {
+                    nombre: actorData.nombre,
+                    titulo: actorData.titulo,
+                    color_nombre: actorData.color_nombre,
+                    color_titulo: actorData.color_titulo,
+                    escala: actorData.escala !== undefined ? actorData.escala : 1.0,
+                    sprite: selectedSprite,
+                    mensaje: "",
+                    timestamp: Date.now()
+                };
+                db.ref('campaña/teatro/estado_actual').set(state);
+            }
+        } else {
+            alert("Selecciona un actor en el escenario primero.");
+        }
     });
 
     // Entrar a Escena / Avanzar

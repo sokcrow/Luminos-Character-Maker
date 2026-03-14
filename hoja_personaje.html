@@ -3886,6 +3886,7 @@
   <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
     <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
     <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
+    <button id="btn-player-theatre-react" style="background: #222; color: #0df; border: 1px solid #0df; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 221, 255, 0.3);">REACCIONAR</button>
     <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
   </div>
 </div>
@@ -4349,14 +4350,17 @@
       isTheatreBlocked = snap.val();
       const input = document.getElementById('player-theatre-input');
       const btn = document.getElementById('btn-player-theatre-send');
+      const btnReact = document.getElementById('btn-player-theatre-react');
       if (input && btn) {
           if (isTheatreBlocked) {
               input.disabled = true;
               btn.disabled = true;
+              if (btnReact) btnReact.disabled = true;
               input.placeholder = "El Director ha bloqueado las interacciones (Modo Lore)...";
           } else {
               input.disabled = false;
               btn.disabled = false;
+              if (btnReact) btnReact.disabled = false;
               input.placeholder = "¿Qué quieres decir o hacer? (Escribe aquí...)";
           }
       }
@@ -4486,8 +4490,12 @@
                       currentAssignedActor = actorSnap.val();
                       const selectExp = document.getElementById('player-expression-select');
                       if (currentAssignedActor && currentAssignedActor.expresiones) {
-                          selectExp.style.display = 'block';
                           const numExpresiones = Object.keys(currentAssignedActor.expresiones).length;
+                          if (numExpresiones > 1) {
+                              selectExp.style.display = 'block';
+                          } else {
+                              selectExp.style.display = 'none';
+                          }
                           // Only populate if empty, changed actor, or number of expressions changed
                           if (selectExp.options.length === 0 || selectExp.getAttribute('data-actor') !== actorId || parseInt(selectExp.getAttribute('data-count')) !== numExpresiones) {
                               const currentVal = selectExp.value;
@@ -4524,46 +4532,59 @@
 
   // Send Dialogue logic
   const btnSend = document.getElementById('btn-player-theatre-send');
+  const btnReact = document.getElementById('btn-player-theatre-react');
   const inputEl = document.getElementById('player-theatre-input');
+
+  function sendTheatreMessage(msgText) {
+      if (isTheatreBlocked) return;
+
+      let actorData = currentAssignedActor;
+
+      // Fallback if no actor assigned
+      if (!actorData) {
+          actorData = {
+              nombre: currentPlayerName || "Jugador",
+              titulo: "Sin Asignar",
+              color_nombre: "#ffffff",
+              color_titulo: "#aaaaaa",
+              escala: 1.0,
+              sprite: "https://i.imgur.com/Z8N4rG9.png" // Placeholder transparent or generic
+          };
+      }
+
+      const selectExp = document.getElementById('player-expression-select');
+      const selectedSprite = selectExp && selectExp.style.display !== 'none' ? selectExp.value : actorData.sprite;
+
+      const payload = {
+          nombre: actorData.nombre,
+          titulo: actorData.titulo,
+          color_nombre: actorData.color_nombre,
+          color_titulo: actorData.color_titulo,
+          escala: actorData.escala !== undefined ? actorData.escala : 1.0,
+          sprite: selectedSprite,
+          mensaje: msgText,
+          timestamp: Date.now()
+      };
+
+      db.ref('campaña/teatro/cola').push(payload).then(() => {
+          if (msgText !== "") {
+              inputEl.value = '';
+          }
+      }).catch(e => console.error("Error sending message to queue:", e));
+  }
 
   if (btnSend && inputEl) {
       btnSend.addEventListener('click', () => {
-          if (isTheatreBlocked) return;
           const msg = inputEl.value.trim();
           if (!msg) return;
-
-          let actorData = currentAssignedActor;
-
-          // Fallback if no actor assigned
-          if (!actorData) {
-              actorData = {
-                  nombre: currentPlayerName || "Jugador",
-                  titulo: "Sin Asignar",
-                  color_nombre: "#ffffff",
-                  color_titulo: "#aaaaaa",
-                  escala: 1.0,
-                  sprite: "https://i.imgur.com/Z8N4rG9.png" // Placeholder transparent or generic
-              };
-          }
-
-          const selectExp = document.getElementById('player-expression-select');
-          const selectedSprite = selectExp && selectExp.style.display !== 'none' ? selectExp.value : actorData.sprite;
-
-          const payload = {
-              nombre: actorData.nombre,
-              titulo: actorData.titulo,
-              color_nombre: actorData.color_nombre,
-              color_titulo: actorData.color_titulo,
-              escala: actorData.escala !== undefined ? actorData.escala : 1.0,
-              sprite: selectedSprite,
-              mensaje: msg,
-              timestamp: Date.now()
-          };
-
-          db.ref('campaña/teatro/cola').push(payload).then(() => {
-              inputEl.value = '';
-          }).catch(e => console.error("Error sending message to queue:", e));
+          sendTheatreMessage(msg);
       });
+
+      if (btnReact) {
+          btnReact.addEventListener('click', () => {
+              sendTheatreMessage("");
+          });
+      }
 
       inputEl.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
