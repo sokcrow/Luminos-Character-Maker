@@ -823,10 +823,17 @@
               <input type="number" id="actor-escala" value="1.0" step="0.1" min="0.1" max="5.0" style="flex: 1; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" title="Escala visual (1.0 = Normal)" />
             </div>
 
-            <h5 style="color: #aaa; margin: 5px 0;">Expresiones (URLs):</h5>
-            <input type="url" id="actor-sprite" placeholder="Sprite Base/Neutral (Requerido)" />
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+              <label style="font-size: 0.85em; color: #aaa;">Tipo de Actor:</label>
+              <label style="color: #fff; font-size: 0.9em;"><input type="radio" name="actor-tipo" id="actor-tipo-npc" value="NPC" checked /> NPC</label>
+              <label style="color: #fff; font-size: 0.9em;"><input type="radio" name="actor-tipo" id="actor-tipo-jugador" value="Jugador" /> Jugador</label>
+            </div>
 
-            <div id="actor-expresiones-container" style="display: flex; flex-direction: column; gap: 5px;">
+            <h5 style="color: #aaa; margin: 10px 0 5px 0;">Gráficos (URLs):</h5>
+            <input type="url" id="actor-icono" placeholder="URL Icono Cuadrado (Opcional, usa Sprite si vacío)" style="width: 100%; margin-bottom: 5px;" />
+            <input type="url" id="actor-sprite" placeholder="Sprite Base/Neutral (Requerido)" style="width: 100%;" />
+
+            <div id="actor-expresiones-container" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
               <!-- Dynamic expressions will be added here -->
             </div>
             <button id="btn-add-expresion" class="btn-cyber" style="background:#222; color:#fff; border-color:#555; font-size: 12px; padding: 5px; margin-bottom: 10px;">+ Añadir Expresión</button>
@@ -865,6 +872,23 @@
     </div>
 
   </div> <!-- Fin dm-tabs-content -->
+
+  <!-- MODAL LLAMAR A ESCENA -->
+  <div id="modal-llamar-escena" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+    <div style="background: #111; border: 2px solid #0df; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
+        <h3 style="color: #0df; margin: 0;">Llamar a Escena</h3>
+        <button id="btn-cerrar-modal-escena" style="background: transparent; color: #ff4444; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+      </div>
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button id="tab-escena-npcs" class="btn-cyber" style="flex: 1; background: #222; border-color: #0df; color: #0df;">NPCs</button>
+        <button id="tab-escena-jugadores" class="btn-cyber" style="flex: 1; background: #111; border-color: #444; color: #888;">Jugadores</button>
+      </div>
+      <div id="lista-llamar-escena" style="flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start;">
+        <!-- Inject avatars here -->
+      </div>
+    </div>
+  </div>
 
   <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
   <div id="theatre-view-dm" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2000; background: linear-gradient(135deg, #1a1c23 0%, #111 100%); background-size: cover; background-position: center; background-repeat: no-repeat; flex-direction: column; overflow: hidden;">
@@ -924,15 +948,18 @@
           </label>
         </div>
 
+        <div style="display: flex; gap: 10px; align-items: center; background: #1a1a1a; padding: 5px; border-radius: 4px; border: 1px solid #333;">
+          <button id="btn-llamar-escena" class="btn-cyber" style="background: #222; color: #0df; border-color: #0df; padding: 5px 10px; font-size: 12px; white-space: nowrap;">+ Llamar a Escena</button>
+          <div id="dm-escenario" style="display: flex; gap: 5px; overflow-x: auto; flex: 1; padding: 2px;">
+            <!-- Avatars injected here -->
+          </div>
+        </div>
+
         <div style="display: flex; gap: 10px; align-items: center;">
-          <select id="dm-actor-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 200px;">
-            <option value="">Selecciona NPC...</option>
-            <!-- Injected via JS -->
-          </select>
           <select id="dm-expression-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 150px; display: none;">
             <!-- Injected via JS -->
           </select>
-          <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del NPC o narrador..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; border-radius: 4px;"></textarea>
+          <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del actor seleccionado..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; border-radius: 4px;"></textarea>
         </div>
       </div>
 
@@ -2898,7 +2925,9 @@
         document.getElementById('actor-color-nombre').value = '#ffffff';
         document.getElementById('actor-color-titulo').value = '#c49a00';
         document.getElementById('actor-escala').value = '1.0';
+        document.getElementById('actor-icono').value = '';
         document.getElementById('actor-sprite').value = '';
+        document.getElementById('actor-tipo-npc').checked = true;
         document.getElementById('actor-expresiones-container').innerHTML = '';
 
         document.getElementById('btn-crear-actor').innerText = 'Crear Actor';
@@ -2941,8 +2970,12 @@
             const card = document.createElement('div');
             card.className = 'card-cyber card-store'; // reusing store card style for the pointer cursor and hover
 
-            const imgUrl = actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
+            const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
+            const badgeColor = actorData.tipo === 'Jugador' ? '#0df' : '#ff4444';
+            const badgeText = actorData.tipo || 'NPC';
+
             card.innerHTML = `
+                <div style="position: absolute; top: 5px; left: 5px; background: ${badgeColor}; color: #000; font-size: 10px; padding: 2px 5px; border-radius: 3px; font-weight: bold;">[${badgeText}]</div>
                 <button class="btn-delete-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Actor">🗑️</button>
                 <button class="btn-edit-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Actor">✏️</button>
                 <img src="${imgUrl}" alt="${actorData.nombre}" style="border-radius: 50%; border-color: ${actorData.color_titulo || '#555'};">
@@ -2972,7 +3005,14 @@
                 document.getElementById('actor-color-nombre').value = actorData.color_nombre || '#ffffff';
                 document.getElementById('actor-color-titulo').value = actorData.color_titulo || '#c49a00';
                 document.getElementById('actor-escala').value = actorData.escala !== undefined ? actorData.escala : '1.0';
+                document.getElementById('actor-icono').value = actorData.icono || '';
                 document.getElementById('actor-sprite').value = actorData.sprite || '';
+
+                if (actorData.tipo === 'Jugador') {
+                    document.getElementById('actor-tipo-jugador').checked = true;
+                } else {
+                    document.getElementById('actor-tipo-npc').checked = true;
+                }
 
                 document.getElementById('actor-expresiones-container').innerHTML = '';
                 if (actorData.expresiones) {
@@ -3040,7 +3080,8 @@
             for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
                 const opt = document.createElement('option');
                 opt.value = actorId;
-                opt.innerText = actorData.nombre;
+                const tag = actorData.tipo ? `[${actorData.tipo}] ` : '[NPC] ';
+                opt.innerText = tag + actorData.nombre;
                 if (playerData.actor_id === actorId) {
                     opt.selected = true;
                 }
@@ -3132,55 +3173,135 @@
         if (view && bg) view.style.backgroundImage = `url('${bg}')`;
     });
 
-    // Populate DM Actor Select
-    db.ref('campaña/actores').on('value', (snap) => {
-        const select = document.getElementById('dm-actor-select');
-        if (!select) return;
+    // --- Escenario / Active Roster Logic ---
+    let escenarioActores = [];
+    let activeSpeakerId = null;
 
-        // Save current selection to restore if possible
-        const currentSelection = select.value;
+    function renderEscenario() {
+        const container = document.getElementById('dm-escenario');
+        if (!container) return;
+        container.innerHTML = '';
 
-        // Keep first option
-        select.innerHTML = '<option value="">Selecciona NPC...</option>';
-        const actores = snap.val() || {};
-        for (const [id, data] of Object.entries(actores)) {
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.innerText = data.nombre;
-            select.appendChild(opt);
+        escenarioActores.forEach(actorId => {
+            const actorData = dbActoresCache[actorId];
+            if (!actorData) return;
+
+            const isSpeaker = actorId === activeSpeakerId;
+            const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/40/222222/ffffff?text=?';
+            const badgeColor = actorData.tipo === 'Jugador' ? '#0df' : '#ff4444';
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.style.cssText = `
+                position: relative; width: 45px; height: 45px; cursor: pointer; border-radius: 50%;
+                border: 2px solid ${isSpeaker ? '#c49a00' : '#444'};
+                box-shadow: ${isSpeaker ? '0 0 10px rgba(196,154,0,0.8)' : 'none'};
+                transition: all 0.2s ease;
+                background-image: url('${imgUrl}'); background-size: cover; background-position: center;
+                flex-shrink: 0;
+            `;
+
+            const removeBtn = document.createElement('div');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.style.cssText = `
+                position: absolute; top: -5px; right: -5px; background: #ff4444; color: white;
+                border-radius: 50%; width: 15px; height: 15px; font-size: 12px; line-height: 15px;
+                text-align: center; font-weight: bold; cursor: pointer; border: 1px solid #111;
+            `;
+
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                escenarioActores = escenarioActores.filter(id => id !== actorId);
+                if (activeSpeakerId === actorId) {
+                    activeSpeakerId = null;
+                    document.getElementById('dm-expression-select').style.display = 'none';
+                }
+                renderEscenario();
+            });
+
+            avatarDiv.addEventListener('click', () => {
+                activeSpeakerId = actorId;
+                renderEscenario();
+
+                // Update Expressions
+                const exprSelect = document.getElementById('dm-expression-select');
+                exprSelect.innerHTML = '';
+                if (actorData.expresiones) {
+                    exprSelect.style.display = 'block';
+                    for (const [name, url] of Object.entries(actorData.expresiones)) {
+                        const opt = document.createElement('option');
+                        opt.value = url;
+                        opt.innerText = name;
+                        exprSelect.appendChild(opt);
+                    }
+                } else {
+                    exprSelect.style.display = 'none';
+                }
+            });
+
+            avatarDiv.appendChild(removeBtn);
+            container.appendChild(avatarDiv);
+        });
+    }
+
+    function renderModalLlamarEscena(filtro = 'NPC') {
+        const container = document.getElementById('lista-llamar-escena');
+        if (!container) return;
+        container.innerHTML = '';
+
+        for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+            const tipoActor = actorData.tipo || 'NPC';
+            if ((filtro === 'NPC' && tipoActor !== 'NPC') || (filtro === 'Jugador' && tipoActor !== 'Jugador')) {
+                continue;
+            }
+
+            const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
+
+            const card = document.createElement('div');
+            card.style.cssText = 'background: #222; border: 1px solid #444; border-radius: 4px; padding: 5px; width: 100px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.2s ease;';
+
+            card.innerHTML = `
+                <img src="${imgUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid ${actorData.color_titulo || '#555'}; margin-bottom: 5px;">
+                <span style="color: ${actorData.color_nombre || '#fff'}; font-size: 12px; text-align: center; word-break: break-word;">${actorData.nombre}</span>
+            `;
+
+            card.addEventListener('mouseover', () => card.style.borderColor = '#0df');
+            card.addEventListener('mouseout', () => card.style.borderColor = '#444');
+
+            card.addEventListener('click', () => {
+                if (!escenarioActores.includes(actorId)) {
+                    escenarioActores.push(actorId);
+                    renderEscenario();
+                }
+                document.getElementById('modal-llamar-escena').style.display = 'none';
+            });
+
+            container.appendChild(card);
         }
+    }
 
-        if (actores[currentSelection]) {
-            select.value = currentSelection;
-            // trigger change event to refresh expressions
-            select.dispatchEvent(new Event('change'));
-        } else {
-            document.getElementById('dm-expression-select').style.display = 'none';
-        }
+    document.getElementById('btn-llamar-escena').addEventListener('click', () => {
+        document.getElementById('modal-llamar-escena').style.display = 'flex';
+        renderModalLlamarEscena('NPC'); // Default tab
+        document.getElementById('tab-escena-npcs').style.background = '#222';
+        document.getElementById('tab-escena-npcs').style.color = '#0df';
+        document.getElementById('tab-escena-jugadores').style.background = '#111';
+        document.getElementById('tab-escena-jugadores').style.color = '#888';
     });
 
-    document.getElementById('dm-actor-select').addEventListener('change', (e) => {
-        const selectedId = e.target.value;
-        const exprSelect = document.getElementById('dm-expression-select');
+    document.getElementById('btn-cerrar-modal-escena').addEventListener('click', () => {
+        document.getElementById('modal-llamar-escena').style.display = 'none';
+    });
 
-        const currentExpr = exprSelect.value;
-        exprSelect.innerHTML = '';
-        if (selectedId && dbActoresCache[selectedId] && dbActoresCache[selectedId].expresiones) {
-            exprSelect.style.display = 'block';
-            for (const [name, url] of Object.entries(dbActoresCache[selectedId].expresiones)) {
-                const opt = document.createElement('option');
-                opt.value = url;
-                opt.innerText = name;
-                exprSelect.appendChild(opt);
-            }
-            // Restore selection if possible
-            if (currentExpr) {
-               const exists = Array.from(exprSelect.options).some(opt => opt.value === currentExpr);
-               if (exists) exprSelect.value = currentExpr;
-            }
-        } else {
-            exprSelect.style.display = 'none';
-        }
+    document.getElementById('tab-escena-npcs').addEventListener('click', (e) => {
+        e.target.style.background = '#222'; e.target.style.color = '#0df';
+        document.getElementById('tab-escena-jugadores').style.background = '#111'; document.getElementById('tab-escena-jugadores').style.color = '#888';
+        renderModalLlamarEscena('NPC');
+    });
+
+    document.getElementById('tab-escena-jugadores').addEventListener('click', (e) => {
+        e.target.style.background = '#222'; e.target.style.color = '#0df';
+        document.getElementById('tab-escena-npcs').style.background = '#111'; document.getElementById('tab-escena-npcs').style.color = '#888';
+        renderModalLlamarEscena('Jugador');
     });
 
     let queueItems = [];
@@ -3328,7 +3449,7 @@
     // Entrar a Escena / Avanzar
     document.getElementById('btn-theatre-avanzar').addEventListener('click', () => {
         const dmInput = document.getElementById('dm-theatre-input').value.trim();
-        const selectedNpcId = document.getElementById('dm-actor-select').value;
+        const selectedNpcId = activeSpeakerId;
 
         // Priority 1: DM Input (Overrides Queue)
         if (dmInput && selectedNpcId) {
@@ -3384,10 +3505,16 @@
       const colorTitulo = document.getElementById('actor-color-titulo').value;
       const escala = parseFloat(document.getElementById('actor-escala').value) || 1.0;
       const sprite = document.getElementById('actor-sprite').value.trim();
+      let icono = document.getElementById('actor-icono').value.trim();
+      const tipo = document.getElementById('actor-tipo-jugador').checked ? 'Jugador' : 'NPC';
 
       if (!nombre || !sprite) {
         alert("El nombre del personaje y la URL del sprite son obligatorios.");
         return;
+      }
+
+      if (!icono) {
+          icono = sprite; // Fallback
       }
 
       const isEditing = editModeActorKey !== null;
@@ -3412,6 +3539,8 @@
         color_nombre: colorNombre,
         color_titulo: colorTitulo,
         escala: escala,
+        icono: icono,
+        tipo: tipo,
         sprite: sprite,
         expresiones: expresiones
       };
