@@ -6116,7 +6116,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 .theatre-stage img {
     aspect-ratio: 16 / 9;
-    max-height: 75vh;
+    height: 100vh;
     object-fit: contain;
     width: auto;
 }
