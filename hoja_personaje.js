@@ -2383,33 +2383,31 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Mock Data & Rendering for Inventory Grids ---
-    const mockItems = [
-        { id: 1, name: "Balas LCB", tier: "I", cost: 10, tags: ["Consumible", "Munición"], desc: "Balas estándar emitidas por Limbus Company. Son baratas, confiables y matan lo que tengan en frente, la mayoría de las veces.", img: "https://i.imgur.com/yshLPnQ.png", cant: 30 },
-        { id: 2, name: "Cuchillo Térmico", tier: "II", cost: 150, tags: ["Arma", "Burn"], desc: "Una hoja que alcanza altas temperaturas. Cauteriza la herida al mismo tiempo que corta. Muy usada en los callejones traseros.", img: "https://i.imgur.com/Akf25L5.png", cant: 1 },
-        { id: 3, name: "Inyector de Enkephalina", tier: "III", cost: 500, tags: ["Medicina", "SP", "Peligro"], desc: "Un tubo brillante verde. Restaura cordura al instante, pero el abuso de esta sustancia te dejará babeando en un rincón.", img: "https://i.imgur.com/DCTX5Jy.png", cant: 3 },
-        { id: 4, name: "Módulo Cibernético Roto", tier: "I", cost: 25, tags: ["Chatarra", "Crafting"], desc: "Un pedazo de tecnología que fue arrancado de un cíborg menos afortunado. Todavía tiene algo de cobre aprovechable.", img: "https://i.imgur.com/0KArwDU.png", cant: 5 }
-    ];
-
-    function renderInventoryGrid(gridId, items) {
+    // --- Data Rendering for Inventory Grids ---
+    window.renderInventoryGrid = function(gridId, itemsObj, isStash) {
         const grid = document.getElementById(gridId);
         if (!grid) return;
 
         grid.innerHTML = '';
+        const items = itemsObj ? Object.entries(itemsObj).map(([key, val]) => ({ key, ...val })) : [];
 
         // Fill slots with items
         items.forEach(item => {
             const slot = document.createElement('div');
             slot.className = 'item-slot';
 
-            // Guardar info para los filtros
-            slot.dataset.name = item.name.toLowerCase();
-            slot.dataset.tier = item.tier.toLowerCase();
-            slot.dataset.tags = item.tags.join(',').toLowerCase();
+            // Ensure array format for tags
+            let itemTags = item.tags && Array.isArray(item.tags) ? item.tags : (item.tipo ? [item.tipo] : []);
 
+            // Guardar info para los filtros
+            slot.dataset.name = (item.nombre || '').toLowerCase();
+            slot.dataset.tier = (item.tier || 'I').toLowerCase();
+            slot.dataset.tags = itemTags.join(',').toLowerCase();
+
+            const imgSrc = item.icono || "https://via.placeholder.com/40";
             slot.innerHTML = `
-                <img src="${item.img}" alt="${item.name}" />
-                <div class="item-quantity">x${item.cant}</div>
+                <img src="${imgSrc}" alt="${item.nombre || 'Desconocido'}" />
+                <div class="item-quantity">x${item.cantidad || 1}</div>
             `;
 
             slot.addEventListener('click', () => {
@@ -2419,44 +2417,67 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 // Show detail card
                 const detailCard = document.getElementById('item-detail-card');
-                detailCard.classList.add('active');
+                if (detailCard) detailCard.classList.add('active');
 
                 // Populate data
-                document.getElementById('detail-icon').src = item.img;
-                document.getElementById('detail-tier-val').innerText = item.tier;
-                document.getElementById('detail-cost-val').innerText = item.cost;
+                const iconEl = document.getElementById('detail-icon');
+                if (iconEl) iconEl.src = imgSrc;
+
+                const tierEl = document.getElementById('detail-tier-val');
+                if (tierEl) tierEl.innerText = item.tier || 'I';
+
+                const costEl = document.getElementById('detail-cost-val');
+                if (costEl) costEl.innerText = item.valorBase || item.costo || 0;
 
                 const titleBadge = document.getElementById('detail-title');
-                titleBadge.innerText = item.name;
+                if (titleBadge) {
+                    titleBadge.innerText = item.nombre || 'Desconocido';
+                    // Limpiar clases de tier anteriores
+                    titleBadge.classList.remove('tier-i-ii', 'tier-iii-iv', 'tier-v-vi', 'tier-vii-viii', 'tier-ix-x');
 
-                // Limpiar clases de tier anteriores
-                titleBadge.classList.remove('tier-i-ii', 'tier-iii-iv', 'tier-v-vi', 'tier-vii-viii', 'tier-ix-x');
-
-                // Aplicar nueva clase según el tier
-                if (item.tier === 'I' || item.tier === 'II') {
-                    titleBadge.classList.add('tier-i-ii');
-                } else if (item.tier === 'III' || item.tier === 'IV') {
-                    titleBadge.classList.add('tier-iii-iv');
-                } else if (item.tier === 'V' || item.tier === 'VI') {
-                    titleBadge.classList.add('tier-v-vi');
-                } else if (item.tier === 'VII' || item.tier === 'VIII') {
-                    titleBadge.classList.add('tier-vii-viii');
-                } else if (item.tier === 'IX' || item.tier === 'X') {
-                    titleBadge.classList.add('tier-ix-x');
-                } else {
-                    titleBadge.classList.add('tier-i-ii'); // Default fallback
+                    // Aplicar nueva clase según el tier
+                    const t = item.tier || 'I';
+                    if (t === 'I' || t === 'II') titleBadge.classList.add('tier-i-ii');
+                    else if (t === 'III' || t === 'IV') titleBadge.classList.add('tier-iii-iv');
+                    else if (t === 'V' || t === 'VI') titleBadge.classList.add('tier-v-vi');
+                    else if (t === 'VII' || t === 'VIII') titleBadge.classList.add('tier-vii-viii');
+                    else if (t === 'IX' || t === 'X') titleBadge.classList.add('tier-ix-x');
+                    else titleBadge.classList.add('tier-i-ii');
                 }
 
-                document.getElementById('detail-desc').innerText = item.desc;
+                const descEl = document.getElementById('detail-desc');
+                if (descEl) descEl.innerText = item.descripcion || 'Sin descripción.';
 
                 const tagsContainer = document.getElementById('detail-tags-val');
-                tagsContainer.innerHTML = '';
-                item.tags.forEach(tag => {
-                    const t = document.createElement('span');
-                    t.className = 'tag-pill';
-                    t.innerText = tag;
-                    tagsContainer.appendChild(t);
-                });
+                if (tagsContainer) {
+                    tagsContainer.innerHTML = '';
+                    itemTags.forEach(tag => {
+                        const t = document.createElement('span');
+                        t.className = 'tag-pill';
+                        t.innerText = tag;
+                        tagsContainer.appendChild(t);
+                    });
+                }
+
+                // Show equip/unequip button
+                const btnContainer = document.getElementById('detail-equip-btn-container');
+                if (btnContainer) {
+                    btnContainer.innerHTML = '';
+                    const actionBtn = document.createElement('button');
+                    actionBtn.className = isStash ? 'btn-equip' : 'btn-unequip';
+                    actionBtn.innerText = isStash ? '⬆️ Equipar' : '⬇️ Desequipar';
+                    actionBtn.onclick = () => {
+                        // We will set this logic up in the main listener setup
+                        window.dispatchEvent(new CustomEvent('item-move-action', {
+                            detail: {
+                                itemKey: item.key,
+                                itemData: item,
+                                fromStash: isStash
+                            }
+                        }));
+                    };
+                    btnContainer.appendChild(actionBtn);
+                }
             });
 
             grid.appendChild(slot);
@@ -2470,9 +2491,6 @@ window.addEventListener('DOMContentLoaded', () => {
             grid.appendChild(emptySlot);
         }
     }
-
-    renderInventoryGrid('inv-active-grid', mockItems.slice(0, 2)); // Just 2 in active
-    renderInventoryGrid('inv-stash-grid', mockItems); // All in stash
 
     // --- Inventory Search & Filter Logic (Stash) ---
     const searchInputStash = document.getElementById('buscador-items-stash');
@@ -2520,9 +2538,105 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Handle equip/unequip events
+    window.addEventListener('item-move-action', (e) => {
+        const { itemKey, itemData, fromStash } = e.detail;
+        const charNameInput = document.querySelector('input[name="attr_character_name"]');
+        const playerName = charNameInput ? charNameInput.value.trim() : "";
+        if (!playerName || !window.db) return;
+
+        const sourceListName = fromStash ? 'inventario_stash' : 'inventario_activo';
+        const targetListName = fromStash ? 'inventario_activo' : 'inventario_stash';
+
+        const sourceRef = window.db.ref(`campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`);
+        const targetRef = window.db.ref(`campaña/jugadores/${playerName}/${targetListName}`);
+
+        // Move 1 unit
+        let itemToMove = { ...itemData, cantidad: 1 };
+        delete itemToMove.key; // Clean up key
+
+        targetRef.once('value', targetSnap => {
+            const targetData = targetSnap.val() || {};
+            let foundKey = null;
+            let targetCurrentCant = 0;
+
+            for (const [k, targetItem] of Object.entries(targetData)) {
+                if (targetItem.nombre === itemData.nombre) {
+                    foundKey = k;
+                    targetCurrentCant = targetItem.cantidad || 1;
+                    break;
+                }
+            }
+
+            let promiseAdd;
+            if (foundKey) {
+                promiseAdd = targetRef.child(foundKey).update({ cantidad: targetCurrentCant + 1 });
+            } else {
+                promiseAdd = targetRef.push(itemToMove);
+            }
+
+            promiseAdd.then(() => {
+                sourceRef.once('value', sourceSnap => {
+                    const sourceItem = sourceSnap.val();
+                    if (!sourceItem) return;
+                    if (sourceItem.cantidad > 1) {
+                        sourceRef.update({ cantidad: sourceItem.cantidad - 1 });
+                    } else {
+                        sourceRef.remove();
+                        // Hide detail card if the last item is moved
+                        const detailCard = document.getElementById('item-detail-card');
+                        if (detailCard) detailCard.classList.remove('active');
+                    }
+                });
+            });
+        });
+    });
+
     // --- Dynamic Shop System Logic ---
     // Shop logic is now handled in the main Shop app tab
 });
+
+// Listener for active and stash inventory
+let playerInventoryListenerActive = false;
+window.addEventListener('DOMContentLoaded', () => {
+    // Wait slightly to ensure Firebase is initialized
+    setTimeout(() => {
+        if (!window.db) return;
+        const charNameInput = document.querySelector('input[name="attr_character_name"]');
+
+        // Use a generic interval or function to check when playerName is available
+        const checkPlayerName = setInterval(() => {
+            const playerName = charNameInput ? charNameInput.value.trim() : "";
+            if (playerName && playerName !== "Nombre" && playerName !== "Desconocido") {
+                clearInterval(checkPlayerName);
+
+                if (playerInventoryListenerActive) return;
+                playerInventoryListenerActive = true;
+
+                // Listen to Stash
+                window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on('value', snap => {
+                    const items = snap.val() || {};
+                    // Re-use render function, passing true for isStash
+                    if(typeof window.renderInventoryGrid === 'function') {
+                        window.renderInventoryGrid('inv-stash-grid', items, true);
+                        // Trigger filter to maintain state
+                        const searchInputStash = document.getElementById('buscador-items-stash');
+                        if (searchInputStash) searchInputStash.dispatchEvent(new Event('input'));
+                    }
+                });
+
+                // Listen to Activo
+                window.db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on('value', snap => {
+                    const items = snap.val() || {};
+                    if(typeof window.renderInventoryGrid === 'function') {
+                        window.renderInventoryGrid('inv-active-grid', items, false);
+                    }
+                });
+            }
+        }, 1000);
+    }, 1000);
+});
+
 
 // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
 let tiendaActivaData = null;

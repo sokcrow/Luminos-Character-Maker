@@ -1194,8 +1194,31 @@
         <h3 id="modal-inv-titulo">Inventario de: ???</h3>
         <button class="btn-close" id="btn-cerrar-modal-inv">&times;</button>
       </div>
-      <div class="modal-body" id="modal-inv-lista-items">
-        <!-- Items inyectados por JS -->
+      <div class="modal-body">
+        <h4 style="color:#0df; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 0;">Slots Activos (Equipado)</h4>
+        <div id="modal-inv-lista-activos" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+          <!-- Items inyectados por JS -->
+        </div>
+
+        <h4 style="color:#c49a00; border-bottom: 1px solid #444; padding-bottom: 5px;">Stash / Alijo</h4>
+        <div id="modal-inv-lista-stash" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Items inyectados por JS -->
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+          <h4 style="color: #fff; margin-bottom: 10px;">Añadir Ítem al Jugador</h4>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <select id="dm-inv-add-select" style="flex: 2; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
+              <option value="">Cargando Ítems...</option>
+            </select>
+            <select id="dm-inv-add-target" style="flex: 1; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
+              <option value="inventario_stash">Stash / Alijo</option>
+              <option value="inventario_activo">Slots Activos</option>
+            </select>
+            <input type="number" id="dm-inv-add-cant" value="1" min="1" style="width: 60px; padding: 8px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;" title="Cantidad" />
+            <button id="btn-dm-inv-add" class="btn-cyber btn-green" style="padding: 8px 15px;">Añadir</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2401,12 +2424,24 @@
     // --- LÓGICA DEL MODAL DE INVENTARIO (DM) ---
     const modalInvDM = document.getElementById('modal-inventario-dm');
     const btnCerrarModalInv = document.getElementById('btn-cerrar-modal-inv');
-    const listaInvModal = document.getElementById('modal-inv-lista-items');
+    const listaActivosModal = document.getElementById('modal-inv-lista-activos');
+    const listaStashModal = document.getElementById('modal-inv-lista-stash');
     let currentInvPlayer = null;
+    let invStashRef = null;
+    let invActivoRef = null;
 
     btnCerrarModalInv.addEventListener('click', () => {
         modalInvDM.style.display = 'none';
         currentInvPlayer = null;
+
+        if (invStashRef) {
+            invStashRef.off();
+            invStashRef = null;
+        }
+        if (invActivoRef) {
+            invActivoRef.off();
+            invActivoRef = null;
+        }
     });
 
     document.addEventListener('click', (e) => {
@@ -2416,65 +2451,205 @@
         }
     });
 
+    function renderInvRow(key, item, listType) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; align-items: center; background: #222; padding: 10px; border-radius: 4px; border: 1px solid #333; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;';
+
+        const switchAction = listType === 'stash' ? 'to_activo' : 'to_stash';
+        const switchIcon = listType === 'stash' ? '⬆️ Equipar' : '⬇️ Desequipar';
+        const switchColor = listType === 'stash' ? '#0df' : '#c49a00';
+
+        // Enforce array for tags backward compatibility
+        let tagsStr = item.tags && Array.isArray(item.tags) ? item.tags.join(', ') : (item.tipo || 'Sin Tipo');
+
+        row.innerHTML = `
+            <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
+            <div style="flex: 1; min-width: 150px;">
+                <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
+                <span style="font-size: 12px; color: #888;">[${tagsStr}] Tier ${item.tier || 'I'}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="btn-inv-mod" data-action="${switchAction}" data-key="${key}" data-list="${listType}" style="background:transparent; border:1px solid ${switchColor}; color:${switchColor}; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px; font-size: 11px;" title="Mover">${switchIcon}</button>
+                <div style="width: 1px; height: 20px; background: #444; margin: 0 5px;"></div>
+                <button class="btn-inv-mod" data-action="minus" data-key="${key}" data-list="${listType}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">-</button>
+                <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
+                <button class="btn-inv-mod" data-action="plus" data-key="${key}" data-list="${listType}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">+</button>
+                <button class="btn-inv-mod" data-action="delete" data-key="${key}" data-list="${listType}" style="background:transparent; border:none; color:#ff4444; cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
+            </div>
+        `;
+        return row;
+    }
+
+    function populateAddSelect() {
+        const selectAdd = document.getElementById('dm-inv-add-select');
+        if (!selectAdd) return;
+        selectAdd.innerHTML = '<option value="">Selecciona un Ítem de la BD...</option>';
+
+        if (dbItemsCache) {
+            const sortedKeys = Object.keys(dbItemsCache).sort((a,b) => dbItemsCache[a].nombre.localeCompare(dbItemsCache[b].nombre));
+            for (const key of sortedKeys) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${dbItemsCache[key].nombre} [Tier ${dbItemsCache[key].tier || 'I'}]`;
+                selectAdd.appendChild(opt);
+            }
+        }
+    }
+
+    document.getElementById('btn-dm-inv-add').addEventListener('click', () => {
+        if (!currentInvPlayer) return;
+        const itemKey = document.getElementById('dm-inv-add-select').value;
+        const targetList = document.getElementById('dm-inv-add-target').value;
+        const cant = parseInt(document.getElementById('dm-inv-add-cant').value) || 1;
+
+        if (!itemKey) {
+            alert('Selecciona un ítem de la lista.');
+            return;
+        }
+
+        const dataGlobal = dbItemsCache[itemKey];
+        if (!dataGlobal) { alert("El ítem ya no existe en la BD global."); return; }
+
+        const targetRef = db.ref(`campaña/jugadores/${currentInvPlayer}/${targetList}`);
+
+        // Push the item. Note: we clone data so it doesn't break if global item changes
+        targetRef.once('value', snap => {
+            let foundKey = null;
+            let currentCant = 0;
+            const targetData = snap.val() || {};
+
+            // Check if it already exists to increment quantity instead
+            for (const [k, item] of Object.entries(targetData)) {
+                if (item.nombre === dataGlobal.nombre) {
+                    foundKey = k;
+                    currentCant = item.cantidad || 1;
+                    break;
+                }
+            }
+
+            if (foundKey) {
+                targetRef.child(foundKey).update({ cantidad: currentCant + cant })
+                    .then(() => alert(`Se añadieron ${cant} a ${dataGlobal.nombre} en ${targetList}.`));
+            } else {
+                const newItem = {
+                    ...dataGlobal,
+                    cantidad: cant,
+                    valorBase: dataGlobal.costo || 0 // Para la tienda
+                };
+                targetRef.push(newItem)
+                    .then(() => alert(`Ítem ${dataGlobal.nombre} x${cant} añadido a ${targetList}.`));
+            }
+        });
+    });
+
     function abrirModalInventario(playerName) {
+        // Detach previous listeners if they exist
+        if (invStashRef) {
+            invStashRef.off();
+        }
+        if (invActivoRef) {
+            invActivoRef.off();
+        }
+
         currentInvPlayer = playerName;
         document.getElementById('modal-inv-titulo').innerText = `Inventario de: ${playerName}`;
         modalInvDM.style.display = 'flex';
 
-        db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on('value', (snap) => {
+        populateAddSelect();
+
+        // Listen to Stash
+        invStashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+        invStashRef.on('value', (snap) => {
             if (currentInvPlayer !== playerName) return;
-            listaInvModal.innerHTML = '';
+            listaStashModal.innerHTML = '';
             const stash = snap.val();
             if (!stash) {
-                listaInvModal.innerHTML = '<div style="color:#666; text-align:center;">Inventario vacío.</div>';
-                return;
+                listaStashModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">Stash vacío.</div>';
+            } else {
+                for (const [key, item] of Object.entries(stash)) {
+                    listaStashModal.appendChild(renderInvRow(key, item, 'stash'));
+                }
             }
+        });
 
-            for (const [key, item] of Object.entries(stash)) {
-                const row = document.createElement('div');
-                row.style.cssText = 'display: flex; align-items: center; background: #222; padding: 10px; border-radius: 4px; border: 1px solid #333; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;';
-
-                row.innerHTML = `
-                    <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
-                        <span style="font-size: 12px; color: #888;">[${item.tipo}] Tier ${item.tier}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="btn-inv-mod" data-action="minus" data-key="${key}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">-</button>
-                        <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
-                        <button class="btn-inv-mod" data-action="plus" data-key="${key}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">+</button>
-                        <button class="btn-inv-mod" data-action="delete" data-key="${key}" style="background:transparent; border:none; color:#ff4444; cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
-                    </div>
-                `;
-                listaInvModal.appendChild(row);
+        // Listen to Activo
+        invActivoRef = db.ref(`campaña/jugadores/${playerName}/inventario_activo`);
+        invActivoRef.on('value', (snap) => {
+            if (currentInvPlayer !== playerName) return;
+            listaActivosModal.innerHTML = '';
+            const activo = snap.val();
+            if (!activo) {
+                listaActivosModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">No hay ítems equipados.</div>';
+            } else {
+                for (const [key, item] of Object.entries(activo)) {
+                    listaActivosModal.appendChild(renderInvRow(key, item, 'activo'));
+                }
             }
         });
     }
 
-    listaInvModal.addEventListener('click', (e) => {
+    document.querySelector('.modal-body').addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-inv-mod')) {
             const action = e.target.getAttribute('data-action');
             const key = e.target.getAttribute('data-key');
+            const listType = e.target.getAttribute('data-list');
 
-            const stashRef = db.ref(`campaña/jugadores/${currentInvPlayer}/inventario_stash/${key}`);
+            const listName = listType === 'stash' ? 'inventario_stash' : 'inventario_activo';
+            const itemRef = db.ref(`campaña/jugadores/${currentInvPlayer}/${listName}/${key}`);
 
-            stashRef.once('value', snap => {
+            itemRef.once('value', snap => {
                 const item = snap.val();
                 if (!item) return;
 
                 if (action === 'plus') {
-                    stashRef.update({ cantidad: item.cantidad + 1 });
+                    itemRef.update({ cantidad: item.cantidad + 1 });
                 } else if (action === 'minus') {
                     if (item.cantidad > 1) {
-                        stashRef.update({ cantidad: item.cantidad - 1 });
+                        itemRef.update({ cantidad: item.cantidad - 1 });
                     } else {
-                        stashRef.remove();
+                        itemRef.remove();
                     }
                 } else if (action === 'delete') {
                     if (confirm('¿Eliminar este ítem por completo?')) {
-                        stashRef.remove();
+                        itemRef.remove();
                     }
+                } else if (action === 'to_activo' || action === 'to_stash') {
+                    const targetListName = action === 'to_activo' ? 'inventario_activo' : 'inventario_stash';
+                    const targetRef = db.ref(`campaña/jugadores/${currentInvPlayer}/${targetListName}`);
+
+                    // Move 1 unit
+                    let itemToMove = { ...item, cantidad: 1 };
+
+                    targetRef.once('value', targetSnap => {
+                        const targetData = targetSnap.val() || {};
+                        let foundKey = null;
+                        let targetCurrentCant = 0;
+
+                        for (const [k, targetItem] of Object.entries(targetData)) {
+                            if (targetItem.nombre === item.nombre) {
+                                foundKey = k;
+                                targetCurrentCant = targetItem.cantidad || 1;
+                                break;
+                            }
+                        }
+
+                        // Add to target
+                        let promiseAdd;
+                        if (foundKey) {
+                            promiseAdd = targetRef.child(foundKey).update({ cantidad: targetCurrentCant + 1 });
+                        } else {
+                            promiseAdd = targetRef.push(itemToMove);
+                        }
+
+                        // Remove from source
+                        promiseAdd.then(() => {
+                            if (item.cantidad > 1) {
+                                itemRef.update({ cantidad: item.cantidad - 1 });
+                            } else {
+                                itemRef.remove();
+                            }
+                        });
+                    });
                 }
             });
         }
