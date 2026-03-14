@@ -185,7 +185,7 @@
     border-radius: 0;
     padding: 50px 70px 40px 70px;
     min-height: 180px;
-    color: #f0f0f0;
+    color: #fffacd; /* Amarillo pálido (LemonChiffon) */
     font-size: 1.1rem;
     line-height: 1.6;
     font-family: 'Roboto', sans-serif;
@@ -4393,7 +4393,22 @@
       }
 
       if (textBox) {
-          textBox.innerText = state.mensaje || '';
+          if (textBox.typewriterInterval) {
+              clearInterval(textBox.typewriterInterval);
+          }
+          textBox.innerText = '';
+          const fullText = state.mensaje || '';
+          let charIndex = 0;
+          if (fullText.length > 0) {
+              textBox.typewriterInterval = setInterval(() => {
+                  textBox.innerText += fullText.charAt(charIndex);
+                  charIndex++;
+                  if (charIndex >= fullText.length) {
+                      clearInterval(textBox.typewriterInterval);
+                      textBox.typewriterInterval = null;
+                  }
+              }, 30); // 30ms per character
+          }
       }
 
       const stage = document.getElementById('player-theatre-stage');
