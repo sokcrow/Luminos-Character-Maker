@@ -5581,7 +5581,8 @@ input[name="attr_tab"][value="crafteo"] ~ .sheet-phone-screen .sheet-tab-crafteo
 /* Tabs: Inventario Activo & Stash */
 .inv-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 64px);
+    grid-template-columns: repeat(10, 64px);
+    width: max-content; /* Ensure it expands horizontally */
     grid-auto-rows: 64px;
     gap: 10px;
     min-height: 360px;
@@ -6332,3 +6333,13 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 .hex-pos-bottom-right { top: 80%; left: 75%; transform: translate(-50%, -50%); }
 .hex-pos-top { top: 15%; left: 50%; transform: translate(-50%, -50%); }
 .hex-pos-bottom { top: 85%; left: 50%; transform: translate(-50%, -50%); }
+
+
+
+/* El inventario Activo solo debe mostrar 10 slots exactos */
+#inv-active-grid {
+    grid-template-columns: repeat(10, 64px); /* 10 de ancho */
+    width: max-content; /* Ensure it expands horizontally */
+    min-height: 74px; /* Exactamente una fila (64px + 10px padding) */
+    height: 74px; /* Limita el background-image para que no dibuje ms filas vacas */
+}

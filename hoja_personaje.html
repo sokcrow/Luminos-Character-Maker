@@ -185,7 +185,7 @@
     border-radius: 0;
     padding: 50px 70px 40px 70px;
     min-height: 180px;
-    color: #f0f0f0;
+    color: #fffacd; /* Amarillo pálido (LemonChiffon) */
     font-size: 1.1rem;
     line-height: 1.6;
     font-family: 'Roboto', sans-serif;
@@ -3916,7 +3916,7 @@
   </div>
 
   <!-- Stage Area -->
-  <div class="theatre-stage" id="player-theatre-stage" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 200px; gap: 50px; position: relative;">
+  <div class="theatre-stage" id="player-theatre-stage" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 200px; gap: 10px; position: relative;">
     <!-- Sprites will be injected here -->
   </div>
 
@@ -4447,7 +4447,22 @@
       }
 
       if (textBox) {
-          textBox.innerText = state.mensaje || '';
+          if (textBox.typewriterInterval) {
+              clearInterval(textBox.typewriterInterval);
+          }
+          textBox.innerText = '';
+          const fullText = state.mensaje || '';
+          let charIndex = 0;
+          if (fullText.length > 0) {
+              textBox.typewriterInterval = setInterval(() => {
+                  textBox.innerText += fullText.charAt(charIndex);
+                  charIndex++;
+                  if (charIndex >= fullText.length) {
+                      clearInterval(textBox.typewriterInterval);
+                      textBox.typewriterInterval = null;
+                  }
+              }, 30); // 30ms per character
+          }
       }
 
       const stage = document.getElementById('player-theatre-stage');
@@ -4455,6 +4470,8 @@
 
       const activeSpriteUrl = state.sprite;
       const activeName = state.nombre || 'Desconocido';
+      const actorEscala = state.escala !== undefined ? state.escala : 1.0;
+
       if (!activeSpriteUrl) return;
 
       let existingSprite = Array.from(stage.children).find(img => img.dataset.name === activeName);
@@ -4463,6 +4480,7 @@
           existingSprite.src = activeSpriteUrl;
           existingSprite.dataset.url = activeSpriteUrl;
           existingSprite.dataset.lastActive = Date.now();
+          existingSprite.style.height = `calc(100vh * ${actorEscala})`;
       } else {
           playerSpritesEnEscena.add(activeName);
           const img = document.createElement('img');
@@ -4470,7 +4488,7 @@
           img.dataset.url = activeSpriteUrl;
           img.dataset.name = activeName;
           img.dataset.lastActive = Date.now();
-          img.style.cssText = 'max-height: 100vh; max-width: 1500px; object-fit: contain; transition: all 0.4s ease;';
+          img.style.cssText = `height: calc(100vh * ${actorEscala}); max-width: 1500px; object-fit: contain; transition: all 0.4s ease;`;
           stage.appendChild(img);
 
           while (stage.children.length > 4) {
@@ -4566,6 +4584,7 @@
                   titulo: "Sin Asignar",
                   color_nombre: "#ffffff",
                   color_titulo: "#aaaaaa",
+                  escala: 1.0,
                   sprite: "https://i.imgur.com/Z8N4rG9.png" // Placeholder transparent or generic
               };
           }
@@ -4578,6 +4597,7 @@
               titulo: actorData.titulo,
               color_nombre: actorData.color_nombre,
               color_titulo: actorData.color_titulo,
+              escala: actorData.escala !== undefined ? actorData.escala : 1.0,
               sprite: selectedSprite,
               mensaje: msg,
               timestamp: Date.now()

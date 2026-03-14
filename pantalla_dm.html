@@ -907,6 +907,11 @@
               <input type="color" id="actor-color-titulo" value="#c49a00" style="flex: 1; padding: 0; height: 30px; cursor: pointer;" />
             </div>
 
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+              <label style="flex: 1; font-size: 0.85em; color: #aaa;">Escala / Tamaño:</label>
+              <input type="number" id="actor-escala" value="1.0" step="0.1" min="0.1" max="5.0" style="flex: 1; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" title="Escala visual (1.0 = Normal)" />
+            </div>
+
             <h5 style="color: #aaa; margin: 5px 0;">Expresiones (URLs):</h5>
             <input type="url" id="actor-sprite" placeholder="Sprite Base/Neutral (Requerido)" />
 
@@ -961,7 +966,7 @@
     <button id="btn-exit-theatre" style="position: absolute; top: 20px; right: 20px; background: #8b0000; color: #fff; border: 1px solid #ff0000; padding: 10px 20px; border-radius: 4px; cursor: pointer; z-index: 2010; font-weight: bold;">SALIR DEL TEATRO</button>
 
     <!-- Stage Area -->
-    <div class="theatre-stage" id="theatre-stage-container" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 250px; gap: 50px; position: relative;">
+    <div class="theatre-stage" id="theatre-stage-container" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 250px; gap: 10px; position: relative;">
       <!-- Sprites will be injected here -->
     </div>
 
@@ -1039,7 +1044,6 @@
       transition: all 0.4s ease;
     }
     .theatre-stage img {
-      aspect-ratio: 16 / 9;
       height: 100vh;
       object-fit: contain;
       width: auto;
@@ -1252,7 +1256,7 @@
     border-radius: 0;
     padding: 50px 70px 40px 70px;
     min-height: 180px;
-    color: #f0f0f0;
+    color: #fffacd; /* Amarillo pálido (LemonChiffon) */
     font-size: 1.1rem;
     line-height: 1.6;
     font-family: 'Roboto', sans-serif;
@@ -3179,6 +3183,7 @@
         document.getElementById('actor-titulo').value = '';
         document.getElementById('actor-color-nombre').value = '#ffffff';
         document.getElementById('actor-color-titulo').value = '#c49a00';
+        document.getElementById('actor-escala').value = '1.0';
         document.getElementById('actor-sprite').value = '';
         document.getElementById('actor-expresiones-container').innerHTML = '';
 
@@ -3188,6 +3193,24 @@
     }
 
     document.getElementById('btn-cancelar-actor').addEventListener('click', resetActorForm);
+
+    document.getElementById('actor-escala').addEventListener('input', (e) => {
+        if (editModeActorKey !== null) {
+            const nuevaEscala = parseFloat(e.target.value) || 1.0;
+            db.ref(`campaña/actores/${editModeActorKey}`).update({ escala: nuevaEscala });
+
+            // Si el actor está en escena, actualizar su estado para reflejar el cambio en tiempo real
+            const actorData = dbActoresCache[editModeActorKey];
+            if (actorData) {
+               db.ref('campaña/teatro/estado_actual').once('value').then(snap => {
+                   const state = snap.val();
+                   if (state && state.nombre === actorData.nombre) {
+                       db.ref('campaña/teatro/estado_actual').update({ escala: nuevaEscala });
+                   }
+               });
+            }
+        }
+    });
 
     function renderListaActores() {
         const gridActores = document.getElementById('grid-actores');
@@ -3234,6 +3257,7 @@
                 document.getElementById('actor-titulo').value = actorData.titulo || '';
                 document.getElementById('actor-color-nombre').value = actorData.color_nombre || '#ffffff';
                 document.getElementById('actor-color-titulo').value = actorData.color_titulo || '#c49a00';
+                document.getElementById('actor-escala').value = actorData.escala !== undefined ? actorData.escala : '1.0';
                 document.getElementById('actor-sprite').value = actorData.sprite || '';
 
                 document.getElementById('actor-expresiones-container').innerHTML = '';
@@ -3493,7 +3517,23 @@
         namePlate.style.backgroundColor = state.color_nombre || '#416268';
         namePlate.style.color = '#ffffff';
 
-        textBox.innerText = state.mensaje || '';
+        // Typewriter effect
+        if (textBox.typewriterInterval) {
+            clearInterval(textBox.typewriterInterval);
+        }
+        textBox.innerText = '';
+        const fullText = state.mensaje || '';
+        let charIndex = 0;
+        if (fullText.length > 0) {
+            textBox.typewriterInterval = setInterval(() => {
+                textBox.innerText += fullText.charAt(charIndex);
+                charIndex++;
+                if (charIndex >= fullText.length) {
+                    clearInterval(textBox.typewriterInterval);
+                    textBox.typewriterInterval = null;
+                }
+            }, 30); // 30ms per character
+        }
 
         // Manage Sprites on Stage
         const stage = document.getElementById('theatre-stage-container');
@@ -3501,6 +3541,8 @@
 
         const activeSpriteUrl = state.sprite;
         const activeName = state.nombre || 'Desconocido';
+        const actorEscala = state.escala !== undefined ? state.escala : 1.0;
+
         if (!activeSpriteUrl) return;
 
         // Ensure we track by name to update expressions instead of duplicating
@@ -3510,6 +3552,7 @@
             existingSprite.src = activeSpriteUrl;
             existingSprite.dataset.url = activeSpriteUrl;
             existingSprite.dataset.lastActive = Date.now();
+            existingSprite.style.height = `calc(100vh * ${actorEscala})`;
         } else {
             currentSpritesEnEscena.add(activeName);
             const img = document.createElement('img');
@@ -3517,7 +3560,7 @@
             img.dataset.url = activeSpriteUrl;
             img.dataset.name = activeName;
             img.dataset.lastActive = Date.now();
-            img.style.cssText = 'height: 100vh; max-width: 1500px; object-fit: contain; transition: all 0.4s ease;';
+            img.style.cssText = `height: calc(100vh * ${actorEscala}); max-width: 1500px; object-fit: contain; transition: all 0.4s ease;`;
             stage.appendChild(img);
 
             // Limit to max 4 sprites for visual clarity, remove oldest if needed
@@ -3567,6 +3610,7 @@
                     titulo: actorData.titulo,
                     color_nombre: actorData.color_nombre,
                     color_titulo: actorData.color_titulo,
+                    escala: actorData.escala !== undefined ? actorData.escala : 1.0,
                     sprite: selectedSprite,
                     mensaje: dmInput,
                     timestamp: Date.now()
@@ -3585,6 +3629,7 @@
                 titulo: nextItem.titulo,
                 color_nombre: nextItem.color_nombre,
                 color_titulo: nextItem.color_titulo,
+                escala: nextItem.escala !== undefined ? nextItem.escala : 1.0,
                 sprite: nextItem.sprite,
                 mensaje: nextItem.mensaje,
                 timestamp: Date.now()
@@ -3605,6 +3650,7 @@
       const titulo = document.getElementById('actor-titulo').value.trim();
       const colorNombre = document.getElementById('actor-color-nombre').value;
       const colorTitulo = document.getElementById('actor-color-titulo').value;
+      const escala = parseFloat(document.getElementById('actor-escala').value) || 1.0;
       const sprite = document.getElementById('actor-sprite').value.trim();
 
       if (!nombre || !sprite) {
@@ -3633,6 +3679,7 @@
         titulo: titulo,
         color_nombre: colorNombre,
         color_titulo: colorTitulo,
+        escala: escala,
         sprite: sprite,
         expresiones: expresiones
       };
