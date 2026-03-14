@@ -326,7 +326,8 @@
                 const rawId = playerIdInput.value.trim();
                 if (!rawId) return;
 
-                const userId = rawId.toLowerCase().replace(/\s+/g, '');
+                // Quitamos .toLowerCase() para respetar mayúsculas de los perfiles existentes
+                const userId = rawId.replace(/\s+/g, '');
                 localStorage.setItem('playerId', userId);
 
                 loginStatus.textContent = "Verificando en la base de datos...";
