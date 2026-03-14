@@ -280,55 +280,37 @@ window.addEventListener('DOMContentLoaded', () => {
     const homeTab = document.querySelector('.sheet-tab-home');
     if (homeTab) homeTab.style.display = 'block';
 
-    // HUD Modals Logic
-    const hudModalsList = ['stats', 'perks', 'skills', 'apego'];
-    hudModalsList.forEach(modal => {
-        const btn = document.querySelector(`button[name="act_hud_${modal}"]`);
-        const modalEl = document.querySelector(`.modal-${modal}`);
+    // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
+    // Buscar todos los botones de acción del HUD y Codex
+    document.querySelectorAll('button[type="action"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const actionName = this.getAttribute('name');
+            if (!actionName) return;
 
-        if (btn && modalEl) {
-            btn.addEventListener('click', () => {
-                // Close others
-                document.querySelectorAll('.hud-modal').forEach(m => m.style.display = 'none');
-                // Open this
-                modalEl.style.display = 'flex';
+            // Lógica para abrir los modales principales (Stats, Perks, Skills, etc.)
+            if (actionName.startsWith('act_hud_') && actionName !== 'act_hud_close') {
+                const modalName = actionName.replace('act_hud_', '');
 
-                // Update state input
-                const stateInput = document.querySelector('.sheet-state-hud-modal');
-                if (stateInput) stateInput.value = modal;
-            });
-        }
-    });
+                // 1. Ocultar todos los modales
+                document.querySelectorAll('.sheet-modal-container, .sheet-modal').forEach(m => {
+                    m.style.display = 'none';
+                });
 
-    // Close HUD Modals
-    document.querySelectorAll('.hud-modal-close').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.hud-modal').forEach(m => m.style.display = 'none');
-            const stateInput = document.querySelector('.sheet-state-hud-modal');
-            if (stateInput) stateInput.value = '';
+                // 2. Buscar y mostrar el modal correcto
+                const targetModal = document.getElementById(`modal-${modalName}`) || document.querySelector(`.modal-${modalName}`);
+                if (targetModal) {
+                    targetModal.style.display = 'block';
+                }
+            }
+
+            // Lógica para cerrar ventanas
+            if (actionName === 'act_hud_close') {
+                document.querySelectorAll('.sheet-modal-container, .sheet-modal, .hud-modal').forEach(m => {
+                    m.style.display = 'none';
+                });
+            }
         });
     });
-
-    // Codex internal tabs
-    const codexTabs = ['mechanics', 'stats', 'skills'];
-    codexTabs.forEach(tab => {
-        const btn = document.querySelector(`button[name="act_codex_${tab}"]`);
-        if (btn) {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.sheet-codex-section').forEach(el => el.style.display = 'none');
-                const target = document.querySelector(`.sheet-codex-${tab}`);
-                if (target) target.style.display = 'block';
-
-                const codexStateInput = document.querySelector('.sheet-state-codex-tab');
-                if (codexStateInput) codexStateInput.value = tab;
-            });
-        }
-    });
-
-    // Show first codex tab
-    document.querySelectorAll('.sheet-codex-section').forEach(el => el.style.display = 'none');
-    const mechTab = document.querySelector('.sheet-codex-mechanics');
-    if (mechTab) mechTab.style.display = 'block';
 });
 // --- Inventory Modal Logic ---
 window.addEventListener('DOMContentLoaded', () => {
@@ -1682,13 +1664,6 @@ function renderizarVender() {
         }
     });
 }
-
-
-
-
-
-
-// Codex Navigation Tabs
 
 
 
