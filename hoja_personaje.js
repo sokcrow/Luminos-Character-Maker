@@ -2483,22 +2483,6 @@ window.addEventListener('DOMContentLoaded', () => {
             grid.appendChild(slot);
         });
 
-        // Fill remaining empty slots to make it look like a grid
-        // Active inventory has exactly 10 slots. Stash expands.
-        let emptySlotsNeeded = 0;
-        if (!isStash) {
-            emptySlotsNeeded = Math.max(0, 10 - items.length);
-        } else {
-            // Stash expands: Minimum 25, then adds rows (multiples of 5)
-            const targetSlots = Math.max(25, Math.ceil(items.length / 5) * 5);
-            emptySlotsNeeded = Math.max(0, targetSlots - items.length);
-        }
-
-        for(let i = 0; i < emptySlotsNeeded; i++) {
-            const emptySlot = document.createElement('div');
-            emptySlot.className = 'item-slot empty-slot';
-            grid.appendChild(emptySlot);
-        }
     }
 
     // --- Inventory Search & Filter Logic (Stash) ---
