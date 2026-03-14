@@ -99,6 +99,28 @@ window.addEventListener('DOMContentLoaded', () => {
             if (snapshot.exists()) {
                 currentPlayerData = snapshot.val();
                 renderCharacterSheet(currentPlayerData);
+
+                // --- RESOLUCIÓN DEL ACTOR PARA EL TEATRO ---
+                if (currentPlayerData.actor_asignado && currentPlayerData.actor_asignado !== "") {
+                    db.ref('campaña/actores/' + currentPlayerData.actor_asignado).once('value').then((actorSnapshot) => {
+                        if (actorSnapshot.exists()) {
+                            const fullActorData = actorSnapshot.val();
+                            // Include id manually as it's needed for expression select logic fallback
+                            fullActorData.id = currentPlayerData.actor_asignado;
+                            if (typeof window.updatePlayerTheatreData === 'function') {
+                                window.updatePlayerTheatreData(fullActorData, currentPlayerData.nombre);
+                            }
+                        } else {
+                            if (typeof window.updatePlayerTheatreData === 'function') {
+                                window.updatePlayerTheatreData(null, currentPlayerData.nombre);
+                            }
+                        }
+                    }).catch(err => console.error("Error cargando actor:", err));
+                } else {
+                    if (typeof window.updatePlayerTheatreData === 'function') {
+                        window.updatePlayerTheatreData(null, currentPlayerData.nombre);
+                    }
+                }
             } else {
                 console.error("No se encontraron datos para:", playerId);
             }
