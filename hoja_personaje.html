@@ -192,6 +192,9 @@
     box-shadow: none;
     text-shadow: none;
     z-index: 10;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .theatre-dialogue-text::before {
@@ -4404,12 +4407,12 @@
           if (textBox.typewriterInterval) {
               clearInterval(textBox.typewriterInterval);
           }
-          textBox.innerText = '';
+          textBox.textContent = '';
           const fullText = state.mensaje || '';
           let charIndex = 0;
           if (fullText.length > 0) {
               textBox.typewriterInterval = setInterval(() => {
-                  textBox.innerText += fullText.charAt(charIndex);
+                  textBox.textContent += fullText.charAt(charIndex);
                   charIndex++;
                   if (charIndex >= fullText.length) {
                       clearInterval(textBox.typewriterInterval);
