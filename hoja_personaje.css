@@ -6575,3 +6575,19 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     min-height: 74px; /* Exactamente una fila (64px + 10px padding) */
     height: 74px; /* Limita el background-image para que no dibuje ms filas vacas */
 }
+
+.btn-equip, .btn-unequip {
+    background-color: #222;
+    color: #fff;
+    border: 1px solid var(--text-main);
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+.btn-equip:hover, .btn-unequip:hover {
+    background-color: var(--text-main);
+    color: #000;
+}

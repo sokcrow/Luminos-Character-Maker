@@ -624,7 +624,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     btnContainer.innerHTML = '';
                     const actionBtn = document.createElement('button');
                     actionBtn.className = isStash ? 'btn-equip' : 'btn-unequip';
-                    actionBtn.innerText = isStash ? '⬆️ Equipar' : '⬇️ Desequipar';
+                    actionBtn.innerText = isStash ? 'Equipar' : 'Desequipar';
 
                     // If moving from stash, check if stash is unlocked
                     if (isStash && !window.isStashUnlocked) {
@@ -671,7 +671,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             loadBtn.style.backgroundColor = 'var(--cyan-tech)';
                             loadBtn.style.color = '#000';
                             loadBtn.style.marginTop = '5px';
-                            loadBtn.innerText = `🔄 Cargar (${reqCant} ${reqItem})`;
+                            loadBtn.innerText = `Cargar (${reqCant} ${reqItem})`;
 
                             if (cargaActual >= maxCargas) {
                                 loadBtn.disabled = true;
@@ -753,7 +753,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const { itemKey, itemData, isStash } = e.detail;
         const charNameInput = document.querySelector('input[name="attr_character_name"]');
         const playerName = charNameInput ? charNameInput.value.trim() : "";
-        if (!playerName || !typeof db !== 'undefined') return;
+        if (!playerName || typeof db === 'undefined') return;
 
         const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
         const reqItemName = itemData.vinculo_item;
@@ -837,7 +837,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const { itemKey, itemData, fromStash } = e.detail;
         const charNameInput = document.querySelector('input[name="attr_character_name"]');
         const playerName = charNameInput ? charNameInput.value.trim() : "";
-        if (!playerName || !typeof db !== 'undefined') return;
+        if (!playerName || typeof db === 'undefined') return;
 
         const sourceListName = fromStash ? 'inventario_stash' : 'inventario_activo';
         const targetListName = fromStash ? 'inventario_activo' : 'inventario_stash';
