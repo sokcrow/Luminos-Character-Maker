@@ -675,6 +675,15 @@
             </select>
             <input type="number" id="forja-costo" placeholder="Costo Base en Ahn" />
             <input type="number" id="forja-usos" placeholder="Usos Máximos (opcional)" />
+            <div style="display:flex; gap:10px; border-top: 1px dashed #444; padding-top: 10px; margin-top: 5px;">
+              <input type="number" id="forja-limite-activo" placeholder="Stack Inv. Activo (ej. 2)" style="flex:1;" />
+              <input type="number" id="forja-limite-alijo" placeholder="Stack Alijo (ej. 99)" style="flex:1;" />
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; border-top: 1px dashed #444; padding-top: 10px; margin-top: 5px;">
+              <input type="text" id="forja-vinculo-item" placeholder="Requiere Ítem (Vínculo) Ej: Bala" style="flex:2; min-width: 150px;" />
+              <input type="number" id="forja-vinculo-cant" placeholder="Cant/Carga" style="flex:1; min-width: 80px;" title="Cantidad necesaria para 1 carga" />
+              <input type="number" id="forja-vinculo-max" placeholder="Max Cargas" style="flex:1; min-width: 80px;" />
+            </div>
             <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
             <div style="display:flex; gap:10px;">
               <button id="btn-crear-item" class="btn-cyber btn-red" style="flex:1;">Crear Ítem</button>
@@ -1948,6 +1957,11 @@
        renderForjaTags();
        document.getElementById('forja-costo').value = '';
        document.getElementById('forja-usos').value = '';
+       document.getElementById('forja-limite-activo').value = '';
+       document.getElementById('forja-limite-alijo').value = '';
+       document.getElementById('forja-vinculo-item').value = '';
+       document.getElementById('forja-vinculo-cant').value = '';
+       document.getElementById('forja-vinculo-max').value = '';
        document.getElementById('forja-desc').value = '';
        document.getElementById('btn-crear-item').innerText = 'Crear Ítem';
        document.getElementById('btn-cancelar-item').style.display = 'none';
@@ -1965,11 +1979,35 @@
        const tier = document.getElementById('forja-tier').value;
        const costo = parseInt(document.getElementById('forja-costo').value) || 0;
        const usos = parseInt(document.getElementById('forja-usos').value) || 0;
+       const limite_activo = parseInt(document.getElementById('forja-limite-activo').value) || 2;
+       const limite_alijo = parseInt(document.getElementById('forja-limite-alijo').value) || 99;
+
+       const vinculo_item = document.getElementById('forja-vinculo-item').value.trim();
+       const vinculo_cantidad = parseInt(document.getElementById('forja-vinculo-cant').value) || 0;
+       const vinculo_stacks_max = parseInt(document.getElementById('forja-vinculo-max').value) || 0;
+
        const desc = document.getElementById('forja-desc').value.trim();
 
        if (currentItemTags.length === 0) { alert("Agrega al menos una etiqueta al ítem."); return; }
 
-       const item = { nombre, icono, tags: currentItemTags, tier, costo, usos, descripcion: desc };
+       const item = {
+           nombre,
+           icono,
+           tags: currentItemTags,
+           tier,
+           costo,
+           usos,
+           descripcion: desc,
+           limite_activo,
+           limite_alijo
+       };
+
+       if (vinculo_item) {
+           item.vinculo_item = vinculo_item;
+           item.vinculo_cantidad = vinculo_cantidad;
+           item.vinculo_stacks_max = vinculo_stacks_max;
+           item.carga_actual = 0;
+       }
 
        const isEditing = editModeItemKey !== null;
 
@@ -2055,6 +2093,11 @@
 
                  document.getElementById('forja-costo').value = data.costo !== undefined ? data.costo : '';
                  document.getElementById('forja-usos').value = data.usos !== undefined ? data.usos : '';
+                 document.getElementById('forja-limite-activo').value = data.limite_activo !== undefined ? data.limite_activo : '';
+                 document.getElementById('forja-limite-alijo').value = data.limite_alijo !== undefined ? data.limite_alijo : '';
+                 document.getElementById('forja-vinculo-item').value = data.vinculo_item || '';
+                 document.getElementById('forja-vinculo-cant').value = data.vinculo_cantidad !== undefined ? data.vinculo_cantidad : '';
+                 document.getElementById('forja-vinculo-max').value = data.vinculo_stacks_max !== undefined ? data.vinculo_stacks_max : '';
                  document.getElementById('forja-desc').value = data.descripcion || '';
 
                  document.getElementById('btn-crear-item').innerText = 'Actualizar Ítem';

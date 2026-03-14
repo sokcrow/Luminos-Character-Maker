@@ -2485,6 +2485,56 @@ window.addEventListener('DOMContentLoaded', () => {
                         };
                     }
                     btnContainer.appendChild(actionBtn);
+
+                    // Add Cargar button if item has vinculo
+                    const vinculoInfo = document.getElementById('detail-vinculo-info');
+                    if (item.vinculo_item && item.vinculo_cantidad && item.vinculo_stacks_max) {
+                        const maxCargas = item.vinculo_stacks_max;
+                        const cargaActual = item.carga_actual || 0;
+                        const reqCant = item.vinculo_cantidad;
+                        const reqItem = item.vinculo_item;
+
+                        if (vinculoInfo) {
+                            vinculoInfo.style.display = 'block';
+                            vinculoInfo.innerHTML = `
+                                <div style="font-size: 0.85em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">
+                                    Cargas: ${cargaActual} / ${maxCargas}
+                                </div>
+                                <div style="font-size: 0.75em; color: #aaa;">
+                                    Requiere ${reqCant}x "${reqItem}" para +1 carga.
+                                </div>
+                            `;
+                        }
+
+                        if (!isStash || window.isStashUnlocked) {
+                            const loadBtn = document.createElement('button');
+                            loadBtn.className = 'btn-equip'; // Reuse class for styling
+                            loadBtn.style.backgroundColor = 'var(--cyan-tech)';
+                            loadBtn.style.color = '#000';
+                            loadBtn.style.marginTop = '5px';
+                            loadBtn.innerText = `🔄 Cargar (${reqCant} ${reqItem})`;
+
+                            if (cargaActual >= maxCargas) {
+                                loadBtn.disabled = true;
+                                loadBtn.style.opacity = '0.5';
+                                loadBtn.style.cursor = 'not-allowed';
+                                loadBtn.innerText = 'Cargas al Máximo';
+                            } else {
+                                loadBtn.onclick = () => {
+                                    window.dispatchEvent(new CustomEvent('item-load-action', {
+                                        detail: {
+                                            itemKey: item.key,
+                                            itemData: item,
+                                            isStash: isStash
+                                        }
+                                    }));
+                                };
+                            }
+                            btnContainer.appendChild(loadBtn);
+                        }
+                    } else {
+                        if (vinculoInfo) vinculoInfo.style.display = 'none';
+                    }
                 }
             });
 
@@ -2539,6 +2589,90 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Handle loading items (Vinculos)
+    window.addEventListener('item-load-action', (e) => {
+        const { itemKey, itemData, isStash } = e.detail;
+        const charNameInput = document.querySelector('input[name="attr_character_name"]');
+        const playerName = charNameInput ? charNameInput.value.trim() : "";
+        if (!playerName || !window.db) return;
+
+        const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
+        const reqItemName = itemData.vinculo_item;
+
+        if (!reqCant || !reqItemName) return;
+
+        // Function to find and consume the required items across both active and stash
+        const consumeItems = async () => {
+            let totalFound = 0;
+            const activeRef = window.db.ref(`campaña/jugadores/${playerName}/inventario_activo`);
+            const stashRef = window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
+
+            const activeSnap = await activeRef.once('value');
+            const stashSnap = await stashRef.once('value');
+
+            const activeItems = activeSnap.val() || {};
+            const stashItems = stashSnap.val() || {};
+
+            let itemsToDeduct = []; // { ref, key, currentCant, deductCant }
+            let remainingNeeded = reqCant;
+
+            // Search Active
+            for (const [k, v] of Object.entries(activeItems)) {
+                if (v.nombre === reqItemName && remainingNeeded > 0) {
+                    let cant = v.cantidad || 1;
+                    let toDeduct = Math.min(cant, remainingNeeded);
+                    itemsToDeduct.push({ ref: activeRef, key: k, currentCant: cant, deductCant: toDeduct });
+                    remainingNeeded -= toDeduct;
+                }
+            }
+
+            // Search Stash
+            if (remainingNeeded > 0 && window.isStashUnlocked) {
+                for (const [k, v] of Object.entries(stashItems)) {
+                    if (v.nombre === reqItemName && remainingNeeded > 0) {
+                        let cant = v.cantidad || 1;
+                        let toDeduct = Math.min(cant, remainingNeeded);
+                        itemsToDeduct.push({ ref: stashRef, key: k, currentCant: cant, deductCant: toDeduct });
+                        remainingNeeded -= toDeduct;
+                    }
+                }
+            }
+
+            if (remainingNeeded > 0) {
+                if (!window.isStashUnlocked) {
+                    alert(`No tienes suficientes "${reqItemName}" en tu Inventario Activo (${reqCant} requeridos). El Alijo está bloqueado.`);
+                } else {
+                    alert(`No tienes suficientes "${reqItemName}" (${reqCant} requeridos).`);
+                }
+                return;
+            }
+
+            // Deduct
+            for (const item of itemsToDeduct) {
+                if (item.currentCant - item.deductCant <= 0) {
+                    await item.ref.child(item.key).remove();
+                } else {
+                    await item.ref.child(item.key).update({ cantidad: item.currentCant - item.deductCant });
+                }
+            }
+
+            // Increment charges
+            const currentCargas = parseInt(itemData.carga_actual) || 0;
+            const targetList = isStash ? 'inventario_stash' : 'inventario_activo';
+            await window.db.ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`).update({
+                carga_actual: currentCargas + 1
+            });
+
+            // Auto-refresh the detail card to show new charges by simulating a click
+            const activeSlot = document.querySelector('.item-slot.active');
+            if (activeSlot) {
+                activeSlot.click();
+            }
+        };
+
+        consumeItems();
+    });
+
     // Handle equip/unequip events
     window.addEventListener('item-move-action', (e) => {
         const { itemKey, itemData, fromStash } = e.detail;
@@ -2575,7 +2709,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (fromStash) {
                 // Moving to Active Inventory
-                if (foundKey && targetCurrentCant >= activeStackLimit) {
+                if (foundKey && (targetCurrentCant + 1) > activeStackLimit) {
                     alert(`No puedes equipar más de ${activeStackLimit} de este ítem a la vez.`);
                     return;
                 }
@@ -2586,7 +2720,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Moving to Stash
-                if (foundKey && targetCurrentCant >= stashStackLimit) {
+                if (foundKey && (targetCurrentCant + 1) > stashStackLimit) {
                     alert(`El alijo no puede almacenar más de ${stashStackLimit} de este ítem en un solo stack.`);
                     return;
                 }
