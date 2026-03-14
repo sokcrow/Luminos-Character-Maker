@@ -137,6 +137,13 @@ window.renderCharacterSheet = function(data) {
             if (el.tagName === 'INPUT') el.value = data.ahn;
             else el.innerText = data.ahn;
         });
+
+        // Ensure standard .banco-balance or similar is updated if it exists
+        const bancoBalance = document.getElementById('display-ahn');
+        if (bancoBalance) {
+            // Only update text content safely
+            bancoBalance.textContent = new Intl.NumberFormat('en-US').format(data.ahn || 0);
+        }
     }
 
     // Subtitulos y avatares
@@ -229,12 +236,15 @@ window.renderCharacterSheet = function(data) {
     const perksContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perks-list') || document.getElementById('perks-container');
     if (perksContainer) {
         perksContainer.innerHTML = '';
-        const perks = data.humanPerks ? Object.values(data.humanPerks) : [];
+        let perks = [];
+        if (data.perks) perks = perks.concat(Object.values(data.perks));
+        if (data.humanPerks) perks = perks.concat(Object.values(data.humanPerks));
+
         perks.forEach(perk => {
             perksContainer.innerHTML += `
-                <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111;">
-                    <div style="color: #00ffff; font-weight: bold;">${perk.nombre}</div>
-                    <div style="color: #ccc; font-size: 0.9em;">${perk.desc}</div>
+                <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                    <div style="color: #00ffff; font-weight: bold; font-family: 'Share Tech Mono', monospace; font-size: 1.1em; text-transform: uppercase;">${perk.nombre || perk.id || 'Perk Desconocido'}</div>
+                    <div style="color: #ccc; font-size: 0.9em; margin-top: 5px;">${perk.desc || 'Sin descripción'}</div>
                 </div>
             `;
         });
@@ -244,32 +254,85 @@ window.renderCharacterSheet = function(data) {
     const mailsContainer = document.querySelector('.mail-inbox-list') || document.getElementById('mails-list') || document.querySelector('.mails-container');
     if (mailsContainer) {
         mailsContainer.innerHTML = '';
-        const mails = data.mails ? Object.values(data.mails) : [];
-        mails.forEach(mail => {
-            mailsContainer.innerHTML += `
-                <div class="mail-item" style="border-bottom: 1px solid #333; padding: 8px;">
-                    <strong style="color: #fff;">De: ${mail.remitente}</strong>
-                    <p style="color: #aaa; margin: 2px 0;">${mail.asunto}</p>
-                </div>
-            `;
+        let mails = data.mails ? Object.values(data.mails) : [];
+
+        mails.sort((a, b) => {
+            let tA = a.timestamp || 0;
+            let tB = b.timestamp || 0;
+            return tB - tA;
         });
+
+        if (mails.length === 0) {
+            mailsContainer.innerHTML = '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Bandeja de entrada vacía</div>';
+        } else {
+            mails.forEach(mail => {
+                let dateStr = mail.inGameTime || "";
+                if (!dateStr && mail.timestamp) {
+                    const d = new Date(mail.timestamp);
+                    dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+
+                const mailItem = document.createElement('div');
+                mailItem.className = 'mail-item';
+                mailItem.style = 'border-bottom: 1px solid #333; padding: 10px; cursor: pointer;';
+
+                mailItem.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <strong style="color: var(--cyan-tech, #00ffff); font-family: 'Share Tech Mono', monospace;">${(mail.remitente || 'Desconocido').replace(/</g, "&lt;")}</strong>
+                        ${dateStr ? `<span style="color: #666; font-size: 0.7em;">${dateStr}</span>` : ''}
+                    </div>
+                    <p style="color: #ccc; margin: 4px 0 0 0; font-size: 0.9em; font-weight: bold;">${(mail.asunto || 'Sin Asunto').replace(/</g, "&lt;")}</p>
+                    <p style="color: #888; margin: 4px 0 0 0; font-size: 0.8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(mail.mensaje || '').replace(/</g, "&lt;")}</p>
+                `;
+
+                mailItem.addEventListener('click', () => {
+                    alert(`De: ${mail.remitente || 'Desconocido'}\nAsunto: ${mail.asunto || 'Sin Asunto'}\n\nMensaje:\n${mail.mensaje || 'Vacío'}`);
+                });
+
+                mailsContainer.appendChild(mailItem);
+            });
+        }
     }
 
     // 5. Transacciones (Apps del Celular)
     const transContainer = document.getElementById('lista-transacciones-banco') || document.getElementById('transactions-list') || document.querySelector('.transactions-container');
     if (transContainer) {
         transContainer.innerHTML = '';
-        const transacciones = data.transactions ? Object.values(data.transactions) : [];
-        transacciones.forEach(tx => {
-            const color = tx.tipo === 'ingreso' ? '#00ff00' : '#ff4444';
-            const signo = tx.tipo === 'ingreso' ? '+' : '-';
-            transContainer.innerHTML += `
-                <div class="tx-item" style="display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding: 5px;">
-                    <span style="color: #ccc;">${tx.concepto}</span>
-                    <span style="color: ${color}; font-weight: bold;">${signo}₳${tx.monto}</span>
-                </div>
-            `;
+        let transacciones = data.transactions ? Object.values(data.transactions) : [];
+
+        transacciones.sort((a, b) => {
+            let tA = a.timestamp || 0;
+            let tB = b.timestamp || 0;
+            return tB - tA;
         });
+
+        const ultimasTransacciones = transacciones.slice(0, 3);
+
+        if (ultimasTransacciones.length === 0) {
+            transContainer.innerHTML = '<div style="color: #666; font-style: italic; padding: 5px;">No hay transacciones recientes.</div>';
+        } else {
+            ultimasTransacciones.forEach(tx => {
+                const color = tx.tipo === 'ingreso' ? '#00ff00' : '#ff4444';
+                const signo = tx.tipo === 'ingreso' ? '+' : '-';
+
+                // Intentar leer tiempo in-game de la transacción o fallback
+                let dateStr = tx.inGameTime || tx.fecha || "";
+                if (!dateStr && tx.timestamp) {
+                    const d = new Date(tx.timestamp);
+                    dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+
+                transContainer.innerHTML += `
+                    <div class="tx-item" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding: 8px 5px;">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="color: #ccc;">${(tx.concepto || 'Transacción').replace(/</g, "&lt;")}</span>
+                            ${dateStr ? `<span style="color: #666; font-size: 0.7em;">${dateStr}</span>` : ''}
+                        </div>
+                        <span style="color: ${color}; font-weight: bold;">${signo}₳${tx.monto || 0}</span>
+                    </div>
+                `;
+            });
+        }
     }
 }
 

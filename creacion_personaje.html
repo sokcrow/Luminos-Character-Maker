@@ -4474,6 +4474,7 @@
             modifiers: {}, // Mods de atributos (Vigor, etc.)
             humanPerks: [],
             baseStats: { cuerpo: 0, mente: 0, alma: 0 }, // Stats principales
+            ahn: 0,
             activeEntity: 'golden',
             dothyBlessing: false
         };
@@ -5290,6 +5291,41 @@
                 // Get selected background's response
                 const selectedBg = backgroundsData.find(bg => bg.id === luminousState.backgroundId);
                 const responseText = selectedBg ? selectedBg.entityResponse : "...";
+
+                // El usuario pidió "incluir un bucle que analice cada respuesta elegida"
+                // de la fase 2. Las opciones elegidas son el background (trasfondo).
+                // Parse Ahn and Perks for selected background (recompensa de Fase 2)
+                if (selectedBg) {
+                    if (selectedBg.funds) {
+                        let parsedAhn = parseInt(selectedBg.funds.replace(/,/g, '').replace(/[^0-9-]/g, '')) || 0;
+                        if (luminousState.activeEntity === 'dothy') {
+                            parsedAhn = Math.floor(parsedAhn * 1.5);
+                        }
+                        luminousState.ahn = (luminousState.ahn || 0) + parsedAhn;
+                    }
+
+                    if (selectedBg.benefit) {
+                        const benefits = selectedBg.benefit.split(',');
+                        benefits.forEach(b => {
+                            b = b.trim();
+                            if (!/^[-+]\d+/.test(b)) {
+                                if(!luminousState.humanPerks) luminousState.humanPerks = [];
+                                luminousState.humanPerks.push({
+                                    id: 'bg_perk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                                    nombre: b,
+                                    desc: "Obtenido del trasfondo: " + selectedBg.name
+                                });
+                            } else {
+                                let match = b.match(/^([-+]\d+)\s+(.+)$/);
+                                if(match) {
+                                    let val = parseInt(match[1]);
+                                    let stat = match[2].trim();
+                                    luminousState.modifiers[stat] = (luminousState.modifiers[stat] || 0) + val;
+                                }
+                            }
+                        });
+                    }
+                }
 
                 if (luminousState.activeEntity === 'dothy') {
                     const reaction = dothyResponses.trasfondos[luminousState.backgroundId] || "Interesante elección...";
