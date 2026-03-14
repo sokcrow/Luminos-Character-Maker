@@ -492,7 +492,73 @@
             }
         });
 
-        window.addEventListener('DOMContentLoaded', () => {
+
+        window.currentPlayerData = {};
+
+        function renderCharacterSheet(data) {
+            isFirebaseUpdate = true;
+
+            // Textos Básicos
+            if (data.character_name !== undefined) {
+                const nameInputs = document.querySelectorAll('input[name="attr_character_name"]');
+                nameInputs.forEach(el => el.value = data.character_name);
+            }
+            if (data.clase !== undefined) {
+                const classInputs = document.querySelectorAll('input[name="attr_class"]');
+                classInputs.forEach(el => el.value = data.clase);
+            }
+            if (data.ahn !== undefined) {
+                const ahnDisplays = document.querySelectorAll('.sheet-banco-amount-display, #display-ahn');
+                ahnDisplays.forEach(el => el.innerText = data.ahn);
+            }
+
+            // Mapeo nativo de setAttrs para mantener la hoja viva sin romper Roll20Shim
+            // pero limpiando primero las repeticiones para cumplir "Limpia los contenedores... y vuelve a iterar"
+
+            // Limpia contenedores (Listas Dinámicas)
+            const repeatingSections = ['skills', 'abilities', 'equipment', 'apego'];
+            repeatingSections.forEach(section => {
+                const fieldset = document.querySelector(`fieldset.repeating_${section}`);
+                if (fieldset) {
+                    const repcontainer = fieldset.querySelector('.repcontainer');
+                    if (repcontainer) {
+                        repcontainer.innerHTML = ''; // Limpia el HTML
+                    }
+                }
+
+                // Limpia los atributos cacheados para evitar fantasmas
+                for (let k in attributes) {
+                    if (k.startsWith(`repeating_${section}_`)) {
+                        delete attributes[k];
+                    }
+                }
+            });
+
+            // Vuelve a iterar y renderizar (vía setAttrs que llama a checkRowExists)
+            const validTabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings', 'codex', 'mapa', 'notas', 'shop', 'mail', 'contratos'];
+            if (!data.tab || !validTabs.includes(data.tab)) {
+                data.tab = 'home';
+            }
+
+            // Sync repeating attributes manually before setAttrs to recreate the divs
+            for (let k in data) {
+                if (k.startsWith('repeating_')) {
+                    attributes[k] = data[k];
+                    checkRowExists(k);
+                }
+            }
+
+            // Usa el puente de Roll20 para re-vincular los eventos visuales
+            setAttrs(data, () => {
+                isFirebaseUpdate = false;
+                trigger('sheet:opened', { sourceAttribute: 'sheet:opened' });
+            });
+
+            // Inventory rendering is handled by the generic listeners outside this block,
+            // but if there are specific UI updates needed per the prompt they go here.
+        }
+
+window.addEventListener('DOMContentLoaded', () => {
             // Toggle Phone Logic
             const toggleBtn = document.getElementById('btn-toggle-phone');
             const phoneWrapper = document.querySelector('.sheet-phone-wrapper');
@@ -522,241 +588,17 @@
             }
 
             // Firebase Listener
-            if (window.db) {
-                db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        isFirebaseUpdate = true;
-
-                        // INITIAL CREATION TRANSLATION LOGIC
-                        // If the incoming data is the raw luminousState from the creator (e.g. contains baseStats),
-                        // translate it into the flat structure the character sheet expects.
-                        if (data.baseStats && !data.cuerpo_base) {
-                            console.log("Translating luminousState to character sheet format...");
-                            const update = {};
-
-                            // Apply basic stats
-                            if (data.baseStats) {
-                                update.cuerpo_base = data.baseStats.cuerpo || 0;
-                                update.mente_base = data.baseStats.mente || 0;
-                                update.alma_base = data.baseStats.alma || 0;
-                            }
-
-                            // Apply modifiers
-                            if (data.modifiers) {
-                                for (const [skill, val] of Object.entries(data.modifiers)) {
-                                    let normalized = skill.toLowerCase()
-                                        .normalize("NFD").replace(/[̀-ͯ]/g, "") // remove accents
-                                        .replace(/ñ/g, 'n');
-                                    update[`skill_${normalized}_mod`] = val;
-                                }
-                            }
-
-                            // Attempt to fill some profile data
-                            let raceName = data.originId;
-                            const rData = racesData.find(r => r.id === data.originId);
-                            if (rData) {
-                                raceName = rData.nombre;
-                                if(data.subraceId) {
-                                    raceName += ` (${data.subraceId.replace(/_/g, ' ')})`;
-                                }
-                            }
-
-                            let bgName = data.backgroundId;
-                            const bData = backgroundsData.find(b => b.id === data.backgroundId);
-                            if (bData) bgName = bData.name;
-
-
-                            let profName = "";
-                            if (data.professionIds && data.professionIds.length > 0) {
-                                profName = data.professionIds.map(id => {
-                                    const pData = professionsData.find(p => p.id === id);
-                                    return pData ? pData.name : id;
-                                }).join(' / ');
-                            } else if (data.professionId) {
-                                const pData = professionsData.find(p => p.id === data.professionId);
-                                if (pData) profName = pData.name;
-                            }
-
-
-                            let psychoName = data.psychologicalBackgroundId;
-                            const psData = psychoData.find(ps => ps.id === data.psychologicalBackgroundId);
-                            if (psData) psychoName = psData.name;
-
-                            update.race = raceName || "Desconocido";
-                            update.background = bgName || "Desconocido";
-                            update.class = profName || "Desconocido";
-                            update.identity = psychoName || "Desconocido";
-
-                            // Also append psycho traits to notes
-                            if(data.psychologicalIdeal || data.psychologicalVinculo || data.psychologicalGrieta) {
-                                update.identity_notes = `Ideal: ${data.psychologicalIdeal || 'N/A'}\n` +
-                                                        `Vínculo: ${data.psychologicalVinculo || 'N/A'}\n` +
-                                                        `Grieta: ${data.psychologicalGrieta || 'N/A'}`;
-                            }
-
-                            // Also retrieve the character's given name if any
-                            if (data.characterName) {
-                                update.character_name = data.characterName;
-                            }
-
-
-                            // Give starting Ahn based on background and deduct profession costs
-                            let startingAhn = 0;
-                            if (bData && bData.funds) {
-                                // Extract numeric value from funds (allowing negative numbers)
-                                const numAhnMatch = bData.funds.match(/-?\d[\d,]*/);
-                                if (numAhnMatch) {
-                                    startingAhn = parseInt(numAhnMatch[0].replace(/,/g, ''));
-                                }
-                            }
-
-                            // Deduct profession costs
-                            if (data.professionIds && data.professionIds.length > 0) {
-                                data.professionIds.forEach(id => {
-                                    const pData = professionsData.find(p => p.id === id);
-                                    if (pData && pData.cost) {
-                                        startingAhn -= pData.cost;
-                                    }
-                                });
-                            } else if (data.professionId) {
-                                 const pData = professionsData.find(p => p.id === data.professionId);
-                                 if (pData && pData.cost) {
-                                      startingAhn -= pData.cost;
-                                 }
-                            }
-
-                            update.ahn = startingAhn;
-
-                            // Ensure 'tab' is valid so we don't get a blank screen on load
-                            update.tab = 'home';
-
-                            // Clean up luminousState raw fields in Firebase after translation
-                            update.baseStats = null;
-                            update.modifiers = null;
-                            update.originId = null;
-                            update.subraceId = null;
-                            update.backgroundId = null;
-                            update.professionIds = null;
-                            update.professionId = null;
-                            update.psychologicalBackgroundId = null;
-                            update.characterName = null;
-                            update.psychologicalIdeal = null;
-                            update.psychologicalVinculo = null;
-                            update.psychologicalGrieta = null;
-
-                            // Apply update explicitly saving to Firebase (removing raw fields)
-                            isFirebaseUpdate = false;
-                            setAttrs(update);
-                            isFirebaseUpdate = true;
-
-                            // Render Human Perks
-                            if (data.humanPerks && data.humanPerks.length > 0) {
-                                data.humanPerks.forEach(p => {
-                                    const rowId = generateRowID();
-                                    const pUpdate = {
-                                        [`repeating_skills_${rowId}_skill_name`]: p.nombre,
-                                        [`repeating_skills_${rowId}_skill_description`]: p.desc,
-                                        [`repeating_skills_${rowId}_edit_mode`]: "0"
-                                    };
-                                    isFirebaseUpdate = false;
-                                    setAttrs(pUpdate);
-                                    isFirebaseUpdate = true;
-                                });
-                                // Clean up
-                                isFirebaseUpdate = false;
-                                setAttrs({ humanPerks: null });
-                                isFirebaseUpdate = true;
-                            }
-
-
-                            // Render Profession Perks
-                            if (data.professionIds && data.professionPerkIds) {
-                                data.professionIds.forEach((profId, i) => {
-                                    const pData = professionsData.find(p => p.id === profId);
-                                    const perkId = data.professionPerkIds[i];
-                                    if (pData && pData.perks && perkId) {
-                                        const perk = pData.perks.find(pk => pk.id === perkId);
-                                        if (perk) {
-                                            const rowId = generateRowID();
-                                            const pUpdate = {
-                                                [`repeating_skills_${rowId}_skill_name`]: perk.nombre,
-                                                [`repeating_skills_${rowId}_skill_description`]: perk.desc,
-                                                [`repeating_skills_${rowId}_edit_mode`]: "0"
-                                            };
-                                            isFirebaseUpdate = false;
-                                            setAttrs(pUpdate);
-                                            isFirebaseUpdate = true;
-                                        }
-                                    }
-                                });
-                            } else if (data.professionId && data.professionPerkId) {
-                                const pData = professionsData.find(p => p.id === data.professionId);
-                                if (pData && pData.perks) {
-                                    const perk = pData.perks.find(pk => pk.id === data.professionPerkId);
-                                    if (perk) {
-                                        const rowId = generateRowID();
-                                        const pUpdate = {
-                                            [`repeating_skills_${rowId}_skill_name`]: perk.nombre,
-                                            [`repeating_skills_${rowId}_skill_description`]: perk.desc,
-                                            [`repeating_skills_${rowId}_edit_mode`]: "0"
-                                        };
-                                        isFirebaseUpdate = false;
-                                        setAttrs(pUpdate);
-                                        isFirebaseUpdate = true;
-                                    }
-                                }
-                            }
-
-                            // Clean up
-                            isFirebaseUpdate = false;
-                            setAttrs({ professionPerkIds: null, professionPerkId: null });
-                            isFirebaseUpdate = true;
-
-
-                            // Also add background benefit as a perk
-                            if (bData && bData.benefit) {
-                                const rowId = generateRowID();
-                                const pUpdate = {
-                                    [`repeating_skills_${rowId}_skill_name`]: `Beneficio de Trasfondo: ${bData.name}`,
-                                    [`repeating_skills_${rowId}_skill_description`]: bData.benefit,
-                                    [`repeating_skills_${rowId}_edit_mode`]: "0"
-                                };
-                                isFirebaseUpdate = false;
-                                setAttrs(pUpdate);
-                                isFirebaseUpdate = true;
-                            }
-
-                            // Trigger events for derived calculations
-                            trigger('change:hp_base', {sourceAttribute: 'hp_base'});
-                            trigger('change:cuerpo_base', {sourceAttribute: 'cuerpo_base'});
-                            trigger('change:mente_base', {sourceAttribute: 'mente_base'});
-                            trigger('change:alma_base', {sourceAttribute: 'alma_base'});
-
-                        } else {
-                            // NORMAL LOAD
-                            const validTabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'vitals', 'settings', 'codex', 'mapa', 'notas', 'shop', 'mail', 'contratos'];
-                            if (!data.tab || !validTabs.includes(data.tab)) {
-                                data.tab = 'home';
-                            }
-
-                            // Sync repeating attributes manually before setAttrs
-                            for (let k in data) {
-                                if (k.startsWith('repeating_')) {
-                                    attributes[k] = data[k];
-                                    checkRowExists(k);
-                                }
-                            }
-
-                            setAttrs(data, () => {
-                                isFirebaseUpdate = false;
-                            });
-                        }
-                    }
-                });
-            } else {
-                trigger('sheet:opened', { sourceAttribute: 'sheet:opened' });
-            }
+                    // Firebase Listener
+        if (window.db) {
+            db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    window.currentPlayerData = snapshot.val();
+                    renderCharacterSheet(window.currentPlayerData);
+                } else {
+                    console.error("No se encontraron datos en Firebase para este jugador.");
+                }
+            });
+        }
 
         });
     })();
@@ -1431,10 +1273,12 @@
         getAttrs(['ahn', 'ahn_mod'], (values) => {
             let ahn = parseIntOr0(values.ahn);
             const mod = parseIntOr0(values.ahn_mod);
-            setAttrs({
-                ahn: ahn + mod,
-                ahn_mod: 0
-            });
+            if (window.db) {
+                db.ref('campaña/jugadores/' + playerId).update({
+                    ahn: ahn + mod,
+                    ahn_mod: 0
+                });
+            }
         });
     });
 
@@ -1442,10 +1286,12 @@
         getAttrs(['ahn', 'ahn_mod'], (values) => {
             let ahn = parseIntOr0(values.ahn);
             const mod = parseIntOr0(values.ahn_mod);
-            setAttrs({
-                ahn: ahn - mod,
-                ahn_mod: 0
-            });
+            if (window.db) {
+                db.ref('campaña/jugadores/' + playerId).update({
+                    ahn: ahn - mod,
+                    ahn_mod: 0
+                });
+            }
         });
     });
 
@@ -1460,13 +1306,15 @@
             let newHP = current + healAmount;
             if (newHP > max) newHP = max;
 
-            setAttrs({
-                hp: newHP,
-                sp: 0,
-                stagger_1_active: "1",
-                stagger_2_active: "1",
-                stagger_3_active: "1"
-            });
+            if (window.db) {
+                db.ref('campaña/jugadores/' + playerId).update({
+                    hp: newHP,
+                    sp: 0,
+                    stagger_1_active: "1",
+                    stagger_2_active: "1",
+                    stagger_3_active: "1"
+                });
+            }
         });
     });
 
@@ -1474,11 +1322,12 @@
         getAttrs(['hp_max'], (values) => {
             const max = parseIntOr0(values.hp_max);
 
-            // Heal to 100%, SP to 0, Respect Staggers (don't change them)
-            setAttrs({
-                hp: max,
-                sp: 0
-            });
+            if (window.db) {
+                db.ref('campaña/jugadores/' + playerId).update({
+                    hp: max,
+                    sp: 0
+                });
+            }
         });
     });
 
@@ -1502,7 +1351,9 @@
             update['new_perk_name'] = "";
             update['new_perk_desc'] = "";
 
-            setAttrs(update);
+            if (window.db) {
+                db.ref('campaña/jugadores/' + playerId).update(update);
+            }
         });
     });
 

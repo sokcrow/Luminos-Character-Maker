@@ -4339,20 +4339,7 @@
           }
         }
 
-        // Puente para guardar datos localmente para el index
-        localStorage.setItem('luminous_save', JSON.stringify({
-            nombre: document.querySelector('input[name="attr_character_name"]').value || "Desconocido",
-            nivel: document.querySelector('input[name="attr_level"]').value || 1,
-            ahn: document.querySelector('.sheet-banco-amount-display') ? document.querySelector('.sheet-banco-amount-display').innerText : 0
-        }));
-      } else {
-        const savedPlayerId = localStorage.getItem('playerId');
-        if (savedPlayerId) {
-            nameInput.value = savedPlayerId;
-            if (window.setAttrs) {
-                window.setAttrs({ character_name: savedPlayerId });
-            }
-        }
+
       }
     }
   }, 1000);
