@@ -2466,16 +2466,24 @@ window.addEventListener('DOMContentLoaded', () => {
                     const actionBtn = document.createElement('button');
                     actionBtn.className = isStash ? 'btn-equip' : 'btn-unequip';
                     actionBtn.innerText = isStash ? '⬆️ Equipar' : '⬇️ Desequipar';
-                    actionBtn.onclick = () => {
-                        // We will set this logic up in the main listener setup
-                        window.dispatchEvent(new CustomEvent('item-move-action', {
-                            detail: {
-                                itemKey: item.key,
-                                itemData: item,
-                                fromStash: isStash
-                            }
-                        }));
-                    };
+
+                    // If moving from stash, check if stash is unlocked
+                    if (isStash && !window.isStashUnlocked) {
+                        actionBtn.disabled = true;
+                        actionBtn.style.opacity = '0.5';
+                        actionBtn.style.cursor = 'not-allowed';
+                        actionBtn.title = "El alijo está bloqueado por el DM.";
+                    } else {
+                        actionBtn.onclick = () => {
+                            window.dispatchEvent(new CustomEvent('item-move-action', {
+                                detail: {
+                                    itemKey: item.key,
+                                    itemData: item,
+                                    fromStash: isStash
+                                }
+                            }));
+                        };
+                    }
                     btnContainer.appendChild(actionBtn);
                 }
             });
@@ -2561,10 +2569,27 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Check 10 slots limit for active inventory
-            if (fromStash && !foundKey && Object.keys(targetData).length >= 10) {
-                alert("El Inventario Activo está lleno. Solo puedes llevar 10 espacios.");
-                return;
+            // Check limits
+            const activeStackLimit = parseInt(itemData.limite_activo) || 2; // Default 2 for active if not specified
+            const stashStackLimit = parseInt(itemData.limite_alijo) || 99; // Default 99 for stash if not specified
+
+            if (fromStash) {
+                // Moving to Active Inventory
+                if (foundKey && targetCurrentCant >= activeStackLimit) {
+                    alert(`No puedes equipar más de ${activeStackLimit} de este ítem a la vez.`);
+                    return;
+                }
+                // Check 10 slots limit for active inventory
+                if (!foundKey && Object.keys(targetData).length >= 10) {
+                    alert("El Inventario Activo está lleno. Solo puedes llevar 10 espacios.");
+                    return;
+                }
+            } else {
+                // Moving to Stash
+                if (foundKey && targetCurrentCant >= stashStackLimit) {
+                    alert(`El alijo no puede almacenar más de ${stashStackLimit} de este ítem en un solo stack.`);
+                    return;
+                }
             }
 
             let promiseAdd;

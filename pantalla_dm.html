@@ -612,7 +612,12 @@
         <h3 style="margin: 0; color: #0df;">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
 
         <div style="background: #111; padding: 15px; border-radius: 6px; border: 1px solid #c49a00; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;">
-          <h4 style="margin: 0; color: #c49a00; width: 100%; text-align: center;">Terminal Bancaria</h4>
+          <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; color: #c49a00;">Terminal Bancaria</h4>
+            <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 5px 10px; border-radius: 4px; border: 1px solid #0df; cursor: pointer; font-size: 0.85em;">
+              <input type="checkbox" id="dm-stash-unlock" /> DESBLOQUEAR ALIJO (STASH) A JUGADORES
+            </label>
+          </div>
           <input type="text" id="banco-nombre" placeholder="Nombre del Personaje" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
           <input type="number" id="banco-monto" placeholder="Monto (+ o -)" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
           <input type="text" id="banco-concepto" placeholder="Concepto" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
@@ -3001,6 +3006,20 @@
     document.getElementById('dm-theatre-lock').addEventListener('change', (e) => {
         db.ref('campaña/teatro').update({ bloqueado: e.target.checked });
     });
+
+    // Desbloquear Alijo (Stash) a Jugadores
+    const stashToggle = document.getElementById('dm-stash-unlock');
+    if (stashToggle) {
+        // Sync initial state
+        db.ref('campaña/ajustes_globales/alijo_desbloqueado').on('value', (snap) => {
+            stashToggle.checked = snap.val() === true;
+        });
+
+        // Handle change
+        stashToggle.addEventListener('change', (e) => {
+            db.ref('campaña/ajustes_globales').update({ alijo_desbloqueado: e.target.checked });
+        });
+    }
 
     // Update Location
     document.getElementById('btn-update-location').addEventListener('click', () => {

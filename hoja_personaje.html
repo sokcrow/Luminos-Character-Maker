@@ -4285,6 +4285,33 @@
     }
   }, 1000);
 
+  // --- LÓGICA DE BLOQUEO DE ALIJO ---
+  window.isStashUnlocked = false; // Default blocked
+  db.ref('campaña/ajustes_globales/alijo_desbloqueado').on('value', (snap) => {
+      window.isStashUnlocked = snap.val() === true;
+
+      const stashContainer = document.getElementById('inv-stash');
+      if (stashContainer) {
+          if (window.isStashUnlocked) {
+              stashContainer.style.filter = 'none';
+              stashContainer.style.opacity = '1';
+          } else {
+              stashContainer.style.filter = 'grayscale(1)';
+              stashContainer.style.opacity = '0.6';
+          }
+      }
+
+      // Refresh detail card button state if a stash item is currently being viewed
+      const detailCard = document.getElementById('item-detail-card');
+      if (detailCard && detailCard.classList.contains('active')) {
+          // A bit hacky, but clicking the currently active slot again re-renders the card
+          const activeSlot = document.querySelector('.item-slot.active');
+          if (activeSlot) {
+              activeSlot.click();
+          }
+      }
+  });
+
   // --- LÓGICA DEL TEATRO DE LA MENTE (PLAYER VIEW) ---
   let isTheatreBlocked = false;
   let currentAssignedActor = null;
