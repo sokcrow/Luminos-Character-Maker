@@ -1308,7 +1308,8 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-main-content .sheet-tab-parts,
 .sheet-limbus-main input[name="attr_tab"][value="profile"] ~ .sheet-main-content .sheet-tab-profile,
 .sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-main-content .sheet-tab-apego,
-.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-main-content .sheet-tab-mail {
+.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-main-content .sheet-tab-mail,
+.sheet-limbus-main input[name="attr_tab"][value="shop"] ~ .sheet-main-content .sheet-tab-shop {
     display: block !important;
 }
 
@@ -1337,7 +1338,8 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 .sheet-limbus-main input[name="attr_tab"][value="parts"] ~ .sheet-tabs button[name="act_tab_parts"],
 .sheet-limbus-main input[name="attr_tab"][value="profile"] ~ .sheet-tabs button[name="act_tab_profile"],
 .sheet-limbus-main input[name="attr_tab"][value="apego"] ~ .sheet-tabs button[name="act_tab_apego"],
-.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-tabs button[name="act_tab_mail"] {
+.sheet-limbus-main input[name="attr_tab"][value="mail"] ~ .sheet-tabs button[name="act_tab_mail"],
+.sheet-limbus-main input[name="attr_tab"][value="shop"] ~ .sheet-tabs button[name="act_tab_shop"] {
     background: #8B0000; color: #fff; border-color: #FFD700;
     box-shadow: 0 0 10px rgba(139, 0, 0, 0.4);
 }
@@ -5252,7 +5254,8 @@ input[name="attr_tab"][value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
 input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile,
 input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
 input[name="attr_tab"][value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
-input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings {
+input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings,
+input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     display: flex !important;
 }
 

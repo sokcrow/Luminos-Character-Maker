@@ -1187,6 +1187,19 @@
     </div>
   </div>
 
+  <!-- Modal Inventario DM -->
+  <div id="modal-inventario-dm" class="modal-overlay">
+    <div class="modal-cyber">
+      <div class="modal-header">
+        <h3 id="modal-inv-titulo">Inventario de: ???</h3>
+        <button class="btn-close" id="btn-cerrar-modal-inv">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-inv-lista-items">
+        <!-- Items inyectados por JS -->
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase App (núcleo) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <!-- Firebase Realtime Database -->
@@ -1669,6 +1682,7 @@
                   pCard.innerHTML = `
                       <h4 style="margin: 0; color: #0df; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${nombre}</h4>
                       <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px;">${clase} | ${raza}</div>
+                      <div style="text-align:center; color:#FFD700; font-weight:bold; margin-bottom: 10px;"><span class="currency-symbol">₳</span> <span class="player-ahn">${data.ahn || 0}</span></div>
 
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
                           <label style="color:#c49a00; font-size:12px;">Level:</label>
@@ -1688,6 +1702,7 @@
                       </div>
 
                       <button class="btn-guardar-perfil" style="margin-top: 10px; background: #004400; color: white; border: 1px solid #00ff00; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Guardar / Forzar Datos</button>
+                      <button class="btn-ver-inventario" data-player="${nombre}" style="margin-top: 5px; background: #222; color: #0df; border: 1px solid #0df; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Ver Inventario</button>
                   `;
 
                   const btnGuardar = pCard.querySelector('.btn-guardar-perfil');
@@ -1727,6 +1742,8 @@
                   if (document.activeElement !== hpBaseInput) hpBaseInput.value = hpBase;
                   if (document.activeElement !== hpMaxInput) hpMaxInput.value = hpMax;
                   subInfo.innerText = `${clase} | ${raza}`;
+                  const ahnDisplay = pCard.querySelector('.player-ahn');
+                  if (ahnDisplay) ahnDisplay.innerText = data.ahn || 0;
               }
           }
           const tarjeta = document.createElement('div');
@@ -2200,6 +2217,10 @@
                     <img src="${imgUrl}" alt="${data.nombre}">
                     <h5 style="color:#c49a00;">${data.nombre}</h5>
                     <span>Restock: ${data.dia_restock}</span>
+                    <label class="switch" style="margin-top: 5px;" title="Activar / Desactivar Tienda">
+                        <input type="checkbox" class="toggle-activa-store" data-id="${idTienda}" ${data.activa ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
                 `;
 
                 // Evento para editar
@@ -2233,9 +2254,28 @@
                     }
                 });
 
-                // Evento para abrir el Editor Interactivo
-                card.addEventListener('click', () => {
-                    abrirModalTienda(idTienda, data);
+                // Evento para activar/desactivar
+                const toggleActiva = card.querySelector('.toggle-activa-store');
+                toggleActiva.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const checked = e.target.checked;
+                    if (checked) {
+                        // Desactivar todas las demás tiendas
+                        const updates = {};
+                        for (const otherId of Object.keys(tiendas)) {
+                            updates[`${otherId}/activa`] = (otherId === idTienda);
+                        }
+                        db.ref('campaña/tiendas').update(updates);
+                    } else {
+                        db.ref(`campaña/tiendas/${idTienda}`).update({ activa: false });
+                    }
+                });
+
+                // Evento para abrir el Editor Interactivo (evitando clics en botones/switches)
+                card.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.className !== 'slider') {
+                        abrirModalTienda(idTienda, data);
+                    }
                 });
 
                 gridTiendas.appendChild(card);
@@ -2356,6 +2396,88 @@
                 tiendaActualEditada = null;
             })
             .catch(e => alert('Error guardando inventario: ' + e));
+    });
+
+    // --- LÓGICA DEL MODAL DE INVENTARIO (DM) ---
+    const modalInvDM = document.getElementById('modal-inventario-dm');
+    const btnCerrarModalInv = document.getElementById('btn-cerrar-modal-inv');
+    const listaInvModal = document.getElementById('modal-inv-lista-items');
+    let currentInvPlayer = null;
+
+    btnCerrarModalInv.addEventListener('click', () => {
+        modalInvDM.style.display = 'none';
+        currentInvPlayer = null;
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-ver-inventario')) {
+            const playerName = e.target.getAttribute('data-player');
+            abrirModalInventario(playerName);
+        }
+    });
+
+    function abrirModalInventario(playerName) {
+        currentInvPlayer = playerName;
+        document.getElementById('modal-inv-titulo').innerText = `Inventario de: ${playerName}`;
+        modalInvDM.style.display = 'flex';
+
+        db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on('value', (snap) => {
+            if (currentInvPlayer !== playerName) return;
+            listaInvModal.innerHTML = '';
+            const stash = snap.val();
+            if (!stash) {
+                listaInvModal.innerHTML = '<div style="color:#666; text-align:center;">Inventario vacío.</div>';
+                return;
+            }
+
+            for (const [key, item] of Object.entries(stash)) {
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; align-items: center; background: #222; padding: 10px; border-radius: 4px; border: 1px solid #333; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;';
+
+                row.innerHTML = `
+                    <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
+                        <span style="font-size: 12px; color: #888;">[${item.tipo}] Tier ${item.tier}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="btn-inv-mod" data-action="minus" data-key="${key}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">-</button>
+                        <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
+                        <button class="btn-inv-mod" data-action="plus" data-key="${key}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">+</button>
+                        <button class="btn-inv-mod" data-action="delete" data-key="${key}" style="background:transparent; border:none; color:#ff4444; cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
+                    </div>
+                `;
+                listaInvModal.appendChild(row);
+            }
+        });
+    }
+
+    listaInvModal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-inv-mod')) {
+            const action = e.target.getAttribute('data-action');
+            const key = e.target.getAttribute('data-key');
+
+            const stashRef = db.ref(`campaña/jugadores/${currentInvPlayer}/inventario_stash/${key}`);
+
+            stashRef.once('value', snap => {
+                const item = snap.val();
+                if (!item) return;
+
+                if (action === 'plus') {
+                    stashRef.update({ cantidad: item.cantidad + 1 });
+                } else if (action === 'minus') {
+                    if (item.cantidad > 1) {
+                        stashRef.update({ cantidad: item.cantidad - 1 });
+                    } else {
+                        stashRef.remove();
+                    }
+                } else if (action === 'delete') {
+                    if (confirm('¿Eliminar este ítem por completo?')) {
+                        stashRef.remove();
+                    }
+                }
+            });
+        }
     });
 
     // --- LÓGICA DE TABLAS DE LOOT ---
