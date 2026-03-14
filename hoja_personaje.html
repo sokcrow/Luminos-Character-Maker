@@ -4435,7 +4435,7 @@
       const selectExp = document.getElementById('player-expression-select');
       if (currentAssignedActor && currentAssignedActor.expresiones) {
           const numExpresiones = Object.keys(currentAssignedActor.expresiones).length;
-          if (numExpresiones > 1) {
+          if (numExpresiones > 0) {
               selectExp.style.display = 'block';
           } else {
               selectExp.style.display = 'none';

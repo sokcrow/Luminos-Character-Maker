@@ -92,6 +92,7 @@ if (!playerId) {
 }
 
 let currentPlayerData = {};
+let currentActorListener = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof db !== 'undefined') {
@@ -102,21 +103,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 // --- RESOLUCIÓN DEL ACTOR PARA EL TEATRO ---
                 if (currentPlayerData.actor_asignado && currentPlayerData.actor_asignado !== "") {
-                    db.ref('campaña/actores/' + currentPlayerData.actor_asignado).once('value').then((actorSnapshot) => {
-                        if (actorSnapshot.exists()) {
-                            const fullActorData = actorSnapshot.val();
-                            // Include id manually as it's needed for expression select logic fallback
-                            fullActorData.id = currentPlayerData.actor_asignado;
-                            if (typeof window.updatePlayerTheatreData === 'function') {
-                                window.updatePlayerTheatreData(fullActorData, currentPlayerData.nombre);
+                    // Turn off the previous listener if the actor changed
+                    if (currentActorListener && currentActorListener.actorId !== currentPlayerData.actor_asignado) {
+                        db.ref('campaña/actores/' + currentActorListener.actorId).off('value', currentActorListener.callback);
+                        currentActorListener = null;
+                    }
+
+                    if (!currentActorListener) {
+                        const callback = (actorSnapshot) => {
+                            if (actorSnapshot.exists()) {
+                                const fullActorData = actorSnapshot.val();
+                                // Include id manually as it's needed for expression select logic fallback
+                                fullActorData.id = currentPlayerData.actor_asignado;
+                                if (typeof window.updatePlayerTheatreData === 'function') {
+                                    window.updatePlayerTheatreData(fullActorData, currentPlayerData.nombre);
+                                }
+                            } else {
+                                if (typeof window.updatePlayerTheatreData === 'function') {
+                                    window.updatePlayerTheatreData(null, currentPlayerData.nombre);
+                                }
                             }
-                        } else {
-                            if (typeof window.updatePlayerTheatreData === 'function') {
-                                window.updatePlayerTheatreData(null, currentPlayerData.nombre);
-                            }
-                        }
-                    }).catch(err => console.error("Error cargando actor:", err));
+                        };
+                        db.ref('campaña/actores/' + currentPlayerData.actor_asignado).on('value', callback);
+                        currentActorListener = { actorId: currentPlayerData.actor_asignado, callback: callback };
+                    }
                 } else {
+                    if (currentActorListener) {
+                        db.ref('campaña/actores/' + currentActorListener.actorId).off('value', currentActorListener.callback);
+                        currentActorListener = null;
+                    }
                     if (typeof window.updatePlayerTheatreData === 'function') {
                         window.updatePlayerTheatreData(null, currentPlayerData.nombre);
                     }
