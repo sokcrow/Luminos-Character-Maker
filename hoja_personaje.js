@@ -508,7 +508,7 @@
                 classInputs.forEach(el => el.value = data.clase);
             }
             if (data.ahn !== undefined) {
-                const ahnDisplays = document.querySelectorAll('.sheet-banco-amount-display, #display-ahn');
+                const ahnDisplays = document.querySelectorAll('.sheet-banco-amount-display, #display-ahn, #shop-player-ahn');
                 ahnDisplays.forEach(el => el.innerText = data.ahn);
             }
 
@@ -3213,6 +3213,14 @@ window.addEventListener('DOMContentLoaded', () => {
         tiendaFisicaActivaId = id;
         renderizarSidebarFisica();
         renderizarGridFisica(id);
+        const buyBtn = document.getElementById('shop-buy-selected-btn');
+        if (buyBtn) {
+            buyBtn.disabled = true;
+            buyBtn.innerHTML = 'COMPRAR';
+            buyBtn.removeAttribute('data-tienda');
+            buyBtn.removeAttribute('data-item');
+            buyBtn.removeAttribute('data-precio');
+        }
     }
 
     function renderizarGridFisica(idTienda) {
@@ -3245,19 +3253,50 @@ window.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'shop-item-card';
 
+            let ownedCount = 0;
+            if (window.currentPlayerData && window.currentPlayerData.inventario_stash) {
+                const stash = window.currentPlayerData.inventario_stash;
+                for (const k in stash) {
+                    if (stash[k].id === itemId || stash[k].nombre === item.nombre) {
+                        ownedCount += (parseInt(stash[k].cantidad) || 1);
+                    }
+                }
+            }
+
+            const itemTags = item.tags ? (Array.isArray(item.tags) ? item.tags.join(', ') : item.tags) : (item.tipo || 'Objeto');
+
             card.innerHTML = `
                 <div class="shop-item-image-container">
-                    <div class="shop-item-tier">${tierStr}</div>
                     <img src="${item.icono || 'https://via.placeholder.com/80'}" alt="${item.nombre}">
                 </div>
-                <div class="shop-item-details">
-                    <h4 class="shop-item-name">${item.nombre}</h4>
-                    <div style="font-size: 12px; color: #888; text-align: center;">Stock: ${stockStr}</div>
-                    <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio}" ${isAgotado ? 'disabled' : ''}>
-                        <span class="currency-symbol">₳</span> ${precio}
-                    </button>
+                <div class="shop-item-central-block">
+                    <div class="shop-item-title-row">
+                        <h4 class="shop-item-name">${item.nombre}</h4>
+                        <span class="shop-item-tag">${itemTags}</span>
+                    </div>
+                    <div class="shop-item-desc">${item.descripcion || 'Sin descripción.'}</div>
+                    <div style="font-size: 12px; color: #888;">Stock: ${stockStr}</div>
+                </div>
+                <div class="shop-item-meta-block">
+                    <div class="shop-item-owned-count">POSEES ${ownedCount}</div>
+                    <div class="shop-item-tier">${tierStr}</div>
                 </div>
             `;
+
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.shop-item-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+
+                const buyBtn = document.getElementById('shop-buy-selected-btn');
+                if (buyBtn) {
+                    buyBtn.setAttribute('data-tienda', idTienda);
+                    buyBtn.setAttribute('data-item', itemId);
+                    buyBtn.setAttribute('data-precio', precio);
+                    buyBtn.disabled = isAgotado;
+                    buyBtn.innerHTML = `<span class="currency-symbol">₳</span> ${precio} | COMPRAR`;
+                }
+            });
+
             grid.appendChild(card);
         }
     }
