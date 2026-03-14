@@ -118,6 +118,10 @@
             z-index: 20;
         }
 
+        #login-screen {
+            z-index: 20;
+        }
+
         .save-slot-card {
             background: var(--bg-dark);
             border: 1px solid #333;
@@ -267,79 +271,101 @@
         <div class="gradient-line"></div>
     </div>
 
-    <div id="save-slot-screen" class="view-screen hidden">
-        <div class="save-slot-card" id="save-slot-card">
-            <div class="slot-header">
-                <span>Expediente de Empleado</span>
-                <span class="slot-status">ACTIVO</span>
+    <div id="login-screen" class="view-screen hidden">
+        <div class="save-slot-card" id="login-card" style="text-align: center;">
+            <div class="slot-header" style="justify-content: center;">
+                <span class="slot-status">SISTEMA DE IDENTIFICACIÓN</span>
             </div>
-            <h2 class="slot-name" id="slot-name">Nombre Desconocido</h2>
-            <div class="slot-details">
-                <div class="slot-level">
-                    <span class="detail-label">Nivel</span>
-                    <span class="detail-value" id="slot-level">Nivel Desconocido</span>
-                </div>
-                <div class="slot-ahn">
-                    <span class="detail-label">Balance</span>
-                    <span class="detail-value ahn-value"><span class="currency-symbol">⏳</span><span id="slot-ahn">0</span></span>
-                </div>
+            <div style="margin: 20px 0;">
+                <label for="player-id-input" style="display: block; margin-bottom: 10px; color: var(--text-main); font-size: 1.1rem;">INGRESE ID DE USUARIO (Nombre de Jugador)</label>
+                <input type="text" id="player-id-input" placeholder="ID de Usuario..." autocomplete="off" style="width: 80%; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--cyan-tech); color: var(--gold-bright); text-align: center; outline: none;">
             </div>
+            <button id="btn-login" style="background: transparent; border: 1px solid var(--gold-bright); color: var(--gold-bright); padding: 10px 20px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; cursor: pointer; transition: all 0.3s; text-transform: uppercase; width: 80%;">Identificarse</button>
+            <div id="login-status" style="margin-top: 15px; color: var(--cyan-tech); height: 20px; font-size: 0.9rem;"></div>
         </div>
     </div>
 
+    <!-- Firebase App (núcleo) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+            authDomain: "luminous-system.firebaseapp.com",
+            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+            projectId: "luminous-system",
+            storageBucket: "luminous-system.firebasestorage.app",
+            messagingSenderId: "330473029689",
+            appId: "1:330473029689:web:44a05e870d493a3b294de8",
+            measurementId: "G-X775P4YS7W"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         document.addEventListener('DOMContentLoaded', () => {
             const titleScreen = document.getElementById('title-screen');
-            const saveSlotScreen = document.getElementById('save-slot-screen');
+            const loginScreen = document.getElementById('login-screen');
             const titlePrompt = document.getElementById('title-prompt');
-            const saveSlotCard = document.getElementById('save-slot-card');
+            const playerIdInput = document.getElementById('player-id-input');
+            const btnLogin = document.getElementById('btn-login');
+            const loginStatus = document.getElementById('login-status');
 
-            const slotNameEl = document.getElementById('slot-name');
-            const slotLevelEl = document.getElementById('slot-level');
-            const slotAhnEl = document.getElementById('slot-ahn');
-
-            const saveDataStr = localStorage.getItem('luminous_save');
-            let hasSave = false;
-            let saveData = null;
-
-            if (saveDataStr) {
-                try {
-                    saveData = JSON.parse(saveDataStr);
-                    hasSave = true;
-                } catch (e) {
-                    console.error("Error parsing luminous_save JSON:", e);
-                    hasSave = false;
-                }
-            }
-
-            if (hasSave) {
-                titlePrompt.textContent = "Empezar";
-            } else {
-                titlePrompt.textContent = "Encararé el Pecado y Salvaré el E.G.O.";
-            }
+            titlePrompt.textContent = "Click para Ingresar";
 
             titleScreen.addEventListener('click', () => {
-                if (!hasSave) {
-                    titleScreen.classList.add('fade-to-black');
-                    setTimeout(() => {
-                        window.location.href = 'creacion_personaje.html';
-                    }, 1500);
-                } else {
-                    const name = saveData.nombre || saveData.Nombre_Personaje || saveData.name || "Nombre Desconocido";
-                    const level = saveData.nivel || saveData.level || "Desconocido";
-                    const ahn = saveData.ahn !== undefined ? saveData.ahn : "0";
+                titleScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                playerIdInput.focus();
+            });
 
-                    slotNameEl.textContent = name;
-                    slotLevelEl.textContent = level;
-                    slotAhnEl.textContent = ahn;
+            const handleLogin = () => {
+                const rawId = playerIdInput.value.trim();
+                if (!rawId) return;
 
-                    titleScreen.classList.add('hidden');
-                    saveSlotScreen.classList.remove('hidden');
+                const userId = rawId.toLowerCase().replace(/\s+/g, '');
+                localStorage.setItem('playerId', userId);
+
+                loginStatus.textContent = "Verificando en la base de datos...";
+                btnLogin.disabled = true;
+
+                db.ref('campaña/jugadores/' + userId).once('value').then(snapshot => {
+                    if (snapshot.exists()) {
+                        loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
+                        setTimeout(() => {
+                            window.location.href = 'hoja_personaje.html';
+                        }, 800);
+                    } else {
+                        loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
+                        setTimeout(() => {
+                            window.location.href = 'creacion_personaje.html';
+                        }, 800);
+                    }
+                }).catch(err => {
+                    console.error("Firebase error:", err);
+                    loginStatus.textContent = "Error de conexión. Intente nuevamente.";
+                    loginStatus.style.color = "red";
+                    btnLogin.disabled = false;
+                });
+            };
+
+            btnLogin.addEventListener('click', handleLogin);
+            playerIdInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLogin();
                 }
             });
 
-            saveSlotCard.addEventListener('click', () => {
-                window.location.href = 'hoja_personaje.html';
+            // Hover effect on login button
+            btnLogin.addEventListener('mouseenter', () => {
+                btnLogin.style.background = 'var(--gold-bright)';
+                btnLogin.style.color = 'black';
+            });
+            btnLogin.addEventListener('mouseleave', () => {
+                btnLogin.style.background = 'transparent';
+                btnLogin.style.color = 'var(--gold-bright)';
             });
         });
     </script>
