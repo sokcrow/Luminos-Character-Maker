@@ -5580,8 +5580,17 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 /* Tabs: Inventario Activo & Stash */
 .inv-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    grid-template-columns: repeat(auto-fill, 64px);
+    grid-auto-rows: 64px;
     gap: 10px;
+    min-height: 360px;
+    background-image:
+        linear-gradient(to right, #222 1px, transparent 1px),
+        linear-gradient(to bottom, #222 1px, transparent 1px);
+    background-size: 74px 74px; /* 64px + 10px gap */
+    background-position: 0 0; /* Align lines to center of gaps */
+    padding: 5px;
+    border: 1px solid #222;
 }
 
 .item-slot {

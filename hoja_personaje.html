@@ -3837,9 +3837,12 @@
                 <div class="detail-right">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
                         <div class="detail-title-badge" id="detail-title" style="flex: 1;">Nombre del Item</div>
-                        <div id="detail-equip-btn-container" style="margin-left: 10px; display: flex; flex-direction: column; align-items: flex-end;">
+                        <div id="detail-equip-btn-container" style="margin-left: 10px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
                             <!-- Inyectado por JS: Botón de Equipar / Desequipar -->
                         </div>
+                    </div>
+                    <div id="detail-vinculo-info" style="display: none; margin-bottom: 10px; padding: 8px; background: rgba(0, 255, 255, 0.1); border: 1px solid var(--cyan-tech); border-radius: 4px;">
+                        <!-- Injected via JS -->
                     </div>
                     <div class="detail-desc" id="detail-desc">Descripción del item detallada para lectura cómoda.</div>
                 </div>
@@ -4284,6 +4287,33 @@
       }
     }
   }, 1000);
+
+  // --- LÓGICA DE BLOQUEO DE ALIJO ---
+  window.isStashUnlocked = false; // Default blocked
+  db.ref('campaña/ajustes_globales/alijo_desbloqueado').on('value', (snap) => {
+      window.isStashUnlocked = snap.val() === true;
+
+      const stashContainer = document.getElementById('inv-stash');
+      if (stashContainer) {
+          if (window.isStashUnlocked) {
+              stashContainer.style.filter = 'none';
+              stashContainer.style.opacity = '1';
+          } else {
+              stashContainer.style.filter = 'grayscale(1)';
+              stashContainer.style.opacity = '0.6';
+          }
+      }
+
+      // Refresh detail card button state if a stash item is currently being viewed
+      const detailCard = document.getElementById('item-detail-card');
+      if (detailCard && detailCard.classList.contains('active')) {
+          // A bit hacky, but clicking the currently active slot again re-renders the card
+          const activeSlot = document.querySelector('.item-slot.active');
+          if (activeSlot) {
+              activeSlot.click();
+          }
+      }
+  });
 
   // --- LÓGICA DEL TEATRO DE LA MENTE (PLAYER VIEW) ---
   let isTheatreBlocked = false;
