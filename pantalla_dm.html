@@ -806,10 +806,11 @@
 
             <h5 style="color: #aaa; margin: 5px 0;">Expresiones (URLs):</h5>
             <input type="url" id="actor-sprite" placeholder="Sprite Base/Neutral (Requerido)" />
-            <input type="url" id="actor-sprite-feliz" placeholder="Sprite Feliz (Opcional)" />
-            <input type="url" id="actor-sprite-triste" placeholder="Sprite Triste (Opcional)" />
-            <input type="url" id="actor-sprite-enojado" placeholder="Sprite Enojado (Opcional)" />
-            <input type="url" id="actor-sprite-sorprendido" placeholder="Sprite Sorprendido (Opcional)" />
+
+            <div id="actor-expresiones-container" style="display: flex; flex-direction: column; gap: 5px;">
+              <!-- Dynamic expressions will be added here -->
+            </div>
+            <button id="btn-add-expresion" class="btn-cyber" style="background:#222; color:#fff; border-color:#555; font-size: 12px; padding: 5px; margin-bottom: 10px;">+ Añadir Expresión</button>
 
             <div style="display:flex; gap:10px;">
               <button id="btn-crear-actor" class="btn-cyber btn-green" style="flex:1;">Crear Actor</button>
@@ -902,6 +903,9 @@
         <div style="display: flex; gap: 10px; align-items: center;">
           <select id="dm-actor-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 200px;">
             <option value="">Selecciona NPC...</option>
+            <!-- Injected via JS -->
+          </select>
+          <select id="dm-expression-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 150px; display: none;">
             <!-- Injected via JS -->
           </select>
           <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del NPC o narrador..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; border-radius: 4px;"></textarea>
@@ -2489,16 +2493,49 @@
     let dbActoresCache = {};
     let editModeActorKey = null;
 
+    function createExpresionRow(name = '', url = '') {
+        const container = document.getElementById('actor-expresiones-container');
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '5px';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'actor-expresion-name';
+        nameInput.placeholder = 'Nombre (ej. Feliz)';
+        nameInput.value = name;
+        nameInput.style.cssText = 'flex: 1; padding: 5px;';
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'url';
+        urlInput.className = 'actor-expresion-url';
+        urlInput.placeholder = 'URL del Sprite';
+        urlInput.value = url;
+        urlInput.style.cssText = 'flex: 2; padding: 5px;';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-cyber btn-remove-expresion';
+        removeBtn.style.cssText = 'background:#800; color:#fff; border:none; padding:0 10px; font-weight:bold; cursor:pointer;';
+        removeBtn.innerText = 'X';
+        removeBtn.addEventListener('click', () => row.remove());
+
+        row.appendChild(nameInput);
+        row.appendChild(urlInput);
+        row.appendChild(removeBtn);
+        container.appendChild(row);
+    }
+
+    document.getElementById('btn-add-expresion').addEventListener('click', () => {
+        createExpresionRow();
+    });
+
     function resetActorForm() {
         document.getElementById('actor-nombre').value = '';
         document.getElementById('actor-titulo').value = '';
         document.getElementById('actor-color-nombre').value = '#ffffff';
         document.getElementById('actor-color-titulo').value = '#c49a00';
         document.getElementById('actor-sprite').value = '';
-        if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = '';
-        if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = '';
-        if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = '';
-        if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = '';
+        document.getElementById('actor-expresiones-container').innerHTML = '';
 
         document.getElementById('btn-crear-actor').innerText = 'Crear Actor';
         document.getElementById('btn-cancelar-actor').style.display = 'none';
@@ -2554,16 +2591,13 @@
                 document.getElementById('actor-color-titulo').value = actorData.color_titulo || '#c49a00';
                 document.getElementById('actor-sprite').value = actorData.sprite || '';
 
+                document.getElementById('actor-expresiones-container').innerHTML = '';
                 if (actorData.expresiones) {
-                    if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = actorData.expresiones['Feliz'] || '';
-                    if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = actorData.expresiones['Triste'] || '';
-                    if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = actorData.expresiones['Enojado'] || '';
-                    if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = actorData.expresiones['Sorprendido'] || '';
-                } else {
-                    if (document.getElementById('actor-sprite-feliz')) document.getElementById('actor-sprite-feliz').value = '';
-                    if (document.getElementById('actor-sprite-triste')) document.getElementById('actor-sprite-triste').value = '';
-                    if (document.getElementById('actor-sprite-enojado')) document.getElementById('actor-sprite-enojado').value = '';
-                    if (document.getElementById('actor-sprite-sorprendido')) document.getElementById('actor-sprite-sorprendido').value = '';
+                    for (const [name, url] of Object.entries(actorData.expresiones)) {
+                        if (name !== 'Neutral') {
+                            createExpresionRow(name, url);
+                        }
+                    }
                 }
 
                 document.getElementById('btn-crear-actor').innerText = 'Actualizar Actor';
@@ -2699,6 +2733,10 @@
     db.ref('campaña/actores').on('value', (snap) => {
         const select = document.getElementById('dm-actor-select');
         if (!select) return;
+
+        // Save current selection to restore if possible
+        const currentSelection = select.value;
+
         // Keep first option
         select.innerHTML = '<option value="">Selecciona NPC...</option>';
         const actores = snap.val() || {};
@@ -2707,6 +2745,38 @@
             opt.value = id;
             opt.innerText = data.nombre;
             select.appendChild(opt);
+        }
+
+        if (actores[currentSelection]) {
+            select.value = currentSelection;
+            // trigger change event to refresh expressions
+            select.dispatchEvent(new Event('change'));
+        } else {
+            document.getElementById('dm-expression-select').style.display = 'none';
+        }
+    });
+
+    document.getElementById('dm-actor-select').addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        const exprSelect = document.getElementById('dm-expression-select');
+
+        const currentExpr = exprSelect.value;
+        exprSelect.innerHTML = '';
+        if (selectedId && dbActoresCache[selectedId] && dbActoresCache[selectedId].expresiones) {
+            exprSelect.style.display = 'block';
+            for (const [name, url] of Object.entries(dbActoresCache[selectedId].expresiones)) {
+                const opt = document.createElement('option');
+                opt.value = url;
+                opt.innerText = name;
+                exprSelect.appendChild(opt);
+            }
+            // Restore selection if possible
+            if (currentExpr) {
+               const exists = Array.from(exprSelect.options).some(opt => opt.value === currentExpr);
+               if (exists) exprSelect.value = currentExpr;
+            }
+        } else {
+            exprSelect.style.display = 'none';
         }
     });
 
@@ -2830,12 +2900,15 @@
         if (dmInput && selectedNpcId) {
             const actorData = dbActoresCache[selectedNpcId];
             if (actorData) {
+                const exprSelect = document.getElementById('dm-expression-select');
+                const selectedSprite = exprSelect && exprSelect.style.display !== 'none' ? exprSelect.value : actorData.sprite;
+
                 const state = {
                     nombre: actorData.nombre,
                     titulo: actorData.titulo,
                     color_nombre: actorData.color_nombre,
                     color_titulo: actorData.color_titulo,
-                    sprite: actorData.sprite,
+                    sprite: selectedSprite,
                     mensaje: dmInput,
                     timestamp: Date.now()
                 };
@@ -2884,13 +2957,17 @@
       const idActor = isEditing ? editModeActorKey : nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
       const expresiones = {
-          "Neutral": sprite,
-          "Feliz": document.getElementById('actor-sprite-feliz') ? document.getElementById('actor-sprite-feliz').value.trim() : "",
-          "Triste": document.getElementById('actor-sprite-triste') ? document.getElementById('actor-sprite-triste').value.trim() : "",
-          "Enojado": document.getElementById('actor-sprite-enojado') ? document.getElementById('actor-sprite-enojado').value.trim() : "",
-          "Sorprendido": document.getElementById('actor-sprite-sorprendido') ? document.getElementById('actor-sprite-sorprendido').value.trim() : ""
+          "Neutral": sprite
       };
-      Object.keys(expresiones).forEach(key => !expresiones[key] && delete expresiones[key]);
+
+      const exprRows = document.querySelectorAll('#actor-expresiones-container > div');
+      exprRows.forEach(row => {
+          const name = row.querySelector('.actor-expresion-name').value.trim();
+          const url = row.querySelector('.actor-expresion-url').value.trim();
+          if (name && url) {
+              expresiones[name] = url;
+          }
+      });
 
       const actorData = {
         nombre: nombre,
