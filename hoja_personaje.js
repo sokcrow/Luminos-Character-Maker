@@ -108,7 +108,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function renderCharacterSheet(data) {
+window.renderCharacterSheet = function(data) {
     // Datos Básicos
     if (data.characterName) {
         document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
