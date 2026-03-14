@@ -2902,7 +2902,7 @@
 
             // Check if it already exists to increment quantity instead
             for (const [k, item] of Object.entries(targetData)) {
-                if (item.nombre === dataGlobal.nombre) {
+                if (item.nombre === dataGlobal.nombre && (parseInt(item.tier) || 1) === (parseInt(dataGlobal.tier) || 1)) {
                     foundKey = k;
                     currentCant = item.cantidad || 1;
                     break;
@@ -3008,7 +3008,7 @@
                         let targetCurrentCant = 0;
 
                         for (const [k, targetItem] of Object.entries(targetData)) {
-                            if (targetItem.nombre === item.nombre) {
+                            if (targetItem.nombre === item.nombre && (parseInt(targetItem.tier) || 1) === (parseInt(item.tier) || 1)) {
                                 foundKey = k;
                                 targetCurrentCant = targetItem.cantidad || 1;
                                 break;

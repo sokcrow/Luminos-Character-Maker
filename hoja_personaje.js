@@ -3410,7 +3410,9 @@ function renderizarComprar() {
     }
 
     for (const [itemId, item] of Object.entries(items)) {
-        const precio = Math.floor(item.costo * (modVenta / 100));
+        const itemTier = parseInt(item.tier) || 1;
+        const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
+        const precio = Math.floor(valorConTier * (modVenta / 100));
         const isAgotado = item.stock_actual === 0;
         const stockStr = item.stock_actual === -1 ? '∞' : item.stock_actual;
 
