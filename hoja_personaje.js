@@ -2276,7 +2276,7 @@ try {
     });
 
 // --- Navigation Tabs ---
-const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas'];
+const tabs = ['home', 'stats', 'banco', 'skills', 'abilities', 'parts', 'profile', 'apego', 'mail', 'settings', 'contratos', 'codex', 'mapa', 'notas', 'shop'];
 tabs.forEach(tab => {
     on(`clicked:tab_${tab}`, function() {
         setAttrs({
@@ -2335,8 +2335,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const invBtn = document.getElementById('btn-global-inventory');
     const invModal = document.getElementById('inventory-modal');
     const invClose = document.getElementById('inventory-modal-close');
-    const invTabBtns = document.querySelectorAll('.inv-tab-btn');
-    const invTabContents = document.querySelectorAll('.inventory-tab-content');
+    const invTabBtns = document.querySelectorAll('#inventory-modal .inv-tab-btn');
+    const invTabContents = document.querySelectorAll('#inventory-modal .inventory-tab-content');
 
     if (invBtn && invModal) {
         invBtn.addEventListener('click', () => {
@@ -2521,130 +2521,106 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Dynamic Shop System Logic ---
-    const shopSelector = document.getElementById('shop-selector');
-    const invShopGrid = document.getElementById('inv-shop-grid');
-    let currentShopsData = {};
+    // Shop logic is now handled in the main Shop app tab
+});
 
-    if (shopSelector && invShopGrid && window.db) {
-        // 1. Fetch shops from Firebase
-        db.ref('campaña/tiendas').on('value', (snapshot) => {
-            currentShopsData = snapshot.val() || {};
+// LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
+let tiendaActivaData = null;
+let tiendaActivaId = null;
 
-            // Re-populate selector keeping the current selection if possible
-            const selectedShopId = shopSelector.value;
-            shopSelector.innerHTML = '<option value="">Selecciona una tienda...</option>';
+// Esperar a que el DOM y window.db existan
+window.addEventListener('DOMContentLoaded', () => {
+    if (!window.db) return;
 
-            for (const [idTienda, tiendaData] of Object.entries(currentShopsData)) {
-                const opt = document.createElement('option');
-                opt.value = idTienda;
-                opt.innerText = `${tiendaData.nombre} (Restock: ${tiendaData.dia_restock})`;
-                if (idTienda === selectedShopId) opt.selected = true;
-                shopSelector.appendChild(opt);
-            }
+    db.ref('campaña/tiendas').on('value', (snapshot) => {
+        const tiendas = snapshot.val() || {};
+        let encontrada = false;
 
-            // Force re-render of current shop
-            renderShopItems(selectedShopId);
-        });
-
-        // 2. Render items on selection change
-        shopSelector.addEventListener('change', (e) => {
-            renderShopItems(e.target.value);
-        });
-
-        function renderShopItems(shopId) {
-            invShopGrid.innerHTML = '';
-            if (!shopId || !currentShopsData[shopId] || !currentShopsData[shopId].items) {
-                invShopGrid.innerHTML = '<div style="color: #666; width: 100%; text-align: center; padding: 20px;">Sin ítems disponibles.</div>';
-                return;
-            }
-
-            const items = currentShopsData[shopId].items;
-            for (const [itemId, itemData] of Object.entries(items)) {
-                let stockDisplay = itemData.stock_actual === -1 ? '∞ Ilimitado' : itemData.stock_actual;
-                let isAgotado = itemData.stock_actual === 0;
-
-                const itemCard = document.createElement('div');
-                itemCard.className = 'inv-shop-item';
-                itemCard.innerHTML = `
-                    <div class="inv-shop-item-name" style="color: #FFD700; font-size: 1.1em; text-shadow: 0 0 5px rgba(196,154,0,0.5);">${itemData.nombre}</div>
-                    <div style="font-size: 0.8em; color: #aaa;">[${itemData.tipo}]</div>
-                    <div class="inv-shop-item-price" style="color: #0df; font-weight: bold; margin: 5px 0;"><span class="currency-symbol">₳</span> ${itemData.costo}</div>
-                    <div style="font-size: 0.85em; color: ${isAgotado ? '#ff4444' : '#fff'}; margin-bottom: 10px;">Stock: ${stockDisplay}</div>
-                    <button class="inv-shop-buy-btn" data-shop-id="${shopId}" data-item-id="${itemId}" ${isAgotado ? 'disabled style="background:#555; cursor:not-allowed;"' : 'style="background:var(--green-success); color:#000;"'}>
-                        ${isAgotado ? 'AGOTADO' : 'COMPRAR'}
-                    </button>
-                `;
-                invShopGrid.appendChild(itemCard);
+        for (const [id, data] of Object.entries(tiendas)) {
+            if (data.activa === true) {
+                encontrada = true;
+                tiendaActivaId = id;
+                tiendaActivaData = data;
+                break;
             }
         }
 
-        // 3. Purchase Logic via Event Delegation
-        invShopGrid.addEventListener('click', (e) => {
-            if (e.target.classList.contains('inv-shop-buy-btn') && !e.target.disabled) {
-                const shopId = e.target.getAttribute('data-shop-id');
-                const itemId = e.target.getAttribute('data-item-id');
+        const btnShop = document.getElementById('btn-app-shop');
+        const shopApp = document.getElementById('shop-app');
 
-                const characterNameInput = document.querySelector('input[name="attr_character_name"]');
-                const ahnInput = document.querySelector('input[name="attr_ahn"]');
-
-                if (!characterNameInput || !ahnInput) {
-                    alert("Error: No se encuentra la hoja de personaje (Falta Nombre o Ahn).");
-                    return;
-                }
-
-                const playerName = characterNameInput.value.trim();
-                const currentAhn = parseInt(ahnInput.value) || 0;
-
-                if (!playerName) {
-                    alert("El personaje necesita un nombre para comprar.");
-                    return;
-                }
-
-                // Verify item exists and check stock locally first to avoid unnecessary writes
-                const itemData = currentShopsData[shopId]?.items?.[itemId];
-                if (!itemData) {
-                    alert("Error: Ítem no encontrado.");
-                    return;
-                }
-
-                if (itemData.stock_actual === 0) {
-                    alert("AGOTADO");
-                    return;
-                }
-
-                if (currentAhn < itemData.costo) {
-                    alert("FONDOS INSUFICIENTES");
-                    return;
-                }
-
-                // Deduct locally and trigger standard sync
-                const newAhn = currentAhn - itemData.costo;
+        if (encontrada && btnShop) {
+            btnShop.style.display = 'flex';
+            renderizarComprar();
+            renderizarVender();
+        } else {
+            if (btnShop) btnShop.style.display = 'none';
+            tiendaActivaData = null;
+            tiendaActivaId = null;
+            // Si el jugador está dentro de la app, sacarlo al home
+            const tabInput = document.querySelector('input[name="attr_tab"]');
+            if (tabInput && tabInput.value === 'shop') {
                 if (window.setAttrs) {
-                    window.setAttrs({ ahn: newAhn });
+                    window.setAttrs({ tab: 'home' });
                 } else {
-                    ahnInput.value = newAhn;
-                    const displays = document.querySelectorAll('span[name="attr_ahn_display"]');
-                    displays.forEach(el => el.innerText = newAhn.toLocaleString('en-US'));
+                    tabInput.value = 'home';
+                }
+            }
+        }
+    });
+
+    // Función para manejar las pestañas internas de la app de tienda
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('inv-tab-btn') && e.target.closest('#shop-app')) {
+            const btns = document.querySelectorAll('#shop-app .inv-tab-btn');
+            const contents = document.querySelectorAll('#shop-app .inventory-tab-content');
+
+            btns.forEach(b => b.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            e.target.classList.add('active');
+            const tabId = e.target.getAttribute('data-tab');
+            document.getElementById(tabId).classList.add('active');
+
+            if (tabId === 'shop-vender') {
+                renderizarVender(); // Actualizar stash al abrir
+            }
+        }
+    });
+
+    // Delegación de eventos para botones Comprar/Vender
+    document.addEventListener('click', (e) => {
+        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+        if (!playerName) return;
+
+        // LÓGICA DE COMPRAR
+        if (e.target.classList.contains('btn-comprar-item') && !e.target.disabled) {
+            const itemId = e.target.getAttribute('data-id');
+            const precio = parseInt(e.target.getAttribute('data-precio'));
+            const itemTienda = tiendaActivaData.items[itemId];
+
+            db.ref(`campaña/jugadores/${playerName}/ahn`).once('value', snap => {
+                const currentAhn = snap.val() || 0;
+                if (currentAhn < precio) {
+                    alert('Ahn insuficiente.');
+                    return;
                 }
 
-                // Update Firebase Stock
-                const stockRef = db.ref(`campaña/tiendas/${shopId}/items/${itemId}/stock_actual`);
-                if (itemData.stock_actual !== -1) {
-                    stockRef.transaction(currentStock => {
-                        if (currentStock === null || currentStock <= 0) return 0;
-                        return currentStock - 1;
+                // Restar Ahn
+                db.ref(`campaña/jugadores/${playerName}`).update({ ahn: currentAhn - precio });
+
+                // Reducir Stock
+                if (itemTienda.stock_actual !== -1) {
+                    db.ref(`campaña/tiendas/${tiendaActivaId}/items/${itemId}/stock_actual`).transaction(current => {
+                        return (current || 0) - 1;
                     });
                 }
 
-                // Add to Player's Inventory (Stash)
-                // Modificación 4.3: Solo transferimos información base (id, nombre, costo global), ignorando precio inflado de la tienda.
-                // Además, comprobamos si el ítem ya existe para apilarlo (cantidad + 1).
+                // Añadir al Stash (Update si existe, Push si no)
                 const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
-                stashRef.once('value', (snap) => {
+                stashRef.once('value', stashSnap => {
                     let foundKey = null;
                     let currentCant = 0;
-                    snap.forEach(child => {
-                        // Comparamos contra el itemId original de la base global
+                    stashSnap.forEach(child => {
                         if (child.val().id === itemId) {
                             foundKey = child.key;
                             currentCant = child.val().cantidad || 1;
@@ -2654,41 +2630,168 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (foundKey) {
                         stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
                     } else {
-                        stashRef.push({
+                        // Construir el objeto a guardar
+                        const itemToSave = {
                             id: itemId,
-                            nombre: itemData.nombre,
-                            valorBase: itemData.costo, // Conservamos el costo original sin modificadores
-                            tier: itemData.tier || "I",
-                            tipo: itemData.tipo || "Consumible",
-                            icono: itemData.icono || "",
-                            descripcion: itemData.descripcion || "",
+                            nombre: itemTienda.nombre,
+                            valorBase: itemTienda.costo, // Costo base
+                            tier: itemTienda.tier || "I",
+                            tipo: itemTienda.tipo || "Consumible",
+                            icono: itemTienda.icono || "",
+                            descripcion: itemTienda.descripcion || "",
                             cantidad: 1
-                        });
+                        };
+                        if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
+
+                        stashRef.push(itemToSave);
                     }
+
+                    // Feedback visual
+                    const originalText = e.target.innerText;
+                    const originalBg = e.target.style.background;
+                    e.target.innerText = "¡OK!";
+                    e.target.style.background = "#0df";
+                    setTimeout(() => {
+                        if(e.target) {
+                            e.target.innerText = originalText;
+                            e.target.style.background = originalBg;
+                        }
+                    }, 500);
+                });
+            });
+        }
+
+        // LÓGICA DE VENDER
+        if (e.target.classList.contains('btn-vender-item')) {
+            const key = e.target.getAttribute('data-key');
+            const precio = parseInt(e.target.getAttribute('data-precio'));
+
+            const itemRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash/${key}`);
+            itemRef.once('value', snap => {
+                const item = snap.val();
+                if (!item) return;
+
+                // Sumar Ahn
+                db.ref(`campaña/jugadores/${playerName}/ahn`).once('value', ahnSnap => {
+                    const currentAhn = ahnSnap.val() || 0;
+                    db.ref(`campaña/jugadores/${playerName}`).update({ ahn: currentAhn + precio });
                 });
 
-                // Add Transaction Log
-                db.ref(`campaña/jugadores/${playerName}/transacciones`).push({
-                    monto: -itemData.costo,
-                    concepto: `Compra - ${itemData.nombre}`,
-                    timestamp: Date.now()
-                });
+                // Reducir cantidad o eliminar
+                if (item.cantidad > 1) {
+                    itemRef.update({ cantidad: item.cantidad - 1 });
+                } else {
+                    itemRef.remove();
+                }
 
-                // Small visual feedback on the button
-                const originalText = e.target.innerText;
-                const originalBg = e.target.style.background;
-                e.target.innerText = "¡COMPRADO!";
-                e.target.style.background = "#00ffff";
-                setTimeout(() => {
-                    if(e.target) {
-                        e.target.innerText = originalText;
-                        e.target.style.background = originalBg;
-                    }
-                }, 1000);
-            }
-        });
-    }
+                // Refrescar vista
+                setTimeout(renderizarVender, 200);
+            });
+        }
+    });
 });
+
+function renderizarComprar() {
+    const grid = document.getElementById('shop-comprar-grid');
+    if (!grid || !tiendaActivaData) return;
+
+    grid.innerHTML = '';
+    const items = tiendaActivaData.items || {};
+    const modVenta = tiendaActivaData.mod_venta || 100;
+
+    if (Object.keys(items).length === 0) {
+        grid.innerHTML = '<div style="color:#666; text-align:center; padding: 20px;">Sin inventario.</div>';
+        return;
+    }
+
+    for (const [itemId, item] of Object.entries(items)) {
+        const precio = Math.floor(item.costo * (modVenta / 100));
+        const isAgotado = item.stock_actual === 0;
+        const stockStr = item.stock_actual === -1 ? '∞' : item.stock_actual;
+
+        const row = document.createElement('div');
+        row.style.cssText = 'background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;';
+
+        row.innerHTML = `
+            <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
+                <div style="font-size: 12px; color: #888;">Stock: ${stockStr}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                <div style="color: #0df; font-weight: bold;"><span class="currency-symbol">₳</span> ${precio}</div>
+                <button class="btn-comprar-item" data-id="${itemId}" data-precio="${precio}" ${isAgotado ? 'disabled' : ''}
+                        style="background: ${isAgotado ? '#333' : '#004400'}; color: ${isAgotado ? '#666' : '#fff'}; border: 1px solid ${isAgotado ? '#444' : '#00ff00'}; padding: 4px 8px; border-radius: 3px; cursor: ${isAgotado ? 'not-allowed' : 'pointer'}; font-weight: bold; text-transform: uppercase; font-size: 11px;">
+                    ${isAgotado ? 'Agotado' : 'Comprar'}
+                </button>
+            </div>
+        `;
+        grid.appendChild(row);
+    }
+}
+
+function renderizarVender() {
+    const grid = document.getElementById('shop-vender-grid');
+    const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+    if (!grid || !tiendaActivaData || !playerName) return;
+
+    // Use window.db inside functions to ensure it's available
+    window.db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once('value', snap => {
+        grid.innerHTML = '';
+        const stash = snap.val();
+
+        if (!stash) {
+            grid.innerHTML = '<div style="color:#666; text-align:center; padding: 20px;">Tu Stash está vacío.</div>';
+            return;
+        }
+
+        const reglas = tiendaActivaData.tasas_por_etiqueta || {};
+        const tasaDefecto = tiendaActivaData.tasa_defecto || 50;
+
+        for (const [key, item] of Object.entries(stash)) {
+            if (item.cantidad <= 0) continue;
+
+            // Calcular precio de venta basado en el primer tag (tipo) si existe
+            // La nueva lógica usa array de tags, así que buscamos el primero
+            let primerTag = item.tipo || ''; // Fallback a tipo si no hay tags en la DB vieja
+
+            let pct = tasaDefecto;
+            if (primerTag && reglas[primerTag] !== undefined) {
+                pct = reglas[primerTag];
+            }
+            // Si tiene array de tags, buscamos si alguno coincide con las reglas
+            if (item.tags && Array.isArray(item.tags)) {
+                for (let tag of item.tags) {
+                    if (reglas[tag] !== undefined) {
+                        pct = reglas[tag];
+                        break;
+                    }
+                }
+            }
+
+            const precioVenta = Math.floor((item.valorBase || 0) * (pct / 100));
+
+            const row = document.createElement('div');
+            row.style.cssText = 'background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;';
+
+            row.innerHTML = `
+                <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
+                    <div style="font-size: 12px; color: #888;">Cant: ${item.cantidad}</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                    <div style="color: #c49a00; font-weight: bold;"><span class="currency-symbol">₳</span> +${precioVenta}</div>
+                    <button class="btn-vender-item" data-key="${key}" data-precio="${precioVenta}"
+                            style="background: #440000; color: #fff; border: 1px solid #ff0000; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 11px;">
+                        Vender
+                    </button>
+                </div>
+            `;
+            grid.appendChild(row);
+        }
+    });
+}
 
 
 // --- HUD MODAL LOGIC (Roll20 Compatible) ---

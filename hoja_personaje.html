@@ -335,7 +335,35 @@
  <button type="action" name="act_tab_notas" class="sheet-app-btn"><div class="sheet-app-icon">📝</div><span>Notas</span></button>
  <button type="action" name="act_tab_parts" class="sheet-app-btn sheet-show-parts-btn"><div class="sheet-app-icon">🧩</div><span>Partes</span></button>
  <button type="action" name="act_tab_settings" class="sheet-app-btn"><div class="sheet-app-icon">⚙️</div><span>Ajustes</span></button>
+ <button type="action" name="act_tab_shop" class="sheet-app-btn" id="btn-app-shop" style="display: none;"><div class="sheet-app-icon">🛒</div><span>Tienda Local</span></button>
  </div>
+ </div>
+
+ <!-- Shop Tab -->
+ <div class="sheet-tab-content sheet-tab-shop" id="shop-app">
+    <div class="sheet-app-header"><h2>Tienda Local</h2></div>
+
+    <div class="inventory-tabs" style="padding-top: 0; border-bottom: 1px solid var(--cyan-tech);">
+        <button class="inv-tab-btn active" data-tab="shop-comprar" style="flex:1;">Comprar</button>
+        <button class="inv-tab-btn" data-tab="shop-vender" style="flex:1;">Vender (Stash)</button>
+    </div>
+
+    <div class="sheet-app-body" style="padding: 0; overflow-x: hidden;">
+        <!-- Pestaña Comprar -->
+        <div class="inventory-tab-content active" id="shop-comprar" style="padding: 10px;">
+            <div id="shop-comprar-grid" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Items inyectados por JS -->
+                <div style="text-align: center; color: #888; padding: 20px;">Cargando inventario de la tienda...</div>
+            </div>
+        </div>
+
+        <!-- Pestaña Vender -->
+        <div class="inventory-tab-content" id="shop-vender" style="padding: 10px;">
+            <div id="shop-vender-grid" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Items del stash inyectados por JS -->
+            </div>
+        </div>
+    </div>
  </div>
 
  <!-- Mail Tab -->
@@ -3792,15 +3820,6 @@
                     </div>
                     <div class="inv-grid" id="inv-stash-grid">
                         <!-- Items injectados via JS -->
-                    </div>
-                </div>
-
-                <div class="inventory-tab-content" id="inv-shop">
-                    <select id="shop-selector" style="width: 100%; margin-bottom: 15px; padding: 5px; background: #111; color: var(--cyan-tech); border: 1px solid var(--cyan-tech);">
-                        <option value="">Selecciona una tienda...</option>
-                    </select>
-                    <div class="inv-shop-grid" id="inv-shop-grid">
-                        <!-- Shop items will be injected here via JS -->
                     </div>
                 </div>
             </div>
