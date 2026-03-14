@@ -109,6 +109,28 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.renderCharacterSheet = function(data) {
+    if (data.baseStats) {
+        // Fuerza la actualización VISUAL en el HTML
+        const elCuerpo = document.querySelector('input[name="attr_cuerpo"]') || document.getElementById('stat-cuerpo') || document.querySelector('span[name="attr_cuerpo"]');
+        const elMente = document.querySelector('input[name="attr_mente"]') || document.getElementById('stat-mente') || document.querySelector('span[name="attr_mente"]');
+        const elAlma = document.querySelector('input[name="attr_alma"]') || document.getElementById('stat-alma') || document.querySelector('span[name="attr_alma"]');
+
+        if (elCuerpo) {
+            if (elCuerpo.tagName === 'INPUT') elCuerpo.value = data.baseStats.cuerpo || 0;
+            else elCuerpo.innerText = data.baseStats.cuerpo || 0;
+        }
+
+        if (elMente) {
+            if (elMente.tagName === 'INPUT') elMente.value = data.baseStats.mente || 0;
+            else elMente.innerText = data.baseStats.mente || 0;
+        }
+
+        if (elAlma) {
+            if (elAlma.tagName === 'INPUT') elAlma.value = data.baseStats.alma || 0;
+            else elAlma.innerText = data.baseStats.alma || 0;
+        }
+    }
+
     // 1. Stats Principales (Cuerpo, Mente, Alma)
     const coreStats = ['cuerpo', 'mente', 'alma'];
     coreStats.forEach(stat => {
@@ -297,41 +319,28 @@ window.renderCharacterSheet = function(data) {
     // 5. Transacciones (Apps del Celular)
     const transContainer = document.getElementById('lista-transacciones-banco') || document.getElementById('transactions-list') || document.querySelector('.transactions-container');
     if (transContainer) {
-        transContainer.innerHTML = '';
-        let transacciones = data.transactions ? Object.values(data.transactions) : [];
+        transContainer.innerHTML = ''; // Limpia lo viejo
 
-        transacciones.sort((a, b) => {
-            let tA = a.timestamp || 0;
-            let tB = b.timestamp || 0;
-            return tB - tA;
-        });
+        // Ensure we check for transacciones too if transactions is not found
+        const dataTrans = data.transacciones || data.transactions;
+        if (dataTrans) {
+            // Convertir a array, ordenar por fecha y tomar las últimas 3
+            const transArray = Object.values(dataTrans).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 3);
 
-        const ultimasTransacciones = transacciones.slice(0, 3);
-
-        if (ultimasTransacciones.length === 0) {
-            transContainer.innerHTML = '<div style="color: #666; font-style: italic; padding: 5px;">No hay transacciones recientes.</div>';
-        } else {
-            ultimasTransacciones.forEach(tx => {
-                const color = tx.tipo === 'ingreso' ? '#00ff00' : '#ff4444';
-                const signo = tx.tipo === 'ingreso' ? '+' : '-';
-
-                // Intentar leer tiempo in-game de la transacción o fallback
-                let dateStr = tx.inGameTime || tx.fecha || "";
-                if (!dateStr && tx.timestamp) {
-                    const d = new Date(tx.timestamp);
-                    dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
-
-                transContainer.innerHTML += `
-                    <div class="tx-item" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding: 8px 5px;">
-                        <div style="display: flex; flex-direction: column;">
-                            <span style="color: #ccc;">${(tx.concepto || 'Transacción').replace(/</g, "&lt;")}</span>
-                            ${dateStr ? `<span style="color: #666; font-size: 0.7em;">${dateStr}</span>` : ''}
-                        </div>
-                        <span style="color: ${color}; font-weight: bold;">${signo}₳${tx.monto || 0}</span>
-                    </div>
+            transArray.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'transaccion-item';
+                // Pinta el HTML real:
+                div.innerHTML = `
+                    <span style="color: ${t.monto > 0 ? '#44ff44' : '#ff4444'}; font-weight: bold;">
+                        ${t.monto > 0 ? '+' : ''}${t.monto} Ahn
+                    </span>
+                    <span style="color: #aaa; font-size: 0.9em;"> - ${(t.concepto || 'Transacción').replace(/</g, "&lt;")}</span>
                 `;
+                transContainer.appendChild(div);
             });
+        } else {
+            transContainer.innerHTML = '<div style="color: #666;">Sin transacciones recientes.</div>';
         }
     }
 }
