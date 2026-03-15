@@ -425,25 +425,29 @@ window.addEventListener('DOMContentLoaded', () => {
     const tabsList = ["home", "stats", "abilities", "skills", "profile", "parts", "apego", "banco", "contratos", "codex", "mapa", "notas", "shop", "crafteo"];
 
     // Tab switching logic for Main Nav
-    document.querySelectorAll('button[name^="act_tab_"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            let tabName = btn.getAttribute('name').replace('act_tab_', '');
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[type="action"]');
+        if (!btn || !btn.name || !btn.name.startsWith('act_tab_')) return;
 
-            // Esconder todas las pestañas
-            document.querySelectorAll('.sheet-tab-content').forEach(el => {
-                el.style.display = 'none';
-            });
+        const tabName = btn.name.replace('act_tab_', '');
 
-            // Mostrar la seleccionada
-            const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
-            if (targetTab) {
-                targetTab.style.display = 'block';
-            }
+        const tabInput = document.querySelector('input[name="attr_tab"]') || document.querySelector('.sheet-state-tab');
+        if (tabInput) {
+            tabInput.setAttribute('value', tabName);
+            tabInput.value = tabName;
+        }
 
-            // Set state input for CSS if any uses it
-            const stateInput = document.querySelector('.sheet-state-tab');
-            if (stateInput) stateInput.value = tabName;
+        // Keep the JS display logic as a fallback to ensure tabs actually show/hide
+        // even if CSS doesn't fully handle it. The user said CSS reacts to the attribute change,
+        // but just in case, we also update the display block/none.
+        document.querySelectorAll('.sheet-tab-content').forEach(el => {
+            el.style.display = 'none';
         });
+
+        const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
+        if (targetTab) {
+            targetTab.style.display = 'block';
+        }
     });
 
     // Show Home by default
