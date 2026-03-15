@@ -96,55 +96,39 @@ let currentActorListener = null;
 
 // VARIABLES GLOBALES ESTRICTAS
 window.datosJugador = null;
-window.actorActual = null;
+window.actoresJugador = {}; // Guardará todos los actores tipo "Jugador"
 
+// Listener del personaje
 db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     if (snapshot.exists()) {
         window.datosJugador = snapshot.val();
         renderCharacterSheet(window.datosJugador);
+    }
+});
 
-        // El puente: Leer el actor asignado (Ej. "dothy")
-        const entidadAsignada = window.datosJugador.activeEntity;
-        if (entidadAsignada && entidadAsignada !== "") {
-            db.ref('campaña/actores/' + entidadAsignada).on('value', (actorSnap) => {
-                if (actorSnap.exists()) {
-                    window.actorActual = actorSnap.val();
-                } else {
-                    window.actorActual = null;
-                }
+// Listener para llenar el menú con los Actores tipo "Jugador"
+db.ref('campaña/actores').on('value', (snapshot) => {
+    const actorSelect = document.getElementById('player-actor-select');
+    if (!actorSelect || !snapshot.exists()) return;
 
-                // --- LLENAR EL MENÚ DE ACTOR DEL JUGADOR ---
-                const actorSelect = document.getElementById('player-actor-select');
-                if (actorSelect && window.datosJugador) {
-                    // Guardar qué tenía seleccionado el jugador para no borrárselo
-                    const currentSelection = actorSelect.value;
+    const currentSelection = actorSelect.value;
+    const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Mi Personaje";
 
-                    // Opción 1: Su personaje base
-                    actorSelect.innerHTML = `<option value="base">${window.datosJugador.characterName || "Mi Personaje"}</option>`;
+    // Reiniciar menú
+    actorSelect.innerHTML = `<option value="base">${nombreBase}</option>`;
+    window.actoresJugador = {};
 
-                    // Opción 2: Si el DM le asignó un actor, añadirlo
-                    if (window.actorActual) {
-                        actorSelect.innerHTML += `<option value="actor">[Actor] ${window.actorActual.nombre}</option>`;
-                        // Si apenas se lo asignaron y estaba en base, auto-seleccionar el actor
-                        if (currentSelection !== 'actor') {
-                            actorSelect.value = 'actor';
-                        } else {
-                            actorSelect.value = currentSelection;
-                        }
-                    }
-                }
-            });
-        } else {
-            window.actorActual = null;
-
-            // --- LLENAR EL MENÚ DE ACTOR DEL JUGADOR ---
-            const actorSelect = document.getElementById('player-actor-select');
-            if (actorSelect && window.datosJugador) {
-                // Opción 1: Su personaje base
-                actorSelect.innerHTML = `<option value="base">${window.datosJugador.characterName || "Mi Personaje"}</option>`;
-                actorSelect.value = 'base';
-            }
+    const actores = snapshot.val();
+    for (const [key, actor] of Object.entries(actores)) {
+        if (actor.tipo === "Jugador") {
+            window.actoresJugador[key] = actor; // Guardar en el diccionario global
+            actorSelect.innerHTML += `<option value="${key}">[Actor] ${actor.nombre}</option>`;
         }
+    }
+
+    // Restaurar la selección previa si el jugador ya había escogido uno
+    if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
+        actorSelect.value = currentSelection;
     }
 });
 
