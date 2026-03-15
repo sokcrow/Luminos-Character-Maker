@@ -4471,44 +4471,48 @@
   const btnSend = document.getElementById('btn-player-theatre-send');
   const inputEl = document.getElementById('player-theatre-input');
 
-  function sendTheatreMessage(msgText) {
-      if (isTheatreBlocked) return;
+function sendTheatreMessage(msgText) {
+    // 1. Tomar los datos de las variables globales directamente
+    let actor = window.actorActual;
+    let jugador = window.datosJugador;
 
-      let actorData = currentAssignedActor;
+    // 2. Si el DM no le ha puesto actor, crear uno de emergencia (Fallback)
+    if (!actor) {
+        const charName = (jugador && jugador.characterName) ? jugador.characterName : "Jugador";
+        actor = {
+            nombre: charName,
+            titulo: "",
+            color_nombre: "#ffffff",
+            color_titulo: "#aaaaaa",
+            escala: 1.0,
+            sprite: "https://i.imgur.com/Z8N4rG9.png"
+        };
+    }
 
-      // Fallback seguro por si el DM aún no le asigna un actor
-      if (!actorData) {
-          actorData = {
-              nombre: currentPlayerName || "Jugador",
-              titulo: "Sin Asignar",
-              color_nombre: "#ffffff",
-              color_titulo: "#aaaaaa",
-              escala: 1.0,
-              sprite: "https://i.imgur.com/Z8N4rG9.png"
-          };
-      }
+    // 3. Revisar si cambió de cara en el menú (Opcional)
+    const selectExp = document.getElementById('player-expression-select');
+    const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
+                            ? selectExp.value
+                            : actor.sprite;
 
-      const selectExp = document.getElementById('player-expression-select');
-      const selectedSprite = selectExp && selectExp.style.display !== 'none' ? selectExp.value : actorData.sprite;
+    // 4. Empaquetar y enviar
+    const payload = {
+        nombre: actor.nombre || "Desconocido",
+        titulo: actor.titulo || "",
+        color_nombre: actor.color_nombre || "#ffffff",
+        color_titulo: actor.color_titulo || "#aaaaaa",
+        escala: actor.escala !== undefined ? actor.escala : 1.0,
+        sprite: selectedSprite || actor.sprite,
+        mensaje: msgText,
+        timestamp: Date.now()
+    };
 
-      const payload = {
-          // Esto garantiza que se use el Nombre del Actor designado (Ej. "Charon") y no el del jugador
-          nombre: actorData.nombre,
-          titulo: actorData.titulo,
-          color_nombre: actorData.color_nombre,
-          color_titulo: actorData.color_titulo,
-          escala: actorData.escala !== undefined ? actorData.escala : 1.0,
-          sprite: selectedSprite,
-          mensaje: msgText,
-          timestamp: Date.now()
-      };
-
-      db.ref('campaña/teatro/cola').push(payload).then(() => {
-          if (msgText !== "") {
-              inputEl.value = '';
-          }
-      }).catch(e => console.error("Error sending message to queue:", e));
-  }
+    // 5. Empujar a Firebase
+    const inputEl = document.getElementById('theatre-chat-input');
+    db.ref('campaña/teatro/cola').push(payload).then(() => {
+        if (inputEl) inputEl.value = ''; // Limpiar la caja de texto
+    }).catch(e => console.error("Error enviando mensaje:", e));
+}
 
   if (btnSend && inputEl) {
       btnSend.addEventListener('click', () => {
