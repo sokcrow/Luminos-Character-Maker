@@ -4476,15 +4476,15 @@
 
 function sendTheatreMessage(msgText) {
     const actorSelect = document.getElementById('player-actor-select');
-    const isActorSelected = (actorSelect && actorSelect.value === 'actor');
+    const selectedKey = actorSelect ? actorSelect.value : 'base';
 
     let actorParaEnviar;
 
-    // 1. ¿Eligió hablar como el Actor Asignado (Dothy/Charon)?
-    if (isActorSelected && window.actorActual) {
-        actorParaEnviar = window.actorActual;
+    // 1. ¿Eligió a un actor de la lista?
+    if (selectedKey !== 'base' && window.actoresJugador && window.actoresJugador[selectedKey]) {
+        actorParaEnviar = window.actoresJugador[selectedKey];
     }
-    // 2. ¿Eligió hablar como su Personaje Base (So)?
+    // 2. ¿Eligió su personaje base?
     else {
         const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
         actorParaEnviar = {
