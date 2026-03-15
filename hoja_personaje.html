@@ -4428,48 +4428,6 @@
       });
   });
 
-  // Updated from hoja_personaje.js listener
-  let currentPlayerName = "Jugador";
-  window.updatePlayerTheatreData = function(actorData, playerName) {
-      currentAssignedActor = actorData;
-      if (playerName) {
-          currentPlayerName = playerName;
-      }
-      const selectExp = document.getElementById('player-expression-select');
-      if (currentAssignedActor && currentAssignedActor.expresiones) {
-          const numExpresiones = Object.keys(currentAssignedActor.expresiones).length;
-          if (numExpresiones > 0) {
-              selectExp.style.display = 'block';
-          } else {
-              selectExp.style.display = 'none';
-          }
-          const actorId = actorData.id || playerName; // Fallback for ID
-          // Only populate if empty, changed actor, or number of expressions changed
-          if (selectExp.options.length === 0 || selectExp.getAttribute('data-actor') !== actorId || parseInt(selectExp.getAttribute('data-count')) !== numExpresiones) {
-              const currentVal = selectExp.value;
-              selectExp.innerHTML = '';
-              for (const [name, url] of Object.entries(currentAssignedActor.expresiones)) {
-                  const opt = document.createElement('option');
-                  opt.value = url;
-                  opt.textContent = name;
-                  selectExp.appendChild(opt);
-              }
-              selectExp.setAttribute('data-actor', actorId);
-              selectExp.setAttribute('data-count', numExpresiones);
-              if (currentVal) {
-                  // Restore selection if the url is still valid
-                  const exists = Array.from(selectExp.options).some(opt => opt.value === currentVal);
-                  if (exists) selectExp.value = currentVal;
-              }
-          }
-      } else {
-          if (selectExp) {
-              selectExp.style.display = 'none';
-              selectExp.removeAttribute('data-count');
-          }
-      }
-  };
-
   // Send Dialogue logic
   const btnSend = document.getElementById('btn-player-theatre-send');
   const inputEl = document.getElementById('player-theatre-input');

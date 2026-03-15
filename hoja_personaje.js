@@ -146,13 +146,37 @@ window.actualizarExpresionesDesdeDropdown = function() {
         const actor = window.actoresJugador[selectedActorId];
         if (actor.expresiones) {
             selectExp.style.display = 'inline-block';
-            for (const [nombreExp, urlSprite] of Object.entries(actor.expresiones)) {
-                const option = document.createElement('option');
-                option.value = urlSprite;
-                option.textContent = nombreExp;
-                selectExp.appendChild(option);
+
+            // Handle array of objects format (e.g. [{nombre: '...', url: '...'}] from Firebase)
+            if (Array.isArray(actor.expresiones)) {
+                actor.expresiones.forEach(exp => {
+                    if (exp && exp.nombre && exp.url) {
+                        const option = document.createElement('option');
+                        option.value = exp.url;
+                        option.textContent = exp.nombre;
+                        selectExp.appendChild(option);
+                    }
+                });
+            } else {
+                // Legacy dictionary format ({'Feliz': 'url...', ...})
+                for (const [nombreExp, urlSprite] of Object.entries(actor.expresiones)) {
+                    // Check if the value is actually an object (malformed dictionary from Firebase array mutation)
+                    if (typeof urlSprite === 'object' && urlSprite !== null) {
+                       const option = document.createElement('option');
+                       option.value = urlSprite.url || urlSprite.sprite || '';
+                       option.textContent = urlSprite.nombre || urlSprite.name || nombreExp;
+                       if (option.value) selectExp.appendChild(option);
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = urlSprite;
+                        option.textContent = nombreExp;
+                        selectExp.appendChild(option);
+                    }
+                }
             }
-            return; // Termina la función aquí si hay éxito
+
+            // Si después de todo no hay opciones, ocultar
+            if (selectExp.options.length > 0) return;
         }
     }
 
