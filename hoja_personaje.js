@@ -112,9 +112,38 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
                 } else {
                     window.actorActual = null;
                 }
+
+                // --- LLENAR EL MENÚ DE ACTOR DEL JUGADOR ---
+                const actorSelect = document.getElementById('player-actor-select');
+                if (actorSelect && window.datosJugador) {
+                    // Guardar qué tenía seleccionado el jugador para no borrárselo
+                    const currentSelection = actorSelect.value;
+
+                    // Opción 1: Su personaje base
+                    actorSelect.innerHTML = `<option value="base">${window.datosJugador.characterName || "Mi Personaje"}</option>`;
+
+                    // Opción 2: Si el DM le asignó un actor, añadirlo
+                    if (window.actorActual) {
+                        actorSelect.innerHTML += `<option value="actor">[Actor] ${window.actorActual.nombre}</option>`;
+                        // Si apenas se lo asignaron y estaba en base, auto-seleccionar el actor
+                        if (currentSelection !== 'actor') {
+                            actorSelect.value = 'actor';
+                        } else {
+                            actorSelect.value = currentSelection;
+                        }
+                    }
+                }
             });
         } else {
             window.actorActual = null;
+
+            // --- LLENAR EL MENÚ DE ACTOR DEL JUGADOR ---
+            const actorSelect = document.getElementById('player-actor-select');
+            if (actorSelect && window.datosJugador) {
+                // Opción 1: Su personaje base
+                actorSelect.innerHTML = `<option value="base">${window.datosJugador.characterName || "Mi Personaje"}</option>`;
+                actorSelect.value = 'base';
+            }
         }
     }
 });

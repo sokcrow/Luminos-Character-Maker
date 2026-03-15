@@ -3961,6 +3961,9 @@
 
   <!-- Player Input Area -->
   <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
+    <select id="player-actor-select" style="background: #111; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: 'Share Tech Mono'; outline: none;">
+        <option value="base">Mi Personaje</option>
+    </select>
     <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
     <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
     <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
@@ -4472,45 +4475,50 @@
   const inputEl = document.getElementById('player-theatre-input');
 
 function sendTheatreMessage(msgText) {
-    // 1. Tomar los datos de las variables globales directamente
-    let actor = window.actorActual;
-    let jugador = window.datosJugador;
+    const actorSelect = document.getElementById('player-actor-select');
+    const isActorSelected = (actorSelect && actorSelect.value === 'actor');
 
-    // 2. Si el DM no le ha puesto actor, crear uno de emergencia (Fallback)
-    if (!actor) {
-        const charName = (jugador && jugador.characterName) ? jugador.characterName : "Jugador";
-        actor = {
-            nombre: charName,
+    let actorParaEnviar;
+
+    // 1. ¿Eligió hablar como el Actor Asignado (Dothy/Charon)?
+    if (isActorSelected && window.actorActual) {
+        actorParaEnviar = window.actorActual;
+    }
+    // 2. ¿Eligió hablar como su Personaje Base (So)?
+    else {
+        const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
+        actorParaEnviar = {
+            nombre: nombreBase,
             titulo: "",
             color_nombre: "#ffffff",
             color_titulo: "#aaaaaa",
             escala: 1.0,
-            sprite: "https://i.imgur.com/Z8N4rG9.png"
+            sprite: "https://i.imgur.com/Z8N4rG9.png" // Transparente
         };
     }
 
-    // 3. Revisar si cambió de cara en el menú (Opcional)
+    // 3. Revisar el selector de expresiones
     const selectExp = document.getElementById('player-expression-select');
     const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
                             ? selectExp.value
-                            : actor.sprite;
+                            : actorParaEnviar.sprite;
 
     // 4. Empaquetar y enviar
     const payload = {
-        nombre: actor.nombre || "Desconocido",
-        titulo: actor.titulo || "",
-        color_nombre: actor.color_nombre || "#ffffff",
-        color_titulo: actor.color_titulo || "#aaaaaa",
-        escala: actor.escala !== undefined ? actor.escala : 1.0,
-        sprite: selectedSprite || actor.sprite,
+        nombre: actorParaEnviar.nombre || "Desconocido",
+        titulo: actorParaEnviar.titulo || "",
+        color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+        color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+        escala: actorParaEnviar.escala !== undefined ? actorParaEnviar.escala : 1.0,
+        sprite: selectedSprite || actorParaEnviar.sprite,
         mensaje: msgText,
         timestamp: Date.now()
     };
 
-    // 5. Empujar a Firebase
-    const inputEl = document.getElementById('theatre-chat-input');
+    // 5. Enviar a Firebase
+    const inputEl = document.getElementById('player-theatre-input');
     db.ref('campaña/teatro/cola').push(payload).then(() => {
-        if (inputEl) inputEl.value = ''; // Limpiar la caja de texto
+        if (inputEl) inputEl.value = '';
     }).catch(e => console.error("Error enviando mensaje:", e));
 }
 
