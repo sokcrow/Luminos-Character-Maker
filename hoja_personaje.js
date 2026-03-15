@@ -127,8 +127,8 @@ db.ref('campaña/actores').on('value', (snapshot) => {
         }
     }
 
-    if (currentPlayerData && currentPlayerData.activeActor && actorSelect.querySelector(`option[value="${currentPlayerData.activeActor}"]`)) {
-        actorSelect.value = currentPlayerData.activeActor;
+    if (window.datosJugador && window.datosJugador.activeActor && actorSelect.querySelector(`option[value="${window.datosJugador.activeActor}"]`)) {
+        actorSelect.value = window.datosJugador.activeActor;
         actorSelect.disabled = true;
         actorSelect.dispatchEvent(new Event('change'));
     } else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
