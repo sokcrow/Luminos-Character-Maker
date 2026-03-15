@@ -4476,16 +4476,15 @@
 
 function sendTheatreMessage(msgText) {
     const actorSelect = document.getElementById('player-actor-select');
-    const selectedKey = actorSelect ? actorSelect.value : 'base';
-
+    const selectedActorId = actorSelect ? actorSelect.value : 'base'; // LEE EL ACTOR ID
+    
     let actorParaEnviar;
 
-    // 1. ¿Eligió a un actor de la lista?
-    if (selectedKey !== 'base' && window.actoresJugador && window.actoresJugador[selectedKey]) {
-        actorParaEnviar = window.actoresJugador[selectedKey];
-    }
-    // 2. ¿Eligió su personaje base?
-    else {
+    // ¿Eligió un Actor ID válido de la lista?
+    if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+        actorParaEnviar = window.actoresJugador[selectedActorId];
+    } else {
+        // Fallback al personaje base
         const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
         actorParaEnviar = {
             nombre: nombreBase,
@@ -4493,17 +4492,16 @@ function sendTheatreMessage(msgText) {
             color_nombre: "#ffffff",
             color_titulo: "#aaaaaa",
             escala: 1.0,
-            sprite: "https://i.imgur.com/Z8N4rG9.png" // Transparente
+            sprite: "https://i.imgur.com/Z8N4rG9.png"
         };
     }
 
-    // 3. Revisar el selector de expresiones
+    // Leer la cara seleccionada
     const selectExp = document.getElementById('player-expression-select');
-    const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
-                            ? selectExp.value
+    const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value) 
+                            ? selectExp.value 
                             : actorParaEnviar.sprite;
 
-    // 4. Empaquetar y enviar
     const payload = {
         nombre: actorParaEnviar.nombre || "Desconocido",
         titulo: actorParaEnviar.titulo || "",
@@ -4515,7 +4513,6 @@ function sendTheatreMessage(msgText) {
         timestamp: Date.now()
     };
 
-    // 5. Enviar a Firebase
     const inputEl = document.getElementById('player-theatre-input');
     db.ref('campaña/teatro/cola').push(payload).then(() => {
         if (inputEl) inputEl.value = '';
