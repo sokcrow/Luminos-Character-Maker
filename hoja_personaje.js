@@ -311,28 +311,6 @@ window.renderCharacterSheet = function(data) {
         }
     }
 
-    // 2. Inventario (Stash)
-    // Nota para Jules: Firebase puede devolver arrays como objetos si sufrieron mutaciones. Usa Object.values.
-    const stashContainer = document.getElementById('inv-stash-grid') || document.querySelector('.inventory-grid') || document.getElementById('inventory-list');
-    if (stashContainer) {
-        stashContainer.innerHTML = ''; // Limpiar antes de renderizar
-        const stashItems = data.stash ? Object.values(data.stash) : [];
-        stashItems.forEach(item => {
-            stashContainer.innerHTML += `
-                <div class="inventory-item-card" style="border: 1px solid #444; padding: 5px; margin-bottom: 5px; background: #1a1a1a; display: flex; justify-content: space-between;">
-                    <div>
-                        <span style="color: #fff; font-family: 'Mikodacs';">${item.nombre || 'Ítem Desconocido'}</span>
-                        <span style="color: #aaa; font-size: 0.8em; display: block;">${item.tag || 'Suministro'}</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="color: #ffd700; font-weight: bold;">Tier ${item.tier || 'I'}</span>
-                        <span style="color: #00ffff; display: block;">x${item.cantidad || 1}</span>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
     // 3. Perks y Habilidades
     const perksContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perks-list') || document.getElementById('perks-container');
     if (perksContainer) {
