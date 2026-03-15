@@ -102,6 +102,7 @@ window.actoresJugador = {}; // Diccionario global por Actor ID
 db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     if (snapshot.exists()) {
         window.datosJugador = snapshot.val();
+        currentPlayerData = snapshot.val();
         renderCharacterSheet(window.datosJugador);
     }
 });
@@ -126,7 +127,11 @@ db.ref('campaña/actores').on('value', (snapshot) => {
         }
     }
 
-    if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
+    if (currentPlayerData && currentPlayerData.activeActor && actorSelect.querySelector(`option[value="${currentPlayerData.activeActor}"]`)) {
+        actorSelect.value = currentPlayerData.activeActor;
+        actorSelect.disabled = true;
+        actorSelect.dispatchEvent(new Event('change'));
+    } else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
         actorSelect.value = currentSelection;
     }
     
@@ -187,6 +192,9 @@ window.actualizarExpresionesDesdeDropdown = function() {
 // 4. Asignar el evento GLOBALMENTE (Event Delegation) a prueba de fallos
 document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'player-actor-select') {
+        if (playerId) {
+            db.ref('campaña/jugadores/' + playerId).update({ activeActor: e.target.value });
+        }
         if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
             window.actualizarExpresionesDesdeDropdown();
         }
