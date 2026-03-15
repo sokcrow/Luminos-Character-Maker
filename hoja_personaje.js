@@ -708,7 +708,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function filterStashItems() {
         const query = searchInputStash ? searchInputStash.value.toLowerCase() : '';
-        let activeFilter = 'Todo';
+        let activeFilter = 'todo';
 
         filterBtnsStash.forEach(btn => {
             if (btn.classList.contains('active')) {
