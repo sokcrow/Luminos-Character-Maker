@@ -251,6 +251,12 @@ window.renderCharacterSheet = function(data) {
             // Only update text content safely
             bancoBalance.textContent = new Intl.NumberFormat('en-US').format(data.ahn || 0);
         }
+
+        // Update new Shop Modal Ahn display
+        const shopAhn = document.getElementById('shop-display-ahn');
+        if (shopAhn) {
+            shopAhn.textContent = new Intl.NumberFormat('en-US').format(data.ahn || 0);
+        }
     }
 
     // Subtitulos y avatares
@@ -1560,32 +1566,59 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        for (const [itemId, item] of Object.entries(items)) {
-            const itemTier = parseInt(item.tier) || 1;
-            const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
-            const precio = Math.floor(valorConTier * (modVenta / 100));
-            const isAgotado = item.stock_actual === 0;
-            const stockStr = item.stock_actual === -1 ? '∞' : item.stock_actual;
-            const tierStr = romanTiersShop[Math.min(itemTier, 10)] || 'I';
+        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
 
-            const card = document.createElement('div');
-            card.className = 'shop-item-card';
+        db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once('value', snap => {
+            const userStash = snap.val() || {};
+            const stashCounts = {};
+            for (const itemStash of Object.values(userStash)) {
+                if (itemStash.nombre) {
+                    stashCounts[itemStash.nombre] = (stashCounts[itemStash.nombre] || 0) + (parseInt(itemStash.cantidad) || 1);
+                }
+            }
 
-            card.innerHTML = `
-                <div class="shop-item-image-container">
-                    <div class="shop-item-tier">${tierStr}</div>
-                    <img src="${item.icono || 'https://via.placeholder.com/80'}" alt="${item.nombre}">
-                </div>
-                <div class="shop-item-details">
-                    <h4 class="shop-item-name">${item.nombre}</h4>
-                    <div style="font-size: 12px; color: #888; text-align: center;">Stock: ${stockStr}</div>
-                    <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio}" ${isAgotado ? 'disabled' : ''}>
-                        <span class="currency-symbol">₳</span> ${precio}
-                    </button>
-                </div>
-            `;
-            grid.appendChild(card);
-        }
+            for (const [itemId, item] of Object.entries(items)) {
+                const itemTier = parseInt(item.tier) || 1;
+                const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
+                const precio = Math.floor(valorConTier * (modVenta / 100));
+                const isAgotado = item.stock_actual === 0;
+                const stockStr = item.stock_actual === -1 ? '∞' : item.stock_actual;
+                const tierStr = romanTiersShop[Math.min(itemTier, 10)] || 'I';
+                const countOwned = stashCounts[item.nombre] || 0;
+                const tagStr = item.tag || 'Objeto';
+                const descStr = item.descripcion || item.desc || 'Sin descripción disponible.';
+
+                const card = document.createElement('div');
+                card.className = 'shop-item-card';
+
+                card.innerHTML = `
+                    <div class="shop-item-image-container">
+                        <img src="${item.icono || 'https://via.placeholder.com/80'}" alt="${item.nombre}">
+                    </div>
+                    <div class="shop-item-details">
+                        <div class="shop-item-header">
+                            <h4 class="shop-item-name">${item.nombre}</h4>
+                            <span class="shop-item-tag">${tagStr}</span>
+                        </div>
+                        <div class="shop-item-description">${descStr}</div>
+                        <div style="font-size: 11px; color: #555; margin-top: auto;">Stock en tienda: ${stockStr}</div>
+                    </div>
+                    <div class="shop-item-meta">
+                        <div class="shop-item-possession">
+                            <span class="shop-item-possession-label">POSEES</span>
+                            <span class="shop-item-possession-value">${countOwned}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                            <div class="shop-item-tier">${tierStr}</div>
+                            <button class="shop-item-buy-btn btn-comprar-fisico" data-tienda="${idTienda}" data-item="${itemId}" data-precio="${precio}" ${isAgotado ? 'disabled' : ''}>
+                                <span class="currency-symbol">₳</span> ${precio}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+        });
     }
 
     // Función para manejar las pestañas internas de la app de tienda
