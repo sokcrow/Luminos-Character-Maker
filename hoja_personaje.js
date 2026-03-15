@@ -94,54 +94,28 @@ if (!playerId) {
 let currentPlayerData = {};
 let currentActorListener = null;
 
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof db !== 'undefined') {
-        db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                currentPlayerData = snapshot.val();
-                renderCharacterSheet(currentPlayerData);
+// VARIABLES GLOBALES ESTRICTAS
+window.datosJugador = null;
+window.actorActual = null;
 
-                // --- RESOLUCIÓN DEL ACTOR PARA EL TEATRO ---
-                if (currentPlayerData.actor_asignado && currentPlayerData.actor_asignado !== "") {
-                    // Turn off the previous listener if the actor changed
-                    if (currentActorListener && currentActorListener.actorId !== currentPlayerData.actor_asignado) {
-                        db.ref('campaña/actores/' + currentActorListener.actorId).off('value', currentActorListener.callback);
-                        currentActorListener = null;
-                    }
+db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        window.datosJugador = snapshot.val();
+        renderCharacterSheet(window.datosJugador);
 
-                    if (!currentActorListener) {
-                        const callback = (actorSnapshot) => {
-                            if (actorSnapshot.exists()) {
-                                const fullActorData = actorSnapshot.val();
-                                // Include id manually as it's needed for expression select logic fallback
-                                fullActorData.id = currentPlayerData.actor_asignado;
-                                if (typeof window.updatePlayerTheatreData === 'function') {
-                                    window.updatePlayerTheatreData(fullActorData, currentPlayerData.nombre);
-                                }
-                            } else {
-                                if (typeof window.updatePlayerTheatreData === 'function') {
-                                    window.updatePlayerTheatreData(null, currentPlayerData.nombre);
-                                }
-                            }
-                        };
-                        db.ref('campaña/actores/' + currentPlayerData.actor_asignado).on('value', callback);
-                        currentActorListener = { actorId: currentPlayerData.actor_asignado, callback: callback };
-                    }
+        // El puente: Leer el actor asignado (Ej. "dothy")
+        const entidadAsignada = window.datosJugador.activeEntity;
+        if (entidadAsignada && entidadAsignada !== "") {
+            db.ref('campaña/actores/' + entidadAsignada).on('value', (actorSnap) => {
+                if (actorSnap.exists()) {
+                    window.actorActual = actorSnap.val();
                 } else {
-                    if (currentActorListener) {
-                        db.ref('campaña/actores/' + currentActorListener.actorId).off('value', currentActorListener.callback);
-                        currentActorListener = null;
-                    }
-                    if (typeof window.updatePlayerTheatreData === 'function') {
-                        window.updatePlayerTheatreData(null, currentPlayerData.nombre);
-                    }
+                    window.actorActual = null;
                 }
-            } else {
-                console.error("No se encontraron datos para:", playerId);
-            }
-        });
-    } else {
-        console.error("Firebase db is not defined. Ensure it is loaded before hoja_personaje.js");
+            });
+        } else {
+            window.actorActual = null;
+        }
     }
 });
 
