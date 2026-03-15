@@ -194,36 +194,24 @@ document.addEventListener('change', (e) => {
 });
 
 window.renderCharacterSheet = function(data) {
-    if (data.baseStats) {
-        // Fuerza la actualización VISUAL en el HTML
-        const elCuerpo = document.querySelector('input[name="attr_cuerpo"]') || document.getElementById('stat-cuerpo') || document.querySelector('span[name="attr_cuerpo"]');
-        const elMente = document.querySelector('input[name="attr_mente"]') || document.getElementById('stat-mente') || document.querySelector('span[name="attr_mente"]');
-        const elAlma = document.querySelector('input[name="attr_alma"]') || document.getElementById('stat-alma') || document.querySelector('span[name="attr_alma"]');
-
-        if (elCuerpo) {
-            if (elCuerpo.tagName === 'INPUT') elCuerpo.value = data.baseStats.cuerpo || 0;
-            else elCuerpo.innerText = data.baseStats.cuerpo || 0;
-        }
-
-        if (elMente) {
-            if (elMente.tagName === 'INPUT') elMente.value = data.baseStats.mente || 0;
-            else elMente.innerText = data.baseStats.mente || 0;
-        }
-
-        if (elAlma) {
-            if (elAlma.tagName === 'INPUT') elAlma.value = data.baseStats.alma || 0;
-            else elAlma.innerText = data.baseStats.alma || 0;
-        }
-    }
-
     // 1. Stats Principales (Cuerpo, Mente, Alma)
     const coreStats = ['cuerpo', 'mente', 'alma'];
+
     coreStats.forEach(stat => {
-        const statValue = (data.stats && data.stats[stat]) !== undefined ? data.stats[stat] : data[stat];
-        const elements = document.querySelectorAll(`[name="attr_${stat}"]`);
-        elements.forEach(el => {
-            if (el.tagName === 'INPUT') el.value = statValue || 0;
-            else el.innerText = statValue || 0;
+        const baseVal = (data.baseStats && data.baseStats[stat]) ? parseInt(data.baseStats[stat]) : 0;
+        const modVal = (data.modifiers && data.modifiers[stat]) ? parseInt(data.modifiers[stat]) : 0;
+        const totalVal = baseVal + modVal;
+
+        const baseInput = document.querySelector(`input[name="attr_${stat}_base"]`);
+        if (baseInput) baseInput.value = baseVal;
+
+        const modInput = document.querySelector(`input[name="attr_${stat}_mod"]`);
+        if (modInput) modInput.value = modVal;
+
+        const totalDisplays = document.querySelectorAll(`span[name="attr_${stat}"], input[name="attr_${stat}"]`);
+        totalDisplays.forEach(el => {
+            if (el.tagName === 'INPUT') el.value = totalVal;
+            else el.innerText = totalVal;
         });
     });
 
