@@ -96,9 +96,9 @@ let currentActorListener = null;
 
 // VARIABLES GLOBALES ESTRICTAS
 window.datosJugador = null;
-window.actoresJugador = {}; // Guardará todos los actores tipo "Jugador"
+window.actoresJugador = {}; // Diccionario global por Actor ID
 
-// Listener del personaje
+// 1. Descargar datos base del jugador
 db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     if (snapshot.exists()) {
         window.datosJugador = snapshot.val();
@@ -106,7 +106,7 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     }
 });
 
-// Listener para llenar el menú con los Actores tipo "Jugador"
+// 2. Llenar el menú principal con los Actores (Usando el Actor ID)
 db.ref('campaña/actores').on('value', (snapshot) => {
     const actorSelect = document.getElementById('player-actor-select');
     if (!actorSelect || !snapshot.exists()) return;
@@ -114,21 +114,57 @@ db.ref('campaña/actores').on('value', (snapshot) => {
     const currentSelection = actorSelect.value;
     const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Mi Personaje";
 
-    // Reiniciar menú
     actorSelect.innerHTML = `<option value="base">${nombreBase}</option>`;
     window.actoresJugador = {};
 
     const actores = snapshot.val();
-    for (const [key, actor] of Object.entries(actores)) {
-        if (actor.tipo === "Jugador") {
-            window.actoresJugador[key] = actor; // Guardar en el diccionario global
-            actorSelect.innerHTML += `<option value="${key}">[Actor] ${actor.nombre}</option>`;
+    for (const [actorId, actorData] of Object.entries(actores)) {
+        if (actorData.tipo === "Jugador") {
+            // Guardamos en el diccionario usando el Actor ID exacto
+            window.actoresJugador[actorId] = actorData;
+            actorSelect.innerHTML += `<option value="${actorId}">[Actor] ${actorData.nombre}</option>`;
         }
     }
 
-    // Restaurar la selección previa si el jugador ya había escogido uno
     if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
         actorSelect.value = currentSelection;
+    }
+
+    window.actualizarExpresionesDesdeDropdown();
+});
+
+// 3. Función que inyecta las expresiones basada en el Actor ID seleccionado
+window.actualizarExpresionesDesdeDropdown = function() {
+    const actorSelect = document.getElementById('player-actor-select');
+    const selectExp = document.getElementById('player-expression-select');
+    if (!actorSelect || !selectExp) return;
+
+    const selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
+    selectExp.innerHTML = '';
+
+    if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+        const actor = window.actoresJugador[selectedActorId];
+        if (actor.expresiones) {
+            selectExp.style.display = 'inline-block';
+            for (const [nombreExp, urlSprite] of Object.entries(actor.expresiones)) {
+                const option = document.createElement('option');
+                option.value = urlSprite;
+                option.textContent = nombreExp;
+                selectExp.appendChild(option);
+            }
+            return; // Termina la función aquí si hay éxito
+        }
+    }
+
+    // Ocultar si es el personaje base o no tiene expresiones
+    selectExp.style.display = 'none';
+};
+
+// 4. Asignar el evento para que cambien las caras cuando cambie el actor
+document.addEventListener('DOMContentLoaded', () => {
+    const actorSelectElement = document.getElementById('player-actor-select');
+    if (actorSelectElement) {
+        actorSelectElement.addEventListener('change', window.actualizarExpresionesDesdeDropdown);
     }
 });
 
