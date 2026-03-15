@@ -3440,11 +3440,12 @@
             select.appendChild(defaultOpt);
 
             for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+                if (actorData.tipo !== 'Jugador') continue;
                 const opt = document.createElement('option');
                 opt.value = actorId;
                 const tag = actorData.tipo ? `[${actorData.tipo}] ` : '[NPC] ';
                 opt.innerText = tag + actorData.nombre;
-                if (playerData.actor_asignado === actorId) {
+                if (playerData.activeEntity === actorId) {
                     opt.selected = true;
                 }
                 select.appendChild(opt);
@@ -3453,7 +3454,7 @@
             select.addEventListener('change', (e) => {
                 const selectedActorId = e.target.value;
                 db.ref(`campaña/jugadores/${playerName}`).update({
-                    actor_asignado: selectedActorId
+                    activeEntity: selectedActorId
                 }).then(() => {
                     console.log(`Actor asignado a ${playerName}: ${selectedActorId}`);
                 }).catch(err => alert("Error al asignar actor: " + err));
