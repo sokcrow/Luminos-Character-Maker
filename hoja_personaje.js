@@ -160,11 +160,12 @@ window.actualizarExpresionesDesdeDropdown = function() {
     selectExp.style.display = 'none';
 };
 
-// 4. Asignar el evento para que cambien las caras cuando cambie el actor
-document.addEventListener('DOMContentLoaded', () => {
-    const actorSelectElement = document.getElementById('player-actor-select');
-    if (actorSelectElement) {
-        actorSelectElement.addEventListener('change', window.actualizarExpresionesDesdeDropdown);
+// 4. Asignar el evento GLOBALMENTE (Event Delegation) a prueba de fallos
+document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'player-actor-select') {
+        if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
+            window.actualizarExpresionesDesdeDropdown();
+        }
     }
 });
 
