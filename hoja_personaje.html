@@ -4147,8 +4147,17 @@
 
                             <!-- Panel Inferior: Controles -->
                             <div class="crafteo-controls-panel">
-                                <button class="crafteo-action-btn btn-cancelar" id="btn-craft-cancelar">Cancelar</button>
-                                <button class="crafteo-action-btn btn-fabricar" id="btn-craft-fabricar">Fabricar</button>
+                                <div class="crafteo-slider-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 10px; padding: 0 10px; box-sizing: border-box;">
+                                    <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 5px;">
+                                        <span style="color: #ccc; font-family: 'Mikodacs', sans-serif;">Cantidad: <span id="craft-cantidad-display" style="color: #0df; font-weight: bold;">1</span></span>
+                                        <span id="craft-warning" style="color: #ff4444; font-family: 'Mikodacs', sans-serif; font-size: 14px; font-weight: bold; display: none; text-shadow: 0 0 5px #ff0000;">Espacio Insuficiente</span>
+                                    </div>
+                                    <input type="range" id="craft-cantidad" min="1" max="1" value="1" style="width: 100%; cursor: pointer;" disabled>
+                                </div>
+                                <div style="display: flex; width: 100%; justify-content: center; gap: 10px;">
+                                    <button class="crafteo-action-btn btn-cancelar" id="btn-craft-cancelar">Cancelar</button>
+                                    <button class="crafteo-action-btn btn-fabricar" id="btn-craft-fabricar" disabled style="opacity: 0.5; cursor: not-allowed;">Fabricar</button>
+                                </div>
                             </div>
                         </div>
                     </div>
