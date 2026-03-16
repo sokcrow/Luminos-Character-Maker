@@ -3839,14 +3839,51 @@
                 </div>
             </div>
                 <div class="inventory-tab-content" id="inv-crafting" style="display: none; height: 100%; width: 100%;">
-                    <div class="crafteo-container" style="display: flex; height: 100%; width: 100%; padding: 0;">
-                        <div class="crafteo-grid-zone" style="flex: 0 0 60%; max-width: 60%; padding: 10px; overflow-y: auto; background-color: #222; border-right: 2px solid #333;">
-                            <div id="lista-recetas-crafteo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; align-content: start;">
-                                <!-- Recetas inyectadas por JS (iconos) -->
+                    <div class="crafteo-avanzado-container">
+                        <!-- Panel Izquierdo: Tabs y Listas -->
+                        <div class="crafteo-side-panel">
+                            <div class="crafteo-subtabs">
+                                <button class="crafteo-subtab-btn active" data-subtab="craft-recetas">Recetas Aprendidas</button>
+                                <button class="crafteo-subtab-btn" data-subtab="craft-alijo">Alijo</button>
+                                <button class="crafteo-subtab-btn" data-subtab="craft-activo">Inv. Activo</button>
+                            </div>
+                            <div class="crafteo-list-content active" id="craft-recetas">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Lista de Recetas...</div>
+                            </div>
+                            <div class="crafteo-list-content" id="craft-alijo" style="display: none;">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Alijo...</div>
+                            </div>
+                            <div class="crafteo-list-content" id="craft-activo" style="display: none;">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Inventario Activo...</div>
                             </div>
                         </div>
-                        <div class="crafteo-detail-zone" id="detalle-receta-crafteo" style="flex: 0 0 40%; max-width: 40%; padding: 10px; display: flex; flex-direction: column; background-color: #111; position: relative;">
-                            <div style="text-align: center; color: #888; margin-top: 50%;">Selecciona una receta</div>
+
+                        <!-- Panel Derecho/Central: Zona de Trabajo -->
+                        <div class="crafteo-work-zone">
+                            <div class="crafteo-machine-bg">
+                                <div class="crafteo-slots-container">
+                                    <!-- Ingredientes (Slots 1-5 radiales) -->
+                                    <div class="craft-slot ing-slot" id="craft-slot-1" style="--angle: -90deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-2" style="--angle: -18deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-3" style="--angle: 54deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-4" style="--angle: 126deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-5" style="--angle: 198deg; --radius: 120px;"></div>
+
+                                    <!-- Preview Central -->
+                                    <div class="craft-slot result-slot" id="craft-result-preview">
+                                        <!-- Silueta por defecto o ítem renderizado -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Inferior: Controles -->
+                            <div class="crafteo-controls-panel">
+                                <button class="crafteo-action-btn btn-cancelar" id="btn-craft-cancelar">Cancelar</button>
+                                <button class="crafteo-action-btn btn-fabricar" id="btn-craft-fabricar">Fabricar</button>
+                            </div>
                         </div>
                     </div>
                 </div>
