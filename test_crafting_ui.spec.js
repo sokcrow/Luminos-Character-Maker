@@ -31,7 +31,15 @@ test('Crafting Search and Slots Work Correctly', async ({ page }) => {
             recetas_descubiertas: {}
         };
 
-        window.recetasCache = {};
+                window.recetasCache = {
+            'receta_1': {
+                nombre: 'Tabla de Madera',
+                ingredientes: [
+                    { id_item: 'item_madera', cantidad: 1 }
+                ],
+                resultado: { id_item: 'item_tabla', cantidad: 1 }
+            }
+        };
 
         // Force character name input
         const nameInput = document.querySelector('input[name="attr_character_name"]');

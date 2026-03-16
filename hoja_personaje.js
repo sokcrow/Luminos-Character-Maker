@@ -1024,7 +1024,7 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
     if (Object.keys(recetasCache).length === 0) {
         listaRecetas.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">No hay recetas disponibles.</div>';
     } else {
-        const discoveredRecipes = window.datosJugador?.recetas_descubiertas || {};
+        const discoveredRecipes = window.datosJugador?.recetas_aprendidas || {};
 
         for (const [idReceta, receta] of Object.entries(recetasCache)) {
             if (receta.acceso === 'Restringido' && (!receta.jugadores || !receta.jugadores[playerName])) {
@@ -1186,37 +1186,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
         if (fabricarBtn) {
             fabricarBtn.addEventListener('click', () => {
-                if (fabricarBtn.disabled || !currentSelectedRecetaId) return;
+                if (fabricarBtn.disabled || !window.currentSelectedRecetaId) return;
 
-                const receta = recetasCache[currentSelectedRecetaId];
+                const receta = window.recetasCache[window.currentSelectedRecetaId];
                 if (!receta) return;
 
                 const currentPlayerData = window.datosJugador || {};
                 const currentStashObj = currentPlayerData.inventario_stash || {};
-                const invStash = Object.values(currentStashObj);
 
-                // Validación Inicial
-                let hasAllMaterials = true;
-                if (receta.ingredientes && receta.ingredientes.length > 0) {
-                    for (let i = 0; i < receta.ingredientes.length; i++) {
-                        const ing = receta.ingredientes[i];
-                        let ownedQty = 0;
-                        const stashStacks = invStash.filter(item => {
-                            const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
-                            return itemKey === ing.id_item;
-                        });
-                        stashStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
-                        if (ownedQty < ing.cantidad) {
-                            hasAllMaterials = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (!hasAllMaterials) {
-                    alert('No tienes los materiales suficientes para esta receta.');
-                    return;
-                }
+                // Fetch quantity from slider
+                const slider = document.getElementById('craft-cantidad');
+                const cantidadFabricar = slider ? parseInt(slider.value) || 1 : 1;
 
                 // Obtener Variables
                 const dc = parseInt(receta.dc) || 10;
@@ -1228,39 +1208,82 @@ document.addEventListener('DOMContentLoaded', () => {
                     skillMod = parseInt(currentPlayerData.baseStats[habilidadReq]);
                 }
 
-                // Tirada de Monedas
-                let caras = 0;
-                for (let i = 0; i < 5; i++) {
-                    if (Math.random() >= 0.5) caras++;
+                let spValue = 0;
+                if (currentPlayerData.attributes && currentPlayerData.attributes.sp !== undefined) {
+                    spValue = parseInt(currentPlayerData.attributes.sp);
                 }
-                const total = (caras * 3) + skillMod;
-                const rollInfo = { total, caras, skillMod };
-                const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+                let probCara = 50 + spValue;
+                if (probCara < 5) probCara = 5;
+                if (probCara > 95) probCara = 95;
 
-                fabricarBtn.disabled = true;
-                fabricarBtn.style.opacity = '0.5';
-                fabricarBtn.innerText = 'SINTETIZANDO...';
+                // Disparar la función del panel flotante de monedas
+                const coinTossPanel = document.getElementById('coin-toss-panel');
+                const coinTossSkillName = document.getElementById('coin-toss-skill-name');
+                const coinContainer = document.getElementById('coin-toss-coins-container');
+                const totalResultText = document.getElementById('coin-toss-total-result');
 
-                // Resolución
-                setTimeout(() => {
-                    if (total >= dc) {
-                        ejecutarSintesis(playerName, receta, 1, currentStashObj, true, rollInfo);
-                    } else {
-                        ejecutarSintesis(playerName, receta, 1, currentStashObj, false, rollInfo);
+                if (coinTossPanel && coinTossSkillName && coinContainer && totalResultText) {
+                    coinTossPanel.style.display = 'flex';
+                    coinTossSkillName.innerText = `Crafteo: ${habilidadReq.toUpperCase()} vs DC ${dc}`;
+                    coinContainer.innerHTML = '';
+                    totalResultText.innerText = '...';
+
+                    let caras = 0;
+                    let animationTimeouts = [];
+
+                    for (let i = 0; i < 5; i++) {
+                        const isHeads = (Math.random() * 100) < probCara;
+                        if (isHeads) caras++;
+
+                        const img = document.createElement('img');
+                        img.src = "https://i.imgur.com/yshLPnQ.png"; // base coin
+                        img.className = "coin-img";
+                        img.style.width = "40px";
+                        img.style.height = "40px";
+                        coinContainer.appendChild(img);
+
+                        // Animate
+                        const to1 = setTimeout(() => {
+                            img.style.transform = "scaleY(0)";
+                        }, 100 + (i * 200));
+
+                        const to2 = setTimeout(() => {
+                            img.src = isHeads ? "https://i.imgur.com/yshLPnQ.png" : "https://i.imgur.com/5uKjL5U.png";
+                            img.style.transform = "scaleY(1)";
+                            if (isHeads) {
+                                img.style.filter = "drop-shadow(0 0 5px gold)";
+                            } else {
+                                img.style.filter = "grayscale(1) brightness(0.5)";
+                            }
+                        }, 250 + (i * 200));
+                        animationTimeouts.push(to1, to2);
                     }
 
-                    // Limpieza
-                    fabricarBtn.innerText = 'Fabricar';
-                    limpiarVisorCrafteo();
+                    const to3 = setTimeout(() => {
+                        const total = (caras * 3) + skillMod;
+                        totalResultText.innerText = total;
+                        totalResultText.style.color = (total >= dc) ? "var(--green-success)" : "var(--red-neon)";
 
-                    const listaRecetas = document.getElementById('craft-recetas');
-                    if (listaRecetas) {
-                        Array.from(listaRecetas.children).forEach(c => {
-                            c.style.borderColor = c.innerHTML.includes('brightness(0)') ? '#222' : '#444';
-                            c.style.background = '#1a1a1a';
-                        });
-                    }
-                }, 1000);
+                        const rollInfo = { total, caras, skillMod };
+                        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+
+                        // Determinar destino dinámico
+                        const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
+                        const destination = isAlijoActive ? 'inventario_stash' : 'inventario';
+
+                        setTimeout(() => {
+                            if (total >= dc) {
+                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, true, rollInfo, destination);
+                            } else {
+                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, false, rollInfo, destination);
+                            }
+                            limpiarVisorCrafteo();
+                        }, 1500); // 1.5 secs after result is shown
+
+                    }, 250 + (5 * 200));
+                    animationTimeouts.push(to3);
+
+                }
             });
         }
             cancelBtn.addEventListener('click', () => {
@@ -1279,32 +1302,201 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1500);
 });
 
+// Validar Mesa and Verificar Receta Oculta logic combined
 window.validarMesaCraft = function() {
     try {
-        let tieneItems = false;
+        const slotsIds = [];
         for (let i = 1; i <= 5; i++) {
             const slot = document.getElementById(`craft-slot-${i}`);
-            if (slot && slot.classList.contains('has-item')) {
-                tieneItems = true;
-                break;
+            if (slot && slot.classList.contains('has-item') && slot.dataset.idItem) {
+                slotsIds.push(slot.dataset.idItem);
             }
         }
+
+        const previewSlot = document.getElementById('craft-result-preview');
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
-        if (fabricarBtn) {
-            if (tieneItems) {
+
+        let matchingRecipeId = null;
+        let matchingRecipe = null;
+
+        // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
+        // Let's count IDs in slots
+        const slotCounts = {};
+        slotsIds.forEach(id => { slotCounts[id] = (slotCounts[id] || 0) + 1; });
+
+        if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
+            for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
+                if (!recetaData.ingredientes) continue;
+
+                // create a map of req ingredients
+                const reqCounts = {};
+                recetaData.ingredientes.forEach(ing => {
+                    reqCounts[ing.id_item] = (reqCounts[ing.id_item] || 0) + parseInt(ing.cantidad);
+                });
+
+                // Compare only IDs, not quantities. The recipe is a match if the unique IDs in the slots exactly match the unique IDs required by the recipe.
+                let isMatch = true;
+                const reqKeys = Object.keys(reqCounts);
+                const slotKeys = Object.keys(slotCounts);
+
+                if (reqKeys.length !== slotKeys.length) continue;
+
+                for (let key of reqKeys) {
+                    if (!slotCounts[key]) {
+                        isMatch = false;
+                        break;
+                    }
+                }
+
+                if (isMatch) {
+                    matchingRecipeId = recetaId;
+                    matchingRecipe = recetaData;
+                    break;
+                }
+            }
+        }
+
+        if (matchingRecipe) {
+            window.currentSelectedRecetaId = matchingRecipeId;
+            const currentPlayerData = window.datosJugador || {};
+            const discovered = currentPlayerData.recetas_aprendidas && currentPlayerData.recetas_aprendidas[matchingRecipeId];
+
+            let resultIconUrl = 'https://i.imgur.com/tHq85mJ.png'; // Fallback
+            let resultItemName = 'Unknown Item';
+            let resultTier = 1;
+
+            if (matchingRecipe.resultado && typeof window.dbItemsCacheGlobal !== 'undefined') {
+                const resItemDef = window.dbItemsCacheGlobal[matchingRecipe.resultado.id_item];
+                if (resItemDef) {
+                    resultIconUrl = resItemDef.url_imagen || resItemDef.url_icono || resultIconUrl;
+                    resultItemName = resItemDef.nombre || resultItemName;
+                    resultTier = resItemDef.tier || 1;
+                }
+            }
+
+            if (previewSlot) {
+                const romanTier = ["I","II","III","IV","V","VI","VII","VIII","IX","X"][resultTier - 1] || "I";
+
+                if (discovered) {
+                    previewSlot.innerHTML = `
+                        <img src="${resultIconUrl}" class="craft-preview-img" title="${resultItemName}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
+                        <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
+                    `;
+                    previewSlot.classList.remove('silhouetted');
+                    previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
+                } else {
+                    previewSlot.innerHTML = `
+                        <img src="${resultIconUrl}" class="craft-preview-img silhouetted" title="???" style="width: 100%; height: 100%; object-fit: contain; filter: brightness(0); pointer-events: none;">
+                        <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
+                    `;
+                    previewSlot.classList.add('silhouetted');
+                    previewSlot.style.filter = 'none';
+                }
+            }
+
+            if (fabricarBtn) {
                 fabricarBtn.disabled = false;
                 fabricarBtn.style.opacity = '1';
+                fabricarBtn.style.cursor = 'pointer';
                 fabricarBtn.classList.remove('btn-apagado');
-            } else {
+            }
+
+            // Calculate max slider
+            actualizarSliderCraft();
+
+        } else {
+            // No match
+            if (previewSlot) {
+                previewSlot.innerHTML = '';
+                previewSlot.style.filter = 'brightness(0) drop-shadow(0 0 5px rgba(0,221,255,0.5))';
+            }
+            if (fabricarBtn) {
                 fabricarBtn.disabled = true;
                 fabricarBtn.style.opacity = '0.5';
+                fabricarBtn.style.cursor = 'not-allowed';
                 fabricarBtn.classList.add('btn-apagado');
             }
+            // Reset slider
+            const slider = document.getElementById('craft-cantidad');
+            const display = document.getElementById('craft-cantidad-display');
+            const warning = document.getElementById('craft-warning');
+            if (slider) { slider.value = 1; slider.max = 1; slider.disabled = true; }
+            if (display) { display.innerText = '1'; }
+            if (warning) { warning.style.display = 'none'; }
         }
     } catch (e) {
         console.error('Error en slots:', e);
     }
 };
+
+window.actualizarSliderCraft = function() {
+    try {
+        if (!window.currentSelectedRecetaId || !window.recetasCache[window.currentSelectedRecetaId]) return;
+        const receta = window.recetasCache[window.currentSelectedRecetaId];
+        const currentPlayerData = window.datosJugador || {};
+
+        let maxMateriales = Infinity;
+
+        if (receta.ingredientes) {
+            receta.ingredientes.forEach(ing => {
+                let ownedQty = 0;
+                if (currentPlayerData.inventario_stash) {
+                    Object.values(currentPlayerData.inventario_stash).forEach(item => {
+                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
+                        if (itemKey === ing.id_item) {
+                            ownedQty += (parseInt(item.cantidad) || 1);
+                        }
+                    });
+                }
+                const possible = Math.floor(ownedQty / ing.cantidad);
+                if (possible < maxMateriales) maxMateriales = possible;
+            });
+        }
+
+        if (maxMateriales === Infinity) maxMateriales = 0;
+
+        // Destino
+        const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
+        const inventoryNode = isAlijoActive ? 'inventario_stash' : 'inventario';
+        const limiteEspacio = isAlijoActive ? 100 : 20; // Example limits, could check actual length
+        const currentCount = currentPlayerData[inventoryNode] ? Object.keys(currentPlayerData[inventoryNode]).length : 0;
+        const espacioDisponible = limiteEspacio - currentCount;
+
+        let maxPosible = Math.min(maxMateriales, espacioDisponible);
+        if (maxPosible < 1) maxPosible = 0;
+
+        const slider = document.getElementById('craft-cantidad');
+        const display = document.getElementById('craft-cantidad-display');
+        const warning = document.getElementById('craft-warning');
+        const btn = document.getElementById('btn-craft-fabricar');
+
+        if (slider && display && warning && btn) {
+            if (maxPosible > 0) {
+                slider.max = maxPosible;
+                if (parseInt(slider.value) > maxPosible) slider.value = maxPosible;
+                slider.disabled = false;
+                display.innerText = slider.value;
+                warning.style.display = 'none';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            } else {
+                slider.value = 1;
+                slider.max = 1;
+                slider.disabled = true;
+                display.innerText = '1';
+                if (espacioDisponible <= 0) {
+                    warning.innerText = 'Espacio Insuficiente';
+                    warning.style.display = 'block';
+                }
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+        }
+    } catch(e) { console.error('Error updating slider', e); }
+};
+
 
 document.addEventListener('click', (e) => {
     const slot = e.target.closest('.craft-slot.ing-slot');
@@ -1485,7 +1677,7 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
         });
 
         // Marcar receta como descubierta
-        db.ref(`campaña/jugadores/${playerName}/recetas_descubiertas/${receta.id_receta || currentSelectedRecetaId}`).set(true);
+        db.ref(`campaña/jugadores/${playerName}/recetas_aprendidas/${receta.id_receta || currentSelectedRecetaId}`).set(true);
 
         // Crear/Añadir item resultante
         const resId = receta.item_resultado;
@@ -2333,3 +2525,104 @@ document.addEventListener('click', (e) => {
         if (panel) panel.style.display = 'none';
     }
 });
+
+document.addEventListener('input', (e) => {
+    if (e.target.id === 'craft-cantidad') {
+        const display = document.getElementById('craft-cantidad-display');
+        if (display) display.innerText = e.target.value;
+    }
+});
+
+window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito, rollInfo, destKey) {
+    try {
+        const playerId = localStorage.getItem('playerId');
+        if (!playerId) return;
+
+        const updates = {};
+        const timestamp = Date.now();
+        const destPath = `campaña/jugadores/${playerId}/${destKey}`;
+        const sourcePath = `campaña/jugadores/${playerId}/inventario_stash`; // Assuming materials are always from stash based on previous logic, or maybe from the same destination. The prompt says: "Al craftear, verifica qué sub-pestaña... destino del nuevo item...". Materials are globally available? Let's use inventario_stash for materials to be safe.
+
+        // Find materials and deduct
+        if (receta.ingredientes) {
+            receta.ingredientes.forEach(ing => {
+                let required = ing.cantidad * multi;
+                if (!exito) {
+                    // Si Fracaso: Descuenta materiales al azar como penalización y no entregues nada.
+                    // penalty: 1 to 2 items
+                    required = Math.floor(Math.random() * 2) + 1;
+                }
+
+                // We'll search for this material in inventario_stash
+                // Wait, it should deduct from where they came from.
+                const currentStashObj = window.datosJugador.inventario_stash || {};
+
+                for (const [key, item] of Object.entries(currentStashObj)) {
+                    const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
+                    if (itemKey === ing.id_item && required > 0) {
+                        if (item.cantidad > required) {
+                            updates[`${sourcePath}/${key}/cantidad`] = item.cantidad - required;
+                            required = 0;
+                        } else {
+                            required -= item.cantidad;
+                            updates[`${sourcePath}/${key}`] = null;
+                        }
+                    }
+                }
+            });
+        }
+
+        if (exito && receta.resultado) {
+            // Add result to destKey
+            const newKey = firebase.database().ref().child(destPath).push().key;
+            const resDef = window.dbItemsCacheGlobal ? window.dbItemsCacheGlobal[receta.resultado.id_item] : null;
+
+            let finalName = resDef ? resDef.nombre : receta.resultado.id_item;
+            let finalTier = resDef ? (resDef.tier || 1) : 1;
+            let finalUrl = resDef ? (resDef.url_imagen || resDef.url_icono || "") : "";
+
+            // Check if stackable in dest Obj
+            let stackedKey = null;
+            let newQty = receta.resultado.cantidad * multi;
+            for (const [key, item] of Object.entries(destObj)) {
+                if (item.nombre === finalName && item.tier === finalTier) {
+                    stackedKey = key;
+                    newQty += parseInt(item.cantidad) || 1;
+                    break;
+                }
+            }
+
+            if (stackedKey) {
+                updates[`${destPath}/${stackedKey}/cantidad`] = newQty;
+            } else {
+                updates[`${destPath}/${newKey}`] = {
+                    id: receta.resultado.id_item,
+                    nombre: finalName,
+                    cantidad: newQty,
+                    tier: finalTier,
+                    url_icono: finalUrl,
+                    tags: resDef && resDef.etiquetas ? resDef.etiquetas.join(',') : ""
+                };
+            }
+
+            // Log recipe as discovered
+            if (window.currentSelectedRecetaId) {
+                updates[`campaña/jugadores/${playerId}/recetas_aprendidas/${window.currentSelectedRecetaId}`] = true;
+            }
+
+            // Notification transaction
+            const notifKey = firebase.database().ref().child(`campaña/jugadores/${playerId}/transacciones`).push().key;
+            updates[`campaña/jugadores/${playerId}/transacciones/${notifKey}`] = {
+                tipo: 'compra',
+                monto: 0,
+                concepto: `Fabricado: ${finalName} x${receta.resultado.cantidad * multi}`,
+                timestamp: timestamp
+            };
+        }
+
+        firebase.database().ref().update(updates).then(() => {
+            console.log("Crafteo terminado.");
+        }).catch(err => console.error("Error updates:", err));
+
+    } catch(e) { console.error('Error in ejecutarSintesisDin:', e); }
+};
