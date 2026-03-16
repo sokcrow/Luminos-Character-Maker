@@ -2103,3 +2103,78 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ====== COIN TOSS ENGINE ======
+document.addEventListener('click', (e) => {
+    // Determine if the clicked element or its parent is the roll button
+    const btn = e.target.closest('.sheet-roll-skill-btn');
+    if (btn) {
+        const actName = btn.getAttribute('name'); // e.g., act_roll_skill_cardio
+        if (!actName || !actName.startsWith('act_roll_skill_')) return;
+
+        const skillNameRaw = actName.replace('act_roll_skill_', '');
+        // Find the parent row to get the visual name and values
+        const row = btn.closest('.sheet-skill-row');
+        if (!row) return;
+
+        const displaySpan = row.querySelector('.sheet-skill-name');
+        const displayName = displaySpan ? displaySpan.textContent : skillNameRaw;
+
+        // Read Base + Mod from inputs in the same row
+        const baseInput = row.querySelector('input[title="Base"]');
+        const modInput = row.querySelector('input[title="Mod"]');
+
+        const baseVal = baseInput ? parseInt(baseInput.value) || 0 : 0;
+        const modVal = modInput ? parseInt(modInput.value) || 0 : 0;
+        const skillTotal = baseVal + modVal;
+
+        // SP Calculation
+        const pd = typeof currentPlayerData !== "undefined" ? currentPlayerData : (window.datosJugador || {});
+        let sp = parseInt(pd.sp) || 0;
+        if (sp > 45) sp = 45;
+        if (sp < -45) sp = -45;
+
+        // Heads Probability = 50 + SP
+        const probHeads = 50 + sp;
+
+        // Roll 5 coins
+        let headsCount = 0;
+        const container = document.getElementById('coin-toss-coins-container');
+        if (container) container.innerHTML = ''; // Clear old coins
+
+        for (let i = 0; i < 5; i++) {
+            const roll = Math.random() * 100;
+            const isHeads = roll < probHeads;
+
+            const img = document.createElement('img');
+            img.className = 'coin-img';
+            if (isHeads) {
+                img.src = 'https://imgur.com/yshLPnQ.png';
+                img.classList.add('coin-heads');
+                headsCount++;
+            } else {
+                img.src = 'https://imgur.com/XDx0ICt.png';
+            }
+            if (container) container.appendChild(img);
+        }
+
+        const finalResult = (headsCount * 3) + skillTotal;
+
+        // Update UI
+        const nameEl = document.getElementById('coin-toss-skill-name');
+        if (nameEl) nameEl.textContent = displayName;
+
+        const resultEl = document.getElementById('coin-toss-total-result');
+        if (resultEl) resultEl.textContent = finalResult;
+
+        const panel = document.getElementById('coin-toss-panel');
+        if (panel) panel.style.display = 'flex';
+    }
+
+    // Close Coin Toss Panel
+    const closeBtn = e.target.closest('#btn-close-coin-toss');
+    if (closeBtn) {
+        const panel = document.getElementById('coin-toss-panel');
+        if (panel) panel.style.display = 'none';
+    }
+});
