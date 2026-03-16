@@ -1131,13 +1131,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? parseInt(currentPlayerData.modifiers[receta.habilidad])
                     : 0;
 
-                let caras = 0;
-                for (let i = 0; i < 5; i++) {
-                    if (Math.random() >= 0.5) caras++;
-                }
-                const total = (caras * 3) + skillMod;
-                const rollInfo = { total, caras, skillMod };
-                const dc = parseInt(receta.dc) || 10;
+                const roll = Math.floor(Math.random() * 20) + 1;
+                const total = roll + skillMod;
+                const dc = parseInt(receta.dc);
                 const currentStash = window.datosJugador.inventario_stash || {};
                 const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
 
@@ -1147,21 +1143,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 setTimeout(() => {
                     if (total >= dc) {
-                        ejecutarSintesis(playerName, receta, 1, currentStash, true, rollInfo);
+                        ejecutarSintesis(playerName, receta, 1, currentStash, true, total);
                     } else {
-                        ejecutarSintesis(playerName, receta, 1, currentStash, false, rollInfo);
+                        ejecutarSintesis(playerName, receta, 1, currentStash, false, total);
                     }
                     fabricarBtn.innerText = 'Fabricar';
                     limpiarVisorCrafteo();
-
-                    // Clear selection in recipe list (simulando "Cancelar")
-                    const listaRecetas = document.getElementById('craft-recetas');
-                    if (listaRecetas) {
-                        Array.from(listaRecetas.children).forEach(c => {
-                            c.style.borderColor = c.innerHTML.includes('brightness(0)') ? '#222' : '#444';
-                            c.style.background = '#1a1a1a';
-                        });
-                    }
                 }, 1000);
             });
         }
@@ -1302,7 +1289,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /* OLD SELECCIONAR RECETA LOGIC REMOVED */
-function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollInfo) {
+function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollTotal) {
     const stashRef = db.ref(`campaña/jugadores/${playerName}/inventario_stash`);
     const updates = {};
     const removes = [];
@@ -1379,10 +1366,10 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
         }
 
     } else {
-        // FALLO: Eliminar 1-2 mats aleatorios por cada intento fallido
+        // FALLO: Eliminar 1-3 mats aleatorios por cada intento fallido
         let matsParaPerder = [];
         for (let i = 0; i < multi; i++) {
-            const numPerder = Math.floor(Math.random() * 2) + 1; // 1 to 2
+            const numPerder = Math.floor(Math.random() * 3) + 1; // 1 to 3
             // Aplanar ingredientes para elegir aleatoriamente
             const pool = [];
             receta.ingredientes.forEach(ing => {
@@ -1395,7 +1382,7 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
         }
 
         // Apply reductions based on matsParaPerder
-        var lostCounts = {}; // Using var so it is scoped to function and available in closure
+        const lostCounts = {};
         matsParaPerder.forEach(id => {
             lostCounts[id] = (lostCounts[id] || 0) + 1;
         });
@@ -1433,36 +1420,20 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
 
     Promise.all(promises).then(() => {
         const btnSintetizar = document.getElementById('btn-sintetizar');
-        if (btnSintetizar) {
-            btnSintetizar.innerText = 'SINTETIZAR';
-            btnSintetizar.disabled = false;
-        }
-
-        const total = rollInfo.total;
-        const caras = rollInfo.caras;
-        const mod = rollInfo.skillMod;
+        btnSintetizar.innerText = 'SINTETIZAR';
+        btnSintetizar.disabled = false;
 
         if (exito) {
-            alert(`¡Fabricación Exitosa!\nCaras: ${caras} (+${caras * 3})\nModificador: ${mod}\nResultado: ${total} vs DC ${receta.dc}\nItems añadidos al alijo.`);
+            alert(`¡Síntesis Exitosa! (Roll: ${rollTotal} vs DC ${receta.dc})\nItems añadidos al alijo.`);
         } else {
-            // Find lost materials names
-            const lostNames = [];
-            if (typeof lostCounts !== 'undefined') {
-                for (const [idLost, amountLost] of Object.entries(lostCounts)) {
-                    const itemName = (dbItemsCacheGlobal && dbItemsCacheGlobal[idLost]) ? dbItemsCacheGlobal[idLost].nombre : 'Material desconocido';
-                    lostNames.push(`${amountLost}x ${itemName}`);
-                }
-            }
-            const lostStr = lostNames.length > 0 ? `\nSe perdieron los siguientes materiales:\n- ${lostNames.join('\n- ')}` : '';
-            alert(`Fabricación Fallida.\nCaras: ${caras} (+${caras * 3})\nModificador: ${mod}\nResultado: ${total} vs DC ${receta.dc}${lostStr}`);
+            alert(`Síntesis Fallida. (Roll: ${rollTotal} vs DC ${receta.dc})\nMateriales inestables destruidos.`);
         }
 
         // Recalcular vista
-        if (typeof seleccionarReceta === 'function') seleccionarReceta(currentSelectedRecetaId, receta);
+        seleccionarReceta(currentSelectedRecetaId, receta);
     }).catch(err => {
         alert('Error en la síntesis: ' + err);
-        const btnSintetizar = document.getElementById('btn-sintetizar');
-        if (btnSintetizar) btnSintetizar.innerText = 'SINTETIZAR';
+        document.getElementById('btn-sintetizar').innerText = 'SINTETIZAR';
     });
 }
 
