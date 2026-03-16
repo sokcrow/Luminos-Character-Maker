@@ -1127,34 +1127,67 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!receta) return;
 
                 const currentPlayerData = window.datosJugador || {};
-                const skillMod = (currentPlayerData.modifiers && currentPlayerData.modifiers[receta.habilidad])
-                    ? parseInt(currentPlayerData.modifiers[receta.habilidad])
-                    : 0;
+                const currentStashObj = currentPlayerData.inventario_stash || {};
+                const invStash = Object.values(currentStashObj);
 
+                // Validación Inicial
+                let hasAllMaterials = true;
+                if (receta.ingredientes && receta.ingredientes.length > 0) {
+                    for (let i = 0; i < receta.ingredientes.length; i++) {
+                        const ing = receta.ingredientes[i];
+                        let ownedQty = 0;
+                        const stashStacks = invStash.filter(item => {
+                            const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
+                            return itemKey === ing.id_item;
+                        });
+                        stashStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
+                        if (ownedQty < ing.cantidad) {
+                            hasAllMaterials = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasAllMaterials) {
+                    alert('No tienes los materiales suficientes para esta receta.');
+                    return;
+                }
+
+                // Obtener Variables
+                const dc = parseInt(receta.dc) || 10;
+                const habilidadReq = receta.habilidad ? receta.habilidad.toLowerCase() : 'mente';
+                let skillMod = 0;
+                if (currentPlayerData.modifiers && currentPlayerData.modifiers[habilidadReq] !== undefined) {
+                    skillMod = parseInt(currentPlayerData.modifiers[habilidadReq]);
+                } else if (currentPlayerData.baseStats && currentPlayerData.baseStats[habilidadReq] !== undefined) {
+                    skillMod = parseInt(currentPlayerData.baseStats[habilidadReq]);
+                }
+
+                // Tirada de Monedas
                 let caras = 0;
                 for (let i = 0; i < 5; i++) {
                     if (Math.random() >= 0.5) caras++;
                 }
                 const total = (caras * 3) + skillMod;
                 const rollInfo = { total, caras, skillMod };
-                const dc = parseInt(receta.dc) || 10;
-                const currentStash = window.datosJugador.inventario_stash || {};
                 const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
 
                 fabricarBtn.disabled = true;
                 fabricarBtn.style.opacity = '0.5';
                 fabricarBtn.innerText = 'SINTETIZANDO...';
 
+                // Resolución
                 setTimeout(() => {
                     if (total >= dc) {
-                        ejecutarSintesis(playerName, receta, 1, currentStash, true, rollInfo);
+                        ejecutarSintesis(playerName, receta, 1, currentStashObj, true, rollInfo);
                     } else {
-                        ejecutarSintesis(playerName, receta, 1, currentStash, false, rollInfo);
+                        ejecutarSintesis(playerName, receta, 1, currentStashObj, false, rollInfo);
                     }
+
+                    // Limpieza
                     fabricarBtn.innerText = 'Fabricar';
                     limpiarVisorCrafteo();
 
-                    // Clear selection in recipe list (simulando "Cancelar")
                     const listaRecetas = document.getElementById('craft-recetas');
                     if (listaRecetas) {
                         Array.from(listaRecetas.children).forEach(c => {
