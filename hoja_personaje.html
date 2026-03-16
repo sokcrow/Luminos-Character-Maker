@@ -2188,109 +2188,384 @@
         <button type="action" name="act_hud_close" class="hud-modal-close">×</button>
         <div class="hud-modal-body">
             <div class="hud-tab-content">
-<div class="sheet-app-header"><h2>Stats</h2></div>
-<div class="sheet-app-body-scroll">
- <div class="sheet-attributes-section">
- <div class="sheet-attributes-grid">
- <!-- Cuerpo -->
- <div class="sheet-attr-group">
- <div class="sheet-attr-card" title="CUERPO: Salvación física para resistir venenos, enfermedades, toxinas y fatiga extrema.">
- <h3>CUERPO</h3>
- <button type="action" name="act_roll_cuerpo" class="sheet-roll-attr">
- <span name="attr_cuerpo" style="pointer-events: none;">0</span>
- </button>
- <div class="sheet-attr-inputs">
- <label>Base <input type="number" name="attr_cuerpo_base" value="0" /></label>
- <label>Mod <input type="number" name="attr_cuerpo_mod" value="0" /></label>
- </div>
- </div>
- <div class="sheet-skill-list">
- <div class="sheet-skill-list-header"><span style="flex: 1;"></span><span class="sheet-header-col">Tot</span><span class="sheet-header-col">Bas</span><span class="sheet-header-col">Mod</span></div>
- <div class="sheet-skill-row" title="Esfuerzos físicos prolongados, persecuciones a pie y resistencia al agotamiento."><button type="action" name="act_roll_skill_cardio" class="sheet-roll-skill"><span style="pointer-events: none;">Cardio</span></button><div class="sheet-skill-inputs"><span name="attr_skill_cardio" class="sheet-skill-total">0</span><input type="number" name="attr_skill_cardio_base" value="0" title="Base" /><input type="number" name="attr_skill_cardio_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Pruebas de fuerza física, levantar peso, derribar obstáculos y forcejeos."><button type="action" name="act_roll_skill_fortaleza" class="sheet-roll-skill"><span style="pointer-events: none;">Fortaleza</span></button><div class="sheet-skill-inputs"><span name="attr_skill_fortaleza" class="sheet-skill-total">0</span><input type="number" name="attr_skill_fortaleza_base" value="0" title="Base" /><input type="number" name="attr_skill_fortaleza_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Aguante físico ante el dolor, privaciones y resistencia a climas extremos."><button type="action" name="act_roll_skill_vigor" class="sheet-roll-skill"><span style="pointer-events: none;">Vigor</span></button><div class="sheet-skill-inputs"><span name="attr_skill_vigor" class="sheet-skill-total">0</span><input type="number" name="attr_skill_vigor_base" value="0" title="Base" /><input type="number" name="attr_skill_vigor_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Reacciones de supervivencia inmediatas y actos reflejos primarios."><button type="action" name="act_roll_skill_instinto" class="sheet-roll-skill"><span style="pointer-events: none;">Instinto</span></button><div class="sheet-skill-inputs"><span name="attr_skill_instinto" class="sheet-skill-total">0</span><input type="number" name="attr_skill_instinto_base" value="0" title="Base" /><input type="number" name="attr_skill_instinto_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Detección visual o auditiva de emboscadas, trampas y detalles ocultos."><button type="action" name="act_roll_skill_percepcion" class="sheet-roll-skill"><span style="pointer-events: none;">Percepción</span></button><div class="sheet-skill-inputs"><span name="attr_skill_percepcion" class="sheet-skill-total">0</span><input type="number" name="attr_skill_percepcion_base" value="0" title="Base" /><input type="number" name="attr_skill_percepcion_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Acrobacías, saltos, equilibrio y movilidad en terreno difícil o parkour."><button type="action" name="act_roll_skill_agilidad" class="sheet-roll-skill"><span style="pointer-events: none;">Agilidad</span></button><div class="sheet-skill-inputs"><span name="attr_skill_agilidad" class="sheet-skill-total">0</span><input type="number" name="attr_skill_agilidad_base" value="0" title="Base" /><input type="number" name="attr_skill_agilidad_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Uso delicado de herramientas, reparaciones manuales y manipulación de mecanismos."><button type="action" name="act_roll_skill_manejo" class="sheet-roll-skill"><span style="pointer-events: none;">Manejo</span></button><div class="sheet-skill-inputs"><span name="attr_skill_manejo" class="sheet-skill-total">0</span><input type="number" name="attr_skill_manejo_base" value="0" title="Base" /><input type="number" name="attr_skill_manejo_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Capacidad de reacción física y evasión instintiva de peligros repentinos."><button type="action" name="act_roll_skill_reflejos" class="sheet-roll-skill"><span style="pointer-events: none;">Reflejos</span></button><div class="sheet-skill-inputs"><span name="attr_skill_reflejos" class="sheet-skill-total">0</span><input type="number" name="attr_skill_reflejos_base" value="0" title="Base" /><input type="number" name="attr_skill_reflejos_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Infiltración, ocultamiento y movimiento indetectable frente a observadores."><button type="action" name="act_roll_skill_sigilo" class="sheet-roll-skill"><span style="pointer-events: none;">Sigilo</span></button><div class="sheet-skill-inputs"><span name="attr_skill_sigilo" class="sheet-skill-total">0</span><input type="number" name="attr_skill_sigilo_base" value="0" title="Base" /><input type="number" name="attr_skill_sigilo_mod" value="0" title="Mod" /></div></div>
- </div>
- </div>
-
- <!-- Mente -->
- <div class="sheet-attr-group">
- <div class="sheet-attr-card" title="MENTE: Salvación lógica para resistir ilusiones, engaños mentales y sobrecarga de información.">
- <h3>MENTE</h3>
- <button type="action" name="act_roll_mente" class="sheet-roll-attr">
- <span name="attr_mente" style="pointer-events: none;">0</span>
- </button>
- <div class="sheet-attr-inputs">
- <label>Base <input type="number" name="attr_mente_base" value="0" /></label>
- <label>Mod <input type="number" name="attr_mente_mod" value="0" /></label>
- </div>
- </div>
- <div class="sheet-skill-list">
- <div class="sheet-skill-list-header"><span style="flex: 1;"></span><span class="sheet-header-col">Tot</span><span class="sheet-header-col">Bas</span><span class="sheet-header-col">Mod</span></div>
- <div class="sheet-skill-row" title="Recordar datos específicos, contraseñas, rostros o información del pasado."><button type="action" name="act_roll_skill_memoria" class="sheet-roll-skill"><span style="pointer-events: none;">Memoria</span></button><div class="sheet-skill-inputs"><span name="attr_skill_memoria" class="sheet-skill-total">0</span><input type="number" name="attr_skill_memoria_base" value="0" title="Base" /><input type="number" name="attr_skill_memoria_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Deducción lógica, identificación de patrones y resolución de acertijos."><button type="action" name="act_roll_skill_analisis" class="sheet-roll-skill"><span style="pointer-events: none;">Análisis</span></button><div class="sheet-skill-inputs"><span name="attr_skill_analisis" class="sheet-skill-total">0</span><input type="number" name="attr_skill_analisis_base" value="0" title="Base" /><input type="number" name="attr_skill_analisis_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Conocimiento teórico y aplicado de medicina, química, biología o física."><button type="action" name="act_roll_skill_ciencia" class="sheet-roll-skill"><span style="pointer-events: none;">Ciencia</span></button><div class="sheet-skill-inputs"><span name="attr_skill_ciencia" class="sheet-skill-total">0</span><input type="number" name="attr_skill_ciencia_base" value="0" title="Base" /><input type="number" name="attr_skill_ciencia_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Conocimiento general e historia sobre las Alas, los Dedos y la Ciudad."><button type="action" name="act_roll_skill_lore" class="sheet-roll-skill"><span style="pointer-events: none;">Lore</span></button><div class="sheet-skill-inputs"><span name="attr_skill_lore" class="sheet-skill-total">0</span><input type="number" name="attr_skill_lore_base" value="0" title="Base" /><input type="number" name="attr_skill_lore_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Búsqueda activa de pistas, rastreo sistemático y recopilación de datos."><button type="action" name="act_roll_skill_investigacion" class="sheet-roll-skill"><span style="pointer-events: none;">Investigación</span></button><div class="sheet-skill-inputs"><span name="attr_skill_investigacion" class="sheet-skill-total">0</span><input type="number" name="attr_skill_investigacion_base" value="0" title="Base" /><input type="number" name="attr_skill_investigacion_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Interpretar el lenguaje corporal y detectar mentiras o intenciones ocultas."><button type="action" name="act_roll_skill_perspicacia" class="sheet-roll-skill"><span style="pointer-events: none;">Perspicacia</span></button><div class="sheet-skill-inputs"><span name="attr_skill_perspicacia" class="sheet-skill-total">0</span><input type="number" name="attr_skill_perspicacia_base" value="0" title="Base" /><input type="number" name="attr_skill_perspicacia_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Llegar a acuerdos, regateo de recursos y tratos diplomáticos o comerciales."><button type="action" name="act_roll_skill_negociacion" class="sheet-roll-skill"><span style="pointer-events: none;">Negociación</span></button><div class="sheet-skill-inputs"><span name="attr_skill_negociacion" class="sheet-skill-total">0</span><input type="number" name="attr_skill_negociacion_base" value="0" title="Base" /><input type="number" name="attr_skill_negociacion_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Manipulación emocional, encanto interpersonal y persuasión física."><button type="action" name="act_roll_skill_seduccion" class="sheet-roll-skill"><span style="pointer-events: none;">Seducción</span></button><div class="sheet-skill-inputs"><span name="attr_skill_seduccion" class="sheet-skill-total">0</span><input type="number" name="attr_skill_seduccion_base" value="0" title="Base" /><input type="number" name="attr_skill_seduccion_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Creación de coartadas, mentiras directas, actuación y uso de fachadas."><button type="action" name="act_roll_skill_engano" class="sheet-roll-skill"><span style="pointer-events: none;">Engaño</span></button><div class="sheet-skill-inputs"><span name="attr_skill_engano" class="sheet-skill-total">0</span><input type="number" name="attr_skill_engano_base" value="0" title="Base" /><input type="number" name="attr_skill_engano_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Evaluación de riesgos tácticos y prevención lógica antes de actuar."><button type="action" name="act_roll_skill_prudencia" class="sheet-roll-skill"><span style="pointer-events: none;">Prudencia</span></button><div class="sheet-skill-inputs"><span name="attr_skill_prudencia" class="sheet-skill-total">0</span><input type="number" name="attr_skill_prudencia_base" value="0" title="Base" /><input type="number" name="attr_skill_prudencia_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Liderazgo, simpatía e inspiración social para ganarse la confianza de otros."><button type="action" name="act_roll_skill_carisma" class="sheet-roll-skill"><span style="pointer-events: none;">Carisma</span></button><div class="sheet-skill-inputs"><span name="attr_skill_carisma" class="sheet-skill-total">0</span><input type="number" name="attr_skill_carisma_base" value="0" title="Base" /><input type="number" name="attr_skill_carisma_mod" value="0" title="Mod" /></div></div>
- </div>
- </div>
-
- <!-- Alma -->
- <div class="sheet-attr-group">
- <div class="sheet-attr-card" title="ALMA: Salvación emocional para mantener la cordura, la convicción y resistir traumas o desesperación.">
- <h3>ALMA</h3>
- <button type="action" name="act_roll_alma" class="sheet-roll-attr">
- <span name="attr_alma" style="pointer-events: none;">0</span>
- </button>
- <div class="sheet-attr-inputs">
- <label>Base <input type="number" name="attr_alma_base" value="0" /></label>
- <label>Mod <input type="number" name="attr_alma_mod" value="0" /></label>
- </div>
- </div>
- <div class="sheet-skill-list">
- <div class="sheet-skill-list-header"><span style="flex: 1;"></span><span class="sheet-header-col">Tot</span><span class="sheet-header-col">Bas</span><span class="sheet-header-col">Mod</span></div>
- <div class="sheet-skill-row" title="Conexión emocional profunda y comprensión genuina de los sentimientos ajenos."><button type="action" name="act_roll_skill_empatia" class="sheet-roll-skill"><span style="pointer-events: none;">Empatía</span></button><div class="sheet-skill-inputs"><span name="attr_skill_empatia" class="sheet-skill-total">0</span><input type="number" name="attr_skill_empatia_base" value="0" title="Base" /><input type="number" name="attr_skill_empatia_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Fuerza mental para mantener la determinación frente a la adversidad extrema."><button type="action" name="act_roll_skill_voluntad" class="sheet-roll-skill"><span style="pointer-events: none;">Voluntad</span></button><div class="sheet-skill-inputs"><span name="attr_skill_voluntad" class="sheet-skill-total">0</span><input type="number" name="attr_skill_voluntad_base" value="0" title="Base" /><input type="number" name="attr_skill_voluntad_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Firmeza ideológica y resistencia contra la manipulación de las creencias propias."><button type="action" name="act_roll_skill_fe" class="sheet-roll-skill"><span style="pointer-events: none;">Fe</span></button><div class="sheet-skill-inputs"><span name="attr_skill_fe" class="sheet-skill-total">0</span><input type="number" name="attr_skill_fe_base" value="0" title="Base" /><input type="number" name="attr_skill_fe_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Supresión temporal de miedos, fobias o dudas para poder actuar en crisis."><button type="action" name="act_roll_skill_represion" class="sheet-roll-skill"><span style="pointer-events: none;">Represión</span></button><div class="sheet-skill-inputs"><span name="attr_skill_represion" class="sheet-skill-total">0</span><input type="number" name="attr_skill_represion_base" value="0" title="Base" /><input type="number" name="attr_skill_represion_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Mantenimiento de la frialdad, paciencia y control de impulsos bajo presión."><button type="action" name="act_roll_skill_templanza" class="sheet-roll-skill"><span style="pointer-events: none;">Templanza</span></button><div class="sheet-skill-inputs"><span name="attr_skill_templanza" class="sheet-skill-total">0</span><input type="number" name="attr_skill_templanza_base" value="0" title="Base" /><input type="number" name="attr_skill_templanza_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Imposición de respeto, intimidación o dominio mediante el aura del personaje."><button type="action" name="act_roll_skill_presencia" class="sheet-roll-skill"><span style="pointer-events: none;">Presencia</span></button><div class="sheet-skill-inputs"><span name="attr_skill_presencia" class="sheet-skill-total">0</span><input type="number" name="attr_skill_presencia_base" value="0" title="Base" /><input type="number" name="attr_skill_presencia_mod" value="0" title="Mod" /></div></div>
- <div class="sheet-skill-row" title="Sentir y comprender energías, rituales y la naturaleza de artefactos arcanos."><button type="action" name="act_roll_skill_arcana" class="sheet-roll-skill"><span style="pointer-events: none;">Arcana</span></button><div class="sheet-skill-inputs"><span name="attr_skill_arcana" class="sheet-skill-total">0</span><input type="number" name="attr_skill_arcana_base" value="0" title="Base" /><input type="number" name="attr_skill_arcana_mod" value="0" title="Mod" /></div></div>
- </div>
- </div>
-
- <!-- Suerte -->
- <div class="sheet-attr-group sheet-attr-group-luck">
- <div class="sheet-attr-card sheet-luck-card" title="SUERTE: Tiradas de azar puro y resolución de factores externos fuera del control del personaje.">
- <h3>SUERTE</h3>
- <div class="sheet-luck-display-row">
- <button type="action" name="act_luck_down" class="sheet-arrow-btn"><img src="https://i.imgur.com/ZaS2Ani.png" class="sheet-icon-minus" /></button>
- <div class="sheet-stat-display">
- <span name="attr_luck">0</span>
- </div>
- <button type="action" name="act_luck_up" class="sheet-arrow-btn"><img src="https://i.imgur.com/5aEtGiC.png" class="sheet-icon-plus" /></button>
- <input type="hidden" name="attr_luck" value="0" />
- </div>
- </div>
- </div>
- </div>
- </div>
- </div>
-
-
- </div>
+<div id="stats-container" class="sheet-attributes-section">
+    <div class="sheet-attributes-grid">
+        <!-- CUERPO -->
+        <div class="sheet-attr-group">
+            <div class="sheet-attr-card">
+                <h3>CUERPO</h3>
+                <button type="action" name="act_roll_cuerpo" class="sheet-roll-attr">
+                    <span name="attr_cuerpo" style="pointer-events: none;">0</span>
+                </button>
+                <div class="sheet-attr-inputs">
+                    <label>Base <input type="number" name="attr_cuerpo_base" value="0" /></label>
+                    <label>Mod <input type="number" name="attr_cuerpo_mod" value="0" /></label>
+                </div>
+            </div>
+            <div class="sheet-skill-list">
+                <div class="sheet-skill-row" title="Esfuerzos físicos prolongados, persecuciones a pie y resistencia al agotamiento.">
+                    <div class="sheet-skill-name">Cardio</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_cardio_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_cardio_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_cardio" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_cardio" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Pruebas de fuerza física, levantar peso, derribar obstáculos y forcejeos.">
+                    <div class="sheet-skill-name">Fortaleza</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_fortaleza_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_fortaleza_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_fortaleza" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_fortaleza" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Aguante físico ante el dolor, privaciones y resistencia a climas extremos.">
+                    <div class="sheet-skill-name">Vigor</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_vigor_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_vigor_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_vigor" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_vigor" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Reacciones de supervivencia inmediatas y actos reflejos primarios.">
+                    <div class="sheet-skill-name">Instinto</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_instinto_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_instinto_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_instinto" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_instinto" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Detección visual o auditiva de emboscadas, trampas y detalles ocultos.">
+                    <div class="sheet-skill-name">Percepción</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_percepcion_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_percepcion_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_percepcion" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_percepcion" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Maniobras acrobáticas, esquivar ataques, mantener el equilibrio y parkour.">
+                    <div class="sheet-skill-name">Agilidad</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_agilidad_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_agilidad_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_agilidad" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_agilidad" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Destreza manual fina, operar maquinaria compleja, desactivar trampas o forzar cerraduras.">
+                    <div class="sheet-skill-name">Manejo</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_manejo_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_manejo_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_manejo" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_manejo" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Velocidad de reacción física, parar golpes o atrapar objetos en el aire.">
+                    <div class="sheet-skill-name">Reflejos</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_reflejos_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_reflejos_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_reflejos" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_reflejos" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Movimiento silencioso, ocultarse en las sombras y pasar desapercibido.">
+                    <div class="sheet-skill-name">Sigilo</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_sigilo_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_sigilo_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_sigilo" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_sigilo" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+            </div>
         </div>
+        <!-- MENTE -->
+        <div class="sheet-attr-group">
+            <div class="sheet-attr-card">
+                <h3>MENTE</h3>
+                <button type="action" name="act_roll_mente" class="sheet-roll-attr">
+                    <span name="attr_mente" style="pointer-events: none;">0</span>
+                </button>
+                <div class="sheet-attr-inputs">
+                    <label>Base <input type="number" name="attr_mente_base" value="0" /></label>
+                    <label>Mod <input type="number" name="attr_mente_mod" value="0" /></label>
+                </div>
+            </div>
+            <div class="sheet-skill-list">
+                <div class="sheet-skill-row" title="Recordar detalles fotográficos, eventos pasados o patrones complejos.">
+                    <div class="sheet-skill-name">Memoria</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_memoria_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_memoria_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_memoria" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_memoria" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Resolución de acertijos, deducción lógica y evaluación táctica de escenarios.">
+                    <div class="sheet-skill-name">Análisis</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_analisis_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_analisis_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_analisis" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_analisis" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Conocimiento teórico y aplicado de medicina, química, biología o física.">
+                    <div class="sheet-skill-name">Ciencia</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_ciencia_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_ciencia_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_ciencia" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_ciencia" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Conocimiento general e historia sobre las Alas, los Dedos y la Ciudad.">
+                    <div class="sheet-skill-name">Lore</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_lore_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_lore_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_lore" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_lore" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Búsqueda activa de pistas, rastreo sistemático y recopilación de datos.">
+                    <div class="sheet-skill-name">Investigación</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_investigacion_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_investigacion_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_investigacion" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_investigacion" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Interpretar el lenguaje corporal y detectar mentiras o intenciones ocultas.">
+                    <div class="sheet-skill-name">Perspicacia</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_perspicacia_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_perspicacia_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_perspicacia" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_perspicacia" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Llegar a acuerdos, regateo de recursos y tratos diplomáticos o comerciales.">
+                    <div class="sheet-skill-name">Negociación</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_negociacion_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_negociacion_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_negociacion" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_negociacion" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Manipulación emocional, encanto interpersonal y persuasión física.">
+                    <div class="sheet-skill-name">Seducción</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_seduccion_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_seduccion_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_seduccion" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_seduccion" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Creación de coartadas, mentiras directas, actuación y uso de fachadas.">
+                    <div class="sheet-skill-name">Engaño</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_engano_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_engano_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_engano" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_engano" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Evaluación de riesgos tácticos y prevención lógica antes de actuar.">
+                    <div class="sheet-skill-name">Prudencia</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_prudencia_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_prudencia_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_prudencia" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_prudencia" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Liderazgo, simpatía e inspiración social para ganarse la confianza de otros.">
+                    <div class="sheet-skill-name">Carisma</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_carisma_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_carisma_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_carisma" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_carisma" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+            </div>
+        </div>
+        <!-- ALMA -->
+        <div class="sheet-attr-group">
+            <div class="sheet-attr-card">
+                <h3>ALMA</h3>
+                <button type="action" name="act_roll_alma" class="sheet-roll-attr">
+                    <span name="attr_alma" style="pointer-events: none;">0</span>
+                </button>
+                <div class="sheet-attr-inputs">
+                    <label>Base <input type="number" name="attr_alma_base" value="0" /></label>
+                    <label>Mod <input type="number" name="attr_alma_mod" value="0" /></label>
+                </div>
+            </div>
+            <div class="sheet-skill-list">
+                <div class="sheet-skill-row" title="Conexión emocional profunda y comprensión genuina de los sentimientos ajenos.">
+                    <div class="sheet-skill-name">Empatía</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_empatia_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_empatia_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_empatia" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_empatia" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Fuerza mental para mantener la determinación frente a la adversidad extrema.">
+                    <div class="sheet-skill-name">Voluntad</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_voluntad_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_voluntad_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_voluntad" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_voluntad" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Firmeza ideológica y resistencia contra la manipulación de las creencias propias.">
+                    <div class="sheet-skill-name">Fe</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_fe_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_fe_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_fe" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_fe" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Supresión temporal de miedos, fobias o dudas para poder actuar en crisis.">
+                    <div class="sheet-skill-name">Represión</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_represion_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_represion_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_represion" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_represion" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Mantenimiento de la frialdad, paciencia y control de impulsos bajo presión.">
+                    <div class="sheet-skill-name">Templanza</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_templanza_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_templanza_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_templanza" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_templanza" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Imposición de respeto, intimidación o dominio mediante el aura del personaje.">
+                    <div class="sheet-skill-name">Presencia</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_presencia_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_presencia_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_presencia" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_presencia" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+                <div class="sheet-skill-row" title="Sentir y comprender energías, rituales y la naturaleza de artefactos arcanos.">
+                    <div class="sheet-skill-name">Arcana</div>
+                    <div class="sheet-skill-inputs">
+                        <input type="number" name="attr_skill_arcana_base" value="0" title="Base" />
+                        <span class="sheet-skill-separator">+</span>
+                        <input type="number" name="attr_skill_arcana_mod" value="0" title="Mod" />
+                        <span class="sheet-skill-separator">=</span>
+                        <span name="attr_skill_arcana" class="sheet-skill-total">0</span>
+                    </div>
+                    <button type="action" name="act_roll_skill_arcana" class="sheet-roll-skill-btn">[ TIRAR ]</button>
+                </div>
+            </div>
+        </div>
+        <!-- Suerte -->
+        <div class="sheet-attr-group sheet-attr-group-luck">
+            <div class="sheet-attr-card sheet-luck-card" title="SUERTE: Tiradas de azar puro y resolución de factores externos fuera del control del personaje.">
+                <h3>SUERTE</h3>
+                <div class="sheet-luck-display-row">
+                    <button type="action" name="act_luck_down" class="sheet-arrow-btn"><img src="https://i.imgur.com/ZaS2Ani.png" class="sheet-icon-minus" /></button>
+                    <div class="sheet-stat-display">
+                        <span name="attr_luck">0</span>
+                    </div>
+                    <button type="action" name="act_luck_up" class="sheet-arrow-btn"><img src="https://i.imgur.com/5aEtGiC.png" class="sheet-icon-plus" /></button>
+                    <input type="hidden" name="attr_luck" value="0" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Coin Toss Panel (Modal) -->
+<div id="coin-toss-panel" class="coin-toss-modal" style="display: none;">
+    <div class="coin-toss-content">
+        <h2 id="coin-toss-skill-name">Skill Name</h2>
+        <div id="coin-toss-coins-container" class="coin-container">
+            <!-- Coins injected via JS -->
+        </div>
+        <div class="coin-toss-result-box">
+            <span id="coin-toss-total-result">0</span>
+        </div>
+        <button id="btn-close-coin-toss" class="btn-hud">CERRAR</button>
     </div>
 </div>
 

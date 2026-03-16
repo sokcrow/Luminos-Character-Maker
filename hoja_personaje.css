@@ -6948,3 +6948,189 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     box-shadow: 0 0 25px rgba(255, 170, 0, 0.8);
     transform: translateY(-2px);
 }
+
+/* ====== LIMBUS COMPANY STATS & COIN TOSS (NEW DESIGN) ====== */
+
+#stats-container {
+    background-color: #0a0a0a;
+    border: 1px solid #333;
+    padding: 10px;
+    font-family: "Roboto", monospace;
+    color: #e0e0e0;
+}
+
+#stats-container .sheet-attr-group {
+    background: #0f0f0f;
+    border: 1px solid #222;
+    margin-bottom: 10px;
+}
+
+#stats-container .sheet-attr-card {
+    background: #111;
+    border-bottom: 2px solid var(--border-accent, #705820);
+    padding: 10px;
+    text-align: center;
+}
+
+#stats-container .sheet-skill-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0d0d0d;
+    padding: 6px 12px;
+    border-left: 4px solid var(--border-accent, #705820);
+    border-bottom: 1px solid #222;
+    border-right: 1px solid #222;
+    border-top: 1px solid #222;
+    transition: background-color 0.2s;
+    font-family: "Courier New", monospace;
+}
+
+#stats-container .sheet-skill-row:hover {
+    background-color: #1a1a1a;
+    border-left-color: var(--red-neon, #d93829);
+}
+
+#stats-container .sheet-skill-name {
+    flex: 1;
+    text-align: left;
+    color: #bbb;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+#stats-container .sheet-skill-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+}
+
+#stats-container .sheet-skill-inputs input {
+    width: 32px;
+    background: #050505;
+    border: 1px solid #444;
+    color: #eee;
+    text-align: center;
+    font-size: 0.85em;
+    padding: 2px;
+}
+
+#stats-container .sheet-skill-separator {
+    color: #666;
+    font-size: 0.9em;
+}
+
+#stats-container .sheet-skill-total {
+    width: 30px;
+    text-align: center;
+    font-weight: bold;
+    color: var(--green-success, #34d399);
+    font-size: 0.95em;
+}
+
+#stats-container .sheet-roll-skill-btn {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid #444;
+    color: #999;
+    cursor: pointer;
+    text-align: right;
+    font-family: inherit;
+    font-size: 0.8em;
+    padding: 2px 6px;
+    transition: all 0.2s;
+}
+
+#stats-container .sheet-roll-skill-btn:hover {
+    color: #fff;
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Coin Toss Modal */
+.coin-toss-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10, 10, 10, 0.95);
+    border: 2px solid var(--border-accent, #705820);
+    padding: 20px;
+    z-index: 10000;
+    width: 300px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: "Roboto", monospace;
+    color: #e0e0e0;
+}
+
+.coin-toss-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+#coin-toss-skill-name {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #fff;
+    text-transform: uppercase;
+    font-family: 'Mikodacs', sans-serif;
+    font-size: 1.5em;
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+.coin-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.coin-img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.coin-heads {
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.coin-toss-result-box {
+    margin-bottom: 20px;
+    text-align: center;
+    border-top: 1px solid #444;
+    border-bottom: 1px solid #444;
+    padding: 10px 0;
+    width: 100%;
+}
+
+#coin-toss-total-result {
+    font-size: 3em;
+    font-weight: bold;
+    color: var(--green-success, #34d399);
+}
+
+#btn-close-coin-toss {
+    background: transparent;
+    border: 1px solid var(--border-accent, #705820);
+    color: #e0e0e0;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+#btn-close-coin-toss:hover {
+    background: rgba(112, 88, 32, 0.3);
+    color: #fff;
+}
