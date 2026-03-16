@@ -104,6 +104,9 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
         window.datosJugador = snapshot.val();
         currentPlayerData = snapshot.val();
         renderCharacterSheet(window.datosJugador);
+        if (typeof window.renderRecetasCrafteo === 'function') {
+            window.renderRecetasCrafteo();
+        }
     }
 });
 
@@ -983,7 +986,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => renderRecetasCrafteo(), 2000);
 });
 
-function renderRecetasCrafteo() {
+window.renderRecetasCrafteo = function renderRecetasCrafteo() {
     const listaRecetas = document.getElementById('craft-recetas');
     const listaAlijo = document.getElementById('craft-alijo');
     const listaActivo = document.getElementById('craft-activo');
@@ -1034,11 +1037,12 @@ function renderRecetasCrafteo() {
             const itemTier = receta.tier_resultado || 1;
             const isDiscovered = discoveredRecipes[idReceta];
 
+            const isSelected = idReceta === currentSelectedRecetaId;
             const btn = document.createElement('div');
             btn.className = 'craft-list-item';
             btn.style.cssText = `
                 display: flex; align-items: center; padding: 5px; margin-bottom: 5px;
-                background: #1a1a1a; border: 1px solid ${isDiscovered ? '#444' : '#222'};
+                background: ${isSelected ? 'rgba(0, 255, 255, 0.1)' : '#1a1a1a'}; border: 1px solid ${isSelected ? 'var(--cyan-tech)' : (isDiscovered ? '#444' : '#222')};
                 border-radius: 4px; cursor: ${isDiscovered ? 'pointer' : 'not-allowed'};
                 transition: all 0.2s;
             `;
@@ -1143,6 +1147,11 @@ function renderRecetasCrafteo() {
                 listaActivo.appendChild(itemEl);
             });
         }
+    }
+
+    // Reaplicar filtro de búsqueda si existe
+    if (searchInput && searchInput.value.trim() !== '') {
+        searchInput.dispatchEvent(new Event('input'));
     }
 }
 
