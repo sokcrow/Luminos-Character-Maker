@@ -6716,13 +6716,11 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 /* Crafting Tab specific styles for Inventory Modal */
 #inv-crafting {
     /* To override the default flex layout of inventory-body-wrapper when this tab is active */
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative;
     width: 100%;
     height: 100%;
     background-color: #1a1a1a;
-    z-index: 10;
+    display: none;
 }
 
 #inv-crafting.active {

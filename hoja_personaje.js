@@ -1341,11 +1341,20 @@ function limpiarVisorCrafteo() {
 function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, resultItemName, resultTier) {
     currentSelectedRecetaId = idReceta;
 
+    // Helper array local si no está disponible romanTiersShop globalmente
+    const romanTiersLocal = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
     // Configurar Vista Previa Central
     const resultPreview = document.getElementById('craft-result-preview');
     if (resultPreview) {
+        let resultTierStr = '';
+        if (resultTier && parseInt(resultTier) > 0) {
+             resultTierStr = `<div class="item-tier-indicator">${romanTiersLocal[parseInt(resultTier)] || resultTier}</div>`;
+        }
+
         resultPreview.innerHTML = `
             <div style="width: 100%; height: 100%; border-radius: 50%; background: url('${resultIconUrl}') center/cover; filter: ${isDiscovered ? 'none' : 'brightness(0)'};"></div>
+            ${resultTierStr}
             ${isDiscovered ? `<div style="position: absolute; bottom: -20px; text-align: center; color: #fff; font-family: 'Mikodacs', sans-serif; font-size: 14px; width: 200px; left: -60px; text-shadow: 1px 1px 2px #000;">${resultItemName}</div>` : ''}
         `;
     }
@@ -1363,6 +1372,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
             const ing = receta.ingredientes[i];
             const globalIng = dbItemsCacheGlobal[ing.id_item] || {};
             const ingIconUrl = globalIng.icono || 'https://i.imgur.com/8QZ7XqY.png';
+            const ingTier = globalIng.tier;
 
             // Calculate owned quantity
             let ownedQty = 0;
@@ -1377,8 +1387,14 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
 
             const slot = document.getElementById(`craft-slot-${i + 1}`);
             if (slot) {
+                let ingTierStr = '';
+                if (ingTier && parseInt(ingTier) > 0) {
+                     ingTierStr = `<div class="item-tier-indicator">${romanTiersLocal[parseInt(ingTier)] || ingTier}</div>`;
+                }
+
                 slot.innerHTML = `
                     <div style="width: 100%; height: 100%; border-radius: 50%; background: url('${ingIconUrl}') center/cover; filter: ${hasEnough ? 'none' : 'brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(3)'};"></div>
+                    ${ingTierStr}
                     <div style="position: absolute; bottom: -5px; right: -5px; background: #000; color: ${hasEnough ? '#0df' : '#f44'}; border: 1px solid ${hasEnough ? '#0df' : '#f44'}; border-radius: 10px; padding: 0 4px; font-family: monospace; font-size: 10px; z-index: 10;">${ownedQty}/${ing.cantidad}</div>
                 `;
                 slot.style.border = `2px solid ${hasEnough ? 'var(--cyan-tech)' : '#f44'}`;
