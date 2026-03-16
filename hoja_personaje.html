@@ -338,90 +338,18 @@
  <button type="action" name="act_tab_notas" class="sheet-app-btn"><div class="sheet-app-icon">📝</div><span>Notas</span></button>
  <button type="action" name="act_tab_parts" class="sheet-app-btn sheet-show-parts-btn"><div class="sheet-app-icon">🧩</div><span>Partes</span></button>
  <button type="action" name="act_tab_settings" class="sheet-app-btn"><div class="sheet-app-icon">⚙️</div><span>Ajustes</span></button>
- <button type="action" name="act_tab_shop" class="sheet-app-btn" id="btn-app-shop" style="display: none;"><div class="sheet-app-icon">🛒</div><span>Tienda Local</span></button>
- <button type="action" name="act_tab_crafteo" class="sheet-app-btn"><div class="sheet-app-icon">🛠️</div><span>Mesa de Trabajo</span></button>
  </div>
  </div>
 
- <!-- Crafting Tab -->
- <div class="sheet-tab-content sheet-tab-crafteo" id="crafteo-app">
-    <div class="sheet-app-header"><h2>Mesa de Trabajo</h2></div>
-    <div class="sheet-app-body" style="display:flex; flex-direction:column; height: 100%;">
-        <div style="flex:1; overflow-y:auto; padding-bottom:10px;">
-            <div id="lista-recetas-crafteo" style="display:flex; flex-direction:column; gap:10px;">
-                <!-- Lista de recetas inyectada por JS -->
-            </div>
-        </div>
-        <div id="detalle-receta-crafteo" style="display:none; background: rgba(10, 10, 15, 0.95); border: 2px solid var(--border-accent); border-top-width: 4px; padding: 15px; margin-top: auto; position: relative; overflow: hidden;" class="cyberpunk-container">
-            <!-- Scanlines pseudo-element will be added via CSS -->
-            <h4 id="crafteo-titulo-receta" style="color: var(--cyan-tech); margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 5px var(--cyan-tech); position: relative; z-index: 2; border-bottom: 1px solid rgba(0, 221, 255, 0.3); padding-bottom: 5px;">Receta</h4>
 
-            <div style="display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 2;">
-                <!-- Hexagonal Ingredients Area -->
-                <div id="crafteo-nodos-ingredientes" class="hex-grid-container" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 180px; position: relative;">
-                    <!-- Nodos inyectados por JS -->
-                    <!-- Layout structure for up to 5 hexes will be managed in JS by assigning specific positions -->
-                </div>
-
-                <!-- Target Item / Result Area -->
-                <div id="crafteo-resultado-area" style="display: flex; justify-content: center; margin-bottom: 10px;">
-                    <!-- Result node injected by JS -->
-                </div>
-
-                <!-- Controls & Stats -->
-                <div style="background: rgba(0, 0, 0, 0.6); border: 1px solid #333; padding: 10px; border-radius: 4px;">
-                    <div id="crafteo-requisitos-texto" style="color: #ccc; font-size: 13px; text-align: center; margin-bottom: 10px; font-family: monospace; text-shadow: 0 0 2px #000;">
-                        <span style="color: var(--cyan-tech);">CHECK:</span> <span id="crafteo-req-skill">-</span> | <span style="color: #ffaa00;">DC:</span> <span id="crafteo-req-dc">-</span>
-                    </div>
-
-                    <div style="display: flex; gap: 10px; align-items: stretch;">
-                        <div style="display: flex; flex-direction: column; background: #111; border: 1px solid #444; border-radius: 3px; overflow: hidden; width: 60px;">
-                            <label style="background: #222; color: #888; font-size: 10px; text-align: center; padding: 2px 0; text-transform: uppercase; border-bottom: 1px solid #444; margin: 0;">Mult</label>
-                            <input type="number" id="crafteo-multiplicador" value="1" min="1" style="width: 100%; background: transparent; color: var(--cyan-tech); border: none; padding: 5px 0; text-align: center; font-weight: bold; -moz-appearance: textfield;" />
-                        </div>
-
-                        <div style="display: flex; flex: 1; gap: 5px;">
-                            <button id="btn-sintetizar" style="flex: 1; background: linear-gradient(135deg, #111, #222); color: var(--cyan-tech); font-weight: bold; border: 1px solid var(--cyan-tech); padding: 10px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; position: relative; overflow: hidden; transition: all 0.2s; text-shadow: 0 0 5px rgba(0, 221, 255, 0.5);">
-                                Sintetizar
-                            </button>
-
-                            <button id="btn-cancelar-crafteo" style="background: linear-gradient(135deg, #2a0a0a, #111); color: var(--red-danger); font-weight: bold; border: 1px solid var(--red-danger); padding: 10px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('detalle-receta-crafteo').style.display='none';">
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Right Column: Detail Panel -->
+        <div class="crafteo-detail-zone" id="detalle-receta-crafteo" style="flex: 0 0 40%; max-width: 40%; padding: 10px; display: flex; flex-direction: column; background-color: #111; position: relative;">
+            <div style="text-align: center; color: #888; margin-top: 50%;">Selecciona una receta</div>
         </div>
     </div>
  </div>
 
- <!-- Shop Tab -->
- <div class="sheet-tab-content sheet-tab-shop" id="shop-app">
-    <div class="sheet-app-header"><h2>Tienda Local</h2></div>
 
-    <div class="inventory-tabs" style="padding-top: 0; border-bottom: 1px solid var(--cyan-tech);">
-        <button class="inv-tab-btn active" data-tab="shop-comprar" style="flex:1;">Comprar</button>
-        <button class="inv-tab-btn" data-tab="shop-vender" style="flex:1;">Vender (Stash)</button>
-    </div>
-
-    <div class="sheet-app-body" style="padding: 0; overflow-x: hidden;">
-        <!-- Pestaña Comprar -->
-        <div class="inventory-tab-content active" id="shop-comprar" style="padding: 10px;">
-            <div id="shop-comprar-grid" style="display: flex; flex-direction: column; gap: 10px;">
-                <!-- Items inyectados por JS -->
-                <div style="text-align: center; color: #888; padding: 20px;">Cargando inventario de la tienda...</div>
-            </div>
-        </div>
-
-        <!-- Pestaña Vender -->
-        <div class="inventory-tab-content" id="shop-vender" style="padding: 10px;">
-            <div id="shop-vender-grid" style="display: flex; flex-direction: column; gap: 10px;">
-                <!-- Items del stash inyectados por JS -->
-            </div>
-        </div>
-    </div>
- </div>
 
  <!-- Mail Tab -->
  <div class="sheet-tab-content sheet-tab-mail">
@@ -3882,7 +3810,7 @@
         <div class="inventory-tabs">
             <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
             <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
-            <button class="inv-tab-btn" data-tab="inv-shop">Tienda / Mercado</button>
+            <button class="inv-tab-btn" data-tab="inv-crafting">Mesa de Trabajo</button>
         </div>
 
         <div class="inventory-body-wrapper">
@@ -3910,6 +3838,55 @@
                     </div>
                 </div>
             </div>
+                <div class="inventory-tab-content" id="inv-crafting" style="display: none; height: 100%; width: 100%;">
+                    <div class="crafteo-avanzado-container">
+                        <!-- Panel Izquierdo: Tabs y Listas -->
+                        <div class="crafteo-side-panel">
+                            <div class="crafteo-subtabs">
+                                <button class="crafteo-subtab-btn active" data-subtab="craft-recetas">Recetas Aprendidas</button>
+                                <button class="crafteo-subtab-btn" data-subtab="craft-alijo">Alijo</button>
+                                <button class="crafteo-subtab-btn" data-subtab="craft-activo">Inv. Activo</button>
+                            </div>
+                            <div class="crafteo-list-content active" id="craft-recetas">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Lista de Recetas...</div>
+                            </div>
+                            <div class="crafteo-list-content" id="craft-alijo" style="display: none;">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Alijo...</div>
+                            </div>
+                            <div class="crafteo-list-content" id="craft-activo" style="display: none;">
+                                <!-- JS llenará esto -->
+                                <div style="color: #666; text-align: center; padding: 20px;">Inventario Activo...</div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Derecho/Central: Zona de Trabajo -->
+                        <div class="crafteo-work-zone">
+                            <div class="crafteo-machine-bg">
+                                <div class="crafteo-slots-container">
+                                    <!-- Ingredientes (Slots 1-5 radiales) -->
+                                    <div class="craft-slot ing-slot" id="craft-slot-1" style="--angle: -90deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-2" style="--angle: -18deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-3" style="--angle: 54deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-4" style="--angle: 126deg; --radius: 120px;"></div>
+                                    <div class="craft-slot ing-slot" id="craft-slot-5" style="--angle: 198deg; --radius: 120px;"></div>
+
+                                    <!-- Preview Central -->
+                                    <div class="craft-slot result-slot" id="craft-result-preview">
+                                        <!-- Silueta por defecto o ítem renderizado -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Inferior: Controles -->
+                            <div class="crafteo-controls-panel">
+                                <button class="crafteo-action-btn btn-cancelar" id="btn-craft-cancelar">Cancelar</button>
+                                <button class="crafteo-action-btn btn-fabricar" id="btn-craft-fabricar">Fabricar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
             <div class="item-detail-card" id="item-detail-card">

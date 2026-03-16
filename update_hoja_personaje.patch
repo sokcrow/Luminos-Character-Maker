@@ -1,0 +1,66 @@
+--- a/hoja_personaje.html
++++ b/hoja_personaje.html
+@@ -338,7 +338,6 @@
+  <button type="action" name="act_tab_notas" class="sheet-app-btn"><div class="sheet-app-icon">📝</div><span>Notas</span></button>
+  <button type="action" name="act_tab_parts" class="sheet-app-btn sheet-show-parts-btn"><div class="sheet-app-icon">🧩</div><span>Partes</span></button>
+  <button type="action" name="act_tab_settings" class="sheet-app-btn"><div class="sheet-app-icon">⚙️</div><span>Ajustes</span></button>
+- <button type="action" name="act_tab_shop" class="sheet-app-btn" id="btn-app-shop" style="display: none;"><div class="sheet-app-icon">🛒</div><span>Tienda Local</span></button>
+  <button type="action" name="act_tab_crafteo" class="sheet-app-btn"><div class="sheet-app-icon">🛠️</div><span>Mesa de Trabajo</span></button>
+  </div>
+  </div>
+@@ -348,34 +347,21 @@
+-    <div class="sheet-app-header"><h2>Mesa de Trabajo</h2></div>
+-    <div class="sheet-app-body" style="display:flex; flex-direction:column; height: 100%;">
+-        <div style="flex:1; overflow-y:auto; padding-bottom:10px;">
+-            <div id="lista-recetas-crafteo" style="display:flex; flex-direction:column; gap:10px;">
+-                <!-- Lista de recetas inyectada por JS -->
+-            </div>
+-        </div>
+-        <div id="detalle-receta-crafteo" style="display:none; background: rgba(10, 10, 15, 0.95); border: 2px solid var(--border-accent); border-top-width: 4px; padding: 15px; margin-top: auto; position: relative; overflow: hidden;" class="cyberpunk-container">
+-            <!-- Scanlines pseudo-element will be added via CSS -->
+-            <h4 id="crafteo-titulo-receta" style="color: var(--cyan-tech); margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 5px var(--cyan-tech); position: relative; z-index: 2; border-bottom: 1px solid rgba(0, 221, 255, 0.3); padding-bottom: 5px;">Receta</h4>
+-
+-            <div style="display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 2;">
+-                <!-- Hexagonal Ingredients Area -->
+-                <div id="crafteo-nodos-ingredientes" class="hex-grid-container" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 180px; position: relative;">
+-                    <!-- Nodos inyectados por JS -->
+-                    <!-- Layout structure for up to 5 hexes will be managed in JS by assigning specific positions -->
+-                </div>
+-
+-                <!-- Target Item / Result Area -->
+-                <div id="crafteo-resultado-area" style="display: flex; justify-content: center; margin-bottom: 10px;">
+-                    <!-- Result node injected by JS -->
+-                </div>
+-
+-                <!-- Controls & Stats -->
+-                <div style="background: rgba(0, 0, 0, 0.6); border: 1px solid #333; padding: 10px; border-radius: 4px;">
+-                    <div id="crafteo-requisitos-texto" style="color: #ccc; font-size: 13px; text-align: center; margin-bottom: 10px; font-family: monospace; text-shadow: 0 0 2px #000;">
+-                        <span style="color: var(--cyan-tech);">CHECK:</span> <span id="crafteo-req-skill">-</span> | <span style="color: #ffaa00;">DC:</span> <span id="crafteo-req-dc">-</span>
+-                    </div>
+-
+-                    <div style="display: flex; gap: 10px; align-items: stretch;">
+-                        <!-- Multiplicador Input -->
+-                        <div style="display: flex; align-items: center; background: #000; border: 1px solid var(--cyan-tech); padding: 5px; flex: 0 0 80px;">
+-                            <input type="number" id="crafteo-cantidad" value="1" min="1" max="10" style="width: 100%; background: transparent; color: var(--cyan-tech); border: none; text-align: center; font-size: 16px; font-family: 'Mikodacs', monospace;">
+-                        </div>
+-                        <!-- Synth Button -->
+-                        <button id="btn-sintetizar" style="flex: 1; background: linear-gradient(90deg, #001a1a 0%, #004d4d 50%, #001a1a 100%); color: var(--cyan-tech); border: 1px solid var(--cyan-tech); padding: 10px; font-family: 'Mikodacs', sans-serif; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s ease;">Sintetizar</button>
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-    </div>
++  <div class="sheet-app-header"><h2>Mesa de Trabajo</h2></div>
++  <div class="sheet-app-body" style="padding: 0; display: flex; height: calc(100% - 40px); background-color: #1a1a1a;">
++      <!-- Left Column: Recipe Grid -->
++      <div class="crafteo-grid-zone" style="flex: 0 0 60%; max-width: 60%; padding: 10px; overflow-y: auto; background-color: #222; border-right: 2px solid #333;">
++          <div id="lista-recetas-crafteo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; align-content: start;">
++              <!-- Recetas injectadas por JS (iconos) -->
++          </div>
++      </div>
++      <!-- Right Column: Detail Panel -->
++      <div class="crafteo-detail-zone" id="detalle-receta-crafteo" style="flex: 0 0 40%; max-width: 40%; padding: 10px; display: flex; flex-direction: column; background-color: #111; position: relative;">
++          <div style="text-align: center; color: #888; margin-top: 50%;">Selecciona una receta</div>
++      </div>
++  </div>
+  </div>
