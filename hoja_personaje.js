@@ -991,6 +991,30 @@ function renderRecetasCrafteo() {
 
     if (!listaRecetas || !playerName) return;
 
+    const searchInput = document.getElementById('craft-search');
+    if (searchInput && !searchInput.dataset.listenerAttached) {
+        searchInput.dataset.listenerAttached = 'true';
+        searchInput.addEventListener('input', (e) => {
+            try {
+                const query = e.target.value.toLowerCase();
+                const lists = [document.getElementById('craft-recetas'), document.getElementById('craft-alijo'), document.getElementById('craft-activo')];
+                lists.forEach(list => {
+                    if (list) {
+                        Array.from(list.children).forEach(child => {
+                            if (child.innerText.toLowerCase().includes(query)) {
+                                child.style.display = '';
+                            } else {
+                                child.style.display = 'none';
+                            }
+                        });
+                    }
+                });
+            } catch (err) {
+                console.error('Error en búsqueda:', err);
+            }
+        });
+    }
+
     listaRecetas.innerHTML = '';
 
     // --- Llenar Lista de Recetas Aprendidas ---
@@ -1054,12 +1078,28 @@ function renderRecetasCrafteo() {
                 const itemName = item.nombre || globalData.nombre || 'Ítem Desconocido';
 
                 const itemEl = document.createElement('div');
-                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;';
+                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer;';
                 itemEl.innerHTML = `
                     <img src="${iconUrl}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 4px;">
                     <div style="flex: 1; color: #ccc; font-size: 12px;">${itemName}</div>
                     <div style="color: #0df; font-family: monospace; font-size: 13px; font-weight: bold;">x${item.cantidad || 1}</div>
                 `;
+                itemEl.addEventListener('click', () => {
+                    try {
+                        for (let i = 1; i <= 5; i++) {
+                            const slot = document.getElementById(`craft-slot-${i}`);
+                            if (slot && !slot.classList.contains('has-item')) {
+                                slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
+                                slot.dataset.idItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                                slot.classList.add('has-item');
+                                if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error en slots:', e);
+                    }
+                });
                 listaAlijo.appendChild(itemEl);
             });
         }
@@ -1078,12 +1118,28 @@ function renderRecetasCrafteo() {
                 const itemName = item.nombre || globalData.nombre || 'Ítem Desconocido';
 
                 const itemEl = document.createElement('div');
-                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;';
+                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer;';
                 itemEl.innerHTML = `
                     <img src="${iconUrl}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 4px;">
                     <div style="flex: 1; color: #ccc; font-size: 12px;">${itemName}</div>
                     <div style="color: #0df; font-family: monospace; font-size: 13px; font-weight: bold;">x${item.cantidad || 1}</div>
                 `;
+                itemEl.addEventListener('click', () => {
+                    try {
+                        for (let i = 1; i <= 5; i++) {
+                            const slot = document.getElementById(`craft-slot-${i}`);
+                            if (slot && !slot.classList.contains('has-item')) {
+                                slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
+                                slot.dataset.idItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                                slot.classList.add('has-item');
+                                if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error en slots:', e);
+                    }
+                });
                 listaActivo.appendChild(itemEl);
             });
         }
@@ -1212,6 +1268,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }, 1500);
+});
+
+window.validarMesaCraft = function() {
+    try {
+        let tieneItems = false;
+        for (let i = 1; i <= 5; i++) {
+            const slot = document.getElementById(`craft-slot-${i}`);
+            if (slot && slot.classList.contains('has-item')) {
+                tieneItems = true;
+                break;
+            }
+        }
+        const fabricarBtn = document.getElementById('btn-craft-fabricar');
+        if (fabricarBtn) {
+            if (tieneItems) {
+                fabricarBtn.disabled = false;
+                fabricarBtn.style.opacity = '1';
+                fabricarBtn.classList.remove('btn-apagado');
+            } else {
+                fabricarBtn.disabled = true;
+                fabricarBtn.style.opacity = '0.5';
+                fabricarBtn.classList.add('btn-apagado');
+            }
+        }
+    } catch (e) {
+        console.error('Error en slots:', e);
+    }
+};
+
+document.addEventListener('click', (e) => {
+    const slot = e.target.closest('.craft-slot.ing-slot');
+    if (slot && slot.classList.contains('has-item')) {
+        try {
+            slot.innerHTML = '';
+            slot.classList.remove('has-item');
+            delete slot.dataset.idItem;
+            if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+        } catch (err) {
+            console.error('Error en slots:', err);
+        }
+    }
 });
 
 function limpiarVisorCrafteo() {
