@@ -338,20 +338,10 @@
  <button type="action" name="act_tab_notas" class="sheet-app-btn"><div class="sheet-app-icon">📝</div><span>Notas</span></button>
  <button type="action" name="act_tab_parts" class="sheet-app-btn sheet-show-parts-btn"><div class="sheet-app-icon">🧩</div><span>Partes</span></button>
  <button type="action" name="act_tab_settings" class="sheet-app-btn"><div class="sheet-app-icon">⚙️</div><span>Ajustes</span></button>
- <button type="action" name="act_tab_crafteo" class="sheet-app-btn"><div class="sheet-app-icon">🛠️</div><span>Mesa de Trabajo</span></button>
  </div>
  </div>
 
- <!-- Crafting Tab -->
- <div class="sheet-tab-content sheet-tab-crafteo" id="crafteo-app">
-    <div class="sheet-app-header"><h2>Mesa de Trabajo</h2></div>
-    <div class="sheet-app-body crafteo-container" style="padding: 0; display: flex; height: calc(100% - 40px); background-color: #1a1a1a;">
-        <!-- Left Column: Recipe Grid -->
-        <div class="crafteo-grid-zone" style="flex: 0 0 60%; max-width: 60%; padding: 10px; overflow-y: auto; background-color: #222; border-right: 2px solid #333;">
-            <div id="lista-recetas-crafteo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; align-content: start;">
-                <!-- Recetas inyectadas por JS (iconos) -->
-            </div>
-        </div>
+
         <!-- Right Column: Detail Panel -->
         <div class="crafteo-detail-zone" id="detalle-receta-crafteo" style="flex: 0 0 40%; max-width: 40%; padding: 10px; display: flex; flex-direction: column; background-color: #111; position: relative;">
             <div style="text-align: center; color: #888; margin-top: 50%;">Selecciona una receta</div>
@@ -3820,7 +3810,7 @@
         <div class="inventory-tabs">
             <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
             <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
-            <button class="inv-tab-btn" data-tab="inv-shop">Tienda / Mercado</button>
+            <button class="inv-tab-btn" data-tab="inv-crafting">Mesa de Trabajo</button>
         </div>
 
         <div class="inventory-body-wrapper">
@@ -3848,6 +3838,18 @@
                     </div>
                 </div>
             </div>
+                <div class="inventory-tab-content" id="inv-crafting" style="display: none; height: 100%; width: 100%;">
+                    <div class="crafteo-container" style="display: flex; height: 100%; width: 100%; padding: 0;">
+                        <div class="crafteo-grid-zone" style="flex: 0 0 60%; max-width: 60%; padding: 10px; overflow-y: auto; background-color: #222; border-right: 2px solid #333;">
+                            <div id="lista-recetas-crafteo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; align-content: start;">
+                                <!-- Recetas inyectadas por JS (iconos) -->
+                            </div>
+                        </div>
+                        <div class="crafteo-detail-zone" id="detalle-receta-crafteo" style="flex: 0 0 40%; max-width: 40%; padding: 10px; display: flex; flex-direction: column; background-color: #111; position: relative;">
+                            <div style="text-align: center; color: #888; margin-top: 50%;">Selecciona una receta</div>
+                        </div>
+                    </div>
+                </div>
 
             <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
             <div class="item-detail-card" id="item-detail-card">

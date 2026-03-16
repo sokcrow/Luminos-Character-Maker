@@ -1016,10 +1016,10 @@ function renderRecetasCrafteo() {
             height: 64px;
             background: url('${iconUrl}') center/cover;
             border: 2px solid ${isDiscovered ? '#ffaa00' : '#444'};
-            cursor: pointer;
+            cursor: ${isDiscovered ? 'pointer' : 'not-allowed'};
             position: relative;
             box-sizing: border-box;
-            filter: ${isDiscovered ? 'none' : 'brightness(0) drop-shadow(0 0 2px #444)'};
+            filter: ${isDiscovered ? 'none' : 'brightness(0)'};
             transition: transform 0.1s;
             border-radius: 4px;
         `;
@@ -1068,6 +1068,7 @@ function renderRecetasCrafteo() {
         `;
 
         btn.onclick = () => {
+            if (!isDiscovered) return;
             Array.from(listaRecetas.children).forEach(c => {
                 c.style.borderColor = c.innerHTML.includes('brightness(0)') ? '#444' : '#ffaa00';
                 c.style.boxShadow = 'none';

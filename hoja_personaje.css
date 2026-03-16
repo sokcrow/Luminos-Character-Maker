@@ -6712,3 +6712,25 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     text-shadow: 0 0 5px #ff8c00, 0 0 2px #000;
     align-self: flex-end;
 }
+
+/* Crafting Tab specific styles for Inventory Modal */
+#inv-crafting {
+    /* To override the default flex layout of inventory-body-wrapper when this tab is active */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    z-index: 10;
+}
+
+#inv-crafting.active {
+    display: flex !important;
+}
+
+.crafteo-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
