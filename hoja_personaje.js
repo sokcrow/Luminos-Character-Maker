@@ -1437,21 +1437,31 @@ window.verificarRecetaOculta = function(slotsIds) {
 
     // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
     // Let's count IDs in slots
+    const getBaseName = (id) => {
+        if (!id) return '';
+        if (typeof window.dbItemsCacheGlobal !== 'undefined') {
+            const data = window.dbItemsCacheGlobal[id];
+            if (data && data.nombre) return data.nombre.toLowerCase();
+        }
+        return id.toLowerCase();
+    };
+
+    const slotNames = slotsIds.map(id => getBaseName(id));
     const slotCounts = {};
-    slotsIds.forEach(id => { slotCounts[id] = (slotCounts[id] || 0) + 1; });
+    slotNames.forEach(name => { slotCounts[name] = (slotCounts[name] || 0) + 1; });
 
     if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
         for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
             if (!recetaData.ingredientes) continue;
 
-            // create a map of req ingredients
+            // create a map of req ingredients by name
             const reqCounts = {};
             recetaData.ingredientes.forEach(ing => {
-                reqCounts[ing.id_item] = (reqCounts[ing.id_item] || 0) + parseInt(ing.cantidad);
+                const reqName = getBaseName(ing.id_item);
+                reqCounts[reqName] = (reqCounts[reqName] || 0) + parseInt(ing.cantidad);
             });
 
-            // Compare only IDs, not quantities. The recipe is a match if the unique IDs in the slots exactly match the unique IDs required by the recipe.
-            // Also, we must ensure there are no extra items in the slots that are not in the recipe.
+            // Compare only IDs (mapped to base names), not quantities. The recipe is a match if the unique base names in the slots exactly match the unique base names required by the recipe.
             let isMatch = true;
             const reqKeys = Object.keys(reqCounts);
             const slotKeys = Object.keys(slotCounts);
