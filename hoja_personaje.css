@@ -6372,7 +6372,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     position: fixed;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
-    z-index: 99999; /* Above everything */
+    z-index: 2000; /* Under phone wrapper */
     pointer-events: auto;
     background: url('https://i.imgur.com/13k5YtK.jpg') center/cover no-repeat;
     display: flex;
