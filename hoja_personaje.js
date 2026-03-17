@@ -107,6 +107,9 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
         if (typeof window.renderRecetasCrafteo === 'function') {
             window.renderRecetasCrafteo();
         }
+        if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
+            window.actualizarExpresionesDesdeDropdown();
+        }
     }
 });
 
@@ -143,53 +146,77 @@ db.ref('campaña/actores').on('value', (snapshot) => {
 
 // 3. Función que inyecta las expresiones basada en el Actor ID seleccionado
 window.actualizarExpresionesDesdeDropdown = function() {
-    const actorSelect = document.getElementById('player-actor-select');
-    const selectExp = document.getElementById('player-expression-select');
-    if (!actorSelect || !selectExp) return;
+    try {
+        const actorSelect = document.getElementById('player-actor-select');
+        const selectExp = document.getElementById('player-expression-select');
+        if (!actorSelect || !selectExp) return;
 
-    const selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
-    selectExp.innerHTML = '';
+        // Verificar si el jugador tiene un actor asignado directamente
+        const actorAsignadoId = window.datosJugador && window.datosJugador.actorId;
+        let selectedActorId = 'base';
 
-    if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
-        const actor = window.actoresJugador[selectedActorId];
-        if (actor.expresiones) {
-            selectExp.style.display = 'inline-block';
+        if (actorAsignadoId && window.actoresJugador && window.actoresJugador[actorAsignadoId]) {
+            // Si hay un actor asignado y es válido
+            selectedActorId = actorAsignadoId;
+            actorSelect.style.display = 'none'; // Ocultar el dropdown
             
-            // Handle array of objects format (e.g. [{nombre: '...', url: '...'}] from Firebase)
-            if (Array.isArray(actor.expresiones)) {
-                actor.expresiones.forEach(exp => {
-                    if (exp && exp.nombre && exp.url) {
-                        const option = document.createElement('option');
-                        option.value = exp.url;
-                        option.textContent = exp.nombre;
-                        selectExp.appendChild(option);
-                    }
-                });
-            } else {
-                // Legacy dictionary format ({'Feliz': 'url...', ...})
-                for (const [nombreExp, urlSprite] of Object.entries(actor.expresiones)) {
-                    // Check if the value is actually an object (malformed dictionary from Firebase array mutation)
-                    if (typeof urlSprite === 'object' && urlSprite !== null) {
-                       const option = document.createElement('option');
-                       option.value = urlSprite.url || urlSprite.sprite || '';
-                       option.textContent = urlSprite.nombre || urlSprite.name || nombreExp;
-                       if (option.value) selectExp.appendChild(option);
-                    } else {
-                        const option = document.createElement('option');
-                        option.value = urlSprite;
-                        option.textContent = nombreExp;
-                        selectExp.appendChild(option);
+            // Forzar actualización silenciosa del valor subyacente por si otras partes del código lo leen
+            // Solo si la opción existe para no romper nada
+            const optionExists = Array.from(actorSelect.options).some(opt => opt.value === actorAsignadoId);
+            if (optionExists) {
+                actorSelect.value = actorAsignadoId;
+            }
+        } else {
+            // Fallback al dropdown manual
+            actorSelect.style.display = 'inline-block';
+            selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
+        }
+
+        selectExp.innerHTML = '';
+
+        if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+            const actor = window.actoresJugador[selectedActorId];
+            if (actor.expresiones) {
+                selectExp.style.display = 'inline-block';
+                
+                // Handle array of objects format (e.g. [{nombre: '...', url: '...'}] from Firebase)
+                if (Array.isArray(actor.expresiones)) {
+                    actor.expresiones.forEach(exp => {
+                        if (exp && exp.nombre && exp.url) {
+                            const option = document.createElement('option');
+                            option.value = exp.url;
+                            option.textContent = exp.nombre;
+                            selectExp.appendChild(option);
+                        }
+                    });
+                } else {
+                    // Legacy dictionary format ({'Feliz': 'url...', ...})
+                    for (const [nombreExp, urlSprite] of Object.entries(actor.expresiones)) {
+                        // Check if the value is actually an object (malformed dictionary from Firebase array mutation)
+                        if (typeof urlSprite === 'object' && urlSprite !== null) {
+                           const option = document.createElement('option');
+                           option.value = urlSprite.url || urlSprite.sprite || '';
+                           option.textContent = urlSprite.nombre || urlSprite.name || nombreExp;
+                           if (option.value) selectExp.appendChild(option);
+                        } else {
+                            const option = document.createElement('option');
+                            option.value = urlSprite;
+                            option.textContent = nombreExp;
+                            selectExp.appendChild(option);
+                        }
                     }
                 }
+                
+                // Si después de todo no hay opciones, ocultar
+                if (selectExp.options.length > 0) return;
             }
-            
-            // Si después de todo no hay opciones, ocultar
-            if (selectExp.options.length > 0) return;
         }
+        
+        // Ocultar si es el personaje base o no tiene expresiones
+        selectExp.style.display = 'none';
+    } catch (e) {
+        console.error("Error al actualizar expresiones desde el dropdown:", e);
     }
-    
-    // Ocultar si es el personaje base o no tiene expresiones
-    selectExp.style.display = 'none';
 };
 
 // 4. Asignar el evento GLOBALMENTE (Event Delegation) a prueba de fallos
@@ -1494,10 +1521,10 @@ window.validarMesaCraft = function() {
                     previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
                 } else {
                     previewSlot.innerHTML = `
-                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #111; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #888;" title="???">?</div>
+                        <img src="${resultIconUrl}" class="craft-preview-img silhouetted" title="???" style="width: 100%; height: 100%; object-fit: contain; filter: brightness(0); pointer-events: none;">
                         <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
                     `;
-                    previewSlot.classList.remove('silhouetted');
+                    previewSlot.classList.add('silhouetted');
                     previewSlot.style.filter = 'none';
                 }
             }
@@ -1720,19 +1747,8 @@ function limpiarVisorCrafteo() {
             slot.style.backgroundImage = 'none';
             slot.classList.remove('has-item', 'missing-item');
             slot.style.border = '2px solid rgba(0, 255, 255, 0.3)';
-            delete slot.dataset.idItem;
-            delete slot.dataset.linkedElId;
         }
     }
-
-    document.querySelectorAll('.item-slotted').forEach(el => {
-        el.classList.remove('item-slotted');
-        delete el.dataset.slotLinkId;
-    });
-
-    window.ingredientesSeleccionados = [];
-    window.itemResultado = null;
-    window.recetaEncontrada = false;
 
     currentSelectedRecetaId = null;
 
@@ -1813,7 +1829,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
     // Configurar Botón Fabricar
     const fabricarBtn = document.getElementById('btn-craft-fabricar');
     if (fabricarBtn) {
-        if (canCraft) {
+        if (canCraft && isDiscovered) {
             fabricarBtn.style.opacity = '1';
             fabricarBtn.style.cursor = 'pointer';
             fabricarBtn.disabled = false;
