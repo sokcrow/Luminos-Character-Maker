@@ -133,12 +133,24 @@ db.ref('campaña/actores').on('value', (snapshot) => {
         }
     }
 
-    if (window.datosJugador && window.datosJugador.activeActor && actorSelect.querySelector(`option[value="${window.datosJugador.activeActor}"]`)) {
-        actorSelect.value = window.datosJugador.activeActor;
+    // Si el DM asignó un actorId, eso toma prioridad absoluta
+    if (window.datosJugador && window.datosJugador.actorId && actorSelect.querySelector(`option[value="${window.datosJugador.actorId}"]`)) {
+        actorSelect.value = window.datosJugador.actorId;
         actorSelect.disabled = true;
         actorSelect.dispatchEvent(new Event('change'));
-    } else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
+    }
+    // De lo contrario, usamos la selección activa del jugador (activeActor) sin bloquear el dropdown
+    else if (window.datosJugador && window.datosJugador.activeActor && actorSelect.querySelector(`option[value="${window.datosJugador.activeActor}"]`)) {
+        actorSelect.value = window.datosJugador.activeActor;
+        actorSelect.disabled = false;
+        actorSelect.dispatchEvent(new Event('change'));
+    }
+    // Fallback a la selección que ya tenía en el DOM si es válida
+    else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
         actorSelect.value = currentSelection;
+        actorSelect.disabled = false;
+    } else {
+        actorSelect.disabled = false;
     }
     
     window.actualizarExpresionesDesdeDropdown();
