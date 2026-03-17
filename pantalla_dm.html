@@ -3534,7 +3534,7 @@
                 opt.value = actorId;
                 const tag = actorData.tipo ? `[${actorData.tipo}] ` : '[NPC] ';
                 opt.innerText = tag + actorData.nombre;
-                if (playerData.actorId === actorId) {
+                if (playerData.actor_asignado === actorId) {
                     opt.selected = true;
                 }
                 select.appendChild(opt);
@@ -3543,7 +3543,7 @@
             select.addEventListener('change', (e) => {
                 const selectedActorId = e.target.value;
                 db.ref(`campaña/jugadores/${playerName}`).update({
-                    actorId: selectedActorId
+                    actor_asignado: selectedActorId
                 }).then(() => {
                     console.log(`Actor asignado a ${playerName}: ${selectedActorId}`);
                 }).catch(err => alert("Error al asignar actor: " + err));
