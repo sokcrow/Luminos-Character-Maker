@@ -1047,7 +1047,10 @@
 
       <!-- Left: Queue -->
       <div style="flex: 1; border-right: 1px solid #444; padding-right: 15px; display: flex; flex-direction: column; max-height: 100px;">
-        <h5 style="margin: 0 0 5px 0; color: #0df;">Cola de Actuación</h5>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 5px 0;">
+          <h5 style="margin: 0; color: #0df;">Cola de Actuación</h5>
+          <button id="btn-clear-queue" class="btn-cyber" style="background: #222; color: #ff4444; border: 1px solid #ff4444; padding: 2px 6px; font-size: 10px; cursor: pointer;">Limpiar</button>
+        </div>
         <div id="dm-theatre-queue" style="flex: 1; overflow-y: auto; background: #111; border: 1px solid #333; padding: 5px; font-size: 14px; color: #aaa; display: flex; flex-direction: column; gap: 5px;">
           <!-- Queue items injected here -->
         </div>
@@ -3633,6 +3636,12 @@
         const bg = document.getElementById('dm-theatre-bg').value.trim();
         if (bg) {
             db.ref('campaña/teatro').update({ fondo: bg });
+        }
+    });
+
+    document.getElementById('btn-clear-queue').addEventListener('click', () => {
+        if (confirm('¿Estás seguro de que quieres limpiar toda la cola de actuación?')) {
+            db.ref('campaña/teatro/cola').remove();
         }
     });
 
