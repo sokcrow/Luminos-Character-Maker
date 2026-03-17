@@ -4694,11 +4694,12 @@
 
 function sendTheatreMessage(msgText) {
     const actorSelect = document.getElementById('player-actor-select');
-    const selectedActorId = actorSelect ? actorSelect.value : 'base'; // LEE EL ACTOR ID
+    const assignedActorId = window.datosJugador && window.datosJugador.actorId;
+    let selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base'); // LEE EL ACTOR ID ASIGNADO O DEL SELECT
     
     let actorParaEnviar;
 
-    // ¿Eligió un Actor ID válido de la lista?
+    // ¿Eligió un Actor ID válido de la lista o está asignado?
     if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
         actorParaEnviar = window.actoresJugador[selectedActorId];
     } else {
