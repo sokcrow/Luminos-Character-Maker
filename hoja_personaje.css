@@ -7133,3 +7133,8 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background: rgba(112, 88, 32, 0.3);
     color: #fff;
 }
+
+.item-slotted {
+    opacity: 0.4;
+    pointer-events: none;
+}
