@@ -1138,8 +1138,9 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 // Only use a slot if it exists, is not hidden, and doesn't have an item
                 if (slot && slot.style.display !== 'none' && !slot.classList.contains('has-item')) {
                     slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
-                    const uidItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                    const uidItem = item.id || item.nombre;
                     slot.dataset.idItem = uidItem;
+                    slot.dataset.itemName = item.nombre || '';
                     slot.classList.add('has-item');
 
                     // Mark the list item as slotted and link the list item to the slot so we can un-slot it later
@@ -1180,7 +1181,7 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 let isSlotted = false;
                 for (let i = 1; i <= 5; i++) {
                     const slot = document.getElementById(`craft-slot-${i}`);
-                    const compareId = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                    const compareId = item.id || item.nombre;
                     if (slot && slot.dataset.idItem === compareId) {
                         isSlotted = true;
                         // re-link in case of re-render
@@ -1225,7 +1226,7 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 let isSlotted = false;
                 for (let i = 1; i <= 5; i++) {
                     const slot = document.getElementById(`craft-slot-${i}`);
-                    const compareId = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                    const compareId = item.id || item.nombre;
                     if (slot && slot.dataset.idItem === compareId) {
                         isSlotted = true;
                         const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
@@ -1431,24 +1432,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Validar Mesa and Verificar Receta Oculta logic combined
-window.verificarRecetaOculta = function(slotsIds) {
+window.verificarRecetaOculta = function(slotsIds, slotsNames = []) {
     let matchingRecipeId = null;
     let matchingRecipe = null;
 
     // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
     // Let's count IDs in slots
-    const getBaseName = (id) => {
-        if (!id) return '';
-        if (typeof window.dbItemsCacheGlobal !== 'undefined') {
-            const data = window.dbItemsCacheGlobal[id];
-            if (data && data.nombre) return data.nombre.toLowerCase();
-        }
-        return id.toLowerCase();
+    const normalizeStr = (str) => {
+        if (!str) return '';
+        return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     };
 
-    const slotNames = slotsIds.map(id => getBaseName(id));
+    const getBaseName = (id, fallbackName = '') => {
+        if (!id) return normalizeStr(fallbackName);
+        id = id.trim();
+        if (typeof window.dbItemsCacheGlobal !== 'undefined') {
+            const data = window.dbItemsCacheGlobal[id];
+            if (data && data.nombre) return normalizeStr(data.nombre);
+            const foundKey = Object.keys(window.dbItemsCacheGlobal).find(k => window.dbItemsCacheGlobal[k].nombre && normalizeStr(window.dbItemsCacheGlobal[k].nombre) === normalizeStr(id));
+            if (foundKey) return normalizeStr(window.dbItemsCacheGlobal[foundKey].nombre);
+        }
+        return fallbackName ? normalizeStr(fallbackName) : normalizeStr(id);
+    };
+
+    const slotNamesList = slotsIds.map((id, index) => getBaseName(id, slotsNames[index]));
     const slotCounts = {};
-    slotNames.forEach(name => { slotCounts[name] = (slotCounts[name] || 0) + 1; });
+    slotNamesList.forEach(name => { slotCounts[name] = (slotCounts[name] || 0) + 1; });
 
     if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
         for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
@@ -1490,6 +1499,7 @@ window.verificarRecetaOculta = function(slotsIds) {
 window.validarMesaCraft = function() {
     try {
         const slotsIds = [];
+        const slotsNames = [];
         for (let i = 1; i <= 5; i++) {
             const slot = document.getElementById(`craft-slot-${i}`);
             if (slot) {
@@ -1497,6 +1507,7 @@ window.validarMesaCraft = function() {
                 slot.style.border = ''; // Clean up any inline borders left behind from previous code
                 if (slot.classList.contains('has-item') && slot.dataset.idItem) {
                     slotsIds.push(slot.dataset.idItem);
+                    slotsNames.push(slot.dataset.itemName || '');
                 }
             }
         }
@@ -1515,7 +1526,7 @@ window.validarMesaCraft = function() {
             return null;
         })();
 
-        const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds);
+        const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds, slotsNames);
 
         if (matchingRecipe) {
             window.currentSelectedRecetaId = matchingRecipeId;
@@ -1631,7 +1642,7 @@ window.actualizarSliderCraft = function() {
                 let ownedQty = 0;
                 if (currentPlayerData.inventario_stash) {
                     Object.values(currentPlayerData.inventario_stash).forEach(item => {
-                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
+                        const itemKey = item.id || item.nombre;
                         if (itemKey === ing.id_item) {
                             ownedQty += (parseInt(item.cantidad) || 1);
                         }
@@ -1639,7 +1650,7 @@ window.actualizarSliderCraft = function() {
                 }
                 if (currentPlayerData.inventario) {
                     Object.values(currentPlayerData.inventario).forEach(item => {
-                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
+                        const itemKey = item.id || item.nombre;
                         if (itemKey === ing.id_item) {
                             ownedQty += (parseInt(item.cantidad) || 1);
                         }
@@ -1884,7 +1895,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
             let ownedQty = 0;
             const allItems = [...invStash, ...invActivo];
             const matchingStacks = allItems.filter(item => {
-                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                const itemKey = item.id || item.nombre;
                 return itemKey === ing.id_item;
             });
             matchingStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
@@ -1970,7 +1981,7 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
             let reqTotal = ing.cantidad * multi;
             for (const [k, item] of Object.entries(currentStash)) {
                 if (reqTotal <= 0) break;
-                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                const itemKey = item.id || item.nombre;
 
                 if (itemKey === ing.id_item) {
                     let has = parseInt(item.cantidad) || 1;
@@ -2000,7 +2011,7 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
             let currentResCant = 0;
 
             for (const [k, item] of Object.entries(currentStash)) {
-                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                const itemKey = item.id || item.nombre;
                 if (itemKey === resId && (parseInt(item.tier) || 1) === tierResult && !removes.includes(k)) {
                     foundResKey = k;
                     currentResCant = parseInt(item.cantidad) || 1;
@@ -2061,7 +2072,7 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
             let reqTotal = amountLost;
             for (const [k, item] of Object.entries(currentStash)) {
                 if (reqTotal <= 0) break;
-                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                const itemKey = item.id || item.nombre;
 
                 if (itemKey === idLost) {
                     let has = updates[`${k}/cantidad`] !== undefined ? updates[`${k}/cantidad`] : (parseInt(item.cantidad) || 1);
@@ -2871,7 +2882,7 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
 
                 for (const search of searchPaths) {
                     for (const [key, item] of Object.entries(search.obj)) {
-                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
+                        const itemKey = item.id || item.nombre;
                         if (itemKey === ing.id_item && required > 0) {
                             if (item.cantidad > required) {
                                 updates[`${search.path}/${key}/cantidad`] = item.cantidad - required;
