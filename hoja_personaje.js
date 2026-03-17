@@ -107,6 +107,9 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
         if (typeof window.renderRecetasCrafteo === 'function') {
             window.renderRecetasCrafteo();
         }
+        if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
+            window.actualizarExpresionesDesdeDropdown();
+        }
     }
 });
 
@@ -147,7 +150,24 @@ window.actualizarExpresionesDesdeDropdown = function() {
     const selectExp = document.getElementById('player-expression-select');
     if (!actorSelect || !selectExp) return;
 
-    const selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
+    // Verificar si el jugador tiene un actor asignado directamente
+    const actorAsignadoId = window.datosJugador && window.datosJugador.actorId;
+    let selectedActorId = 'base';
+
+    if (actorAsignadoId && window.actoresJugador && window.actoresJugador[actorAsignadoId]) {
+        // Si hay un actor asignado y es válido
+        selectedActorId = actorAsignadoId;
+        actorSelect.style.display = 'none'; // Ocultar el dropdown
+        // Opcionalmente actualizar el valor del select oculto, pero no depender de él
+        if (actorSelect.querySelector(`option[value="${actorAsignadoId}"]`)) {
+             actorSelect.value = actorAsignadoId;
+        }
+    } else {
+        // Fallback al dropdown manual
+        actorSelect.style.display = 'inline-block';
+        selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
+    }
+
     selectExp.innerHTML = '';
 
     if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
