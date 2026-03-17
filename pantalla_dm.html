@@ -1416,6 +1416,18 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const playerId = localStorage.getItem('playerId');
+      const isAdmin = localStorage.getItem('isAdmin');
+      const isDM = (playerId && playerId.toLowerCase() === 'dm') || isAdmin === 'true';
+      if (!isDM) {
+        document.querySelectorAll('#tab-crafteo input, #tab-crafteo select, #tab-crafteo textarea, #tab-crafteo button').forEach(el => {
+          el.disabled = true;
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.readOnly = true;
+        });
+      }
+    });
+
     const firebaseConfig = {
       apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
       authDomain: "luminous-system.firebaseapp.com",
