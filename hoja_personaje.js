@@ -1621,7 +1621,15 @@ window.actualizarSliderCraft = function() {
                 let ownedQty = 0;
                 if (currentPlayerData.inventario_stash) {
                     Object.values(currentPlayerData.inventario_stash).forEach(item => {
-                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
+                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
+                        if (itemKey === ing.id_item) {
+                            ownedQty += (parseInt(item.cantidad) || 1);
+                        }
+                    });
+                }
+                if (currentPlayerData.inventario) {
+                    Object.values(currentPlayerData.inventario).forEach(item => {
+                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
                         if (itemKey === ing.id_item) {
                             ownedQty += (parseInt(item.cantidad) || 1);
                         }
@@ -1848,6 +1856,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
 
     // Configurar Slots de Ingredientes
     const invStash = window.datosJugador && window.datosJugador.inventario_stash ? Object.values(window.datosJugador.inventario_stash) : [];
+    const invActivo = window.datosJugador && window.datosJugador.inventario ? Object.values(window.datosJugador.inventario) : [];
 
     limpiarSlotsIngredientes();
 
@@ -1863,11 +1872,12 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
 
             // Calculate owned quantity
             let ownedQty = 0;
-            const stashStacks = invStash.filter(item => {
-                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+            const allItems = [...invStash, ...invActivo];
+            const matchingStacks = allItems.filter(item => {
+                const itemKey = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
                 return itemKey === ing.id_item;
             });
-            stashStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
+            matchingStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
 
             const hasEnough = ownedQty >= ing.cantidad;
             if (!hasEnough) canCraft = false;
@@ -2843,19 +2853,23 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
                     required = Math.floor(Math.random() * 2) + 1;
                 }
 
-                // We'll search for this material in inventario_stash
-                // Wait, it should deduct from where they came from.
-                const currentStashObj = window.datosJugador.inventario_stash || {};
+                // Search in both inventario_stash and inventario
+                const searchPaths = [
+                    { path: `campaña/jugadores/${playerId}/inventario_stash`, obj: window.datosJugador.inventario_stash || {} },
+                    { path: `campaña/jugadores/${playerId}/inventario`, obj: window.datosJugador.inventario || {} }
+                ];
 
-                for (const [key, item] of Object.entries(currentStashObj)) {
-                    const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre));
-                    if (itemKey === ing.id_item && required > 0) {
-                        if (item.cantidad > required) {
-                            updates[`${sourcePath}/${key}/cantidad`] = item.cantidad - required;
-                            required = 0;
-                        } else {
-                            required -= item.cantidad;
-                            updates[`${sourcePath}/${key}`] = null;
+                for (const search of searchPaths) {
+                    for (const [key, item] of Object.entries(search.obj)) {
+                        const itemKey = item.id || (typeof dbItemsCacheGlobal !== 'undefined' && Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)) || item.nombre;
+                        if (itemKey === ing.id_item && required > 0) {
+                            if (item.cantidad > required) {
+                                updates[`${search.path}/${key}/cantidad`] = item.cantidad - required;
+                                required = 0;
+                            } else {
+                                required -= item.cantidad;
+                                updates[`${search.path}/${key}`] = null;
+                            }
                         }
                     }
                 }
@@ -2872,7 +2886,7 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
 
             let stackedKey = null;
             let newQty = (receta.cantidad_resultado || 1) * multi;
-
+            
             for (const [key, item] of Object.entries(destObj)) {
                 if (item.nombre === finalName && item.tier === finalTier) {
                     stackedKey = key;
