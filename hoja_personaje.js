@@ -1138,7 +1138,7 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 // Only use a slot if it exists, is not hidden, and doesn't have an item
                 if (slot && slot.style.display !== 'none' && !slot.classList.contains('has-item')) {
                     slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
-                    const uidItem = item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                    const uidItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
                     slot.dataset.idItem = uidItem;
                     slot.classList.add('has-item');
 
@@ -1526,10 +1526,10 @@ window.validarMesaCraft = function() {
             let resultTier = 1;
             let resultDesc = '???';
 
-            if (matchingRecipe.resultado && typeof window.dbItemsCacheGlobal !== 'undefined') {
-                const resItemDef = window.dbItemsCacheGlobal[matchingRecipe.resultado.id_item];
+            if (matchingRecipe.item_resultado && typeof window.dbItemsCacheGlobal !== 'undefined') {
+                const resItemDef = window.dbItemsCacheGlobal[matchingRecipe.item_resultado];
                 if (resItemDef) {
-                    resultIconUrl = resItemDef.url_imagen || resItemDef.url_icono || resultIconUrl;
+                    resultIconUrl = resItemDef.icono || resItemDef.url_imagen || resItemDef.url_icono || resultIconUrl;
                     resultItemName = resItemDef.nombre || resultItemName;
                     resultTier = resItemDef.tier || 1;
                     resultDesc = resItemDef.descripcion || 'Sin descripción';
@@ -2860,18 +2860,17 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
             });
         }
 
-        if (exito && receta.resultado) {
-            // Add result to destKey
+        if (exito && receta.item_resultado) {
             const newKey = firebase.database().ref().child(destPath).push().key;
-            const resDef = window.dbItemsCacheGlobal ? window.dbItemsCacheGlobal[receta.resultado.id_item] : null;
+            const resDef = window.dbItemsCacheGlobal ? window.dbItemsCacheGlobal[receta.item_resultado] : null;
 
-            let finalName = resDef ? resDef.nombre : receta.resultado.id_item;
-            let finalTier = resDef ? (resDef.tier || 1) : 1;
-            let finalUrl = resDef ? (resDef.url_imagen || resDef.url_icono || "") : "";
+            let finalName = resDef ? resDef.nombre : receta.item_resultado;
+            let finalTier = resDef ? (resDef.tier || 1) : (receta.tier_resultado || 1);
+            let finalUrl = resDef ? (resDef.icono || resDef.url_imagen || "") : "";
 
-            // Check if stackable in dest Obj
             let stackedKey = null;
-            let newQty = receta.resultado.cantidad * multi;
+            let newQty = (receta.cantidad_resultado || 1) * multi;
+
             for (const [key, item] of Object.entries(destObj)) {
                 if (item.nombre === finalName && item.tier === finalTier) {
                     stackedKey = key;
@@ -2884,16 +2883,15 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
                 updates[`${destPath}/${stackedKey}/cantidad`] = newQty;
             } else {
                 updates[`${destPath}/${newKey}`] = {
-                    id: receta.resultado.id_item,
+                    id: receta.item_resultado,
                     nombre: finalName,
                     cantidad: newQty,
                     tier: finalTier,
-                    url_icono: finalUrl,
-                    tags: resDef && resDef.etiquetas ? resDef.etiquetas.join(',') : ""
+                    icono: finalUrl,
+                    tags: resDef && resDef.tags ? resDef.tags : (resDef && resDef.etiquetas ? resDef.etiquetas.join(',') : "")
                 };
             }
 
-            // Log recipe as discovered
             if (window.currentSelectedRecetaId) {
                 updates[`campaña/jugadores/${playerId}/recetas_aprendidas/${window.currentSelectedRecetaId}`] = true;
             }
@@ -2903,7 +2901,7 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
             updates[`campaña/jugadores/${playerId}/transacciones/${notifKey}`] = {
                 tipo: 'compra',
                 monto: 0,
-                concepto: `Fabricado: ${finalName} x${receta.resultado.cantidad * multi}`,
+                concepto: `Fabricado: ${finalName} x${(receta.cantidad_resultado || 1) * multi}`,
                 timestamp: timestamp
             };
         }
