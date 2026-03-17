@@ -1180,7 +1180,8 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 let isSlotted = false;
                 for (let i = 1; i <= 5; i++) {
                     const slot = document.getElementById(`craft-slot-${i}`);
-                    if (slot && slot.dataset.idItem === (item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre))) {
+                    const compareId = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                    if (slot && slot.dataset.idItem === compareId) {
                         isSlotted = true;
                         // re-link in case of re-render
                         const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
@@ -1224,7 +1225,8 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 let isSlotted = false;
                 for (let i = 1; i <= 5; i++) {
                     const slot = document.getElementById(`craft-slot-${i}`);
-                    if (slot && slot.dataset.idItem === (item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre))) {
+                    const compareId = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre) || item.nombre;
+                    if (slot && slot.dataset.idItem === compareId) {
                         isSlotted = true;
                         const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
                         itemEl.dataset.slotLinkId = tempId;
