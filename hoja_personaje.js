@@ -1069,10 +1069,44 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
         }
     }
 
+    // --- Helper function to handle item click ---
+    const handleCraftItemClick = (item, itemEl, iconUrl) => {
+        if (itemEl.classList.contains('item-slotted')) return;
+
+        try {
+            // Find an empty slot
+            for (let i = 1; i <= 5; i++) {
+                const slot = document.getElementById(`craft-slot-${i}`);
+                // Only use a slot if it exists, is not hidden, and doesn't have an item
+                if (slot && slot.style.display !== 'none' && !slot.classList.contains('has-item')) {
+                    slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
+                    const uidItem = item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
+                    slot.dataset.idItem = uidItem;
+                    slot.classList.add('has-item');
+
+                    // Mark the list item as slotted and link the list item to the slot so we can un-slot it later
+                    itemEl.classList.add('item-slotted');
+                    // Add a custom unique ID to the list element to find it when removing from slot
+                    const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
+                    itemEl.dataset.slotLinkId = tempId;
+                    slot.dataset.linkedElId = tempId;
+
+                    if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+                    break;
+                }
+            }
+        } catch (e) {
+            console.error('Error en slots:', e);
+        }
+    };
+
     // --- Llenar Lista de Alijo ---
     if (listaAlijo) {
         listaAlijo.innerHTML = '';
-        const currentStash = window.datosJugador?.inventario_stash ? Object.values(window.datosJugador.inventario_stash) : [];
+        const currentStashObj = window.datosJugador?.inventario_stash || {};
+        // Add a uniqueId to items to identify duplicates in stash vs active etc
+        const currentStash = Object.keys(currentStashObj).map(key => ({ ...currentStashObj[key], uniqueId: key }));
+
         if (currentStash.length === 0) {
             listaAlijo.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">Alijo vacío.</div>';
         } else {
@@ -1082,28 +1116,30 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 const itemName = item.nombre || globalData.nombre || 'Ítem Desconocido';
 
                 const itemEl = document.createElement('div');
-                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer;';
+                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer; transition: opacity 0.2s;';
+
+                // Check if this item is already slotted to apply the class immediately on re-render
+                let isSlotted = false;
+                for (let i = 1; i <= 5; i++) {
+                    const slot = document.getElementById(`craft-slot-${i}`);
+                    if (slot && slot.dataset.idItem === (item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre))) {
+                        isSlotted = true;
+                        // re-link in case of re-render
+                        const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
+                        itemEl.dataset.slotLinkId = tempId;
+                        slot.dataset.linkedElId = tempId;
+                        break;
+                    }
+                }
+
+                if (isSlotted) itemEl.classList.add('item-slotted');
+
                 itemEl.innerHTML = `
                     <img src="${iconUrl}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 4px;">
                     <div style="flex: 1; color: #ccc; font-size: 12px;">${itemName}</div>
                     <div style="color: #0df; font-family: monospace; font-size: 13px; font-weight: bold;">x${item.cantidad || 1}</div>
                 `;
-                itemEl.addEventListener('click', () => {
-                    try {
-                        for (let i = 1; i <= 5; i++) {
-                            const slot = document.getElementById(`craft-slot-${i}`);
-                            if (slot && !slot.classList.contains('has-item')) {
-                                slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
-                                slot.dataset.idItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
-                                slot.classList.add('has-item');
-                                if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
-                                break;
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Error en slots:', e);
-                    }
-                });
+                itemEl.addEventListener('click', () => handleCraftItemClick(item, itemEl, iconUrl));
                 listaAlijo.appendChild(itemEl);
             });
         }
@@ -1112,7 +1148,9 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
     // --- Llenar Lista de Inventario Activo ---
     if (listaActivo) {
         listaActivo.innerHTML = '';
-        const currentActivo = window.datosJugador?.inventario_activo ? Object.values(window.datosJugador.inventario_activo) : [];
+        const currentActivoObj = window.datosJugador?.inventario_activo || {};
+        const currentActivo = Object.keys(currentActivoObj).map(key => ({ ...currentActivoObj[key], uniqueId: key }));
+
         if (currentActivo.length === 0) {
             listaActivo.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">Inventario vacío.</div>';
         } else {
@@ -1122,28 +1160,29 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
                 const itemName = item.nombre || globalData.nombre || 'Ítem Desconocido';
 
                 const itemEl = document.createElement('div');
-                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer;';
+                itemEl.style.cssText = 'display: flex; align-items: center; padding: 5px; margin-bottom: 5px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; cursor: pointer; transition: opacity 0.2s;';
+
+                // Check if this item is already slotted
+                let isSlotted = false;
+                for (let i = 1; i <= 5; i++) {
+                    const slot = document.getElementById(`craft-slot-${i}`);
+                    if (slot && slot.dataset.idItem === (item.uniqueId || item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre))) {
+                        isSlotted = true;
+                        const tempId = 'slotted-item-' + Math.random().toString(36).substr(2, 9);
+                        itemEl.dataset.slotLinkId = tempId;
+                        slot.dataset.linkedElId = tempId;
+                        break;
+                    }
+                }
+
+                if (isSlotted) itemEl.classList.add('item-slotted');
+
                 itemEl.innerHTML = `
                     <img src="${iconUrl}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 4px;">
                     <div style="flex: 1; color: #ccc; font-size: 12px;">${itemName}</div>
                     <div style="color: #0df; font-family: monospace; font-size: 13px; font-weight: bold;">x${item.cantidad || 1}</div>
                 `;
-                itemEl.addEventListener('click', () => {
-                    try {
-                        for (let i = 1; i <= 5; i++) {
-                            const slot = document.getElementById(`craft-slot-${i}`);
-                            if (slot && !slot.classList.contains('has-item')) {
-                                slot.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: url('${iconUrl}') center/cover;"></div>`;
-                                slot.dataset.idItem = item.id || Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre);
-                                slot.classList.add('has-item');
-                                if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
-                                break;
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Error en slots:', e);
-                    }
-                });
+                itemEl.addEventListener('click', () => handleCraftItemClick(item, itemEl, iconUrl));
                 listaActivo.appendChild(itemEl);
             });
         }
@@ -1303,6 +1342,49 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Validar Mesa and Verificar Receta Oculta logic combined
+window.verificarRecetaOculta = function(slotsIds) {
+    let matchingRecipeId = null;
+    let matchingRecipe = null;
+
+    // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
+    // Let's count IDs in slots
+    const slotCounts = {};
+    slotsIds.forEach(id => { slotCounts[id] = (slotCounts[id] || 0) + 1; });
+
+    if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
+        for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
+            if (!recetaData.ingredientes) continue;
+
+            // create a map of req ingredients
+            const reqCounts = {};
+            recetaData.ingredientes.forEach(ing => {
+                reqCounts[ing.id_item] = (reqCounts[ing.id_item] || 0) + parseInt(ing.cantidad);
+            });
+
+            // Compare only IDs, not quantities. The recipe is a match if the unique IDs in the slots exactly match the unique IDs required by the recipe.
+            let isMatch = true;
+            const reqKeys = Object.keys(reqCounts);
+            const slotKeys = Object.keys(slotCounts);
+
+            if (reqKeys.length !== slotKeys.length) continue;
+
+            for (let key of reqKeys) {
+                if (!slotCounts[key]) {
+                    isMatch = false;
+                    break;
+                }
+            }
+
+            if (isMatch) {
+                matchingRecipeId = recetaId;
+                matchingRecipe = recetaData;
+                break;
+            }
+        }
+    }
+    return { matchingRecipeId, matchingRecipe };
+}
+
 window.validarMesaCraft = function() {
     try {
         const slotsIds = [];
@@ -1315,46 +1397,19 @@ window.validarMesaCraft = function() {
 
         const previewSlot = document.getElementById('craft-result-preview');
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
-
-        let matchingRecipeId = null;
-        let matchingRecipe = null;
-
-        // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
-        // Let's count IDs in slots
-        const slotCounts = {};
-        slotsIds.forEach(id => { slotCounts[id] = (slotCounts[id] || 0) + 1; });
-
-        if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
-            for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
-                if (!recetaData.ingredientes) continue;
-
-                // create a map of req ingredients
-                const reqCounts = {};
-                recetaData.ingredientes.forEach(ing => {
-                    reqCounts[ing.id_item] = (reqCounts[ing.id_item] || 0) + parseInt(ing.cantidad);
-                });
-
-                // Compare only IDs, not quantities. The recipe is a match if the unique IDs in the slots exactly match the unique IDs required by the recipe.
-                let isMatch = true;
-                const reqKeys = Object.keys(reqCounts);
-                const slotKeys = Object.keys(slotCounts);
-
-                if (reqKeys.length !== slotKeys.length) continue;
-
-                for (let key of reqKeys) {
-                    if (!slotCounts[key]) {
-                        isMatch = false;
-                        break;
-                    }
-                }
-
-                if (isMatch) {
-                    matchingRecipeId = recetaId;
-                    matchingRecipe = recetaData;
-                    break;
-                }
+        const skillReqDisplay = document.getElementById('craft-skill-req') || (function() {
+            // Create a small display for required skill if it doesn't exist
+            if (fabricarBtn && fabricarBtn.parentElement) {
+                const div = document.createElement('div');
+                div.id = 'craft-skill-req';
+                div.style.cssText = 'color: #0df; font-size: 12px; margin-top: 5px; text-align: center; font-family: "ExcelsiorSans", sans-serif;';
+                fabricarBtn.parentElement.appendChild(div);
+                return div;
             }
-        }
+            return null;
+        })();
+
+        const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds);
 
         if (matchingRecipe) {
             window.currentSelectedRecetaId = matchingRecipeId;
@@ -1364,6 +1419,7 @@ window.validarMesaCraft = function() {
             let resultIconUrl = 'https://i.imgur.com/tHq85mJ.png'; // Fallback
             let resultItemName = 'Unknown Item';
             let resultTier = 1;
+            let resultDesc = '???';
 
             if (matchingRecipe.resultado && typeof window.dbItemsCacheGlobal !== 'undefined') {
                 const resItemDef = window.dbItemsCacheGlobal[matchingRecipe.resultado.id_item];
@@ -1371,6 +1427,7 @@ window.validarMesaCraft = function() {
                     resultIconUrl = resItemDef.url_imagen || resItemDef.url_icono || resultIconUrl;
                     resultItemName = resItemDef.nombre || resultItemName;
                     resultTier = resItemDef.tier || 1;
+                    resultDesc = resItemDef.descripcion || 'Sin descripción';
                 }
             }
 
@@ -1379,7 +1436,7 @@ window.validarMesaCraft = function() {
 
                 if (discovered) {
                     previewSlot.innerHTML = `
-                        <img src="${resultIconUrl}" class="craft-preview-img" title="${resultItemName}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
+                        <img src="${resultIconUrl}" class="craft-preview-img" title="${resultItemName}\n${resultDesc}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
                         <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
                     `;
                     previewSlot.classList.remove('silhouetted');
@@ -1399,6 +1456,15 @@ window.validarMesaCraft = function() {
                 fabricarBtn.style.opacity = '1';
                 fabricarBtn.style.cursor = 'pointer';
                 fabricarBtn.classList.remove('btn-apagado');
+
+                // Show required roll/skill on the button or near it
+                const habRequerida = matchingRecipe.habilidad || 'Ninguna';
+                const dcRequerido = matchingRecipe.dificultad || 0;
+
+                if (skillReqDisplay) {
+                    skillReqDisplay.innerText = `Requiere tirada de: ${habRequerida} (DC: ${dcRequerido})`;
+                    skillReqDisplay.style.display = 'block';
+                }
             }
 
             // Calculate max slider
@@ -1406,6 +1472,7 @@ window.validarMesaCraft = function() {
 
         } else {
             // No match
+            window.currentSelectedRecetaId = null;
             if (previewSlot) {
                 previewSlot.innerHTML = '';
                 previewSlot.style.filter = 'brightness(0) drop-shadow(0 0 5px rgba(0,221,255,0.5))';
@@ -1415,6 +1482,11 @@ window.validarMesaCraft = function() {
                 fabricarBtn.style.opacity = '0.5';
                 fabricarBtn.style.cursor = 'not-allowed';
                 fabricarBtn.classList.add('btn-apagado');
+                fabricarBtn.title = '';
+            }
+            if (skillReqDisplay) {
+                skillReqDisplay.style.display = 'none';
+                skillReqDisplay.innerText = '';
             }
             // Reset slider
             const slider = document.getElementById('craft-cantidad');
@@ -1498,6 +1570,66 @@ window.actualizarSliderCraft = function() {
 };
 
 
+window.calcularSlotsMaximos = function() {
+    try {
+        const currentPlayerData = window.datosJugador || {};
+        let tieneHerramienta = false;
+
+        // Check if player has an equipped tool
+        if (currentPlayerData.inventario) {
+            Object.values(currentPlayerData.inventario).forEach(item => {
+                if (item.equipado) {
+                    const globalData = dbItemsCacheGlobal[item.id] || dbItemsCacheGlobal[Object.keys(dbItemsCacheGlobal).find(g => dbItemsCacheGlobal[g].nombre === item.nombre)] || {};
+                    const etiquetas = item.etiquetas || globalData.etiquetas || [];
+                    const isHerramienta = etiquetas.some(t => t.toLowerCase() === 'herramienta') ||
+                                          (item.tipo && item.tipo.toLowerCase() === 'herramienta') ||
+                                          (globalData.tipo && globalData.tipo.toLowerCase() === 'herramienta');
+                    if (isHerramienta) tieneHerramienta = true;
+                }
+            });
+        }
+
+        const tipoMesaActual = 'mano'; // For now, assume "mano"
+        let maxSlots = 2;
+
+        if (tipoMesaActual === 'mano') {
+            maxSlots = tieneHerramienta ? 3 : 2;
+        } else {
+            maxSlots = tieneHerramienta ? 5 : 4;
+        }
+
+        for (let i = 1; i <= 5; i++) {
+            const slot = document.getElementById(`craft-slot-${i}`);
+            if (slot) {
+                if (i <= maxSlots) {
+                    slot.style.display = 'flex';
+                } else {
+                    slot.style.display = 'none';
+                    // Unslot item if hidden
+                    if (slot.classList.contains('has-item')) {
+                        slot.innerHTML = '';
+                        slot.classList.remove('has-item');
+
+                        // remove class from list item
+                        if (slot.dataset.linkedElId) {
+                            const linkedEl = document.querySelector(`[data-slot-link-id="${slot.dataset.linkedElId}"]`);
+                            if (linkedEl) {
+                                linkedEl.classList.remove('item-slotted');
+                                delete linkedEl.dataset.slotLinkId;
+                            }
+                        }
+
+                        delete slot.dataset.idItem;
+                        delete slot.dataset.linkedElId;
+                    }
+                }
+            }
+        }
+    } catch(e) {
+        console.error('Error calculating max slots:', e);
+    }
+};
+
 document.addEventListener('click', (e) => {
     const slot = e.target.closest('.craft-slot.ing-slot');
     if (slot && slot.classList.contains('has-item')) {
@@ -1505,6 +1637,17 @@ document.addEventListener('click', (e) => {
             slot.innerHTML = '';
             slot.classList.remove('has-item');
             delete slot.dataset.idItem;
+
+            // Remove item-slotted class from the linked list item
+            if (slot.dataset.linkedElId) {
+                const linkedEl = document.querySelector(`[data-slot-link-id="${slot.dataset.linkedElId}"]`);
+                if (linkedEl) {
+                    linkedEl.classList.remove('item-slotted');
+                    delete linkedEl.dataset.slotLinkId;
+                }
+                delete slot.dataset.linkedElId;
+            }
+
             if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
         } catch (err) {
             console.error('Error en slots:', err);
