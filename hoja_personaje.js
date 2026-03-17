@@ -1071,7 +1071,26 @@ window.renderRecetasCrafteo = function renderRecetasCrafteo() {
 
     // --- Helper function to handle item click ---
     const handleCraftItemClick = (item, itemEl, iconUrl) => {
-        if (itemEl.classList.contains('item-slotted')) return;
+        if (itemEl.classList.contains('item-slotted')) {
+            // Find the slot that has this item and remove it
+            const slotLinkId = itemEl.dataset.slotLinkId;
+            if (slotLinkId) {
+                for (let i = 1; i <= 5; i++) {
+                    const slot = document.getElementById(`craft-slot-${i}`);
+                    if (slot && slot.dataset.linkedElId === slotLinkId) {
+                        slot.innerHTML = '';
+                        slot.classList.remove('has-item');
+                        delete slot.dataset.idItem;
+                        delete slot.dataset.linkedElId;
+                        break;
+                    }
+                }
+            }
+            itemEl.classList.remove('item-slotted');
+            delete itemEl.dataset.slotLinkId;
+            if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+            return;
+        }
 
         try {
             // Find an empty slot
@@ -1221,6 +1240,48 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const cancelBtn = document.getElementById('btn-craft-cancelar');
         if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                window.limpiarVisorCrafteo();
+
+                // Clear selection in recipe list
+                const listaRecetas = document.getElementById('craft-recetas');
+                if (listaRecetas) {
+                    Array.from(listaRecetas.children).forEach(c => {
+                        c.style.borderColor = c.innerHTML.includes('brightness(0)') ? '#222' : '#444';
+                        c.style.background = '#1a1a1a';
+                    });
+                }
+            });
+        }
+
+        // Add slot click to remove
+        for (let i = 1; i <= 5; i++) {
+            const slot = document.getElementById(`craft-slot-${i}`);
+            if (slot) {
+                slot.addEventListener('click', function() {
+                    if (this.classList.contains('has-item')) {
+                        // Find linked inventory item
+                        if (this.dataset.linkedElId) {
+                            const lists = [document.getElementById('craft-alijo'), document.getElementById('craft-activo')];
+                            lists.forEach(list => {
+                                if (list) {
+                                    const linkedItem = list.querySelector(`[data-slot-link-id="${this.dataset.linkedElId}"]`);
+                                    if (linkedItem) {
+                                        linkedItem.classList.remove('item-slotted');
+                                        delete linkedItem.dataset.slotLinkId;
+                                    }
+                                }
+                            });
+                        }
+                        this.innerHTML = '';
+                        this.classList.remove('has-item');
+                        delete this.dataset.idItem;
+                        delete this.dataset.linkedElId;
+                        if (typeof window.validarMesaCraft === 'function') window.validarMesaCraft();
+                    }
+                });
+            }
+        }
 
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
         if (fabricarBtn) {
@@ -1325,19 +1386,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-            cancelBtn.addEventListener('click', () => {
-                limpiarVisorCrafteo();
-
-                // Clear selection in recipe list
-                const listaRecetas = document.getElementById('craft-recetas');
-                if (listaRecetas) {
-                    Array.from(listaRecetas.children).forEach(c => {
-                        c.style.borderColor = c.innerHTML.includes('brightness(0)') ? '#222' : '#444';
-                        c.style.background = '#1a1a1a';
-                    });
-                }
-            });
-        }
     }, 1500);
 });
 
@@ -1362,10 +1410,13 @@ window.verificarRecetaOculta = function(slotsIds) {
             });
 
             // Compare only IDs, not quantities. The recipe is a match if the unique IDs in the slots exactly match the unique IDs required by the recipe.
+            // Also, we must ensure there are no extra items in the slots that are not in the recipe.
             let isMatch = true;
             const reqKeys = Object.keys(reqCounts);
             const slotKeys = Object.keys(slotCounts);
 
+            // A match only occurs if the required unique items count equals the slotted unique items count, and all required keys exist in slots.
+            // This ensures empty slots are simply ignored (they aren't in slotsIds).
             if (reqKeys.length !== slotKeys.length) continue;
 
             for (let key of reqKeys) {
