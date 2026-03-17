@@ -1754,18 +1754,39 @@ function limpiarVisorCrafteo() {
         resultPreview.innerHTML = '';
         resultPreview.style.backgroundImage = 'none';
         resultPreview.style.filter = 'none';
+        resultPreview.classList.remove('silhouetted');
     }
 
     for (let i = 1; i <= 5; i++) {
         const slot = document.getElementById(`craft-slot-${i}`);
         if (slot) {
+            // Remove item-slotted class from the linked list item
+            if (slot.dataset.linkedElId) {
+                const lists = [document.getElementById('craft-alijo'), document.getElementById('craft-activo')];
+                lists.forEach(list => {
+                    if (list) {
+                        const linkedItem = list.querySelector(`[data-slot-link-id="${slot.dataset.linkedElId}"]`);
+                        if (linkedItem) {
+                            linkedItem.classList.remove('item-slotted');
+                            delete linkedItem.dataset.slotLinkId;
+                        }
+                    }
+                });
+            }
+
             slot.innerHTML = '';
             slot.style.backgroundImage = 'none';
-            slot.classList.remove('has-item', 'missing-item');
+            slot.classList.remove('has-item', 'missing-item', 'active-recipe');
             slot.style.border = '2px solid rgba(0, 255, 255, 0.3)';
+            delete slot.dataset.idItem;
+            delete slot.dataset.linkedElId;
         }
     }
 
+    window.ingredientesSeleccionados = [];
+    window.itemResultado = null;
+    window.recetaEncontrada = null;
+    window.currentSelectedRecetaId = null;
     currentSelectedRecetaId = null;
 
     const skillReqDisplay = document.getElementById('craft-skill-req');
@@ -1788,6 +1809,7 @@ function limpiarVisorCrafteo() {
         fabricarBtn.disabled = true;
     }
 }
+
 
 function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, resultItemName, resultTier) {
     currentSelectedRecetaId = idReceta;
