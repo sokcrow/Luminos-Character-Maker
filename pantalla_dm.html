@@ -1016,6 +1016,11 @@
       <span id="theatre-location-text">Unknown Location</span>
     </div>
 
+    <!-- Theatre Log Container -->
+    <div id="theatre-log-container" style="position: absolute; top: 120px; left: 40px; width: 300px; max-height: 400px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 4px; overflow-y: auto; padding: 10px; font-size: 13px; color: #ccc; z-index: 2010; display: flex; flex-direction: column; gap: 5px;">
+      <!-- Log items injected here -->
+    </div>
+
     <!-- Exit Button for DM -->
     <button id="btn-exit-theatre" style="position: absolute; top: 20px; right: 20px; background: #8b0000; color: #fff; border: 1px solid #ff0000; padding: 10px 20px; border-radius: 4px; cursor: pointer; z-index: 2010; font-weight: bold;">SALIR DEL TEATRO</button>
 
@@ -1064,6 +1069,10 @@
           <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #0df;">
             Max Sprites:
             <input type="number" id="dm-theatre-max-sprites" value="4" min="1" max="10" style="width: 50px; padding: 4px; background: #111; color: #fff; border: 1px solid #444; border-radius: 4px; text-align: center;" />
+          </label>
+
+          <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #0df; cursor: pointer;">
+            <input type="checkbox" id="dm-theatre-continuous" /> MODO CONTINUO
           </label>
         </div>
 
@@ -3545,6 +3554,20 @@
 
     // --- LÓGICA DEL TEATRO (MODO DIRECTOR) ---
 
+    let isTheatreContinuous = false;
+    let continuousTimeout = null;
+
+    function iniciarAvanceContinuo() {
+        // the children check here was failing because the queue container always has children (or we might be advancing before rendering). Let's use queueItems length if possible, or just the queue container. But queueItems might not be in scope here. Let's use a simpler check:
+        if (isTheatreContinuous) {
+            if (continuousTimeout) clearTimeout(continuousTimeout);
+            continuousTimeout = setTimeout(() => {
+                const btn = document.getElementById('btn-theatre-avanzar');
+                if (btn) btn.click();
+            }, 10000);
+        }
+    }
+
     // Toggle Exit
     document.getElementById('btn-exit-theatre').addEventListener('click', () => {
       document.getElementById('theatre-view-dm').style.display = 'none';
@@ -3567,6 +3590,19 @@
     document.getElementById('dm-theatre-max-sprites').addEventListener('change', (e) => {
         const val = parseInt(e.target.value) || 4;
         db.ref('campaña/teatro').update({ max_sprites: val });
+    });
+
+    // Continuous Mode Toggle
+    document.getElementById('dm-theatre-continuous').addEventListener('change', (e) => {
+        db.ref('campaña/teatro').update({ continuo: e.target.checked });
+    });
+
+    // Listen to Continuous Mode
+    db.ref('campaña/teatro/continuo').on('value', (snap) => {
+        const continuo = snap.val();
+        isTheatreContinuous = !!continuo;
+        const cb = document.getElementById('dm-theatre-continuous');
+        if (cb) cb.checked = isTheatreContinuous;
     });
 
     // Desbloquear Alijo (Stash) a Jugadores
@@ -3611,6 +3647,23 @@
         const bg = snap.val();
         const view = document.getElementById('theatre-view-dm');
         if (view && bg) view.style.backgroundImage = `url('${bg}')`;
+    });
+
+    // Listen to Log
+    db.ref('campaña/teatro/log').limitToLast(20).on('value', (snap) => {
+        const logContainer = document.getElementById('theatre-log-container');
+        if (!logContainer) return;
+        logContainer.innerHTML = '';
+        const logs = snap.val();
+        if (logs) {
+            for (const [key, msg] of Object.entries(logs)) {
+                const item = document.createElement('div');
+                item.style.marginBottom = '4px';
+                item.innerHTML = `<strong style="color: ${msg.color_nombre || '#fff'}">${msg.nombre}:</strong> ${msg.mensaje}`;
+                logContainer.appendChild(item);
+            }
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
     });
 
     // --- Escenario / Active Roster Logic ---
@@ -3833,8 +3886,11 @@
                 if (charIndex >= fullText.length) {
                     clearInterval(textBox.typewriterInterval);
                     textBox.typewriterInterval = null;
+                    iniciarAvanceContinuo();
                 }
             }, 30); // 30ms per character
+        } else {
+            iniciarAvanceContinuo();
         }
 
         // Manage Sprites on Stage
@@ -3913,8 +3969,14 @@
         });
     });
 
+    // Stop continuous advance on DM input
+    document.getElementById('dm-theatre-input').addEventListener('input', () => {
+        if (continuousTimeout) clearTimeout(continuousTimeout);
+    });
+
     // Entrar a Escena / Avanzar
     document.getElementById('btn-theatre-avanzar').addEventListener('click', () => {
+        if (continuousTimeout) clearTimeout(continuousTimeout);
         const dmInput = document.getElementById('dm-theatre-input').value.trim();
         const selectedNpcId = activeSpeakerId;
 
@@ -3954,6 +4016,9 @@
 
             if (state) {
                 db.ref('campaña/teatro/estado_actual').set(state);
+                if (state.mensaje) {
+                    db.ref('campaña/teatro/log').push(state);
+                }
                 document.getElementById('dm-theatre-input').value = ''; // clear input
                 return;
             }
@@ -3975,6 +4040,9 @@
 
             // Push to current state
             db.ref('campaña/teatro/estado_actual').set(state).then(() => {
+                if (state.mensaje) {
+                    db.ref('campaña/teatro/log').push(state);
+                }
                 // Remove from queue
                 db.ref(`campaña/teatro/cola/${nextItem.key}`).remove();
             });
