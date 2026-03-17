@@ -1494,10 +1494,10 @@ window.validarMesaCraft = function() {
                     previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
                 } else {
                     previewSlot.innerHTML = `
-                        <img src="${resultIconUrl}" class="craft-preview-img silhouetted" title="???" style="width: 100%; height: 100%; object-fit: contain; filter: brightness(0); pointer-events: none;">
+                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #111; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #888;" title="???">?</div>
                         <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
                     `;
-                    previewSlot.classList.add('silhouetted');
+                    previewSlot.classList.remove('silhouetted');
                     previewSlot.style.filter = 'none';
                 }
             }
@@ -1720,8 +1720,19 @@ function limpiarVisorCrafteo() {
             slot.style.backgroundImage = 'none';
             slot.classList.remove('has-item', 'missing-item');
             slot.style.border = '2px solid rgba(0, 255, 255, 0.3)';
+            delete slot.dataset.idItem;
+            delete slot.dataset.linkedElId;
         }
     }
+
+    document.querySelectorAll('.item-slotted').forEach(el => {
+        el.classList.remove('item-slotted');
+        delete el.dataset.slotLinkId;
+    });
+
+    window.ingredientesSeleccionados = [];
+    window.itemResultado = null;
+    window.recetaEncontrada = false;
 
     currentSelectedRecetaId = null;
 
@@ -1802,7 +1813,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
     // Configurar Botón Fabricar
     const fabricarBtn = document.getElementById('btn-craft-fabricar');
     if (fabricarBtn) {
-        if (canCraft && isDiscovered) {
+        if (canCraft) {
             fabricarBtn.style.opacity = '1';
             fabricarBtn.style.cursor = 'pointer';
             fabricarBtn.disabled = false;
