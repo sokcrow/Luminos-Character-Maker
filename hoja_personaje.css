@@ -6858,7 +6858,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     */
     transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--radius)) rotate(calc(-1 * var(--angle)));
 
-    /* Hazard stripe border for that industrial/Limbus look */
+    /* Default border */
+    border: 2px solid #555;
+    background-color: #222;
+    background-image: none;
+}
+
+/* Hazard stripe border for that industrial/Limbus look when active */
+.craft-slot.ing-slot.active-recipe {
     border: 2px solid transparent;
     background-image: linear-gradient(#222, #222), repeating-linear-gradient(45deg, #ffaa00, #ffaa00 10px, #222 10px, #222 20px);
     background-origin: border-box;
