@@ -4076,6 +4076,7 @@
             <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
             <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
             <button class="inv-tab-btn" data-tab="inv-crafting">Mesa de Trabajo</button>
+            <button class="inv-tab-btn" data-tab="inv-equip">Equipamiento</button>
         </div>
 
         <div class="inventory-body-wrapper">
@@ -4100,6 +4101,54 @@
                     </div>
                     <div class="inv-grid" id="inv-stash-grid">
                         <!-- Items injectados via JS -->
+                    </div>
+                </div>
+
+                <div class="inventory-tab-content" id="inv-equip" style="height: 100%; width: 100%;">
+                    <div class="equip-container">
+                        <div class="equip-header">
+                            <h2 style="color: var(--cyan-tech); text-transform: uppercase; margin: 0;">Equipamiento</h2>
+                            <div id="equip-warning" style="color: #ff4444; font-family: 'Mikodacs', sans-serif; font-size: 14px; font-weight: bold; text-shadow: 0 0 5px #ff0000; display: none;">Warning</div>
+                        </div>
+                        <div class="equip-paper-doll">
+                            <!-- Torso -->
+                            <div class="equip-slot equip-torso" id="equip-slot-torso" data-slot="torso">
+                                <div class="equip-slot-label">TORSO</div>
+                                <div class="equip-slot-content"></div>
+                            </div>
+
+                            <!-- Hands -->
+                            <div class="equip-hands-row">
+                                <div class="equip-slot equip-mainhand" id="equip-slot-mainhand" data-slot="mainhand">
+                                    <div class="equip-slot-label">MANO PRINCIPAL</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                                <div class="equip-slot equip-offhand" id="equip-slot-offhand" data-slot="offhand">
+                                    <div class="equip-slot-label">MANO SECUNDARIA</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                            </div>
+
+                            <!-- Accessories -->
+                            <div class="equip-acc-row">
+                                <div class="equip-slot equip-acc" id="equip-slot-acc1" data-slot="acc1">
+                                    <div class="equip-slot-label">ACC 1</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                                <div class="equip-slot equip-acc" id="equip-slot-acc2" data-slot="acc2">
+                                    <div class="equip-slot-label">ACC 2</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                                <div class="equip-slot equip-acc" id="equip-slot-acc3" data-slot="acc3">
+                                    <div class="equip-slot-label">ACC 3</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                                <div class="equip-slot equip-acc" id="equip-slot-acc4" data-slot="acc4">
+                                    <div class="equip-slot-label">ACC 4</div>
+                                    <div class="equip-slot-content"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
