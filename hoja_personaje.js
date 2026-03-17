@@ -1286,9 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
         if (fabricarBtn) {
             fabricarBtn.addEventListener('click', () => {
-                if (fabricarBtn.disabled || !window.currentSelectedRecetaId) return;
+                if (fabricarBtn.disabled || !window.currentSelectedRecetaId || !window.recetaEncontrada) return;
 
-                const receta = window.recetasCache[window.currentSelectedRecetaId];
+                const receta = window.recetaEncontrada;
                 if (!receta) return;
 
                 const currentPlayerData = window.datosJugador || {};
@@ -1441,8 +1441,12 @@ window.validarMesaCraft = function() {
         const slotsIds = [];
         for (let i = 1; i <= 5; i++) {
             const slot = document.getElementById(`craft-slot-${i}`);
-            if (slot && slot.classList.contains('has-item') && slot.dataset.idItem) {
-                slotsIds.push(slot.dataset.idItem);
+            if (slot) {
+                slot.classList.remove('active-recipe'); // Reset yellow border class
+                slot.style.border = ''; // Clean up any inline borders left behind from previous code
+                if (slot.classList.contains('has-item') && slot.dataset.idItem) {
+                    slotsIds.push(slot.dataset.idItem);
+                }
             }
         }
 
@@ -1464,6 +1468,17 @@ window.validarMesaCraft = function() {
 
         if (matchingRecipe) {
             window.currentSelectedRecetaId = matchingRecipeId;
+            window.recetaEncontrada = matchingRecipe;
+
+            // Highlight slots that are part of the recipe
+            for (let i = 1; i <= 5; i++) {
+                const slot = document.getElementById(`craft-slot-${i}`);
+                if (slot && slot.classList.contains('has-item') && slot.dataset.idItem) {
+                    slot.classList.add('active-recipe');
+                    slot.style.border = '';
+                }
+            }
+
             const currentPlayerData = window.datosJugador || {};
             const discovered = currentPlayerData.recetas_aprendidas && currentPlayerData.recetas_aprendidas[matchingRecipeId];
 
@@ -1494,10 +1509,10 @@ window.validarMesaCraft = function() {
                     previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
                 } else {
                     previewSlot.innerHTML = `
-                        <div style="width: 100%; height: 100%; border-radius: 50%; background: #111; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #888;" title="???">?</div>
+                        <img src="${resultIconUrl}" class="craft-preview-img" title="???" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: brightness(0) drop-shadow(0 0 5px red);">
                         <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
                     `;
-                    previewSlot.classList.remove('silhouetted');
+                    previewSlot.classList.add('silhouetted');
                     previewSlot.style.filter = 'none';
                 }
             }
@@ -1711,6 +1726,7 @@ function limpiarVisorCrafteo() {
     if (resultPreview) {
         resultPreview.innerHTML = '';
         resultPreview.style.backgroundImage = 'none';
+        resultPreview.style.filter = 'none';
     }
 
     for (let i = 1; i <= 5; i++) {
@@ -1718,8 +1734,8 @@ function limpiarVisorCrafteo() {
         if (slot) {
             slot.innerHTML = '';
             slot.style.backgroundImage = 'none';
-            slot.classList.remove('has-item', 'missing-item');
-            slot.style.border = '2px solid rgba(0, 255, 255, 0.3)';
+            slot.classList.remove('has-item', 'missing-item', 'active-recipe');
+            slot.style.border = '';
             delete slot.dataset.idItem;
             delete slot.dataset.linkedElId;
         }
@@ -1732,9 +1748,23 @@ function limpiarVisorCrafteo() {
 
     window.ingredientesSeleccionados = [];
     window.itemResultado = null;
-    window.recetaEncontrada = false;
+    window.recetaEncontrada = null;
+    window.currentSelectedRecetaId = null;
 
     currentSelectedRecetaId = null;
+
+    const skillReqDisplay = document.getElementById('craft-skill-req');
+    if (skillReqDisplay) {
+        skillReqDisplay.style.display = 'none';
+        skillReqDisplay.innerText = '';
+    }
+
+    const slider = document.getElementById('craft-cantidad');
+    const display = document.getElementById('craft-cantidad-display');
+    const warning = document.getElementById('craft-warning');
+    if (slider) { slider.value = 1; slider.max = 1; slider.disabled = true; }
+    if (display) { display.innerText = '1'; }
+    if (warning) { warning.style.display = 'none'; }
 
     const fabricarBtn = document.getElementById('btn-craft-fabricar');
     if (fabricarBtn) {
@@ -1759,7 +1789,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
         }
 
         resultPreview.innerHTML = `
-            <div style="width: 100%; height: 100%; border-radius: 50%; background: url('${resultIconUrl}') center/cover; filter: ${isDiscovered ? 'none' : 'brightness(0)'};"></div>
+            <div style="width: 100%; height: 100%; border-radius: 50%; background: url('${resultIconUrl}') center/cover; filter: ${isDiscovered ? 'none' : 'brightness(0) drop-shadow(0 0 5px red)'};"></div>
             ${resultTierStr}
             ${isDiscovered ? `<div style="position: absolute; bottom: -20px; text-align: center; color: #fff; font-family: 'Mikodacs', sans-serif; font-size: 14px; width: 200px; left: -60px; text-shadow: 1px 1px 2px #000;">${resultItemName}</div>` : ''}
         `;
@@ -1803,9 +1833,13 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
                     ${ingTierStr}
                     <div style="position: absolute; bottom: -5px; right: -5px; background: #000; color: ${hasEnough ? '#0df' : '#f44'}; border: 1px solid ${hasEnough ? '#0df' : '#f44'}; border-radius: 10px; padding: 0 4px; font-family: monospace; font-size: 10px; z-index: 10;">${ownedQty}/${ing.cantidad}</div>
                 `;
-                slot.style.border = `2px solid ${hasEnough ? 'var(--cyan-tech)' : '#f44'}`;
-                if (!hasEnough) slot.classList.add('missing-item');
-                else slot.classList.add('has-item');
+                slot.style.border = ''; // Clean up inline border
+                if (!hasEnough) {
+                    slot.classList.add('missing-item');
+                    slot.style.border = '2px solid #f44';
+                } else {
+                    slot.classList.add('has-item', 'active-recipe');
+                }
             }
         }
     }
@@ -1834,8 +1868,8 @@ function limpiarSlotsIngredientes() {
         if (slot) {
             slot.innerHTML = '';
             slot.style.backgroundImage = 'none';
-            slot.classList.remove('has-item', 'missing-item');
-            slot.style.border = '2px solid rgba(0, 255, 255, 0.3)';
+            slot.classList.remove('has-item', 'missing-item', 'active-recipe');
+            slot.style.border = '';
         }
     }
 }
@@ -2827,6 +2861,9 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
 
         firebase.database().ref().update(updates).then(() => {
             console.log("Crafteo terminado.");
+            if (exito && typeof window.limpiarVisorCrafteo === 'function') {
+                window.limpiarVisorCrafteo();
+            }
         }).catch(err => console.error("Error updates:", err));
 
     } catch(e) { console.error('Error in ejecutarSintesisDin:', e); }
