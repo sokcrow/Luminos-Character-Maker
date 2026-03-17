@@ -4693,48 +4693,53 @@
   const inputEl = document.getElementById('player-theatre-input');
 
 function sendTheatreMessage(msgText) {
-    const actorSelect = document.getElementById('player-actor-select');
-    const selectedActorId = actorSelect ? actorSelect.value : 'base'; // LEE EL ACTOR ID
-    
-    let actorParaEnviar;
+    try {
+        const actorSelect = document.getElementById('player-actor-select');
+        const assignedActorId = window.datosJugador ? window.datosJugador.actorId : null;
+        let selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base'); // LEE EL ACTOR ID ASIGNADO O DEL SELECT
+        
+        let actorParaEnviar;
 
-    // ¿Eligió un Actor ID válido de la lista?
-    if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
-        actorParaEnviar = window.actoresJugador[selectedActorId];
-    } else {
-        // Fallback al personaje base
-        const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
-        actorParaEnviar = {
-            nombre: nombreBase,
-            titulo: "",
-            color_nombre: "#ffffff",
-            color_titulo: "#aaaaaa",
-            escala: 1.0,
-            sprite: "https://i.imgur.com/Z8N4rG9.png"
+        // ¿Eligió un Actor ID válido de la lista o está asignado?
+        if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+            actorParaEnviar = window.actoresJugador[selectedActorId];
+        } else {
+            // Fallback al personaje base
+            const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
+            actorParaEnviar = {
+                nombre: nombreBase,
+                titulo: "",
+                color_nombre: "#ffffff",
+                color_titulo: "#aaaaaa",
+                escala: 1.0,
+                sprite: "https://i.imgur.com/Z8N4rG9.png"
+            };
+        }
+
+        // Leer la cara seleccionada
+        const selectExp = document.getElementById('player-expression-select');
+        const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value) 
+                                ? selectExp.value 
+                                : actorParaEnviar.sprite;
+
+        const payload = {
+            nombre: actorParaEnviar.nombre || "Desconocido",
+            titulo: actorParaEnviar.titulo || "",
+            color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+            color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+            escala: actorParaEnviar.escala !== undefined ? actorParaEnviar.escala : 1.0,
+            sprite: selectedSprite || actorParaEnviar.sprite,
+            mensaje: msgText,
+            timestamp: Date.now()
         };
+
+        const inputEl = document.getElementById('player-theatre-input');
+        db.ref('campaña/teatro/cola').push(payload).then(() => {
+            if (inputEl) inputEl.value = '';
+        }).catch(e => console.error("Error enviando mensaje:", e));
+    } catch (err) {
+        console.error("Error in sendTheatreMessage:", err);
     }
-
-    // Leer la cara seleccionada
-    const selectExp = document.getElementById('player-expression-select');
-    const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value) 
-                            ? selectExp.value 
-                            : actorParaEnviar.sprite;
-
-    const payload = {
-        nombre: actorParaEnviar.nombre || "Desconocido",
-        titulo: actorParaEnviar.titulo || "",
-        color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-        color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
-        escala: actorParaEnviar.escala !== undefined ? actorParaEnviar.escala : 1.0,
-        sprite: selectedSprite || actorParaEnviar.sprite,
-        mensaje: msgText,
-        timestamp: Date.now()
-    };
-
-    const inputEl = document.getElementById('player-theatre-input');
-    db.ref('campaña/teatro/cola').push(payload).then(() => {
-        if (inputEl) inputEl.value = '';
-    }).catch(e => console.error("Error enviando mensaje:", e));
 }
 
   if (btnSend && inputEl) {
