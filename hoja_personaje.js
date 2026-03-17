@@ -1340,92 +1340,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const slider = document.getElementById('craft-cantidad');
                 const cantidadFabricar = slider ? parseInt(slider.value) || 1 : 1;
 
-                // Obtener Variables
-                const dc = parseInt(receta.dc) || 10;
-                const habilidadReq = receta.habilidad ? receta.habilidad.toLowerCase() : 'mente';
-                let skillMod = 0;
-                if (currentPlayerData.modifiers && currentPlayerData.modifiers[habilidadReq] !== undefined) {
-                    skillMod = parseInt(currentPlayerData.modifiers[habilidadReq]);
-                } else if (currentPlayerData.baseStats && currentPlayerData.baseStats[habilidadReq] !== undefined) {
-                    skillMod = parseInt(currentPlayerData.baseStats[habilidadReq]);
-                }
+                const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim() || 'Jugador';
 
-                let spValue = 0;
-                if (currentPlayerData.attributes && currentPlayerData.attributes.sp !== undefined) {
-                    spValue = parseInt(currentPlayerData.attributes.sp);
-                }
-                let probCara = 50 + spValue;
-                if (probCara < 5) probCara = 5;
-                if (probCara > 95) probCara = 95;
+                // Determinar destino dinámico
+                const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
+                const destination = isAlijoActive ? 'inventario_stash' : 'inventario';
 
-                // Disparar la función del panel flotante de monedas
-                const coinTossPanel = document.getElementById('coin-toss-panel');
-                const coinTossSkillName = document.getElementById('coin-toss-skill-name');
-                const coinContainer = document.getElementById('coin-toss-coins-container');
-                const totalResultText = document.getElementById('coin-toss-total-result');
-
-                if (coinTossPanel && coinTossSkillName && coinContainer && totalResultText) {
-                    coinTossPanel.style.display = 'flex';
-                    coinTossSkillName.innerText = `Crafteo: ${habilidadReq.toUpperCase()} vs DC ${dc}`;
-                    coinContainer.innerHTML = '';
-                    totalResultText.innerText = '...';
-
-                    let caras = 0;
-                    let animationTimeouts = [];
-
-                    for (let i = 0; i < 5; i++) {
-                        const isHeads = (Math.random() * 100) < probCara;
-                        if (isHeads) caras++;
-
-                        const img = document.createElement('img');
-                        img.src = "https://i.imgur.com/yshLPnQ.png"; // base coin
-                        img.className = "coin-img";
-                        img.style.width = "40px";
-                        img.style.height = "40px";
-                        coinContainer.appendChild(img);
-
-                        // Animate
-                        const to1 = setTimeout(() => {
-                            img.style.transform = "scaleY(0)";
-                        }, 100 + (i * 200));
-
-                        const to2 = setTimeout(() => {
-                            img.src = isHeads ? "https://i.imgur.com/yshLPnQ.png" : "https://i.imgur.com/5uKjL5U.png";
-                            img.style.transform = "scaleY(1)";
-                            if (isHeads) {
-                                img.style.filter = "drop-shadow(0 0 5px gold)";
-                            } else {
-                                img.style.filter = "grayscale(1) brightness(0.5)";
-                            }
-                        }, 250 + (i * 200));
-                        animationTimeouts.push(to1, to2);
-                    }
-
-                    const to3 = setTimeout(() => {
-                        const total = (caras * 3) + skillMod;
-                        totalResultText.innerText = total;
-                        totalResultText.style.color = (total >= dc) ? "var(--green-success)" : "var(--red-neon)";
-
-                        const rollInfo = { total, caras, skillMod };
-                        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
-
-                        // Determinar destino dinámico
-                        const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
-                        const destination = isAlijoActive ? 'inventario_stash' : 'inventario';
-
-                        setTimeout(() => {
-                            if (total >= dc) {
-                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, true, rollInfo, destination);
-                            } else {
-                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, false, rollInfo, destination);
-                            }
-                            limpiarVisorCrafteo();
-                        }, 1500); // 1.5 secs after result is shown
-
-                    }, 250 + (5 * 200));
-                    animationTimeouts.push(to3);
-
-                }
+                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, destination);
             });
         }
     }, 1500);
@@ -1514,18 +1435,6 @@ window.validarMesaCraft = function() {
 
         const previewSlot = document.getElementById('craft-result-preview');
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
-        const skillReqDisplay = document.getElementById('craft-skill-req') || (function() {
-            // Create a small display for required skill if it doesn't exist
-            if (fabricarBtn && fabricarBtn.parentElement) {
-                const div = document.createElement('div');
-                div.id = 'craft-skill-req';
-                div.style.cssText = 'color: #0df; font-size: 12px; margin-top: 5px; text-align: center; font-family: "ExcelsiorSans", sans-serif;';
-                fabricarBtn.parentElement.appendChild(div);
-                return div;
-            }
-            return null;
-        })();
-
         const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds, slotsNames);
 
         if (matchingRecipe) {
@@ -1540,9 +1449,6 @@ window.validarMesaCraft = function() {
                     slot.style.border = '';
                 }
             }
-
-            const currentPlayerData = window.datosJugador || {};
-            const discovered = currentPlayerData.recetas_aprendidas && currentPlayerData.recetas_aprendidas[matchingRecipeId];
 
             let resultIconUrl = 'https://i.imgur.com/tHq85mJ.png'; // Fallback
             let resultItemName = 'Unknown Item';
@@ -1562,21 +1468,12 @@ window.validarMesaCraft = function() {
             if (previewSlot) {
                 const romanTier = ["I","II","III","IV","V","VI","VII","VIII","IX","X"][resultTier - 1] || "I";
 
-                if (discovered) {
-                    previewSlot.innerHTML = `
-                        <img src="${resultIconUrl}" class="craft-preview-img" title="${resultItemName}\n${resultDesc}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
-                        <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
-                    `;
-                    previewSlot.classList.remove('silhouetted');
-                    previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
-                } else {
-                    previewSlot.innerHTML = `
-                        <img src="${resultIconUrl}" class="craft-preview-img silhouetted" title="???" style="width: 100%; height: 100%; object-fit: contain; filter: brightness(0); pointer-events: none;">
-                        <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
-                    `;
-                    previewSlot.classList.add('silhouetted');
-                    previewSlot.style.filter = 'none';
-                }
+                previewSlot.innerHTML = `
+                    <img src="${resultIconUrl}" class="craft-preview-img" title="${resultItemName}\n${resultDesc}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
+                    <div class="item-tier-indicator tier-color-${resultTier}">${romanTier}</div>
+                `;
+                previewSlot.classList.remove('silhouetted');
+                previewSlot.style.filter = 'drop-shadow(0 0 5px rgba(0, 255, 255, 0.8))';
             }
 
             if (fabricarBtn) {
@@ -1584,15 +1481,6 @@ window.validarMesaCraft = function() {
                 fabricarBtn.style.opacity = '1';
                 fabricarBtn.style.cursor = 'pointer';
                 fabricarBtn.classList.remove('btn-apagado');
-
-                // Show required roll/skill on the button or near it
-                const habRequerida = matchingRecipe.habilidad || 'Ninguna';
-                const dcRequerido = matchingRecipe.dificultad || 0;
-
-                if (skillReqDisplay) {
-                    skillReqDisplay.innerText = `Requiere tirada de: ${habRequerida} (DC: ${dcRequerido})`;
-                    skillReqDisplay.style.display = 'block';
-                }
             }
 
             // Calculate max slider
@@ -2854,7 +2742,7 @@ document.addEventListener('input', (e) => {
     }
 });
 
-window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito, rollInfo, destKey) {
+window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, destKey) {
     try {
         const playerId = localStorage.getItem('playerId');
         if (!playerId) return;
@@ -2868,11 +2756,6 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
         if (receta.ingredientes) {
             receta.ingredientes.forEach(ing => {
                 let required = ing.cantidad * multi;
-                if (!exito) {
-                    // Si Fracaso: Descuenta materiales al azar como penalización y no entregues nada.
-                    // penalty: 1 to 2 items
-                    required = Math.floor(Math.random() * 2) + 1;
-                }
 
                 // Search in both inventario_stash and inventario
                 const searchPaths = [
@@ -2897,7 +2780,7 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
             });
         }
 
-        if (exito && receta.item_resultado) {
+        if (receta.item_resultado) {
             const newKey = firebase.database().ref().child(destPath).push().key;
             const resDef = window.dbItemsCacheGlobal ? window.dbItemsCacheGlobal[receta.item_resultado] : null;
 
@@ -2945,7 +2828,7 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, exito,
 
         firebase.database().ref().update(updates).then(() => {
             console.log("Crafteo terminado.");
-            if (exito && typeof window.limpiarVisorCrafteo === 'function') {
+            if (typeof window.limpiarVisorCrafteo === 'function') {
                 window.limpiarVisorCrafteo();
             }
         }).catch(err => console.error("Error updates:", err));

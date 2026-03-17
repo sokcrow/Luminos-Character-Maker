@@ -1,0 +1,99 @@
+<<<<<<< SEARCH
+                // Obtener Variables
+                const dc = parseInt(receta.dc) || 10;
+                const habilidadReq = receta.habilidad ? receta.habilidad.toLowerCase() : 'mente';
+                let skillMod = 0;
+                if (currentPlayerData.modifiers && currentPlayerData.modifiers[habilidadReq] !== undefined) {
+                    skillMod = parseInt(currentPlayerData.modifiers[habilidadReq]);
+                } else if (currentPlayerData.baseStats && currentPlayerData.baseStats[habilidadReq] !== undefined) {
+                    skillMod = parseInt(currentPlayerData.baseStats[habilidadReq]);
+                }
+
+                let spValue = 0;
+                if (currentPlayerData.attributes && currentPlayerData.attributes.sp !== undefined) {
+                    spValue = parseInt(currentPlayerData.attributes.sp);
+                }
+                let probCara = 50 + spValue;
+                if (probCara < 5) probCara = 5;
+                if (probCara > 95) probCara = 95;
+
+                // Disparar la función del panel flotante de monedas
+                const coinTossPanel = document.getElementById('coin-toss-panel');
+                const coinTossSkillName = document.getElementById('coin-toss-skill-name');
+                const coinContainer = document.getElementById('coin-toss-coins-container');
+                const totalResultText = document.getElementById('coin-toss-total-result');
+
+                if (coinTossPanel && coinTossSkillName && coinContainer && totalResultText) {
+                    coinTossPanel.style.display = 'flex';
+                    coinTossSkillName.innerText = `Crafteo: ${habilidadReq.toUpperCase()} vs DC ${dc}`;
+                    coinContainer.innerHTML = '';
+                    totalResultText.innerText = '...';
+
+                    let caras = 0;
+                    let animationTimeouts = [];
+
+                    for (let i = 0; i < 5; i++) {
+                        const isHeads = (Math.random() * 100) < probCara;
+                        if (isHeads) caras++;
+
+                        const img = document.createElement('img');
+                        img.src = "https://i.imgur.com/yshLPnQ.png"; // base coin
+                        img.className = "coin-img";
+                        img.style.width = "40px";
+                        img.style.height = "40px";
+                        coinContainer.appendChild(img);
+
+                        // Animate
+                        const to1 = setTimeout(() => {
+                            img.style.transform = "scaleY(0)";
+                        }, 100 + (i * 200));
+
+                        const to2 = setTimeout(() => {
+                            img.src = isHeads ? "https://i.imgur.com/yshLPnQ.png" : "https://i.imgur.com/5uKjL5U.png";
+                            img.style.transform = "scaleY(1)";
+                            if (isHeads) {
+                                img.style.filter = "drop-shadow(0 0 5px gold)";
+                            } else {
+                                img.style.filter = "grayscale(1) brightness(0.5)";
+                            }
+                        }, 250 + (i * 200));
+                        animationTimeouts.push(to1, to2);
+                    }
+
+                    const to3 = setTimeout(() => {
+                        const total = (caras * 3) + skillMod;
+                        totalResultText.innerText = total;
+                        totalResultText.style.color = (total >= dc) ? "var(--green-success)" : "var(--red-neon)";
+
+                        const rollInfo = { total, caras, skillMod };
+                        const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+
+                        // Determinar destino dinámico
+                        const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
+                        const destination = isAlijoActive ? 'inventario_stash' : 'inventario';
+
+                        setTimeout(() => {
+                            if (total >= dc) {
+                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, true, rollInfo, destination);
+                            } else {
+                                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, false, rollInfo, destination);
+                            }
+                            limpiarVisorCrafteo();
+                        }, 1500); // 1.5 secs after result is shown
+
+                    }, 250 + (5 * 200));
+                    animationTimeouts.push(to3);
+
+                }
+=======
+                const playerName = document.querySelector('input[name="attr_character_name"]')?.value.trim() || 'Jugador';
+
+                // Determinar destino dinámico
+                const isAlijoActive = document.querySelector('.inv-tab-btn[data-tab="inv-stash"]')?.classList.contains('active');
+                const destination = isAlijoActive ? 'inventario_stash' : 'inventario';
+
+                ejecutarSintesisDin(playerName, receta, cantidadFabricar, currentPlayerData[destination] || {}, destination);
+                if (typeof window.limpiarVisorCrafteo === 'function') {
+                    window.limpiarVisorCrafteo();
+                }
+>>>>>>> REPLACE
