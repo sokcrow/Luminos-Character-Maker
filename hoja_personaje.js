@@ -297,9 +297,24 @@ window.renderCharacterSheet = function(data) {
         }
     }
 
+    // Update config inputs for HP
+    const hpBaseConfig = document.querySelector('input[name="attr_hp_base"]');
+    const hpCoefConfig = document.querySelector('input[name="attr_hp_coefficient"]');
+    const hpMaxConfig = document.querySelector('input[name="attr_hp_max"]');
+
+    if (hpBaseConfig && document.activeElement !== hpBaseConfig) {
+        hpBaseConfig.value = data.hp_base || data.combatStats?.hp_base || 0;
+    }
+    if (hpCoefConfig && document.activeElement !== hpCoefConfig) {
+        hpCoefConfig.value = data.hp_coefficient || data.combatStats?.hp_coefficient || 0;
+    }
+    if (hpMaxConfig && document.activeElement !== hpMaxConfig) {
+        hpMaxConfig.value = data.hp_max || data.combatStats?.hp_max || 0;
+    }
+
     // Actualización del HUD de Combate (Vitales)
     if (data.combatStats) {
-        const hpMax = parseInt(data.combatStats.hp_max) || parseInt(data.combatStats.hp_base) || 100;
+        const hpMax = parseInt(data.combatStats.hp_max) || parseInt(data.hp_max) || parseInt(data.combatStats.hp_base) || parseInt(data.hp_base) || 100;
         const hpActual = data.combatStats.hp_actual !== undefined ? parseInt(data.combatStats.hp_actual) : hpMax;
         const spActual = data.combatStats.sp_actual !== undefined ? parseInt(data.combatStats.sp_actual) : 0;
 
@@ -1732,6 +1747,27 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (typeof db !== 'undefined') {
             // Guardar directamente en la raiz
             db.ref('campaña/jugadores/' + playerId).update({ [attrName]: val });
+
+            // Re-calculate max HP if base, coefficient or level changed
+            if (attrName === 'hp_base' || attrName === 'hp_coefficient' || attrName === 'level') {
+                const currentLevel = parseInt(document.querySelector('input[name="attr_level"]')?.value) || currentPlayerData?.level || 1;
+                const hpBase = parseInt(attrName === 'hp_base' ? val : document.querySelector('input[name="attr_hp_base"]')?.value) || currentPlayerData?.hp_base || currentPlayerData?.combatStats?.hp_base || 0;
+                const hpCoef = parseFloat(attrName === 'hp_coefficient' ? val : document.querySelector('input[name="attr_hp_coefficient"]')?.value) || currentPlayerData?.hp_coefficient || currentPlayerData?.combatStats?.hp_coefficient || 0;
+
+                const newHpMax = Math.floor(hpBase + (currentLevel * hpCoef));
+
+                const updates = {};
+                updates[`campaña/jugadores/${playerId}/hp_max`] = newHpMax;
+                updates[`campaña/jugadores/${playerId}/combatStats/hp_max`] = newHpMax;
+                if (attrName === 'hp_coefficient') {
+                    updates[`campaña/jugadores/${playerId}/combatStats/hp_coefficient`] = val;
+                }
+                if (attrName === 'hp_base') {
+                    updates[`campaña/jugadores/${playerId}/combatStats/hp_base`] = val;
+                }
+
+                db.ref().update(updates);
+            }
         }
     });
 });
