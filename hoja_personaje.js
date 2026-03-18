@@ -1933,3 +1933,119 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
+window.addEventListener('DOMContentLoaded', () => {
+    // === LECTURA DEL TEATRO DE LA MENTE ===
+    if (typeof db !== 'undefined') {
+        // 1. Lectura del log de mensajes en tiempo real
+        db.ref('campaña/teatro/log').limitToLast(20).on('value', (snap) => {
+            const logContainer = document.getElementById('theatre-log-container');
+            if (!logContainer) return;
+            logContainer.innerHTML = '';
+            const logs = snap.val();
+            if (logs) {
+                for (const [key, msg] of Object.entries(logs)) {
+                    const item = document.createElement('div');
+                    item.style.marginBottom = '4px';
+                    const strong = document.createElement('strong');
+                    strong.style.color = msg.color_nombre || '#fff';
+                    strong.textContent = msg.nombre + ': ';
+                    item.appendChild(strong);
+                    item.appendChild(document.createTextNode(msg.mensaje));
+                    logContainer.appendChild(item);
+                }
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+        });
+
+        // 2. Lectura de estado de bloqueo (Modo Lore)
+        db.ref('campaña/teatro/bloqueo_interaccion').on('value', (snap) => {
+            const isBlocked = snap.val();
+            const input = document.getElementById('player-theatre-input');
+            const btn = document.getElementById('btn-player-theatre-send');
+            if (input && btn) {
+                input.disabled = isBlocked;
+                btn.disabled = isBlocked;
+                input.placeholder = isBlocked ? "El Director ha bloqueado las interacciones (Modo Lore)..." : "¿Qué quieres decir o hacer? (Escribe aquí...)";
+            }
+        });
+    }
+
+    // === ENVÍO AL TEATRO DE LA MENTE ===
+    const btnSend = document.getElementById('btn-player-theatre-send');
+    const inputEl = document.getElementById('player-theatre-input');
+
+    const sendTheatreMessage = () => {
+        if (!inputEl || !inputEl.value.trim() || typeof db === 'undefined') return;
+
+        try {
+            const msgText = inputEl.value.trim();
+            const actorSelect = document.getElementById('player-actor-select');
+            const selectExp = document.getElementById('player-expression-select');
+
+            const assignedActorId = window.datosJugador?.actorId || null;
+            const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
+
+            let actorParaEnviar = {
+                nombre: window.datosJugador?.characterName || "Jugador",
+                titulo: "",
+                color_nombre: "#ffffff",
+                color_titulo: "#aaaaaa",
+                escala: 1.0,
+                sprite: "https://i.imgur.com/Z8N4rG9.png" // Sprite Base Default
+            };
+
+            // Rescatamos datos del actor seleccionado si no es la base
+            if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+                const dataActor = window.actoresJugador[selectedActorId];
+                actorParaEnviar = {
+                    nombre: dataActor.nombre || actorParaEnviar.nombre,
+                    titulo: dataActor.titulo || "",
+                    color_nombre: dataActor.color_nombre || "#ffffff",
+                    color_titulo: dataActor.color_titulo || "#aaaaaa",
+                    escala: dataActor.escala !== undefined ? dataActor.escala : 1.0,
+                    sprite: dataActor.sprite || actorParaEnviar.sprite
+                };
+            }
+
+            // Validamos la expresión dinámica si existe
+            const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
+                ? selectExp.value
+                : actorParaEnviar.sprite;
+
+            // Construimos Payload Directo
+            const payload = {
+                nombre: actorParaEnviar.nombre,
+                titulo: actorParaEnviar.titulo,
+                color_nombre: actorParaEnviar.color_nombre,
+                color_titulo: actorParaEnviar.color_titulo,
+                escala: actorParaEnviar.escala,
+                sprite: selectedSprite,
+                mensaje: msgText,
+                timestamp: Date.now()
+            };
+
+            // Push a Firebase sin validaciones redundantes
+            db.ref('campaña/teatro/cola').push(payload).then(() => {
+                inputEl.value = ''; // Limpiar input directo post-envío
+            }).catch(e => console.error("Error enviando mensaje al teatro:", e));
+        } catch (err) {
+            console.error("Fallo crítico en sendTheatreMessage:", err);
+        }
+    };
+
+    // Listeners Limpios
+    if (btnSend) {
+        btnSend.addEventListener('click', sendTheatreMessage);
+    }
+
+    if (inputEl) {
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendTheatreMessage();
+            }
+        });
+    }
+});
