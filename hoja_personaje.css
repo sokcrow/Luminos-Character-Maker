@@ -5245,17 +5245,17 @@ input.sheet-state-theme[value="gold"] ~ * .sheet-app-header { border-bottom-colo
 /* Visibility Fix for New Structure */
 .sheet-tab-content { display: none !important; height: 100%; flex-direction: column; overflow-y: auto; pointer-events: auto; }
 .sheet-tab-apego { pointer-events: auto !important; }
-input[name="attr_tab"][value="home"] ~ .sheet-phone-screen .sheet-tab-home,
-input[name="attr_tab"][value="stats"] ~ .sheet-phone-screen .sheet-tab-stats,
-input[name="attr_tab"][value="banco"] ~ .sheet-phone-screen .sheet-tab-banco,
-input[name="attr_tab"][value="skills"] ~ .sheet-phone-screen .sheet-tab-skills,
-input[name="attr_tab"][value="abilities"] ~ .sheet-phone-screen .sheet-tab-abilities,
-input[name="attr_tab"][value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
-input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile,
-input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
-input[name="attr_tab"][value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
-input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings,
-input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
+input.sheet-state-tab[value="home"] ~ .sheet-phone-screen .sheet-tab-home,
+input.sheet-state-tab[value="stats"] ~ .sheet-phone-screen .sheet-tab-stats,
+input.sheet-state-tab[value="banco"] ~ .sheet-phone-screen .sheet-tab-banco,
+input.sheet-state-tab[value="skills"] ~ .sheet-phone-screen .sheet-tab-skills,
+input.sheet-state-tab[value="abilities"] ~ .sheet-phone-screen .sheet-tab-abilities,
+input.sheet-state-tab[value="parts"] ~ .sheet-phone-screen .sheet-tab-parts,
+input.sheet-state-tab[value="profile"] ~ .sheet-phone-screen .sheet-tab-profile,
+input.sheet-state-tab[value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
+input.sheet-state-tab[value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
+input.sheet-state-tab[value="settings"] ~ .sheet-phone-screen .sheet-tab-settings,
+input.sheet-state-tab[value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     display: flex !important;
 }
 
@@ -6317,10 +6317,10 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 }
 
 
-input[name="attr_tab"][value="contratos"] ~ .sheet-phone-screen .sheet-tab-contratos,
-input[name="attr_tab"][value="codex"] ~ .sheet-phone-screen .sheet-tab-codex,
-input[name="attr_tab"][value="mapa"] ~ .sheet-phone-screen .sheet-tab-mapa,
-input[name="attr_tab"][value="notas"] ~ .sheet-phone-screen .sheet-tab-notas {
+input.sheet-state-tab[value="contratos"] ~ .sheet-phone-screen .sheet-tab-contratos,
+input.sheet-state-tab[value="codex"] ~ .sheet-phone-screen .sheet-tab-codex,
+input.sheet-state-tab[value="mapa"] ~ .sheet-phone-screen .sheet-tab-mapa,
+input.sheet-state-tab[value="notas"] ~ .sheet-phone-screen .sheet-tab-notas {
     display: flex !important;
 }
 
