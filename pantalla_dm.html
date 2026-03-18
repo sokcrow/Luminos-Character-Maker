@@ -1338,6 +1338,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="js/utils.js"></script>
 
   <script>
     const firebaseConfig = {
@@ -1712,13 +1713,6 @@
         });
     });
 
-    // Helper: Determinar Estación
-    function obtenerEstacion(mes) {
-        if (mes >= 3 && mes <= 5) return "Primavera";
-        if (mes >= 6 && mes <= 8) return "Verano";
-        if (mes >= 9 && mes <= 11) return "Otoño";
-        return "Invierno"; // 12, 1, 2
-    }
 
     // Helper: Actualizar Visualizador Radial
     function renderClimaRadial(climaActual, mesActual) {
