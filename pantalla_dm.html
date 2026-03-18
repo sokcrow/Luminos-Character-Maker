@@ -3589,6 +3589,13 @@
         db.ref('campaña/teatro').update({ bloqueado: e.target.checked });
     });
 
+    // Listen to Lock
+    db.ref('campaña/teatro/bloqueado').on('value', (snap) => {
+        const bloqueado = snap.val();
+        const cb = document.getElementById('dm-theatre-lock');
+        if (cb) cb.checked = !!bloqueado;
+    });
+
     // Max Sprites Change
     document.getElementById('dm-theatre-max-sprites').addEventListener('change', (e) => {
         const val = parseInt(e.target.value) || 4;
@@ -3648,14 +3655,28 @@
     // Listen to Location
     db.ref('campaña/teatro/locacion').on('value', (snap) => {
         const loc = snap.val();
-        if (loc) document.getElementById('theatre-location-text').innerText = loc;
+        if (loc) {
+            document.getElementById('theatre-location-text').innerText = loc;
+            const locInput = document.getElementById('dm-theatre-location');
+            if (locInput && document.activeElement !== locInput) {
+                locInput.value = loc;
+            }
+        }
     });
 
     // Listen to Background
     db.ref('campaña/teatro/fondo').on('value', (snap) => {
         const bg = snap.val();
         const view = document.getElementById('theatre-view-dm');
-        if (view && bg) view.style.backgroundImage = `url('${bg}')`;
+        if (view && bg) {
+            view.style.backgroundImage = `url('${bg}')`;
+        }
+        if (bg) {
+            const bgInput = document.getElementById('dm-theatre-bg');
+            if (bgInput && document.activeElement !== bgInput) {
+                bgInput.value = bg;
+            }
+        }
     });
 
     // Listen to Log
