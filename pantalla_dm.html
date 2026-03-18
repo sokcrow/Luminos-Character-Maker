@@ -1833,12 +1833,17 @@
               let pCard = document.getElementById(`player-card-${nombre}`);
 
               const perfil = data.perfil || {};
-              const lvl = perfil.level || 1;
-              const xp = perfil.xp || 0;
-              const hpMax = perfil.hp_max || 0;
-              const hpBase = perfil.hp_base || 0;
-              const clase = perfil.clase || 'Desconocida';
-              const raza = perfil.raza || 'Desconocida';
+              const lvl = data.level || perfil.level || 1;
+              const xp = data.xp || perfil.xp || 0;
+
+              const combatStats = data.combatStats || {};
+              const hpBase = combatStats.hp_base || data.hp_base || perfil.hp_base || 0;
+              const hpCoef = combatStats.hp_coefficient || data.hp_coefficient || 0;
+              const hpMax = combatStats.hp_max || data.hp_max || perfil.hp_max || Math.floor(hpBase + (lvl * hpCoef)) || 0;
+              const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
+
+              const clase = data.class || perfil.clase || 'Desconocida';
+              const raza = data.race || perfil.raza || 'Desconocida';
 
               if (!pCard) {
                   pCard = document.createElement('div');
@@ -1868,8 +1873,16 @@
                           <input type="number" class="input-hpbase" value="${hpBase}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
                       </div>
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">Coef HP:</label>
+                          <input type="number" step="0.01" class="input-hpcoef" value="${hpCoef}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
+                      </div>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+                          <label style="color:#c49a00; font-size:12px;">HP Actual:</label>
+                          <input type="number" class="input-hpactual" value="${hpActual}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
+                      </div>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
                           <label style="color:#c49a00; font-size:12px;">Calc Max HP:</label>
-                          <input type="number" class="input-hpmax" value="${hpMax}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;" readonly title="Calculado por la hoja">
+                          <input type="number" class="input-hpmax" value="${hpMax}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;" readonly title="Calculado">
                       </div>
 
                       <button class="btn-guardar-perfil" style="margin-top: 10px; background: #004400; color: white; border: 1px solid #00ff00; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Guardar / Forzar Datos</button>
@@ -1901,16 +1914,41 @@
                       const newLvl = parseInt(pCard.querySelector('.input-lvl').value) || 1;
                       const newXp = parseInt(pCard.querySelector('.input-xp').value) || 0;
                       const newHpBase = parseInt(pCard.querySelector('.input-hpbase').value) || 0;
+                      const newHpCoef = parseFloat(pCard.querySelector('.input-hpcoef').value) || 0;
+                      const newHpActual = parseInt(pCard.querySelector('.input-hpactual').value) || 0;
+                      const newHpMax = Math.floor(newHpBase + (newLvl * newHpCoef));
 
-                      db.ref(`campaña/jugadores/${nombre}/perfil`).update({
-                          level: newLvl,
-                          xp: newXp,
-                          hp_base: newHpBase
-                      }).then(() => {
+                      // Updates
+                      const updates = {};
+                      // Legacy perfil node
+                      updates[`campaña/jugadores/${nombre}/perfil/level`] = newLvl;
+                      updates[`campaña/jugadores/${nombre}/perfil/xp`] = newXp;
+                      updates[`campaña/jugadores/${nombre}/perfil/hp_base`] = newHpBase;
+                      updates[`campaña/jugadores/${nombre}/perfil/hp_max`] = newHpMax;
+
+                      // Root node (used by hoja_personaje.html)
+                      updates[`campaña/jugadores/${nombre}/level`] = newLvl;
+                      updates[`campaña/jugadores/${nombre}/xp`] = newXp;
+                      updates[`campaña/jugadores/${nombre}/hp_base`] = newHpBase;
+                      updates[`campaña/jugadores/${nombre}/hp_coefficient`] = newHpCoef;
+                      updates[`campaña/jugadores/${nombre}/hp_max`] = newHpMax;
+
+                      // Combat stats node
+                      updates[`campaña/jugadores/${nombre}/combatStats/hp_base`] = newHpBase;
+                      updates[`campaña/jugadores/${nombre}/combatStats/hp_coefficient`] = newHpCoef;
+                      updates[`campaña/jugadores/${nombre}/combatStats/hp_max`] = newHpMax;
+                      updates[`campaña/jugadores/${nombre}/combatStats/hp_actual`] = newHpActual;
+
+                      db.ref().update(updates).then(() => {
                           const oldText = btnGuardar.innerText;
                           btnGuardar.innerText = "¡Guardado!";
                           btnGuardar.style.background = "#0df";
                           btnGuardar.style.color = "#000";
+
+                          // Recalcular HP Max Display localmente para que se vea inmediato
+                          const hpMaxInput = pCard.querySelector('.input-hpmax');
+                          if (hpMaxInput) hpMaxInput.value = newHpMax;
+
                           setTimeout(() => {
                               btnGuardar.innerText = oldText;
                               btnGuardar.style.background = "#004400";
@@ -1925,6 +1963,8 @@
                   const lvlInput = pCard.querySelector('.input-lvl');
                   const xpInput = pCard.querySelector('.input-xp');
                   const hpBaseInput = pCard.querySelector('.input-hpbase');
+                  const hpCoefInput = pCard.querySelector('.input-hpcoef');
+                  const hpActualInput = pCard.querySelector('.input-hpactual');
                   const hpMaxInput = pCard.querySelector('.input-hpmax');
                   const subInfo = pCard.querySelector('.player-subinfo');
                   const nameInput = pCard.querySelector('.dm-edit-name');
@@ -1933,6 +1973,8 @@
                   if (document.activeElement !== lvlInput) lvlInput.value = lvl;
                   if (document.activeElement !== xpInput) xpInput.value = xp;
                   if (document.activeElement !== hpBaseInput) hpBaseInput.value = hpBase;
+                  if (document.activeElement !== hpCoefInput) hpCoefInput.value = hpCoef;
+                  if (document.activeElement !== hpActualInput) hpActualInput.value = hpActual;
                   if (document.activeElement !== hpMaxInput) hpMaxInput.value = hpMax;
                   subInfo.innerText = `${clase} | ${raza}`;
                   const ahnDisplay = pCard.querySelector('.player-ahn');
