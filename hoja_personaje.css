@@ -6365,6 +6365,111 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     border-radius: 3px;
 }
 
+/* --- HUD DE COMBATE (VITALES) --- */
+#btn-toggle-hud {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 9999;
+    background: rgba(10, 10, 10, 0.85);
+    color: #ff3333;
+    border: 2px solid #ff3333;
+    padding: 10px 15px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+#btn-toggle-hud:hover {
+    background: rgba(20, 20, 20, 0.95);
+    box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+}
+
+#player-combat-hud {
+    position: fixed;
+    bottom: 70px;
+    left: 20px;
+    z-index: 9998;
+    background: rgba(10, 10, 10, 0.9);
+    border: 2px solid #333;
+    padding: 15px;
+    width: 280px;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+    backdrop-filter: blur(8px);
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.hud-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.hud-label {
+    font-size: 0.85em;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.hud-hp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hud-hp-text {
+    font-weight: bold;
+    color: #fff;
+    font-size: 1.1em;
+}
+
+.hud-hp-track {
+    width: 100%;
+    height: 14px;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+#hud-hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #8b0000, #ff3333);
+    width: 100%;
+    transition: width 0.3s ease, background 0.3s, box-shadow 0.3s;
+}
+
+#hud-sp-text, #hud-coin-text {
+    font-size: 1.8em;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+}
+
+/* Regla Visual HP (Aplicada por JS via clase) */
+.hp-danger {
+    background: #ff0000 !important;
+    box-shadow: 0 0 15px #ff0000;
+    animation: hpFlash 1s infinite alternate;
+}
+
+@keyframes hpFlash {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.5); }
+}
+
+
 /* --- THEATRE VIEW (PLAYER) --- */
 #theatre-view-player {
     position: fixed;

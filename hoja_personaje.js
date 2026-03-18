@@ -297,6 +297,44 @@ window.renderCharacterSheet = function(data) {
         }
     }
 
+    // Actualización del HUD de Combate (Vitales)
+    if (data.combatStats) {
+        const hpMax = parseInt(data.combatStats.hp_max) || parseInt(data.combatStats.hp_base) || 100;
+        const hpActual = data.combatStats.hp_actual !== undefined ? parseInt(data.combatStats.hp_actual) : hpMax;
+        const spActual = data.combatStats.sp_actual !== undefined ? parseInt(data.combatStats.sp_actual) : 0;
+
+        const hpActualEl = document.getElementById('hud-hp-actual');
+        const hpMaxEl = document.getElementById('hud-hp-max');
+        const hpBarEl = document.getElementById('hud-hp-bar');
+        const spTextEl = document.getElementById('hud-sp-text');
+        const coinTextEl = document.getElementById('hud-coin-text');
+
+        if (hpActualEl) hpActualEl.innerText = hpActual;
+        if (hpMaxEl) hpMaxEl.innerText = hpMax;
+
+        if (hpBarEl) {
+            let hpPercent = Math.max(0, Math.min(100, (hpActual / hpMax) * 100));
+            hpBarEl.style.width = hpPercent + '%';
+
+            if (hpPercent <= 30) {
+                hpBarEl.classList.add('hp-danger');
+            } else {
+                hpBarEl.classList.remove('hp-danger');
+            }
+        }
+
+        if (spTextEl) {
+            spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
+            spTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+        }
+
+        if (coinTextEl) {
+            let coinChance = Math.max(5, Math.min(95, 50 + spActual));
+            coinTextEl.innerText = coinChance + '%';
+            coinTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+        }
+    }
+
     // Subtitulos y avatares
     if (data.class) {
         document.querySelectorAll(`span[name="attr_class"], input[name="attr_class"]`).forEach(el => {
@@ -1873,3 +1911,25 @@ window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, destKe
 
     } catch(e) { console.error('Error in ejecutarSintesisDin:', e); }
 };
+
+// --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnToggleHud = document.getElementById('btn-toggle-hud');
+    const combatHud = document.getElementById('player-combat-hud');
+
+    if (btnToggleHud && combatHud) {
+        btnToggleHud.addEventListener('click', () => {
+            if (combatHud.style.display === 'none' || combatHud.style.display === '') {
+                combatHud.style.display = 'flex';
+                btnToggleHud.innerText = '[-] OCULTAR VITALES';
+                btnToggleHud.style.color = '#d4af37';
+                btnToggleHud.style.borderColor = '#d4af37';
+            } else {
+                combatHud.style.display = 'none';
+                btnToggleHud.innerText = '[+] REVISAR VITALES';
+                btnToggleHud.style.color = '#ff3333';
+                btnToggleHud.style.borderColor = '#ff3333';
+            }
+        });
+    }
+});

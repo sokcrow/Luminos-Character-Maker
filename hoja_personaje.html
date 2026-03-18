@@ -4136,6 +4136,28 @@
 <!-- Toggle Button -->
 <button class="btn-toggle-phone" id="btn-toggle-phone" title="Alternar Celular">📱</button>
 
+<!-- HUD DE COMBATE (VITALES) -->
+<button id="btn-toggle-hud" title="Alternar HUD de Combate">[+] REVISAR VITALES</button>
+<div id="player-combat-hud" class="theatre-player-hud">
+    <div class="hud-section hud-hp-section">
+        <div class="hud-hp-header">
+            <span class="hud-label">HP VITALIDAD</span>
+            <span class="hud-hp-text"><span id="hud-hp-actual">0</span> / <span id="hud-hp-max">0</span></span>
+        </div>
+        <div class="hud-hp-track">
+            <div id="hud-hp-bar"></div>
+        </div>
+    </div>
+    <div class="hud-section hud-sp-section">
+        <span class="hud-label">SP CORDURA</span>
+        <span id="hud-sp-text">0</span>
+    </div>
+    <div class="hud-section hud-coin-section">
+        <span class="hud-label">Suerte Monedas</span>
+        <span id="hud-coin-text">50%</span>
+    </div>
+</div>
+
 <!-- VISTA DEL TEATRO (MODO JUGADOR) -->
 <div id="theatre-view-player" style="display: none;">
   <!-- Location Sign -->
