@@ -253,14 +253,14 @@ window.renderCharacterSheet = function(data) {
         const totalVal = baseVal + modVal;
 
         const baseInput = document.querySelector(`input[name="attr_${stat}_base"]`);
-        if (baseInput) baseInput.value = baseVal;
+        if (baseInput && document.activeElement !== baseInput) baseInput.value = baseVal;
 
         const modInput = document.querySelector(`input[name="attr_${stat}_mod"]`);
-        if (modInput) modInput.value = modVal;
+        if (modInput && document.activeElement !== modInput) modInput.value = modVal;
 
         const totalDisplays = document.querySelectorAll(`span[name="attr_${stat}"], input[name="attr_${stat}"]`);
         totalDisplays.forEach(el => {
-            if (el.tagName === 'INPUT') el.value = totalVal;
+            if (el.tagName === 'INPUT' && document.activeElement !== el) el.value = totalVal;
             else el.innerText = totalVal;
         });
     });
@@ -268,7 +268,7 @@ window.renderCharacterSheet = function(data) {
     // Datos Básicos
     if (data.characterName) {
         document.querySelectorAll('input[name="attr_character_name"], span[name="attr_character_name"], div[name="attr_character_name"]').forEach(el => {
-            if (el.tagName === 'INPUT') el.value = data.characterName;
+            if (el.tagName === 'INPUT' && document.activeElement !== el) el.value = data.characterName;
             else el.innerText = data.characterName;
         });
 
@@ -279,7 +279,7 @@ window.renderCharacterSheet = function(data) {
 
     if (data.ahn !== undefined) {
         document.querySelectorAll('.sheet-banco-amount-display, #display-ahn, input[name="attr_ahn"], span[name="attr_ahn"]').forEach(el => {
-            if (el.tagName === 'INPUT') el.value = data.ahn;
+            if (el.tagName === 'INPUT' && document.activeElement !== el) el.value = data.ahn;
             else el.innerText = data.ahn;
         });
 
@@ -299,29 +299,73 @@ window.renderCharacterSheet = function(data) {
 
     // Subtitulos y avatares
     if (data.class) {
-        document.querySelectorAll('span[name="attr_class"]').forEach(el => el.innerText = data.class);
+        document.querySelectorAll(`span[name="attr_class"], input[name="attr_class"]`).forEach(el => {
+            if (el.tagName === "INPUT") {
+                if (document.activeElement !== el) el.value = data.class;
+            } else el.innerText = data.class;
+        });
     }
     if (data.race) {
-        document.querySelectorAll('span[name="attr_race"]').forEach(el => el.innerText = data.race);
+        document.querySelectorAll(`span[name="attr_race"], input[name="attr_race"]`).forEach(el => {
+            if (el.tagName === "INPUT") {
+                if (document.activeElement !== el) el.value = data.race;
+            } else el.innerText = data.race;
+        });
     }
     if (data.background) {
-        document.querySelectorAll('span[name="attr_background"]').forEach(el => el.innerText = data.background);
+        document.querySelectorAll(`span[name="attr_background"], input[name="attr_background"]`).forEach(el => {
+            if (el.tagName === "INPUT") {
+                if (document.activeElement !== el) el.value = data.background;
+            } else el.innerText = data.background;
+        });
     }
     if (data.identity) {
-        document.querySelectorAll('span[name="attr_identity"]').forEach(el => el.innerText = data.identity);
+        document.querySelectorAll(`span[name="attr_identity"], input[name="attr_identity"]`).forEach(el => {
+            if (el.tagName === "INPUT") {
+                if (document.activeElement !== el) el.value = data.identity;
+            } else el.innerText = data.identity;
+        });
     }
+    if (data.identity_notes) {
+        document.querySelectorAll(`textarea[name="attr_identity_notes"]`).forEach(el => {
+            if (document.activeElement !== el) el.value = data.identity_notes;
+        });
+    }
+
+    if (data.rank !== undefined) {
+        document.querySelectorAll(`input[name="attr_rank"]`).forEach(el => {
+            if (document.activeElement !== el) el.value = data.rank;
+        });
+    }
+
+    if (data.avatar_url) {
+        document.querySelectorAll(`input[name="attr_avatar_url"]`).forEach(el => {
+            if (document.activeElement !== el) el.value = data.avatar_url;
+        });
+    }
+
 
     // Nivel y XP
     if (data.level !== undefined) {
         document.querySelectorAll('span[name="attr_level"]').forEach(el => el.innerText = data.level);
-        document.querySelectorAll('input[name="attr_level"]').forEach(el => el.value = data.level);
+        document.querySelectorAll('input[name="attr_level"]').forEach(el => {
+            if (document.activeElement !== el) el.value = data.level;
+        });
     }
     if (data.xp !== undefined) {
         document.querySelectorAll('span[name="attr_xp"]').forEach(el => el.innerText = data.xp);
-        document.querySelectorAll('input[name="attr_xp"]').forEach(el => el.value = data.xp);
+        document.querySelectorAll('input[name="attr_xp"]').forEach(el => {
+            if (document.activeElement !== el) el.value = data.xp;
+        });
     }
     if (data.xpMissing !== undefined) {
         document.querySelectorAll('span[name="attr_xp_missing"]').forEach(el => el.innerText = data.xpMissing);
+    }
+
+    if (data.xpReward !== undefined) {
+        document.querySelectorAll('span[name="attr_xp_reward"]').forEach(el => {
+            el.innerText = data.xpReward;
+        });
     }
 
     // Render Progress Bar
@@ -352,7 +396,9 @@ window.renderCharacterSheet = function(data) {
             selectors.forEach(sel => {
                 document.querySelectorAll(sel).forEach(el => {
                     if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
-                        el.value = value;
+                        if (document.activeElement !== el) {
+                            el.value = value;
+                        }
                     } else {
                         el.innerText = value;
                     }
@@ -2635,6 +2681,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
     document.addEventListener('change', (e) => {
         if (!e.target.name || !e.target.name.startsWith('attr_')) return;
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') return;
 
         const attrName = e.target.name.replace('attr_', '');
         const val = e.target.type === 'checkbox' ? (e.target.checked ? e.target.value : '0') : e.target.value;

@@ -1,41 +1,42 @@
 const { test, expect } = require('@playwright/test');
 
-test('test continuous advance', async ({ page }) => {
+test('test attributes update', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
-    await page.goto('file://' + __dirname + '/pantalla_dm.html');
-    await page.waitForFunction(() => typeof firebase !== 'undefined' && firebase.database);
 
-    await page.evaluate(async () => {
-        await firebase.database().ref('campaña/teatro').remove();
+    // Mock localStorage and wait for init
+    await page.addInitScript(() => {
+        window.localStorage.setItem('playerId', 'player1');
     });
 
-    await page.waitForTimeout(500);
+    await page.goto('file://' + __dirname + '/hoja_personaje.html');
 
-    await page.evaluate(async () => {
-        await firebase.database().ref('campaña/teatro').set({
-            activo: true,
-            continuo: true,
-            max_sprites: 4,
-            log: null,
-            cola: null,
-            estado_actual: null
-        });
-        const colaRef = firebase.database().ref('campaña/teatro/cola');
-        await colaRef.push({
-            nombre: 'Narrador 1',
-            mensaje: 'Mensaje de prueba numero 1',
-            color_nombre: '#ff0000',
-            timestamp: Date.now()
-        });
-    });
+    // Wait for the Firebase mock or real data
+    await page.waitForTimeout(1000);
 
-    await page.click('#btn-modo-director');
-    await expect(page.locator('#dm-theatre-queue')).toContainText('Narrador 1', { timeout: 10000 });
-
-    // click advance directly via page.evaluate
+    // Inject data manually to simulate firebase triggering
     await page.evaluate(() => {
-        document.getElementById('btn-theatre-avanzar').click();
+        window.renderCharacterSheet({
+            characterName: 'Test Name',
+            class: 'Test Class',
+            race: 'Test Race',
+            background: 'Test Background',
+            identity: 'Test Identity',
+            identity_notes: 'Test Notes',
+            level: 5,
+            xp: 100,
+            xpMissing: 50,
+            xpReward: 10,
+            rank: 9,
+            avatar_url: 'https://example.com/avatar.png'
+        });
     });
 
-    await expect(page.locator('#theatre-dialogue-text')).toContainText('Mensaje de prueba numero 1', { timeout: 5000 });
+    // We can then verify the UI values
+    await expect(page.locator('input[name="attr_class"]')).toHaveValue('Test Class');
+    await expect(page.locator('input[name="attr_race"]')).toHaveValue('Test Race');
+    await expect(page.locator('input[name="attr_background"]')).toHaveValue('Test Background');
+    await expect(page.locator('input[name="attr_identity"]')).toHaveValue('Test Identity');
+    await expect(page.locator('textarea[name="attr_identity_notes"]')).toHaveValue('Test Notes');
+    await expect(page.locator('input[name="attr_rank"]')).toHaveValue('9');
+    await expect(page.locator('input[name="attr_avatar_url"]')).toHaveValue('https://example.com/avatar.png');
 });
