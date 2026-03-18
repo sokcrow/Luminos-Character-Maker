@@ -4566,11 +4566,10 @@
       }
 
       if (titlePlate) {
-          if(titlePlate.querySelector('span')) titlePlate.querySelector('span').innerText = state.titulo || ''; else if(titlePlate.querySelector('span')) {
-            titlePlate.querySelector('span').innerText = state.titulo || '';
-        } else {
-            titlePlate.querySelector('span').innerText = state.titulo || '';
-        }
+          const spanElement = titlePlate.querySelector('span');
+          if (spanElement) {
+              spanElement.innerText = state.titulo || '';
+          }
           /* The title plate color requirement was: background dark brown, text gold.
            If the user wants the custom color to apply to text: */
         titlePlate.style.color = state.color_titulo || '#d69c52';
@@ -4675,72 +4674,73 @@
   });
 
   // Send Dialogue logic
-  const btnSend = document.getElementById('btn-player-theatre-send');
-  const inputEl = document.getElementById('player-theatre-input');
+  document.addEventListener('DOMContentLoaded', () => {
+      const safeBtnSend = document.getElementById('btn-player-theatre-send');
+      const safeInputEl = document.getElementById('player-theatre-input');
 
-function sendTheatreMessage(msgText) {
-    try {
-        const actorSelect = document.getElementById('player-actor-select');
-        const assignedActorId = window.datosJugador ? window.datosJugador.actorId : null;
-        let selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base'); // LEE EL ACTOR ID ASIGNADO O DEL SELECT
-        
-        let actorParaEnviar;
+      function sendTheatreMessage(msgText) {
+          try {
+              const actorSelect = document.getElementById('player-actor-select');
+              const assignedActorId = window.datosJugador ? window.datosJugador.actorId : null;
+              let selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base'); // LEE EL ACTOR ID ASIGNADO O DEL SELECT
 
-        // ¿Eligió un Actor ID válido de la lista o está asignado?
-        if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
-            actorParaEnviar = window.actoresJugador[selectedActorId];
-        } else {
-            // Fallback al personaje base
-            const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
-            actorParaEnviar = {
-                nombre: nombreBase,
-                titulo: "",
-                color_nombre: "#ffffff",
-                color_titulo: "#aaaaaa",
-                escala: 1.0,
-                sprite: "https://i.imgur.com/Z8N4rG9.png"
-            };
-        }
+              let actorParaEnviar;
 
-        // Leer la cara seleccionada
-        const selectExp = document.getElementById('player-expression-select');
-        const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value) 
-                                ? selectExp.value 
-                                : actorParaEnviar.sprite;
+              // ¿Eligió un Actor ID válido de la lista o está asignado?
+              if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+                  actorParaEnviar = window.actoresJugador[selectedActorId];
+              } else {
+                  // Fallback al personaje base
+                  const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Jugador";
+                  actorParaEnviar = {
+                      nombre: nombreBase,
+                      titulo: "",
+                      color_nombre: "#ffffff",
+                      color_titulo: "#aaaaaa",
+                      escala: 1.0,
+                      sprite: "https://i.imgur.com/Z8N4rG9.png"
+                  };
+              }
 
-        const payload = {
-            nombre: actorParaEnviar.nombre || "Desconocido",
-            titulo: actorParaEnviar.titulo || "",
-            color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-            color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
-            escala: actorParaEnviar.escala !== undefined ? actorParaEnviar.escala : 1.0,
-            sprite: selectedSprite || actorParaEnviar.sprite,
-            mensaje: msgText,
-            timestamp: Date.now()
-        };
+              // Leer la cara seleccionada
+              const selectExp = document.getElementById('player-expression-select');
+              const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
+                                      ? selectExp.value
+                                      : actorParaEnviar.sprite;
 
-        const inputEl = document.getElementById('player-theatre-input');
-        db.ref('campaña/teatro/cola').push(payload).then(() => {
-            if (inputEl) inputEl.value = '';
-        }).catch(e => console.error("Error enviando mensaje:", e));
-    } catch (err) {
-        console.error("Error in sendTheatreMessage:", err);
-    }
-}
+              const payload = {
+                  nombre: actorParaEnviar.nombre || "Desconocido",
+                  titulo: actorParaEnviar.titulo || "",
+                  color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+                  color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+                  escala: actorParaEnviar.escala !== undefined ? actorParaEnviar.escala : 1.0,
+                  sprite: selectedSprite || actorParaEnviar.sprite,
+                  mensaje: msgText,
+                  timestamp: Date.now()
+              };
 
-  if (btnSend && inputEl) {
-      btnSend.addEventListener('click', () => {
-          const msg = inputEl.value.trim();
-          if (!msg) return;
-          sendTheatreMessage(msg);
-      });
-
-      inputEl.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-              btnSend.click();
+              db.ref('campaña/teatro/cola').push(payload).then(() => {
+                  if (safeInputEl) safeInputEl.value = '';
+              }).catch(e => console.error("Error enviando mensaje:", e));
+          } catch (err) {
+              console.error("Error in sendTheatreMessage:", err);
           }
-      });
-  }
+      }
+
+      if (safeBtnSend && safeInputEl) {
+          safeBtnSend.addEventListener('click', () => {
+              const msg = safeInputEl.value.trim();
+              if (!msg) return;
+              sendTheatreMessage(msg);
+          });
+
+          safeInputEl.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') {
+                  safeBtnSend.click();
+              }
+          });
+      }
+  });
 
 </script>
 
