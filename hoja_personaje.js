@@ -1580,6 +1580,8 @@ function renderizarVender() {
         const reglas = tiendaActivaData.tasas_por_etiqueta || {};
         const tasaDefecto = tiendaActivaData.tasa_defecto || 50;
 
+        const fragment = document.createDocumentFragment();
+
         for (const [key, item] of Object.entries(stash)) {
             if (item.cantidad <= 0) continue;
 
@@ -1587,19 +1589,11 @@ function renderizarVender() {
             // La nueva lógica usa array de tags, así que buscamos el primero
             let primerTag = item.tipo || ''; // Fallback a tipo si no hay tags en la DB vieja
 
-            let pct = tasaDefecto;
-            if (primerTag && reglas[primerTag] !== undefined) {
-                pct = reglas[primerTag];
-            }
-            // Si tiene array de tags, buscamos si alguno coincide con las reglas
-            if (item.tags && Array.isArray(item.tags)) {
-                for (let tag of item.tags) {
-                    if (reglas[tag] !== undefined) {
-                        pct = reglas[tag];
-                        break;
-                    }
-                }
-            }
+            // Find matching rule with priority: tags > tipo
+            const matchingTag = (Array.isArray(item.tags) && item.tags.find(tag => reglas[tag] !== undefined)) ||
+                                (reglas[primerTag] !== undefined ? primerTag : null);
+
+            const pct = matchingTag ? reglas[matchingTag] : tasaDefecto;
 
             const itemTier = parseInt(item.tier) || 1;
             const valorConTier = Math.floor((item.valorBase || 0) * (1 + ((itemTier - 1) * 0.25)));
@@ -1622,8 +1616,9 @@ function renderizarVender() {
                     </button>
                 </div>
             `;
-            grid.appendChild(row);
+            fragment.appendChild(row);
         }
+        grid.appendChild(fragment);
     });
 }
 
