@@ -1892,6 +1892,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const selectExp = document.getElementById('player-expression-select');
 
             const assignedActorId = window.datosJugador?.actorId || null;
+            // Se prioriza el DM pero se asegura que haya un fallback sano
             const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
 
             let actorParaEnviar = {
@@ -1904,55 +1905,86 @@ window.addEventListener('DOMContentLoaded', () => {
             };
 
             // Rescatamos datos del actor seleccionado si no es la base
-            if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+            // Bloque defensivo mejorado
+            if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
                 const dataActor = window.actoresJugador[selectedActorId];
-                actorParaEnviar = {
-                    nombre: dataActor.nombre || actorParaEnviar.nombre,
-                    titulo: dataActor.titulo || "",
-                    color_nombre: dataActor.color_nombre || "#ffffff",
-                    color_titulo: dataActor.color_titulo || "#aaaaaa",
-                    escala: dataActor.escala !== undefined ? dataActor.escala : 1.0,
-                    sprite: dataActor.sprite || actorParaEnviar.sprite
-                };
+                if (dataActor) {
+                    actorParaEnviar = {
+                        nombre: dataActor.nombre || actorParaEnviar.nombre,
+                        titulo: dataActor.titulo || "",
+                        color_nombre: dataActor.color_nombre || "#ffffff",
+                        color_titulo: dataActor.color_titulo || "#aaaaaa",
+                        escala: dataActor.escala !== undefined ? parseFloat(dataActor.escala) : 1.0,
+                        sprite: dataActor.sprite || actorParaEnviar.sprite
+                    };
+                }
             }
 
-            // Validamos la expresión dinámica si existe
-            const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
-                ? selectExp.value
-                : actorParaEnviar.sprite;
+            // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
+            let selectedSprite = actorParaEnviar.sprite;
+            try {
+                 if (selectExp && selectExp.style.display !== 'none' && selectExp.options.length > 0) {
+                     const val = selectExp.value;
+                     if (val && val.trim() !== '') {
+                         selectedSprite = val;
+                     }
+                 }
+            } catch (e) {
+                 console.warn("Fallo leyendo expresión del select, usando sprite base.", e);
+            }
 
-            // Construimos Payload Directo
+            // Construimos Payload Directo con valores limpios
             const payload = {
-                nombre: actorParaEnviar.nombre,
-                titulo: actorParaEnviar.titulo,
-                color_nombre: actorParaEnviar.color_nombre,
-                color_titulo: actorParaEnviar.color_titulo,
-                escala: actorParaEnviar.escala,
-                sprite: selectedSprite,
+                nombre: actorParaEnviar.nombre || "Jugador",
+                titulo: actorParaEnviar.titulo || "",
+                color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+                color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+                escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+                sprite: selectedSprite || "https://i.imgur.com/Z8N4rG9.png",
                 mensaje: msgText,
                 timestamp: Date.now()
             };
 
-            // Push a Firebase sin validaciones redundantes
-            db.ref('campaña/teatro/cola').push(payload).then(() => {
-                inputEl.value = ''; // Limpiar input directo post-envío
-            }).catch(e => console.error("Error enviando mensaje al teatro:", e));
+            // Aseguramos que la referencia no sea undefined y mandamos la cola
+            if(db && db.ref) {
+                 db.ref('campaña/teatro/cola').push(payload).then(() => {
+                     const domInput = document.getElementById('player-theatre-input');
+                     if(domInput) domInput.value = ''; // Limpiar input directo post-envío
+                 }).catch(e => {
+                     console.error("Error en Firebase enviando a la cola:", e);
+                 });
+            } else {
+                 console.error("La instancia db.ref es undefined.");
+            }
+
         } catch (err) {
             console.error("Fallo crítico en sendTheatreMessage:", err);
         }
     };
 
-    // Listeners Limpios
+    // Listeners Limpios globales
+    // Reasignamos usando query selector al documento real porque el original se copió
     if (btnSend) {
-        btnSend.addEventListener('click', sendTheatreMessage);
+        const currentBtn = document.getElementById('btn-player-theatre-send');
+        if(currentBtn) {
+            const newBtnSend = currentBtn.cloneNode(true);
+            currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
+            newBtnSend.addEventListener('click', sendTheatreMessage);
+        }
     }
 
     if (inputEl) {
-        inputEl.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendTheatreMessage();
-            }
-        });
+        const currentInput = document.getElementById('player-theatre-input');
+        if(currentInput) {
+            const newInputEl = currentInput.cloneNode(true);
+            currentInput.parentNode.replaceChild(newInputEl, currentInput);
+
+            newInputEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendTheatreMessage();
+                }
+            });
+        }
     }
 });
