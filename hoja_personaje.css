@@ -6364,7 +6364,11 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     .sheet-phone-screen { flex: 1 !important; width: 100% !important; overflow-y: hidden !important; overflow-x: hidden !important; padding-top: 10px !important; padding-bottom: 20px !important; display: flex !important; flex-direction: column !important; }
 
     .sheet-phone-back-btn { display: none !important; }
-    .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; }
+    .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; font-size: 12px !important; padding: 4px 8px !important; }
+
+    /* Navigation Tabs Adjustments */
+    .sheet-limbus-main .sheet-tabs { gap: 5px !important; padding-bottom: 5px !important; }
+    .sheet-limbus-main button[type="action"].sheet-nav-btn { padding: 5px 10px !important; font-size: 11px !important; flex: 1 1 auto !important; min-width: auto !important; }
 
     /* Stats Grid Adjustments */
     .sheet-limbus-main .sheet-attributes-grid { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important; width: 100% !important; padding: 0 10px !important; }
