@@ -3913,10 +3913,15 @@
             }
         }
 
-        if(titlePlate.querySelector('span')) titlePlate.querySelector('span').innerText = state.titulo || ''; else if(titlePlate.querySelector('span')) {
-            titlePlate.querySelector('span').innerText = state.titulo || '';
-        } else {
-            titlePlate.querySelector('span').innerText = state.titulo || '';
+        if (titlePlate) {
+            const spanElement = titlePlate.querySelector('span');
+            if (spanElement) {
+                spanElement.innerText = state.titulo || '';
+            } else {
+                titlePlate.innerText = state.titulo || '';
+            }
+            titlePlate.style.color = state.color_titulo || '#d69c52';
+            titlePlate.style.borderColor = state.color_titulo || '#c49a00';
         }
         /* The title plate color requirement was: background dark brown, text gold.
            If the user wants the custom color to apply to text: */
