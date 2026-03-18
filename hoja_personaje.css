@@ -6246,6 +6246,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     .theatre-player-input-area {
         padding: 0 !important;
         background: rgba(0,0,0,0.95) !important;
+        border-top: none !important;
     }
 
     #btn-toggle-player-theatre-tools {
