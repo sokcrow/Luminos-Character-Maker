@@ -4075,7 +4075,7 @@
         <div class="inventory-tabs">
             <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
             <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
-            <button class="inv-tab-btn" data-tab="inv-crafting">Mesa de Trabajo</button>
+
         </div>
 
         <div class="inventory-body-wrapper">
@@ -4103,65 +4103,7 @@
                     </div>
                 </div>
 
-                <div class="inventory-tab-content" id="inv-crafting" style="height: 100%; width: 100%;">
-                    <div class="crafteo-avanzado-container">
-                        <!-- Panel Izquierdo: Tabs y Listas -->
-                        <div class="crafteo-side-panel">
-                            <input type="text" id="craft-search" placeholder="Buscar material..." style="width: 100%; margin-bottom: 10px; padding: 5px; background: #111; color: #fff; border: 1px solid #444; box-sizing: border-box;">
-                            <div class="crafteo-subtabs">
-                                <button class="crafteo-subtab-btn active" data-subtab="craft-recetas">Recetas Aprendidas</button>
-                                <button class="crafteo-subtab-btn" data-subtab="craft-alijo">Alijo</button>
-                                <button class="crafteo-subtab-btn" data-subtab="craft-activo">Inv. Activo</button>
-                            </div>
-                            <div class="crafteo-list-content active" id="craft-recetas">
-                                <!-- JS llenará esto -->
-                                <div style="color: #666; text-align: center; padding: 20px;">Lista de Recetas...</div>
-                            </div>
-                            <div class="crafteo-list-content" id="craft-alijo" style="display: none;">
-                                <!-- JS llenará esto -->
-                                <div style="color: #666; text-align: center; padding: 20px;">Alijo...</div>
-                            </div>
-                            <div class="crafteo-list-content" id="craft-activo" style="display: none;">
-                                <!-- JS llenará esto -->
-                                <div style="color: #666; text-align: center; padding: 20px;">Inventario Activo...</div>
-                            </div>
-                        </div>
 
-                        <!-- Panel Derecho/Central: Zona de Trabajo -->
-                        <div class="crafteo-work-zone">
-                            <div class="crafteo-machine-bg">
-                                <div class="crafteo-slots-container">
-                                    <!-- Ingredientes (Slots 1-5 radiales) -->
-                                    <div class="craft-slot ing-slot" id="craft-slot-1" style="--angle: -90deg; --radius: 120px;"></div>
-                                    <div class="craft-slot ing-slot" id="craft-slot-2" style="--angle: -18deg; --radius: 120px;"></div>
-                                    <div class="craft-slot ing-slot" id="craft-slot-3" style="--angle: 54deg; --radius: 120px;"></div>
-                                    <div class="craft-slot ing-slot" id="craft-slot-4" style="--angle: 126deg; --radius: 120px;"></div>
-                                    <div class="craft-slot ing-slot" id="craft-slot-5" style="--angle: 198deg; --radius: 120px;"></div>
-
-                                    <!-- Preview Central -->
-                                    <div class="craft-slot result-slot" id="craft-result-preview">
-                                        <!-- Silueta por defecto o ítem renderizado -->
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Panel Inferior: Controles -->
-                            <div class="crafteo-controls-panel">
-                                <div class="crafteo-slider-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 10px; padding: 0 10px; box-sizing: border-box;">
-                                    <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 5px;">
-                                        <span style="color: #ccc; font-family: 'Mikodacs', sans-serif;">Cantidad: <span id="craft-cantidad-display" style="color: #0df; font-weight: bold;">1</span></span>
-                                        <span id="craft-warning" style="color: #ff4444; font-family: 'Mikodacs', sans-serif; font-size: 14px; font-weight: bold; display: none; text-shadow: 0 0 5px #ff0000;">Espacio Insuficiente</span>
-                                    </div>
-                                    <input type="range" id="craft-cantidad" min="1" max="1" value="1" style="width: 100%; cursor: pointer;" disabled>
-                                </div>
-                                <div style="display: flex; width: 100%; justify-content: center; gap: 10px;">
-                                    <button class="crafteo-action-btn btn-cancelar" id="btn-craft-cancelar">Cancelar</button>
-                                    <button class="crafteo-action-btn btn-fabricar" id="btn-craft-fabricar" disabled style="opacity: 0.5; cursor: not-allowed;">Fabricar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div> <!-- End of inventory-left-panel -->
 
             <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
