@@ -3703,7 +3703,7 @@
         const isTypingText = textBox && textBox.typewriterInterval;
 
         if (isTheatreContinuous && !continuousTimeout && !isTypingText && queueItems.length > 0) {
-            iniciarAvanceContinuo(1000);
+            iniciarAvanceContinuo(10000);
         }
     });
 
@@ -3714,7 +3714,7 @@
             const isTypingText = textBox && textBox.typewriterInterval;
 
             if (!continuousTimeout && !isTypingText && queueItems.length > 0) {
-                iniciarAvanceContinuo(1000);
+                iniciarAvanceContinuo(10000);
             }
         }
     });
@@ -3786,20 +3786,11 @@
                     clearInterval(textBox.typewriterInterval);
                     textBox.typewriterInterval = null;
 
-                    // Si hay cola, saltar rápido
-                    if (queueItems.length > 0) {
-                        iniciarAvanceContinuo(1000);
-                    } else {
-                        iniciarAvanceContinuo();
-                    }
+                    iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
                 }
             }, 30); // 30ms per character
         } else {
-            if (queueItems.length > 0) {
-                iniciarAvanceContinuo(1000);
-            } else {
-                iniciarAvanceContinuo();
-            }
+            iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
         }
 
         // Manage Sprites on Stage
@@ -3879,11 +3870,7 @@
 
         // Aseguramos que el auto-advance se detona si no hubo mensaje (ej. solo cambio de imagen)
         if (!fullText || fullText.length === 0) {
-            if (queueItems.length > 0) {
-                iniciarAvanceContinuo(1000);
-            } else {
-                iniciarAvanceContinuo();
-            }
+            iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
         }
     });
 
@@ -3895,7 +3882,7 @@
             const textBox = document.getElementById('theatre-dialogue-text');
             const isTypingText = textBox && textBox.typewriterInterval;
             if (!isTypingText && queueItems.length > 0) {
-                iniciarAvanceContinuo(1000);
+                iniciarAvanceContinuo(10000);
             }
         }
     });
