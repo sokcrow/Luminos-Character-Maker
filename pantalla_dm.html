@@ -3806,11 +3806,56 @@
         for (const [key, msgData] of Object.entries(cola)) {
             queueItems.push({ key: key, ...msgData });
             const itemDiv = document.createElement('div');
-            itemDiv.style.cssText = 'padding: 5px; border-bottom: 1px solid #333; display: flex; justify-content: space-between;';
+            itemDiv.style.cssText = 'padding: 5px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; gap: 5px;';
             itemDiv.innerHTML = `
-                <span class="queue-item-blink">[${msgData.nombre}]</span>
-                <span style="color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${msgData.mensaje}</span>
+                <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                    <span class="queue-item-blink" style="font-size: 12px; margin-bottom: 2px;">[${msgData.nombre}]</span>
+                    <span style="color: #ccc; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${msgData.mensaje}">${msgData.mensaje}</span>
+                </div>
+                <div style="display: flex; gap: 5px; flex-shrink: 0;">
+                    <button class="btn-aprobar-cola" data-key="${key}" style="background: #004400; color: #fff; border: 1px solid #00ff00; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Aprobar">✓</button>
+                    <button class="btn-editar-cola" data-key="${key}" style="background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Editar">✏️</button>
+                    <button class="btn-eliminar-cola" data-key="${key}" style="background: #440000; color: #fff; border: 1px solid #ff0000; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Rechazar/Eliminar">X</button>
+                </div>
             `;
+
+            const btnAprobar = itemDiv.querySelector('.btn-aprobar-cola');
+            btnAprobar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Move directly to estado_actual
+                const state = {
+                    nombre: msgData.nombre || "",
+                    titulo: msgData.titulo || "",
+                    color_nombre: msgData.color_nombre || "#ffffff",
+                    color_titulo: msgData.color_titulo || "#c49a00",
+                    escala: msgData.escala !== undefined ? msgData.escala : 1.0,
+                    sprite: msgData.sprite || "",
+                    mensaje: msgData.mensaje || "",
+                    timestamp: Date.now()
+                };
+                db.ref('campaña/teatro/estado_actual').set(state).then(() => {
+                    if (state.mensaje) {
+                        db.ref('campaña/teatro/log').push(state);
+                    }
+                    db.ref(`campaña/teatro/cola/${key}`).remove();
+                });
+            });
+
+            const btnEditar = itemDiv.querySelector('.btn-editar-cola');
+            btnEditar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nuevoMensaje = prompt("Edita el mensaje:", msgData.mensaje);
+                if (nuevoMensaje !== null && nuevoMensaje.trim() !== "") {
+                    db.ref(`campaña/teatro/cola/${key}`).update({ mensaje: nuevoMensaje.trim() });
+                }
+            });
+
+            const btnEliminar = itemDiv.querySelector('.btn-eliminar-cola');
+            btnEliminar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                db.ref(`campaña/teatro/cola/${key}`).remove();
+            });
+
             queueContainer.appendChild(itemDiv);
         }
 
