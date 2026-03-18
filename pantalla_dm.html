@@ -3789,15 +3789,13 @@
         renderModalLlamarEscena('Jugador');
     });
 
-    let queueItems = [];
-
+    let queueItems = []; window.queueItems = queueItems;
     // Listen to Queue
     db.ref('campaña/teatro/cola').on('value', (snap) => {
         const queueContainer = document.getElementById('dm-theatre-queue');
         if (!queueContainer) return;
         queueContainer.innerHTML = '';
-        queueItems = [];
-
+        queueItems = []; window.queueItems = queueItems;
         const cola = snap.val();
         if (!cola) {
             queueContainer.innerHTML = '<span style="color: #666; text-align: center;">La cola está vacía.</span>';
