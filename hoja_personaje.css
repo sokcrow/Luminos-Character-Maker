@@ -6368,8 +6368,8 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 /* --- HUD DE COMBATE (VITALES) --- */
 #btn-toggle-hud {
     position: fixed;
-    bottom: 20px;
-    left: 20px;
+    top: 20px;
+    right: 20px;
     z-index: 9999;
     background: rgba(10, 10, 10, 0.85);
     color: #ff3333;
@@ -6392,8 +6392,8 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 #player-combat-hud {
     position: fixed;
-    bottom: 70px;
-    left: 20px;
+    top: 70px;
+    right: 20px;
     z-index: 9998;
     background: rgba(10, 10, 10, 0.9);
     border: 2px solid #333;
