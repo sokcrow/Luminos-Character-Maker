@@ -1818,99 +1818,6 @@ document.addEventListener('input', (e) => {
     }
 });
 
-window.ejecutarSintesisDin = function(playerName, receta, multi, destObj, destKey) {
-    try {
-        const playerId = localStorage.getItem('playerId');
-        if (!playerId) return;
-
-        const updates = {};
-        const timestamp = Date.now();
-        const destPath = `campaña/jugadores/${playerId}/${destKey}`;
-        const sourcePath = `campaña/jugadores/${playerId}/inventario_stash`; // Assuming materials are always from stash based on previous logic, or maybe from the same destination. The prompt says: "Al craftear, verifica qué sub-pestaña... destino del nuevo item...". Materials are globally available? Let's use inventario_stash for materials to be safe.
-
-        // Find materials and deduct
-        if (receta.ingredientes) {
-            receta.ingredientes.forEach(ing => {
-                let required = ing.cantidad * multi;
-
-                // Search in both inventario_stash and inventario
-                const searchPaths = [
-                    { path: `campaña/jugadores/${playerId}/inventario_stash`, obj: window.datosJugador.inventario_stash || {} },
-                    { path: `campaña/jugadores/${playerId}/inventario`, obj: window.datosJugador.inventario || {} }
-                ];
-
-                for (const search of searchPaths) {
-                    for (const [key, item] of Object.entries(search.obj)) {
-                        const itemKey = item.id || item.nombre;
-                        if (itemKey === ing.id_item && required > 0) {
-                            if (item.cantidad > required) {
-                                updates[`${search.path}/${key}/cantidad`] = item.cantidad - required;
-                                required = 0;
-                            } else {
-                                required -= item.cantidad;
-                                updates[`${search.path}/${key}`] = null;
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        if (receta.item_resultado) {
-            const newKey = firebase.database().ref().child(destPath).push().key;
-            const resDef = window.dbItemsCacheGlobal ? window.dbItemsCacheGlobal[receta.item_resultado] : null;
-
-            let finalName = resDef ? resDef.nombre : receta.item_resultado;
-            let finalTier = resDef ? (resDef.tier || 1) : (receta.tier_resultado || 1);
-            let finalUrl = resDef ? (resDef.icono || resDef.url_imagen || "") : "";
-
-            let stackedKey = null;
-            let newQty = (receta.cantidad_resultado || 1) * multi;
-            
-            for (const [key, item] of Object.entries(destObj)) {
-                if (item.nombre === finalName && item.tier === finalTier) {
-                    stackedKey = key;
-                    newQty += parseInt(item.cantidad) || 1;
-                    break;
-                }
-            }
-
-            if (stackedKey) {
-                updates[`${destPath}/${stackedKey}/cantidad`] = newQty;
-            } else {
-                updates[`${destPath}/${newKey}`] = {
-                    id: receta.item_resultado,
-                    nombre: finalName,
-                    cantidad: newQty,
-                    tier: finalTier,
-                    icono: finalUrl,
-                    tags: resDef && resDef.tags ? resDef.tags : (resDef && resDef.etiquetas ? resDef.etiquetas.join(',') : "")
-                };
-            }
-
-            if (window.currentSelectedRecetaId) {
-                updates[`campaña/jugadores/${playerId}/recetas_aprendidas/${window.currentSelectedRecetaId}`] = true;
-            }
-
-            // Notification transaction
-            const notifKey = firebase.database().ref().child(`campaña/jugadores/${playerId}/transacciones`).push().key;
-            updates[`campaña/jugadores/${playerId}/transacciones/${notifKey}`] = {
-                tipo: 'compra',
-                monto: 0,
-                concepto: `Fabricado: ${finalName} x${(receta.cantidad_resultado || 1) * multi}`,
-                timestamp: timestamp
-            };
-        }
-
-        firebase.database().ref().update(updates).then(() => {
-            console.log("Crafteo terminado.");
-            if (typeof window.limpiarVisorCrafteo === 'function') {
-                window.limpiarVisorCrafteo();
-            }
-        }).catch(err => console.error("Error updates:", err));
-
-    } catch(e) { console.error('Error in ejecutarSintesisDin:', e); }
-};
 
 // --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1977,14 +1884,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputEl = document.getElementById('player-theatre-input');
 
     const sendTheatreMessage = () => {
-        if (!inputEl || !inputEl.value.trim() || typeof db === 'undefined') return;
+        const domInput = document.getElementById('player-theatre-input');
+        if (!domInput || !domInput.value.trim() || typeof db === 'undefined') return;
 
         try {
-            const msgText = inputEl.value.trim();
+            const msgText = domInput.value.trim();
             const actorSelect = document.getElementById('player-actor-select');
             const selectExp = document.getElementById('player-expression-select');
 
             const assignedActorId = window.datosJugador?.actorId || null;
+            // Se prioriza el DM pero se asegura que haya un fallback sano
             const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
 
             let actorParaEnviar = {
@@ -1997,55 +1906,86 @@ window.addEventListener('DOMContentLoaded', () => {
             };
 
             // Rescatamos datos del actor seleccionado si no es la base
-            if (selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+            // Bloque defensivo mejorado
+            if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
                 const dataActor = window.actoresJugador[selectedActorId];
-                actorParaEnviar = {
-                    nombre: dataActor.nombre || actorParaEnviar.nombre,
-                    titulo: dataActor.titulo || "",
-                    color_nombre: dataActor.color_nombre || "#ffffff",
-                    color_titulo: dataActor.color_titulo || "#aaaaaa",
-                    escala: dataActor.escala !== undefined ? dataActor.escala : 1.0,
-                    sprite: dataActor.sprite || actorParaEnviar.sprite
-                };
+                if (dataActor) {
+                    actorParaEnviar = {
+                        nombre: dataActor.nombre || actorParaEnviar.nombre,
+                        titulo: dataActor.titulo || "",
+                        color_nombre: dataActor.color_nombre || "#ffffff",
+                        color_titulo: dataActor.color_titulo || "#aaaaaa",
+                        escala: dataActor.escala !== undefined ? parseFloat(dataActor.escala) : 1.0,
+                        sprite: dataActor.sprite || actorParaEnviar.sprite
+                    };
+                }
             }
 
-            // Validamos la expresión dinámica si existe
-            const selectedSprite = (selectExp && selectExp.style.display !== 'none' && selectExp.value)
-                ? selectExp.value
-                : actorParaEnviar.sprite;
+            // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
+            let selectedSprite = actorParaEnviar.sprite;
+            try {
+                 if (selectExp && selectExp.style.display !== 'none' && selectExp.options.length > 0) {
+                     const val = selectExp.value;
+                     if (val && val.trim() !== '') {
+                         selectedSprite = val;
+                     }
+                 }
+            } catch (e) {
+                 console.warn("Fallo leyendo expresión del select, usando sprite base.", e);
+            }
 
-            // Construimos Payload Directo
+            // Construimos Payload Directo con valores limpios
             const payload = {
-                nombre: actorParaEnviar.nombre,
-                titulo: actorParaEnviar.titulo,
-                color_nombre: actorParaEnviar.color_nombre,
-                color_titulo: actorParaEnviar.color_titulo,
-                escala: actorParaEnviar.escala,
-                sprite: selectedSprite,
+                nombre: actorParaEnviar.nombre || "Jugador",
+                titulo: actorParaEnviar.titulo || "",
+                color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+                color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+                escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+                sprite: selectedSprite || "https://i.imgur.com/Z8N4rG9.png",
                 mensaje: msgText,
                 timestamp: Date.now()
             };
 
-            // Push a Firebase sin validaciones redundantes
-            db.ref('campaña/teatro/cola').push(payload).then(() => {
-                inputEl.value = ''; // Limpiar input directo post-envío
-            }).catch(e => console.error("Error enviando mensaje al teatro:", e));
+            // Aseguramos que la referencia no sea undefined y mandamos la cola
+            if(db && db.ref) {
+                 db.ref('campaña/teatro/cola').push(payload).then(() => {
+                     const domInput = document.getElementById('player-theatre-input');
+                     if(domInput) domInput.value = ''; // Limpiar input directo post-envío
+                 }).catch(e => {
+                     console.error("Error en Firebase enviando a la cola:", e);
+                 });
+            } else {
+                 console.error("La instancia db.ref es undefined.");
+            }
+
         } catch (err) {
             console.error("Fallo crítico en sendTheatreMessage:", err);
         }
     };
 
-    // Listeners Limpios
+    // Listeners Limpios globales
+    // Reasignamos usando query selector al documento real porque el original se copió
     if (btnSend) {
-        btnSend.addEventListener('click', sendTheatreMessage);
+        const currentBtn = document.getElementById('btn-player-theatre-send');
+        if(currentBtn) {
+            const newBtnSend = currentBtn.cloneNode(true);
+            currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
+            newBtnSend.addEventListener('click', sendTheatreMessage);
+        }
     }
 
     if (inputEl) {
-        inputEl.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendTheatreMessage();
-            }
-        });
+        const currentInput = document.getElementById('player-theatre-input');
+        if(currentInput) {
+            const newInputEl = currentInput.cloneNode(true);
+            currentInput.parentNode.replaceChild(newInputEl, currentInput);
+
+            newInputEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendTheatreMessage();
+                }
+            });
+        }
     }
 });
