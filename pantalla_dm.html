@@ -451,43 +451,114 @@
     }
 
     @media (max-width: 768px) {
+      /* Ocultar el contenedor de log por defecto en móvil */
+      #theatre-log-container {
+        display: none !important;
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 80% !important;
+        max-width: 400px !important;
+        height: 60vh !important;
+        max-height: 400px !important;
+        z-index: 2050 !important;
+        background: rgba(0,0,0,0.95) !important;
+        border: 2px solid #444 !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
+      }
+
+      #theatre-log-container.open {
+        display: flex !important;
+      }
+
+      #btn-toggle-theatre-log {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed !important;
+        top: 45px !important;
+        left: 10px !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: rgba(139, 0, 0, 0.8) !important;
+        border: 2px solid #d4af37 !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        cursor: pointer !important;
+        z-index: 2015 !important;
+        padding: 0 !important;
+        box-shadow: 0 0 10px rgba(0,0,0,0.8);
+      }
+
+      #btn-toggle-theatre-log:hover {
+        background: rgba(180, 0, 0, 1) !important;
+        transform: scale(1.05);
+      }
+
+      /* Restaurar location tag en tamaño compacto */
+      .theatre-location {
+        display: block !important;
+        top: 10px !important;
+        left: 10px !important;
+        padding: 4px 15px !important;
+        font-size: 10px !important;
+        border-top: 1px solid #d4af37 !important;
+        border-bottom: 1px solid #d4af37 !important;
+      }
+      .theatre-location::before {
+        top: -15px !important;
+        height: 15px !important;
+        width: 4px !important;
+      }
+      .theatre-location::after {
+        top: -4px !important;
+        width: 8px !important;
+        height: 8px !important;
+      }
+
       /* Controles colapsables móviles */
       #btn-toggle-dm-tools {
         display: block !important;
+        padding: 5px !important;
+        font-size: 10px !important;
+        margin-bottom: 5px !important;
       }
 
       #dm-tools-wrapper {
         display: none !important;
       }
 
-      /* Al abrirse, usa el Grid Landscape que acordamos antes */
+      /* Al abrirse, usa el Grid Landscape */
       #dm-tools-wrapper.open {
         display: grid !important;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: auto auto;
-        gap: 10px !important;
+        gap: 5px !important;
         align-items: start !important;
       }
 
       .theatre-controls {
         max-height: 80vh;
         overflow-y: auto;
-        padding: 10px;
+        padding: 5px;
         background: rgba(0,0,0,0.95) !important;
       }
 
-      /* Adaptaciones de UI internas para el grid horizontal */
+      /* Adaptaciones de UI internas para el grid horizontal ultra-compacto */
       #dm-tools-wrapper > div:nth-child(1) {
         grid-column: 1 / 2;
         grid-row: 1 / 2;
         border-right: none !important;
         padding-right: 0 !important;
-        max-height: 80px !important;
+        max-height: 60px !important;
       }
 
       #dm-tools-wrapper > div:nth-child(2) {
         grid-column: 2 / 3;
         grid-row: 1 / 3;
+        gap: 5px !important;
       }
 
       #dm-tools-wrapper > div:nth-child(3) {
@@ -499,56 +570,67 @@
       }
 
       #btn-theatre-avanzar {
-        font-size: 12px !important;
-        padding: 10px !important;
+        font-size: 10px !important;
+        padding: 5px !important;
         width: 100% !important;
       }
 
       .theatre-controls input,
       .theatre-controls select,
-      .theatre-controls button.btn-cyber {
-        padding: 6px !important;
-        font-size: 12px !important;
+      .theatre-controls button.btn-cyber,
+      .theatre-controls label {
+        padding: 3px !important;
+        font-size: 10px !important;
+        white-space: nowrap;
       }
 
-      /* Ajustes de diálogo (dinámico) */
+      .theatre-controls h5, #dm-theatre-queue {
+        font-size: 10px !important;
+        margin: 0 !important;
+      }
+      #dm-theatre-input {
+        height: 25px !important;
+        font-size: 10px !important;
+      }
+
+      /* Ajustes de diálogo ultra-compactos */
       .theatre-dialogue-wrapper {
-        bottom: 60px !important; /* Descansa sobre el botón toggle cerrado */
+        bottom: 35px !important; /* Descansa sobre el botón toggle cerrado que ahora es más fino */
         width: 95% !important;
         transition: bottom 0.3s ease;
       }
 
-      /* Si el panel está abierto, subimos el diálogo.
-         NOTA: Usamos :has en #theatre-view-dm porque dialogue es hermano anterior de controls */
+      /* Si el panel está abierto, subimos el diálogo. */
       #theatre-view-dm:has(#dm-tools-wrapper.open) .theatre-dialogue-wrapper {
-         bottom: 190px !important; /* Altura suficiente para el grid horizontal */
+         bottom: 130px !important; /* Altura suficiente para el grid horizontal compacto */
       }
 
       .theatre-dialogue-text {
-        padding: 30px 20px 20px 20px !important;
-        font-size: 14px !important;
-        min-height: 80px !important;
+        padding: 20px 10px 10px 10px !important;
+        font-size: 11px !important;
+        min-height: 50px !important;
+        line-height: 1.2 !important;
       }
 
       .theatre-plates-container {
-        top: -45px !important;
-        left: 10px !important;
-        transform: rotate(-5deg) !important;
+        top: -30px !important;
+        left: 5px !important;
+        transform: rotate(-3deg) !important;
       }
 
       .theatre-plate-name {
-        padding: 2px 20px 2px 10px !important;
-        font-size: 18px !important;
+        padding: 1px 15px 1px 5px !important;
+        font-size: 14px !important;
       }
 
       .theatre-plate-title {
-        padding: 1px 20px 1px 10px !important;
-        font-size: 12px !important;
+        padding: 1px 15px 1px 5px !important;
+        font-size: 10px !important;
       }
 
       .dm-tabs-nav .dm-tab-btn {
-        padding: 6px 10px !important;
-        font-size: 12px !important;
+        padding: 4px 8px !important;
+        font-size: 10px !important;
       }
 
       .form-cyber {
@@ -1035,6 +1117,8 @@
       <span id="theatre-location-text">Unknown Location</span>
     </div>
 
+    <button id="btn-toggle-theatre-log" title="Ver Historial" style="display: none;">📜</button>
+
     <!-- Theatre Log Container -->
     <div id="theatre-log-container" style="position: absolute; top: 120px; left: 40px; width: 300px; max-height: 400px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 4px; overflow-y: auto; padding: 10px; font-size: 13px; color: #ccc; z-index: 2010; display: flex; flex-direction: column; gap: 5px;">
       <!-- Log items injected here -->
@@ -1474,6 +1558,18 @@
                 const wrapper = document.getElementById('dm-tools-wrapper');
                 wrapper.classList.toggle('open');
                 this.innerText = wrapper.classList.contains('open') ? '▼ Ocultar Controles DM' : '🛠️ Mostrar Controles DM';
+            });
+        }
+
+        const logToggleBtn = document.getElementById('btn-toggle-theatre-log');
+        if (logToggleBtn) {
+            logToggleBtn.addEventListener('click', function() {
+                const logContainer = document.getElementById('theatre-log-container');
+                if (logContainer) {
+                    logContainer.classList.toggle('open');
+                    // On mobile, the button is a small circle, so we just toggle icons. On desktop it's hidden anyway.
+                    this.innerText = logContainer.classList.contains('open') ? '❌' : '📜';
+                }
             });
         }
     });

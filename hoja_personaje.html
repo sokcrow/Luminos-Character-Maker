@@ -4165,6 +4165,8 @@
     <span id="player-theatre-location-text">Unknown Location</span>
   </div>
 
+  <button id="btn-toggle-theatre-log-player" title="Ver Historial" style="display: none;">📜</button>
+
   <!-- Theatre Log Container -->
   <div id="theatre-log-container" style="position: absolute; top: 120px; left: 40px; width: 300px; max-height: 400px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 4px; overflow-y: auto; padding: 10px; font-size: 13px; color: #ccc; z-index: 2010; display: flex; flex-direction: column; gap: 5px;">
     <!-- Log items injected here -->
@@ -4189,13 +4191,17 @@
   </div>
 
   <!-- Player Input Area -->
-  <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; gap: 15px; z-index: 2030; align-items: center; justify-content: center; box-sizing: border-box;">
-    <select id="player-actor-select" style="background: #111; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: 'Share Tech Mono'; outline: none;">
-        <option value="base">Mi Personaje</option>
-    </select>
-    <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
-    <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
-    <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
+  <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2030; box-sizing: border-box;">
+    <button id="btn-toggle-player-theatre-tools" class="btn-cyber" style="display: none; width: 100%; background: #222; color: #0df; border: 1px solid #0df; padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer; text-transform: uppercase;">💬 Mostrar Chat y Opciones</button>
+
+    <div id="player-theatre-tools-wrapper" style="display: flex; gap: 15px; width: 100%; align-items: center; justify-content: center; flex-wrap: wrap;">
+      <select id="player-actor-select" style="background: #111; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: 'Share Tech Mono'; outline: none;">
+          <option value="base">Mi Personaje</option>
+      </select>
+      <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
+      <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
+      <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
+    </div>
   </div>
 </div>
 
@@ -4495,6 +4501,34 @@
           } else {
               theatreView.classList.remove('theatre-active');
           }
+      }
+  });
+
+  // --- LÓGICA BOTÓN COLLAPSE CONTROLES MÓVIL JUGADOR ---
+  document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtnPlayer = document.getElementById('btn-toggle-player-theatre-tools');
+      if (toggleBtnPlayer) {
+          toggleBtnPlayer.addEventListener('click', function() {
+              const wrapper = document.getElementById('player-theatre-tools-wrapper');
+              if (wrapper) {
+                  wrapper.classList.toggle('open');
+                  this.innerText = wrapper.classList.contains('open') ? '▼ Ocultar Chat y Opciones' : '💬 Mostrar Chat y Opciones';
+              }
+          });
+      }
+
+      const logToggleBtnPlayer = document.getElementById('btn-toggle-theatre-log-player');
+      if (logToggleBtnPlayer) {
+          logToggleBtnPlayer.addEventListener('click', function() {
+              // The theatre log is typically unique per view or shared if same DOM.
+              // In this file, there is a '#theatre-log-container' for the player view.
+              const logContainer = document.getElementById('theatre-log-container');
+              if (logContainer) {
+                  logContainer.classList.toggle('open');
+                  // Keep text small and single-character for the 36x36px circular button
+                  this.innerText = logContainer.classList.contains('open') ? '❌' : '📜';
+              }
+          });
       }
   });
 
