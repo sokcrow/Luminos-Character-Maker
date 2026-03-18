@@ -3472,14 +3472,22 @@
     let isTheatreContinuous = false;
     let continuousTimeout = null;
 
-    function iniciarAvanceContinuo() {
+    function iniciarAvanceContinuo(delay = 10000) {
         // the children check here was failing because the queue container always has children (or we might be advancing before rendering). Let's use queueItems length if possible, or just the queue container. But queueItems might not be in scope here. Let's use a simpler check:
         if (isTheatreContinuous) {
             if (continuousTimeout) clearTimeout(continuousTimeout);
             continuousTimeout = setTimeout(() => {
                 const btn = document.getElementById('btn-theatre-avanzar');
+                const dmInput = document.getElementById('dm-theatre-input');
+
+                // Si el DM está escribiendo (input no está vacío), posponemos el avance para no interrumpirlo
+                if (dmInput && dmInput.value.trim() !== '') {
+                    iniciarAvanceContinuo(2000); // Check again in 2 seconds
+                    return;
+                }
+
                 if (btn) btn.click();
-            }, 10000);
+            }, delay);
         }
     }
 
@@ -3765,6 +3773,26 @@
             `;
             queueContainer.appendChild(itemDiv);
         }
+
+        // Reactivar ciclo de avance continuo si estamos en dicho modo y la cola se llena
+        const textBox = document.getElementById('theatre-dialogue-text');
+        const isTypingText = textBox && textBox.typewriterInterval;
+
+        if (isTheatreContinuous && !continuousTimeout && !isTypingText && queueItems.length > 0) {
+            iniciarAvanceContinuo(1000);
+        }
+    });
+
+    // Si el DM borra su texto, el modo continuo debería reactivarse (verificar la cola)
+    document.getElementById('dm-theatre-input').addEventListener('input', (e) => {
+        if (isTheatreContinuous && e.target.value.trim() === '') {
+            const textBox = document.getElementById('theatre-dialogue-text');
+            const isTypingText = textBox && textBox.typewriterInterval;
+
+            if (!continuousTimeout && !isTypingText && queueItems.length > 0) {
+                iniciarAvanceContinuo(1000);
+            }
+        }
     });
 
     let currentMaxSprites = 4;
@@ -3828,11 +3856,21 @@
                 if (charIndex >= fullText.length) {
                     clearInterval(textBox.typewriterInterval);
                     textBox.typewriterInterval = null;
-                    iniciarAvanceContinuo();
+
+                    // Si hay cola, saltar rápido
+                    if (queueItems.length > 0) {
+                        iniciarAvanceContinuo(1000);
+                    } else {
+                        iniciarAvanceContinuo();
+                    }
                 }
             }, 30); // 30ms per character
         } else {
-            iniciarAvanceContinuo();
+            if (queueItems.length > 0) {
+                iniciarAvanceContinuo(1000);
+            } else {
+                iniciarAvanceContinuo();
+            }
         }
 
         // Manage Sprites on Stage
@@ -3909,18 +3947,40 @@
                 img.style.transform = 'translateX(-50%) scale(0.95)';
             }
         });
+
+        // Aseguramos que el auto-advance se detona si no hubo mensaje (ej. solo cambio de imagen)
+        if (!fullText || fullText.length === 0) {
+            if (queueItems.length > 0) {
+                iniciarAvanceContinuo(1000);
+            } else {
+                iniciarAvanceContinuo();
+            }
+        }
     });
 
     // Stop continuous advance on DM input
-    document.getElementById('dm-theatre-input').addEventListener('input', () => {
+    document.getElementById('dm-theatre-input').addEventListener('input', (e) => {
         if (continuousTimeout) clearTimeout(continuousTimeout);
+        // Si se borra el input, se puede reactivar
+        if (isTheatreContinuous && e.target.value.trim() === '') {
+            const textBox = document.getElementById('theatre-dialogue-text');
+            const isTypingText = textBox && textBox.typewriterInterval;
+            if (!isTypingText && queueItems.length > 0) {
+                iniciarAvanceContinuo(1000);
+            }
+        }
     });
 
     // Entrar a Escena / Avanzar
-    document.getElementById('btn-theatre-avanzar').addEventListener('click', () => {
+    document.getElementById('btn-theatre-avanzar').addEventListener('click', (e) => {
         if (continuousTimeout) clearTimeout(continuousTimeout);
         const dmInput = document.getElementById('dm-theatre-input').value.trim();
         const selectedNpcId = activeSpeakerId;
+
+        // Validar si es llamada automática y DM escribió
+        if (e && !e.isTrusted && e.cancelable && dmInput !== '') {
+            return;
+        }
 
         // Priority 1: DM Input (Overrides Queue)
         if (dmInput) {
