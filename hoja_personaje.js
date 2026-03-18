@@ -1884,10 +1884,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputEl = document.getElementById('player-theatre-input');
 
     const sendTheatreMessage = () => {
-        if (!inputEl || !inputEl.value.trim() || typeof db === 'undefined') return;
+        const domInput = document.getElementById('player-theatre-input');
+        if (!domInput || !domInput.value.trim() || typeof db === 'undefined') return;
 
         try {
-            const msgText = inputEl.value.trim();
+            const msgText = domInput.value.trim();
             const actorSelect = document.getElementById('player-actor-select');
             const selectExp = document.getElementById('player-expression-select');
 
