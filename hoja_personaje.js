@@ -1353,55 +1353,42 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Validar Mesa and Verificar Receta Oculta logic combined
-window.verificarRecetaOculta = function(slotsIds, slotsNames = []) {
+// Validar Mesa and Verificar Receta Oculta logic combined
+window.verificarRecetaOculta = function(slotsIds) {
     let matchingRecipeId = null;
     let matchingRecipe = null;
 
-    // Find if these exact items match any recipe's ingredients (disregarding quantities for discovery based on IDs alone, but in a real case we should match quantities as well. However, UI only puts 1 item per slot currently. The requirement says: compare IDs in slots against recipe requirements)
-    // Let's count IDs in slots
-    const normalizeStr = (str) => {
-        if (!str) return '';
-        return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    };
-
-    const getBaseName = (id, fallbackName = '') => {
-        if (!id) return normalizeStr(fallbackName);
-        id = id.trim();
-        if (typeof window.dbItemsCacheGlobal !== 'undefined') {
-            const data = window.dbItemsCacheGlobal[id];
-            if (data && data.nombre) return normalizeStr(data.nombre);
-            const foundKey = Object.keys(window.dbItemsCacheGlobal).find(k => window.dbItemsCacheGlobal[k].nombre && normalizeStr(window.dbItemsCacheGlobal[k].nombre) === normalizeStr(id));
-            if (foundKey) return normalizeStr(window.dbItemsCacheGlobal[foundKey].nombre);
-        }
-        return fallbackName ? normalizeStr(fallbackName) : normalizeStr(id);
-    };
-
-    const slotNamesList = slotsIds.map((id, index) => getBaseName(id, slotsNames[index]));
+    // Count the exact global IDs present in the crafting slots
     const slotCounts = {};
-    slotNamesList.forEach(name => { slotCounts[name] = (slotCounts[name] || 0) + 1; });
+    slotsIds.forEach(id => {
+        if (!id) return;
+        const cleanId = id.trim();
+        slotCounts[cleanId] = (slotCounts[cleanId] || 0) + 1;
+    });
 
     if (Object.keys(slotCounts).length > 0 && typeof window.recetasCache !== 'undefined') {
         for (const [recetaId, recetaData] of Object.entries(window.recetasCache)) {
             if (!recetaData.ingredientes) continue;
 
-            // create a map of req ingredients by name
+            // Count the required exact global IDs from the recipe
             const reqCounts = {};
             recetaData.ingredientes.forEach(ing => {
-                const reqName = getBaseName(ing.id_item);
-                reqCounts[reqName] = (reqCounts[reqName] || 0) + parseInt(ing.cantidad);
+                if (!ing.id_item) return;
+                const reqId = ing.id_item.trim();
+                reqCounts[reqId] = (reqCounts[reqId] || 0) + parseInt(ing.cantidad || 1);
             });
 
-            // Compare only IDs (mapped to base names), not quantities. The recipe is a match if the unique base names in the slots exactly match the unique base names required by the recipe.
+            // Compare only IDs, not quantities, for matching the shape of the recipe
+            // A match only occurs if the required unique IDs count equals the slotted unique IDs count,
+            // and all required IDs exist in the slots.
             let isMatch = true;
             const reqKeys = Object.keys(reqCounts);
             const slotKeys = Object.keys(slotCounts);
 
-            // A match only occurs if the required unique items count equals the slotted unique items count, and all required keys exist in slots.
-            // This ensures empty slots are simply ignored (they aren't in slotsIds).
             if (reqKeys.length !== slotKeys.length) continue;
 
-            for (let key of reqKeys) {
-                if (!slotCounts[key]) {
+            for (let reqId of reqKeys) {
+                if (!slotCounts[reqId]) {
                     isMatch = false;
                     break;
                 }
@@ -1420,7 +1407,6 @@ window.verificarRecetaOculta = function(slotsIds, slotsNames = []) {
 window.validarMesaCraft = function() {
     try {
         const slotsIds = [];
-        const slotsNames = [];
         for (let i = 1; i <= 5; i++) {
             const slot = document.getElementById(`craft-slot-${i}`);
             if (slot) {
@@ -1428,14 +1414,13 @@ window.validarMesaCraft = function() {
                 slot.style.border = ''; // Clean up any inline borders left behind from previous code
                 if (slot.classList.contains('has-item') && slot.dataset.idItem) {
                     slotsIds.push(slot.dataset.idItem);
-                    slotsNames.push(slot.dataset.itemName || '');
                 }
             }
         }
 
         const previewSlot = document.getElementById('craft-result-preview');
         const fabricarBtn = document.getElementById('btn-craft-fabricar');
-        const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds, slotsNames);
+        const { matchingRecipeId, matchingRecipe } = window.verificarRecetaOculta(slotsIds);
 
         if (matchingRecipe) {
             window.currentSelectedRecetaId = matchingRecipeId;
@@ -1775,7 +1760,8 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
         // Asumiendo máximo 5 ingredientes por la UI
         for (let i = 0; i < Math.min(receta.ingredientes.length, 5); i++) {
             const ing = receta.ingredientes[i];
-            const globalIng = dbItemsCacheGlobal[ing.id_item] || {};
+            if (!ing.id_item) continue;
+            const globalIng = dbItemsCacheGlobal[ing.id_item.trim()] || {};
             const ingIconUrl = globalIng.icono || 'https://i.imgur.com/8QZ7XqY.png';
             const ingTier = globalIng.tier;
 
@@ -1783,8 +1769,7 @@ function seleccionarRecetaRadial(idReceta, receta, isDiscovered, resultIconUrl, 
             let ownedQty = 0;
             const allItems = [...invStash, ...invActivo];
             const matchingStacks = allItems.filter(item => {
-                const itemKey = item.id || item.nombre;
-                return itemKey === ing.id_item;
+                return item.id && item.id.trim() === ing.id_item.trim();
             });
             matchingStacks.forEach(stack => { ownedQty += (parseInt(stack.cantidad) || 1); });
 
@@ -1866,12 +1851,14 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
     if (exito) {
         // Reducir ingredientes exactamente
         receta.ingredientes.forEach(ing => {
+            if (!ing.id_item) return;
             let reqTotal = ing.cantidad * multi;
             for (const [k, item] of Object.entries(currentStash)) {
                 if (reqTotal <= 0) break;
-                const itemKey = item.id || item.nombre;
+                // Only match exactly by global ID
+                if (!item.id) continue;
 
-                if (itemKey === ing.id_item) {
+                if (item.id.trim() === ing.id_item.trim()) {
                     let has = parseInt(item.cantidad) || 1;
                     if (has <= reqTotal) {
                         removes.push(k);
@@ -1886,10 +1873,12 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
         });
 
         // Marcar receta como descubierta
-        db.ref(`campaña/jugadores/${playerName}/recetas_aprendidas/${receta.id_receta || currentSelectedRecetaId}`).set(true);
+        db.ref(`campaña/jugadores/${playerName}/recetas_aprendidas/${window.currentSelectedRecetaId || currentSelectedRecetaId}`).set(true);
 
         // Crear/Añadir item resultante
-        const resId = receta.item_resultado;
+        const resId = receta.item_resultado ? receta.item_resultado.trim() : null;
+        if (!resId) return;
+
         const resData = dbItemsCacheGlobal[resId];
         const cantFinal = (parseInt(receta.cantidad_resultado) || 1) * multi;
         const tierResult = parseInt(receta.tier_resultado) || 1;
@@ -1899,8 +1888,8 @@ function ejecutarSintesis(playerName, receta, multi, currentStash, exito, rollIn
             let currentResCant = 0;
 
             for (const [k, item] of Object.entries(currentStash)) {
-                const itemKey = item.id || item.nombre;
-                if (itemKey === resId && (parseInt(item.tier) || 1) === tierResult && !removes.includes(k)) {
+                if (!item.id) continue;
+                if (item.id.trim() === resId && (parseInt(item.tier) || 1) === tierResult && !removes.includes(k)) {
                     foundResKey = k;
                     currentResCant = parseInt(item.cantidad) || 1;
                     break;
