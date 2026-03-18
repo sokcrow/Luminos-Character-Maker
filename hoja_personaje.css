@@ -6139,6 +6139,208 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 .inv-shop-buy-btn:hover { box-shadow: 0 0 10px rgba(51, 255, 51, 0.5); }
 
 
+/* ---- MOBILE OVERRIDES ---- */
+@media (max-width: 768px) {
+    /* ---- Ultra Compact HUD Toggles ---- */
+    #btn-toggle-hud {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px !important;
+    }
+    #btn-toggle-hud .text-long {
+        display: none !important;
+    }
+    #btn-toggle-hud .text-short {
+        display: inline !important;
+    }
+
+    /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
+    .btn-toggle-phone {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+        bottom: 10px !important;
+        right: 10px !important;
+    }
+    .btn-global-inventory {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+        bottom: 50px !important; /* Positioned just above the phone toggle */
+        right: 10px !important;
+    }
+
+    /* ---- Theatre Location & Log Adjustments ---- */
+    #theatre-view-player #theatre-log-container {
+        display: none !important;
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 80% !important;
+        max-width: 400px !important;
+        height: 60vh !important;
+        max-height: 400px !important;
+        z-index: 2050 !important;
+        background: rgba(0,0,0,0.95) !important;
+        border: 2px solid #444 !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
+    }
+
+    #theatre-view-player #theatre-log-container.open {
+        display: flex !important;
+    }
+
+    #btn-toggle-theatre-log-player {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed !important;
+        top: 45px !important;
+        left: 10px !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: rgba(139, 0, 0, 0.8) !important;
+        border: 2px solid #d4af37 !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        cursor: pointer !important;
+        z-index: 2015 !important;
+        padding: 0 !important;
+        box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    #btn-toggle-theatre-log-player:hover {
+        background: rgba(180, 0, 0, 1) !important;
+        transform: scale(1.05);
+    }
+
+    /* Restaurar location tag en tamaño compacto */
+    #theatre-view-player .theatre-location {
+        display: block !important;
+        top: 10px !important;
+        left: 10px !important;
+        padding: 4px 15px !important;
+        font-size: 10px !important;
+        border-top: 1px solid #d4af37 !important;
+        border-bottom: 1px solid #d4af37 !important;
+    }
+    #theatre-view-player .theatre-location::before {
+        top: -15px !important;
+        height: 15px !important;
+        width: 4px !important;
+    }
+    #theatre-view-player .theatre-location::after {
+        top: -4px !important;
+        width: 8px !important;
+        height: 8px !important;
+    }
+
+    /* ---- Player Theatre Mobile Controls Slide-Up Drawer ---- */
+    .theatre-player-input-area {
+        padding: 0 !important;
+        background: rgba(0,0,0,0.95) !important;
+        border-top: none !important;
+    }
+
+    #btn-toggle-player-theatre-tools {
+        display: block !important;
+        padding: 5px !important;
+        font-size: 10px !important;
+        margin: 5px !important;
+        width: calc(100% - 10px) !important;
+        z-index: 2050 !important;
+    }
+
+    #player-theatre-tools-wrapper {
+        display: flex !important;
+        /* Drawer hidden by default */
+        max-height: 0 !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+        transition: max-height 0.4s ease-out, opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0 !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 0 5px !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Open State */
+    #player-theatre-tools-wrapper.open {
+        max-height: 150px !important;
+        opacity: 1 !important;
+        gap: 5px !important;
+        padding: 0 5px 5px 5px !important;
+        margin-bottom: 5px !important;
+    }
+
+    /* Make inputs and buttons ultra compact */
+    #player-actor-select,
+    #player-expression-select {
+        padding: 4px !important;
+        font-size: 10px !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    #player-theatre-input {
+        padding: 4px !important;
+        font-size: 10px !important;
+        flex: 1 !important;
+        height: 25px !important;
+    }
+
+    #btn-player-theatre-send {
+        padding: 4px 10px !important;
+        font-size: 10px !important;
+        width: auto !important;
+    }
+
+    /* Dynamically shift the dialogue box tracking the drawer animation */
+    #theatre-view-player .theatre-dialogue-wrapper {
+        bottom: 35px !important; /* height of closed toggle button */
+        width: 95% !important;
+        transition: bottom 0.4s ease-out !important;
+    }
+
+    #theatre-view-player:has(#player-theatre-tools-wrapper.open) .theatre-dialogue-wrapper {
+        bottom: 75px !important; /* Approx height of open ultra-compact menu */
+    }
+
+    /* Keep the dialogue box itself ultra compact */
+    #theatre-view-player .theatre-dialogue-text {
+        padding: 20px 10px 10px 10px !important;
+        font-size: 11px !important;
+        min-height: 50px !important;
+        line-height: 1.2 !important;
+    }
+
+    #theatre-view-player .theatre-plates-container {
+        top: -30px !important;
+        left: 5px !important;
+        transform: rotate(-3deg) !important;
+    }
+
+    #theatre-view-player .theatre-plate-name {
+        padding: 1px 15px 1px 5px !important;
+        font-size: 14px !important;
+    }
+
+    #theatre-view-player .theatre-plate-title {
+        padding: 1px 15px 1px 5px !important;
+        font-size: 10px !important;
+    }
+}
+
 /* Make the phone wrapper take full width and height on mobile devices */
 @media (max-width: 600px) {
     .sheet-phone-wrapper {
