@@ -6141,6 +6141,40 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 /* ---- MOBILE OVERRIDES ---- */
 @media (max-width: 768px) {
+    /* ---- Ultra Compact HUD Toggles ---- */
+    #btn-toggle-hud {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px !important;
+    }
+    #btn-toggle-hud .text-long {
+        display: none !important;
+    }
+    #btn-toggle-hud .text-short {
+        display: inline !important;
+    }
+
+    /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
+    .btn-toggle-phone {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+        bottom: 10px !important;
+        right: 10px !important;
+    }
+    .btn-global-inventory {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+        bottom: 50px !important; /* Positioned just above the phone toggle */
+        right: 10px !important;
+    }
+
     /* ---- Theatre Location & Log Adjustments ---- */
     #theatre-view-player #theatre-log-container {
         display: none !important;

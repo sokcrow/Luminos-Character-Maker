@@ -1826,14 +1826,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnToggleHud && combatHud) {
         btnToggleHud.addEventListener('click', () => {
+            const textLong = btnToggleHud.querySelector('.text-long');
+            const textShort = btnToggleHud.querySelector('.text-short');
+
             if (combatHud.style.display === 'none' || combatHud.style.display === '') {
                 combatHud.style.display = 'flex';
-                btnToggleHud.innerText = '[-] OCULTAR VITALES';
+                if (textLong) textLong.innerText = '[-] OCULTAR VITALES';
+                if (textShort) textShort.innerText = '❌';
                 btnToggleHud.style.color = '#d4af37';
                 btnToggleHud.style.borderColor = '#d4af37';
             } else {
                 combatHud.style.display = 'none';
-                btnToggleHud.innerText = '[+] REVISAR VITALES';
+                if (textLong) textLong.innerText = '[+] REVISAR VITALES';
+                if (textShort) textShort.innerText = '❤️';
                 btnToggleHud.style.color = '#ff3333';
                 btnToggleHud.style.borderColor = '#ff3333';
             }
