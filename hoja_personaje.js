@@ -1887,7 +1887,7 @@ document.addEventListener('click', (e) => {
             if (container) container.appendChild(img);
         }
 
-        const finalResult = headsCount + skillTotal;
+        const finalResult = (headsCount * 3) + skillTotal;
 
         // Update UI
         const nameEl = document.getElementById('coin-toss-skill-name');
@@ -1943,7 +1943,7 @@ document.addEventListener('click', (e) => {
                      console.warn("Fallo leyendo expresión, usando sprite base.", e);
                 }
 
-                const msgText = `Tira [${displayName}]: Resultado: ${finalResult} (${headsCount} Caras + ${skillTotal} Modificador)`;
+                const msgText = `Tira [${displayName}]: Resultado: ${finalResult} (${headsCount * 3} Caras + ${skillTotal} Modificador)`;
 
                 const payload = {
                     nombre: actorParaEnviar.nombre || "Jugador",
