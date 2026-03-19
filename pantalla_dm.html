@@ -618,6 +618,15 @@
          bottom: 130px !important;
       }
 
+      #theatre-view-dm .sprite-wrapper img {
+         bottom: 35px !important;
+         transition: bottom 0.4s ease-out !important;
+      }
+
+      #theatre-view-dm:has(#dm-tools-wrapper.open) .sprite-wrapper img {
+         bottom: 130px !important;
+      }
+
       .theatre-dialogue-text {
         padding: 20px 10px 10px 10px !important;
         font-size: 11px !important;
@@ -1250,7 +1259,7 @@
     }
     .sprite-wrapper img {
       position: absolute;
-      bottom: 0;
+      bottom: 50px;
       left: 50%;
       transform-origin: bottom center;
       transform: translateX(-50%);

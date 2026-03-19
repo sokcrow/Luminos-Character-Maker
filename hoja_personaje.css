@@ -6316,6 +6316,15 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         bottom: 75px !important; /* Approx height of open ultra-compact menu */
     }
 
+    #theatre-view-player .sprite-wrapper img {
+        bottom: 35px !important;
+        transition: bottom 0.4s ease-out !important;
+    }
+
+    #theatre-view-player:has(#player-theatre-tools-wrapper.open) .sprite-wrapper img {
+        bottom: 75px !important;
+    }
+
     /* Keep the dialogue box itself ultra compact */
     #theatre-view-player .theatre-dialogue-text {
         padding: 20px 10px 10px 10px !important;
@@ -6718,7 +6727,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 .sprite-wrapper img {
     position: absolute;
-    bottom: 0;
+    bottom: 50px;
     left: 50%;
     transform-origin: bottom center;
     transform: translateX(-50%);
