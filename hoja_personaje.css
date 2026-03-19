@@ -6670,7 +6670,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #222;
+    background-color: #79c5c5; /* Cyan Pálido */
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
     border: 1px solid #444;
 }

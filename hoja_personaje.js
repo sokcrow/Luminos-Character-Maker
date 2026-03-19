@@ -359,9 +359,9 @@ window.renderCharacterSheet = function(data) {
         }
 
         if (spSphere) {
-            const neutralColor = [34, 34, 34]; // #222222
-            const maxRed = [255, 0, 0];        // #ff0000
-            const maxCyan = [0, 255, 255];     // #00ffff
+            const neutralColor = [121, 197, 197]; // Pale Cyan #79c5c5
+            const maxRed = [255, 0, 0];           // #ff0000
+            const maxCyan = [0, 255, 255];        // Bright Cyan #00ffff
 
             if (spActual === -45) {
                 spSphere.classList.add('sp-extreme-neg');
@@ -381,7 +381,7 @@ window.renderCharacterSheet = function(data) {
                 } else if (spActual > 0) {
                     colorCalculado = interpolateColor(neutralColor, maxCyan, spActual / 45);
                 } else {
-                    colorCalculado = 'rgb(34, 34, 34)';
+                    colorCalculado = 'rgb(121, 197, 197)';
                 }
                 spSphere.style.backgroundColor = colorCalculado;
             }
