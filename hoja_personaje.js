@@ -1808,7 +1808,7 @@ document.addEventListener('click', (e) => {
         if (nameEl) nameEl.textContent = displayName;
 
         const resultEl = document.getElementById('coin-toss-total-result');
-        if (resultEl) resultEl.textContent = `Resultado: ${finalResult} (${headsCount} Caras + ${skillTotal} Modificador)`;
+        if (resultEl) resultEl.textContent = finalResult;
 
         const panel = document.getElementById('coin-toss-panel');
         if (panel) panel.style.display = 'flex';
