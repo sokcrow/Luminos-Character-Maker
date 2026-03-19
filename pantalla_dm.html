@@ -2475,11 +2475,91 @@
 
        const isEditing = editModeItemKey !== null;
 
+       function propagarActualizacionItem(originalKey, newKey, newItemData) {
+           const updates = {};
+
+           // Actualizar en jugadores
+           db.ref('campaña/jugadores').once('value').then(snap => {
+               const jugadores = snap.val();
+               if (jugadores) {
+                   for (const [idJugador, dataJugador] of Object.entries(jugadores)) {
+                       // Inventario Activo
+                       if (dataJugador.inventario_activo) {
+                           for (const [keyInv, dataItem] of Object.entries(dataJugador.inventario_activo)) {
+                               if (dataItem.nombre === originalKey || (editModeItemKey && dataItem.nombre === editModeItemKey)) {
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/nombre`] = newItemData.nombre;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/icono`] = newItemData.icono;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/tags`] = newItemData.tags;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/tier`] = newItemData.tier;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/costo`] = newItemData.costo;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/usos`] = newItemData.usos;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/descripcion`] = newItemData.descripcion;
+                               }
+                           }
+                       }
+                       // Inventario Stash
+                       if (dataJugador.inventario_stash) {
+                           for (const [keyInv, dataItem] of Object.entries(dataJugador.inventario_stash)) {
+                               if (dataItem.nombre === originalKey || (editModeItemKey && dataItem.nombre === editModeItemKey)) {
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/nombre`] = newItemData.nombre;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/icono`] = newItemData.icono;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/tags`] = newItemData.tags;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/tier`] = newItemData.tier;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/costo`] = newItemData.costo;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/usos`] = newItemData.usos;
+                                   updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/descripcion`] = newItemData.descripcion;
+                               }
+                           }
+                       }
+                   }
+               }
+
+               // Actualizar en tiendas
+               return db.ref('campaña/tiendas').once('value');
+           }).then(snap => {
+               const tiendas = snap.val();
+               if (tiendas) {
+                   for (const [idTienda, dataTienda] of Object.entries(tiendas)) {
+                       if (dataTienda.items) {
+                           if (originalKey !== newKey) {
+                               // Si cambió la key (el nombre), movemos el nodo
+                               if (dataTienda.items[originalKey]) {
+                                   const itemTiendaData = { ...dataTienda.items[originalKey], ...newItemData };
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}`] = itemTiendaData;
+                                   updates[`campaña/tiendas/${idTienda}/items/${originalKey}`] = null;
+                               }
+                           } else {
+                               // Actualizar in-place
+                               if (dataTienda.items[newKey]) {
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/nombre`] = newItemData.nombre;
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/icono`] = newItemData.icono;
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/tags`] = newItemData.tags;
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/tier`] = newItemData.tier;
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/usos`] = newItemData.usos;
+                                   updates[`campaña/tiendas/${idTienda}/items/${newKey}/descripcion`] = newItemData.descripcion;
+                                   // Not updating cost/price here because store could have custom price
+                               }
+                           }
+                       }
+                   }
+               }
+
+               if (Object.keys(updates).length > 0) {
+                   return db.ref().update(updates);
+               }
+           }).then(() => {
+               console.log("Propagación de ítem completada.");
+           }).catch(err => {
+               console.error("Error propagando ítem: ", err);
+           });
+       }
+
        if (isEditing && editModeItemKey !== nombre) {
            // Name changed, delete old one
            db.ref(`campaña/base_datos_items/${editModeItemKey}`).remove()
              .then(() => db.ref(`campaña/base_datos_items/${nombre}`).set(item))
              .then(() => {
+                propagarActualizacionItem(editModeItemKey, nombre, item);
                 alert('Ítem actualizado exitosamente');
                 resetItemForm();
              })
@@ -2487,6 +2567,7 @@
        } else {
            db.ref(`campaña/base_datos_items/${nombre}`).set(item)
              .then(() => {
+                if (isEditing) propagarActualizacionItem(nombre, nombre, item);
                 alert(isEditing ? 'Ítem actualizado exitosamente' : 'Ítem creado exitosamente');
                 resetItemForm();
              })
@@ -3160,7 +3241,7 @@
         });
     }
 
-    document.querySelector('.modal-body').addEventListener('click', (e) => {
+    document.querySelector('#modal-inventario-dm .modal-body').addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-inv-mod')) {
             const action = e.target.getAttribute('data-action');
             const key = e.target.getAttribute('data-key');
