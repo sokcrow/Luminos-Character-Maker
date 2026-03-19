@@ -310,7 +310,13 @@ window.renderCharacterSheet = function(data) {
 
     // Actualización del HUD de Combate (Vitales)
     if (data.combatStats) {
-        const hpMax = parseInt(data.combatStats.hp_max) || parseInt(data.combatStats.hp_base) || 100;
+        const lvl = parseInt(data.level) || 1;
+        const hpBase = parseInt(data.combatStats.hp_base || data.hp_base) || 0;
+        const hpCoef = parseFloat(data.combatStats.hp_coefficient || data.hp_coefficient) || 0;
+        const defLvlMod = parseInt(data.combatStats.def_lvl_mod) || 0;
+        const totalDefLvl = lvl + defLvlMod;
+        const hpMax = Math.floor(hpBase + (totalDefLvl * hpCoef)) || 100;
+
         const hpActual = data.combatStats.hp_actual !== undefined ? parseInt(data.combatStats.hp_actual) : hpMax;
         const spActual = data.combatStats.sp_actual !== undefined ? parseInt(data.combatStats.sp_actual) : 0;
 
@@ -1803,11 +1809,23 @@ window.addEventListener('DOMContentLoaded', () => {
             // Interceptar la actualización de XP para calcular nivel y barras de progreso
             if (attrName === 'xp' && typeof calculateLevelData === 'function') {
                 const xpData = calculateLevelData(val);
+
+                const hpBase = parseInt(currentPlayerData?.combatStats?.hp_base || currentPlayerData?.hp_base) || 0;
+                const hpCoef = parseFloat(currentPlayerData?.combatStats?.hp_coefficient || currentPlayerData?.hp_coefficient) || 0;
+                const defLvlMod = parseInt(currentPlayerData?.combatStats?.def_lvl_mod) || 0;
+                const totalDefLvl = xpData.level + defLvlMod;
+                const newHpMax = Math.floor(hpBase + (totalDefLvl * hpCoef));
+
                 db.ref('campaña/jugadores/' + playerId).update({
                     xp: parseInt(val) || 0,
                     level: xpData.level,
                     xpPercent: xpData.xpPercent,
-                    xpMissing: xpData.xpMissing
+                    xpMissing: xpData.xpMissing,
+                    hp_max: newHpMax
+                });
+
+                db.ref('campaña/jugadores/' + playerId + '/combatStats').update({
+                    hp_max: newHpMax
                 });
             } else {
                 // Guardar directamente en la raiz

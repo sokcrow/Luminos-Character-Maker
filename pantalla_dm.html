@@ -1142,7 +1142,7 @@
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP MAX</label>
-          <input type="number" id="dm-hp-max" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-hp-max" readonly style="padding: 5px; background: #111; color: #888; border: 1px solid #444; border-radius: 3px;">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP ACTUAL</label>
@@ -4414,7 +4414,7 @@
             const defLvlMod = combatStats.def_lvl_mod || 0;
             const totalDefLvl = lvl + defLvlMod;
             const calcHpMax = Math.floor(hpBase + (totalDefLvl * hpCoef));
-            const hpMax = combatStats.hp_max || playerData.hp_max || calcHpMax || 0;
+            const hpMax = calcHpMax || 0;
             const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
 
             // Poblar inputs
@@ -4449,7 +4449,6 @@
         if (!activePlayerIdForModal) return;
 
         const xpInput = parseInt(document.getElementById('dm-player-xp').value) || 0;
-        const hpMax = parseInt(document.getElementById('dm-hp-max').value) || 0;
         const hpActual = parseInt(document.getElementById('dm-hp-actual').value) || 0;
         const hpBase = parseInt(document.getElementById('dm-hp-base').value) || 0;
         const hpCoef = parseFloat(document.getElementById('dm-coef').value) || 0;
@@ -4475,7 +4474,13 @@
             calculatedLvlData = calculateLevelData(xpInput);
         }
 
+        let newLevel = 1;
+        if (window.jugadoresData && window.jugadoresData[activePlayerIdForModal] && window.jugadoresData[activePlayerIdForModal].level) {
+            newLevel = window.jugadoresData[activePlayerIdForModal].level;
+        }
+
         if (calculatedLvlData) {
+            newLevel = calculatedLvlData.level;
             updates[`campaña/jugadores/${activePlayerIdForModal}/xp`] = xpInput;
             updates[`campaña/jugadores/${activePlayerIdForModal}/level`] = calculatedLvlData.level;
             updates[`campaña/jugadores/${activePlayerIdForModal}/xpPercent`] = calculatedLvlData.xpPercent;
@@ -4483,6 +4488,8 @@
         } else {
             updates[`campaña/jugadores/${activePlayerIdForModal}/xp`] = xpInput;
         }
+
+        const hpMax = Math.floor(hpBase + ((newLevel + defLvl) * hpCoef));
 
         // Actualizar en root node para compatibilidad con la hoja de personaje
         updates[`campaña/jugadores/${activePlayerIdForModal}/hp_base`] = hpBase;
