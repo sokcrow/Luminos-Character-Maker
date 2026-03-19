@@ -6141,24 +6141,6 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 /* ---- MOBILE OVERRIDES ---- */
 @media (max-width: 768px) {
-    /* ---- Ultra Compact HUD Toggles ---- */
-    #btn-toggle-hud {
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px !important;
-    }
-    #btn-toggle-hud .text-long {
-        display: none !important;
-    }
-    #btn-toggle-hud .text-short {
-        display: inline !important;
-    }
-
     /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
     .btn-toggle-phone {
         width: 36px !important;
@@ -6173,52 +6155,6 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         font-size: 16px !important;
         bottom: 50px !important; /* Positioned just above the phone toggle */
         right: 10px !important;
-    }
-
-    /* ---- Theatre Location & Log Adjustments ---- */
-    #theatre-view-player #theatre-log-container {
-        display: none !important;
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        width: 80% !important;
-        max-width: 400px !important;
-        height: 60vh !important;
-        max-height: 400px !important;
-        z-index: 2050 !important;
-        background: rgba(0,0,0,0.95) !important;
-        border: 2px solid #444 !important;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
-    }
-
-    #theatre-view-player #theatre-log-container.open {
-        display: flex !important;
-    }
-
-    #btn-toggle-theatre-log-player {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        position: fixed !important;
-        top: 45px !important;
-        left: 10px !important;
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        background: rgba(139, 0, 0, 0.8) !important;
-        border: 2px solid #d4af37 !important;
-        color: #fff !important;
-        font-size: 16px !important;
-        cursor: pointer !important;
-        z-index: 2015 !important;
-        padding: 0 !important;
-        box-shadow: 0 0 10px rgba(0,0,0,0.8);
-    }
-
-    #btn-toggle-theatre-log-player:hover {
-        background: rgba(180, 0, 0, 1) !important;
-        transform: scale(1.05);
     }
 
     /* Restaurar location tag en tamaño compacto */
@@ -6582,6 +6518,52 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     border-radius: 3px;
 }
 
+/* ---- Theatre Location & Log Adjustments ---- */
+#theatre-view-player #theatre-log-container {
+    display: none !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 80% !important;
+    max-width: 400px !important;
+    height: 60vh !important;
+    max-height: 400px !important;
+    z-index: 2050 !important;
+    background: rgba(0,0,0,0.95) !important;
+    border: 2px solid #444 !important;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
+}
+
+#theatre-view-player #theatre-log-container.open {
+    display: flex !important;
+}
+
+#btn-toggle-theatre-log-player {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: fixed !important;
+    top: 45px !important;
+    left: 10px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background: rgba(139, 0, 0, 0.8) !important;
+    border: 2px solid #d4af37 !important;
+    color: #fff !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    z-index: 2015 !important;
+    padding: 0 !important;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+
+#btn-toggle-theatre-log-player:hover {
+    background: rgba(180, 0, 0, 1) !important;
+    transform: scale(1.05);
+}
+
 /* --- HUD DE COMBATE (VITALES) --- */
 #btn-toggle-hud {
     position: fixed;
@@ -6591,15 +6573,28 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background: rgba(10, 10, 10, 0.85);
     color: #ff3333;
     border: 2px solid #ff3333;
-    padding: 10px 15px;
+    padding: 0;
     font-family: 'Share Tech Mono', monospace;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
     backdrop-filter: blur(5px);
     transition: all 0.3s ease;
-    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#btn-toggle-hud .text-long {
+    display: none;
+}
+
+#btn-toggle-hud .text-short {
+    display: inline !important;
 }
 
 #btn-toggle-hud:hover {
