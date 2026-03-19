@@ -317,6 +317,7 @@ window.renderCharacterSheet = function(data) {
         const hpActualEl = document.getElementById('hud-hp-actual');
         const hpMaxEl = document.getElementById('hud-hp-max');
         const hpBarEl = document.getElementById('hud-hp-bar');
+        const hpTrackEl = document.querySelector('.hud-hp-track');
         const spTextEl = document.getElementById('hud-sp-text');
         const spSphere = document.getElementById('hud-sp-sphere');
         const coinTextEl = document.getElementById('hud-coin-text');
@@ -332,6 +333,24 @@ window.renderCharacterSheet = function(data) {
                 hpBarEl.classList.add('hp-danger');
             } else {
                 hpBarEl.classList.remove('hp-danger');
+            }
+
+            // Dynamic EKG Monitor Logic
+            if (hpTrackEl) {
+                let ekgColor = '%2333ff33'; // Default Green #33ff33
+                let animDuration = '2s';    // Normal speed
+
+                if (hpPercent <= 30) {
+                    ekgColor = '%23ff3333'; // Red #ff3333
+                    animDuration = '6s';    // Slow speed (low heart rate)
+                } else if (hpPercent <= 60) {
+                    ekgColor = '%23ffff33'; // Yellow #ffff33
+                    animDuration = '4s';    // Medium speed
+                }
+
+                const svgData = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="${ekgColor}" stroke-width="0.5" fill="none" opacity="0.3"/></svg>')`;
+                hpTrackEl.style.backgroundImage = svgData;
+                hpTrackEl.style.animationDuration = animDuration;
             }
         }
 
