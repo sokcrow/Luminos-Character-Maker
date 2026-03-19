@@ -7352,7 +7352,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 #btn-toggle-theatre-log-player {
-    display: flex !important;
+    display: none !important; /* Hidden by default unless theatre active */
     align-items: center;
     justify-content: center;
     position: fixed !important;
@@ -7371,7 +7371,20 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     box-shadow: 0 0 10px rgba(0,0,0,0.8);
 }
 
+/* Only show the log button when the theatre view is actually active */
+#theatre-view-player.theatre-active #btn-toggle-theatre-log-player,
+#theatre-view-player[style*="display: flex"] #btn-toggle-theatre-log-player,
+#theatre-view-player:not([style*="display: none"]) #btn-toggle-theatre-log-player {
+    display: flex !important;
+}
+
 #btn-toggle-theatre-log-player:hover {
     background: rgba(180, 0, 0, 1) !important;
     transform: scale(1.05);
+}
+
+.log-icon-svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
 }

@@ -4168,7 +4168,7 @@
     <span id="player-theatre-location-text">Unknown Location</span>
   </div>
 
-  <button id="btn-toggle-theatre-log-player" title="Ver Historial">📜</button>
+  <button id="btn-toggle-theatre-log-player" title="Ver Historial"><svg class="log-icon-svg log-icon-doc" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM18 20H6V4h6v6h6v10z"/><path d="M8 12h8v2H8zm0 4h8v2H8z"/></svg><svg class="log-icon-svg log-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg></button>
 
   <!-- Theatre Log Container -->
   <div id="theatre-log-container" style="display: none;">
@@ -4528,8 +4528,16 @@
               const logContainer = document.getElementById('theatre-log-container');
               if (logContainer) {
                   logContainer.classList.toggle('open');
-                  // Keep text small and single-character for the 36x36px circular button
-                  this.innerText = logContainer.classList.contains('open') ? '❌' : '📜';
+                  const logIcon = this.querySelector('.log-icon-doc');
+                  const closeIcon = this.querySelector('.log-icon-close');
+                  if (logContainer.classList.contains('open')) {
+                      if (logIcon) logIcon.style.display = 'none';
+                      if (closeIcon) closeIcon.style.display = 'block';
+                  } else {
+                      if (logIcon) logIcon.style.display = 'block';
+                      if (closeIcon) closeIcon.style.display = 'none';
+                  }
+
               }
           });
       }
