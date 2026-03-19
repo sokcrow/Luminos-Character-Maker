@@ -1725,8 +1725,19 @@ window.addEventListener('DOMContentLoaded', () => {
         if (matchedStatKey) {
             db.ref('campaña/jugadores/' + playerId + '/modifiers').update({ [matchedStatKey]: val });
         } else if (typeof db !== 'undefined') {
-            // Guardar directamente en la raiz
-            db.ref('campaña/jugadores/' + playerId).update({ [attrName]: val });
+            // Interceptar la actualización de XP para calcular nivel y barras de progreso
+            if (attrName === 'xp' && typeof calculateLevelData === 'function') {
+                const xpData = calculateLevelData(val);
+                db.ref('campaña/jugadores/' + playerId).update({
+                    xp: parseInt(val) || 0,
+                    level: xpData.level,
+                    xpPercent: xpData.xpPercent,
+                    xpMissing: xpData.xpMissing
+                });
+            } else {
+                // Guardar directamente en la raiz
+                db.ref('campaña/jugadores/' + playerId).update({ [attrName]: val });
+            }
         }
     });
 });
