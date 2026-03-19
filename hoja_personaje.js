@@ -325,7 +325,6 @@ window.renderCharacterSheet = function(data) {
 
         if (spTextEl) {
             spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
-            spTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
 
             const spSphereEl = document.getElementById('hud-sp-sphere');
             if (spSphereEl) {
