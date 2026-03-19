@@ -341,9 +341,9 @@ window.renderCharacterSheet = function(data) {
                     b = Math.round(170 + ratio * (0 - 170));
                 }
 
-                spSphereEl.style.background = `rgba(${r},${g},${b}, 0.15)`;
-                spSphereEl.style.borderColor = `rgba(${r},${g},${b}, 0.4)`;
-                spSphereEl.style.boxShadow = `0 0 10px rgba(${r},${g},${b}, 0.3)`;
+                spSphereEl.style.background = `rgba(${r},${g},${b}, 0.3)`;
+                spSphereEl.style.borderColor = `rgba(${r},${g},${b}, 1)`;
+                spSphereEl.style.boxShadow = 'none';
 
                 spSphereEl.classList.remove('sp-pulse-red', 'sp-pulse-cyan');
                 if (spActual === -45) {
