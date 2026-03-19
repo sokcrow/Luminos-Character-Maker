@@ -1747,17 +1747,33 @@ document.addEventListener('click', (e) => {
         const displaySpan = row.querySelector('.sheet-skill-name');
         const displayName = displaySpan ? displaySpan.textContent : skillNameRaw;
 
-        // Read Base + Mod from inputs in the same row
-        const baseInput = row.querySelector('input[title="Base"]');
-        const modInput = row.querySelector('input[title="Mod"]');
+        // SP Calculation & Data Lookup
+        // currentPlayerData may be defined as an empty object in global scope.
+        // We ensure we read `window.datosJugador` or global `currentPlayerData` if populated.
+        const pd = Object.keys(currentPlayerData || {}).length > 0 ? currentPlayerData : (window.datosJugador || {});
 
-        const baseVal = baseInput ? parseInt(baseInput.value) || 0 : 0;
-        const modVal = modInput ? parseInt(modInput.value) || 0 : 0;
+        // Read Base + Mod from player data securely
+        let baseVal = 0;
+        let modVal = 0;
+
+        if (pd) {
+            // For Core Stats (cuerpo, mente, alma)
+            if (['cuerpo', 'mente', 'alma'].includes(skillNameRaw.toLowerCase())) {
+                baseVal = pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()] ? parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0 : 0;
+                modVal = pd.modifiers && pd.modifiers[skillNameRaw.toLowerCase()] ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0;
+            } else {
+                // For Skills, base is usually derived or 0, check modifiers
+                const modKey = `skill_${skillNameRaw.toLowerCase()}`;
+                modVal = pd.modifiers && pd.modifiers[modKey] ? parseInt(pd.modifiers[modKey]) || 0 :
+                         (pd.modifiers && pd.modifiers[skillNameRaw.toLowerCase()] ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0);
+                // Also fallback to check if there is a base value stored
+                baseVal = pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()] ? parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0 : 0;
+            }
+        }
+
         const skillTotal = baseVal + modVal;
 
-        // SP Calculation
-        const pd = typeof currentPlayerData !== "undefined" ? currentPlayerData : (window.datosJugador || {});
-        let sp = parseInt(pd.sp) || 0;
+        let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
         if (sp > 45) sp = 45;
         if (sp < -45) sp = -45;
 
@@ -1785,7 +1801,7 @@ document.addEventListener('click', (e) => {
             if (container) container.appendChild(img);
         }
 
-        const finalResult = (headsCount * 3) + skillTotal;
+        const finalResult = headsCount + skillTotal;
 
         // Update UI
         const nameEl = document.getElementById('coin-toss-skill-name');
@@ -1796,6 +1812,71 @@ document.addEventListener('click', (e) => {
 
         const panel = document.getElementById('coin-toss-panel');
         if (panel) panel.style.display = 'flex';
+
+        // Send to Theatre of the Mind Log
+        if (typeof db !== 'undefined' && db.ref) {
+            try {
+                const actorSelect = document.getElementById('player-actor-select');
+                const selectExp = document.getElementById('player-expression-select');
+
+                const assignedActorId = window.datosJugador?.actorId || null;
+                const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
+
+                let actorParaEnviar = {
+                    nombre: pd.characterName || "Jugador",
+                    titulo: "",
+                    color_nombre: "#ffffff",
+                    color_titulo: "#aaaaaa",
+                    escala: 1.0,
+                    sprite: "https://i.imgur.com/Z8N4rG9.png"
+                };
+
+                if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+                    const dataActor = window.actoresJugador[selectedActorId];
+                    if (dataActor) {
+                        actorParaEnviar = {
+                            nombre: dataActor.nombre || actorParaEnviar.nombre,
+                            titulo: dataActor.titulo || "",
+                            color_nombre: dataActor.color_nombre || "#ffffff",
+                            color_titulo: dataActor.color_titulo || "#aaaaaa",
+                            escala: dataActor.escala !== undefined ? parseFloat(dataActor.escala) : 1.0,
+                            sprite: dataActor.sprite || actorParaEnviar.sprite
+                        };
+                    }
+                }
+
+                let selectedSprite = actorParaEnviar.sprite;
+                try {
+                     if (selectExp && selectExp.style.display !== 'none' && selectExp.options.length > 0) {
+                         const val = selectExp.value;
+                         if (val && val.trim() !== '') {
+                             selectedSprite = val;
+                         }
+                     }
+                } catch (e) {
+                     console.warn("Fallo leyendo expresión, usando sprite base.", e);
+                }
+
+                const msgText = `Tira [${displayName}]: Resultado: ${finalResult} (${headsCount} Caras + ${skillTotal} Modificador)`;
+
+                const payload = {
+                    nombre: actorParaEnviar.nombre || "Jugador",
+                    titulo: actorParaEnviar.titulo || "",
+                    color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+                    color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+                    escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+                    sprite: selectedSprite || "https://i.imgur.com/Z8N4rG9.png",
+                    mensaje: msgText,
+                    timestamp: Date.now()
+                };
+
+                db.ref('campaña/teatro/cola').push(payload).catch(e => {
+                    console.error("Error enviando tirada a la cola del teatro:", e);
+                });
+            } catch (err) {
+                console.error("Fallo enviando tirada al teatro de la mente:", err);
+            }
+        }
     }
 
     // Close Coin Toss Panel
