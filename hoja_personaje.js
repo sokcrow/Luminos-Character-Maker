@@ -243,6 +243,17 @@ document.addEventListener('change', (e) => {
     }
 });
 
+function interpolateColor(color1, color2, factor) {
+    if (arguments.length < 3) {
+        factor = 0.5;
+    }
+    const result = color1.slice();
+    for (let i = 0; i < 3; i++) {
+        result[i] = Math.round(result[i] + factor * (color2[i] - color1[i]));
+    }
+    return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
+}
+
 window.renderCharacterSheet = function(data) {
     // 1. Stats Principales (Cuerpo, Mente, Alma)
     const coreStats = ['cuerpo', 'mente', 'alma'];
@@ -307,6 +318,7 @@ window.renderCharacterSheet = function(data) {
         const hpMaxEl = document.getElementById('hud-hp-max');
         const hpBarEl = document.getElementById('hud-hp-bar');
         const spTextEl = document.getElementById('hud-sp-text');
+        const spSphere = document.getElementById('hud-sp-sphere');
         const coinTextEl = document.getElementById('hud-coin-text');
 
         if (hpActualEl) hpActualEl.innerText = hpActual;
@@ -325,7 +337,35 @@ window.renderCharacterSheet = function(data) {
 
         if (spTextEl) {
             spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
-            spTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+        }
+
+        if (spSphere) {
+            const neutralColor = [34, 34, 34]; // #222222
+            const maxRed = [255, 0, 0];        // #ff0000
+            const maxCyan = [0, 255, 255];     // #00ffff
+
+            if (spActual === -45) {
+                spSphere.classList.add('sp-extreme-neg');
+                spSphere.classList.remove('sp-extreme-pos');
+                spSphere.style.backgroundColor = ''; // let class handle it
+            } else if (spActual === 45) {
+                spSphere.classList.add('sp-extreme-pos');
+                spSphere.classList.remove('sp-extreme-neg');
+                spSphere.style.backgroundColor = ''; // let class handle it
+            } else {
+                spSphere.classList.remove('sp-extreme-neg');
+                spSphere.classList.remove('sp-extreme-pos');
+
+                let colorCalculado;
+                if (spActual < 0) {
+                    colorCalculado = interpolateColor(neutralColor, maxRed, Math.abs(spActual) / 45);
+                } else if (spActual > 0) {
+                    colorCalculado = interpolateColor(neutralColor, maxCyan, spActual / 45);
+                } else {
+                    colorCalculado = 'rgb(34, 34, 34)';
+                }
+                spSphere.style.backgroundColor = colorCalculado;
+            }
         }
 
         if (coinTextEl) {
