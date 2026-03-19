@@ -326,6 +326,31 @@ window.renderCharacterSheet = function(data) {
         if (spTextEl) {
             spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
             spTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+
+            const spSphereEl = document.getElementById('hud-sp-sphere');
+            if (spSphereEl) {
+                let r = 170, g = 170, b = 170; // #aaaaaa
+                if (spActual > 0) {
+                    const ratio = Math.min(1, spActual / 45);
+                    r = Math.round(170 + ratio * (0 - 170));
+                    g = Math.round(170 + ratio * (255 - 170));
+                    b = Math.round(170 + ratio * (255 - 170));
+                } else if (spActual < 0) {
+                    const ratio = Math.min(1, Math.abs(spActual) / 45);
+                    r = Math.round(170 + ratio * (255 - 170));
+                    g = Math.round(170 + ratio * (0 - 170));
+                    b = Math.round(170 + ratio * (0 - 170));
+                }
+
+                spSphereEl.style.background = `radial-gradient(circle at 30% 30%, rgb(${r},${g},${b}), #222)`;
+
+                spSphereEl.classList.remove('sp-pulse-red', 'sp-pulse-cyan');
+                if (spActual === -45) {
+                    spSphereEl.classList.add('sp-pulse-red');
+                } else if (spActual === 45) {
+                    spSphereEl.classList.add('sp-pulse-cyan');
+                }
+            }
         }
 
         if (coinTextEl) {

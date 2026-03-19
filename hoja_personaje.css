@@ -6632,11 +6632,20 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 .hud-hp-track {
     width: 100%;
     height: 14px;
-    background: #222;
+    background-color: #222;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,7 L20,7 L25,2 L30,12 L35,7 L100,7' stroke='rgba(0, 255, 255, 0.4)' fill='none' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-size: 100px 14px;
+    animation: ecg-move 2s linear infinite;
     border: 1px solid #444;
     border-radius: 4px;
     overflow: hidden;
     position: relative;
+}
+
+@keyframes ecg-move {
+    0% { background-position: 100px 0; }
+    100% { background-position: 0 0; }
 }
 
 #hud-hp-bar {
@@ -6644,9 +6653,55 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background: linear-gradient(90deg, #8b0000, #ff3333);
     width: 100%;
     transition: width 0.3s ease, background 0.3s, box-shadow 0.3s;
+    mix-blend-mode: screen;
 }
 
-#hud-sp-text, #hud-coin-text {
+.hud-sp-sphere {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin: 5px auto;
+    position: relative;
+    background: radial-gradient(circle at 30% 30%, #aaaaaa, #444444);
+    box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+@keyframes sp-pulse-red {
+    0% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #ff0000, 0 0 20px #ff0000; transform: scale(1); }
+    50% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 20px #ff0000, 0 0 40px #ff0000; transform: scale(1.05); }
+    100% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #ff0000, 0 0 20px #ff0000; transform: scale(1); }
+}
+
+@keyframes sp-pulse-cyan {
+    0% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #00ffff, 0 0 20px #00ffff; transform: scale(1); }
+    50% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 20px #00ffff, 0 0 40px #00ffff; transform: scale(1.05); }
+    100% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #00ffff, 0 0 20px #00ffff; transform: scale(1); }
+}
+
+.hud-sp-sphere.sp-pulse-red {
+    animation: sp-pulse-red 1.5s infinite;
+}
+
+.hud-sp-sphere.sp-pulse-cyan {
+    animation: sp-pulse-cyan 1.5s infinite;
+}
+
+#hud-sp-text {
+    font-size: 1.4em;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+#hud-coin-text {
     font-size: 1.8em;
     font-weight: bold;
     text-shadow: 1px 1px 2px #000;
