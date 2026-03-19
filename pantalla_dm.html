@@ -1129,6 +1129,57 @@
 
       </div>
     </div>
+  <!-- MODAL STATS DE COMBATE -->
+  <div id="dm-combat-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+    <div style="background: #111; border-top: 2px solid #8b0000; border-bottom: 2px solid #d4af37; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px;">
+        <h3 id="dm-combat-modal-title" style="color: #0df; margin: 0; font-family: 'BebasKai', sans-serif;">⚙️ STATS DE COMBATE - [NOMBRE JUGADOR]</h3>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP MAX</label>
+          <input type="number" id="dm-hp-max" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP ACTUAL</label>
+          <input type="number" id="dm-hp-actual" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">BASE HP</label>
+          <input type="number" id="dm-hp-base" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">COEFICIENTE</label>
+          <input type="number" id="dm-coef" step="0.01" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">DEF LVL (Mod)</label>
+          <input type="number" id="dm-def-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">OFF LVL (Mod)</label>
+          <input type="number" id="dm-off-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">SP CORDURA</label>
+          <input type="number" id="dm-sp" min="-45" max="45" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">ACTION SLOTS</label>
+          <input type="number" id="dm-action-slots" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column; grid-column: span 2;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">UMBRALES STAGGER (Ej: 70, 40)</label>
+          <input type="text" id="dm-stagger" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button id="btn-close-modal" style="background: #333; color: #fff; border: 1px solid #555; padding: 8px 15px; border-radius: 3px; cursor: pointer;">CANCELAR</button>
+        <button id="btn-save-stats" style="background: #8b0000; color: #fff; border: 1px solid #ff4444; padding: 8px 15px; border-radius: 3px; cursor: pointer; font-weight: bold;">GUARDAR CAMBIOS</button>
+      </div>
+    </div>
+  </div>
+
     <!-- TAB: GESTIÓN DE JUGADORES -->
     <div id="dashboard-jugadores" class="dm-tab-pane">
       <div class="panel-cyber" style="margin-top: 20px;">
@@ -2082,6 +2133,7 @@
     db.ref('campaña/jugadores/').on('value', (snapshot) => {
       bancoContainer.innerHTML = '';
       const jugadores = snapshot.val();
+      window.jugadoresData = jugadores; // Guarda para el modal
       // Remove cards for players that no longer exist
       if (jugadoresContainer) {
           const currentNames = Object.keys(jugadores || {});
@@ -2129,32 +2181,29 @@
                           <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: #0df; border: 1px solid #0df; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Nombre</button>
                       </div>
 
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">Level:</label>
-                          <input type="number" class="input-lvl" value="${lvl}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
-                      </div>
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">XP:</label>
-                          <input type="number" class="input-xp" value="${xp}" style="width:80px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
-                      </div>
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">HP Base:</label>
-                          <input type="number" class="input-hpbase" value="${hpBase}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
-                      </div>
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">Coef HP:</label>
-                          <input type="number" step="0.01" class="input-hpcoef" value="${hpCoef}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
-                      </div>
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">HP Actual:</label>
-                          <input type="number" class="input-hpactual" value="${hpActual}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;">
-                      </div>
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-                          <label style="color:#c49a00; font-size:12px;">Calc Max HP:</label>
-                          <input type="number" class="input-hpmax" value="${hpMax}" style="width:60px; padding:3px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; text-align:center;" readonly title="Calculado">
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">Level:</label>
+                              <span class="player-lvl" style="color: #fff; font-weight: bold;">${lvl}</span>
+                          </div>
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">XP:</label>
+                              <span class="player-xp" style="color: #fff; font-weight: bold;">${xp}</span>
+                          </div>
                       </div>
 
-                      <button class="btn-guardar-perfil" style="margin-top: 10px; background: #004400; color: white; border: 1px solid #00ff00; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Guardar / Forzar Datos</button>
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">HP:</label>
+                              <span style="color: #ff4444; font-weight: bold;"><span class="player-hp-actual">${hpActual}</span> / <span class="player-hp-max">${hpMax}</span></span>
+                          </div>
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">SP:</label>
+                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${combatStats.sp_actual || 0}</span>
+                          </div>
+                      </div>
+
+                      <button class="btn-cyber btn-open-modal" data-id="${nombre}" style="margin-top: 5px; background: #8b0000; color: white; border: 1px solid #ff4444; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-family: 'BebasKai', sans-serif;">⚙️ Editar Stats de Combate</button>
                       <button class="btn-ver-inventario" data-player="${nombre}" style="margin-top: 5px; background: #222; color: #0df; border: 1px solid #0df; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Ver Inventario</button>
                   `;
 
@@ -2178,76 +2227,32 @@
                           .catch(e => console.error("Error al actualizar nombre:", e));
                   };
 
-                  const btnGuardar = pCard.querySelector('.btn-guardar-perfil');
-                  btnGuardar.onclick = () => {
-                      const newLvl = parseInt(pCard.querySelector('.input-lvl').value) || 1;
-                      const newXp = parseInt(pCard.querySelector('.input-xp').value) || 0;
-                      const newHpBase = parseInt(pCard.querySelector('.input-hpbase').value) || 0;
-                      const newHpCoef = parseFloat(pCard.querySelector('.input-hpcoef').value) || 0;
-                      const newHpActual = parseInt(pCard.querySelector('.input-hpactual').value) || 0;
-                      const newHpMax = Math.floor(newHpBase + (newLvl * newHpCoef));
-
-                      // Updates
-                      const updates = {};
-                      // Legacy perfil node
-                      updates[`campaña/jugadores/${nombre}/perfil/level`] = newLvl;
-                      updates[`campaña/jugadores/${nombre}/perfil/xp`] = newXp;
-                      updates[`campaña/jugadores/${nombre}/perfil/hp_base`] = newHpBase;
-                      updates[`campaña/jugadores/${nombre}/perfil/hp_max`] = newHpMax;
-
-                      // Root node (used by hoja_personaje.html)
-                      updates[`campaña/jugadores/${nombre}/level`] = newLvl;
-                      updates[`campaña/jugadores/${nombre}/xp`] = newXp;
-                      updates[`campaña/jugadores/${nombre}/hp_base`] = newHpBase;
-                      updates[`campaña/jugadores/${nombre}/hp_coefficient`] = newHpCoef;
-                      updates[`campaña/jugadores/${nombre}/hp_max`] = newHpMax;
-
-                      // Combat stats node
-                      updates[`campaña/jugadores/${nombre}/combatStats/hp_base`] = newHpBase;
-                      updates[`campaña/jugadores/${nombre}/combatStats/hp_coefficient`] = newHpCoef;
-                      updates[`campaña/jugadores/${nombre}/combatStats/hp_max`] = newHpMax;
-                      updates[`campaña/jugadores/${nombre}/combatStats/hp_actual`] = newHpActual;
-
-                      db.ref().update(updates).then(() => {
-                          const oldText = btnGuardar.innerText;
-                          btnGuardar.innerText = "¡Guardado!";
-                          btnGuardar.style.background = "#0df";
-                          btnGuardar.style.color = "#000";
-
-                          // Recalcular HP Max Display localmente para que se vea inmediato
-                          const hpMaxInput = pCard.querySelector('.input-hpmax');
-                          if (hpMaxInput) hpMaxInput.value = newHpMax;
-
-                          setTimeout(() => {
-                              btnGuardar.innerText = oldText;
-                              btnGuardar.style.background = "#004400";
-                              btnGuardar.style.color = "white";
-                          }, 1500);
-                      }).catch(e => alert("Error: " + e));
-                  };
-
                   jugadoresContainer.appendChild(pCard);
               } else {
                   // Update existing card ONLY if the inputs are not actively being focused/edited
-                  const lvlInput = pCard.querySelector('.input-lvl');
-                  const xpInput = pCard.querySelector('.input-xp');
-                  const hpBaseInput = pCard.querySelector('.input-hpbase');
-                  const hpCoefInput = pCard.querySelector('.input-hpcoef');
-                  const hpActualInput = pCard.querySelector('.input-hpactual');
-                  const hpMaxInput = pCard.querySelector('.input-hpmax');
                   const subInfo = pCard.querySelector('.player-subinfo');
                   const nameInput = pCard.querySelector('.dm-edit-name');
 
                   if (nameInput && document.activeElement !== nameInput) nameInput.value = data.characterName || '';
-                  if (document.activeElement !== lvlInput) lvlInput.value = lvl;
-                  if (document.activeElement !== xpInput) xpInput.value = xp;
-                  if (document.activeElement !== hpBaseInput) hpBaseInput.value = hpBase;
-                  if (document.activeElement !== hpCoefInput) hpCoefInput.value = hpCoef;
-                  if (document.activeElement !== hpActualInput) hpActualInput.value = hpActual;
-                  if (document.activeElement !== hpMaxInput) hpMaxInput.value = hpMax;
                   subInfo.innerText = `${clase} | ${raza}`;
+
                   const ahnDisplay = pCard.querySelector('.player-ahn');
                   if (ahnDisplay) ahnDisplay.innerText = data.ahn || 0;
+
+                  const lvlDisplay = pCard.querySelector('.player-lvl');
+                  if (lvlDisplay) lvlDisplay.innerText = lvl;
+
+                  const xpDisplay = pCard.querySelector('.player-xp');
+                  if (xpDisplay) xpDisplay.innerText = xp;
+
+                  const hpActualDisplay = pCard.querySelector('.player-hp-actual');
+                  if (hpActualDisplay) hpActualDisplay.innerText = hpActual;
+
+                  const hpMaxDisplay = pCard.querySelector('.player-hp-max');
+                  if (hpMaxDisplay) hpMaxDisplay.innerText = hpMax;
+
+                  const spDisplay = pCard.querySelector('.player-sp');
+                  if (spDisplay) spDisplay.innerText = combatStats.sp_actual || 0;
               }
           }
           const tarjeta = document.createElement('div');
@@ -4379,6 +4384,109 @@
                 resetActorForm();
             }).catch(e => alert('Error creando actor: ' + e));
       }
+    });
+
+    // Lógica del Modal de Stats de Combate
+    let activePlayerIdForModal = null;
+
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-open-modal')) {
+            const playerId = e.target.getAttribute('data-id');
+            activePlayerIdForModal = playerId;
+
+            // Set Title
+            document.getElementById('dm-combat-modal-title').innerText = `⚙️ STATS DE COMBATE - ${playerId}`;
+
+            // Obtener los datos actuales o poner defaults
+            const playerData = window.jugadoresData && window.jugadoresData[playerId] ? window.jugadoresData[playerId] : {};
+            const combatStats = playerData.combatStats || {};
+
+            const lvl = playerData.level || 1;
+            const hpBase = combatStats.hp_base || playerData.hp_base || 0;
+            const hpCoef = combatStats.hp_coefficient || playerData.hp_coefficient || 0;
+            const calcHpMax = Math.floor(hpBase + (lvl * hpCoef));
+            const hpMax = combatStats.hp_max || playerData.hp_max || calcHpMax || 0;
+            const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
+
+            // Poblar inputs
+            document.getElementById('dm-hp-max').value = hpMax;
+            document.getElementById('dm-hp-actual').value = hpActual;
+            document.getElementById('dm-hp-base').value = hpBase;
+            document.getElementById('dm-coef').value = hpCoef;
+            document.getElementById('dm-def-lvl').value = combatStats.def_lvl_mod || 0;
+            document.getElementById('dm-off-lvl').value = combatStats.off_lvl_mod || 0;
+            document.getElementById('dm-sp').value = combatStats.sp_actual || 0;
+            document.getElementById('dm-action-slots').value = combatStats.action_slots || 1;
+
+            // Stagger es array, convertir a string para el input
+            let staggerVal = "";
+            if (Array.isArray(combatStats.stagger_thresholds)) {
+                staggerVal = combatStats.stagger_thresholds.join(', ');
+            }
+            document.getElementById('dm-stagger').value = staggerVal;
+
+            // Mostrar Modal
+            document.getElementById('dm-combat-modal').style.display = 'flex';
+        }
+    });
+
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+        document.getElementById('dm-combat-modal').style.display = 'none';
+        activePlayerIdForModal = null;
+    });
+
+    document.getElementById('btn-save-stats').addEventListener('click', () => {
+        if (!activePlayerIdForModal) return;
+
+        const hpMax = parseInt(document.getElementById('dm-hp-max').value) || 0;
+        const hpActual = parseInt(document.getElementById('dm-hp-actual').value) || 0;
+        const hpBase = parseInt(document.getElementById('dm-hp-base').value) || 0;
+        const hpCoef = parseFloat(document.getElementById('dm-coef').value) || 0;
+        const defLvl = parseInt(document.getElementById('dm-def-lvl').value) || 0;
+        const offLvl = parseInt(document.getElementById('dm-off-lvl').value) || 0;
+        let sp = parseInt(document.getElementById('dm-sp').value) || 0;
+        const actionSlots = parseInt(document.getElementById('dm-action-slots').value) || 1;
+        const staggerStr = document.getElementById('dm-stagger').value;
+
+        // Forzar rango matemático
+        sp = Math.max(-45, Math.min(45, sp));
+
+        // Convertir string de stagger a array de números
+        let staggerArr = [];
+        if (staggerStr.trim() !== '') {
+            staggerArr = staggerStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        }
+
+        const updates = {};
+
+        // Actualizar en root node para compatibilidad con la hoja de personaje
+        updates[`campaña/jugadores/${activePlayerIdForModal}/hp_base`] = hpBase;
+        updates[`campaña/jugadores/${activePlayerIdForModal}/hp_coefficient`] = hpCoef;
+        updates[`campaña/jugadores/${activePlayerIdForModal}/hp_max`] = hpMax;
+
+        // Actualizar el nodo de combatStats (sobreescribe completo)
+        updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] = {
+            hp_max: hpMax,
+            hp_actual: hpActual,
+            hp_base: hpBase,
+            hp_coefficient: hpCoef,
+            def_lvl_mod: defLvl,
+            off_lvl_mod: offLvl,
+            sp_actual: sp,
+            action_slots: actionSlots,
+            stagger_thresholds: staggerArr
+        };
+
+        db.ref().update(updates)
+            .then(() => {
+                document.getElementById('dm-combat-modal').style.display = 'none';
+                activePlayerIdForModal = null;
+                // Pequeña alerta o feedback visual opcional
+            })
+            .catch(err => {
+                console.error("Error actualizando stats de combate:", err);
+                alert("Hubo un error al guardar los cambios.");
+            });
     });
 
   </script>
