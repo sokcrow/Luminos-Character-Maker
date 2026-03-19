@@ -3712,7 +3712,7 @@
     let isTheatreContinuous = false;
     let continuousTimeout = null;
 
-    function iniciarAvanceContinuo(delay = 10000) {
+    function iniciarAvanceContinuo(delay = 5000) {
         // the children check here was failing because the queue container always has children (or we might be advancing before rendering). Let's use queueItems length if possible, or just the queue container. But queueItems might not be in scope here. Let's use a simpler check:
         if (isTheatreContinuous) {
             if (continuousTimeout) clearTimeout(continuousTimeout);
@@ -4062,7 +4062,7 @@
         const isTypingText = textBox && textBox.typewriterInterval;
 
         if (isTheatreContinuous && !continuousTimeout && !isTypingText && queueItems.length > 0) {
-            iniciarAvanceContinuo(10000);
+            iniciarAvanceContinuo(5000);
         }
     });
 
@@ -4073,7 +4073,7 @@
             const isTypingText = textBox && textBox.typewriterInterval;
 
             if (!continuousTimeout && !isTypingText && queueItems.length > 0) {
-                iniciarAvanceContinuo(10000);
+                iniciarAvanceContinuo(5000);
             }
         }
     });
@@ -4145,11 +4145,11 @@
                     clearInterval(textBox.typewriterInterval);
                     textBox.typewriterInterval = null;
 
-                    iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
+                    iniciarAvanceContinuo(5000); // Siempre esperar 5 segundos al terminar de escribir
                 }
             }, 30); // 30ms per character
         } else {
-            iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
+            iniciarAvanceContinuo(5000); // Siempre esperar 5 segundos al terminar de escribir
         }
 
         // Manage Sprites on Stage
@@ -4229,7 +4229,7 @@
 
         // Aseguramos que el auto-advance se detona si no hubo mensaje (ej. solo cambio de imagen)
         if (!fullText || fullText.length === 0) {
-            iniciarAvanceContinuo(10000); // Siempre esperar 10 segundos al terminar de escribir
+            iniciarAvanceContinuo(5000); // Siempre esperar 5 segundos al terminar de escribir
         }
     });
 
@@ -4241,7 +4241,7 @@
             const textBox = document.getElementById('theatre-dialogue-text');
             const isTypingText = textBox && textBox.typewriterInterval;
             if (!isTypingText && queueItems.length > 0) {
-                iniciarAvanceContinuo(10000);
+                iniciarAvanceContinuo(5000);
             }
         }
     });
