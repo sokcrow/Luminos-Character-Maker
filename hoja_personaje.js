@@ -509,12 +509,48 @@ window.renderCharacterSheet = function(data) {
                             el.value = value;
                         }
                     } else {
-                        el.innerText = value;
+                        // Avoid overwriting the skill total spans which are handled below
+                        if (!el.classList.contains('sheet-skill-total')) {
+                            el.innerText = value;
+                        }
                     }
                 });
             });
         }
     }
+
+    // Update all skill rows (Base, Mod, Total)
+    const skillRows = document.querySelectorAll('.sheet-skill-row');
+    skillRows.forEach(row => {
+        const btn = row.querySelector('.sheet-roll-skill-btn');
+        if (btn) {
+            const actName = btn.getAttribute('name');
+            if (actName && actName.startsWith('act_roll_skill_')) {
+                const skillNameRaw = actName.replace('act_roll_skill_', '');
+                let bVal = parseInt(data[`skill_${skillNameRaw}_base`]) || 0;
+                let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]) || 0;
+
+                // fallback
+                if (data[`skill_${skillNameRaw}_base`] === undefined && data.baseStats && data.baseStats[skillNameRaw]) {
+                    bVal = parseInt(data.baseStats[skillNameRaw]) || 0;
+                }
+                if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
+                    mVal = parseInt(data.modifiers[`skill_${skillNameRaw}`]) || parseInt(data.modifiers[skillNameRaw]) || 0;
+                }
+
+                const totalSpan = row.querySelector(`.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`);
+                if (totalSpan) {
+                    totalSpan.innerText = bVal + mVal;
+                }
+
+                // Update inputs if not focused
+                const baseInput = row.querySelector(`input[name="attr_skill_${skillNameRaw}_base"]`);
+                const modInput = row.querySelector(`input[name="attr_skill_${skillNameRaw}_mod"]`);
+                if (baseInput && document.activeElement !== baseInput) baseInput.value = bVal;
+                if (modInput && document.activeElement !== modInput) modInput.value = mVal;
+            }
+        }
+    });
 
     // 3. Perks y Habilidades
     const perksContainer = document.querySelector('.repeating_skills') || document.querySelector('.sheet-perks-list') || document.getElementById('perks-container');
@@ -1866,12 +1902,19 @@ document.addEventListener('click', (e) => {
                 baseVal = pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()] ? parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0 : 0;
                 modVal = pd.modifiers && pd.modifiers[skillNameRaw.toLowerCase()] ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0;
             } else {
-                // For Skills, base is usually derived or 0, check modifiers
-                const modKey = `skill_${skillNameRaw.toLowerCase()}`;
-                modVal = pd.modifiers && pd.modifiers[modKey] ? parseInt(pd.modifiers[modKey]) || 0 :
-                         (pd.modifiers && pd.modifiers[skillNameRaw.toLowerCase()] ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0);
-                // Also fallback to check if there is a base value stored
-                baseVal = pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()] ? parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0 : 0;
+                // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
+                baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]) || 0;
+                modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]) || 0;
+
+                // Fallbacks
+                if (pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined && pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()]) {
+                    baseVal = parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0;
+                }
+                if (pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined && pd.modifiers) {
+                    const modKey = `skill_${skillNameRaw.toLowerCase()}`;
+                    modVal = pd.modifiers[modKey] !== undefined ? parseInt(pd.modifiers[modKey]) || 0 :
+                             (pd.modifiers[skillNameRaw.toLowerCase()] !== undefined ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0);
+                }
             }
         }
 
