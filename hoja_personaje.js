@@ -338,17 +338,23 @@ window.renderCharacterSheet = function(data) {
             // Dynamic EKG Monitor Logic
             if (hpTrackEl) {
                 let ekgColor = '%2333ff33'; // Default Green #33ff33
-                let animDuration = '2s';    // Normal speed
+                let animDuration = '1.5s';  // Normal speed
+                let strokeWidth = '0.8';
+                let svgOpacity = '0.6';
 
                 if (hpPercent <= 30) {
                     ekgColor = '%23ff3333'; // Red #ff3333
-                    animDuration = '6s';    // Slow speed (low heart rate)
+                    animDuration = '0.4s';  // Fast speed
+                    strokeWidth = '1.2';
+                    svgOpacity = '1.0';
                 } else if (hpPercent <= 60) {
                     ekgColor = '%23ffff33'; // Yellow #ffff33
-                    animDuration = '4s';    // Medium speed
+                    animDuration = '0.8s';  // Medium speed
+                    strokeWidth = '1.0';
+                    svgOpacity = '0.8';
                 }
 
-                const svgData = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="${ekgColor}" stroke-width="0.5" fill="none" opacity="0.3"/></svg>')`;
+                const svgData = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="${ekgColor}" stroke-width="${strokeWidth}" fill="none" opacity="${svgOpacity}"/></svg>')`;
                 hpTrackEl.style.backgroundImage = svgData;
                 hpTrackEl.style.animationDuration = animDuration;
             }
