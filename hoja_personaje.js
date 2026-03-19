@@ -1719,6 +1719,16 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        if (actName === 'act_toggle_profile_edit') {
+            const inputState = document.querySelector('input[name="attr_show_profile_edit"]');
+            if (inputState) {
+                const currentVal = inputState.value;
+                const newVal = currentVal === '0' ? '1' : '0';
+                inputState.value = newVal;
+                inputState.setAttribute('value', newVal);
+            }
+        }
+
         // --- Descansos ---
         if (actName === 'act_short_rest') {
             const currentHP = parseInt(currentPlayerData.hp) || 0;
