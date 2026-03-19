@@ -6662,24 +6662,25 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     border-radius: 50%;
     margin: 5px auto;
     position: relative;
-    background: radial-gradient(circle at 30% 30%, #aaaaaa, #444444);
-    box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.8);
+    background: rgba(170, 170, 170, 0.1);
+    border: 1px solid rgba(170, 170, 170, 0.4);
+    box-shadow: 0 0 10px rgba(170, 170, 170, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.3s, box-shadow 0.3s;
+    transition: background 0.3s, border 0.3s, box-shadow 0.3s;
 }
 
 @keyframes sp-pulse-red {
-    0% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #ff0000, 0 0 20px #ff0000; transform: scale(1); }
-    50% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 20px #ff0000, 0 0 40px #ff0000; transform: scale(1.05); }
-    100% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #ff0000, 0 0 20px #ff0000; transform: scale(1); }
+    0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.6), 0 0 20px rgba(255, 0, 0, 0.3); border-color: rgba(255, 0, 0, 0.6); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.5); border-color: rgba(255, 0, 0, 0.9); transform: scale(1.05); }
+    100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.6), 0 0 20px rgba(255, 0, 0, 0.3); border-color: rgba(255, 0, 0, 0.6); transform: scale(1); }
 }
 
 @keyframes sp-pulse-cyan {
-    0% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #00ffff, 0 0 20px #00ffff; transform: scale(1); }
-    50% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 20px #00ffff, 0 0 40px #00ffff; transform: scale(1.05); }
-    100% { box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 0 0 10px #00ffff, 0 0 20px #00ffff; transform: scale(1); }
+    0% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.3); border-color: rgba(0, 255, 255, 0.6); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5); border-color: rgba(0, 255, 255, 0.9); transform: scale(1.05); }
+    100% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.3); border-color: rgba(0, 255, 255, 0.6); transform: scale(1); }
 }
 
 .hud-sp-sphere.sp-pulse-red {
