@@ -2164,7 +2164,9 @@
               const combatStats = data.combatStats || {};
               const hpBase = combatStats.hp_base || data.hp_base || perfil.hp_base || 0;
               const hpCoef = combatStats.hp_coefficient || data.hp_coefficient || 0;
-              const hpMax = combatStats.hp_max || data.hp_max || perfil.hp_max || Math.floor(hpBase + (lvl * hpCoef)) || 0;
+              const defLvlMod = combatStats.def_lvl_mod || 0;
+              const totalDefLvl = lvl + defLvlMod;
+              const hpMax = combatStats.hp_max || data.hp_max || perfil.hp_max || Math.floor(hpBase + (totalDefLvl * hpCoef)) || 0;
               const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
 
               const clase = data.class || perfil.clase || 'Desconocida';
@@ -4409,7 +4411,9 @@
             const xp = playerData.xp || 0;
             const hpBase = combatStats.hp_base || playerData.hp_base || 0;
             const hpCoef = combatStats.hp_coefficient || playerData.hp_coefficient || 0;
-            const calcHpMax = Math.floor(hpBase + (lvl * hpCoef));
+            const defLvlMod = combatStats.def_lvl_mod || 0;
+            const totalDefLvl = lvl + defLvlMod;
+            const calcHpMax = Math.floor(hpBase + (totalDefLvl * hpCoef));
             const hpMax = combatStats.hp_max || playerData.hp_max || calcHpMax || 0;
             const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
 
