@@ -1137,6 +1137,10 @@
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
         <div style="display: flex; flex-direction: column;">
+          <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">XP (EXPERIENCIA)</label>
+          <input type="number" id="dm-player-xp" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+        </div>
+        <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP MAX</label>
           <input type="number" id="dm-hp-max" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
         </div>
@@ -4402,6 +4406,7 @@
             const combatStats = playerData.combatStats || {};
 
             const lvl = playerData.level || 1;
+            const xp = playerData.xp || 0;
             const hpBase = combatStats.hp_base || playerData.hp_base || 0;
             const hpCoef = combatStats.hp_coefficient || playerData.hp_coefficient || 0;
             const calcHpMax = Math.floor(hpBase + (lvl * hpCoef));
@@ -4409,6 +4414,7 @@
             const hpActual = combatStats.hp_actual !== undefined ? combatStats.hp_actual : hpMax;
 
             // Poblar inputs
+            document.getElementById('dm-player-xp').value = xp;
             document.getElementById('dm-hp-max').value = hpMax;
             document.getElementById('dm-hp-actual').value = hpActual;
             document.getElementById('dm-hp-base').value = hpBase;
@@ -4438,6 +4444,7 @@
     document.getElementById('btn-save-stats').addEventListener('click', () => {
         if (!activePlayerIdForModal) return;
 
+        const xpInput = parseInt(document.getElementById('dm-player-xp').value) || 0;
         const hpMax = parseInt(document.getElementById('dm-hp-max').value) || 0;
         const hpActual = parseInt(document.getElementById('dm-hp-actual').value) || 0;
         const hpBase = parseInt(document.getElementById('dm-hp-base').value) || 0;
@@ -4458,6 +4465,20 @@
         }
 
         const updates = {};
+
+        let calculatedLvlData = null;
+        if (typeof calculateLevelData === 'function') {
+            calculatedLvlData = calculateLevelData(xpInput);
+        }
+
+        if (calculatedLvlData) {
+            updates[`campaña/jugadores/${activePlayerIdForModal}/xp`] = xpInput;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/level`] = calculatedLvlData.level;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/xpPercent`] = calculatedLvlData.xpPercent;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/xpMissing`] = calculatedLvlData.xpMissing;
+        } else {
+            updates[`campaña/jugadores/${activePlayerIdForModal}/xp`] = xpInput;
+        }
 
         // Actualizar en root node para compatibilidad con la hoja de personaje
         updates[`campaña/jugadores/${activePlayerIdForModal}/hp_base`] = hpBase;
