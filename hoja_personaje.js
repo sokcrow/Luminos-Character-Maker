@@ -243,6 +243,17 @@ document.addEventListener('change', (e) => {
     }
 });
 
+function interpolateColor(color1, color2, factor) {
+    if (arguments.length < 3) {
+        factor = 0.5;
+    }
+    const result = color1.slice();
+    for (let i = 0; i < 3; i++) {
+        result[i] = Math.round(result[i] + factor * (color2[i] - color1[i]));
+    }
+    return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
+}
+
 window.renderCharacterSheet = function(data) {
     // 1. Stats Principales (Cuerpo, Mente, Alma)
     const coreStats = ['cuerpo', 'mente', 'alma'];
@@ -306,7 +317,9 @@ window.renderCharacterSheet = function(data) {
         const hpActualEl = document.getElementById('hud-hp-actual');
         const hpMaxEl = document.getElementById('hud-hp-max');
         const hpBarEl = document.getElementById('hud-hp-bar');
+        const hpTrackEl = document.querySelector('.hud-hp-track');
         const spTextEl = document.getElementById('hud-sp-text');
+        const spSphere = document.getElementById('hud-sp-sphere');
         const coinTextEl = document.getElementById('hud-coin-text');
 
         if (hpActualEl) hpActualEl.innerText = hpActual;
@@ -321,11 +334,57 @@ window.renderCharacterSheet = function(data) {
             } else {
                 hpBarEl.classList.remove('hp-danger');
             }
+
+            // Dynamic EKG Monitor Logic
+            if (hpTrackEl) {
+                let ekgColor = '%2333ff33'; // Default Green #33ff33
+                let animDuration = '2s';    // Normal speed
+
+                if (hpPercent <= 30) {
+                    ekgColor = '%23ff3333'; // Red #ff3333
+                    animDuration = '6s';    // Slow speed (low heart rate)
+                } else if (hpPercent <= 60) {
+                    ekgColor = '%23ffff33'; // Yellow #ffff33
+                    animDuration = '4s';    // Medium speed
+                }
+
+                const svgData = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="${ekgColor}" stroke-width="0.5" fill="none" opacity="0.3"/></svg>')`;
+                hpTrackEl.style.backgroundImage = svgData;
+                hpTrackEl.style.animationDuration = animDuration;
+            }
         }
 
         if (spTextEl) {
             spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
-            spTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+        }
+
+        if (spSphere) {
+            const neutralColor = [121, 197, 197]; // Pale Cyan #79c5c5
+            const maxRed = [255, 0, 0];           // #ff0000
+            const maxCyan = [0, 255, 255];        // Bright Cyan #00ffff
+
+            if (spActual === -45) {
+                spSphere.classList.add('sp-extreme-neg');
+                spSphere.classList.remove('sp-extreme-pos');
+                spSphere.style.backgroundColor = ''; // let class handle it
+            } else if (spActual === 45) {
+                spSphere.classList.add('sp-extreme-pos');
+                spSphere.classList.remove('sp-extreme-neg');
+                spSphere.style.backgroundColor = ''; // let class handle it
+            } else {
+                spSphere.classList.remove('sp-extreme-neg');
+                spSphere.classList.remove('sp-extreme-pos');
+
+                let colorCalculado;
+                if (spActual < 0) {
+                    colorCalculado = interpolateColor(neutralColor, maxRed, Math.abs(spActual) / 45);
+                } else if (spActual > 0) {
+                    colorCalculado = interpolateColor(neutralColor, maxCyan, spActual / 45);
+                } else {
+                    colorCalculado = 'rgb(121, 197, 197)';
+                }
+                spSphere.style.backgroundColor = colorCalculado;
+            }
         }
 
         if (coinTextEl) {
