@@ -6607,6 +6607,50 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
 }
 
+/* PC-specific styles to force circular buttons just like Mobile */
+@media (min-width: 769px) {
+    #btn-toggle-hud {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px !important;
+    }
+    #btn-toggle-hud .text-long {
+        display: none !important;
+    }
+    #btn-toggle-hud .text-short {
+        display: inline !important;
+    }
+
+    #btn-toggle-theatre-log-player {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed !important;
+        top: 45px !important;
+        left: 10px !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: rgba(139, 0, 0, 0.8) !important;
+        border: 2px solid #d4af37 !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        cursor: pointer !important;
+        z-index: 2015 !important;
+        padding: 0 !important;
+        box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+    #btn-toggle-theatre-log-player:hover {
+        background: rgba(180, 0, 0, 1) !important;
+        transform: scale(1.05);
+    }
+}
+
 #player-combat-hud {
     position: fixed;
     top: 70px;
