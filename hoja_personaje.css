@@ -6175,51 +6175,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         right: 10px !important;
     }
 
-    /* ---- Theatre Location & Log Adjustments ---- */
-    #theatre-view-player #theatre-log-container {
-        display: none !important;
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        width: 80% !important;
-        max-width: 400px !important;
-        height: 60vh !important;
-        max-height: 400px !important;
-        z-index: 2050 !important;
-        background: rgba(0,0,0,0.95) !important;
-        border: 2px solid #444 !important;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
-    }
 
-    #theatre-view-player #theatre-log-container.open {
-        display: flex !important;
-    }
-
-    #btn-toggle-theatre-log-player {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        position: fixed !important;
-        top: 45px !important;
-        left: 10px !important;
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        background: rgba(139, 0, 0, 0.8) !important;
-        border: 2px solid #d4af37 !important;
-        color: #fff !important;
-        font-size: 16px !important;
-        cursor: pointer !important;
-        z-index: 2015 !important;
-        padding: 0 !important;
-        box-shadow: 0 0 10px rgba(0,0,0,0.8);
-    }
-
-    #btn-toggle-theatre-log-player:hover {
-        background: rgba(180, 0, 0, 1) !important;
-        transform: scale(1.05);
-    }
 
     /* Restaurar location tag en tamaño compacto */
     #theatre-view-player .theatre-location {
@@ -6626,29 +6582,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
         display: inline !important;
     }
 
-    #btn-toggle-theatre-log-player {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        position: fixed !important;
-        top: 45px !important;
-        left: 10px !important;
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        background: rgba(139, 0, 0, 0.8) !important;
-        border: 2px solid #d4af37 !important;
-        color: #fff !important;
-        font-size: 16px !important;
-        cursor: pointer !important;
-        z-index: 2015 !important;
-        padding: 0 !important;
-        box-shadow: 0 0 10px rgba(0,0,0,0.8);
-    }
-    #btn-toggle-theatre-log-player:hover {
-        background: rgba(180, 0, 0, 1) !important;
-        transform: scale(1.05);
-    }
+
 }
 
 #player-combat-hud {
@@ -7388,4 +7322,69 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 .item-slotted {
     opacity: 0.4;
     pointer-events: none;
+}
+
+/* ---- Global Theatre Log Adjustments ---- */
+#theatre-view-player #theatre-log-container {
+    display: none !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 80% !important;
+    max-width: 400px !important;
+    height: 60vh !important;
+    max-height: 400px !important;
+    z-index: 2050 !important;
+    background: rgba(0,0,0,0.95) !important;
+    border: 2px solid #444 !important;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
+    overflow-y: auto !important;
+    padding: 10px !important;
+    font-size: 13px !important;
+    color: #ccc !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+}
+
+#theatre-view-player #theatre-log-container.open {
+    display: flex !important;
+}
+
+#btn-toggle-theatre-log-player {
+    display: none !important; /* Hidden by default unless theatre active */
+    align-items: center;
+    justify-content: center;
+    position: fixed !important;
+    top: 45px !important;
+    left: 10px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background: rgba(139, 0, 0, 0.8) !important;
+    border: 2px solid #d4af37 !important;
+    color: #fff !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    z-index: 2015 !important;
+    padding: 0 !important;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+
+/* Only show the log button when the theatre view is actually active */
+#theatre-view-player.theatre-active #btn-toggle-theatre-log-player,
+#theatre-view-player[style*="display: flex"] #btn-toggle-theatre-log-player,
+#theatre-view-player:not([style*="display: none"]) #btn-toggle-theatre-log-player {
+    display: flex !important;
+}
+
+#btn-toggle-theatre-log-player:hover {
+    background: rgba(180, 0, 0, 1) !important;
+    transform: scale(1.05);
+}
+
+.log-icon-svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
 }
