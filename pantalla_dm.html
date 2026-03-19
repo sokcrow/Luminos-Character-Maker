@@ -450,7 +450,8 @@
       text-shadow: 0 0 5px #ff0000;
     }
 
-    /* Estilos del log movidos a nivel global */
+
+    /* Contenedor de Log Global */
     #theatre-log-container {
       display: none !important;
       position: fixed !important;
@@ -497,6 +498,7 @@
     }
 
     @media (max-width: 768px) {
+
       /* Restaurar location tag en tamaño compacto */
       .theatre-location {
         display: block !important;
@@ -1144,10 +1146,10 @@
       <span id="theatre-location-text">Unknown Location</span>
     </div>
 
-    <button id="btn-toggle-theatre-log" title="Ver Historial">📜</button>
+    <button id="btn-toggle-theatre-log" title="Ver Historial" style="display: none;">📜</button>
 
     <!-- Theatre Log Container -->
-    <div id="theatre-log-container" style="position: absolute; top: 120px; left: 40px; width: 300px; max-height: 400px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 4px; overflow-y: auto; padding: 10px; font-size: 13px; color: #ccc; z-index: 2010; display: none; flex-direction: column; gap: 5px;">
+    <div id="theatre-log-container" style="position: absolute; top: 120px; left: 40px; width: 300px; max-height: 400px; background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 4px; overflow-y: auto; padding: 10px; font-size: 13px; color: #ccc; z-index: 2010; display: flex; flex-direction: column; gap: 5px;">
       <!-- Log items injected here -->
     </div>
 
