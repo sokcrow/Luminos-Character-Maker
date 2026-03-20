@@ -7448,3 +7448,108 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     height: 20px;
     fill: currentColor;
 }
+
+/* --- EQUIPMENT PANEL (Paperdoll) --- */
+.cyber-panel {
+    background: var(--bg-main, #0a0a0a);
+    border: 1px solid #444;
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 4px;
+}
+
+.cyber-panel-title {
+    color: var(--gold-accent, #d4af37);
+    font-family: BebasKai, sans-serif;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed #444;
+    padding-bottom: 5px;
+}
+
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.equip-slot {
+    background: #111;
+    border: 1px solid #444;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.equip-slot:hover {
+    border-color: var(--gold-accent, #d4af37);
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+}
+
+.equip-slot.hover-glow-cyan:hover {
+    border-color: var(--cyan-tech, #00ffff);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
+.slot-label {
+    color: #aaa;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    font-family: "Share Tech Mono", monospace;
+    margin-bottom: 5px;
+    letter-spacing: 0.5px;
+}
+
+.item-display {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.item-icon {
+    width: 40px;
+    height: 40px;
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 2px;
+}
+
+.item-name {
+    color: #ccc;
+    font-size: 0.9em;
+    font-family: "Share Tech Mono", monospace;
+    flex-grow: 1;
+}
+
+.keyword-slots-container {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.keyword-node {
+    width: 10px;
+    height: 10px;
+    border: 1px solid #555;
+    border-radius: 1px;
+}
+
+.keyword-node.active {
+    background: var(--gold-accent, #d4af37);
+    border-color: var(--gold-accent, #d4af37);
+    box-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+}
+
+.slot-stat {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    color: #888;
+    font-size: 0.75em;
+    font-family: "Share Tech Mono", monospace;
+}
