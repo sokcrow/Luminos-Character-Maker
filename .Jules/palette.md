@@ -1,0 +1,3 @@
+## 2024-03-20 - [Aesthetic Enforcement on Universal FABs]
+**Learning:** The prompt dictates that floating action buttons (FABs) must universally have a 36x36px ultra-compact circular icon relying entirely on emojis. However, the 'Limbus Company' visual design standards specify strict rectangular shapes (rounded-none) and matte styles, explicitly forbidding rounded pills and 'cyberpunk neon' aesthetics.
+**Action:** When designing universal FAB toggles, override standard circle presets and enforce `border-radius: 0 !important` along with matte beige/black backgrounds and thin #FFD700 borders to bridge compact size requirements with strict Limbus geometry. Avoid drop-shadows that mimic neon glows.
