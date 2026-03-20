@@ -273,6 +273,7 @@ window.renderCharacterSheet = function(data) {
         totalDisplays.forEach(el => {
             if (el.tagName === 'INPUT' && document.activeElement !== el) el.value = totalVal;
             else el.innerText = totalVal;
+            el.title = `Base: ${baseVal} | Mod: ${modVal}`;
         });
     });
 
@@ -546,6 +547,7 @@ window.renderCharacterSheet = function(data) {
                 const totalSpan = row.querySelector(`.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`);
                 if (totalSpan) {
                     totalSpan.innerText = bVal + mVal;
+                    totalSpan.title = `Base: ${bVal} | Mod: ${mVal}`;
                 }
 
                 // Update inputs if not focused
