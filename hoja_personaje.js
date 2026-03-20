@@ -319,8 +319,16 @@ window.renderCharacterSheet = function(data) {
     const coreStats = ['cuerpo', 'mente', 'alma'];
 
     coreStats.forEach(stat => {
-        const baseVal = (data.baseStats && data.baseStats[stat]) ? parseInt(data.baseStats[stat]) : 0;
-        const modVal = (data.modifiers && data.modifiers[stat]) ? parseInt(data.modifiers[stat]) : 0;
+        let baseVal = 0;
+        if (data.baseStats) {
+            const baseKey = Object.keys(data.baseStats).find(k => k.toLowerCase() === stat.toLowerCase());
+            if (baseKey) baseVal = parseInt(data.baseStats[baseKey]) || 0;
+        }
+        let modVal = 0;
+        if (data.modifiers) {
+            const modKey = Object.keys(data.modifiers).find(k => k.toLowerCase() === stat.toLowerCase());
+            if (modKey) modVal = parseInt(data.modifiers[modKey]) || 0;
+        }
         const totalVal = baseVal + modVal;
 
         const baseInput = document.querySelector(`input[name="attr_${stat}_base"]`);
@@ -592,15 +600,22 @@ window.renderCharacterSheet = function(data) {
             const actName = btn.getAttribute('name');
             if (actName && actName.startsWith('act_roll_skill_')) {
                 const skillNameRaw = actName.replace('act_roll_skill_', '');
-                let bVal = parseInt(data[`skill_${skillNameRaw}_base`]) || 0;
-                let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]) || 0;
+                let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
+                bVal = !isNaN(bVal) ? bVal : 0;
+                let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
+                mVal = !isNaN(mVal) ? mVal : 0;
 
                 // fallback
-                if (data[`skill_${skillNameRaw}_base`] === undefined && data.baseStats && data.baseStats[skillNameRaw]) {
-                    bVal = parseInt(data.baseStats[skillNameRaw]) || 0;
+                if (data[`skill_${skillNameRaw}_base`] === undefined && data.baseStats) {
+                    const baseKey = Object.keys(data.baseStats).find(k => k.toLowerCase() === skillNameRaw.toLowerCase());
+                    if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
                 }
                 if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-                    mVal = parseInt(data.modifiers[`skill_${skillNameRaw}`]) || parseInt(data.modifiers[skillNameRaw]) || 0;
+                    const modKey = Object.keys(data.modifiers).find(k =>
+                        k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
+                        k.toLowerCase() === skillNameRaw.toLowerCase()
+                    );
+                    if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
                 }
 
                 const totalSpan = row.querySelector(`.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`);
@@ -2022,21 +2037,32 @@ document.addEventListener('click', (e) => {
         if (pd) {
             // For Core Stats (cuerpo, mente, alma)
             if (['cuerpo', 'mente', 'alma'].includes(skillNameRaw.toLowerCase())) {
-                baseVal = pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()] ? parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0 : 0;
-                modVal = pd.modifiers && pd.modifiers[skillNameRaw.toLowerCase()] ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0;
+                if (pd.baseStats) {
+                    const baseKey = Object.keys(pd.baseStats).find(k => k.toLowerCase() === skillNameRaw.toLowerCase());
+                    if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
+                }
+                if (pd.modifiers) {
+                    const modKey = Object.keys(pd.modifiers).find(k => k.toLowerCase() === skillNameRaw.toLowerCase());
+                    if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+                }
             } else {
                 // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
-                baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]) || 0;
-                modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]) || 0;
+                baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
+                baseVal = !isNaN(baseVal) ? baseVal : 0;
+                modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
+                modVal = !isNaN(modVal) ? modVal : 0;
 
                 // Fallbacks
-                if (pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined && pd.baseStats && pd.baseStats[skillNameRaw.toLowerCase()]) {
-                    baseVal = parseInt(pd.baseStats[skillNameRaw.toLowerCase()]) || 0;
+                if (pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined && pd.baseStats) {
+                    const baseKey = Object.keys(pd.baseStats).find(k => k.toLowerCase() === skillNameRaw.toLowerCase());
+                    if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
                 }
                 if (pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined && pd.modifiers) {
-                    const modKey = `skill_${skillNameRaw.toLowerCase()}`;
-                    modVal = pd.modifiers[modKey] !== undefined ? parseInt(pd.modifiers[modKey]) || 0 :
-                             (pd.modifiers[skillNameRaw.toLowerCase()] !== undefined ? parseInt(pd.modifiers[skillNameRaw.toLowerCase()]) || 0 : 0);
+                    const modKey = Object.keys(pd.modifiers).find(k =>
+                        k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
+                        k.toLowerCase() === skillNameRaw.toLowerCase()
+                    );
+                    if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
                 }
             }
         }
