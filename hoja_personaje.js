@@ -1,91 +1,4 @@
 // Data Maps for resolving IDs to Names
-// Touch Drag State
-window.touchDragItemKey = null;
-window.touchDragSourceSlot = null;
-window.touchDragClone = null;
-
-function setupTouchDrag(element, itemKey, sourceSlotId = null) {
-    element.ontouchstart = (e) => {
-        if (e.touches.length > 1) return; // Ignore multi-touch
-        const touch = e.touches[0];
-        window.touchDragItemKey = itemKey;
-        window.touchDragSourceSlot = sourceSlotId;
-
-        // Create visual clone
-        window.touchDragClone = element.cloneNode(true);
-        window.touchDragClone.style.position = 'fixed';
-        window.touchDragClone.style.zIndex = '9999';
-        window.touchDragClone.style.pointerEvents = 'none'; // so elementFromPoint works
-        window.touchDragClone.style.opacity = '0.8';
-        window.touchDragClone.style.width = element.offsetWidth + 'px';
-        window.touchDragClone.style.height = element.offsetHeight + 'px';
-        window.touchDragClone.style.left = (touch.clientX - element.offsetWidth / 2) + 'px';
-        window.touchDragClone.style.top = (touch.clientY - element.offsetHeight / 2) + 'px';
-        document.body.appendChild(window.touchDragClone);
-
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd);
-    };
-}
-
-function handleTouchMove(e) {
-    if (!window.touchDragClone) return;
-    e.preventDefault(); // prevent scrolling
-    const touch = e.touches[0];
-    window.touchDragClone.style.left = (touch.clientX - window.touchDragClone.offsetWidth / 2) + 'px';
-    window.touchDragClone.style.top = (touch.clientY - window.touchDragClone.offsetHeight / 2) + 'px';
-}
-
-async function handleTouchEnd(e) {
-    if (!window.touchDragClone) return;
-    document.removeEventListener('touchmove', handleTouchMove);
-    document.removeEventListener('touchend', handleTouchEnd);
-
-    const touch = e.changedTouches[0];
-    window.touchDragClone.remove();
-    window.touchDragClone = null;
-
-    const itemKey = window.touchDragItemKey;
-    if (!itemKey) return;
-    window.touchDragItemKey = null;
-
-    // Detect drop target
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (!target) return;
-
-    const equipSlot = target.closest('.equip-slot');
-    const invGrid = target.closest('#inv-active-grid');
-    const playerId = localStorage.getItem('playerId');
-    if (!playerId) return;
-
-    const invRef = db.ref(`campaña/jugadores/${playerId}/inventario_activo`);
-
-    try {
-        if (equipSlot) {
-            const slotId = equipSlot.getAttribute('data-slot-id');
-            if (slotId) {
-                const snap = await invRef.once('value');
-                const items = snap.val() || {};
-                const updates = {};
-                // Unequip previous
-                for (const [key, item] of Object.entries(items)) {
-                    if (item.equipped_slot === slotId && key !== itemKey) {
-                        updates[`${key}/equipped_slot`] = null;
-                    }
-                }
-                // Equip new
-                updates[`${itemKey}/equipped_slot`] = slotId;
-                await invRef.update(updates);
-            }
-        } else if (invGrid) {
-            // Unequip to inventory
-            await invRef.child(itemKey).update({ equipped_slot: null });
-        }
-    } catch(err) {
-        console.error("Error en touch drag: ", err);
-    }
-}
-
     const racesData = [
         { id: 'humano', nombre: 'Humano' },
         { id: 'lizalin', nombre: 'Lizalin' },
@@ -1037,9 +950,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     targetSlot.ondragstart = (e) => {
                          e.dataTransfer.setData('text/plain', item.key);
                     };
-
-                    // Touch drag for equipped items
-                    setupTouchDrag(targetSlot, item.key, slotId);
                 }
                 return; // Skip rendering in normal grid
             }
@@ -1053,9 +963,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 slot.ondragstart = (e) => {
                     e.dataTransfer.setData('text/plain', item.key);
                 };
-
-                // Touch drag for inventory items
-                setupTouchDrag(slot, item.key);
             }
 
             // Ensure array format for tags
