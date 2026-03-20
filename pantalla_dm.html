@@ -20,9 +20,9 @@
     #dm-time-panel {
       background-color: rgba(15, 15, 15, 0.95);
       padding: 20px;
-      border-radius: 2px;
+
       border: 1px solid #8b0000;
-      box-shadow: 0 0 15px rgba(139, 0, 0, 0.3);
+
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -34,16 +34,16 @@
     }
     #dm-time-input {
       padding: 10px;
-      border-radius: 4px;
+
       border: 1px solid #444;
       background: #222;
-      color: #0df;
+      color: var(--limbus-cream);
       font-family: inherit;
       font-size: 16px;
     }
     #btn-fijar-hora {
       padding: 10px 20px;
-      border-radius: 4px;
+
       border: 1px solid #c49a00;
       background: #8b0000;
       color: #fff;
@@ -55,12 +55,12 @@
     }
     #btn-fijar-hora:hover {
       background: #a00000;
-      box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
+
     }
     #btn-avanzar-hora {
       padding: 10px 20px;
-      border-radius: 4px;
-      border: 1px solid #0df;
+
+      border: 1px solid var(--limbus-cream);
       background: #004400;
       color: #fff;
       cursor: pointer;
@@ -71,16 +71,16 @@
     }
     #btn-avanzar-hora:hover {
       background: #006600;
-      box-shadow: 0 0 10px rgba(0, 221, 255, 0.5);
+
     }
 
-    /* --- ESTILOS CYBERPUNK PARA FORJA Y MERCADO --- */
-    .panel-cyber {
+    /* --- ESTILOS LIMBUS PARA FORJA Y MERCADO --- */
+    .limbus-container {
       background-color: rgba(15, 15, 15, 0.95);
-      border: 1px solid #0df;
-      box-shadow: 0 0 15px rgba(0, 221, 255, 0.3);
+      border: 1px solid var(--limbus-cream);
+
       padding: 25px;
-      border-radius: 2px;
+
       width: 90%;
       max-width: 1200px;
       margin-top: 20px;
@@ -88,19 +88,19 @@
       flex-direction: column;
       gap: 20px;
     }
-    .panel-cyber h3 {
+    .limbus-container h3 {
       font-family: 'BebasKai', sans-serif;
-      color: #0df;
+      color: var(--limbus-cream);
       text-transform: uppercase;
       letter-spacing: 2px;
       margin: 0;
-      text-shadow: 0 0 5px #0df;
+      text-shadow: 0 0 5px var(--limbus-cream);
       text-align: center;
-      border-bottom: 1px solid #0df;
+      border-bottom: 1px solid var(--limbus-cream);
       padding-bottom: 10px;
     }
 
-    .form-cyber-container {
+    .form-container {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
@@ -108,12 +108,12 @@
       border-bottom: 1px solid #444;
       padding-bottom: 20px;
     }
-    .form-cyber {
+    .limbus-container {
       background-color: rgba(15, 15, 15, 0.95);
       padding: 15px;
-      border-radius: 2px;
+
       border: 1px solid #444;
-      box-shadow: 0 0 15px rgba(139, 0, 0, 0.3);
+
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -121,36 +121,36 @@
       min-width: 300px;
       max-width: 400px;
     }
-    .form-cyber h4 {
+    .limbus-container h4 {
       font-family: 'BebasKai', sans-serif;
       color: #c49a00;
       margin: 0 0 10px 0;
       text-align: center;
     }
-    .form-cyber input, .form-cyber select, .form-cyber textarea {
+    .limbus-container input, .limbus-container select, .limbus-container textarea {
       padding: 10px;
-      border-radius: 4px;
+
       background: #222;
       color: #fff;
       border: 1px solid #555;
       font-family: inherit;
     }
-    .form-cyber input:focus, .form-cyber select:focus, .form-cyber textarea:focus {
+    .limbus-container input:focus, .limbus-container select:focus, .limbus-container textarea:focus {
       outline: none;
-      border-color: #0df;
-      box-shadow: 0 0 5px rgba(0, 221, 255, 0.5);
+      border-color: var(--limbus-cream);
+
     }
-    .btn-cyber {
+    .btn-tactico {
       padding: 10px 20px;
       font-size: 16px;
-      border-radius: 2px;
+
       cursor: pointer;
       font-weight: bold;
       text-transform: uppercase;
       transition: all 0.2s;
     }
-    .btn-cyber:hover {
-      box-shadow: 0 0 10px var(--cyan-tech, #0df);
+    .btn-tactico:hover {
+
     }
     .btn-red {
       background: #8b0000;
@@ -159,7 +159,7 @@
     }
     .btn-red:hover {
       background: #a00000;
-      box-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
+
     }
     .btn-green {
       background: #004400;
@@ -168,7 +168,7 @@
     }
     .btn-green:hover {
       background: #006600;
-      box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+
     }
     .btn-giant-green {
       background: #006600;
@@ -182,7 +182,7 @@
     }
     .btn-giant-green:hover {
       background: #008800;
-      box-shadow: 0 0 15px #00ff00;
+
     }
 
     /* Grids de Tarjetas */
@@ -192,10 +192,10 @@
       gap: 15px;
       margin-top: 10px;
     }
-    .card-cyber {
+    .limbus-container {
       background: #0a0a0a;
       border: 1px solid #333;
-      border-radius: 0;
+
       padding: 15px;
       display: flex;
       flex-direction: column;
@@ -205,31 +205,31 @@
       transition: transform 0.2s, box-shadow 0.2s;
       position: relative;
     }
-    .card-cyber:hover {
+    .limbus-container:hover {
       transform: translateY(-5px);
-      box-shadow: 0 5px 15px rgba(139, 0, 0, 0.5);
+
     }
-    .card-item { border-left: 3px solid #0df; }
+    .card-item { border-left: 3px solid var(--limbus-cream); }
     .card-store {
       border-left: 3px solid #c49a00;
       cursor: pointer;
     }
     .card-store:hover {
-      box-shadow: 0 0 15px rgba(196, 154, 0, 0.5);
+
     }
-    .card-cyber img {
+    .limbus-container img {
       width: 60px;
       height: 60px;
       object-fit: cover;
-      border-radius: 4px;
+
       border: 1px solid #555;
     }
-    .card-cyber h5 {
+    .limbus-container h5 {
       margin: 0;
       font-size: 16px;
       color: #fff;
     }
-    .card-cyber span {
+    .limbus-container span {
       font-size: 14px;
       color: #aaa;
     }
@@ -245,11 +245,11 @@
       align-items: center;
       z-index: 1000;
     }
-    .modal-cyber {
+    .limbus-container modal {
       background: #111;
       border: 1px solid #c49a00;
-      box-shadow: 0 0 20px rgba(196, 154, 0, 0.4);
-      border-radius: 8px;
+
+
       width: 90%;
       max-width: 800px;
       max-height: 90vh;
@@ -267,7 +267,7 @@
     .btn-close {
       background: transparent;
       border: none;
-      color: #ff4444;
+      color: var(--limbus-red);
       font-size: 24px;
       cursor: pointer;
     }
@@ -285,12 +285,12 @@
       align-items: center;
       background: #222;
       padding: 10px;
-      border-radius: 4px;
+
       border: 1px solid #333;
       gap: 15px;
     }
     .modal-item-row img {
-      width: 40px; height: 40px; border-radius: 4px; object-fit: cover;
+      width: 40px; height: 40px;  object-fit: cover;
     }
     .modal-item-info { flex: 1; }
     .modal-item-info h5 { margin: 0; color: #fff; font-size: 15px; }
@@ -305,9 +305,9 @@
       width: 80px;
       padding: 5px;
       background: #111;
-      color: #0df;
+      color: var(--limbus-cream);
       border: 1px solid #444;
-      border-radius: 3px;
+
     }
 
     /* Toggle Switch */
@@ -324,7 +324,7 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background-color: #444;
       transition: .4s;
-      border-radius: 24px;
+
     }
     .slider:before {
       position: absolute;
@@ -335,11 +335,11 @@
       bottom: 3px;
       background-color: white;
       transition: .4s;
-      border-radius: 50%;
+
     }
     input:checked + .slider {
-      background-color: #0df;
-      box-shadow: 0 0 10px #0df;
+      background-color: var(--limbus-cream);
+
     }
     input:checked + .slider:before {
       transform: translateX(26px);
@@ -362,7 +362,7 @@
         margin-bottom: 15px;
         background: rgba(20, 20, 20, 0.8);
         padding: 10px;
-        border-radius: 6px;
+
         border: 1px solid #333;
     }
 
@@ -370,9 +370,9 @@
         width: 100%;
         padding: 8px 12px;
         background: #000;
-        color: var(--cyan-tech, #0df);
+        color: var(--cyan-tech, var(--limbus-cream));
         border: 1px solid #444;
-        border-radius: 4px;
+
         font-family: inherit;
         font-size: 0.95em;
         box-sizing: border-box;
@@ -380,8 +380,8 @@
 
     .dm-search-input:focus {
         outline: none;
-        border-color: var(--cyan-tech, #0df);
-        box-shadow: 0 0 5px rgba(0, 221, 255, 0.4);
+        border-color: var(--cyan-tech, var(--limbus-cream));
+
     }
 
     .dm-filters {
@@ -395,7 +395,7 @@
         color: #aaa;
         border: 1px solid #444;
         padding: 4px 10px;
-        border-radius: 12px;
+
         font-size: 0.8em;
         cursor: pointer;
         font-family: inherit;
@@ -411,19 +411,19 @@
 
     .dm-filter-btn.active {
         background: rgba(0, 221, 255, 0.15);
-        color: var(--cyan-tech, #0df);
-        border-color: var(--cyan-tech, #0df);
+        color: var(--cyan-tech, var(--limbus-cream));
+        border-color: var(--cyan-tech, var(--limbus-cream));
         font-weight: bold;
-        box-shadow: 0 0 8px rgba(0, 221, 255, 0.3);
+
     }
 
     /* Tags y Reglas */
     .tag-chip {
       background: #222;
-      border: 1px solid #0df;
-      color: #0df;
+      border: 1px solid var(--limbus-cream);
+      color: var(--limbus-cream);
       padding: 4px 10px;
-      border-radius: 12px;
+
       font-size: 12px;
       display: inline-flex;
       align-items: center;
@@ -440,7 +440,7 @@
       border: 1px solid #c49a00;
       color: #fff;
       padding: 8px 12px;
-      border-radius: 4px;
+
       font-size: 14px;
       display: flex;
       justify-content: space-between;
@@ -449,7 +449,7 @@
     .btn-remove-rule {
       background: transparent;
       border: none;
-      color: #ff4444;
+      color: var(--limbus-red);
       cursor: pointer;
       font-weight: bold;
     }
@@ -553,7 +553,7 @@
 
       .theatre-controls input,
       .theatre-controls select,
-      .theatre-controls button.btn-cyber,
+      .theatre-controls button.btn-tactico,
       .theatre-controls label {
         padding: 3px !important;
         font-size: 10px !important;
@@ -623,7 +623,7 @@
         flex: 1 1 auto;
       }
 
-      .form-cyber {
+      .limbus-container {
         min-width: 100% !important;
         flex: 1 1 100% !important;
       }
@@ -643,7 +643,7 @@
       z-index: 2050 !important;
       background: rgba(0,0,0,0.95) !important;
       border: 2px solid #444 !important;
-      box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
+
       overflow-y: auto !important;
       padding: 10px !important;
       font-size: 13px !important;
@@ -665,7 +665,7 @@
       left: 10px !important;
       width: 36px !important;
       height: 36px !important;
-      border-radius: 0 !important;
+
       background: #0f0f0f !important;
       border: 1px solid #FFD700 !important;
       color: #F5F5DC !important;
@@ -716,7 +716,7 @@
       margin-bottom: 20px;
       background: rgba(15, 15, 20, 0.9);
       padding: 10px;
-      border-radius: 8px;
+
       border: 1px solid #444;
       flex-wrap: wrap;
       justify-content: center;
@@ -728,7 +728,7 @@
       color: #aaa;
       border: 1px solid #555;
       padding: 10px 20px;
-      border-radius: 4px;
+
       cursor: pointer;
       font-family: 'Share Tech Mono', monospace;
       font-size: 16px;
@@ -744,19 +744,19 @@
       background: #8b0000;
       color: #fff;
       border-color: #c49a00;
-      box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
+
     }
     .btn-modo-director {
-      background: #0df;
+      background: var(--limbus-cream);
       color: #000;
       border: 1px solid #fff;
       font-weight: bold;
       text-shadow: none;
-      box-shadow: 0 0 15px rgba(0, 221, 255, 0.8);
+
     }
     .btn-modo-director:hover {
       background: #00bfff;
-      box-shadow: 0 0 25px rgba(0, 221, 255, 1);
+
     }
 
     .dm-tab-pane {
@@ -794,30 +794,30 @@
         </div>
       </div>
 
-      <div id="dm-auto-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center;">
+      <div id="dm-auto-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px;  border: 1px solid #8b0000;  display: flex; flex-direction: column; gap: 15px; align-items: center;">
         <h3 style="margin: 0; color: #c49a00;">ZONA 1: PILOTO AUTOMÁTICO</h3>
         <div style="font-size: 16px;">Fecha Actual: <span id="lbl-auto-fecha">Año 984 / Mes 1 / Día 1</span></div>
         <div style="font-size: 16px;">Clima Actual: <span id="lbl-auto-clima">Despejado</span></div>
-        <button id="btn-avanzar-dia" style="padding: 15px 30px; font-size: 18px; margin-top: 10px; background: #004400; border-color: #00ff00; color: white; cursor: pointer; border-radius: 4px;">Avanzar Día y Generar Clima</button>
+        <button id="btn-avanzar-dia" style="padding: 15px 30px; font-size: 18px; margin-top: 10px; background: #004400; border-color: #00ff00; color: white; cursor: pointer; ">Avanzar Día y Generar Clima</button>
       </div>
 
-      <div id="dm-debug-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center;">
-        <h3 style="margin: 0; color: #ff4444;">ZONA 2: MODO DEBUG</h3>
+      <div id="dm-debug-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px;  border: 1px solid #8b0000;  display: flex; flex-direction: column; gap: 15px; align-items: center;">
+        <h3 style="margin: 0; color: var(--limbus-red);">ZONA 2: MODO DEBUG</h3>
 
         <div style="display: flex; gap: 10px; align-items: center;">
           <label>Año:</label>
-          <input type="number" id="debug-año" min="984" value="984" style="width: 70px; padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+          <input type="number" id="debug-año" min="984" value="984" style="width: 70px; padding: 5px;  background: #222; color: var(--limbus-cream); border: 1px solid #444;">
 
           <label>Mes:</label>
-          <input type="number" id="debug-mes" min="1" max="12" value="1" style="width: 50px; padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+          <input type="number" id="debug-mes" min="1" max="12" value="1" style="width: 50px; padding: 5px;  background: #222; color: var(--limbus-cream); border: 1px solid #444;">
 
           <label>Día:</label>
-          <input type="number" id="debug-dia" min="1" max="31" value="1" style="width: 50px; padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+          <input type="number" id="debug-dia" min="1" max="31" value="1" style="width: 50px; padding: 5px;  background: #222; color: var(--limbus-cream); border: 1px solid #444;">
         </div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
           <label>Nodo de Clima:</label>
-          <select id="debug-clima" style="padding: 5px; border-radius: 4px; background: #222; color: #0df; border: 1px solid #444;">
+          <select id="debug-clima" style="padding: 5px;  background: #222; color: var(--limbus-cream); border: 1px solid #444;">
             <option value="Despejado">Despejado</option>
             <option value="Nublado">Nublado</option>
             <option value="Húmedo">Húmedo</option>
@@ -839,10 +839,10 @@
       </div>
 
       <!-- NUEVO DASHBOARD: METEOROLOGÍA Y CLIMA -->
-      <div id="dashboard-clima" class="panel-cyber" style="margin-top: 20px; display: flex; flex-direction: row; gap: 20px; flex-wrap: wrap;">
+      <div id="dashboard-clima" class="limbus-container" style="margin-top: 20px; display: flex; flex-direction: row; gap: 20px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 300px;">
           <h3>Gestión de Climas</h3>
-          <div class="form-cyber" style="width: 100%; max-width: none;">
+          <div class="" style="width: 100%; max-width: none;">
             <input type="text" id="clima-nombre" placeholder="Nombre del Clima (Ej. Lluvia Ácida)" />
             <textarea id="clima-desc" placeholder="Descripción" rows="2"></textarea>
             <textarea id="clima-efectos" placeholder="Efectos Mecánicos" rows="2"></textarea>
@@ -858,13 +858,13 @@
               <input type="checkbox" id="clima-hazard" style="width: auto;" />
             </label>
             <input type="number" id="clima-peso" placeholder="Probabilidad / Peso" />
-            <button id="btn-guardar-clima" class="btn-cyber btn-green">Guardar Clima</button>
+            <button id="btn-guardar-clima" class="btn-tactico btn-green">Guardar Clima</button>
           </div>
         </div>
 
         <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; align-items: center;">
           <h3>Visualizador Radial</h3>
-          <div id="clima-radial-container" style="position: relative; width: 300px; height: 300px; border-radius: 50%; border: 2px dashed #444; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+          <div id="clima-radial-container" style="position: relative; width: 300px; height: 300px;  border: 2px dashed #444; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
             <!-- Inyectado por JS -->
           </div>
         </div>
@@ -873,20 +873,20 @@
 
     <!-- TAB: BANCO / COMUNICACIONES -->
     <div id="tab-banco" class="dm-tab-pane">
-      <div id="dm-banco-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #8b0000; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
-        <h3 style="margin: 0; color: #0df;">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
+      <div id="dm-banco-panel" style="margin-top: 20px; background-color: rgba(15, 15, 20, 0.9); padding: 20px;  border: 1px solid #8b0000;  display: flex; flex-direction: column; gap: 15px; align-items: center; width: 80%; max-width: 800px;">
+        <h3 style="margin: 0; color: var(--limbus-cream);">ZONA A: RED BANCARIA (Monitoreo de Jugadores)</h3>
 
-        <div style="background: #111; padding: 15px; border-radius: 6px; border: 1px solid #c49a00; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;">
+        <div style="background: #111; padding: 15px;  border: 1px solid #c49a00; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;">
           <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="margin: 0; color: #c49a00;">Terminal Bancaria</h4>
-            <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 5px 10px; border-radius: 4px; border: 1px solid #0df; cursor: pointer; font-size: 0.85em;">
+            <label style="color: var(--limbus-cream); font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 5px 10px;  border: 1px solid var(--limbus-cream); cursor: pointer; font-size: 0.85em;">
               <input type="checkbox" id="dm-stash-unlock" /> DESBLOQUEAR ALIJO (STASH) A JUGADORES
             </label>
           </div>
-          <input type="text" id="banco-nombre" placeholder="Nombre del Personaje" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
-          <input type="number" id="banco-monto" placeholder="Monto (+ o -)" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
-          <input type="text" id="banco-concepto" placeholder="Concepto" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" />
-          <button id="btn-ejecutar-tx" style="padding: 8px 15px; background: #004400; border: 1px solid #00ff00; color: white; border-radius: 4px; cursor: pointer;">Ejecutar Transacción</button>
+          <input type="text" id="banco-nombre" placeholder="Nombre del Personaje" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; " />
+          <input type="number" id="banco-monto" placeholder="Monto (+ o -)" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; " />
+          <input type="text" id="banco-concepto" placeholder="Concepto" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; " />
+          <button id="btn-ejecutar-tx" style="padding: 8px 15px; background: #004400; border: 1px solid #00ff00; color: white;  cursor: pointer;">Ejecutar Transacción</button>
         </div>
 
         <div id="banco-jugadores-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%;">
@@ -895,10 +895,10 @@
       </div>
 
       <!-- NUEVO DASHBOARD: TERMINAL DE COMUNICACIONES -->
-      <div id="dashboard-comunicaciones" class="panel-cyber" style="margin-top: 20px;">
+      <div id="dashboard-comunicaciones" class="limbus-container" style="margin-top: 20px;">
         <h3>Terminal de Comunicaciones</h3>
-        <div class="form-cyber-container">
-          <div class="form-cyber" style="width: 100%; max-width: 600px;">
+        <div class="">
+          <div class="" style="width: 100%; max-width: 600px;">
             <select id="comms-jugador"><option value="">Selecciona Jugador...</option></select>
             <input type="text" id="comms-remitente" placeholder="Remitente (Ej: L-Corp RRHH)" />
             <input type="text" id="comms-asunto" placeholder="Asunto" />
@@ -912,18 +912,18 @@
     <!-- TAB: FORJA / MERCADO -->
     <div id="tab-forja" class="dm-tab-pane">
       <!-- NUEVO DASHBOARD: ZONA DE FORJA Y MERCADO -->
-      <div id="dashboard-mercado" class="panel-cyber">
+      <div id="dashboard-mercado" class="limbus-container">
         <h3>Dashboard: Forja y Mercado</h3>
 
-        <div class="form-cyber-container">
+        <div class="">
           <!-- Formulario: Forjar Ítem -->
-          <div class="form-cyber">
+          <div class="">
             <h4>Forjar Nuevo Ítem Global</h4>
             <input type="text" id="forja-nombre" placeholder="Nombre del Ítem" />
             <input type="url" id="forja-icono" placeholder="URL de Imagen/Ícono" />
             <div style="display:flex;gap:10px;align-items:center;">
               <input type="text" id="forja-tag-input" placeholder="Etiqueta (Ej. Arma, Comida)" style="flex:1;" />
-              <button id="btn-add-tag" class="btn-cyber" style="padding: 10px; font-size: 14px; background: #222; color: #0df; border: 1px solid #0df;">Añadir Etiqueta</button>
+              <button id="btn-add-tag" class="btn-tactico" style="padding: 10px; font-size: 14px; background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream);">Añadir Etiqueta</button>
             </div>
             <div id="forja-tags-container" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
             <select id="forja-tier">
@@ -951,19 +951,19 @@
             </div>
             <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
             <div style="display:flex; gap:10px;">
-              <button id="btn-crear-item" class="btn-cyber btn-red" style="flex:1;">Crear Ítem</button>
-              <button id="btn-cancelar-item" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+              <button id="btn-crear-item" class="btn-tactico btn-red" style="flex:1;">Crear Ítem</button>
+              <button id="btn-cancelar-item" class="btn-tactico" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
             </div>
           </div>
 
           <!-- Formulario: Crear Tienda -->
-          <div class="form-cyber">
+          <div class="">
             <h4>Registrar Nueva Tienda</h4>
             <input type="text" id="tienda-nombre" placeholder="Nombre de la Tienda" />
             <input type="url" id="tienda-icono" placeholder="URL de Imagen/Ícono de Tienda" />
             <input type="url" id="tienda-icono-fisico" placeholder="URL de Icono Físico (Mapa/HUD)" />
             <div style="display:flex;gap:10px;align-items:center;">
-              <label style="color:#0df; font-size:14px; cursor:pointer;"><input type="checkbox" id="tienda-fisica-activa" /> Tienda Física Activa</label>
+              <label style="color:var(--limbus-cream); font-size:14px; cursor:pointer;"><input type="checkbox" id="tienda-fisica-activa" /> Tienda Física Activa</label>
               <input type="number" id="tienda-dias-entrega" placeholder="Días Envío (App)" style="flex:1;" />
             </div>
             <div style="display:flex;gap:10px;align-items:center; margin-top:5px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
@@ -983,19 +983,19 @@
             </select>
             <input type="number" id="tienda-mod-venta" placeholder="Mod. Venta % (ej. 120)" />
 
-            <h5 style="color:#0df; margin: 10px 0 5px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">Reglas de Comercio por Etiqueta</h5>
+            <h5 style="color:var(--limbus-cream); margin: 10px 0 5px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">Reglas de Comercio por Etiqueta</h5>
             <div style="display:flex;gap:10px;align-items:center;">
               <input type="text" id="tienda-regla-tag" placeholder="Etiqueta (Ej. Munición)" style="flex:2;" />
               <input type="number" id="tienda-regla-pct" placeholder="% Compra" style="flex:1;" />
-              <button id="btn-add-regla" class="btn-cyber" style="padding: 10px; font-size: 14px; background: #222; color: #c49a00; border: 1px solid #c49a00;">Añadir Regla</button>
+              <button id="btn-add-regla" class="btn-tactico" style="padding: 10px; font-size: 14px; background: #222; color: #c49a00; border: 1px solid #c49a00;">Añadir Regla</button>
             </div>
             <div id="tienda-reglas-container" style="display:flex;flex-direction:column;gap:5px;"></div>
 
             <input type="number" id="tienda-tasa-defecto" placeholder="Tasa por defecto (Para etiquetas no listadas) %" style="margin-top: 10px;" />
 
             <div style="display:flex; gap:10px; margin-top: auto;">
-              <button id="btn-crear-tienda" class="btn-cyber btn-green" style="flex:1;">Crear Tienda</button>
-              <button id="btn-cancelar-tienda" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+              <button id="btn-crear-tienda" class="btn-tactico btn-green" style="flex:1;">Crear Tienda</button>
+              <button id="btn-cancelar-tienda" class="btn-tactico" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
             </div>
           </div>
         </div>
@@ -1003,7 +1003,7 @@
         <!-- Visualización de Datos -->
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 300px;">
-            <h4 style="color: #0df; border-bottom: 1px solid #444; padding-bottom: 5px;">Base de Datos de Ítems (Global)</h4>
+            <h4 style="color: var(--limbus-cream); border-bottom: 1px solid #444; padding-bottom: 5px;">Base de Datos de Ítems (Global)</h4>
             <!-- Barra de Herramientas DM -->
             <div class="dm-toolbar">
                 <input type="text" id="buscador-items-dm" class="dm-search-input" placeholder="Buscar por nombre, tier o tipo...">
@@ -1033,19 +1033,19 @@
     <!-- TAB: BOTÍN -->
     <div id="tab-loot" class="dm-tab-pane">
       <!-- NUEVO DASHBOARD: GESTOR DE TABLAS DE BOTÍN -->
-      <div id="dashboard-loot" class="panel-cyber" style="margin-top: 20px;">
+      <div id="dashboard-loot" class="limbus-container" style="margin-top: 20px;">
         <h3>Gestor de Tablas de Botín</h3>
-        <div class="form-cyber-container">
+        <div class="">
 
           <!-- A. Crear Tabla -->
-          <div class="form-cyber">
-            <h4 style="color: #0df;">A. Crear Nueva Tabla</h4>
+          <div class="">
+            <h4 style="color: var(--limbus-cream);">A. Crear Nueva Tabla</h4>
             <input type="text" id="loot-nombre-tabla" placeholder="Nombre de Enemigo/Tabla (Ej: Matón de Callejón)" />
-            <button id="btn-crear-tabla-loot" class="btn-cyber btn-green">Crear Tabla</button>
+            <button id="btn-crear-tabla-loot" class="btn-tactico btn-green">Crear Tabla</button>
           </div>
 
           <!-- B. Añadir Ítem a Tabla -->
-          <div class="form-cyber">
+          <div class="">
             <h4 style="color: #c49a00;">B. Añadir Ítem a Tabla</h4>
             <select id="loot-select-tabla">
               <option value="">Cargando Tablas...</option>
@@ -1054,20 +1054,20 @@
               <option value="">Cargando Ítems...</option>
             </select>
             <input type="number" id="loot-probabilidad" placeholder="Probabilidad % (1-100)" min="1" max="100" />
-            <button id="btn-anadir-item-loot" class="btn-cyber" style="background: #222; color: #fff; border: 1px solid #c49a00;">Añadir a Tabla</button>
+            <button id="btn-anadir-item-loot" class="btn-tactico" style="background: #222; color: #fff; border: 1px solid #c49a00;">Añadir a Tabla</button>
           </div>
 
           <!-- C. Generador de Botín -->
-          <div class="form-cyber" style="border: 1px solid #8b0000; box-shadow: 0 0 10px rgba(139,0,0,0.5);">
-            <h4 style="color: #ff4444;">C. Generador de Botín</h4>
+          <div class="" style="border: 1px solid #8b0000; ">
+            <h4 style="color: var(--limbus-red);">C. Generador de Botín</h4>
             <select id="loot-select-jugador">
               <option value="">Cargando Jugadores...</option>
             </select>
             <select id="loot-select-tabla-roll">
               <option value="">Cargando Tablas...</option>
             </select>
-            <button id="btn-tirar-loot" class="btn-cyber" style="background: #c49a00; color: #000; font-size: 18px; padding: 15px; border: 2px solid #fff;">Tirar Dados de Loot</button>
-            <div id="loot-log" style="margin-top: 10px; font-size: 14px; color: #aaa; background: #000; padding: 10px; border-radius: 4px; border: 1px solid #444; min-height: 50px; white-space: pre-wrap;">Esperando tirada...</div>
+            <button id="btn-tirar-loot" class="btn-tactico" style="background: #c49a00; color: #000; font-size: 18px; padding: 15px; border: 2px solid #fff;">Tirar Dados de Loot</button>
+            <div id="loot-log" style="margin-top: 10px; font-size: 14px; color: #aaa; background: #000; padding: 10px;  border: 1px solid #444; min-height: 50px; white-space: pre-wrap;">Esperando tirada...</div>
           </div>
         </div>
       </div>
@@ -1075,12 +1075,12 @@
 
     <!-- TAB: GESTIÓN DE ACTORES -->
     <div id="dashboard-actores" class="dm-tab-pane">
-      <div class="panel-cyber" style="margin-top: 20px;">
+      <div class="limbus-container" style="margin-top: 20px;">
         <h3>Gestión de Actores</h3>
 
-        <div class="form-cyber-container">
-          <div class="form-cyber">
-            <h4 style="color: #0df;">Crear Nuevo Actor</h4>
+        <div class="">
+          <div class="">
+            <h4 style="color: var(--limbus-cream);">Crear Nuevo Actor</h4>
             <input type="text" id="actor-nombre" placeholder="Nombre del Personaje (Ej. Charon)" />
             <input type="text" id="actor-titulo" placeholder="Título o Profesión (Ej. Bus Driver)" />
 
@@ -1096,7 +1096,7 @@
 
             <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
               <label style="flex: 1; font-size: 0.85em; color: #aaa;">Escala / Tamaño:</label>
-              <input type="number" id="actor-escala" value="1.0" step="0.1" min="0.1" max="5.0" style="flex: 1; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" title="Escala visual (1.0 = Normal)" />
+              <input type="number" id="actor-escala" value="1.0" step="0.1" min="0.1" max="5.0" style="flex: 1; padding: 5px; background: #222; color: #fff; border: 1px solid #444; " title="Escala visual (1.0 = Normal)" />
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
@@ -1112,17 +1112,17 @@
             <div id="actor-expresiones-container" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
               <!-- Dynamic expressions will be added here -->
             </div>
-            <button id="btn-add-expresion" class="btn-cyber" style="background:#222; color:#fff; border-color:#555; font-size: 12px; padding: 5px; margin-bottom: 10px;">+ Añadir Expresión</button>
+            <button id="btn-add-expresion" class="btn-tactico" style="background:#222; color:#fff; border-color:#555; font-size: 12px; padding: 5px; margin-bottom: 10px;">+ Añadir Expresión</button>
 
             <div style="display:flex; gap:10px;">
-              <button id="btn-crear-actor" class="btn-cyber btn-green" style="flex:1;">Crear Actor</button>
-              <button id="btn-cancelar-actor" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+              <button id="btn-crear-actor" class="btn-tactico btn-green" style="flex:1;">Crear Actor</button>
+              <button id="btn-cancelar-actor" class="btn-tactico" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
             </div>
           </div>
         </div>
 
         <div id="lista-actores-container" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 20px;">
-          <h4 style="color: #0df; margin-bottom: 15px; text-align: center;">Actores Registrados</h4>
+          <h4 style="color: var(--limbus-cream); margin-bottom: 15px; text-align: center;">Actores Registrados</h4>
           <div id="grid-actores" class="grid-container">
             <!-- Actor cards injected via JS -->
           </div>
@@ -1139,62 +1139,62 @@
     </div>
   <!-- MODAL STATS DE COMBATE -->
   <div id="dm-combat-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
-    <div style="background: #111; border-top: 2px solid #8b0000; border-bottom: 2px solid #d4af37; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; display: flex; flex-direction: column;">
+    <div style="background: #111; border-top: 2px solid #8b0000; border-bottom: 2px solid #d4af37; padding: 20px;  width: 80%; max-width: 600px; display: flex; flex-direction: column;">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px;">
-        <h3 id="dm-combat-modal-title" style="color: #0df; margin: 0; font-family: 'BebasKai', sans-serif;">⚙️ STATS DE COMBATE - [NOMBRE JUGADOR]</h3>
+        <h3 id="dm-combat-modal-title" style="color: var(--limbus-cream); margin: 0; font-family: 'BebasKai', sans-serif;">⚙️ STATS DE COMBATE - [NOMBRE JUGADOR]</h3>
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">XP (EXPERIENCIA)</label>
-          <input type="number" id="dm-player-xp" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-player-xp" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP MAX</label>
-          <input type="number" id="dm-hp-max" readonly style="padding: 5px; background: #111; color: #888; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-hp-max" readonly style="padding: 5px; background: #111; color: #888; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">HP ACTUAL</label>
-          <input type="number" id="dm-hp-actual" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-hp-actual" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">BASE HP</label>
-          <input type="number" id="dm-hp-base" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-hp-base" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">COEFICIENTE</label>
-          <input type="number" id="dm-coef" step="0.01" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-coef" step="0.01" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">DEF LVL (Mod)</label>
-          <input type="number" id="dm-def-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-def-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">OFF LVL (Mod)</label>
-          <input type="number" id="dm-off-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-off-lvl" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">SP CORDURA</label>
-          <input type="number" id="dm-sp" min="-45" max="45" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-sp" min="-45" max="45" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">ACTION SLOTS</label>
-          <input type="number" id="dm-action-slots" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="number" id="dm-action-slots" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
         <div style="display: flex; flex-direction: column; grid-column: span 2;">
           <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px;">UMBRALES STAGGER (Ej: 70, 40)</label>
-          <input type="text" id="dm-stagger" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px;">
+          <input type="text" id="dm-stagger" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; ">
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button id="btn-close-modal" style="background: #333; color: #fff; border: 1px solid #555; padding: 8px 15px; border-radius: 3px; cursor: pointer;">CANCELAR</button>
-        <button id="btn-save-stats" style="background: #8b0000; color: #fff; border: 1px solid #ff4444; padding: 8px 15px; border-radius: 3px; cursor: pointer; font-weight: bold;">GUARDAR CAMBIOS</button>
+        <button id="btn-close-modal" style="background: #333; color: #fff; border: 1px solid #555; padding: 8px 15px;  cursor: pointer;">CANCELAR</button>
+        <button id="btn-save-stats" style="background: #8b0000; color: #fff; border: 1px solid var(--limbus-red); padding: 8px 15px;  cursor: pointer; font-weight: bold;">GUARDAR CAMBIOS</button>
       </div>
     </div>
   </div>
 
     <!-- TAB: GESTIÓN DE JUGADORES -->
     <div id="dashboard-jugadores" class="dm-tab-pane">
-      <div class="panel-cyber" style="margin-top: 20px;">
+      <div class="limbus-container" style="margin-top: 20px;">
         <h3>Gestión de Jugadores</h3>
         <div id="grid-jugadores" class="grid-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; width: 100%;">
           <!-- Player cards injected via JS -->
@@ -1206,14 +1206,14 @@
 
   <!-- MODAL LLAMAR A ESCENA -->
   <div id="modal-llamar-escena" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
-    <div style="background: #111; border: 2px solid #0df; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+    <div style="background: #111; border: 2px solid var(--limbus-cream); padding: 20px;  width: 80%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
-        <h3 style="color: #0df; margin: 0;">Llamar a Escena</h3>
-        <button id="btn-cerrar-modal-escena" style="background: transparent; color: #ff4444; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+        <h3 style="color: var(--limbus-cream); margin: 0;">Llamar a Escena</h3>
+        <button id="btn-cerrar-modal-escena" style="background: transparent; color: var(--limbus-red); border: none; font-size: 20px; cursor: pointer;">&times;</button>
       </div>
       <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <button id="tab-escena-npcs" class="btn-cyber" style="flex: 1; background: #222; border-color: #0df; color: #0df;">NPCs</button>
-        <button id="tab-escena-jugadores" class="btn-cyber" style="flex: 1; background: #111; border-color: #444; color: #888;">Jugadores</button>
+        <button id="tab-escena-npcs" class="btn-tactico" style="flex: 1; background: #222; border-color: var(--limbus-cream); color: var(--limbus-cream);">NPCs</button>
+        <button id="tab-escena-jugadores" class="btn-tactico" style="flex: 1; background: #111; border-color: #444; color: #888;">Jugadores</button>
       </div>
       <div id="lista-llamar-escena" style="flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start;">
         <!-- Inject avatars here -->
@@ -1236,7 +1236,7 @@
     </div>
 
     <!-- Exit Button for DM -->
-    <button id="btn-exit-theatre" style="position: absolute; top: 20px; right: 20px; background: #8b0000; color: #fff; border: 1px solid #ff0000; padding: 10px 20px; border-radius: 4px; cursor: pointer; z-index: 2010; font-weight: bold;">SALIR DEL TEATRO</button>
+    <button id="btn-exit-theatre" style="position: absolute; top: 20px; right: 20px; background: #8b0000; color: #fff; border: 1px solid #ff0000; padding: 10px 20px;  cursor: pointer; z-index: 2010; font-weight: bold;">SALIR DEL TEATRO</button>
 
     <!-- Stage Area -->
     <div class="theatre-stage" id="theatre-stage-container" style="flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 250px; gap: 0; position: relative;">
@@ -1257,16 +1257,16 @@
     </div>
 
     <!-- DM Control Panel Overlay -->
-    <div class="theatre-controls" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2030; box-sizing: border-box;">
+    <div class="theatre-controls" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid var(--limbus-cream); padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2030; box-sizing: border-box;">
 
-      <button id="btn-toggle-dm-tools" class="btn-cyber" style="display: none; width: 100%; margin-bottom: 10px; background: #222; color: #0df; border: 1px solid #0df; padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer;">🛠️ Mostrar Controles DM</button>
+      <button id="btn-toggle-dm-tools" class="btn-tactico" style="display: none; width: 100%; margin-bottom: 10px; background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream); padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer;">🛠️ Mostrar Controles DM</button>
 
       <div id="dm-tools-wrapper" style="display: flex; width: 100%; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
         <!-- Left: Queue -->
         <div style="flex: 1; border-right: 1px solid #444; padding-right: 15px; display: flex; flex-direction: column; max-height: 100px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 0 5px 0;">
-            <h5 style="margin: 0; color: #0df;">Cola de Actuación</h5>
-            <button id="btn-clear-queue" class="btn-cyber" style="background: #222; color: #ff4444; border: 1px solid #ff4444; padding: 2px 6px; font-size: 10px; cursor: pointer;">Limpiar</button>
+            <h5 style="margin: 0; color: var(--limbus-cream);">Cola de Actuación</h5>
+            <button id="btn-clear-queue" class="btn-tactico" style="background: #222; color: var(--limbus-red); border: 1px solid var(--limbus-red); padding: 2px 6px; font-size: 10px; cursor: pointer;">Limpiar</button>
           </div>
           <div id="dm-theatre-queue" style="flex: 1; overflow-y: auto; background: #111; border: 1px solid #333; padding: 5px; font-size: 14px; color: #aaa; display: flex; flex-direction: column; gap: 5px;">
             <!-- Queue items injected here -->
@@ -1276,44 +1276,44 @@
         <!-- Center: Controls -->
         <div style="flex: 2; display: flex; flex-direction: column; gap: 10px;">
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="url" id="dm-theatre-bg" placeholder="URL Fondo Teatro..." style="flex: 1; min-width: 150px; padding: 8px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;" />
-            <button id="btn-update-bg" class="btn-cyber" style="background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 8px;">Fijar Fondo</button>
+            <input type="url" id="dm-theatre-bg" placeholder="URL Fondo Teatro..." style="flex: 1; min-width: 150px; padding: 8px; background: #222; color: var(--limbus-cream); border: 1px solid #444; " />
+            <button id="btn-update-bg" class="btn-tactico" style="background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 8px;">Fijar Fondo</button>
 
-            <input type="text" id="dm-theatre-location" placeholder="Actualizar Letrero de Locación..." style="flex: 1; min-width: 150px; padding: 8px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;" />
-            <button id="btn-update-location" class="btn-cyber" style="background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 8px;">Fijar Locación</button>
+            <input type="text" id="dm-theatre-location" placeholder="Actualizar Letrero de Locación..." style="flex: 1; min-width: 150px; padding: 8px; background: #222; color: var(--limbus-cream); border: 1px solid #444; " />
+            <button id="btn-update-location" class="btn-tactico" style="background: #222; color: #c49a00; border: 1px solid #c49a00; padding: 8px;">Fijar Locación</button>
 
-            <label style="color: #ff4444; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #ff4444; cursor: pointer; white-space: nowrap;">
+            <label style="color: var(--limbus-red); font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px;  border: 1px solid var(--limbus-red); cursor: pointer; white-space: nowrap;">
               <input type="checkbox" id="dm-theatre-lock" /> MODO LORE (Bloquear Jugadores)
             </label>
 
-            <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #0df; white-space: nowrap;">
+            <label style="color: var(--limbus-cream); font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px;  border: 1px solid var(--limbus-cream); white-space: nowrap;">
               Max Sprites:
-              <input type="number" id="dm-theatre-max-sprites" value="4" min="1" max="10" style="width: 50px; padding: 4px; background: #111; color: #fff; border: 1px solid #444; border-radius: 4px; text-align: center;" />
+              <input type="number" id="dm-theatre-max-sprites" value="4" min="1" max="10" style="width: 50px; padding: 4px; background: #111; color: #fff; border: 1px solid #444;  text-align: center;" />
             </label>
 
-            <label style="color: #0df; font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px; border-radius: 4px; border: 1px solid #0df; cursor: pointer; white-space: nowrap;">
+            <label style="color: var(--limbus-cream); font-weight: bold; display: flex; align-items: center; gap: 5px; background: #222; padding: 8px;  border: 1px solid var(--limbus-cream); cursor: pointer; white-space: nowrap;">
               <input type="checkbox" id="dm-theatre-continuous" /> MODO CONTINUO
             </label>
           </div>
 
-          <div style="display: flex; gap: 10px; align-items: center; background: #1a1a1a; padding: 5px; border-radius: 4px; border: 1px solid #333;">
-            <button id="btn-llamar-escena" class="btn-cyber" style="background: #222; color: #0df; border-color: #0df; padding: 5px 10px; font-size: 12px; white-space: nowrap;">+ Llamar a Escena</button>
+          <div style="display: flex; gap: 10px; align-items: center; background: #1a1a1a; padding: 5px;  border: 1px solid #333;">
+            <button id="btn-llamar-escena" class="btn-tactico" style="background: #222; color: var(--limbus-cream); border-color: var(--limbus-cream); padding: 5px 10px; font-size: 12px; white-space: nowrap;">+ Llamar a Escena</button>
             <div id="dm-escenario" style="display: flex; gap: 5px; overflow-x: auto; flex: 1; padding: 2px;">
               <!-- Avatars injected here -->
             </div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: center;">
-            <select id="dm-expression-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 150px; display: none;">
+            <select id="dm-expression-select" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444;  width: 150px; display: none;">
               <!-- Injected via JS -->
             </select>
-            <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del actor seleccionado..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; border-radius: 4px;"></textarea>
+            <textarea id="dm-theatre-input" placeholder="Escribe el diálogo del actor seleccionado..." style="flex: 1; height: 40px; background: #111; color: #fff; border: 1px solid #555; padding: 5px; resize: none; font-family: inherit; "></textarea>
           </div>
         </div>
 
         <!-- Right: Master Action -->
         <div style="flex: 0 0 auto; display: flex; align-items: center;">
-          <button id="btn-theatre-avanzar" class="btn-cyber" style="background: #c49a00; color: #000; font-size: 20px; padding: 20px 30px; border: 2px solid #fff; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 15px rgba(196,154,0,0.6);">
+          <button id="btn-theatre-avanzar" class="btn-tactico" style="background: #c49a00; color: #000; font-size: 20px; padding: 20px 30px; border: 2px solid #fff; text-transform: uppercase; font-weight: bold; ">
             ENTRAR A ESCENA / AVANZAR
           </button>
         </div>
@@ -1357,7 +1357,7 @@
     }
     .queue-item-blink {
       animation: blinkText 1s infinite alternate;
-      color: #0df;
+      color: var(--limbus-cream);
       font-weight: bold;
     }
     @keyframes blinkText {
@@ -1404,7 +1404,7 @@
     border: none;
     border-top: 3px solid #d4af37;
     border-bottom: 3px solid #d4af37;
-    border-radius: 0;
+
     padding: 12px 30px;
     color: #f5f5dc;
     font-size: 24px;
@@ -1412,7 +1412,7 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     font-weight: bold;
-    box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
+
     z-index: 2010;
     letter-spacing: 1px;
     -webkit-text-stroke: 2px black;
@@ -1431,7 +1431,7 @@
     width: 8px;
     height: 50px;
     background: #d4af37;
-    box-shadow: inset 2px 0 0 rgba(255,255,255,0.4), inset -2px 0 0 rgba(0,0,0,0.4);
+
     z-index: -1;
   }
 
@@ -1445,8 +1445,8 @@
     height: 14px;
     background: #555;
     border: 2px solid #d4af37;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.8);
+
+
     z-index: 2;
   }
 
@@ -1490,8 +1490,8 @@
     width: 14px;
     background: linear-gradient(to right, #444, #222);
     border: 2px solid #111;
-    border-radius: 4px;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.8);
+
+
     z-index: 3;
   }
 
@@ -1503,8 +1503,8 @@
     width: 8px;
     height: 8px;
     background: #d4af37;
-    border-radius: 50%;
-    box-shadow: 0 40px 0 #d4af37, 0 70px 0 #d4af37;
+
+
     z-index: 4;
   }
 
@@ -1519,12 +1519,12 @@
     text-transform: uppercase;
     font-weight: bold;
     font-size: 16px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+
     margin-left: 5px;
     text-transform: uppercase;
     letter-spacing: -0.5px;
     position: relative;
-    border-radius: 0;
+
     z-index: 1;
   }
 
@@ -1546,11 +1546,11 @@
     -webkit-text-stroke: 2px black;
     paint-order: stroke fill;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+
     position: relative;
     z-index: 2;
     margin-top: -3px;
-    border-radius: 0;
+
   }
 
   .theatre-plate-name span {
@@ -1560,14 +1560,14 @@
   .theatre-dialogue-text {
     position: relative;
     border: none;
-    border-radius: 0;
+
     padding: 50px 70px 40px 70px;
     min-height: 180px;
     color: #fffacd; /* Amarillo pálido (LemonChiffon) */
     font-size: 1.1rem;
     line-height: 1.6;
     font-family: 'Roboto', sans-serif;
-    box-shadow: none;
+
     text-shadow: none;
     z-index: 10;
     white-space: pre-wrap;
@@ -1590,7 +1590,7 @@
 
   <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
   <div id="modal-editar-tienda" class="modal-overlay">
-    <div class="modal-cyber">
+    <div class="limbus-container modal">
       <div class="modal-header">
         <h3 id="modal-tienda-titulo">Editando Tienda: ???</h3>
         <button class="btn-close" id="btn-cerrar-modal">&times;</button>
@@ -1599,20 +1599,20 @@
         <!-- Filas de ítems inyectadas por JS -->
       </div>
       <div style="padding: 15px; border-top: 1px solid #444;">
-        <button id="btn-guardar-inventario" class="btn-cyber btn-giant-green">Guardar Inventario de la Tienda</button>
+        <button id="btn-guardar-inventario" class="btn-tactico btn-giant-green">Guardar Inventario de la Tienda</button>
       </div>
     </div>
   </div>
 
   <!-- Modal Inventario DM -->
   <div id="modal-inventario-dm" class="modal-overlay">
-    <div class="modal-cyber">
+    <div class="limbus-container modal">
       <div class="modal-header">
         <h3 id="modal-inv-titulo">Inventario de: ???</h3>
         <button class="btn-close" id="btn-cerrar-modal-inv">&times;</button>
       </div>
       <div class="modal-body">
-        <h4 style="color:#0df; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 0;">Slots Activos (Equipado)</h4>
+        <h4 style="color:var(--limbus-cream); border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 0;">Slots Activos (Equipado)</h4>
         <div id="modal-inv-lista-activos" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
           <!-- Items inyectados por JS -->
         </div>
@@ -1625,15 +1625,15 @@
         <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
           <h4 style="color: #fff; margin-bottom: 10px;">Añadir Ítem al Jugador</h4>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <select id="dm-inv-add-select" style="flex: 2; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
+            <select id="dm-inv-add-select" style="flex: 2; padding: 8px; background: #222; color: #fff; border: 1px solid #444; ">
               <option value="">Cargando Ítems...</option>
             </select>
-            <select id="dm-inv-add-target" style="flex: 1; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
+            <select id="dm-inv-add-target" style="flex: 1; padding: 8px; background: #222; color: #fff; border: 1px solid #444; ">
               <option value="inventario_stash">Stash / Alijo</option>
               <option value="inventario_activo">Slots Activos</option>
             </select>
-            <input type="number" id="dm-inv-add-cant" value="1" min="1" style="width: 60px; padding: 8px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;" title="Cantidad" />
-            <button id="btn-dm-inv-add" class="btn-cyber btn-green" style="padding: 8px 15px;">Añadir</button>
+            <input type="number" id="dm-inv-add-cant" value="1" min="1" style="width: 60px; padding: 8px; background: #222; color: var(--limbus-cream); border: 1px solid #444; " title="Cantidad" />
+            <button id="btn-dm-inv-add" class="btn-tactico btn-green" style="padding: 8px 15px;">Añadir</button>
           </div>
         </div>
       </div>
@@ -2063,13 +2063,13 @@
 
             // Centro: Clima Actual y Estación
             const centro = document.createElement('div');
-            centro.style.cssText = 'position: absolute; z-index: 10; background: #222; border: 2px solid #c49a00; border-radius: 50%; padding: 15px; text-align: center; box-shadow: 0 0 15px rgba(196,154,0,0.5); display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100px; height: 100px;';
-            centro.innerHTML = `<strong style="color:#0df; font-size:1.1em;">${climaActual}</strong><span style="font-size:0.8em; color:#aaa;">${estacionActual} (Mes ${mesActual})</span>`;
+            centro.style.cssText = 'position: absolute; z-index: 10; background: #222; border: 2px solid #c49a00;  padding: 15px; text-align: center;  display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100px; height: 100px;';
+            centro.innerHTML = `<strong style="color:var(--limbus-cream); font-size:1.1em;">${climaActual}</strong><span style="font-size:0.8em; color:#aaa;">${estacionActual} (Mes ${mesActual})</span>`;
             container.appendChild(centro);
 
             if (!climas) {
                 const errorText = document.createElement('div');
-                errorText.style.cssText = 'position: absolute; bottom: -30px; color: #ff4444;';
+                errorText.style.cssText = 'position: absolute; bottom: -30px; color: var(--limbus-red);';
                 errorText.innerText = 'No hay climas creados en BD.';
                 container.appendChild(errorText);
                 return;
@@ -2088,7 +2088,7 @@
 
             if (climasPosibles.length === 0 || sumaPesos === 0) {
                  const errorText = document.createElement('div');
-                 errorText.style.cssText = 'position: absolute; bottom: -30px; color: #ff4444;';
+                 errorText.style.cssText = 'position: absolute; bottom: -30px; color: var(--limbus-red);';
                  errorText.innerText = 'Sin climas para esta estación.';
                  container.appendChild(errorText);
                  return;
@@ -2111,11 +2111,11 @@
                     top: calc(50% + ${posY}px - 25px);
                     width: 80px;
                     background: #111;
-                    border: 1px solid #0df;
-                    border-radius: 6px;
+                    border: 1px solid var(--limbus-cream);
+
                     padding: 5px;
                     text-align: center;
-                    box-shadow: 0 0 10px rgba(0,221,255,0.3);
+
                     font-size: 0.85em;
                     display: flex;
                     flex-direction: column;
@@ -2123,11 +2123,11 @@
                 `;
 
                 if (data.es_hazard) {
-                    orbital.style.borderColor = '#ff4444';
+                    orbital.style.borderColor = 'var(--limbus-red)';
                     orbital.style.boxShadow = '0 0 10px rgba(255,68,68,0.5)';
-                    orbital.innerHTML = `<strong style="color:#ff4444;">${data.nombre}</strong><span style="color:#fff;">${probPct}%</span>`;
+                    orbital.innerHTML = `<strong style="color:var(--limbus-red);">${data.nombre}</strong><span style="color:#fff;">${probPct}%</span>`;
                 } else {
-                    orbital.innerHTML = `<strong style="color:#fff;">${data.nombre}</strong><span style="color:#0df;">${probPct}%</span>`;
+                    orbital.innerHTML = `<strong style="color:#fff;">${data.nombre}</strong><span style="color:var(--limbus-cream);">${probPct}%</span>`;
                 }
 
                 container.appendChild(orbital);
@@ -2180,16 +2180,16 @@
               if (!pCard) {
                   pCard = document.createElement('div');
                   pCard.id = `player-card-${nombre}`;
-                  pCard.style.cssText = 'background: #0a0a0a; padding: 10px; border-radius: 0; border: 1px solid #0df; display: flex; flex-direction: column; gap: 10px; width: 300px; position: relative; box-shadow: 0 0 10px rgba(139, 0, 0, 0.4);';
+                  pCard.style.cssText = 'background: #0a0a0a; padding: 10px;  border: 1px solid var(--limbus-cream); display: flex; flex-direction: column; gap: 10px; width: 300px; position: relative; ';
 
                   pCard.innerHTML = `
-                      <h4 style="margin: 0; color: #0df; font-family: 'BebasKai', sans-serif; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${nombre}</h4>
+                      <h4 style="margin: 0; color: var(--limbus-cream); font-family: 'BebasKai', sans-serif; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${nombre}</h4>
                       <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px;">${clase} | ${raza}</div>
                       <div style="text-align:center; color:#FFD700; font-weight:bold; margin-bottom: 10px;"><span class="currency-symbol">₳</span> <span class="player-ahn">${data.ahn || 0}</span></div>
 
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 5px;">
-                          <input type="text" class="dm-edit-name" value="${data.characterName || ''}" placeholder="Nombre Personaje" style="flex: 1; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-family:'BebasKai', sans-serif;">
-                          <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: #0df; border: 1px solid #0df; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Nombre</button>
+                          <input type="text" class="dm-edit-name" value="${data.characterName || ''}" placeholder="Nombre Personaje" style="flex: 1; padding:4px; background:#111; color:var(--limbus-cream); border:1px solid var(--limbus-cream);  text-align:center; font-family:'BebasKai', sans-serif;">
+                          <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream); padding: 4px 8px;  cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Nombre</button>
                       </div>
 
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
@@ -2206,7 +2206,7 @@
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
                           <div style="display: flex; flex-direction: column; width: 50%;">
                               <label style="color:#c49a00; font-size:12px;">HP:</label>
-                              <span style="color: #ff4444; font-weight: bold;"><span class="player-hp-actual">${hpActual}</span> / <span class="player-hp-max">${hpMax}</span></span>
+                              <span style="color: var(--limbus-red); font-weight: bold;"><span class="player-hp-actual">${hpActual}</span> / <span class="player-hp-max">${hpMax}</span></span>
                           </div>
                           <div style="display: flex; flex-direction: column; width: 50%;">
                               <label style="color:#c49a00; font-size:12px;">SP:</label>
@@ -2214,8 +2214,8 @@
                           </div>
                       </div>
 
-                      <button class="btn-cyber btn-open-modal" data-id="${nombre}" style="margin-top: 5px; background: #8b0000; color: white; border: 1px solid #ff4444; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-family: 'BebasKai', sans-serif;">⚙️ Editar Stats de Combate</button>
-                      <button class="btn-ver-inventario" data-player="${nombre}" style="margin-top: 5px; background: #222; color: #0df; border: 1px solid #0df; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Ver Inventario</button>
+                      <button class="btn-tactico btn-open-modal" data-id="${nombre}" style="margin-top: 5px; background: #8b0000; color: white; border: 1px solid var(--limbus-red); padding: 8px;  cursor: pointer; font-weight: bold; transition: all 0.2s; font-family: 'BebasKai', sans-serif;">⚙️ Editar Stats de Combate</button>
+                      <button class="btn-ver-inventario" data-player="${nombre}" style="margin-top: 5px; background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream); padding: 8px;  cursor: pointer; font-weight: bold; transition: all 0.2s;">Ver Inventario</button>
                   `;
 
                   const btnGuardarNombre = pCard.querySelector('.btn-save-name');
@@ -2227,12 +2227,12 @@
                           .then(() => {
                               const oldText = btnGuardarNombre.innerText;
                               btnGuardarNombre.innerText = "¡Guardado!";
-                              btnGuardarNombre.style.background = "#0df";
+                              btnGuardarNombre.style.background = "var(--limbus-cream)";
                               btnGuardarNombre.style.color = "#000";
                               setTimeout(() => {
                                   btnGuardarNombre.innerText = oldText;
                                   btnGuardarNombre.style.background = "#222";
-                                  btnGuardarNombre.style.color = "#0df";
+                                  btnGuardarNombre.style.color = "var(--limbus-cream)";
                               }, 1000);
                           })
                           .catch(e => console.error("Error al actualizar nombre:", e));
@@ -2267,7 +2267,7 @@
               }
           }
           const tarjeta = document.createElement('div');
-          tarjeta.style.cssText = 'background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px; position: relative;';
+          tarjeta.style.cssText = 'background: #222; padding: 15px;  border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px; position: relative;';
 
           const btnEliminar = document.createElement('button');
           btnEliminar.innerText = '🗑️';
@@ -2288,11 +2288,11 @@
           const inputAhn = document.createElement('input');
           inputAhn.type = 'number';
           inputAhn.value = data.ahn || 0;
-          inputAhn.style.cssText = 'padding: 5px; width: 80%; text-align: center; background: #111; color: #0df; border: 1px solid #c49a00; border-radius: 3px; font-size: 16px; font-weight: bold;';
+          inputAhn.style.cssText = 'padding: 5px; width: 80%; text-align: center; background: #111; color: var(--limbus-cream); border: 1px solid #c49a00;  font-size: 16px; font-weight: bold;';
 
           const btnForzar = document.createElement('button');
           btnForzar.innerText = 'Forzar Transacción';
-          btnForzar.style.cssText = 'background: #8b0000; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; width: 100%;';
+          btnForzar.style.cssText = 'background: #8b0000; color: white; border: none; padding: 5px 10px; cursor: pointer;  width: 100%;';
           btnForzar.onclick = () => {
              const nuevoAhn = parseInt(inputAhn.value) || 0;
              db.ref(`campaña/jugadores/${nombre}`).update({ ahn: nuevoAhn })
@@ -2337,7 +2337,7 @@
             recetaJugadores.innerHTML = '';
             for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement('label');
-                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;';
+                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px;  border:1px solid #333; cursor:pointer;';
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
                 recetaJugadores.appendChild(lbl);
             }
@@ -2349,7 +2349,7 @@
             tiendaJugadoresPresentes.innerHTML = '';
             for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement('label');
-                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;';
+                lbl.style.cssText = 'color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px;  border:1px solid #333; cursor:pointer;';
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
                 tiendaJugadoresPresentes.appendChild(lbl);
             }
@@ -2439,7 +2439,7 @@
         currentItemTags.forEach((tag, index) => {
             const chip = document.createElement('span');
             chip.className = 'tag-chip';
-            chip.innerHTML = `${tag} <span style="color:#ff4444; font-weight:bold; margin-left:5px;">&times;</span>`;
+            chip.innerHTML = `${tag} <span style="color:var(--limbus-red); font-weight:bold; margin-left:5px;">&times;</span>`;
             chip.onclick = () => {
                 currentItemTags.splice(index, 1);
                 renderForjaTags();
@@ -2630,7 +2630,7 @@
        if (items) {
           for (const [key, data] of Object.entries(items)) {
              const card = document.createElement('div');
-             card.className = 'card-cyber card-item';
+             card.className = 'limbus-container card-item';
 
              // Guardar info para los filtros
              card.dataset.name = data.nombre.toLowerCase();
@@ -2656,7 +2656,7 @@
                 <img src="${imgUrl}" alt="${data.nombre}">
                 <h5>${data.nombre}</h5>
                 <span style="font-size: 0.8em;">${tagsStr}</span>
-                <span style="color:#0df; font-weight:bold;"><span class="currency-symbol">₳</span> ${data.costo}</span>
+                <span style="color:var(--limbus-cream); font-weight:bold;"><span class="currency-symbol">₳</span> ${data.costo}</span>
              `;
 
              // Evento para eliminar
@@ -2923,7 +2923,7 @@
         if (tiendas) {
             for (const [idTienda, data] of Object.entries(tiendas)) {
                 const card = document.createElement('div');
-                card.className = 'card-cyber card-store';
+                card.className = 'limbus-container card-store';
 
                 const imgUrl = data.icono || 'https://via.placeholder.com/60/222222/c49a00?text=$';
                 card.innerHTML = `
@@ -3061,7 +3061,7 @@
                     <label style="font-size: 12px; color: #aaa;">Stock:</label>
                     <input type="number" class="input-stock" value="${stockActual}" title="-1 para infinito">
                     <label style="font-size: 12px; color: #aaa;">Req:</label>
-                    <select class="input-requisito" style="padding: 5px; background: #111; color: #0df; border: 1px solid #444; border-radius: 3px;">
+                    <select class="input-requisito" style="padding: 5px; background: #111; color: var(--limbus-cream); border: 1px solid #444; ">
                         <option value="Siempre" ${requisitoActual === 'Siempre' ? 'selected' : ''}>Siempre</option>
                         <option value="Solo en Primavera" ${requisitoActual === 'Solo en Primavera' ? 'selected' : ''}>Solo en Primavera</option>
                         <option value="Solo en Verano" ${requisitoActual === 'Solo en Verano' ? 'selected' : ''}>Solo en Verano</option>
@@ -3151,28 +3151,28 @@
 
     function renderInvRow(key, item, listType) {
         const row = document.createElement('div');
-        row.style.cssText = 'display: flex; align-items: center; background: #222; padding: 10px; border-radius: 4px; border: 1px solid #333; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;';
+        row.style.cssText = 'display: flex; align-items: center; background: #222; padding: 10px;  border: 1px solid #333; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;';
 
         const switchAction = listType === 'stash' ? 'to_activo' : 'to_stash';
         const switchIcon = listType === 'stash' ? 'Equipar' : 'Desequipar';
-        const switchColor = listType === 'stash' ? '#0df' : '#c49a00';
+        const switchColor = listType === 'stash' ? 'var(--limbus-cream)' : '#c49a00';
 
         // Enforce array for tags backward compatibility
         let tagsStr = item.tags && Array.isArray(item.tags) ? item.tags.join(', ') : (item.tipo || 'Sin Tipo');
 
         row.innerHTML = `
-            <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; background: #000; border-radius: 4px;">
+            <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: contain; background: #000; ">
             <div style="flex: 1; min-width: 150px;">
                 <h5 style="margin: 0; color: #fff;">${item.nombre}</h5>
                 <span style="font-size: 12px; color: #888;">[${tagsStr}] Tier ${item.tier || 'I'}</span>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <button class="btn-inv-mod" data-action="${switchAction}" data-key="${key}" data-list="${listType}" style="background:transparent; border:1px solid ${switchColor}; color:${switchColor}; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px; font-size: 11px;" title="Mover">${switchIcon}</button>
+                <button class="btn-inv-mod" data-action="${switchAction}" data-key="${key}" data-list="${listType}" style="background:transparent; border:1px solid ${switchColor}; color:${switchColor}; cursor:pointer; padding:5px 10px; font-weight:bold;  font-size: 11px;" title="Mover">${switchIcon}</button>
                 <div style="width: 1px; height: 20px; background: #444; margin: 0 5px;"></div>
-                <button class="btn-inv-mod" data-action="minus" data-key="${key}" data-list="${listType}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">-</button>
-                <span style="color:#0df; font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
-                <button class="btn-inv-mod" data-action="plus" data-key="${key}" data-list="${listType}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; border-radius: 4px;">+</button>
-                <button class="btn-inv-mod" data-action="delete" data-key="${key}" data-list="${listType}" style="background:transparent; border:none; color:#ff4444; cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
+                <button class="btn-inv-mod" data-action="minus" data-key="${key}" data-list="${listType}" style="background:#440000; border:1px solid #ff0000; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; ">-</button>
+                <span style="color:var(--limbus-cream); font-weight:bold; width: 30px; text-align:center;">${item.cantidad}</span>
+                <button class="btn-inv-mod" data-action="plus" data-key="${key}" data-list="${listType}" style="background:#004400; border:1px solid #00ff00; color:#fff; cursor:pointer; padding:5px 10px; font-weight:bold; ">+</button>
+                <button class="btn-inv-mod" data-action="delete" data-key="${key}" data-list="${listType}" style="background:transparent; border:none; color:var(--limbus-red); cursor:pointer; font-size:18px; margin-left:10px;" title="Eliminar">🗑️</button>
             </div>
         `;
         return row;
@@ -3262,7 +3262,7 @@
             listaStashModal.innerHTML = '';
             const stash = snap.val();
             if (!stash) {
-                listaStashModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">Stash vacío.</div>';
+                listaStashModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; ">Stash vacío.</div>';
             } else {
                 for (const [key, item] of Object.entries(stash)) {
                     listaStashModal.appendChild(renderInvRow(key, item, 'stash'));
@@ -3277,7 +3277,7 @@
             listaActivosModal.innerHTML = '';
             const activo = snap.val();
             if (!activo) {
-                listaActivosModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">No hay ítems equipados.</div>';
+                listaActivosModal.innerHTML = '<div style="color:#666; text-align:center; padding: 10px; background: #111; ">No hay ítems equipados.</div>';
             } else {
                 for (const [key, item] of Object.entries(activo)) {
                     listaActivosModal.appendChild(renderInvRow(key, item, 'activo'));
@@ -3475,11 +3475,11 @@
 
             Promise.all(promises).then(() => {
                 logMessage += `\n[ENTREGA COMPLETADA]`;
-                logDiv.style.color = '#0df';
+                logDiv.style.color = 'var(--limbus-cream)';
                 logDiv.innerText = logMessage;
             }).catch(e => {
                 logMessage += `\n[ERROR AL ENTREGAR] ${e}`;
-                logDiv.style.color = '#ff4444';
+                logDiv.style.color = 'var(--limbus-red)';
                 logDiv.innerText = logMessage;
             });
 
@@ -3515,7 +3515,7 @@
         urlInput.style.cssText = 'flex: 2; padding: 5px;';
 
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'btn-cyber btn-remove-expresion';
+        removeBtn.className = 'btn-tactico btn-remove-expresion';
         removeBtn.style.cssText = 'background:#800; color:#fff; border:none; padding:0 10px; font-weight:bold; cursor:pointer;';
         removeBtn.innerText = 'X';
         removeBtn.addEventListener('click', () => row.remove());
@@ -3579,17 +3579,17 @@
 
         for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
             const card = document.createElement('div');
-            card.className = 'card-cyber card-store'; // reusing store card style for the pointer cursor and hover
+            card.className = 'limbus-container card-store'; // reusing store card style for the pointer cursor and hover
 
             const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
-            const badgeColor = actorData.tipo === 'Jugador' ? '#0df' : '#ff4444';
+            const badgeColor = actorData.tipo === 'Jugador' ? 'var(--limbus-cream)' : 'var(--limbus-red)';
             const badgeText = actorData.tipo || 'NPC';
 
             card.innerHTML = `
-                <div style="position: absolute; top: 5px; left: 5px; background: ${badgeColor}; color: #000; font-size: 10px; padding: 2px 5px; border-radius: 3px; font-weight: bold;">[${badgeText}]</div>
+                <div style="position: absolute; top: 5px; left: 5px; background: ${badgeColor}; color: #000; font-size: 10px; padding: 2px 5px;  font-weight: bold;">[${badgeText}]</div>
                 <button class="btn-delete-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Actor">🗑️</button>
                 <button class="btn-edit-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Actor">✏️</button>
-                <img src="${imgUrl}" alt="${actorData.nombre}" style="border-radius: 50%; border-color: ${actorData.color_titulo || '#555'};">
+                <img src="${imgUrl}" alt="${actorData.nombre}" style=" border-color: ${actorData.color_titulo || '#555'};">
                 <h5 style="color:${actorData.color_nombre || '#fff'};">${actorData.nombre}</h5>
                 <span style="color:${actorData.color_titulo || '#c49a00'};">${actorData.titulo || ''}</span>
             `;
@@ -3673,7 +3673,7 @@
 
         for (const [playerName, playerData] of Object.entries(dbJugadoresCache)) {
             const row = document.createElement('div');
-            row.style.cssText = 'display: flex; gap: 15px; align-items: center; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #444; width: 100%; max-width: 400px; justify-content: space-between;';
+            row.style.cssText = 'display: flex; gap: 15px; align-items: center; background: #111; padding: 10px;  border: 1px solid #444; width: 100%; max-width: 400px; justify-content: space-between;';
 
             const nameLabel = document.createElement('span');
             nameLabel.style.color = '#fff';
@@ -3681,7 +3681,7 @@
             nameLabel.innerText = playerName;
 
             const select = document.createElement('select');
-            select.style.cssText = 'padding: 5px; background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px; max-width: 200px;';
+            select.style.cssText = 'padding: 5px; background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream);  max-width: 200px;';
 
             const defaultOpt = document.createElement('option');
             defaultOpt.value = "";
@@ -3878,13 +3878,13 @@
 
             const isSpeaker = actorId === activeSpeakerId;
             const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/40/222222/ffffff?text=?';
-            const badgeColor = actorData.tipo === 'Jugador' ? '#0df' : '#ff4444';
+            const badgeColor = actorData.tipo === 'Jugador' ? 'var(--limbus-cream)' : 'var(--limbus-red)';
 
             const avatarDiv = document.createElement('div');
             avatarDiv.style.cssText = `
-                position: relative; width: 45px; height: 45px; cursor: pointer; border-radius: 50%;
+                position: relative; width: 45px; height: 45px; cursor: pointer;
                 border: 2px solid ${isSpeaker ? '#c49a00' : '#444'};
-                box-shadow: ${isSpeaker ? '0 0 10px rgba(196,154,0,0.8)' : 'none'};
+
                 transition: all 0.2s ease;
                 background-image: url('${imgUrl}'); background-size: cover; background-position: center;
                 flex-shrink: 0;
@@ -3893,8 +3893,8 @@
             const removeBtn = document.createElement('div');
             removeBtn.innerHTML = '&times;';
             removeBtn.style.cssText = `
-                position: absolute; top: -5px; right: -5px; background: #ff4444; color: white;
-                border-radius: 50%; width: 15px; height: 15px; font-size: 12px; line-height: 15px;
+                position: absolute; top: -5px; right: -5px; background: var(--limbus-red); color: white;
+                 width: 15px; height: 15px; font-size: 12px; line-height: 15px;
                 text-align: center; font-weight: bold; cursor: pointer; border: 1px solid #111;
             `;
 
@@ -3947,14 +3947,14 @@
             const imgUrl = actorData.icono || actorData.sprite || 'https://via.placeholder.com/60/222222/ffffff?text=?';
 
             const card = document.createElement('div');
-            card.style.cssText = 'background: #222; border: 1px solid #444; border-radius: 4px; padding: 5px; width: 100px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.2s ease;';
+            card.style.cssText = 'background: #222; border: 1px solid #444;  padding: 5px; width: 100px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.2s ease;';
 
             card.innerHTML = `
-                <img src="${imgUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid ${actorData.color_titulo || '#555'}; margin-bottom: 5px;">
+                <img src="${imgUrl}" style="width: 50px; height: 50px;  object-fit: cover; border: 1px solid ${actorData.color_titulo || '#555'}; margin-bottom: 5px;">
                 <span style="color: ${actorData.color_nombre || '#fff'}; font-size: 12px; text-align: center; word-break: break-word;">${actorData.nombre}</span>
             `;
 
-            card.addEventListener('mouseover', () => card.style.borderColor = '#0df');
+            card.addEventListener('mouseover', () => card.style.borderColor = 'var(--limbus-cream)');
             card.addEventListener('mouseout', () => card.style.borderColor = '#444');
 
             card.addEventListener('click', () => {
@@ -3973,7 +3973,7 @@
         document.getElementById('modal-llamar-escena').style.display = 'flex';
         renderModalLlamarEscena('NPC'); // Default tab
         document.getElementById('tab-escena-npcs').style.background = '#222';
-        document.getElementById('tab-escena-npcs').style.color = '#0df';
+        document.getElementById('tab-escena-npcs').style.color = 'var(--limbus-cream)';
         document.getElementById('tab-escena-jugadores').style.background = '#111';
         document.getElementById('tab-escena-jugadores').style.color = '#888';
     });
@@ -3983,13 +3983,13 @@
     });
 
     document.getElementById('tab-escena-npcs').addEventListener('click', (e) => {
-        e.target.style.background = '#222'; e.target.style.color = '#0df';
+        e.target.style.background = '#222'; e.target.style.color = 'var(--limbus-cream)';
         document.getElementById('tab-escena-jugadores').style.background = '#111'; document.getElementById('tab-escena-jugadores').style.color = '#888';
         renderModalLlamarEscena('NPC');
     });
 
     document.getElementById('tab-escena-jugadores').addEventListener('click', (e) => {
-        e.target.style.background = '#222'; e.target.style.color = '#0df';
+        e.target.style.background = '#222'; e.target.style.color = 'var(--limbus-cream)';
         document.getElementById('tab-escena-npcs').style.background = '#111'; document.getElementById('tab-escena-npcs').style.color = '#888';
         renderModalLlamarEscena('Jugador');
     });
@@ -4018,9 +4018,9 @@
                     <span style="color: #ccc; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${msgData.mensaje}">${msgData.mensaje}</span>
                 </div>
                 <div style="display: flex; gap: 5px; flex-shrink: 0;">
-                    <button class="btn-aprobar-cola" data-key="${key}" style="background: #004400; color: #fff; border: 1px solid #00ff00; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Aprobar">✓</button>
-                    <button class="btn-editar-cola" data-key="${key}" style="background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Editar">✏️</button>
-                    <button class="btn-eliminar-cola" data-key="${key}" style="background: #440000; color: #fff; border: 1px solid #ff0000; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Rechazar/Eliminar">X</button>
+                    <button class="btn-aprobar-cola" data-key="${key}" style="background: #004400; color: #fff; border: 1px solid #00ff00;  cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Aprobar">✓</button>
+                    <button class="btn-editar-cola" data-key="${key}" style="background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream);  cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Editar">✏️</button>
+                    <button class="btn-eliminar-cola" data-key="${key}" style="background: #440000; color: #fff; border: 1px solid #ff0000;  cursor: pointer; font-size: 10px; padding: 3px 5px;" title="Rechazar/Eliminar">X</button>
                 </div>
             `;
 

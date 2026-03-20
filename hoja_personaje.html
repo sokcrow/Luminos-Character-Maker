@@ -26,7 +26,7 @@
     border: none;
     border-top: 3px solid #d4af37;
     border-bottom: 3px solid #d4af37;
-    border-radius: 0;
+
     padding: 12px 30px;
     color: #f5f5dc;
     font-size: 24px;
@@ -34,7 +34,7 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     font-weight: bold;
-    box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
+
     z-index: 2010;
     letter-spacing: 1px;
     -webkit-text-stroke: 2px black;
@@ -53,7 +53,7 @@
     width: 8px;
     height: 50px;
     background: #d4af37;
-    box-shadow: inset 2px 0 0 rgba(255,255,255,0.4), inset -2px 0 0 rgba(0,0,0,0.4);
+
     z-index: -1;
   }
 
@@ -67,8 +67,8 @@
     height: 14px;
     background: #555;
     border: 2px solid #d4af37;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.8);
+
+
     z-index: 2;
   }
 
@@ -112,8 +112,8 @@
     width: 14px;
     background: linear-gradient(to right, #444, #222);
     border: 2px solid #111;
-    border-radius: 4px;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.8);
+
+
     z-index: 3;
   }
 
@@ -125,8 +125,8 @@
     width: 8px;
     height: 8px;
     background: #d4af37;
-    border-radius: 50%;
-    box-shadow: 0 40px 0 #d4af37, 0 70px 0 #d4af37;
+
+
     z-index: 4;
   }
 
@@ -141,12 +141,12 @@
     text-transform: uppercase;
     font-weight: bold;
     font-size: 16px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+
     margin-left: 5px;
     text-transform: uppercase;
     letter-spacing: -0.5px;
     position: relative;
-    border-radius: 0;
+
     z-index: 1;
   }
 
@@ -168,11 +168,11 @@
     -webkit-text-stroke: 2px black;
     paint-order: stroke fill;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+
     position: relative;
     z-index: 2;
     margin-top: -3px;
-    border-radius: 0;
+
   }
 
   .theatre-plate-name span {
@@ -182,14 +182,14 @@
   .theatre-dialogue-text {
     position: relative;
     border: none;
-    border-radius: 0;
+
     padding: 50px 70px 40px 70px;
     min-height: 180px;
     color: #fffacd; /* Amarillo pálido (LemonChiffon) */
     font-size: 1.1rem;
     line-height: 1.6;
     font-family: 'Roboto', sans-serif;
-    box-shadow: none;
+
     text-shadow: none;
     z-index: 10;
     white-space: pre-wrap;
@@ -215,7 +215,7 @@
  <button class="btn-back" onclick="window.location.href='index.html'">&lt; Volver al Menú</button>
  </div>
  <!-- Main Wrapper -->
-<div class="sheet-limbus-main">
+<div class="sheet-limbus-main limbus-container">
  <!-- Global Phone Wrapper -->
  <div class="sheet-phone-wrapper">
 
@@ -1844,7 +1844,7 @@
                     <p>Bienvenido a la Ciudad. Antes de desenfundar un arma, debes aprender a sobrevivir a las conversaciones, los hackeos y las calles. Aquí no usamos dados de veinte caras; tu destino se decide por tu habilidad y el peso del metal.</p>
                 </div>
 
-            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                 <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                     <img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda" style="width: 24px; height: 24px;">
                     1. Checks de Habilidad (La Tirada)
@@ -1860,7 +1860,7 @@
                 </div>
             </div>
 
-            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                 <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                     <img src="https://i.imgur.com/mrm9j1b.png" alt="Dificultad" style="width: 24px; height: 24px;">
                     2. Clases de Dificultad (DC)
@@ -1871,13 +1871,13 @@
                         <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/LPVzoUw.png" alt="Trivial" style="width: 20px; height: 20px;"><strong style="color: var(--green-success);">DC 3 a 6: Trivial / Muy Fácil</strong> <span>(Casi automático para alguien con buena habilidad).</span></li>
                         <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/cVHvEKb.png" alt="Fácil" style="width: 20px; height: 20px;"><strong style="color: var(--cyan-tech);">DC 9 a 12: Fácil / Medio</strong> <span>(El estándar para acciones bajo presión).</span></li>
                         <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/0kog02u.png" alt="Difícil" style="width: 20px; height: 20px;"><strong style="color: var(--border-accent);">DC 15 a 18: Difícil / Muy Difícil</strong> <span>(Requiere verdadera habilidad y suerte con las monedas).</span></li>
-                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/DDIlSeT.png" alt="Extremo" style="width: 20px; height: 20px;"><strong style="color: var(--red-neon);">DC 21 a 27: Extremo / Heroico</strong> <span>(Solo los verdaderos expertos en su campo lo logran).</span></li>
+                        <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/DDIlSeT.png" alt="Extremo" style="width: 20px; height: 20px;"><strong style="color: var(--limbus-red);">DC 21 a 27: Extremo / Heroico</strong> <span>(Solo los verdaderos expertos en su campo lo logran).</span></li>
                         <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://i.imgur.com/mrm9j1b.png" alt="Imposible" style="width: 20px; height: 20px;"><strong style="color: var(--red-bright);">DC 30: Imposible</strong> <span>(El límite absoluto del sistema; un milagro estadístico que requiere 5 caras y pura maestría).</span></li>
                     </ul>
                 </div>
             </div>
 
-            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+            <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                 <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                     <img src="https://i.imgur.com/OZ0LX7h.png" alt="Suerte" style="width: 24px; height: 24px;">
                     3. La Suerte
@@ -1888,7 +1888,7 @@
                         <li>Gastar Suerte en un Check de Habilidad suma un <strong>+3 directo</strong> a tu tirada final (esencialmente, te regala el valor de una moneda extra perfecta).</li>
                         <li>La cantidad de Suerte máxima que posees depende de la construcción de tu personaje, pero todo el mundo comienza con un mínimo de <strong>4 usos</strong>.</li>
                     </ul>
-                    <p style="color: var(--red-neon); font-style: italic;">Úsala sabiamente: la Ciudad no perdona a los que malgastan sus milagros.</p>
+                    <p style="color: var(--limbus-red); font-style: italic;">Úsala sabiamente: la Ciudad no perdona a los que malgastan sus milagros.</p>
                 </div>
             </div>
         </div>
@@ -1899,7 +1899,7 @@
                     <p>El combate en la Ciudad es un choque simultáneo de voluntades y acero. Sobrevivir requiere entender la velocidad, la gestión de tu cordura y tu economía de acciones.</p>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         1. Atributos Vitales y Recursos
                     </h2>
@@ -1938,9 +1938,9 @@
                                     <li><strong style="color: var(--cyan-tech);">Penalización de Acción:</strong> Al entrar en Stagger, pierdes tu capacidad de actuar en la ronda en la que se activó el estado y durante toda la ronda siguiente. Eres completamente vulnerable.</li>
                                     <li><strong style="color: var(--cyan-tech);">Niveles de Stagger:</strong> Romper múltiples umbrales dentro de la misma ronda aumenta la severidad del estado y el multiplicador de todo el daño que recibas mientras estés aturdido:
                                         <ul>
-                                            <li><strong style="color: var(--red-neon);">Stagger</strong> (1 umbral roto): El daño recibido se multiplica por 2 (x2).</li>
-                                            <li><strong style="color: var(--red-neon);">Stagger+</strong> (2 umbrales rotos): El daño recibido se multiplica por 2.5 (x2.5).</li>
-                                            <li><strong style="color: var(--red-neon);">Stagger++</strong> (3 umbrales rotos): El daño recibido se multiplica por 3 (x3).</li>
+                                            <li><strong style="color: var(--limbus-red);">Stagger</strong> (1 umbral roto): El daño recibido se multiplica por 2 (x2).</li>
+                                            <li><strong style="color: var(--limbus-red);">Stagger+</strong> (2 umbrales rotos): El daño recibido se multiplica por 2.5 (x2.5).</li>
+                                            <li><strong style="color: var(--limbus-red);">Stagger++</strong> (3 umbrales rotos): El daño recibido se multiplica por 3 (x3).</li>
                                         </ul>
                                     </li>
                                     <li><strong style="color: var(--cyan-tech);">Límite de Ronda:</strong> No se pueden activar ni acumular más niveles de Stagger si el combate pasa a la siguiente ronda. Para alcanzar un Stagger+ o Stagger++, los umbrales deben ser destruidos dentro de la misma ronda de ataques.</li>
@@ -1965,7 +1965,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         2. Offense Level y Defense Level
                     </h2>
@@ -2004,7 +2004,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         3. Multiplicadores y Resistencias
                     </h2>
@@ -2013,7 +2013,7 @@
                             <li><strong style="color: var(--green-success);">Crítico:</strong> Un golpe perfecto cuyo cálculo se aplica al final de toda la cadena de daño. Otorga un +20% adicional base al daño total, calculándose estrictamente después de haber aplicado todas las reducciones (Niveles Defensivos, Resistencias) o aumentos (Niveles Ofensivos, Debilidades, multiplicadores por Stagger). Existen efectos de estado, Habilidades (Skills) y Ventajas (Perks) que pueden aumentar este multiplicador de daño crítico por encima del 20% base.</li>
                             <li><strong style="color: var(--green-success);">Resistencias de Daño:</strong> Todas las criaturas tienen resistencias a los distintos tipos de daño (Corte, Perforación, Contundente, Fuego, Frío, Radiante, Necrótico, etc., utilizando la lista tradicional de D&D). Estas resistencias se dividen en las siguientes categorías de multiplicación de daño:
                                 <ul style="list-style-type: none; padding-left: 0; margin-top: 10px;">
-                                    <li><strong style="color: var(--red-neon);">Fatal:</strong> x2 (Recibe el doble de daño). Nota: Este nivel de vulnerabilidad extrema casi nunca es innato. Por lo general, alcanzar un multiplicador Fatal (o superior) solo es posible en situaciones tácticas específicas, principalmente cuando se rompen los umbrales del objetivo y este entra en los distintos niveles de Aturdimiento (Stagger).</li>
+                                    <li><strong style="color: var(--limbus-red);">Fatal:</strong> x2 (Recibe el doble de daño). Nota: Este nivel de vulnerabilidad extrema casi nunca es innato. Por lo general, alcanzar un multiplicador Fatal (o superior) solo es posible en situaciones tácticas específicas, principalmente cuando se rompen los umbrales del objetivo y este entra en los distintos niveles de Aturdimiento (Stagger).</li>
                                     <li><strong style="color: var(--red-bright);">Débil:</strong> x1.5</li>
                                     <li><strong style="color: var(--text-main);">Normal:</strong> x1 (El daño se aplica tal cual).</li>
                                     <li><strong style="color: var(--cyan-tech);">Resistente:</strong> x0.5 (Recibe la mitad del daño).</li>
@@ -2033,7 +2033,7 @@
                     <p>Toda unidad —tanto aliada como enemiga— posee un conjunto de Habilidades (Skills) y Pasivas que pueden utilizar durante el combate.</p>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <div class="concept-text" style="font-size: 15px;">
                         <ul>
                             <li><strong style="color: var(--green-success);">El Arsenal Base:</strong> Cada personaje posee al menos 3 Habilidades de Ataque de distinto poder y 1 Habilidad de Defensa. Adicionalmente, cuentan con una Pasiva de Combate y una Pasiva de Soporte que se activan dependiendo de si están activamente peleando o en la retaguardia.</li>
@@ -2042,7 +2042,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         1. Propiedades de las Habilidades
                     </h2>
@@ -2058,7 +2058,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         2. Tipos de Daño y Afinidades
                     </h2>
@@ -2093,7 +2093,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         3. Peso de Ataque (Atk Weight)
                     </h2>
@@ -2111,7 +2111,7 @@
                     </div>
                 </div>
 
-                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="card-body" style="background-color: var(--bg-card); border: 1px solid #444;  padding: 20px; margin-bottom: 20px;">
                     <h2 style="color: var(--border-accent); display: flex; align-items: center; gap: 10px;">
                         4. Las Monedas (Coins)
                     </h2>
@@ -2120,7 +2120,7 @@
                         <p><strong style="color: var(--green-success);">Tipos de Moneda Base:</strong></p>
                         <ul>
                             <li><strong style="color: var(--cyan-tech); display: flex; align-items: center; gap: 5px;"><img src="https://i.imgur.com/yshLPnQ.png" alt="Moneda Positiva" style="width: 20px; height: 20px;"> Moneda Normal (Positiva):</strong> Si sale Cara (Éxito), suma su Poder de Moneda al Poder Base. A mayor SP, más probabilidad de sacar Cara.</li>
-                            <li><strong style="color: var(--red-neon); display: flex; align-items: center; gap: 5px;"> Moneda Negativa:</strong> Si sale Cara (Éxito), resta su Poder de Moneda al Poder Base. Estas habilidades están diseñadas para funcionar mejor cuando tu SP está por los suelos (buscando que salga Cruz/Fallo para evitar la resta).</li>
+                            <li><strong style="color: var(--limbus-red); display: flex; align-items: center; gap: 5px;"> Moneda Negativa:</strong> Si sale Cara (Éxito), resta su Poder de Moneda al Poder Base. Estas habilidades están diseñadas para funcionar mejor cuando tu SP está por los suelos (buscando que salga Cruz/Fallo para evitar la resta).</li>
                         </ul>
 
                         <h3 style="color: var(--red-bright); margin-top: 20px; display: flex; align-items: center; gap: 10px;">
@@ -2572,7 +2572,7 @@
  </div>
 
  <div class="sheet-perk-creator-container">
- <div class="sheet-row" style="background: #111; padding: 10px; border-radius: 5px; border: 1px solid #333;">
+ <div class="sheet-row" style="background: #111; padding: 10px;  border: 1px solid #333;">
  <div class="sheet-col">
  <label>Name</label>
  <input type="text" name="attr_new_perk_name" placeholder="Perk Name" />
@@ -2650,7 +2650,7 @@
  </div>
 
  <div class="sheet-skill-creator-container">
- <div class="sheet-row" style="background: #111; padding: 10px; border-radius: 5px; border: 1px solid #333; flex-direction: column; align-items: stretch;">
+ <div class="sheet-row" style="background: #111; padding: 10px;  border: 1px solid #333; flex-direction: column; align-items: stretch;">
  <div class="sheet-row">
  <div class="sheet-col">
  <label>Name</label>
@@ -3977,7 +3977,7 @@
  <input type="hidden" name="attr_show_apego_creator" class="sheet-state-apego-creator" value="0" />
 
  <div class="sheet-apego-creator-container sheet-add-form">
- <div class="sheet-row" style="background: var(--bg-card); padding: 10px; border-radius: 8px; border: 1px solid var(--border-accent); margin-bottom: 15px;">
+ <div class="sheet-row" style="background: var(--bg-card); padding: 10px;  border: 1px solid var(--border-accent); margin-bottom: 15px;">
  <div class="sheet-col">
  <label>Nuevo Contacto</label>
  <input type="text" name="attr_new_apego_name" placeholder="Nombre" class="sheet-input-dark" style="width: 100%; margin-bottom: 5px;" />
@@ -3999,7 +3999,7 @@
  <div class="sheet-contact-pr-row">
  <div style="display: flex; align-items: center; gap: 5px;">
  <label style="margin: 0; color: var(--text-muted); font-size: 0.9em;">Afinidad (PR):</label>
- <input type="number" name="attr_pr" value="0" style="width: 50px; background: #111; color: var(--text-main); font-weight: bold; border: 1px solid #444; text-align: center; border-radius: 3px;" />
+ <input type="number" name="attr_pr" value="0" style="width: 50px; background: #111; color: var(--text-main); font-weight: bold; border: 1px solid #444; text-align: center; " />
  </div>
  <div style="font-size: 0.9em; color: var(--text-muted); font-style: italic;">
  <span name="attr_title">Desconocido</span>
@@ -4009,10 +4009,10 @@
  <!-- Progress Bar -->
  <div class="sheet-row" style="margin-top: 5px; margin-bottom: 5px;">
  <div class="sheet-col" style="flex: 1; display: block; width: 100%;">
- <div class="sheet-xp-bar-container" style="display: flex; width: 100%; height: 18px; background: #222; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden;">
+ <div class="sheet-xp-bar-container" style="display: flex; width: 100%; height: 18px; background: #222; border: 1px solid #444;  position: relative; overflow: hidden;">
  <input type="hidden" name="attr_pr_bar_class" class="sheet-state-xp-bar" value="sheet-xp-0" />
  <div class="sheet-xp-progress-wrapper" style="flex: 1; width: 100%; height: 100%; position: relative;">
- <div class="sheet-xp-fill" style="position: absolute; left: 0; top: 0; height: 100%; background: #9b59b6; box-shadow: 0 0 5px #9b59b6; z-index: 1;"></div>
+ <div class="sheet-xp-fill" style="position: absolute; left: 0; top: 0; height: 100%; background: #9b59b6;  z-index: 1;"></div>
  <span class="sheet-xp-text" style="position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-size: 0.8em; line-height: 18px; z-index: 2; font-weight: bold; text-shadow: 1px 1px 2px #000;">Faltan: <span name="attr_pr_missing">10</span> PR</span>
  </div>
  </div>
@@ -4049,7 +4049,7 @@
             <div class="shop-sidebar" id="shop-sidebar-list">
                 <!-- Shop buttons injected via JS -->
             </div>
-            <div class="shop-main-panel">
+            <div class="shop-main-panel limbus-container">
                 <div class="shop-header">
                     <h2 id="shop-active-name">Selecciona una tienda</h2>
                 </div>
@@ -4058,7 +4058,7 @@
                 </div>
                 <div class="shop-footer">
                     <div class="shop-footer-money">
-                        <span class="currency-symbol" style="color:#00ffff; text-shadow:0 0 5px #00ffff;">₳</span>
+                        <span class="currency-symbol" style="color:var(--limbus-cream); text-shadow:0 0 5px var(--limbus-cream);">₳</span>
                         <span id="shop-display-ahn" class="shop-footer-ahn-val">0</span>
                     </div>
                     <button class="shop-footer-buy-btn">COMPRAR</button>
@@ -4079,15 +4079,15 @@
         </div>
 
         <div class="inventory-body-wrapper">
-            <div class="inventory-left-panel">
+            <div class="inventory-left-panel limbus-container">
                 <div class="inventory-tab-content active" id="inv-active">
                     <div class="inv-grid" id="inv-active-grid">
                         <!-- Items injectados via JS -->
                     </div>
                 </div>
 
-<div id="equipment-panel" class="cyber-panel">
-    <h3 class="cyber-panel-title">EQUIPAMIENTO TÁCTICO</h3>
+<div id="equipment-panel" class="limbus-container">
+    <h3 class="limbus-container-title">EQUIPAMIENTO TÁCTICO</h3>
     <div class="equipment-grid">
         <!-- Armadura -->
         <div class="equip-slot" data-slot-id="armadura">
@@ -4193,7 +4193,7 @@
                 </div>
 
 
-            </div> <!-- End of inventory-left-panel -->
+            </div> <!-- End of inventory-left-panel limbus-container -->
 
             <!-- Detail Card (Inspirada en Limbus E.G.O Gift) -->
             <div class="item-detail-card" id="item-detail-card">
@@ -4212,7 +4212,7 @@
                             <!-- Inyectado por JS: Botón de Equipar / Desequipar -->
                         </div>
                     </div>
-                    <div id="detail-vinculo-info" style="display: none; margin-bottom: 10px; padding: 8px; background: rgba(0, 255, 255, 0.1); border: 1px solid var(--cyan-tech); border-radius: 4px;">
+                    <div id="detail-vinculo-info" style="display: none; margin-bottom: 10px; padding: 8px; background: rgba(0, 255, 255, 0.1); border: 1px solid var(--cyan-tech); ">
                         <!-- Injected via JS -->
                     </div>
                     <div class="detail-desc" id="detail-desc">Descripción del item detallada para lectura cómoda.</div>
@@ -4283,16 +4283,16 @@
   </div>
 
   <!-- Player Input Area -->
-  <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid #0df; padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2030; box-sizing: border-box;">
-    <button id="btn-toggle-player-theatre-tools" class="btn-cyber" style="display: none; width: 100%; background: #222; color: #0df; border: 1px solid #0df; padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer; text-transform: uppercase;">💬 Mostrar Chat y Opciones</button>
+  <div class="theatre-player-input-area" style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.9); border-top: 2px solid var(--limbus-cream); padding: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2030; box-sizing: border-box;">
+    <button id="btn-toggle-player-theatre-tools" class="btn-tactico" style="display: none; width: 100%; background: #222; color: var(--limbus-cream); border: 1px solid var(--limbus-cream); padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer; text-transform: uppercase;">💬 Mostrar Chat y Opciones</button>
 
     <div id="player-theatre-tools-wrapper" style="display: flex; gap: 15px; width: 100%; align-items: center; justify-content: center; flex-wrap: wrap;">
       <select id="player-actor-select" style="background: #111; color: #c49a00; border: 1px solid #c49a00; padding: 5px; font-family: 'Share Tech Mono'; outline: none;">
           <option value="base">Mi Personaje</option>
       </select>
-      <select id="player-expression-select" style="padding: 15px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px; font-size: 16px; min-width: 120px; display: none;"></select>
-      <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: inherit; font-size: 16px;" />
-      <button id="btn-player-theatre-send" style="background: #0df; color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);">ENVIAR</button>
+      <select id="player-expression-select" style="padding: 15px; background: #222; color: var(--limbus-cream); border: 1px solid #444;  font-size: 16px; min-width: 120px; display: none;"></select>
+      <input type="text" id="player-theatre-input" placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)" style="flex: 1; max-width: 800px; padding: 15px; background: #111; color: #fff; border: 1px solid #555;  font-family: inherit; font-size: 16px;" />
+      <button id="btn-player-theatre-send" style="background: var(--limbus-cream); color: #000; border: 1px solid #fff; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase;  ">ENVIAR</button>
     </div>
   </div>
 </div>
@@ -4517,8 +4517,8 @@
 
             // Highlight extreme nodes (Hazards) with a slightly different color if desired
             if (probPct < 30 && ["Lluvia Ácida", "Tormenta Eléctrica", "Niebla Densa", "Ola de Calor", "Nevada Extrema", "Vientos Huracanados"].includes(nodoSiguiente)) {
-              span.style.color = 'var(--red-neon)';
-              span.style.textShadow = '0 0 5px var(--red-neon)';
+              span.style.color = 'var(--limbus-red)';
+              span.style.textShadow = 'none';
             }
 
             probsContainer.appendChild(span);
