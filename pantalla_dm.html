@@ -778,6 +778,7 @@
 
     <button class="dm-tab-btn" data-tab="dashboard-actores">Gestión de Actores</button>
     <button class="dm-tab-btn" data-tab="dashboard-jugadores">Gestión de Jugadores</button>
+    <button class="dm-tab-btn" data-tab="tab-keywords">Keywords</button>
     <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">MODO DIRECTOR</button>
   </div>
 
@@ -949,6 +950,24 @@
               <input type="number" id="forja-vinculo-cant" placeholder="Cant/Carga" style="flex:1; min-width: 80px;" title="Cantidad necesaria para 1 carga" />
               <input type="number" id="forja-vinculo-max" placeholder="Max Cargas" style="flex:1; min-width: 80px;" />
             </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; border-top: 1px dashed #444; padding-top: 10px; margin-top: 5px;">
+              <strong style="width:100%; color:#0df; font-size:12px;">Stats de Equipo (Opcional)</strong>
+              <input type="number" id="forja-off-lvl" placeholder="Mod. OFF Nivel (Ej. +2)" style="flex:1; min-width: 80px;" />
+              <input type="number" id="forja-def-lvl" placeholder="Mod. DEF Nivel (Ej. +1)" style="flex:1; min-width: 80px;" />
+              <select id="forja-damage-type" style="flex:1; min-width: 80px;">
+                <option value="">Tipo de Daño...</option>
+                <option value="cortante">Cortante</option>
+                <option value="perforante">Perforante</option>
+                <option value="contundente">Contundente</option>
+              </select>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px;">
+              <input type="number" id="forja-cargas-maximas" placeholder="Cargas Máximas (Arma de Fuego/Munición)" style="flex:1; min-width: 150px;" />
+              <input type="number" id="forja-cargas-actuales" placeholder="Cargas Actuales" style="flex:1; min-width: 150px;" />
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px; margin-bottom: 10px;">
+              <input type="text" id="forja-keywords" placeholder="Keywords (Ej: hp_up_1, sharp_blade) separados por coma" style="flex:1;" />
+            </div>
             <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
             <div style="display:flex; gap:10px;">
               <button id="btn-crear-item" class="btn-cyber btn-red" style="flex:1;">Crear Ítem</button>
@@ -1074,6 +1093,49 @@
     </div>
 
     <!-- TAB: GESTIÓN DE ACTORES -->
+
+    <!-- TAB: KEYWORDS -->
+    <div id="tab-keywords" class="dm-tab-pane">
+      <div class="panel-cyber">
+        <h3>Gestión de Keywords y Mecánicas de Equipo</h3>
+        <p style="color:#aaa; font-size:13px; margin-bottom:15px;">Crea etiquetas (ej. 'hp_up_2', 'burn_resist') que puedes asignar al equipo en la Forja. Si asignas stats aquí, el Motor de la Hoja de Personaje los leerá automáticamente.</p>
+        <div class="form-cyber-container">
+          <div class="form-cyber">
+            <h4>Crear Nuevo Keyword</h4>
+            <input type="text" id="keyword-id" placeholder="ID Único (Ej: hp_up_2, sangrado_1)" style="text-transform: lowercase;" />
+            <input type="text" id="keyword-name" placeholder="Nombre Mostrado (Ej: Vitalidad II)" />
+            <div style="display:flex;gap:10px;align-items:center; margin-top: 5px;">
+              <select id="keyword-target" style="flex:2;">
+                <option value="custom">Mecánica Personalizada / Narrativa</option>
+                <option value="hp_max">Vida Máxima (+/-)</option>
+                <option value="sp_max">SP (Cordura) Máximo (+/-)</option>
+                <option value="off_lvl">Nivel Ofensivo (+/-)</option>
+                <option value="def_lvl">Nivel Defensivo (+/-)</option>
+                <option value="fuerza">Skill: Fuerza (+/-)</option>
+                <option value="agilidad">Skill: Agilidad (+/-)</option>
+                <option value="inteligencia">Skill: Inteligencia (+/-)</option>
+                <option value="voluntad">Skill: Voluntad (+/-)</option>
+                <option value="cardio">Skill: Cardio (+/-)</option>
+                <option value="reflejos">Skill: Reflejos (+/-)</option>
+              </select>
+              <input type="number" id="keyword-value" placeholder="Valor (ej: +2)" style="flex:1;" />
+            </div>
+            <textarea id="keyword-desc" placeholder="Descripción de la mecánica (visible para el jugador)" rows="2" style="margin-top: 10px;"></textarea>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button id="btn-crear-keyword" class="btn-cyber btn-red" style="flex:1;">Crear Keyword</button>
+              <button id="btn-cancelar-keyword" class="btn-cyber" style="display:none; flex:1; background:#333; color:#fff; border-color:#555;">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; color: #0df;">Directorio de Keywords Globales</h4>
+        <div id="grid-keywords" class="grid-container" style="margin-top: 15px;">
+          <!-- Aquí se inyectarán las cards de keywords -->
+        </div>
+      </div>
+    </div>
+
     <div id="dashboard-actores" class="dm-tab-pane">
       <div class="panel-cyber" style="margin-top: 20px;">
         <h3>Gestión de Actores</h3>
@@ -2472,6 +2534,12 @@
        document.getElementById('forja-vinculo-cant').value = '';
        document.getElementById('forja-vinculo-max').value = '';
        document.getElementById('forja-desc').value = '';
+       document.getElementById('forja-off-lvl').value = '';
+       document.getElementById('forja-def-lvl').value = '';
+       document.getElementById('forja-damage-type').value = '';
+       document.getElementById('forja-cargas-maximas').value = '';
+       document.getElementById('forja-cargas-actuales').value = '';
+       document.getElementById('forja-keywords').value = '';
        document.getElementById('btn-crear-item').innerText = 'Crear Ítem';
        document.getElementById('btn-cancelar-item').style.display = 'none';
        editModeItemKey = null;
@@ -2497,6 +2565,13 @@
 
        const desc = document.getElementById('forja-desc').value.trim();
 
+       const offLvlMod = document.getElementById('forja-off-lvl').value;
+       const defLvlMod = document.getElementById('forja-def-lvl').value;
+       const damageType = document.getElementById('forja-damage-type').value;
+       const cargasMaximas = document.getElementById('forja-cargas-maximas').value;
+       const cargasActuales = document.getElementById('forja-cargas-actuales').value;
+       const keywordsStr = document.getElementById('forja-keywords').value.trim();
+
        if (currentItemTags.length === 0) { alert("Agrega al menos una etiqueta al ítem."); return; }
 
        const item = {
@@ -2510,6 +2585,15 @@
            limite_activo,
            limite_alijo
        };
+
+       if (offLvlMod !== "") item.off_lvl_mod = parseInt(offLvlMod) || 0;
+       if (defLvlMod !== "") item.def_lvl_mod = parseInt(defLvlMod) || 0;
+       if (damageType !== "") item.damage_type = damageType;
+       if (cargasMaximas !== "") item.cargas_maximas = parseInt(cargasMaximas) || 0;
+       if (cargasActuales !== "") item.cargas_actuales = parseInt(cargasActuales) || 0;
+       if (keywordsStr) {
+           item.keywords = keywordsStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+       }
 
        if (vinculo_item) {
            item.vinculo_item = vinculo_item;
@@ -2539,6 +2623,12 @@
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/costo`] = newItemData.costo;
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/usos`] = newItemData.usos;
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/keywords`] = newItemData.keywords;
                                }
                            }
                        }
@@ -2553,6 +2643,12 @@
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/costo`] = newItemData.costo;
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/usos`] = newItemData.usos;
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/keywords`] = newItemData.keywords;
                                }
                            }
                        }
@@ -2582,6 +2678,12 @@
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/tier`] = newItemData.tier;
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/usos`] = newItemData.usos;
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/keywords`] = newItemData.keywords;
                                    // Not updating cost/price here because store could have custom price
                                }
                            }
@@ -2689,6 +2791,12 @@
                  document.getElementById('forja-vinculo-cant').value = data.vinculo_cantidad !== undefined ? data.vinculo_cantidad : '';
                  document.getElementById('forja-vinculo-max').value = data.vinculo_stacks_max !== undefined ? data.vinculo_stacks_max : '';
                  document.getElementById('forja-desc').value = data.descripcion || '';
+                 document.getElementById('forja-off-lvl').value = data.off_lvl_mod !== undefined ? data.off_lvl_mod : '';
+                 document.getElementById('forja-def-lvl').value = data.def_lvl_mod !== undefined ? data.def_lvl_mod : '';
+                 document.getElementById('forja-damage-type').value = data.damage_type || '';
+                 document.getElementById('forja-cargas-maximas').value = data.cargas_maximas !== undefined ? data.cargas_maximas : '';
+                 document.getElementById('forja-cargas-actuales').value = data.cargas_actuales !== undefined ? data.cargas_actuales : '';
+                 document.getElementById('forja-keywords').value = (data.keywords && Array.isArray(data.keywords)) ? data.keywords.join(', ') : '';
 
                  document.getElementById('btn-crear-item').innerText = 'Actualizar Ítem';
                  document.getElementById('btn-cancelar-item').style.display = 'block';
@@ -4525,6 +4633,104 @@
                 alert("Hubo un error al guardar los cambios.");
             });
     });
+
+    // --- GESTIÓN DE KEYWORDS GLOBALES ---
+    let editModeKeywordId = null;
+
+    function resetKeywordForm() {
+        document.getElementById('keyword-id').value = '';
+        document.getElementById('keyword-name').value = '';
+        document.getElementById('keyword-target').value = 'custom';
+        document.getElementById('keyword-value').value = '';
+        document.getElementById('keyword-desc').value = '';
+        document.getElementById('btn-crear-keyword').innerText = 'Crear Keyword';
+        document.getElementById('btn-cancelar-keyword').style.display = 'none';
+        document.getElementById('keyword-id').readOnly = false;
+        editModeKeywordId = null;
+    }
+
+    document.getElementById('btn-cancelar-keyword').addEventListener('click', resetKeywordForm);
+
+    document.getElementById('btn-crear-keyword').addEventListener('click', () => {
+        let kid = document.getElementById('keyword-id').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        if (!kid) { alert("ID de Keyword requerido (ej: hp_up_2)"); return; }
+
+        const nombre = document.getElementById('keyword-name').value.trim() || kid;
+        const target = document.getElementById('keyword-target').value;
+        const val = parseInt(document.getElementById('keyword-value').value) || 0;
+        const desc = document.getElementById('keyword-desc').value.trim();
+
+        const keywordData = { nombre, target, value: val, desc };
+
+        if (editModeKeywordId && editModeKeywordId !== kid) {
+            // Changed ID, remove old
+            db.ref(`campaña/keywords/${editModeKeywordId}`).remove()
+              .then(() => db.ref(`campaña/keywords/${kid}`).set(keywordData))
+              .then(() => {
+                  alert('Keyword actualizada.');
+                  resetKeywordForm();
+              }).catch(e => alert('Error: ' + e));
+        } else {
+            db.ref(`campaña/keywords/${kid}`).set(keywordData)
+              .then(() => {
+                  alert(editModeKeywordId ? 'Keyword actualizada.' : 'Keyword creada.');
+                  resetKeywordForm();
+              }).catch(e => alert('Error: ' + e));
+        }
+    });
+
+    // RENDERIZAR KEYWORDS GLOBALES EN GRID
+    const gridKeywords = document.getElementById('grid-keywords');
+    if (gridKeywords) {
+        db.ref('campaña/keywords').on('value', (snapshot) => {
+            gridKeywords.innerHTML = '';
+            const keywords = snapshot.val();
+
+            if (keywords) {
+                for (const [kid, data] of Object.entries(keywords)) {
+                    const card = document.createElement('div');
+                    card.className = 'card-cyber';
+                    card.style.position = 'relative';
+
+                    card.innerHTML = `
+                        <button class="btn-delete-kw" data-id="${kid}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar">🗑️</button>
+                        <button class="btn-edit-kw" data-id="${kid}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar">✏️</button>
+                        <h5 style="color:#c49a00; font-family: monospace;">[${kid}] ${data.nombre}</h5>
+                        <p style="color:#0df; font-size:12px;">${data.target !== 'custom' ? 'Modifica: ' + data.target.toUpperCase() + ' (' + (data.value > 0 ? '+' : '') + data.value + ')' : 'Mecánica Custom'}</p>
+                        <p style="color:#aaa; font-size:11px; margin-top:5px; line-height:1.2;">${data.desc || 'Sin descripción.'}</p>
+                    `;
+
+                    const btnEdit = card.querySelector('.btn-edit-kw');
+                    btnEdit.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        editModeKeywordId = kid;
+                        document.getElementById('keyword-id').value = kid;
+                        document.getElementById('keyword-id').readOnly = true; // Prevent changing ID easily on edit
+                        document.getElementById('keyword-name').value = data.nombre || '';
+                        document.getElementById('keyword-target').value = data.target || 'custom';
+                        document.getElementById('keyword-value').value = data.value || '';
+                        document.getElementById('keyword-desc').value = data.desc || '';
+
+                        document.getElementById('btn-crear-keyword').innerText = 'Actualizar Keyword';
+                        document.getElementById('btn-cancelar-keyword').style.display = 'block';
+                        document.getElementById('tab-keywords').scrollIntoView({ behavior: 'smooth' });
+                    });
+
+                    const btnDel = card.querySelector('.btn-delete-kw');
+                    btnDel.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`¿Estás seguro de que quieres eliminar permanentemente la Keyword [${kid}]?`)) {
+                            db.ref(`campaña/keywords/${kid}`).remove().catch(err => alert("Error al eliminar: " + err));
+                        }
+                    });
+
+                    gridKeywords.appendChild(card);
+                }
+            } else {
+                gridKeywords.innerHTML = '<span style="color: #888;">No hay Keywords registradas.</span>';
+            }
+        });
+    }
 
   </script>
 
