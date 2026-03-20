@@ -6575,148 +6575,188 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 
-#player-combat-hud {
+/* --- NUEVO HUD HEXAGONAL (SVG) --- */
+
+.hud-container {
     position: fixed;
     top: 70px;
     right: 20px;
-    z-index: 9998;
-    background: rgba(10, 10, 10, 0.9);
-    border: 2px solid #333;
-    padding: 15px;
-    width: 280px;
-    border-radius: 8px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-    display: none;
-    flex-direction: column;
-    gap: 15px;
-    backdrop-filter: blur(8px);
-    font-family: 'Share Tech Mono', monospace;
-}
-
-.hud-section {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.hud-label {
-    font-size: 0.85em;
-    color: #888;
-    text-transform: uppercase;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-
-.hud-hp-header {
-    display: flex;
-    justify-content: space-between;
+    width: 220px;
+    height: 220px;
+    background: #111;
+    display: none; /* Toggled by JS */
+    justify-content: center;
     align-items: center;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    transition: filter 0.5s ease-out;
+    z-index: 9998;
 }
 
-.hud-hp-text {
-    font-weight: bold;
-    color: #fff;
-    font-size: 1.1em;
+/* ESTADO DE MUERTE AGRESIVO */
+.hud-container.dead {
+    filter: grayscale(100%) brightness(30%) contrast(70%);
 }
 
-.hud-hp-track {
-    width: 100%;
-    height: 14px;
-    background: #222;
-    border: 1px solid #444;
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-}
-
-#hud-ekg-line {
+.hp-svg {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 10;
+}
+
+/* BORDE EXTERIOR (Crema Café Claro) */
+.hp-border {
+    fill: none;
+    stroke: #cda476;
+    stroke-width: 26;
+    stroke-linejoin: miter;
+    stroke-linecap: butt;
+}
+
+/* Trazado de FONDO NEGRO */
+.hp-track {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 18;
+    stroke-linejoin: miter;
+    stroke-linecap: butt;
+}
+
+/* Barra de HP (ROJA) */
+.hp-fill {
+    fill: none;
+    stroke: #ff3333;
+    stroke-width: 18;
+    stroke-linejoin: miter;
+    stroke-linecap: butt;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.4s ease-out, opacity 0.1s;
+    filter: drop-shadow(0px 0px 3px rgba(255, 51, 51, 0.5));
+}
+
+/* Barra de DELAY de HP (BLANCA) */
+.hp-delay {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 18;
+    stroke-linejoin: miter;
+    stroke-linecap: butt;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1.1s ease-out, opacity 0.1s;
+}
+
+.portrait-image {
+    border: none;
+    preserveAspectRatio: xMidYMid slice;
+}
+
+/* HEPTÁGONO DE FEEDBACK SUTIL */
+.hp-feedback-overlay {
     pointer-events: none;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="%2333ff33" stroke-width="0.8" fill="none" opacity="0.6"/></svg>');
-    background-repeat: repeat-x;
-    background-size: 50px 100%;
-    background-position: 0 0;
-    animation: scroll-ekg 1.5s linear infinite;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-out, visibility 0s 0.3s;
 }
+.flash-damage { visibility: visible; opacity: 1; fill: url(#damageGradient); transition: opacity 0.1s ease-in; }
+.flash-heal { visibility: visible; opacity: 1; fill: url(#healGradient); transition: opacity 0.1s ease-in; }
 
-@keyframes scroll-ekg {
-    0% { background-position: 0 0; }
-    100% { background-position: 50px 0; }
-}
+/* ESFERA DE SP */
+.sp-sphere {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 58px;
+    height: 58px;
 
-#hud-hp-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #8b0000, #ff3333);
-    width: 100%;
-    opacity: 0.85;
-    border-radius: 2px;
-    border: 2px solid #333;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
-    transition: width 0.3s ease, background 0.3s, box-shadow 0.3s;
-}
+    /* Variables CSS para control via JS */
+    --sp-center: #44ffff;
+    --sp-edge: #00cccc;
+    --sp-shadow: rgba(0, 255, 255, 0.7);
+    --wave-color: rgba(0, 255, 255, 0.3);
 
-#hud-sp-text, #hud-coin-text {
-    font-size: 1.8em;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px #000;
-}
+    background: radial-gradient(circle at 30% 30%, var(--sp-center), var(--sp-edge));
+    border-radius: 50%;
+    border: 4px solid #cda476; /* Crema Café Claro */
 
-.hud-sp-sphere {
-    border-radius: 10%;
-    width: 60px;
-    height: 60px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #79c5c5; /* Cyan Pálido */
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid #444;
+
+    color: #ffffff;
+    font-family: 'BebasKai', 'Bebas Neue', Impact, sans-serif;
+    font-size: 2.2em;
+    letter-spacing: 1px;
+
+    -webkit-text-stroke: 0.3px #000000;
+    text-shadow: 0px 1px 2px rgba(0,0,0,0.6);
+
+    box-shadow: 0 0 20px var(--sp-shadow);
+    z-index: 10;
+    transition: background 0.3s, box-shadow 0.3s;
+    transform: scale(1);
 }
 
-#hud-sp-text {
+/* Ondas Emanando */
+.sp-sphere::before,
+.sp-sphere::after {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 4px solid var(--wave-color);
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes emanate-wave {
+    0% { transform: scale(1); opacity: 0; }
+    10% { transform: scale(1.1); opacity: 0.8; }
+    50% { transform: scale(1.4); opacity: 0.4; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+.waves-max::before { animation: emanate-wave 2.2s infinite ease-out; }
+.waves-max::after { animation: emanate-wave 2.2s infinite ease-out 1.1s; }
+
+.waves-min::before { animation: emanate-wave 1.8s infinite ease-out; }
+.waves-min::after { animation: emanate-wave 1.8s infinite ease-out 0.9s; }
+
+/* Estado Muerte SP */
+.dead .sp-sphere {
+    --sp-center: #444 !important;
+    --sp-edge: #111 !important;
+    --sp-shadow: transparent !important;
+    --wave-color: transparent !important;
+    border-color: #1a1a1a;
+    color: #1a1a1a;
+    -webkit-text-stroke: 0px transparent;
+    text-shadow: none;
+}
+
+/* Texto Numérico de Vida Flotante (Para mantener compatibilidad con lecturas) */
+.hud-hp-overlay-text {
+    position: absolute;
+    bottom: 5px;
+    left: 20px;
     color: #fff;
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    font-size: 1.1em;
     font-weight: bold;
-    font-size: 1.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    text-shadow: 1px 1px 2px #000;
+    z-index: 15;
+    background: rgba(0,0,0,0.6);
+    padding: 2px 5px;
+    border-radius: 4px;
 }
 
-@keyframes pulse-red-sphere {
-    0% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); background-color: rgba(139, 0, 0, 0.8); }
-    100% { box-shadow: 0 0 25px rgba(255, 0, 0, 1); background-color: rgba(255, 0, 0, 1); }
-}
-
-@keyframes pulse-cyan-sphere {
-    0% { box-shadow: 0 0 5px rgba(0, 255, 255, 0.5); background-color: rgba(0, 139, 139, 0.8); }
-    100% { box-shadow: 0 0 25px rgba(0, 255, 255, 1); background-color: rgba(0, 255, 255, 1); }
-}
-
-.sp-extreme-neg {
-    animation: pulse-red-sphere 1s infinite alternate;
-    background-color: #8b0000; /* fallback */
-}
-
-.sp-extreme-pos {
-    animation: pulse-cyan-sphere 1s infinite alternate;
-    background-color: #008b8b; /* fallback */
-}
-
-/* Regla Visual HP (Aplicada por JS via clase) */
-.hp-danger {
-    background: #ff0000 !important;
-    box-shadow: 0 0 15px #ff0000;
-    animation: hpFlash 1s infinite alternate;
-}
-
-@keyframes hpFlash {
-    0% { filter: brightness(1); }
-    50% { filter: brightness(1.5) contrast(1.5) hue-rotate(90deg); }
-    100% { filter: brightness(1); }
-}
 
 
 /* --- THEATRE VIEW (PLAYER) --- */

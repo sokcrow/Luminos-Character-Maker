@@ -499,86 +499,135 @@ window.renderCharacterSheet = function(data) {
 
         const hpActualEl = document.getElementById('hud-hp-actual');
         const hpMaxEl = document.getElementById('hud-hp-max');
-        const hpBarEl = document.getElementById('hud-hp-bar');
-        const hpTrackEl = document.querySelector('.hud-hp-track');
         const spTextEl = document.getElementById('hud-sp-text');
-        const spSphere = document.getElementById('hud-sp-sphere');
         const coinTextEl = document.getElementById('hud-coin-text');
 
         if (hpActualEl) hpActualEl.innerText = hpActual;
         if (hpMaxEl) hpMaxEl.innerText = hpMax;
 
-        if (hpBarEl) {
+        // --- LÓGICA DE HP (SVG Hexagonal) ---
+        const pathHP = document.getElementById('hp-bar');
+        const pathDelay = document.getElementById('hp-bar-delay');
+        const feedbackOverlay = document.getElementById('hp-feedback-overlay');
+        const hudContainer = document.getElementById('player-combat-hud');
+
+        if (pathHP && pathDelay && hudContainer) {
             let hpPercent = Math.max(0, Math.min(100, (hpActual / hpMax) * 100));
-            hpBarEl.style.width = hpPercent + '%';
+            const offset = 1000 - (hpPercent / 100) * 1000;
 
-            if (hpPercent <= 30) {
-                hpBarEl.classList.add('hp-danger');
+            pathHP.style.strokeDashoffset = offset;
+            pathDelay.style.strokeDashoffset = offset;
+
+            if (hpPercent === 0) {
+                pathHP.style.opacity = 0;
+                pathDelay.style.opacity = 0;
+                hudContainer.classList.add('dead');
             } else {
-                hpBarEl.classList.remove('hp-danger');
+                pathHP.style.opacity = 1;
+                pathDelay.style.opacity = 1;
+                hudContainer.classList.remove('dead');
             }
 
-            // Dynamic EKG Monitor Logic
-            const ekgLineEl = document.getElementById('hud-ekg-line');
-            if (ekgLineEl) {
-                let ekgColor = '%2333ff33'; // Always Green #33ff33
-                let animDuration = '1.5s';  // Normal speed
-                let strokeWidth = '0.8';
-                let svgOpacity = '0.6';
+            // Damage/Heal Flashing
+            if (window.lastHpActual !== undefined && hpActual !== window.lastHpActual && hpActual > 0 && feedbackOverlay) {
+                clearTimeout(window.flashTimeout);
+                feedbackOverlay.classList.remove('flash-damage', 'flash-heal');
 
-                if (hpPercent <= 30) {
-                    animDuration = '0.4s';  // Fast speed
-                    strokeWidth = '1.2';
-                    svgOpacity = '1.0';
-                } else if (hpPercent <= 60) {
-                    animDuration = '0.8s';  // Medium speed
-                    strokeWidth = '1.0';
-                    svgOpacity = '0.8';
-                }
+                // Force a small reflow to restart animation
+                void feedbackOverlay.offsetWidth;
 
-                const svgData = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L30,10 L35,2 L40,18 L45,10 L100,10" stroke="${ekgColor}" stroke-width="${strokeWidth}" fill="none" opacity="${svgOpacity}"/></svg>')`;
-                ekgLineEl.style.backgroundImage = svgData;
-                ekgLineEl.style.animationDuration = animDuration;
-
-                // Remove legacy styles from hpTrackEl if it was previously set
-                if (hpTrackEl) {
-                    hpTrackEl.style.backgroundImage = 'none';
-                    hpTrackEl.style.animationDuration = '0s';
-                }
-            }
-        }
-
-        if (spTextEl) {
-            spTextEl.innerText = spActual > 0 ? `+${spActual}` : spActual;
-        }
-
-        if (spSphere) {
-            const neutralColor = [121, 197, 197]; // Pale Cyan #79c5c5
-            const maxRed = [255, 0, 0];           // #ff0000
-            const maxCyan = [0, 255, 255];        // Bright Cyan #00ffff
-
-            if (spActual === -45) {
-                spSphere.classList.add('sp-extreme-neg');
-                spSphere.classList.remove('sp-extreme-pos');
-                spSphere.style.backgroundColor = ''; // let class handle it
-            } else if (spActual === 45) {
-                spSphere.classList.add('sp-extreme-pos');
-                spSphere.classList.remove('sp-extreme-neg');
-                spSphere.style.backgroundColor = ''; // let class handle it
-            } else {
-                spSphere.classList.remove('sp-extreme-neg');
-                spSphere.classList.remove('sp-extreme-pos');
-
-                let colorCalculado;
-                if (spActual < 0) {
-                    colorCalculado = interpolateColor(neutralColor, maxRed, Math.abs(spActual) / 45);
-                } else if (spActual > 0) {
-                    colorCalculado = interpolateColor(neutralColor, maxCyan, spActual / 45);
+                if (hpActual < window.lastHpActual) {
+                    feedbackOverlay.classList.add('flash-damage');
                 } else {
-                    colorCalculado = 'rgb(121, 197, 197)';
+                    feedbackOverlay.classList.add('flash-heal');
                 }
-                spSphere.style.backgroundColor = colorCalculado;
+                window.flashTimeout = setTimeout(() => {
+                    feedbackOverlay.classList.remove('flash-damage', 'flash-heal');
+                }, 1000);
             }
+            window.lastHpActual = hpActual;
+        }
+
+        // --- LÓGICA DE SP (ESFERA) ---
+        if (spTextEl) {
+            spTextEl.innerText = spActual;
+        }
+
+        const sphere = document.getElementById('hud-sp-sphere');
+        if (sphere) {
+            const percent = Math.abs(spActual) / 45;
+            let rCenter, gCenter, bCenter, rEdge, gEdge, bEdge;
+            let shadowAlpha = 0.2 + (0.6 * percent);
+            let shadowColor = '', waveColor = '';
+
+            if (spActual >= 0) {
+                // De Cyan Pálido a Cyan Vibrante
+                rCenter = Math.round(180 - (112 * percent));
+                gCenter = 255;
+                bCenter = 255;
+                rEdge = Math.round(140 - (140 * percent));
+                gEdge = Math.round(210 - (6 * percent));
+                bEdge = Math.round(210 - (6 * percent));
+                shadowColor = `rgba(0, 255, 255, ${shadowAlpha})`;
+                waveColor = `rgba(0, 255, 255, 0.3)`;
+
+                sphere.classList.remove('waves-min');
+                if (spActual === 45) sphere.classList.add('waves-max');
+                else sphere.classList.remove('waves-max');
+
+            } else {
+                // De Cyan Pálido a Rojo Vibrante
+                rCenter = Math.round(180 + (75 * percent));
+                gCenter = Math.round(255 - (187 * percent));
+                bCenter = Math.round(255 - (187 * percent));
+                rEdge = Math.round(140 + (64 * percent));
+                gEdge = Math.round(210 - (210 * percent));
+                bEdge = Math.round(210 - (210 * percent));
+                shadowColor = `rgba(255, 0, 0, ${shadowAlpha})`;
+                waveColor = `rgba(255, 0, 0, 0.3)`;
+
+                sphere.classList.remove('waves-max');
+                if (spActual === -45) sphere.classList.add('waves-min');
+                else sphere.classList.remove('waves-min');
+            }
+
+            sphere.style.setProperty('--sp-center', `rgb(${rCenter}, ${gCenter}, ${bCenter})`);
+            sphere.style.setProperty('--sp-edge', `rgb(${rEdge}, ${gEdge}, ${bEdge})`);
+            sphere.style.setProperty('--sp-shadow', shadowColor);
+            sphere.style.setProperty('--wave-color', waveColor);
+        }
+
+        // Cargar retrato al SVG del HUD
+        const avatarUrl = data.avatar_url || "https://i.imgur.com/Z8N4rG9.png";
+        const portraitImg = document.getElementById('portrait-img');
+        if (portraitImg) {
+            // Read active actor from player data if exists, to show correct identity in HUD
+            let currentDisplayAvatar = avatarUrl;
+
+            const actorSelect = document.getElementById('player-actor-select');
+            const selectExp = document.getElementById('player-expression-select');
+
+            const assignedActorId = data.actorId || null;
+            const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
+
+            if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
+                const dataActor = window.actoresJugador[selectedActorId];
+                if (dataActor && dataActor.sprite) {
+                    currentDisplayAvatar = dataActor.sprite;
+                }
+            }
+
+            // Apply expression override if currently active
+            try {
+                 if (selectExp && selectExp.style.display !== 'none' && selectExp.options.length > 0) {
+                     const val = selectExp.value;
+                     if (val && val.trim() !== '') {
+                         currentDisplayAvatar = val;
+                     }
+                 }
+            } catch (e) {}
+
+            portraitImg.setAttribute('href', currentDisplayAvatar);
         }
 
         if (coinTextEl) {
