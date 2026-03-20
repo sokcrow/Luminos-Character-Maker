@@ -4229,23 +4229,42 @@
 <button id="btn-toggle-hud" title="Alternar HUD de Combate" aria-label="Alternar HUD de Combate">
   ❤️
 </button>
-<div id="player-combat-hud" class="theatre-player-hud">
-    <div class="hud-section hud-hp-section">
-        <div class="hud-hp-header">
-            <span class="hud-label">HP VITALIDAD</span>
-            <span class="hud-hp-text"><span id="hud-hp-actual">0</span> / <span id="hud-hp-max">0</span></span>
-        </div>
-        <div class="hud-hp-track">
-            <div id="hud-hp-bar"></div>
-            <div id="hud-ekg-line"></div>
-        </div>
+<div id="player-combat-hud" class="theatre-player-hud hud-container">
+    <svg class="hp-svg" viewBox="0 0 200 200">
+        <defs>
+            <clipPath id="innerPortraitClip">
+                <path d="M 100 172 L 44 145 L 29 84 L 69 35 L 131 35 L 171 84 L 156 145 Z" />
+            </clipPath>
+            <radialGradient id="damageGradient" cx="50%" cy="50%" r="70%" fx="50%" fy="50%">
+                <stop offset="0%" stop-color="red" stop-opacity="0" />
+                <stop offset="100%" stop-color="red" stop-opacity="0.7" />
+            </radialGradient>
+            <radialGradient id="healGradient" cx="50%" cy="50%" r="70%" fx="50%" fy="50%">
+                <stop offset="0%" stop-color="#33FF33" stop-opacity="0" />
+                <stop offset="100%" stop-color="#33FF33" stop-opacity="0.7" />
+            </radialGradient>
+        </defs>
+
+        <image id="portrait-img" class="portrait-image" x="0" y="0" width="200" height="200"
+               href=""
+               clip-path="url(#innerPortraitClip)" preserveAspectRatio="xMidYMid slice" />
+
+        <path id="hp-feedback-overlay" class="hp-feedback-overlay" d="M 100 172 L 44 145 L 29 84 L 69 35 L 131 35 L 171 84 L 156 145 Z" />
+        <path class="hp-border" pathLength="1000" d="M 166 158 L 100 190 L 30 156 L 12 80 L 61 19 L 139 19 L 188 80 L 171 151" />
+        <path class="hp-track" pathLength="1000" d="M 166 158 L 100 190 L 30 156 L 12 80 L 61 19 L 139 19 L 188 80 L 171 151" />
+        <path class="hp-delay" id="hp-bar-delay" pathLength="1000" d="M 166 158 L 100 190 L 30 156 L 12 80 L 61 19 L 139 19 L 188 80 L 171 151" />
+        <path class="hp-fill" id="hp-bar" pathLength="1000" d="M 166 158 L 100 190 L 30 156 L 12 80 L 61 19 L 139 19 L 188 80 L 171 151" />
+    </svg>
+
+    <div id="hud-sp-sphere" class="sp-sphere">
+        <span id="hud-sp-text">0</span>
     </div>
-    <div class="hud-section hud-sp-section">
-        <span class="hud-label">SP CORDURA</span>
-        <div id="hud-sp-sphere" class="hud-sp-sphere"><span id="hud-sp-text">0</span></div>
+
+    <!-- Texts for numerical representation -->
+    <div class="hud-hp-overlay-text">
+        <span id="hud-hp-actual">0</span> / <span id="hud-hp-max">0</span>
     </div>
-    <div class="hud-section hud-coin-section">
-        <span class="hud-label">Suerte Monedas</span>
+    <div class="hud-coin-overlay-text" style="display: none;">
         <span id="hud-coin-text">50%</span>
     </div>
 </div>
