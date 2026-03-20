@@ -1,36 +1,18 @@
-const assert = require("assert");
-const { calculateLevelData } = require("../js/utils.js");
+const assert = require('assert');
+const { calculateLevelData } = require('../js/utils.js');
 
-function runTest(
-  description,
-  xp,
-  expectedLevel,
-  expectedPercent,
-  expectedMissing,
-) {
-  console.log("Running test:", description);
-  const result = calculateLevelData(xp);
-  try {
-    assert.strictEqual(
-      result.level,
-      expectedLevel,
-      "Expected level " + expectedLevel + ", but got " + result.level,
-    );
-    assert.strictEqual(
-      result.xpPercent,
-      expectedPercent,
-      "Expected xpPercent " + expectedPercent + ", but got " + result.xpPercent,
-    );
-    assert.strictEqual(
-      result.xpMissing,
-      expectedMissing,
-      "Expected xpMissing " + expectedMissing + ", but got " + result.xpMissing,
-    );
-    console.log("  -> SUCCESS\n");
-  } catch (e) {
-    console.error("  -> FAILED:", e.message, "\n");
-    process.exitCode = 1;
-  }
+function runTest(description, xp, expectedLevel, expectedPercent, expectedMissing) {
+    console.log("Running test:", description);
+    const result = calculateLevelData(xp);
+    try {
+        assert.strictEqual(result.level, expectedLevel, "Expected level " + expectedLevel + ", but got " + result.level);
+        assert.strictEqual(result.xpPercent, expectedPercent, "Expected xpPercent " + expectedPercent + ", but got " + result.xpPercent);
+        assert.strictEqual(result.xpMissing, expectedMissing, "Expected xpMissing " + expectedMissing + ", but got " + result.xpMissing);
+        console.log("  -> SUCCESS\n");
+    } catch (e) {
+        console.error("  -> FAILED:", e.message, "\n");
+        process.exitCode = 1;
+    }
 }
 
 // Level 1
@@ -53,10 +35,10 @@ runTest("Level 100 (395000 XP)", 395000, 100, 100, 0);
 runTest("Level 100+ (500000 XP)", 500000, 100, 100, 0);
 
 // String input support
-runTest("String input '225000'", "225000", 81, 0, 8000);
+runTest("String input '225000'", '225000', 81, 0, 8000);
 
 // Edge Cases
 runTest("Negative XP (-100)", -100, 1, 0, 60);
-runTest("Invalid text ('abc')", "abc", 1, 0, 60);
+runTest("Invalid text ('abc')", 'abc', 1, 0, 60);
 
 console.log("All tests completed.");
