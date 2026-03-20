@@ -36,9 +36,11 @@ test('Verify Player HUD elements', async ({ page }) => {
   const hpTrack = page.locator('.hud-hp-track');
   await expect(hpTrack).toBeVisible();
 
-  // Verify background image has svg
-  const hpTrackStyle = await hpTrack.evaluate(el => window.getComputedStyle(el).backgroundImage);
-  expect(hpTrackStyle).toContain('data:image/svg+xml');
+  // Verify background image has svg on the new ekg line element
+  const ekgLine = page.locator('#hud-ekg-line');
+  await expect(ekgLine).toBeAttached();
+  const ekgLineStyle = await ekgLine.evaluate(el => window.getComputedStyle(el).backgroundImage);
+  expect(ekgLineStyle).toContain('data:image/svg+xml');
 
   const hpBar = page.locator('#hud-hp-bar');
   // It may not be visible in some test runs, so we ensure we wait for it or just check opacity
