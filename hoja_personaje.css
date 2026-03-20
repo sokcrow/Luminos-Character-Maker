@@ -7577,3 +7577,118 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     font-size: 0.75em;
     font-family: "Share Tech Mono", monospace;
 }
+
+/* --- MEDICAL PANEL --- */
+.medical-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .medical-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.body-part-slot {
+    background: #111;
+    border: 1px solid #3E2723; /* Brown border */
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: relative;
+    /* Limbus inner red border trick */
+}
+
+.body-part-slot::after {
+    content: '';
+    position: absolute;
+    top: 2px; bottom: 2px; left: 2px; right: 2px;
+    border: 1px solid #D32F2F; /* Red inner perimeter */
+    pointer-events: none;
+}
+
+/* scanlines bg */
+.body-part-slot::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        transparent,
+        transparent 2px,
+        rgba(62, 39, 35, 0.08) 2px,
+        rgba(62, 39, 35, 0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.body-part-slot > * {
+    z-index: 1;
+    position: relative;
+}
+
+.part-hp-track {
+    background: #000;
+    border: 1px solid #3E2723;
+    height: 16px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.part-hp-bar {
+    background: #D32F2F; /* Blood red */
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    transition: width 0.3s ease;
+    z-index: 1;
+}
+
+.part-hp-text {
+    color: #E8E4D9; /* Cream */
+    font-size: 10px;
+    font-weight: bold;
+    z-index: 2;
+    text-transform: uppercase;
+}
+
+.part-aug-slot {
+    background: #0B0A0A;
+    border: 1px solid #3E2723;
+    color: #888;
+    text-align: center;
+    font-size: 10px;
+    padding: 3px;
+    text-transform: uppercase;
+    font-family: BebasKai, sans-serif;
+    letter-spacing: 1px;
+}
+
+.part-aug-slot.cybernetic {
+    color: #00FFFF; /* Cyan for cybernetics */
+    border-color: #00FFFF;
+}
+
+.body-part-slot.critical-failure {
+    border-color: #D32F2F;
+    animation: glitch-border 1.5s infinite;
+}
+
+.body-part-slot.critical-failure .slot-label,
+.body-part-slot.critical-failure .part-hp-text {
+    color: #D32F2F;
+    text-shadow: 0 0 5px rgba(211, 47, 47, 0.8); /* Exceptional case for glitch/glow, though standard dictates none. We use standard text color glitch without neon where possible */
+}
+
+@keyframes glitch-border {
+    0% { border-color: #D32F2F; }
+    50% { border-color: #8B0000; }
+    100% { border-color: #D32F2F; }
+}

@@ -497,6 +497,23 @@ window.renderCharacterSheet = function(data) {
 
         const spActual = data.combatStats.sp_actual !== undefined ? parseInt(data.combatStats.sp_actual) : 0;
 
+        // Initialize Medical Panel (Body Parts) if missing
+        if (!data.combatStats.body_parts) {
+            const bodyPartsInit = {
+                torso: { max: Math.floor(hpMax * 0.40), actual: Math.floor(hpMax * 0.40), status: 'organico' },
+                cabeza: { max: Math.floor(hpMax * 0.20), actual: Math.floor(hpMax * 0.20), status: 'organico' },
+                brazo_izq: { max: Math.floor(hpMax * 0.20), actual: Math.floor(hpMax * 0.20), status: 'organico' },
+                brazo_der: { max: Math.floor(hpMax * 0.20), actual: Math.floor(hpMax * 0.20), status: 'organico' },
+                pierna_izq: { max: Math.floor(hpMax * 0.20), actual: Math.floor(hpMax * 0.20), status: 'organico' },
+                pierna_der: { max: Math.floor(hpMax * 0.20), actual: Math.floor(hpMax * 0.20), status: 'organico' }
+            };
+            const playerStorageId = localStorage.getItem('playerId');
+            if (playerStorageId) {
+                db.ref('campaña/jugadores/' + playerStorageId + '/combatStats/body_parts').set(bodyPartsInit);
+            }
+            data.combatStats.body_parts = bodyPartsInit; // Fallback for immediate render
+        }
+
         const hpActualEl = document.getElementById('hud-hp-actual');
         const hpMaxEl = document.getElementById('hud-hp-max');
         const hpBarEl = document.getElementById('hud-hp-bar');
@@ -585,6 +602,46 @@ window.renderCharacterSheet = function(data) {
             let coinChance = Math.max(5, Math.min(95, 50 + spActual));
             coinTextEl.innerText = coinChance + '%';
             coinTextEl.style.color = spActual > 0 ? '#00ffff' : (spActual < 0 ? '#ff4444' : '#ffffff');
+        }
+
+        // Render Medical Panel (Body Parts)
+        const bodyParts = data.combatStats.body_parts;
+        if (bodyParts) {
+            Object.keys(bodyParts).forEach(partKey => {
+                const partData = bodyParts[partKey];
+                const slotEl = document.querySelector(`.body-part-slot[data-part-id="${partKey}"]`);
+                if (slotEl) {
+                    const hpBar = slotEl.querySelector('.part-hp-bar');
+                    const hpText = slotEl.querySelector('.part-hp-text');
+                    const augSlot = slotEl.querySelector('.part-aug-slot');
+
+                    const maxPartHP = parseInt(partData.max) || 0;
+                    const actualPartHP = parseInt(partData.actual) || 0;
+
+                    if (hpText) hpText.innerText = `HP: ${actualPartHP} / ${maxPartHP}`;
+
+                    if (hpBar) {
+                        const percent = maxPartHP > 0 ? Math.max(0, Math.min(100, (actualPartHP / maxPartHP) * 100)) : 0;
+                        hpBar.style.width = percent + '%';
+                    }
+
+                    if (actualPartHP <= 0) {
+                        slotEl.classList.add('critical-failure');
+                    } else {
+                        slotEl.classList.remove('critical-failure');
+                    }
+
+                    const statusText = partData.status || 'Orgánico';
+                    if (augSlot) {
+                        augSlot.innerText = statusText.charAt(0).toUpperCase() + statusText.slice(1);
+                        if (statusText.toLowerCase() !== 'orgánico' && statusText.toLowerCase() !== 'organico') {
+                            augSlot.classList.add('cybernetic');
+                        } else {
+                            augSlot.classList.remove('cybernetic');
+                        }
+                    }
+                }
+            });
         }
     }
 
