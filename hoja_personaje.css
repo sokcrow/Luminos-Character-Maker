@@ -7581,3 +7581,40 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     font-size: 0.75em;
     font-family: "Share Tech Mono", monospace;
 }
+
+/* ---- MOBILE RESPONSIVENESS FOR EQUIPMENT PANEL ---- */
+@media (max-width: 600px), (max-width: 812px) and (orientation: landscape) {
+    .equipment-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+    }
+
+    .equip-slot {
+        padding: 4px;
+    }
+
+    .slot-label {
+        font-size: 0.65em;
+        margin-bottom: 2px;
+    }
+
+    .item-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .item-name {
+        font-size: 0.8em;
+    }
+
+    .keyword-node {
+        width: 8px;
+        height: 8px;
+    }
+
+    .slot-stat {
+        font-size: 0.65em;
+        bottom: 4px;
+        right: 4px;
+    }
+}
