@@ -2,8 +2,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
 
         :root {
-            --bg-main: #0a0a0a;
-            --bg-card: #141414;
+            --bg-main: #050505;
+            --bg-card: #0f0f0f;
             --border-accent: #c49a00;
             --text-main: #e0e0e0;
             --text-muted: #888888;
@@ -19,7 +19,7 @@
             color: var(--text-main);
             margin: 0;
             padding: 20px;
-            background-image: linear-gradient(rgba(10, 10, 10, 0.95), rgba(10, 10, 10, 0.95)), url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" fill="none"/><path d="M0,0 L40,40 M40,0 L0,40" stroke="rgba(255,0,0,0.05)" stroke-width="1"/></svg>');
+            background-image: linear-gradient(rgba(5, 5, 5, 0.95), rgba(5, 5, 5, 0.95)), url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" fill="none"/><path d="M0,0 L40,40 M40,0 L0,40" stroke="rgba(255,0,0,0.05)" stroke-width="1"/></svg>');
         }
 
         .sheet-limbus-main {
@@ -29,7 +29,7 @@
             border: 4px solid var(--red-limbus);
             box-shadow: 0 0 30px rgba(139, 0, 0, 0.6), inset 0 0 20px rgba(0,0,0,0.8);
             padding: 20px;
-            border-radius: 4px;
+            border-radius: 2px;
             position: relative;
         }
 
@@ -90,12 +90,13 @@
             cursor: pointer;
             text-transform: uppercase;
             transition: all 0.2s ease;
-            border-radius: 4px 4px 0 0;
+            border-radius: 2px 2px 0 0;
         }
 
         .sheet-nav-btn:hover {
             color: var(--text-main);
             background: #222;
+            box-shadow: inset 0 -2px 10px rgba(139, 0, 0, 0.5);
         }
 
         .sheet-state-tab[value="stats"] ~ .sheet-tabs .sheet-nav-btn[name="act_tab_stats"],
@@ -234,7 +235,7 @@
         .sheet-avatar-container { width: 100px; height: 100px; background: #222; border: 1px solid var(--border-accent); position: relative; }
         .sheet-avatar-img { width: 100%; height: 100%; object-fit: cover; }
         .sheet-level-hex { position: absolute; bottom: -10px; right: -10px; background: var(--red-limbus); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border-accent); font-weight: bold;}
-        .sheet-id-name { font-size: 2em; font-weight: bold; color: var(--border-accent); text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(196, 154, 0, 0.5); }
+        .sheet-id-name { font-size: 2em; font-family: 'BebasKai', sans-serif; font-weight: bold; color: var(--border-accent); background: linear-gradient(to right, #d4af37, #ffae00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(196, 154, 0, 0.5); }
         .sheet-id-sub { font-size: 16px; color: #ccc; }
 
         .sheet-xp-row, .sheet-ahn-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
@@ -253,11 +254,15 @@
 
         .sheet-config-title {
             color: var(--border-accent);
+            background: linear-gradient(to right, #d4af37, #ffae00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'BebasKai', sans-serif;
             border-bottom: 2px solid #333;
             padding-bottom: 8px;
             margin-top: 0;
             margin-bottom: 20px;
-            font-size: 1.3em;
+            font-size: 1.5em;
             text-transform: uppercase;
             display: flex;
             align-items: center;
@@ -267,6 +272,7 @@
         .sheet-config-title::before {
             content: '>';
             color: var(--red-neon);
+            -webkit-text-fill-color: var(--red-neon);
             margin-right: 10px;
             font-weight: bold;
         }
@@ -1186,13 +1192,13 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 /* Realtime HP Bar */
 .sheet-limbus-main .sheet-hp-bar-container {
     flex: 1; max-width: 600px; height: 20px;
-    background: #222; border: 1px solid #444; border-radius: 10px;
+    background: #222; border: 2px solid #333; border-radius: 2px;
     margin: 0; position: relative; overflow: hidden;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
 }
 .sheet-limbus-main .sheet-hp-bar-fill {
-    height: 100%; background: linear-gradient(to right, #8B0000, #FF4500);
-    width: 100%; transition: width 0.5s ease-in-out; border-radius: 8px;
+    height: 100%; background: linear-gradient(to right, #8B0000, #ff3333);
+    width: 100%; transition: width 0.5s ease-in-out; border-radius: 0;
 }
 
 /* Dynamic HP Bar Width using Attribute Selectors */
@@ -5598,7 +5604,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 .shop-item-card {
     background: #0d0d0d;
     border: 1px solid #222;
-    border-radius: 4px;
+    border-radius: 2px;
     display: flex;
     flex-direction: row;
     position: relative;
@@ -5654,7 +5660,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     font-weight: bold;
     font-size: 14px;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 2px;
     text-transform: uppercase;
     display: flex;
     justify-content: center;
@@ -5667,7 +5673,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 .shop-item-buy-btn:hover:not(:disabled) {
     background: linear-gradient(180deg, #ffe033 0%, #d4a900 100%);
-    box-shadow: 0 0 10px #ffd700;
+    box-shadow: 0 0 15px #ffd700;
 }
 
 .shop-item-buy-btn:disabled {
@@ -5856,6 +5862,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     aspect-ratio: 1;
     background: #0a0a0a;
     border: 1px solid #444;
+    border-radius: 0;
     position: relative;
     cursor: pointer;
     display: flex;
@@ -5866,8 +5873,8 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 }
 
 .item-slot:hover, .item-slot.active {
-    border-color: #ffae00;
-    box-shadow: 0 0 10px rgba(255, 174, 0, 0.5), inset 0 0 15px rgba(0,0,0,0.9);
+    border-color: var(--border-accent);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5), inset 0 0 15px rgba(0,0,0,0.9);
 }
 
 .item-slot img {
@@ -6664,6 +6671,9 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background: linear-gradient(90deg, #8b0000, #ff3333);
     width: 100%;
     opacity: 0.85;
+    border-radius: 2px;
+    border: 2px solid #333;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
     transition: width 0.3s ease, background 0.3s, box-shadow 0.3s;
 }
 
@@ -6674,7 +6684,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 .hud-sp-sphere {
-    border-radius: 50%;
+    border-radius: 10%;
     width: 60px;
     height: 60px;
     display: flex;
@@ -6694,12 +6704,12 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 @keyframes pulse-red-sphere {
     0% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); background-color: rgba(139, 0, 0, 0.8); }
-    100% { box-shadow: 0 0 20px rgba(255, 0, 0, 1); background-color: rgba(255, 0, 0, 1); }
+    100% { box-shadow: 0 0 25px rgba(255, 0, 0, 1); background-color: rgba(255, 0, 0, 1); }
 }
 
 @keyframes pulse-cyan-sphere {
     0% { box-shadow: 0 0 5px rgba(0, 255, 255, 0.5); background-color: rgba(0, 139, 139, 0.8); }
-    100% { box-shadow: 0 0 20px rgba(0, 255, 255, 1); background-color: rgba(0, 255, 255, 1); }
+    100% { box-shadow: 0 0 25px rgba(0, 255, 255, 1); background-color: rgba(0, 255, 255, 1); }
 }
 
 .sp-extreme-neg {
@@ -6720,8 +6730,9 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 @keyframes hpFlash {
-    from { filter: brightness(1); }
-    to { filter: brightness(1.5); }
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.5) contrast(1.5) hue-rotate(90deg); }
+    100% { filter: brightness(1); }
 }
 
 
@@ -7455,11 +7466,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     border: 1px solid #444;
     padding: 10px;
     margin-top: 15px;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 .cyber-panel-title {
     color: var(--gold-accent, #d4af37);
+    background: linear-gradient(to right, #d4af37, #ffae00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     font-family: BebasKai, sans-serif;
     text-align: center;
     margin-top: 0;
@@ -7482,13 +7496,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: flex;
     flex-direction: column;
     position: relative;
-    border-radius: 3px;
+    border-radius: 0;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
     transition: all 0.2s ease;
 }
 
 .equip-slot:hover {
-    border-color: var(--gold-accent, #d4af37);
-    box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+    border-color: var(--border-accent);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5), inset 0 0 15px rgba(0,0,0,0.9);
 }
 
 .equip-slot.hover-glow-cyan:hover {

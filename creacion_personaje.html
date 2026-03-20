@@ -27,8 +27,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
 
         :root {
-            --bg-main: #121212;
-            --bg-card: #1e1e1e;
+            --bg-main: #050505;
+            --bg-card: #0f0f0f;
             --border-accent: #ffae00;
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
@@ -93,6 +93,7 @@
         /* Question Phase */
         .question {
             color: yellow;
+            font-family: 'BebasKai', sans-serif;
             font-size: 3rem;
             margin-bottom: 2rem;
             text-align: center;
@@ -152,9 +153,9 @@
         }
 
         .origin-card {
-            background-color: var(--bg-card);
-            border: 1px solid #333;
-            border-radius: 6px;
+            background-color: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: 0;
             overflow: hidden;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
             display: flex;
@@ -170,21 +171,22 @@
         .origin-card:hover {
             transform: translateY(-5px);
             border-color: var(--border-accent);
-            box-shadow: 0 5px 15px rgba(255, 174, 0, 0.1);
+            box-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
             opacity: 1 !important;
         }
 
         .origin-card.selected {
-            border-color: var(--border-accent);
+            border-color: var(--red-limbus, #8b0000);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.6);
             transform: translateY(-5px) scale(1.02);
             opacity: 1;
             animation: flicker 2s infinite alternate;
         }
 
         @keyframes flicker {
-            0% { box-shadow: 0 0 10px var(--border-accent); border-color: var(--border-accent); }
-            50% { box-shadow: 0 0 25px var(--border-accent), 0 0 5px inset var(--border-accent); border-color: #ffcc55; }
-            100% { box-shadow: 0 0 10px var(--border-accent); border-color: var(--border-accent); }
+            0% { box-shadow: 0 0 10px var(--red-limbus, #8b0000); border-color: var(--red-limbus, #8b0000); }
+            50% { box-shadow: 0 0 25px var(--red-limbus, #8b0000), 0 0 5px inset var(--red-limbus, #8b0000); border-color: #ff4444; }
+            100% { box-shadow: 0 0 10px var(--red-limbus, #8b0000); border-color: var(--red-limbus, #8b0000); }
         }
 
         .card-header {
@@ -196,6 +198,7 @@
         .card-header h2 {
             margin: 0;
             font-size: 18px;
+            font-family: 'BebasKai', sans-serif;
             color: var(--text-main);
             text-transform: uppercase;
         }
