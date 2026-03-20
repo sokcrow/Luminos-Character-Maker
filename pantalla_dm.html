@@ -949,6 +949,24 @@
               <input type="number" id="forja-vinculo-cant" placeholder="Cant/Carga" style="flex:1; min-width: 80px;" title="Cantidad necesaria para 1 carga" />
               <input type="number" id="forja-vinculo-max" placeholder="Max Cargas" style="flex:1; min-width: 80px;" />
             </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; border-top: 1px dashed #444; padding-top: 10px; margin-top: 5px;">
+              <strong style="width:100%; color:#0df; font-size:12px;">Stats de Equipo (Opcional)</strong>
+              <input type="number" id="forja-off-lvl" placeholder="Mod. OFF Nivel (Ej. +2)" style="flex:1; min-width: 80px;" />
+              <input type="number" id="forja-def-lvl" placeholder="Mod. DEF Nivel (Ej. +1)" style="flex:1; min-width: 80px;" />
+              <select id="forja-damage-type" style="flex:1; min-width: 80px;">
+                <option value="">Tipo de Daño...</option>
+                <option value="cortante">Cortante</option>
+                <option value="perforante">Perforante</option>
+                <option value="contundente">Contundente</option>
+              </select>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px;">
+              <input type="number" id="forja-cargas-maximas" placeholder="Cargas Máximas (Arma de Fuego/Munición)" style="flex:1; min-width: 150px;" />
+              <input type="number" id="forja-cargas-actuales" placeholder="Cargas Actuales" style="flex:1; min-width: 150px;" />
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px; margin-bottom: 10px;">
+              <input type="text" id="forja-keywords" placeholder="Keywords (Ej: hp_up_1, sharp_blade) separados por coma" style="flex:1;" />
+            </div>
             <textarea id="forja-desc" placeholder="Descripción" rows="2"></textarea>
             <div style="display:flex; gap:10px;">
               <button id="btn-crear-item" class="btn-cyber btn-red" style="flex:1;">Crear Ítem</button>
@@ -2472,6 +2490,12 @@
        document.getElementById('forja-vinculo-cant').value = '';
        document.getElementById('forja-vinculo-max').value = '';
        document.getElementById('forja-desc').value = '';
+       document.getElementById('forja-off-lvl').value = '';
+       document.getElementById('forja-def-lvl').value = '';
+       document.getElementById('forja-damage-type').value = '';
+       document.getElementById('forja-cargas-maximas').value = '';
+       document.getElementById('forja-cargas-actuales').value = '';
+       document.getElementById('forja-keywords').value = '';
        document.getElementById('btn-crear-item').innerText = 'Crear Ítem';
        document.getElementById('btn-cancelar-item').style.display = 'none';
        editModeItemKey = null;
@@ -2497,6 +2521,13 @@
 
        const desc = document.getElementById('forja-desc').value.trim();
 
+       const offLvlMod = document.getElementById('forja-off-lvl').value;
+       const defLvlMod = document.getElementById('forja-def-lvl').value;
+       const damageType = document.getElementById('forja-damage-type').value;
+       const cargasMaximas = document.getElementById('forja-cargas-maximas').value;
+       const cargasActuales = document.getElementById('forja-cargas-actuales').value;
+       const keywordsStr = document.getElementById('forja-keywords').value.trim();
+
        if (currentItemTags.length === 0) { alert("Agrega al menos una etiqueta al ítem."); return; }
 
        const item = {
@@ -2510,6 +2541,15 @@
            limite_activo,
            limite_alijo
        };
+
+       if (offLvlMod !== "") item.off_lvl_mod = parseInt(offLvlMod) || 0;
+       if (defLvlMod !== "") item.def_lvl_mod = parseInt(defLvlMod) || 0;
+       if (damageType !== "") item.damage_type = damageType;
+       if (cargasMaximas !== "") item.cargas_maximas = parseInt(cargasMaximas) || 0;
+       if (cargasActuales !== "") item.cargas_actuales = parseInt(cargasActuales) || 0;
+       if (keywordsStr) {
+           item.keywords = keywordsStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+       }
 
        if (vinculo_item) {
            item.vinculo_item = vinculo_item;
@@ -2539,6 +2579,12 @@
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/costo`] = newItemData.costo;
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/usos`] = newItemData.usos;
                                    updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_activo/${keyInv}/keywords`] = newItemData.keywords;
                                }
                            }
                        }
@@ -2553,6 +2599,12 @@
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/costo`] = newItemData.costo;
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/usos`] = newItemData.usos;
                                    updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/jugadores/${idJugador}/inventario_stash/${keyInv}/keywords`] = newItemData.keywords;
                                }
                            }
                        }
@@ -2582,6 +2634,12 @@
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/tier`] = newItemData.tier;
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/usos`] = newItemData.usos;
                                    updates[`campaña/tiendas/${idTienda}/items/${newKey}/descripcion`] = newItemData.descripcion;
+                                   if (newItemData.off_lvl_mod !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/off_lvl_mod`] = newItemData.off_lvl_mod;
+                                   if (newItemData.def_lvl_mod !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/def_lvl_mod`] = newItemData.def_lvl_mod;
+                                   if (newItemData.damage_type !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/damage_type`] = newItemData.damage_type;
+                                   if (newItemData.cargas_maximas !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/cargas_maximas`] = newItemData.cargas_maximas;
+                                   if (newItemData.cargas_actuales !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/cargas_actuales`] = newItemData.cargas_actuales;
+                                   if (newItemData.keywords !== undefined) updates[`campaña/tiendas/${idTienda}/items/${newKey}/keywords`] = newItemData.keywords;
                                    // Not updating cost/price here because store could have custom price
                                }
                            }
@@ -2689,6 +2747,12 @@
                  document.getElementById('forja-vinculo-cant').value = data.vinculo_cantidad !== undefined ? data.vinculo_cantidad : '';
                  document.getElementById('forja-vinculo-max').value = data.vinculo_stacks_max !== undefined ? data.vinculo_stacks_max : '';
                  document.getElementById('forja-desc').value = data.descripcion || '';
+                 document.getElementById('forja-off-lvl').value = data.off_lvl_mod !== undefined ? data.off_lvl_mod : '';
+                 document.getElementById('forja-def-lvl').value = data.def_lvl_mod !== undefined ? data.def_lvl_mod : '';
+                 document.getElementById('forja-damage-type').value = data.damage_type || '';
+                 document.getElementById('forja-cargas-maximas').value = data.cargas_maximas !== undefined ? data.cargas_maximas : '';
+                 document.getElementById('forja-cargas-actuales').value = data.cargas_actuales !== undefined ? data.cargas_actuales : '';
+                 document.getElementById('forja-keywords').value = (data.keywords && Array.isArray(data.keywords)) ? data.keywords.join(', ') : '';
 
                  document.getElementById('btn-crear-item').innerText = 'Actualizar Ítem';
                  document.getElementById('btn-cancelar-item').style.display = 'block';
