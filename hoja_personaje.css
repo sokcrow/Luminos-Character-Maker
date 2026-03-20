@@ -7460,6 +7460,19 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     fill: currentColor;
 }
 
+/* Hide Base and Mod inputs for skills and attributes while keeping total */
+.sheet-attr-inputs label,
+.sheet-attr-inputs input {
+    display: none !important;
+}
+
+.sheet-skill-inputs input,
+.sheet-skill-separator {
+    display: none !important;
+}
+
+.sheet-skill-inputs {
+    justify-content: flex-end !important;
 /* --- EQUIPMENT PANEL (Paperdoll) --- */
 .cyber-panel {
     background: var(--bg-main, #0a0a0a);
