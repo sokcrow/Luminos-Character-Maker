@@ -113,6 +113,66 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     }
 });
 
+// Set up Drop Zones for Equipment Panel
+document.addEventListener('DOMContentLoaded', () => {
+    const equipSlots = document.querySelectorAll('.equip-slot');
+    const activeInvGrid = document.getElementById('inv-active-grid');
+
+    // Allow dropping on equip slots
+    equipSlots.forEach(slot => {
+         slot.addEventListener('dragover', (e) => {
+             e.preventDefault(); // allow drop
+         });
+         slot.addEventListener('drop', async (e) => {
+             e.preventDefault();
+             const itemKey = e.dataTransfer.getData('text/plain');
+             const slotId = slot.getAttribute('data-slot-id');
+             if (!itemKey || !slotId) return;
+
+             const playerId = localStorage.getItem('playerId');
+             if (!playerId) return;
+
+             const invRef = db.ref(`campaña/jugadores/${playerId}/inventario_activo`);
+
+             // Check if slot already has an item equipped
+             const snap = await invRef.once('value');
+             const items = snap.val() || {};
+
+             const updates = {};
+             // Find previously equipped item in this slot and unequip it
+             for (const [key, item] of Object.entries(items)) {
+                 if (item.equipped_slot === slotId && key !== itemKey) {
+                     updates[`${key}/equipped_slot`] = null;
+                 }
+             }
+             // Equip new item
+             updates[`${itemKey}/equipped_slot`] = slotId;
+
+             invRef.update(updates);
+         });
+    });
+
+    // Allow dropping back to active inventory (Unequip)
+    if (activeInvGrid) {
+         activeInvGrid.addEventListener('dragover', (e) => {
+             e.preventDefault(); // allow drop
+         });
+         activeInvGrid.addEventListener('drop', (e) => {
+             e.preventDefault();
+             const itemKey = e.dataTransfer.getData('text/plain');
+             if (!itemKey) return;
+
+             const playerId = localStorage.getItem('playerId');
+             if (!playerId) return;
+
+             // Unequip item
+             db.ref(`campaña/jugadores/${playerId}/inventario_activo/${itemKey}`).update({
+                 equipped_slot: null
+             });
+         });
+    }
+});
+
 // 2. Llenar el menú principal con los Actores (Usando el Actor ID)
 db.ref('campaña/actores').on('value', (snapshot) => {
     const actorSelect = document.getElementById('player-actor-select');
@@ -842,10 +902,68 @@ window.addEventListener('DOMContentLoaded', () => {
         grid.innerHTML = '';
         const items = itemsObj ? Object.entries(itemsObj).map(([key, val]) => ({ key, ...val })) : [];
 
+        // Helper func to clean equipment slots
+        const cleanEquipSlots = () => {
+             document.querySelectorAll('.equip-slot').forEach(slot => {
+                 const iconContainer = slot.querySelector('.item-icon');
+                 if(iconContainer) iconContainer.innerHTML = '';
+                 const nameContainer = slot.querySelector('.item-name');
+                 if(nameContainer) nameContainer.innerText = 'Vacío';
+                 slot.querySelectorAll('.keyword-node').forEach(node => {
+                     node.className = 'keyword-node empty';
+                 });
+                 slot.removeAttribute('draggable');
+                 slot.ondragstart = null;
+                 slot.dataset.equippedItemKey = "";
+             });
+        }
+        if (!isStash) {
+             cleanEquipSlots();
+        }
+
         // Fill slots with items
         items.forEach(item => {
+            // Check if equipped
+            if (!isStash && item.equipped_slot) {
+                const targetSlot = document.querySelector(`.equip-slot[data-slot-id="${item.equipped_slot}"]`);
+                if (targetSlot) {
+                    const iconContainer = targetSlot.querySelector('.item-icon');
+                    if(iconContainer) {
+                         const imgSrc = item.icono || "https://via.placeholder.com/40";
+                         iconContainer.innerHTML = `<img src="${imgSrc}" style="width:100%; height:100%; object-fit:contain;" />`;
+                    }
+                    const nameContainer = targetSlot.querySelector('.item-name');
+                    if(nameContainer) {
+                         nameContainer.innerText = item.nombre || 'Desconocido';
+                    }
+                    const nodes = targetSlot.querySelectorAll('.keyword-node');
+                    const tierCount = parseInt(item.tier) || 1;
+                    for (let i = 0; i < nodes.length; i++) {
+                         if (i < tierCount) {
+                             nodes[i].className = 'keyword-node active-glow';
+                         } else {
+                             nodes[i].className = 'keyword-node empty';
+                         }
+                    }
+                    targetSlot.dataset.equippedItemKey = item.key;
+                    targetSlot.setAttribute('draggable', 'true');
+                    targetSlot.ondragstart = (e) => {
+                         e.dataTransfer.setData('text/plain', item.key);
+                    };
+                }
+                return; // Skip rendering in normal grid
+            }
+
             const slot = document.createElement('div');
             slot.className = 'item-slot';
+
+            // Drag and drop for inventory grid items
+            if (!isStash) {
+                slot.setAttribute('draggable', 'true');
+                slot.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', item.key);
+                };
+            }
 
             // Ensure array format for tags
             let itemTags = item.tags && Array.isArray(item.tags) ? item.tags : (item.tipo ? [item.tipo] : []);
