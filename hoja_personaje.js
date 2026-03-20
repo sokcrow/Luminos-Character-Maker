@@ -314,6 +314,88 @@ function interpolateColor(color1, color2, factor) {
     return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
 }
 
+function calculateDerivedStats(data) {
+    let equipOffMod = 0;
+    let equipDefMod = 0;
+    let keywordHpBonus = 0;
+    let keywordOffBonus = 0;
+    let keywordDefBonus = 0;
+
+    const slotBonuses = {
+        armadura: { off: 0, def: 0 },
+        arma_principal: { off: 0, def: 0 },
+        arma_secundaria: { off: 0, def: 0 },
+        municion: { off: 0, def: 0 },
+        accesorio_1: { off: 0, def: 0 },
+        accesorio_2: { off: 0, def: 0 }
+    };
+
+    if (data.inventario_activo) {
+        Object.values(data.inventario_activo).forEach(item => {
+            if (item.equipped_slot) {
+                const offMod = parseInt(item.off_lvl_mod) || 0;
+                const defMod = parseInt(item.def_lvl_mod) || 0;
+
+                if (item.equipped_slot === 'arma_principal' || item.equipped_slot === 'arma_secundaria' || item.equipped_slot === 'municion') {
+                    equipOffMod += offMod;
+                    if (slotBonuses[item.equipped_slot]) slotBonuses[item.equipped_slot].off += offMod;
+                } else if (item.equipped_slot === 'armadura') {
+                    equipDefMod += defMod;
+                    if (slotBonuses[item.equipped_slot]) slotBonuses[item.equipped_slot].def += defMod;
+                } else if (item.equipped_slot === 'accesorio_1' || item.equipped_slot === 'accesorio_2') {
+                    equipOffMod += offMod;
+                    equipDefMod += defMod;
+                    if (slotBonuses[item.equipped_slot]) {
+                        slotBonuses[item.equipped_slot].off += offMod;
+                        slotBonuses[item.equipped_slot].def += defMod;
+                    }
+                }
+
+                if (item.keywords) {
+                    const keywordsList = Array.isArray(item.keywords) ? item.keywords : Object.keys(item.keywords);
+                    keywordsList.forEach(kw => {
+                        const kwName = typeof kw === 'string' ? kw : kw.id;
+                        if (!kwName) return;
+                        switch (kwName.toLowerCase()) {
+                            case 'hp_up_1': keywordHpBonus += 10; break;
+                            case 'hp_up_2': keywordHpBonus += 25; break;
+                            case 'sharp_blade': keywordOffBonus += 1; break;
+                            case 'heavy_plating': keywordDefBonus += 2; break;
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    // Process UI for slots
+    Object.keys(slotBonuses).forEach(slotId => {
+        const slotEl = document.querySelector(`.equip-slot[data-slot-id="${slotId}"] .slot-stat`);
+        if (slotEl) {
+            if (slotId === 'armadura') {
+                const def = slotBonuses[slotId].def;
+                slotEl.innerText = `DEF LVL: ${def >= 0 ? '+' : ''}${def}`;
+            } else if (slotId === 'arma_principal' || slotId === 'arma_secundaria' || slotId === 'municion') {
+                const off = slotBonuses[slotId].off;
+                slotEl.innerText = `OFF LVL: ${off >= 0 ? '+' : ''}${off}`;
+            } else if (slotId === 'accesorio_1' || slotId === 'accesorio_2') {
+                // Not standard according to html, but we can do it if .slot-stat exists
+                const off = slotBonuses[slotId].off;
+                const def = slotBonuses[slotId].def;
+                slotEl.innerText = `OFF: ${off >= 0 ? '+' : ''}${off} | DEF: ${def >= 0 ? '+' : ''}${def}`;
+            }
+        }
+    });
+
+    return {
+        equipOffMod,
+        equipDefMod,
+        keywordHpBonus,
+        keywordOffBonus,
+        keywordDefBonus
+    };
+}
+
 window.renderCharacterSheet = function(data) {
     // 1. Stats Principales (Cuerpo, Mente, Alma)
     const coreStats = ['cuerpo', 'mente', 'alma'];
@@ -376,16 +458,43 @@ window.renderCharacterSheet = function(data) {
         }
     }
 
+    // Calculate Derived Stats from Equipment
+    const derivedStats = calculateDerivedStats(data);
+
     // Actualización del HUD de Combate (Vitales)
     if (data.combatStats) {
         const lvl = parseInt(data.level) || 1;
         const hpBase = parseInt(data.combatStats.hp_base || data.hp_base) || 0;
         const hpCoef = parseFloat(data.combatStats.hp_coefficient || data.hp_coefficient) || 0;
         const defLvlMod = parseInt(data.combatStats.def_lvl_mod) || 0;
-        const totalDefLvl = lvl + defLvlMod;
-        const hpMax = Math.floor(hpBase + (totalDefLvl * hpCoef)) || 100;
 
-        const hpActual = data.combatStats.hp_actual !== undefined ? parseInt(data.combatStats.hp_actual) : hpMax;
+        // base stat totals from dm
+        const dmBaseOff = parseInt(data.combatStats.base_off) || 0;
+        const dmBaseDef = parseInt(data.combatStats.base_def) || 0;
+
+        const baseDefLvlMod = lvl + defLvlMod;
+
+        // calculate new totals
+        const finalTotalOffLvl = dmBaseOff + derivedStats.equipOffMod + derivedStats.keywordOffBonus;
+        const finalTotalDefLvl = dmBaseDef + baseDefLvlMod + derivedStats.equipDefMod + derivedStats.keywordDefBonus;
+
+        // Expose to window for dice roll calculations
+        window.playerCombatTotals = {
+            totalOffLvl: finalTotalOffLvl,
+            totalDefLvl: finalTotalDefLvl
+        };
+
+        const hpMax = Math.floor(hpBase + (finalTotalDefLvl * hpCoef)) + derivedStats.keywordHpBonus || 100;
+
+        let hpActual = data.combatStats.hp_actual !== undefined ? parseInt(data.combatStats.hp_actual) : hpMax;
+
+        // Ensure current HP does not exceed the new Max HP
+        if (hpActual > hpMax) {
+            hpActual = hpMax;
+            // Optionally save to Firebase (if it's allowed here or DM edits it)
+            // But since this is pure client calculation, we just display the cap.
+        }
+
         const spActual = data.combatStats.sp_actual !== undefined ? parseInt(data.combatStats.sp_actual) : 0;
 
         const hpActualEl = document.getElementById('hud-hp-actual');
