@@ -1658,6 +1658,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // Optimization: Use DocumentFragment to batch DOM insertions for performance
+            const fragment = document.createDocumentFragment();
+
             for (const [itemId, item] of Object.entries(items)) {
                 const itemTier = parseInt(item.tier) || 1;
                 const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
@@ -1697,8 +1700,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                grid.appendChild(card);
+                fragment.appendChild(card);
             }
+            grid.appendChild(fragment);
         });
     }
 
@@ -1888,6 +1892,9 @@ function renderizarComprar() {
         return;
     }
 
+    // Optimization: Use DocumentFragment to batch DOM insertions for performance
+    const fragment = document.createDocumentFragment();
+
     for (const [itemId, item] of Object.entries(items)) {
         const itemTier = parseInt(item.tier) || 1;
         const valorConTier = Math.floor((item.costo || 0) * (1 + ((itemTier - 1) * 0.25)));
@@ -1912,8 +1919,9 @@ function renderizarComprar() {
                 </button>
             </div>
         `;
-        grid.appendChild(row);
+        fragment.appendChild(row);
     }
+    grid.appendChild(fragment);
 }
 
 function renderizarVender() {
