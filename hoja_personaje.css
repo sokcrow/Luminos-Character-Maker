@@ -7473,6 +7473,8 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 .sheet-skill-inputs {
     justify-content: flex-end !important;
+}
+
 /* --- EQUIPMENT PANEL (Paperdoll) --- */
 .cyber-panel {
     background: var(--bg-main, #0a0a0a);
@@ -7500,6 +7502,12 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .equipment-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .equip-slot {
@@ -7542,6 +7550,10 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 .item-icon {
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
+    overflow: hidden;
     background: #222;
     border: 1px solid #555;
     border-radius: 2px;
