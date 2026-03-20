@@ -1,289 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Luminous</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
-
-        :root {
-            --gold-bright: #ffae00;
-            --gold-dim: #b37a00;
-            --cyan-tech: #00ffff;
-            --bg-dark: rgba(18, 18, 18, 0.85);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: transparent;
-            font-family: 'Share Tech Mono', monospace;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: var(--text-main);
-        }
-
-        #main-bg-video {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translateX(-50%) translateY(-50%);
-            z-index: -10;
-            object-fit: cover;
-            filter: brightness(0.35) contrast(1.2);
-        }
-
-        /* View Containers */
-        .view-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-
-        .hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .fade-to-black {
-            opacity: 1;
-            background-color: black;
-            pointer-events: none;
-            z-index: 9999;
-            transition: opacity 1.5s ease, background-color 1.5s ease;
-        }
-
-        /* VISTA 1: TITLE SCREEN */
-        #title-screen {
-            cursor: pointer;
-            z-index: 10;
-            transition: opacity 1.5s ease;
-        }
-
-        .luminous-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 6rem;
-            color: var(--gold-bright);
-            margin: 0 0 20px 0;
-            text-transform: uppercase;
-            letter-spacing: 15px;
-            text-shadow: 0 0 10px var(--gold-bright), 0 0 20px var(--gold-bright), 0 0 40px var(--gold-dim);
-            text-align: center;
-        }
-
-        .title-prompt {
-            font-size: 1.2rem;
-            color: var(--text-main);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            animation: blink 1.5s infinite;
-            text-shadow: 0 0 5px var(--text-main);
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        .gradient-line {
-            width: 60%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
-            box-shadow: 0 0 8px var(--gold-bright);
-        }
-
-        /* VISTA 2: SAVE SLOT SCREEN */
-        #save-slot-screen {
-            z-index: 20;
-        }
-
-        #login-screen {
-            z-index: 20;
-        }
-
-        .save-slot-card {
-            background: var(--bg-dark);
-            border: 1px solid #333;
-            border-left: 4px solid var(--gold-bright);
-            border-right: 4px solid var(--cyan-tech);
-            padding: 30px 40px;
-            min-width: 350px;
-            cursor: pointer;
-            position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            backdrop-filter: blur(5px);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .save-slot-card::before, .save-slot-card::after {
-            content: '';
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-            pointer-events: none;
-        }
-
-        .save-slot-card::before {
-            top: -2px;
-            left: -2px;
-            border-top-color: var(--gold-bright);
-            border-left-color: var(--gold-bright);
-        }
-
-        .save-slot-card::after {
-            bottom: -2px;
-            right: -2px;
-            border-bottom-color: var(--cyan-tech);
-            border-right-color: var(--cyan-tech);
-        }
-
-        .save-slot-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 10px 30px rgba(255, 174, 0, 0.2);
-            border-color: #555;
-            border-left-color: var(--cyan-tech);
-            border-right-color: var(--gold-bright);
-        }
-
-        .save-slot-card:hover::before {
-            border-top-color: var(--cyan-tech);
-            border-left-color: var(--cyan-tech);
-            width: 100%;
-            height: 100%;
-        }
-
-        .save-slot-card:hover::after {
-            border-bottom-color: var(--gold-bright);
-            border-right-color: var(--gold-bright);
-            width: 100%;
-            height: 100%;
-        }
-
-        .slot-header {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px dashed #555;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .slot-status {
-            color: var(--cyan-tech);
-            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-        }
-
-        .slot-name {
-            font-size: 1.8rem;
-            color: var(--gold-bright);
-            text-transform: uppercase;
-            margin: 0;
-            text-shadow: 0 0 5px rgba(255, 174, 0, 0.3);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .slot-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            background: rgba(0,0,0,0.4);
-            padding: 10px;
-            border: 1px solid #222;
-        }
-
-        .slot-level, .slot-ahn {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .detail-label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .detail-value {
-            font-size: 1.2rem;
-            color: var(--text-main);
-        }
-
-        .ahn-value {
-            color: var(--cyan-tech);
-        }
-
-        .currency-symbol {
-            font-family: sans-serif;
-            margin-right: 4px;
-        }
-
-        @media (max-width: 768px) {
-            .luminous-title {
-                font-size: 3.5rem;
-                letter-spacing: 8px;
-            }
-            .save-slot-card {
-                min-width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-
+    <link rel="stylesheet" href="styles/layout/main.css" />
+  </head>
+  <body>
     <video autoplay loop muted playsinline id="main-bg-video">
-        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
+      <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4" />
     </video>
 
     <div id="title-screen" class="view-screen">
-        <h1 class="luminous-title">LUMINOUS</h1>
-        <div id="title-prompt" class="title-prompt"></div>
-        <div class="gradient-line"></div>
+      <h1 class="luminous-title">LUMINOUS</h1>
+      <div id="title-prompt" class="title-prompt"></div>
+      <div class="gradient-line"></div>
     </div>
 
     <div id="login-screen" class="view-screen hidden">
-        <div class="save-slot-card" id="login-card" style="text-align: center;">
-            <div class="slot-header" style="justify-content: center;">
-                <span class="slot-status">SISTEMA DE IDENTIFICACIÓN</span>
-            </div>
-            <div style="margin: 20px 0;">
-                <label for="player-id-input" style="display: block; margin-bottom: 10px; color: var(--text-main); font-size: 1.1rem;">INGRESE ID DE USUARIO (Nombre de Jugador)</label>
-                <input type="text" id="player-id-input" placeholder="ID de Usuario..." autocomplete="off" style="width: 80%; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--cyan-tech); color: var(--gold-bright); text-align: center; outline: none;">
-            </div>
-            <button id="btn-login" style="background: transparent; border: 1px solid var(--gold-bright); color: var(--gold-bright); padding: 10px 20px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; cursor: pointer; transition: all 0.3s; text-transform: uppercase; width: 80%;">Identificarse</button>
-            <div id="login-status" style="margin-top: 15px; color: var(--cyan-tech); height: 20px; font-size: 0.9rem;"></div>
+      <div class="save-slot-card" id="login-card" style="text-align: center">
+        <div class="slot-header" style="justify-content: center">
+          <span class="slot-status">SISTEMA DE IDENTIFICACIÓN</span>
         </div>
+        <div style="margin: 20px 0">
+          <label
+            for="player-id-input"
+            style="
+              display: block;
+              margin-bottom: 10px;
+              color: var(--text-main);
+              font-size: 1.1rem;
+            "
+            >INGRESE ID DE USUARIO (Nombre de Jugador)</label
+          >
+          <input
+            type="text"
+            id="player-id-input"
+            placeholder="ID de Usuario..."
+            autocomplete="off"
+            style="
+              width: 80%;
+              padding: 10px;
+              font-family: &quot;Share Tech Mono&quot;, monospace;
+              font-size: 1.2rem;
+              background: rgba(0, 0, 0, 0.6);
+              border: 1px solid var(--cyan-tech);
+              color: var(--gold-bright);
+              text-align: center;
+              outline: none;
+            "
+          />
+        </div>
+        <button
+          id="btn-login"
+          style="
+            background: transparent;
+            border: 1px solid var(--gold-bright);
+            color: var(--gold-bright);
+            padding: 10px 20px;
+            font-family: &quot;Share Tech Mono&quot;, monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            width: 80%;
+          "
+        >
+          Identificarse
+        </button>
+        <div
+          id="login-status"
+          style="
+            margin-top: 15px;
+            color: var(--cyan-tech);
+            height: 20px;
+            font-size: 0.9rem;
+          "
+        ></div>
+      </div>
     </div>
 
     <!-- Firebase App (núcleo) -->
@@ -291,131 +85,7 @@
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
-            authDomain: "luminous-system.firebaseapp.com",
-            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
-            projectId: "luminous-system",
-            storageBucket: "luminous-system.firebasestorage.app",
-            messagingSenderId: "330473029689",
-            appId: "1:330473029689:web:44a05e870d493a3b294de8",
-            measurementId: "G-X775P4YS7W"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const titleScreen = document.getElementById('title-screen');
-            const loginScreen = document.getElementById('login-screen');
-            const titlePrompt = document.getElementById('title-prompt');
-            const playerIdInput = document.getElementById('player-id-input');
-            const btnLogin = document.getElementById('btn-login');
-            const loginStatus = document.getElementById('login-status');
-
-            titlePrompt.textContent = "Click para Ingresar";
-
-            titleScreen.addEventListener('click', () => {
-                titleScreen.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
-                playerIdInput.focus();
-            });
-
-            const handleLogin = () => {
-                const rawId = playerIdInput.value.trim();
-                if (!rawId) return;
-
-                // Quitamos .toLowerCase() para respetar mayúsculas de los perfiles existentes
-                const userId = rawId.replace(/\s+/g, '');
-                localStorage.setItem('playerId', userId);
-
-                loginStatus.textContent = "Verificando en la base de datos...";
-                btnLogin.disabled = true;
-
-                db.ref('campaña/jugadores/' + userId).once('value').then(snapshot => {
-                    const localStateStr = localStorage.getItem('luminousState');
-                    let localState = null;
-                    if (localStateStr) {
-                        try {
-                            localState = JSON.parse(localStateStr);
-                        } catch (e) {
-                            console.error("Error parsing local luminousState:", e);
-                        }
-                    }
-
-                    const hasMatchingLocalState = localState &&
-                                                  localState.characterName &&
-                                                  localState.characterName.replace(/\s+/g, '') === userId;
-
-                    if (snapshot.exists()) {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Sincronizando datos locales con la nube...";
-                            db.ref('campaña/jugadores/' + userId).update(localState).then(() => {
-                                loginStatus.textContent = "Datos sincronizados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase update error:", err);
-                                loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                            setTimeout(() => {
-                                window.location.href = 'hoja_personaje.html';
-                            }, 800);
-                        }
-                    } else {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Recuperando datos locales. Guardando en la nube...";
-                            db.ref('campaña/jugadores/' + userId).set(localState).then(() => {
-                                loginStatus.textContent = "Datos recuperados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase save error:", err);
-                                loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                                setTimeout(() => {
-                                    window.location.href = 'creacion_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                            setTimeout(() => {
-                                window.location.href = 'creacion_personaje.html';
-                            }, 800);
-                        }
-                    }
-                }).catch(err => {
-                    console.error("Firebase error:", err);
-                    loginStatus.textContent = "Error de conexión. Intente nuevamente.";
-                    loginStatus.style.color = "red";
-                    btnLogin.disabled = false;
-                });
-            };
-
-            btnLogin.addEventListener('click', handleLogin);
-            playerIdInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleLogin();
-                }
-            });
-
-            // Hover effect on login button
-            btnLogin.addEventListener('mouseenter', () => {
-                btnLogin.style.background = 'var(--gold-bright)';
-                btnLogin.style.color = 'black';
-            });
-            btnLogin.addEventListener('mouseleave', () => {
-                btnLogin.style.background = 'transparent';
-                btnLogin.style.color = 'var(--gold-bright)';
-            });
-        });
-    </script>
-</body>
+    <script type="module" src="src/core/firebase-config.js"></script>
+    <script type="module" src="src/features/login.js"></script>
+  </body>
 </html>
