@@ -612,8 +612,8 @@ window.renderCharacterSheet = function(data) {
 
             if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
                 const dataActor = window.actoresJugador[selectedActorId];
-                if (dataActor && dataActor.sprite) {
-                    currentDisplayAvatar = dataActor.sprite;
+                if (dataActor) {
+                    currentDisplayAvatar = dataActor.icono || dataActor.sprite || currentDisplayAvatar;
                 }
             }
 
