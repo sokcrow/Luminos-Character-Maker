@@ -5460,15 +5460,14 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     bottom: 90px;
     right: 20px;
     z-index: 9999;
-    background: #111;
-    color: var(--border-accent);
-    border: 2px solid var(--border-accent);
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
+    background: #0f0f0f;
+    color: #F5F5DC;
+    border: 1px solid #FFD700;
+    border-radius: 0;
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(196, 154, 0, 0.5), inset 0 0 5px rgba(0,0,0,0.8);
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
@@ -5476,9 +5475,10 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 }
 
 .btn-global-inventory:hover {
-    transform: scale(1.1);
-    background: #222;
-    box-shadow: 0 0 20px rgba(196, 154, 0, 0.8), inset 0 0 5px rgba(0,0,0,0.8);
+    transform: scale(1.05);
+    background: #F5F5DC;
+    color: #0f0f0f;
+    border: 1px solid #3E2723;
 }
 
 #tienda-fisica-badge {
@@ -6152,18 +6152,12 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     #btn-toggle-hud {
         width: 36px !important;
         height: 36px !important;
-        border-radius: 50% !important;
+        border-radius: 0 !important;
         padding: 0 !important;
         display: flex !important;
         align-items: center;
         justify-content: center;
         font-size: 16px !important;
-    }
-    #btn-toggle-hud .text-long {
-        display: none !important;
-    }
-    #btn-toggle-hud .text-short {
-        display: inline !important;
     }
 
     /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
@@ -6173,6 +6167,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         font-size: 16px !important;
         bottom: 10px !important;
         right: 10px !important;
+        border-radius: 0 !important;
     }
     .btn-global-inventory {
         width: 36px !important;
@@ -6180,6 +6175,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         font-size: 16px !important;
         bottom: 50px !important; /* Positioned just above the phone toggle */
         right: 10px !important;
+        border-radius: 0 !important;
     }
 
 
@@ -6367,21 +6363,25 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     bottom: 20px;
     right: 20px;
     z-index: 9999;
-    background: var(--bg-card);
-    color: var(--border-accent);
-    border: 2px solid var(--border-accent);
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
+    background: #0f0f0f;
+    color: #F5F5DC;
+    border: 1px solid #FFD700;
+    border-radius: 0;
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-toggle-phone:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 20px rgba(196, 154, 0, 0.8);
+    transform: scale(1.05);
+    background: #F5F5DC;
+    color: #0f0f0f;
+    border: 1px solid #3E2723;
 }
 
 .phone-hidden {
@@ -6551,46 +6551,29 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     top: 20px;
     right: 20px;
     z-index: 9999;
-    background: rgba(10, 10, 10, 0.85);
-    color: #ff3333;
-    border: 2px solid #ff3333;
-    padding: 10px 15px;
+    background: #0f0f0f;
+    color: #F5F5DC;
+    border: 1px solid #FFD700;
+    padding: 0 !important;
     font-family: 'Share Tech Mono', monospace;
-    font-size: 14px;
+    font-size: 16px !important;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
-    backdrop-filter: blur(5px);
     transition: all 0.3s ease;
-    border-radius: 4px;
+    border-radius: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
 }
 
 #btn-toggle-hud:hover {
-    background: rgba(20, 20, 20, 0.95);
-    box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+    background: #F5F5DC;
+    color: #0f0f0f;
+    border: 1px solid #3E2723;
 }
 
-/* PC-specific styles to force circular buttons just like Mobile */
-@media (min-width: 769px) {
-    #btn-toggle-hud {
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px !important;
-    }
-    #btn-toggle-hud .text-long {
-        display: none !important;
-    }
-    #btn-toggle-hud .text-short {
-        display: inline !important;
-    }
-
-
-}
 
 #player-combat-hud {
     position: fixed;
@@ -7431,15 +7414,14 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     left: 10px !important;
     width: 36px !important;
     height: 36px !important;
-    border-radius: 50% !important;
-    background: rgba(139, 0, 0, 0.8) !important;
-    border: 2px solid #d4af37 !important;
-    color: #fff !important;
+    border-radius: 0 !important;
+    background: #0f0f0f !important;
+    border: 1px solid #FFD700 !important;
+    color: #F5F5DC !important;
     font-size: 16px !important;
     cursor: pointer !important;
     z-index: 2015 !important;
     padding: 0 !important;
-    box-shadow: 0 0 10px rgba(0,0,0,0.8);
 }
 
 /* Only show the log button when the theatre view is actually active */
@@ -7450,7 +7432,9 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 #btn-toggle-theatre-log-player:hover {
-    background: rgba(180, 0, 0, 1) !important;
+    background: #F5F5DC !important;
+    color: #0f0f0f !important;
+    border: 1px solid #3E2723 !important;
     transform: scale(1.05);
 }
 
