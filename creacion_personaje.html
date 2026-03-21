@@ -6722,16 +6722,16 @@
                     }
 
                     // 3. Save to Firebase
-                    const playerId = localStorage.getItem('playerId');
-                    if (playerId) {
-                        db.ref('campaña/jugadores/' + playerId).set(luminousState).then(() => {
+                    const user = firebase.auth().currentUser;
+                    if (user) {
+                        db.ref('campaña/jugadores/' + user.uid).set(luminousState).then(() => {
                             window.location.href = 'hoja_personaje.html';
                         }).catch(err => {
                             console.error("Error saving to Firebase:", err);
                             alert("Error al guardar personaje. Revisa la conexión.");
                         });
                     } else {
-                        alert("Error: No se encontró el ID de jugador. Vuelve al inicio.");
+                        alert("Error: No se encontró usuario autenticado. Vuelve al inicio.");
                         window.location.href = 'index.html';
                     }
                 };

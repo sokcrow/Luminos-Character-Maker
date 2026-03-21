@@ -40,8 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
             window.location.replace('pantalla_dm.html');
         } else {
-            // Retrieve associated playerId if possible, or just redirect
-            // In a complete system, we'd map UID to PlayerID. For now, redirect.
             window.location.replace('hoja_personaje.html');
         }
     }
@@ -74,19 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         auth.signInWithEmailAndPassword(email, password)
             .then((userCredential) => {
-                // Look up playerId associated with this UID to set localStorage
-                db.ref('campaña/auth_mapping/' + userCredential.user.uid).once('value')
-                    .then(snapshot => {
-                        const playerId = snapshot.val();
-                        if (playerId) {
-                            localStorage.setItem('playerId', playerId);
-                        }
-                        redirectUser(userCredential.user);
-                    })
-                    .catch(err => {
-                        console.error("Error fetching auth mapping", err);
-                        redirectUser(userCredential.user);
-                    });
+                redirectUser(userCredential.user);
             })
             .catch((error) => {
                 console.error("Login error:", error);
@@ -125,8 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = loginPasswordInput.value;
         const rawPlayerId = authPlayerIdInput.value.trim();
 
-        if (!email || !password || !rawPlayerId) {
-            showError("COMPLETE TODOS LOS CAMPOS.");
+        if (!email || !password) {
+            showError("INGRESE CORREO Y CONTRASEÑA.");
             return;
         }
 
@@ -139,31 +125,39 @@ document.addEventListener('DOMContentLoaded', () => {
             .then((userCredential) => {
                 const user = userCredential.user;
 
-                // Save mapping from UID to PlayerId
-                db.ref('campaña/auth_mapping/' + user.uid).set(playerId)
-                    .then(() => {
-                        localStorage.setItem('playerId', playerId);
+                if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
+                    redirectUser(user);
+                    return;
+                }
 
-                        // Check if player profile exists, if not, prepare to init or redirect to creation
-                        db.ref('campaña/jugadores/' + playerId).once('value').then(snapshot => {
-                            if (!snapshot.exists()) {
-                                // For now, we redirect to creacion_personaje or just hoja_personaje
-                                // The original system redirected to creacion_personaje if localState didn't exist
-                                window.location.replace('creacion_personaje.html');
-                            } else {
-                                redirectUser(user);
-                            }
-                        }).catch(err => {
-                            console.error("Firebase error checking player:", err);
-                            redirectUser(user);
-                        });
-                    })
-                    .catch(err => {
-                        console.error("Error saving mapping:", err);
-                        showError("ERROR INTERNO AL REGISTRAR.");
-                        btnRegisterSubmit.disabled = false;
-                        btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
+                if (playerId) {
+                    // Check if legacy player profile exists
+                    db.ref('campaña/jugadores/' + playerId).once('value').then(snapshot => {
+                        if (snapshot.exists()) {
+                            // Data exists, migrate it to the new UID node
+                            const legacyData = snapshot.val();
+                            db.ref('campaña/jugadores/' + user.uid).set(legacyData)
+                                .then(() => {
+                                    redirectUser(user);
+                                })
+                                .catch(err => {
+                                    console.error("Error migrating player data:", err);
+                                    showError("ERROR AL MIGRAR DATOS.");
+                                    btnRegisterSubmit.disabled = false;
+                                    btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
+                                });
+                        } else {
+                            // No legacy data found, initialize blank profile or redirect to creation
+                            window.location.replace('creacion_personaje.html');
+                        }
+                    }).catch(err => {
+                        console.error("Firebase error checking player:", err);
+                        redirectUser(user);
                     });
+                } else {
+                    // New user without legacy data
+                    window.location.replace('creacion_personaje.html');
+                }
             })
             .catch((error) => {
                 console.error("Registration error:", error);
