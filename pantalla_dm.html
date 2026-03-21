@@ -4129,7 +4129,18 @@
 
                 const charHexColor = msg.color_nombre || '#fff';
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace('#', '')}?text=${msg.nombre ? msg.nombre.charAt(0) : '?'}`;
-                const iconoSrc = msg.icono || defaultFallbackIcon;
+
+                let dynamicIcon = null;
+                if (typeof dbActoresCache !== 'undefined' && dbActoresCache) {
+                    const actorMatch = Object.values(dbActoresCache).find(actor =>
+                        actor.nombre && msg.nombre && actor.nombre.toLowerCase() === msg.nombre.toLowerCase()
+                    );
+                    if (actorMatch && actorMatch.icono) {
+                        dynamicIcon = actorMatch.icono;
+                    }
+                }
+
+                const iconoSrc = dynamicIcon || msg.icono || defaultFallbackIcon;
 
                 row.innerHTML = `
                   <div class="character-col">
