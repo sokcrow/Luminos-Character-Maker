@@ -88,10 +88,35 @@
 // Firebase Init for Character Sheet
 const auth = firebase.auth();
 
-// Route Guard
+let playerId = null;
+let currentPlayerData = {};
+let currentActorListener = null;
+
+// VARIABLES GLOBALES ESTRICTAS
+window.datosJugador = null;
+window.actoresJugador = {}; // Diccionario global por Actor ID
+
+// Route Guard and Data Init
 auth.onAuthStateChanged(user => {
     if (!user) {
         window.location.replace('index.html');
+    } else {
+        playerId = user.uid;
+
+        // 1. Descargar datos base del jugador
+        db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                window.datosJugador = snapshot.val();
+                currentPlayerData = snapshot.val();
+                renderCharacterSheet(window.datosJugador);
+                if (typeof window.renderRecetasCrafteo === 'function') {
+                    window.renderRecetasCrafteo();
+                }
+                if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
+                    window.actualizarExpresionesDesdeDropdown();
+                }
+            }
+        });
     }
 });
 
@@ -106,33 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error signing out:', error);
             });
         });
-    }
-});
-
-const playerId = localStorage.getItem('playerId');
-if (!playerId) {
-    window.location.replace('index.html'); // Proteccion de ruta
-}
-
-let currentPlayerData = {};
-let currentActorListener = null;
-
-// VARIABLES GLOBALES ESTRICTAS
-window.datosJugador = null;
-window.actoresJugador = {}; // Diccionario global por Actor ID
-
-// 1. Descargar datos base del jugador
-db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
-    if (snapshot.exists()) {
-        window.datosJugador = snapshot.val();
-        currentPlayerData = snapshot.val();
-        renderCharacterSheet(window.datosJugador);
-        if (typeof window.renderRecetasCrafteo === 'function') {
-            window.renderRecetasCrafteo();
-        }
-        if (typeof window.actualizarExpresionesDesdeDropdown === 'function') {
-            window.actualizarExpresionesDesdeDropdown();
-        }
     }
 });
 
@@ -153,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleEquipItem = async (itemKey, slotId) => {
-        const playerId = localStorage.getItem('playerId');
         if (!playerId) return;
 
         const invRef = db.ref(`campaña/jugadores/${playerId}/inventario_activo`);
@@ -223,7 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  const itemKey = e.dataTransfer.getData('text/plain');
                  if (!itemKey) return;
 
-                 const playerId = localStorage.getItem('playerId');
                  if (playerId) {
                      await db.ref(`campaña/jugadores/${playerId}/inventario_activo/${itemKey}/equipped_slot`).remove();
                  }
@@ -258,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const slotId = targetSlot.getAttribute('data-slot-id');
                 await handleEquipItem(draggedItemKey, slotId);
             } else if (elemBelow.closest('#inv-active-grid')) {
-                const playerId = localStorage.getItem('playerId');
                 if (playerId) {
                     await db.ref(`campaña/jugadores/${playerId}/inventario_activo/${draggedItemKey}/equipped_slot`).remove();
                 }
