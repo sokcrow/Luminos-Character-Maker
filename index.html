@@ -306,40 +306,6 @@
             text-shadow: 0 0 5px rgba(255,0,60,0.5);
             display: none; /* hidden by default */
         }
-
-        /* Loading Overlay Styles */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #0B0A0A; /* Limbus Deep Black */
-            z-index: 9999; /* Stay on top of absolutely everything */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 1s ease-in-out;
-            pointer-events: none; /* Let clicks pass if it fades */
-        }
-
-        .loading-text {
-            color: #D32F2F; /* Limbus Red */
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-shadow: 0 0 10px #FFD700; /* Limbus Gold glow */
-        }
-
-        .loading-text .cursor {
-            animation: blink 1s step-end infinite;
-        }
-
-        @keyframes blink {
-            50% { opacity: 0; }
-        }
-
     </style>
 </head>
 <body>
@@ -348,11 +314,6 @@
     <video autoplay muted loop id="bg-video">
         <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
     </video>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="loading-text">Conectando al servidor...<span class="cursor">_</span></div>
-    </div>
 
     <!-- Splash Screen -->
     <div id="splash-screen">
@@ -390,12 +351,7 @@
             <input type="password" id="auth-password" placeholder="Clave de acceso...">
         </div>
 
-        <!-- Legacy Player ID input for registration (unhidden via JS during register mode) -->
-        <div class="input-group" id="player-id-group" style="display: none;">
-            <label for="auth-player-id">Nombre de tu Personaje Anterior (Opcional, para recuperar datos)</label>
-            <input type="text" id="auth-player-id" placeholder="Nombre exacto o déjalo en blanco...">
-        </div>
-
+        
         <div class="flavor-text">
             "No pierdas tiempo, entra ya!"
         </div>
@@ -520,7 +476,6 @@
         const btnRegisterMode = document.getElementById('btn-register-mode');
         const btnRegisterSubmit = document.getElementById('btn-register-submit');
         const btnLoginMode = document.getElementById('btn-login-mode');
-        const playerIdGroup = document.getElementById('player-id-group');
         const flavorText = document.querySelector('.flavor-text');
         const headerText = document.querySelector('h1');
 
@@ -529,7 +484,6 @@
             btnRegisterMode.style.display = 'none';
             btnRegisterSubmit.style.display = 'block';
             btnLoginMode.style.display = 'block';
-            playerIdGroup.style.display = 'flex';
             headerText.innerText = "NUEVO RECLUTA";
             flavorText.innerText = "La maquinaria necesita carne fresca.";
         });
@@ -539,7 +493,6 @@
             btnRegisterMode.style.display = 'block';
             btnRegisterSubmit.style.display = 'none';
             btnLoginMode.style.display = 'none';
-            playerIdGroup.style.display = 'none';
             headerText.innerText = "SISTEMA DE IDENTIFICACIÓN";
             flavorText.innerText = '"No pierdas tiempo, entra ya!"';
         });
