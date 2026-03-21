@@ -113,64 +113,137 @@ db.ref('campaña/jugadores/' + playerId).on('value', (snapshot) => {
     }
 });
 
-// Set up Drop Zones for Equipment Panel
+// Set up Drop Zones for Equipment Panel (PC Drag & Drop + Mobile Touch)
 document.addEventListener('DOMContentLoaded', () => {
-    const equipSlots = document.querySelectorAll('.equip-slot');
     const activeInvGrid = document.getElementById('inv-active-grid');
 
-    // Allow dropping on equip slots
-    equipSlots.forEach(slot => {
-         slot.addEventListener('dragover', (e) => {
-             e.preventDefault(); // allow drop
-         });
-         slot.addEventListener('drop', async (e) => {
-             e.preventDefault();
-             const itemKey = e.dataTransfer.getData('text/plain');
-             const slotId = slot.getAttribute('data-slot-id');
-             if (!itemKey || !slotId) return;
+    // Configuración para el arrastre y validaciones
+    const allowedTypes = {
+        'armadura': ['armadura'],
+        'arma_principal': ['arma', 'escudo'],
+        'arma_secundaria': ['arma', 'escudo'],
+        'municion': ['municion', 'consumible'],
+        'accesorio_1': ['accesorio', 'gadget'],
+        'accesorio_2': ['accesorio', 'gadget'],
+        'accesorio_3': ['accesorio', 'gadget'],
+        'accesorio_4': ['accesorio', 'gadget']
+    };
 
-             const playerId = localStorage.getItem('playerId');
-             if (!playerId) return;
+    const handleEquipItem = async (itemKey, slotId) => {
+        const playerId = localStorage.getItem('playerId');
+        if (!playerId) return;
 
-             const invRef = db.ref(`campaña/jugadores/${playerId}/inventario_activo`);
+        const invRef = db.ref(`campaña/jugadores/${playerId}/inventario_activo`);
+        const snap = await invRef.once('value');
+        const items = snap.val() || {};
+        const draggingItem = items[itemKey];
 
-             // Check if slot already has an item equipped
-             const snap = await invRef.once('value');
-             const items = snap.val() || {};
+        if (!draggingItem) return;
 
-             const updates = {};
-             // Find previously equipped item in this slot and unequip it
-             for (const [key, item] of Object.entries(items)) {
-                 if (item.equipped_slot === slotId && key !== itemKey) {
-                     updates[`${key}/equipped_slot`] = null;
+        // Validación de tipos
+        let itemTags = draggingItem.tags ? (Array.isArray(draggingItem.tags) ? draggingItem.tags : draggingItem.tags.split(',')) : [];
+        let itemTypes = [draggingItem.tipo, ...itemTags].filter(Boolean).map(t => t.trim().toLowerCase());
+
+        let allowed = allowedTypes[slotId] || [];
+        let isTypeValid = allowed.some(a => itemTypes.some(t => t.includes(a))) || itemTypes.length === 0;
+
+        if (slotId.includes('accesorio') && (itemTypes.includes('arma') || itemTypes.includes('armadura'))) {
+             isTypeValid = false; // No armas ni armaduras en accesorios
+        }
+
+        if (!isTypeValid) {
+            alert(`No puedes equipar esto aquí. Slot: ${slotId}. Requiere: ${allowed.join(', ')}`);
+            return;
+        }
+
+        const updates = {};
+        for (const [key, item] of Object.entries(items)) {
+            if (item.equipped_slot === slotId && key !== itemKey) {
+                updates[`${key}/equipped_slot`] = null;
+            }
+        }
+
+        if (slotId.includes('arma_') && itemTypes.some(t => t.includes('fuego'))) {
+            console.log("Arma de fuego detectada. Asegúrate de tener balas en el slot de Munición.");
+        }
+
+        updates[`${itemKey}/equipped_slot`] = slotId;
+        await invRef.update(updates);
+    };
+
+    const bindDesktopEvents = () => {
+        const equipSlots = document.querySelectorAll('.equip-slot');
+        equipSlots.forEach(slot => {
+             slot.addEventListener('dragover', (e) => {
+                 e.preventDefault();
+                 slot.style.borderColor = '#00ff00';
+             });
+             slot.addEventListener('dragleave', (e) => {
+                 slot.style.borderColor = '';
+             });
+             slot.addEventListener('drop', async (e) => {
+                 e.preventDefault();
+                 slot.style.borderColor = '';
+                 const itemKey = e.dataTransfer.getData('text/plain');
+                 const slotId = slot.getAttribute('data-slot-id');
+                 if (!itemKey || !slotId) return;
+                 await handleEquipItem(itemKey, slotId);
+             });
+        });
+
+        if (activeInvGrid) {
+             activeInvGrid.addEventListener('dragover', (e) => {
+                 e.preventDefault();
+             });
+             activeInvGrid.addEventListener('drop', async (e) => {
+                 e.preventDefault();
+                 const itemKey = e.dataTransfer.getData('text/plain');
+                 if (!itemKey) return;
+
+                 const playerId = localStorage.getItem('playerId');
+                 if (playerId) {
+                     await db.ref(`campaña/jugadores/${playerId}/inventario_activo/${itemKey}/equipped_slot`).remove();
                  }
-             }
-             // Equip new item
-             updates[`${itemKey}/equipped_slot`] = slotId;
+             });
+        }
+    };
+    bindDesktopEvents();
 
-             invRef.update(updates);
-         });
+    let draggedItemKey = null;
+
+    document.body.addEventListener('touchstart', (e) => {
+        const slot = e.target.closest('.inv-item-slot, .equip-slot');
+        if (!slot) return;
+
+        const isGridItem = slot.classList.contains('inv-item-slot');
+        const isEquippedItem = slot.classList.contains('equip-slot') && slot.dataset.equippedItemKey;
+
+        if (isGridItem || isEquippedItem) {
+             draggedItemKey = slot.dataset.equippedItemKey || slot.dataset.key || null;
+        }
+    }, {passive: true});
+
+    document.body.addEventListener('touchend', async (e) => {
+        if (!draggedItemKey) return;
+
+        const touch = e.changedTouches[0] || e.touches[0];
+        const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (elemBelow) {
+            const targetSlot = elemBelow.closest('.equip-slot');
+            if (targetSlot) {
+                const slotId = targetSlot.getAttribute('data-slot-id');
+                await handleEquipItem(draggedItemKey, slotId);
+            } else if (elemBelow.closest('#inv-active-grid')) {
+                const playerId = localStorage.getItem('playerId');
+                if (playerId) {
+                    await db.ref(`campaña/jugadores/${playerId}/inventario_activo/${draggedItemKey}/equipped_slot`).remove();
+                }
+            }
+        }
+        draggedItemKey = null;
     });
 
-    // Allow dropping back to active inventory (Unequip)
-    if (activeInvGrid) {
-         activeInvGrid.addEventListener('dragover', (e) => {
-             e.preventDefault(); // allow drop
-         });
-         activeInvGrid.addEventListener('drop', (e) => {
-             e.preventDefault();
-             const itemKey = e.dataTransfer.getData('text/plain');
-             if (!itemKey) return;
-
-             const playerId = localStorage.getItem('playerId');
-             if (!playerId) return;
-
-             // Unequip item
-             db.ref(`campaña/jugadores/${playerId}/inventario_activo/${itemKey}`).update({
-                 equipped_slot: null
-             });
-         });
-    }
 });
 
 // 2. Llenar el menú principal con los Actores (Usando el Actor ID)
@@ -1049,6 +1122,8 @@ window.addEventListener('DOMContentLoaded', () => {
                  if(iconContainer) iconContainer.innerHTML = '';
                  const nameContainer = slot.querySelector('.item-name');
                  if(nameContainer) nameContainer.innerText = 'Vacío';
+                 const tierContainer = slot.querySelector('.tier');
+                 if(tierContainer) tierContainer.innerText = '';
                  slot.querySelectorAll('.keyword-node').forEach(node => {
                      node.className = 'keyword-node empty';
                  });
@@ -1067,6 +1142,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!isStash && item.equipped_slot) {
                 const targetSlot = document.querySelector(`.equip-slot[data-slot-id="${item.equipped_slot}"]`);
                 if (targetSlot) {
+                    const tierContainer = targetSlot.querySelector('.tier');
+                    if(tierContainer) {
+                         const romanTiers = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+                         const t = parseInt(item.tier) || 0;
+                         tierContainer.innerText = romanTiers[t] || "";
+                    }
                     const iconContainer = targetSlot.querySelector('.item-icon');
                     if(iconContainer) {
                          const imgSrc = item.icono || "https://via.placeholder.com/40";
@@ -1113,20 +1194,27 @@ window.addEventListener('DOMContentLoaded', () => {
             const romanTier = romanTiers[tIdx] || "I";
 
             // Guardar info para los filtros
+            slot.dataset.key = item.key;
             slot.dataset.name = (item.nombre || '').toLowerCase();
             slot.dataset.tier = romanTier.toLowerCase();
             slot.dataset.tags = itemTags.join(',').toLowerCase();
 
             const imgSrc = item.icono || "https://via.placeholder.com/40";
             slot.innerHTML = `
-                <div class="item-tier-indicator">${romanTier}</div>
-                <img src="${imgSrc}" alt="${item.nombre || 'Desconocido'}" />
-                <div class="item-quantity">x${item.cantidad || 1}</div>
+                <span class="tier">${romanTier}</span>
+                <div class="item-display">
+                    <div class="item-icon" style="background-image: url('${imgSrc}');"></div>
+                    <span class="item-name">${item.nombre || 'Vacío'}</span>
+                </div>
+                <div class="item-quantity" style="position: absolute; bottom: 2px; right: 4px; font-size: 0.7em; color: #aaa;">x${item.cantidad || 1}</div>
             `;
+            slot.classList.add('inv-item-slot'); // Agregar la nueva clase del grid LCM
+            slot.classList.remove('item-slot');  // Quitar la clase antigua para evitar conflictos
+
 
             slot.addEventListener('click', () => {
                 // Remove active from all slots
-                document.querySelectorAll('.item-slot').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.item-slot, .inv-item-slot').forEach(s => s.classList.remove('active'));
                 slot.classList.add('active');
 
                 // Show detail card
