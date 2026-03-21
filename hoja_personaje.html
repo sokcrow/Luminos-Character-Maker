@@ -9,6 +9,65 @@
 
 
 <style>
+  #system-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background-color: #0B0A0A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1s ease;
+  }
+
+  #system-loading-overlay img {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    opacity: 1;
+    z-index: -1;
+  }
+
+  .loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    z-index: 2;
+  }
+
+  #system-loading-indicator {
+    color: #FFD700;
+    font-family: 'BebasKai', sans-serif;
+    font-size: 2rem;
+    text-shadow: 2px 2px 4px #000;
+  }
+
+  .loading-bar-container {
+    width: 300px;
+    height: 10px;
+    background-color: #3E2723;
+    border: 1px solid #FFD700;
+    overflow: hidden;
+  }
+
+  .loading-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #FFD700;
+    animation: loadingAnim 2s infinite ease-in-out;
+  }
+
+  @keyframes loadingAnim {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+  }
+
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
 @font-face {
@@ -211,6 +270,18 @@
 </style>
 </head>
 <body>
+  <div id="system-loading-overlay">
+    <img src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927" alt="Loading">
+    <div class="loading-content">
+      <div id="system-loading-indicator">
+        ESTABLECIENDO VÍNCULO DE ALMAS...
+      </div>
+      <div class="loading-bar-container">
+        <div class="loading-bar"></div>
+      </div>
+    </div>
+  </div>
+
  <div style="margin: 0 auto; max-width: 1200px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
  <button class="btn-back" onclick="window.location.replace('index.html')">&lt; Volver al Menú</button>
  <button id="btn-cerrar-sesion" style="background: transparent; color: var(--red-neon); border: 1px solid var(--red-neon); padding: 5px 10px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; cursor: pointer; transition: all 0.3s; font-size: 0.9rem;">Cerrar Sesión</button>

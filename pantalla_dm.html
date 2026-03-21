@@ -903,6 +903,65 @@
     </style>
 
     <style>
+      #system-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 9999;
+        background-color: #0B0A0A;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 1s ease;
+      }
+
+      #system-loading-overlay img {
+        position: absolute;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        opacity: 1;
+        z-index: -1;
+      }
+
+      .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        z-index: 2;
+      }
+
+      #system-loading-indicator {
+        color: #FFD700;
+        font-family: 'BebasKai', sans-serif;
+        font-size: 2rem;
+        text-shadow: 2px 2px 4px #000;
+      }
+
+      .loading-bar-container {
+        width: 300px;
+        height: 10px;
+        background-color: #3E2723;
+        border: 1px solid #FFD700;
+        overflow: hidden;
+      }
+
+      .loading-bar {
+        width: 0%;
+        height: 100%;
+        background-color: #FFD700;
+        animation: loadingAnim 2s infinite ease-in-out;
+      }
+
+      @keyframes loadingAnim {
+        0% { width: 0%; }
+        50% { width: 100%; }
+        100% { width: 0%; }
+      }
+
       @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap");
       @font-face {
         font-family: "BebasKai";
@@ -911,6 +970,17 @@
     </style>
   </head>
   <body>
+    <div id="system-loading-overlay">
+      <img src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927" alt="Loading">
+      <div class="loading-content">
+        <div id="system-loading-indicator">
+          ESTABLECIENDO VÍNCULO DE ALMAS...
+        </div>
+        <div class="loading-bar-container">
+          <div class="loading-bar"></div>
+        </div>
+      </div>
+    </div>
     <style>
       /* Tab Navigation Styles */
       .dm-tabs-nav {
@@ -3477,13 +3547,19 @@
       const auth = firebase.auth();
       const db = firebase.database();
 
+      let isInitialLoad = true;
+
       // --- LÓGICA DE AUTENTICACIÓN Y PROTECCIÓN DE RUTA DM ---
       auth.onAuthStateChanged((user) => {
         if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
           // Unauthenticated or not the DM -> Kick them out immediately
           window.location.replace("index.html");
+        } else {
+            initializeDMApp();
         }
       });
+
+function initializeDMApp() {
 
       document
         .getElementById("btn-cerrar-sesion")
@@ -3786,6 +3862,17 @@
       // Escuchar el estado actual desde Firebase para inicializar las variables locales
       db.ref("campaña/calendario").on("value", (snapshot) => {
         const data = snapshot.val();
+
+        // Hide loading overlay on first successful initial data read
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          const overlay = document.getElementById("system-loading-overlay");
+          if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 1000);
+          }
+        }
+
         if (data) {
           estadoActual.año = data.año || 984;
           estadoActual.dia = data.dia || 1;
@@ -7467,6 +7554,7 @@
           }
         });
       }
+}
     </script>
   </body>
 </html>
