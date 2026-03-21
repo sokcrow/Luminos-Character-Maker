@@ -16,7 +16,7 @@
     width: 100vw;
     height: 100vh;
     z-index: 9999;
-    background-color: #050505;
+    background-color: #0B0A0A;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -24,22 +24,48 @@
   }
 
   #system-loading-overlay img {
-    width: auto;
-    height: 50vh;
-    opacity: 0.3;
-    filter: grayscale(20%);
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    opacity: 1;
+    z-index: -1;
+  }
+
+  .loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    z-index: 2;
   }
 
   #system-loading-indicator {
-    position: absolute;
-    bottom: 40px;
-    left: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: start;
-    color: #cc0000;
+    color: #FFD700;
     font-family: 'BebasKai', sans-serif;
-    font-size: 1.5rem;
+    font-size: 2rem;
+    text-shadow: 2px 2px 4px #000;
+  }
+
+  .loading-bar-container {
+    width: 300px;
+    height: 10px;
+    background-color: #3E2723;
+    border: 1px solid #FFD700;
+    overflow: hidden;
+  }
+
+  .loading-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #FFD700;
+    animation: loadingAnim 2s infinite ease-in-out;
+  }
+
+  @keyframes loadingAnim {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
   }
 
 
@@ -246,8 +272,13 @@
 <body>
   <div id="system-loading-overlay">
     <img src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927" alt="Loading">
-    <div id="system-loading-indicator">
-      ESTABLECIENDO VÍNCULO DE ALMAS...
+    <div class="loading-content">
+      <div id="system-loading-indicator">
+        ESTABLECIENDO VÍNCULO DE ALMAS...
+      </div>
+      <div class="loading-bar-container">
+        <div class="loading-bar"></div>
+      </div>
     </div>
   </div>
 
