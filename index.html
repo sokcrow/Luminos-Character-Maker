@@ -351,11 +351,6 @@
             <input type="password" id="auth-password" placeholder="Clave de acceso...">
         </div>
 
-        <!-- Legacy Player ID input for registration (unhidden via JS during register mode) -->
-        <div class="input-group" id="player-id-group" style="display: none;">
-            <label for="auth-player-id">Nombre de tu Personaje Anterior (Opcional, para recuperar datos)</label>
-            <input type="text" id="auth-player-id" placeholder="Nombre exacto o déjalo en blanco...">
-        </div>
 
         <div class="flavor-text">
             "No pierdas tiempo, entra ya!"
@@ -481,7 +476,6 @@
         const btnRegisterMode = document.getElementById('btn-register-mode');
         const btnRegisterSubmit = document.getElementById('btn-register-submit');
         const btnLoginMode = document.getElementById('btn-login-mode');
-        const playerIdGroup = document.getElementById('player-id-group');
         const flavorText = document.querySelector('.flavor-text');
         const headerText = document.querySelector('h1');
 
@@ -490,7 +484,6 @@
             btnRegisterMode.style.display = 'none';
             btnRegisterSubmit.style.display = 'block';
             btnLoginMode.style.display = 'block';
-            playerIdGroup.style.display = 'flex';
             headerText.innerText = "NUEVO RECLUTA";
             flavorText.innerText = "La maquinaria necesita carne fresca.";
         });
@@ -500,7 +493,6 @@
             btnRegisterMode.style.display = 'block';
             btnRegisterSubmit.style.display = 'none';
             btnLoginMode.style.display = 'none';
-            playerIdGroup.style.display = 'none';
             headerText.innerText = "SISTEMA DE IDENTIFICACIÓN";
             flavorText.innerText = '"No pierdas tiempo, entra ya!"';
         });

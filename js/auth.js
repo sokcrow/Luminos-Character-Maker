@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // These IDs are mapped directly from index.html
     const loginEmailInput = document.getElementById('auth-email');
     const loginPasswordInput = document.getElementById('auth-password');
-    const authPlayerIdInput = document.getElementById('auth-player-id'); // for registration
 
     const btnLogin = document.getElementById('btn-login'); // Iniciar Sesión button
     const btnRegisterSubmit = document.getElementById('btn-register-submit'); // Confirm Registration button
@@ -103,20 +102,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // --- REGISTRATION LOGIC ---
     const handleRegister = () => {
         clearError();
         const email = loginEmailInput.value.trim();
         const password = loginPasswordInput.value;
-        const rawPlayerId = authPlayerIdInput.value.trim();
 
         if (!email || !password) {
             showError("INGRESE CORREO Y CONTRASEÑA.");
             return;
         }
-
-        const playerId = rawPlayerId.replace(/\s+/g, '');
 
         btnRegisterSubmit.disabled = true;
         btnRegisterSubmit.textContent = "REGISTRANDO...";
@@ -130,34 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                if (playerId) {
-                    // Check if legacy player profile exists
-                    db.ref('campaña/jugadores/' + playerId).once('value').then(snapshot => {
-                        if (snapshot.exists()) {
-                            // Data exists, migrate it to the new UID node
-                            const legacyData = snapshot.val();
-                            db.ref('campaña/jugadores/' + user.uid).set(legacyData)
-                                .then(() => {
-                                    redirectUser(user);
-                                })
-                                .catch(err => {
-                                    console.error("Error migrating player data:", err);
-                                    showError("ERROR AL MIGRAR DATOS.");
-                                    btnRegisterSubmit.disabled = false;
-                                    btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
-                                });
-                        } else {
-                            // No legacy data found, initialize blank profile or redirect to creation
-                            window.location.replace('creacion_personaje.html');
-                        }
-                    }).catch(err => {
-                        console.error("Firebase error checking player:", err);
-                        redirectUser(user);
-                    });
-                } else {
-                    // New user without legacy data
-                    window.location.replace('creacion_personaje.html');
-                }
+                // For everyone else, just go to hoja_personaje which now handles character linking
+                window.location.replace('hoja_personaje.html');
             })
             .catch((error) => {
                 console.error("Registration error:", error);
@@ -174,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
             });
     };
+
+
 
     if (btnRegisterSubmit) {
         btnRegisterSubmit.addEventListener('click', handleRegister);
