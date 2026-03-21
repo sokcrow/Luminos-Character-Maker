@@ -644,13 +644,74 @@ auth.onAuthStateChanged((user) => {
   if (!user) {
     window.location.replace("index.html");
   } else {
-    // Check playerId strictly from localStorage
+    // Campaign Invite System Flow
     let localPlayerId = localStorage.getItem("playerId");
 
     if (!localPlayerId || localPlayerId.trim() === "") {
-        // Strict redirection if playerId is missing, as per instructions
-        window.location.replace("index.html");
+        // Show soft key modal over the loading screen
+        const modal = document.getElementById("character-name-modal");
+        const inputName = document.getElementById("character-name-input");
+        const inputCode = document.getElementById("campaign-code-input");
+        const btnConfirm = document.getElementById("btn-confirm-character-name");
+
+        if (modal && inputName && inputCode && btnConfirm) {
+            modal.style.display = "flex";
+
+            // Cleanup previous listeners if any exist
+            const newBtn = btnConfirm.cloneNode(true);
+            btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
+
+            newBtn.addEventListener("click", () => {
+                const charName = inputName.value.trim();
+                const inviteCode = inputCode.value.trim();
+
+                if (!charName || !inviteCode) {
+                    alert("Debes ingresar el nombre del personaje y el código de acceso.");
+                    return;
+                }
+
+                // 1. Verify Access Code
+                db.ref("campaña/config/accessCode").once("value").then(snapCode => {
+                    const serverCode = snapCode.val();
+
+                    if (inviteCode !== serverCode) {
+                        alert("El código de acceso es incorrecto o ha caducado.");
+                        return;
+                    }
+
+                    // 2. Verify Character Name (folder must exist)
+                    // We use case-insensitive lookup, but require exact match for the folder key.
+                    // For safety, let's just do an exact check first.
+                    db.ref("campaña/jugadores").once("value").then(snapPlayers => {
+                        const players = snapPlayers.val() || {};
+                        const foundKey = Object.keys(players).find(k => k.toLowerCase() === charName.toLowerCase());
+
+                        if (!foundKey) {
+                            alert(`No se encontró un archivo para el personaje: ${charName}. El Director debe crearlo primero.`);
+                            return;
+                        }
+
+                        // 3. Automatic Binding
+                        db.ref(`campaña/jugadores/${foundKey}`).update({ uid: user.uid }).then(() => {
+                            // Success! Save to local storage and initialize
+                            localStorage.setItem("playerId", foundKey);
+                            playerId = foundKey;
+                            modal.style.display = "none";
+                            initializeCharacterSheet();
+                        }).catch(err => {
+                            console.error("Error binding UID:", err);
+                            alert("Hubo un error al establecer el vínculo de almas.");
+                        });
+
+                    });
+                }).catch(err => {
+                    console.error("Error reading access code:", err);
+                    alert("Error de conexión al verificar el código.");
+                });
+            });
+        }
     } else {
+        // Player already has a bound character locally
         playerId = localPlayerId;
         initializeCharacterSheet();
     }
