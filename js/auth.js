@@ -17,6 +17,32 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.database();
 
+// --- Firebase Auth State Listener (Route Guard for Index) ---
+// Run as early as possible to bypass splash screen if returning
+auth.onAuthStateChanged(user => {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (user) {
+        // Already logged in, redirect immediately without hiding overlay
+        redirectUser(user);
+    } else {
+        // No user found, fade out loading overlay to reveal splash screen
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+            }, 1000); // Wait for transition
+        }
+    }
+});
+
+function redirectUser(user) {
+    if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
+        window.location.replace('pantalla_dm.html');
+    } else {
+        window.location.replace('hoja_personaje.html');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // These IDs are mapped directly from index.html
     const loginEmailInput = document.getElementById('auth-email');
@@ -27,22 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRegisterSubmit = document.getElementById('btn-register-submit'); // Confirm Registration button
 
     const errorBox = document.getElementById('auth-error');
-
-    // --- Firebase Auth State Listener (Route Guard for Index) ---
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            // Already logged in, redirect immediately
-            redirectUser(user);
-        }
-    });
-
-    function redirectUser(user) {
-        if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
-            window.location.replace('pantalla_dm.html');
-        } else {
-            window.location.replace('hoja_personaje.html');
-        }
-    }
 
     function showError(msg) {
         if (!errorBox) return;
