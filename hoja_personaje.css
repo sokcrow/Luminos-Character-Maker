@@ -7547,11 +7547,15 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     line-height: 1.4;
     font-weight: 500;
     padding-right: 15px;
+    min-width: 0; /* Ensures flex child doesn't exceed parent width */
 }
 
 #theatre-view-player #theatre-log-container .text-col p {
     margin: 0;
     color: var(--text-color);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 #theatre-view-player #theatre-log-container .dialogue-footer {
