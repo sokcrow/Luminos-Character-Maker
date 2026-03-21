@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luminous</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
 
         :root {
             --neon-red: #ff003c;
@@ -21,20 +22,105 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #050505;
+            overflow: hidden; /* Prevent scrollbar from 110vw line */
+            background-color: transparent;
             font-family: 'Oswald', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             color: var(--text-main);
             /* Deep dark tones with red scanlines */
-            background-image: repeating-linear-gradient(
+            /* background-image removed so it doesn't cover the video */
+            /* repeating-linear-gradient(
                 0deg,
                 rgba(255, 0, 60, 0.05),
                 rgba(255, 0, 60, 0.05) 1px,
                 transparent 1px,
                 transparent 4px
-            );
+            ); */
+        }
+
+
+        /* Video Background */
+        #bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            filter: brightness(0.8);
+        }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 12vh;
+            align-items: center;
+            z-index: 20;
+            background-color: transparent;
+            transition: opacity 1s ease-out;
+            gap: 20px;
+        }
+
+        .main-logo {
+            max-width: 40%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .red-strip-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 110vw; /* Extend beyond viewport */
+            margin-bottom: 20px;
+        }
+
+        .red-strip-base {
+            display: block;
+            width: 100%;
+            min-width: 110vw; /* Ensure it stretches */
+        }
+
+        .icon-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 25vw; /* Adjust icon size down since container grew */
+        }
+
+        #start-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3rem;
+            color: var(--neon-gold);
+            cursor: pointer;
+            letter-spacing: 2px;
+            animation: blink 1.5s infinite;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
+            user-select: none;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Hide auth-terminal initially */
+        .auth-terminal {
+            display: none;
+            opacity: 0;
+            transition: opacity 1s ease-in;
         }
 
         /* Industrial Machinery Control Panel */
@@ -224,7 +310,27 @@
 </head>
 <body>
 
-    <div class="auth-terminal">
+    <!-- Background Video -->
+    <video autoplay muted loop id="bg-video">
+        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
+    </video>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <img src="https://imgur.com/ujJb0vM.png" class="main-logo" alt="Main Logo">
+
+        <div class="red-strip-container">
+            <img src="https://imgur.com/JZiX2vG.png" class="red-strip-base" alt="Red Strip">
+            <img src="https://imgur.com/cXX21ji.png" class="icon-overlay" alt="Icon Overlay">
+        </div>
+
+        <div id="start-text">EMPEZAR</div>
+    </div>
+
+    <!-- Sinner Audio Element -->
+    <audio id="audio-inicio"></audio>
+
+<div class="auth-terminal">
         <div class="terminal-rivets-bottom"></div>
         <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
         <div class="side-gauge side-gauge-right"><div class="gauge-fill"></div></div>
@@ -270,6 +376,85 @@
     <script src="js/auth.js"></script>
 
     <script>
+        // --- 💠 ARCHITECT: RANDOM SINNER LOGIN VOICE LOGIC ---
+        // Flavor: The Limbus terminal connects the Manager to a random Sinner on startup.
+        const sinners = {
+            "Yi Sang": ["login_10101_1.wav", "login_10101_2.wav", "login_10101_3.wav", "login_10101_4.wav"],
+            "Faust": ["login_10201_1.wav", "login_10201_2.wav", "login_10201_3.wav", "login_10201_4.wav"],
+            "Don Quixote": ["login_10301_1.wav", "login_10301_2.wav", "login_10301_3.wav", "login_10301_4.wav", "login_10301_5.wav"],
+            "Ryoshu": ["login_10401_1.wav", "login_10401_2.wav", "login_10401_3.wav", "login_10401_4.wav"],
+            "Meursault": ["login_10501_1.wav", "login_10501_2.wav", "login_10501_3.wav", "login_10501_4.wav"],
+            "Hong Lu": ["login_10601_1.wav", "login_10601_2.wav", "login_10601_3.wav"],
+            "Heathcliff": ["login_10701_1.wav", "login_10701_2.wav", "login_10701_3.wav"],
+            "Ishmael": ["login_10801_1.wav", "login_10801_2.wav", "login_10801_3.wav", "login_10801_4.wav"],
+            "Rodion": ["login_10901_1.wav", "login_10901_2.wav", "login_10901_3.wav", "login_10901_4.wav"],
+            "Sinclair": ["login_11001_1.wav", "login_11001_2.wav", "login_11001_3.wav", "login_11001_4.wav"],
+            "Outis": ["login_11101_1.wav", "login_11101_2.wav", "login_11101_3.wav"],
+            "Gregor": ["login_11201_1.wav", "login_11201_2.wav", "login_11201_3.wav", "login_11201_4.wav"]
+        };
+
+        const baseRepo = "https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/";
+        const startText = document.getElementById('start-text');
+        const splashScreen = document.getElementById('splash-screen');
+        const authTerminal = document.querySelector('.auth-terminal');
+        const audioInicio = document.getElementById('audio-inicio');
+
+        // State flag: 0 if not played, 1 if played
+        let voicePlayed = 0;
+
+        // Helper function to pick and play a random Sinner voice
+        function playRandomSinnerVoice() {
+            if (voicePlayed === 1) return;
+
+            const sinnerNames = Object.keys(sinners);
+            const randomSinner = sinnerNames[Math.floor(Math.random() * sinnerNames.length)];
+            const audioFiles = sinners[randomSinner];
+            const randomAudio = audioFiles[Math.floor(Math.random() * audioFiles.length)];
+
+            // Lore: The path must precisely identify the Sinner's identity in the database.
+            // Critical: encodeURIComponent handles spaces in Sinner names (e.g., "Don Quixote")
+            const audioUrl = `${baseRepo}${encodeURIComponent(randomSinner)}/Login/${randomAudio}`;
+
+            audioInicio.src = audioUrl;
+            audioInicio.play()
+                .then(() => {
+                    voicePlayed = 1;
+                    console.log("💠 Architect Log: Audio successful, voicePlayed state:", voicePlayed);
+                })
+                .catch(err => {
+                    console.error("💠 Architect Log: Autoplay blocked by browser. Awaiting Manager authorization (click).", err);
+                });
+        }
+
+        // --- 💠 ARCHITECT: AUTOPLAY ATTEMPT ---
+        // Flavor: The terminal attempts an automatic diagnostic connection 0.6s after boot.
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                playRandomSinnerVoice();
+            }, 600);
+        });
+
+        startText.addEventListener('click', () => {
+            // Graceful Fallback: If autoplay was blocked (voicePlayed is 0), play audio now on click.
+            if (voicePlayed === 0) {
+                playRandomSinnerVoice();
+            }
+
+            // Transition UI
+            splashScreen.style.opacity = '0';
+
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+                authTerminal.style.display = 'flex';
+
+                // Allow browser reflow before fading in
+                setTimeout(() => {
+                    authTerminal.style.opacity = '1';
+                }, 50);
+            }, 1000); // Matches the 1s CSS transition
+
+        }, { once: true }); // Flavor: Ensure audio only plays once per boot sequence to respect Manager's ears.
+
         // UI Logic to switch between Login and Register modes
         const btnLogin = document.getElementById('btn-login');
         const btnRegisterMode = document.getElementById('btn-register-mode');
