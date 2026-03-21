@@ -330,6 +330,10 @@
     <!-- Sinner Audio Element -->
     <audio id="audio-inicio"></audio>
 
+    <!-- Background Audio Elements -->
+    <audio id="audio-sfx" loop src="https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/Intro%20audio/220618_StorySound_1_busRattle.wav"></audio>
+    <audio id="audio-music" loop src="https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/Intro%20audio/Limbus%20Company%20OST%20-%20In%20Hell%20We%20Live%2C%20Lament%20Instrumental.mp3"></audio>
+
 <div class="auth-terminal">
         <div class="terminal-rivets-bottom"></div>
         <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
@@ -398,6 +402,13 @@
         const splashScreen = document.getElementById('splash-screen');
         const authTerminal = document.querySelector('.auth-terminal');
         const audioInicio = document.getElementById('audio-inicio');
+        const audioSfx = document.getElementById('audio-sfx');
+        const audioMusic = document.getElementById('audio-music');
+
+        // Set volume for audios
+        audioInicio.volume = 0.5;
+        audioSfx.volume = 0.3;
+        audioMusic.volume = 0.5;
 
         // State flag: 0 if not played, 1 if played
         let voicePlayed = 0;
@@ -426,15 +437,25 @@
                 });
         }
 
+        // Helper function to play background audio elements
+        function playBackgroundAudio() {
+            audioSfx.play().catch(err => console.error("SFX autoplay blocked", err));
+            audioMusic.play().catch(err => console.error("Music autoplay blocked", err));
+        }
+
         // --- 💠 ARCHITECT: AUTOPLAY ATTEMPT ---
         // Flavor: The terminal attempts an automatic diagnostic connection 0.6s after boot.
         window.addEventListener('load', () => {
             setTimeout(() => {
                 playRandomSinnerVoice();
+                playBackgroundAudio();
             }, 600);
         });
 
         startText.addEventListener('click', () => {
+            // Ensure background audio is playing on user interaction
+            playBackgroundAudio();
+
             // Graceful Fallback: If autoplay was blocked (voicePlayed is 0), play audio now on click.
             if (voicePlayed === 0) {
                 playRandomSinnerVoice();
