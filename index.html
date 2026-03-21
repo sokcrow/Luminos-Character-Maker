@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luminous</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
 
         :root {
             --neon-red: #ff003c;
@@ -35,6 +36,84 @@
                 transparent 1px,
                 transparent 4px
             );
+        }
+
+
+        /* Video Background */
+        #bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -2;
+            filter: brightness(0.4);
+        }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            background-color: transparent;
+            transition: opacity 1s ease-out;
+            gap: 20px;
+        }
+
+        .main-logo {
+            max-width: 80%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        .red-strip-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        .red-strip-base {
+            display: block;
+            max-width: 100%;
+        }
+
+        .icon-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 50%; /* Adjust as needed */
+        }
+
+        #start-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3rem;
+            color: var(--neon-gold);
+            cursor: pointer;
+            letter-spacing: 2px;
+            animation: blink 1.5s infinite;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
+            user-select: none;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Hide auth-terminal initially */
+        .auth-terminal {
+            display: none;
+            opacity: 0;
+            transition: opacity 1s ease-in;
         }
 
         /* Industrial Machinery Control Panel */
@@ -224,7 +303,27 @@
 </head>
 <body>
 
-    <div class="auth-terminal">
+    <!-- Background Video -->
+    <video autoplay muted loop id="bg-video">
+        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
+    </video>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <img src="https://imgur.com/ujJb0vM.png" class="main-logo" alt="Main Logo">
+
+        <div class="red-strip-container">
+            <img src="https://imgur.com/JZiX2vG.png" class="red-strip-base" alt="Red Strip">
+            <img src="https://imgur.com/cXX21ji.png" class="icon-overlay" alt="Icon Overlay">
+        </div>
+
+        <div id="start-text">EMPEZAR</div>
+    </div>
+
+    <!-- Sinner Audio Element -->
+    <audio id="audio-inicio"></audio>
+
+<div class="auth-terminal">
         <div class="terminal-rivets-bottom"></div>
         <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
         <div class="side-gauge side-gauge-right"><div class="gauge-fill"></div></div>
@@ -270,6 +369,51 @@
     <script src="js/auth.js"></script>
 
     <script>
+        // --- 💠 ARCHITECT: RANDOM SINNER LOGIN VOICE LOGIC ---
+        // Flavor: The Limbus terminal connects the Manager to a random Sinner on startup.
+        const sinners = {
+            "Don Quixote": ["login_10301_1.wav"],
+            "Ryoshu": ["login_10401_1.wav"],
+            "Yi Sang": ["login_10101_1.wav"]
+        };
+
+        const baseRepo = "https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/";
+        const startText = document.getElementById('start-text');
+        const splashScreen = document.getElementById('splash-screen');
+        const authTerminal = document.querySelector('.auth-terminal');
+        const audioInicio = document.getElementById('audio-inicio');
+
+        startText.addEventListener('click', () => {
+            // 1. Play Random Sinner Audio
+            const sinnerNames = Object.keys(sinners);
+            const randomSinner = sinnerNames[Math.floor(Math.random() * sinnerNames.length)];
+            const audioFiles = sinners[randomSinner];
+            const randomAudio = audioFiles[Math.floor(Math.random() * audioFiles.length)];
+
+            // Lore: The path must precisely identify the Sinner's identity in the database.
+            // Critical: encodeURIComponent handles spaces in Sinner names (e.g., "Don Quixote")
+            const audioUrl = `${baseRepo}${encodeURIComponent(randomSinner)}/Login/${randomAudio}`;
+
+            audioInicio.src = audioUrl;
+            audioInicio.play().catch(err => {
+                console.error("💠 Architect Log: Error playing Sinner login audio.", err);
+            });
+
+            // 2. Transition UI
+            splashScreen.style.opacity = '0';
+
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+                authTerminal.style.display = 'flex';
+
+                // Allow browser reflow before fading in
+                setTimeout(() => {
+                    authTerminal.style.opacity = '1';
+                }, 50);
+            }, 1000); // Matches the 1s CSS transition
+
+        }, { once: true }); // Flavor: Ensure audio only plays once per boot sequence to respect Manager's ears.
+
         // UI Logic to switch between Login and Register modes
         const btnLogin = document.getElementById('btn-login');
         const btnRegisterMode = document.getElementById('btn-register-mode');
