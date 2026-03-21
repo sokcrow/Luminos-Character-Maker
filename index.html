@@ -5,16 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luminous</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&display=swap');
 
         :root {
-            --gold-bright: #ffae00;
-            --gold-dim: #b37a00;
-            --cyan-tech: #00ffff;
-            --bg-dark: rgba(18, 18, 18, 0.85);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
+            --neon-red: #ff003c;
+            --neon-gold: #ffcc00;
+            --panel-bg: #111111;
+            --metal-border: #4a4a4a;
+            --brass: #b5a642;
+            --text-main: #e0e0e0;
         }
 
         body, html {
@@ -22,399 +21,282 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: transparent;
-            font-family: 'Share Tech Mono', monospace;
-            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Oswald', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             color: var(--text-main);
+            /* Deep dark tones with red scanlines */
+            background-image: repeating-linear-gradient(
+                0deg,
+                rgba(255, 0, 60, 0.05),
+                rgba(255, 0, 60, 0.05) 1px,
+                transparent 1px,
+                transparent 4px
+            );
         }
 
-        #main-bg-video {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translateX(-50%) translateY(-50%);
-            z-index: -10;
-            object-fit: cover;
-            filter: brightness(0.35) contrast(1.2);
-        }
-
-        /* View Containers */
-        .view-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-
-        .hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .fade-to-black {
-            opacity: 1;
-            background-color: black;
-            pointer-events: none;
-            z-index: 9999;
-            transition: opacity 1.5s ease, background-color 1.5s ease;
-        }
-
-        /* VISTA 1: TITLE SCREEN */
-        #title-screen {
-            cursor: pointer;
-            z-index: 10;
-            transition: opacity 1.5s ease;
-        }
-
-        .luminous-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 6rem;
-            color: var(--gold-bright);
-            margin: 0 0 20px 0;
-            text-transform: uppercase;
-            letter-spacing: 15px;
-            text-shadow: 0 0 10px var(--gold-bright), 0 0 20px var(--gold-bright), 0 0 40px var(--gold-dim);
-            text-align: center;
-        }
-
-        .title-prompt {
-            font-size: 1.2rem;
-            color: var(--text-main);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            animation: blink 1.5s infinite;
-            text-shadow: 0 0 5px var(--text-main);
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        .gradient-line {
-            width: 60%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
-            box-shadow: 0 0 8px var(--gold-bright);
-        }
-
-        /* VISTA 2: SAVE SLOT SCREEN */
-        #save-slot-screen {
-            z-index: 20;
-        }
-
-        #login-screen {
-            z-index: 20;
-        }
-
-        .save-slot-card {
-            background: var(--bg-dark);
-            border: 1px solid #333;
-            border-left: 4px solid var(--gold-bright);
-            border-right: 4px solid var(--cyan-tech);
-            padding: 30px 40px;
-            min-width: 350px;
-            cursor: pointer;
+        /* Industrial Machinery Control Panel */
+        .auth-terminal {
+            background-color: var(--panel-bg);
+            border: 4px solid var(--metal-border);
+            border-radius: 8px; /* Industrial aesthetic */
+            padding: 40px;
+            width: 450px;
+            max-width: 90%;
             position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            backdrop-filter: blur(5px);
+            box-shadow:
+                inset 0 0 20px rgba(0,0,0,0.8),
+                0 0 15px rgba(255, 0, 60, 0.3);
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
+            z-index: 10;
         }
 
-        .save-slot-card::before, .save-slot-card::after {
+        /* Screws/Rivets */
+        .auth-terminal::before, .auth-terminal::after {
             content: '';
             position: absolute;
-            width: 15px;
-            height: 15px;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-            pointer-events: none;
+            width: 12px;
+            height: 12px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
         }
+        .auth-terminal::before { top: 10px; left: 10px; }
+        .auth-terminal::after { top: 10px; right: 10px; }
 
-        .save-slot-card::before {
-            top: -2px;
-            left: -2px;
-            border-top-color: var(--gold-bright);
-            border-left-color: var(--gold-bright);
+        .terminal-rivets-bottom::before, .terminal-rivets-bottom::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
+            bottom: 10px;
         }
+        .terminal-rivets-bottom::before { left: 10px; }
+        .terminal-rivets-bottom::after { right: 10px; }
 
-        .save-slot-card::after {
-            bottom: -2px;
-            right: -2px;
-            border-bottom-color: var(--cyan-tech);
-            border-right-color: var(--cyan-tech);
-        }
 
-        .save-slot-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 10px 30px rgba(255, 174, 0, 0.2);
-            border-color: #555;
-            border-left-color: var(--cyan-tech);
-            border-right-color: var(--gold-bright);
-        }
-
-        .save-slot-card:hover::before {
-            border-top-color: var(--cyan-tech);
-            border-left-color: var(--cyan-tech);
-            width: 100%;
-            height: 100%;
-        }
-
-        .save-slot-card:hover::after {
-            border-bottom-color: var(--gold-bright);
-            border-right-color: var(--gold-bright);
-            width: 100%;
-            height: 100%;
-        }
-
-        .slot-header {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px dashed #555;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .slot-status {
-            color: var(--cyan-tech);
-            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-        }
-
-        .slot-name {
-            font-size: 1.8rem;
-            color: var(--gold-bright);
-            text-transform: uppercase;
-            margin: 0;
-            text-shadow: 0 0 5px rgba(255, 174, 0, 0.3);
-            white-space: nowrap;
+        /* Mechanical Gauges on Sides */
+        .side-gauge {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 150px;
+            background: #222;
+            border: 2px solid var(--brass);
+            border-radius: 10px;
+            box-shadow: inset 0 0 10px black;
             overflow: hidden;
-            text-overflow: ellipsis;
+        }
+        .side-gauge-left { left: -30px; }
+        .side-gauge-right { right: -30px; }
+
+        .gauge-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60%;
+            background: var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red);
+            animation: pulse-gauge 3s infinite alternate;
         }
 
-        .slot-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            background: rgba(0,0,0,0.4);
-            padding: 10px;
-            border: 1px solid #222;
+        @keyframes pulse-gauge {
+            0% { height: 60%; }
+            100% { height: 85%; }
         }
 
-        .slot-level, .slot-ahn {
+        h1 {
+            font-size: 2.5rem;
+            color: var(--neon-gold);
+            text-align: center;
+            margin: 0;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-gold);
+            letter-spacing: 2px;
+            border-bottom: 2px solid var(--neon-red);
+            padding-bottom: 15px;
+            box-shadow: 0 10px 10px -10px rgba(255, 0, 60, 0.5);
+        }
+
+        .input-group {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 5px;
         }
 
-        .detail-label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
+        label {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--brass);
             text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
         }
 
-        .detail-value {
+        input {
+            background-color: #0a0a0a;
+            border: 2px solid var(--metal-border);
+            color: var(--neon-gold);
+            padding: 12px;
+            font-family: 'Share Tech Mono', monospace;
             font-size: 1.2rem;
-            color: var(--text-main);
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 5px black;
         }
 
-        .ahn-value {
-            color: var(--cyan-tech);
+        input:focus {
+            border-color: var(--neon-red);
+            box-shadow: 0 0 8px var(--neon-red), inset 0 0 5px rgba(255,0,60,0.2);
         }
 
-        .currency-symbol {
-            font-family: sans-serif;
-            margin-right: 4px;
+        .flavor-text {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            margin: 10px 0;
+            font-size: 1.1rem;
         }
 
-        @media (max-width: 768px) {
-            .luminous-title {
-                font-size: 3.5rem;
-                letter-spacing: 8px;
-            }
-            .save-slot-card {
-                min-width: 90%;
-            }
+        .btn-glow {
+            background: linear-gradient(45deg, #400, var(--neon-red));
+            border: 2px solid var(--neon-gold);
+            color: #fff;
+            padding: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-shadow: 0 0 5px black;
+            box-shadow: 0 0 15px rgba(255, 0, 60, 0.6);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .btn-glow:hover {
+            box-shadow: 0 0 25px var(--neon-red), inset 0 0 10px var(--neon-gold);
+            transform: scale(1.02);
+            color: var(--neon-gold);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--brass);
+            color: var(--brass);
+            padding: 10px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(181, 166, 66, 0.1);
+            color: var(--neon-gold);
+            border-color: var(--neon-gold);
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        }
+
+        .error-box {
+            background: rgba(255, 0, 60, 0.1);
+            border: 1px dashed var(--neon-red);
+            color: var(--neon-red);
+            padding: 10px;
+            text-align: center;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            min-height: 20px;
+            text-shadow: 0 0 5px rgba(255,0,60,0.5);
+            display: none; /* hidden by default */
         }
     </style>
 </head>
 <body>
 
-    <video autoplay loop muted playsinline id="main-bg-video">
-        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
-    </video>
+    <div class="auth-terminal">
+        <div class="terminal-rivets-bottom"></div>
+        <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
+        <div class="side-gauge side-gauge-right"><div class="gauge-fill"></div></div>
 
-    <div id="title-screen" class="view-screen">
-        <h1 class="luminous-title">LUMINOUS</h1>
-        <div id="title-prompt" class="title-prompt"></div>
-        <div class="gradient-line"></div>
-    </div>
+        <h1>SISTEMA DE IDENTIFICACIÓN</h1>
 
-    <div id="login-screen" class="view-screen hidden">
-        <div class="save-slot-card" id="login-card" style="text-align: center;">
-            <div class="slot-header" style="justify-content: center;">
-                <span class="slot-status">SISTEMA DE IDENTIFICACIÓN</span>
-            </div>
-            <div style="margin: 20px 0;">
-                <label for="player-id-input" style="display: block; margin-bottom: 10px; color: var(--text-main); font-size: 1.1rem;">INGRESE ID DE USUARIO (Nombre de Jugador)</label>
-                <input type="text" id="player-id-input" placeholder="ID de Usuario..." autocomplete="off" style="width: 80%; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--cyan-tech); color: var(--gold-bright); text-align: center; outline: none;">
-            </div>
-            <button id="btn-login" style="background: transparent; border: 1px solid var(--gold-bright); color: var(--gold-bright); padding: 10px 20px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; cursor: pointer; transition: all 0.3s; text-transform: uppercase; width: 80%;">Identificarse</button>
-            <div id="login-status" style="margin-top: 15px; color: var(--cyan-tech); height: 20px; font-size: 0.9rem;"></div>
+        <div class="input-group">
+            <label for="auth-email">Email</label>
+            <input type="email" id="auth-email" placeholder="Entrada de datos...">
         </div>
+
+        <div class="input-group">
+            <label for="auth-password">Contraseña</label>
+            <input type="password" id="auth-password" placeholder="Clave de acceso...">
+        </div>
+
+        <!-- Optional: Player ID input for registration logic if needed, hiding for now -->
+        <div class="input-group" id="player-id-group" style="display: none;">
+            <label for="auth-player-id">ID Personaje</label>
+            <input type="text" id="auth-player-id" placeholder="Nombre...">
+        </div>
+
+        <div class="flavor-text">
+            "No pierdas tiempo, entra ya!"
+        </div>
+
+        <div id="auth-error" class="error-box"></div>
+
+        <button id="btn-login" class="btn-glow">INICIAR SESIÓN</button>
+        <button id="btn-register-mode" class="btn-secondary">CREAR CUENTA</button>
+        <!-- The actual register submission button, hidden initially -->
+        <button id="btn-register-submit" class="btn-glow" style="display: none;">CONFIRMAR REGISTRO</button>
+        <button id="btn-login-mode" class="btn-secondary" style="display: none;">VOLVER A INICIO</button>
     </div>
 
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Auth -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Script de autenticación -->
+    <script src="js/auth.js"></script>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
-            authDomain: "luminous-system.firebaseapp.com",
-            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
-            projectId: "luminous-system",
-            storageBucket: "luminous-system.firebasestorage.app",
-            messagingSenderId: "330473029689",
-            appId: "1:330473029689:web:44a05e870d493a3b294de8",
-            measurementId: "G-X775P4YS7W"
-        };
+        // UI Logic to switch between Login and Register modes
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegisterMode = document.getElementById('btn-register-mode');
+        const btnRegisterSubmit = document.getElementById('btn-register-submit');
+        const btnLoginMode = document.getElementById('btn-login-mode');
+        const playerIdGroup = document.getElementById('player-id-group');
+        const flavorText = document.querySelector('.flavor-text');
+        const headerText = document.querySelector('h1');
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        btnRegisterMode.addEventListener('click', () => {
+            btnLogin.style.display = 'none';
+            btnRegisterMode.style.display = 'none';
+            btnRegisterSubmit.style.display = 'block';
+            btnLoginMode.style.display = 'block';
+            playerIdGroup.style.display = 'flex';
+            headerText.innerText = "NUEVO RECLUTA";
+            flavorText.innerText = "La maquinaria necesita carne fresca.";
+        });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const titleScreen = document.getElementById('title-screen');
-            const loginScreen = document.getElementById('login-screen');
-            const titlePrompt = document.getElementById('title-prompt');
-            const playerIdInput = document.getElementById('player-id-input');
-            const btnLogin = document.getElementById('btn-login');
-            const loginStatus = document.getElementById('login-status');
-
-            titlePrompt.textContent = "Click para Ingresar";
-
-            titleScreen.addEventListener('click', () => {
-                titleScreen.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
-                playerIdInput.focus();
-            });
-
-            const handleLogin = () => {
-                const rawId = playerIdInput.value.trim();
-                if (!rawId) return;
-
-                // Quitamos .toLowerCase() para respetar mayúsculas de los perfiles existentes
-                const userId = rawId.replace(/\s+/g, '');
-                localStorage.setItem('playerId', userId);
-
-                loginStatus.textContent = "Verificando en la base de datos...";
-                btnLogin.disabled = true;
-
-                db.ref('campaña/jugadores/' + userId).once('value').then(snapshot => {
-                    const localStateStr = localStorage.getItem('luminousState');
-                    let localState = null;
-                    if (localStateStr) {
-                        try {
-                            localState = JSON.parse(localStateStr);
-                        } catch (e) {
-                            console.error("Error parsing local luminousState:", e);
-                        }
-                    }
-
-                    const hasMatchingLocalState = localState &&
-                                                  localState.characterName &&
-                                                  localState.characterName.replace(/\s+/g, '') === userId;
-
-                    if (snapshot.exists()) {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Sincronizando datos locales con la nube...";
-                            db.ref('campaña/jugadores/' + userId).update(localState).then(() => {
-                                loginStatus.textContent = "Datos sincronizados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase update error:", err);
-                                loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                            setTimeout(() => {
-                                window.location.href = 'hoja_personaje.html';
-                            }, 800);
-                        }
-                    } else {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Recuperando datos locales. Guardando en la nube...";
-                            db.ref('campaña/jugadores/' + userId).set(localState).then(() => {
-                                loginStatus.textContent = "Datos recuperados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase save error:", err);
-                                loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                                setTimeout(() => {
-                                    window.location.href = 'creacion_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                            setTimeout(() => {
-                                window.location.href = 'creacion_personaje.html';
-                            }, 800);
-                        }
-                    }
-                }).catch(err => {
-                    console.error("Firebase error:", err);
-                    loginStatus.textContent = "Error de conexión. Intente nuevamente.";
-                    loginStatus.style.color = "red";
-                    btnLogin.disabled = false;
-                });
-            };
-
-            btnLogin.addEventListener('click', handleLogin);
-            playerIdInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleLogin();
-                }
-            });
-
-            // Hover effect on login button
-            btnLogin.addEventListener('mouseenter', () => {
-                btnLogin.style.background = 'var(--gold-bright)';
-                btnLogin.style.color = 'black';
-            });
-            btnLogin.addEventListener('mouseleave', () => {
-                btnLogin.style.background = 'transparent';
-                btnLogin.style.color = 'var(--gold-bright)';
-            });
+        btnLoginMode.addEventListener('click', () => {
+            btnLogin.style.display = 'block';
+            btnRegisterMode.style.display = 'block';
+            btnRegisterSubmit.style.display = 'none';
+            btnLoginMode.style.display = 'none';
+            playerIdGroup.style.display = 'none';
+            headerText.innerText = "SISTEMA DE IDENTIFICACIÓN";
+            flavorText.innerText = '"No pierdas tiempo, entra ya!"';
         });
     </script>
 </body>

@@ -211,8 +211,9 @@
 </style>
 </head>
 <body>
- <div style="margin: 0 auto; max-width: 1200px; padding: 10px;">
- <button class="btn-back" onclick="window.location.href='index.html'">&lt; Volver al Menú</button>
+ <div style="margin: 0 auto; max-width: 1200px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+ <button class="btn-back" onclick="window.location.replace('index.html')">&lt; Volver al Menú</button>
+ <button id="btn-cerrar-sesion" style="background: transparent; color: var(--red-neon); border: 1px solid var(--red-neon); padding: 5px 10px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; cursor: pointer; transition: all 0.3s; font-size: 0.9rem;">Cerrar Sesión</button>
  </div>
  <!-- Main Wrapper -->
 <div class="sheet-limbus-main">
@@ -4382,6 +4383,8 @@
 
 <!-- Firebase App (núcleo) -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<!-- Firebase Auth -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <!-- Firebase Realtime Database -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
