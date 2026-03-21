@@ -267,7 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // 2. Llenar el menú principal con los Actores (Usando el Actor ID)
 db.ref('campaña/actores').on('value', (snapshot) => {
     const actorSelect = document.getElementById('player-actor-select');
-    if (!actorSelect || !snapshot.exists()) return;
+    if (!snapshot.exists()) return;
+
+    // Global cache for all actors so the Theatre log can fetch any actor's icon
+    window.allActoresCache = snapshot.val() || {};
+
+    if (!actorSelect) return;
 
     const currentSelection = actorSelect.value;
     const nombreBase = (window.datosJugador && window.datosJugador.characterName) ? window.datosJugador.characterName : "Mi Personaje";
