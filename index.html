@@ -22,6 +22,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
+            overflow: hidden; /* Prevent scrollbar from 110vw line */
             background-color: transparent;
             font-family: 'Oswald', sans-serif;
             display: flex;
@@ -78,13 +79,17 @@
 
         .red-strip-container {
             position: relative;
-            display: inline-block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 110vw; /* Extend beyond viewport */
             margin-bottom: 20px;
         }
 
         .red-strip-base {
             display: block;
-            max-width: 100%;
+            width: 100%;
+            min-width: 110vw; /* Ensure it stretches */
         }
 
         .icon-overlay {
@@ -92,7 +97,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            max-width: 50%; /* Adjust as needed */
+            max-width: 25vw; /* Adjust icon size down since container grew */
         }
 
         #start-text {
