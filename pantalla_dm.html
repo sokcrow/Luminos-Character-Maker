@@ -2841,6 +2841,30 @@
             flex-wrap: wrap;
           "
         >
+          <!-- Terminal de Administración (Campaign Invite) -->
+          <div
+            style="
+              flex: 1;
+              border-right: 1px solid #444;
+              padding-right: 15px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+              min-width: 200px;
+            "
+          >
+            <h5 style="margin: 0; color: #ff4444; font-family: 'BebasKai', sans-serif; letter-spacing: 1px;">Terminal de Administración</h5>
+            <div style="background: #111; border: 1px solid #ff4444; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 10px rgba(255, 68, 68, 0.2);">
+                <label style="color: #aaa; font-size: 12px; margin: 0;">CÓDIGO DE ACCESO ACTUAL:</label>
+                <div id="dm-access-code-display" style="color: #ff4444; font-size: 24px; font-weight: bold; font-family: 'Share Tech Mono', monospace; text-shadow: 0 0 8px rgba(255, 68, 68, 0.8); text-align: center; letter-spacing: 4px; background: #000; padding: 5px; border-radius: 3px;">
+                    ------
+                </div>
+                <button id="btn-generate-access-code" class="btn-cyber" style="background: #222; color: #ff4444; border: 1px solid #ff4444; font-size: 12px; padding: 8px; width: 100%;">
+                    GENERAR NUEVO CÓDIGO
+                </button>
+            </div>
+          </div>
+
           <!-- Left: Queue -->
           <div
             style="
@@ -6366,6 +6390,41 @@ function initializeDMApp() {
       }
 
       // --- LÓGICA DEL TEATRO (MODO DIRECTOR) ---
+
+      // --- LÓGICA DE CÓDIGO DE ACCESO (INVITE SYSTEM) ---
+      const displayCode = document.getElementById("dm-access-code-display");
+      const btnGenerateCode = document.getElementById("btn-generate-access-code");
+
+      if (displayCode && btnGenerateCode) {
+          // Listen to current code
+          db.ref("campaña/config/accessCode").on("value", (snap) => {
+              const code = snap.val();
+              if (code) {
+                  displayCode.innerText = code;
+              } else {
+                  displayCode.innerText = "NINGUNO";
+              }
+          });
+
+          // Generate new code
+          btnGenerateCode.addEventListener("click", () => {
+              if (confirm("¿Estás seguro de generar un nuevo código de acceso? Los jugadores que no hayan entrado necesitarán el nuevo código.")) {
+                  // Generate random 6 character string (alphanumeric)
+                  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                  let newCode = '';
+                  for (let i = 0; i < 6; i++) {
+                      newCode += characters.charAt(Math.floor(Math.random() * characters.length));
+                  }
+
+                  db.ref("campaña/config/accessCode").set(newCode).then(() => {
+                      // Visual feedback is handled by the .on('value') listener
+                  }).catch(err => {
+                      console.error("Error setting access code:", err);
+                      alert("Error al generar el código.");
+                  });
+              }
+          });
+      }
 
       let isTheatreContinuous = false;
       let continuousTimeout = null;
