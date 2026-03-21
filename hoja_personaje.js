@@ -193,56 +193,35 @@ db.ref('campaña/actores').on('value', (snapshot) => {
         }
     }
 
-    // Si el DM asignó un actorId, eso toma prioridad absoluta
-    if (window.datosJugador && window.datosJugador.actorId && actorSelect.querySelector(`option[value="${window.datosJugador.actorId}"]`)) {
-        actorSelect.value = window.datosJugador.actorId;
-        actorSelect.disabled = true;
-        actorSelect.dispatchEvent(new Event('change'));
-    }
-    // De lo contrario, usamos la selección activa del jugador (activeActor) sin bloquear el dropdown
-    else if (window.datosJugador && window.datosJugador.activeActor && actorSelect.querySelector(`option[value="${window.datosJugador.activeActor}"]`)) {
+    // Restauramos el comportamiento para que el jugador siempre pueda cambiar su actor
+    // para hablar en el Teatro de la Mente con diferentes personajes.
+    actorSelect.disabled = false;
+    actorSelect.style.display = 'inline-block';
+
+    if (window.datosJugador && window.datosJugador.activeActor && actorSelect.querySelector(`option[value="${window.datosJugador.activeActor}"]`)) {
         actorSelect.value = window.datosJugador.activeActor;
-        actorSelect.disabled = false;
-        actorSelect.dispatchEvent(new Event('change'));
-    }
-    // Fallback a la selección que ya tenía en el DOM si es válida
-    else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
+    } else if (currentSelection && actorSelect.querySelector(`option[value="${currentSelection}"]`)) {
         actorSelect.value = currentSelection;
-        actorSelect.disabled = false;
-    } else {
-        actorSelect.disabled = false;
     }
     
     window.actualizarExpresionesDesdeDropdown();
+
+    // Re-renderizar la hoja para que el HUD actualice el icono si los datos del jugador cargaron primero
+    if (window.datosJugador) {
+        renderCharacterSheet(window.datosJugador);
+    }
 });
 
-// 3. Función que inyecta las expresiones basada en el Actor ID seleccionado
+// 3. Función que inyecta las expresiones basada en el Actor ID seleccionado (Teatro de la Mente)
 window.actualizarExpresionesDesdeDropdown = function() {
     try {
         const actorSelect = document.getElementById('player-actor-select');
         const selectExp = document.getElementById('player-expression-select');
         if (!actorSelect || !selectExp) return;
 
-        // Verificar si el jugador tiene un actor asignado directamente
-        const actorAsignadoId = window.datosJugador && window.datosJugador.actorId;
-        let selectedActorId = 'base';
-
-        if (actorAsignadoId && window.actoresJugador && window.actoresJugador[actorAsignadoId]) {
-            // Si hay un actor asignado y es válido
-            selectedActorId = actorAsignadoId;
-            actorSelect.style.display = 'none'; // Ocultar el dropdown
-            
-            // Forzar actualización silenciosa del valor subyacente por si otras partes del código lo leen
-            // Solo si la opción existe para no romper nada
-            const optionExists = Array.from(actorSelect.options).some(opt => opt.value === actorAsignadoId);
-            if (optionExists) {
-                actorSelect.value = actorAsignadoId;
-            }
-        } else {
-            // Fallback al dropdown manual
-            actorSelect.style.display = 'inline-block';
-            selectedActorId = actorSelect.value; // ESTE ES EL ACTOR ID
-        }
+        // Ahora el jugador puede elegir libremente qué actor interpretar en el dropdown
+        actorSelect.style.display = 'inline-block';
+        let selectedActorId = actorSelect.value;
 
         selectExp.innerHTML = '';
 
@@ -598,35 +577,23 @@ window.renderCharacterSheet = function(data) {
         }
 
         // Cargar retrato al SVG del HUD
-        const avatarUrl = data.avatar_url || "https://i.imgur.com/Z8N4rG9.png";
+        const avatarUrl = data.avatar_url || "https://i.imgur.com/kP8s7Ww.png";
         const portraitImg = document.getElementById('portrait-img');
         if (portraitImg) {
-            // Read active actor from player data if exists, to show correct identity in HUD
+            // El HUD SIEMPRE muestra el icono del Actor ASIGNADO por el DM, ignorando el Teatro.
             let currentDisplayAvatar = avatarUrl;
 
-            const actorSelect = document.getElementById('player-actor-select');
-            const selectExp = document.getElementById('player-expression-select');
-
             const assignedActorId = data.actorId || null;
-            const selectedActorId = assignedActorId ? assignedActorId : (actorSelect ? actorSelect.value : 'base');
 
-            if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
-                const dataActor = window.actoresJugador[selectedActorId];
+            if (assignedActorId && window.actoresJugador && window.actoresJugador[assignedActorId]) {
+                const dataActor = window.actoresJugador[assignedActorId];
                 if (dataActor) {
+                    // Prioriza el icono, si está vacío hace fallback al sprite (según el menú del DM)
                     currentDisplayAvatar = dataActor.icono || dataActor.sprite || currentDisplayAvatar;
                 }
             }
 
-            // Apply expression override if currently active
-            try {
-                 if (selectExp && selectExp.style.display !== 'none' && selectExp.options.length > 0) {
-                     const val = selectExp.value;
-                     if (val && val.trim() !== '') {
-                         currentDisplayAvatar = val;
-                     }
-                 }
-            } catch (e) {}
-
+            // Expresiones REMOVIDAS de aquí porque el Vitales HUD no debe cambiar de icono
             portraitImg.setAttribute('href', currentDisplayAvatar);
         }
 
@@ -2290,7 +2257,7 @@ document.addEventListener('click', (e) => {
                     color_nombre: "#ffffff",
                     color_titulo: "#aaaaaa",
                     escala: 1.0,
-                    sprite: "https://i.imgur.com/Z8N4rG9.png"
+                    sprite: "https://i.imgur.com/kP8s7Ww.png"
                 };
 
                 if (selectedActorId && selectedActorId !== 'base' && window.actoresJugador && window.actoresJugador[selectedActorId]) {
@@ -2327,7 +2294,7 @@ document.addEventListener('click', (e) => {
                     color_nombre: actorParaEnviar.color_nombre || "#ffffff",
                     color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
                     escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
-                    sprite: selectedSprite || "https://i.imgur.com/Z8N4rG9.png",
+                    sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
                     mensaje: msgText,
                     timestamp: Date.now()
                 };
@@ -2445,7 +2412,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 color_nombre: "#ffffff",
                 color_titulo: "#aaaaaa",
                 escala: 1.0,
-                sprite: "https://i.imgur.com/Z8N4rG9.png" // Sprite Base Default
+                sprite: "https://i.imgur.com/kP8s7Ww.png" // Sprite Base Default
             };
 
             // Rescatamos datos del actor seleccionado si no es la base
@@ -2484,7 +2451,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 color_nombre: actorParaEnviar.color_nombre || "#ffffff",
                 color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
                 escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
-                sprite: selectedSprite || "https://i.imgur.com/Z8N4rG9.png",
+                sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
                 mensaje: msgText,
                 timestamp: Date.now()
             };
