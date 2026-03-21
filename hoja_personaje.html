@@ -2178,6 +2178,15 @@
         <button type="action" name="act_hud_close" class="hud-modal-close">×</button>
         <div class="hud-modal-body">
             <div class="hud-tab-content">
+<div class="stats-header" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px; padding-right: 15px;">
+    <div class="toggle-container" style="display: flex; align-items: center; font-size: 14px;">
+        <label class="switch" style="position: relative; display: inline-block; width: 40px; height: 20px; margin-right: 10px;">
+            <input type="checkbox" id="auto-toss-toggle" style="opacity: 0; width: 0; height: 0;">
+            <span class="slider-toggle" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3E2723; border: 1px solid #E8E4D9; transition: .3s;"></span>
+        </label>
+        <span class="toggle-label" style="color: #E8E4D9;">Modo Auto</span>
+    </div>
+</div>
 <div id="stats-container" class="sheet-attributes-section">
     <div class="sheet-attributes-grid">
         <!-- CUERPO -->
@@ -2547,15 +2556,26 @@
 
 <!-- Coin Toss Panel (Modal) -->
 <div id="coin-toss-panel" class="coin-toss-modal" style="display: none;">
-    <div class="coin-toss-content">
-        <h2 id="coin-toss-skill-name">Skill Name</h2>
-        <div id="coin-toss-coins-container" class="coin-container">
-            <!-- Coins injected via JS -->
+    <div class="coin-toss-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h2 id="coin-toss-skill-name" style="color: #ffd700; font-size: 2em; margin-bottom: 20px; text-shadow: 0 4px 10px rgba(241, 196, 15, 0.3);">Skill Name</h2>
+
+        <div id="coins-wrapper" style="display: flex; gap: 20px; margin-bottom: 30px; perspective: 1200px; padding: 20px; justify-content: center;">
+            <div class="coin-container" id="coin-1"><div class="side front"></div><div class="side back"></div></div>
+            <div class="coin-container" id="coin-2"><div class="side front"></div><div class="side back"></div></div>
+            <div class="coin-container" id="coin-3"><div class="side front"></div><div class="side back"></div></div>
+            <div class="coin-container" id="coin-4"><div class="side front"></div><div class="side back"></div></div>
+            <div class="coin-container" id="coin-5"><div class="side front"></div><div class="side back"></div></div>
         </div>
-        <div class="coin-toss-result-box">
-            <span id="coin-toss-total-result">0</span>
+
+        <div class="coin-toss-result-box" style="margin-bottom: 20px;">
+            <span id="coin-toss-total-result" style="font-size: 3em; color: #27ae60; font-weight: bold;">0</span>
         </div>
-        <button id="btn-close-coin-toss" class="btn-hud">CERRAR</button>
+
+        <p id="coin-toss-status" style="font-size: 1.1em; color: #bdc3c7; margin-bottom: 5px; text-align: center;">Girando a máxima velocidad...</p>
+        <p id="coin-toss-stats" style="font-size: 1.1em; color: #bdc3c7; margin-bottom: 20px; text-align: center;">Probabilidad actual de Heads: 50%</p>
+
+        <button id="btn-flip-coin" class="btn-hud" style="background-color: #e74c3c; padding: 15px 35px; font-size: 18px; color: white; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px;">Detener Moneda 1</button>
+        <button id="btn-close-coin-toss" class="btn-hud" style="background-color: #3498db; padding: 10px 20px; font-size: 14px; color: white; border: none; cursor: pointer;">CERRAR</button>
     </div>
 </div>
 

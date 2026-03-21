@@ -7617,3 +7617,51 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     font-size: 0.75em;
     font-family: "Share Tech Mono", monospace;
 }
+
+
+/* --- ESTILOS DE LA MONEDA 3D --- */
+.coin-container {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+@media (min-width: 769px) {
+    .coin-container {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+.side {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    backface-visibility: hidden;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.front {
+    background-image: url('https://imgur.com/XDx0ICt.png');
+    transform: rotateY(0deg);
+}
+
+.back {
+    background-image: url('https://imgur.com/XDx0ICt.png');
+    transform: rotateY(180deg);
+}
+
+.slider-toggle:before {
+    position: absolute;
+    content: "";
+    height: 14px; width: 14px;
+    left: 3px; bottom: 2px;
+    background-color: #E8E4D9;
+    transition: .3s;
+}
+
+input:checked + .slider-toggle { background-color: #D32F2F; border-color: #FFD700; }
+input:checked + .slider-toggle:before { transform: translateX(20px); background-color: #FFD700; }
