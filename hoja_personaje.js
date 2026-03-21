@@ -588,8 +588,8 @@ window.renderCharacterSheet = function(data) {
             if (assignedActorId && window.actoresJugador && window.actoresJugador[assignedActorId]) {
                 const dataActor = window.actoresJugador[assignedActorId];
                 if (dataActor) {
-                    // Solo toma el icono, jamás el sprite o la expresión (y fallback al jugador normal si no existe)
-                    currentDisplayAvatar = dataActor.icono || currentDisplayAvatar;
+                    // Prioriza el icono, si está vacío hace fallback al sprite (según el menú del DM)
+                    currentDisplayAvatar = dataActor.icono || dataActor.sprite || currentDisplayAvatar;
                 }
             }
 
