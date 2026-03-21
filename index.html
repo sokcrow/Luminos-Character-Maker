@@ -399,8 +399,8 @@
         const authTerminal = document.querySelector('.auth-terminal');
         const audioInicio = document.getElementById('audio-inicio');
 
-        startText.addEventListener('click', () => {
-            // 1. Play Random Sinner Audio
+        // Helper function to pick and play a random Sinner voice
+        function playRandomSinnerVoice() {
             const sinnerNames = Object.keys(sinners);
             const randomSinner = sinnerNames[Math.floor(Math.random() * sinnerNames.length)];
             const audioFiles = sinners[randomSinner];
@@ -412,10 +412,25 @@
 
             audioInicio.src = audioUrl;
             audioInicio.play().catch(err => {
-                console.error("💠 Architect Log: Error playing Sinner login audio.", err);
+                console.error("💠 Architect Log: Autoplay blocked by browser. Awaiting Manager authorization (click).", err);
             });
+        }
 
-            // 2. Transition UI
+        // --- 💠 ARCHITECT: AUTOPLAY ATTEMPT ---
+        // Flavor: The terminal attempts an automatic diagnostic connection 0.6s after boot.
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                playRandomSinnerVoice();
+            }, 600);
+        });
+
+        startText.addEventListener('click', () => {
+            // Graceful Fallback: If autoplay was blocked, play audio now on click.
+            if (audioInicio.paused) {
+                playRandomSinnerVoice();
+            }
+
+            // Transition UI
             splashScreen.style.opacity = '0';
 
             setTimeout(() => {
