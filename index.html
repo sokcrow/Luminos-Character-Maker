@@ -9,12 +9,17 @@
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
 
         :root {
-            --gold-bright: #ffae00;
-            --gold-dim: #b37a00;
-            --cyan-tech: #00ffff;
-            --bg-dark: rgba(18, 18, 18, 0.85);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
+            --cream: #E8E4D9;
+            --brown: #3E2723;
+            --red: #D32F2F;
+            --gold: #FFD700;
+            --black: #0B0A0A;
+        }
+
+        * {
+            box-shadow: none !important;
+            text-shadow: none !important;
+            border-radius: 0 !important;
         }
 
         body, html {
@@ -22,13 +27,13 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: transparent;
+            background-color: var(--black);
             font-family: 'Share Tech Mono', monospace;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: var(--text-main);
+            color: var(--cream);
         }
 
         #main-bg-video {
@@ -42,7 +47,7 @@
             transform: translateX(-50%) translateY(-50%);
             z-index: -10;
             object-fit: cover;
-            filter: brightness(0.35) contrast(1.2);
+            filter: brightness(0.25) sepia(0.5) hue-rotate(-20deg) contrast(1.2);
         }
 
         /* View Containers */
@@ -67,7 +72,7 @@
 
         .fade-to-black {
             opacity: 1;
-            background-color: black;
+            background-color: var(--black);
             pointer-events: none;
             z-index: 9999;
             transition: opacity 1.5s ease, background-color 1.5s ease;
@@ -83,22 +88,20 @@
         .luminous-title {
             font-family: 'Orbitron', sans-serif;
             font-size: 6rem;
-            color: var(--gold-bright);
+            color: var(--gold);
             margin: 0 0 20px 0;
             text-transform: uppercase;
             letter-spacing: 15px;
-            text-shadow: 0 0 10px var(--gold-bright), 0 0 20px var(--gold-bright), 0 0 40px var(--gold-dim);
             text-align: center;
         }
 
         .title-prompt {
             font-size: 1.2rem;
-            color: var(--text-main);
+            color: var(--cream);
             margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 3px;
             animation: blink 1.5s infinite;
-            text-shadow: 0 0 5px var(--text-main);
         }
 
         @keyframes blink {
@@ -109,144 +112,132 @@
         .gradient-line {
             width: 60%;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
-            box-shadow: 0 0 8px var(--gold-bright);
+            background: var(--gold);
         }
 
-        /* VISTA 2: SAVE SLOT SCREEN */
-        #save-slot-screen {
-            z-index: 20;
-        }
-
+        /* VISTA 2: LOGIN SCREEN */
         #login-screen {
             z-index: 20;
         }
 
         .save-slot-card {
-            background: var(--bg-dark);
-            border: 1px solid #333;
-            border-left: 4px solid var(--gold-bright);
-            border-right: 4px solid var(--cyan-tech);
+            background-color: var(--cream);
+            border: 6px solid var(--brown);
             padding: 30px 40px;
             min-width: 350px;
-            cursor: pointer;
             position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            backdrop-filter: blur(5px);
             display: flex;
             flex-direction: column;
             gap: 15px;
-        }
-
-        .save-slot-card::before, .save-slot-card::after {
-            content: '';
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-            pointer-events: none;
-        }
-
-        .save-slot-card::before {
-            top: -2px;
-            left: -2px;
-            border-top-color: var(--gold-bright);
-            border-left-color: var(--gold-bright);
+            color: var(--brown);
+            /* repeating scanline gradient with 0.08 opacity */
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 2px,
+                rgba(62, 39, 35, 0.08) 2px,
+                rgba(62, 39, 35, 0.08) 4px
+            );
         }
 
         .save-slot-card::after {
-            bottom: -2px;
-            right: -2px;
-            border-bottom-color: var(--cyan-tech);
-            border-right-color: var(--cyan-tech);
-        }
-
-        .save-slot-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 10px 30px rgba(255, 174, 0, 0.2);
-            border-color: #555;
-            border-left-color: var(--cyan-tech);
-            border-right-color: var(--gold-bright);
-        }
-
-        .save-slot-card:hover::before {
-            border-top-color: var(--cyan-tech);
-            border-left-color: var(--cyan-tech);
-            width: 100%;
-            height: 100%;
-        }
-
-        .save-slot-card:hover::after {
-            border-bottom-color: var(--gold-bright);
-            border-right-color: var(--gold-bright);
-            width: 100%;
-            height: 100%;
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            border: 1px solid var(--red);
+            pointer-events: none;
         }
 
         .slot-header {
-            font-size: 0.9rem;
-            color: var(--text-muted);
+            font-size: 1.2rem;
+            color: var(--brown);
             text-transform: uppercase;
             letter-spacing: 2px;
-            border-bottom: 1px dashed #555;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
+            border-bottom: 2px solid var(--brown);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
+            font-weight: bold;
         }
 
         .slot-status {
-            color: var(--cyan-tech);
-            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+            color: var(--brown);
         }
 
-        .slot-name {
-            font-size: 1.8rem;
-            color: var(--gold-bright);
-            text-transform: uppercase;
-            margin: 0;
-            text-shadow: 0 0 5px rgba(255, 174, 0, 0.3);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .slot-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            background: rgba(0,0,0,0.4);
+        input {
+            width: 100%;
+            box-sizing: border-box;
             padding: 10px;
-            border: 1px solid #222;
-        }
-
-        .slot-level, .slot-ahn {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .detail-label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .detail-value {
+            font-family: 'Share Tech Mono', monospace;
             font-size: 1.2rem;
-            color: var(--text-main);
+            background: var(--cream);
+            border: 2px solid var(--brown);
+            color: var(--brown);
+            text-align: center;
+            outline: none;
+            font-weight: bold;
+            transition: all 0.2s;
         }
 
-        .ahn-value {
-            color: var(--cyan-tech);
+        input:focus {
+            background: var(--black);
+            color: var(--cream);
+            border: 2px solid var(--gold);
         }
 
-        .currency-symbol {
-            font-family: sans-serif;
-            margin-right: 4px;
+        input::placeholder {
+            color: rgba(62, 39, 35, 0.5);
+        }
+
+        input:focus::placeholder {
+            color: rgba(232, 228, 217, 0.5);
+        }
+
+        button.limbus-btn {
+            background: var(--cream);
+            border: 2px solid var(--brown);
+            color: var(--brown);
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button.limbus-btn:hover {
+            background: var(--black);
+            color: var(--cream);
+            border: 2px solid var(--gold);
+        }
+
+        .text-muted {
+            font-size: 0.9rem;
+            color: var(--brown);
+            font-weight: bold;
+        }
+
+        .link-btn {
+            background: none;
+            border: none;
+            color: var(--red);
+            font-family: inherit;
+            font-size: 0.9rem;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 5px;
+        }
+
+        .link-btn:hover {
+            color: var(--brown);
         }
 
         @media (max-width: 768px) {
@@ -273,149 +264,53 @@
     </div>
 
     <div id="login-screen" class="view-screen hidden">
-        <div class="save-slot-card" id="login-card" style="text-align: center;">
-            <div class="slot-header" style="justify-content: center;">
-                <span class="slot-status">SISTEMA DE IDENTIFICACIÓN</span>
+        <div class="save-slot-card" id="login-card" style="text-align: center; width: 400px; max-width: 90%;">
+
+            <div id="login-form-wrapper">
+                <div class="slot-header">
+                    <span class="slot-status">SISTEMA DE IDENTIFICACIÓN (LOGIN)</span>
+                </div>
+                <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 15px;">
+                    <input type="email" id="login-email-input" placeholder="Correo Electrónico..." autocomplete="off">
+                    <input type="password" id="login-password-input" placeholder="Contraseña..." autocomplete="off">
+                </div>
+                <button id="btn-login" class="limbus-btn">Identificarse</button>
+                <div id="login-status" style="margin-top: 15px; color: var(--red); height: 20px; font-size: 0.9rem; font-weight: bold;"></div>
+
+                <div style="margin-top: 15px;">
+                    <span class="text-muted">¿No tienes credenciales?</span>
+                    <button id="btn-to-register" class="link-btn">Solicitar Registro</button>
+                </div>
             </div>
-            <div style="margin: 20px 0;">
-                <label for="player-id-input" style="display: block; margin-bottom: 10px; color: var(--text-main); font-size: 1.1rem;">INGRESE ID DE USUARIO (Nombre de Jugador)</label>
-                <input type="text" id="player-id-input" placeholder="ID de Usuario..." autocomplete="off" style="width: 80%; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--cyan-tech); color: var(--gold-bright); text-align: center; outline: none;">
+
+            <div id="register-form-wrapper" style="display: none;">
+                <div class="slot-header">
+                    <span class="slot-status">SISTEMA DE REGISTRO (SIGN UP)</span>
+                </div>
+                <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 15px;">
+                    <input type="email" id="register-email-input" placeholder="Nuevo Correo..." autocomplete="off">
+                    <input type="password" id="register-password-input" placeholder="Nueva Contraseña..." autocomplete="off">
+                    <input type="text" id="register-player-id-input" placeholder="ID Personaje (Nombre)..." autocomplete="off">
+                </div>
+                <button id="btn-register" class="limbus-btn">Registrarse</button>
+                <div id="register-status" style="margin-top: 15px; color: var(--red); height: 20px; font-size: 0.9rem; font-weight: bold;"></div>
+
+                <div style="margin-top: 15px;">
+                    <span class="text-muted">¿Ya estás registrado?</span>
+                    <button id="btn-to-login" class="link-btn">Volver al Login</button>
+                </div>
             </div>
-            <button id="btn-login" style="background: transparent; border: 1px solid var(--gold-bright); color: var(--gold-bright); padding: 10px 20px; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; cursor: pointer; transition: all 0.3s; text-transform: uppercase; width: 80%;">Identificarse</button>
-            <div id="login-status" style="margin-top: 15px; color: var(--cyan-tech); height: 20px; font-size: 0.9rem;"></div>
+
         </div>
     </div>
 
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Auth -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
-            authDomain: "luminous-system.firebaseapp.com",
-            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
-            projectId: "luminous-system",
-            storageBucket: "luminous-system.firebasestorage.app",
-            messagingSenderId: "330473029689",
-            appId: "1:330473029689:web:44a05e870d493a3b294de8",
-            measurementId: "G-X775P4YS7W"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const titleScreen = document.getElementById('title-screen');
-            const loginScreen = document.getElementById('login-screen');
-            const titlePrompt = document.getElementById('title-prompt');
-            const playerIdInput = document.getElementById('player-id-input');
-            const btnLogin = document.getElementById('btn-login');
-            const loginStatus = document.getElementById('login-status');
-
-            titlePrompt.textContent = "Click para Ingresar";
-
-            titleScreen.addEventListener('click', () => {
-                titleScreen.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
-                playerIdInput.focus();
-            });
-
-            const handleLogin = () => {
-                const rawId = playerIdInput.value.trim();
-                if (!rawId) return;
-
-                // Quitamos .toLowerCase() para respetar mayúsculas de los perfiles existentes
-                const userId = rawId.replace(/\s+/g, '');
-                localStorage.setItem('playerId', userId);
-
-                loginStatus.textContent = "Verificando en la base de datos...";
-                btnLogin.disabled = true;
-
-                db.ref('campaña/jugadores/' + userId).once('value').then(snapshot => {
-                    const localStateStr = localStorage.getItem('luminousState');
-                    let localState = null;
-                    if (localStateStr) {
-                        try {
-                            localState = JSON.parse(localStateStr);
-                        } catch (e) {
-                            console.error("Error parsing local luminousState:", e);
-                        }
-                    }
-
-                    const hasMatchingLocalState = localState &&
-                                                  localState.characterName &&
-                                                  localState.characterName.replace(/\s+/g, '') === userId;
-
-                    if (snapshot.exists()) {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Sincronizando datos locales con la nube...";
-                            db.ref('campaña/jugadores/' + userId).update(localState).then(() => {
-                                loginStatus.textContent = "Datos sincronizados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase update error:", err);
-                                loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Identidad confirmada. Redirigiendo...";
-                            setTimeout(() => {
-                                window.location.href = 'hoja_personaje.html';
-                            }, 800);
-                        }
-                    } else {
-                        if (hasMatchingLocalState) {
-                            loginStatus.textContent = "Recuperando datos locales. Guardando en la nube...";
-                            db.ref('campaña/jugadores/' + userId).set(localState).then(() => {
-                                loginStatus.textContent = "Datos recuperados. Redirigiendo...";
-                                setTimeout(() => {
-                                    window.location.href = 'hoja_personaje.html';
-                                }, 800);
-                            }).catch(err => {
-                                console.error("Firebase save error:", err);
-                                loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                                setTimeout(() => {
-                                    window.location.href = 'creacion_personaje.html';
-                                }, 800);
-                            });
-                        } else {
-                            loginStatus.textContent = "Usuario no encontrado. Iniciando registro...";
-                            setTimeout(() => {
-                                window.location.href = 'creacion_personaje.html';
-                            }, 800);
-                        }
-                    }
-                }).catch(err => {
-                    console.error("Firebase error:", err);
-                    loginStatus.textContent = "Error de conexión. Intente nuevamente.";
-                    loginStatus.style.color = "red";
-                    btnLogin.disabled = false;
-                });
-            };
-
-            btnLogin.addEventListener('click', handleLogin);
-            playerIdInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleLogin();
-                }
-            });
-
-            // Hover effect on login button
-            btnLogin.addEventListener('mouseenter', () => {
-                btnLogin.style.background = 'var(--gold-bright)';
-                btnLogin.style.color = 'black';
-            });
-            btnLogin.addEventListener('mouseleave', () => {
-                btnLogin.style.background = 'transparent';
-                btnLogin.style.color = 'var(--gold-bright)';
-            });
-        });
-    </script>
+    <!-- Script de autenticación -->
+    <script src="js/auth.js"></script>
 </body>
 </html>

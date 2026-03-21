@@ -908,6 +908,10 @@
     }
   </style>
 
+  <div style="width: 100%; display: flex; justify-content: flex-end; padding-right: 20px; margin-bottom: 10px;">
+    <button id="btn-cerrar-sesion" style="background: transparent; color: #ff4444; border: 1px solid #ff4444; padding: 5px 15px; font-family: inherit; font-weight: bold; cursor: pointer; transition: all 0.2s; border-radius: 4px;">CERRAR SESIÓN</button>
+  </div>
+
   <div class="dm-tabs-nav">
     <button class="dm-tab-btn active" data-tab="tab-tiempo">Tiempo/Clima</button>
     <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
@@ -1842,6 +1846,8 @@
 
   <!-- Firebase App (núcleo) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <!-- Firebase Auth -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="js/utils.js"></script>
@@ -1860,7 +1866,22 @@
 
     // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.database();
+
+    // --- LÓGICA DE AUTENTICACIÓN Y PROTECCIÓN DE RUTA DM ---
+    auth.onAuthStateChanged(user => {
+        if (!user || user.uid !== 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
+            // Unauthenticated or not the DM -> Kick them out immediately
+            window.location.replace('index.html');
+        }
+    });
+
+    document.getElementById('btn-cerrar-sesion').addEventListener('click', () => {
+        auth.signOut().then(() => {
+            window.location.replace('index.html');
+        }).catch(err => console.error("Error signing out:", err));
+    });
 
     // --- LÓGICA BOTÓN COLLAPSE CONTROLES MÓVIL ---
     document.addEventListener('DOMContentLoaded', () => {

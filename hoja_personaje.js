@@ -86,9 +86,32 @@
 
 
 // Firebase Init for Character Sheet
+const auth = firebase.auth();
+
+// Route Guard
+auth.onAuthStateChanged(user => {
+    if (!user) {
+        window.location.replace('index.html');
+    }
+});
+
+// Logout Listener
+document.addEventListener('DOMContentLoaded', () => {
+    const btnLogout = document.getElementById('btn-cerrar-sesion');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                window.location.replace('index.html');
+            }).catch(error => {
+                console.error('Error signing out:', error);
+            });
+        });
+    }
+});
+
 const playerId = localStorage.getItem('playerId');
 if (!playerId) {
-    window.location.href = 'index.html'; // Proteccion de ruta
+    window.location.replace('index.html'); // Proteccion de ruta
 }
 
 let currentPlayerData = {};
