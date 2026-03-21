@@ -5,21 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luminous</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&display=swap');
 
         :root {
-            --cream: #E8E4D9;
-            --brown: #3E2723;
-            --red: #D32F2F;
-            --gold: #FFD700;
-            --black: #0B0A0A;
-        }
-
-        * {
-            box-shadow: none !important;
-            text-shadow: none !important;
-            border-radius: 0 !important;
+            --neon-red: #ff003c;
+            --neon-gold: #ffcc00;
+            --panel-bg: #111111;
+            --metal-border: #4a4a4a;
+            --brass: #b5a642;
+            --text-main: #e0e0e0;
         }
 
         body, html {
@@ -27,281 +21,243 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: var(--black);
-            font-family: 'Share Tech Mono', monospace;
-            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Oswald', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: var(--cream);
-        }
-
-        #main-bg-video {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translateX(-50%) translateY(-50%);
-            z-index: -10;
-            object-fit: cover;
-            filter: brightness(0.25) sepia(0.5) hue-rotate(-20deg) contrast(1.2);
-        }
-
-        /* View Containers */
-        .view-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-
-        .hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .fade-to-black {
-            opacity: 1;
-            background-color: var(--black);
-            pointer-events: none;
-            z-index: 9999;
-            transition: opacity 1.5s ease, background-color 1.5s ease;
-        }
-
-        /* VISTA 1: TITLE SCREEN */
-        #title-screen {
-            cursor: pointer;
-            z-index: 10;
-            transition: opacity 1.5s ease;
-        }
-
-        .luminous-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 6rem;
-            color: var(--gold);
-            margin: 0 0 20px 0;
-            text-transform: uppercase;
-            letter-spacing: 15px;
-            text-align: center;
-        }
-
-        .title-prompt {
-            font-size: 1.2rem;
-            color: var(--cream);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        .gradient-line {
-            width: 60%;
-            height: 2px;
-            background: var(--gold);
-        }
-
-        /* VISTA 2: LOGIN SCREEN */
-        #login-screen {
-            z-index: 20;
-        }
-
-        .save-slot-card {
-            background-color: var(--cream);
-            border: 6px solid var(--brown);
-            padding: 30px 40px;
-            min-width: 350px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            color: var(--brown);
-            /* repeating scanline gradient with 0.08 opacity */
+            color: var(--text-main);
+            /* Deep dark tones with red scanlines */
             background-image: repeating-linear-gradient(
-                to bottom,
-                transparent,
-                transparent 2px,
-                rgba(62, 39, 35, 0.08) 2px,
-                rgba(62, 39, 35, 0.08) 4px
+                0deg,
+                rgba(255, 0, 60, 0.05),
+                rgba(255, 0, 60, 0.05) 1px,
+                transparent 1px,
+                transparent 4px
             );
         }
 
-        .save-slot-card::after {
+        /* Industrial Machinery Control Panel */
+        .auth-terminal {
+            background-color: var(--panel-bg);
+            border: 4px solid var(--metal-border);
+            border-radius: 8px; /* Industrial aesthetic */
+            padding: 40px;
+            width: 450px;
+            max-width: 90%;
+            position: relative;
+            box-shadow:
+                inset 0 0 20px rgba(0,0,0,0.8),
+                0 0 15px rgba(255, 0, 60, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        /* Screws/Rivets */
+        .auth-terminal::before, .auth-terminal::after {
             content: '';
             position: absolute;
-            top: 2px;
-            left: 2px;
-            right: 2px;
-            bottom: 2px;
-            border: 1px solid var(--red);
-            pointer-events: none;
+            width: 12px;
+            height: 12px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        .auth-terminal::before { top: 10px; left: 10px; }
+        .auth-terminal::after { top: 10px; right: 10px; }
+
+        .terminal-rivets-bottom::before, .terminal-rivets-bottom::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
+            bottom: 10px;
+        }
+        .terminal-rivets-bottom::before { left: 10px; }
+        .terminal-rivets-bottom::after { right: 10px; }
+
+
+        /* Mechanical Gauges on Sides */
+        .side-gauge {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 150px;
+            background: #222;
+            border: 2px solid var(--brass);
+            border-radius: 10px;
+            box-shadow: inset 0 0 10px black;
+            overflow: hidden;
+        }
+        .side-gauge-left { left: -30px; }
+        .side-gauge-right { right: -30px; }
+
+        .gauge-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60%;
+            background: var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red);
+            animation: pulse-gauge 3s infinite alternate;
         }
 
-        .slot-header {
-            font-size: 1.2rem;
-            color: var(--brown);
+        @keyframes pulse-gauge {
+            0% { height: 60%; }
+            100% { height: 85%; }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--neon-gold);
+            text-align: center;
+            margin: 0;
             text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-gold);
             letter-spacing: 2px;
-            border-bottom: 2px solid var(--brown);
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: center;
-            font-weight: bold;
+            border-bottom: 2px solid var(--neon-red);
+            padding-bottom: 15px;
+            box-shadow: 0 10px 10px -10px rgba(255, 0, 60, 0.5);
         }
 
-        .slot-status {
-            color: var(--brown);
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--brass);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
         }
 
         input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
+            background-color: #0a0a0a;
+            border: 2px solid var(--metal-border);
+            color: var(--neon-gold);
+            padding: 12px;
             font-family: 'Share Tech Mono', monospace;
             font-size: 1.2rem;
-            background: var(--cream);
-            border: 2px solid var(--brown);
-            color: var(--brown);
-            text-align: center;
             outline: none;
-            font-weight: bold;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 5px black;
         }
 
         input:focus {
-            background: var(--black);
-            color: var(--cream);
-            border: 2px solid var(--gold);
+            border-color: var(--neon-red);
+            box-shadow: 0 0 8px var(--neon-red), inset 0 0 5px rgba(255,0,60,0.2);
         }
 
-        input::placeholder {
-            color: rgba(62, 39, 35, 0.5);
+        .flavor-text {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            margin: 10px 0;
+            font-size: 1.1rem;
         }
 
-        input:focus::placeholder {
-            color: rgba(232, 228, 217, 0.5);
-        }
-
-        button.limbus-btn {
-            background: var(--cream);
-            border: 2px solid var(--brown);
-            color: var(--brown);
-            padding: 10px 20px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 1.2rem;
-            cursor: pointer;
+        .btn-glow {
+            background: linear-gradient(45deg, #400, var(--neon-red));
+            border: 2px solid var(--neon-gold);
+            color: #fff;
+            padding: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
             text-transform: uppercase;
-            font-weight: bold;
-            transition: all 0.2s;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        button.limbus-btn:hover {
-            background: var(--black);
-            color: var(--cream);
-            border: 2px solid var(--gold);
-        }
-
-        .text-muted {
-            font-size: 0.9rem;
-            color: var(--brown);
-            font-weight: bold;
-        }
-
-        .link-btn {
-            background: none;
-            border: none;
-            color: var(--red);
-            font-family: inherit;
-            font-size: 0.9rem;
-            text-decoration: underline;
             cursor: pointer;
-            font-weight: bold;
-            padding: 5px;
+            transition: all 0.2s;
+            text-shadow: 0 0 5px black;
+            box-shadow: 0 0 15px rgba(255, 0, 60, 0.6);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: 1px;
         }
 
-        .link-btn:hover {
-            color: var(--brown);
+        .btn-glow:hover {
+            box-shadow: 0 0 25px var(--neon-red), inset 0 0 10px var(--neon-gold);
+            transform: scale(1.02);
+            color: var(--neon-gold);
         }
 
-        @media (max-width: 768px) {
-            .luminous-title {
-                font-size: 3.5rem;
-                letter-spacing: 8px;
-            }
-            .save-slot-card {
-                min-width: 90%;
-            }
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--brass);
+            color: var(--brass);
+            padding: 10px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(181, 166, 66, 0.1);
+            color: var(--neon-gold);
+            border-color: var(--neon-gold);
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        }
+
+        .error-box {
+            background: rgba(255, 0, 60, 0.1);
+            border: 1px dashed var(--neon-red);
+            color: var(--neon-red);
+            padding: 10px;
+            text-align: center;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            min-height: 20px;
+            text-shadow: 0 0 5px rgba(255,0,60,0.5);
+            display: none; /* hidden by default */
         }
     </style>
 </head>
 <body>
 
-    <video autoplay loop muted playsinline id="main-bg-video">
-        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
-    </video>
+    <div class="auth-terminal">
+        <div class="terminal-rivets-bottom"></div>
+        <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
+        <div class="side-gauge side-gauge-right"><div class="gauge-fill"></div></div>
 
-    <div id="title-screen" class="view-screen">
-        <h1 class="luminous-title">LUMINOUS</h1>
-        <div id="title-prompt" class="title-prompt"></div>
-        <div class="gradient-line"></div>
-    </div>
+        <h1>SISTEMA DE IDENTIFICACIÓN</h1>
 
-    <div id="login-screen" class="view-screen hidden">
-        <div class="save-slot-card" id="login-card" style="text-align: center; width: 400px; max-width: 90%;">
-
-            <div id="login-form-wrapper">
-                <div class="slot-header">
-                    <span class="slot-status">SISTEMA DE IDENTIFICACIÓN (LOGIN)</span>
-                </div>
-                <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 15px;">
-                    <input type="email" id="login-email-input" placeholder="Correo Electrónico..." autocomplete="off">
-                    <input type="password" id="login-password-input" placeholder="Contraseña..." autocomplete="off">
-                </div>
-                <button id="btn-login" class="limbus-btn">Identificarse</button>
-                <div id="login-status" style="margin-top: 15px; color: var(--red); height: 20px; font-size: 0.9rem; font-weight: bold;"></div>
-
-                <div style="margin-top: 15px;">
-                    <span class="text-muted">¿No tienes credenciales?</span>
-                    <button id="btn-to-register" class="link-btn">Solicitar Registro</button>
-                </div>
-            </div>
-
-            <div id="register-form-wrapper" style="display: none;">
-                <div class="slot-header">
-                    <span class="slot-status">SISTEMA DE REGISTRO (SIGN UP)</span>
-                </div>
-                <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 15px;">
-                    <input type="email" id="register-email-input" placeholder="Nuevo Correo..." autocomplete="off">
-                    <input type="password" id="register-password-input" placeholder="Nueva Contraseña..." autocomplete="off">
-                    <input type="text" id="register-player-id-input" placeholder="ID Personaje (Nombre)..." autocomplete="off">
-                </div>
-                <button id="btn-register" class="limbus-btn">Registrarse</button>
-                <div id="register-status" style="margin-top: 15px; color: var(--red); height: 20px; font-size: 0.9rem; font-weight: bold;"></div>
-
-                <div style="margin-top: 15px;">
-                    <span class="text-muted">¿Ya estás registrado?</span>
-                    <button id="btn-to-login" class="link-btn">Volver al Login</button>
-                </div>
-            </div>
-
+        <div class="input-group">
+            <label for="auth-email">Email</label>
+            <input type="email" id="auth-email" placeholder="Entrada de datos...">
         </div>
+
+        <div class="input-group">
+            <label for="auth-password">Contraseña</label>
+            <input type="password" id="auth-password" placeholder="Clave de acceso...">
+        </div>
+
+        <!-- Optional: Player ID input for registration logic if needed, hiding for now -->
+        <div class="input-group" id="player-id-group" style="display: none;">
+            <label for="auth-player-id">ID Personaje</label>
+            <input type="text" id="auth-player-id" placeholder="Nombre...">
+        </div>
+
+        <div class="flavor-text">
+            "No pierdas tiempo, entra ya!"
+        </div>
+
+        <div id="auth-error" class="error-box"></div>
+
+        <button id="btn-login" class="btn-glow">INICIAR SESIÓN</button>
+        <button id="btn-register-mode" class="btn-secondary">CREAR CUENTA</button>
+        <!-- The actual register submission button, hidden initially -->
+        <button id="btn-register-submit" class="btn-glow" style="display: none;">CONFIRMAR REGISTRO</button>
+        <button id="btn-login-mode" class="btn-secondary" style="display: none;">VOLVER A INICIO</button>
     </div>
 
     <!-- Firebase App (núcleo) -->
@@ -312,5 +268,36 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <!-- Script de autenticación -->
     <script src="js/auth.js"></script>
+
+    <script>
+        // UI Logic to switch between Login and Register modes
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegisterMode = document.getElementById('btn-register-mode');
+        const btnRegisterSubmit = document.getElementById('btn-register-submit');
+        const btnLoginMode = document.getElementById('btn-login-mode');
+        const playerIdGroup = document.getElementById('player-id-group');
+        const flavorText = document.querySelector('.flavor-text');
+        const headerText = document.querySelector('h1');
+
+        btnRegisterMode.addEventListener('click', () => {
+            btnLogin.style.display = 'none';
+            btnRegisterMode.style.display = 'none';
+            btnRegisterSubmit.style.display = 'block';
+            btnLoginMode.style.display = 'block';
+            playerIdGroup.style.display = 'flex';
+            headerText.innerText = "NUEVO RECLUTA";
+            flavorText.innerText = "La maquinaria necesita carne fresca.";
+        });
+
+        btnLoginMode.addEventListener('click', () => {
+            btnLogin.style.display = 'block';
+            btnRegisterMode.style.display = 'block';
+            btnRegisterSubmit.style.display = 'none';
+            btnLoginMode.style.display = 'none';
+            playerIdGroup.style.display = 'none';
+            headerText.innerText = "SISTEMA DE IDENTIFICACIÓN";
+            flavorText.innerText = '"No pierdas tiempo, entra ya!"';
+        });
+    </script>
 </body>
 </html>
