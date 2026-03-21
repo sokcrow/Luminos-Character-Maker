@@ -4683,16 +4683,80 @@
   db.ref('campaña/teatro/log').limitToLast(20).on('value', (snap) => {
       const logContainer = document.getElementById('theatre-log-container');
       if (!logContainer) return;
-      logContainer.innerHTML = '';
+
+      // Remove old entries, except the header/footer if any
+      Array.from(logContainer.children).forEach(child => {
+          if (child.className !== 'dialogue-footer' && child.className !== 'dialogue-scroll-area') {
+              child.remove();
+          }
+      });
+
+      // Ensure dialogue-scroll-area exists inside logContainer
+      let scrollArea = logContainer.querySelector('.dialogue-scroll-area');
+      if (!scrollArea) {
+          scrollArea = document.createElement('div');
+          scrollArea.className = 'dialogue-scroll-area';
+          logContainer.insertBefore(scrollArea, logContainer.firstChild);
+      }
+      scrollArea.innerHTML = ''; // clear messages
+
       const logs = snap.val();
       if (logs) {
+          let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
-              const item = document.createElement('div');
-              item.style.marginBottom = '4px';
-              item.innerHTML = `<strong style="color: ${msg.color_nombre || '#fff'}">${msg.nombre}:</strong> ${msg.mensaje}`;
-              logContainer.appendChild(item);
+              if (!isFirst) {
+                  const divider = document.createElement('hr');
+                  divider.className = 'dialogue-divider';
+                  scrollArea.appendChild(divider);
+              }
+              isFirst = false;
+
+              const row = document.createElement('div');
+              row.className = 'dialogue-row';
+
+              const charHexColor = msg.color_nombre || '#fff';
+              const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace('#', '')}?text=${msg.nombre ? msg.nombre.charAt(0) : '?'}`;
+              const iconoSrc = msg.icono || defaultFallbackIcon;
+
+              row.innerHTML = `
+                <div class="character-col">
+                  <div class="hex-border">
+                    <div class="hex-portrait">
+                      <img src="${iconoSrc}" alt="${msg.nombre}">
+                    </div>
+                  </div>
+                  <span class="character-name" style="color: ${charHexColor}">${msg.nombre}</span>
+                </div>
+                <div class="text-col">
+                  <p>${msg.mensaje}</p>
+                </div>
+              `;
+              scrollArea.appendChild(row);
           }
-          logContainer.scrollTop = logContainer.scrollHeight;
+
+          // Create confirm button footer if it doesn't exist
+          let footer = logContainer.querySelector('.dialogue-footer');
+          if (!footer) {
+              footer = document.createElement('div');
+              footer.className = 'dialogue-footer';
+              footer.innerHTML = `
+                <button class="confirm-btn">
+                  <span class="checkmark">✔</span> Salir
+                </button>
+              `;
+              logContainer.appendChild(footer);
+
+              footer.querySelector('.confirm-btn').addEventListener('click', () => {
+                  logContainer.classList.remove('open');
+                  const logToggleBtn = document.getElementById('btn-toggle-theatre-log-player');
+                  if (logToggleBtn) {
+                      logToggleBtn.innerText = '📜';
+                      logToggleBtn.setAttribute('aria-expanded', 'false');
+                  }
+              });
+          }
+
+          scrollArea.scrollTop = scrollArea.scrollHeight;
       }
   });
 
