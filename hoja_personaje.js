@@ -838,14 +838,16 @@ window.renderCharacterSheet = function(data) {
         if (data.perks) perks = perks.concat(Object.values(data.perks));
         if (data.humanPerks) perks = perks.concat(Object.values(data.humanPerks));
 
+        let perksHtml = '';
         perks.forEach(perk => {
-            perksContainer.innerHTML += `
+            perksHtml += `
                 <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                     <div style="color: #00ffff; font-weight: bold; font-family: 'Share Tech Mono', monospace; font-size: 1.1em; text-transform: uppercase;">${perk.nombre || perk.id || 'Perk Desconocido'}</div>
                     <div style="color: #ccc; font-size: 0.9em; margin-top: 5px;">${perk.desc || 'Sin descripción'}</div>
                 </div>
             `;
         });
+        perksContainer.innerHTML = perksHtml;
     }
 
     // 4. Mails (Apps del Celular)
