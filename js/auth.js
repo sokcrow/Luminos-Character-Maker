@@ -18,49 +18,15 @@ const auth = firebase.auth();
 const db = firebase.database();
 
 document.addEventListener('DOMContentLoaded', () => {
-    const titleScreen = document.getElementById('title-screen');
-    const loginScreen = document.getElementById('login-screen');
-    const titlePrompt = document.getElementById('title-prompt');
-    const btnToLogin = document.getElementById('btn-to-login');
-    const btnToRegister = document.getElementById('btn-to-register');
+    // These IDs are mapped directly from index.html
+    const loginEmailInput = document.getElementById('auth-email');
+    const loginPasswordInput = document.getElementById('auth-password');
+    const authPlayerIdInput = document.getElementById('auth-player-id'); // for registration
 
-    // Form wrappers
-    const loginFormWrapper = document.getElementById('login-form-wrapper');
-    const registerFormWrapper = document.getElementById('register-form-wrapper');
+    const btnLogin = document.getElementById('btn-login'); // Iniciar Sesión button
+    const btnRegisterSubmit = document.getElementById('btn-register-submit'); // Confirm Registration button
 
-    // Login Form Elements
-    const loginEmailInput = document.getElementById('login-email-input');
-    const loginPasswordInput = document.getElementById('login-password-input');
-    const btnLogin = document.getElementById('btn-login');
-    const loginStatus = document.getElementById('login-status');
-
-    // Register Form Elements
-    const registerEmailInput = document.getElementById('register-email-input');
-    const registerPasswordInput = document.getElementById('register-password-input');
-    const registerPlayerIdInput = document.getElementById('register-player-id-input'); // Character name
-    const btnRegister = document.getElementById('btn-register');
-    const registerStatus = document.getElementById('register-status');
-
-    titlePrompt.textContent = "Click para Ingresar";
-
-    titleScreen.addEventListener('click', () => {
-        titleScreen.classList.add('hidden');
-        loginScreen.classList.remove('hidden');
-        loginEmailInput.focus();
-    });
-
-    // Toggle between Login and Register
-    btnToRegister.addEventListener('click', () => {
-        loginFormWrapper.style.display = 'none';
-        registerFormWrapper.style.display = 'block';
-        registerEmailInput.focus();
-    });
-
-    btnToLogin.addEventListener('click', () => {
-        registerFormWrapper.style.display = 'none';
-        loginFormWrapper.style.display = 'block';
-        loginEmailInput.focus();
-    });
+    const errorBox = document.getElementById('auth-error');
 
     // --- Firebase Auth State Listener (Route Guard for Index) ---
     auth.onAuthStateChanged(user => {
@@ -80,24 +46,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function showError(msg) {
+        if (!errorBox) return;
+        errorBox.textContent = msg;
+        errorBox.style.display = 'block';
+    }
+
+    function clearError() {
+        if (!errorBox) return;
+        errorBox.textContent = '';
+        errorBox.style.display = 'none';
+    }
+
     // --- LOGIN LOGIC ---
     const handleLogin = () => {
+        clearError();
         const email = loginEmailInput.value.trim();
         const password = loginPasswordInput.value;
 
         if (!email || !password) {
-            loginStatus.textContent = "Ingrese correo y contraseña.";
-            loginStatus.style.color = "red";
+            showError("INGRESE CORREO Y CONTRASEÑA.");
             return;
         }
 
-        loginStatus.textContent = "Autenticando...";
-        loginStatus.style.color = "var(--cyan-tech)";
         btnLogin.disabled = true;
+        btnLogin.textContent = "AUTENTICANDO...";
 
         auth.signInWithEmailAndPassword(email, password)
             .then((userCredential) => {
-                loginStatus.textContent = "Acceso concedido. Redirigiendo...";
                 // Look up playerId associated with this UID to set localStorage
                 db.ref('campaña/auth_mapping/' + userCredential.user.uid).once('value')
                     .then(snapshot => {
@@ -114,50 +90,50 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch((error) => {
                 console.error("Login error:", error);
-                loginStatus.style.color = "red";
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                    loginStatus.textContent = "Credenciales incorrectas.";
+                    showError("CREDENCIALES INCORRECTAS.");
                 } else if (error.code === 'auth/invalid-email') {
-                    loginStatus.textContent = "Formato de correo inválido.";
+                    showError("FORMATO DE CORREO INVÁLIDO.");
                 } else {
-                    loginStatus.textContent = "Error: " + error.message;
+                    showError("ERROR: " + error.message);
                 }
                 btnLogin.disabled = false;
+                btnLogin.textContent = "INICIAR SESIÓN";
             });
     };
 
-    btnLogin.addEventListener('click', handleLogin);
-    loginPasswordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
+    if (btnLogin) {
+        btnLogin.addEventListener('click', handleLogin);
+    }
 
-    // Hover effect on login button
-    btnLogin.addEventListener('mouseenter', () => {
-        btnLogin.style.background = 'var(--gold-bright)';
-        btnLogin.style.color = 'black';
-    });
-    btnLogin.addEventListener('mouseleave', () => {
-        btnLogin.style.background = 'transparent';
-        btnLogin.style.color = 'var(--gold-bright)';
-    });
+    if (loginPasswordInput) {
+        loginPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (btnRegisterSubmit && btnRegisterSubmit.style.display === 'block') {
+                    handleRegister();
+                } else {
+                    handleLogin();
+                }
+            }
+        });
+    }
 
     // --- REGISTRATION LOGIC ---
     const handleRegister = () => {
-        const email = registerEmailInput.value.trim();
-        const password = registerPasswordInput.value;
-        const rawPlayerId = registerPlayerIdInput.value.trim();
+        clearError();
+        const email = loginEmailInput.value.trim();
+        const password = loginPasswordInput.value;
+        const rawPlayerId = authPlayerIdInput.value.trim();
 
         if (!email || !password || !rawPlayerId) {
-            registerStatus.textContent = "Complete todos los campos.";
-            registerStatus.style.color = "red";
+            showError("COMPLETE TODOS LOS CAMPOS.");
             return;
         }
 
         const playerId = rawPlayerId.replace(/\s+/g, '');
 
-        registerStatus.textContent = "Registrando usuario...";
-        registerStatus.style.color = "var(--cyan-tech)";
-        btnRegister.disabled = true;
+        btnRegisterSubmit.disabled = true;
+        btnRegisterSubmit.textContent = "REGISTRANDO...";
 
         auth.createUserWithEmailAndPassword(email, password)
             .then((userCredential) => {
@@ -170,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Check if player profile exists, if not, prepare to init or redirect to creation
                         db.ref('campaña/jugadores/' + playerId).once('value').then(snapshot => {
-                            registerStatus.textContent = "Registro exitoso. Redirigiendo...";
                             if (!snapshot.exists()) {
                                 // For now, we redirect to creacion_personaje or just hoja_personaje
                                 // The original system redirected to creacion_personaje if localState didn't exist
@@ -185,40 +160,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                     .catch(err => {
                         console.error("Error saving mapping:", err);
-                        registerStatus.textContent = "Error interno al registrar.";
-                        registerStatus.style.color = "red";
-                        btnRegister.disabled = false;
+                        showError("ERROR INTERNO AL REGISTRAR.");
+                        btnRegisterSubmit.disabled = false;
+                        btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
                     });
             })
             .catch((error) => {
                 console.error("Registration error:", error);
-                registerStatus.style.color = "red";
                 if (error.code === 'auth/email-already-in-use') {
-                    registerStatus.textContent = "El correo ya está en uso.";
+                    showError("EL CORREO YA ESTÁ EN USO.");
                 } else if (error.code === 'auth/weak-password') {
-                    registerStatus.textContent = "La contraseña debe tener al menos 6 caracteres.";
+                    showError("LA CONTRASEÑA DEBE TENER AL MENOS 6 CARACTERES.");
                 } else if (error.code === 'auth/invalid-email') {
-                    registerStatus.textContent = "Formato de correo inválido.";
+                    showError("FORMATO DE CORREO INVÁLIDO.");
                 } else {
-                    registerStatus.textContent = "Error: " + error.message;
+                    showError("ERROR: " + error.message);
                 }
-                btnRegister.disabled = false;
+                btnRegisterSubmit.disabled = false;
+                btnRegisterSubmit.textContent = "CONFIRMAR REGISTRO";
             });
     };
 
-    btnRegister.addEventListener('click', handleRegister);
-    registerPasswordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleRegister();
-    });
-
-    // Hover effect on register button
-    btnRegister.addEventListener('mouseenter', () => {
-        btnRegister.style.background = 'var(--gold-bright)';
-        btnRegister.style.color = 'black';
-    });
-    btnRegister.addEventListener('mouseleave', () => {
-        btnRegister.style.background = 'transparent';
-        btnRegister.style.color = 'var(--gold-bright)';
-    });
+    if (btnRegisterSubmit) {
+        btnRegisterSubmit.addEventListener('click', handleRegister);
+    }
 
 });
