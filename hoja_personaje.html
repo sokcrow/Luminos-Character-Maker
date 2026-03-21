@@ -9,6 +9,39 @@
 
 
 <style>
+  #system-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background-color: #050505;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1s ease;
+  }
+
+  #system-loading-overlay img {
+    width: auto;
+    height: 50vh;
+    opacity: 0.3;
+    filter: grayscale(20%);
+  }
+
+  #system-loading-indicator {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    color: #cc0000;
+    font-family: 'BebasKai', sans-serif;
+    font-size: 1.5rem;
+  }
+
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
 @font-face {
@@ -211,6 +244,13 @@
 </style>
 </head>
 <body>
+  <div id="system-loading-overlay">
+    <img src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927" alt="Loading">
+    <div id="system-loading-indicator">
+      ESTABLECIENDO VÍNCULO DE ALMAS...
+    </div>
+  </div>
+
  <div style="margin: 0 auto; max-width: 1200px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
  <button class="btn-back" onclick="window.location.replace('index.html')">&lt; Volver al Menú</button>
  <button id="btn-cerrar-sesion" style="background: transparent; color: var(--red-neon); border: 1px solid var(--red-neon); padding: 5px 10px; font-family: 'Share Tech Mono', monospace; text-transform: uppercase; cursor: pointer; transition: all 0.3s; font-size: 0.9rem;">Cerrar Sesión</button>

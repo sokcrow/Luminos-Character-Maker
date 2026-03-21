@@ -638,40 +638,27 @@ window.actoresJugador = {}; // Diccionario global por Actor ID
 
 
 // Route Guard and Data Init
+let isInitialLoad = true;
+
 auth.onAuthStateChanged((user) => {
   if (!user) {
     window.location.replace("index.html");
   } else {
-    // Load playerId from localStorage
+    // Check playerId strictly from localStorage
     let localPlayerId = localStorage.getItem("playerId");
 
     if (!localPlayerId || localPlayerId.trim() === "") {
-        // Show Limbus Company modal to get characterName
-        const modal = document.getElementById("character-name-modal");
-        const input = document.getElementById("character-name-input");
-        const btn = document.getElementById("btn-confirm-character-name");
-        
-        if (modal && input && btn) {
-            modal.style.display = "flex";
-            
-            btn.onclick = () => {
-                const name = input.value.trim();
-                if (name) {
-                    localStorage.setItem("playerId", name);
-                    playerId = name;
-                    modal.style.display = "none";
-                    loadPlayerData();
-                }
-            };
-        }
+        // Strict redirection if playerId is missing, as per instructions
+        window.location.replace("index.html");
     } else {
         playerId = localPlayerId;
-        loadPlayerData();
+        initializeCharacterSheet();
     }
   }
 });
 
-function loadPlayerData() {
+function initializeCharacterSheet() {
+
     if (!playerId) return;
 
     // 1. Descargar datos base del jugador usando el characterName
@@ -686,6 +673,16 @@ function loadPlayerData() {
         }
         if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
           window.actualizarExpresionesDesdeDropdown();
+        }
+      }
+
+      // Remove the loading overlay on first successful data load
+      if (isInitialLoad) {
+        isInitialLoad = false;
+        const overlay = document.getElementById('system-loading-overlay');
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => overlay.remove(), 1000);
         }
       }
     });
@@ -877,7 +874,7 @@ function loadPlayerData() {
 };
 
 // UI EVENT LISTENERS
-window.addEventListener("DOMContentLoaded", () => {
+{
   // Phone Toggle
   const toggleBtn = document.getElementById("btn-toggle-phone");
   const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
@@ -991,7 +988,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 // --- Inventory Modal Logic ---
-window.addEventListener("DOMContentLoaded", () => {
+{
   // Mail Tab Logic
   let mailListenerActive = false;
   const mailTabBtn = document.querySelector('button[name="act_tab_mail"]');
@@ -1647,7 +1644,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // Listener for active and stash inventory
 let playerInventoryListenerActive = false;
-window.addEventListener("DOMContentLoaded", () => {
+{
   // Wait slightly to ensure Firebase is initialized
   setTimeout(() => {
     if (typeof db === "undefined") return;
@@ -1723,7 +1720,7 @@ const romanTiersShop = [
 ];
 
 // Esperar a que el DOM y typeof db !== 'undefined' existan
-window.addEventListener("DOMContentLoaded", () => {
+{
   if (typeof db === "undefined") return;
 
   // Abrir/Cerrar el modal de tienda física
@@ -2279,7 +2276,7 @@ function renderizarVender() {
 }
 
 // NATIVE BUTTON LISTENERS
-window.addEventListener("DOMContentLoaded", () => {
+{
   // Escuchar clicks globales para botones de acción (simulando Roll20)
   document.addEventListener("click", (e) => {
     const btn = e.target.closest('button[type="action"]');
@@ -2691,7 +2688,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
-window.addEventListener("DOMContentLoaded", () => {
+{
   // === LECTURA DEL TEATRO DE LA MENTE ===
   if (typeof db !== "undefined") {
     // 1. Lectura del log de mensajes en tiempo real
@@ -2909,3 +2906,5 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
+}
