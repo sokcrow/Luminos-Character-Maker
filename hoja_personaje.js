@@ -2295,6 +2295,7 @@ document.addEventListener('click', (e) => {
                     color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
                     escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
                     sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
+                    icono: actorParaEnviar.icono || "https://via.placeholder.com/80/000000/ffffff?text=J",
                     mensaje: msgText,
                     timestamp: Date.now()
                 };
@@ -2452,6 +2453,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
                 escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
                 sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
+                icono: actorParaEnviar.icono || "https://via.placeholder.com/80/000000/ffffff?text=J",
                 mensaje: msgText,
                 timestamp: Date.now()
             };

@@ -7420,29 +7420,167 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 /* ---- Global Theatre Log Adjustments ---- */
 #theatre-view-player #theatre-log-container {
+    --bg-color: #d8cdb8;
+    --text-color: #1a1a1a;
+    --border-dark: #2a1610;
+    --accent-gold: #c59c5c;
+    --divider-color: #a39581;
+
     display: none !important;
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
-    width: 80% !important;
-    max-width: 400px !important;
+    width: 800px !important;
+    max-width: 95% !important;
     height: 60vh !important;
-    max-height: 400px !important;
+    max-height: 500px !important;
     z-index: 2050 !important;
-    background: rgba(0,0,0,0.95) !important;
-    border: 2px solid #444 !important;
-    box-shadow: 0 0 20px rgba(0,0,0,0.8) !important;
-    overflow-y: auto !important;
-    padding: 10px !important;
-    font-size: 13px !important;
-    color: #ccc !important;
+
+    background-color: var(--bg-color) !important;
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 3px,
+      rgba(0, 0, 0, 0.04) 3px,
+      rgba(0, 0, 0, 0.04) 6px
+    ) !important;
+    border: 12px solid var(--border-dark) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 0 0 4px #000 inset, 0 10px 30px rgba(0,0,0,0.8) !important;
+
+    overflow: hidden !important;
+    padding: 0 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     flex-direction: column !important;
-    gap: 5px !important;
+    gap: 0 !important;
 }
 
 #theatre-view-player #theatre-log-container.open {
     display: flex !important;
+}
+
+#theatre-view-player #theatre-log-container .dialogue-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 40px;
+    z-index: 1;
+    position: relative;
+    box-sizing: border-box;
+}
+
+#theatre-view-player #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar {
+    width: 10px;
+}
+#theatre-view-player #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-left: 1px solid var(--divider-color);
+}
+#theatre-view-player #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar-thumb {
+    background: var(--border-dark);
+}
+
+#theatre-view-player #theatre-log-container .dialogue-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 15px;
+    min-height: 100px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#theatre-view-player #theatre-log-container .dialogue-divider {
+    border: none;
+    border-top: 2px solid var(--divider-color);
+    margin: 15px 0;
+}
+
+#theatre-view-player #theatre-log-container .character-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    flex-shrink: 0;
+}
+
+#theatre-view-player #theatre-log-container .hex-border {
+    width: 86px;
+    height: 98px;
+    background-color: var(--border-dark);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#theatre-view-player #theatre-log-container .hex-portrait {
+    width: 80px;
+    height: 90px;
+    background-color: #ecc9da;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+#theatre-view-player #theatre-log-container .hex-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#theatre-view-player #theatre-log-container .character-name {
+    margin-top: 8px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--text-color);
+    text-transform: capitalize;
+    text-shadow: none !important;
+}
+
+#theatre-view-player #theatre-log-container .text-col {
+    flex: 1;
+    font-size: 1.3rem;
+    color: var(--text-color);
+    line-height: 1.4;
+    font-weight: 500;
+    padding-right: 15px;
+}
+
+#theatre-view-player #theatre-log-container .text-col p {
+    margin: 0;
+    color: var(--text-color);
+}
+
+#theatre-view-player #theatre-log-container .dialogue-footer {
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(to top, rgba(0,0,0,0.1), transparent);
+    border-top: 2px solid rgba(0,0,0,0.1);
+    z-index: 1;
+}
+
+#theatre-view-player #theatre-log-container .confirm-btn {
+    background-color: var(--bg-color);
+    border: 3px solid var(--border-dark);
+    color: var(--text-color);
+    font-size: 1.2rem;
+    font-weight: 900;
+    padding: 10px 60px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.2) !important;
+    transition: transform 0.1s, box-shadow 0.1s;
+    border-radius: 0 !important;
+}
+
+#theatre-view-player #theatre-log-container .confirm-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.2) !important;
 }
 
 #btn-toggle-theatre-log-player {
