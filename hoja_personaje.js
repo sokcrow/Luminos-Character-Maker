@@ -637,6 +637,18 @@ window.datosJugador = null;
 window.actoresJugador = {}; // Diccionario global por Actor ID
 
 
+// Helper to hide the loading overlay
+window.hideLoadingOverlay = function () {
+  const overlay = document.getElementById("system-loading-overlay");
+  if (overlay && overlay.style.display !== "none") {
+    overlay.style.opacity = "0";
+    setTimeout(() => {
+      overlay.style.display = "none";
+      overlay.remove();
+    }, 1000);
+  }
+};
+
 // Route Guard and Data Init
 let isInitialLoad = true;
 
@@ -648,8 +660,8 @@ auth.onAuthStateChanged((user) => {
     let localPlayerId = localStorage.getItem("playerId");
 
     if (!localPlayerId || localPlayerId.trim() === "") {
-        // Strict redirection if playerId is missing, as per instructions
-        window.location.replace("index.html");
+        // Handle Null Player: show modal immediately
+        window.hideLoadingOverlay();
     } else {
         playerId = localPlayerId;
         initializeCharacterSheet();
@@ -663,29 +675,33 @@ function initializeCharacterSheet() {
 
     // 1. Descargar datos base del jugador usando el characterName
     const playerRef = db.ref("campaña/jugadores/" + playerId);
-    playerRef.on("value", (snapshot) => {
-      if (snapshot.exists()) {
-        window.datosJugador = snapshot.val();
-        currentPlayerData = snapshot.val();
-        renderCharacterSheet(window.datosJugador);
-        if (typeof window.renderRecetasCrafteo === "function") {
-          window.renderRecetasCrafteo();
+    playerRef.on(
+      "value",
+      (snapshot) => {
+        if (snapshot.exists()) {
+          window.datosJugador = snapshot.val();
+          currentPlayerData = snapshot.val();
+          renderCharacterSheet(window.datosJugador);
+          if (typeof window.renderRecetasCrafteo === "function") {
+            window.renderRecetasCrafteo();
+          }
+          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
+            window.actualizarExpresionesDesdeDropdown();
+          }
         }
-        if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-          window.actualizarExpresionesDesdeDropdown();
-        }
-      }
 
-      // Remove the loading overlay on first successful data load
-      if (isInitialLoad) {
-        isInitialLoad = false;
-        const overlay = document.getElementById('system-loading-overlay');
-        if (overlay) {
-          overlay.style.opacity = '0';
-          setTimeout(() => overlay.remove(), 1000);
+        // Remove the loading overlay on first successful data load
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          window.hideLoadingOverlay();
         }
+      },
+      (error) => {
+        console.error(error);
+        window.hideLoadingOverlay();
+        alert("ERROR DE VÍNCULO: CONSULTE CON EL DM. (Error: " + error.message + ")");
       }
-    });
+    );
 
     // Track Realtime Presence
     const connectedRef = db.ref(".info/connected");
