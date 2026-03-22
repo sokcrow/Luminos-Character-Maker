@@ -765,9 +765,7 @@ function initializeCharacterSheet() {
     });
 }
 
-    }
-  }
-
+function renderCharacterSheet(data) {
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
   skillRows.forEach((row) => {
@@ -1047,7 +1045,7 @@ function initializeCharacterSheet() {
       }
     });
   });
-});
+}
 // --- Inventory Modal Logic ---
 {
   // Mail Tab Logic
@@ -1701,7 +1699,7 @@ function initializeCharacterSheet() {
 
   // --- Dynamic Shop System Logic ---
   // Shop logic is now handled in the main Shop app tab
-});
+}
 
 // Listener for active and stash inventory
 let playerInventoryListenerActive = false;
@@ -1757,7 +1755,7 @@ let playerInventoryListenerActive = false;
       }
     }, 1000);
   }, 1000);
-});
+}
 
 // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
 let tiendaActivaData = null;
@@ -2214,7 +2212,7 @@ const romanTiersShop = [
       });
     }
   });
-});
+}
 
 function renderizarComprar() {
   const grid = document.getElementById("shop-comprar-grid");
@@ -2498,7 +2496,7 @@ function renderizarVender() {
       }
     }
   });
-});
+}
 
 // ====== COIN TOSS ENGINE ======
 document.addEventListener("click", (e) => {
@@ -2966,6 +2964,4 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   }
-});
-
 }
