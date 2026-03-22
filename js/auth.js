@@ -17,6 +17,61 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.database();
 
+// --- Firebase Auth State Listener (Route Guard for Index) ---
+auth.onAuthStateChanged(user => {
+    if (user) {
+        // Already logged in, redirect immediately
+        redirectUser(user);
+    }
+});
+
+function redirectUser(user) {
+    if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
+        window.location.replace('pantalla_dm.html');
+        return;
+    }
+
+    // Traffic Controller: Identity Search
+    db.ref('campaña/jugadores/').orderByChild('uid').equalTo(user.uid).once('value')
+        .then(snapshot => {
+            if (snapshot.exists()) {
+                let matchFound = false;
+                snapshot.forEach(child => {
+                    const data = child.val();
+                    if (data.status === 'approved') {
+                        localStorage.setItem('playerId', child.key);
+                        window.location.replace('hoja_personaje.html');
+                        matchFound = true;
+                        return true; // Stop iterating
+                    } else if (data.status === 'pending') {
+                        window.location.replace('vinculacion.html');
+                        matchFound = true;
+                        return true;
+                    }
+                });
+
+                // If it exists but has no status (legacy) or didn't match pending/approved logic
+                if (!matchFound) {
+                    // Fallback for legacy approved characters
+                    const child = Object.values(snapshot.val())[0];
+                    const childKey = Object.keys(snapshot.val())[0];
+                    if (child.uid === user.uid) {
+                        localStorage.setItem('playerId', childKey);
+                        window.location.replace('hoja_personaje.html');
+                    } else {
+                         window.location.replace('vinculacion.html');
+                    }
+                }
+            } else {
+                window.location.replace('vinculacion.html');
+            }
+        })
+        .catch(error => {
+            console.error("Error during identity search:", error);
+            window.location.replace('vinculacion.html');
+        });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // These IDs are mapped directly from index.html
     const loginEmailInput = document.getElementById('auth-email');
@@ -26,22 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRegisterSubmit = document.getElementById('btn-register-submit'); // Confirm Registration button
 
     const errorBox = document.getElementById('auth-error');
-
-    // --- Firebase Auth State Listener (Route Guard for Index) ---
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            // Already logged in, redirect immediately
-            redirectUser(user);
-        }
-    });
-
-    function redirectUser(user) {
-        if (user.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') {
-            window.location.replace('pantalla_dm.html');
-        } else {
-            window.location.replace('hoja_personaje.html');
-        }
-    }
 
     function showError(msg) {
         if (!errorBox) return;
@@ -125,8 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // For everyone else, just go to hoja_personaje which now handles character linking
-                window.location.replace('hoja_personaje.html');
+                // For everyone else, route through redirectUser to ensure they hit the Traffic Controller
+                redirectUser(user);
             })
             .catch((error) => {
                 console.error("Registration error:", error);
