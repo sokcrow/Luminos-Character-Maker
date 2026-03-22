@@ -212,6 +212,7 @@
         });
       });
 
+
       btnBind.addEventListener("click", () => {
         const charName = selectChar.value;
         if (!charName) {
@@ -220,19 +221,32 @@
         }
 
         if (confirm(`¿Está seguro de que desea solicitar el vínculo con "${charName}"?`)) {
-          db.ref(`campaña/jugadores/${charName}`).update({
-            uid: currentUser.uid,
-            status: "pending"
-          }).then(() => {
-            localStorage.setItem("playerId", charName);
-            showPendingState();
-          }).catch(e => {
-            alert("Error al solicitar vínculo: " + e.message);
+          const charRef = db.ref(`campaña/jugadores/${charName}`);
+          charRef.transaction((currentData) => {
+            if (currentData === null) {
+                return currentData; // Cannot bind to non-existent player
+            }
+            if (currentData.uid && currentData.uid !== currentUser.uid) {
+                return; // Abort transaction if it already has a UID from someone else
+            }
+            currentData.uid = currentUser.uid;
+            currentData.status = "pending";
+            return currentData;
+          }, (error, committed, snapshot) => {
+            if (error) {
+              alert("Error al solicitar vínculo: " + error.message);
+            } else if (!committed) {
+              alert("El expediente ya ha sido reclamado por otro usuario.");
+              // Reload page to get fresh list
+              window.location.reload();
+            } else {
+              localStorage.setItem("playerId", charName);
+              showPendingState();
+            }
           });
         }
       });
-
-      function showPendingState() {
+function showPendingState() {
         selectChar.style.display = "none";
         btnBind.style.display = "none";
         spinner.style.display = "none";
