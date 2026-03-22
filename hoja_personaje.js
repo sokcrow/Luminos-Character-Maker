@@ -763,8 +763,232 @@ function initializeCharacterSheet() {
         playerRef.update({ online: true });
       }
     });
-}
 
+    // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
+    {
+      // === LECTURA DEL TEATRO DE LA MENTE ===
+      if (typeof db !== "undefined") {
+        // 1. Lectura del log de mensajes en tiempo real
+        db.ref("campaña/teatro/log")
+          .limitToLast(20)
+          .on("value", (snap) => {
+            const logContainer = document.getElementById("theatre-log-container");
+            if (!logContainer) return;
+
+            // Remove old entries, except the header/footer if any
+            Array.from(logContainer.children).forEach((child) => {
+              if (
+                child.className !== "dialogue-footer" &&
+                child.className !== "dialogue-scroll-area"
+              ) {
+                child.remove();
+              }
+            });
+
+            // Ensure dialogue-scroll-area exists inside logContainer
+            let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
+            if (!scrollArea) {
+              scrollArea = document.createElement("div");
+              scrollArea.className = "dialogue-scroll-area";
+              logContainer.insertBefore(scrollArea, logContainer.firstChild);
+            }
+            scrollArea.innerHTML = ""; // clear messages
+
+            const logs = snap.val();
+            console.log("Teatro data received:", logs);
+
+            if (!snap.exists() || logs === null) {
+                scrollArea.innerHTML = "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
+                return;
+            }
+
+            if (logs) {
+              let isFirst = true;
+              for (const [key, msg] of Object.entries(logs)) {
+                if (!isFirst) {
+                  const divider = document.createElement("hr");
+                  divider.className = "dialogue-divider";
+                  scrollArea.appendChild(divider);
+                }
+                isFirst = false;
+
+                const row = document.createElement("div");
+                row.className = "dialogue-row";
+
+                const charHexColor = msg.color_nombre || "#ffffff";
+                // Generate a default icon just in case one is missing
+                const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
+                const iconoSrc = msg.icono || defaultFallbackIcon;
+
+                row.innerHTML = `
+                          <div class="character-col">
+                            <div class="hex-border">
+                              <div class="hex-portrait">
+                                <img src="${iconoSrc}" alt="${msg.nombre || "Unknown"}">
+                              </div>
+                            </div>
+                            <span class="character-name" style="color: ${charHexColor}">${msg.nombre || "Unknown"}</span>
+                          </div>
+                          <div class="text-col">
+                            <p>${msg.mensaje}</p>
+                          </div>
+                        `;
+
+                scrollArea.appendChild(row);
+              }
+              scrollArea.scrollTop = scrollArea.scrollHeight;
+            }
+          });
+
+        // 2. Lectura de estado de bloqueo (Modo Lore)
+        db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
+          const isBlocked = snap.val();
+          const input = document.getElementById("player-theatre-input");
+          const btn = document.getElementById("btn-player-theatre-send");
+          if (input && btn) {
+            input.disabled = isBlocked;
+            btn.disabled = isBlocked;
+            input.placeholder = isBlocked
+              ? "El Director ha bloqueado las interacciones (Modo Lore)..."
+              : "¿Qué quieres decir o hacer? (Escribe aquí...)";
+          }
+        });
+      }
+
+      // === ENVÍO AL TEATRO DE LA MENTE ===
+      const btnSend = document.getElementById("btn-player-theatre-send");
+      const inputEl = document.getElementById("player-theatre-input");
+
+      const sendTheatreMessage = () => {
+        const domInput = document.getElementById("player-theatre-input");
+        if (!domInput || !domInput.value.trim() || typeof db === "undefined")
+          return;
+
+        try {
+          const msgText = domInput.value.trim();
+          const actorSelect = document.getElementById("player-actor-select");
+          const selectExp = document.getElementById("player-expression-select");
+
+          const assignedActorId = window.datosJugador?.actorId || null;
+          // Se prioriza el DM pero se asegura que haya un fallback sano
+          const selectedActorId = assignedActorId
+            ? assignedActorId
+            : actorSelect
+              ? actorSelect.value
+              : "base";
+
+          let actorParaEnviar = {
+            nombre: window.datosJugador?.characterName || "Jugador",
+            titulo: "",
+            color_nombre: "#ffffff",
+            color_titulo: "#aaaaaa",
+            escala: 1.0,
+            sprite: "https://i.imgur.com/kP8s7Ww.png", // Sprite Base Default
+          };
+
+          // Rescatamos datos del actor seleccionado si no es la base
+          // Bloque defensivo mejorado
+          if (
+            selectedActorId &&
+            selectedActorId !== "base" &&
+            window.actoresJugador &&
+            window.actoresJugador[selectedActorId]
+          ) {
+            const dataActor = window.actoresJugador[selectedActorId];
+            if (dataActor) {
+              actorParaEnviar = {
+                nombre: dataActor.nombre || actorParaEnviar.nombre,
+                titulo: dataActor.titulo || "",
+                color_nombre: dataActor.color_nombre || "#ffffff",
+                color_titulo: dataActor.color_titulo || "#aaaaaa",
+                escala:
+                  dataActor.escala !== undefined
+                    ? parseFloat(dataActor.escala)
+                    : 1.0,
+                sprite: dataActor.sprite || actorParaEnviar.sprite,
+              };
+            }
+          }
+
+          // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
+          let selectedSprite = actorParaEnviar.sprite;
+          try {
+            if (
+              selectExp &&
+              selectExp.style.display !== "none" &&
+              selectExp.options.length > 0
+            ) {
+              const val = selectExp.value;
+              if (val && val.trim() !== "") {
+                selectedSprite = val;
+              }
+            }
+          } catch (e) {
+            console.warn(
+              "Fallo leyendo expresión del select, usando sprite base.",
+              e,
+            );
+          }
+
+          // Construimos Payload Directo con valores limpios
+          const payload = {
+            nombre: actorParaEnviar.nombre || "Jugador",
+            titulo: actorParaEnviar.titulo || "",
+            color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+            color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+            escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+            sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
+            icono:
+              actorParaEnviar.icono ||
+              "https://via.placeholder.com/80/000000/ffffff?text=J",
+            mensaje: msgText,
+            timestamp: Date.now(),
+          };
+
+          // Aseguramos que la referencia no sea undefined y mandamos la cola
+          if (db && db.ref) {
+            db.ref("campaña/teatro/cola")
+              .push(payload)
+              .then(() => {
+                const domInput = document.getElementById("player-theatre-input");
+                if (domInput) domInput.value = ""; // Limpiar input directo post-envío
+              })
+              .catch((e) => {
+                console.error("Error en Firebase enviando a la cola:", e);
+              });
+          } else {
+            console.error("La instancia db.ref es undefined.");
+          }
+        } catch (err) {
+          console.error("Fallo crítico en sendTheatreMessage:", err);
+        }
+      };
+
+      // Listeners Limpios globales
+      // Reasignamos usando query selector al documento real porque el original se copió
+      if (btnSend) {
+        const currentBtn = document.getElementById("btn-player-theatre-send");
+        if (currentBtn) {
+          const newBtnSend = currentBtn.cloneNode(true);
+          currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
+          newBtnSend.addEventListener("click", sendTheatreMessage);
+        }
+      }
+
+      if (inputEl) {
+        const currentInput = document.getElementById("player-theatre-input");
+        if (currentInput) {
+          const newInputEl = currentInput.cloneNode(true);
+          currentInput.parentNode.replaceChild(newInputEl, currentInput);
+
+          newInputEl.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              sendTheatreMessage();
+            }
+          });
+        }
+      }
     }
   }
 
@@ -2748,224 +2972,3 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
-{
-  // === LECTURA DEL TEATRO DE LA MENTE ===
-  if (typeof db !== "undefined") {
-    // 1. Lectura del log de mensajes en tiempo real
-    db.ref("campaña/teatro/log")
-      .limitToLast(20)
-      .on("value", (snap) => {
-        const logContainer = document.getElementById("theatre-log-container");
-        if (!logContainer) return;
-
-        // Remove old entries, except the header/footer if any
-        Array.from(logContainer.children).forEach((child) => {
-          if (
-            child.className !== "dialogue-footer" &&
-            child.className !== "dialogue-scroll-area"
-          ) {
-            child.remove();
-          }
-        });
-
-        // Ensure dialogue-scroll-area exists inside logContainer
-        let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
-        if (!scrollArea) {
-          scrollArea = document.createElement("div");
-          scrollArea.className = "dialogue-scroll-area";
-          logContainer.insertBefore(scrollArea, logContainer.firstChild);
-        }
-        scrollArea.innerHTML = ""; // clear messages
-
-        const logs = snap.val();
-        if (logs) {
-          let isFirst = true;
-          for (const [key, msg] of Object.entries(logs)) {
-            if (!isFirst) {
-              const divider = document.createElement("hr");
-              divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
-            }
-            isFirst = false;
-
-            const row = document.createElement("div");
-            row.className = "dialogue-row";
-
-            const charHexColor = msg.color_nombre || "#ffffff";
-            // Generate a default icon just in case one is missing
-            const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
-            const iconoSrc = msg.icono || defaultFallbackIcon;
-
-            row.innerHTML = `
-                      <div class="character-col">
-                        <div class="hex-border">
-                          <div class="hex-portrait">
-                            <img src="${iconoSrc}" alt="${msg.nombre || "Unknown"}">
-                          </div>
-                        </div>
-                        <span class="character-name" style="color: ${charHexColor}">${msg.nombre || "Unknown"}</span>
-                      </div>
-                      <div class="text-col">
-                        <p>${msg.mensaje}</p>
-                      </div>
-                    `;
-
-            scrollArea.appendChild(row);
-          }
-          scrollArea.scrollTop = scrollArea.scrollHeight;
-        }
-      });
-
-    // 2. Lectura de estado de bloqueo (Modo Lore)
-    db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
-      const isBlocked = snap.val();
-      const input = document.getElementById("player-theatre-input");
-      const btn = document.getElementById("btn-player-theatre-send");
-      if (input && btn) {
-        input.disabled = isBlocked;
-        btn.disabled = isBlocked;
-        input.placeholder = isBlocked
-          ? "El Director ha bloqueado las interacciones (Modo Lore)..."
-          : "¿Qué quieres decir o hacer? (Escribe aquí...)";
-      }
-    });
-  }
-
-  // === ENVÍO AL TEATRO DE LA MENTE ===
-  const btnSend = document.getElementById("btn-player-theatre-send");
-  const inputEl = document.getElementById("player-theatre-input");
-
-  const sendTheatreMessage = () => {
-    const domInput = document.getElementById("player-theatre-input");
-    if (!domInput || !domInput.value.trim() || typeof db === "undefined")
-      return;
-
-    try {
-      const msgText = domInput.value.trim();
-      const actorSelect = document.getElementById("player-actor-select");
-      const selectExp = document.getElementById("player-expression-select");
-
-      const assignedActorId = window.datosJugador?.actorId || null;
-      // Se prioriza el DM pero se asegura que haya un fallback sano
-      const selectedActorId = assignedActorId
-        ? assignedActorId
-        : actorSelect
-          ? actorSelect.value
-          : "base";
-
-      let actorParaEnviar = {
-        nombre: window.datosJugador?.characterName || "Jugador",
-        titulo: "",
-        color_nombre: "#ffffff",
-        color_titulo: "#aaaaaa",
-        escala: 1.0,
-        sprite: "https://i.imgur.com/kP8s7Ww.png", // Sprite Base Default
-      };
-
-      // Rescatamos datos del actor seleccionado si no es la base
-      // Bloque defensivo mejorado
-      if (
-        selectedActorId &&
-        selectedActorId !== "base" &&
-        window.actoresJugador &&
-        window.actoresJugador[selectedActorId]
-      ) {
-        const dataActor = window.actoresJugador[selectedActorId];
-        if (dataActor) {
-          actorParaEnviar = {
-            nombre: dataActor.nombre || actorParaEnviar.nombre,
-            titulo: dataActor.titulo || "",
-            color_nombre: dataActor.color_nombre || "#ffffff",
-            color_titulo: dataActor.color_titulo || "#aaaaaa",
-            escala:
-              dataActor.escala !== undefined
-                ? parseFloat(dataActor.escala)
-                : 1.0,
-            sprite: dataActor.sprite || actorParaEnviar.sprite,
-          };
-        }
-      }
-
-      // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
-      let selectedSprite = actorParaEnviar.sprite;
-      try {
-        if (
-          selectExp &&
-          selectExp.style.display !== "none" &&
-          selectExp.options.length > 0
-        ) {
-          const val = selectExp.value;
-          if (val && val.trim() !== "") {
-            selectedSprite = val;
-          }
-        }
-      } catch (e) {
-        console.warn(
-          "Fallo leyendo expresión del select, usando sprite base.",
-          e,
-        );
-      }
-
-      // Construimos Payload Directo con valores limpios
-      const payload = {
-        nombre: actorParaEnviar.nombre || "Jugador",
-        titulo: actorParaEnviar.titulo || "",
-        color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-        color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
-        escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
-        sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
-        icono:
-          actorParaEnviar.icono ||
-          "https://via.placeholder.com/80/000000/ffffff?text=J",
-        mensaje: msgText,
-        timestamp: Date.now(),
-      };
-
-      // Aseguramos que la referencia no sea undefined y mandamos la cola
-      if (db && db.ref) {
-        db.ref("campaña/teatro/cola")
-          .push(payload)
-          .then(() => {
-            const domInput = document.getElementById("player-theatre-input");
-            if (domInput) domInput.value = ""; // Limpiar input directo post-envío
-          })
-          .catch((e) => {
-            console.error("Error en Firebase enviando a la cola:", e);
-          });
-      } else {
-        console.error("La instancia db.ref es undefined.");
-      }
-    } catch (err) {
-      console.error("Fallo crítico en sendTheatreMessage:", err);
-    }
-  };
-
-  // Listeners Limpios globales
-  // Reasignamos usando query selector al documento real porque el original se copió
-  if (btnSend) {
-    const currentBtn = document.getElementById("btn-player-theatre-send");
-    if (currentBtn) {
-      const newBtnSend = currentBtn.cloneNode(true);
-      currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
-      newBtnSend.addEventListener("click", sendTheatreMessage);
-    }
-  }
-
-  if (inputEl) {
-    const currentInput = document.getElementById("player-theatre-input");
-    if (currentInput) {
-      const newInputEl = currentInput.cloneNode(true);
-      currentInput.parentNode.replaceChild(newInputEl, currentInput);
-
-      newInputEl.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          sendTheatreMessage();
-        }
-      });
-    }
-  }
-});
-
-}

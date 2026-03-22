@@ -3634,9 +3634,11 @@ function initializeDMApp() {
               if (logContainer.classList.contains("open")) {
                 this.innerText = "❌";
                 this.setAttribute("aria-expanded", "true");
+                logContainer.style.display = "flex";
               } else {
                 this.innerText = "📜";
                 this.setAttribute("aria-expanded", "false");
+                logContainer.style.display = "none";
               }
             }
           });
@@ -5069,6 +5071,8 @@ function initializeDMApp() {
         const items = snapshot.val();
         dbItemsCache = items || {};
 
+        const fragmentGlobalItems = document.createDocumentFragment();
+
         if (items) {
           for (const [key, data] of Object.entries(items)) {
             const card = document.createElement("div");
@@ -5178,8 +5182,9 @@ function initializeDMApp() {
                 .scrollIntoView({ behavior: "smooth" });
             });
 
-            gridItemsGlobales.appendChild(card);
+            fragmentGlobalItems.appendChild(card);
           }
+          gridItemsGlobales.appendChild(fragmentGlobalItems);
           // Llamar al filtro después de renderizar para mantener el estado de búsqueda actual
           filterDMItems();
         } else {
@@ -5444,6 +5449,8 @@ function initializeDMApp() {
         gridTiendas.innerHTML = "";
         const tiendas = snapshot.val();
 
+        const fragmentTiendas = document.createDocumentFragment();
+
         if (tiendas) {
           for (const [idTienda, data] of Object.entries(tiendas)) {
             const card = document.createElement("div");
@@ -5547,8 +5554,9 @@ function initializeDMApp() {
               }
             });
 
-            gridTiendas.appendChild(card);
+            fragmentTiendas.appendChild(card);
           }
+          gridTiendas.appendChild(fragmentTiendas);
         } else {
           gridTiendas.innerHTML =
             '<span style="color: #888;">No hay tiendas creadas.</span>';
@@ -6254,6 +6262,8 @@ function initializeDMApp() {
 
         gridActores.innerHTML = "";
 
+        const fragmentActores = document.createDocumentFragment();
+
         if (Object.keys(dbActoresCache).length === 0) {
           gridActores.innerHTML =
             '<span style="color: #888;">No hay actores registrados.</span>';
@@ -6344,8 +6354,9 @@ function initializeDMApp() {
               .scrollIntoView({ behavior: "smooth" });
           });
 
-          gridActores.appendChild(card);
+          fragmentActores.appendChild(card);
         }
+        gridActores.appendChild(fragmentActores);
       }
 
       // Escuchar actores para la lista y el select
@@ -6617,6 +6628,13 @@ function initializeDMApp() {
           scrollArea.innerHTML = ""; // clear messages
 
           const logs = snap.val();
+          console.log("Teatro data received:", logs);
+
+          if (!snap.exists() || logs === null) {
+              scrollArea.innerHTML = "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
+              return;
+          }
+
           if (logs) {
             let isFirst = true;
             for (const [key, msg] of Object.entries(logs)) {
@@ -6680,6 +6698,7 @@ function initializeDMApp() {
                 .querySelector(".confirm-btn")
                 .addEventListener("click", () => {
                   logContainer.classList.remove("open");
+                  logContainer.style.display = "none";
                   const logToggleBtn = document.getElementById(
                     "btn-toggle-theatre-log",
                   );
@@ -7563,6 +7582,8 @@ function initializeDMApp() {
           gridKeywords.innerHTML = "";
           const keywords = snapshot.val();
 
+          const fragmentKeywords = document.createDocumentFragment();
+
           if (keywords) {
             for (const [kid, data] of Object.entries(keywords)) {
               const card = document.createElement("div");
@@ -7614,8 +7635,9 @@ function initializeDMApp() {
                 }
               });
 
-              gridKeywords.appendChild(card);
+              fragmentKeywords.appendChild(card);
             }
+            gridKeywords.appendChild(fragmentKeywords);
           } else {
             gridKeywords.innerHTML =
               '<span style="color: #888;">No hay Keywords registradas.</span>';

@@ -4775,9 +4775,11 @@
                   if (logContainer.classList.contains('open')) {
                       this.innerText = '❌';
                       this.setAttribute('aria-expanded', 'true');
+                      logContainer.style.display = 'flex';
                   } else {
                       this.innerText = '📜';
                       this.setAttribute('aria-expanded', 'false');
+                      logContainer.style.display = 'none';
                   }
 
               }
@@ -4897,6 +4899,7 @@
 
               footer.querySelector('.confirm-btn').addEventListener('click', () => {
                   logContainer.classList.remove('open');
+                  logContainer.style.display = 'none';
                   const logToggleBtn = document.getElementById('btn-toggle-theatre-log-player');
                   if (logToggleBtn) {
                       logToggleBtn.innerText = '📜';
