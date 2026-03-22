@@ -15,6 +15,7 @@ test('Verify Player HUD elements', async ({ page }) => {
       auth: () => ({
         onAuthStateChanged: (cb) => {
           // Instantly login to prevent redirect
+          localStorage.setItem('playerId', 'Test Character');
           cb({ uid: 'test_player' });
         },
         signOut: () => Promise.resolve()
@@ -33,6 +34,7 @@ test('Verify Player HUD elements', async ({ page }) => {
   });
 
   await page.goto(filePath);
+  await page.evaluate(() => { const el = document.getElementById('system-loading-overlay'); if (el) el.remove(); });
 
   // Mock Firebase data to trigger renderCharacterSheet with specific SP values
   await page.evaluate(() => {

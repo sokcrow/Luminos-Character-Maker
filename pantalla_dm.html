@@ -1085,6 +1085,7 @@
         Gestión de Jugadores
       </button>
       <button class="dm-tab-btn" data-tab="tab-keywords">Keywords</button>
+      <button class="dm-tab-btn" data-tab="tab-acceso">Control de Acceso</button>
       <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
         MODO DIRECTOR
       </button>
@@ -2598,6 +2599,27 @@
         </div>
       </div>
 
+      <!-- TAB: CONTROL DE ACCESO -->
+      <div id="tab-acceso" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px">
+          <h3>Control de Acceso / Reclutamiento</h3>
+          <p style="color: #aaa; text-align: center;">Jugadores esperando aprobación para vincularse a un expediente.</p>
+          <div
+            id="grid-reclutas-pendientes"
+            class="grid-container"
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 15px;
+              justify-content: center;
+              width: 100%;
+            "
+          >
+            <!-- Reclutas inyectados via JS -->
+          </div>
+        </div>
+      </div>
+
       <!-- TAB: GESTIÓN DE JUGADORES -->
       <div id="dashboard-jugadores" class="dm-tab-pane">
         <div class="panel-cyber" style="margin-top: 20px">
@@ -3565,7 +3587,11 @@
       auth.onAuthStateChanged((user) => {
         if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
           // Unauthenticated or not the DM -> Kick them out immediately
-          window.location.replace("index.html");
+          if (user) {
+              window.location.replace("hoja_personaje.html"); // They are a player
+          } else {
+              window.location.replace("index.html");
+          }
         } else {
             initializeDMApp();
         }
@@ -4239,6 +4265,10 @@ function initializeDMApp() {
         bancoContainer.innerHTML = "";
         const jugadores = snapshot.val();
         window.jugadoresData = jugadores; // Guarda para el modal
+
+        const pendingContainer = document.getElementById("grid-reclutas-pendientes");
+        if (pendingContainer) pendingContainer.innerHTML = "";
+
         // Remove cards for players that no longer exist
         if (jugadoresContainer) {
           const currentNames = Object.keys(jugadores || {});
@@ -4255,6 +4285,28 @@ function initializeDMApp() {
 
         if (jugadores) {
           for (const [nombre, data] of Object.entries(jugadores)) {
+            // --- Populate Control de Acceso ---
+            if (data.status === "pending" && pendingContainer) {
+              const pendingCard = document.createElement("div");
+              pendingCard.className = "card-cyber card-store";
+              pendingCard.style.cssText = "display: flex; flex-direction: column; align-items: center; padding: 15px; width: 250px;";
+              pendingCard.innerHTML = `
+                <h4 style="color:#FFD700; margin:0 0 10px 0;">${nombre}</h4>
+                <p style="color:#aaa; font-size:12px; margin:0 0 15px 0;">UID: ${data.uid}</p>
+                <button class="btn-aprobar-recluta" data-id="${nombre}" style="background:#004400; color:#fff; border:1px solid #00ff00; padding:10px; font-weight:bold; cursor:pointer; width:100%; border-radius:4px;">[AUTORIZAR RECLUTA]</button>
+              `;
+
+              const btnAprobar = pendingCard.querySelector(".btn-aprobar-recluta");
+              btnAprobar.addEventListener("click", (e) => {
+                const pId = e.target.getAttribute("data-id");
+                db.ref(`campaña/jugadores/${pId}`).update({ status: "approved" })
+                  .then(() => alert(`Recluta ${pId} aprobado.`))
+                  .catch(err => alert("Error aprobando recluta: " + err));
+              });
+
+              pendingContainer.appendChild(pendingCard);
+            }
+
             // --- Populate Gestión de Jugadores ---
             if (jugadoresContainer) {
               // Check if card already exists

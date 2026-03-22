@@ -655,17 +655,40 @@ let isInitialLoad = true;
 auth.onAuthStateChanged((user) => {
   if (!user) {
     window.location.replace("index.html");
-  } else {
-    // Check playerId strictly from localStorage
-    let localPlayerId = localStorage.getItem("playerId");
+    return;
+  }
 
-    if (!localPlayerId || localPlayerId.trim() === "") {
-        // Handle Null Player: show modal immediately
-        window.hideLoadingOverlay();
-    } else {
-        playerId = localPlayerId;
-        initializeCharacterSheet();
-    }
+  if (user.uid === "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
+    // Es el DM, redirigir
+    window.location.replace("pantalla_dm.html");
+    return;
+  }
+
+  // Check playerId strictly from localStorage
+  let localPlayerId = localStorage.getItem("playerId");
+
+  if (!localPlayerId || localPlayerId.trim() === "") {
+    // Handle Null Player: Enviar a Reclutamiento
+    window.location.replace("vinculacion.html");
+  } else {
+    playerId = localPlayerId;
+
+    // Verificar estado de aprobación (Routing)
+    db.ref("campaña/jugadores/" + playerId).once("value").then((snap) => {
+      const data = snap.val();
+      if (data && data.uid === user.uid) {
+        if (data.status === "pending") {
+          window.location.replace("vinculacion.html"); // Volver a la sala de espera
+        } else {
+          // Aprobado o sin campo (legacy), iniciar sheet
+          initializeCharacterSheet();
+        }
+      } else {
+        // UID mismatch o personaje no existe, reset y al reclutamiento
+        localStorage.removeItem("playerId");
+        window.location.replace("vinculacion.html");
+      }
+    });
   }
 });
 

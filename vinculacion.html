@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reclutamiento - Limbus Company</title>
+    <style>
+      body {
+        background-color: #050505;
+        background-image:
+          linear-gradient(rgba(5, 5, 5, 0.95), rgba(5, 5, 5, 0.95)),
+          url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" fill="none"/><path d="M0,0 L40,40 M40,0 L0,40" stroke="rgba(255,0,0,0.05)" stroke-width="1"/></svg>');
+        color: #E8E4D9;
+        font-family: "Share Tech Mono", monospace, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 40px 0;
+        margin: 0;
+      }
+      .panel-cyber {
+        background-color: #0B0A0A;
+        border: 6px solid #3E2723;
+        position: relative;
+        box-shadow: 0 0 20px rgba(211, 47, 47, 0.4);
+        padding: 30px;
+        width: 90%;
+        max-width: 500px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+      .panel-cyber::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: repeating-linear-gradient(0deg, rgba(62, 39, 35, 0.08), rgba(62, 39, 35, 0.08) 1px, transparent 1px, transparent 4px);
+        pointer-events: none;
+      }
+      .panel-cyber::after {
+        content: "";
+        position: absolute;
+        top: 6px; left: 6px; right: 6px; bottom: 6px;
+        border: 1px solid #D32F2F;
+        pointer-events: none;
+      }
+      .panel-cyber h2 {
+        color: #FFD700;
+        font-family: 'Oswald', sans-serif;
+        text-transform: uppercase;
+        margin: 0 0 15px 0;
+        border-bottom: 2px solid #D32F2F;
+        padding-bottom: 10px;
+        font-size: 1.8rem;
+        z-index: 1;
+      }
+      .panel-cyber p {
+        z-index: 1;
+        margin: 0 0 20px 0;
+      }
+      select, button {
+        background: #111;
+        border: 2px solid #3E2723;
+        color: #FFD700;
+        padding: 12px;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 1.2rem;
+        outline: none;
+        margin-bottom: 20px;
+        text-align: center;
+        z-index: 1;
+        cursor: pointer;
+      }
+      button {
+        background: #E8E4D9;
+        color: #3E2723;
+        border: 1px solid #3E2723;
+        font-family: 'Oswald', sans-serif;
+        font-weight: bold;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        border-radius: 0;
+      }
+      button:hover {
+        background: #FFD700;
+        color: #0B0A0A;
+      }
+      #status-message {
+        color: #0df;
+        font-weight: bold;
+        margin-top: 15px;
+        display: none;
+        z-index: 1;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #D32F2F;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+        z-index: 1;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap");
+    </style>
+  </head>
+  <body>
+    <div class="panel-cyber">
+      <h2>RECLUTAMIENTO</h2>
+      <p>Seleccione el expediente del recluta al que desea vincular su alma.</p>
+
+      <div id="loading-spinner" class="loader"></div>
+
+      <select id="select-character" style="display: none;">
+        <option value="">-- SELECCIONE UN EXPEDIENTE --</option>
+      </select>
+
+      <button id="btn-bind" style="display: none;">SOLICITAR VÍNCULO</button>
+
+      <div id="status-message"></div>
+    </div>
+
+    <!-- Firebase App -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+        authDomain: "luminous-system.firebaseapp.com",
+        databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+        projectId: "luminous-system",
+        storageBucket: "luminous-system.firebasestorage.app",
+        messagingSenderId: "330473029689",
+        appId: "1:330473029689:web:44a05e870d493a3b294de8",
+        measurementId: "G-X775P4YS7W",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.database();
+
+      const spinner = document.getElementById("loading-spinner");
+      const selectChar = document.getElementById("select-character");
+      const btnBind = document.getElementById("btn-bind");
+      const statusMsg = document.getElementById("status-message");
+
+      let currentUser = null;
+
+      auth.onAuthStateChanged((user) => {
+        if (!user) {
+          window.location.replace("index.html");
+          return;
+        }
+
+        if (user.uid === "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
+          // DM Redirect
+          window.location.replace("pantalla_dm.html");
+          return;
+        }
+
+        currentUser = user;
+
+        // Check if user is already bound to a character
+        // We have to iterate over all players to find if they are bound.
+        db.ref("campaña/jugadores").once("value", (snap) => {
+          const players = snap.val() || {};
+          let boundCharacter = null;
+          let boundStatus = null;
+
+          for (const [name, data] of Object.entries(players)) {
+            if (data.uid === user.uid) {
+              boundCharacter = name;
+              boundStatus = data.status || "approved"; // Default to approved for legacy characters
+              break;
+            }
+          }
+
+          if (boundCharacter) {
+            localStorage.setItem("playerId", boundCharacter);
+            if (boundStatus === "pending") {
+                showPendingState();
+            } else {
+                window.location.replace("hoja_personaje.html");
+            }
+            return;
+          }
+
+          // Populate the dropdown with available recruits
+          spinner.style.display = "none";
+          selectChar.style.display = "block";
+          btnBind.style.display = "block";
+
+          for (const [name, data] of Object.entries(players)) {
+            if (!data.uid || data.uid.trim() === "") {
+              const opt = document.createElement("option");
+              opt.value = name;
+              opt.textContent = name;
+              selectChar.appendChild(opt);
+            }
+          }
+        });
+      });
+
+      btnBind.addEventListener("click", () => {
+        const charName = selectChar.value;
+        if (!charName) {
+          alert("Por favor, seleccione un expediente válido.");
+          return;
+        }
+
+        if (confirm(`¿Está seguro de que desea solicitar el vínculo con "${charName}"?`)) {
+          db.ref(`campaña/jugadores/${charName}`).update({
+            uid: currentUser.uid,
+            status: "pending"
+          }).then(() => {
+            localStorage.setItem("playerId", charName);
+            showPendingState();
+          }).catch(e => {
+            alert("Error al solicitar vínculo: " + e.message);
+          });
+        }
+      });
+
+      function showPendingState() {
+        selectChar.style.display = "none";
+        btnBind.style.display = "none";
+        spinner.style.display = "none";
+        statusMsg.style.display = "block";
+        statusMsg.innerText = "VÍNCULO SOLICITADO. ESPERE A QUE EL DM APRUEBE SU ENTRADA.";
+
+        // Listen for approval
+        const charName = localStorage.getItem("playerId");
+        if (charName) {
+            db.ref(`campaña/jugadores/${charName}/status`).on("value", (snap) => {
+                if (snap.val() === "approved") {
+                    window.location.replace("hoja_personaje.html");
+                }
+            });
+        }
+      }
+
+    </script>
+  </body>
+</html>
