@@ -909,7 +909,7 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 9999;
+        z-index: 10000;
         background-color: #0B0A0A;
         display: flex;
         align-items: center;
@@ -3549,6 +3549,18 @@
 
       let isInitialLoad = true;
 
+      // Helper to hide the loading overlay
+      window.hideLoadingOverlay = function () {
+        const overlay = document.getElementById("system-loading-overlay");
+        if (overlay && overlay.style.display !== "none") {
+          overlay.style.opacity = "0";
+          setTimeout(() => {
+            overlay.style.display = "none";
+            overlay.remove();
+          }, 1000);
+        }
+      };
+
       // --- LÓGICA DE AUTENTICACIÓN Y PROTECCIÓN DE RUTA DM ---
       auth.onAuthStateChanged((user) => {
         if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
@@ -3860,42 +3872,46 @@ function initializeDMApp() {
       };
 
       // Escuchar el estado actual desde Firebase para inicializar las variables locales
-      db.ref("campaña/calendario").on("value", (snapshot) => {
-        const data = snapshot.val();
+      db.ref("campaña/calendario").on(
+        "value",
+        (snapshot) => {
+          const data = snapshot.val();
 
-        // Hide loading overlay on first successful initial data read
-        if (isInitialLoad) {
-          isInitialLoad = false;
-          const overlay = document.getElementById("system-loading-overlay");
-          if (overlay) {
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 1000);
+          // Hide loading overlay on first successful initial data read
+          if (isInitialLoad) {
+            isInitialLoad = false;
+            window.hideLoadingOverlay();
           }
-        }
 
-        if (data) {
-          estadoActual.año = data.año || 984;
-          estadoActual.dia = data.dia || 1;
-          estadoActual.mes = data.mes || 1;
-          estadoActual.clima = data.clima || "Despejado";
+          if (data) {
+            estadoActual.año = data.año || 984;
+            estadoActual.dia = data.dia || 1;
+            estadoActual.mes = data.mes || 1;
+            estadoActual.clima = data.clima || "Despejado";
 
-          // Actualizar UI
-          document.getElementById("lbl-auto-fecha").innerText =
-            `Año ${estadoActual.año} / Mes ${estadoActual.mes} / Día ${estadoActual.dia}`;
-          document.getElementById("lbl-auto-clima").innerText =
-            estadoActual.clima;
+            // Actualizar UI
+            document.getElementById("lbl-auto-fecha").innerText =
+              `Año ${estadoActual.año} / Mes ${estadoActual.mes} / Día ${estadoActual.dia}`;
+            document.getElementById("lbl-auto-clima").innerText =
+              estadoActual.clima;
 
-          document.getElementById("debug-año").value = estadoActual.año;
-          document.getElementById("debug-dia").value = estadoActual.dia;
-          document.getElementById("debug-mes").value = estadoActual.mes;
-          document.getElementById("debug-clima").value = estadoActual.clima;
+            document.getElementById("debug-año").value = estadoActual.año;
+            document.getElementById("debug-dia").value = estadoActual.dia;
+            document.getElementById("debug-mes").value = estadoActual.mes;
+            document.getElementById("debug-clima").value = estadoActual.clima;
 
-          // Inyectar/actualizar radial de clima
-          if (typeof renderClimaRadial === "function") {
-            renderClimaRadial(estadoActual.clima, estadoActual.mes);
+            // Inyectar/actualizar radial de clima
+            if (typeof renderClimaRadial === "function") {
+              renderClimaRadial(estadoActual.clima, estadoActual.mes);
+            }
           }
+        },
+        (error) => {
+          console.error(error);
+          window.hideLoadingOverlay();
+          alert("ERROR DE VÍNCULO: CONSULTE CON EL DM. (Error: " + error.message + ")");
         }
-      });
+      );
 
       document
         .getElementById("btn-fijar-hora")
