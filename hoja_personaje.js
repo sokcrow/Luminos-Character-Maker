@@ -664,32 +664,54 @@ auth.onAuthStateChanged((user) => {
     return;
   }
 
-  // Check playerId strictly from localStorage
-  let localPlayerId = localStorage.getItem("playerId");
+  // Traffic Controller: Identity Search
+  db.ref("campaña/jugadores/")
+    .orderByChild("uid")
+    .equalTo(user.uid)
+    .once("value")
+    .then((snapshot) => {
+      if (snapshot.exists()) {
+        let matchFound = false;
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data.status === "approved") {
+            playerId = child.key;
+            localStorage.setItem("playerId", child.key);
+            initializeCharacterSheet();
+            matchFound = true;
+            return true; // Stop iterating
+          } else if (data.status === "pending") {
+            window.location.replace("vinculacion.html");
+            matchFound = true;
+            return true;
+          }
+        });
 
-  if (!localPlayerId || localPlayerId.trim() === "") {
-    // Handle Null Player: Enviar a Reclutamiento
-    window.location.replace("vinculacion.html");
-  } else {
-    playerId = localPlayerId;
-
-    // Verificar estado de aprobación (Routing)
-    db.ref("campaña/jugadores/" + playerId).once("value").then((snap) => {
-      const data = snap.val();
-      if (data && data.uid === user.uid) {
-        if (data.status === "pending") {
-          window.location.replace("vinculacion.html"); // Volver a la sala de espera
-        } else {
-          // Aprobado o sin campo (legacy), iniciar sheet
-          initializeCharacterSheet();
+        // If it exists but has no status (legacy) or didn't match pending/approved logic
+        if (!matchFound) {
+          // Fallback for legacy approved characters
+          const child = Object.values(snapshot.val())[0];
+          const childKey = Object.keys(snapshot.val())[0];
+          if (child.uid === user.uid) {
+            playerId = childKey;
+            localStorage.setItem("playerId", childKey);
+            initializeCharacterSheet();
+          } else {
+            localStorage.removeItem("playerId");
+            window.location.replace("vinculacion.html");
+          }
         }
       } else {
-        // UID mismatch o personaje no existe, reset y al reclutamiento
+        // No match found
         localStorage.removeItem("playerId");
         window.location.replace("vinculacion.html");
       }
+    })
+    .catch((error) => {
+      console.error("Error during identity search:", error);
+      localStorage.removeItem("playerId");
+      window.location.replace("vinculacion.html");
     });
-  }
 });
 
 function initializeCharacterSheet() {
