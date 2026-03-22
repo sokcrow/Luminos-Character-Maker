@@ -1026,7 +1026,6 @@ function initializeCharacterSheet() {
         }
       }
     }
-  }
 
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
@@ -1307,6 +1306,7 @@ function initializeCharacterSheet() {
       }
     });
   });
+}
 // --- Inventory Modal Logic ---
 {
   // Mail Tab Logic
@@ -2994,11 +2994,16 @@ document.addEventListener("DOMContentLoaded", () => {
         btnToggleHud.style.borderColor = "#d4af37";
       } else {
         combatHud.style.display = "none";
-        if (textLong) textLong.innerText = "[+] REVISAR VITALES";
+        if (textLong) textLong.innerText = "[+] MOSTRAR VITALES";
         if (textShort) textShort.innerText = "❤️";
-        btnToggleHud.style.color = "#ff3333";
-        btnToggleHud.style.borderColor = "#ff3333";
+        btnToggleHud.style.color = "";
+        btnToggleHud.style.borderColor = "";
       }
     });
   }
+});
+}
+}
+}
+}
 

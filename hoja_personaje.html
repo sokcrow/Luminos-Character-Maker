@@ -12606,6 +12606,24 @@
       </div>
     </div>
 
+    <!-- Script de Emergencia -->
+    <script>
+      window.addEventListener('load', () => {
+        // Si después de 5 segundos el overlay sigue ahí, lo quitamos a la fuerza
+        setTimeout(() => {
+          const overlay = document.getElementById('system-loading-overlay');
+          if (overlay && overlay.style.display !== 'none') {
+            console.warn("Carga de emergencia activada: Ocultando overlay por tiempo de espera.");
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+              overlay.style.display = 'none';
+              overlay.remove();
+            }, 1000);
+          }
+        }, 5000);
+      });
+    </script>
+
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <!-- Firebase Auth -->
