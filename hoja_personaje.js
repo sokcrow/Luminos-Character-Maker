@@ -650,119 +650,155 @@ window.hideLoadingOverlay = function () {
 };
 
 // Route Guard and Data Init
-let isInitialLoad = true;
 
-auth.onAuthStateChanged((user) => {
-  if (!user) {
-    window.location.replace("index.html");
-    return;
+function updateBootLog(message, isError = false) {
+  const logDiv = document.getElementById("boot-status-log");
+  if (logDiv) {
+    logDiv.innerText = message;
+    if (isError) {
+      logDiv.style.color = "#ff3333";
+      logDiv.style.textShadow = "0 0 5px #ff3333";
+      const btn = document.getElementById("btn-reiniciar-sistema");
+      if (btn) btn.style.display = "inline-block";
+    }
   }
+}
 
-  if (user.uid === "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
-    // Es el DM, redirigir
-    window.location.replace("pantalla_dm.html");
-    return;
-  }
+async function runBootSequence() {
+  try {
+    // STEP 1: Verificación (Auth)
+    updateBootLog("[EJECUTANDO] 1/4: Verificando credenciales...");
+    const user = await new Promise((resolve, reject) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe();
+        resolve(user);
+      }, reject);
+    });
 
-  // Traffic Controller: Identity Search
-  db.ref("campaña/jugadores/")
-    .orderByChild("uid")
-    .equalTo(user.uid)
-    .once("value")
-    .then((snapshot) => {
-      if (snapshot.exists()) {
-        let matchFound = false;
-        snapshot.forEach((child) => {
-          const data = child.val();
-          if (data.status === "approved") {
-            playerId = child.key;
-            localStorage.setItem("playerId", child.key);
-            initializeCharacterSheet();
-            matchFound = true;
-            return true; // Stop iterating
-          } else if (data.status === "pending") {
-            window.location.replace("vinculacion.html");
-            matchFound = true;
-            return true;
-          }
-        });
+    if (!user) {
+      window.location.replace("index.html");
+      return;
+    }
 
-        // If it exists but has no status (legacy) or didn't match pending/approved logic
-        if (!matchFound) {
-          // Fallback for legacy approved characters
-          const child = Object.values(snapshot.val())[0];
-          const childKey = Object.keys(snapshot.val())[0];
-          if (child.uid === user.uid) {
-            playerId = childKey;
-            localStorage.setItem("playerId", childKey);
-            initializeCharacterSheet();
-          } else {
-            localStorage.removeItem("playerId");
-            window.location.replace("vinculacion.html");
-          }
-        }
-      } else {
-        // No match found
-        localStorage.removeItem("playerId");
-        window.location.replace("vinculacion.html");
-      }
-    })
-    .catch((error) => {
-      console.error("Error during identity search:", error);
+    if (user.uid === "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
+      window.location.replace("pantalla_dm.html");
+      return;
+    }
+
+    // STEP 2: Vinculación (UID Match)
+    updateBootLog("[EJECUTANDO] 2/4: Buscando Vínculo de Alma (UID)...");
+    const snapshot = await db.ref("campaña/jugadores/").orderByChild("uid").equalTo(user.uid).once("value");
+
+    if (!snapshot.exists()) {
       localStorage.removeItem("playerId");
       window.location.replace("vinculacion.html");
+      return;
+    }
+
+    let matchFound = false;
+    let fallbackKey = null;
+    let fallbackChild = null;
+
+    snapshot.forEach((child) => {
+      const data = child.val();
+      if (data.status === "approved") {
+        playerId = child.key;
+        localStorage.setItem("playerId", child.key);
+        matchFound = true;
+        return true;
+      } else if (data.status === "pending") {
+        window.location.replace("vinculacion.html");
+        matchFound = true;
+        return true;
+      }
+      if (!fallbackKey && child.val().uid === user.uid) {
+        fallbackKey = child.key;
+        fallbackChild = child.val();
+      }
     });
-});
+
+    if (!matchFound) {
+      if (fallbackKey) {
+        playerId = fallbackKey;
+        localStorage.setItem("playerId", fallbackKey);
+      } else {
+        localStorage.removeItem("playerId");
+        window.location.replace("vinculacion.html");
+        return;
+      }
+    }
+
+    if (!playerId) {
+      throw new Error("No se pudo obtener el identificador de alma (playerId).");
+    }
+
+    // STEP 3: Estado de Conexión (Presence)
+    updateBootLog("[EJECUTANDO] 3/4: Estableciendo conexión neuronal...");
+    const connectedRef = db.ref(".info/connected");
+    const playerRef = db.ref("campaña/jugadores/" + playerId);
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Fallo de conexión al servidor central. Timeout excedido."));
+      }, 10000);
+
+      connectedRef.on("value", (snap) => {
+        if (snap.val() === true) {
+          clearTimeout(timeout);
+          playerRef.child("online").onDisconnect().set(false);
+          playerRef.child("ultima_conexion").onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+          playerRef.update({ online: true }).then(() => {
+             resolve();
+          }).catch(reject);
+        }
+      }, reject);
+    });
+
+    // STEP 4: Datos de Jugador (Data Sync)
+    updateBootLog("[EJECUTANDO] 4/4: Sincronizando expediente local...");
+
+    // Set up the listener but wait for the first initial payload
+    await new Promise((resolve, reject) => {
+      playerRef.on("value", (snap) => {
+        if (!snap.exists() || snap.val() === null) {
+          reject(new Error("Expediente vacío o permisos denegados."));
+          return;
+        }
+
+        window.datosJugador = snap.val();
+        currentPlayerData = snap.val();
+
+        // Cache data
+        localStorage.setItem("datosJugadorCache", JSON.stringify(window.datosJugador));
+
+        renderCharacterSheet(window.datosJugador);
+        if (typeof window.renderRecetasCrafteo === "function") {
+          window.renderRecetasCrafteo();
+        }
+        if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
+          window.actualizarExpresionesDesdeDropdown();
+        }
+
+        resolve();
+      }, reject);
+    });
+
+    // Success!
+    window.hideLoadingOverlay();
+    initializeCharacterSheet(); // Still call to setup remaining listeners if needed, though we moved data fetching here
+
+  } catch (error) {
+    console.error("Boot Sequence Error:", error);
+    updateBootLog(`[ERROR CRÍTICO]\n${error.message}`, true);
+  }
+}
+
+// Start the sequence globally
+runBootSequence();
+
 
 function initializeCharacterSheet() {
-
     if (!playerId) return;
-
-    // 1. Descargar datos base del jugador usando el characterName
-    const playerRef = db.ref("campaña/jugadores/" + playerId);
-    playerRef.on(
-      "value",
-      (snapshot) => {
-        if (snapshot.exists()) {
-          window.datosJugador = snapshot.val();
-          currentPlayerData = snapshot.val();
-          renderCharacterSheet(window.datosJugador);
-          if (typeof window.renderRecetasCrafteo === "function") {
-            window.renderRecetasCrafteo();
-          }
-          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-            window.actualizarExpresionesDesdeDropdown();
-          }
-        }
-
-        // Remove the loading overlay on first successful data load
-        if (isInitialLoad) {
-          isInitialLoad = false;
-          window.hideLoadingOverlay();
-        }
-      },
-      (error) => {
-        console.error(error);
-        window.hideLoadingOverlay();
-        alert("ERROR DE VÍNCULO: CONSULTE CON EL DM. (Error: " + error.message + ")");
-      }
-    );
-
-    // Track Realtime Presence
-    const connectedRef = db.ref(".info/connected");
-    connectedRef.on("value", (snap) => {
-      if (snap.val() === true) {
-        // When connected, set up onDisconnect behavior
-        playerRef.child("online").onDisconnect().set(false);
-        playerRef
-          .child("ultima_conexion")
-          .onDisconnect()
-          .set(firebase.database.ServerValue.TIMESTAMP);
-
-        // Set the player as online
-        playerRef.update({ online: true });
-      }
-    });
 
     // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
     {
@@ -1156,7 +1192,7 @@ function initializeCharacterSheet() {
         '<div style="color: #666;">Sin transacciones recientes.</div>';
     }
   }
-};
+}
 
 // UI EVENT LISTENERS
 {
@@ -1271,7 +1307,6 @@ function initializeCharacterSheet() {
       }
     });
   });
-});
 // --- Inventory Modal Logic ---
 {
   // Mail Tab Logic
@@ -1925,7 +1960,6 @@ function initializeCharacterSheet() {
 
   // --- Dynamic Shop System Logic ---
   // Shop logic is now handled in the main Shop app tab
-});
 
 // Listener for active and stash inventory
 let playerInventoryListenerActive = false;
@@ -1981,7 +2015,6 @@ let playerInventoryListenerActive = false;
       }
     }, 1000);
   }, 1000);
-});
 
 // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
 let tiendaActivaData = null;
@@ -2438,7 +2471,6 @@ const romanTiersShop = [
       });
     }
   });
-});
 
 function renderizarComprar() {
   const grid = document.getElementById("shop-comprar-grid");
@@ -2722,7 +2754,6 @@ function renderizarVender() {
       }
     }
   });
-});
 
 // ====== COIN TOSS ENGINE ======
 document.addEventListener("click", (e) => {
@@ -2970,5 +3001,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-});
 
