@@ -13459,5 +13459,32 @@
 
     <script src="js/utils.js"></script>
     <script src="hoja_personaje.js"></script>
+
+    <!-- BRUTE FORCE SHOP BUTTON OVERRIDE -->
+    <style>
+      #btn-shop-notifier {
+          display: none;
+          position: fixed;
+          top: 25px;
+          right: 25px;
+          z-index: 2147483647 !important;
+          background: #000;
+          color: #ff9d00;
+          border: 3px solid #ff9d00;
+          width: 60px;
+          height: 60px;
+          border-radius: 50% !important;
+          cursor: pointer !important;
+          font-size: 1.8rem;
+          justify-content: center;
+          align-items: center;
+          box-shadow: 0 0 20px rgba(255, 157, 0, 0.7) !important;
+          pointer-events: auto !important;
+      }
+
+      #tienda-overlay {
+          z-index: 2147483646 !important;
+      }
+    </style>
   </body>
 </html>
