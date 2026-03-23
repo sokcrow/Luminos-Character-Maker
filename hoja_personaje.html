@@ -13348,6 +13348,19 @@
       });
     </script>
 
+    <div id="tienda-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center;">
+        <div class="shop-scene" style="position: relative; width: 90%; max-width: 1200px; height: 80vh; background: #1a1714; border: 4px solid #2d251f; padding: 40px; display: flex; flex-direction: column; gap: 20px; font-family: 'Share Tech Mono', monospace; color: #a09080;">
+            <button onclick="document.getElementById('tienda-overlay').style.display='none'" style="position: absolute; top: 10px; right: 10px; background: #ff3300; color: #000; border: 2px solid #ff3300; cursor: pointer; padding: 5px 15px; font-weight: bold; font-family: 'Share Tech Mono', monospace;">CERRAR [X]</button>
+            <div class="shop-logo" style="background: #000; border: 3px solid #ff9d00; padding: 10px 20px; align-self: flex-start; box-shadow: 4px 4px 0px #000;">
+                <h1 id="shop-name-display" style="font-family: 'Arial Black', sans-serif; color: #ff9d00; margin: 0; text-transform: uppercase; font-size: 2rem;">Cargando...</h1>
+            </div>
+            <div id="lista-items-tienda" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 10px;">
+                </div>
+        </div>
+    </div>
+
+    <button id="btn-shop-notifier" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 999; background: #000; color: #ff9d00; border: 2px solid #ff9d00; padding: 10px 20px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; box-shadow: 0 0 10px #ff9d00;">🛒 TIENDA DETECTADA</button>
+
     <script src="js/utils.js"></script>
     <script src="hoja_personaje.js"></script>
   </body>
