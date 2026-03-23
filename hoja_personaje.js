@@ -3182,11 +3182,22 @@ function initializeCharacterSheet() {
 
       if (btnShop) {
         if (tiendaId) {
-          btnShop.style.display = "block";
-          btnShop.onclick = () => abrirTiendaDinamica(tiendaId);
+          btnShop.style.display = "flex"; // Usar flex para centrar el icono
+          // Forzar el puntero y la prioridad de clic
+          btnShop.style.pointerEvents = "auto";
+
+          btnShop.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation(); // Evitar que el clic se pierda en capas inferiores
+              console.log("Iniciando apertura de tienda:", tiendaId);
+              if (typeof abrirTiendaDinamica === "function") {
+                  abrirTiendaDinamica(tiendaId);
+              }
+          };
         } else {
           btnShop.style.display = "none";
-          document.getElementById('tienda-overlay').style.display = 'none';
+          const overlay = document.getElementById('tienda-overlay');
+          if (overlay) overlay.style.display = 'none';
         }
       }
     });
