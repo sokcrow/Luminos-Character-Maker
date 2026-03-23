@@ -3173,6 +3173,24 @@ function initializeCharacterSheet() {
       }
     });
   } // Cierra el bloque de UI EVENT LISTENERS
+
+  // --- SENSOR DE TIENDAS CERCANAS ---
+  if (typeof db !== "undefined") {
+    db.ref("campaña/estado_mundo/tienda_activa").on("value", (snapshot) => {
+      const tiendaId = snapshot.val();
+      const btnShop = document.getElementById("btn-shop-notifier");
+
+      if (btnShop) {
+        if (tiendaId) {
+          btnShop.style.display = "block";
+          btnShop.onclick = () => abrirTiendaDinamica(tiendaId);
+        } else {
+          btnShop.style.display = "none";
+          document.getElementById('tienda-overlay').style.display = 'none';
+        }
+      }
+    });
+  }
 } // Cierra la función initializeCharacterSheet()
 
 // --- LÓGICA PARA CERRAR SESIÓN DEL JUGADOR ---
@@ -3205,3 +3223,78 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// --- LÓGICA DE TIENDAS DINÁMICAS ---
+window.abrirTiendaDinamica = function(tiendaId) {
+  db.ref(`campaña/tiendas_config/${tiendaId}`).once('value', (snap) => {
+    const data = snap.val();
+    if (!data) return;
+
+    document.getElementById("shop-name-display").innerText = data.nombre || "Tienda Desconocida";
+
+    const lista = document.getElementById("lista-items-tienda");
+    lista.innerHTML = "";
+
+    if (data.items && Array.isArray(data.items)) {
+      data.items.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.style = "background: rgba(0,0,0,0.6); border: 2px solid #2d251f; border-left: 6px solid #2d251f; padding: 15px; display: flex; justify-content: space-between; align-items: center; color: white; transition: all 0.2s;";
+
+        row.innerHTML = `
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-family: 'Arial Black', sans-serif; font-size: 1.2rem; color: #fff; text-transform: uppercase;">${item.nombre || 'Objeto'}</span>
+            <span style="color: #888; font-size: 0.9rem;">${item.desc || 'Sin descripción'}</span>
+          </div>
+          <button onclick="comprarItemTienda('${tiendaId}', ${index}, ${item.precio})" style="background: #111; border: 2px solid #ff9d00; color: #ff9d00; padding: 10px 20px; cursor: pointer; font-family: 'Arial Black', sans-serif; font-size: 1.1rem;">
+            ${item.precio} Ahn
+          </button>
+        `;
+        lista.appendChild(row);
+      });
+    } else {
+      lista.innerHTML = "<span style='color: #888;'>No hay inventario disponible.</span>";
+    }
+
+    document.getElementById("tienda-overlay").style.display = "flex";
+  });
+};
+
+window.comprarItemTienda = function(tiendaId, itemIndex, precio) {
+  if (!playerId) return alert("Error: Jugador no identificado.");
+
+  // Validar el precio exacto desde Firebase para evitar manipulación del DOM
+  db.ref(`campaña/tiendas_config/${tiendaId}/items/${itemIndex}`).once('value', (snap) => {
+    const itemData = snap.val();
+    if (!itemData) return alert("El objeto ya no está disponible.");
+
+    const precioReal = itemData.precio;
+
+    // Calcular dinero actual basándose en las transacciones del jugador
+    db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
+      let saldoAhn = 0;
+      transSnap.forEach(t => { saldoAhn += (t.val().monto || 0); });
+
+      if (saldoAhn < precioReal) {
+        return alert("Ahn insuficientes para esta compra.");
+      }
+
+      // 1. Restar el dinero
+      const nuevaTransaccion = {
+        monto: -precioReal,
+        motivo: `Compra en Tienda: ${itemData.nombre}`,
+        timestamp: Date.now()
+      };
+      db.ref(`campaña/jugadores/${playerId}/transacciones`).push(nuevaTransaccion);
+
+      // 2. Agregar una copia del item al Stash del jugador
+      const nuevoItem = { ...itemData };
+      delete nuevoItem.precio; // El jugador no necesita el precio de tienda en su inventario
+      nuevoItem.cantidad = 1;
+      nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+
+      db.ref(`campaña/jugadores/${playerId}/inventario_stash`).push(nuevoItem)
+        .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
+        .catch(err => console.error("Error al entregar item:", err));
+    });
+  });
+};
