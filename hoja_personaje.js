@@ -3112,3 +3112,26 @@ function initializeCharacterSheet() {
     });
   } // Cierra el bloque de UI EVENT LISTENERS
 } // Cierra la función initializeCharacterSheet()
+
+// --- LÓGICA PARA CERRAR SESIÓN DEL JUGADOR ---
+document.addEventListener("DOMContentLoaded", () => {
+  const btnLogout = document.getElementById("btn-player-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+        // Opcional: Marcar como offline antes de salir
+        if (typeof playerId !== 'undefined' && playerId && typeof db !== 'undefined') {
+            db.ref("campaña/jugadores/" + playerId).update({ online: false });
+        }
+
+        firebase.auth().signOut().then(() => {
+          localStorage.removeItem("playerId");
+          window.location.replace("index.html");
+        }).catch((error) => {
+          console.error("Error al cerrar sesión:", error);
+          alert("Hubo un error al intentar cerrar sesión.");
+        });
+      }
+    });
+  }
+});
