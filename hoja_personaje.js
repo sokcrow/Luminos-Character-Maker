@@ -695,6 +695,15 @@ function renderCharacterSheet(data) {
   const displayAhn = document.getElementById("display-ahn");
   if (displayAhn) displayAhn.innerText = data.ahn || "0";
 
+  // --- ACTUALIZAR RETRATO DEL HUD DE VITALES ---
+  const combatHudPortrait = document.querySelector("#player-combat-hud img");
+
+  if (combatHudPortrait) {
+    // Utiliza el ícono asignado por el DM, o una imagen por defecto si no hay ninguno
+    combatHudPortrait.src =
+      data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+  }
+
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
   const coreStats = ["cuerpo", "mente", "alma"];
   coreStats.forEach((stat) => {
@@ -883,9 +892,18 @@ function renderCharacterSheet(data) {
   }
 
   // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
-  const hpActual = data.combatStats?.hp_actual !== undefined ? data.combatStats.hp_actual : (data.hp || 0);
-  const hpMax = data.combatStats?.hp_max !== undefined ? data.combatStats.hp_max : (data.hp_max || 0);
-  const spActual = data.combatStats?.sp_actual !== undefined ? data.combatStats.sp_actual : (data.sp || 0);
+  const hpActual =
+    data.combatStats?.hp_actual !== undefined
+      ? data.combatStats.hp_actual
+      : data.hp || 0;
+  const hpMax =
+    data.combatStats?.hp_max !== undefined
+      ? data.combatStats.hp_max
+      : data.hp_max || 0;
+  const spActual =
+    data.combatStats?.sp_actual !== undefined
+      ? data.combatStats.sp_actual
+      : data.sp || 0;
 
   // Buscar elementos usando los IDs exactos que YA existen en el HTML
   const hudPortrait = document.getElementById("portrait-img");
@@ -895,21 +913,21 @@ function renderCharacterSheet(data) {
 
   // Inyectar datos en tiempo real
   if (hudPortrait) {
-      hudPortrait.src = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+    hudPortrait.src = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
   }
 
   // Respetar la estructura de spans separados para el HP
   if (hudHpActual && hudHpMax) {
-      hudHpActual.innerText = hpActual;
-      hudHpMax.innerText = hpMax;
+    hudHpActual.innerText = hpActual;
+    hudHpMax.innerText = hpMax;
   } else {
-      // Fallback seguro por si la estructura cambia
-      const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
-      if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
+    // Fallback seguro por si la estructura cambia
+    const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
+    if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
   }
 
   if (hudSpDisplay) {
-      hudSpDisplay.innerText = spActual;
+    hudSpDisplay.innerText = spActual;
   }
 }
 
