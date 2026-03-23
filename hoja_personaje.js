@@ -3174,37 +3174,31 @@ function initializeCharacterSheet() {
     });
   } // Cierra el bloque de UI EVENT LISTENERS
 
-  // --- SENSOR DE TIENDA CON DEPURACIÓN AGRESIVA ---
+  // --- SENSOR DE TIENDAS CERCANAS ---
   if (typeof db !== "undefined") {
     db.ref("campaña/estado_mundo/tienda_activa").on("value", (snapshot) => {
       const tiendaId = snapshot.val();
       const btnShop = document.getElementById("btn-shop-notifier");
-      console.log("Estado de tienda en Firebase:", tiendaId);
 
       if (btnShop) {
-          if (tiendaId) {
-              btnShop.style.setProperty('display', 'flex', 'important');
+        if (tiendaId) {
+          btnShop.style.display = "flex"; // Usar flex para centrar el icono
+          // Forzar el puntero y la prioridad de clic
+          btnShop.style.pointerEvents = "auto";
 
-              // Limpiar eventos anteriores para evitar duplicados
-              const newBtn = btnShop.cloneNode(true);
-              btnShop.parentNode.replaceChild(newBtn, btnShop);
-
-              newBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log("¡CLIC DETECTADO! Intentando abrir tienda:", tiendaId);
-
-                  if (typeof abrirTiendaDinamica === "function") {
-                      abrirTiendaDinamica(tiendaId);
-                  } else {
-                      console.error("ERROR: La función abrirTiendaDinamica no existe.");
-                  }
-              }, true); // El 'true' activa la fase de captura para ganar a otras capas
-          } else {
-              btnShop.style.display = "none";
-              const overlay = document.getElementById('tienda-overlay');
-              if (overlay) overlay.style.display = 'none';
-          }
+          btnShop.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation(); // Evitar que el clic se pierda en capas inferiores
+              console.log("Iniciando apertura de tienda:", tiendaId);
+              if (typeof abrirTiendaDinamica === "function") {
+                  abrirTiendaDinamica(tiendaId);
+              }
+          };
+        } else {
+          btnShop.style.display = "none";
+          const overlay = document.getElementById('tienda-overlay');
+          if (overlay) overlay.style.display = 'none';
+        }
       }
     });
   }
