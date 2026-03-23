@@ -3230,29 +3230,52 @@ window.abrirTiendaDinamica = function(tiendaId) {
     const data = snap.val();
     if (!data) return;
 
-    document.getElementById("shop-name-display").innerText = data.nombre || "Tienda Desconocida";
-
+    document.getElementById("shop-name-display").innerText = data.nombre || "Tienda";
     const lista = document.getElementById("lista-items-tienda");
     lista.innerHTML = "";
+
+    // Resetear panel derecho
+    document.getElementById("panel-item-name").innerText = "---";
+    document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
+    const btnComprar = document.getElementById("btn-comprar-seleccionado");
+    btnComprar.style.display = "none";
 
     if (data.items && Array.isArray(data.items)) {
       data.items.forEach((item, index) => {
         const row = document.createElement("div");
-        row.style = "background: rgba(0,0,0,0.6); border: 2px solid #2d251f; border-left: 6px solid #2d251f; padding: 15px; display: flex; justify-content: space-between; align-items: center; color: white; transition: all 0.2s;";
+        row.className = "item-row";
 
         row.innerHTML = `
-          <div style="display: flex; flex-direction: column;">
-            <span style="font-family: 'Arial Black', sans-serif; font-size: 1.2rem; color: #fff; text-transform: uppercase;">${item.nombre || 'Objeto'}</span>
-            <span style="color: #888; font-size: 0.9rem;">${item.desc || 'Sin descripción'}</span>
+          <div class="icon-slot">
+              <span class="tier">${item.tier || 'I'}</span>
+              <span class="icono-img">${item.icono || '📦'}</span>
           </div>
-          <button onclick="comprarItemTienda('${tiendaId}', ${index}, ${item.precio})" style="background: #111; border: 2px solid #ff9d00; color: #ff9d00; padding: 10px 20px; cursor: pointer; font-family: 'Arial Black', sans-serif; font-size: 1.1rem;">
-            ${item.precio} Ahn
-          </button>
+          <div class="item-details">
+              <span class="item-name">${item.nombre || 'Objeto'}</span>
+              <span class="item-cost">${item.precio} Ahn</span>
+          </div>
         `;
+
+        // Evento de selección para el panel derecho
+        row.onclick = () => {
+            // Quitar clase selected a todos
+            document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+
+            // Actualizar panel
+            document.getElementById("panel-item-name").innerText = item.nombre;
+            document.getElementById("panel-item-desc").innerText = item.desc || "Sin descripción disponible.";
+
+            // Configurar botón de compra
+            btnComprar.style.display = "block";
+            btnComprar.innerText = `COMPRAR [${item.precio} Ahn]`;
+            btnComprar.onclick = () => comprarItemTienda(tiendaId, index, item.precio);
+        };
+
         lista.appendChild(row);
       });
     } else {
-      lista.innerHTML = "<span style='color: #888;'>No hay inventario disponible.</span>";
+      lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay inventario disponible.</span>";
     }
 
     document.getElementById("tienda-overlay").style.display = "flex";
