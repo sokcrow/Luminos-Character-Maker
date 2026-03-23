@@ -636,7 +636,6 @@ let currentActorListener = null;
 window.datosJugador = null;
 window.actoresJugador = {}; // Diccionario global por Actor ID
 
-
 // Helper to hide the loading overlay
 window.hideLoadingOverlay = function () {
   const overlay = document.getElementById("system-loading-overlay");
@@ -666,6 +665,57 @@ function updateBootLog(message, isError = false) {
 
 function renderCharacterSheet(data) {
   if (!data) return;
+
+  // --- 1. ACTUALIZAR DATOS BÁSICOS Y DINERO ---
+  const camposDinamicos = [
+    "characterName",
+    "ahn",
+    "hp",
+    "hp_max",
+    "sp",
+    "luck",
+    "luck_max",
+    "xp",
+    "level",
+  ];
+  camposDinamicos.forEach((campo) => {
+    const input = document.querySelector(`input[name="attr_${campo}"]`);
+    if (input && document.activeElement !== input)
+      input.value = data[campo] !== undefined ? data[campo] : "";
+
+    const spans = document.querySelectorAll(
+      `.sheet-val-${campo}, span[name="attr_${campo}"], .player-${campo}`,
+    );
+    spans.forEach(
+      (span) =>
+        (span.innerText = data[campo] !== undefined ? data[campo] : "0"),
+    );
+  });
+
+  const displayAhn = document.getElementById("display-ahn");
+  if (displayAhn) displayAhn.innerText = data.ahn || "0";
+
+  // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
+  const coreStats = ["cuerpo", "mente", "alma"];
+  coreStats.forEach((stat) => {
+    let bVal = 0;
+    let mVal = 0;
+    if (data.baseStats && data.baseStats[stat])
+      bVal = parseInt(data.baseStats[stat]) || 0;
+    if (data.modifiers && data.modifiers[stat])
+      mVal = parseInt(data.modifiers[stat]) || 0;
+
+    const baseInput = document.querySelector(`input[name="attr_${stat}_base"]`);
+    const modInput = document.querySelector(`input[name="attr_${stat}_mod"]`);
+    const totalSpan =
+      document.querySelector(`.sheet-skill-total[name="attr_${stat}"]`) ||
+      document.querySelector(`span[name="attr_${stat}"]`);
+
+    if (baseInput && document.activeElement !== baseInput)
+      baseInput.value = bVal;
+    if (modInput && document.activeElement !== modInput) modInput.value = mVal;
+    if (totalSpan) totalSpan.innerText = bVal + mVal;
+  });
 
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
@@ -856,7 +906,11 @@ async function runBootSequence() {
 
     // STEP 2: Vinculación (UID Match)
     updateBootLog("[EJECUTANDO] 2/4: Buscando Vínculo de Alma (UID)...");
-    const snapshot = await db.ref("campaña/jugadores/").orderByChild("uid").equalTo(user.uid).once("value");
+    const snapshot = await db
+      .ref("campaña/jugadores/")
+      .orderByChild("uid")
+      .equalTo(user.uid)
+      .once("value");
 
     if (!snapshot.exists()) {
       localStorage.removeItem("playerId");
@@ -898,7 +952,9 @@ async function runBootSequence() {
     }
 
     if (!playerId) {
-      throw new Error("No se pudo obtener el identificador de alma (playerId).");
+      throw new Error(
+        "No se pudo obtener el identificador de alma (playerId).",
+      );
     }
 
     // STEP 3: Estado de Conexión (Presence)
@@ -908,19 +964,31 @@ async function runBootSequence() {
 
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Fallo de conexión al servidor central. Timeout excedido."));
+        reject(
+          new Error("Fallo de conexión al servidor central. Timeout excedido."),
+        );
       }, 10000);
 
-      connectedRef.on("value", (snap) => {
-        if (snap.val() === true) {
-          clearTimeout(timeout);
-          playerRef.child("online").onDisconnect().set(false);
-          playerRef.child("ultima_conexion").onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-          playerRef.update({ online: true }).then(() => {
-             resolve();
-          }).catch(reject);
-        }
-      }, reject);
+      connectedRef.on(
+        "value",
+        (snap) => {
+          if (snap.val() === true) {
+            clearTimeout(timeout);
+            playerRef.child("online").onDisconnect().set(false);
+            playerRef
+              .child("ultima_conexion")
+              .onDisconnect()
+              .set(firebase.database.ServerValue.TIMESTAMP);
+            playerRef
+              .update({ online: true })
+              .then(() => {
+                resolve();
+              })
+              .catch(reject);
+          }
+        },
+        reject,
+      );
     });
 
     // STEP 4: Datos de Jugador (Data Sync)
@@ -928,34 +996,40 @@ async function runBootSequence() {
 
     // Set up the listener but wait for the first initial payload
     await new Promise((resolve, reject) => {
-      playerRef.on("value", (snap) => {
-        if (!snap.exists() || snap.val() === null) {
-          reject(new Error("Expediente vacío o permisos denegados."));
-          return;
-        }
+      playerRef.on(
+        "value",
+        (snap) => {
+          if (!snap.exists() || snap.val() === null) {
+            reject(new Error("Expediente vacío o permisos denegados."));
+            return;
+          }
 
-        window.datosJugador = snap.val();
-        currentPlayerData = snap.val();
+          window.datosJugador = snap.val();
+          currentPlayerData = snap.val();
 
-        // Cache data
-        localStorage.setItem("datosJugadorCache", JSON.stringify(window.datosJugador));
+          // Cache data
+          localStorage.setItem(
+            "datosJugadorCache",
+            JSON.stringify(window.datosJugador),
+          );
 
-        renderCharacterSheet(window.datosJugador);
-        if (typeof window.renderRecetasCrafteo === "function") {
-          window.renderRecetasCrafteo();
-        }
-        if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
-          window.actualizarExpresionesDesdeDropdown();
-        }
+          renderCharacterSheet(window.datosJugador);
+          if (typeof window.renderRecetasCrafteo === "function") {
+            window.renderRecetasCrafteo();
+          }
+          if (typeof window.actualizarExpresionesDesdeDropdown === "function") {
+            window.actualizarExpresionesDesdeDropdown();
+          }
 
-        resolve();
-      }, reject);
+          resolve();
+        },
+        reject,
+      );
     });
 
     // Success!
     window.hideLoadingOverlay();
     initializeCharacterSheet(); // Still call to setup remaining listeners if needed, though we moved data fetching here
-
   } catch (error) {
     console.error("Boot Sequence Error:", error);
     updateBootLog(`[ERROR CRÍTICO]\n${error.message}`, true);
@@ -965,67 +1039,99 @@ async function runBootSequence() {
 // Start the sequence globally
 runBootSequence();
 
-
 function initializeCharacterSheet() {
-    if (!playerId) return;
+  if (!playerId) return;
 
-    // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
-    {
-      // === LECTURA DEL TEATRO DE LA MENTE ===
-      if (typeof db !== "undefined") {
-        // 1. Lectura del log de mensajes en tiempo real
-        db.ref("campaña/teatro/log")
-          .limitToLast(20)
-          .on("value", (snap) => {
-            const logContainer = document.getElementById("theatre-log-container");
-            if (!logContainer) return;
+  // --- DESCARGAR ACTORES PARA EL JUGADOR ---
+  if (typeof db !== "undefined") {
+    db.ref("campaña/actores").on("value", (snap) => {
+      window.actoresJugador = snap.val() || {};
+      window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
 
-            // Remove old entries, except the header/footer if any
-            Array.from(logContainer.children).forEach((child) => {
-              if (
-                child.className !== "dialogue-footer" &&
-                child.className !== "dialogue-scroll-area"
-              ) {
-                child.remove();
+      // Si el jugador ya tiene un actor asignado, llenar su menú de expresiones
+      const assignedActorId = window.datosJugador?.actorId;
+      if (assignedActorId && window.actoresJugador[assignedActorId]) {
+        const actorData = window.actoresJugador[assignedActorId];
+        const exprSelect = document.getElementById("player-expression-select");
+
+        if (
+          exprSelect &&
+          actorData.expresiones &&
+          Object.keys(actorData.expresiones).length > 1
+        ) {
+          exprSelect.innerHTML = "";
+          exprSelect.style.display = "block";
+          for (const [name, url] of Object.entries(actorData.expresiones)) {
+            const opt = document.createElement("option");
+            opt.value = url;
+            opt.innerText = name;
+            exprSelect.appendChild(opt);
+          }
+        } else if (exprSelect) {
+          exprSelect.style.display = "none";
+        }
+      }
+    });
+  }
+
+  // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
+  {
+    // === LECTURA DEL TEATRO DE LA MENTE ===
+    if (typeof db !== "undefined") {
+      // 1. Lectura del log de mensajes en tiempo real
+      db.ref("campaña/teatro/log")
+        .limitToLast(20)
+        .on("value", (snap) => {
+          const logContainer = document.getElementById("theatre-log-container");
+          if (!logContainer) return;
+
+          // Remove old entries, except the header/footer if any
+          Array.from(logContainer.children).forEach((child) => {
+            if (
+              child.className !== "dialogue-footer" &&
+              child.className !== "dialogue-scroll-area"
+            ) {
+              child.remove();
+            }
+          });
+
+          // Ensure dialogue-scroll-area exists inside logContainer
+          let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
+          if (!scrollArea) {
+            scrollArea = document.createElement("div");
+            scrollArea.className = "dialogue-scroll-area";
+            logContainer.insertBefore(scrollArea, logContainer.firstChild);
+          }
+          scrollArea.innerHTML = ""; // clear messages
+
+          const logs = snap.val();
+          console.log("Teatro data received:", logs);
+
+          if (!snap.exists() || logs === null) {
+            scrollArea.innerHTML =
+              "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
+            return;
+          }
+
+          if (logs) {
+            let isFirst = true;
+            for (const [key, msg] of Object.entries(logs)) {
+              if (!isFirst) {
+                const divider = document.createElement("hr");
+                divider.className = "dialogue-divider";
+                scrollArea.appendChild(divider);
               }
-            });
+              isFirst = false;
 
-            // Ensure dialogue-scroll-area exists inside logContainer
-            let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
-            if (!scrollArea) {
-              scrollArea = document.createElement("div");
-              scrollArea.className = "dialogue-scroll-area";
-              logContainer.insertBefore(scrollArea, logContainer.firstChild);
-            }
-            scrollArea.innerHTML = ""; // clear messages
+              const row = document.createElement("div");
+              row.className = "dialogue-row";
 
-            const logs = snap.val();
-            console.log("Teatro data received:", logs);
+              const charHexColor = msg.color_nombre || "#ffffff";
+              // Generate a default icon just in case one is missing
+              const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
+              const iconoSrc = msg.icono || defaultFallbackIcon;
 
-            if (!snap.exists() || logs === null) {
-                scrollArea.innerHTML = "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
-                return;
-            }
-
-            if (logs) {
-              let isFirst = true;
-              for (const [key, msg] of Object.entries(logs)) {
-                if (!isFirst) {
-                  const divider = document.createElement("hr");
-                  divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
-                }
-                isFirst = false;
-
-                const row = document.createElement("div");
-                row.className = "dialogue-row";
-
-                const charHexColor = msg.color_nombre || "#ffffff";
-                // Generate a default icon just in case one is missing
-                const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
-                const iconoSrc = msg.icono || defaultFallbackIcon;
-
-                row.innerHTML = `
+              row.innerHTML = `
                           <div class="character-col">
                             <div class="hex-border">
                               <div class="hex-portrait">
@@ -1039,515 +1145,522 @@ function initializeCharacterSheet() {
                           </div>
                         `;
 
-                scrollArea.appendChild(row);
-              }
-              scrollArea.scrollTop = scrollArea.scrollHeight;
+              scrollArea.appendChild(row);
             }
-          });
-
-        // 2. Lectura de estado de bloqueo (Modo Lore)
-        db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
-          const isBlocked = snap.val();
-          const input = document.getElementById("player-theatre-input");
-          const btn = document.getElementById("btn-player-theatre-send");
-          if (input && btn) {
-            input.disabled = isBlocked;
-            btn.disabled = isBlocked;
-            input.placeholder = isBlocked
-              ? "El Director ha bloqueado las interacciones (Modo Lore)..."
-              : "¿Qué quieres decir o hacer? (Escribe aquí...)";
+            scrollArea.scrollTop = scrollArea.scrollHeight;
           }
         });
-      }
 
-      // === ENVÍO AL TEATRO DE LA MENTE ===
-      const btnSend = document.getElementById("btn-player-theatre-send");
-      const inputEl = document.getElementById("player-theatre-input");
+      // 2. Lectura de estado de bloqueo (Modo Lore)
+      db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
+        const isBlocked = snap.val();
+        const input = document.getElementById("player-theatre-input");
+        const btn = document.getElementById("btn-player-theatre-send");
+        if (input && btn) {
+          input.disabled = isBlocked;
+          btn.disabled = isBlocked;
+          input.placeholder = isBlocked
+            ? "El Director ha bloqueado las interacciones (Modo Lore)..."
+            : "¿Qué quieres decir o hacer? (Escribe aquí...)";
+        }
+      });
+    }
 
-      const sendTheatreMessage = () => {
-        const domInput = document.getElementById("player-theatre-input");
-        if (!domInput || !domInput.value.trim() || typeof db === "undefined")
-          return;
+    // === ENVÍO AL TEATRO DE LA MENTE ===
+    const btnSend = document.getElementById("btn-player-theatre-send");
+    const inputEl = document.getElementById("player-theatre-input");
 
+    const sendTheatreMessage = () => {
+      const domInput = document.getElementById("player-theatre-input");
+      if (!domInput || !domInput.value.trim() || typeof db === "undefined")
+        return;
+
+      try {
+        const msgText = domInput.value.trim();
+        const actorSelect = document.getElementById("player-actor-select");
+        const selectExp = document.getElementById("player-expression-select");
+
+        const assignedActorId = window.datosJugador?.actorId || null;
+        // Se prioriza el DM pero se asegura que haya un fallback sano
+        const selectedActorId = assignedActorId
+          ? assignedActorId
+          : actorSelect
+            ? actorSelect.value
+            : "base";
+
+        let actorParaEnviar = {
+          nombre: window.datosJugador?.characterName || "Jugador",
+          titulo: "",
+          color_nombre: "#ffffff",
+          color_titulo: "#aaaaaa",
+          escala: 1.0,
+          sprite: "https://i.imgur.com/kP8s7Ww.png", // Sprite Base Default
+        };
+
+        // Rescatamos datos del actor seleccionado si no es la base
+        // Bloque defensivo mejorado
+        if (
+          selectedActorId &&
+          selectedActorId !== "base" &&
+          window.actoresJugador &&
+          window.actoresJugador[selectedActorId]
+        ) {
+          const dataActor = window.actoresJugador[selectedActorId];
+          if (dataActor) {
+            actorParaEnviar = {
+              nombre: dataActor.nombre || actorParaEnviar.nombre,
+              titulo: dataActor.titulo || "",
+              color_nombre: dataActor.color_nombre || "#ffffff",
+              color_titulo: dataActor.color_titulo || "#aaaaaa",
+              escala:
+                dataActor.escala !== undefined
+                  ? parseFloat(dataActor.escala)
+                  : 1.0,
+              sprite: dataActor.sprite || actorParaEnviar.sprite,
+            };
+          }
+        }
+
+        // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
+        let selectedSprite = actorParaEnviar.sprite;
         try {
-          const msgText = domInput.value.trim();
-          const actorSelect = document.getElementById("player-actor-select");
-          const selectExp = document.getElementById("player-expression-select");
-
-          const assignedActorId = window.datosJugador?.actorId || null;
-          // Se prioriza el DM pero se asegura que haya un fallback sano
-          const selectedActorId = assignedActorId
-            ? assignedActorId
-            : actorSelect
-              ? actorSelect.value
-              : "base";
-
-          let actorParaEnviar = {
-            nombre: window.datosJugador?.characterName || "Jugador",
-            titulo: "",
-            color_nombre: "#ffffff",
-            color_titulo: "#aaaaaa",
-            escala: 1.0,
-            sprite: "https://i.imgur.com/kP8s7Ww.png", // Sprite Base Default
-          };
-
-          // Rescatamos datos del actor seleccionado si no es la base
-          // Bloque defensivo mejorado
           if (
-            selectedActorId &&
-            selectedActorId !== "base" &&
-            window.actoresJugador &&
-            window.actoresJugador[selectedActorId]
+            selectExp &&
+            selectExp.style.display !== "none" &&
+            selectExp.options.length > 0
           ) {
-            const dataActor = window.actoresJugador[selectedActorId];
-            if (dataActor) {
-              actorParaEnviar = {
-                nombre: dataActor.nombre || actorParaEnviar.nombre,
-                titulo: dataActor.titulo || "",
-                color_nombre: dataActor.color_nombre || "#ffffff",
-                color_titulo: dataActor.color_titulo || "#aaaaaa",
-                escala:
-                  dataActor.escala !== undefined
-                    ? parseFloat(dataActor.escala)
-                    : 1.0,
-                sprite: dataActor.sprite || actorParaEnviar.sprite,
-              };
+            const val = selectExp.value;
+            if (val && val.trim() !== "") {
+              selectedSprite = val;
             }
           }
-
-          // Validamos la expresión dinámica si existe y es visible (evitando leer valores ocultos rotos)
-          let selectedSprite = actorParaEnviar.sprite;
-          try {
-            if (
-              selectExp &&
-              selectExp.style.display !== "none" &&
-              selectExp.options.length > 0
-            ) {
-              const val = selectExp.value;
-              if (val && val.trim() !== "") {
-                selectedSprite = val;
-              }
-            }
-          } catch (e) {
-            console.warn(
-              "Fallo leyendo expresión del select, usando sprite base.",
-              e,
-            );
-          }
-
-          // Construimos Payload Directo con valores limpios
-          const payload = {
-            nombre: actorParaEnviar.nombre || "Jugador",
-            titulo: actorParaEnviar.titulo || "",
-            color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-            color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
-            escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
-            sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
-            icono:
-              actorParaEnviar.icono ||
-              "https://via.placeholder.com/80/000000/ffffff?text=J",
-            mensaje: msgText,
-            timestamp: Date.now(),
-          };
-
-          // Aseguramos que la referencia no sea undefined y mandamos la cola
-          if (db && db.ref) {
-            db.ref("campaña/teatro/cola")
-              .push(payload)
-              .then(() => {
-                const domInput = document.getElementById("player-theatre-input");
-                if (domInput) domInput.value = ""; // Limpiar input directo post-envío
-              })
-              .catch((e) => {
-                console.error("Error en Firebase enviando a la cola:", e);
-              });
-          } else {
-            console.error("La instancia db.ref es undefined.");
-          }
-        } catch (err) {
-          console.error("Fallo crítico en sendTheatreMessage:", err);
+        } catch (e) {
+          console.warn(
+            "Fallo leyendo expresión del select, usando sprite base.",
+            e,
+          );
         }
-      };
 
-      // Listeners Limpios globales
-      // Reasignamos usando query selector al documento real porque el original se copió
-      if (btnSend) {
-        const currentBtn = document.getElementById("btn-player-theatre-send");
-        if (currentBtn) {
-          const newBtnSend = currentBtn.cloneNode(true);
-          currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
-          newBtnSend.addEventListener("click", sendTheatreMessage);
+        // Construimos Payload Directo con valores limpios
+        const payload = {
+          nombre: actorParaEnviar.nombre || "Jugador",
+          titulo: actorParaEnviar.titulo || "",
+          color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+          color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+          escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
+          sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
+          icono:
+            actorParaEnviar.icono ||
+            "https://via.placeholder.com/80/000000/ffffff?text=J",
+          mensaje: msgText,
+          timestamp: Date.now(),
+        };
+
+        // Aseguramos que la referencia no sea undefined y mandamos la cola
+        if (db && db.ref) {
+          db.ref("campaña/teatro/cola")
+            .push(payload)
+            .then(() => {
+              const domInput = document.getElementById("player-theatre-input");
+              if (domInput) domInput.value = ""; // Limpiar input directo post-envío
+            })
+            .catch((e) => {
+              console.error("Error en Firebase enviando a la cola:", e);
+            });
+        } else {
+          console.error("La instancia db.ref es undefined.");
         }
+      } catch (err) {
+        console.error("Fallo crítico en sendTheatreMessage:", err);
       }
+    };
 
-      if (inputEl) {
-        const currentInput = document.getElementById("player-theatre-input");
-        if (currentInput) {
-          const newInputEl = currentInput.cloneNode(true);
-          currentInput.parentNode.replaceChild(newInputEl, currentInput);
-
-          newInputEl.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              sendTheatreMessage();
-            }
-          });
-        }
+    // Listeners Limpios globales
+    // Reasignamos usando query selector al documento real porque el original se copió
+    if (btnSend) {
+      const currentBtn = document.getElementById("btn-player-theatre-send");
+      if (currentBtn) {
+        const newBtnSend = currentBtn.cloneNode(true);
+        currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
+        newBtnSend.addEventListener("click", sendTheatreMessage);
       }
     }
 
- // Cierra la función renderCharacterSheet
+    if (inputEl) {
+      const currentInput = document.getElementById("player-theatre-input");
+      if (currentInput) {
+        const newInputEl = currentInput.cloneNode(true);
+        currentInput.parentNode.replaceChild(newInputEl, currentInput);
 
-// UI EVENT LISTENERS
-{
-  // Phone Toggle
-  const toggleBtn = document.getElementById("btn-toggle-phone");
-  const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
-  if (toggleBtn && phoneWrapper) {
-    toggleBtn.addEventListener("click", () => {
-      phoneWrapper.classList.toggle("phone-hidden");
-    });
+        newInputEl.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            sendTheatreMessage();
+          }
+        });
+      }
+    }
   }
 
-  // Tabs List Main
-  const tabsList = [
-    "home",
-    "stats",
-    "abilities",
-    "skills",
-    "profile",
-    "parts",
-    "apego",
-    "banco",
-    "contratos",
-    "codex",
-    "mapa",
-    "notas",
-    "shop",
-  ];
+  // Cierra la función renderCharacterSheet
 
-  // Tab switching logic for Main Nav
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest('button[type="action"]');
-    if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
-
-    const tabName = btn.name.replace("act_tab_", "");
-
-    const tabInput =
-      document.querySelector('input[name="attr_tab"]') ||
-      document.querySelector(".sheet-state-tab");
-    if (tabInput) {
-      tabInput.setAttribute("value", tabName);
-      tabInput.value = tabName;
+  // UI EVENT LISTENERS
+  {
+    // Phone Toggle
+    const toggleBtn = document.getElementById("btn-toggle-phone");
+    const phoneWrapper = document.querySelector(".sheet-phone-wrapper");
+    if (toggleBtn && phoneWrapper) {
+      toggleBtn.addEventListener("click", () => {
+        phoneWrapper.classList.toggle("phone-hidden");
+      });
     }
 
-    // Keep the JS display logic as a fallback to ensure tabs actually show/hide
-    // even if CSS doesn't fully handle it. The user said CSS reacts to the attribute change,
-    // but just in case, we also update the display block/none.
-    document.querySelectorAll(".sheet-tab-content").forEach((el) => {
-      el.style.display = "none";
-    });
+    // Tabs List Main
+    const tabsList = [
+      "home",
+      "stats",
+      "abilities",
+      "skills",
+      "profile",
+      "parts",
+      "apego",
+      "banco",
+      "contratos",
+      "codex",
+      "mapa",
+      "notas",
+      "shop",
+    ];
 
-    const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
-    if (targetTab) {
-      targetTab.style.display = "block";
-    }
-  });
+    // Tab switching logic for Main Nav
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('button[type="action"]');
+      if (!btn || !btn.name || !btn.name.startsWith("act_tab_")) return;
 
-  // Show Home by default
-  document
-    .querySelectorAll(".sheet-tab-content")
-    .forEach((el) => (el.style.display = "none"));
-  const homeTab = document.querySelector(".sheet-tab-home");
-  if (homeTab) homeTab.style.display = "block";
+      const tabName = btn.name.replace("act_tab_", "");
 
-  // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
-  // Buscar todos los botones de acción del HUD y Codex
-  document.querySelectorAll('button[type="action"]').forEach((btn) => {
-    btn.addEventListener("click", function () {
-      const actionName = this.getAttribute("name");
-      if (!actionName) return;
-
-      // Lógica para abrir los modales principales (Stats, Perks, Skills, etc.)
-      if (actionName.startsWith("act_hud_") && actionName !== "act_hud_close") {
-        const modalName = actionName.replace("act_hud_", "");
-
-        // 1. Ocultar todos los modales
-        document
-          .querySelectorAll(".sheet-modal-container, .sheet-modal")
-          .forEach((m) => {
-            m.style.display = "none";
-          });
-
-        // 2. Buscar y mostrar el modal correcto
-        const targetModal =
-          document.getElementById(`modal-${modalName}`) ||
-          document.querySelector(`.modal-${modalName}`);
-        if (targetModal) {
-          targetModal.style.display = "block";
-        }
+      const tabInput =
+        document.querySelector('input[name="attr_tab"]') ||
+        document.querySelector(".sheet-state-tab");
+      if (tabInput) {
+        tabInput.setAttribute("value", tabName);
+        tabInput.value = tabName;
       }
 
-      // Lógica para cerrar ventanas
+      // Keep the JS display logic as a fallback to ensure tabs actually show/hide
+      // even if CSS doesn't fully handle it. The user said CSS reacts to the attribute change,
+      // but just in case, we also update the display block/none.
+      document.querySelectorAll(".sheet-tab-content").forEach((el) => {
+        el.style.display = "none";
+      });
 
-      // Lógica para pestañas del Codex
-      if (actionName.startsWith("act_codex_")) {
-        const tabName = actionName.replace("act_codex_", "");
-        const codexStateInputs = document.querySelectorAll(
-          ".sheet-state-codex-tab",
-        );
-        codexStateInputs.forEach((input) => {
-          input.value = tabName;
-          input.setAttribute("value", tabName);
-        });
-      }
-
-      if (actionName === "act_hud_close") {
-        document
-          .querySelectorAll(".sheet-modal-container, .sheet-modal, .hud-modal")
-          .forEach((m) => {
-            m.style.display = "none";
-          });
+      const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
+      if (targetTab) {
+        targetTab.style.display = "block";
       }
     });
-  });
-}
-// --- Inventory Modal Logic ---
-{
-  // Mail Tab Logic
-  let mailListenerActive = false;
-  const mailTabBtn = document.querySelector('button[name="act_tab_mail"]');
-  if (mailTabBtn) {
-    mailTabBtn.addEventListener("click", () => {
-      if (mailListenerActive) return;
-      mailListenerActive = true;
 
-      const charNameInput = document.querySelector(
-        'input[name="attr_character_name"]',
-      );
-      const playerName = charNameInput ? charNameInput.value.trim() : "";
-      if (!playerName) return;
+    // Show Home by default
+    document
+      .querySelectorAll(".sheet-tab-content")
+      .forEach((el) => (el.style.display = "none"));
+    const homeTab = document.querySelector(".sheet-tab-home");
+    if (homeTab) homeTab.style.display = "block";
 
-      db.ref(`campaña/jugadores/${playerName}/correos`).on(
-        "value",
-        (snapshot) => {
-          const correos = [];
-          snapshot.forEach((child) => {
-            correos.push({ id: child.key, ...child.val() });
-          });
+    // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
+    // Buscar todos los botones de acción del HUD y Codex
+    document.querySelectorAll('button[type="action"]').forEach((btn) => {
+      btn.addEventListener("click", function () {
+        const actionName = this.getAttribute("name");
+        if (!actionName) return;
 
-          // Sort newest to oldest
-          correos.sort((a, b) => b.fecha - a.fecha);
+        // Lógica para abrir los modales principales (Stats, Perks, Skills, etc.)
+        if (
+          actionName.startsWith("act_hud_") &&
+          actionName !== "act_hud_close"
+        ) {
+          const modalName = actionName.replace("act_hud_", "");
 
-          const inboxList = document.querySelector(".mail-inbox-list");
-          const readArea = document.querySelector(".mail-read-area");
-          if (!inboxList || !readArea) return;
-
-          inboxList.innerHTML = "";
-          correos.forEach((correo) => {
-            const item = document.createElement("div");
-            item.className = `mail-item ${correo.leido ? "" : "unread"}`;
-            item.innerHTML = `<strong>${correo.asunto}</strong><br><small>${correo.remitente}</small>`;
-
-            item.addEventListener("click", () => {
-              readArea.innerHTML = `<h3>${correo.asunto}</h3><h4>De: ${correo.remitente}</h4><hr><p style="white-space: pre-wrap;">${correo.mensaje}</p>`;
-              item.classList.remove("unread");
-
-              // Mark as read in Firebase so it persists
-              db.ref(
-                `campaña/jugadores/${playerName}/correos/${correo.id}`,
-              ).update({ leido: true });
+          // 1. Ocultar todos los modales
+          document
+            .querySelectorAll(".sheet-modal-container, .sheet-modal")
+            .forEach((m) => {
+              m.style.display = "none";
             });
 
-            inboxList.appendChild(item);
+          // 2. Buscar y mostrar el modal correcto
+          const targetModal =
+            document.getElementById(`modal-${modalName}`) ||
+            document.querySelector(`.modal-${modalName}`);
+          if (targetModal) {
+            targetModal.style.display = "block";
+          }
+        }
+
+        // Lógica para cerrar ventanas
+
+        // Lógica para pestañas del Codex
+        if (actionName.startsWith("act_codex_")) {
+          const tabName = actionName.replace("act_codex_", "");
+          const codexStateInputs = document.querySelectorAll(
+            ".sheet-state-codex-tab",
+          );
+          codexStateInputs.forEach((input) => {
+            input.value = tabName;
+            input.setAttribute("value", tabName);
           });
-        },
-      );
-    });
-  }
+        }
 
-  const invBtn = document.getElementById("btn-global-inventory");
-  const invModal = document.getElementById("inventory-modal");
-  const invClose = document.getElementById("inventory-modal-close");
-  const invTabBtns = document.querySelectorAll("#inventory-modal .inv-tab-btn");
-  const invTabContents = document.querySelectorAll(
-    "#inventory-modal .inventory-tab-content",
-  );
-
-  if (invBtn && invModal) {
-    invBtn.addEventListener("click", () => {
-      invModal.classList.add("active");
-    });
-  }
-
-  if (invClose && invModal) {
-    invClose.addEventListener("click", () => {
-      invModal.classList.remove("active");
-    });
-  }
-
-  // Modal background click to close
-  if (invModal) {
-    invModal.addEventListener("click", (e) => {
-      if (e.target === invModal) {
-        invModal.classList.remove("active");
-      }
-    });
-  }
-
-  // Tab switching inside modal
-  invTabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      // Remove active from all buttons and contents
-      invTabBtns.forEach((b) => b.classList.remove("active"));
-      invTabContents.forEach((c) => c.classList.remove("active"));
-
-      // Add active to clicked button
-      btn.classList.add("active");
-
-      // Show target content
-      const targetId = btn.getAttribute("data-tab");
-      const targetContent = document.getElementById(targetId);
-      if (targetContent) {
-        targetContent.classList.add("active");
-      }
-
-      // Hide detail card and reset selection when switching tabs
-      const detailCard = document.getElementById("item-detail-card");
-      if (detailCard) detailCard.classList.remove("active");
-      document
-        .querySelectorAll(".item-slot.active")
-        .forEach((s) => s.classList.remove("active"));
-    });
-  });
-
-  // --- Data Rendering for Inventory Grids ---
-  window.renderInventoryGrid = function (gridId, itemsObj, isStash) {
-    const grid = document.getElementById(gridId);
-    if (!grid) return;
-
-    grid.innerHTML = "";
-    const items = itemsObj
-      ? Object.entries(itemsObj).map(([key, val]) => ({ key, ...val }))
-      : [];
-
-    // Helper func to clean equipment slots
-    const cleanEquipSlots = () => {
-      document.querySelectorAll(".equip-slot").forEach((slot) => {
-        const iconContainer = slot.querySelector(".item-icon");
-        if (iconContainer) iconContainer.innerHTML = "";
-        const nameContainer = slot.querySelector(".item-name");
-        if (nameContainer) nameContainer.innerText = "Vacío";
-        const tierContainer = slot.querySelector(".tier");
-        if (tierContainer) tierContainer.innerText = "";
-        slot.querySelectorAll(".keyword-node").forEach((node) => {
-          node.className = "keyword-node empty";
-        });
-        slot.removeAttribute("draggable");
-        slot.ondragstart = null;
-        slot.dataset.equippedItemKey = "";
+        if (actionName === "act_hud_close") {
+          document
+            .querySelectorAll(
+              ".sheet-modal-container, .sheet-modal, .hud-modal",
+            )
+            .forEach((m) => {
+              m.style.display = "none";
+            });
+        }
       });
-    };
-    if (!isStash) {
-      cleanEquipSlots();
+    });
+  }
+  // --- Inventory Modal Logic ---
+  {
+    // Mail Tab Logic
+    let mailListenerActive = false;
+    const mailTabBtn = document.querySelector('button[name="act_tab_mail"]');
+    if (mailTabBtn) {
+      mailTabBtn.addEventListener("click", () => {
+        if (mailListenerActive) return;
+        mailListenerActive = true;
+
+        const charNameInput = document.querySelector(
+          'input[name="attr_character_name"]',
+        );
+        const playerName = charNameInput ? charNameInput.value.trim() : "";
+        if (!playerName) return;
+
+        db.ref(`campaña/jugadores/${playerName}/correos`).on(
+          "value",
+          (snapshot) => {
+            const correos = [];
+            snapshot.forEach((child) => {
+              correos.push({ id: child.key, ...child.val() });
+            });
+
+            // Sort newest to oldest
+            correos.sort((a, b) => b.fecha - a.fecha);
+
+            const inboxList = document.querySelector(".mail-inbox-list");
+            const readArea = document.querySelector(".mail-read-area");
+            if (!inboxList || !readArea) return;
+
+            inboxList.innerHTML = "";
+            correos.forEach((correo) => {
+              const item = document.createElement("div");
+              item.className = `mail-item ${correo.leido ? "" : "unread"}`;
+              item.innerHTML = `<strong>${correo.asunto}</strong><br><small>${correo.remitente}</small>`;
+
+              item.addEventListener("click", () => {
+                readArea.innerHTML = `<h3>${correo.asunto}</h3><h4>De: ${correo.remitente}</h4><hr><p style="white-space: pre-wrap;">${correo.mensaje}</p>`;
+                item.classList.remove("unread");
+
+                // Mark as read in Firebase so it persists
+                db.ref(
+                  `campaña/jugadores/${playerName}/correos/${correo.id}`,
+                ).update({ leido: true });
+              });
+
+              inboxList.appendChild(item);
+            });
+          },
+        );
+      });
     }
 
-    // Fill slots with items
-    items.forEach((item) => {
-      // Check if equipped
-      if (!isStash && item.equipped_slot) {
-        const targetSlot = document.querySelector(
-          `.equip-slot[data-slot-id="${item.equipped_slot}"]`,
-        );
-        if (targetSlot) {
-          const tierContainer = targetSlot.querySelector(".tier");
-          if (tierContainer) {
-            const romanTiers = [
-              "",
-              "I",
-              "II",
-              "III",
-              "IV",
-              "V",
-              "VI",
-              "VII",
-              "VIII",
-              "IX",
-              "X",
-            ];
-            const t = parseInt(item.tier) || 0;
-            tierContainer.innerText = romanTiers[t] || "";
-          }
-          const iconContainer = targetSlot.querySelector(".item-icon");
-          if (iconContainer) {
-            const imgSrc = item.icono || "https://via.placeholder.com/40";
-            iconContainer.innerHTML = `<img src="${imgSrc}" style="width:100%; height:100%; object-fit:contain;" />`;
-          }
-          const nameContainer = targetSlot.querySelector(".item-name");
-          if (nameContainer) {
-            nameContainer.innerText = item.nombre || "Desconocido";
-          }
-          const nodes = targetSlot.querySelectorAll(".keyword-node");
-          const tierCount = parseInt(item.tier) || 1;
-          for (let i = 0; i < nodes.length; i++) {
-            if (i < tierCount) {
-              nodes[i].className = "keyword-node active-glow";
-            } else {
-              nodes[i].className = "keyword-node empty";
+    const invBtn = document.getElementById("btn-global-inventory");
+    const invModal = document.getElementById("inventory-modal");
+    const invClose = document.getElementById("inventory-modal-close");
+    const invTabBtns = document.querySelectorAll(
+      "#inventory-modal .inv-tab-btn",
+    );
+    const invTabContents = document.querySelectorAll(
+      "#inventory-modal .inventory-tab-content",
+    );
+
+    if (invBtn && invModal) {
+      invBtn.addEventListener("click", () => {
+        invModal.classList.add("active");
+      });
+    }
+
+    if (invClose && invModal) {
+      invClose.addEventListener("click", () => {
+        invModal.classList.remove("active");
+      });
+    }
+
+    // Modal background click to close
+    if (invModal) {
+      invModal.addEventListener("click", (e) => {
+        if (e.target === invModal) {
+          invModal.classList.remove("active");
+        }
+      });
+    }
+
+    // Tab switching inside modal
+    invTabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        // Remove active from all buttons and contents
+        invTabBtns.forEach((b) => b.classList.remove("active"));
+        invTabContents.forEach((c) => c.classList.remove("active"));
+
+        // Add active to clicked button
+        btn.classList.add("active");
+
+        // Show target content
+        const targetId = btn.getAttribute("data-tab");
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) {
+          targetContent.classList.add("active");
+        }
+
+        // Hide detail card and reset selection when switching tabs
+        const detailCard = document.getElementById("item-detail-card");
+        if (detailCard) detailCard.classList.remove("active");
+        document
+          .querySelectorAll(".item-slot.active")
+          .forEach((s) => s.classList.remove("active"));
+      });
+    });
+
+    // --- Data Rendering for Inventory Grids ---
+    window.renderInventoryGrid = function (gridId, itemsObj, isStash) {
+      const grid = document.getElementById(gridId);
+      if (!grid) return;
+
+      grid.innerHTML = "";
+      const items = itemsObj
+        ? Object.entries(itemsObj).map(([key, val]) => ({ key, ...val }))
+        : [];
+
+      // Helper func to clean equipment slots
+      const cleanEquipSlots = () => {
+        document.querySelectorAll(".equip-slot").forEach((slot) => {
+          const iconContainer = slot.querySelector(".item-icon");
+          if (iconContainer) iconContainer.innerHTML = "";
+          const nameContainer = slot.querySelector(".item-name");
+          if (nameContainer) nameContainer.innerText = "Vacío";
+          const tierContainer = slot.querySelector(".tier");
+          if (tierContainer) tierContainer.innerText = "";
+          slot.querySelectorAll(".keyword-node").forEach((node) => {
+            node.className = "keyword-node empty";
+          });
+          slot.removeAttribute("draggable");
+          slot.ondragstart = null;
+          slot.dataset.equippedItemKey = "";
+        });
+      };
+      if (!isStash) {
+        cleanEquipSlots();
+      }
+
+      // Fill slots with items
+      items.forEach((item) => {
+        // Check if equipped
+        if (!isStash && item.equipped_slot) {
+          const targetSlot = document.querySelector(
+            `.equip-slot[data-slot-id="${item.equipped_slot}"]`,
+          );
+          if (targetSlot) {
+            const tierContainer = targetSlot.querySelector(".tier");
+            if (tierContainer) {
+              const romanTiers = [
+                "",
+                "I",
+                "II",
+                "III",
+                "IV",
+                "V",
+                "VI",
+                "VII",
+                "VIII",
+                "IX",
+                "X",
+              ];
+              const t = parseInt(item.tier) || 0;
+              tierContainer.innerText = romanTiers[t] || "";
             }
+            const iconContainer = targetSlot.querySelector(".item-icon");
+            if (iconContainer) {
+              const imgSrc = item.icono || "https://via.placeholder.com/40";
+              iconContainer.innerHTML = `<img src="${imgSrc}" style="width:100%; height:100%; object-fit:contain;" />`;
+            }
+            const nameContainer = targetSlot.querySelector(".item-name");
+            if (nameContainer) {
+              nameContainer.innerText = item.nombre || "Desconocido";
+            }
+            const nodes = targetSlot.querySelectorAll(".keyword-node");
+            const tierCount = parseInt(item.tier) || 1;
+            for (let i = 0; i < nodes.length; i++) {
+              if (i < tierCount) {
+                nodes[i].className = "keyword-node active-glow";
+              } else {
+                nodes[i].className = "keyword-node empty";
+              }
+            }
+            targetSlot.dataset.equippedItemKey = item.key;
+            targetSlot.setAttribute("draggable", "true");
+            targetSlot.ondragstart = (e) => {
+              e.dataTransfer.setData("text/plain", item.key);
+            };
           }
-          targetSlot.dataset.equippedItemKey = item.key;
-          targetSlot.setAttribute("draggable", "true");
-          targetSlot.ondragstart = (e) => {
+          return; // Skip rendering in normal grid
+        }
+
+        const slot = document.createElement("div");
+        slot.className = "item-slot";
+
+        // Drag and drop for inventory grid items
+        if (!isStash) {
+          slot.setAttribute("draggable", "true");
+          slot.ondragstart = (e) => {
             e.dataTransfer.setData("text/plain", item.key);
           };
         }
-        return; // Skip rendering in normal grid
-      }
 
-      const slot = document.createElement("div");
-      slot.className = "item-slot";
+        // Ensure array format for tags
+        let itemTags =
+          item.tags && Array.isArray(item.tags)
+            ? item.tags
+            : item.tipo
+              ? [item.tipo]
+              : [];
 
-      // Drag and drop for inventory grid items
-      if (!isStash) {
-        slot.setAttribute("draggable", "true");
-        slot.ondragstart = (e) => {
-          e.dataTransfer.setData("text/plain", item.key);
-        };
-      }
+        const romanTiers = [
+          "",
+          "I",
+          "II",
+          "III",
+          "IV",
+          "V",
+          "VI",
+          "VII",
+          "VIII",
+          "IX",
+          "X",
+        ];
+        const tIdx = parseInt(item.tier) || 1;
+        const romanTier = romanTiers[tIdx] || "I";
 
-      // Ensure array format for tags
-      let itemTags =
-        item.tags && Array.isArray(item.tags)
-          ? item.tags
-          : item.tipo
-            ? [item.tipo]
-            : [];
+        // Guardar info para los filtros
+        slot.dataset.key = item.key;
+        slot.dataset.name = (item.nombre || "").toLowerCase();
+        slot.dataset.tier = romanTier.toLowerCase();
+        slot.dataset.tags = itemTags.join(",").toLowerCase();
 
-      const romanTiers = [
-        "",
-        "I",
-        "II",
-        "III",
-        "IV",
-        "V",
-        "VI",
-        "VII",
-        "VIII",
-        "IX",
-        "X",
-      ];
-      const tIdx = parseInt(item.tier) || 1;
-      const romanTier = romanTiers[tIdx] || "I";
-
-      // Guardar info para los filtros
-      slot.dataset.key = item.key;
-      slot.dataset.name = (item.nombre || "").toLowerCase();
-      slot.dataset.tier = romanTier.toLowerCase();
-      slot.dataset.tags = itemTags.join(",").toLowerCase();
-
-      const imgSrc = item.icono || "https://via.placeholder.com/40";
-      slot.innerHTML = `
+        const imgSrc = item.icono || "https://via.placeholder.com/40";
+        slot.innerHTML = `
                 <span class="tier">${romanTier}</span>
                 <div class="item-display">
                     <div class="item-icon" style="background-image: url('${imgSrc}');"></div>
@@ -1555,115 +1668,115 @@ function initializeCharacterSheet() {
                 </div>
                 <div class="item-quantity" style="position: absolute; bottom: 2px; right: 4px; font-size: 0.7em; color: #aaa;">x${item.cantidad || 1}</div>
             `;
-      slot.classList.add("inv-item-slot"); // Agregar la nueva clase del grid LCM
-      slot.classList.remove("item-slot"); // Quitar la clase antigua para evitar conflictos
+        slot.classList.add("inv-item-slot"); // Agregar la nueva clase del grid LCM
+        slot.classList.remove("item-slot"); // Quitar la clase antigua para evitar conflictos
 
-      slot.addEventListener("click", () => {
-        // Remove active from all slots
-        document
-          .querySelectorAll(".item-slot, .inv-item-slot")
-          .forEach((s) => s.classList.remove("active"));
-        slot.classList.add("active");
+        slot.addEventListener("click", () => {
+          // Remove active from all slots
+          document
+            .querySelectorAll(".item-slot, .inv-item-slot")
+            .forEach((s) => s.classList.remove("active"));
+          slot.classList.add("active");
 
-        // Show detail card
-        const detailCard = document.getElementById("item-detail-card");
-        if (detailCard) detailCard.classList.add("active");
+          // Show detail card
+          const detailCard = document.getElementById("item-detail-card");
+          if (detailCard) detailCard.classList.add("active");
 
-        // Populate data
-        const iconEl = document.getElementById("detail-icon");
-        if (iconEl) iconEl.src = imgSrc;
+          // Populate data
+          const iconEl = document.getElementById("detail-icon");
+          if (iconEl) iconEl.src = imgSrc;
 
-        const tierEl = document.getElementById("detail-tier-val");
-        if (tierEl) tierEl.innerText = romanTier;
+          const tierEl = document.getElementById("detail-tier-val");
+          if (tierEl) tierEl.innerText = romanTier;
 
-        const costEl = document.getElementById("detail-cost-val");
-        if (costEl) costEl.innerText = item.valorBase || item.costo || 0;
+          const costEl = document.getElementById("detail-cost-val");
+          if (costEl) costEl.innerText = item.valorBase || item.costo || 0;
 
-        const titleBadge = document.getElementById("detail-title");
-        if (titleBadge) {
-          titleBadge.innerText = item.nombre || "Desconocido";
-          // Limpiar clases de tier anteriores
-          titleBadge.classList.remove(
-            "tier-i-ii",
-            "tier-iii-iv",
-            "tier-v-vi",
-            "tier-vii-viii",
-            "tier-ix-x",
-          );
+          const titleBadge = document.getElementById("detail-title");
+          if (titleBadge) {
+            titleBadge.innerText = item.nombre || "Desconocido";
+            // Limpiar clases de tier anteriores
+            titleBadge.classList.remove(
+              "tier-i-ii",
+              "tier-iii-iv",
+              "tier-v-vi",
+              "tier-vii-viii",
+              "tier-ix-x",
+            );
 
-          // Aplicar nueva clase según el tier
-          if (tIdx === 1 || tIdx === 2) titleBadge.classList.add("tier-i-ii");
-          else if (tIdx === 3 || tIdx === 4)
-            titleBadge.classList.add("tier-iii-iv");
-          else if (tIdx === 5 || tIdx === 6)
-            titleBadge.classList.add("tier-v-vi");
-          else if (tIdx === 7 || tIdx === 8)
-            titleBadge.classList.add("tier-vii-viii");
-          else if (tIdx === 9 || tIdx === 10)
-            titleBadge.classList.add("tier-ix-x");
-          else titleBadge.classList.add("tier-i-ii");
-        }
-
-        const descEl = document.getElementById("detail-desc");
-        if (descEl) descEl.innerText = item.descripcion || "Sin descripción.";
-
-        const tagsContainer = document.getElementById("detail-tags-val");
-        if (tagsContainer) {
-          tagsContainer.innerHTML = "";
-          itemTags.forEach((tag) => {
-            const t = document.createElement("span");
-            t.className = "tag-pill";
-            t.innerText = tag;
-            tagsContainer.appendChild(t);
-          });
-        }
-
-        // Show equip/unequip button
-        const btnContainer = document.getElementById(
-          "detail-equip-btn-container",
-        );
-        if (btnContainer) {
-          btnContainer.innerHTML = "";
-          const actionBtn = document.createElement("button");
-          actionBtn.className = isStash ? "btn-equip" : "btn-unequip";
-          actionBtn.innerText = isStash ? "Equipar" : "Desequipar";
-
-          // If moving from stash, check if stash is unlocked
-          if (isStash && !window.isStashUnlocked) {
-            actionBtn.disabled = true;
-            actionBtn.style.opacity = "0.5";
-            actionBtn.style.cursor = "not-allowed";
-            actionBtn.title = "El alijo está bloqueado por el DM.";
-          } else {
-            actionBtn.onclick = () => {
-              window.dispatchEvent(
-                new CustomEvent("item-move-action", {
-                  detail: {
-                    itemKey: item.key,
-                    itemData: item,
-                    fromStash: isStash,
-                  },
-                }),
-              );
-            };
+            // Aplicar nueva clase según el tier
+            if (tIdx === 1 || tIdx === 2) titleBadge.classList.add("tier-i-ii");
+            else if (tIdx === 3 || tIdx === 4)
+              titleBadge.classList.add("tier-iii-iv");
+            else if (tIdx === 5 || tIdx === 6)
+              titleBadge.classList.add("tier-v-vi");
+            else if (tIdx === 7 || tIdx === 8)
+              titleBadge.classList.add("tier-vii-viii");
+            else if (tIdx === 9 || tIdx === 10)
+              titleBadge.classList.add("tier-ix-x");
+            else titleBadge.classList.add("tier-i-ii");
           }
-          btnContainer.appendChild(actionBtn);
 
-          // Add Cargar button if item has vinculo
-          const vinculoInfo = document.getElementById("detail-vinculo-info");
-          if (
-            item.vinculo_item &&
-            item.vinculo_cantidad &&
-            item.vinculo_stacks_max
-          ) {
-            const maxCargas = item.vinculo_stacks_max;
-            const cargaActual = item.carga_actual || 0;
-            const reqCant = item.vinculo_cantidad;
-            const reqItem = item.vinculo_item;
+          const descEl = document.getElementById("detail-desc");
+          if (descEl) descEl.innerText = item.descripcion || "Sin descripción.";
 
-            if (vinculoInfo) {
-              vinculoInfo.style.display = "block";
-              vinculoInfo.innerHTML = `
+          const tagsContainer = document.getElementById("detail-tags-val");
+          if (tagsContainer) {
+            tagsContainer.innerHTML = "";
+            itemTags.forEach((tag) => {
+              const t = document.createElement("span");
+              t.className = "tag-pill";
+              t.innerText = tag;
+              tagsContainer.appendChild(t);
+            });
+          }
+
+          // Show equip/unequip button
+          const btnContainer = document.getElementById(
+            "detail-equip-btn-container",
+          );
+          if (btnContainer) {
+            btnContainer.innerHTML = "";
+            const actionBtn = document.createElement("button");
+            actionBtn.className = isStash ? "btn-equip" : "btn-unequip";
+            actionBtn.innerText = isStash ? "Equipar" : "Desequipar";
+
+            // If moving from stash, check if stash is unlocked
+            if (isStash && !window.isStashUnlocked) {
+              actionBtn.disabled = true;
+              actionBtn.style.opacity = "0.5";
+              actionBtn.style.cursor = "not-allowed";
+              actionBtn.title = "El alijo está bloqueado por el DM.";
+            } else {
+              actionBtn.onclick = () => {
+                window.dispatchEvent(
+                  new CustomEvent("item-move-action", {
+                    detail: {
+                      itemKey: item.key,
+                      itemData: item,
+                      fromStash: isStash,
+                    },
+                  }),
+                );
+              };
+            }
+            btnContainer.appendChild(actionBtn);
+
+            // Add Cargar button if item has vinculo
+            const vinculoInfo = document.getElementById("detail-vinculo-info");
+            if (
+              item.vinculo_item &&
+              item.vinculo_cantidad &&
+              item.vinculo_stacks_max
+            ) {
+              const maxCargas = item.vinculo_stacks_max;
+              const cargaActual = item.carga_actual || 0;
+              const reqCant = item.vinculo_cantidad;
+              const reqItem = item.vinculo_item;
+
+              if (vinculoInfo) {
+                vinculoInfo.style.display = "block";
+                vinculoInfo.innerHTML = `
                                 <div style="font-size: 0.85em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">
                                     Cargas: ${cargaActual} / ${maxCargas}
                                 </div>
@@ -1671,152 +1784,140 @@ function initializeCharacterSheet() {
                                     Requiere ${reqCant}x "${reqItem}" para +1 carga.
                                 </div>
                             `;
-            }
-
-            if (!isStash || window.isStashUnlocked) {
-              const loadBtn = document.createElement("button");
-              loadBtn.className = "btn-equip"; // Reuse class for styling
-              loadBtn.style.backgroundColor = "var(--cyan-tech)";
-              loadBtn.style.color = "#000";
-              loadBtn.style.marginTop = "5px";
-              loadBtn.innerText = `Cargar (${reqCant} ${reqItem})`;
-
-              if (cargaActual >= maxCargas) {
-                loadBtn.disabled = true;
-                loadBtn.style.opacity = "0.5";
-                loadBtn.style.cursor = "not-allowed";
-                loadBtn.innerText = "Cargas al Máximo";
-              } else {
-                loadBtn.onclick = () => {
-                  window.dispatchEvent(
-                    new CustomEvent("item-load-action", {
-                      detail: {
-                        itemKey: item.key,
-                        itemData: item,
-                        isStash: isStash,
-                      },
-                    }),
-                  );
-                };
               }
-              btnContainer.appendChild(loadBtn);
+
+              if (!isStash || window.isStashUnlocked) {
+                const loadBtn = document.createElement("button");
+                loadBtn.className = "btn-equip"; // Reuse class for styling
+                loadBtn.style.backgroundColor = "var(--cyan-tech)";
+                loadBtn.style.color = "#000";
+                loadBtn.style.marginTop = "5px";
+                loadBtn.innerText = `Cargar (${reqCant} ${reqItem})`;
+
+                if (cargaActual >= maxCargas) {
+                  loadBtn.disabled = true;
+                  loadBtn.style.opacity = "0.5";
+                  loadBtn.style.cursor = "not-allowed";
+                  loadBtn.innerText = "Cargas al Máximo";
+                } else {
+                  loadBtn.onclick = () => {
+                    window.dispatchEvent(
+                      new CustomEvent("item-load-action", {
+                        detail: {
+                          itemKey: item.key,
+                          itemData: item,
+                          isStash: isStash,
+                        },
+                      }),
+                    );
+                  };
+                }
+                btnContainer.appendChild(loadBtn);
+              }
+            } else {
+              if (vinculoInfo) vinculoInfo.style.display = "none";
             }
-          } else {
-            if (vinculoInfo) vinculoInfo.style.display = "none";
           }
+        });
+
+        grid.appendChild(slot);
+      });
+    };
+
+    // --- Inventory Search & Filter Logic (Stash) ---
+    const searchInputStash = document.getElementById("buscador-items-stash");
+    const filterBtnsStash = document.querySelectorAll(
+      "#filtros-stash .inv-filter-btn",
+    );
+
+    function filterStashItems() {
+      const query = searchInputStash
+        ? searchInputStash.value.toLowerCase()
+        : "";
+      let activeFilter = "todo";
+
+      filterBtnsStash.forEach((btn) => {
+        if (btn.classList.contains("active")) {
+          activeFilter = btn.getAttribute("data-filter").toLowerCase();
         }
       });
 
-      grid.appendChild(slot);
-    });
-  };
+      const stashGrid = document.getElementById("inv-stash-grid");
+      if (stashGrid) {
+        const slots = stashGrid.querySelectorAll(".item-slot:not(.empty-slot)");
+        slots.forEach((slot) => {
+          const name = slot.dataset.name || "";
+          const tier = slot.dataset.tier || "";
+          const tags = slot.dataset.tags || "";
 
-  // --- Inventory Search & Filter Logic (Stash) ---
-  const searchInputStash = document.getElementById("buscador-items-stash");
-  const filterBtnsStash = document.querySelectorAll(
-    "#filtros-stash .inv-filter-btn",
-  );
+          const matchesQuery =
+            name.includes(query) ||
+            tier.includes(query) ||
+            tags.includes(query);
+          const matchesFilter =
+            activeFilter === "todo" || tags.includes(activeFilter);
 
-  function filterStashItems() {
-    const query = searchInputStash ? searchInputStash.value.toLowerCase() : "";
-    let activeFilter = "todo";
+          if (matchesQuery && matchesFilter) {
+            slot.style.display = "flex";
+          } else {
+            slot.style.display = "none";
+          }
+        });
+      }
+    }
+
+    if (searchInputStash) {
+      searchInputStash.addEventListener("input", filterStashItems);
+    }
 
     filterBtnsStash.forEach((btn) => {
-      if (btn.classList.contains("active")) {
-        activeFilter = btn.getAttribute("data-filter").toLowerCase();
-      }
-    });
-
-    const stashGrid = document.getElementById("inv-stash-grid");
-    if (stashGrid) {
-      const slots = stashGrid.querySelectorAll(".item-slot:not(.empty-slot)");
-      slots.forEach((slot) => {
-        const name = slot.dataset.name || "";
-        const tier = slot.dataset.tier || "";
-        const tags = slot.dataset.tags || "";
-
-        const matchesQuery =
-          name.includes(query) || tier.includes(query) || tags.includes(query);
-        const matchesFilter =
-          activeFilter === "todo" || tags.includes(activeFilter);
-
-        if (matchesQuery && matchesFilter) {
-          slot.style.display = "flex";
-        } else {
-          slot.style.display = "none";
-        }
+      btn.addEventListener("click", () => {
+        filterBtnsStash.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        filterStashItems();
       });
-    }
-  }
-
-  if (searchInputStash) {
-    searchInputStash.addEventListener("input", filterStashItems);
-  }
-
-  filterBtnsStash.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      filterBtnsStash.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      filterStashItems();
     });
-  });
 
-  // Handle loading items (Vinculos)
-  window.addEventListener("item-load-action", (e) => {
-    const { itemKey, itemData, isStash } = e.detail;
-    const charNameInput = document.querySelector(
-      'input[name="attr_character_name"]',
-    );
-    const playerName = charNameInput ? charNameInput.value.trim() : "";
-    if (!playerName || typeof db === "undefined") return;
-
-    const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
-    const reqItemName = itemData.vinculo_item;
-
-    if (!reqCant || !reqItemName) return;
-
-    // Function to find and consume the required items across both active and stash
-    const consumeItems = async () => {
-      let totalFound = 0;
-      const activeRef = db.ref(
-        `campaña/jugadores/${playerName}/inventario_activo`,
+    // Handle loading items (Vinculos)
+    window.addEventListener("item-load-action", (e) => {
+      const { itemKey, itemData, isStash } = e.detail;
+      const charNameInput = document.querySelector(
+        'input[name="attr_character_name"]',
       );
-      const stashRef = db.ref(
-        `campaña/jugadores/${playerName}/inventario_stash`,
-      );
+      const playerName = charNameInput ? charNameInput.value.trim() : "";
+      if (!playerName || typeof db === "undefined") return;
 
-      const activeSnap = await activeRef.once("value");
-      const stashSnap = await stashRef.once("value");
+      const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
+      const reqItemName = itemData.vinculo_item;
 
-      const activeItems = activeSnap.val() || {};
-      const stashItems = stashSnap.val() || {};
+      if (!reqCant || !reqItemName) return;
 
-      let itemsToDeduct = []; // { ref, key, currentCant, deductCant }
-      let remainingNeeded = reqCant;
+      // Function to find and consume the required items across both active and stash
+      const consumeItems = async () => {
+        let totalFound = 0;
+        const activeRef = db.ref(
+          `campaña/jugadores/${playerName}/inventario_activo`,
+        );
+        const stashRef = db.ref(
+          `campaña/jugadores/${playerName}/inventario_stash`,
+        );
 
-      // Search Active
-      for (const [k, v] of Object.entries(activeItems)) {
-        if (v.nombre === reqItemName && remainingNeeded > 0) {
-          let cant = v.cantidad || 1;
-          let toDeduct = Math.min(cant, remainingNeeded);
-          itemsToDeduct.push({
-            ref: activeRef,
-            key: k,
-            currentCant: cant,
-            deductCant: toDeduct,
-          });
-          remainingNeeded -= toDeduct;
-        }
-      }
+        const activeSnap = await activeRef.once("value");
+        const stashSnap = await stashRef.once("value");
 
-      // Search Stash
-      if (remainingNeeded > 0 && window.isStashUnlocked) {
-        for (const [k, v] of Object.entries(stashItems)) {
+        const activeItems = activeSnap.val() || {};
+        const stashItems = stashSnap.val() || {};
+
+        let itemsToDeduct = []; // { ref, key, currentCant, deductCant }
+        let remainingNeeded = reqCant;
+
+        // Search Active
+        for (const [k, v] of Object.entries(activeItems)) {
           if (v.nombre === reqItemName && remainingNeeded > 0) {
             let cant = v.cantidad || 1;
             let toDeduct = Math.min(cant, remainingNeeded);
             itemsToDeduct.push({
-              ref: stashRef,
+              ref: activeRef,
               key: k,
               currentCant: cant,
               deductCant: toDeduct,
@@ -1824,428 +1925,446 @@ function initializeCharacterSheet() {
             remainingNeeded -= toDeduct;
           }
         }
-      }
 
-      if (remainingNeeded > 0) {
-        if (!window.isStashUnlocked) {
-          alert(
-            `No tienes suficientes "${reqItemName}" en tu Inventario Activo (${reqCant} requeridos). El Alijo está bloqueado.`,
-          );
+        // Search Stash
+        if (remainingNeeded > 0 && window.isStashUnlocked) {
+          for (const [k, v] of Object.entries(stashItems)) {
+            if (v.nombre === reqItemName && remainingNeeded > 0) {
+              let cant = v.cantidad || 1;
+              let toDeduct = Math.min(cant, remainingNeeded);
+              itemsToDeduct.push({
+                ref: stashRef,
+                key: k,
+                currentCant: cant,
+                deductCant: toDeduct,
+              });
+              remainingNeeded -= toDeduct;
+            }
+          }
+        }
+
+        if (remainingNeeded > 0) {
+          if (!window.isStashUnlocked) {
+            alert(
+              `No tienes suficientes "${reqItemName}" en tu Inventario Activo (${reqCant} requeridos). El Alijo está bloqueado.`,
+            );
+          } else {
+            alert(
+              `No tienes suficientes "${reqItemName}" (${reqCant} requeridos).`,
+            );
+          }
+          return;
+        }
+
+        // Deduct
+        for (const item of itemsToDeduct) {
+          if (item.currentCant - item.deductCant <= 0) {
+            await item.ref.child(item.key).remove();
+          } else {
+            await item.ref
+              .child(item.key)
+              .update({ cantidad: item.currentCant - item.deductCant });
+          }
+        }
+
+        // Increment charges
+        const currentCargas = parseInt(itemData.carga_actual) || 0;
+        const targetList = isStash ? "inventario_stash" : "inventario_activo";
+        await db
+          .ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`)
+          .update({
+            carga_actual: currentCargas + 1,
+          });
+
+        // Auto-refresh the detail card to show new charges by simulating a click
+        const activeSlot = document.querySelector(".item-slot.active");
+        if (activeSlot) {
+          activeSlot.click();
+        }
+      };
+
+      consumeItems();
+    });
+
+    // Handle equip/unequip events
+    window.addEventListener("item-move-action", (e) => {
+      const { itemKey, itemData, fromStash } = e.detail;
+      const charNameInput = document.querySelector(
+        'input[name="attr_character_name"]',
+      );
+      const playerName = charNameInput ? charNameInput.value.trim() : "";
+      if (!playerName || typeof db === "undefined") return;
+
+      const sourceListName = fromStash
+        ? "inventario_stash"
+        : "inventario_activo";
+      const targetListName = fromStash
+        ? "inventario_activo"
+        : "inventario_stash";
+
+      const sourceRef = db.ref(
+        `campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`,
+      );
+      const targetRef = db.ref(
+        `campaña/jugadores/${playerName}/${targetListName}`,
+      );
+
+      // Move 1 unit
+      let itemToMove = { ...itemData, cantidad: 1 };
+      delete itemToMove.key; // Clean up key
+
+      targetRef.once("value", (targetSnap) => {
+        const targetData = targetSnap.val() || {};
+        let foundKey = null;
+        let targetCurrentCant = 0;
+
+        for (const [k, targetItem] of Object.entries(targetData)) {
+          if (
+            targetItem.nombre === itemData.nombre &&
+            (targetItem.tier || 1) == (itemData.tier || 1)
+          ) {
+            foundKey = k;
+            targetCurrentCant = targetItem.cantidad || 1;
+            break;
+          }
+        }
+
+        // Check limits
+        const activeStackLimit = parseInt(itemData.limite_activo) || 2; // Default 2 for active if not specified
+        const stashStackLimit = parseInt(itemData.limite_alijo) || 99; // Default 99 for stash if not specified
+
+        if (fromStash) {
+          // Moving to Active Inventory
+          if (foundKey && targetCurrentCant + 1 > activeStackLimit) {
+            alert(
+              `No puedes equipar más de ${activeStackLimit} de este ítem a la vez.`,
+            );
+            return;
+          }
+          // Check 10 slots limit for active inventory
+          if (!foundKey && Object.keys(targetData).length >= 10) {
+            alert(
+              "El Inventario Activo está lleno. Solo puedes llevar 10 espacios.",
+            );
+            return;
+          }
         } else {
-          alert(
-            `No tienes suficientes "${reqItemName}" (${reqCant} requeridos).`,
+          // Moving to Stash
+          if (foundKey && targetCurrentCant + 1 > stashStackLimit) {
+            alert(
+              `El alijo no puede almacenar más de ${stashStackLimit} de este ítem en un solo stack.`,
+            );
+            return;
+          }
+        }
+
+        let promiseAdd;
+        if (foundKey) {
+          promiseAdd = targetRef
+            .child(foundKey)
+            .update({ cantidad: targetCurrentCant + 1 });
+        } else {
+          promiseAdd = targetRef.push(itemToMove);
+        }
+
+        promiseAdd.then(() => {
+          sourceRef.once("value", (sourceSnap) => {
+            const sourceItem = sourceSnap.val();
+            if (!sourceItem) return;
+            if (sourceItem.cantidad > 1) {
+              sourceRef.update({ cantidad: sourceItem.cantidad - 1 });
+            } else {
+              sourceRef.remove();
+              // Hide detail card if the last item is moved
+              const detailCard = document.getElementById("item-detail-card");
+              if (detailCard) detailCard.classList.remove("active");
+            }
+          });
+        });
+      });
+    });
+
+    // --- Dynamic Shop System Logic ---
+    // Shop logic is now handled in the main Shop app tab
+  } // Cierra Inventory Modal Logic
+
+  // Listener for active and stash inventory
+  let playerInventoryListenerActive = false;
+  {
+    // Wait slightly to ensure Firebase is initialized
+    setTimeout(() => {
+      if (typeof db === "undefined") return;
+      const charNameInput = document.querySelector(
+        'input[name="attr_character_name"]',
+      );
+
+      // Use a generic interval or function to check when playerName is available
+      const checkPlayerName = setInterval(() => {
+        const playerName = charNameInput ? charNameInput.value.trim() : "";
+        if (
+          playerName &&
+          playerName !== "Nombre" &&
+          playerName !== "Desconocido"
+        ) {
+          clearInterval(checkPlayerName);
+
+          if (playerInventoryListenerActive) return;
+          playerInventoryListenerActive = true;
+
+          // Listen to Stash
+          db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on(
+            "value",
+            (snap) => {
+              const items = snap.val() || {};
+              // Re-use render function, passing true for isStash
+              if (typeof window.renderInventoryGrid === "function") {
+                window.renderInventoryGrid("inv-stash-grid", items, true);
+                // Trigger filter to maintain state
+                const searchInputStash = document.getElementById(
+                  "buscador-items-stash",
+                );
+                if (searchInputStash)
+                  searchInputStash.dispatchEvent(new Event("input"));
+              }
+            },
+          );
+
+          // Listen to Activo
+          db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on(
+            "value",
+            (snap) => {
+              const items = snap.val() || {};
+              if (typeof window.renderInventoryGrid === "function") {
+                window.renderInventoryGrid("inv-active-grid", items, false);
+              }
+            },
           );
         }
+      }, 1000);
+    }, 1000);
+  } // Cierra Listener for active and stash inventory
+
+  // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
+  let tiendaActivaData = null;
+  let tiendaActivaId = null;
+  let tiendasFisicasDisponibles = {}; // Para el modal físico
+  let tiendaFisicaActivaId = null; // ID de la tienda seleccionada en el modal
+
+  // Helper array para convertir Tier en romano (ya existe en otro lado pero lo necesitamos aquí)
+  const romanTiersShop = [
+    "",
+    "I",
+    "II",
+    "III",
+    "IV",
+    "V",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "X",
+  ];
+
+  // Esperar a que el DOM y typeof db !== 'undefined' existan
+  {
+    if (typeof db === "undefined") return;
+
+    // Abrir/Cerrar el modal de tienda física
+    const badgeFisica = document.getElementById("tienda-fisica-badge");
+    const shopModal = document.getElementById("shop-modal");
+    const shopModalClose = document.getElementById("shop-modal-close");
+
+    if (badgeFisica && shopModal) {
+      badgeFisica.addEventListener("click", (e) => {
+        e.stopPropagation(); // Evitar que abra el inventario normal
+        shopModal.classList.add("active");
+        // Por defecto, seleccionar la primera tienda de la lista si hay
+        const storeKeys = Object.keys(tiendasFisicasDisponibles);
+        if (storeKeys.length > 0) {
+          seleccionarTiendaFisica(storeKeys[0]);
+        }
+      });
+    }
+
+    if (shopModalClose && shopModal) {
+      shopModalClose.addEventListener("click", () => {
+        shopModal.classList.remove("active");
+        tiendaFisicaActivaId = null;
+      });
+    }
+
+    db.ref("campaña/tiendas").on("value", (snapshot) => {
+      const tiendas = snapshot.val() || {};
+      let encontrada = false;
+
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
+
+      tiendasFisicasDisponibles = {};
+      let badgeImageSrc = null;
+
+      for (const [id, data] of Object.entries(tiendas)) {
+        // Lógica App (En línea)
+        if (data.activa === true) {
+          encontrada = true;
+          tiendaActivaId = id;
+          tiendaActivaData = data;
+        }
+
+        // Lógica Física
+        if (
+          data.fisica_activa === true &&
+          playerName &&
+          data.jugadores_presentes &&
+          data.jugadores_presentes[playerName]
+        ) {
+          tiendasFisicasDisponibles[id] = data;
+          if (!badgeImageSrc)
+            badgeImageSrc =
+              data.icono_fisico ||
+              data.icono ||
+              "https://i.imgur.com/kP8s7Ww.png";
+        }
+      }
+
+      // Actualizar UI App
+      const btnShop = document.getElementById("btn-app-shop");
+      const shopApp = document.getElementById("shop-app");
+
+      if (encontrada && btnShop) {
+        btnShop.style.display = "flex";
+        renderizarComprar();
+        renderizarVender();
+      } else {
+        if (btnShop) btnShop.style.display = "none";
+        tiendaActivaData = null;
+        tiendaActivaId = null;
+        const tabInput = document.querySelector('input[name="attr_tab"]');
+        if (tabInput && tabInput.value === "shop") {
+          // Here we would normally change tab
+          const homeBtn = document.querySelector('button[name="act_tab_home"]');
+          if (homeBtn) homeBtn.click();
+        }
+      }
+
+      // Actualizar UI Física (Badge)
+      const badgeFisica = document.getElementById("tienda-fisica-badge");
+      const shopModal = document.getElementById("shop-modal");
+      if (badgeFisica) {
+        if (Object.keys(tiendasFisicasDisponibles).length > 0) {
+          badgeFisica.src = badgeImageSrc;
+          badgeFisica.style.display = "block";
+          renderizarSidebarFisica();
+
+          // Si el modal está abierto, re-renderizar la grid actual
+          if (
+            shopModal &&
+            shopModal.classList.contains("active") &&
+            tiendaFisicaActivaId
+          ) {
+            if (tiendasFisicasDisponibles[tiendaFisicaActivaId]) {
+              renderizarGridFisica(tiendaFisicaActivaId);
+            } else {
+              const storeKeys = Object.keys(tiendasFisicasDisponibles);
+              if (storeKeys.length > 0) seleccionarTiendaFisica(storeKeys[0]);
+              else shopModal.classList.remove("active");
+            }
+          }
+        } else {
+          badgeFisica.style.display = "none";
+          if (shopModal) shopModal.classList.remove("active");
+        }
+      }
+    });
+
+    function renderizarSidebarFisica() {
+      const sidebar = document.getElementById("shop-sidebar-list");
+      if (!sidebar) return;
+
+      sidebar.innerHTML = "";
+
+      for (const [id, data] of Object.entries(tiendasFisicasDisponibles)) {
+        const btn = document.createElement("button");
+        btn.className = "shop-btn";
+        if (id === tiendaFisicaActivaId) btn.classList.add("active");
+
+        const iconUrl =
+          data.icono_fisico || data.icono || "https://i.imgur.com/kP8s7Ww.png";
+        btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}`;
+
+        btn.addEventListener("click", () => {
+          seleccionarTiendaFisica(id);
+        });
+
+        sidebar.appendChild(btn);
+      }
+    }
+
+    function seleccionarTiendaFisica(id) {
+      tiendaFisicaActivaId = id;
+      renderizarSidebarFisica();
+      renderizarGridFisica(id);
+    }
+
+    function renderizarGridFisica(idTienda) {
+      const grid = document.getElementById("shop-items-grid");
+      const title = document.getElementById("shop-active-name");
+      if (!grid || !title) return;
+
+      const data = tiendasFisicasDisponibles[idTienda];
+      if (!data) return;
+
+      title.innerText = data.nombre;
+      grid.innerHTML = "";
+
+      const items = data.items || {};
+      const modVenta = data.mod_venta || 100;
+
+      if (Object.keys(items).length === 0) {
+        grid.innerHTML =
+          '<div style="color:#666; font-size: 20px; padding: 20px; grid-column: 1 / -1; text-align: center;">Sin inventario.</div>';
         return;
       }
 
-      // Deduct
-      for (const item of itemsToDeduct) {
-        if (item.currentCant - item.deductCant <= 0) {
-          await item.ref.child(item.key).remove();
-        } else {
-          await item.ref
-            .child(item.key)
-            .update({ cantidad: item.currentCant - item.deductCant });
-        }
-      }
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
 
-      // Increment charges
-      const currentCargas = parseInt(itemData.carga_actual) || 0;
-      const targetList = isStash ? "inventario_stash" : "inventario_activo";
-      await db
-        .ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`)
-        .update({
-          carga_actual: currentCargas + 1,
-        });
-
-      // Auto-refresh the detail card to show new charges by simulating a click
-      const activeSlot = document.querySelector(".item-slot.active");
-      if (activeSlot) {
-        activeSlot.click();
-      }
-    };
-
-    consumeItems();
-  });
-
-  // Handle equip/unequip events
-  window.addEventListener("item-move-action", (e) => {
-    const { itemKey, itemData, fromStash } = e.detail;
-    const charNameInput = document.querySelector(
-      'input[name="attr_character_name"]',
-    );
-    const playerName = charNameInput ? charNameInput.value.trim() : "";
-    if (!playerName || typeof db === "undefined") return;
-
-    const sourceListName = fromStash ? "inventario_stash" : "inventario_activo";
-    const targetListName = fromStash ? "inventario_activo" : "inventario_stash";
-
-    const sourceRef = db.ref(
-      `campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`,
-    );
-    const targetRef = db.ref(
-      `campaña/jugadores/${playerName}/${targetListName}`,
-    );
-
-    // Move 1 unit
-    let itemToMove = { ...itemData, cantidad: 1 };
-    delete itemToMove.key; // Clean up key
-
-    targetRef.once("value", (targetSnap) => {
-      const targetData = targetSnap.val() || {};
-      let foundKey = null;
-      let targetCurrentCant = 0;
-
-      for (const [k, targetItem] of Object.entries(targetData)) {
-        if (
-          targetItem.nombre === itemData.nombre &&
-          (targetItem.tier || 1) == (itemData.tier || 1)
-        ) {
-          foundKey = k;
-          targetCurrentCant = targetItem.cantidad || 1;
-          break;
-        }
-      }
-
-      // Check limits
-      const activeStackLimit = parseInt(itemData.limite_activo) || 2; // Default 2 for active if not specified
-      const stashStackLimit = parseInt(itemData.limite_alijo) || 99; // Default 99 for stash if not specified
-
-      if (fromStash) {
-        // Moving to Active Inventory
-        if (foundKey && targetCurrentCant + 1 > activeStackLimit) {
-          alert(
-            `No puedes equipar más de ${activeStackLimit} de este ítem a la vez.`,
-          );
-          return;
-        }
-        // Check 10 slots limit for active inventory
-        if (!foundKey && Object.keys(targetData).length >= 10) {
-          alert(
-            "El Inventario Activo está lleno. Solo puedes llevar 10 espacios.",
-          );
-          return;
-        }
-      } else {
-        // Moving to Stash
-        if (foundKey && targetCurrentCant + 1 > stashStackLimit) {
-          alert(
-            `El alijo no puede almacenar más de ${stashStackLimit} de este ítem en un solo stack.`,
-          );
-          return;
-        }
-      }
-
-      let promiseAdd;
-      if (foundKey) {
-        promiseAdd = targetRef
-          .child(foundKey)
-          .update({ cantidad: targetCurrentCant + 1 });
-      } else {
-        promiseAdd = targetRef.push(itemToMove);
-      }
-
-      promiseAdd.then(() => {
-        sourceRef.once("value", (sourceSnap) => {
-          const sourceItem = sourceSnap.val();
-          if (!sourceItem) return;
-          if (sourceItem.cantidad > 1) {
-            sourceRef.update({ cantidad: sourceItem.cantidad - 1 });
-          } else {
-            sourceRef.remove();
-            // Hide detail card if the last item is moved
-            const detailCard = document.getElementById("item-detail-card");
-            if (detailCard) detailCard.classList.remove("active");
-          }
-        });
-      });
-    });
-  });
-
-  // --- Dynamic Shop System Logic ---
-  // Shop logic is now handled in the main Shop app tab
-
-} // Cierra Inventory Modal Logic
-
-// Listener for active and stash inventory
-let playerInventoryListenerActive = false;
-{
-  // Wait slightly to ensure Firebase is initialized
-  setTimeout(() => {
-    if (typeof db === "undefined") return;
-    const charNameInput = document.querySelector(
-      'input[name="attr_character_name"]',
-    );
-
-    // Use a generic interval or function to check when playerName is available
-    const checkPlayerName = setInterval(() => {
-      const playerName = charNameInput ? charNameInput.value.trim() : "";
-      if (
-        playerName &&
-        playerName !== "Nombre" &&
-        playerName !== "Desconocido"
-      ) {
-        clearInterval(checkPlayerName);
-
-        if (playerInventoryListenerActive) return;
-        playerInventoryListenerActive = true;
-
-        // Listen to Stash
-        db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on(
-          "value",
-          (snap) => {
-            const items = snap.val() || {};
-            // Re-use render function, passing true for isStash
-            if (typeof window.renderInventoryGrid === "function") {
-              window.renderInventoryGrid("inv-stash-grid", items, true);
-              // Trigger filter to maintain state
-              const searchInputStash = document.getElementById(
-                "buscador-items-stash",
-              );
-              if (searchInputStash)
-                searchInputStash.dispatchEvent(new Event("input"));
+      db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
+        "value",
+        (snap) => {
+          const userStash = snap.val() || {};
+          const stashCounts = {};
+          for (const itemStash of Object.values(userStash)) {
+            if (itemStash.nombre) {
+              stashCounts[itemStash.nombre] =
+                (stashCounts[itemStash.nombre] || 0) +
+                (parseInt(itemStash.cantidad) || 1);
             }
-          },
-        );
-
-        // Listen to Activo
-        db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on(
-          "value",
-          (snap) => {
-            const items = snap.val() || {};
-            if (typeof window.renderInventoryGrid === "function") {
-              window.renderInventoryGrid("inv-active-grid", items, false);
-            }
-          },
-        );
-      }
-    }, 1000);
-  }, 1000);
-
-} // Cierra Listener for active and stash inventory
-
-// LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
-let tiendaActivaData = null;
-let tiendaActivaId = null;
-let tiendasFisicasDisponibles = {}; // Para el modal físico
-let tiendaFisicaActivaId = null; // ID de la tienda seleccionada en el modal
-
-// Helper array para convertir Tier en romano (ya existe en otro lado pero lo necesitamos aquí)
-const romanTiersShop = [
-  "",
-  "I",
-  "II",
-  "III",
-  "IV",
-  "V",
-  "VI",
-  "VII",
-  "VIII",
-  "IX",
-  "X",
-];
-
-// Esperar a que el DOM y typeof db !== 'undefined' existan
-{
-  if (typeof db === "undefined") return;
-
-  // Abrir/Cerrar el modal de tienda física
-  const badgeFisica = document.getElementById("tienda-fisica-badge");
-  const shopModal = document.getElementById("shop-modal");
-  const shopModalClose = document.getElementById("shop-modal-close");
-
-  if (badgeFisica && shopModal) {
-    badgeFisica.addEventListener("click", (e) => {
-      e.stopPropagation(); // Evitar que abra el inventario normal
-      shopModal.classList.add("active");
-      // Por defecto, seleccionar la primera tienda de la lista si hay
-      const storeKeys = Object.keys(tiendasFisicasDisponibles);
-      if (storeKeys.length > 0) {
-        seleccionarTiendaFisica(storeKeys[0]);
-      }
-    });
-  }
-
-  if (shopModalClose && shopModal) {
-    shopModalClose.addEventListener("click", () => {
-      shopModal.classList.remove("active");
-      tiendaFisicaActivaId = null;
-    });
-  }
-
-  db.ref("campaña/tiendas").on("value", (snapshot) => {
-    const tiendas = snapshot.val() || {};
-    let encontrada = false;
-
-    const playerName = document
-      .querySelector('input[name="attr_character_name"]')
-      ?.value.trim();
-
-    tiendasFisicasDisponibles = {};
-    let badgeImageSrc = null;
-
-    for (const [id, data] of Object.entries(tiendas)) {
-      // Lógica App (En línea)
-      if (data.activa === true) {
-        encontrada = true;
-        tiendaActivaId = id;
-        tiendaActivaData = data;
-      }
-
-      // Lógica Física
-      if (
-        data.fisica_activa === true &&
-        playerName &&
-        data.jugadores_presentes &&
-        data.jugadores_presentes[playerName]
-      ) {
-        tiendasFisicasDisponibles[id] = data;
-        if (!badgeImageSrc)
-          badgeImageSrc =
-            data.icono_fisico ||
-            data.icono ||
-            "https://i.imgur.com/kP8s7Ww.png";
-      }
-    }
-
-    // Actualizar UI App
-    const btnShop = document.getElementById("btn-app-shop");
-    const shopApp = document.getElementById("shop-app");
-
-    if (encontrada && btnShop) {
-      btnShop.style.display = "flex";
-      renderizarComprar();
-      renderizarVender();
-    } else {
-      if (btnShop) btnShop.style.display = "none";
-      tiendaActivaData = null;
-      tiendaActivaId = null;
-      const tabInput = document.querySelector('input[name="attr_tab"]');
-      if (tabInput && tabInput.value === "shop") {
-        // Here we would normally change tab
-        const homeBtn = document.querySelector('button[name="act_tab_home"]');
-        if (homeBtn) homeBtn.click();
-      }
-    }
-
-    // Actualizar UI Física (Badge)
-    const badgeFisica = document.getElementById("tienda-fisica-badge");
-    const shopModal = document.getElementById("shop-modal");
-    if (badgeFisica) {
-      if (Object.keys(tiendasFisicasDisponibles).length > 0) {
-        badgeFisica.src = badgeImageSrc;
-        badgeFisica.style.display = "block";
-        renderizarSidebarFisica();
-
-        // Si el modal está abierto, re-renderizar la grid actual
-        if (
-          shopModal &&
-          shopModal.classList.contains("active") &&
-          tiendaFisicaActivaId
-        ) {
-          if (tiendasFisicasDisponibles[tiendaFisicaActivaId]) {
-            renderizarGridFisica(tiendaFisicaActivaId);
-          } else {
-            const storeKeys = Object.keys(tiendasFisicasDisponibles);
-            if (storeKeys.length > 0) seleccionarTiendaFisica(storeKeys[0]);
-            else shopModal.classList.remove("active");
           }
-        }
-      } else {
-        badgeFisica.style.display = "none";
-        if (shopModal) shopModal.classList.remove("active");
-      }
-    }
-  });
 
-  function renderizarSidebarFisica() {
-    const sidebar = document.getElementById("shop-sidebar-list");
-    if (!sidebar) return;
+          // Optimization: Use DocumentFragment to batch DOM insertions for performance
+          const fragment = document.createDocumentFragment();
 
-    sidebar.innerHTML = "";
+          for (const [itemId, item] of Object.entries(items)) {
+            const itemTier = parseInt(item.tier) || 1;
+            const valorConTier = Math.floor(
+              (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
+            );
+            const precio = Math.floor(valorConTier * (modVenta / 100));
+            const isAgotado = item.stock_actual === 0;
+            const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
+            const tierStr = romanTiersShop[Math.min(itemTier, 10)] || "I";
+            const countOwned = stashCounts[item.nombre] || 0;
+            const tagStr = item.tag || "Objeto";
+            const descStr =
+              item.descripcion || item.desc || "Sin descripción disponible.";
 
-    for (const [id, data] of Object.entries(tiendasFisicasDisponibles)) {
-      const btn = document.createElement("button");
-      btn.className = "shop-btn";
-      if (id === tiendaFisicaActivaId) btn.classList.add("active");
+            const card = document.createElement("div");
+            card.className = "shop-item-card";
 
-      const iconUrl =
-        data.icono_fisico || data.icono || "https://i.imgur.com/kP8s7Ww.png";
-      btn.innerHTML = `<img src="${iconUrl}" alt="${data.nombre}"> ${data.nombre}`;
-
-      btn.addEventListener("click", () => {
-        seleccionarTiendaFisica(id);
-      });
-
-      sidebar.appendChild(btn);
-    }
-  }
-
-  function seleccionarTiendaFisica(id) {
-    tiendaFisicaActivaId = id;
-    renderizarSidebarFisica();
-    renderizarGridFisica(id);
-  }
-
-  function renderizarGridFisica(idTienda) {
-    const grid = document.getElementById("shop-items-grid");
-    const title = document.getElementById("shop-active-name");
-    if (!grid || !title) return;
-
-    const data = tiendasFisicasDisponibles[idTienda];
-    if (!data) return;
-
-    title.innerText = data.nombre;
-    grid.innerHTML = "";
-
-    const items = data.items || {};
-    const modVenta = data.mod_venta || 100;
-
-    if (Object.keys(items).length === 0) {
-      grid.innerHTML =
-        '<div style="color:#666; font-size: 20px; padding: 20px; grid-column: 1 / -1; text-align: center;">Sin inventario.</div>';
-      return;
-    }
-
-    const playerName = document
-      .querySelector('input[name="attr_character_name"]')
-      ?.value.trim();
-
-    db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
-      "value",
-      (snap) => {
-        const userStash = snap.val() || {};
-        const stashCounts = {};
-        for (const itemStash of Object.values(userStash)) {
-          if (itemStash.nombre) {
-            stashCounts[itemStash.nombre] =
-              (stashCounts[itemStash.nombre] || 0) +
-              (parseInt(itemStash.cantidad) || 1);
-          }
-        }
-
-        // Optimization: Use DocumentFragment to batch DOM insertions for performance
-        const fragment = document.createDocumentFragment();
-
-        for (const [itemId, item] of Object.entries(items)) {
-          const itemTier = parseInt(item.tier) || 1;
-          const valorConTier = Math.floor(
-            (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-          );
-          const precio = Math.floor(valorConTier * (modVenta / 100));
-          const isAgotado = item.stock_actual === 0;
-          const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
-          const tierStr = romanTiersShop[Math.min(itemTier, 10)] || "I";
-          const countOwned = stashCounts[item.nombre] || 0;
-          const tagStr = item.tag || "Objeto";
-          const descStr =
-            item.descripcion || item.desc || "Sin descripción disponible.";
-
-          const card = document.createElement("div");
-          card.className = "shop-item-card";
-
-          card.innerHTML = `
+            card.innerHTML = `
                     <div class="shop-item-image-container">
                         <img src="${item.icono || "https://via.placeholder.com/80"}" alt="${item.nombre}">
                     </div>
@@ -2270,248 +2389,250 @@ const romanTiersShop = [
                         </div>
                     </div>
                 `;
-          fragment.appendChild(card);
-        }
-        grid.appendChild(fragment);
-      },
-    );
-  }
-
-  // Función para manejar las pestañas internas de la app de tienda
-  document.addEventListener("click", (e) => {
-    if (
-      e.target.classList.contains("inv-tab-btn") &&
-      e.target.closest("#shop-app")
-    ) {
-      const btns = document.querySelectorAll("#shop-app .inv-tab-btn");
-      const contents = document.querySelectorAll(
-        "#shop-app .inventory-tab-content",
+            fragment.appendChild(card);
+          }
+          grid.appendChild(fragment);
+        },
       );
-
-      btns.forEach((b) => b.classList.remove("active"));
-      contents.forEach((c) => c.classList.remove("active"));
-
-      e.target.classList.add("active");
-      const tabId = e.target.getAttribute("data-tab");
-      document.getElementById(tabId).classList.add("active");
-
-      if (tabId === "shop-vender") {
-        renderizarVender(); // Actualizar stash al abrir
-      }
     }
-  });
 
-  // Delegación de eventos para botones Comprar/Vender
-  document.addEventListener("click", (e) => {
-    const playerName = document
-      .querySelector('input[name="attr_character_name"]')
-      ?.value.trim();
-    if (!playerName) return;
-
-    // LÓGICA DE COMPRAR (App u Offline/Física)
-    const btnCompra = e.target.closest(
-      ".btn-comprar-item, .btn-comprar-fisico",
-    );
-    if (btnCompra && !btnCompra.disabled) {
-      const isFisico = btnCompra.classList.contains("btn-comprar-fisico");
-
-      const itemId = isFisico
-        ? btnCompra.getAttribute("data-item")
-        : btnCompra.getAttribute("data-id");
-      const precio = parseInt(btnCompra.getAttribute("data-precio"));
-
-      let idTiendaActual = null;
-      let tiendaActualData = null;
-
-      if (isFisico) {
-        idTiendaActual = btnCompra.getAttribute("data-tienda");
-        tiendaActualData = tiendasFisicasDisponibles[idTiendaActual];
-      } else {
-        idTiendaActual = tiendaActivaId;
-        tiendaActualData = tiendaActivaData;
-      }
-
+    // Función para manejar las pestañas internas de la app de tienda
+    document.addEventListener("click", (e) => {
       if (
-        !tiendaActualData ||
-        !tiendaActualData.items ||
-        !tiendaActualData.items[itemId]
-      )
-        return;
-      const itemTienda = tiendaActualData.items[itemId];
-
-      db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", (snap) => {
-        const ahn_actual = snap.val() || 0;
-        if (ahn_actual < precio) {
-          alert("Fondos insuficientes.");
-          return;
-        }
-
-        // Restar Ahn estrictamente
-        db.ref(`campaña/jugadores/${playerName}/ahn`).set(ahn_actual - precio);
-
-        // Reducir Stock
-        if (itemTienda.stock_actual !== -1) {
-          db.ref(
-            `campaña/tiendas/${idTiendaActual}/items/${itemId}/stock_actual`,
-          ).transaction((current) => {
-            return (current || 0) - 1;
-          });
-        }
-
-        const itemToSave = {
-          id: itemId,
-          nombre: itemTienda.nombre,
-          valorBase: itemTienda.costo, // Costo base
-          tier: parseInt(itemTienda.tier) || 1,
-          tipo: itemTienda.tipo || "Consumible",
-          icono: itemTienda.icono || "",
-          descripcion: itemTienda.descripcion || "",
-          cantidad: 1,
-        };
-        if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
-
-        if (isFisico) {
-          // Añadir directo al Stash (Física)
-          const stashRef = db.ref(
-            `campaña/jugadores/${playerName}/inventario_stash`,
-          );
-          stashRef.once("value", (stashSnap) => {
-            let foundKey = null;
-            let currentCant = 0;
-            stashSnap.forEach((child) => {
-              if (
-                child.val().id === itemId &&
-                (child.val().tier || 1) == (itemTienda.tier || 1)
-              ) {
-                foundKey = child.key;
-                currentCant = child.val().cantidad || 1;
-              }
-            });
-
-            if (foundKey) {
-              stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
-            } else {
-              stashRef.push(itemToSave);
-            }
-
-            // Feedback visual Físico
-            const originalHtml = btnCompra.innerHTML;
-            btnCompra.innerText = "COMPRADO";
-            btnCompra.style.background = "#0df";
-            btnCompra.style.color = "#000";
-            setTimeout(() => {
-              if (btnCompra) {
-                btnCompra.innerHTML = originalHtml;
-                btnCompra.style.background = "";
-                btnCompra.style.color = "";
-              }
-            }, 500);
-          });
-        } else {
-          // Añadir a entregas pendientes (App En línea)
-          const diasEntrega = tiendaActualData.dias_entrega || 0;
-
-          db.ref("campaña/calendario")
-            .once("value")
-            .then((calSnap) => {
-              let diaLlegada = diasEntrega; // Fallback si no hay calendario
-              const calendario = calSnap.val();
-              if (calendario) {
-                diaLlegada = calendario.dia + diasEntrega;
-              }
-
-              const entrega = {
-                ...itemToSave,
-                diaDeLlegada: diaLlegada,
-              };
-
-              db.ref(`campaña/jugadores/${playerName}/entregasPendientes`)
-                .push(entrega)
-                .then(() => {
-                  // Feedback visual App
-                  const originalText = btnCompra.innerText;
-                  const originalBg = btnCompra.style.background;
-                  btnCompra.innerText = "¡OK!";
-                  btnCompra.style.background = "#0df";
-                  setTimeout(() => {
-                    if (btnCompra) {
-                      btnCompra.innerText = originalText;
-                      btnCompra.style.background = originalBg;
-                    }
-                  }, 500);
-                });
-            });
-        }
-      });
-    }
-
-    // LÓGICA DE VENDER
-    if (e.target.classList.contains("btn-vender-item")) {
-      const key = e.target.getAttribute("data-key");
-      const precio = parseInt(e.target.getAttribute("data-precio"));
-
-      const itemRef = db.ref(
-        `campaña/jugadores/${playerName}/inventario_stash/${key}`,
-      );
-      itemRef.once("value", (snap) => {
-        const item = snap.val();
-        if (!item) return;
-
-        // Sumar Ahn
-        db.ref(`campaña/jugadores/${playerName}/ahn`).once(
-          "value",
-          (ahnSnap) => {
-            const currentAhn = ahnSnap.val() || 0;
-            db.ref(`campaña/jugadores/${playerName}`).update({
-              ahn: currentAhn + precio,
-            });
-          },
+        e.target.classList.contains("inv-tab-btn") &&
+        e.target.closest("#shop-app")
+      ) {
+        const btns = document.querySelectorAll("#shop-app .inv-tab-btn");
+        const contents = document.querySelectorAll(
+          "#shop-app .inventory-tab-content",
         );
 
-        // Reducir cantidad o eliminar
-        if (item.cantidad > 1) {
-          itemRef.update({ cantidad: item.cantidad - 1 });
+        btns.forEach((b) => b.classList.remove("active"));
+        contents.forEach((c) => c.classList.remove("active"));
+
+        e.target.classList.add("active");
+        const tabId = e.target.getAttribute("data-tab");
+        document.getElementById(tabId).classList.add("active");
+
+        if (tabId === "shop-vender") {
+          renderizarVender(); // Actualizar stash al abrir
+        }
+      }
+    });
+
+    // Delegación de eventos para botones Comprar/Vender
+    document.addEventListener("click", (e) => {
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
+      if (!playerName) return;
+
+      // LÓGICA DE COMPRAR (App u Offline/Física)
+      const btnCompra = e.target.closest(
+        ".btn-comprar-item, .btn-comprar-fisico",
+      );
+      if (btnCompra && !btnCompra.disabled) {
+        const isFisico = btnCompra.classList.contains("btn-comprar-fisico");
+
+        const itemId = isFisico
+          ? btnCompra.getAttribute("data-item")
+          : btnCompra.getAttribute("data-id");
+        const precio = parseInt(btnCompra.getAttribute("data-precio"));
+
+        let idTiendaActual = null;
+        let tiendaActualData = null;
+
+        if (isFisico) {
+          idTiendaActual = btnCompra.getAttribute("data-tienda");
+          tiendaActualData = tiendasFisicasDisponibles[idTiendaActual];
         } else {
-          itemRef.remove();
+          idTiendaActual = tiendaActivaId;
+          tiendaActualData = tiendaActivaData;
         }
 
-        // Refrescar vista
-        setTimeout(renderizarVender, 200);
-      });
-    }
-  });
+        if (
+          !tiendaActualData ||
+          !tiendaActualData.items ||
+          !tiendaActualData.items[itemId]
+        )
+          return;
+        const itemTienda = tiendaActualData.items[itemId];
 
-function renderizarComprar() {
-  const grid = document.getElementById("shop-comprar-grid");
-  if (!grid || !tiendaActivaData) return;
+        db.ref(`campaña/jugadores/${playerName}/ahn`).once("value", (snap) => {
+          const ahn_actual = snap.val() || 0;
+          if (ahn_actual < precio) {
+            alert("Fondos insuficientes.");
+            return;
+          }
 
-  grid.innerHTML = "";
-  const items = tiendaActivaData.items || {};
-  const modVenta = tiendaActivaData.mod_venta || 100;
+          // Restar Ahn estrictamente
+          db.ref(`campaña/jugadores/${playerName}/ahn`).set(
+            ahn_actual - precio,
+          );
 
-  if (Object.keys(items).length === 0) {
-    grid.innerHTML =
-      '<div style="color:#666; text-align:center; padding: 20px;">Sin inventario.</div>';
-    return;
-  }
+          // Reducir Stock
+          if (itemTienda.stock_actual !== -1) {
+            db.ref(
+              `campaña/tiendas/${idTiendaActual}/items/${itemId}/stock_actual`,
+            ).transaction((current) => {
+              return (current || 0) - 1;
+            });
+          }
 
-  // Optimization: Use DocumentFragment to batch DOM insertions for performance
-  const fragment = document.createDocumentFragment();
+          const itemToSave = {
+            id: itemId,
+            nombre: itemTienda.nombre,
+            valorBase: itemTienda.costo, // Costo base
+            tier: parseInt(itemTienda.tier) || 1,
+            tipo: itemTienda.tipo || "Consumible",
+            icono: itemTienda.icono || "",
+            descripcion: itemTienda.descripcion || "",
+            cantidad: 1,
+          };
+          if (itemTienda.tags) itemToSave.tags = itemTienda.tags;
 
-  for (const [itemId, item] of Object.entries(items)) {
-    const itemTier = parseInt(item.tier) || 1;
-    const valorConTier = Math.floor(
-      (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
-    );
-    const precio = Math.floor(valorConTier * (modVenta / 100));
-    const isAgotado = item.stock_actual === 0;
-    const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
+          if (isFisico) {
+            // Añadir directo al Stash (Física)
+            const stashRef = db.ref(
+              `campaña/jugadores/${playerName}/inventario_stash`,
+            );
+            stashRef.once("value", (stashSnap) => {
+              let foundKey = null;
+              let currentCant = 0;
+              stashSnap.forEach((child) => {
+                if (
+                  child.val().id === itemId &&
+                  (child.val().tier || 1) == (itemTienda.tier || 1)
+                ) {
+                  foundKey = child.key;
+                  currentCant = child.val().cantidad || 1;
+                }
+              });
 
-    const row = document.createElement("div");
-    row.style.cssText =
-      "background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;";
+              if (foundKey) {
+                stashRef.child(foundKey).update({ cantidad: currentCant + 1 });
+              } else {
+                stashRef.push(itemToSave);
+              }
 
-    row.innerHTML = `
+              // Feedback visual Físico
+              const originalHtml = btnCompra.innerHTML;
+              btnCompra.innerText = "COMPRADO";
+              btnCompra.style.background = "#0df";
+              btnCompra.style.color = "#000";
+              setTimeout(() => {
+                if (btnCompra) {
+                  btnCompra.innerHTML = originalHtml;
+                  btnCompra.style.background = "";
+                  btnCompra.style.color = "";
+                }
+              }, 500);
+            });
+          } else {
+            // Añadir a entregas pendientes (App En línea)
+            const diasEntrega = tiendaActualData.dias_entrega || 0;
+
+            db.ref("campaña/calendario")
+              .once("value")
+              .then((calSnap) => {
+                let diaLlegada = diasEntrega; // Fallback si no hay calendario
+                const calendario = calSnap.val();
+                if (calendario) {
+                  diaLlegada = calendario.dia + diasEntrega;
+                }
+
+                const entrega = {
+                  ...itemToSave,
+                  diaDeLlegada: diaLlegada,
+                };
+
+                db.ref(`campaña/jugadores/${playerName}/entregasPendientes`)
+                  .push(entrega)
+                  .then(() => {
+                    // Feedback visual App
+                    const originalText = btnCompra.innerText;
+                    const originalBg = btnCompra.style.background;
+                    btnCompra.innerText = "¡OK!";
+                    btnCompra.style.background = "#0df";
+                    setTimeout(() => {
+                      if (btnCompra) {
+                        btnCompra.innerText = originalText;
+                        btnCompra.style.background = originalBg;
+                      }
+                    }, 500);
+                  });
+              });
+          }
+        });
+      }
+
+      // LÓGICA DE VENDER
+      if (e.target.classList.contains("btn-vender-item")) {
+        const key = e.target.getAttribute("data-key");
+        const precio = parseInt(e.target.getAttribute("data-precio"));
+
+        const itemRef = db.ref(
+          `campaña/jugadores/${playerName}/inventario_stash/${key}`,
+        );
+        itemRef.once("value", (snap) => {
+          const item = snap.val();
+          if (!item) return;
+
+          // Sumar Ahn
+          db.ref(`campaña/jugadores/${playerName}/ahn`).once(
+            "value",
+            (ahnSnap) => {
+              const currentAhn = ahnSnap.val() || 0;
+              db.ref(`campaña/jugadores/${playerName}`).update({
+                ahn: currentAhn + precio,
+              });
+            },
+          );
+
+          // Reducir cantidad o eliminar
+          if (item.cantidad > 1) {
+            itemRef.update({ cantidad: item.cantidad - 1 });
+          } else {
+            itemRef.remove();
+          }
+
+          // Refrescar vista
+          setTimeout(renderizarVender, 200);
+        });
+      }
+    });
+
+    function renderizarComprar() {
+      const grid = document.getElementById("shop-comprar-grid");
+      if (!grid || !tiendaActivaData) return;
+
+      grid.innerHTML = "";
+      const items = tiendaActivaData.items || {};
+      const modVenta = tiendaActivaData.mod_venta || 100;
+
+      if (Object.keys(items).length === 0) {
+        grid.innerHTML =
+          '<div style="color:#666; text-align:center; padding: 20px;">Sin inventario.</div>';
+        return;
+      }
+
+      // Optimization: Use DocumentFragment to batch DOM insertions for performance
+      const fragment = document.createDocumentFragment();
+
+      for (const [itemId, item] of Object.entries(items)) {
+        const itemTier = parseInt(item.tier) || 1;
+        const valorConTier = Math.floor(
+          (item.costo || 0) * (1 + (itemTier - 1) * 0.25),
+        );
+        const precio = Math.floor(valorConTier * (modVenta / 100));
+        const isAgotado = item.stock_actual === 0;
+        const stockStr = item.stock_actual === -1 ? "∞" : item.stock_actual;
+
+        const row = document.createElement("div");
+        row.style.cssText =
+          "background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;";
+
+        row.innerHTML = `
             <img src="${item.icono || "https://via.placeholder.com/40"}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
             <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
@@ -2525,62 +2646,62 @@ function renderizarComprar() {
                 </button>
             </div>
         `;
-    fragment.appendChild(row);
-  }
-  grid.appendChild(fragment);
-}
-
-function renderizarVender() {
-  const grid = document.getElementById("shop-vender-grid");
-  const playerName = document
-    .querySelector('input[name="attr_character_name"]')
-    ?.value.trim();
-  if (!grid || !tiendaActivaData || !playerName) return;
-
-  // Use typeof db !== 'undefined' inside functions to ensure it's available
-  db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
-    "value",
-    (snap) => {
-      grid.innerHTML = "";
-      const stash = snap.val();
-
-      if (!stash) {
-        grid.innerHTML =
-          '<div style="color:#666; text-align:center; padding: 20px;">Tu Stash está vacío.</div>';
-        return;
+        fragment.appendChild(row);
       }
+      grid.appendChild(fragment);
+    }
 
-      const reglas = tiendaActivaData.tasas_por_etiqueta || {};
-      const tasaDefecto = tiendaActivaData.tasa_defecto || 50;
+    function renderizarVender() {
+      const grid = document.getElementById("shop-vender-grid");
+      const playerName = document
+        .querySelector('input[name="attr_character_name"]')
+        ?.value.trim();
+      if (!grid || !tiendaActivaData || !playerName) return;
 
-      const fragment = document.createDocumentFragment();
+      // Use typeof db !== 'undefined' inside functions to ensure it's available
+      db.ref(`campaña/jugadores/${playerName}/inventario_stash`).once(
+        "value",
+        (snap) => {
+          grid.innerHTML = "";
+          const stash = snap.val();
 
-      for (const [key, item] of Object.entries(stash)) {
-        if (item.cantidad <= 0) continue;
+          if (!stash) {
+            grid.innerHTML =
+              '<div style="color:#666; text-align:center; padding: 20px;">Tu Stash está vacío.</div>';
+            return;
+          }
 
-        // Calcular precio de venta basado en el primer tag (tipo) si existe
-        // La nueva lógica usa array de tags, así que buscamos el primero
-        let primerTag = item.tipo || ""; // Fallback a tipo si no hay tags en la DB vieja
+          const reglas = tiendaActivaData.tasas_por_etiqueta || {};
+          const tasaDefecto = tiendaActivaData.tasa_defecto || 50;
 
-        // Find matching rule with priority: tags > tipo
-        const matchingTag =
-          (Array.isArray(item.tags) &&
-            item.tags.find((tag) => reglas[tag] !== undefined)) ||
-          (reglas[primerTag] !== undefined ? primerTag : null);
+          const fragment = document.createDocumentFragment();
 
-        const pct = matchingTag ? reglas[matchingTag] : tasaDefecto;
+          for (const [key, item] of Object.entries(stash)) {
+            if (item.cantidad <= 0) continue;
 
-        const itemTier = parseInt(item.tier) || 1;
-        const valorConTier = Math.floor(
-          (item.valorBase || 0) * (1 + (itemTier - 1) * 0.25),
-        );
-        const precioVenta = Math.floor(valorConTier * (pct / 100));
+            // Calcular precio de venta basado en el primer tag (tipo) si existe
+            // La nueva lógica usa array de tags, así que buscamos el primero
+            let primerTag = item.tipo || ""; // Fallback a tipo si no hay tags en la DB vieja
 
-        const row = document.createElement("div");
-        row.style.cssText =
-          "background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;";
+            // Find matching rule with priority: tags > tipo
+            const matchingTag =
+              (Array.isArray(item.tags) &&
+                item.tags.find((tag) => reglas[tag] !== undefined)) ||
+              (reglas[primerTag] !== undefined ? primerTag : null);
 
-        row.innerHTML = `
+            const pct = matchingTag ? reglas[matchingTag] : tasaDefecto;
+
+            const itemTier = parseInt(item.tier) || 1;
+            const valorConTier = Math.floor(
+              (item.valorBase || 0) * (1 + (itemTier - 1) * 0.25),
+            );
+            const precioVenta = Math.floor(valorConTier * (pct / 100));
+
+            const row = document.createElement("div");
+            row.style.cssText =
+              "background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 10px;";
+
+            row.innerHTML = `
                 <img src="${item.icono || "https://via.placeholder.com/40"}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #000;">
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nombre}</div>
@@ -2594,427 +2715,429 @@ function renderizarVender() {
                     </button>
                 </div>
             `;
-        fragment.appendChild(row);
-      }
-      grid.appendChild(fragment);
-    },
-  );
-}
-
-} // Cierra Esperar a que el DOM...
-
-// NATIVE BUTTON LISTENERS
-{
-  // Escuchar clicks globales para botones de acción (simulando Roll20)
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest('button[type="action"]');
-    if (!btn) return;
-
-    const actName = btn.getAttribute("name");
-    if (!actName || typeof db === "undefined") return;
-
-    // --- Ejemplos de Lógica Reescrita ---
-
-    // Banco
-    if (actName === "act_add_ahn") {
-      const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
-      if (inputMod) {
-        const modVal = parseInt(inputMod.value) || 0;
-        const current = parseInt(currentPlayerData.ahn) || 0;
-        db.ref("campaña/jugadores/" + playerId).update({
-          ahn: current + modVal,
-        });
-        inputMod.value = 0;
-      }
-    }
-
-    if (actName === "act_sub_ahn") {
-      const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
-      if (inputMod) {
-        const modVal = parseInt(inputMod.value) || 0;
-        const current = parseInt(currentPlayerData.ahn) || 0;
-        db.ref("campaña/jugadores/" + playerId).update({
-          ahn: current - modVal,
-        });
-        inputMod.value = 0;
-      }
-    }
-
-    if (actName === "act_toggle_profile_edit") {
-      const inputState = document.querySelector(
-        'input[name="attr_show_profile_edit"]',
+            fragment.appendChild(row);
+          }
+          grid.appendChild(fragment);
+        },
       );
-      if (inputState) {
-        const currentVal = inputState.value;
-        const newVal = currentVal === "0" ? "1" : "0";
-        inputState.value = newVal;
-        inputState.setAttribute("value", newVal);
-      }
     }
+  } // Cierra Esperar a que el DOM...
 
-    // --- Descansos ---
-    if (actName === "act_short_rest") {
-      const currentHP = parseInt(currentPlayerData.hp) || 0;
-      const maxHP = parseInt(currentPlayerData.hp_max) || 0;
-      const heal = Math.floor(maxHP * 0.34);
-      let newHP = currentHP + heal;
-      if (newHP > maxHP) newHP = maxHP;
+  // NATIVE BUTTON LISTENERS
+  {
+    // Escuchar clicks globales para botones de acción (simulando Roll20)
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('button[type="action"]');
+      if (!btn) return;
 
-      db.ref("campaña/jugadores/" + playerId).update({
-        hp: newHP,
-        sp: 0,
-        stagger_1_active: "1",
-        stagger_2_active: "1",
-        stagger_3_active: "1",
-      });
-    }
+      const actName = btn.getAttribute("name");
+      if (!actName || typeof db === "undefined") return;
 
-    if (actName === "act_long_rest") {
-      const maxHP = parseInt(currentPlayerData.hp_max) || 0;
-      db.ref("campaña/jugadores/" + playerId).update({
-        hp: maxHP,
-        sp: 0,
-      });
-    }
+      // --- Ejemplos de Lógica Reescrita ---
 
-    // --- Suerte ---
-    if (actName === "act_luck_up") {
-      const current = parseInt(currentPlayerData.luck) || 0;
-      const max = parseInt(currentPlayerData.luck_max) || 0;
-      if (current < max) {
-        db.ref("campaña/jugadores/" + playerId).update({ luck: current + 1 });
-      }
-    }
-
-    if (actName === "act_luck_down") {
-      const current = parseInt(currentPlayerData.luck) || 0;
-      if (current > 0) {
-        db.ref("campaña/jugadores/" + playerId).update({ luck: current - 1 });
-      }
-    }
-  });
-
-  // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
-  document.addEventListener("change", (e) => {
-    if (!e.target.name || !e.target.name.startsWith("attr_")) return;
-    if (
-      e.target.tagName !== "INPUT" &&
-      e.target.tagName !== "SELECT" &&
-      e.target.tagName !== "TEXTAREA"
-    )
-      return;
-
-    const attrName = e.target.name.replace("attr_", "");
-    const val =
-      e.target.type === "checkbox"
-        ? e.target.checked
-          ? e.target.value
-          : "0"
-        : e.target.value;
-
-    // Match lowercase key against actual modifier keys
-    let matchedStatKey = null;
-    if (currentPlayerData && currentPlayerData.modifiers) {
-      for (const key of Object.keys(currentPlayerData.modifiers)) {
-        if (key.toLowerCase() === attrName.toLowerCase()) {
-          matchedStatKey = key;
-          break;
+      // Banco
+      if (actName === "act_add_ahn") {
+        const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
+        if (inputMod) {
+          const modVal = parseInt(inputMod.value) || 0;
+          const current = parseInt(currentPlayerData.ahn) || 0;
+          db.ref("campaña/jugadores/" + playerId).update({
+            ahn: current + modVal,
+          });
+          inputMod.value = 0;
         }
       }
-    }
 
-    // Si el valor pertenece a modifier
-    if (matchedStatKey) {
-      db.ref("campaña/jugadores/" + playerId + "/modifiers").update({
-        [matchedStatKey]: val,
-      });
-    } else if (typeof db !== "undefined") {
-      // Interceptar la actualización de XP para calcular nivel y barras de progreso
-      if (attrName === "xp" && typeof calculateLevelData === "function") {
-        const xpData = calculateLevelData(val);
+      if (actName === "act_sub_ahn") {
+        const inputMod = document.querySelector('input[name="attr_ahn_mod"]');
+        if (inputMod) {
+          const modVal = parseInt(inputMod.value) || 0;
+          const current = parseInt(currentPlayerData.ahn) || 0;
+          db.ref("campaña/jugadores/" + playerId).update({
+            ahn: current - modVal,
+          });
+          inputMod.value = 0;
+        }
+      }
 
-        const hpBase =
-          parseInt(
-            currentPlayerData?.combatStats?.hp_base ||
-              currentPlayerData?.hp_base,
-          ) || 0;
-        const hpCoef =
-          parseFloat(
-            currentPlayerData?.combatStats?.hp_coefficient ||
-              currentPlayerData?.hp_coefficient,
-          ) || 0;
-        const defLvlMod =
-          parseInt(currentPlayerData?.combatStats?.def_lvl_mod) || 0;
-        const totalDefLvl = xpData.level + defLvlMod;
-        const newHpMax = Math.floor(hpBase + totalDefLvl * hpCoef);
+      if (actName === "act_toggle_profile_edit") {
+        const inputState = document.querySelector(
+          'input[name="attr_show_profile_edit"]',
+        );
+        if (inputState) {
+          const currentVal = inputState.value;
+          const newVal = currentVal === "0" ? "1" : "0";
+          inputState.value = newVal;
+          inputState.setAttribute("value", newVal);
+        }
+      }
+
+      // --- Descansos ---
+      if (actName === "act_short_rest") {
+        const currentHP = parseInt(currentPlayerData.hp) || 0;
+        const maxHP = parseInt(currentPlayerData.hp_max) || 0;
+        const heal = Math.floor(maxHP * 0.34);
+        let newHP = currentHP + heal;
+        if (newHP > maxHP) newHP = maxHP;
 
         db.ref("campaña/jugadores/" + playerId).update({
-          xp: parseInt(val) || 0,
-          level: xpData.level,
-          xpPercent: xpData.xpPercent,
-          xpMissing: xpData.xpMissing,
-          hp_max: newHpMax,
+          hp: newHP,
+          sp: 0,
+          stagger_1_active: "1",
+          stagger_2_active: "1",
+          stagger_3_active: "1",
         });
+      }
 
-        db.ref("campaña/jugadores/" + playerId + "/combatStats").update({
-          hp_max: newHpMax,
+      if (actName === "act_long_rest") {
+        const maxHP = parseInt(currentPlayerData.hp_max) || 0;
+        db.ref("campaña/jugadores/" + playerId).update({
+          hp: maxHP,
+          sp: 0,
         });
-      } else {
-        // Guardar directamente en la raiz
-        db.ref("campaña/jugadores/" + playerId).update({ [attrName]: val });
       }
-    }
-  });
 
-// ====== COIN TOSS ENGINE ======
-document.addEventListener("click", (e) => {
-  // Determine if the clicked element or its parent is the roll button
-  const btn = e.target.closest(".sheet-roll-skill-btn");
-  if (btn) {
-    const actName = btn.getAttribute("name"); // e.g., act_roll_skill_cardio
-    if (!actName || !actName.startsWith("act_roll_skill_")) return;
-
-    const skillNameRaw = actName.replace("act_roll_skill_", "");
-    // Find the parent row to get the visual name and values
-    const row = btn.closest(".sheet-skill-row");
-    if (!row) return;
-
-    const displaySpan = row.querySelector(".sheet-skill-name");
-    const displayName = displaySpan ? displaySpan.textContent : skillNameRaw;
-
-    // SP Calculation & Data Lookup
-    // currentPlayerData may be defined as an empty object in global scope.
-    // We ensure we read `window.datosJugador` or global `currentPlayerData` if populated.
-    const pd =
-      Object.keys(currentPlayerData || {}).length > 0
-        ? currentPlayerData
-        : window.datosJugador || {};
-
-    // Read Base + Mod from player data securely
-    let baseVal = 0;
-    let modVal = 0;
-
-    if (pd) {
-      // For Core Stats (cuerpo, mente, alma)
-      if (["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())) {
-        if (pd.baseStats) {
-          const baseKey = Object.keys(pd.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
-        }
-        if (pd.modifiers) {
-          const modKey = Object.keys(pd.modifiers).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
-        }
-      } else {
-        // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
-        baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
-        baseVal = !isNaN(baseVal) ? baseVal : 0;
-        modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
-        modVal = !isNaN(modVal) ? modVal : 0;
-
-        // Fallbacks
-        if (
-          pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined &&
-          pd.baseStats
-        ) {
-          const baseKey = Object.keys(pd.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
-        }
-        if (
-          pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined &&
-          pd.modifiers
-        ) {
-          const modKey = Object.keys(pd.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+      // --- Suerte ---
+      if (actName === "act_luck_up") {
+        const current = parseInt(currentPlayerData.luck) || 0;
+        const max = parseInt(currentPlayerData.luck_max) || 0;
+        if (current < max) {
+          db.ref("campaña/jugadores/" + playerId).update({ luck: current + 1 });
         }
       }
-    }
 
-    const skillTotal = baseVal + modVal;
-
-    let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
-    if (sp > 45) sp = 45;
-    if (sp < -45) sp = -45;
-
-    // Heads Probability = 50 + SP
-    const probHeads = 50 + sp;
-
-    // Roll 5 coins
-    let headsCount = 0;
-    const container = document.getElementById("coin-toss-coins-container");
-    if (container) container.innerHTML = ""; // Clear old coins
-
-    for (let i = 0; i < 5; i++) {
-      const roll = Math.random() * 100;
-      const isHeads = roll < probHeads;
-
-      const img = document.createElement("img");
-      img.className = "coin-img";
-      if (isHeads) {
-        img.src = "https://imgur.com/yshLPnQ.png";
-        img.classList.add("coin-heads");
-        headsCount++;
-      } else {
-        img.src = "https://imgur.com/XDx0ICt.png";
-      }
-      if (container) container.appendChild(img);
-    }
-
-    const finalResult = headsCount * 3 + skillTotal;
-
-    // Update UI
-    const nameEl = document.getElementById("coin-toss-skill-name");
-    if (nameEl) nameEl.textContent = displayName;
-
-    const resultEl = document.getElementById("coin-toss-total-result");
-    if (resultEl) resultEl.textContent = finalResult;
-
-    const panel = document.getElementById("coin-toss-panel");
-    if (panel) panel.style.display = "flex";
-
-    // Send to Theatre of the Mind Log
-    if (typeof db !== "undefined" && db.ref) {
-      try {
-        const actorSelect = document.getElementById("player-actor-select");
-        const selectExp = document.getElementById("player-expression-select");
-
-        const assignedActorId = window.datosJugador?.actorId || null;
-        const selectedActorId = assignedActorId
-          ? assignedActorId
-          : actorSelect
-            ? actorSelect.value
-            : "base";
-
-        let actorParaEnviar = {
-          nombre: pd.characterName || "Jugador",
-          titulo: "",
-          color_nombre: "#ffffff",
-          color_titulo: "#aaaaaa",
-          escala: 1.0,
-          sprite: "https://i.imgur.com/kP8s7Ww.png",
-        };
-
-        if (
-          selectedActorId &&
-          selectedActorId !== "base" &&
-          window.actoresJugador &&
-          window.actoresJugador[selectedActorId]
-        ) {
-          const dataActor = window.actoresJugador[selectedActorId];
-          if (dataActor) {
-            actorParaEnviar = {
-              nombre: dataActor.nombre || actorParaEnviar.nombre,
-              titulo: dataActor.titulo || "",
-              color_nombre: dataActor.color_nombre || "#ffffff",
-              color_titulo: dataActor.color_titulo || "#aaaaaa",
-              escala:
-                dataActor.escala !== undefined
-                  ? parseFloat(dataActor.escala)
-                  : 1.0,
-              sprite: dataActor.sprite || actorParaEnviar.sprite,
-            };
-          }
+      if (actName === "act_luck_down") {
+        const current = parseInt(currentPlayerData.luck) || 0;
+        if (current > 0) {
+          db.ref("campaña/jugadores/" + playerId).update({ luck: current - 1 });
         }
-
-        let selectedSprite = actorParaEnviar.sprite;
-        try {
-          if (
-            selectExp &&
-            selectExp.style.display !== "none" &&
-            selectExp.options.length > 0
-          ) {
-            const val = selectExp.value;
-            if (val && val.trim() !== "") {
-              selectedSprite = val;
-            }
-          }
-        } catch (e) {
-          console.warn("Fallo leyendo expresión, usando sprite base.", e);
-        }
-
-        const msgText = `Tira [${displayName}]: Resultado: ${finalResult} (${headsCount * 3} Caras + ${skillTotal} Modificador)`;
-
-        const payload = {
-          nombre: actorParaEnviar.nombre || "Jugador",
-          titulo: actorParaEnviar.titulo || "",
-          color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-          color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
-          escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
-          sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
-          icono:
-            actorParaEnviar.icono ||
-            "https://via.placeholder.com/80/000000/ffffff?text=J",
-          mensaje: msgText,
-          timestamp: Date.now(),
-        };
-
-        db.ref("campaña/teatro/cola")
-          .push(payload)
-          .catch((e) => {
-            console.error("Error enviando tirada a la cola del teatro:", e);
-          });
-      } catch (err) {
-        console.error("Fallo enviando tirada al teatro de la mente:", err);
-      }
-    }
-  }
-
-  // Close Coin Toss Panel
-  const closeBtn = e.target.closest("#btn-close-coin-toss");
-  if (closeBtn) {
-    const panel = document.getElementById("coin-toss-panel");
-    if (panel) panel.style.display = "none";
-  }
-});
-
-document.addEventListener("input", (e) => {
-  if (e.target.id === "craft-cantidad") {
-    const display = document.getElementById("craft-cantidad-display");
-    if (display) display.innerText = e.target.value;
-  }
-});
-
-// --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE ---
-document.addEventListener("DOMContentLoaded", () => {
-  const btnToggleHud = document.getElementById("btn-toggle-hud");
-  const combatHud = document.getElementById("player-combat-hud");
-
-  if (btnToggleHud && combatHud) {
-    btnToggleHud.addEventListener("click", () => {
-      const textLong = btnToggleHud.querySelector(".text-long");
-      const textShort = btnToggleHud.querySelector(".text-short");
-
-      if (
-        combatHud.style.display === "none" ||
-        combatHud.style.display === ""
-      ) {
-        combatHud.style.display = "flex";
-        if (textLong) textLong.innerText = "[-] OCULTAR VITALES";
-        if (textShort) textShort.innerText = "❌";
-        btnToggleHud.style.color = "#d4af37";
-        btnToggleHud.style.borderColor = "#d4af37";
-      } else {
-        combatHud.style.display = "none";
-        if (textLong) textLong.innerText = "[+] REVISAR VITALES";
-        if (textShort) textShort.innerText = "❤️";
-        btnToggleHud.style.color = "#ff3333";
-        btnToggleHud.style.borderColor = "#ff3333";
       }
     });
-  }
-}); // Cierra el listener del HUD de combate
 
-} // Cierra el bloque de UI EVENT LISTENERS (iniciado en la línea 1201)
+    // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
+    document.addEventListener("change", (e) => {
+      if (!e.target.name || !e.target.name.startsWith("attr_")) return;
+      if (
+        e.target.tagName !== "INPUT" &&
+        e.target.tagName !== "SELECT" &&
+        e.target.tagName !== "TEXTAREA"
+      )
+        return;
 
+      const attrName = e.target.name.replace("attr_", "");
+      const val =
+        e.target.type === "checkbox"
+          ? e.target.checked
+            ? e.target.value
+            : "0"
+          : e.target.value;
+
+      // Match lowercase key against actual modifier keys
+      let matchedStatKey = null;
+      if (currentPlayerData && currentPlayerData.modifiers) {
+        for (const key of Object.keys(currentPlayerData.modifiers)) {
+          if (key.toLowerCase() === attrName.toLowerCase()) {
+            matchedStatKey = key;
+            break;
+          }
+        }
+      }
+
+      // Si el valor pertenece a modifier
+      if (matchedStatKey) {
+        db.ref("campaña/jugadores/" + playerId + "/modifiers").update({
+          [matchedStatKey]: val,
+        });
+      } else if (typeof db !== "undefined") {
+        // Interceptar la actualización de XP para calcular nivel y barras de progreso
+        if (attrName === "xp" && typeof calculateLevelData === "function") {
+          const xpData = calculateLevelData(val);
+
+          const hpBase =
+            parseInt(
+              currentPlayerData?.combatStats?.hp_base ||
+                currentPlayerData?.hp_base,
+            ) || 0;
+          const hpCoef =
+            parseFloat(
+              currentPlayerData?.combatStats?.hp_coefficient ||
+                currentPlayerData?.hp_coefficient,
+            ) || 0;
+          const defLvlMod =
+            parseInt(currentPlayerData?.combatStats?.def_lvl_mod) || 0;
+          const totalDefLvl = xpData.level + defLvlMod;
+          const newHpMax = Math.floor(hpBase + totalDefLvl * hpCoef);
+
+          db.ref("campaña/jugadores/" + playerId).update({
+            xp: parseInt(val) || 0,
+            level: xpData.level,
+            xpPercent: xpData.xpPercent,
+            xpMissing: xpData.xpMissing,
+            hp_max: newHpMax,
+          });
+
+          db.ref("campaña/jugadores/" + playerId + "/combatStats").update({
+            hp_max: newHpMax,
+          });
+        } else {
+          // Guardar directamente en la raiz
+          db.ref("campaña/jugadores/" + playerId).update({ [attrName]: val });
+        }
+      }
+    });
+
+    // ====== COIN TOSS ENGINE ======
+    document.addEventListener("click", (e) => {
+      // Determine if the clicked element or its parent is the roll button
+      const btn = e.target.closest(".sheet-roll-skill-btn");
+      if (btn) {
+        const actName = btn.getAttribute("name"); // e.g., act_roll_skill_cardio
+        if (!actName || !actName.startsWith("act_roll_skill_")) return;
+
+        const skillNameRaw = actName.replace("act_roll_skill_", "");
+        // Find the parent row to get the visual name and values
+        const row = btn.closest(".sheet-skill-row");
+        if (!row) return;
+
+        const displaySpan = row.querySelector(".sheet-skill-name");
+        const displayName = displaySpan
+          ? displaySpan.textContent
+          : skillNameRaw;
+
+        // SP Calculation & Data Lookup
+        // currentPlayerData may be defined as an empty object in global scope.
+        // We ensure we read `window.datosJugador` or global `currentPlayerData` if populated.
+        const pd =
+          Object.keys(currentPlayerData || {}).length > 0
+            ? currentPlayerData
+            : window.datosJugador || {};
+
+        // Read Base + Mod from player data securely
+        let baseVal = 0;
+        let modVal = 0;
+
+        if (pd) {
+          // For Core Stats (cuerpo, mente, alma)
+          if (
+            ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
+          ) {
+            if (pd.baseStats) {
+              const baseKey = Object.keys(pd.baseStats).find(
+                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+              );
+              if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
+            }
+            if (pd.modifiers) {
+              const modKey = Object.keys(pd.modifiers).find(
+                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+              );
+              if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+            }
+          } else {
+            // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
+            baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
+            baseVal = !isNaN(baseVal) ? baseVal : 0;
+            modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
+            modVal = !isNaN(modVal) ? modVal : 0;
+
+            // Fallbacks
+            if (
+              pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined &&
+              pd.baseStats
+            ) {
+              const baseKey = Object.keys(pd.baseStats).find(
+                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+              );
+              if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
+            }
+            if (
+              pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined &&
+              pd.modifiers
+            ) {
+              const modKey = Object.keys(pd.modifiers).find(
+                (k) =>
+                  k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
+                  k.toLowerCase() === skillNameRaw.toLowerCase(),
+              );
+              if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+            }
+          }
+        }
+
+        const skillTotal = baseVal + modVal;
+
+        let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
+        if (sp > 45) sp = 45;
+        if (sp < -45) sp = -45;
+
+        // Heads Probability = 50 + SP
+        const probHeads = 50 + sp;
+
+        // Roll 5 coins
+        let headsCount = 0;
+        const container = document.getElementById("coin-toss-coins-container");
+        if (container) container.innerHTML = ""; // Clear old coins
+
+        for (let i = 0; i < 5; i++) {
+          const roll = Math.random() * 100;
+          const isHeads = roll < probHeads;
+
+          const img = document.createElement("img");
+          img.className = "coin-img";
+          if (isHeads) {
+            img.src = "https://imgur.com/yshLPnQ.png";
+            img.classList.add("coin-heads");
+            headsCount++;
+          } else {
+            img.src = "https://imgur.com/XDx0ICt.png";
+          }
+          if (container) container.appendChild(img);
+        }
+
+        const finalResult = headsCount * 3 + skillTotal;
+
+        // Update UI
+        const nameEl = document.getElementById("coin-toss-skill-name");
+        if (nameEl) nameEl.textContent = displayName;
+
+        const resultEl = document.getElementById("coin-toss-total-result");
+        if (resultEl) resultEl.textContent = finalResult;
+
+        const panel = document.getElementById("coin-toss-panel");
+        if (panel) panel.style.display = "flex";
+
+        // Send to Theatre of the Mind Log
+        if (typeof db !== "undefined" && db.ref) {
+          try {
+            const actorSelect = document.getElementById("player-actor-select");
+            const selectExp = document.getElementById(
+              "player-expression-select",
+            );
+
+            const assignedActorId = window.datosJugador?.actorId || null;
+            const selectedActorId = assignedActorId
+              ? assignedActorId
+              : actorSelect
+                ? actorSelect.value
+                : "base";
+
+            let actorParaEnviar = {
+              nombre: pd.characterName || "Jugador",
+              titulo: "",
+              color_nombre: "#ffffff",
+              color_titulo: "#aaaaaa",
+              escala: 1.0,
+              sprite: "https://i.imgur.com/kP8s7Ww.png",
+            };
+
+            if (
+              selectedActorId &&
+              selectedActorId !== "base" &&
+              window.actoresJugador &&
+              window.actoresJugador[selectedActorId]
+            ) {
+              const dataActor = window.actoresJugador[selectedActorId];
+              if (dataActor) {
+                actorParaEnviar = {
+                  nombre: dataActor.nombre || actorParaEnviar.nombre,
+                  titulo: dataActor.titulo || "",
+                  color_nombre: dataActor.color_nombre || "#ffffff",
+                  color_titulo: dataActor.color_titulo || "#aaaaaa",
+                  escala:
+                    dataActor.escala !== undefined
+                      ? parseFloat(dataActor.escala)
+                      : 1.0,
+                  sprite: dataActor.sprite || actorParaEnviar.sprite,
+                };
+              }
+            }
+
+            let selectedSprite = actorParaEnviar.sprite;
+            try {
+              if (
+                selectExp &&
+                selectExp.style.display !== "none" &&
+                selectExp.options.length > 0
+              ) {
+                const val = selectExp.value;
+                if (val && val.trim() !== "") {
+                  selectedSprite = val;
+                }
+              }
+            } catch (e) {
+              console.warn("Fallo leyendo expresión, usando sprite base.", e);
+            }
+
+            const msgText = `Tira [${displayName}]: Resultado: ${finalResult} (${headsCount * 3} Caras + ${skillTotal} Modificador)`;
+
+            const payload = {
+              nombre: actorParaEnviar.nombre || "Jugador",
+              titulo: actorParaEnviar.titulo || "",
+              color_nombre: actorParaEnviar.color_nombre || "#ffffff",
+              color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+              escala: isNaN(actorParaEnviar.escala)
+                ? 1.0
+                : actorParaEnviar.escala,
+              sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
+              icono:
+                actorParaEnviar.icono ||
+                "https://via.placeholder.com/80/000000/ffffff?text=J",
+              mensaje: msgText,
+              timestamp: Date.now(),
+            };
+
+            db.ref("campaña/teatro/cola")
+              .push(payload)
+              .catch((e) => {
+                console.error("Error enviando tirada a la cola del teatro:", e);
+              });
+          } catch (err) {
+            console.error("Fallo enviando tirada al teatro de la mente:", err);
+          }
+        }
+      }
+
+      // Close Coin Toss Panel
+      const closeBtn = e.target.closest("#btn-close-coin-toss");
+      if (closeBtn) {
+        const panel = document.getElementById("coin-toss-panel");
+        if (panel) panel.style.display = "none";
+      }
+    });
+
+    document.addEventListener("input", (e) => {
+      if (e.target.id === "craft-cantidad") {
+        const display = document.getElementById("craft-cantidad-display");
+        if (display) display.innerText = e.target.value;
+      }
+    });
+
+    // --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE ---
+    const btnToggleHud = document.getElementById("btn-toggle-hud");
+    const combatHud = document.getElementById("player-combat-hud");
+
+    if (btnToggleHud && combatHud) {
+      btnToggleHud.addEventListener("click", () => {
+        const textLong = btnToggleHud.querySelector(".text-long");
+        const textShort = btnToggleHud.querySelector(".text-short");
+
+        if (
+          combatHud.style.display === "none" ||
+          combatHud.style.display === ""
+        ) {
+          combatHud.style.display = "flex";
+          if (textLong) textLong.innerText = "[-] OCULTAR VITALES";
+          if (textShort) textShort.innerText = "❌";
+          btnToggleHud.style.color = "#d4af37";
+          btnToggleHud.style.borderColor = "#d4af37";
+        } else {
+          combatHud.style.display = "none";
+          if (textLong) textLong.innerText = "[+] REVISAR VITALES";
+          if (textShort) textShort.innerText = "❤️";
+          btnToggleHud.style.color = "#ff3333";
+          btnToggleHud.style.borderColor = "#ff3333";
+        }
+      });
+    }
+  } // Cierra el bloque de UI EVENT LISTENERS (iniciado en la línea 1201)
 } // Cierra la función initializeCharacterSheet() (iniciada en la línea 804)
-
