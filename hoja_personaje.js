@@ -3254,14 +3254,16 @@ window.abrirTiendaDinamica = function(tiendaId) {
     const lista = document.getElementById("lista-items-tienda");
     lista.innerHTML = "";
 
-    // Resetear panel derecho
     document.getElementById("panel-item-name").innerText = "---";
     document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
     const btnComprar = document.getElementById("btn-comprar-seleccionado");
     btnComprar.style.display = "none";
 
-    if (data.items && Array.isArray(data.items)) {
-      data.items.forEach((item, index) => {
+    if (data.items) {
+      const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
+
+      itemsArray.forEach((item, index) => {
+        if(!item) return;
         const row = document.createElement("div");
         row.className = "item-row";
 
@@ -3272,47 +3274,42 @@ window.abrirTiendaDinamica = function(tiendaId) {
           </div>
           <div class="item-details">
               <span class="item-name">${item.nombre || 'Objeto'}</span>
-              <span class="item-cost">${item.precio} Ahn</span>
+              <span class="item-cost">${item.precio || 0} Ahn</span>
           </div>
         `;
 
-        // Evento de selección para el panel derecho
         row.onclick = () => {
-            // Quitar clase selected a todos
             document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
             row.classList.add('selected');
 
-            // Actualizar panel
             document.getElementById("panel-item-name").innerText = item.nombre;
-            document.getElementById("panel-item-desc").innerText = item.desc || "Sin descripción disponible.";
+            document.getElementById("panel-item-desc").innerText = item.descripcion || item.desc || "Sin descripción disponible.";
 
-            // Configurar botón de compra
             btnComprar.style.display = "block";
-            btnComprar.innerText = `COMPRAR [${item.precio} Ahn]`;
-            btnComprar.onclick = () => comprarItemTienda(tiendaId, index, item.precio);
+            btnComprar.innerText = `COMPRAR [${item.precio || 0} Ahn]`;
+            const passKey = item._key !== undefined ? item._key : index;
+            btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, item.precio);
         };
 
         lista.appendChild(row);
       });
     } else {
-      lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay inventario disponible.</span>";
+      lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
     }
 
     document.getElementById("tienda-overlay").style.display = "flex";
   });
 };
 
-window.comprarItemTienda = function(tiendaId, itemIndex, precio) {
+window.comprarItemTienda = function(tiendaId, itemKey, precioEsperado) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
-  // Validar el precio exacto desde Firebase para evitar manipulación del DOM
-  db.ref(`campaña/tiendas/${tiendaId}/items/${itemIndex}`).once('value', (snap) => {
+  db.ref(`campaña/tiendas/${tiendaId}/items/${itemKey}`).once('value', (snap) => {
     const itemData = snap.val();
     if (!itemData) return alert("El objeto ya no está disponible.");
 
-    const precioReal = itemData.precio;
+    const precioReal = itemData.precio || 0;
 
-    // Calcular dinero actual basándose en las transacciones del jugador
     db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
       let saldoAhn = 0;
       transSnap.forEach(t => { saldoAhn += (t.val().monto || 0); });
@@ -3321,7 +3318,6 @@ window.comprarItemTienda = function(tiendaId, itemIndex, precio) {
         return alert("Ahn insuficientes para esta compra.");
       }
 
-      // 1. Restar el dinero
       const nuevaTransaccion = {
         monto: -precioReal,
         motivo: `Compra en Tienda: ${itemData.nombre}`,
@@ -3329,9 +3325,9 @@ window.comprarItemTienda = function(tiendaId, itemIndex, precio) {
       };
       db.ref(`campaña/jugadores/${playerId}/transacciones`).push(nuevaTransaccion);
 
-      // 2. Agregar una copia del item al Stash del jugador
       const nuevoItem = { ...itemData };
-      delete nuevoItem.precio; // El jugador no necesita el precio de tienda en su inventario
+      delete nuevoItem.precio;
+      delete nuevoItem._key;
       nuevoItem.cantidad = 1;
       nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
 
