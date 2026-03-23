@@ -696,12 +696,12 @@ function renderCharacterSheet(data) {
   if (displayAhn) displayAhn.innerText = data.ahn || "0";
 
   // --- ACTUALIZAR RETRATO DEL HUD DE VITALES ---
-  const combatHudPortrait = document.querySelector("#player-combat-hud img");
+  const combatHudPortrait = document.getElementById("portrait-img");
 
   if (combatHudPortrait) {
-    // Utiliza el ícono asignado por el DM, o una imagen por defecto si no hay ninguno
-    combatHudPortrait.src =
-      data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+      // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
+      const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+      combatHudPortrait.setAttribute("href", iconUrl);
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
@@ -913,7 +913,8 @@ function renderCharacterSheet(data) {
 
   // Inyectar datos en tiempo real
   if (hudPortrait) {
-    hudPortrait.src = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+    const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+    hudPortrait.setAttribute("href", iconUrl);
   }
 
   // Respetar la estructura de spans separados para el HP
