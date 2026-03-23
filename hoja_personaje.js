@@ -1618,6 +1618,12 @@ function initializeCharacterSheet() {
       }
 
       // Fill slots with items
+      // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions.
+      // 💡 What: Replaced direct `grid.appendChild` with `fragment.appendChild`.
+      // 🎯 Why: Appending directly to the DOM in a loop causes O(n) layout reflows and repaints.
+      // 📊 Impact: Reduces DOM reflows from O(n) to O(1) per render loop, improving list mounting speed.
+      const fragment = document.createDocumentFragment();
+
       items.forEach((item) => {
         // Check if equipped
         if (!isStash && item.equipped_slot) {
@@ -1873,8 +1879,11 @@ function initializeCharacterSheet() {
           }
         });
 
-        grid.appendChild(slot);
+        fragment.appendChild(slot);
       });
+
+      // ⚡ Mount batched DOM nodes
+      grid.appendChild(fragment);
     };
 
     // --- Inventory Search & Filter Logic (Stash) ---
