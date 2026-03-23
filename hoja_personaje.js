@@ -699,9 +699,9 @@ function renderCharacterSheet(data) {
   const combatHudPortrait = document.getElementById("portrait-img");
 
   if (combatHudPortrait) {
-      // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
-      const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
-      combatHudPortrait.setAttribute("href", iconUrl);
+    // Al ser un elemento SVG <image>, se debe usar setAttribute con 'href'
+    const iconUrl = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
+    combatHudPortrait.setAttribute("href", iconUrl);
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
@@ -1711,14 +1711,15 @@ function initializeCharacterSheet() {
         slot.dataset.tier = romanTier.toLowerCase();
         slot.dataset.tags = itemTags.join(",").toLowerCase();
 
+        slot.style.position = "relative";
         const imgSrc = item.icono || "https://via.placeholder.com/40";
         slot.innerHTML = `
-                <span class="tier">${romanTier}</span>
+                <span class="tier" style="position: absolute; top: 2px; left: 2px;">${romanTier}</span>
                 <div class="item-display">
                     <div class="item-icon" style="background-image: url('${imgSrc}');"></div>
                     <span class="item-name">${item.nombre || "Vacío"}</span>
                 </div>
-                <div class="item-quantity" style="position: absolute; bottom: 2px; right: 4px; font-size: 0.7em; color: #aaa;">x${item.cantidad || 1}</div>
+                <div class="item-quantity" style="position: absolute; bottom: 2px; right: 2px; font-size: 0.7em; color: #aaa;">x${item.cantidad || 1}</div>
             `;
         slot.classList.add("inv-item-slot"); // Agregar la nueva clase del grid LCM
         slot.classList.remove("item-slot"); // Quitar la clase antigua para evitar conflictos
@@ -1933,11 +1934,7 @@ function initializeCharacterSheet() {
     // Handle loading items (Vinculos)
     window.addEventListener("item-load-action", (e) => {
       const { itemKey, itemData, isStash } = e.detail;
-      const charNameInput = document.querySelector(
-        'input[name="attr_character_name"]',
-      );
-      const playerName = charNameInput ? charNameInput.value.trim() : "";
-      if (!playerName || typeof db === "undefined") return;
+      if (!playerId || typeof db === "undefined") return;
 
       const reqCant = parseInt(itemData.vinculo_cantidad) || 0;
       const reqItemName = itemData.vinculo_item;
@@ -1948,10 +1945,10 @@ function initializeCharacterSheet() {
       const consumeItems = async () => {
         let totalFound = 0;
         const activeRef = db.ref(
-          `campaña/jugadores/${playerName}/inventario_activo`,
+          `campaña/jugadores/${playerId}/inventario_activo`,
         );
         const stashRef = db.ref(
-          `campaña/jugadores/${playerName}/inventario_stash`,
+          `campaña/jugadores/${playerId}/inventario_stash`,
         );
 
         const activeSnap = await activeRef.once("value");
@@ -2023,7 +2020,7 @@ function initializeCharacterSheet() {
         const currentCargas = parseInt(itemData.carga_actual) || 0;
         const targetList = isStash ? "inventario_stash" : "inventario_activo";
         await db
-          .ref(`campaña/jugadores/${playerName}/${targetList}/${itemKey}`)
+          .ref(`campaña/jugadores/${playerId}/${targetList}/${itemKey}`)
           .update({
             carga_actual: currentCargas + 1,
           });
@@ -2041,11 +2038,7 @@ function initializeCharacterSheet() {
     // Handle equip/unequip events
     window.addEventListener("item-move-action", (e) => {
       const { itemKey, itemData, fromStash } = e.detail;
-      const charNameInput = document.querySelector(
-        'input[name="attr_character_name"]',
-      );
-      const playerName = charNameInput ? charNameInput.value.trim() : "";
-      if (!playerName || typeof db === "undefined") return;
+      if (!playerId || typeof db === "undefined") return;
 
       const sourceListName = fromStash
         ? "inventario_stash"
@@ -2055,15 +2048,13 @@ function initializeCharacterSheet() {
         : "inventario_stash";
 
       const sourceRef = db.ref(
-        `campaña/jugadores/${playerName}/${sourceListName}/${itemKey}`,
+        `campaña/jugadores/${playerId}/${sourceListName}/${itemKey}`,
       );
       const targetRef = db.ref(
-        `campaña/jugadores/${playerName}/${targetListName}`,
+        `campaña/jugadores/${playerId}/${targetListName}`,
       );
 
-      // Move 1 unit
-      let itemToMove = { ...itemData, cantidad: 1 };
-      delete itemToMove.key; // Clean up key
+      let sourceCurrentCant = parseInt(itemData.cantidad) || 1;
 
       targetRef.once("value", (targetSnap) => {
         const targetData = targetSnap.val() || {};
@@ -2085,9 +2076,12 @@ function initializeCharacterSheet() {
         const activeStackLimit = parseInt(itemData.limite_activo) || 2; // Default 2 for active if not specified
         const stashStackLimit = parseInt(itemData.limite_alijo) || 99; // Default 99 for stash if not specified
 
+        let moveAmount = 0;
+
         if (fromStash) {
           // Moving to Active Inventory
-          if (foundKey && targetCurrentCant + 1 > activeStackLimit) {
+          let maxCanMove = activeStackLimit - targetCurrentCant;
+          if (maxCanMove <= 0) {
             alert(
               `No puedes equipar más de ${activeStackLimit} de este ítem a la vez.`,
             );
@@ -2100,21 +2094,28 @@ function initializeCharacterSheet() {
             );
             return;
           }
+          moveAmount = Math.min(sourceCurrentCant, maxCanMove);
         } else {
           // Moving to Stash
-          if (foundKey && targetCurrentCant + 1 > stashStackLimit) {
+          moveAmount = sourceCurrentCant; // Move entire stack
+          let maxCanMove = stashStackLimit - targetCurrentCant;
+          if (maxCanMove <= 0) {
             alert(
               `El alijo no puede almacenar más de ${stashStackLimit} de este ítem en un solo stack.`,
             );
             return;
           }
+          moveAmount = Math.min(moveAmount, maxCanMove);
         }
+
+        let itemToMove = { ...itemData, cantidad: moveAmount };
+        delete itemToMove.key; // Clean up key
 
         let promiseAdd;
         if (foundKey) {
           promiseAdd = targetRef
             .child(foundKey)
-            .update({ cantidad: targetCurrentCant + 1 });
+            .update({ cantidad: targetCurrentCant + moveAmount });
         } else {
           promiseAdd = targetRef.push(itemToMove);
         }
@@ -2123,8 +2124,11 @@ function initializeCharacterSheet() {
           sourceRef.once("value", (sourceSnap) => {
             const sourceItem = sourceSnap.val();
             if (!sourceItem) return;
-            if (sourceItem.cantidad > 1) {
-              sourceRef.update({ cantidad: sourceItem.cantidad - 1 });
+
+            let newSourceCant = sourceItem.cantidad - moveAmount;
+
+            if (newSourceCant > 0) {
+              sourceRef.update({ cantidad: newSourceCant });
             } else {
               sourceRef.remove();
               // Hide detail card if the last item is moved
