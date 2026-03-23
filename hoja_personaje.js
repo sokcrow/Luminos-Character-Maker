@@ -3298,7 +3298,7 @@ window.abrirTiendaDinamica = function(tiendaId) {
             <div class="item-details">
                 <span class="item-name">${item.nombre || 'Objeto'}</span>
                 <span class="item-cost">
-                    ${precioItem} <img src="img/ahn_icon.png" class="ahn-icon-shop" style="width: 18px; height: 18px; vertical-align: middle;" alt="Ahn">
+                    ${precioItem} <span style="color: var(--brillo-ambar);">₳</span>
                 </span>
             </div>
           `;
@@ -3316,11 +3316,8 @@ window.abrirTiendaDinamica = function(tiendaId) {
               }
               document.getElementById("panel-item-qty").innerText = stockDisplay;
 
-              btnComprar.style.display = "flex";
-              btnComprar.style.justifyContent = "center";
-              btnComprar.style.alignItems = "center";
-              btnComprar.style.gap = "10px";
-              btnComprar.innerHTML = `COMPRAR [${precioItem} <img src="img/ahn_icon.png" class="ahn-icon-shop" style="width: 20px;" alt="Ahn">]`;
+              btnComprar.style.display = "block";
+              btnComprar.innerHTML = `COMPRAR [${precioItem} ₳]`;
 
               const passKey = item._key !== undefined ? item._key : index;
               btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
