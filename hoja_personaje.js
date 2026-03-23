@@ -3246,69 +3246,103 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- LÓGICA DE TIENDAS DINÁMICAS ---
 window.abrirTiendaDinamica = function(tiendaId) {
-  db.ref(`campaña/tiendas/${tiendaId}`).once('value', (snap) => {
-    const data = snap.val();
-    if (!data) return;
+  if (!playerId) return;
 
-    document.getElementById("shop-name-display").innerText = data.nombre || "Tienda";
-    const lista = document.getElementById("lista-items-tienda");
-    lista.innerHTML = "";
+  db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
+    let saldoActual = 0;
+    transSnap.forEach(t => { saldoActual += (t.val().monto || 0); });
 
-    document.getElementById("panel-item-name").innerText = "---";
-    document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
-    const btnComprar = document.getElementById("btn-comprar-seleccionado");
-    btnComprar.style.display = "none";
+    const balanceDisplay = document.getElementById("shop-player-balance");
+    if (balanceDisplay) balanceDisplay.innerText = saldoActual;
 
-    if (data.items) {
-      const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
+    db.ref(`campaña/tiendas/${tiendaId}`).once('value', (snap) => {
+      const data = snap.val();
+      if (!data) return;
 
-      itemsArray.forEach((item, index) => {
-        if(!item) return;
-        const row = document.createElement("div");
-        row.className = "item-row";
+      document.getElementById("shop-name-display").innerText = data.nombre || "Tienda";
+      const lista = document.getElementById("lista-items-tienda");
+      lista.innerHTML = "";
 
-        row.innerHTML = `
-          <div class="icon-slot">
-              <span class="tier">${item.tier || 'I'}</span>
-              <span class="icono-img">${item.icono || '📦'}</span>
-          </div>
-          <div class="item-details">
-              <span class="item-name">${item.nombre || 'Objeto'}</span>
-              <span class="item-cost">${item.precio || 0} Ahn</span>
-          </div>
-        `;
+      document.getElementById("panel-item-name").innerText = "---";
+      document.getElementById("panel-item-qty").innerText = "--";
+      document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
+      const btnComprar = document.getElementById("btn-comprar-seleccionado");
+      btnComprar.style.display = "none";
 
-        row.onclick = () => {
-            document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
-            row.classList.add('selected');
+      if (data.items) {
+        const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
 
-            document.getElementById("panel-item-name").innerText = item.nombre;
-            document.getElementById("panel-item-desc").innerText = item.descripcion || item.desc || "Sin descripción disponible.";
+        itemsArray.forEach((item, index) => {
+          if(!item) return;
+          const row = document.createElement("div");
+          row.className = "item-row";
 
-            btnComprar.style.display = "block";
-            btnComprar.innerText = `COMPRAR [${item.precio || 0} Ahn]`;
-            const passKey = item._key !== undefined ? item._key : index;
-            btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, item.precio);
-        };
+          let iconHTML = '📦';
+          if (item.icono) {
+              if (item.icono.startsWith('http') || item.icono.includes('.')) {
+                  iconHTML = `<img src="${item.icono}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src=''; this.alt='📦';">`;
+              } else {
+                  iconHTML = item.icono;
+              }
+          }
 
-        lista.appendChild(row);
-      });
-    } else {
-      lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
-    }
+          const mapRomanos = { "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V" };
+          const tierText = mapRomanos[item.tier] || item.tier || "-";
+          const precioItem = item.costo || 0;
 
-    document.getElementById("tienda-overlay").style.display = "flex";
+          row.innerHTML = `
+            <div class="icon-slot">
+                <span class="tier">${tierText}</span>
+                <span class="icono-img" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">${iconHTML}</span>
+            </div>
+            <div class="item-details">
+                <span class="item-name">${item.nombre || 'Objeto'}</span>
+                <span class="item-cost">
+                    ${precioItem} <img src="img/ahn_icon.png" class="ahn-icon-shop" style="width: 18px; height: 18px; vertical-align: middle;" alt="Ahn">
+                </span>
+            </div>
+          `;
+
+          row.onclick = () => {
+              document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
+              row.classList.add('selected');
+
+              document.getElementById("panel-item-name").innerText = item.nombre;
+              document.getElementById("panel-item-desc").innerText = item.descripcion || item.desc || "Sin descripción disponible.";
+
+              let stockDisplay = "--";
+              if (item.stock_actual !== undefined) {
+                  stockDisplay = (item.stock_actual === -1) ? "∞" : item.stock_actual;
+              }
+              document.getElementById("panel-item-qty").innerText = stockDisplay;
+
+              btnComprar.style.display = "flex";
+              btnComprar.style.justifyContent = "center";
+              btnComprar.style.alignItems = "center";
+              btnComprar.style.gap = "10px";
+              btnComprar.innerHTML = `COMPRAR [${precioItem} <img src="img/ahn_icon.png" class="ahn-icon-shop" style="width: 20px;" alt="Ahn">]`;
+
+              const passKey = item._key !== undefined ? item._key : index;
+              btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
+          };
+
+          lista.appendChild(row);
+        });
+      } else {
+        lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
+      }
+
+      document.getElementById("tienda-overlay").style.display = "flex";
+    });
   });
 };
 
-window.comprarItemTienda = function(tiendaId, itemKey, precioEsperado) {
+window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
   db.ref(`campaña/tiendas/${tiendaId}/items/${itemKey}`).once('value', (snap) => {
     const itemData = snap.val();
     if (!itemData) return alert("El objeto ya no está disponible.");
-
-    const precioReal = itemData.precio || 0;
 
     db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
       let saldoAhn = 0;
@@ -3326,7 +3360,7 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioEsperado) {
       db.ref(`campaña/jugadores/${playerId}/transacciones`).push(nuevaTransaccion);
 
       const nuevoItem = { ...itemData };
-      delete nuevoItem.precio;
+      delete nuevoItem.costo;
       delete nuevoItem._key;
       nuevoItem.cantidad = 1;
       nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);

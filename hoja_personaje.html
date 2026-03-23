@@ -13354,6 +13354,38 @@
     </script>
 
     <style id="estilos-tienda-dinamica">
+        .currency-display {
+            position: absolute;
+            bottom: -10px;
+            right: 40px;
+            background: var(--panel-metal);
+            border: 3px solid var(--brillo-tenue);
+            padding: 5px 25px;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.7);
+        }
+        .currency-label {
+            color: #888;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .currency-val {
+            font-family: var(--fuente-tocha);
+            font-size: 2rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ahn-icon-shop {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.5));
+        }
     :root {
         --bg-deep: #080706; --panel-metal: #1a1714; --panel-oxidado: #2d251f;
         --brillo-ambar: #ff9d00; --brillo-tenue: #a36f2d; --text-base: #a09080;
@@ -13444,14 +13476,23 @@
         </main>
         <aside class="info-panel-overlay">
             <div class="qty-header">
-                <div class="qty-title">Selección</div>
-                <div class="qty-num" id="panel-item-name">---</div>
+                <div class="qty-title">STOCK DISPONIBLE</div>
+                <div class="qty-num" id="panel-item-qty">--</div>
+                <div style="font-family: var(--fuente-tocha); font-size: 1.5rem; color: var(--brillo-ambar); margin-top: 15px;" id="panel-item-name">---</div>
             </div>
             <div class="desc-body" id="panel-item-desc">
                 <span style="color: #666; font-style: italic;">Selecciona un objeto del inventario para ver sus detalles...</span>
             </div>
             <button id="btn-comprar-seleccionado" class="btn-comprar-panel">Comprar Objeto</button>
         </aside>
+
+        <div class="currency-display" id="shop-currency-display">
+            <span class="currency-label">FONDOS</span>
+            <div class="currency-val">
+                <img src="img/ahn_icon.png" class="ahn-icon-shop" alt="Ahn">
+                <span id="shop-player-balance">0</span>
+            </div>
+        </div>
     </div>
 </div>
 
