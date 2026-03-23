@@ -5621,10 +5621,12 @@
                     updates[`${otherId}/activa`] = otherId === idTienda;
                   }
                   db.ref("campaña/tiendas").update(updates);
+                  db.ref("campaña/estado_mundo/tienda_activa").set(idTienda);
                 } else {
                   db.ref(`campaña/tiendas/${idTienda}`).update({
                     activa: false,
                   });
+                  db.ref("campaña/estado_mundo/tienda_activa").set(null);
                 }
               });
 
