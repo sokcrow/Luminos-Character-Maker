@@ -3246,7 +3246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- LÓGICA DE TIENDAS DINÁMICAS ---
 window.abrirTiendaDinamica = function(tiendaId) {
-  db.ref(`campaña/tiendas_config/${tiendaId}`).once('value', (snap) => {
+  db.ref(`campaña/tiendas/${tiendaId}`).once('value', (snap) => {
     const data = snap.val();
     if (!data) return;
 
@@ -3306,7 +3306,7 @@ window.comprarItemTienda = function(tiendaId, itemIndex, precio) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
   // Validar el precio exacto desde Firebase para evitar manipulación del DOM
-  db.ref(`campaña/tiendas_config/${tiendaId}/items/${itemIndex}`).once('value', (snap) => {
+  db.ref(`campaña/tiendas/${tiendaId}/items/${itemIndex}`).once('value', (snap) => {
     const itemData = snap.val();
     if (!itemData) return alert("El objeto ya no está disponible.");
 
