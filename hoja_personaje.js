@@ -1027,6 +1027,9 @@ function initializeCharacterSheet() {
       }
     }
 
+function renderCharacterSheet(data) {
+  if (!data) return;
+
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
   skillRows.forEach((row) => {
@@ -1191,7 +1194,7 @@ function initializeCharacterSheet() {
         '<div style="color: #666;">Sin transacciones recientes.</div>';
     }
   }
-}
+} // Cierra la función renderCharacterSheet
 
 // UI EVENT LISTENERS
 {
@@ -1961,6 +1964,8 @@ function initializeCharacterSheet() {
   // --- Dynamic Shop System Logic ---
   // Shop logic is now handled in the main Shop app tab
 
+} // Cierra Inventory Modal Logic
+
 // Listener for active and stash inventory
 let playerInventoryListenerActive = false;
 {
@@ -2015,6 +2020,8 @@ let playerInventoryListenerActive = false;
       }
     }, 1000);
   }, 1000);
+
+} // Cierra Listener for active and stash inventory
 
 // LÓGICA DE TIENDA DINÁMICA (COMPRAR / VENDER)
 let tiendaActivaData = null;
@@ -2592,6 +2599,8 @@ function renderizarVender() {
   );
 }
 
+} // Cierra Esperar a que el DOM...
+
 // NATIVE BUTTON LISTENERS
 {
   // Escuchar clicks globales para botones de acción (simulando Roll20)
@@ -2994,16 +3003,16 @@ document.addEventListener("DOMContentLoaded", () => {
         btnToggleHud.style.borderColor = "#d4af37";
       } else {
         combatHud.style.display = "none";
-        if (textLong) textLong.innerText = "[+] MOSTRAR VITALES";
+        if (textLong) textLong.innerText = "[+] REVISAR VITALES";
         if (textShort) textShort.innerText = "❤️";
-        btnToggleHud.style.color = "";
-        btnToggleHud.style.borderColor = "";
+        btnToggleHud.style.color = "#ff3333";
+        btnToggleHud.style.borderColor = "#ff3333";
       }
     });
   }
-});
-}
-}
-}
-}
+}); // Cierra el listener del HUD de combate
+
+} // Cierra el bloque de UI EVENT LISTENERS (iniciado en la línea 1201)
+
+} // Cierra la función initializeCharacterSheet() (iniciada en la línea 804)
 
