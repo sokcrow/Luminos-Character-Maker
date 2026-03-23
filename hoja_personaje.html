@@ -312,36 +312,6 @@
       </div>
     </div>
 
-    <div
-      style="
-        margin: 0 auto;
-        max-width: 1200px;
-        padding: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      "
-    >
-      <button class="btn-back" onclick="window.location.replace('index.html')">
-        &lt; Volver al Menú
-      </button>
-      <button
-        id="btn-cerrar-sesion"
-        style="
-          background: transparent;
-          color: var(--red-neon);
-          border: 1px solid var(--red-neon);
-          padding: 5px 10px;
-          font-family: &quot;Share Tech Mono&quot;, monospace;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.3s;
-          font-size: 0.9rem;
-        "
-      >
-        Cerrar Sesión
-      </button>
-    </div>
     <!-- Main Wrapper -->
     <div class="sheet-limbus-main">
       <!-- Global Phone Wrapper -->
@@ -5545,6 +5515,28 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div style="margin-top: 15px; display: flex; justify-content: center;">
+                <button
+                  id="btn-player-logout"
+                  style="
+                    background: transparent;
+                    color: var(--red-neon);
+                    border: 1px solid var(--red-neon);
+                    padding: 8px 16px;
+                    font-family: &quot;Share Tech Mono&quot;, monospace;
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    font-size: 1rem;
+                    font-weight: bold;
+                  "
+                  onmouseover="this.style.backgroundColor='var(--red-neon)'; this.style.color='#000'; this.style.boxShadow='0 0 10px var(--red-neon)';"
+                  onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--red-neon)'; this.style.boxShadow='none';"
+                >
+                  Cerrar Sesión
+                </button>
               </div>
 
               <!-- Edit Form -->
