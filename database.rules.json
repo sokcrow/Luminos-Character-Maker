@@ -1,0 +1,36 @@
+{
+  "rules": {
+    "campaña": {
+      // 1. CUALQUIERA CON CUENTA puede leer todo el juego (Calendario, Items, etc.)
+      ".read": "auth != null",
+
+      "config": {
+        // Solo el DM genera códigos
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
+      "actores": {
+        // Solo el DM toca NPCs
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
+      "calendario": {
+        // Solo el DM edita el tiempo
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
+      "jugadores": {
+        "$nombre_personaje": {
+          // REGLA DE VÍNCULO:
+          // Puedes escribir si eres el DM, o si la carpeta está libre, o si ya es tuya.
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
+        }
+      },
+
+      "teatro": {
+        // Log abierto para todos los reclutas con cuenta
+        ".write": "auth != null"
+      }
+    }
+  }
+}
