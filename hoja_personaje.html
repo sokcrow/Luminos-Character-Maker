@@ -13348,16 +13348,78 @@
       });
     </script>
 
-    <div id="tienda-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center;">
-        <div class="shop-scene" style="position: relative; width: 90%; max-width: 1200px; height: 80vh; background: #1a1714; border: 4px solid #2d251f; padding: 40px; display: flex; flex-direction: column; gap: 20px; font-family: 'Share Tech Mono', monospace; color: #a09080;">
-            <button onclick="document.getElementById('tienda-overlay').style.display='none'" style="position: absolute; top: 10px; right: 10px; background: #ff3300; color: #000; border: 2px solid #ff3300; cursor: pointer; padding: 5px 15px; font-weight: bold; font-family: 'Share Tech Mono', monospace;">CERRAR [X]</button>
-            <div class="shop-logo" style="background: #000; border: 3px solid #ff9d00; padding: 10px 20px; align-self: flex-start; box-shadow: 4px 4px 0px #000;">
-                <h1 id="shop-name-display" style="font-family: 'Arial Black', sans-serif; color: #ff9d00; margin: 0; text-transform: uppercase; font-size: 2rem;">Cargando...</h1>
-            </div>
-            <div id="lista-items-tienda" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 10px;">
-                </div>
+    <style id="estilos-tienda-dinamica">
+    :root {
+        --bg-deep: #080706; --panel-metal: #1a1714; --panel-oxidado: #2d251f;
+        --brillo-ambar: #ff9d00; --brillo-tenue: #a36f2d; --text-base: #a09080;
+        --rojo-pecado: #ff3300; --fuente-tocha: 'Arial Black', 'Montserrat Black', sans-serif;
+        --fuente-texto: 'Courier New', Courier, monospace;
+        --hazard-pattern: repeating-linear-gradient(-45deg, var(--brillo-ambar), var(--brillo-ambar) 5px, #000 5px, #000 10px);
+    }
+    #tienda-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(8, 7, 6, 0.95); z-index: 10000; justify-content: center; align-items: center;
+        perspective: 1500px; font-family: var(--fuente-texto);
+    }
+    #tienda-overlay::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background-image: radial-gradient(var(--bg-deep) 40%, transparent 90%), repeating-linear-gradient(0deg, #111, #111 1px, transparent 1px, transparent 5px), repeating-linear-gradient(90deg, #111, #111 1px, transparent 1px, transparent 5px);
+        opacity: 0.3; z-index: -1;
+    }
+    .shop-scene { position: relative; width: 1200px; height: 700px; display: flex; align-items: flex-start; gap: 20px; }
+    .shop-logo { position: absolute; top: -50px; left: -30px; transform: rotate(-3deg); background: #000; border: 4px solid var(--brillo-ambar); padding: 10px 30px; z-index: 100; box-shadow: 5px 5px 0 #000; }
+    .shop-logo h1 { font-family: var(--fuente-tocha); font-size: 2.5rem; text-transform: uppercase; color: var(--brillo-ambar); margin: 0; letter-spacing: -2px; text-shadow: 2px 2px 0 #000, 0 0 10px var(--brillo-ambar); }
+    .top-nav { position: absolute; top: 10px; right: 0; display: flex; gap: 10px; z-index: 90; }
+    .btn-lcm { background: #111; color: #ccc; border: 2px solid var(--panel-oxidado); padding: 10px 20px; text-transform: uppercase; font-weight: bold; cursor: pointer; transition: all 0.2s; transform: skewX(-10deg); font-family: var(--fuente-tocha); }
+    .btn-lcm:hover { border-color: var(--brillo-tenue); color: #fff; box-shadow: 0 0 15px rgba(163, 111, 45, 0.4); }
+    .items-panel { background: var(--panel-metal); border: 4px solid var(--panel-oxidado); width: 750px; height: 650px; padding: 70px 30px 30px 30px; position: relative; transform: rotateY(-5deg); box-shadow: 10px 10px 30px rgba(0,0,0,0.9); overflow-y: scroll; }
+    .items-panel::-webkit-scrollbar { width: 10px; } .items-panel::-webkit-scrollbar-track { background: #111; } .items-panel::-webkit-scrollbar-thumb { background: var(--panel-oxidado); border: 2px solid #111; }
+    .item-list { display: flex; flex-direction: column; gap: 12px; padding-right: 15px; width: 100%; box-sizing: border-box; }
+    .item-row { background: rgba(0,0,0,0.6); border: 2px solid var(--panel-oxidado); border-left: 6px solid var(--panel-oxidado); display: flex; align-items: center; padding: 10px; cursor: pointer; transition: all 0.15s ease; position: relative; width: 100%; box-sizing: border-box; }
+    .item-row:hover, .item-row.selected { border-color: var(--brillo-ambar); border-left-width: 10px; background: rgba(255, 157, 0, 0.05); transform: translateX(5px); z-index: 10; }
+    .item-row.selected { border-color: #fff; border-left-color: #fff; background: rgba(255, 157, 0, 0.1); box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
+    .icon-slot { position: relative; width: 65px; height: 65px; border: 2px solid #555; background: #000; display: flex; justify-content: center; align-items: center; margin-right: 20px; border-radius: 2px; overflow: hidden; }
+    .item-row:hover .icon-slot::before, .item-row.selected .icon-slot::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 5px; background: var(--hazard-pattern); }
+    .tier { position: absolute; top: 2px; left: 5px; font-family: var(--fuente-tocha); color: var(--brillo-ambar); font-size: 0.9rem; z-index: 5; text-shadow: 0 0 5px #000; }
+    .icono-img { font-size: 2.2rem; filter: drop-shadow(0 0 5px rgba(0,0,0,0.8)); }
+    .item-details { display: flex; flex-grow: 1; justify-content: space-between; align-items: center; }
+    .item-name { font-family: var(--fuente-tocha); font-size: 1.1rem; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+    .item-cost { font-family: var(--fuente-tocha); font-size: 1.5rem; color: var(--brillo-tenue); text-align: right; padding-right: 10px; }
+    .item-row:hover .item-cost, .item-row.selected .item-cost { color: var(--brillo-ambar); text-shadow: 0 0 10px var(--brillo-ambar); }
+    .info-panel-overlay { background: #111; border: 4px solid var(--brillo-tenue); width: 380px; height: 400px; position: absolute; top: 100px; right: 0; padding: 30px; z-index: 50; transform: rotateY(10deg) translateZ(30px); box-shadow: -10px 10px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; }
+    .info-panel-overlay::before { content: ''; position: absolute; top: -4px; left: -4px; right: -4px; height: 12px; background: var(--hazard-pattern); }
+    .qty-header { border-bottom: 1px solid #333; padding-bottom: 15px; }
+    .qty-title { color: #777; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; }
+    .qty-num { font-family: var(--fuente-tocha); font-size: 2rem; color: #fff; line-height: 1; margin-top: 5px; }
+    .desc-body { color: var(--text-base); font-size: 0.9rem; line-height: 1.6; flex-grow: 1; overflow-y: auto; }
+    .btn-comprar-panel { background: #000; color: var(--brillo-ambar); border: 2px solid var(--brillo-ambar); padding: 15px; font-family: var(--fuente-tocha); font-size: 1.2rem; cursor: pointer; text-transform: uppercase; transition: 0.2s; text-align: center; display: none; margin-top: auto; }
+    .btn-comprar-panel:hover { background: var(--brillo-ambar); color: #000; box-shadow: 0 0 15px var(--brillo-ambar); }
+</style>
+
+<div id="tienda-overlay">
+    <div class="shop-scene">
+        <div class="shop-logo">
+            <h1 id="shop-name-display">Cargando...</h1>
         </div>
+        <nav class="top-nav">
+            <button class="btn-lcm btn-dropdown" onclick="document.getElementById('tienda-overlay').style.display='none'">Cerrar [X]</button>
+        </nav>
+        <main class="items-panel">
+            <div class="item-list" id="lista-items-tienda">
+                </div>
+        </main>
+        <aside class="info-panel-overlay">
+            <div class="qty-header">
+                <div class="qty-title">Selección</div>
+                <div class="qty-num" id="panel-item-name">---</div>
+            </div>
+            <div class="desc-body" id="panel-item-desc">
+                <span style="color: #666; font-style: italic;">Selecciona un objeto del inventario para ver sus detalles...</span>
+            </div>
+            <button id="btn-comprar-seleccionado" class="btn-comprar-panel">Comprar Objeto</button>
+        </aside>
     </div>
+</div>
 
     <button id="btn-shop-notifier" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 999; background: #000; color: #ff9d00; border: 2px solid #ff9d00; padding: 10px 20px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; box-shadow: 0 0 10px #ff9d00;">🛒 TIENDA DETECTADA</button>
 
