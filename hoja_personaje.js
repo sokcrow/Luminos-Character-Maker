@@ -881,6 +881,40 @@ function renderCharacterSheet(data) {
         '<div style="color: #666;">Sin transacciones recientes.</div>';
     }
   }
+
+  // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
+  const hpActual =
+    data.combatStats?.hp_actual !== undefined
+      ? data.combatStats.hp_actual
+      : data.hp || 0;
+  const hpMax =
+    data.combatStats?.hp_max !== undefined
+      ? data.combatStats.hp_max
+      : data.hp_max || 0;
+  const spActual =
+    data.combatStats?.sp_actual !== undefined
+      ? data.combatStats.sp_actual
+      : data.sp || 0;
+
+  const hudPortrait = document.querySelector(
+    "#player-combat-hud img, .hud-portrait",
+  );
+  const hudHpDisplay = document.querySelector(
+    "#player-combat-hud .hp-display, .hud-hp-text, .sheet-hud-hp",
+  );
+  const hudSpDisplay = document.querySelector(
+    "#player-combat-hud .sp-display, .hud-sp-text, .sheet-hud-sp",
+  );
+
+  if (hudPortrait && data.icono_jugador) {
+    hudPortrait.src = data.icono_jugador;
+  }
+  if (hudHpDisplay) {
+    hudHpDisplay.innerText = `${hpActual} / ${hpMax}`;
+  }
+  if (hudSpDisplay) {
+    hudSpDisplay.innerText = spActual;
+  }
 }
 
 async function runBootSequence() {
@@ -1048,31 +1082,31 @@ function initializeCharacterSheet() {
     if (!actorListenerActive) {
       actorListenerActive = true;
       db.ref("campaña/actores").on("value", (snap) => {
-          window.actoresJugador = snap.val() || {};
-          window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
+        window.actoresJugador = snap.val() || {};
+        window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
 
-          const assignedActorId = window.datosJugador?.actorId;
-          const exprSelect = document.getElementById("player-expression-select");
+        const assignedActorId = window.datosJugador?.actorId;
+        const exprSelect = document.getElementById("player-expression-select");
 
-          if (assignedActorId && window.actoresJugador[assignedActorId]) {
-              const actorData = window.actoresJugador[assignedActorId];
+        if (assignedActorId && window.actoresJugador[assignedActorId]) {
+          const actorData = window.actoresJugador[assignedActorId];
 
-              if (exprSelect && actorData.expresiones) {
-                  exprSelect.innerHTML = "";
-                  const expKeys = Object.keys(actorData.expresiones);
-                  if (expKeys.length > 1) {
-                      exprSelect.style.display = "block";
-                      for (const [name, url] of Object.entries(actorData.expresiones)) {
-                          const opt = document.createElement("option");
-                          opt.value = url;
-                          opt.innerText = name;
-                          exprSelect.appendChild(opt);
-                      }
-                  } else {
-                      exprSelect.style.display = "none";
-                  }
+          if (exprSelect && actorData.expresiones) {
+            exprSelect.innerHTML = "";
+            const expKeys = Object.keys(actorData.expresiones);
+            if (expKeys.length > 1) {
+              exprSelect.style.display = "block";
+              for (const [name, url] of Object.entries(actorData.expresiones)) {
+                const opt = document.createElement("option");
+                opt.value = url;
+                opt.innerText = name;
+                exprSelect.appendChild(opt);
               }
+            } else {
+              exprSelect.style.display = "none";
+            }
           }
+        }
       });
     }
   }
@@ -2099,20 +2133,26 @@ function initializeCharacterSheet() {
         playerInventoryListenerActive = true;
 
         // Listen to Stash usando playerId directo
-        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).on("value", (snap) => {
+        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).on(
+          "value",
+          (snap) => {
             const items = snap.val() || {};
             if (typeof window.renderInventoryGrid === "function") {
               window.renderInventoryGrid("inv-stash-grid", items, true);
             }
-        });
+          },
+        );
 
         // Listen to Activo usando playerId directo
-        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).on("value", (snap) => {
+        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).on(
+          "value",
+          (snap) => {
             const items = snap.val() || {};
             if (typeof window.renderInventoryGrid === "function") {
               window.renderInventoryGrid("inv-active-grid", items, false);
             }
-        });
+          },
+        );
       }
     }
   }
@@ -3095,7 +3135,10 @@ function initializeCharacterSheet() {
         const textLong = btnToggleHud.querySelector(".text-long");
         const textShort = btnToggleHud.querySelector(".text-short");
 
-        if (combatHud.style.display === "none" || combatHud.style.display === "") {
+        if (
+          combatHud.style.display === "none" ||
+          combatHud.style.display === ""
+        ) {
           combatHud.style.display = "flex";
           if (textLong) textLong.innerText = "[-] OCULTAR VITALES";
           if (textShort) textShort.innerText = "❌";
@@ -3120,17 +3163,25 @@ document.addEventListener("DOMContentLoaded", () => {
     btnLogout.addEventListener("click", () => {
       if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
         // Opcional: Marcar como offline antes de salir
-        if (typeof playerId !== 'undefined' && playerId && typeof db !== 'undefined') {
-            db.ref("campaña/jugadores/" + playerId).update({ online: false });
+        if (
+          typeof playerId !== "undefined" &&
+          playerId &&
+          typeof db !== "undefined"
+        ) {
+          db.ref("campaña/jugadores/" + playerId).update({ online: false });
         }
 
-        firebase.auth().signOut().then(() => {
-          localStorage.removeItem("playerId");
-          window.location.replace("index.html");
-        }).catch((error) => {
-          console.error("Error al cerrar sesión:", error);
-          alert("Hubo un error al intentar cerrar sesión.");
-        });
+        firebase
+          .auth()
+          .signOut()
+          .then(() => {
+            localStorage.removeItem("playerId");
+            window.location.replace("index.html");
+          })
+          .catch((error) => {
+            console.error("Error al cerrar sesión:", error);
+            alert("Hubo un error al intentar cerrar sesión.");
+          });
       }
     });
   }

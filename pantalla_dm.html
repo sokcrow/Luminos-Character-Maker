@@ -4397,12 +4397,16 @@
                           ${nombre}
                           <span class="player-online-indicator">${onlineIndicator}</span>
                       </h4>
-                      <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px;">${clase} | ${raza}</div>
+
+                      <img src="${data.icono_jugador || "https://via.placeholder.com/60/222222/00ddff?text=" + nombre.charAt(0)}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; margin: 10px auto 0 auto; display: block; border: 2px solid #0df;">
+
+                      <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px; margin-top: 5px;">${clase} | ${raza}</div>
                       <div style="text-align:center; color:#FFD700; font-weight:bold; margin-bottom: 10px;"><span class="currency-symbol">₳</span> <span class="player-ahn">${data.ahn || 0}</span></div>
 
-                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 5px;">
-                          <input type="text" class="dm-edit-name" value="${data.characterName || ""}" placeholder="Nombre Personaje" style="flex: 1; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-family:'BebasKai', sans-serif;">
-                          <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: #0df; border: 1px solid #0df; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Nombre</button>
+                      <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
+                          <input type="text" class="dm-edit-name" value="${data.characterName || ""}" placeholder="Nombre Personaje" style="width: 100%; box-sizing: border-box; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-family:'BebasKai', sans-serif;">
+                          <input type="url" class="dm-edit-icon" value="${data.icono_jugador || ""}" placeholder="URL Ícono de Vitales" style="width: 100%; box-sizing: border-box; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-size:10px;">
+                          <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: #0df; border: 1px solid #0df; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Datos</button>
                       </div>
 
                       <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
@@ -4434,11 +4438,17 @@
                   const btnGuardarNombre =
                     pCard.querySelector(".btn-save-name");
                   const inputNombre = pCard.querySelector(".dm-edit-name");
+                  const inputIcono = pCard.querySelector(".dm-edit-icon"); // <--- NUEVO SELECTOR
 
                   btnGuardarNombre.onclick = () => {
                     const nuevoNombre = inputNombre.value;
+                    const nuevoIcono = inputIcono.value; // <--- NUEVO VALOR
+
                     db.ref(`campaña/jugadores/${nombre}`)
-                      .update({ characterName: nuevoNombre })
+                      .update({
+                        characterName: nuevoNombre,
+                        icono_jugador: nuevoIcono, // <--- GUARDAR EN FIREBASE
+                      })
                       .then(() => {
                         const oldText = btnGuardarNombre.innerText;
                         btnGuardarNombre.innerText = "¡Guardado!";
@@ -4451,7 +4461,7 @@
                         }, 1000);
                       })
                       .catch((e) =>
-                        console.error("Error al actualizar nombre:", e),
+                        console.error("Error al actualizar datos:", e),
                       );
                   };
 
