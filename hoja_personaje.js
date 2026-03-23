@@ -883,37 +883,33 @@ function renderCharacterSheet(data) {
   }
 
   // --- ACTUALIZAR HUD DE VITALES (MECÁNICAS DE JUGADOR) ---
-  const hpActual =
-    data.combatStats?.hp_actual !== undefined
-      ? data.combatStats.hp_actual
-      : data.hp || 0;
-  const hpMax =
-    data.combatStats?.hp_max !== undefined
-      ? data.combatStats.hp_max
-      : data.hp_max || 0;
-  const spActual =
-    data.combatStats?.sp_actual !== undefined
-      ? data.combatStats.sp_actual
-      : data.sp || 0;
+  const hpActual = data.combatStats?.hp_actual !== undefined ? data.combatStats.hp_actual : (data.hp || 0);
+  const hpMax = data.combatStats?.hp_max !== undefined ? data.combatStats.hp_max : (data.hp_max || 0);
+  const spActual = data.combatStats?.sp_actual !== undefined ? data.combatStats.sp_actual : (data.sp || 0);
 
-  const hudPortrait = document.querySelector(
-    "#player-combat-hud img, .hud-portrait",
-  );
-  const hudHpDisplay = document.querySelector(
-    "#player-combat-hud .hp-display, .hud-hp-text, .sheet-hud-hp",
-  );
-  const hudSpDisplay = document.querySelector(
-    "#player-combat-hud .sp-display, .hud-sp-text, .sheet-hud-sp",
-  );
+  // Buscar elementos usando los IDs exactos que YA existen en el HTML
+  const hudPortrait = document.getElementById("portrait-img");
+  const hudHpActual = document.getElementById("hud-hp-actual");
+  const hudHpMax = document.getElementById("hud-hp-max");
+  const hudSpDisplay = document.getElementById("hud-sp-text");
 
-  if (hudPortrait && data.icono_jugador) {
-    hudPortrait.src = data.icono_jugador;
+  // Inyectar datos en tiempo real
+  if (hudPortrait) {
+      hudPortrait.src = data.icono_jugador || "https://i.imgur.com/kP8s7Ww.png";
   }
-  if (hudHpDisplay) {
-    hudHpDisplay.innerText = `${hpActual} / ${hpMax}`;
+
+  // Respetar la estructura de spans separados para el HP
+  if (hudHpActual && hudHpMax) {
+      hudHpActual.innerText = hpActual;
+      hudHpMax.innerText = hpMax;
+  } else {
+      // Fallback seguro por si la estructura cambia
+      const hudHpContenedor = document.querySelector(".hud-hp-overlay-text");
+      if (hudHpContenedor) hudHpContenedor.innerText = `${hpActual} / ${hpMax}`;
   }
+
   if (hudSpDisplay) {
-    hudSpDisplay.innerText = spActual;
+      hudSpDisplay.innerText = spActual;
   }
 }
 
