@@ -664,6 +664,175 @@ function updateBootLog(message, isError = false) {
   }
 }
 
+function renderCharacterSheet(data) {
+  if (!data) return;
+
+  // Update all skill rows (Base, Mod, Total)
+  const skillRows = document.querySelectorAll(".sheet-skill-row");
+  skillRows.forEach((row) => {
+    const btn = row.querySelector(".sheet-roll-skill-btn");
+    if (btn) {
+      const actName = btn.getAttribute("name");
+      if (actName && actName.startsWith("act_roll_skill_")) {
+        const skillNameRaw = actName.replace("act_roll_skill_", "");
+        let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
+        bVal = !isNaN(bVal) ? bVal : 0;
+        let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
+        mVal = !isNaN(mVal) ? mVal : 0;
+
+        // fallback
+        if (
+          data[`skill_${skillNameRaw}_base`] === undefined &&
+          data.baseStats
+        ) {
+          const baseKey = Object.keys(data.baseStats).find(
+            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+          );
+          if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
+        }
+        if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
+          const modKey = Object.keys(data.modifiers).find(
+            (k) =>
+              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
+              k.toLowerCase() === skillNameRaw.toLowerCase(),
+          );
+          if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
+        }
+
+        const totalSpan = row.querySelector(
+          `.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`,
+        );
+        if (totalSpan) {
+          totalSpan.innerText = bVal + mVal;
+        }
+
+        // Update inputs if not focused
+        const baseInput = row.querySelector(
+          `input[name="attr_skill_${skillNameRaw}_base"]`,
+        );
+        const modInput = row.querySelector(
+          `input[name="attr_skill_${skillNameRaw}_mod"]`,
+        );
+        if (baseInput && document.activeElement !== baseInput)
+          baseInput.value = bVal;
+        if (modInput && document.activeElement !== modInput)
+          modInput.value = mVal;
+      }
+    }
+  });
+
+  // 3. Perks y Habilidades
+  const perksContainer =
+    document.querySelector(".repeating_skills") ||
+    document.querySelector(".sheet-perks-list") ||
+    document.getElementById("perks-container");
+  if (perksContainer) {
+    perksContainer.innerHTML = "";
+    let perks = [];
+    if (data.perks) perks = perks.concat(Object.values(data.perks));
+    if (data.humanPerks) perks = perks.concat(Object.values(data.humanPerks));
+
+    let perksHtml = "";
+    perks.forEach((perk) => {
+      perksHtml += `
+                <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                    <div style="color: #00ffff; font-weight: bold; font-family: 'Share Tech Mono', monospace; font-size: 1.1em; text-transform: uppercase;">${perk.nombre || perk.id || "Perk Desconocido"}</div>
+                    <div style="color: #ccc; font-size: 0.9em; margin-top: 5px;">${perk.desc || "Sin descripción"}</div>
+                </div>
+            `;
+    });
+    perksContainer.innerHTML = perksHtml;
+  }
+
+  // 4. Mails (Apps del Celular)
+  const mailsContainer =
+    document.querySelector(".mail-inbox-list") ||
+    document.getElementById("mails-list") ||
+    document.querySelector(".mails-container");
+  if (mailsContainer) {
+    mailsContainer.innerHTML = "";
+    let mails = data.mails ? Object.values(data.mails) : [];
+
+    mails.sort((a, b) => {
+      let tA = a.timestamp || 0;
+      let tB = b.timestamp || 0;
+      return tB - tA;
+    });
+
+    if (mails.length === 0) {
+      mailsContainer.innerHTML =
+        '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Bandeja de entrada vacía</div>';
+    } else {
+      mails.forEach((mail) => {
+        let dateStr = mail.inGameTime || "";
+        if (!dateStr && mail.timestamp) {
+          const d = new Date(mail.timestamp);
+          dateStr =
+            d.toLocaleDateString() +
+            " " +
+            d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+
+        const mailItem = document.createElement("div");
+        mailItem.className = "mail-item";
+        mailItem.style =
+          "border-bottom: 1px solid #333; padding: 10px; cursor: pointer;";
+
+        mailItem.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <strong style="color: var(--cyan-tech, #00ffff); font-family: 'Share Tech Mono', monospace;">${(mail.remitente || "Desconocido").replace(/</g, "&lt;")}</strong>
+                        ${dateStr ? `<span style="color: #666; font-size: 0.7em;">${dateStr}</span>` : ""}
+                    </div>
+                    <p style="color: #ccc; margin: 4px 0 0 0; font-size: 0.9em; font-weight: bold;">${(mail.asunto || "Sin Asunto").replace(/</g, "&lt;")}</p>
+                    <p style="color: #888; margin: 4px 0 0 0; font-size: 0.8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(mail.mensaje || "").replace(/</g, "&lt;")}</p>
+                `;
+
+        mailItem.addEventListener("click", () => {
+          alert(
+            `De: ${mail.remitente || "Desconocido"}\nAsunto: ${mail.asunto || "Sin Asunto"}\n\nMensaje:\n${mail.mensaje || "Vacío"}`,
+          );
+        });
+
+        mailsContainer.appendChild(mailItem);
+      });
+    }
+  }
+
+  // 5. Transacciones (Apps del Celular)
+  const transContainer =
+    document.getElementById("lista-transacciones-banco") ||
+    document.getElementById("transactions-list") ||
+    document.querySelector(".transactions-container");
+  if (transContainer) {
+    transContainer.innerHTML = ""; // Limpia lo viejo
+
+    // Ensure we check for transacciones too if transactions is not found
+    const dataTrans = data.transacciones || data.transactions;
+    if (dataTrans) {
+      // Convertir a array, ordenar por fecha y tomar las últimas 3
+      const transArray = Object.values(dataTrans)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, 3);
+
+      transArray.forEach((t) => {
+        const div = document.createElement("div");
+        div.className = "transaccion-item";
+        // Pinta el HTML real:
+        div.innerHTML = `
+                    <span style="color: ${t.monto > 0 ? "#44ff44" : "#ff4444"}; font-weight: bold;">
+                        ${t.monto > 0 ? "+" : ""}${t.monto} Ahn
+                    </span>
+                    <span style="color: #aaa; font-size: 0.9em;"> - ${(t.concepto || "Transacción").replace(/</g, "&lt;")}</span>
+                `;
+        transContainer.appendChild(div);
+      });
+    } else {
+      transContainer.innerHTML =
+        '<div style="color: #666;">Sin transacciones recientes.</div>';
+    }
+  }
+}
+
 async function runBootSequence() {
   try {
     // STEP 1: Verificación (Auth)
@@ -1027,174 +1196,7 @@ function initializeCharacterSheet() {
       }
     }
 
-function renderCharacterSheet(data) {
-  if (!data) return;
-
-  // Update all skill rows (Base, Mod, Total)
-  const skillRows = document.querySelectorAll(".sheet-skill-row");
-  skillRows.forEach((row) => {
-    const btn = row.querySelector(".sheet-roll-skill-btn");
-    if (btn) {
-      const actName = btn.getAttribute("name");
-      if (actName && actName.startsWith("act_roll_skill_")) {
-        const skillNameRaw = actName.replace("act_roll_skill_", "");
-        let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
-        bVal = !isNaN(bVal) ? bVal : 0;
-        let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
-        mVal = !isNaN(mVal) ? mVal : 0;
-
-        // fallback
-        if (
-          data[`skill_${skillNameRaw}_base`] === undefined &&
-          data.baseStats
-        ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
-        }
-        if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
-        }
-
-        const totalSpan = row.querySelector(
-          `.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`,
-        );
-        if (totalSpan) {
-          totalSpan.innerText = bVal + mVal;
-        }
-
-        // Update inputs if not focused
-        const baseInput = row.querySelector(
-          `input[name="attr_skill_${skillNameRaw}_base"]`,
-        );
-        const modInput = row.querySelector(
-          `input[name="attr_skill_${skillNameRaw}_mod"]`,
-        );
-        if (baseInput && document.activeElement !== baseInput)
-          baseInput.value = bVal;
-        if (modInput && document.activeElement !== modInput)
-          modInput.value = mVal;
-      }
-    }
-  });
-
-  // 3. Perks y Habilidades
-  const perksContainer =
-    document.querySelector(".repeating_skills") ||
-    document.querySelector(".sheet-perks-list") ||
-    document.getElementById("perks-container");
-  if (perksContainer) {
-    perksContainer.innerHTML = "";
-    let perks = [];
-    if (data.perks) perks = perks.concat(Object.values(data.perks));
-    if (data.humanPerks) perks = perks.concat(Object.values(data.humanPerks));
-
-    let perksHtml = "";
-    perks.forEach((perk) => {
-      perksHtml += `
-                <div class="perk-card" style="border-left: 3px solid #c49a00; padding: 10px; margin-bottom: 10px; background: #111; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
-                    <div style="color: #00ffff; font-weight: bold; font-family: 'Share Tech Mono', monospace; font-size: 1.1em; text-transform: uppercase;">${perk.nombre || perk.id || "Perk Desconocido"}</div>
-                    <div style="color: #ccc; font-size: 0.9em; margin-top: 5px;">${perk.desc || "Sin descripción"}</div>
-                </div>
-            `;
-    });
-    perksContainer.innerHTML = perksHtml;
-  }
-
-  // 4. Mails (Apps del Celular)
-  const mailsContainer =
-    document.querySelector(".mail-inbox-list") ||
-    document.getElementById("mails-list") ||
-    document.querySelector(".mails-container");
-  if (mailsContainer) {
-    mailsContainer.innerHTML = "";
-    let mails = data.mails ? Object.values(data.mails) : [];
-
-    mails.sort((a, b) => {
-      let tA = a.timestamp || 0;
-      let tB = b.timestamp || 0;
-      return tB - tA;
-    });
-
-    if (mails.length === 0) {
-      mailsContainer.innerHTML =
-        '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Bandeja de entrada vacía</div>';
-    } else {
-      mails.forEach((mail) => {
-        let dateStr = mail.inGameTime || "";
-        if (!dateStr && mail.timestamp) {
-          const d = new Date(mail.timestamp);
-          dateStr =
-            d.toLocaleDateString() +
-            " " +
-            d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        }
-
-        const mailItem = document.createElement("div");
-        mailItem.className = "mail-item";
-        mailItem.style =
-          "border-bottom: 1px solid #333; padding: 10px; cursor: pointer;";
-
-        mailItem.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                        <strong style="color: var(--cyan-tech, #00ffff); font-family: 'Share Tech Mono', monospace;">${(mail.remitente || "Desconocido").replace(/</g, "&lt;")}</strong>
-                        ${dateStr ? `<span style="color: #666; font-size: 0.7em;">${dateStr}</span>` : ""}
-                    </div>
-                    <p style="color: #ccc; margin: 4px 0 0 0; font-size: 0.9em; font-weight: bold;">${(mail.asunto || "Sin Asunto").replace(/</g, "&lt;")}</p>
-                    <p style="color: #888; margin: 4px 0 0 0; font-size: 0.8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(mail.mensaje || "").replace(/</g, "&lt;")}</p>
-                `;
-
-        mailItem.addEventListener("click", () => {
-          alert(
-            `De: ${mail.remitente || "Desconocido"}\nAsunto: ${mail.asunto || "Sin Asunto"}\n\nMensaje:\n${mail.mensaje || "Vacío"}`,
-          );
-        });
-
-        mailsContainer.appendChild(mailItem);
-      });
-    }
-  }
-
-  // 5. Transacciones (Apps del Celular)
-  const transContainer =
-    document.getElementById("lista-transacciones-banco") ||
-    document.getElementById("transactions-list") ||
-    document.querySelector(".transactions-container");
-  if (transContainer) {
-    transContainer.innerHTML = ""; // Limpia lo viejo
-
-    // Ensure we check for transacciones too if transactions is not found
-    const dataTrans = data.transacciones || data.transactions;
-    if (dataTrans) {
-      // Convertir a array, ordenar por fecha y tomar las últimas 3
-      const transArray = Object.values(dataTrans)
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-        .slice(0, 3);
-
-      transArray.forEach((t) => {
-        const div = document.createElement("div");
-        div.className = "transaccion-item";
-        // Pinta el HTML real:
-        div.innerHTML = `
-                    <span style="color: ${t.monto > 0 ? "#44ff44" : "#ff4444"}; font-weight: bold;">
-                        ${t.monto > 0 ? "+" : ""}${t.monto} Ahn
-                    </span>
-                    <span style="color: #aaa; font-size: 0.9em;"> - ${(t.concepto || "Transacción").replace(/</g, "&lt;")}</span>
-                `;
-        transContainer.appendChild(div);
-      });
-    } else {
-      transContainer.innerHTML =
-        '<div style="color: #666;">Sin transacciones recientes.</div>';
-    }
-  }
-} // Cierra la función renderCharacterSheet
+ // Cierra la función renderCharacterSheet
 
 // UI EVENT LISTENERS
 {
