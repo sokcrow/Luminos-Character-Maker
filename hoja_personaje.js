@@ -1045,32 +1045,31 @@ function initializeCharacterSheet() {
   // --- DESCARGAR ACTORES PARA EL JUGADOR ---
   if (typeof db !== "undefined") {
     db.ref("campaña/actores").on("value", (snap) => {
-      window.actoresJugador = snap.val() || {};
-      window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
+        window.actoresJugador = snap.val() || {};
+        window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
 
-      // Si el jugador ya tiene un actor asignado, llenar su menú de expresiones
-      const assignedActorId = window.datosJugador?.actorId;
-      if (assignedActorId && window.actoresJugador[assignedActorId]) {
-        const actorData = window.actoresJugador[assignedActorId];
+        const assignedActorId = window.datosJugador?.actorId;
         const exprSelect = document.getElementById("player-expression-select");
 
-        if (
-          exprSelect &&
-          actorData.expresiones &&
-          Object.keys(actorData.expresiones).length > 1
-        ) {
-          exprSelect.innerHTML = "";
-          exprSelect.style.display = "block";
-          for (const [name, url] of Object.entries(actorData.expresiones)) {
-            const opt = document.createElement("option");
-            opt.value = url;
-            opt.innerText = name;
-            exprSelect.appendChild(opt);
-          }
-        } else if (exprSelect) {
-          exprSelect.style.display = "none";
+        if (assignedActorId && window.actoresJugador[assignedActorId]) {
+            const actorData = window.actoresJugador[assignedActorId];
+
+            if (exprSelect && actorData.expresiones) {
+                exprSelect.innerHTML = "";
+                const expKeys = Object.keys(actorData.expresiones);
+                if (expKeys.length > 1) {
+                    exprSelect.style.display = "block";
+                    for (const [name, url] of Object.entries(actorData.expresiones)) {
+                        const opt = document.createElement("option");
+                        opt.value = url;
+                        opt.innerText = name;
+                        exprSelect.appendChild(opt);
+                    }
+                } else {
+                    exprSelect.style.display = "none";
+                }
+            }
         }
-      }
     });
   }
 
@@ -2091,56 +2090,27 @@ function initializeCharacterSheet() {
   // Listener for active and stash inventory
   let playerInventoryListenerActive = false;
   {
-    // Wait slightly to ensure Firebase is initialized
     setTimeout(() => {
-      if (typeof db === "undefined") return;
-      const charNameInput = document.querySelector(
-        'input[name="attr_character_name"]',
-      );
+      if (typeof db === "undefined" || !playerId) return;
 
-      // Use a generic interval or function to check when playerName is available
-      const checkPlayerName = setInterval(() => {
-        const playerName = charNameInput ? charNameInput.value.trim() : "";
-        if (
-          playerName &&
-          playerName !== "Nombre" &&
-          playerName !== "Desconocido"
-        ) {
-          clearInterval(checkPlayerName);
+      if (playerInventoryListenerActive) return;
+      playerInventoryListenerActive = true;
 
-          if (playerInventoryListenerActive) return;
-          playerInventoryListenerActive = true;
+      // Listen to Stash usando playerId directo
+      db.ref(`campaña/jugadores/${playerId}/inventario_stash`).on("value", (snap) => {
+          const items = snap.val() || {};
+          if (typeof window.renderInventoryGrid === "function") {
+            window.renderInventoryGrid("inv-stash-grid", items, true);
+          }
+      });
 
-          // Listen to Stash
-          db.ref(`campaña/jugadores/${playerName}/inventario_stash`).on(
-            "value",
-            (snap) => {
-              const items = snap.val() || {};
-              // Re-use render function, passing true for isStash
-              if (typeof window.renderInventoryGrid === "function") {
-                window.renderInventoryGrid("inv-stash-grid", items, true);
-                // Trigger filter to maintain state
-                const searchInputStash = document.getElementById(
-                  "buscador-items-stash",
-                );
-                if (searchInputStash)
-                  searchInputStash.dispatchEvent(new Event("input"));
-              }
-            },
-          );
-
-          // Listen to Activo
-          db.ref(`campaña/jugadores/${playerName}/inventario_activo`).on(
-            "value",
-            (snap) => {
-              const items = snap.val() || {};
-              if (typeof window.renderInventoryGrid === "function") {
-                window.renderInventoryGrid("inv-active-grid", items, false);
-              }
-            },
-          );
-        }
-      }, 1000);
+      // Listen to Activo usando playerId directo
+      db.ref(`campaña/jugadores/${playerId}/inventario_activo`).on("value", (snap) => {
+          const items = snap.val() || {};
+          if (typeof window.renderInventoryGrid === "function") {
+            window.renderInventoryGrid("inv-active-grid", items, false);
+          }
+      });
     }, 1000);
   } // Cierra Listener for active and stash inventory
 
@@ -3112,19 +3082,17 @@ function initializeCharacterSheet() {
       }
     });
 
-    // --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE ---
-    const btnToggleHud = document.getElementById("btn-toggle-hud");
-    const combatHud = document.getElementById("player-combat-hud");
+    // --- LÓGICA DEL TOGGLE DEL HUD DE COMBATE (DELEGACIÓN GLOBAL) ---
+    document.addEventListener("click", (e) => {
+      const btnToggleHud = e.target.closest("#btn-toggle-hud");
+      if (btnToggleHud) {
+        const combatHud = document.getElementById("player-combat-hud");
+        if (!combatHud) return;
 
-    if (btnToggleHud && combatHud) {
-      btnToggleHud.addEventListener("click", () => {
         const textLong = btnToggleHud.querySelector(".text-long");
         const textShort = btnToggleHud.querySelector(".text-short");
 
-        if (
-          combatHud.style.display === "none" ||
-          combatHud.style.display === ""
-        ) {
+        if (combatHud.style.display === "none" || combatHud.style.display === "") {
           combatHud.style.display = "flex";
           if (textLong) textLong.innerText = "[-] OCULTAR VITALES";
           if (textShort) textShort.innerText = "❌";
@@ -3137,7 +3105,7 @@ function initializeCharacterSheet() {
           btnToggleHud.style.color = "#ff3333";
           btnToggleHud.style.borderColor = "#ff3333";
         }
-      });
-    }
-  } // Cierra el bloque de UI EVENT LISTENERS (iniciado en la línea 1201)
-} // Cierra la función initializeCharacterSheet() (iniciada en la línea 804)
+      }
+    });
+  } // Cierra el bloque de UI EVENT LISTENERS
+} // Cierra la función initializeCharacterSheet()
