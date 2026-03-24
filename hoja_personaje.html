@@ -12033,15 +12033,7 @@
     <!-- End Limbus Main -->
 
     <!-- Global Inventory Button -->
-    <button
-      class="btn-global-inventory"
-      id="btn-global-inventory"
-      title="Inventario Global"
-      aria-label="Inventario Global"
-    >
-      🎒
-      <img id="tienda-fisica-badge" src="" style="display: none" />
-    </button>
+    <button class="btn-global-inventory btn-icon-base size-36" id="btn-global-inventory" title="Inventario Global" aria-label="Inventario Global"><img src="Assets/Images/Buttons/Inventory.svg" class="svg-icon" alt="Inventory" /><img id="tienda-fisica-badge" src="" style="display: none" /></button>
 
     <!-- Shop Modal (Limbus Dispensary Style) -->
     <div id="shop-modal" class="inventory-modal">
@@ -12335,14 +12327,7 @@
     </div>
 
     <!-- Toggle Button -->
-    <button
-      class="btn-toggle-phone"
-      id="btn-toggle-phone"
-      title="Alternar Celular"
-      aria-label="Alternar Celular"
-    >
-      📱
-    </button>
+    <button class="btn-toggle-phone btn-icon-base size-36" id="btn-toggle-phone" title="Alternar Celular" aria-label="Alternar Celular"><img src="Assets/Images/Buttons/Cellphone.svg" class="svg-icon" alt="Phone" /></button>
 
     <!-- HUD DE COMBATE (VITALES) -->
     <button
@@ -12445,13 +12430,7 @@
         <span id="player-theatre-location-text">Unknown Location</span>
       </div>
 
-      <button
-        id="btn-toggle-theatre-log-player"
-        title="Ver Historial"
-        aria-label="Ver Historial del Teatro"
-      >
-        📜
-      </button>
+      <button id="btn-toggle-theatre-log-player" class="btn-icon-base size-36" title="Ver Historial" aria-label="Ver Historial del Teatro"><img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" /></button>
 
       <!-- Theatre Log Container -->
       <div id="theatre-log-container" style="display: none">
@@ -13064,11 +13043,11 @@
             if (logContainer) {
               logContainer.classList.toggle("open");
               if (logContainer.classList.contains("open")) {
-                this.innerText = "❌";
+                this.innerHTML = '<span style="color: #ff0000; font-size: 20px;">❌</span>';
                 this.setAttribute("aria-expanded", "true");
                 logContainer.style.display = "flex";
               } else {
-                this.innerText = "📜";
+                this.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
                 this.setAttribute("aria-expanded", "false");
                 logContainer.style.display = "none";
               }
@@ -13205,7 +13184,7 @@
                     "btn-toggle-theatre-log-player",
                   );
                   if (logToggleBtn) {
-                    logToggleBtn.innerText = "📜";
+                    logToggleBtn.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
                     logToggleBtn.setAttribute("aria-expanded", "false");
                   }
                 });
@@ -13496,7 +13475,7 @@
     </div>
 </div>
 
-    <button id="btn-shop-notifier">🛒</button>
+    <button id="btn-shop-notifier" class="btn-icon-base size-50"><img src="Assets/Images/Buttons/Shop.svg" class="svg-icon" alt="Shop" /></button>
 
     <script src="js/utils.js"></script>
     <script src="hoja_personaje.js"></script>

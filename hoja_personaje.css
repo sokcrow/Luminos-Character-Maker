@@ -7905,3 +7905,44 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 input:checked + .slider-toggle { background-color: #D32F2F; border-color: #FFD700; }
 input:checked + .slider-toggle:before { transform: translateX(20px); background-color: #FFD700; }
+
+
+/* --- ICON BUTTON BASE COMPONENT --- */
+.btn-icon-base {
+    position: relative;
+    background-image: url('Assets/Images/Buttons/Base.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.btn-icon-base .svg-icon {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+    transition: filter 0.2s ease-in-out;
+}
+
+.btn-icon-base:hover .svg-icon,
+.btn-icon-base.active .svg-icon {
+    filter: drop-shadow(0 0 4px var(--gold, #FFD700));
+}
+
+.btn-icon-base.size-36 {
+    width: 36px !important;
+    height: 36px !important;
+}
+
+.btn-icon-base.size-50 {
+    width: 50px !important;
+    height: 50px !important;
+}

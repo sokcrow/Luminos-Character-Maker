@@ -900,6 +900,47 @@
         height: 20px;
         fill: currentColor;
       }
+
+      /* --- ICON BUTTON BASE COMPONENT --- */
+      .btn-icon-base {
+          position: relative;
+          background-image: url('Assets/Images/Buttons/Base.png');
+          background-size: contain;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-color: transparent !important;
+          border: none !important;
+          border-radius: 0 !important;
+          padding: 0 !important;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+      }
+
+      .btn-icon-base .svg-icon {
+          width: 60%;
+          height: 60%;
+          object-fit: contain;
+          transition: filter 0.2s ease-in-out;
+      }
+
+      .btn-icon-base:hover .svg-icon,
+      .btn-icon-base.active .svg-icon {
+          filter: drop-shadow(0 0 4px #FFD700);
+      }
+
+      .btn-icon-base.size-36 {
+          width: 36px !important;
+          height: 36px !important;
+      }
+
+      .btn-icon-base.size-50 {
+          width: 50px !important;
+          height: 50px !important;
+      }
+
     </style>
 
     <style>
@@ -973,7 +1014,8 @@
         font-family: "BebasKai";
         src: url("Fonts/BebasKai.otf") format("opentype");
       }
-    </style>
+
+      /* --- ICON BUTTON BASE COMPONENT --- */</style>
   </head>
   <body>
     <div id="system-loading-overlay">
@@ -1050,7 +1092,8 @@
       .dm-tab-pane.active {
         display: flex;
       }
-    </style>
+
+      /* --- ICON BUTTON BASE COMPONENT --- */</style>
 
     <div
       style="
@@ -3048,24 +3091,15 @@
                 />
               </label>
 
-              <label
-                style="
-                  color: #0df;
-                  font-weight: bold;
-                  display: flex;
-                  align-items: center;
-                  gap: 5px;
-                  background: #222;
-                  padding: 8px;
-                  border-radius: 4px;
-                  border: 1px solid #0df;
-                  cursor: pointer;
-                  white-space: nowrap;
-                "
+                            <button
+                id="dm-theatre-continuous-btn"
+                class="btn-icon-base size-36"
+                title="Modo Continuo (Auto Dialog)"
+                aria-label="Modo Continuo"
+                style="margin-left: 10px;"
               >
-                <input type="checkbox" id="dm-theatre-continuous" /> MODO
-                CONTINUO
-              </label>
+                <img src="Assets/Images/Buttons/Auto Dialog.svg" class="svg-icon" alt="Auto Dialog" />
+              </button>
             </div>
 
             <div
@@ -3425,7 +3459,8 @@
         );
         z-index: -1;
       }
-    </style>
+
+      /* --- ICON BUTTON BASE COMPONENT --- */</style>
 
     <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
     <div id="modal-editar-tienda" class="modal-overlay">
@@ -6610,18 +6645,21 @@
           });
 
         // Continuous Mode Toggle
-        document
-          .getElementById("dm-theatre-continuous")
-          .addEventListener("change", (e) => {
-            db.ref("campaña/teatro").update({ continuo: e.target.checked });
-          });
+        document.getElementById("dm-theatre-continuous-btn").addEventListener("click", () => {
+          const btn = document.getElementById("dm-theatre-continuous-btn");
+          const newState = !btn.classList.contains("active");
+          db.ref("campaña/teatro").update({ continuo: newState });
+        });
 
         // Listen to Continuous Mode
         db.ref("campaña/teatro/continuo").on("value", (snap) => {
           const continuo = snap.val();
           isTheatreContinuous = !!continuo;
-          const cb = document.getElementById("dm-theatre-continuous");
-          if (cb) cb.checked = isTheatreContinuous;
+          const btn = document.getElementById("dm-theatre-continuous-btn");
+          if (btn) {
+            if (isTheatreContinuous) btn.classList.add("active");
+            else btn.classList.remove("active");
+          }
         });
 
         // Desbloquear Alijo (Stash) a Jugadores
