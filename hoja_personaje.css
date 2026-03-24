@@ -7589,22 +7589,11 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 #btn-toggle-theatre-log-player {
-    display: none !important; /* Hidden by default unless theatre active */
-    align-items: center;
-    justify-content: center;
+    display: none !important;
     position: fixed !important;
-    top: 45px !important;
+    top: 10px !important;
     left: 10px !important;
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 0 !important;
-    background: #0f0f0f !important;
-    border: 1px solid #FFD700 !important;
-    color: #F5F5DC !important;
-    font-size: 16px !important;
-    cursor: pointer !important;
-    z-index: 2015 !important;
-    padding: 0 !important;
+    z-index: 1000;
 }
 
 /* Only show the log button when the theatre view is actually active */
@@ -7614,12 +7603,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: flex !important;
 }
 
-#btn-toggle-theatre-log-player:hover {
-    background: #F5F5DC !important;
-    color: #0f0f0f !important;
-    border: 1px solid #3E2723 !important;
-    transform: scale(1.05);
-}
+
 
 .log-icon-svg {
     width: 20px;
@@ -7909,78 +7893,39 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 
 /* --- ICON BUTTON BASE COMPONENT --- */
 .btn-icon-base {
-    position: relative;
-    background-image: url('Assets/Images/Buttons/Base.png');
+    width: 56px;
+    height: 56px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url("Assets/Images/Buttons/Base.png") no-repeat center center;
     background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: transparent !important;
     border: none !important;
-    border-radius: 0 !important;
+    box-shadow: none !important;
     padding: 0 !important;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    background-color: transparent !important;
 }
 
 .btn-icon-base .svg-icon {
-    pointer-events: none;
-    width: 60%;
-    height: 60%;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
     transition: filter 0.2s ease-in-out;
+    pointer-events: none;
 }
 
 .btn-icon-base:hover .svg-icon,
 .btn-icon-base.active .svg-icon {
-    filter: drop-shadow(0 0 4px var(--gold, #FFD700));
+    filter: drop-shadow(0 0 5px #FFD700);
 }
 
-
-
-
-
-/* --- FLOATING ACTION BUTTONS CONTAINER --- */
-.floating-actions-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 9999;
-    align-items: center;
+.btn-icon-base.size-36 {
+    width: 36px !important;
+    height: 36px !important;
 }
 
-/* Base structural fixes for buttons to be inside the container */
-.floating-actions-container .btn-icon-base {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    margin: 0 !important;
-}
-
-/* Ensure #btn-toggle-hud doesn't use absolute positioning if it is inside the container */
-.floating-actions-container #btn-toggle-hud {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-}
-
-/* Hide when not active if needed */
-.floating-actions-container #btn-toggle-theatre-log-player {
-    display: none;
-}
-#theatre-view-player.theatre-active ~ .floating-actions-container #btn-toggle-theatre-log-player,
-#theatre-view-player[style*="display: flex"] ~ .floating-actions-container #btn-toggle-theatre-log-player,
-#theatre-view-player:not([style*="display: none"]) ~ .floating-actions-container #btn-toggle-theatre-log-player {
-    display: flex !important;
-}
-
-.svg-icon {
-    pointer-events: none;
+.btn-icon-base.size-50 {
+    width: 50px !important;
+    height: 50px !important;
 }

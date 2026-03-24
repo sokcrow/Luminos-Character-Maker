@@ -863,37 +863,23 @@
       }
 
       #btn-toggle-theatre-log {
-        display: none !important; /* Hidden by default unless theatre active */
-        align-items: center;
-        justify-content: center;
-        position: fixed !important;
-        top: 45px !important;
-        left: 10px !important;
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 0 !important;
-        background: #0f0f0f !important;
-        border: 1px solid #ffd700 !important;
-        color: #f5f5dc !important;
-        font-size: 16px !important;
-        cursor: pointer !important;
-        z-index: 2015 !important;
-        padding: 0 !important;
-      }
+    display: none !important;
+    position: fixed !important;
+    top: 10px !important;
+    left: 10px !important;
+    z-index: 1000;
+}
 
       /* Only show the log button when the theatre view is active */
       #theatre-view-dm[style*="display: flex"] #btn-toggle-theatre-log,
       #theatre-view-dm:not([style*="display: none"]) #btn-toggle-theatre-log,
       #theatre-view-dm.theatre-active #btn-toggle-theatre-log {
-        display: flex !important;
-      }
-
-      #btn-toggle-theatre-log:hover {
-        background: #f5f5dc !important;
-        color: #0f0f0f !important;
-        border: 1px solid #3e2723 !important;
-        transform: scale(1.05);
-      }
+    display: flex !important;
+    position: fixed !important;
+    top: 10px !important;
+    left: 10px !important;
+    z-index: 1000;
+}
 
       .log-icon-svg {
         width: 20px;
@@ -902,62 +888,46 @@
       }
 
       /* --- ICON BUTTON BASE COMPONENT --- */
-      .btn-icon-base {
-          position: relative;
-          background-image: url('Assets/Images/Buttons/Base.png');
-          background-size: contain;
-          background-position: center;
-          background-repeat: no-repeat;
-          background-color: transparent !important;
-          border: none !important;
-          border-radius: 0 !important;
-          padding: 0 !important;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-      }
+.btn-icon-base {
+    color: #F5F5DC;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url("Assets/Images/Buttons/Base.png") no-repeat center center;
+    background-size: contain;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    cursor: pointer;
+    background-color: transparent !important;
+}
 
-      .btn-icon-base .svg-icon {
-          width: 60%;
-          height: 60%;
-          object-fit: contain;
-          transition: filter 0.2s ease-in-out;
-      }
+.btn-icon-base .svg-icon {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    transition: filter 0.2s ease-in-out;
+    pointer-events: none;
+}
 
       .btn-icon-base:hover .svg-icon,
       .btn-icon-base.active .svg-icon {
           filter: drop-shadow(0 0 4px #FFD700);
       }
 
-
-
-
-      .floating-actions-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        z-index: 9999;
-        align-items: center;
+      .btn-icon-base.size-36 {
+          width: 36px !important;
+          height: 36px !important;
       }
 
-      .floating-actions-container .btn-icon-base {
-        position: relative !important;
-        top: auto !important;
-        right: auto !important;
-        bottom: auto !important;
-        left: auto !important;
-        margin: 0 !important;
+      .btn-icon-base.size-50 {
+          width: 50px !important;
+          height: 50px !important;
       }
 
-      .svg-icon {
-          pointer-events: none;
-      }
-</style>
+    </style>
 
     <style>
       #system-loading-overlay {
@@ -2823,32 +2793,29 @@
         <span id="theatre-location-text">Unknown Location</span>
       </div>
 
-
-      <div class="floating-actions-container" id="floating-actions-container-dm">
-        <button id="btn-toggle-theatre-log" class="btn-icon-base" title="Ver Historial" aria-label="Ver Historial del Teatro"><svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="0.815614in" height="0.795161in" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+      <button id="btn-toggle-theatre-log" class="btn-icon-base" aria-label="Abrir Log del Teatro">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="50px" height="50px" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
 viewBox="0 0 14.89 14.52"
  xmlns:xlink="http://www.w3.org/1999/xlink"
- xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003" class="svg-icon">
  <defs>
   <style type="text/css">
    <![CDATA[
-    .fil1 {fill:currentColor}
-    .fil0 {fill:currentColor}
+    .fil1-Log {fill:currentColor}
+    .fil0-Log {fill:currentColor}
    ]]>
   </style>
  </defs>
  <g id="Capa_x0020_1">
   <metadata id="CorelCorpID_0Corel-Layer"/>
-  <path class="fil0" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/>
+  <path class="fil0-Log" fill="#F5F5DC" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/>
   <g id="_2514814070960">
-   <path class="fil1" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/>
-   <path class="fil1" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/>
+   <path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/>
+   <path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/>
   </g>
  </g>
 </svg>
 </button>
-      </div>
-
 
       <!-- Theatre Log Container -->
       <div id="theatre-log-container" style="display: none">
@@ -3128,54 +3095,12 @@ viewBox="0 0 14.89 14.52"
 
                             <button
                 id="dm-theatre-continuous-btn"
-                class="btn-icon-base"
+                class="btn-icon-base size-36"
                 title="Modo Continuo (Auto Dialog)"
                 aria-label="Modo Continuo"
                 style="margin-left: 10px;"
               >
-                <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="0.815614in" height="0.795161in" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
-viewBox="0 0 17.92 17.47"
- xmlns:xlink="http://www.w3.org/1999/xlink"
- xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
- <defs>
-  <font id="FontID0" horiz-adv-x="414" font-variant="normal" style="fill-rule:nonzero" font-weight="400">
-	<font-face
-		font-family="Bebas Kai">
-		<font-face-src>
-			<font-face-name name="Bebas Kai"/>
-		</font-face-src>
-	</font-face>
-   <missing-glyph><path d="M0 0z"/></missing-glyph>
-   <glyph unicode="a" horiz-adv-x="414" d="M396.008 0l-108.016 0 -23.0014 159.003 -116.992 0 -23.0014 -159.003 -105.988 0 120.984 699.989 135.009 0 121.006 -699.989zm-191.002 550.005l-43.0036 -295.005 89.0064 0 -43.0036 295.005 -2.99924 0z"/>
-   <glyph unicode="o" horiz-adv-x="434" d="M217.003 710.001c53.3391,0 95.1559,-15.8377 125.494,-47.4916 30.3377,-31.6755 45.5065,-74.8517 45.5065,-129.507l0 -365.994c0,-54.6769 -15.1688,-97.8315 -45.5065,-129.507 -30.3377,-31.6755 -72.1545,-47.4916 -125.494,-47.4916 -53.3391,0 -95.1775,15.8162 -125.494,47.4916 -30.3377,31.6755 -45.5065,74.8301 -45.5065,129.507l0 365.994c0,54.6553 15.1688,97.8315 45.5065,129.507 30.3161,31.6539 72.1545,47.4916 125.494,47.4916zm0 -98.0041c-21.34,0 -37.5013,-6.84 -48.5058,-20.4984 -11.0044,-13.6584 -16.5066,-33.488 -16.5066,-59.4886l0 -364.009c0,-26.0006 5.50221,-45.8302 16.5066,-59.5102 11.0044,-13.6584 27.1658,-20.4984 48.5058,-20.4984 21.34,0 37.5013,6.84 48.5058,20.4984 10.9828,13.68 16.4851,33.5095 16.4851,59.5102l0 364.009c0,26.0006 -5.50221,45.8302 -16.4851,59.4886 -11.0044,13.6584 -27.1658,20.4984 -48.5058,20.4984z"/>
-   <glyph unicode="t" horiz-adv-x="353" d="M342.993 600l-113 0 0 -600 -105.988 0 0 600 -113 0 0 99.9892 331.988 0 0 -99.9892z"/>
-   <glyph unicode="u" horiz-adv-x="429" d="M379.005 156.996c0,-53.9864 -14.4999,-95.3285 -43.4998,-124.005 -28.9999,-28.6547 -69.5005,-42.982 -121.502,-42.982 -50.6635,0 -90.4952,14.3273 -119.495,42.982 -28.9999,28.6762 -43.4998,70.0183 -43.4998,124.005l0 542.993 101.996 0 0 -539.994c0,-46.6717 20.0022,-69.9968 59.9849,-69.9968 40.0043,0 60.0065,23.3251 60.0065,69.9968l0 539.994 106.009 0 0 -542.993z"/>
-  </font>
-  <style type="text/css">
-   <![CDATA[
-    @font-face { font-family:"Bebas Kai";font-variant:normal;font-weight:normal;src:url("#FontID0") format(svg)}
-    .fil1 {fill:currentColor}
-    .fil0 {fill:currentColor}
-    .fnt0 {font-weight:normal;font-size:4.01px;font-family:'Bebas Kai'}
-   ]]>
-  </style>
- </defs>
- <g id="Capa_x0020_1">
-  <metadata id="CorelCorpID_0Corel-Layer"/>
-  <g id="_2518005711392">
-   <g>
-    <path class="fil0" d="M8.42 4.59l-2.61 -0.36 0.54 0.63c0,0 -4.33,1.87 -1.05,5.87 0,0 -1.8,-3.6 1.75,-4.86l0 1.28 1.37 -2.56z"/>
-    <path class="fil0" d="M9.51 12.89l2.61 0.36 -0.54 -0.63c0,0 4.33,-1.87 1.05,-5.87 0,0 1.8,3.6 -1.75,4.86l0 -1.28 -1.37 2.56z"/>
-   </g>
-   <text x="5.76" y="10.14"  class="fil0 fnt0">auto</text>
-  </g>
-  <g id="_2518005710816">
-   <path class="fil1" d="M8.96 17.47l3.59 -1.73 3.59 -1.73 0.89 -3.89 0.89 -3.89 -2.49 -3.12 -2.49 -3.12 -3.99 0 -3.99 0 -2.49 3.12 -2.49 3.12 0.89 3.89 0.89 3.89 3.59 1.73 3.59 1.73zm0 -0.26l3.49 -1.68 3.49 -1.68 0.86 -3.77 0.86 -3.77 -2.41 -3.03 -2.41 -3.03 -3.87 0 -3.87 0 -2.41 3.03 -2.41 3.03 0.86 3.77 0.86 3.77 3.49 1.68 3.49 1.68z"/>
-   <path class="fil1" d="M8.96 16.96l3.38 -1.63 3.38 -1.63 0.84 -3.66 0.84 -3.66 -2.34 -2.94 -2.34 -2.94 -3.75 0 -3.75 0 -2.34 2.94 -2.34 2.94 0.84 3.66 0.84 3.66 3.38 1.63 3.38 1.63zm0 -1.5l2.77 -1.33 2.77 -1.33 0.68 -2.99 0.68 -2.99 -1.91 -2.4 -1.91 -2.4 -3.07 0 -3.07 0 -1.91 2.4 -1.91 2.4 0.68 2.99 0.68 2.99 2.77 1.33 2.77 1.33z"/>
-  </g>
- </g>
-</svg>
-
+                <img src="Assets/Images/Buttons/Auto Dialog.svg" class="svg-icon" alt="Auto Dialog" />
               </button>
             </div>
 
@@ -3755,11 +3680,13 @@ viewBox="0 0 17.92 17.47"
             if (logContainer) {
               logContainer.classList.toggle("open");
               if (logContainer.classList.contains("open")) {
-                this.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24" style="pointer-events:none;"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+
+                this.innerHTML = '<span style="color: #ff0000; font-size: 20px;">❌</span>';
                 this.setAttribute("aria-expanded", "true");
                 logContainer.style.display = "flex";
               } else {
-                this.innerHTML = '<svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="0.815614in" height="0.795161in" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"viewBox="0 0 14.89 14.52" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xodm="http://www.corel.com/coreldraw/odm/2003"> <defs>  <style type="text/css">   <![CDATA[    .fil1 {fill:currentColor}    .fil0 {fill:currentColor}   ]]>  </style> </defs> <g id="Capa_x0020_1">  <metadata id="CorelCorpID_0Corel-Layer"/>  <path class="fil0" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/>  <g id="_2514814070960">   <path class="fil1" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/>   <path class="fil1" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/>  </g> </g></svg>';
+
+                this.innerHTML = \'<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="50px" height="50px" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 14.89 14.52" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xodm="http://www.corel.com/coreldraw/odm/2003" class="svg-icon"><defs><style type="text/css"><![CDATA[.fil1-Log {fill:currentColor} .fil0-Log {fill:currentColor}]]></style></defs><g id="Capa_x0020_1"><metadata id="CorelCorpID_0Corel-Layer"/><path class="fil0-Log" fill="#F5F5DC" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/><g id="_2514814070960"><path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/><path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/></g></g></svg>\';
                 this.setAttribute("aria-expanded", "false");
                 logContainer.style.display = "none";
               }
@@ -6928,7 +6855,8 @@ viewBox="0 0 17.92 17.47"
                       "btn-toggle-theatre-log",
                     );
                     if (logToggleBtn) {
-                      logToggleBtn.innerHTML = '<svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="0.815614in" height="0.795161in" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"viewBox="0 0 14.89 14.52" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xodm="http://www.corel.com/coreldraw/odm/2003"> <defs>  <style type="text/css">   <![CDATA[    .fil1 {fill:currentColor}    .fil0 {fill:currentColor}   ]]>  </style> </defs> <g id="Capa_x0020_1">  <metadata id="CorelCorpID_0Corel-Layer"/>  <path class="fil0" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/>  <g id="_2514814070960">   <path class="fil1" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/>   <path class="fil1" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/>  </g> </g></svg>';
+
+                      logToggleBtn.innerHTML = \'<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="50px" height="50px" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd" viewBox="0 0 14.89 14.52" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xodm="http://www.corel.com/coreldraw/odm/2003" class="svg-icon"><defs><style type="text/css"><![CDATA[.fil1-Log {fill:currentColor} .fil0-Log {fill:currentColor}]]></style></defs><g id="Capa_x0020_1"><metadata id="CorelCorpID_0Corel-Layer"/><path class="fil0-Log" fill="#F5F5DC" d="M8.06 3.84l2.97 0.44 -2.47 6.44 -4.71 -1.09 1.72 -4.28 1.95 -0.27 0.54 -1.24zm-2.22 1.28l1.56 -0.26 0.44 -1.06 -2 1.32zm-0.7 2.92l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.5 -1.12l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71zm0.43 -1l-0.07 0.26 3.39 0.71 0.07 -0.26 -3.39 -0.71z"/><g id="_2514814070960"><path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.52l2.99 -1.44 2.99 -1.44 0.74 -3.23 0.74 -3.23 -2.07 -2.59 -2.07 -2.59 -3.31 0 -3.31 0 -2.07 2.59 -2.07 2.59 0.74 3.23 0.74 3.23 2.99 1.44 2.99 1.44zm0 -0.22l2.9 -1.39 2.9 -1.39 0.72 -3.13 0.72 -3.13 -2 -2.51 -2 -2.51 -3.21 0 -3.21 0 -2 2.51 -2 2.51 0.72 3.13 0.72 3.13 2.9 1.39 2.9 1.39z"/><path class="fil1-Log" fill="#F5F5DC" d="M7.45 14.09l2.81 -1.35 2.81 -1.35 0.69 -3.04 0.69 -3.04 -1.94 -2.44 -1.94 -2.44 -3.12 0 -3.12 0 -1.94 2.44 -1.94 2.44 0.69 3.04 0.69 3.04 2.81 1.35 2.81 1.35zm0 -1.25l2.3 -1.11 2.3 -1.11 0.57 -2.49 0.57 -2.49 -1.59 -1.99 -1.59 -1.99 -2.55 0 -2.55 0 -1.59 1.99 -1.59 1.99 0.57 2.49 0.57 2.49 2.3 1.11 2.3 1.11z"/></g></g></svg>\';
                       logToggleBtn.setAttribute("aria-expanded", "false");
                     }
                   });
