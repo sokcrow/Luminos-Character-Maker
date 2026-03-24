@@ -5456,29 +5456,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 /* --- GLOBAL INVENTORY BUTTON --- */
 .btn-global-inventory {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
-    z-index: 9999;
-    background: #0f0f0f;
-    color: #F5F5DC;
-    border: 1px solid #FFD700;
-    border-radius: 0;
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 16px !important;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-global-inventory:hover {
-    transform: scale(1.05);
-    background: #F5F5DC;
-    color: #0f0f0f;
-    border: 1px solid #3E2723;
+    top: 218px !important; /* Below Shop Notifier (152 + 56 + 10) */
 }
 
 #tienda-fisica-badge {
@@ -6149,37 +6127,8 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 /* ---- MOBILE OVERRIDES ---- */
 @media (max-width: 768px) {
-    /* ---- Ultra Compact HUD Toggles ---- */
-    #btn-toggle-hud {
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px !important;
-    }
-
-    /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
-    .btn-toggle-phone {
-        width: 36px !important;
-        height: 36px !important;
-        font-size: 16px !important;
-        bottom: 10px !important;
-        right: 10px !important;
-        border-radius: 0 !important;
-    }
-    .btn-global-inventory {
-        width: 36px !important;
-        height: 36px !important;
-        font-size: 16px !important;
-        bottom: 50px !important; /* Positioned just above the phone toggle */
-        right: 10px !important;
-        border-radius: 0 !important;
-    }
-
-
+    /* (The floating action buttons #btn-toggle-hud, .btn-toggle-phone, .btn-global-inventory
+       now use the fixed 56x56 base component style, overriding the old compact rules) */
 
     /* Restaurar location tag en tamaño compacto */
     #theatre-view-player .theatre-location {
@@ -6360,29 +6309,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 /* Toggle Button Styles */
 .btn-toggle-phone {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-    background: #0f0f0f;
-    color: #F5F5DC;
-    border: 1px solid #FFD700;
-    border-radius: 0;
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 16px !important;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-toggle-phone:hover {
-    transform: scale(1.05);
-    background: #F5F5DC;
-    color: #0f0f0f;
-    border: 1px solid #3E2723;
+    top: 284px !important; /* Below Global Inventory (218 + 56 + 10) */
 }
 
 .phone-hidden {
@@ -6547,32 +6474,9 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 /* --- HUD DE COMBATE (VITALES) --- */
+/* Set top positions for floating action buttons */
 #btn-toggle-hud {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    background: #0f0f0f;
-    color: #F5F5DC;
-    border: 1px solid #FFD700;
-    padding: 0 !important;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 16px !important;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 0 !important;
-    width: 36px !important;
-    height: 36px !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-}
-
-#btn-toggle-hud:hover {
-    background: #F5F5DC;
-    color: #0f0f0f;
-    border: 1px solid #3E2723;
+    top: 20px !important;
 }
 
 
@@ -7590,21 +7494,8 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 #btn-toggle-theatre-log-player {
     display: none !important; /* Hidden by default unless theatre active */
-    align-items: center;
-    justify-content: center;
-    position: fixed !important;
-    top: 45px !important;
-    left: 10px !important;
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 0 !important;
-    background: #0f0f0f !important;
-    border: 1px solid #FFD700 !important;
-    color: #F5F5DC !important;
-    font-size: 16px !important;
-    cursor: pointer !important;
-    z-index: 2015 !important;
-    padding: 0 !important;
+    top: 86px !important; /* Below Combat HUD (20 + 56 + 10) */
+    z-index: 9999 !important; /* Ensure it stays above other elements */
 }
 
 /* Only show the log button when the theatre view is actually active */
@@ -7612,13 +7503,6 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 #theatre-view-player[style*="display: flex"] #btn-toggle-theatre-log-player,
 #theatre-view-player:not([style*="display: none"]) #btn-toggle-theatre-log-player {
     display: flex !important;
-}
-
-#btn-toggle-theatre-log-player:hover {
-    background: #F5F5DC !important;
-    color: #0f0f0f !important;
-    border: 1px solid #3E2723 !important;
-    transform: scale(1.05);
 }
 
 .log-icon-svg {
@@ -7909,20 +7793,35 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 
 /* --- ICON BUTTON BASE COMPONENT --- */
 .btn-icon-base {
-    position: relative;
-    background-image: url('Assets/Images/Buttons/Base.png');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
+    position: fixed !important;
+    background-image: url('Assets/Images/Buttons/Base.png') !important;
+    background-size: contain !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
     background-color: transparent !important;
     border: none !important;
     border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
     padding: 0 !important;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    width: 56px !important;
+    height: 56px !important;
+    z-index: 9999 !important;
+    right: 20px !important;
+    color: #F5F5DC !important;
+}
+
+.btn-icon-base:hover,
+.btn-icon-base:active {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 .btn-icon-base .svg-icon {
@@ -7932,17 +7831,15 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     transition: filter 0.2s ease-in-out;
 }
 
+/* Also ensure span/emoji inside acts like .svg-icon if it's text */
+.btn-icon-base span.svg-icon {
+    font-size: 30px; /* equivalent to ~60% of 56px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .btn-icon-base:hover .svg-icon,
 .btn-icon-base.active .svg-icon {
-    filter: drop-shadow(0 0 4px var(--gold, #FFD700));
-}
-
-.btn-icon-base.size-36 {
-    width: 36px !important;
-    height: 36px !important;
-}
-
-.btn-icon-base.size-50 {
-    width: 50px !important;
-    height: 50px !important;
+    filter: drop-shadow(0 0 4px #FFD700) !important;
 }
