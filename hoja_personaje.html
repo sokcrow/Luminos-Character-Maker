@@ -12428,115 +12428,6 @@
         </div>
       </div>
 
-      <!-- Player Input Area -->
-      <div
-        class="theatre-player-input-area"
-        style="
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          background: rgba(0, 0, 0, 0.9);
-          border-top: 2px solid #0df;
-          padding: 15px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          z-index: 2030;
-          box-sizing: border-box;
-        "
-      >
-        <button
-          id="btn-toggle-player-theatre-tools"
-          class="btn-cyber"
-          style="
-            display: none;
-            width: 100%;
-            background: #222;
-            color: #0df;
-            border: 1px solid #0df;
-            padding: 10px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-          "
-        >
-          💬 Mostrar Chat y Opciones
-        </button>
-
-        <div
-          id="player-theatre-tools-wrapper"
-          style="
-            display: flex;
-            gap: 15px;
-            width: 100%;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-          "
-        >
-          <select
-            id="player-actor-select"
-            style="
-              background: #111;
-              color: #c49a00;
-              border: 1px solid #c49a00;
-              padding: 5px;
-              font-family: &quot;Share Tech Mono&quot;;
-              outline: none;
-            "
-          >
-            <option value="base">Mi Personaje</option>
-          </select>
-          <select
-            id="player-expression-select"
-            style="
-              padding: 15px;
-              background: #222;
-              color: #0df;
-              border: 1px solid #444;
-              border-radius: 4px;
-              font-size: 16px;
-              min-width: 120px;
-              display: none;
-            "
-          ></select>
-          <input
-            type="text"
-            id="player-theatre-input"
-            placeholder="¿Qué quieres decir o hacer? (Escribe aquí...)"
-            style="
-              flex: 1;
-              max-width: 800px;
-              padding: 15px;
-              background: #111;
-              color: #fff;
-              border: 1px solid #555;
-              border-radius: 4px;
-              font-family: inherit;
-              font-size: 16px;
-            "
-          />
-          <button
-            id="btn-player-theatre-send"
-            style="
-              background: #0df;
-              color: #000;
-              border: 1px solid #fff;
-              padding: 15px 30px;
-              font-size: 16px;
-              font-weight: bold;
-              cursor: pointer;
-              text-transform: uppercase;
-              border-radius: 4px;
-              box-shadow: 0 0 15px rgba(0, 221, 255, 0.6);
-            "
-          >
-            ENVIAR
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Script de Emergencia -->
@@ -13493,7 +13384,55 @@
     </div>
 </div>
 
+    <button id="btn-abrir-escritura" class="control-btn" title="Actuar en el Teatro" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+    </button>
     <button id="btn-shop-notifier" class="btn-icon-base size-50"><img src="Assets/Images/Buttons/Shop.svg" class="svg-icon" alt="Shop" /></button>
+
+    <div id="modal-escritura-teatro" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: #0b0a0a; border: 1px solid #c49a00; padding: 20px; width: 90%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;">
+            <h3 style="margin: 0; color: #c49a00;">Modo Actuación</h3>
+
+            <div id="contenedor-selectores-emocion" style="display: flex; gap: 10px;">
+                <select
+                    id="player-actor-select"
+                    style="
+                    background: #111;
+                    color: #c49a00;
+                    border: 1px solid #c49a00;
+                    padding: 5px;
+                    font-family: 'Share Tech Mono';
+                    outline: none;
+                    flex: 1;
+                    "
+                >
+                    <option value="base">Mi Personaje</option>
+                </select>
+                <select
+                    id="player-expression-select"
+                    style="
+                    padding: 5px;
+                    background: #222;
+                    color: #0df;
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    font-size: 16px;
+                    flex: 1;
+                    display: none;
+                    "
+                ></select>
+            </div>
+
+            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Share Tech Mono'; resize: none; padding: 10px;"></textarea>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="btn-cerrar-escritura" style="background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer;">Cancelar</button>
+                <button id="btn-enviar-teatro-modal" style="background: #8b0000; color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold;">Enviar</button>
+            </div>
+        </div>
+    </div>
 
     <script src="js/utils.js"></script>
     <script src="hoja_personaje.js"></script>
