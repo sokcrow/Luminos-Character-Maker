@@ -6795,15 +6795,33 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     transition: all 0.4s ease;
 }
 
-.theatre-stage {
+/* Escenario donde van las imágenes */
+.theatre-visuals, .theatre-stage {
+    flex-grow: 1 !important;
+    display: flex !important;
+    align-items: flex-end !important; /* Gravedad: empuja los sprites al fondo del contenedor */
+    justify-content: center !important;
     padding: 0 !important;
     margin: 0 !important;
+    position: relative;
+    height: 75vh !important; /* Toma el espacio superior que no usa el diálogo */
 }
 
-.theatre-stage img {
-    aspect-ratio: 16 / 9;
-    height: 100vh;
-    object-fit: contain;
+/* Las imágenes (sprites) de los personajes */
+.theatre-stage img, .character-sprite {
+    max-height: 100% !important;
+    object-fit: contain !important;
+    align-self: flex-end !important; /* Doble seguro para anclarlos abajo */
+    margin-bottom: 0 !important;
+    vertical-align: bottom !important;
+}
+
+/* Asegurar que el contenedor global mantenga la estructura de columna */
+.theatre-container, .theatre-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    justify-content: flex-end !important;
 }
 .sprite-wrapper {
     position: relative;
