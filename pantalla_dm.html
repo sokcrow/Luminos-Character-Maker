@@ -612,16 +612,10 @@
         }
 
         /* Ajustes de diálogo ultra-compactos (Sigue el movimiento del drawer) */
-        .theatre-dialogue-wrapper {
-          bottom: 35px !important; /* Desciende hasta el botón cuando el drawer está oculto */
-          width: 95% !important;
-          transition: bottom 0.4s ease-out !important; /* Misma duración y curva que el drawer */
-        }
+        .theatre-dialogue-wrapper { /* removed bottom */ }
 
         /* Si el panel está abierto, el diálogo sube empujado por el grid */
-        #theatre-view-dm:has(#dm-tools-wrapper.open) .theatre-dialogue-wrapper {
-          bottom: 130px !important;
-        }
+        #theatre-view-dm:has(#dm-tools-wrapper.open) .theatre-dialogue-wrapper { /* removed bottom */ }
 
         #theatre-view-dm .sprite-wrapper img {
           bottom: 35px !important;
@@ -3359,18 +3353,7 @@
         transform: none;
       }
 
-      .theatre-dialogue-wrapper {
-        position: absolute;
-        bottom: 50px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 95%;
-        max-width: 1400px;
-        z-index: 2020;
-        filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, 0.8));
-        height: 25vh !important;
-        max-height: 25% !important;
-      }
+      .theatre-dialogue-wrapper { /* removed bottom */ }
 
       .theatre-plates-container {
         position: absolute;
@@ -3519,28 +3502,63 @@
 
 /* ==================== HOTFIXES ==================== */
 
-.theatre-dialogue-wrapper {
-    height: 25vh !important;
-    max-height: 25vh !important;
+/* 1. Contenedor Principal en Columna Estricta */
+body, .main-wrapper, .dm-container, #theatre-view-dm, #theatre-view-player {
     display: flex !important;
     flex-direction: column !important;
-    z-index: 9000 !important;
-    pointer-events: auto !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    justify-content: space-between !important;
 }
 
-#theatre-dialogue-history {
-    flex-grow: 1 !important;
+/* 2. Bloque Superior: Pantalla del Teatro (70% - 75%) */
+.theatre-wrapper, .theatre-container, .theatre-visuals, .theatre-stage {
+    flex: 1 1 auto !important; /* Toma todo el espacio superior */
+    height: 70vh !important; /* Altura máxima */
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* El cuadro donde se leen los mensajes se queda anclado al fondo de este bloque superior */
+.theatre-dialogue-wrapper {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    z-index: 8500 !important;
+}
+
+.theatre-dialogue-history {
+    max-height: 30vh !important;
     overflow-y: auto !important;
-    padding-bottom: 10px;
+    background: rgba(5, 5, 5, 0.8) !important; /* Fondo semi-transparente para lectura */
 }
 
-.theatre-controls {
-    flex-shrink: 0 !important;
-    margin-top: auto;
+/* 3. Bloque Inferior: Controles e Interfaz (25% - 30%) */
+.theatre-controls, .bottom-nav, .hud-bottom-container, .controls-panel, .theatre-player-input-area {
+    flex: 0 0 auto !important; /* Bloque estático, no crece */
+    position: relative !important; /* ELIMINA el fixed o absolute */
+    height: auto !important;
+    min-height: 25vh !important;
+    background-color: #050505 !important; /* Fondo negro sólido para ocultar lo de atrás */
+    border-top: 2px solid #c49a00 !important; /* Línea divisoria visual (Acento ámbar) */
+    z-index: 100 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
 }
 
-.theatre-stage {
-    pointer-events: none !important;
+/* Asegurar que el input específico tome el espacio y sea clickeable */
+.theatre-controls input[type="text"] {
+    flex-grow: 1 !important;
+    pointer-events: auto !important;
 }
 
 .top-nav, .hud-right-container, .theater-toolbar {
@@ -3552,6 +3570,15 @@
     padding-right: 20px; /* Separación del borde de la pantalla */
 }
 
+.btn-icon-base, .control-btn,
+.btn-icon-base:focus, .control-btn:focus,
+.btn-icon-base:active, .control-btn:active,
+.btn-icon-base:hover, .control-btn:hover {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
 </style>
 
     <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
