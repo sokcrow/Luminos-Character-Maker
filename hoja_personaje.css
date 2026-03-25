@@ -7340,21 +7340,29 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 /* Coin Toss Modal */
 .coin-toss-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(10, 10, 10, 0.95);
-    border: 2px solid var(--border-accent, #705820);
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background-color: #d8cdb8 !important;
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 3px,
+      rgba(0, 0, 0, 0.04) 3px,
+      rgba(0, 0, 0, 0.04) 6px
+    ) !important;
+    border: 12px solid #2a1610 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 0 0 4px #000 inset, 0 10px 30px rgba(0,0,0,0.8) !important;
     padding: 20px;
     z-index: 10000;
-    width: 300px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    width: 400px;
+    max-width: 95vw;
     display: flex;
     flex-direction: column;
     align-items: center;
-    font-family: "Roboto", monospace;
-    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    color: #1a1a1a;
 }
 
 .coin-toss-content {

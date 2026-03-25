@@ -3078,7 +3078,7 @@ function initializeCharacterSheet() {
               { transform: 'rotateY(360deg)' }
             ],
             {
-              duration: 400,
+              duration: 150,
               iterations: Infinity
             }
           );
@@ -3101,7 +3101,6 @@ function initializeCharacterSheet() {
               if (resultEl) resultEl.textContent = currentTotal;
             } else {
               coinImg.src = "https://imgur.com/XDx0ICt.png"; // Visual Cruz
-              coinImg.style.filter = "grayscale(100%)";
             }
 
             coinsStopped++;
