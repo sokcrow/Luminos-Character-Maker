@@ -18,12 +18,15 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            overflow: hidden;
             background-image: linear-gradient(rgba(5, 5, 5, 0.95), rgba(5, 5, 5, 0.95)), url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" fill="none"/><path d="M0,0 L40,40 M40,0 L0,40" stroke="rgba(255,0,0,0.05)" stroke-width="1"/></svg>');
         }
 
         .sheet-limbus-main {
             max-width: 1200px;
+            max-height: 100vh;
+            box-sizing: border-box;
             margin: 0 auto;
             background: var(--bg-card);
             border: 4px solid var(--red-limbus);
@@ -4849,6 +4852,8 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-stagger-v
     width: 100%;
     max-width: 400px;
     height: 800px;
+    max-height: 100vh;
+    box-sizing: border-box;
     margin: 0 auto;
     background-color: #000;
     border: 12px solid #222;
@@ -6790,6 +6795,11 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     transition: all 0.4s ease;
 }
 
+.theatre-stage {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
 .theatre-stage img {
     aspect-ratio: 16 / 9;
     height: 100vh;
@@ -7800,11 +7810,11 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     text-align: center;
     color: #ccc;
     font-family: 'Share Tech Mono', monospace;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    max-width: 100%;
+    display: block;
     line-height: 1.1;
     width: 100%;
     word-break: break-word;
@@ -7908,7 +7918,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 
 
 /* --- ICON BUTTON BASE COMPONENT --- */
-.btn-icon-base {
+.btn-icon-base, .control-btn {
     position: relative;
     background-image: url('Assets/Images/Buttons/Base.png');
     background-size: contain;
@@ -7917,15 +7927,19 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     background-color: transparent !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 0 !important;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     overflow: hidden;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px;
+    min-height: 56px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
 }
 
-.btn-icon-base .svg-icon {
+.btn-icon-base .svg-icon, .control-btn .svg-icon {
     width: 60%;
     height: 60%;
     object-fit: contain;
@@ -7933,16 +7947,8 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 }
 
 .btn-icon-base:hover .svg-icon,
-.btn-icon-base.active .svg-icon {
+.btn-icon-base.active .svg-icon,
+.control-btn:hover .svg-icon,
+.control-btn.active .svg-icon {
     filter: drop-shadow(0 0 4px var(--gold, #FFD700));
-}
-
-.btn-icon-base.size-36 {
-    width: 36px !important;
-    height: 36px !important;
-}
-
-.btn-icon-base.size-50 {
-    width: 50px !important;
-    height: 50px !important;
 }
