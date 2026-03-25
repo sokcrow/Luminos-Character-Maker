@@ -3097,10 +3097,16 @@ function initializeCharacterSheet() {
 
             if (isHeads) {
               coinImg.src = "https://imgur.com/yshLPnQ.png"; // Cara / Heads
+              const coinHeadsAudio = new Audio("Assets/Audio/SFX/UI/Coin%20SFX/Coin_Heads.wav");
+              coinHeadsAudio.volume = 0.3;
+              coinHeadsAudio.play().catch(e => console.warn("Audio play blocked:", e));
               currentTotal += 3;
               if (resultEl) resultEl.textContent = currentTotal;
             } else {
               coinImg.src = "https://imgur.com/XDx0ICt.png"; // Visual Cruz
+              const coinTailsAudio = new Audio("Assets/Audio/SFX/UI/Coin%20SFX/Coin_Tails.wav");
+              coinTailsAudio.volume = 0.3;
+              coinTailsAudio.play().catch(e => console.warn("Audio play blocked:", e));
             }
 
             coinsStopped++;
