@@ -3520,18 +3520,27 @@
 /* ==================== HOTFIXES ==================== */
 
 .theatre-dialogue-wrapper {
-    height: 25vh !important;
-    max-height: 25vh !important;
     display: flex !important;
     flex-direction: column !important;
-    z-index: 9000 !important;
-    pointer-events: auto !important;
 }
 
 #theatre-dialogue-history {
-    flex-grow: 1 !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 25vh !important; /* Altura del cuadro de texto */
+    z-index: 20 !important;
+    background: rgba(5, 5, 5, 0.85) !important;
+    border-top: 2px solid #c49a00 !important;
     overflow-y: auto !important;
-    padding-bottom: 10px;
+    padding: 15px !important;
+    box-sizing: border-box !important;
+    display: block !important;
+}
+
+#btn-abrir-escritura {
+    margin-left: auto !important;
 }
 
 .theatre-controls {
