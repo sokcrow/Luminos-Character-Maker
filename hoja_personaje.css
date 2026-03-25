@@ -6271,15 +6271,9 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     }
 
     /* Dynamically shift the dialogue box tracking the drawer animation */
-    #theatre-view-player .theatre-dialogue-wrapper {
-        bottom: 35px !important; /* height of closed toggle button */
-        width: 95% !important;
-        transition: bottom 0.4s ease-out !important;
-    }
+    #theatre-view-player .theatre-dialogue-wrapper { /* removed bottom */ }
 
-    #theatre-view-player:has(#player-theatre-tools-wrapper.open) .theatre-dialogue-wrapper {
-        bottom: 75px !important; /* Approx height of open ultra-compact menu */
-    }
+
 
     #theatre-view-player .sprite-wrapper img {
         bottom: 35px !important;
@@ -7976,7 +7970,29 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 
 /* ==================== HOTFIXES ==================== */
 
-/* Limitar el wrapper para que no invada toda la pantalla baja */
+/* 1. Contenedor Principal en Columna Estricta */
+body, .main-wrapper, .dm-container, #theatre-view-player, #theatre-view-dm {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    justify-content: space-between !important;
+}
+
+/* 2. Bloque Superior: Pantalla del Teatro (70% - 75%) */
+.theatre-wrapper, .theatre-container, .theatre-visuals, .theatre-stage {
+    flex: 1 1 auto !important; /* Toma todo el espacio superior */
+    height: 70vh !important; /* Altura máxima */
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* El cuadro donde se leen los mensajes se queda anclado al fondo de este bloque superior */
 .theatre-dialogue-wrapper {
     position: relative !important;
     display: flex !important;
@@ -7985,32 +8001,32 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     z-index: 8500 !important;
 }
 
-/* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
-.theatre-controls {
-    position: relative !important;
-    z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
-    background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
-    padding: 15px !important;
-    border-top: 2px solid var(--border-accent, #c49a00) !important;
-    pointer-events: auto !important;
+.theatre-dialogue-history {
+    max-height: 30vh !important;
+    overflow-y: auto !important;
+    background: rgba(5, 5, 5, 0.8) !important; /* Fondo semi-transparente para lectura */
+}
+
+/* 3. Bloque Inferior: Controles e Interfaz (25% - 30%) */
+.theatre-controls, .theatre-player-input-area, .bottom-nav, .hud-bottom-container, .controls-panel {
+    flex: 0 0 auto !important; /* Bloque estático, no crece */
+    position: relative !important; /* ELIMINA el fixed o absolute */
+    height: auto !important;
+    min-height: 25vh !important;
+    background-color: #050505 !important; /* Fondo negro sólido para ocultar lo de atrás */
+    border-top: 2px solid #c49a00 !important; /* Línea divisoria visual (Acento ámbar) */
+    z-index: 100 !important;
     display: flex !important;
-    gap: 10px !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
 }
 
 /* Asegurar que el input específico tome el espacio y sea clickeable */
-.theatre-controls input[type="text"] {
+.theatre-controls input[type="text"], .theatre-player-input-area input[type="text"] {
     flex-grow: 1 !important;
     pointer-events: auto !important;
-}
-
-#theatre-dialogue-history {
-    flex-grow: 1 !important;
-    overflow-y: auto !important;
-    padding-bottom: 10px;
-}
-
-.theatre-stage {
-    pointer-events: none !important;
 }
 
 .top-nav, .hud-right-container, .theater-toolbar {
