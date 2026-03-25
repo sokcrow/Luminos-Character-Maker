@@ -7932,7 +7932,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     min-width: 70px;
     min-height: 70px;
     background-color: #050505 !important; /* Fondo negro sólido */
-    clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%) !important; /* Recorte de Heptágono */
+    clip-path: polygon(50% 0%, 85% 18%, 100% 55%, 78% 100%, 22% 100%, 0% 55%, 15% 18%) !important; /* Recorte de Heptágono */
     border: none !important;
     box-shadow: none !important;
     display: flex !important;
@@ -7989,4 +7989,14 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     gap: 15px !important;
     width: 100%;
     padding-right: 20px; /* Separación del borde de la pantalla */
+}
+
+.btn-icon-base, .control-btn,
+.btn-icon-base:focus, .control-btn:focus,
+.btn-icon-base:active, .control-btn:active,
+.btn-icon-base:hover, .control-btn:hover {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
 }
