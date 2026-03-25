@@ -1217,24 +1217,24 @@ function initializeCharacterSheet() {
       // 2. Lectura de estado de bloqueo (Modo Lore)
       db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
         const isBlocked = snap.val();
-        const input = document.getElementById("player-theatre-input");
-        const btn = document.getElementById("btn-player-theatre-send");
+        const input = document.getElementById("input-teatro-modal");
+        const btn = document.getElementById("btn-enviar-teatro-modal");
         if (input && btn) {
           input.disabled = isBlocked;
           btn.disabled = isBlocked;
           input.placeholder = isBlocked
             ? "El Director ha bloqueado las interacciones (Modo Lore)..."
-            : "¿Qué quieres decir o hacer? (Escribe aquí...)";
+            : "Escribe tu acción o diálogo...";
         }
       });
     }
 
     // === ENVÍO AL TEATRO DE LA MENTE ===
-    const btnSend = document.getElementById("btn-player-theatre-send");
-    const inputEl = document.getElementById("player-theatre-input");
+    const btnSend = document.getElementById("btn-enviar-teatro-modal");
+    const inputEl = document.getElementById("input-teatro-modal");
 
     const sendTheatreMessage = () => {
-      const domInput = document.getElementById("player-theatre-input");
+      const domInput = document.getElementById("input-teatro-modal");
       if (!domInput || !domInput.value.trim() || typeof db === "undefined")
         return;
 
@@ -1324,8 +1324,11 @@ function initializeCharacterSheet() {
           db.ref("campaña/teatro/cola")
             .push(payload)
             .then(() => {
-              const domInput = document.getElementById("player-theatre-input");
+              const domInput = document.getElementById("input-teatro-modal");
               if (domInput) domInput.value = ""; // Limpiar input directo post-envío
+
+              const modal = document.getElementById('modal-escritura-teatro');
+              if (modal) modal.style.display = 'none';
             })
             .catch((e) => {
               console.error("Error en Firebase enviando a la cola:", e);
@@ -1341,7 +1344,7 @@ function initializeCharacterSheet() {
     // Listeners Limpios globales
     // Reasignamos usando query selector al documento real porque el original se copió
     if (btnSend) {
-      const currentBtn = document.getElementById("btn-player-theatre-send");
+      const currentBtn = document.getElementById("btn-enviar-teatro-modal");
       if (currentBtn) {
         const newBtnSend = currentBtn.cloneNode(true);
         currentBtn.parentNode.replaceChild(newBtnSend, currentBtn);
@@ -1350,7 +1353,7 @@ function initializeCharacterSheet() {
     }
 
     if (inputEl) {
-      const currentInput = document.getElementById("player-theatre-input");
+      const currentInput = document.getElementById("input-teatro-modal");
       if (currentInput) {
         const newInputEl = currentInput.cloneNode(true);
         currentInput.parentNode.replaceChild(newInputEl, currentInput);
@@ -1363,6 +1366,26 @@ function initializeCharacterSheet() {
         });
       }
     }
+  }
+
+  const btnAbrirModal = document.getElementById('btn-abrir-escritura');
+  if (btnAbrirModal) {
+      btnAbrirModal.addEventListener('click', () => {
+          const modal = document.getElementById('modal-escritura-teatro');
+          if (modal) {
+              modal.style.display = 'flex';
+              const input = document.getElementById('input-teatro-modal');
+              if (input) input.focus();
+          }
+      });
+  }
+
+  const btnCerrarModal = document.getElementById('btn-cerrar-escritura');
+  if (btnCerrarModal) {
+      btnCerrarModal.addEventListener('click', () => {
+          const modal = document.getElementById('modal-escritura-teatro');
+          if (modal) modal.style.display = 'none';
+      });
   }
 
   // Cierra la función renderCharacterSheet
