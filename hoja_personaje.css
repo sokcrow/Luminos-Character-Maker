@@ -7927,40 +7927,34 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 
 /* --- ICON BUTTON BASE COMPONENT --- */
 .btn-icon-base, .control-btn {
-    position: relative;
-    background-image: url('Assets/Images/Buttons/Base.png');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: transparent !important;
+    width: 70px !important;
+    height: 70px !important;
+    min-width: 70px;
+    min-height: 70px;
+    background-color: #050505 !important; /* Fondo negro sólido */
+    clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%) !important; /* Recorte de Heptágono */
     border: none !important;
-    border-radius: 0 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 12px !important; /* Margen interno para que el ícono respire */
     cursor: pointer;
-    overflow: hidden;
-    width: 56px !important;
-    height: 56px !important;
-    min-width: 56px;
-    min-height: 56px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
+    transition: transform 0.1s ease;
 }
 
-.btn-icon-base .svg-icon, .control-btn .svg-icon {
-    width: 60%;
-    height: 60%;
+.btn-icon-base:active, .control-btn:active {
+    transform: scale(0.95);
+}
+
+/* El SVG o Imagen dentro del Heptágono mantiene su brillo de silueta */
+.btn-icon-base svg, .btn-icon-base img,
+.control-btn svg, .control-btn img {
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    transition: filter 0.2s ease-in-out;
+    filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
 }
-
-.btn-icon-base:hover .svg-icon,
-.btn-icon-base.active .svg-icon,
-.control-btn:hover .svg-icon,
-.control-btn.active .svg-icon {
-    filter: drop-shadow(0 0 4px var(--gold, #FFD700));
-}
-
 
 /* ==================== HOTFIXES ==================== */
 
@@ -7988,22 +7982,11 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     pointer-events: none !important;
 }
 
-.btn-icon-base, .control-btn {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-.btn-icon-base svg, .btn-icon-base img,
-.control-btn svg, .control-btn img {
-    filter: drop-shadow(0 0 8px rgba(255, 157, 0, 0.8));
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
 .top-nav, .hud-right-container, .theater-toolbar {
     display: flex !important;
     justify-content: flex-end !important;
-    gap: 15px;
+    align-items: center !important;
+    gap: 15px !important;
+    width: 100%;
+    padding-right: 20px; /* Separación del borde de la pantalla */
 }
