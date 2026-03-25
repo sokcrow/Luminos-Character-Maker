@@ -13400,12 +13400,30 @@
 
 /* ==================== HOTFIXES ==================== */
 
+/* Limitar el wrapper para que no invada toda la pantalla baja */
 .theatre-dialogue-wrapper {
-    height: 25vh !important;
-    max-height: 25vh !important;
+    position: relative !important;
     display: flex !important;
     flex-direction: column !important;
-    z-index: 9000 !important;
+    justify-content: flex-end !important;
+    z-index: 8500 !important;
+}
+
+/* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
+.theatre-controls {
+    position: relative !important;
+    z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+    background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+    padding: 15px !important;
+    border-top: 2px solid var(--border-accent, #c49a00) !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    gap: 10px !important;
+}
+
+/* Asegurar que el input específico tome el espacio y sea clickeable */
+.theatre-controls input[type="text"] {
+    flex-grow: 1 !important;
     pointer-events: auto !important;
 }
 
@@ -13413,11 +13431,6 @@
     flex-grow: 1 !important;
     overflow-y: auto !important;
     padding-bottom: 10px;
-}
-
-.theatre-controls {
-    flex-shrink: 0 !important;
-    margin-top: auto;
 }
 
 .theatre-stage {
