@@ -13440,6 +13440,54 @@
     .desc-body { color: var(--text-base); font-size: 0.9rem; line-height: 1.6; flex-grow: 1; overflow-y: auto; }
     .btn-comprar-panel { background: #000; color: var(--brillo-ambar); border: 2px solid var(--brillo-ambar); padding: 15px; font-family: var(--fuente-tocha); font-size: 1.2rem; cursor: pointer; text-transform: uppercase; transition: 0.2s; text-align: center; display: none; margin-top: auto; }
     .btn-comprar-panel:hover { background: var(--brillo-ambar); color: #000; box-shadow: 0 0 15px var(--brillo-ambar); }
+
+
+/* ==================== HOTFIXES ==================== */
+
+.theatre-dialogue-wrapper {
+    height: 25vh !important;
+    max-height: 25vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 9000 !important;
+    pointer-events: auto !important;
+}
+
+#theatre-dialogue-history {
+    flex-grow: 1 !important;
+    overflow-y: auto !important;
+    padding-bottom: 10px;
+}
+
+.theatre-controls {
+    flex-shrink: 0 !important;
+    margin-top: auto;
+}
+
+.theatre-stage {
+    pointer-events: none !important;
+}
+
+.btn-icon-base, .control-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.btn-icon-base svg, .btn-icon-base img,
+.control-btn svg, .control-btn img {
+    filter: drop-shadow(0 0 8px rgba(255, 157, 0, 0.8));
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.top-nav, .hud-right-container, .theater-toolbar {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px;
+}
+
 </style>
 
 <div id="tienda-overlay">
