@@ -18,7 +18,8 @@
         min-height: 100vh;
         padding: 0;
         margin: 0;
-        overflow: hidden;
+        overflow-y: auto !important; /* Revive el scroll de la pantalla del DM */
+        overflow-x: hidden !important;
       }
       #dm-time-panel {
         background-color: rgba(15, 15, 15, 0.95);
@@ -931,6 +932,33 @@
           height: 100%;
           object-fit: contain;
           filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
+      }
+
+      /* Limitar el wrapper para que no invada toda la pantalla baja */
+      .theatre-dialogue-wrapper {
+          position: relative !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: flex-end !important;
+          z-index: 8500 !important;
+      }
+
+      /* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
+      .theatre-controls {
+          position: relative !important;
+          z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+          background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+          padding: 15px !important;
+          border-top: 2px solid var(--border-accent, #c49a00) !important;
+          pointer-events: auto !important;
+          display: flex !important;
+          gap: 10px !important;
+      }
+
+      /* Asegurar que el input específico tome el espacio y sea clickeable */
+      .theatre-controls input[type="text"] {
+          flex-grow: 1 !important;
+          pointer-events: auto !important;
       }
 
     </style>
