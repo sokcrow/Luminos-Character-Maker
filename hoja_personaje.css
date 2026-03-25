@@ -6271,15 +6271,9 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     }
 
     /* Dynamically shift the dialogue box tracking the drawer animation */
-    #theatre-view-player .theatre-dialogue-wrapper {
-        bottom: 35px !important; /* height of closed toggle button */
-        width: 95% !important;
-        transition: bottom 0.4s ease-out !important;
-    }
+    #theatre-view-player
 
-    #theatre-view-player:has(#player-theatre-tools-wrapper.open) .theatre-dialogue-wrapper {
-        bottom: 75px !important; /* Approx height of open ultra-compact menu */
-    }
+    #theatre-view-player:has(#player-theatre-tools-wrapper.open)
 
     #theatre-view-player .sprite-wrapper img {
         bottom: 35px !important;
@@ -6291,12 +6285,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     }
 
     /* Keep the dialogue box itself ultra compact */
-    #theatre-view-player .theatre-dialogue-text {
-        padding: 20px 10px 10px 10px !important;
-        font-size: 11px !important;
-        min-height: 50px !important;
-        line-height: 1.2 !important;
-    }
+    #theatre-view-player
 
     #theatre-view-player .theatre-plates-container {
         top: -30px !important;
@@ -7976,10 +7965,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 /* ==================== HOTFIXES ==================== */
 
 /* El cuadro de diálogo flotando ENCIMA de los sprites */
-.theatre-dialogue-wrapper {
-    display: flex !important;
-    flex-direction: column !important;
-}
+
 
 /* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
 .theatre-controls {
@@ -7999,20 +7985,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     pointer-events: auto !important;
 }
 
-#theatre-dialogue-history {
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 25vh !important; /* Altura del cuadro de texto */
-    z-index: 20 !important;
-    background: rgba(5, 5, 5, 0.85) !important;
-    border-top: 2px solid #c49a00 !important;
-    overflow-y: auto !important;
-    padding: 15px !important;
-    box-sizing: border-box !important;
-    display: block !important;
-}
+
 
 #btn-abrir-escritura {
     margin-left: auto !important;
@@ -8043,4 +8016,96 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     outline: none !important;
     box-shadow: none !important;
     -webkit-tap-highlight-color: transparent;
+}
+
+/* HOTFIX UNIFICADO */
+
+.theatre-dialogue-wrapper {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 25vh !important; /* Misma altura para DM y Jugador */
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-items: center !important; /* Centra las cajas de texto horizontalmente */
+    z-index: 8500 !important; /* Por encima del stage */
+    pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.theatre-dialogue-text {
+    width: 100% !important;
+    max-width: 1200px !important; /* Mantiene legibilidad en PC */
+    margin: 0 auto !important; /* Centrado absoluto */
+    height: 100% !important;
+    background: rgba(5, 5, 5, 0.85) !important;
+    border-top: 2px solid #c49a00 !important;
+    padding: 20px 40px !important;
+    color: #fffacd !important;
+    font-size: 1.1rem !important;
+    line-height: 1.6 !important;
+    font-family: 'Roboto', sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
+    position: relative !important;
+    z-index: 9000 !important; /* Al frente del wrapper */
+    pointer-events: auto !important; /* Reactiva los clics y el scroll */
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+}
+
+#theatre-dialogue-history {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important; /* Centrado absoluto */
+    height: 100% !important; /* Llena los 25vh del wrapper */
+    z-index: 9000 !important;
+    background: rgba(5, 5, 5, 0.85) !important;
+    border-top: 2px solid #c49a00 !important;
+    pointer-events: auto !important;
+    overflow-y: auto !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
+    display: block !important;
+}
+
+.theatre-stage, .theatre-visuals, .character-sprite {
+    z-index: 10 !important;
+    pointer-events: none !important;
+}
+
+/* --- HOTFIX INMEDIATO --- */
+#theatre-dialogue-history {
+    position: fixed !important; /* FIXED garantiza que se pegue abajo */
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 25vh !important;
+    z-index: 900 !important;
+    background: rgba(5, 5, 5, 0.85) !important;
+    border-top: 2px solid #c49a00 !important;
+    overflow-y: auto !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+}
+
+.hud-right-container, .theatre-controls {
+    position: fixed !important;
+    bottom: 27vh !important; /* Flotando justo encima del cuadro de diálogo (que mide 25vh) */
+    right: 20px !important;
+    display: flex !important;
+    flex-direction: column !important; /* ESTO APILA LOS BOTONES VERTICALMENTE */
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
+    width: auto !important;
+    z-index: 9999 !important; /* Siempre al frente de los sprites */
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
 }
