@@ -7471,7 +7471,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     max-width: 95% !important;
     height: 60vh !important;
     max-height: 500px !important;
-    z-index: 2050 !important;
+    z-index: 99999 !important;
 
     background-color: var(--bg-color) !important;
     background-image: repeating-linear-gradient(
@@ -8018,7 +8018,11 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     margin-left: auto !important;
 }
 
-.theatre-stage {
+.theatre-stage, .theatre-visuals {
+    z-index: 10 !important; /* Debe mantenerse muy por debajo del z-index 999 del log */
+    pointer-events: none !important; /* IMPORTANTE: Evita que el fondo transparente bloquee los clics */
+}
+.theatre-stage img, .character-sprite {
     pointer-events: none !important;
 }
 
