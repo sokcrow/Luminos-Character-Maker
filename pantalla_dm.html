@@ -971,6 +971,30 @@
           pointer-events: auto !important;
       }
 
+      #theatre-dialogue-history {
+          position: absolute !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: 25vh !important;
+          z-index: 999 !important; /* MÁXIMA PRIORIDAD para que nada lo tape */
+          pointer-events: auto !important; /* Habilita el scroll y los clics dentro del log */
+          background: rgba(5, 5, 5, 0.85) !important;
+          border-top: 2px solid #c49a00 !important;
+          overflow-y: auto !important;
+          padding: 15px !important;
+          box-sizing: border-box !important;
+          display: block !important;
+      }
+
+      .theatre-stage, .theatre-visuals {
+          z-index: 10 !important; /* Debe mantenerse muy por debajo del z-index 999 del log */
+          pointer-events: none !important; /* IMPORTANTE: Evita que el fondo transparente bloquee los clics */
+      }
+      .theatre-stage img, .character-sprite {
+          pointer-events: none !important;
+      }
+
     </style>
 
     <style>
