@@ -7730,6 +7730,14 @@
           .addEventListener("click", () => {
             if (!activePlayerIdForModal) return;
 
+            const splashUrl = document.getElementById("dm-player-splash-url") ? document.getElementById("dm-player-splash-url").value : "";
+            const resInputs = document.querySelectorAll(".dm-res-input");
+            const newRes = {};
+            resInputs.forEach(input => {
+                newRes[input.dataset.type] = parseFloat(input.value) || 1;
+            });
+
+
             const xpInput =
               parseInt(document.getElementById("dm-player-xp").value) || 0;
             const hpActual =
@@ -7802,6 +7810,9 @@
               hpMax;
 
             // Actualizar el nodo de combatStats (sobreescribe completo)
+
+            if (splashUrl) updates[`campaña/jugadores/${activePlayerIdForModal}/splash_art`] = splashUrl;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/resistencias`] = newRes;
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
               {
                 hp_max: hpMax,
