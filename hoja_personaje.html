@@ -14,7 +14,7 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 99999 !important;
+        z-index: 10000;
         background-color: #0b0a0a;
         display: flex;
         align-items: center;
@@ -11984,24 +11984,14 @@
     <!-- End Limbus Main -->
 
     <!-- Global Inventory Button -->
-    <div class="hud-right-container">
-        <!-- BASE DE LA TORRE: Botón Escribir (será empujado hacia abajo por column-reverse) -->
+    <div class="hud-right-container" style="position: fixed; right: 20px; bottom: 20px; z-index: 9999; flex-direction: column-reverse; align-items: flex-end;">
         <button id="btn-abrir-escritura" class="control-btn" title="Actuar en el Teatro">
             <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
         </button>
+    <button class="btn-global-inventory btn-icon-base size-36" id="btn-global-inventory" title="Inventario Global" aria-label="Inventario Global"><img src="Assets/Images/Buttons/Inventory.svg" class="svg-icon" alt="Inventory" /><img id="tienda-fisica-badge" src="" style="display: none" /></button>
 
-        <!-- SEGUNDO PISO: Botón Player HUD -->
-        <button id="btn-player-hud" class="control-btn" title="HUD de Jugador">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-        </button>
-
-        <!-- TERCER PISO: Inventario -->
-        <button class="btn-global-inventory btn-icon-base size-36" id="btn-global-inventory" title="Inventario Global" aria-label="Inventario Global"><img src="Assets/Images/Buttons/Inventory.svg" class="svg-icon" alt="Inventory" /><img id="tienda-fisica-badge" src="" style="display: none" /></button>
     </div>
 
     <!-- Shop Modal (Limbus Dispensary Style) -->
@@ -13442,115 +13432,4 @@
     <script src="js/utils.js"></script>
     <script src="hoja_personaje.js"></script>
   </body>
-</html>
-
-<!-- NUEVO Limbus HUD Overlay -->
-<style>
-/* HUD Overlay - Limbus Style */
-.limbus-hud-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 9998;
-    display: none;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-.limbus-left-panel {
-    width: 30vw;
-    height: 80vh;
-    background: #111;
-    border: 2px solid #3a2515;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 0 15px rgba(0,0,0,0.8);
-}
-
-.limbus-splash-container {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 2px solid #3a2515;
-}
-
-#hud-player-splash {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
-    opacity: 0.9;
-}
-
-.limbus-resistances {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-    gap: 10px;
-    padding: 15px;
-    background: rgba(0,0,0,0.6);
-}
-
-.res-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.res-item img, .res-item .res-icon {
-    width: 30px;
-    height: 30px;
-    font-size: 24px;
-    margin-bottom: 5px;
-}
-
-.res-item .res-val {
-    color: #c49a00;
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.res-item .res-name {
-    color: #aaa;
-    font-size: 10px;
-    text-transform: uppercase;
-}
-
-.limbus-hud-close {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: transparent;
-    border: none;
-    color: #c49a00;
-    font-size: 40px;
-    cursor: pointer;
-    z-index: 99999 !important;
-}
-.limbus-hud-close:hover {
-    color: #ff4444;
-}
-</style>
-
-<div class="limbus-hud-overlay" id="limbus-hud-overlay">
-    <button class="limbus-hud-close" id="btn-close-limbus-hud">&times;</button>
-    <div class="limbus-left-panel">
-        <div class="limbus-splash-container">
-            <img id="hud-player-splash" src="Assets/imagen/default-splash.png" alt="Splash Art">
-        </div>
-        <div class="limbus-resistances" id="hud-player-resistances-container">
-            <!-- Resistances injected by JS -->
-        </div>
-    </div>
-</div>
-
-</body>
 </html>
