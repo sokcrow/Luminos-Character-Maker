@@ -7931,113 +7931,140 @@ input:checked + .slider-toggle { background-color: #D32F2F; border-color: #FFD70
 input:checked + .slider-toggle:before { transform: translateX(20px); background-color: #FFD700; }
 
 
-/* ESTÁNDAR BOTÓN CONTROL HEPTÁGONO 70x70 */
-.btn-icon-base, .control-btn, #btn-abrir-escritura {
+/* --- ICON BUTTON BASE COMPONENT --- */
+.btn-icon-base, .control-btn {
     width: 70px !important;
     height: 70px !important;
-    min-width: 70px !important;
-    min-height: 70px !important;
-    background-color: transparent !important; /* Base negra va como fondo gráfico */
-    clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%) !important; /* Geometría del Heptágono */
+    min-width: 70px;
+    min-height: 70px;
+    background-color: #050505 !important; /* Fondo negro sólido */
+    clip-path: polygon(50% 0%, 85% 18%, 100% 55%, 78% 100%, 22% 100%, 0% 55%, 15% 18%) !important; /* Recorte de Heptágono */
     border: none !important;
-    padding: 0 !important;
+    box-shadow: none !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
+    padding: 12px !important; /* Margen interno para que el ícono respire */
     cursor: pointer;
-    position: relative !important;
-    z-index: 100 !important;
+    transition: transform 0.1s ease;
 }
 
-/* Referencia a la imagen Base SVG (para cuando se aplique por CSS o HTML) */
-.btn-icon-base.has-base-bg, .control-btn.has-base-bg {
-    background-size: 100% 100% !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-}
-
-/* El Ícono SVG Blanco que va por encima (ejemplo del Chat) */
-.control-btn svg {
-    width: 60% !important;
-    height: 60% !important;
-    transition: filter 0.2s ease, transform 0.1s ease;
-}
-
-/* EFECTO DE BRILLO E INTERACCIÓN SÓLO EN EL ÍCONO BLANCO (Naranja/Ámbar) */
-.btn-icon-base:hover svg, .control-btn:hover svg, #btn-abrir-escritura:hover svg {
-    filter: drop-shadow(0 0 8px rgba(255, 157, 0, 1)) !important; /* Brillo Naranja/Ámbar */
+.btn-icon-base:active, .control-btn:active {
     transform: scale(0.95);
 }
 
-.btn-icon-base:active svg, .control-btn:active svg, #btn-abrir-escritura:active svg {
-    transform: scale(0.90);
+/* El SVG o Imagen dentro del Heptágono mantiene su brillo de silueta */
+.btn-icon-base svg, .btn-icon-base img,
+.control-btn svg, .control-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
 }
 
 /* ==================== HOTFIXES ==================== */
 
-/* WRAPPER MAESTRO: Centrado y Desvanecimiento Lateral */
+/* El cuadro de diálogo flotando ENCIMA de los sprites */
+
+
+/* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
+.theatre-controls {
+    position: relative !important;
+    z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+    background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+    padding: 15px !important;
+    border-top: 2px solid var(--border-accent, #c49a00) !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    gap: 10px !important;
+}
+
+/* Asegurar que el input específico tome el espacio y sea clickeable */
+.theatre-controls input[type="text"] {
+    flex-grow: 1 !important;
+    pointer-events: auto !important;
+}
+
+
+
+#btn-abrir-escritura {
+    margin-left: auto !important;
+}
+
+.theatre-stage, .theatre-visuals {
+    z-index: 10 !important; /* Debe mantenerse muy por debajo del z-index 999 del log */
+    pointer-events: none !important; /* IMPORTANTE: Evita que el fondo transparente bloquee los clics */
+}
+.theatre-stage img, .character-sprite {
+    pointer-events: none !important;
+}
+
+.top-nav, .hud-right-container, .theater-toolbar {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 15px !important;
+    width: 100%;
+    padding-right: 20px; /* Separación del borde de la pantalla */
+}
+
+.btn-icon-base, .control-btn,
+.btn-icon-base:focus, .control-btn:focus,
+.btn-icon-base:active, .control-btn:active,
+.btn-icon-base:hover, .control-btn:hover {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* HOTFIX UNIFICADO */
+
 .theatre-dialogue-wrapper {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     width: 100vw !important;
-    height: 25vh !important;
+    height: 25vh !important; /* Misma altura para DM y Jugador */
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-end !important;
-    align-items: center !important; /* Centra el contenido horizontalmente */
-    z-index: 8500 !important;
-    pointer-events: none !important;
+    align-items: center !important; /* Centra las cajas de texto horizontalmente */
+    z-index: 8500 !important; /* Por encima del stage */
+    pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
-    background: transparent !important;
-
-    /* EFECTO FADE LATERAL: Transparentoso en los lados, opaco en el centro */
-    -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%) !important;
-    mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%) !important;
 }
 
-/* CAJA DE TEXTO DEL JUGADOR: Centrada y con Roboto */
 .theatre-dialogue-text {
     width: 100% !important;
-    max-width: 1200px !important;
-    margin: 0 auto !important;
+    max-width: 1200px !important; /* Mantiene legibilidad en PC */
+    margin: 0 auto !important; /* Centrado absoluto */
     height: 100% !important;
-
-    /* Fondo negro base con transparencia alta */
-    background: rgba(5, 5, 5, 0.7) !important;
-
+    background: rgba(5, 5, 5, 0.85) !important;
     border-top: 2px solid #c49a00 !important;
     padding: 20px 40px !important;
     color: #fffacd !important;
     font-size: 1.1rem !important;
     line-height: 1.6 !important;
-
-    /* REGLA ESTRICTA: USAR ROBOTO */
-    font-family: 'Roboto', sans-serif !important;
-
+    font-family: 'Roboto', sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
     position: relative !important;
-    z-index: 9000 !important;
-    pointer-events: auto !important; /* Reactiva interacción */
+    z-index: 9000 !important; /* Al frente del wrapper */
+    pointer-events: auto !important; /* Reactiva los clics y el scroll */
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
     overflow-y: auto !important;
     box-sizing: border-box !important;
 }
 
-/* CAJA DE HISTORIAL DEL DM: Centrada y Transparente */
 #theatre-dialogue-history {
     position: relative !important;
     width: 100% !important;
     max-width: 1200px !important;
-    margin: 0 auto !important;
-    height: 100% !important;
+    margin: 0 auto !important; /* Centrado absoluto */
+    height: 100% !important; /* Llena los 25vh del wrapper */
     z-index: 9000 !important;
-
-    /* Fondo negro base con transparencia alta */
-    background: rgba(5, 5, 5, 0.7) !important;
-
+    background: rgba(5, 5, 5, 0.85) !important;
     border-top: 2px solid #c49a00 !important;
     pointer-events: auto !important;
     overflow-y: auto !important;
@@ -8051,14 +8078,34 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     pointer-events: none !important;
 }
 
-/* TORRE DE BOTONES APILADA VERTICALMENTE A LA DERECHA */
+/* --- HOTFIX INMEDIATO --- */
+#theatre-dialogue-history {
+    position: fixed !important; /* FIXED garantiza que se pegue abajo */
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 25vh !important;
+    z-index: 900 !important;
+    background: rgba(5, 5, 5, 0.85) !important;
+    border-top: 2px solid #c49a00 !important;
+    overflow-y: auto !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+}
+
 .hud-right-container, .theatre-controls {
     position: fixed !important;
-    bottom: 27vh !important; /* Flotando justo encima del Wrapper de 25vh */
+    bottom: 27vh !important; /* Flotando justo encima del cuadro de diálogo (que mide 25vh) */
     right: 20px !important;
     display: flex !important;
-    flex-direction: column !important; /* APILA VERTICALMENTE */
+    flex-direction: column !important; /* ESTO APILA LOS BOTONES VERTICALMENTE */
     align-items: center !important;
+    justify-content: flex-end !important;
     gap: 15px !important;
-    z-index: 9999 !important;
+    width: auto !important;
+    z-index: 9999 !important; /* Siempre al frente de los sprites */
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
 }
