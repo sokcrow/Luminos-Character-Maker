@@ -8034,6 +8034,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
     margin: 0 !important;
     padding: 0 !important;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%) !important;
 }
 
 .theatre-dialogue-text {
@@ -8041,7 +8042,9 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     max-width: 1200px !important; /* Mantiene legibilidad en PC */
     margin: 0 auto !important; /* Centrado absoluto */
     height: 100% !important;
-    background: rgba(5, 5, 5, 0.85) !important;
+    background: rgba(5, 5, 5, 0.75) !important;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%) !important;
+    mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%) !important;
     border-top: 2px solid #c49a00 !important;
     padding: 20px 40px !important;
     color: #fffacd !important;
@@ -8094,18 +8097,25 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     margin: 0 !important;
 }
 
+/* TORRE DE BOTONES CON SEPARACIÓN ESTRICTA */
 .hud-right-container, .theatre-controls {
     position: fixed !important;
-    bottom: 27vh !important; /* Flotando justo encima del cuadro de diálogo (que mide 25vh) */
+    bottom: 27vh !important; /* Flotando justo encima del Wrapper de 25vh */
     right: 20px !important;
     display: flex !important;
-    flex-direction: column !important; /* ESTO APILA LOS BOTONES VERTICALMENTE */
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    gap: 15px !important;
-    width: auto !important;
-    z-index: 9999 !important; /* Siempre al frente de los sprites */
-    background: transparent !important;
-    border: none !important;
+    gap: 20px !important; /* SEPARACIÓN OBLIGATORIA ENTRE BOTONES */
+    z-index: 9999 !important;
     padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Seguro adicional por si Flexbox ignora el gap en algunos elementos */
+.hud-right-container > *, .theatre-controls > * {
+    margin-bottom: 20px !important;
+}
+.hud-right-container > *:last-child, .theatre-controls > *:last-child {
+    margin-bottom: 0 !important;
 }
