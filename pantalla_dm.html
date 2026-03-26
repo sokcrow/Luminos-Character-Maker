@@ -1048,15 +1048,14 @@
 /* TORRE DE BOTONES CON SEPARACIÓN ESTRICTA */
 .hud-right-container, .theatre-controls {
     position: fixed !important;
-    bottom: 27vh !important; /* Flotando justo encima del Wrapper de 25vh */
+    bottom: 25vh !important; /* Se sienta exactamente sobre el wrapper del diálogo */
     right: 20px !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: column-reverse !important; /* INVIERTE EL ORDEN: Crece hacia arriba */
     align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 20px !important; /* SEPARACIÓN OBLIGATORIA ENTRE BOTONES */
+    gap: 20px !important;
     z-index: 9999 !important;
-    padding: 0 !important;
+    padding-bottom: 20px !important; /* Margen de respiro contra el cuadro de texto */
     margin: 0 !important;
 }
 
@@ -6578,7 +6577,7 @@
               "https://via.placeholder.com/60/222222/ffffff?text=?";
             const badgeColor =
               actorData.tipo === "Jugador" ? "#0df" : "#ff4444";
-            const badgeText = actorData.tipo || "NPC";
+            const badgeText = "NPC";
 
             card.innerHTML = `
                 <div style="position: absolute; top: 5px; left: 5px; background: ${badgeColor}; color: #000; font-size: 10px; padding: 2px 5px; border-radius: 3px; font-weight: bold;">[${badgeText}]</div>
@@ -6626,11 +6625,7 @@
               document.getElementById("actor-sprite").value =
                 actorData.sprite || "";
 
-              if (actorData.tipo === "Jugador") {
-                document.getElementById("actor-tipo-jugador").checked = true;
-              } else {
-                document.getElementById("actor-tipo-npc").checked = true;
-              }
+
 
               document.getElementById("actor-expresiones-container").innerHTML =
                 "";
@@ -6664,7 +6659,7 @@
         db.ref("campaña/actores").on("value", (snapshot) => {
           dbActoresCache = snapshot.val() || {};
           renderListaActores();
-          renderActorAsignacion();
+
         });
 
         let dbJugadoresCache = {};
@@ -6672,20 +6667,10 @@
         // Escuchar jugadores para la lista (reusando el que ya existe o creando nuevo listener local aquí)
         db.ref("campaña/jugadores").on("value", (snapshot) => {
           dbJugadoresCache = snapshot.val() || {};
-          renderActorAsignacion();
+
         });
 
-        function renderActorAsignacion() {
-          const container = document.getElementById("actor-asignacion-lista");
-          if (!container) return;
 
-          container.innerHTML = "";
-
-          if (Object.keys(dbJugadoresCache).length === 0) {
-            container.innerHTML =
-              '<span style="color: #888;">No hay jugadores conectados/registrados.</span>';
-            return;
-          }
 
           for (const [playerName, playerData] of Object.entries(
             dbJugadoresCache,
@@ -7606,9 +7591,7 @@
               parseFloat(document.getElementById("actor-escala").value) || 1.0;
             const sprite = document.getElementById("actor-sprite").value.trim();
             let icono = document.getElementById("actor-icono").value.trim();
-            const tipo = document.getElementById("actor-tipo-jugador").checked
-              ? "Jugador"
-              : "NPC";
+            const tipo = "NPC";
 
             if (!nombre || !sprite) {
               alert(
@@ -7747,6 +7730,14 @@
           .addEventListener("click", () => {
             if (!activePlayerIdForModal) return;
 
+            const splashUrl = document.getElementById("dm-player-splash-url") ? document.getElementById("dm-player-splash-url").value : "";
+            const resInputs = document.querySelectorAll(".dm-res-input");
+            const newRes = {};
+            resInputs.forEach(input => {
+                newRes[input.dataset.type] = parseFloat(input.value) || 1;
+            });
+
+
             const xpInput =
               parseInt(document.getElementById("dm-player-xp").value) || 0;
             const hpActual =
@@ -7819,6 +7810,9 @@
               hpMax;
 
             // Actualizar el nodo de combatStats (sobreescribe completo)
+
+            if (splashUrl) updates[`campaña/jugadores/${activePlayerIdForModal}/splash_art`] = splashUrl;
+            updates[`campaña/jugadores/${activePlayerIdForModal}/resistencias`] = newRes;
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
               {
                 hp_max: hpMax,
