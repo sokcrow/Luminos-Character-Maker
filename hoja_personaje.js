@@ -3078,6 +3078,12 @@ function initializeCharacterSheet() {
         const autoTossToggle = document.getElementById("auto-toss-toggle");
         const isAuto = autoTossToggle ? autoTossToggle.checked : false;
 
+        // ⚡ Bolt Optimization: Use DocumentFragment for batching coin wrapper insertions.
+        // 💡 What: Create a fragment before the loop, append each coinWrapper to it, and append the fragment to container once.
+        // 🎯 Why: This turns O(n) layout reflows into an O(1) single reflow operation, improving loop efficiency.
+        // 📊 Impact: Significantly minimizes reflow and repaint during coin toss generation.
+        const coinsFragment = document.createDocumentFragment();
+
         // Generate the 5 coins
         for (let i = 0; i < totalCoins; i++) {
           const coinWrapper = document.createElement("div");
@@ -3107,7 +3113,7 @@ function initializeCharacterSheet() {
           );
 
           coinWrapper.appendChild(coinImg);
-          if (container) container.appendChild(coinWrapper);
+          coinsFragment.appendChild(coinWrapper);
 
           const stopCoin = () => {
             if (coinWrapper.dataset.stopped === "true") return;
@@ -3147,6 +3153,10 @@ function initializeCharacterSheet() {
           } else {
             setTimeout(stopCoin, (i + 1) * 600);
           }
+        }
+
+        if (container) {
+          container.appendChild(coinsFragment);
         }
       }
 
