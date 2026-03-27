@@ -5558,8 +5558,20 @@
           }
         }
 
+        // ⚡ Bolt Optimization: Added debounce to search input
+        // 💡 What: Wrapped filterDMItems in a 250ms timeout.
+        // 🎯 Why: Firing O(n) DOM reflow operations on every keystroke blocks the main thread.
+        // 📊 Impact: Reduces reflows from O(n*k) to O(n) per typing burst, making the search bar responsive.
         if (searchInputDM) {
-          searchInputDM.addEventListener("input", filterDMItems);
+          if (searchInputDM._debounceDMHandler) {
+            searchInputDM.removeEventListener("input", searchInputDM._debounceDMHandler);
+          }
+          let filterDMTimeout = null;
+          searchInputDM._debounceDMHandler = function(e) {
+            if (filterDMTimeout) clearTimeout(filterDMTimeout);
+            filterDMTimeout = setTimeout(() => filterDMItems.call(this, e), 250);
+          };
+          searchInputDM.addEventListener("input", searchInputDM._debounceDMHandler);
         }
 
         filterBtnsDM.forEach((btn) => {
