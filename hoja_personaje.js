@@ -1962,8 +1962,20 @@ function initializeCharacterSheet() {
       }
     }
 
+    // ⚡ Bolt Optimization: Added debounce to stash search input
+    // 💡 What: Wrapped filterStashItems in a 250ms timeout.
+    // 🎯 Why: Iterating over DOM elements and altering display properties synchronously on every keystroke blocks the main thread.
+    // 📊 Impact: Significantly minimizes DOM layout thrashing during searches, reducing lag.
     if (searchInputStash) {
-      searchInputStash.addEventListener("input", filterStashItems);
+      if (searchInputStash._debounceStashHandler) {
+        searchInputStash.removeEventListener("input", searchInputStash._debounceStashHandler);
+      }
+      let filterStashTimeout = null;
+      searchInputStash._debounceStashHandler = function(e) {
+        if (filterStashTimeout) clearTimeout(filterStashTimeout);
+        filterStashTimeout = setTimeout(() => filterStashItems.call(this, e), 250);
+      };
+      searchInputStash.addEventListener("input", searchInputStash._debounceStashHandler);
     }
 
     filterBtnsStash.forEach((btn) => {
