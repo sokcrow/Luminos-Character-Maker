@@ -7937,8 +7937,11 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     height: 70px !important;
     min-width: 70px;
     min-height: 70px;
-    background-color: #050505 !important; /* Fondo negro sólido */
-    clip-path: polygon(50% 0%, 85% 18%, 100% 55%, 78% 100%, 22% 100%, 0% 55%, 15% 18%) !important; /* Recorte de Heptágono */
+    background-color: transparent !important;
+    background-image: url('Assets/Images/Buttons/Base.svg') !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
     border: none !important;
     box-shadow: none !important;
     display: flex !important;
@@ -7953,11 +7956,11 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     transform: scale(0.95);
 }
 
-/* El SVG o Imagen dentro del Heptágono mantiene su brillo de silueta */
+/* El SVG o Imagen dentro del fondo base mantiene su brillo de silueta */
 .btn-icon-base svg, .btn-icon-base img,
 .control-btn svg, .control-btn img {
-    width: 100%;
-    height: 100%;
+    width: 65%; /* Reducido para que quepa bien dentro del Base.svg */
+    height: 65%;
     object-fit: contain;
     filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
 }

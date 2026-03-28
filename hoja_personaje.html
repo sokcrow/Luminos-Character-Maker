@@ -13229,7 +13229,7 @@
 
     /* Estilo sutil y ultra-prioritario para el botón de tienda */
     #btn-shop-notifier {
-        display: none;
+        display: none !important; /* Oculto por defecto */
         position: fixed;
         top: 70px; /* Colocado debajo del botón de HUD que está en top: 20px */
         right: 20px;
@@ -13242,12 +13242,15 @@
         border-radius: 50%; /* Forma circular sutil */
         cursor: pointer;
         font-size: 1.5rem;
-        display: flex;
         justify-content: center;
         align-items: center;
         box-shadow: 0 0 15px rgba(255, 157, 0, 0.5);
         animation: shopPulse 2s infinite;
         padding: 0;
+    }
+
+    #btn-shop-notifier.show {
+        display: flex !important;
     }
 
     @keyframes shopPulse {
@@ -13337,8 +13340,8 @@
 .btn-icon-base svg, .btn-icon-base img,
 .control-btn svg, .control-btn img {
     filter: drop-shadow(0 0 8px rgba(255, 157, 0, 0.8));
-    width: 100%;
-    height: 100%;
+    width: 65%;
+    height: 65%;
     object-fit: contain;
 }
 
