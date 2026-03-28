@@ -1127,6 +1127,10 @@ function initializeCharacterSheet() {
         window.actoresJugador = snap.val() || {};
         window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
 
+        // Disparar un evento para que el log se re-renderice si ya estaba cargado
+        const event = new CustomEvent("actoresCacheUpdated");
+        window.dispatchEvent(event);
+
         const assignedActorId = window.datosJugador?.actorId;
         const exprSelect = document.getElementById("player-expression-select");
 
@@ -1158,77 +1162,104 @@ function initializeCharacterSheet() {
     // === LECTURA DEL TEATRO DE LA MENTE ===
     if (typeof db !== "undefined") {
       // 1. Lectura del log de mensajes en tiempo real
+      let ultimoSnapLog = null;
+
+      const renderizarLog = (snap) => {
+        const logContainer = document.getElementById("theatre-log-container");
+        if (!logContainer) return;
+
+        // Remove old entries, except the header/footer if any
+        Array.from(logContainer.children).forEach((child) => {
+          if (
+            child.className !== "dialogue-footer" &&
+            child.className !== "dialogue-scroll-area"
+          ) {
+            child.remove();
+          }
+        });
+
+        // Ensure dialogue-scroll-area exists inside logContainer
+        let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
+        if (!scrollArea) {
+          scrollArea = document.createElement("div");
+          scrollArea.className = "dialogue-scroll-area";
+          logContainer.insertBefore(scrollArea, logContainer.firstChild);
+        }
+        scrollArea.innerHTML = ""; // clear messages
+
+        const logs = snap.val();
+        console.log("Teatro data received:", logs);
+
+        if (!snap.exists() || logs === null) {
+          scrollArea.innerHTML =
+            "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
+          return;
+        }
+
+        if (logs) {
+          let isFirst = true;
+          for (const [key, msg] of Object.entries(logs)) {
+            if (!isFirst) {
+              const divider = document.createElement("hr");
+              divider.className = "dialogue-divider";
+              scrollArea.appendChild(divider);
+            }
+            isFirst = false;
+
+            const row = document.createElement("div");
+            row.className = "dialogue-row";
+
+            const charHexColor = msg.color_nombre || "#ffffff";
+            // Generate a default icon just in case one is missing
+            const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
+
+            let dynamicIcon = null;
+            if (window.allActoresCache) {
+              const actorMatch = Object.values(window.allActoresCache).find(
+                (actor) =>
+                  actor.nombre &&
+                  msg.nombre &&
+                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
+              );
+              if (actorMatch && actorMatch.icono) {
+                dynamicIcon = actorMatch.icono;
+              }
+            }
+
+            const iconoSrc = dynamicIcon || msg.icono || defaultFallbackIcon;
+
+            row.innerHTML = `
+                        <div class="character-col">
+                          <div class="hex-border">
+                            <div class="hex-portrait">
+                              <img src="${iconoSrc}" alt="${msg.nombre || "Unknown"}">
+                            </div>
+                          </div>
+                          <span class="character-name" style="color: ${charHexColor}">${msg.nombre || "Unknown"}</span>
+                        </div>
+                        <div class="text-col">
+                          <p>${msg.mensaje}</p>
+                        </div>
+                      `;
+
+            scrollArea.appendChild(row);
+          }
+          scrollArea.scrollTop = scrollArea.scrollHeight;
+        }
+      };
+
       db.ref("campaña/teatro/log")
         .limitToLast(20)
         .on("value", (snap) => {
-          const logContainer = document.getElementById("theatre-log-container");
-          if (!logContainer) return;
-
-          // Remove old entries, except the header/footer if any
-          Array.from(logContainer.children).forEach((child) => {
-            if (
-              child.className !== "dialogue-footer" &&
-              child.className !== "dialogue-scroll-area"
-            ) {
-              child.remove();
-            }
-          });
-
-          // Ensure dialogue-scroll-area exists inside logContainer
-          let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
-          if (!scrollArea) {
-            scrollArea = document.createElement("div");
-            scrollArea.className = "dialogue-scroll-area";
-            logContainer.insertBefore(scrollArea, logContainer.firstChild);
-          }
-          scrollArea.innerHTML = ""; // clear messages
-
-          const logs = snap.val();
-          console.log("Teatro data received:", logs);
-
-          if (!snap.exists() || logs === null) {
-            scrollArea.innerHTML =
-              "<div style='text-align:center; color:gray; font-style:italic;'>El teatro está en silencio... (No hay mensajes)</div>";
-            return;
-          }
-
-          if (logs) {
-            let isFirst = true;
-            for (const [key, msg] of Object.entries(logs)) {
-              if (!isFirst) {
-                const divider = document.createElement("hr");
-                divider.className = "dialogue-divider";
-                scrollArea.appendChild(divider);
-              }
-              isFirst = false;
-
-              const row = document.createElement("div");
-              row.className = "dialogue-row";
-
-              const charHexColor = msg.color_nombre || "#ffffff";
-              // Generate a default icon just in case one is missing
-              const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
-              const iconoSrc = msg.icono || defaultFallbackIcon;
-
-              row.innerHTML = `
-                          <div class="character-col">
-                            <div class="hex-border">
-                              <div class="hex-portrait">
-                                <img src="${iconoSrc}" alt="${msg.nombre || "Unknown"}">
-                              </div>
-                            </div>
-                            <span class="character-name" style="color: ${charHexColor}">${msg.nombre || "Unknown"}</span>
-                          </div>
-                          <div class="text-col">
-                            <p>${msg.mensaje}</p>
-                          </div>
-                        `;
-
-              scrollArea.appendChild(row);
-            }
-            scrollArea.scrollTop = scrollArea.scrollHeight;
-          }
+          ultimoSnapLog = snap;
+          renderizarLog(snap);
         });
+
+      window.addEventListener("actoresCacheUpdated", () => {
+        if (ultimoSnapLog) {
+          renderizarLog(ultimoSnapLog);
+        }
+      });
 
       // 2. Lectura de estado de bloqueo (Modo Lore)
       db.ref("campaña/teatro/bloqueo_interaccion").on("value", (snap) => {
