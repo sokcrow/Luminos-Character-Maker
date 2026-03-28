@@ -3241,7 +3241,7 @@ function initializeCharacterSheet() {
 
       if (btnShop) {
         if (tiendaId) {
-          btnShop.style.display = "flex"; // Usar flex para centrar el icono
+          btnShop.classList.add("show");
           // Forzar el puntero y la prioridad de clic
           btnShop.style.pointerEvents = "auto";
 
@@ -3254,7 +3254,7 @@ function initializeCharacterSheet() {
               }
           };
         } else {
-          btnShop.style.display = "none";
+          btnShop.classList.remove("show");
           const overlay = document.getElementById('tienda-overlay');
           if (overlay) overlay.style.display = 'none';
         }
