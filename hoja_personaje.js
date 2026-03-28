@@ -678,22 +678,31 @@ function renderCharacterSheet(data) {
     "xp",
     "level",
   ];
+  // ⚡ Bolt Optimization: Use conditional checks to prevent DOM attribute thrashing
+  // 💡 What: Added checks (input.value !== newVal and span.innerText !== newVal) before assignment.
+  // 🎯 Why: Unconditionally setting .value or .innerText on every real-time DB sync forces the browser to recalculate layouts and repaint even if data hasn't changed.
+  // 📊 Impact: Substantially reduces unnecessary DOM reflows when receiving frequent Firebase updates.
   camposDinamicos.forEach((campo) => {
     const input = document.querySelector(`input[name="attr_${campo}"]`);
-    if (input && document.activeElement !== input)
-      input.value = data[campo] !== undefined ? data[campo] : "";
+    if (input && document.activeElement !== input) {
+      const newVal = data[campo] !== undefined ? data[campo] : "";
+      if (input.value !== String(newVal)) input.value = newVal;
+    }
 
     const spans = document.querySelectorAll(
       `.sheet-val-${campo}, span[name="attr_${campo}"], .player-${campo}`,
     );
-    spans.forEach(
-      (span) =>
-        (span.innerText = data[campo] !== undefined ? data[campo] : "0"),
-    );
+    spans.forEach((span) => {
+      const newVal = data[campo] !== undefined ? data[campo] : "0";
+      if (span.innerText !== String(newVal)) span.innerText = newVal;
+    });
   });
 
   const displayAhn = document.getElementById("display-ahn");
-  if (displayAhn) displayAhn.innerText = data.ahn || "0";
+  if (displayAhn) {
+    const newVal = data.ahn || "0";
+    if (displayAhn.innerText !== String(newVal)) displayAhn.innerText = newVal;
+  }
 
   // --- ACTUALIZAR RETRATO DEL HUD DE VITALES ---
   const combatHudPortrait = document.getElementById("portrait-img");
@@ -705,6 +714,7 @@ function renderCharacterSheet(data) {
   }
 
   // --- 2. ACTUALIZAR CUERPO, MENTE Y ALMA ---
+  // ⚡ Bolt Optimization: Skip DOM updates for unchanged core stats
   const coreStats = ["cuerpo", "mente", "alma"];
   coreStats.forEach((stat) => {
     let bVal = 0;
@@ -720,10 +730,14 @@ function renderCharacterSheet(data) {
       document.querySelector(`.sheet-skill-total[name="attr_${stat}"]`) ||
       document.querySelector(`span[name="attr_${stat}"]`);
 
-    if (baseInput && document.activeElement !== baseInput)
+    if (baseInput && document.activeElement !== baseInput && baseInput.value !== String(bVal))
       baseInput.value = bVal;
-    if (modInput && document.activeElement !== modInput) modInput.value = mVal;
-    if (totalSpan) totalSpan.innerText = bVal + mVal;
+    if (modInput && document.activeElement !== modInput && modInput.value !== String(mVal))
+      modInput.value = mVal;
+    if (totalSpan) {
+      const newTotal = bVal + mVal;
+      if (totalSpan.innerText !== String(newTotal)) totalSpan.innerText = newTotal;
+    }
   });
 
   // Update all skill rows (Base, Mod, Total)
@@ -758,11 +772,13 @@ function renderCharacterSheet(data) {
           if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
         }
 
+        // ⚡ Bolt Optimization: Skip DOM updates for unchanged skills
         const totalSpan = row.querySelector(
           `.sheet-skill-total[name="attr_skill_${skillNameRaw}"]`,
         );
         if (totalSpan) {
-          totalSpan.innerText = bVal + mVal;
+          const newTotal = bVal + mVal;
+          if (totalSpan.innerText !== String(newTotal)) totalSpan.innerText = newTotal;
         }
 
         // Update inputs if not focused
@@ -772,9 +788,9 @@ function renderCharacterSheet(data) {
         const modInput = row.querySelector(
           `input[name="attr_skill_${skillNameRaw}_mod"]`,
         );
-        if (baseInput && document.activeElement !== baseInput)
+        if (baseInput && document.activeElement !== baseInput && baseInput.value !== String(bVal))
           baseInput.value = bVal;
-        if (modInput && document.activeElement !== modInput)
+        if (modInput && document.activeElement !== modInput && modInput.value !== String(mVal))
           modInput.value = mVal;
       }
     }
