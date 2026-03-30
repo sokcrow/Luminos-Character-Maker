@@ -742,12 +742,24 @@ function renderCharacterSheet(data) {
 
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
+
+  // ⚡ Bolt Optimization: Pre-compute lowercase maps for O(1) lookups inside the loop
+  const lowerBaseStats = {};
+  if (data.baseStats) {
+    Object.keys(data.baseStats).forEach(k => lowerBaseStats[k.toLowerCase()] = k);
+  }
+  const lowerModifiers = {};
+  if (data.modifiers) {
+    Object.keys(data.modifiers).forEach(k => lowerModifiers[k.toLowerCase()] = k);
+  }
+
   skillRows.forEach((row) => {
     const btn = row.querySelector(".sheet-roll-skill-btn");
     if (btn) {
       const actName = btn.getAttribute("name");
       if (actName && actName.startsWith("act_roll_skill_")) {
         const skillNameRaw = actName.replace("act_roll_skill_", "");
+        const skillNameLower = skillNameRaw.toLowerCase();
         let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
         bVal = !isNaN(bVal) ? bVal : 0;
         let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
@@ -758,17 +770,11 @@ function renderCharacterSheet(data) {
           data[`skill_${skillNameRaw}_base`] === undefined &&
           data.baseStats
         ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const baseKey = lowerBaseStats[skillNameLower];
           if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
         }
         if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const modKey = lowerModifiers[`skill_${skillNameLower}`] || lowerModifiers[skillNameLower];
           if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
         }
 
@@ -1071,6 +1077,7 @@ async function runBootSequence() {
 
           window.datosJugador = snap.val();
           currentPlayerData = snap.val();
+
 
           // Cache data
           localStorage.setItem(
