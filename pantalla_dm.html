@@ -5593,6 +5593,13 @@
 
         function renderTiendaReglas() {
           tiendaReglasContainer.innerHTML = "";
+
+          // ⚡ Bolt Optimization: Use DocumentFragment for batching rule item insertions
+          // 💡 What: Create a fragment before the loop, append each ruleItem to it, and append the fragment to container once.
+          // 🎯 Why: Iterative DOM appending forces O(n) layout reflows. Batching reduces this to an O(1) operation.
+          // 📊 Impact: Significantly minimizes DOM reflows when rendering many store rules.
+          const fragment = document.createDocumentFragment();
+
           for (const [tag, pct] of Object.entries(currentTiendaReglas)) {
             const ruleItem = document.createElement("div");
             ruleItem.className = "rule-item";
@@ -5604,8 +5611,10 @@
               delete currentTiendaReglas[tag];
               renderTiendaReglas();
             };
-            tiendaReglasContainer.appendChild(ruleItem);
+            fragment.appendChild(ruleItem);
           }
+
+          tiendaReglasContainer.appendChild(fragment);
         }
 
         document
@@ -6699,6 +6708,12 @@
             return;
           }
 
+          // ⚡ Bolt Optimization: Use DocumentFragment for batching player row insertions
+          // 💡 What: Create a fragment before the loop, append each row to it, and append the fragment to container once.
+          // 🎯 Why: Iterative DOM appending forces O(n) layout reflows. Batching reduces this to an O(1) operation.
+          // 📊 Impact: Significantly minimizes DOM reflows when rendering player lists.
+          const fragment = document.createDocumentFragment();
+
           for (const [playerName, playerData] of Object.entries(
             dbJugadoresCache,
           )) {
@@ -6753,8 +6768,10 @@
 
             row.appendChild(nameLabel);
             row.appendChild(select);
-            container.appendChild(row);
+            fragment.appendChild(row);
           }
+
+          container.appendChild(fragment);
         }
 
         // --- LÓGICA DEL TEATRO (MODO DIRECTOR) ---
@@ -7046,6 +7063,12 @@
           if (!container) return;
           container.innerHTML = "";
 
+          // ⚡ Bolt Optimization: Use DocumentFragment for batching avatar insertions
+          // 💡 What: Create a fragment before the loop, append each avatarDiv to it, and append the fragment to container once.
+          // 🎯 Why: Iterative DOM appending forces O(n) layout reflows. Batching reduces this to an O(1) operation.
+          // 📊 Impact: Significantly minimizes DOM reflows when rendering the stage.
+          const fragment = document.createDocumentFragment();
+
           escenarioActores.forEach((actorId) => {
             const actorData = dbActoresCache[actorId];
             if (!actorData) return;
@@ -7117,14 +7140,22 @@
             });
 
             avatarDiv.appendChild(removeBtn);
-            container.appendChild(avatarDiv);
+            fragment.appendChild(avatarDiv);
           });
+
+          container.appendChild(fragment);
         }
 
         function renderModalLlamarEscena(filtro = "NPC") {
           const container = document.getElementById("lista-llamar-escena");
           if (!container) return;
           container.innerHTML = "";
+
+          // ⚡ Bolt Optimization: Use DocumentFragment for batching call scene insertions
+          // 💡 What: Create a fragment before the loop, append each card to it, and append the fragment to container once.
+          // 🎯 Why: Iterative DOM appending forces O(n) layout reflows. Batching reduces this to an O(1) operation.
+          // 📊 Impact: Significantly minimizes DOM reflows when opening the scene call modal.
+          const fragment = document.createDocumentFragment();
 
           for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
             const tipoActor = actorData.tipo || "NPC";
@@ -7167,8 +7198,10 @@
                 "none";
             });
 
-            container.appendChild(card);
+            fragment.appendChild(card);
           }
+
+          container.appendChild(fragment);
         }
 
         document
