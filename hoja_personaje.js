@@ -741,6 +741,20 @@ function renderCharacterSheet(data) {
   });
 
   // Update all skill rows (Base, Mod, Total)
+  // ⚡ Bolt Optimization: Pre-compute lowercase maps for O(1) lookups instead of O(N^2) Object.keys().find()
+  const baseStatsLowerMap = new Map();
+  if (data.baseStats) {
+    for (const k of Object.keys(data.baseStats)) {
+      baseStatsLowerMap.set(k.toLowerCase(), k);
+    }
+  }
+  const modifiersLowerMap = new Map();
+  if (data.modifiers) {
+    for (const k of Object.keys(data.modifiers)) {
+      modifiersLowerMap.set(k.toLowerCase(), k);
+    }
+  }
+
   const skillRows = document.querySelectorAll(".sheet-skill-row");
   skillRows.forEach((row) => {
     const btn = row.querySelector(".sheet-roll-skill-btn");
@@ -748,6 +762,7 @@ function renderCharacterSheet(data) {
       const actName = btn.getAttribute("name");
       if (actName && actName.startsWith("act_roll_skill_")) {
         const skillNameRaw = actName.replace("act_roll_skill_", "");
+        const skillNameLower = skillNameRaw.toLowerCase();
         let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
         bVal = !isNaN(bVal) ? bVal : 0;
         let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
@@ -758,17 +773,11 @@ function renderCharacterSheet(data) {
           data[`skill_${skillNameRaw}_base`] === undefined &&
           data.baseStats
         ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const baseKey = baseStatsLowerMap.get(skillNameLower);
           if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
         }
         if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const modKey = modifiersLowerMap.get(`skill_${skillNameLower}`) || modifiersLowerMap.get(skillNameLower);
           if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
         }
 
