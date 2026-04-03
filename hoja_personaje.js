@@ -3351,6 +3351,12 @@ window.abrirTiendaDinamica = function(tiendaId) {
       btnComprar.style.display = "none";
 
       if (data.items) {
+        // ⚡ Bolt: Performance Optimization
+        // 💡 What: Using DocumentFragment to batch DOM insertions for dynamic shop items
+        // 🎯 Why: Replaces iterative DOM appends (`lista.appendChild(row)`) which cause multiple reflows
+        // 📊 Impact: Reduces layout recalculations to O(1) for faster shop rendering, especially with many items
+        const fragment = document.createDocumentFragment();
+
         const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
 
         itemsArray.forEach((item, index) => {
@@ -3404,8 +3410,9 @@ window.abrirTiendaDinamica = function(tiendaId) {
               btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
           };
 
-          lista.appendChild(row);
+          fragment.appendChild(row);
         });
+        lista.appendChild(fragment);
       } else {
         lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
       }
