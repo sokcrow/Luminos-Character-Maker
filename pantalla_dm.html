@@ -7232,6 +7232,13 @@
             return;
           }
 
+          // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions.
+          // 💡 What: Replaced direct `queueContainer.appendChild` inside the loop with `fragmentQueue.appendChild`.
+          // 🎯 Why: Appending directly to the DOM in a loop causes O(n) layout reflows and repaints.
+          // 📊 Impact: Reduces DOM reflows from O(n) to O(1) per queue update, improving performance when many items are enqueued.
+          // 🔬 Measurement: Observe memory footprint and rendering speed during heavy theatre usage.
+          const fragmentQueue = document.createDocumentFragment();
+
           // Convert to array and maintain Firebase's push order (keys are chronological)
           for (const [key, msgData] of Object.entries(cola)) {
             queueItems.push({ key: key, ...msgData });
@@ -7292,8 +7299,11 @@
               db.ref(`campaña/teatro/cola/${key}`).remove();
             });
 
-            queueContainer.appendChild(itemDiv);
+            fragmentQueue.appendChild(itemDiv);
           }
+
+          // ⚡ Mount batched DOM nodes
+          queueContainer.appendChild(fragmentQueue);
 
           // Reactivar ciclo de avance continuo si estamos en dicho modo y la cola se llena
           const textBox = document.getElementById("theatre-dialogue-text");
