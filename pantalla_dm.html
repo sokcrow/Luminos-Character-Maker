@@ -6960,11 +6960,17 @@
 
             if (logs) {
               let isFirst = true;
+              // ⚡ Bolt Optimization: Use DocumentFragment for batching DM theatre log DOM insertions.
+              // 💡 What: Replaced direct `scrollArea.appendChild` with `fragment.appendChild`.
+              // 🎯 Why: Iterating over theatre logs and inserting elements directly into the live DOM causes multiple layout reflows.
+              // 📊 Impact: Minimizes reflows to a single operation for the entire theatre log batch update.
+              const fragment = document.createDocumentFragment();
+
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -7003,8 +7009,9 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");
@@ -7233,6 +7240,12 @@
           }
 
           // Convert to array and maintain Firebase's push order (keys are chronological)
+          // ⚡ Bolt Optimization: Use DocumentFragment for batching DM queue DOM insertions.
+          // 💡 What: Replaced direct `queueContainer.appendChild` with `fragment.appendChild`.
+          // 🎯 Why: Iterating over theatre queue and inserting elements directly into the live DOM causes multiple layout reflows.
+          // 📊 Impact: Minimizes reflows to a single operation for the entire theatre queue update.
+          const fragment = document.createDocumentFragment();
+
           for (const [key, msgData] of Object.entries(cola)) {
             queueItems.push({ key: key, ...msgData });
             const itemDiv = document.createElement("div");
@@ -7292,8 +7305,9 @@
               db.ref(`campaña/teatro/cola/${key}`).remove();
             });
 
-            queueContainer.appendChild(itemDiv);
+            fragment.appendChild(itemDiv);
           }
+          queueContainer.appendChild(fragment);
 
           // Reactivar ciclo de avance continuo si estamos en dicho modo y la cola se llena
           const textBox = document.getElementById("theatre-dialogue-text");
