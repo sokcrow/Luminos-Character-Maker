@@ -1197,12 +1197,26 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // 💡 What: Pre-compute lowercase map and use DocumentFragment for Theatre Log rendering.
+          // 🎯 Why: Replaces O(N^2) `.find()` lookup inside the message loop with O(1) map lookup, and reduces DOM reflows.
+          // 📊 Impact: Significantly faster log rendering during rapid message syncing.
+          const fragment = document.createDocumentFragment();
+
+          const lowercaseActorsMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre) {
+                lowercaseActorsMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            }
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1228,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = lowercaseActorsMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1251,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
