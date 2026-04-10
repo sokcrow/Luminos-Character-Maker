@@ -4508,6 +4508,18 @@
           );
           if (pendingContainer) pendingContainer.innerHTML = "";
 
+          // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions.
+          // 💡 What: Replaced direct container appends with DocumentFragments inside the 'campaña/jugadores/' listener loop.
+          // 🎯 Why: Appending directly to the DOM in a loop causes O(n) layout reflows and repaints.
+          // 📊 Impact: Reduces DOM reflows from O(n) to O(1) per update, improving DM screen performance when player data syncs.
+          const fragPending = document.createDocumentFragment();
+          const fragJugadores = document.createDocumentFragment();
+          const fragBanco = document.createDocumentFragment();
+          const fragComms = document.createDocumentFragment();
+          const fragLoot = document.createDocumentFragment();
+          const fragReceta = document.createDocumentFragment();
+          const fragTienda = document.createDocumentFragment();
+
           // Remove cards for players that no longer exist
           if (jugadoresContainer) {
             const currentNames = Object.keys(jugadores || {});
@@ -4547,7 +4559,7 @@
                     .catch((err) => alert("Error aprobando recluta: " + err));
                 });
 
-                pendingContainer.appendChild(pendingCard);
+                fragPending.appendChild(pendingCard);
               }
 
               // --- Populate Gestión de Jugadores ---
@@ -4664,7 +4676,7 @@
                       );
                   };
 
-                  jugadoresContainer.appendChild(pCard);
+                  fragJugadores.appendChild(pCard);
                 } else {
                   // Update existing card ONLY if the inputs are not actively being focused/edited
                   const subInfo = pCard.querySelector(".player-subinfo");
@@ -4753,7 +4765,7 @@
               tarjeta.appendChild(title);
               tarjeta.appendChild(inputAhn);
               tarjeta.appendChild(btnForzar);
-              bancoContainer.appendChild(tarjeta);
+              fragBanco.appendChild(tarjeta);
             }
 
             // --- Populate Terminal de Comunicaciones Select ---
@@ -4765,7 +4777,7 @@
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                commsJugadorSelect.appendChild(option);
+                fragComms.appendChild(option);
               }
             }
 
@@ -4780,7 +4792,7 @@
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                lootJugadorSelect.appendChild(option);
+                fragLoot.appendChild(option);
               }
             }
 
@@ -4795,7 +4807,7 @@
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
-                recetaJugadores.appendChild(lbl);
+                fragReceta.appendChild(lbl);
               }
             }
 
@@ -4810,9 +4822,19 @@
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
-                tiendaJugadoresPresentes.appendChild(lbl);
+                fragTienda.appendChild(lbl);
               }
             }
+
+            // ⚡ Append fragments to containers
+            if (pendingContainer) pendingContainer.appendChild(fragPending);
+            if (jugadoresContainer) jugadoresContainer.appendChild(fragJugadores);
+            if (bancoContainer) bancoContainer.appendChild(fragBanco);
+            if (commsJugadorSelect) commsJugadorSelect.appendChild(fragComms);
+            if (lootJugadorSelect) lootJugadorSelect.appendChild(fragLoot);
+            if (recetaJugadores) recetaJugadores.appendChild(fragReceta);
+            if (tiendaJugadoresPresentes) tiendaJugadoresPresentes.appendChild(fragTienda);
+
           } else {
             bancoContainer.innerHTML =
               '<span style="color: #888;">No hay jugadores activos.</span>';

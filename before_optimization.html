@@ -1,0 +1,335 @@
+        const bancoContainer = document.getElementById(
+          "banco-jugadores-container",
+        );
+        const jugadoresContainer = document.getElementById("grid-jugadores");
+
+        db.ref("campaña/jugadores/").on("value", (snapshot) => {
+          bancoContainer.innerHTML = "";
+          const jugadores = snapshot.val();
+          window.jugadoresData = jugadores; // Guarda para el modal
+
+          const pendingContainer = document.getElementById(
+            "grid-reclutas-pendientes",
+          );
+          if (pendingContainer) pendingContainer.innerHTML = "";
+
+          // Remove cards for players that no longer exist
+          if (jugadoresContainer) {
+            const currentNames = Object.keys(jugadores || {});
+            const existingCards = jugadoresContainer.querySelectorAll(
+              '[id^="player-card-"]',
+            );
+            existingCards.forEach((card) => {
+              const cardName = card.id.replace("player-card-", "");
+              if (!currentNames.includes(cardName)) {
+                card.remove();
+              }
+            });
+          }
+
+          if (jugadores) {
+            for (const [nombre, data] of Object.entries(jugadores)) {
+              // --- Populate Control de Acceso ---
+              if (data.status === "pending" && pendingContainer) {
+                const pendingCard = document.createElement("div");
+                pendingCard.className = "card-cyber card-store";
+                pendingCard.style.cssText =
+                  "display: flex; flex-direction: column; align-items: center; padding: 15px; width: 250px;";
+                pendingCard.innerHTML = `
+                <h4 style="color:#FFD700; margin:0 0 10px 0;">${nombre}</h4>
+                <p style="color:#aaa; font-size:12px; margin:0 0 15px 0;">UID: ${data.uid}</p>
+                <button class="btn-aprobar-recluta" data-id="${nombre}" style="background:#004400; color:#fff; border:1px solid #00ff00; padding:10px; font-weight:bold; cursor:pointer; width:100%; border-radius:4px;">[AUTORIZAR RECLUTA]</button>
+              `;
+
+                const btnAprobar = pendingCard.querySelector(
+                  ".btn-aprobar-recluta",
+                );
+                btnAprobar.addEventListener("click", (e) => {
+                  const pId = e.target.getAttribute("data-id");
+                  db.ref(`campaña/jugadores/${pId}`)
+                    .update({ status: "approved" })
+                    .then(() => alert(`Recluta ${pId} aprobado.`))
+                    .catch((err) => alert("Error aprobando recluta: " + err));
+                });
+
+                pendingContainer.appendChild(pendingCard);
+              }
+
+              // --- Populate Gestión de Jugadores ---
+              if (jugadoresContainer) {
+                // Check if card already exists
+                let pCard = document.getElementById(`player-card-${nombre}`);
+
+                const perfil = data.perfil || {};
+                const lvl = data.level || perfil.level || 1;
+                const xp = data.xp || perfil.xp || 0;
+
+                const combatStats = data.combatStats || {};
+                const hpBase =
+                  combatStats.hp_base || data.hp_base || perfil.hp_base || 0;
+                const hpCoef =
+                  combatStats.hp_coefficient || data.hp_coefficient || 0;
+                const defLvlMod = combatStats.def_lvl_mod || 0;
+                const totalDefLvl = lvl + defLvlMod;
+                const hpMax =
+                  combatStats.hp_max ||
+                  data.hp_max ||
+                  perfil.hp_max ||
+                  Math.floor(hpBase + totalDefLvl * hpCoef) ||
+                  0;
+                const hpActual =
+                  combatStats.hp_actual !== undefined
+                    ? combatStats.hp_actual
+                    : hpMax;
+
+                const clase = data.class || perfil.clase || "Desconocida";
+                const raza = data.race || perfil.raza || "Desconocida";
+
+                if (!pCard) {
+                  pCard = document.createElement("div");
+                  pCard.id = `player-card-${nombre}`;
+                  pCard.style.cssText =
+                    "background: #0a0a0a; padding: 10px; border-radius: 0; border: 1px solid #0df; display: flex; flex-direction: column; gap: 10px; width: 300px; position: relative; box-shadow: 0 0 10px rgba(139, 0, 0, 0.4);";
+
+                  const isOnline = data.online === true;
+                  const onlineIndicator = isOnline
+                    ? '<span style="color: #00ff00; text-shadow: 0 0 5px #00ff00; font-size: 0.8em; margin-left: 5px;">● Online</span>'
+                    : '<span style="color: #555; font-size: 0.8em; margin-left: 5px;">● Offline</span>';
+
+                  pCard.innerHTML = `
+                      <h4 style="margin: 0; color: #0df; font-family: 'BebasKai', sans-serif; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: center; align-items: center;">
+                          ${nombre}
+                          <span class="player-online-indicator">${onlineIndicator}</span>
+                      </h4>
+
+                      <img src="${data.icono_jugador || "https://via.placeholder.com/60/222222/00ddff?text=" + nombre.charAt(0)}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; margin: 10px auto 0 auto; display: block; border: 2px solid #0df;">
+
+                      <div class="player-subinfo" style="font-size: 0.85em; color: #aaa; text-align: center; margin-bottom: 5px; margin-top: 5px;">${clase} | ${raza}</div>
+                      <div style="text-align:center; color:#FFD700; font-weight:bold; margin-bottom: 10px;"><span class="currency-symbol">₳</span> <span class="player-ahn">${data.ahn || 0}</span></div>
+
+                      <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
+                          <input type="text" class="dm-edit-name" value="${data.characterName || ""}" placeholder="Nombre Personaje" style="width: 100%; box-sizing: border-box; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-family:'BebasKai', sans-serif;">
+                          <input type="url" class="dm-edit-icon" value="${data.icono_jugador || ""}" placeholder="URL Ícono de Vitales" style="width: 100%; box-sizing: border-box; padding:4px; background:#111; color:#0df; border:1px solid #0df; border-radius:3px; text-align:center; font-size:10px;">
+                          <button class="btn-save-name" data-id="${nombre}" style="background: #222; color: #0df; border: 1px solid #0df; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size:12px;">Guardar Datos</button>
+                      </div>
+
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">Level:</label>
+                              <span class="player-lvl" style="color: #fff; font-weight: bold;">${lvl}</span>
+                          </div>
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">XP:</label>
+                              <span class="player-xp" style="color: #fff; font-weight: bold;">${xp}</span>
+                          </div>
+                      </div>
+
+                      <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">HP:</label>
+                              <span style="color: #ff4444; font-weight: bold;"><span class="player-hp-actual">${hpActual}</span> / <span class="player-hp-max">${hpMax}</span></span>
+                          </div>
+                          <div style="display: flex; flex-direction: column; width: 50%;">
+                              <label style="color:#c49a00; font-size:12px;">SP:</label>
+                              <span class="player-sp" style="color: #00ddff; font-weight: bold;">${combatStats.sp_actual || 0}</span>
+                          </div>
+                      </div>
+
+                      <button class="btn-cyber btn-open-modal" data-id="${nombre}" style="margin-top: 5px; background: #8b0000; color: white; border: 1px solid #ff4444; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-family: 'BebasKai', sans-serif;">⚙️ Editar Stats de Combate</button>
+                      <button class="btn-ver-inventario" data-player="${nombre}" style="margin-top: 5px; background: #222; color: #0df; border: 1px solid #0df; padding: 8px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s;">Ver Inventario</button>
+                  `;
+
+                  const btnGuardarNombre =
+                    pCard.querySelector(".btn-save-name");
+                  const inputNombre = pCard.querySelector(".dm-edit-name");
+                  const inputIcono = pCard.querySelector(".dm-edit-icon"); // <--- NUEVO SELECTOR
+
+                  btnGuardarNombre.onclick = () => {
+                    const nuevoNombre = inputNombre.value;
+                    const nuevoIcono = inputIcono.value; // <--- NUEVO VALOR
+
+                    db.ref(`campaña/jugadores/${nombre}`)
+                      .update({
+                        characterName: nuevoNombre,
+                        icono_jugador: nuevoIcono, // <--- GUARDAR EN FIREBASE
+                      })
+                      .then(() => {
+                        const oldText = btnGuardarNombre.innerText;
+                        btnGuardarNombre.innerText = "¡Guardado!";
+                        btnGuardarNombre.style.background = "#0df";
+                        btnGuardarNombre.style.color = "#000";
+                        setTimeout(() => {
+                          btnGuardarNombre.innerText = oldText;
+                          btnGuardarNombre.style.background = "#222";
+                          btnGuardarNombre.style.color = "#0df";
+                        }, 1000);
+                      })
+                      .catch((e) =>
+                        console.error("Error al actualizar datos:", e),
+                      );
+                  };
+
+                  jugadoresContainer.appendChild(pCard);
+                } else {
+                  // Update existing card ONLY if the inputs are not actively being focused/edited
+                  const subInfo = pCard.querySelector(".player-subinfo");
+                  const nameInput = pCard.querySelector(".dm-edit-name");
+
+                  if (nameInput && document.activeElement !== nameInput)
+                    nameInput.value = data.characterName || "";
+                  subInfo.innerText = `${clase} | ${raza}`;
+
+                  const onlineIndicatorEl = pCard.querySelector(
+                    ".player-online-indicator",
+                  );
+                  if (onlineIndicatorEl) {
+                    const isOnline = data.online === true;
+                    onlineIndicatorEl.innerHTML = isOnline
+                      ? '<span style="color: #00ff00; text-shadow: 0 0 5px #00ff00; font-size: 0.8em; margin-left: 5px;">● Online</span>'
+                      : '<span style="color: #555; font-size: 0.8em; margin-left: 5px;">● Offline</span>';
+                  }
+
+                  const ahnDisplay = pCard.querySelector(".player-ahn");
+                  if (ahnDisplay) ahnDisplay.innerText = data.ahn || 0;
+
+                  const lvlDisplay = pCard.querySelector(".player-lvl");
+                  if (lvlDisplay) lvlDisplay.innerText = lvl;
+
+                  const xpDisplay = pCard.querySelector(".player-xp");
+                  if (xpDisplay) xpDisplay.innerText = xp;
+
+                  const hpActualDisplay =
+                    pCard.querySelector(".player-hp-actual");
+                  if (hpActualDisplay) hpActualDisplay.innerText = hpActual;
+
+                  const hpMaxDisplay = pCard.querySelector(".player-hp-max");
+                  if (hpMaxDisplay) hpMaxDisplay.innerText = hpMax;
+
+                  const spDisplay = pCard.querySelector(".player-sp");
+                  if (spDisplay)
+                    spDisplay.innerText = combatStats.sp_actual || 0;
+                }
+              }
+              const tarjeta = document.createElement("div");
+              tarjeta.style.cssText =
+                "background: #222; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 200px; position: relative;";
+
+              const btnEliminar = document.createElement("button");
+              btnEliminar.innerText = "🗑️";
+              btnEliminar.title = "Eliminar Jugador";
+              btnEliminar.style.cssText =
+                "position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;";
+              btnEliminar.onclick = () => {
+                if (
+                  confirm(
+                    `¿Estás seguro de que deseas eliminar permanentemente al jugador "${nombre}"? Esta acción no se puede deshacer.`,
+                  )
+                ) {
+                  db.ref(`campaña/jugadores/${nombre}`)
+                    .remove()
+                    .then(() => alert(`Jugador ${nombre} eliminado.`))
+                    .catch((e) => alert("Error al eliminar jugador: " + e));
+                }
+              };
+
+              const title = document.createElement("strong");
+              title.style.color = "#fff";
+              title.innerText = nombre;
+
+              const inputAhn = document.createElement("input");
+              inputAhn.type = "number";
+              inputAhn.value = data.ahn || 0;
+              inputAhn.style.cssText =
+                "padding: 5px; width: 80%; text-align: center; background: #111; color: #0df; border: 1px solid #c49a00; border-radius: 3px; font-size: 16px; font-weight: bold;";
+
+              const btnForzar = document.createElement("button");
+              btnForzar.innerText = "Forzar Transacción";
+              btnForzar.style.cssText =
+                "background: #8b0000; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; width: 100%;";
+              btnForzar.onclick = () => {
+                const nuevoAhn = parseInt(inputAhn.value) || 0;
+                db.ref(`campaña/jugadores/${nombre}`)
+                  .update({ ahn: nuevoAhn })
+                  .then(() => alert(`Ahn actualizado para ${nombre}`))
+                  .catch((e) => alert("Error: " + e));
+              };
+
+              tarjeta.appendChild(btnEliminar);
+              tarjeta.appendChild(title);
+              tarjeta.appendChild(inputAhn);
+              tarjeta.appendChild(btnForzar);
+              bancoContainer.appendChild(tarjeta);
+            }
+
+            // --- Populate Terminal de Comunicaciones Select ---
+            const commsJugadorSelect = document.getElementById("comms-jugador");
+            if (commsJugadorSelect) {
+              commsJugadorSelect.innerHTML =
+                '<option value="">Selecciona Jugador...</option>';
+              for (const nombre of Object.keys(jugadores)) {
+                const option = document.createElement("option");
+                option.value = nombre;
+                option.textContent = nombre;
+                commsJugadorSelect.appendChild(option);
+              }
+            }
+
+            // --- Populate Generador de Botín Jugador Select ---
+            const lootJugadorSelect = document.getElementById(
+              "loot-select-jugador",
+            );
+            if (lootJugadorSelect) {
+              lootJugadorSelect.innerHTML =
+                '<option value="">Selecciona Jugador...</option>';
+              for (const nombre of Object.keys(jugadores)) {
+                const option = document.createElement("option");
+                option.value = nombre;
+                option.textContent = nombre;
+                lootJugadorSelect.appendChild(option);
+              }
+            }
+
+            // --- Populate Recetas Checkboxes ---
+            const recetaJugadores = document.getElementById(
+              "lista-check-jugadores",
+            );
+            if (recetaJugadores) {
+              recetaJugadores.innerHTML = "";
+              for (const nombre of Object.keys(jugadores)) {
+                const lbl = document.createElement("label");
+                lbl.style.cssText =
+                  "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
+                lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
+                recetaJugadores.appendChild(lbl);
+              }
+            }
+
+            // --- Populate Tienda Jugadores Presentes Checkboxes ---
+            const tiendaJugadoresPresentes = document.getElementById(
+              "tienda-jugadores-presentes",
+            );
+            if (tiendaJugadoresPresentes) {
+              tiendaJugadoresPresentes.innerHTML = "";
+              for (const nombre of Object.keys(jugadores)) {
+                const lbl = document.createElement("label");
+                lbl.style.cssText =
+                  "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
+                lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
+                tiendaJugadoresPresentes.appendChild(lbl);
+              }
+            }
+          } else {
+            bancoContainer.innerHTML =
+              '<span style="color: #888;">No hay jugadores activos.</span>';
+            const tiendaJugadoresPresentes = document.getElementById(
+              "tienda-jugadores-presentes",
+            );
+            if (tiendaJugadoresPresentes)
+              tiendaJugadoresPresentes.innerHTML =
+                '<span style="color:#888; font-size:12px;">Sin jugadores</span>';
+          }
+        });
+
+        // --- TERMINAL DE COMUNICACIONES LOGIC ---
+        document
+          .getElementById("btn-enviar-mail")

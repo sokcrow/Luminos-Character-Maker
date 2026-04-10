@@ -1,0 +1,4 @@
+127.0.0.1 - - [10/Apr/2026 14:08:14] "GET /pantalla_dm.html HTTP/1.1" 200 -
+127.0.0.1 - - [10/Apr/2026 14:08:14] "GET /Assets/Images/Buttons/Auto%20Dialog.svg HTTP/1.1" 200 -
+127.0.0.1 - - [10/Apr/2026 14:08:14] "GET /js/utils.js HTTP/1.1" 200 -
+127.0.0.1 - - [10/Apr/2026 14:08:15] "GET /Fonts/BebasKai.otf HTTP/1.1" 200 -
