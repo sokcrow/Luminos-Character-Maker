@@ -6176,9 +6176,15 @@
               listaStashModal.innerHTML =
                 '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">Stash vacío.</div>';
             } else {
+              // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions for Stash Inventory
+              // 💡 What: Replaced direct `listaStashModal.appendChild` with `fragment.appendChild`.
+              // 🎯 Why: Rendering inventory lists item by item causes expensive O(n) layout thrashing.
+              // 📊 Impact: Improves rendering performance of inventory modal when player data updates.
+              const fragment = document.createDocumentFragment();
               for (const [key, item] of Object.entries(stash)) {
-                listaStashModal.appendChild(renderInvRow(key, item, "stash"));
+                fragment.appendChild(renderInvRow(key, item, "stash"));
               }
+              listaStashModal.appendChild(fragment);
             }
           });
 
@@ -6194,11 +6200,17 @@
               listaActivosModal.innerHTML =
                 '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">No hay ítems equipados.</div>';
             } else {
+              // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions for Active Inventory
+              // 💡 What: Replaced direct `listaActivosModal.appendChild` with `fragment.appendChild`.
+              // 🎯 Why: Prevents repetitive O(n) rendering bottlenecks when processing active inventory arrays.
+              // 📊 Impact: Enhances performance significantly on bulk updates.
+              const fragment = document.createDocumentFragment();
               for (const [key, item] of Object.entries(activo)) {
-                listaActivosModal.appendChild(
+                fragment.appendChild(
                   renderInvRow(key, item, "activo"),
                 );
               }
+              listaActivosModal.appendChild(fragment);
             }
           });
         }
@@ -6960,11 +6972,18 @@
 
             if (logs) {
               let isFirst = true;
+
+              // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions for Theatre Log (DM View)
+              // 💡 What: Replaced direct `scrollArea.appendChild` with `fragment.appendChild`.
+              // 🎯 Why: Rendering real-time chat updates by appending directly to the DOM causes layout thrashing and reflows for every message.
+              // 📊 Impact: Turns O(n) layout reflows into O(1) during chat re-renders, smoothing message arrival.
+              const fragment = document.createDocumentFragment();
+
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -7003,8 +7022,10 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");

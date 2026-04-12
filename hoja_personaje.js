@@ -1198,11 +1198,18 @@ function initializeCharacterSheet() {
 
         if (logs) {
           let isFirst = true;
+
+          // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions for Theatre Log
+          // 💡 What: Replaced direct `scrollArea.appendChild` with `fragment.appendChild`.
+          // 🎯 Why: Rendering real-time chat updates by appending directly to the DOM causes layout thrashing and reflows for every message.
+          // 📊 Impact: Turns O(n) layout reflows into O(1) during chat re-renders, smoothing message arrival.
+          const fragment = document.createDocumentFragment();
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1242,8 +1249,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
