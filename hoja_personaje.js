@@ -741,6 +741,23 @@ function renderCharacterSheet(data) {
   });
 
   // Update all skill rows (Base, Mod, Total)
+  // ⚡ Bolt Optimization: Pre-compute hashmaps for O(1) lookups instead of O(N²) loop inside .forEach
+  // 💡 What: Created lowercased maps of baseStats and modifiers outside the skillRows loop.
+  // 🎯 Why: Using Object.keys().find() inside a loop causes O(N²) behavior, lagging the UI during Firebase real-time data syncs.
+  // 📊 Impact: Turns O(N²) key lookups into O(1) lookups. Reduces CPU overhead significantly on large character sheets.
+  const lowerBaseStats = {};
+  if (data.baseStats) {
+    for (const [k, v] of Object.entries(data.baseStats)) {
+      lowerBaseStats[k.toLowerCase()] = v;
+    }
+  }
+  const lowerModifiers = {};
+  if (data.modifiers) {
+    for (const [k, v] of Object.entries(data.modifiers)) {
+      lowerModifiers[k.toLowerCase()] = v;
+    }
+  }
+
   const skillRows = document.querySelectorAll(".sheet-skill-row");
   skillRows.forEach((row) => {
     const btn = row.querySelector(".sheet-roll-skill-btn");
@@ -758,18 +775,19 @@ function renderCharacterSheet(data) {
           data[`skill_${skillNameRaw}_base`] === undefined &&
           data.baseStats
         ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
+          const lowerSkill = skillNameRaw.toLowerCase();
+          if (lowerBaseStats[lowerSkill] !== undefined) {
+            bVal = parseInt(lowerBaseStats[lowerSkill]) || 0;
+          }
         }
         if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
+          const lowerSkill = skillNameRaw.toLowerCase();
+          const lowerSkillWithPrefix = `skill_${lowerSkill}`;
+          if (lowerModifiers[lowerSkillWithPrefix] !== undefined) {
+            mVal = parseInt(lowerModifiers[lowerSkillWithPrefix]) || 0;
+          } else if (lowerModifiers[lowerSkill] !== undefined) {
+            mVal = parseInt(lowerModifiers[lowerSkill]) || 0;
+          }
         }
 
         // ⚡ Bolt Optimization: Skip DOM updates for unchanged skills
@@ -3051,6 +3069,11 @@ function initializeCharacterSheet() {
         let modVal = 0;
 
         if (pd) {
+          // Note: Since this is inside a single-event click listener, allocating full maps
+          // introduces unnecessary memory overhead and garbage collection pauses.
+          // We use standard case-insensitive lookups via Object.keys().find() as per memory instructions
+          // since this only runs once per user click, NOT in a rendering loop.
+
           // For Core Stats (cuerpo, mente, alma)
           if (
             ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
