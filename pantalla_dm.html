@@ -6960,11 +6960,23 @@
 
             if (logs) {
               let isFirst = true;
+              const fragment = document.createDocumentFragment();
+
+              // 💡 What: O(1) map lookup for actors instead of O(N) find inside loop
+              const actorsMap = new Map();
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                Object.values(dbActoresCache).forEach((actor) => {
+                  if (actor.nombre) {
+                    actorsMap.set(actor.nombre.toLowerCase(), actor);
+                  }
+                });
+              }
+
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -6975,13 +6987,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
+                if (msg.nombre) {
+                  const actorMatch = actorsMap.get(msg.nombre.toLowerCase());
                   if (actorMatch && actorMatch.icono) {
                     dynamicIcon = actorMatch.icono;
                   }
@@ -7003,8 +7010,11 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+
+              // 💡 What: Append all messages at once using a DocumentFragment
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");
