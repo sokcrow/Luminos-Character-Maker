@@ -5884,6 +5884,12 @@
           listaItemsModal.innerHTML = "";
           const itemsTienda = dataTienda.items || {};
 
+          // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions.
+          // 💡 What: Replaced direct `listaItemsModal.appendChild` with `fragment.appendChild`.
+          // 🎯 Why: Appending directly to the DOM in a loop causes O(n) layout reflows and repaints.
+          // 📊 Impact: Reduces DOM reflows from O(n) to O(1) per render loop, improving modal load speed when store has many items.
+          const fragment = document.createDocumentFragment();
+
           // Iterar sobre TODOS los ítems globales para mostrarlos
           for (const [keyItem, dataGlobal] of Object.entries(dbItemsCache)) {
             const itemEnTienda = itemsTienda[keyItem]; // Existe en la tienda?
@@ -5943,8 +5949,10 @@
                 </label>
             `;
 
-            listaItemsModal.appendChild(row);
+            fragment.appendChild(row);
           }
+
+          listaItemsModal.appendChild(fragment);
 
           modalEditar.style.display = "flex";
         }
