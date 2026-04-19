@@ -1197,12 +1197,28 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // ⚡ Bolt Optimization: O(1) Lookups & DocumentFragment
+          // 💡 What: Pre-computed lowercase actor names hashmap and batched DOM inserts via DocumentFragment.
+          // 🎯 Why: Using Object.values().find() inside a loop causes O(N²) iterations, and direct DOM appends cause O(N) reflows.
+          // 📊 Impact: Turns O(N²) lookups into O(1), and reduces DOM layout reflows from O(N) to O(1) for faster chat log rendering.
+
+          let actorMap = {};
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre) {
+                actorMap[actor.nombre.toLowerCase()] = actor;
+              }
+            }
+          }
+
+          const fragment = document.createDocumentFragment();
           let isFirst = true;
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1230,9 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const msgNameLower = msg.nombre.toLowerCase();
+              const actorMatch = actorMap[msgNameLower];
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1254,10 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
