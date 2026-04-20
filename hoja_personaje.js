@@ -742,6 +742,25 @@ function renderCharacterSheet(data) {
 
   // Update all skill rows (Base, Mod, Total)
   const skillRows = document.querySelectorAll(".sheet-skill-row");
+
+  // ⚡ Bolt Optimization: Pre-compute lowercase hashmaps for O(1) lookups
+  // 💡 What: Created baseStatsLower and modifiersLower before the skillRows loop.
+  // 🎯 Why: Using Object.keys(obj).find() inside a loop over DOM elements is O(N*K) and causes performance bottlenecks during frequent Firebase real-time syncs.
+  // 📊 Impact: Changes O(N^2) lookups to O(1) per row, significantly reducing UI blocking during render updates.
+  const baseStatsLower = {};
+  if (data.baseStats) {
+    for (const k of Object.keys(data.baseStats)) {
+      baseStatsLower[k.toLowerCase()] = data.baseStats[k];
+    }
+  }
+
+  const modifiersLower = {};
+  if (data.modifiers) {
+    for (const k of Object.keys(data.modifiers)) {
+      modifiersLower[k.toLowerCase()] = data.modifiers[k];
+    }
+  }
+
   skillRows.forEach((row) => {
     const btn = row.querySelector(".sheet-roll-skill-btn");
     if (btn) {
@@ -758,18 +777,15 @@ function renderCharacterSheet(data) {
           data[`skill_${skillNameRaw}_base`] === undefined &&
           data.baseStats
         ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
+          const bValStr = baseStatsLower[skillNameRaw.toLowerCase()];
+          if (bValStr !== undefined) bVal = parseInt(bValStr) || 0;
         }
         if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
-          if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
+          let mValStr = modifiersLower[`skill_${skillNameRaw}`.toLowerCase()];
+          if (mValStr === undefined) {
+             mValStr = modifiersLower[skillNameRaw.toLowerCase()];
+          }
+          if (mValStr !== undefined) mVal = parseInt(mValStr) || 0;
         }
 
         // ⚡ Bolt Optimization: Skip DOM updates for unchanged skills
