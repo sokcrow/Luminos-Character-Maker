@@ -1197,12 +1197,25 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // ⚡ Bolt: Prevent O(N) layout reflows by using DocumentFragment
+          const fragment = document.createDocumentFragment();
+
+          // ⚡ Bolt: Pre-compute actor map for O(1) lookups instead of O(N²) array searches inside loop
+          const actorMap = new Map();
+          if (window.allActoresCache) {
+            Object.values(window.allActoresCache).forEach((actor) => {
+              if (actor.nombre) {
+                actorMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            });
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1227,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actorMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1250,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
