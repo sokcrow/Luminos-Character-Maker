@@ -6959,6 +6959,16 @@
             }
 
             if (logs) {
+              // ⚡ Bolt Optimization: Pre-compute lowercase map for O(1) lookups inside rendering loops
+              const actoresMap = {};
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                for (const actor of Object.values(dbActoresCache)) {
+                  if (actor && actor.nombre) {
+                    actoresMap[actor.nombre.toLowerCase()] = actor;
+                  }
+                }
+              }
+
               let isFirst = true;
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
@@ -6975,13 +6985,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
+                if (msg.nombre) {
+                  const actorMatch = actoresMap[msg.nombre.toLowerCase()];
                   if (actorMatch && actorMatch.icono) {
                     dynamicIcon = actorMatch.icono;
                   }

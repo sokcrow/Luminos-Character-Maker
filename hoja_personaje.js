@@ -741,6 +741,20 @@ function renderCharacterSheet(data) {
   });
 
   // Update all skill rows (Base, Mod, Total)
+  // ⚡ Bolt Optimization: Pre-compute lowercase map for O(1) lookups inside rendering loops
+  const baseStatsLower = {};
+  if (data.baseStats) {
+    for (const key of Object.keys(data.baseStats)) {
+      baseStatsLower[key.toLowerCase()] = key;
+    }
+  }
+  const modifiersLower = {};
+  if (data.modifiers) {
+    for (const key of Object.keys(data.modifiers)) {
+      modifiersLower[key.toLowerCase()] = key;
+    }
+  }
+
   const skillRows = document.querySelectorAll(".sheet-skill-row");
   skillRows.forEach((row) => {
     const btn = row.querySelector(".sheet-roll-skill-btn");
@@ -748,6 +762,7 @@ function renderCharacterSheet(data) {
       const actName = btn.getAttribute("name");
       if (actName && actName.startsWith("act_roll_skill_")) {
         const skillNameRaw = actName.replace("act_roll_skill_", "");
+        const skillNameLower = skillNameRaw.toLowerCase();
         let bVal = parseInt(data[`skill_${skillNameRaw}_base`]);
         bVal = !isNaN(bVal) ? bVal : 0;
         let mVal = parseInt(data[`skill_${skillNameRaw}_mod`]);
@@ -758,17 +773,11 @@ function renderCharacterSheet(data) {
           data[`skill_${skillNameRaw}_base`] === undefined &&
           data.baseStats
         ) {
-          const baseKey = Object.keys(data.baseStats).find(
-            (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const baseKey = baseStatsLower[skillNameLower];
           if (baseKey) bVal = parseInt(data.baseStats[baseKey]) || 0;
         }
         if (data[`skill_${skillNameRaw}_mod`] === undefined && data.modifiers) {
-          const modKey = Object.keys(data.modifiers).find(
-            (k) =>
-              k.toLowerCase() === `skill_${skillNameRaw}`.toLowerCase() ||
-              k.toLowerCase() === skillNameRaw.toLowerCase(),
-          );
+          const modKey = modifiersLower[`skill_${skillNameLower}`] || modifiersLower[skillNameLower];
           if (modKey) mVal = parseInt(data.modifiers[modKey]) || 0;
         }
 
@@ -1197,6 +1206,16 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // ⚡ Bolt Optimization: Pre-compute lowercase map for O(1) lookups inside rendering loops
+          const actoresMap = {};
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor && actor.nombre) {
+                actoresMap[actor.nombre.toLowerCase()] = actor;
+              }
+            }
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
@@ -1214,13 +1233,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actoresMap[msg.nombre.toLowerCase()];
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
