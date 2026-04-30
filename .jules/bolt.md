@@ -5,3 +5,7 @@
 ## 2025-03-26 - [DOM Attribute Thrashing in renderCharacterSheet]
 **Learning:** Found that assigning `.innerText` or `.value` unconditionally inside high-frequency real-time `on('value')` listeners (like Firebase data sync) causes unnecessary DOM layout recalculations and repaints, even if the value string hasn't changed.
 **Action:** Introduced strict equality checks (e.g., `if (el.innerText !== String(newVal))`) before applying data to DOM node attributes during iterative render loops.
+
+## 2025-04-30 - [O(N*M) Firebase Listener Lookup Replacements]
+**Learning:** Found O(N*M) complexity (messages × actors) in real-time Firebase rendering loops (`campaña/teatro/log` in `hoja_personaje.js` and `pantalla_dm.html`) caused by `Object.values(cache).find(...)` being called on every message.
+**Action:** Replaced iterative array `.find()` inside rendering loops with a pre-computed O(1) hash map (`actorsByName`) built outside the loop.
