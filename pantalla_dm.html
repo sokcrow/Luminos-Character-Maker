@@ -2714,11 +2714,13 @@
             </div>
             <div style="display: flex; flex-direction: column">
               <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
-                >ACTION SLOTS</label
+                >SP MAX</label
               >
               <input
                 type="number"
-                id="dm-action-slots"
+                id="dm-sp-max"
+                min="0"
+                max="99"
                 style="
                   padding: 5px;
                   background: #222;
@@ -2728,15 +2730,14 @@
                 "
               />
             </div>
-            <div
-              style="display: flex; flex-direction: column; grid-column: span 2"
-            >
+
+            <div style="display: flex; flex-direction: column">
               <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
-                >UMBRALES STAGGER (Ej: 70, 40)</label
+                >ARMOR CLASS (AC)</label
               >
               <input
-                type="text"
-                id="dm-stagger"
+                type="number"
+                id="dm-ac"
                 style="
                   padding: 5px;
                   background: #222;
@@ -2746,8 +2747,129 @@
                 "
               />
             </div>
+            <div style="display: flex; flex-direction: column">
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >SPEED (Velocidad)</label
+              >
+              <input
+                type="number"
+                id="dm-speed"
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              />
+            </div>
+            <div style="display: flex; flex-direction: column">
+              <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+                >INITIATIVE (Iniciativa)</label
+              >
+              <input
+                type="number"
+                id="dm-initiative"
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #444;
+                  border-radius: 3px;
+                "
+              />
+            </div>
+
+            <!-- D&D 5E STATS (BASE & BONUS) -->
+            <div style="grid-column: span 2; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
+              <h4 style="color: #0df; margin: 0 0 10px 0; font-family: 'BebasKai', sans-serif;">ESTADÍSTICAS D&D 5E</h4>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <!-- STR -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">FUERZA</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-str-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-str-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+                <!-- DEX -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">DESTREZA</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-dex-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-dex-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+                <!-- CON -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">CONSTITUCIÓN</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-con-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-con-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+                <!-- INT -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">INTELIGENCIA</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-int-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-int-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+                <!-- WIS -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">SABIDURÍA</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-wis-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-wis-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+                <!-- CHA -->
+                <div style="display: flex; flex-direction: column; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;">
+                  <label style="color: #c49a00; font-size: 12px; text-align: center;">CARISMA</label>
+                  <div style="display: flex; gap: 5px;">
+                    <input type="number" id="dm-stat-cha-base" placeholder="Base" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                    <input type="number" id="dm-stat-cha-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <div style="display: flex; flex-direction: column; grid-column: span 2; margin-top: 10px;">
+            <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+              >ACTION SLOTS (Legado)</label
+            >
+            <input
+              type="number"
+              id="dm-action-slots"
+              style="
+                padding: 5px;
+                background: #222;
+                color: #fff;
+                border: 1px solid #444;
+                border-radius: 3px;
+              "
+            />
+          </div>
+          <div
+            style="display: flex; flex-direction: column; grid-column: span 2"
+          >
+            <label style="color: #c49a00; font-size: 12px; margin-bottom: 5px"
+              >UMBRALES STAGGER (Ej: 70, 40) (Legado)</label
+            >
+            <input
+              type="text"
+              id="dm-stagger"
+              style="
+                padding: 5px;
+                background: #222;
+                color: #fff;
+                border: 1px solid #444;
+                border-radius: 3px;
+              "
+            />
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
             <button
               id="btn-close-modal"
               style="
@@ -7732,8 +7854,28 @@
             document.getElementById("dm-off-lvl").value =
               combatStats.off_lvl_mod || 0;
             document.getElementById("dm-sp").value = combatStats.sp_actual || 0;
+            document.getElementById("dm-sp-max").value = combatStats.sp_max || 45;
             document.getElementById("dm-action-slots").value =
               combatStats.action_slots || 1;
+            document.getElementById("dm-ac").value = combatStats.ac || 10;
+            document.getElementById("dm-speed").value = combatStats.speed || 30;
+            document.getElementById("dm-initiative").value = combatStats.initiative || 0;
+
+            const statsObj = combatStats.stats || {};
+            const safeStat = (statName) => statsObj[statName] || { base: 10, bonus: 0 };
+
+            document.getElementById("dm-stat-str-base").value = safeStat('fuerza').base;
+            document.getElementById("dm-stat-str-bonus").value = safeStat('fuerza').bonus;
+            document.getElementById("dm-stat-dex-base").value = safeStat('destreza').base;
+            document.getElementById("dm-stat-dex-bonus").value = safeStat('destreza').bonus;
+            document.getElementById("dm-stat-con-base").value = safeStat('constitucion').base;
+            document.getElementById("dm-stat-con-bonus").value = safeStat('constitucion').bonus;
+            document.getElementById("dm-stat-int-base").value = safeStat('inteligencia').base;
+            document.getElementById("dm-stat-int-bonus").value = safeStat('inteligencia').bonus;
+            document.getElementById("dm-stat-wis-base").value = safeStat('sabiduria').base;
+            document.getElementById("dm-stat-wis-bonus").value = safeStat('sabiduria').bonus;
+            document.getElementById("dm-stat-cha-base").value = safeStat('carisma').base;
+            document.getElementById("dm-stat-cha-bonus").value = safeStat('carisma').bonus;
 
             // Stagger es array, convertir a string para el input
             let staggerVal = "";
@@ -7772,12 +7914,25 @@
             const offLvl =
               parseInt(document.getElementById("dm-off-lvl").value) || 0;
             let sp = parseInt(document.getElementById("dm-sp").value) || 0;
+            let spMax = parseInt(document.getElementById("dm-sp-max").value) || 45;
             const actionSlots =
               parseInt(document.getElementById("dm-action-slots").value) || 1;
             const staggerStr = document.getElementById("dm-stagger").value;
+            const ac = parseInt(document.getElementById("dm-ac").value) || 10;
+            const speed = parseInt(document.getElementById("dm-speed").value) || 30;
+            const initiative = parseInt(document.getElementById("dm-initiative").value) || 0;
+
+            const newStatsObj = {
+              fuerza: { base: parseInt(document.getElementById("dm-stat-str-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-str-bonus").value) || 0 },
+              destreza: { base: parseInt(document.getElementById("dm-stat-dex-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-dex-bonus").value) || 0 },
+              constitucion: { base: parseInt(document.getElementById("dm-stat-con-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-con-bonus").value) || 0 },
+              inteligencia: { base: parseInt(document.getElementById("dm-stat-int-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-int-bonus").value) || 0 },
+              sabiduria: { base: parseInt(document.getElementById("dm-stat-wis-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-wis-bonus").value) || 0 },
+              carisma: { base: parseInt(document.getElementById("dm-stat-cha-base").value) || 10, bonus: parseInt(document.getElementById("dm-stat-cha-bonus").value) || 0 }
+            };
 
             // Forzar rango matemático
-            sp = Math.max(-45, Math.min(45, sp));
+            sp = Math.max(-spMax, Math.min(spMax, sp));
 
             // Convertir string de stagger a array de números
             let staggerArr = [];
@@ -7830,6 +7985,9 @@
             updates[`campaña/jugadores/${activePlayerIdForModal}/hp_max`] =
               hpMax;
 
+            // Mantener array actual de combat_actions o usar un default inicial preparativo
+            const currentCombatActions = (window.jugadoresData && window.jugadoresData[activePlayerIdForModal] && window.jugadoresData[activePlayerIdForModal].combatStats && window.jugadoresData[activePlayerIdForModal].combatStats.combat_actions) || [];
+
             // Actualizar el nodo de combatStats (sobreescribe completo)
             updates[`campaña/jugadores/${activePlayerIdForModal}/combatStats`] =
               {
@@ -7840,8 +7998,14 @@
                 def_lvl_mod: defLvl,
                 off_lvl_mod: offLvl,
                 sp_actual: sp,
+                sp_max: spMax,
                 action_slots: actionSlots,
                 stagger_thresholds: staggerArr,
+                ac: ac,
+                speed: speed,
+                initiative: initiative,
+                stats: newStatsObj,
+                combat_actions: currentCombatActions
               };
 
             db.ref()

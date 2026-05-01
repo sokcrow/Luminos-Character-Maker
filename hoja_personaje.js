@@ -946,6 +946,39 @@ function renderCharacterSheet(data) {
   if (hudSpDisplay) {
     hudSpDisplay.innerText = spActual;
   }
+
+  // --- ACTUALIZAR STATS D&D 5E ---
+  if (data.combatStats) {
+    const acEl = document.getElementById("display-ac");
+    if (acEl) acEl.innerText = data.combatStats.ac || 10;
+
+    const speedEl = document.getElementById("display-speed");
+    if (speedEl) speedEl.innerText = data.combatStats.speed || 30;
+
+    const initEl = document.getElementById("display-initiative");
+    if (initEl) {
+      const initVal = data.combatStats.initiative || 0;
+      initEl.innerText = initVal >= 0 ? `+${initVal}` : initVal;
+    }
+
+    const statsObj = data.combatStats.stats || {};
+    const dndStats = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+    const statMap = { str: 'fuerza', dex: 'destreza', con: 'constitucion', int: 'inteligencia', wis: 'sabiduria', cha: 'carisma' };
+
+    dndStats.forEach(stat => {
+      const statData = statsObj[statMap[stat]] || { base: 10, bonus: 0 };
+      const total = statData.base + statData.bonus;
+      const modifier = Math.floor((total - 10) / 2);
+
+      const modEl = document.getElementById(`display-${stat}-mod`);
+      const baseEl = document.getElementById(`display-${stat}-base`);
+      const bonusEl = document.getElementById(`display-${stat}-bonus`);
+
+      if (modEl) modEl.innerText = modifier >= 0 ? `+${modifier}` : modifier;
+      if (baseEl) baseEl.innerText = statData.base;
+      if (bonusEl) bonusEl.innerText = statData.bonus;
+    });
+  }
 }
 
 async function runBootSequence() {
@@ -3030,13 +3063,18 @@ function initializeCharacterSheet() {
 
         const skillNameRaw = actName.replace("act_roll_skill_", "");
         // Find the parent row to get the visual name and values
-        const row = btn.closest(".sheet-skill-row");
-        if (!row) return;
+        let row = btn.closest(".sheet-skill-row");
+        let displayName = skillNameRaw;
 
-        const displaySpan = row.querySelector(".sheet-skill-name");
-        const displayName = displaySpan
-          ? displaySpan.textContent
-          : skillNameRaw;
+        if (row) {
+          const displaySpan = row.querySelector(".sheet-skill-name");
+          if (displaySpan) displayName = displaySpan.textContent;
+        } else {
+          row = btn.closest(".sheet-attr-card");
+          if (!row) return;
+          const displayH3 = row.querySelector("h3");
+          if (displayH3) displayName = displayH3.textContent;
+        }
 
         // SP Calculation & Data Lookup
         // currentPlayerData may be defined as an empty object in global scope.
@@ -3050,55 +3088,72 @@ function initializeCharacterSheet() {
         let baseVal = 0;
         let modVal = 0;
 
+        let isDndStat = false;
         if (pd) {
-          // For Core Stats (cuerpo, mente, alma)
-          if (
-            ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
-          ) {
-            if (pd.baseStats) {
-              const baseKey = Object.keys(pd.baseStats).find(
-                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-              );
-              if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
-            }
-            if (pd.modifiers) {
-              const modKey = Object.keys(pd.modifiers).find(
-                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-              );
-              if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+          const dndStats = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
+          if (dndStats.includes(skillNameRaw.toLowerCase())) {
+            isDndStat = true;
+            if (pd.combatStats && pd.combatStats.stats && pd.combatStats.stats[skillNameRaw.toLowerCase()]) {
+              const statObj = pd.combatStats.stats[skillNameRaw.toLowerCase()];
+              baseVal = statObj.base || 10;
+              modVal = statObj.bonus || 0;
+            } else {
+              baseVal = 10;
+              modVal = 0;
             }
           } else {
-            // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
-            baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
-            baseVal = !isNaN(baseVal) ? baseVal : 0;
-            modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
-            modVal = !isNaN(modVal) ? modVal : 0;
+            // For Core Stats (cuerpo, mente, alma)
+            if (
+              ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
+            ) {
+              if (pd.baseStats) {
+                const baseKey = Object.keys(pd.baseStats).find(
+                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                );
+                if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
+              }
+              if (pd.modifiers) {
+                const modKey = Object.keys(pd.modifiers).find(
+                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                );
+                if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+              }
+            } else {
+              // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
+              baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
+              baseVal = !isNaN(baseVal) ? baseVal : 0;
+              modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
+              modVal = !isNaN(modVal) ? modVal : 0;
 
-            // Fallbacks
-            if (
-              pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined &&
-              pd.baseStats
-            ) {
-              const baseKey = Object.keys(pd.baseStats).find(
-                (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
-              );
-              if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
-            }
-            if (
-              pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined &&
-              pd.modifiers
-            ) {
-              const modKey = Object.keys(pd.modifiers).find(
-                (k) =>
-                  k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
-                  k.toLowerCase() === skillNameRaw.toLowerCase(),
-              );
-              if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+              // Fallbacks
+              if (
+                pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined &&
+                pd.baseStats
+              ) {
+                const baseKey = Object.keys(pd.baseStats).find(
+                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                );
+                if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
+              }
+              if (
+                pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined &&
+                pd.modifiers
+              ) {
+                const modKey = Object.keys(pd.modifiers).find(
+                  (k) =>
+                    k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
+                    k.toLowerCase() === skillNameRaw.toLowerCase(),
+                );
+                if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
+              }
             }
           }
         }
 
-        const skillTotal = baseVal + modVal;
+        let skillTotal = baseVal + modVal;
+        if (isDndStat) {
+           skillTotal = Math.floor((skillTotal - 10) / 2);
+        }
 
         let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
 
