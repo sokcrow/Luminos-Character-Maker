@@ -6959,12 +6959,25 @@
             }
 
             if (logs) {
+              // 💡 What: Create DocumentFragment to batch DOM insertions
+              const fragment = document.createDocumentFragment();
               let isFirst = true;
+
+              // 💡 What: Pre-compute O(1) hashmap outside the loop instead of O(N^2) array .find()
+              const actoresMap = new Map();
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                for (const actor of Object.values(dbActoresCache)) {
+                  if (actor.nombre) {
+                    actoresMap.set(actor.nombre.toLowerCase(), actor);
+                  }
+                }
+              }
+
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -6975,13 +6988,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
+                if (msg.nombre) {
+                  const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
                   if (actorMatch && actorMatch.icono) {
                     dynamicIcon = actorMatch.icono;
                   }
@@ -7003,8 +7011,10 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+              // Append fragment all at once
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");
