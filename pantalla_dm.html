@@ -2780,6 +2780,24 @@
               />
             </div>
 
+            <div style="display: flex; flex-direction: column; grid-column: span 2;">
+              <label style="color: #0df; font-size: 14px; margin-bottom: 5px; font-family: 'BebasKai', sans-serif;"
+                >PROFICIENCY BONUS (Bono de Competencia)</label
+              >
+              <input
+                type="number"
+                id="dm-proficiency-bonus"
+                style="
+                  padding: 5px;
+                  background: #222;
+                  color: #fff;
+                  border: 1px solid #0df;
+                  border-radius: 3px;
+                  width: 100px;
+                "
+              />
+            </div>
+
             <!-- D&D 5E STATS (BASE & BONUS) -->
             <div style="grid-column: span 2; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
               <h4 style="color: #0df; margin: 0 0 10px 0; font-family: 'BebasKai', sans-serif;">ESTADÍSTICAS D&D 5E</h4>
@@ -2832,6 +2850,14 @@
                     <input type="number" id="dm-stat-cha-bonus" placeholder="Mod" style="width: 50%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px;" />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- D&D 5E SKILLS -->
+            <div style="grid-column: span 2; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; max-height: 250px; overflow-y: auto;">
+              <h4 style="color: #0df; margin: 0 0 10px 0; font-family: 'BebasKai', sans-serif;">HABILIDADES (SKILLS)</h4>
+              <div id="dm-skills-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <!-- Generated dynamically via JS -->
               </div>
             </div>
           </div>
@@ -7860,6 +7886,7 @@
             document.getElementById("dm-ac").value = combatStats.ac || 10;
             document.getElementById("dm-speed").value = combatStats.speed || 30;
             document.getElementById("dm-initiative").value = combatStats.initiative || 0;
+            document.getElementById("dm-proficiency-bonus").value = combatStats.proficiency_bonus || 2;
 
             const statsObj = combatStats.stats || {};
             const safeStat = (statName) => statsObj[statName] || { base: 10, bonus: 0 };
@@ -7876,6 +7903,56 @@
             document.getElementById("dm-stat-wis-bonus").value = safeStat('sabiduria').bonus;
             document.getElementById("dm-stat-cha-base").value = safeStat('carisma').base;
             document.getElementById("dm-stat-cha-bonus").value = safeStat('carisma').bonus;
+
+            // Render Skills
+            const dmSkillsContainer = document.getElementById("dm-skills-container");
+            if (dmSkillsContainer) {
+              dmSkillsContainer.innerHTML = "";
+              const dndSkillsList = [
+                { id: 'atletismo', name: 'Atletismo', attr: 'str' },
+                { id: 'acrobacias', name: 'Acrobacias', attr: 'dex' },
+                { id: 'juego_de_manos', name: 'Juego de Manos', attr: 'dex' },
+                { id: 'sigilo', name: 'Sigilo', attr: 'dex' },
+                { id: 'arcanos', name: 'Arcanos', attr: 'int' },
+                { id: 'historia', name: 'Historia', attr: 'int' },
+                { id: 'investigacion', name: 'Investigación', attr: 'int' },
+                { id: 'naturaleza', name: 'Naturaleza', attr: 'int' },
+                { id: 'religion', name: 'Religión', attr: 'int' },
+                { id: 'trato_con_animales', name: 'Trato con Animales', attr: 'wis' },
+                { id: 'perspicacia', name: 'Perspicacia', attr: 'wis' },
+                { id: 'medicina', name: 'Medicina', attr: 'wis' },
+                { id: 'percepcion', name: 'Percepción', attr: 'wis' },
+                { id: 'supervivencia', name: 'Supervivencia', attr: 'wis' },
+                { id: 'engano', name: 'Engaño', attr: 'cha' },
+                { id: 'intimidacion', name: 'Intimidación', attr: 'cha' },
+                { id: 'interpretacion', name: 'Interpretación', attr: 'cha' },
+                { id: 'persuasion', name: 'Persuasión', attr: 'cha' }
+              ];
+
+              const playerSkills = combatStats.skills || {};
+
+              dndSkillsList.forEach(skillDef => {
+                const pSkill = playerSkills[skillDef.id] || { attribute: skillDef.attr, bonus: 0, proficient: false };
+
+                const skillDiv = document.createElement("div");
+                skillDiv.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 5px; border-radius: 3px; border: 1px solid #333;";
+
+                const isChecked = pSkill.proficient ? "checked" : "";
+
+                skillDiv.innerHTML = `
+                  <div style="display: flex; align-items: center; gap: 5px; width: 60%;">
+                    <input type="checkbox" id="dm-skill-prof-${skillDef.id}" ${isChecked} style="accent-color: #0df;" />
+                    <label for="dm-skill-prof-${skillDef.id}" style="color: #fff; font-size: 12px; cursor: pointer;">
+                      ${skillDef.name} <span style="color: #888;">[${skillDef.attr.toUpperCase()}]</span>
+                    </label>
+                  </div>
+                  <div style="width: 35%;">
+                    <input type="number" id="dm-skill-bonus-${skillDef.id}" value="${pSkill.bonus}" placeholder="Bono" style="width: 100%; padding: 3px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; font-size: 12px; text-align: right;" />
+                  </div>
+                `;
+                dmSkillsContainer.appendChild(skillDiv);
+              });
+            }
 
             // Stagger es array, convertir a string para el input
             let staggerVal = "";

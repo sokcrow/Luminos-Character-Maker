@@ -978,6 +978,72 @@ function renderCharacterSheet(data) {
       if (baseEl) baseEl.innerText = statData.base;
       if (bonusEl) bonusEl.innerText = statData.bonus;
     });
+
+    // --- ACTUALIZAR SKILLS ---
+    const profBonusEl = document.getElementById("display-proficiency-bonus");
+    const profBonus = data.combatStats.proficiency_bonus || 2;
+    if (profBonusEl) profBonusEl.innerText = `+${profBonus}`;
+
+    const skillsContainer = document.getElementById("player-skills-container");
+    if (skillsContainer) {
+      const dndSkillsList = [
+        { id: 'atletismo', name: 'Atletismo', attr: 'str' },
+        { id: 'acrobacias', name: 'Acrobacias', attr: 'dex' },
+        { id: 'juego_de_manos', name: 'Juego de Manos', attr: 'dex' },
+        { id: 'sigilo', name: 'Sigilo', attr: 'dex' },
+        { id: 'arcanos', name: 'Arcanos', attr: 'int' },
+        { id: 'historia', name: 'Historia', attr: 'int' },
+        { id: 'investigacion', name: 'Investigación', attr: 'int' },
+        { id: 'naturaleza', name: 'Naturaleza', attr: 'int' },
+        { id: 'religion', name: 'Religión', attr: 'int' },
+        { id: 'trato_con_animales', name: 'Trato con Animales', attr: 'wis' },
+        { id: 'perspicacia', name: 'Perspicacia', attr: 'wis' },
+        { id: 'medicina', name: 'Medicina', attr: 'wis' },
+        { id: 'percepcion', name: 'Percepción', attr: 'wis' },
+        { id: 'supervivencia', name: 'Supervivencia', attr: 'wis' },
+        { id: 'engano', name: 'Engaño', attr: 'cha' },
+        { id: 'intimidacion', name: 'Intimidación', attr: 'cha' },
+        { id: 'interpretacion', name: 'Interpretación', attr: 'cha' },
+        { id: 'persuasion', name: 'Persuasión', attr: 'cha' }
+      ];
+
+      const playerSkills = data.combatStats.skills || {};
+      skillsContainer.innerHTML = "";
+
+      const fragment = document.createDocumentFragment();
+
+      dndSkillsList.forEach(skillDef => {
+        const pSkill = playerSkills[skillDef.id] || { attribute: skillDef.attr, bonus: 0, proficient: false };
+        const relatedStat = statsObj[statMap[skillDef.attr]] || { base: 10, bonus: 0 };
+        const statModifier = Math.floor(((relatedStat.base + relatedStat.bonus) - 10) / 2);
+
+        const isProficient = pSkill.proficient;
+        const totalBonus = statModifier + (isProficient ? profBonus : 0) + pSkill.bonus;
+
+        const skillDiv = document.createElement("div");
+        skillDiv.className = "sheet-skill-row";
+        skillDiv.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #111; border: 1px solid #333; border-radius: 3px; padding: 5px 10px;";
+
+        const profIcon = isProficient ? "●" : "○";
+        const profColor = isProficient ? "#0df" : "#555";
+
+        skillDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: ${profColor}; font-size: 16px;" title="Competencia">${profIcon}</span>
+            <span class="sheet-skill-name" style="color: #e8e4d9; font-size: 14px; text-transform: uppercase;">${skillDef.name}</span>
+            <span style="color: #888; font-size: 10px;">[${skillDef.attr.toUpperCase()}]</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="color: #fff; font-weight: bold; font-family: 'Courier New', monospace; font-size: 16px;">${totalBonus >= 0 ? '+' : ''}${totalBonus}</span>
+            <button type="action" name="act_roll_skill_${skillDef.id}" class="sheet-roll-skill-btn" style="padding: 2px 5px; font-size: 10px;">[ TIRAR ]</button>
+          </div>
+        `;
+
+        fragment.appendChild(skillDiv);
+      });
+
+      skillsContainer.appendChild(fragment);
+    }
   }
 }
 
@@ -3089,71 +3155,95 @@ function initializeCharacterSheet() {
         let modVal = 0;
 
         let isDndStat = false;
+        let isDndSkill = false;
+        const dndStatsCheck = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
+        const dndSkillsListIds = [
+          'atletismo', 'acrobacias', 'juego_de_manos', 'sigilo', 'arcanos', 'historia',
+          'investigacion', 'naturaleza', 'religion', 'trato_con_animales', 'perspicacia',
+          'medicina', 'percepcion', 'supervivencia', 'engano', 'intimidacion', 'interpretacion', 'persuasion'
+        ];
+
+        let finalSkillTotal = 0;
+
         if (pd) {
-          const dndStats = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
-          if (dndStats.includes(skillNameRaw.toLowerCase())) {
+          const rawId = skillNameRaw.toLowerCase();
+
+          if (dndStatsCheck.includes(rawId)) {
             isDndStat = true;
-            if (pd.combatStats && pd.combatStats.stats && pd.combatStats.stats[skillNameRaw.toLowerCase()]) {
-              const statObj = pd.combatStats.stats[skillNameRaw.toLowerCase()];
+            if (pd.combatStats && pd.combatStats.stats && pd.combatStats.stats[rawId]) {
+              const statObj = pd.combatStats.stats[rawId];
               baseVal = statObj.base || 10;
               modVal = statObj.bonus || 0;
             } else {
               baseVal = 10;
               modVal = 0;
             }
+            finalSkillTotal = Math.floor(((baseVal + modVal) - 10) / 2);
+          } else if (dndSkillsListIds.includes(rawId)) {
+            isDndSkill = true;
+            const profBonus = (pd.combatStats && pd.combatStats.proficiency_bonus) ? pd.combatStats.proficiency_bonus : 2;
+            const pSkill = (pd.combatStats && pd.combatStats.skills && pd.combatStats.skills[rawId]) ? pd.combatStats.skills[rawId] : null;
+
+            if (pSkill) {
+               const statMap = { str: 'fuerza', dex: 'destreza', con: 'constitucion', int: 'inteligencia', wis: 'sabiduria', cha: 'carisma' };
+               const attrKey = statMap[pSkill.attribute] || 'fuerza';
+               const relatedStat = (pd.combatStats && pd.combatStats.stats && pd.combatStats.stats[attrKey]) ? pd.combatStats.stats[attrKey] : {base: 10, bonus: 0};
+               const statMod = Math.floor(((relatedStat.base + relatedStat.bonus) - 10) / 2);
+               finalSkillTotal = statMod + (pSkill.proficient ? profBonus : 0) + (pSkill.bonus || 0);
+            } else {
+               finalSkillTotal = 0;
+            }
           } else {
             // For Core Stats (cuerpo, mente, alma)
             if (
-              ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
+              ["cuerpo", "mente", "alma"].includes(rawId)
             ) {
               if (pd.baseStats) {
                 const baseKey = Object.keys(pd.baseStats).find(
-                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                  (k) => k.toLowerCase() === rawId,
                 );
                 if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
               }
               if (pd.modifiers) {
                 const modKey = Object.keys(pd.modifiers).find(
-                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                  (k) => k.toLowerCase() === rawId,
                 );
                 if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
               }
             } else {
               // For Skills, base and mod are usually stored at root as skill_name_base and skill_name_mod
-              baseVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_base`]);
+              baseVal = parseInt(pd[`skill_${rawId}_base`]);
               baseVal = !isNaN(baseVal) ? baseVal : 0;
-              modVal = parseInt(pd[`skill_${skillNameRaw.toLowerCase()}_mod`]);
+              modVal = parseInt(pd[`skill_${rawId}_mod`]);
               modVal = !isNaN(modVal) ? modVal : 0;
 
               // Fallbacks
               if (
-                pd[`skill_${skillNameRaw.toLowerCase()}_base`] === undefined &&
+                pd[`skill_${rawId}_base`] === undefined &&
                 pd.baseStats
               ) {
                 const baseKey = Object.keys(pd.baseStats).find(
-                  (k) => k.toLowerCase() === skillNameRaw.toLowerCase(),
+                  (k) => k.toLowerCase() === rawId,
                 );
                 if (baseKey) baseVal = parseInt(pd.baseStats[baseKey]) || 0;
               }
               if (
-                pd[`skill_${skillNameRaw.toLowerCase()}_mod`] === undefined &&
+                pd[`skill_${rawId}_mod`] === undefined &&
                 pd.modifiers
               ) {
                 const modKey = Object.keys(pd.modifiers).find(
                   (k) =>
-                    k.toLowerCase() === `skill_${skillNameRaw.toLowerCase()}` ||
-                    k.toLowerCase() === skillNameRaw.toLowerCase(),
+                    k.toLowerCase() === `skill_${rawId}` ||
+                    k.toLowerCase() === rawId,
                 );
                 if (modKey) modVal = parseInt(pd.modifiers[modKey]) || 0;
               }
             }
+            finalSkillTotal = baseVal + modVal;
           }
         }
 
-        let skillTotal = baseVal + modVal;
-        if (isDndStat) {
-           skillTotal = Math.floor((skillTotal - 10) / 2);
-        }
+        let skillTotal = finalSkillTotal;
 
         let sp = parseInt(pd.combatStats?.sp_actual ?? pd.sp) || 0;
 
