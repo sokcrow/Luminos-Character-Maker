@@ -1197,6 +1197,19 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // ⚡ Bolt Optimization: O(1) Hash Map for Actor Lookups
+          // 💡 What: Pre-compute lowercase map of actors before rendering loop.
+          // 🎯 Why: Replaces O(n) array `.find()` lookups with O(1) map lookups, preventing an O(N*M) bottleneck when rendering many logs.
+          // 📊 Impact: Significantly faster log re-rendering, preventing layout lag during real-time Firebase syncs.
+          const actorMap = new Map();
+          if (window.allActoresCache) {
+            Object.values(window.allActoresCache).forEach((actor) => {
+              if (actor.nombre) {
+                actorMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            });
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
@@ -1214,13 +1227,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actorMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
