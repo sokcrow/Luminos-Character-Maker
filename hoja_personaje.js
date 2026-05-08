@@ -1198,11 +1198,23 @@ function initializeCharacterSheet() {
 
         if (logs) {
           let isFirst = true;
+          const fragment = document.createDocumentFragment();
+
+          // Pre-compute actors map for O(1) lookup
+          const actorsMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre && actor.icono) {
+                actorsMap.set(actor.nombre.toLowerCase(), actor.icono);
+              }
+            }
+          }
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,15 +1226,10 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
-              if (actorMatch && actorMatch.icono) {
-                dynamicIcon = actorMatch.icono;
+            if (msg.nombre) {
+              const lowerName = msg.nombre.toLowerCase();
+              if (actorsMap.has(lowerName)) {
+                dynamicIcon = actorsMap.get(lowerName);
               }
             }
 
@@ -1242,8 +1249,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
