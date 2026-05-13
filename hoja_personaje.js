@@ -1198,6 +1198,17 @@ function initializeCharacterSheet() {
 
         if (logs) {
           let isFirst = true;
+
+          // Pre-compute actor map to avoid O(n^2) lookups
+          const actorIconMap = new Map();
+          if (window.allActoresCache) {
+            Object.values(window.allActoresCache).forEach(actor => {
+              if (actor.nombre && actor.icono) {
+                actorIconMap.set(actor.nombre.toLowerCase(), actor.icono);
+              }
+            });
+          }
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
@@ -1214,16 +1225,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
-              if (actorMatch && actorMatch.icono) {
-                dynamicIcon = actorMatch.icono;
-              }
+            if (msg.nombre) {
+              dynamicIcon = actorIconMap.get(msg.nombre.toLowerCase()) || null;
             }
 
             const iconoSrc = dynamicIcon || msg.icono || defaultFallbackIcon;
