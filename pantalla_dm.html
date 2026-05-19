@@ -5884,6 +5884,9 @@
           listaItemsModal.innerHTML = "";
           const itemsTienda = dataTienda.items || {};
 
+          // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions outside the loop
+          const fragmentItemsModal = document.createDocumentFragment();
+
           // Iterar sobre TODOS los ítems globales para mostrarlos
           for (const [keyItem, dataGlobal] of Object.entries(dbItemsCache)) {
             const itemEnTienda = itemsTienda[keyItem]; // Existe en la tienda?
@@ -5943,8 +5946,9 @@
                 </label>
             `;
 
-            listaItemsModal.appendChild(row);
+            fragmentItemsModal.appendChild(row);
           }
+          listaItemsModal.appendChild(fragmentItemsModal);
 
           modalEditar.style.display = "flex";
         }
@@ -6176,9 +6180,12 @@
               listaStashModal.innerHTML =
                 '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">Stash vacío.</div>';
             } else {
+              // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions outside the loop
+              const fragmentStash = document.createDocumentFragment();
               for (const [key, item] of Object.entries(stash)) {
-                listaStashModal.appendChild(renderInvRow(key, item, "stash"));
+                fragmentStash.appendChild(renderInvRow(key, item, "stash"));
               }
+              listaStashModal.appendChild(fragmentStash);
             }
           });
 
@@ -6194,11 +6201,14 @@
               listaActivosModal.innerHTML =
                 '<div style="color:#666; text-align:center; padding: 10px; background: #111; border-radius: 4px;">No hay ítems equipados.</div>';
             } else {
+              // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions outside the loop
+              const fragmentActivo = document.createDocumentFragment();
               for (const [key, item] of Object.entries(activo)) {
-                listaActivosModal.appendChild(
+                fragmentActivo.appendChild(
                   renderInvRow(key, item, "activo"),
                 );
               }
+              listaActivosModal.appendChild(fragmentActivo);
             }
           });
         }

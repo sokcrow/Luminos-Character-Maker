@@ -1,7 +1,3 @@
-## 2025-03-26 - [DOM Fragment Batching in hoja_personaje.js]
-**Learning:** Found an O(n) layout reflow pattern in coin toss animation DOM creation loop.
-**Action:** Replaced iterative DOM appending with DocumentFragment appending to reduce reflows to O(1) in the tight requestAnimationFrame logic contexts.
-
-## 2025-03-26 - [DOM Attribute Thrashing in renderCharacterSheet]
-**Learning:** Found that assigning `.innerText` or `.value` unconditionally inside high-frequency real-time `on('value')` listeners (like Firebase data sync) causes unnecessary DOM layout recalculations and repaints, even if the value string hasn't changed.
-**Action:** Introduced strict equality checks (e.g., `if (el.innerText !== String(newVal))`) before applying data to DOM node attributes during iterative render loops.
+## 2024-05-19 - DocumentFragment batch rendering
+**Learning:** Calling `appendChild` dynamically generated nodes inside long loops connected to real-time `Firebase .on("value")` listeners causes massive O(n) layout thrashing, significantly tanking UI performance on each update.
+**Action:** Always isolate DOM additions using `document.createDocumentFragment()` inside heavy loops. Build the fragment internally, and then append it to the live DOM exactly once outside the loop.

@@ -3353,6 +3353,9 @@ window.abrirTiendaDinamica = function(tiendaId) {
       if (data.items) {
         const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
 
+        // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions outside the loop
+        const fragment = document.createDocumentFragment();
+
         itemsArray.forEach((item, index) => {
           if(!item) return;
           const row = document.createElement("div");
@@ -3404,8 +3407,9 @@ window.abrirTiendaDinamica = function(tiendaId) {
               btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
           };
 
-          lista.appendChild(row);
+          fragment.appendChild(row);
         });
+        lista.appendChild(fragment);
       } else {
         lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
       }
