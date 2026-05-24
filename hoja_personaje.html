@@ -12965,6 +12965,19 @@
           scrollArea.innerHTML = ""; // clear messages
 
           const logs = snap.val();
+            // ⚡ Bolt Optimization: Replace O(N) array search inside log render loop with O(1) map lookup
+            // 💡 What: Pre-compute lowercase names to actor objects in a Map outside the loop.
+            // 🎯 Why: O(N^2) complexity causes lag during dynamic UI generation inside Firebase `.on('value')` listeners.
+            // 📊 Impact: Turns O(n) array lookups into O(1) map lookups, speeding up theater log rendering.
+            const actoresMap = new Map();
+            if (window.allActoresCache) {
+              for (const actor of Object.values(window.allActoresCache)) {
+                if (actor.nombre) {
+                  actoresMap.set(actor.nombre.toLowerCase(), actor);
+                }
+              }
+            }
+
           if (logs) {
             let isFirst = true;
             for (const [key, msg] of Object.entries(logs)) {
@@ -12982,13 +12995,8 @@
               const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
               let dynamicIcon = null;
-              if (window.allActoresCache) {
-                const actorMatch = Object.values(window.allActoresCache).find(
-                  (actor) =>
-                    actor.nombre &&
-                    msg.nombre &&
-                    actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                );
+                if (msg.nombre) {
+                  const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
                 if (actorMatch && actorMatch.icono) {
                   dynamicIcon = actorMatch.icono;
                 }
