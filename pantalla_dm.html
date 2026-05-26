@@ -6959,6 +6959,18 @@
             }
 
             if (logs) {
+              // Pre-compute actors map for O(1) lookup
+              const actorsMap = new Map();
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                for (const actor of Object.values(dbActoresCache)) {
+                  if (actor.nombre) {
+                    if (!actorsMap.has(actor.nombre.toLowerCase())) {
+                      actorsMap.set(actor.nombre.toLowerCase(), actor);
+                    }
+                  }
+                }
+              }
+
               let isFirst = true;
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
@@ -6975,13 +6987,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
+                if (msg.nombre) {
+                  const actorMatch = actorsMap.get(msg.nombre.toLowerCase());
                   if (actorMatch && actorMatch.icono) {
                     dynamicIcon = actorMatch.icono;
                   }
