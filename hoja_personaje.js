@@ -1197,6 +1197,16 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // Optimization: Pre-compute actor icon map for O(1) lookup
+          const actorIconMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre && actor.icono) {
+                actorIconMap.set(actor.nombre.toLowerCase(), actor.icono);
+              }
+            }
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
@@ -1214,16 +1224,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
-              if (actorMatch && actorMatch.icono) {
-                dynamicIcon = actorMatch.icono;
-              }
+            if (msg.nombre) {
+              dynamicIcon = actorIconMap.get(msg.nombre.toLowerCase()) || null;
             }
 
             const iconoSrc = dynamicIcon || msg.icono || defaultFallbackIcon;
