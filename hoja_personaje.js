@@ -1197,6 +1197,19 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // ⚡ Bolt Optimization: Pre-compute actor lookups
+          // 💡 What: Created a Map of lowercase actor names to icons before the loop.
+          // 🎯 Why: Replaced O(N) array `.find()` inside the rendering loop with O(1) Map lookups.
+          // 📊 Impact: Eliminates O(N²) scaling bottleneck when rendering large theater logs.
+          const actoresMap = new Map();
+          if (window.allActoresCache) {
+            Object.values(window.allActoresCache).forEach(actor => {
+              if (actor.nombre) {
+                actoresMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            });
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
@@ -1214,13 +1227,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
