@@ -838,6 +838,8 @@ function renderCharacterSheet(data) {
       mailsContainer.innerHTML =
         '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Bandeja de entrada vacía</div>';
     } else {
+      // ⚡ Bolt: Batch DOM insertions using DocumentFragment to avoid O(n) layout reflows
+      const fragment = document.createDocumentFragment();
       mails.forEach((mail) => {
         let dateStr = mail.inGameTime || "";
         if (!dateStr && mail.timestamp) {
@@ -868,8 +870,9 @@ function renderCharacterSheet(data) {
           );
         });
 
-        mailsContainer.appendChild(mailItem);
+        fragment.appendChild(mailItem);
       });
+      mailsContainer.appendChild(fragment);
     }
   }
 
@@ -889,6 +892,8 @@ function renderCharacterSheet(data) {
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
         .slice(0, 3);
 
+      // ⚡ Bolt: Batch DOM insertions using DocumentFragment to avoid O(n) layout reflows
+      const transFragment = document.createDocumentFragment();
       transArray.forEach((t) => {
         const div = document.createElement("div");
         div.className = "transaccion-item";
@@ -899,8 +904,9 @@ function renderCharacterSheet(data) {
                     </span>
                     <span style="color: #aaa; font-size: 0.9em;"> - ${(t.concepto || "Transacción").replace(/</g, "&lt;")}</span>
                 `;
-        transContainer.appendChild(div);
+        transFragment.appendChild(div);
       });
+      transContainer.appendChild(transFragment);
     } else {
       transContainer.innerHTML =
         '<div style="color: #666;">Sin transacciones recientes.</div>';
@@ -1588,6 +1594,8 @@ function initializeCharacterSheet() {
             if (!inboxList || !readArea) return;
 
             inboxList.innerHTML = "";
+            // ⚡ Bolt: Batch DOM insertions using DocumentFragment to avoid O(n) layout reflows
+            const inboxFragment = document.createDocumentFragment();
             correos.forEach((correo) => {
               const item = document.createElement("div");
               item.className = `mail-item ${correo.leido ? "" : "unread"}`;
@@ -1603,8 +1611,9 @@ function initializeCharacterSheet() {
                 ).update({ leido: true });
               });
 
-              inboxList.appendChild(item);
+              inboxFragment.appendChild(item);
             });
+            inboxList.appendChild(inboxFragment);
           },
         );
       });
@@ -1863,12 +1872,15 @@ function initializeCharacterSheet() {
           const tagsContainer = document.getElementById("detail-tags-val");
           if (tagsContainer) {
             tagsContainer.innerHTML = "";
+            // ⚡ Bolt: Batch DOM insertions using DocumentFragment to avoid O(n) layout reflows
+            const tagsFragment = document.createDocumentFragment();
             itemTags.forEach((tag) => {
               const t = document.createElement("span");
               t.className = "tag-pill";
               t.innerText = tag;
-              tagsContainer.appendChild(t);
+              tagsFragment.appendChild(t);
             });
+            tagsContainer.appendChild(tagsFragment);
           }
 
           // Show equip/unequip button

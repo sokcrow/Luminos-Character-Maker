@@ -4508,6 +4508,10 @@
           );
           if (pendingContainer) pendingContainer.innerHTML = "";
 
+          // ⚡ Bolt: Batch DOM insertions using DocumentFragment to avoid O(n) layout reflows
+          const bancoFragment = document.createDocumentFragment();
+          const pendingFragment = document.createDocumentFragment();
+
           // Remove cards for players that no longer exist
           if (jugadoresContainer) {
             const currentNames = Object.keys(jugadores || {});
@@ -4547,7 +4551,7 @@
                     .catch((err) => alert("Error aprobando recluta: " + err));
                 });
 
-                pendingContainer.appendChild(pendingCard);
+                pendingFragment.appendChild(pendingCard);
               }
 
               // --- Populate Gestión de Jugadores ---
@@ -4753,20 +4757,24 @@
               tarjeta.appendChild(title);
               tarjeta.appendChild(inputAhn);
               tarjeta.appendChild(btnForzar);
-              bancoContainer.appendChild(tarjeta);
+              bancoFragment.appendChild(tarjeta);
             }
+            if (pendingContainer) pendingContainer.appendChild(pendingFragment);
+            bancoContainer.appendChild(bancoFragment);
 
             // --- Populate Terminal de Comunicaciones Select ---
             const commsJugadorSelect = document.getElementById("comms-jugador");
             if (commsJugadorSelect) {
               commsJugadorSelect.innerHTML =
                 '<option value="">Selecciona Jugador...</option>';
+              const commsFragment = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                commsJugadorSelect.appendChild(option);
+                commsFragment.appendChild(option);
               }
+              commsJugadorSelect.appendChild(commsFragment);
             }
 
             // --- Populate Generador de Botín Jugador Select ---
@@ -4776,12 +4784,14 @@
             if (lootJugadorSelect) {
               lootJugadorSelect.innerHTML =
                 '<option value="">Selecciona Jugador...</option>';
+              const lootFragment = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                lootJugadorSelect.appendChild(option);
+                lootFragment.appendChild(option);
               }
+              lootJugadorSelect.appendChild(lootFragment);
             }
 
             // --- Populate Recetas Checkboxes ---
@@ -4790,13 +4800,15 @@
             );
             if (recetaJugadores) {
               recetaJugadores.innerHTML = "";
+              const recetaFragment = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement("label");
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
-                recetaJugadores.appendChild(lbl);
+                recetaFragment.appendChild(lbl);
               }
+              recetaJugadores.appendChild(recetaFragment);
             }
 
             // --- Populate Tienda Jugadores Presentes Checkboxes ---
@@ -4805,13 +4817,15 @@
             );
             if (tiendaJugadoresPresentes) {
               tiendaJugadoresPresentes.innerHTML = "";
+              const tiendaFragment = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement("label");
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
-                tiendaJugadoresPresentes.appendChild(lbl);
+                tiendaFragment.appendChild(lbl);
               }
+              tiendaJugadoresPresentes.appendChild(tiendaFragment);
             }
           } else {
             bancoContainer.innerHTML =
