@@ -5517,7 +5517,9 @@
                 </div>
               </div>
 
-              <div style="margin-top: 15px; display: flex; justify-content: center;">
+              <div
+                style="margin-top: 15px; display: flex; justify-content: center"
+              >
                 <button
                   id="btn-player-logout"
                   style="
@@ -5532,8 +5534,16 @@
                     font-size: 1rem;
                     font-weight: bold;
                   "
-                  onmouseover="this.style.backgroundColor='var(--red-neon)'; this.style.color='#000'; this.style.boxShadow='0 0 10px var(--red-neon)';"
-                  onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--red-neon)'; this.style.boxShadow='none';"
+                  onmouseover="
+                    this.style.backgroundColor = 'var(--red-neon)';
+                    this.style.color = '#000';
+                    this.style.boxShadow = '0 0 10px var(--red-neon)';
+                  "
+                  onmouseout="
+                    this.style.backgroundColor = 'transparent';
+                    this.style.color = 'var(--red-neon)';
+                    this.style.boxShadow = 'none';
+                  "
                 >
                   Cerrar Sesión
                 </button>
@@ -7397,8 +7407,11 @@
                   >
                 </div>
               </div>
-              <div id="stats-container" class="sheet-attributes-section" style="position: relative;">
-
+              <div
+                id="stats-container"
+                class="sheet-attributes-section"
+                style="position: relative"
+              >
                 <div class="sheet-attributes-grid">
                   <!-- CUERPO -->
                   <div class="sheet-attr-group">
@@ -8465,26 +8478,50 @@
             Skill Name
           </h2>
 
-          <div id="coin-toss-coins-container" style="display: flex; gap: 15px; margin-bottom: 20px; justify-content: center; perspective: 1000px;">
+          <div
+            id="coin-toss-coins-container"
+            style="
+              display: flex;
+              gap: 15px;
+              margin-bottom: 20px;
+              justify-content: center;
+              perspective: 1000px;
+            "
+          >
             <!-- Coins will be generated here by JS -->
           </div>
 
-          <p
-            id="coin-toss-stats"
-            style="
-              display: none;
-            "
-          >
+          <p id="coin-toss-stats" style="display: none">
             Probabilidad de Heads: 50%
           </p>
 
-          <div class="coin-toss-result-box" style="margin-bottom: 20px; text-align: center; border-color: #a39581;">
-            <div style="color: #1a1a1a; font-size: 1.2em; font-family: 'Courier New', monospace; margin-bottom: 5px; font-weight: bold;">
+          <div
+            class="coin-toss-result-box"
+            style="
+              margin-bottom: 20px;
+              text-align: center;
+              border-color: #a39581;
+            "
+          >
+            <div
+              style="
+                color: #1a1a1a;
+                font-size: 1.2em;
+                font-family: &quot;Courier New&quot;, monospace;
+                margin-bottom: 5px;
+                font-weight: bold;
+              "
+            >
               PUNTAJE TOTAL
             </div>
             <span
               id="roll-total-score"
-              style="font-size: 3.5em; color: #c59c5c; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"
+              style="
+                font-size: 3.5em;
+                color: #c59c5c;
+                font-weight: bold;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+              "
               >0</span
             >
           </div>
@@ -8500,15 +8537,33 @@
               font-weight: 900;
               padding: 10px 60px;
               cursor: not-allowed;
-              box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
-              transition: transform 0.1s, box-shadow 0.1s;
+              box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+              transition:
+                transform 0.1s,
+                box-shadow 0.1s;
               border-radius: 0;
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-family:
+                &quot;Segoe UI&quot;, Tahoma, Geneva, Verdana, sans-serif;
               opacity: 0.5;
             "
-            onmousedown="if(!this.disabled) { this.style.transform='translate(2px, 2px)'; this.style.boxShadow='2px 2px 0px rgba(0,0,0,0.2)'; }"
-            onmouseup="if(!this.disabled) { this.style.transform='none'; this.style.boxShadow='4px 4px 0px rgba(0,0,0,0.2)'; }"
-            onmouseleave="if(!this.disabled) { this.style.transform='none'; this.style.boxShadow='4px 4px 0px rgba(0,0,0,0.2)'; }"
+            onmousedown="
+              if (!this.disabled) {
+                this.style.transform = 'translate(2px, 2px)';
+                this.style.boxShadow = '2px 2px 0px rgba(0,0,0,0.2)';
+              }
+            "
+            onmouseup="
+              if (!this.disabled) {
+                this.style.transform = 'none';
+                this.style.boxShadow = '4px 4px 0px rgba(0,0,0,0.2)';
+              }
+            "
+            onmouseleave="
+              if (!this.disabled) {
+                this.style.transform = 'none';
+                this.style.boxShadow = '4px 4px 0px rgba(0,0,0,0.2)';
+              }
+            "
           >
             CERRAR
           </button>
@@ -11984,14 +12039,52 @@
     <!-- End Limbus Main -->
 
     <!-- Global Inventory Button -->
-    <div class="hud-right-container" style="position: fixed; right: 20px; bottom: 20px; z-index: 9999; flex-direction: column-reverse; align-items: flex-end;">
-        <button id="btn-abrir-escritura" class="control-btn" title="Actuar en el Teatro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </button>
-    <button class="btn-global-inventory btn-icon-base size-36" id="btn-global-inventory" title="Inventario Global" aria-label="Inventario Global"><img src="Assets/Images/Buttons/Inventory.svg" class="svg-icon" alt="Inventory" /><img id="tienda-fisica-badge" src="" style="display: none" /></button>
-
+    <div
+      class="hud-right-container"
+      style="
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 9999;
+        flex-direction: column-reverse;
+        align-items: flex-end;
+      "
+    >
+      <button
+        id="btn-abrir-escritura"
+        class="control-btn"
+        title="Actuar en el Teatro"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#e0e0e0"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          style="
+            width: 60%;
+            height: 60%;
+            filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
+          "
+        >
+          <path
+            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          ></path>
+        </svg>
+      </button>
+      <button
+        class="btn-global-inventory btn-icon-base size-36"
+        id="btn-global-inventory"
+        title="Inventario Global"
+        aria-label="Inventario Global"
+      >
+        <img
+          src="Assets/Images/Buttons/Inventory.svg"
+          class="svg-icon"
+          alt="Inventory"
+        /><img id="tienda-fisica-badge" src="" style="display: none" />
+      </button>
     </div>
 
     <!-- Shop Modal (Limbus Dispensary Style) -->
@@ -12286,7 +12379,18 @@
     </div>
 
     <!-- Toggle Button -->
-    <button class="btn-toggle-phone btn-icon-base size-36" id="btn-toggle-phone" title="Alternar Celular" aria-label="Alternar Celular"><img src="Assets/Images/Buttons/Cellphone.svg" class="svg-icon" alt="Phone" /></button>
+    <button
+      class="btn-toggle-phone btn-icon-base size-36"
+      id="btn-toggle-phone"
+      title="Alternar Celular"
+      aria-label="Alternar Celular"
+    >
+      <img
+        src="Assets/Images/Buttons/Cellphone.svg"
+        class="svg-icon"
+        alt="Phone"
+      />
+    </button>
 
     <!-- HUD DE COMBATE (VITALES) -->
     <button
@@ -12389,7 +12493,18 @@
         <span id="player-theatre-location-text">Unknown Location</span>
       </div>
 
-      <button id="btn-toggle-theatre-log-player" class="btn-icon-base size-36" title="Ver Historial" aria-label="Ver Historial del Teatro"><img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" /></button>
+      <button
+        id="btn-toggle-theatre-log-player"
+        class="btn-icon-base size-36"
+        title="Ver Historial"
+        aria-label="Ver Historial del Teatro"
+      >
+        <img
+          src="Assets/Images/Buttons/Log.svg"
+          class="svg-icon"
+          alt="Theatre Log"
+        />
+      </button>
 
       <!-- Theatre Log Container -->
       <div id="theatre-log-container" style="display: none">
@@ -12428,20 +12543,21 @@
           ...
         </div>
       </div>
-
     </div>
 
     <!-- Script de Emergencia -->
     <script>
-      window.addEventListener('load', () => {
+      window.addEventListener("load", () => {
         // Si después de 5 segundos el overlay sigue ahí, lo quitamos a la fuerza
         setTimeout(() => {
-          const overlay = document.getElementById('system-loading-overlay');
-          if (overlay && overlay.style.display !== 'none') {
-            console.warn("Carga de emergencia activada: Ocultando overlay por tiempo de espera.");
-            overlay.style.opacity = '0';
+          const overlay = document.getElementById("system-loading-overlay");
+          if (overlay && overlay.style.display !== "none") {
+            console.warn(
+              "Carga de emergencia activada: Ocultando overlay por tiempo de espera.",
+            );
+            overlay.style.opacity = "0";
             setTimeout(() => {
-              overlay.style.display = 'none';
+              overlay.style.display = "none";
               overlay.remove();
             }, 1000);
           }
@@ -12892,11 +13008,13 @@
             if (logContainer) {
               logContainer.classList.toggle("open");
               if (logContainer.classList.contains("open")) {
-                this.innerHTML = '<span style="color: #ff0000; font-size: 20px;">❌</span>';
+                this.innerHTML =
+                  '<span style="color: #ff0000; font-size: 20px;">❌</span>';
                 this.setAttribute("aria-expanded", "true");
                 logContainer.style.display = "flex";
               } else {
-                this.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
+                this.innerHTML =
+                  '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
                 this.setAttribute("aria-expanded", "false");
                 logContainer.style.display = "none";
               }
@@ -12966,12 +13084,23 @@
 
           const logs = snap.val();
           if (logs) {
+            const fragment = document.createDocumentFragment();
+
+            const actoresMap = new Map();
+            if (window.allActoresCache) {
+              for (const actor of Object.values(window.allActoresCache)) {
+                if (actor.nombre) {
+                  actoresMap.set(actor.nombre.toLowerCase(), actor);
+                }
+              }
+            }
+
             let isFirst = true;
             for (const [key, msg] of Object.entries(logs)) {
               if (!isFirst) {
                 const divider = document.createElement("hr");
                 divider.className = "dialogue-divider";
-                scrollArea.appendChild(divider);
+                fragment.appendChild(divider);
               }
               isFirst = false;
 
@@ -12982,13 +13111,8 @@
               const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
               let dynamicIcon = null;
-              if (window.allActoresCache) {
-                const actorMatch = Object.values(window.allActoresCache).find(
-                  (actor) =>
-                    actor.nombre &&
-                    msg.nombre &&
-                    actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                );
+              if (msg.nombre) {
+                const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
                 if (actorMatch && actorMatch.icono) {
                   dynamicIcon = actorMatch.icono;
                 }
@@ -13009,8 +13133,9 @@
                   <p>${msg.mensaje}</p>
                 </div>
               `;
-              scrollArea.appendChild(row);
+              fragment.appendChild(row);
             }
+            scrollArea.appendChild(fragment);
 
             // Create confirm button footer if it doesn't exist
             let footer = logContainer.querySelector(".dialogue-footer");
@@ -13033,7 +13158,8 @@
                     "btn-toggle-theatre-log-player",
                   );
                   if (logToggleBtn) {
-                    logToggleBtn.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
+                    logToggleBtn.innerHTML =
+                      '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
                     logToggleBtn.setAttribute("aria-expanded", "false");
                   }
                 });
@@ -13182,53 +13308,73 @@
     </script>
 
     <style id="estilos-tienda-dinamica">
-        .currency-display {
-            position: absolute;
-            bottom: -10px;
-            right: 40px;
-            background: var(--panel-metal);
-            border: 3px solid var(--brillo-tenue);
-            padding: 5px 25px;
-            z-index: 80;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.7);
-        }
-        .currency-label {
-            color: #888;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
-        .currency-val {
-            font-family: var(--fuente-tocha);
-            font-size: 2rem;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .ahn-icon-shop {
-            width: 24px;
-            height: 24px;
-            object-fit: contain;
-            filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.5));
-        }
-    :root {
-        --bg-deep: #080706; --panel-metal: #1a1714; --panel-oxidado: #2d251f;
-        --brillo-ambar: #ff9d00; --brillo-tenue: #a36f2d; --text-base: #a09080;
-        --rojo-pecado: #ff3300; --fuente-tocha: 'Arial Black', 'Montserrat Black', sans-serif;
-        --fuente-texto: 'Courier New', Courier, monospace;
-        --hazard-pattern: repeating-linear-gradient(-45deg, var(--brillo-ambar), var(--brillo-ambar) 5px, #000 5px, #000 10px);
-    }
-    #tienda-overlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(8, 7, 6, 0.95); z-index: 9500; justify-content: center; align-items: center;
-        perspective: 1500px; font-family: var(--fuente-texto);
-    }
+      .currency-display {
+        position: absolute;
+        bottom: -10px;
+        right: 40px;
+        background: var(--panel-metal);
+        border: 3px solid var(--brillo-tenue);
+        padding: 5px 25px;
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.7);
+      }
+      .currency-label {
+        color: #888;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+      }
+      .currency-val {
+        font-family: var(--fuente-tocha);
+        font-size: 2rem;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ahn-icon-shop {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.5));
+      }
+      :root {
+        --bg-deep: #080706;
+        --panel-metal: #1a1714;
+        --panel-oxidado: #2d251f;
+        --brillo-ambar: #ff9d00;
+        --brillo-tenue: #a36f2d;
+        --text-base: #a09080;
+        --rojo-pecado: #ff3300;
+        --fuente-tocha: "Arial Black", "Montserrat Black", sans-serif;
+        --fuente-texto: "Courier New", Courier, monospace;
+        --hazard-pattern: repeating-linear-gradient(
+          -45deg,
+          var(--brillo-ambar),
+          var(--brillo-ambar) 5px,
+          #000 5px,
+          #000 10px
+        );
+      }
+      #tienda-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(8, 7, 6, 0.95);
+        z-index: 9500;
+        justify-content: center;
+        align-items: center;
+        perspective: 1500px;
+        font-family: var(--fuente-texto);
+      }
 
-    /* Estilo sutil y ultra-prioritario para el botón de tienda */
-    #btn-shop-notifier {
+      /* Estilo sutil y ultra-prioritario para el botón de tienda */
+      #btn-shop-notifier {
         display: none !important; /* Oculto por defecto */
         position: fixed;
         top: 70px; /* Colocado debajo del botón de HUD que está en top: 20px */
@@ -13247,189 +13393,519 @@
         box-shadow: 0 0 15px rgba(255, 157, 0, 0.5);
         animation: shopPulse 2s infinite;
         padding: 0;
-    }
+      }
 
-    #btn-shop-notifier.show {
+      #btn-shop-notifier.show {
         display: flex !important;
-    }
+      }
 
-    @keyframes shopPulse {
-        0% { box-shadow: 0 0 10px rgba(255, 157, 0, 0.4); }
-        50% { box-shadow: 0 0 25px rgba(255, 157, 0, 0.8); }
-        100% { box-shadow: 0 0 10px rgba(255, 157, 0, 0.4); }
-    }
-    #tienda-overlay::before {
-        content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background-image: radial-gradient(var(--bg-deep) 40%, transparent 90%), repeating-linear-gradient(0deg, #111, #111 1px, transparent 1px, transparent 5px), repeating-linear-gradient(90deg, #111, #111 1px, transparent 1px, transparent 5px);
-        opacity: 0.3; z-index: -1;
-    }
-    .shop-scene { position: relative; width: 1200px; height: 700px; display: flex; align-items: flex-start; gap: 20px; }
-    .shop-logo { position: absolute; top: -50px; left: -30px; transform: rotate(-3deg); background: #000; border: 4px solid var(--brillo-ambar); padding: 10px 30px; z-index: 100; box-shadow: 5px 5px 0 #000; }
-    .shop-logo h1 { font-family: var(--fuente-tocha); font-size: 2.5rem; text-transform: uppercase; color: var(--brillo-ambar); margin: 0; letter-spacing: -2px; text-shadow: 2px 2px 0 #000, 0 0 10px var(--brillo-ambar); }
-    .top-nav { position: absolute; top: 10px; right: 0; display: flex; gap: 10px; z-index: 90; }
-    .btn-lcm { background: #111; color: #ccc; border: 2px solid var(--panel-oxidado); padding: 10px 20px; text-transform: uppercase; font-weight: bold; cursor: pointer; transition: all 0.2s; transform: skewX(-10deg); font-family: var(--fuente-tocha); }
-    .btn-lcm:hover { border-color: var(--brillo-tenue); color: #fff; box-shadow: 0 0 15px rgba(163, 111, 45, 0.4); }
-    .items-panel { background: var(--panel-metal); border: 4px solid var(--panel-oxidado); width: 750px; height: 650px; padding: 70px 30px 30px 30px; position: relative; transform: rotateY(-5deg); box-shadow: 10px 10px 30px rgba(0,0,0,0.9); overflow-y: scroll; }
-    .items-panel::-webkit-scrollbar { width: 10px; } .items-panel::-webkit-scrollbar-track { background: #111; } .items-panel::-webkit-scrollbar-thumb { background: var(--panel-oxidado); border: 2px solid #111; }
-    .item-list { display: flex; flex-direction: column; gap: 12px; padding-right: 15px; width: 100%; box-sizing: border-box; }
-    .item-row { background: rgba(0,0,0,0.6); border: 2px solid var(--panel-oxidado); border-left: 6px solid var(--panel-oxidado); display: flex; align-items: center; padding: 10px; cursor: pointer; transition: all 0.15s ease; position: relative; width: 100%; box-sizing: border-box; }
-    .item-row:hover, .item-row.selected { border-color: var(--brillo-ambar); border-left-width: 10px; background: rgba(255, 157, 0, 0.05); transform: translateX(5px); z-index: 10; }
-    .item-row.selected { border-color: #fff; border-left-color: #fff; background: rgba(255, 157, 0, 0.1); box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
-    .icon-slot { position: relative; width: 65px; height: 65px; border: 2px solid #555; background: #000; display: flex; justify-content: center; align-items: center; margin-right: 20px; border-radius: 2px; overflow: hidden; }
-    .item-row:hover .icon-slot::before, .item-row.selected .icon-slot::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 5px; background: var(--hazard-pattern); }
-    .tier { position: absolute; top: 2px; left: 5px; font-family: var(--fuente-tocha); color: var(--brillo-ambar); font-size: 0.9rem; z-index: 5; text-shadow: 0 0 5px #000; }
-    .icono-img { font-size: 2.2rem; filter: drop-shadow(0 0 5px rgba(0,0,0,0.8)); }
-    .item-details { display: flex; flex-grow: 1; justify-content: space-between; align-items: center; }
-    .item-name { font-family: var(--fuente-tocha); font-size: 1.1rem; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
-    .item-cost { font-family: var(--fuente-tocha); font-size: 1.5rem; color: var(--brillo-tenue); text-align: right; padding-right: 10px; }
-    .item-row:hover .item-cost, .item-row.selected .item-cost { color: var(--brillo-ambar); text-shadow: 0 0 10px var(--brillo-ambar); }
-    .info-panel-overlay { background: #111; border: 4px solid var(--brillo-tenue); width: 380px; height: 400px; position: absolute; top: 100px; right: 0; padding: 30px; z-index: 50; transform: rotateY(10deg) translateZ(30px); box-shadow: -10px 10px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; }
-    .info-panel-overlay::before { content: ''; position: absolute; top: -4px; left: -4px; right: -4px; height: 12px; background: var(--hazard-pattern); }
-    .qty-header { border-bottom: 1px solid #333; padding-bottom: 15px; }
-    .qty-title { color: #777; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; }
-    .qty-num { font-family: var(--fuente-tocha); font-size: 2rem; color: #fff; line-height: 1; margin-top: 5px; }
-    .desc-body { color: var(--text-base); font-size: 0.9rem; line-height: 1.6; flex-grow: 1; overflow-y: auto; }
-    .btn-comprar-panel { background: #000; color: var(--brillo-ambar); border: 2px solid var(--brillo-ambar); padding: 15px; font-family: var(--fuente-tocha); font-size: 1.2rem; cursor: pointer; text-transform: uppercase; transition: 0.2s; text-align: center; display: none; margin-top: auto; }
-    .btn-comprar-panel:hover { background: var(--brillo-ambar); color: #000; box-shadow: 0 0 15px var(--brillo-ambar); }
+      @keyframes shopPulse {
+        0% {
+          box-shadow: 0 0 10px rgba(255, 157, 0, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 25px rgba(255, 157, 0, 0.8);
+        }
+        100% {
+          box-shadow: 0 0 10px rgba(255, 157, 0, 0.4);
+        }
+      }
+      #tienda-overlay::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+          radial-gradient(var(--bg-deep) 40%, transparent 90%),
+          repeating-linear-gradient(
+            0deg,
+            #111,
+            #111 1px,
+            transparent 1px,
+            transparent 5px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            #111,
+            #111 1px,
+            transparent 1px,
+            transparent 5px
+          );
+        opacity: 0.3;
+        z-index: -1;
+      }
+      .shop-scene {
+        position: relative;
+        width: 1200px;
+        height: 700px;
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+      }
+      .shop-logo {
+        position: absolute;
+        top: -50px;
+        left: -30px;
+        transform: rotate(-3deg);
+        background: #000;
+        border: 4px solid var(--brillo-ambar);
+        padding: 10px 30px;
+        z-index: 100;
+        box-shadow: 5px 5px 0 #000;
+      }
+      .shop-logo h1 {
+        font-family: var(--fuente-tocha);
+        font-size: 2.5rem;
+        text-transform: uppercase;
+        color: var(--brillo-ambar);
+        margin: 0;
+        letter-spacing: -2px;
+        text-shadow:
+          2px 2px 0 #000,
+          0 0 10px var(--brillo-ambar);
+      }
+      .top-nav {
+        position: absolute;
+        top: 10px;
+        right: 0;
+        display: flex;
+        gap: 10px;
+        z-index: 90;
+      }
+      .btn-lcm {
+        background: #111;
+        color: #ccc;
+        border: 2px solid var(--panel-oxidado);
+        padding: 10px 20px;
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+        transform: skewX(-10deg);
+        font-family: var(--fuente-tocha);
+      }
+      .btn-lcm:hover {
+        border-color: var(--brillo-tenue);
+        color: #fff;
+        box-shadow: 0 0 15px rgba(163, 111, 45, 0.4);
+      }
+      .items-panel {
+        background: var(--panel-metal);
+        border: 4px solid var(--panel-oxidado);
+        width: 750px;
+        height: 650px;
+        padding: 70px 30px 30px 30px;
+        position: relative;
+        transform: rotateY(-5deg);
+        box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.9);
+        overflow-y: scroll;
+      }
+      .items-panel::-webkit-scrollbar {
+        width: 10px;
+      }
+      .items-panel::-webkit-scrollbar-track {
+        background: #111;
+      }
+      .items-panel::-webkit-scrollbar-thumb {
+        background: var(--panel-oxidado);
+        border: 2px solid #111;
+      }
+      .item-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-right: 15px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .item-row {
+        background: rgba(0, 0, 0, 0.6);
+        border: 2px solid var(--panel-oxidado);
+        border-left: 6px solid var(--panel-oxidado);
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        position: relative;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .item-row:hover,
+      .item-row.selected {
+        border-color: var(--brillo-ambar);
+        border-left-width: 10px;
+        background: rgba(255, 157, 0, 0.05);
+        transform: translateX(5px);
+        z-index: 10;
+      }
+      .item-row.selected {
+        border-color: #fff;
+        border-left-color: #fff;
+        background: rgba(255, 157, 0, 0.1);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      }
+      .icon-slot {
+        position: relative;
+        width: 65px;
+        height: 65px;
+        border: 2px solid #555;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-right: 20px;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .item-row:hover .icon-slot::before,
+      .item-row.selected .icon-slot::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 5px;
+        background: var(--hazard-pattern);
+      }
+      .tier {
+        position: absolute;
+        top: 2px;
+        left: 5px;
+        font-family: var(--fuente-tocha);
+        color: var(--brillo-ambar);
+        font-size: 0.9rem;
+        z-index: 5;
+        text-shadow: 0 0 5px #000;
+      }
+      .icono-img {
+        font-size: 2.2rem;
+        filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.8));
+      }
+      .item-details {
+        display: flex;
+        flex-grow: 1;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .item-name {
+        font-family: var(--fuente-tocha);
+        font-size: 1.1rem;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .item-cost {
+        font-family: var(--fuente-tocha);
+        font-size: 1.5rem;
+        color: var(--brillo-tenue);
+        text-align: right;
+        padding-right: 10px;
+      }
+      .item-row:hover .item-cost,
+      .item-row.selected .item-cost {
+        color: var(--brillo-ambar);
+        text-shadow: 0 0 10px var(--brillo-ambar);
+      }
+      .info-panel-overlay {
+        background: #111;
+        border: 4px solid var(--brillo-tenue);
+        width: 380px;
+        height: 400px;
+        position: absolute;
+        top: 100px;
+        right: 0;
+        padding: 30px;
+        z-index: 50;
+        transform: rotateY(10deg) translateZ(30px);
+        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .info-panel-overlay::before {
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        height: 12px;
+        background: var(--hazard-pattern);
+      }
+      .qty-header {
+        border-bottom: 1px solid #333;
+        padding-bottom: 15px;
+      }
+      .qty-title {
+        color: #777;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .qty-num {
+        font-family: var(--fuente-tocha);
+        font-size: 2rem;
+        color: #fff;
+        line-height: 1;
+        margin-top: 5px;
+      }
+      .desc-body {
+        color: var(--text-base);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        flex-grow: 1;
+        overflow-y: auto;
+      }
+      .btn-comprar-panel {
+        background: #000;
+        color: var(--brillo-ambar);
+        border: 2px solid var(--brillo-ambar);
+        padding: 15px;
+        font-family: var(--fuente-tocha);
+        font-size: 1.2rem;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: 0.2s;
+        text-align: center;
+        display: none;
+        margin-top: auto;
+      }
+      .btn-comprar-panel:hover {
+        background: var(--brillo-ambar);
+        color: #000;
+        box-shadow: 0 0 15px var(--brillo-ambar);
+      }
 
+      /* ==================== HOTFIXES ==================== */
 
-/* ==================== HOTFIXES ==================== */
+      /* Limitar el wrapper para que no invada toda la pantalla baja */
+      .theatre-dialogue-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        z-index: 8500 !important;
+      }
 
-/* Limitar el wrapper para que no invada toda la pantalla baja */
-.theatre-dialogue-wrapper {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
-    z-index: 8500 !important;
-}
+      /* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
+      .theatre-controls {
+        position: relative !important;
+        z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+        background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+        padding: 15px !important;
+        border-top: 2px solid var(--border-accent, #c49a00) !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        gap: 10px !important;
+      }
 
-/* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
-.theatre-controls {
-    position: relative !important;
-    z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
-    background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
-    padding: 15px !important;
-    border-top: 2px solid var(--border-accent, #c49a00) !important;
-    pointer-events: auto !important;
-    display: flex !important;
-    gap: 10px !important;
-}
+      /* Asegurar que el input específico tome el espacio y sea clickeable */
+      .theatre-controls input[type="text"] {
+        flex-grow: 1 !important;
+        pointer-events: auto !important;
+      }
 
-/* Asegurar que el input específico tome el espacio y sea clickeable */
-.theatre-controls input[type="text"] {
-    flex-grow: 1 !important;
-    pointer-events: auto !important;
-}
+      #theatre-dialogue-history {
+        flex-grow: 1 !important;
+        overflow-y: auto !important;
+        padding-bottom: 10px;
+      }
 
-#theatre-dialogue-history {
-    flex-grow: 1 !important;
-    overflow-y: auto !important;
-    padding-bottom: 10px;
-}
+      .theatre-stage {
+        pointer-events: none !important;
+      }
 
-.theatre-stage {
-    pointer-events: none !important;
-}
+      .btn-icon-base,
+      .control-btn {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
 
-.btn-icon-base, .control-btn {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
+      .btn-icon-base svg,
+      .btn-icon-base img,
+      .control-btn svg,
+      .control-btn img {
+        filter: drop-shadow(0 0 8px rgba(255, 157, 0, 0.8));
+        width: 65%;
+        height: 65%;
+        object-fit: contain;
+      }
 
-.btn-icon-base svg, .btn-icon-base img,
-.control-btn svg, .control-btn img {
-    filter: drop-shadow(0 0 8px rgba(255, 157, 0, 0.8));
-    width: 65%;
-    height: 65%;
-    object-fit: contain;
-}
+      .top-nav,
+      .hud-right-container,
+      .theater-toolbar {
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 15px;
+      }
+    </style>
 
-.top-nav, .hud-right-container, .theater-toolbar {
-    display: flex !important;
-    justify-content: flex-end !important;
-    gap: 15px;
-}
-
-</style>
-
-<div id="tienda-overlay">
-    <div class="shop-scene">
+    <div id="tienda-overlay">
+      <div class="shop-scene">
         <div class="shop-logo">
-            <h1 id="shop-name-display">Cargando...</h1>
+          <h1 id="shop-name-display">Cargando...</h1>
         </div>
         <nav class="top-nav">
-            <button class="btn-lcm btn-dropdown" onclick="document.getElementById('tienda-overlay').style.display='none'">Cerrar [X]</button>
+          <button
+            class="btn-lcm btn-dropdown"
+            onclick="
+              document.getElementById('tienda-overlay').style.display = 'none'
+            "
+          >
+            Cerrar [X]
+          </button>
         </nav>
         <main class="items-panel">
-            <div class="item-list" id="lista-items-tienda">
-                </div>
+          <div class="item-list" id="lista-items-tienda"></div>
         </main>
         <aside class="info-panel-overlay">
-            <div class="qty-header">
-                <div class="qty-title">STOCK DISPONIBLE</div>
-                <div class="qty-num" id="panel-item-qty">--</div>
-                <div style="font-family: var(--fuente-tocha); font-size: 1.5rem; color: var(--brillo-ambar); margin-top: 15px;" id="panel-item-name">---</div>
+          <div class="qty-header">
+            <div class="qty-title">STOCK DISPONIBLE</div>
+            <div class="qty-num" id="panel-item-qty">--</div>
+            <div
+              style="
+                font-family: var(--fuente-tocha);
+                font-size: 1.5rem;
+                color: var(--brillo-ambar);
+                margin-top: 15px;
+              "
+              id="panel-item-name"
+            >
+              ---
             </div>
-            <div class="desc-body" id="panel-item-desc">
-                <span style="color: #666; font-style: italic;">Selecciona un objeto del inventario para ver sus detalles...</span>
-            </div>
-            <button id="btn-comprar-seleccionado" class="btn-comprar-panel">Comprar Objeto</button>
+          </div>
+          <div class="desc-body" id="panel-item-desc">
+            <span style="color: #666; font-style: italic"
+              >Selecciona un objeto del inventario para ver sus
+              detalles...</span
+            >
+          </div>
+          <button id="btn-comprar-seleccionado" class="btn-comprar-panel">
+            Comprar Objeto
+          </button>
         </aside>
 
         <div class="currency-display" id="shop-currency-display">
-            <span class="currency-label">FONDOS</span>
-            <div class="currency-val">
-                <span style="color: var(--brillo-ambar);">₳</span>
-                <span id="shop-player-balance">0</span>
-            </div>
+          <span class="currency-label">FONDOS</span>
+          <div class="currency-val">
+            <span style="color: var(--brillo-ambar)">₳</span>
+            <span id="shop-player-balance">0</span>
+          </div>
         </div>
+      </div>
     </div>
-</div>
 
-    <button id="btn-shop-notifier" class="btn-icon-base size-50"><img src="Assets/Images/Buttons/Shop.svg" class="svg-icon" alt="Shop" /></button>
+    <button id="btn-shop-notifier" class="btn-icon-base size-50">
+      <img src="Assets/Images/Buttons/Shop.svg" class="svg-icon" alt="Shop" />
+    </button>
 
-    <div id="modal-escritura-teatro" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
-        <div style="background: #0b0a0a; border: 1px solid #c49a00; padding: 20px; width: 90%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;">
-            <h3 style="margin: 0; color: #c49a00;">Modo Actuación</h3>
+    <div
+      id="modal-escritura-teatro"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+      "
+    >
+      <div
+        style="
+          background: #0b0a0a;
+          border: 1px solid #c49a00;
+          padding: 20px;
+          width: 90%;
+          max-width: 500px;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        "
+      >
+        <h3 style="margin: 0; color: #c49a00">Modo Actuación</h3>
 
-            <div id="contenedor-selectores-emocion" style="display: flex; gap: 10px;">
-                <select
-                    id="player-actor-select"
-                    style="
-                    background: #111;
-                    color: #c49a00;
-                    border: 1px solid #c49a00;
-                    padding: 5px;
-                    font-family: 'Share Tech Mono';
-                    outline: none;
-                    flex: 1;
-                    "
-                >
-                    <option value="base">Mi Personaje</option>
-                </select>
-                <select
-                    id="player-expression-select"
-                    style="
-                    padding: 5px;
-                    background: #222;
-                    color: #0df;
-                    border: 1px solid #444;
-                    border-radius: 4px;
-                    font-size: 16px;
-                    flex: 1;
-                    display: none;
-                    "
-                ></select>
-            </div>
-
-            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Share Tech Mono'; resize: none; padding: 10px;"></textarea>
-
-            <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                <button id="btn-cerrar-escritura" style="background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer;">Cancelar</button>
-                <button id="btn-enviar-teatro-modal" style="background: #8b0000; color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold;">Enviar</button>
-            </div>
+        <div
+          id="contenedor-selectores-emocion"
+          style="display: flex; gap: 10px"
+        >
+          <select
+            id="player-actor-select"
+            style="
+              background: #111;
+              color: #c49a00;
+              border: 1px solid #c49a00;
+              padding: 5px;
+              font-family: &quot;Share Tech Mono&quot;;
+              outline: none;
+              flex: 1;
+            "
+          >
+            <option value="base">Mi Personaje</option>
+          </select>
+          <select
+            id="player-expression-select"
+            style="
+              padding: 5px;
+              background: #222;
+              color: #0df;
+              border: 1px solid #444;
+              border-radius: 4px;
+              font-size: 16px;
+              flex: 1;
+              display: none;
+            "
+          ></select>
         </div>
+
+        <textarea
+          id="input-teatro-modal"
+          rows="4"
+          placeholder="Escribe tu acción o diálogo..."
+          style="
+            width: 100%;
+            background: #050505;
+            color: #fff;
+            border: 1px solid #444;
+            font-family: &quot;Share Tech Mono&quot;;
+            resize: none;
+            padding: 10px;
+          "
+        ></textarea>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <button
+            id="btn-cerrar-escritura"
+            style="
+              background: #333;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              cursor: pointer;
+            "
+          >
+            Cancelar
+          </button>
+          <button
+            id="btn-enviar-teatro-modal"
+            style="
+              background: #8b0000;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
     </div>
 
     <script src="js/utils.js"></script>

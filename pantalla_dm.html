@@ -613,11 +613,11 @@
 
         /* Ajustes de diálogo ultra-compactos (Sigue el movimiento del drawer) */
 
-
         /* Si el panel está abierto, el diálogo sube empujado por el grid */
         #theatre-view-dm:has(#dm-tools-wrapper.open)
-
-        #theatre-view-dm .sprite-wrapper img {
+          #theatre-view-dm
+          .sprite-wrapper
+          img {
           bottom: 35px !important;
           transition: bottom 0.4s ease-out !important;
         }
@@ -625,8 +625,6 @@
         #theatre-view-dm:has(#dm-tools-wrapper.open) .sprite-wrapper img {
           bottom: 130px !important;
         }
-
-
 
         .theatre-plates-container {
           top: -30px !important;
@@ -893,181 +891,216 @@
       }
 
       /* --- ICON BUTTON BASE COMPONENT --- */
-      .btn-icon-base, .control-btn {
-          width: 70px !important;
-          height: 70px !important;
-          min-width: 70px;
-          min-height: 70px;
-          background-color: #050505 !important; /* Fondo negro sólido */
-          clip-path: polygon(50% 0%, 85% 18%, 100% 55%, 78% 100%, 22% 100%, 0% 55%, 15% 18%) !important; /* Recorte de Heptágono */
-          border: none !important;
-          box-shadow: none !important;
-          display: flex !important;
-          justify-content: center !important;
-          align-items: center !important;
-          padding: 12px !important; /* Margen interno para que el ícono respire */
-          cursor: pointer;
-          transition: transform 0.1s ease;
+      .btn-icon-base,
+      .control-btn {
+        width: 70px !important;
+        height: 70px !important;
+        min-width: 70px;
+        min-height: 70px;
+        background-color: #050505 !important; /* Fondo negro sólido */
+        clip-path: polygon(
+          50% 0%,
+          85% 18%,
+          100% 55%,
+          78% 100%,
+          22% 100%,
+          0% 55%,
+          15% 18%
+        ) !important; /* Recorte de Heptágono */
+        border: none !important;
+        box-shadow: none !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 12px !important; /* Margen interno para que el ícono respire */
+        cursor: pointer;
+        transition: transform 0.1s ease;
       }
 
-      .btn-icon-base:active, .control-btn:active {
-          transform: scale(0.95);
+      .btn-icon-base:active,
+      .control-btn:active {
+        transform: scale(0.95);
       }
-      .btn-icon-base, .control-btn,
-      .btn-icon-base:focus, .control-btn:focus,
-      .btn-icon-base:active, .control-btn:active,
-      .btn-icon-base:hover, .control-btn:hover {
-          border: none !important;
-          outline: none !important;
-          box-shadow: none !important;
-          -webkit-tap-highlight-color: transparent;
+      .btn-icon-base,
+      .control-btn,
+      .btn-icon-base:focus,
+      .control-btn:focus,
+      .btn-icon-base:active,
+      .control-btn:active,
+      .btn-icon-base:hover,
+      .control-btn:hover {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-tap-highlight-color: transparent;
       }
-
 
       /* El SVG o Imagen dentro del Heptágono mantiene su brillo de silueta */
-      .btn-icon-base svg, .btn-icon-base img,
-      .control-btn svg, .control-btn img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
+      .btn-icon-base svg,
+      .btn-icon-base img,
+      .control-btn svg,
+      .control-btn img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));
       }
 
       /* Limitar el wrapper para que no invada toda la pantalla baja */
 
-
       /* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
       .theatre-controls {
-          position: relative !important;
-          z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
-          background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
-          padding: 15px !important;
-          border-top: 2px solid var(--border-accent, #c49a00) !important;
-          pointer-events: auto !important;
-          display: flex !important;
-          gap: 10px !important;
+        position: relative !important;
+        z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+        background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+        padding: 15px !important;
+        border-top: 2px solid var(--border-accent, #c49a00) !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        gap: 10px !important;
       }
 
       /* Asegurar que el input específico tome el espacio y sea clickeable */
       .theatre-controls input[type="text"] {
-          flex-grow: 1 !important;
-          pointer-events: auto !important;
+        flex-grow: 1 !important;
+        pointer-events: auto !important;
       }
 
-
-
-      .theatre-stage, .theatre-visuals {
-          z-index: 10 !important; /* Debe mantenerse muy por debajo del z-index 999 del log */
-          pointer-events: none !important; /* IMPORTANTE: Evita que el fondo transparente bloquee los clics */
+      .theatre-stage,
+      .theatre-visuals {
+        z-index: 10 !important; /* Debe mantenerse muy por debajo del z-index 999 del log */
+        pointer-events: none !important; /* IMPORTANTE: Evita que el fondo transparente bloquee los clics */
       }
-      .theatre-stage img, .character-sprite {
-          pointer-events: none !important;
+      .theatre-stage img,
+      .character-sprite {
+        pointer-events: none !important;
       }
 
+      /* HOTFIX UNIFICADO */
 
-/* HOTFIX UNIFICADO */
+      .theatre-dialogue-wrapper {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 25vh !important; /* Misma altura para DM y Jugador */
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        align-items: center !important; /* Centra las cajas de texto horizontalmente */
+        z-index: 8500 !important; /* Por encima del stage */
+        pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
+        margin: 0 !important;
+        padding: 0 !important;
+        background: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.9) 0%,
+          rgba(0, 0, 0, 0.5) 60%,
+          transparent 100%
+        ) !important;
+      }
 
-.theatre-dialogue-wrapper {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 25vh !important; /* Misma altura para DM y Jugador */
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
-    align-items: center !important; /* Centra las cajas de texto horizontalmente */
-    z-index: 8500 !important; /* Por encima del stage */
-    pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
-    margin: 0 !important;
-    padding: 0 !important;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%) !important;
-}
+      .theatre-dialogue-text {
+        width: 100% !important;
+        max-width: 1200px !important; /* Mantiene legibilidad en PC */
+        margin: 0 auto !important; /* Centrado absoluto */
+        height: 100% !important;
+        background: rgba(5, 5, 5, 0.75) !important;
+        -webkit-mask-image: linear-gradient(
+          to right,
+          transparent 0%,
+          black 15%,
+          black 85%,
+          transparent 100%
+        ) !important;
+        mask-image: linear-gradient(
+          to right,
+          transparent 0%,
+          black 15%,
+          black 85%,
+          transparent 100%
+        ) !important;
+        border-top: 2px solid #c49a00 !important;
+        padding: 20px 40px !important;
+        color: #fffacd !important;
+        font-size: 1.1rem !important;
+        line-height: 1.6 !important;
+        font-family:
+          "Roboto", sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
+        position: relative !important;
+        z-index: 9000 !important; /* Al frente del wrapper */
+        pointer-events: auto !important; /* Reactiva los clics y el scroll */
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+      }
 
-.theatre-dialogue-text {
-    width: 100% !important;
-    max-width: 1200px !important; /* Mantiene legibilidad en PC */
-    margin: 0 auto !important; /* Centrado absoluto */
-    height: 100% !important;
-    background: rgba(5, 5, 5, 0.75) !important;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%) !important;
-    mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%) !important;
-    border-top: 2px solid #c49a00 !important;
-    padding: 20px 40px !important;
-    color: #fffacd !important;
-    font-size: 1.1rem !important;
-    line-height: 1.6 !important;
-    font-family: 'Roboto', sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
-    position: relative !important;
-    z-index: 9000 !important; /* Al frente del wrapper */
-    pointer-events: auto !important; /* Reactiva los clics y el scroll */
-    white-space: pre-wrap !important;
-    word-wrap: break-word !important;
-    overflow-y: auto !important;
-    box-sizing: border-box !important;
-}
+      #theatre-dialogue-history {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 1200px !important;
+        margin: 0 auto !important; /* Centrado absoluto */
+        height: 100% !important; /* Llena los 25vh del wrapper */
+        z-index: 9000 !important;
+        background: rgba(5, 5, 5, 0.85) !important;
+        border-top: 2px solid #c49a00 !important;
+        pointer-events: auto !important;
+        overflow-y: auto !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        display: block !important;
+      }
 
-#theatre-dialogue-history {
-    position: relative !important;
-    width: 100% !important;
-    max-width: 1200px !important;
-    margin: 0 auto !important; /* Centrado absoluto */
-    height: 100% !important; /* Llena los 25vh del wrapper */
-    z-index: 9000 !important;
-    background: rgba(5, 5, 5, 0.85) !important;
-    border-top: 2px solid #c49a00 !important;
-    pointer-events: auto !important;
-    overflow-y: auto !important;
-    padding: 15px !important;
-    box-sizing: border-box !important;
-    display: block !important;
-}
+      .theatre-stage,
+      .theatre-visuals,
+      .character-sprite {
+        z-index: 10 !important;
+        pointer-events: none !important;
+      }
 
-.theatre-stage, .theatre-visuals, .character-sprite {
-    z-index: 10 !important;
-    pointer-events: none !important;
-}
+      /* --- HOTFIX INMEDIATO --- */
+      #theatre-dialogue-history {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 25vh !important;
+        z-index: 900 !important;
+        background: rgba(5, 5, 5, 0.85) !important;
+        border-top: 2px solid #c49a00 !important;
+        overflow-y: auto !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+      }
 
+      /* TORRE DE BOTONES CON SEPARACIÓN ESTRICTA */
+      .hud-right-container,
+      .theatre-controls {
+        position: fixed !important;
+        bottom: 27vh !important; /* Flotando justo encima del Wrapper de 25vh */
+        right: 20px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 20px !important; /* SEPARACIÓN OBLIGATORIA ENTRE BOTONES */
+        z-index: 9999 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
 
-/* --- HOTFIX INMEDIATO --- */
-#theatre-dialogue-history {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 25vh !important;
-    z-index: 900 !important;
-    background: rgba(5, 5, 5, 0.85) !important;
-    border-top: 2px solid #c49a00 !important;
-    overflow-y: auto !important;
-    padding: 15px !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-}
-
-/* TORRE DE BOTONES CON SEPARACIÓN ESTRICTA */
-.hud-right-container, .theatre-controls {
-    position: fixed !important;
-    bottom: 27vh !important; /* Flotando justo encima del Wrapper de 25vh */
-    right: 20px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 20px !important; /* SEPARACIÓN OBLIGATORIA ENTRE BOTONES */
-    z-index: 9999 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-/* Seguro adicional por si Flexbox ignora el gap en algunos elementos */
-.hud-right-container > *, .theatre-controls > * {
-    margin-bottom: 20px !important;
-}
-.hud-right-container > *:last-child, .theatre-controls > *:last-child {
-    margin-bottom: 0 !important;
-}
-</style>
+      /* Seguro adicional por si Flexbox ignora el gap en algunos elementos */
+      .hud-right-container > *,
+      .theatre-controls > * {
+        margin-bottom: 20px !important;
+      }
+      .hud-right-container > *:last-child,
+      .theatre-controls > *:last-child {
+        margin-bottom: 0 !important;
+      }
+    </style>
 
     <style>
       #system-loading-overlay {
@@ -1141,7 +1174,8 @@
         src: url("Fonts/BebasKai.otf") format("opentype");
       }
 
-      /* --- ICON BUTTON BASE COMPONENT --- */</style>
+      /* --- ICON BUTTON BASE COMPONENT --- */
+    </style>
   </head>
   <body>
     <div id="system-loading-overlay">
@@ -1219,7 +1253,8 @@
         display: flex;
       }
 
-      /* --- ICON BUTTON BASE COMPONENT --- */</style>
+      /* --- ICON BUTTON BASE COMPONENT --- */
+    </style>
 
     <div
       style="
@@ -2911,14 +2946,67 @@
 
     <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
 
-<div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 10000; justify-content: center; align-items: center;">
-    <div class="modal-content" style="background: rgba(10, 10, 10, 0.85); border: 2px solid #c49a00; padding: 25px; border-radius: 8px; max-width: 90%; position: relative; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8);">
-        <button class="close-modal" style="position: absolute; top: 10px; right: 15px; color: #fff; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
-        <h3 style="color: #c49a00; margin-top: 0; font-family: 'Share Tech Mono', monospace;">Herramientas del Teatro</h3>
-        <div id="dm-teatro-options" style="display: flex; flex-direction: column; gap: 15px;">
-            </div>
+    <div
+      id="dm-teatro-modal"
+      class="modal-overlay"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+      "
+    >
+      <div
+        class="modal-content"
+        style="
+          background: rgba(10, 10, 10, 0.85);
+          border: 2px solid #c49a00;
+          padding: 25px;
+          border-radius: 8px;
+          max-width: 90%;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+          box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+        "
+      >
+        <button
+          class="close-modal"
+          style="
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #fff;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+          "
+        >
+          &times;
+        </button>
+        <h3
+          style="
+            color: #c49a00;
+            margin-top: 0;
+            font-family: &quot;Share Tech Mono&quot;, monospace;
+          "
+        >
+          Herramientas del Teatro
+        </h3>
+        <div
+          id="dm-teatro-options"
+          style="display: flex; flex-direction: column; gap: 15px"
+        ></div>
+      </div>
     </div>
-</div>
 
     <div
       id="theatre-view-dm"
@@ -3226,14 +3314,18 @@
                 />
               </label>
 
-                            <button
+              <button
                 id="dm-theatre-continuous-btn"
                 class="btn-icon-base size-36"
                 title="Modo Continuo (Auto Dialog)"
                 aria-label="Modo Continuo"
-                style="margin-left: 10px;"
+                style="margin-left: 10px"
               >
-                <img src="Assets/Images/Buttons/Auto Dialog.svg" class="svg-icon" alt="Auto Dialog" />
+                <img
+                  src="Assets/Images/Buttons/Auto Dialog.svg"
+                  class="svg-icon"
+                  alt="Auto Dialog"
+                />
               </button>
             </div>
 
@@ -3346,32 +3438,35 @@
         transition: all 0.4s ease;
       }
       /* Escenario donde van las imágenes */
-      .theatre-visuals, .theatre-stage {
-          flex-grow: 1 !important;
-          display: flex !important;
-          align-items: flex-end !important; /* Gravedad: empuja los sprites al fondo del contenedor */
-          justify-content: center !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          position: relative;
-          height: 75vh !important; /* Toma el espacio superior que no usa el diálogo */
+      .theatre-visuals,
+      .theatre-stage {
+        flex-grow: 1 !important;
+        display: flex !important;
+        align-items: flex-end !important; /* Gravedad: empuja los sprites al fondo del contenedor */
+        justify-content: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        position: relative;
+        height: 75vh !important; /* Toma el espacio superior que no usa el diálogo */
       }
 
       /* Las imágenes (sprites) de los personajes */
-      .theatre-stage img, .character-sprite {
-          max-height: 100% !important;
-          object-fit: contain !important;
-          align-self: flex-end !important; /* Doble seguro para anclarlos abajo */
-          margin-bottom: 0 !important;
-          vertical-align: bottom !important;
+      .theatre-stage img,
+      .character-sprite {
+        max-height: 100% !important;
+        object-fit: contain !important;
+        align-self: flex-end !important; /* Doble seguro para anclarlos abajo */
+        margin-bottom: 0 !important;
+        vertical-align: bottom !important;
       }
 
       /* Asegurar que el contenedor global mantenga la estructura de columna */
-      .theatre-container, .theatre-wrapper {
-          display: flex !important;
-          flex-direction: column !important;
-          height: 100vh !important;
-          justify-content: flex-end !important;
+      .theatre-container,
+      .theatre-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100vh !important;
+        justify-content: flex-end !important;
       }
       .sprite-wrapper {
         position: relative;
@@ -3464,8 +3559,6 @@
         display: inline-block;
         transform: none;
       }
-
-
 
       .theatre-plates-container {
         position: absolute;
@@ -3560,8 +3653,6 @@
         display: inline-block;
       }
 
-
-
       .theatre-dialogue-text::before {
         content: "";
         position: absolute;
@@ -3596,35 +3687,32 @@
 
       /* --- ICON BUTTON BASE COMPONENT --- */
 
-/* ==================== HOTFIXES ==================== */
+      /* ==================== HOTFIXES ==================== */
 
+      #btn-abrir-escritura {
+        margin-left: auto !important;
+      }
 
+      .theatre-controls {
+        flex-shrink: 0 !important;
+        margin-top: auto;
+      }
 
+      .theatre-stage {
+        pointer-events: none !important;
+      }
 
-
-#btn-abrir-escritura {
-    margin-left: auto !important;
-}
-
-.theatre-controls {
-    flex-shrink: 0 !important;
-    margin-top: auto;
-}
-
-.theatre-stage {
-    pointer-events: none !important;
-}
-
-.top-nav, .hud-right-container, .theater-toolbar {
-    display: flex !important;
-    justify-content: flex-end !important;
-    align-items: center !important;
-    gap: 15px !important;
-    width: 100%;
-    padding-right: 20px; /* Separación del borde de la pantalla */
-}
-
-</style>
+      .top-nav,
+      .hud-right-container,
+      .theater-toolbar {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 15px !important;
+        width: 100%;
+        padding-right: 20px; /* Separación del borde de la pantalla */
+      }
+    </style>
 
     <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
     <div id="modal-editar-tienda" class="modal-overlay">
@@ -5564,14 +5652,23 @@
         // 📊 Impact: Reduces reflows from O(n*k) to O(n) per typing burst, making the search bar responsive.
         if (searchInputDM) {
           if (searchInputDM._debounceDMHandler) {
-            searchInputDM.removeEventListener("input", searchInputDM._debounceDMHandler);
+            searchInputDM.removeEventListener(
+              "input",
+              searchInputDM._debounceDMHandler,
+            );
           }
           let filterDMTimeout = null;
-          searchInputDM._debounceDMHandler = function(e) {
+          searchInputDM._debounceDMHandler = function (e) {
             if (filterDMTimeout) clearTimeout(filterDMTimeout);
-            filterDMTimeout = setTimeout(() => filterDMItems.call(this, e), 250);
+            filterDMTimeout = setTimeout(
+              () => filterDMItems.call(this, e),
+              250,
+            );
           };
-          searchInputDM.addEventListener("input", searchInputDM._debounceDMHandler);
+          searchInputDM.addEventListener(
+            "input",
+            searchInputDM._debounceDMHandler,
+          );
         }
 
         filterBtnsDM.forEach((btn) => {
@@ -6821,11 +6918,13 @@
           });
 
         // Continuous Mode Toggle
-        document.getElementById("dm-theatre-continuous-btn").addEventListener("click", () => {
-          const btn = document.getElementById("dm-theatre-continuous-btn");
-          const newState = !btn.classList.contains("active");
-          db.ref("campaña/teatro").update({ continuo: newState });
-        });
+        document
+          .getElementById("dm-theatre-continuous-btn")
+          .addEventListener("click", () => {
+            const btn = document.getElementById("dm-theatre-continuous-btn");
+            const newState = !btn.classList.contains("active");
+            db.ref("campaña/teatro").update({ continuo: newState });
+          });
 
         // Listen to Continuous Mode
         db.ref("campaña/teatro/continuo").on("value", (snap) => {
@@ -6959,12 +7058,23 @@
             }
 
             if (logs) {
+              const fragment = document.createDocumentFragment();
+
+              const actoresMap = new Map();
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                for (const actor of Object.values(dbActoresCache)) {
+                  if (actor.nombre) {
+                    actoresMap.set(actor.nombre.toLowerCase(), actor);
+                  }
+                }
+              }
+
               let isFirst = true;
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -6975,13 +7085,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
+                if (msg.nombre) {
+                  const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
                   if (actorMatch && actorMatch.icono) {
                     dynamicIcon = actorMatch.icono;
                   }
@@ -7003,8 +7108,9 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");

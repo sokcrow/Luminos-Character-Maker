@@ -730,13 +730,22 @@ function renderCharacterSheet(data) {
       document.querySelector(`.sheet-skill-total[name="attr_${stat}"]`) ||
       document.querySelector(`span[name="attr_${stat}"]`);
 
-    if (baseInput && document.activeElement !== baseInput && baseInput.value !== String(bVal))
+    if (
+      baseInput &&
+      document.activeElement !== baseInput &&
+      baseInput.value !== String(bVal)
+    )
       baseInput.value = bVal;
-    if (modInput && document.activeElement !== modInput && modInput.value !== String(mVal))
+    if (
+      modInput &&
+      document.activeElement !== modInput &&
+      modInput.value !== String(mVal)
+    )
       modInput.value = mVal;
     if (totalSpan) {
       const newTotal = bVal + mVal;
-      if (totalSpan.innerText !== String(newTotal)) totalSpan.innerText = newTotal;
+      if (totalSpan.innerText !== String(newTotal))
+        totalSpan.innerText = newTotal;
     }
   });
 
@@ -778,7 +787,8 @@ function renderCharacterSheet(data) {
         );
         if (totalSpan) {
           const newTotal = bVal + mVal;
-          if (totalSpan.innerText !== String(newTotal)) totalSpan.innerText = newTotal;
+          if (totalSpan.innerText !== String(newTotal))
+            totalSpan.innerText = newTotal;
         }
 
         // Update inputs if not focused
@@ -788,9 +798,17 @@ function renderCharacterSheet(data) {
         const modInput = row.querySelector(
           `input[name="attr_skill_${skillNameRaw}_mod"]`,
         );
-        if (baseInput && document.activeElement !== baseInput && baseInput.value !== String(bVal))
+        if (
+          baseInput &&
+          document.activeElement !== baseInput &&
+          baseInput.value !== String(bVal)
+        )
           baseInput.value = bVal;
-        if (modInput && document.activeElement !== modInput && modInput.value !== String(mVal))
+        if (
+          modInput &&
+          document.activeElement !== modInput &&
+          modInput.value !== String(mVal)
+        )
           modInput.value = mVal;
       }
     }
@@ -1197,12 +1215,23 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          const fragment = document.createDocumentFragment();
+
+          const actoresMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre) {
+                actoresMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            }
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1243,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1266,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
@@ -1374,8 +1399,8 @@ function initializeCharacterSheet() {
               const domInput = document.getElementById("input-teatro-modal");
               if (domInput) domInput.value = ""; // Limpiar input directo post-envío
 
-              const modal = document.getElementById('modal-escritura-teatro');
-              if (modal) modal.style.display = 'none';
+              const modal = document.getElementById("modal-escritura-teatro");
+              if (modal) modal.style.display = "none";
             })
             .catch((e) => {
               console.error("Error en Firebase enviando a la cola:", e);
@@ -1415,24 +1440,24 @@ function initializeCharacterSheet() {
     }
   }
 
-  const btnAbrirModal = document.getElementById('btn-abrir-escritura');
+  const btnAbrirModal = document.getElementById("btn-abrir-escritura");
   if (btnAbrirModal) {
-      btnAbrirModal.addEventListener('click', () => {
-          const modal = document.getElementById('modal-escritura-teatro');
-          if (modal) {
-              modal.style.display = 'flex';
-              const input = document.getElementById('input-teatro-modal');
-              if (input) input.focus();
-          }
-      });
+    btnAbrirModal.addEventListener("click", () => {
+      const modal = document.getElementById("modal-escritura-teatro");
+      if (modal) {
+        modal.style.display = "flex";
+        const input = document.getElementById("input-teatro-modal");
+        if (input) input.focus();
+      }
+    });
   }
 
-  const btnCerrarModal = document.getElementById('btn-cerrar-escritura');
+  const btnCerrarModal = document.getElementById("btn-cerrar-escritura");
   if (btnCerrarModal) {
-      btnCerrarModal.addEventListener('click', () => {
-          const modal = document.getElementById('modal-escritura-teatro');
-          if (modal) modal.style.display = 'none';
-      });
+    btnCerrarModal.addEventListener("click", () => {
+      const modal = document.getElementById("modal-escritura-teatro");
+      if (modal) modal.style.display = "none";
+    });
   }
 
   // Cierra la función renderCharacterSheet
@@ -2015,14 +2040,23 @@ function initializeCharacterSheet() {
     // 📊 Impact: Significantly minimizes DOM layout thrashing during searches, reducing lag.
     if (searchInputStash) {
       if (searchInputStash._debounceStashHandler) {
-        searchInputStash.removeEventListener("input", searchInputStash._debounceStashHandler);
+        searchInputStash.removeEventListener(
+          "input",
+          searchInputStash._debounceStashHandler,
+        );
       }
       let filterStashTimeout = null;
-      searchInputStash._debounceStashHandler = function(e) {
+      searchInputStash._debounceStashHandler = function (e) {
         if (filterStashTimeout) clearTimeout(filterStashTimeout);
-        filterStashTimeout = setTimeout(() => filterStashItems.call(this, e), 250);
+        filterStashTimeout = setTimeout(
+          () => filterStashItems.call(this, e),
+          250,
+        );
       };
-      searchInputStash.addEventListener("input", searchInputStash._debounceStashHandler);
+      searchInputStash.addEventListener(
+        "input",
+        searchInputStash._debounceStashHandler,
+      );
     }
 
     filterBtnsStash.forEach((btn) => {
@@ -3114,7 +3148,8 @@ function initializeCharacterSheet() {
         if (nameEl) nameEl.textContent = displayName;
 
         const statsEl = document.getElementById("coin-toss-stats");
-        if (statsEl) statsEl.textContent = `Probabilidad de Heads: ${probHeads}%`;
+        if (statsEl)
+          statsEl.textContent = `Probabilidad de Heads: ${probHeads}%`;
 
         const resultEl = document.getElementById("roll-total-score");
         let currentTotal = skillTotal;
@@ -3122,9 +3157,9 @@ function initializeCharacterSheet() {
 
         const closeBtn = document.getElementById("coin-toss-close-btn");
         if (closeBtn) {
-            closeBtn.disabled = true;
-            closeBtn.style.opacity = "0.5";
-            closeBtn.style.cursor = "not-allowed";
+          closeBtn.disabled = true;
+          closeBtn.style.opacity = "0.5";
+          closeBtn.style.cursor = "not-allowed";
         }
 
         const panel = document.getElementById("coin-toss-panel");
@@ -3161,14 +3196,11 @@ function initializeCharacterSheet() {
 
           // Basic CSS animation to simulate spinning
           const spinAnim = coinImg.animate(
-            [
-              { transform: 'rotateY(0deg)' },
-              { transform: 'rotateY(360deg)' }
-            ],
+            [{ transform: "rotateY(0deg)" }, { transform: "rotateY(360deg)" }],
             {
               duration: 150,
-              iterations: Infinity
-            }
+              iterations: Infinity,
+            },
           );
 
           coinWrapper.appendChild(coinImg);
@@ -3185,16 +3217,24 @@ function initializeCharacterSheet() {
 
             if (isHeads) {
               coinImg.src = "https://imgur.com/yshLPnQ.png"; // Cara / Heads
-              const coinHeadsAudio = new Audio("Assets/Audio/SFX/UI/Coin%20SFX/Coin_Heads.wav");
+              const coinHeadsAudio = new Audio(
+                "Assets/Audio/SFX/UI/Coin%20SFX/Coin_Heads.wav",
+              );
               coinHeadsAudio.volume = 0.3;
-              coinHeadsAudio.play().catch(e => console.warn("Audio play blocked:", e));
+              coinHeadsAudio
+                .play()
+                .catch((e) => console.warn("Audio play blocked:", e));
               currentTotal += 3;
               if (resultEl) resultEl.textContent = currentTotal;
             } else {
               coinImg.src = "https://imgur.com/XDx0ICt.png"; // Visual Cruz
-              const coinTailsAudio = new Audio("Assets/Audio/SFX/UI/Coin%20SFX/Coin_Tails.wav");
+              const coinTailsAudio = new Audio(
+                "Assets/Audio/SFX/UI/Coin%20SFX/Coin_Tails.wav",
+              );
               coinTailsAudio.volume = 0.3;
-              coinTailsAudio.play().catch(e => console.warn("Audio play blocked:", e));
+              coinTailsAudio
+                .play()
+                .catch((e) => console.warn("Audio play blocked:", e));
             }
 
             coinsStopped++;
@@ -3277,17 +3317,17 @@ function initializeCharacterSheet() {
           btnShop.style.pointerEvents = "auto";
 
           btnShop.onclick = (e) => {
-              e.preventDefault();
-              e.stopPropagation(); // Evitar que el clic se pierda en capas inferiores
-              console.log("Iniciando apertura de tienda:", tiendaId);
-              if (typeof abrirTiendaDinamica === "function") {
-                  abrirTiendaDinamica(tiendaId);
-              }
+            e.preventDefault();
+            e.stopPropagation(); // Evitar que el clic se pierda en capas inferiores
+            console.log("Iniciando apertura de tienda:", tiendaId);
+            if (typeof abrirTiendaDinamica === "function") {
+              abrirTiendaDinamica(tiendaId);
+            }
           };
         } else {
           btnShop.classList.remove("show");
-          const overlay = document.getElementById('tienda-overlay');
-          if (overlay) overlay.style.display = 'none';
+          const overlay = document.getElementById("tienda-overlay");
+          if (overlay) overlay.style.display = "none";
         }
       }
     });
@@ -3326,126 +3366,158 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // --- LÓGICA DE TIENDAS DINÁMICAS ---
-window.abrirTiendaDinamica = function(tiendaId) {
+window.abrirTiendaDinamica = function (tiendaId) {
   if (!playerId) return;
 
-  db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
-    let saldoActual = 0;
-    transSnap.forEach(t => { saldoActual += (t.val().monto || 0); });
+  db.ref(`campaña/jugadores/${playerId}/transacciones`).once(
+    "value",
+    (transSnap) => {
+      let saldoActual = 0;
+      transSnap.forEach((t) => {
+        saldoActual += t.val().monto || 0;
+      });
 
-    const balanceDisplay = document.getElementById("shop-player-balance");
-    if (balanceDisplay) balanceDisplay.innerText = saldoActual;
+      const balanceDisplay = document.getElementById("shop-player-balance");
+      if (balanceDisplay) balanceDisplay.innerText = saldoActual;
 
-    db.ref(`campaña/tiendas/${tiendaId}`).once('value', (snap) => {
-      const data = snap.val();
-      if (!data) return;
+      db.ref(`campaña/tiendas/${tiendaId}`).once("value", (snap) => {
+        const data = snap.val();
+        if (!data) return;
 
-      document.getElementById("shop-name-display").innerText = data.nombre || "Tienda";
-      const lista = document.getElementById("lista-items-tienda");
-      lista.innerHTML = "";
+        document.getElementById("shop-name-display").innerText =
+          data.nombre || "Tienda";
+        const lista = document.getElementById("lista-items-tienda");
+        lista.innerHTML = "";
 
-      document.getElementById("panel-item-name").innerText = "---";
-      document.getElementById("panel-item-qty").innerText = "--";
-      document.getElementById("panel-item-desc").innerHTML = "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
-      const btnComprar = document.getElementById("btn-comprar-seleccionado");
-      btnComprar.style.display = "none";
+        document.getElementById("panel-item-name").innerText = "---";
+        document.getElementById("panel-item-qty").innerText = "--";
+        document.getElementById("panel-item-desc").innerHTML =
+          "<span style='color: #666; font-style: italic;'>Selecciona un objeto...</span>";
+        const btnComprar = document.getElementById("btn-comprar-seleccionado");
+        btnComprar.style.display = "none";
 
-      if (data.items) {
-        const itemsArray = Array.isArray(data.items) ? data.items : Object.keys(data.items).map(k => ({...data.items[k], _key: k}));
+        if (data.items) {
+          const itemsArray = Array.isArray(data.items)
+            ? data.items
+            : Object.keys(data.items).map((k) => ({
+                ...data.items[k],
+                _key: k,
+              }));
 
-        itemsArray.forEach((item, index) => {
-          if(!item) return;
-          const row = document.createElement("div");
-          row.className = "item-row";
+          itemsArray.forEach((item, index) => {
+            if (!item) return;
+            const row = document.createElement("div");
+            row.className = "item-row";
 
-          let iconHTML = '📦';
-          if (item.icono) {
-              if (item.icono.startsWith('http') || item.icono.includes('.')) {
-                  iconHTML = `<img src="${item.icono}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src=''; this.alt='📦';">`;
+            let iconHTML = "📦";
+            if (item.icono) {
+              if (item.icono.startsWith("http") || item.icono.includes(".")) {
+                iconHTML = `<img src="${item.icono}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src=''; this.alt='📦';">`;
               } else {
-                  iconHTML = item.icono;
+                iconHTML = item.icono;
               }
-          }
+            }
 
-          const mapRomanos = { "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V" };
-          const tierText = mapRomanos[item.tier] || item.tier || "-";
-          const precioItem = item.costo || 0;
+            const mapRomanos = { 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V" };
+            const tierText = mapRomanos[item.tier] || item.tier || "-";
+            const precioItem = item.costo || 0;
 
-          row.innerHTML = `
+            row.innerHTML = `
             <div class="icon-slot">
                 <span class="tier">${tierText}</span>
                 <span class="icono-img" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">${iconHTML}</span>
             </div>
             <div class="item-details">
-                <span class="item-name">${item.nombre || 'Objeto'}</span>
+                <span class="item-name">${item.nombre || "Objeto"}</span>
                 <span class="item-cost">
                     ${precioItem} <span style="color: var(--brillo-ambar);">₳</span>
                 </span>
             </div>
           `;
 
-          row.onclick = () => {
-              document.querySelectorAll('.item-row').forEach(r => r.classList.remove('selected'));
-              row.classList.add('selected');
+            row.onclick = () => {
+              document
+                .querySelectorAll(".item-row")
+                .forEach((r) => r.classList.remove("selected"));
+              row.classList.add("selected");
 
-              document.getElementById("panel-item-name").innerText = item.nombre;
-              document.getElementById("panel-item-desc").innerText = item.descripcion || item.desc || "Sin descripción disponible.";
+              document.getElementById("panel-item-name").innerText =
+                item.nombre;
+              document.getElementById("panel-item-desc").innerText =
+                item.descripcion || item.desc || "Sin descripción disponible.";
 
               let stockDisplay = "--";
               if (item.stock_actual !== undefined) {
-                  stockDisplay = (item.stock_actual === -1) ? "∞" : item.stock_actual;
+                stockDisplay =
+                  item.stock_actual === -1 ? "∞" : item.stock_actual;
               }
-              document.getElementById("panel-item-qty").innerText = stockDisplay;
+              document.getElementById("panel-item-qty").innerText =
+                stockDisplay;
 
               btnComprar.style.display = "block";
               btnComprar.innerHTML = `COMPRAR [${precioItem} ₳]`;
 
               const passKey = item._key !== undefined ? item._key : index;
-              btnComprar.onclick = () => comprarItemTienda(tiendaId, passKey, precioItem);
-          };
+              btnComprar.onclick = () =>
+                comprarItemTienda(tiendaId, passKey, precioItem);
+            };
 
-          lista.appendChild(row);
-        });
-      } else {
-        lista.innerHTML = "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
-      }
+            lista.appendChild(row);
+          });
+        } else {
+          lista.innerHTML =
+            "<span style='color: #888; padding: 20px;'>No hay objetos disponibles en esta tienda.</span>";
+        }
 
-      document.getElementById("tienda-overlay").style.display = "flex";
-    });
-  });
+        document.getElementById("tienda-overlay").style.display = "flex";
+      });
+    },
+  );
 };
 
-window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
+window.comprarItemTienda = function (tiendaId, itemKey, precioReal) {
   if (!playerId) return alert("Error: Jugador no identificado.");
 
-  db.ref(`campaña/tiendas/${tiendaId}/items/${itemKey}`).once('value', (snap) => {
-    const itemData = snap.val();
-    if (!itemData) return alert("El objeto ya no está disponible.");
+  db.ref(`campaña/tiendas/${tiendaId}/items/${itemKey}`).once(
+    "value",
+    (snap) => {
+      const itemData = snap.val();
+      if (!itemData) return alert("El objeto ya no está disponible.");
 
-    db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
-      let saldoAhn = 0;
-      transSnap.forEach(t => { saldoAhn += (t.val().monto || 0); });
+      db.ref(`campaña/jugadores/${playerId}/transacciones`).once(
+        "value",
+        (transSnap) => {
+          let saldoAhn = 0;
+          transSnap.forEach((t) => {
+            saldoAhn += t.val().monto || 0;
+          });
 
-      if (saldoAhn < precioReal) {
-        return alert("Ahn insuficientes para esta compra.");
-      }
+          if (saldoAhn < precioReal) {
+            return alert("Ahn insuficientes para esta compra.");
+          }
 
-      const nuevaTransaccion = {
-        monto: -precioReal,
-        motivo: `Compra en Tienda: ${itemData.nombre}`,
-        timestamp: Date.now()
-      };
-      db.ref(`campaña/jugadores/${playerId}/transacciones`).push(nuevaTransaccion);
+          const nuevaTransaccion = {
+            monto: -precioReal,
+            motivo: `Compra en Tienda: ${itemData.nombre}`,
+            timestamp: Date.now(),
+          };
+          db.ref(`campaña/jugadores/${playerId}/transacciones`).push(
+            nuevaTransaccion,
+          );
 
-      const nuevoItem = { ...itemData };
-      delete nuevoItem.costo;
-      delete nuevoItem._key;
-      nuevoItem.cantidad = 1;
-      nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+          const nuevoItem = { ...itemData };
+          delete nuevoItem.costo;
+          delete nuevoItem._key;
+          nuevoItem.cantidad = 1;
+          nuevoItem.id_instancia =
+            "item_" + Date.now() + Math.floor(Math.random() * 1000);
 
-      db.ref(`campaña/jugadores/${playerId}/inventario_stash`).push(nuevoItem)
-        .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
-        .catch(err => console.error("Error al entregar item:", err));
-    });
-  });
+          db.ref(`campaña/jugadores/${playerId}/inventario_stash`)
+            .push(nuevoItem)
+            .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
+            .catch((err) => console.error("Error al entregar item:", err));
+        },
+      );
+    },
+  );
 };
