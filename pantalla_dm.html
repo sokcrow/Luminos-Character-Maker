@@ -4523,6 +4523,9 @@
           }
 
           if (jugadores) {
+            const pendingFragment = document.createDocumentFragment();
+            const jugadoresFragment = document.createDocumentFragment();
+            const bancoFragment = document.createDocumentFragment();
             for (const [nombre, data] of Object.entries(jugadores)) {
               // --- Populate Control de Acceso ---
               if (data.status === "pending" && pendingContainer) {
@@ -4547,7 +4550,7 @@
                     .catch((err) => alert("Error aprobando recluta: " + err));
                 });
 
-                pendingContainer.appendChild(pendingCard);
+                pendingFragment.appendChild(pendingCard);
               }
 
               // --- Populate Gestión de Jugadores ---
@@ -4664,7 +4667,7 @@
                       );
                   };
 
-                  jugadoresContainer.appendChild(pCard);
+                  jugadoresFragment.appendChild(pCard);
                 } else {
                   // Update existing card ONLY if the inputs are not actively being focused/edited
                   const subInfo = pCard.querySelector(".player-subinfo");
@@ -4753,20 +4756,31 @@
               tarjeta.appendChild(title);
               tarjeta.appendChild(inputAhn);
               tarjeta.appendChild(btnForzar);
-              bancoContainer.appendChild(tarjeta);
+              bancoFragment.appendChild(tarjeta);
             }
 
+            // ⚡ Bolt Optimization: Batch DOM insertions
+            if (pendingContainer) pendingContainer.appendChild(pendingFragment);
+            if (jugadoresContainer) jugadoresContainer.appendChild(jugadoresFragment);
+            bancoContainer.appendChild(bancoFragment);
+
             // --- Populate Terminal de Comunicaciones Select ---
+            // ⚡ Bolt Optimization: Use DocumentFragment to batch DOM insertions
+            // 💡 What: Replaced multiple direct appendChild calls with DocumentFragment
+            // 🎯 Why: Appending directly inside a high-frequency real-time listener loop causes O(n) reflows
+            // 📊 Impact: Reduces DOM reflows per player data update from O(n) to O(1)
             const commsJugadorSelect = document.getElementById("comms-jugador");
             if (commsJugadorSelect) {
               commsJugadorSelect.innerHTML =
                 '<option value="">Selecciona Jugador...</option>';
+              const fragComms = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                commsJugadorSelect.appendChild(option);
+                fragComms.appendChild(option);
               }
+              commsJugadorSelect.appendChild(fragComms);
             }
 
             // --- Populate Generador de Botín Jugador Select ---
@@ -4776,12 +4790,14 @@
             if (lootJugadorSelect) {
               lootJugadorSelect.innerHTML =
                 '<option value="">Selecciona Jugador...</option>';
+              const fragLoot = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const option = document.createElement("option");
                 option.value = nombre;
                 option.textContent = nombre;
-                lootJugadorSelect.appendChild(option);
+                fragLoot.appendChild(option);
               }
+              lootJugadorSelect.appendChild(fragLoot);
             }
 
             // --- Populate Recetas Checkboxes ---
@@ -4790,13 +4806,15 @@
             );
             if (recetaJugadores) {
               recetaJugadores.innerHTML = "";
+              const fragRecetas = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement("label");
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-receta" /> ${nombre}`;
-                recetaJugadores.appendChild(lbl);
+                fragRecetas.appendChild(lbl);
               }
+              recetaJugadores.appendChild(fragRecetas);
             }
 
             // --- Populate Tienda Jugadores Presentes Checkboxes ---
@@ -4805,13 +4823,15 @@
             );
             if (tiendaJugadoresPresentes) {
               tiendaJugadoresPresentes.innerHTML = "";
+              const fragTienda = document.createDocumentFragment();
               for (const nombre of Object.keys(jugadores)) {
                 const lbl = document.createElement("label");
                 lbl.style.cssText =
                   "color:#fff; font-size:12px; display:flex; align-items:center; gap:3px; background:#111; padding:3px 6px; border-radius:3px; border:1px solid #333; cursor:pointer;";
                 lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="tienda-jugador-cb" /> ${nombre}`;
-                tiendaJugadoresPresentes.appendChild(lbl);
+                fragTienda.appendChild(lbl);
               }
+              tiendaJugadoresPresentes.appendChild(fragTienda);
             }
           } else {
             bancoContainer.innerHTML =
