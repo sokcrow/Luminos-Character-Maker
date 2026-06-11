@@ -1197,12 +1197,24 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          const fragment = document.createDocumentFragment();
+
+          // Pre-compute O(1) hashmap for actors
+          const actorsMap = new Map();
+          if (window.allActoresCache) {
+            Object.values(window.allActoresCache).forEach(actor => {
+              if (actor.nombre) {
+                actorsMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            });
+          }
+
           let isFirst = true;
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1226,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actorsMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1249,9 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
