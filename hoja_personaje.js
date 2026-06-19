@@ -1197,12 +1197,25 @@ function initializeCharacterSheet() {
         }
 
         if (logs) {
+          // 💡 What: Pre-compute lowercase map for O(1) actor lookups to prevent O(N^2) inner loop
+          // 🎯 Why: Re-evaluating Object.values() inside the log rendering loop scales poorly with many actors/logs
+          const actorMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre) actorMap.set(actor.nombre.toLowerCase(), actor);
+            }
+          }
+
+          // 💡 What: Batch DOM insertions using DocumentFragment
+          // 🎯 Why: Appending directly to the live 'scrollArea' causes O(n) layout reflows per message
+          const fragment = document.createDocumentFragment();
           let isFirst = true;
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1214,13 +1227,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actorMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
@@ -1242,8 +1250,10 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
