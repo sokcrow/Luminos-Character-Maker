@@ -1198,11 +1198,14 @@ function initializeCharacterSheet() {
 
         if (logs) {
           let isFirst = true;
+          // 💡 What: Replaced direct scrollArea.appendChild inside the loop with a DocumentFragment.
+          const fragment = document.createDocumentFragment();
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
               divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
+              fragment.appendChild(divider);
             }
             isFirst = false;
 
@@ -1242,8 +1245,10 @@ function initializeCharacterSheet() {
                         </div>
                       `;
 
-            scrollArea.appendChild(row);
+            fragment.appendChild(row);
           }
+
+          scrollArea.appendChild(fragment);
           scrollArea.scrollTop = scrollArea.scrollHeight;
         }
       };
