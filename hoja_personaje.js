@@ -1198,6 +1198,20 @@ function initializeCharacterSheet() {
 
         if (logs) {
           let isFirst = true;
+
+          // ⚡ Bolt Optimization: Pre-compute lowercase map for O(1) lookups
+          // 💡 What: Replaced inner-loop `Object.values(cache).find()` with an O(1) Map lookup.
+          // 🎯 Why: O(N²) array lookups inside a render loop degrade performance as actors/logs grow.
+          // 📊 Impact: Transforms complexity from O(M * A) to O(A + M), ensuring UI stays 60FPS during chat floods.
+          const actoresMap = new Map();
+          if (window.allActoresCache) {
+            for (const actor of Object.values(window.allActoresCache)) {
+              if (actor.nombre) {
+                actoresMap.set(actor.nombre.toLowerCase(), actor);
+              }
+            }
+          }
+
           for (const [key, msg] of Object.entries(logs)) {
             if (!isFirst) {
               const divider = document.createElement("hr");
@@ -1214,13 +1228,8 @@ function initializeCharacterSheet() {
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
             let dynamicIcon = null;
-            if (window.allActoresCache) {
-              const actorMatch = Object.values(window.allActoresCache).find(
-                (actor) =>
-                  actor.nombre &&
-                  msg.nombre &&
-                  actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-              );
+            if (msg.nombre) {
+              const actorMatch = actoresMap.get(msg.nombre.toLowerCase());
               if (actorMatch && actorMatch.icono) {
                 dynamicIcon = actorMatch.icono;
               }
