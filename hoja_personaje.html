@@ -12967,11 +12967,24 @@
           const logs = snap.val();
           if (logs) {
             let isFirst = true;
+
+            // Pre-compute actors map for O(1) lookup
+            const actorsMap = new Map();
+            if (window.allActoresCache) {
+              Object.values(window.allActoresCache).forEach((actor) => {
+                if (actor.nombre) {
+                  actorsMap.set(actor.nombre.toLowerCase(), actor);
+                }
+              });
+            }
+
+            const fragment = document.createDocumentFragment();
+
             for (const [key, msg] of Object.entries(logs)) {
               if (!isFirst) {
                 const divider = document.createElement("hr");
                 divider.className = "dialogue-divider";
-                scrollArea.appendChild(divider);
+                fragment.appendChild(divider);
               }
               isFirst = false;
 
@@ -12982,13 +12995,8 @@
               const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
               let dynamicIcon = null;
-              if (window.allActoresCache) {
-                const actorMatch = Object.values(window.allActoresCache).find(
-                  (actor) =>
-                    actor.nombre &&
-                    msg.nombre &&
-                    actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                );
+              if (msg.nombre) {
+                const actorMatch = actorsMap.get(msg.nombre.toLowerCase());
                 if (actorMatch && actorMatch.icono) {
                   dynamicIcon = actorMatch.icono;
                 }
@@ -13009,8 +13017,9 @@
                   <p>${msg.mensaje}</p>
                 </div>
               `;
-              scrollArea.appendChild(row);
+              fragment.appendChild(row);
             }
+            scrollArea.appendChild(fragment);
 
             // Create confirm button footer if it doesn't exist
             let footer = logContainer.querySelector(".dialogue-footer");
