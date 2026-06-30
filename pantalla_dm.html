@@ -6959,12 +6959,24 @@
             }
 
             if (logs) {
+              const fragment = document.createDocumentFragment();
               let isFirst = true;
+
+              // Pre-compute actors map for O(1) lookup
+              const actoresMap = new Map();
+              if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
+                for (const actor of Object.values(dbActoresCache)) {
+                  if (actor.nombre) {
+                    actoresMap.set(actor.nombre.toLowerCase(), actor.icono);
+                  }
+                }
+              }
+
               for (const [key, msg] of Object.entries(logs)) {
                 if (!isFirst) {
                   const divider = document.createElement("hr");
                   divider.className = "dialogue-divider";
-                  scrollArea.appendChild(divider);
+                  fragment.appendChild(divider);
                 }
                 isFirst = false;
 
@@ -6975,16 +6987,8 @@
                 const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
                 let dynamicIcon = null;
-                if (typeof dbActoresCache !== "undefined" && dbActoresCache) {
-                  const actorMatch = Object.values(dbActoresCache).find(
-                    (actor) =>
-                      actor.nombre &&
-                      msg.nombre &&
-                      actor.nombre.toLowerCase() === msg.nombre.toLowerCase(),
-                  );
-                  if (actorMatch && actorMatch.icono) {
-                    dynamicIcon = actorMatch.icono;
-                  }
+                if (msg.nombre) {
+                  dynamicIcon = actoresMap.get(msg.nombre.toLowerCase());
                 }
 
                 const iconoSrc =
@@ -7003,8 +7007,9 @@
                     <p>${msg.mensaje}</p>
                   </div>
                 `;
-                scrollArea.appendChild(row);
+                fragment.appendChild(row);
               }
+              scrollArea.appendChild(fragment);
 
               // Create confirm button footer if it doesn't exist
               let footer = logContainer.querySelector(".dialogue-footer");
@@ -7233,6 +7238,7 @@
           }
 
           // Convert to array and maintain Firebase's push order (keys are chronological)
+          const queueFragment = document.createDocumentFragment();
           for (const [key, msgData] of Object.entries(cola)) {
             queueItems.push({ key: key, ...msgData });
             const itemDiv = document.createElement("div");
@@ -7292,8 +7298,9 @@
               db.ref(`campaña/teatro/cola/${key}`).remove();
             });
 
-            queueContainer.appendChild(itemDiv);
+            queueFragment.appendChild(itemDiv);
           }
+          queueContainer.appendChild(queueFragment);
 
           // Reactivar ciclo de avance continuo si estamos en dicho modo y la cola se llena
           const textBox = document.getElementById("theatre-dialogue-text");
