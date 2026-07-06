@@ -5,3 +5,7 @@
 ## 2025-03-26 - [DOM Attribute Thrashing in renderCharacterSheet]
 **Learning:** Found that assigning `.innerText` or `.value` unconditionally inside high-frequency real-time `on('value')` listeners (like Firebase data sync) causes unnecessary DOM layout recalculations and repaints, even if the value string hasn't changed.
 **Action:** Introduced strict equality checks (e.g., `if (el.innerText !== String(newVal))`) before applying data to DOM node attributes during iterative render loops.
+
+## 2025-03-27 - [Map + DocumentFragment in Legacy Rendering Loops]
+**Learning:** Legacy UI elements using real-time Firebase syncs (`.on('value')`) often render lists (like chat logs) by rebuilding the entire DOM iteratively, executing repeated array lookups (`Object.values(cache).find()`) inside the loop, and appending elements one by one causing O(N*M) lookup latency and O(N) layout reflows.
+**Action:** When refactoring rendering loops in applications without virtual DOMs, combine two optimizations: extract nested array lookups into a pre-computed `Map` for O(1) reads, and batch all generated DOM nodes into a `DocumentFragment` that is appended to the live document exactly once after the loop finishes.
