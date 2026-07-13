@@ -50,6 +50,9 @@
         .diegetic-floor { position: absolute; bottom: -110px; width: 220px; height: 220px; transform: rotateX(65deg); z-index: 1; overflow: visible; pointer-events: auto; }
         .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
         .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
+
+        .stagger-tick-line { fill: none; stroke: #ffdd44; stroke-width: 26; pointer-events: none; filter: drop-shadow(0px 0px 3px #000); }
+        .boss-stagger-tick { position: absolute; top: 0; bottom: 0; width: 3px; background: #ffdd44; z-index: 5; pointer-events: none; box-shadow: 0 0 4px #000; }
         .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
 
         /* --- UI DE BOSS (RECTANGULAR) --- */
@@ -109,6 +112,21 @@
         .dm-control-row label { width: 70px; color: #aaa; }
         .dm-control-row input[type="range"] { flex-grow: 1; cursor: pointer; accent-color: #ffe877; }
         .dm-control-row input[type="number"] { width: 45px; background: #000; border: 1px solid #555; color: #fff; padding: 2px; font-size: 11px;}
+
+        /* --- NPC CREATOR MODAL --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 20000; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); padding: 20px; border-radius: 6px; width: 300px; color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.9); }
+        .modal-header { font-family: var(--font-limbus); font-size: 24px; color: var(--limbus-hp-orange); text-align: center; border-bottom: 1px solid #4a3520; margin-bottom: 15px; padding-bottom: 5px; }
+        .modal-field { margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+        .modal-field label { font-size: 12px; color: #cc9955; text-transform: uppercase; font-weight: bold; }
+        .modal-field input, .modal-field select { background: #111; border: 1px solid #555; color: #fff; padding: 6px; font-size: 12px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions button { flex: 1; padding: 8px; font-weight: bold; cursor: pointer; border: 1px solid; border-radius: 4px; }
+        .btn-deploy { background: #400; color: #ffdd44; border-color: #ff4400; }
+        .btn-cancel { background: #333; color: #aaa; border-color: #555; }
+        .radio-group { display: flex; gap: 10px; }
+        .radio-group label { display: flex; align-items: center; gap: 5px; font-size: 12px; text-transform: none; color: #fff; font-weight: normal; }
+
     </style>
 </head>
 <body>
@@ -118,6 +136,56 @@
         <div id="battlefield"></div>
     </div>
     
+
+    <!-- NPC CREATOR MODAL -->
+    <div id="npc-creator-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">CREADOR DE ENTIDADES</div>
+
+            <div class="modal-field">
+                <label>Nombre</label>
+                <input type="text" id="npc-name" placeholder="Ej. Hooligan" value="Nuevo Enemigo">
+            </div>
+
+            <div class="modal-field">
+                <label>HP Máximo</label>
+                <input type="number" id="npc-hp" value="100" min="1">
+            </div>
+
+            <div class="modal-field">
+                <label>Armadura</label>
+                <select id="npc-armor">
+                    <option value="light">Ligera / Sin Armadura</option>
+                    <option value="medium">Media</option>
+                    <option value="heavy">Pesada</option>
+                </select>
+            </div>
+
+            <div class="modal-field">
+                <label>URL Imagen (Sprite)</label>
+                <input type="text" id="npc-img" placeholder="https://..." value="https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png">
+            </div>
+
+            <div class="modal-field">
+                <label>Cantidad</label>
+                <input type="number" id="npc-qty" value="1" min="1" max="10">
+            </div>
+
+            <div class="modal-field">
+                <label>Facción</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="npc-faction" value="enemy" checked> Enemigo</label>
+                    <label><input type="radio" name="npc-faction" value="ally"> Aliado NPC</label>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeCreatorModal()">Cancelar</button>
+                <button class="btn-deploy" onclick="deployCustomNPCs()">Desplegar</button>
+            </div>
+        </div>
+    </div>
+
     <svg id="targeting-layer">
         <defs>
             <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
@@ -129,19 +197,29 @@
         <div class="dm-header">LIMBUS: DM CONTROL PANEL</div>
         <div class="dm-tools">
             <button onclick="toggleGrid()">🗺️ Mostrar Cuadrícula</button>
+            <button style="background: #224422; color: #aaffaa; border-color: #55aa55; margin-top:5px;" onclick="openCreatorModal()">➕ Crear NPC/Enemigo</button>
             
             <div style="display:flex; gap:4px; margin-top:5px;">
                 <button style="flex:1; background: #331100; color: #ffdd44; border-color: #ffaa00;" onclick="deploy7v7()">⚔️ Combate 7v7</button>
                 <button style="flex:1; background: #400; color: #ffdd44; border-color: #ff4400;" onclick="deployBossFight()">👹 Boss Fight</button>
+                <button style="flex:1; background: #002244; color: #88eeff; border-color: #0066aa;" onclick="fetchPlayersFromFirebaseMock()">📥 Test Firebase Players</button>
             </div>
             
-            <div id="boss-editor-panel" class="dm-editor-group" style="display:none;">
-                <div class="dm-editor-title">🛠️ Editor Global de Boss</div>
-                <div class="dm-control-row"><label>Escala:</label><input type="range" id="boss-scale-range" min="0.5" max="3.0" step="0.1" value="1.0" oninput="updateBossLive()"><input type="number" id="boss-scale-num" value="1.0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>Sprite X:</label><input type="range" id="boss-spriteX-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteX-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>Sprite Y:</label><input type="range" id="boss-spriteY-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteY-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>UI X:</label><input type="range" id="boss-uiX-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiX-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>UI Y:</label><input type="range" id="boss-uiY-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiY-num" value="0" oninput="updateBossLive()"></div>
+            <div id="boss-editor-panel" class="dm-editor-group">
+                <div class="dm-editor-title">🛠️ Editor de Sprites</div>
+                <div class="dm-control-row">
+                    <label>Entidad:</label>
+                    <select id="editor-target-select" onchange="loadEntityToEditor()" style="width:100%; background:#111; color:#fff; border:1px solid #555; font-size:11px; padding:2px;">
+                        <option value="">-- Seleccionar --</option>
+                    </select>
+                </div>
+                <div class="dm-control-row"><label>Flip (X):</label><input type="checkbox" id="boss-flip-x" onchange="updateBossLive()" style="accent-color: #ffe877;"></div>
+                <div class="dm-control-row"><label>Escala:</label><input type="range" id="boss-scale-range" min="0.1" max="5.0" step="0.1" value="1.0" oninput="updateBossLive()"><input type="number" id="boss-scale-num" value="1.0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>Sprite X:</label><input type="range" id="boss-spriteX-range" min="-500" max="500" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteX-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>Sprite Y:</label><input type="range" id="boss-spriteY-range" min="-500" max="500" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteY-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>UI X:</label><input type="range" id="boss-uiX-range" min="-300" max="300" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiX-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>UI Y:</label><input type="range" id="boss-uiY-range" min="-300" max="300" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiY-num" value="0" oninput="updateBossLive()"></div>
+                <button style="width:100%; background: #222; color: #fff; border: 1px solid #555; margin-top: 5px;" onclick="refreshEditorDropdown()">🔄 Actualizar Lista</button>
             </div>
 
             <button onclick="rollEnemyTargets()">🎲 Re-rollear Targets Enemigos</button>
@@ -152,6 +230,47 @@
 
 <script>
     let combatData = {};
+
+    // --- MODAL CREATOR LOGIC ---
+    function openCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'flex'; }
+    function closeCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'none'; }
+
+    function deployCustomNPCs() {
+        const name = document.getElementById('npc-name').value || 'Unknown';
+        const hp = parseInt(document.getElementById('npc-hp').value) || 100;
+        const armor = document.getElementById('npc-armor').value;
+        const img = document.getElementById('npc-img').value;
+        const qty = parseInt(document.getElementById('npc-qty').value) || 1;
+        const faction = document.querySelector('input[name="npc-faction"]:checked').value;
+
+        let existingCount = Object.values(combatData).filter(c => c.faction === faction).length;
+
+        for (let i = 0; i < qty; i++) {
+            const uid = faction + '_custom_' + Date.now() + '_' + i;
+            const npcData = {
+                id: uid,
+                name: qty > 1 ? `${name} ${i+1}` : name,
+                faction: faction,
+                speed: Math.floor(Math.random() * 6) + 1,
+                hp: hp,
+                maxHp: hp,
+                armorType: armor, // Store armor type for stagger calculation
+                actionSlots: 1,
+                img: img,
+                scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0,
+                x: faction === 'enemy' ? (90 - (existingCount + i) * 6) : (10 + (existingCount + i) * 6),
+                y: 45 + ((existingCount + i) % 2 === 0 ? 10 : -10)
+            };
+
+            // Generate stagger thresholds
+            npcData.staggerThresholds = calculateStaggerThresholds(npcData.armorType);
+
+            spawnCombatant(npcData);
+        }
+
+        closeCreatorModal();
+    }
+
     let slotTargets = {}; 
     let isDragging = false;
     let dragStartSlotId = null;
@@ -218,11 +337,24 @@
         container.style.left = `${data.x}%`;
 
         let uiHtml = '';
+
+        // Generate Stagger HTML
+        let staggerHtml = '';
+        if (unit.staggerThresholds) {
+            if (unit.type === 'boss') {
+                staggerHtml = unit.staggerThresholds.map(pct => `<div class="boss-stagger-tick" style="left: ${pct}%;"></div>`).join('');
+            } else {
+                const heptagon = generateHeptagonPoints(85);
+                staggerHtml = unit.staggerThresholds.map(pct => `<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 2 98; stroke-dashoffset: -${(100 - pct) - 1};" />`).join('');
+            }
+        }
+
         if (unit.type === 'boss') {
             uiHtml = `
                 <div class="boss-ui-rect">
                     <div class="boss-hp-bar-container">
                         <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                        ${staggerHtml}
                     </div>
                 </div>
             `;
@@ -233,6 +365,7 @@
                     <polygon class="floor-bg-poly" points="${heptagon.full}" />
                     <polyline class="hp-track" points="${heptagon.front}" />
                     <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
+                    ${staggerHtml}
                 </svg>
             `;
         }
@@ -259,12 +392,104 @@
         `;
         battlefield.appendChild(container);
         updateDepthSorting();
+
+        // Initial setup for flip if needed
+        const anchor = document.getElementById(`anchor-${data.id}`);
+        if(anchor) {
+             const scaleX = data.flipX ? -data.scale : data.scale;
+             anchor.style.transform = `scaleX(${scaleX}) scaleY(${data.scale})`;
+        }
+
+        if(typeof refreshEditorDropdown === 'function') refreshEditorDropdown();
     }
 
-    // --- FUNCIONES DEL EDITOR ---
+
+    // --- STAGGER THRESHOLD LOGIC ---
+    function calculateStaggerThresholds(armorType) {
+        if (!armorType) armorType = 'light';
+        armorType = armorType.toLowerCase();
+
+        switch (armorType) {
+            case 'heavy':
+                return [50];
+            case 'medium':
+                return [66, 33];
+            case 'light':
+            case 'none':
+            default:
+                return [75, 50, 25];
+        }
+    }
+
+    // --- FIREBASE MOCK ---
+    function fetchPlayersFromFirebaseMock() {
+        console.log("Fetching players from Firebase mock...");
+        const mockPlayers = [
+            { id: "player_1", name: "Jeske", hp: 120, maxHp: 120, armorType: "light", speed: 5, actionSlots: 1, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+            { id: "player_2", name: "Calipsys", hp: 150, maxHp: 150, armorType: "medium", speed: 4, actionSlots: 1, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+            { id: "player_3", name: "Agatha", hp: 200, maxHp: 200, armorType: "heavy", speed: 2, actionSlots: 1, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
+        ];
+
+        // Clean up allies first for this test
+        const battlefield = document.getElementById('battlefield');
+        const currentAllies = document.querySelectorAll('.sprite-container.ally');
+        currentAllies.forEach(el => el.remove());
+
+        // Remove allies from combatData and slotTargets
+        Object.keys(combatData).forEach(key => { if(combatData[key].faction === 'ally') delete combatData[key]; });
+        Object.keys(slotTargets).forEach(key => { if(key.startsWith('ally')) delete slotTargets[key]; });
+
+        mockPlayers.forEach((p, index) => {
+            const playerData = {
+                ...p,
+                faction: 'ally',
+                x: 10 + (index * 15),
+                y: 45 + (index % 2 === 0 ? 10 : -10)
+            };
+
+            // Inyectar el arreglo en la propiedad staggerThresholds justo antes de mandar a spawnCombatant
+            playerData.staggerThresholds = calculateStaggerThresholds(playerData.armorType);
+
+            console.log(`Player ${playerData.name} armor: ${playerData.armorType}, Stagger Thresholds:`, playerData.staggerThresholds);
+            spawnCombatant(playerData);
+        });
+    }
+
+    // --- FUNCIONES DEL EDITOR GENERALIZADO ---
     function syncInputs(src, tgt) { document.getElementById(tgt).value = document.getElementById(src).value; }
+
+    function refreshEditorDropdown() {
+        const select = document.getElementById('editor-target-select');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">-- Seleccionar --</option>';
+        Object.values(combatData).forEach(unit => {
+            select.innerHTML += `<option value="${unit.id}">[${unit.faction === 'ally' ? 'Aliado' : 'Enemigo'}] ${unit.name}</option>`;
+        });
+        if(combatData[currentVal]) select.value = currentVal;
+    }
+
+    function loadEntityToEditor() {
+        const targetId = document.getElementById('editor-target-select').value;
+        if (!targetId || !combatData[targetId]) return;
+        const unit = combatData[targetId];
+
+        document.getElementById('boss-scale-range').value = unit.scale || 1.0;
+        document.getElementById('boss-scale-num').value = unit.scale || 1.0;
+        document.getElementById('boss-spriteX-range').value = unit.spriteX || 0;
+        document.getElementById('boss-spriteX-num').value = unit.spriteX || 0;
+        document.getElementById('boss-spriteY-range').value = unit.spriteY || 0;
+        document.getElementById('boss-spriteY-num').value = unit.spriteY || 0;
+        document.getElementById('boss-uiX-range').value = unit.uiX || 0;
+        document.getElementById('boss-uiX-num').value = unit.uiX || 0;
+        document.getElementById('boss-uiY-range').value = unit.uiY || 0;
+        document.getElementById('boss-uiY-num').value = unit.uiY || 0;
+        document.getElementById('boss-flip-x').checked = unit.flipX || false;
+    }
+
     function updateBossLive() {
-        if (!combatData['enemy_boss']) return;
+        const targetId = document.getElementById('editor-target-select').value;
+        if (!targetId || !combatData[targetId]) return;
+
         const e = event.target.id;
         if (e.includes('-range')) syncInputs(e, e.replace('-range', '-num'));
         else if (e.includes('-num')) syncInputs(e, e.replace('-num', '-range'));
@@ -274,14 +499,29 @@
         const nSY = document.getElementById('boss-spriteY-num').value;
         const nUX = document.getElementById('boss-uiX-num').value;
         const nUY = document.getElementById('boss-uiY-num').value;
+        const nFlip = document.getElementById('boss-flip-x').checked;
 
-        combatData['enemy_boss'].scale = nS; combatData['enemy_boss'].spriteX = nSX; combatData['enemy_boss'].spriteY = nSY;
-        combatData['enemy_boss'].uiX = nUX; combatData['enemy_boss'].uiY = nUY;
+        combatData[targetId].scale = nS;
+        combatData[targetId].spriteX = nSX;
+        combatData[targetId].spriteY = nSY;
+        combatData[targetId].uiX = nUX;
+        combatData[targetId].uiY = nUY;
+        combatData[targetId].flipX = nFlip;
 
-        const anchor = document.getElementById('anchor-enemy_boss');
-        const uiPanel = document.getElementById('ui-panel-enemy_boss');
-        if (anchor) { anchor.style.transform = `scale(${nS})`; anchor.style.bottom = `${nSY}px`; anchor.style.marginLeft = `${nSX}px`; }
-        if (uiPanel) { uiPanel.style.top = `calc(60px + ${nUY}px)`; uiPanel.style.marginLeft = `${nUX}px`; }
+        const anchor = document.getElementById(`anchor-${targetId}`);
+        const uiPanel = document.getElementById(`ui-panel-${targetId}`);
+
+        if (anchor) {
+            const scaleX = nFlip ? -nS : nS;
+            anchor.style.transform = `scaleX(${scaleX}) scaleY(${nS})`;
+            anchor.style.bottom = `${nSY}px`;
+            anchor.style.marginLeft = `${nSX}px`;
+        }
+
+        if (uiPanel) {
+            uiPanel.style.top = `calc(60px + ${nUY}px)`;
+            uiPanel.style.marginLeft = `${nUX}px`;
+        }
     }
 
     // --- LOGICA DE TARGETING ---
@@ -441,7 +681,6 @@
     function deploy7v7() {
         document.getElementById('battlefield').innerHTML = '';
         combatData = {}; slotTargets = {};
-        document.getElementById('boss-editor-panel').style.display = 'none'; // Ocultar panel de boss
 
         const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
         const enemyPositions = [{x: 94, y: 55}, {x: 88, y: 35}, {x: 82, y: 55}, {x: 76, y: 35}, {x: 70, y: 55}, {x: 64, y: 35}, {x: 58, y: 55}];
@@ -450,11 +689,11 @@
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
             });
             enemies.push({ 
                 id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 145, maxHp: 145, actionSlots: 1, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png', 
+                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
                 scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
             });
         }
@@ -462,8 +701,16 @@
         allies.sort((a, b) => b.speed - a.speed);
         enemies.sort((a, b) => b.speed - a.speed);
 
-        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
-        enemies.forEach((unit, index) => { unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y; spawnCombatant(unit); });
+        allies.forEach((unit, index) => {
+            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
+        enemies.forEach((unit, index) => {
+            unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
         
         setTimeout(rollEnemyTargets, 500);
     }
@@ -480,25 +727,28 @@
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
             });
         }
         
         allies.sort((a, b) => b.speed - a.speed);
-        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
+        allies.forEach((unit, index) => {
+            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
 
         const bossData = { 
             id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
-            hp: 1500, maxHp: 1500, actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png', 
+            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png',
             x: 80, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
         };
+        bossData.staggerThresholds = calculateStaggerThresholds(bossData.armorType);
         spawnCombatant(bossData);
         
-        document.getElementById('boss-scale-range').value = bossData.scale; document.getElementById('boss-scale-num').value = bossData.scale;
-        document.getElementById('boss-spriteX-range').value = bossData.spriteX; document.getElementById('boss-spriteX-num').value = bossData.spriteX;
-        document.getElementById('boss-spriteY-range').value = bossData.spriteY; document.getElementById('boss-spriteY-num').value = bossData.spriteY;
-        document.getElementById('boss-uiX-range').value = bossData.uiX; document.getElementById('boss-uiX-num').value = bossData.uiX;
-        document.getElementById('boss-uiY-range').value = bossData.uiY; document.getElementById('boss-uiY-num').value = bossData.uiY;
+        refreshEditorDropdown();
+        document.getElementById('editor-target-select').value = 'enemy_boss';
+        loadEntityToEditor();
 
         setTimeout(rollEnemyTargets, 500);
     }
