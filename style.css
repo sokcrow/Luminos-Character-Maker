@@ -230,6 +230,14 @@ button {
     border-color: var(--limbus-red);
 }
 
+/* Active state for build mode buttons */
+.btn-secondary.active-mode {
+    background-color: rgba(211, 47, 47, 0.2);
+    border-color: var(--limbus-neon-red);
+    color: var(--limbus-neon-red);
+    box-shadow: inset 0 0 5px rgba(255, 0, 60, 0.5);
+}
+
 .btn-primary:active, .btn-secondary:active {
     transform: translateY(2px);
 }
