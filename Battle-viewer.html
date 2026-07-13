@@ -50,6 +50,9 @@
         .diegetic-floor { position: absolute; bottom: -110px; width: 220px; height: 220px; transform: rotateX(65deg); z-index: 1; overflow: visible; pointer-events: auto; }
         .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
         .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
+
+        .stagger-tick-line { fill: none; stroke: #ffdd44; stroke-width: 26; pointer-events: none; filter: drop-shadow(0px 0px 3px #000); }
+        .boss-stagger-tick { position: absolute; top: 0; bottom: 0; width: 3px; background: #ffdd44; z-index: 5; pointer-events: none; box-shadow: 0 0 4px #000; }
         .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
 
         /* --- UI DE BOSS (RECTANGULAR) --- */
@@ -334,11 +337,24 @@
         container.style.left = `${data.x}%`;
 
         let uiHtml = '';
+
+        // Generate Stagger HTML
+        let staggerHtml = '';
+        if (unit.staggerThresholds) {
+            if (unit.type === 'boss') {
+                staggerHtml = unit.staggerThresholds.map(pct => `<div class="boss-stagger-tick" style="left: ${pct}%;"></div>`).join('');
+            } else {
+                const heptagon = generateHeptagonPoints(85);
+                staggerHtml = unit.staggerThresholds.map(pct => `<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 2 98; stroke-dashoffset: -${(100 - pct) - 1};" />`).join('');
+            }
+        }
+
         if (unit.type === 'boss') {
             uiHtml = `
                 <div class="boss-ui-rect">
                     <div class="boss-hp-bar-container">
                         <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                        ${staggerHtml}
                     </div>
                 </div>
             `;
@@ -349,6 +365,7 @@
                     <polygon class="floor-bg-poly" points="${heptagon.full}" />
                     <polyline class="hp-track" points="${heptagon.front}" />
                     <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
+                    ${staggerHtml}
                 </svg>
             `;
         }
@@ -672,11 +689,11 @@
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
             });
             enemies.push({ 
                 id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 145, maxHp: 145, actionSlots: 1, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png', 
+                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
                 scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
             });
         }
@@ -684,8 +701,16 @@
         allies.sort((a, b) => b.speed - a.speed);
         enemies.sort((a, b) => b.speed - a.speed);
 
-        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
-        enemies.forEach((unit, index) => { unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y; spawnCombatant(unit); });
+        allies.forEach((unit, index) => {
+            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
+        enemies.forEach((unit, index) => {
+            unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
         
         setTimeout(rollEnemyTargets, 500);
     }
@@ -702,18 +727,23 @@
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
             });
         }
         
         allies.sort((a, b) => b.speed - a.speed);
-        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
+        allies.forEach((unit, index) => {
+            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
+            spawnCombatant(unit);
+        });
 
         const bossData = { 
             id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
-            hp: 1500, maxHp: 1500, actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png', 
+            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png',
             x: 80, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
         };
+        bossData.staggerThresholds = calculateStaggerThresholds(bossData.armorType);
         spawnCombatant(bossData);
         
         refreshEditorDropdown();
