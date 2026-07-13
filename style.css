@@ -1,0 +1,297 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+:root {
+    /* Limbus Company Strict Palette */
+    --limbus-black: #0B0A0A;
+    --limbus-dark-brown: #2a1610;
+    --limbus-brown: #3E2723;
+    --limbus-cream: #d8cdb8;
+    --limbus-red: #D32F2F;
+    --limbus-neon-red: #ff003c;
+    --limbus-gold: #FFD700;
+
+    --bg-color: #050505;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    /* STRICT: No rounded borders allowed */
+    border-radius: 0 !important;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--limbus-cream);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* No ghost scrolling */
+
+    /* Subtle scanline background */
+    background-image: repeating-linear-gradient(
+        0deg,
+        rgba(211, 47, 47, 0.03),
+        rgba(211, 47, 47, 0.03) 1px,
+        transparent 1px,
+        transparent 4px
+    );
+}
+
+h1, h2, h3, h4 {
+    font-family: 'Oswald', sans-serif;
+    color: var(--limbus-cream);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Base Panel Styling */
+.limbus-panel {
+    background-color: var(--limbus-black);
+    border: 6px solid var(--limbus-brown);
+    position: relative;
+    /* Inner perimeter red border */
+}
+.limbus-panel::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px; right: 2px; bottom: 2px;
+    border: 1px solid var(--limbus-red);
+    pointer-events: none;
+}
+
+/* Sidebar Specific Panel */
+.limbus-panel-sidebar {
+    background-color: var(--limbus-black);
+    border: 6px solid var(--limbus-brown);
+    border-right: none;
+    border-bottom: none;
+    position: relative;
+}
+.limbus-panel-sidebar::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px; right: 2px; bottom: 2px;
+    border: 1px solid var(--limbus-red);
+    border-right: none;
+    border-bottom: none;
+    pointer-events: none;
+}
+
+
+/* --- HEADER PANEL --- */
+#stats-panel {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px 30px;
+    height: 80px;
+    border-bottom: 6px solid var(--limbus-brown);
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    background-color: var(--limbus-black);
+    z-index: 10;
+}
+#stats-panel::after {
+    content: '';
+    position: absolute;
+    top: 0px; left: 0px; right: 0px; bottom: 2px;
+    border-bottom: 1px solid var(--limbus-red);
+    pointer-events: none;
+}
+
+.stat-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.stat-label {
+    font-family: 'Oswald', sans-serif;
+    color: var(--limbus-gold);
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    color: var(--limbus-cream);
+    background-color: var(--limbus-dark-brown);
+    padding: 5px 15px;
+    border: 1px solid var(--limbus-red);
+    min-width: 80px;
+    text-align: center;
+}
+
+/* --- MAIN CONTAINER --- */
+#main-container {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 80px);
+    overflow: hidden;
+}
+
+/* --- MAP AREA (Canvas) --- */
+#map-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--bg-color);
+}
+
+#canvas-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+canvas#bastion-canvas {
+    background-color: var(--limbus-black);
+    border: 4px solid var(--limbus-dark-brown);
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* Aspect ratio matches 1024x768 */
+    aspect-ratio: 1024 / 768;
+    box-shadow: 0 0 0 1px var(--limbus-red);
+}
+
+/* --- SIDEBAR --- */
+#sidebar-panel {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border-left: 6px solid var(--limbus-brown);
+}
+
+#sidebar-panel::after {
+    border: none;
+    border-left: 1px solid var(--limbus-red);
+    top: 2px; left: 2px; bottom: 2px; right: 0;
+}
+
+.controls-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px dashed var(--limbus-dark-brown);
+}
+
+.controls-section h2, .hirelings-section h2 {
+    font-size: 1.2rem;
+    color: var(--limbus-gold);
+    margin-bottom: 15px;
+    border-left: 4px solid var(--limbus-red);
+    padding-left: 10px;
+}
+
+/* BUTTONS */
+button {
+    width: 100%;
+    padding: 12px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    outline: none;
+}
+
+.btn-primary {
+    background-color: var(--limbus-dark-brown);
+    color: var(--limbus-cream);
+    border: 2px solid var(--limbus-brown);
+    border-bottom: 2px solid var(--limbus-red);
+}
+
+.btn-primary:hover {
+    background-color: var(--limbus-brown);
+    color: var(--limbus-gold);
+    border-bottom-color: var(--limbus-neon-red);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--limbus-cream);
+    border: 1px solid var(--limbus-brown);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(62, 39, 35, 0.5);
+    border-color: var(--limbus-red);
+}
+
+.btn-primary:active, .btn-secondary:active {
+    transform: translateY(2px);
+}
+
+/* --- HIRELINGS TABLE --- */
+.hirelings-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+    border: 2px solid var(--limbus-dark-brown);
+    background-color: rgba(11, 10, 10, 0.8);
+    position: relative;
+}
+/* Scrollbar styling for industrial look */
+.table-container::-webkit-scrollbar {
+    width: 8px;
+}
+.table-container::-webkit-scrollbar-track {
+    background: var(--limbus-black);
+    border-left: 1px solid var(--limbus-dark-brown);
+}
+.table-container::-webkit-scrollbar-thumb {
+    background: var(--limbus-brown);
+    border: 1px solid var(--limbus-red);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background-color: var(--limbus-dark-brown);
+    color: var(--limbus-gold);
+    font-family: 'Oswald', sans-serif;
+    padding: 10px;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--limbus-red);
+    z-index: 2;
+}
+
+td {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--limbus-dark-brown);
+    color: #b0a595;
+}
+
+tr:nth-child(even) td {
+    background-color: rgba(42, 22, 16, 0.3);
+}
+
+tr:hover td {
+    background-color: rgba(211, 47, 47, 0.1);
+    color: var(--limbus-cream);
+}
