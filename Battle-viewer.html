@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminos Combat Engine - Multi-Encounter System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
+        /* PALETA DE COLORES FIEL */
+        :root {
+            --limbus-hp-orange: #ff4a22; 
+            --limbus-hp-boss: #dd0000;   
+            --limbus-sp-cyan: #88eeff;   
+            --limbus-speed-yellow: #ffe877; 
+            --limbus-speed-glow: #ff4400;   
+            --limbus-slot-dark: #1a1510;
+            --limbus-slot-border: #4a3520;
+            --limbus-slot-dash: #a87030;
+            --limbus-boss-ui-bg: rgba(10, 5, 5, 0.9);
+            --limbus-boss-ui-border: #664422;
+            --font-limbus: 'Bebas Kai', 'Bebas Neue', sans-serif;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #050010; font-family: 'Arial', sans-serif; color: #fff; }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.4s ease; }
+        
+        #battlefield { 
+            position: relative; width: 100%; height: 100%; 
+            background-image: url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png');
+            background-size: cover; background-position: center bottom; background-repeat: no-repeat;
+        }
+
+        /* --- CUADRÍCULA TÁCTICA --- */
+        #floor-grid {
+            position: absolute; bottom: -10vh; left: -50vw; width: 200vw; height: 100vh; 
+            transform-origin: bottom center; transform: perspective(800px) rotateX(75deg); 
+            background-image: linear-gradient(rgba(136, 238, 255, 0.15) 2px, transparent 2px), linear-gradient(90deg, rgba(136, 238, 255, 0.15) 2px, transparent 2px);
+            background-size: 80px 80px; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
+            mask-image: linear-gradient(to top, black 20%, transparent 80%); -webkit-mask-image: linear-gradient(to top, black 20%, transparent 80%);
+        }
+        #floor-grid.active { opacity: 1; }
+
+        /* --- CONTENEDORES --- */
+        .sprite-container { position: absolute; transform: translateX(-50%); transition: transform 0.6s ease, left 0.6s ease, bottom 0.6s ease; pointer-events: none; }
+        .combatant { position: relative; width: 260px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none; transform-origin: bottom center; transform: scale(0.30); }
+
+        /* --- UI ESTÁNDAR (PISOS) --- */
+        .diegetic-floor { position: absolute; bottom: -110px; width: 220px; height: 220px; transform: rotateX(65deg); z-index: 1; overflow: visible; pointer-events: auto; }
+        .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
+        .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
+        .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
+
+        /* --- UI DE BOSS (RECTANGULAR) --- */
+        .boss-ui-rect {
+            position: absolute; bottom: -90px; width: 350px; height: 60px;
+            background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); border-radius: 4px;
+            z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(100,50,0,0.5); pointer-events: auto;
+        }
+        .boss-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
+        .boss-hp-fill-rect { height: 100%; background: var(--limbus-hp-boss); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-boss)); }
+        
+        .boss .floating-hp-group { bottom: 10px; left: 15px; }
+        .boss .name-plate { font-size: 18px; }
+        .boss .hp-number { font-size: 45px; color: var(--limbus-hp-boss); text-shadow: 2px 2px 0 #000; }
+
+        /* --- SPRITE Y ANCLA --- */
+        .sprite-anchor { position: absolute; display: flex; justify-content: center; width: 100%; z-index: 3; pointer-events: none; transition: transform 0.2s ease, left 0.2s ease, bottom 0.2s ease; transform-origin: bottom center; }
+        .sprite-img { height: 240px; object-fit: contain; object-position: bottom; filter: drop-shadow(0px 15px 10px rgba(0,0,0,0.8)); transition: transform 0.2s; pointer-events: auto; cursor: pointer; }
+        .sprite-img:hover { transform: scale(1.05); } 
+        .enemy.boss .sprite-img { transform: scaleX(-1); }
+
+        /* --- UI SUPERIOR (SLOTS Y SPEED) --- */
+        .top-ui-panel { position: absolute; display: flex; align-items: flex-start; gap: 6px; z-index: 10; pointer-events: none; }
+        .boss .top-ui-panel { transform: translateX(-50%); left: 50% !important; display: flex; flex-direction: column; align-items: center; gap: 2px;}
+        .boss .action-slots { gap: 1px; }
+
+        .speed-number { color: var(--limbus-speed-yellow); font-size: 50px; font-family: var(--font-limbus); line-height: 0.8; text-shadow: 0 0 8px var(--limbus-speed-glow), 1px 1px 2px #000; margin-top: 8px; }
+        .action-slots { display: flex; gap: 2px; pointer-events: auto; }
+        .action-slot-wrapper { position: relative; touch-action: none; cursor: crosshair; pointer-events: auto; }
+        .action-slot-svg { width: 44px; height: 44px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8)); pointer-events: none; }
+        .slot-heptagon-bg { fill: var(--limbus-slot-dark); stroke: var(--limbus-slot-border); stroke-width: 10; }
+        .slot-center-line { stroke: var(--limbus-slot-dash); stroke-width: 8; stroke-linecap: round; }
+
+        /* --- HUD FLOTANTE --- */
+        .floating-hp-group { position: absolute; bottom: 5px; left: -10px; z-index: 10; display: flex; flex-direction: column; align-items: flex-start; pointer-events: none; }
+        .name-plate { background: #050505; color: #ddd; font-size: 14px; letter-spacing: 1px; font-family: var(--font-limbus); padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase; margin-bottom: -2px; }
+        .hp-number { font-size: 60px; color: var(--limbus-hp-orange); font-family: var(--font-limbus); line-height: 0.85; text-shadow: 2px 4px 6px rgba(0,0,0,0.8); }
+        .floating-sp-group { position: absolute; bottom: 5px; right: 5px; width: 48px; height: 48px; border-radius: 50%; border: 3px solid #3b2c20; outline: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 30px; font-family: var(--font-limbus); color: white; text-shadow: 1px 1px 3px black; z-index: 10; pointer-events: none; }
+        .sp-neutral { background: radial-gradient(circle at 30% 30%, #55aaaa 0%, #113333 80%); }
+
+        /* --- CAPA TÁCTICA PARA ARCOS --- */
+        #targeting-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2000; }
+        .arc-enemy { stroke: #ff3333; fill: none; stroke-width: 3; filter: drop-shadow(0 0 3px #ff0000); }
+        .arc-ally { stroke: #ffe877; fill: none; stroke-width: 3; filter: drop-shadow(0 0 4px #ffaa00); }
+
+        /* --- DM DASHBOARD --- */
+        #dm-dashboard { position: absolute; top: 20px; right: 20px; width: 250px; background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; z-index: 10000; border-radius: 6px; max-height: 90vh; overflow-y: auto; pointer-events: auto; font-size: 12px;}
+        .dm-header { background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; font-family: var(--font-limbus); color: #ffdd44; letter-spacing: 1px;}
+        .dm-tools { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .dm-tools button { background: #111; color: #cc9955; border: 1px solid #cc9955; padding: 6px; font-size: 11px; font-weight: bold; cursor: pointer; border-radius: 3px; }
+        
+        /* EDITOR DE BOSS */
+        .dm-editor-group { border: 1px solid #443311; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; }
+        .dm-editor-title { color: #ffe877; font-weight: bold; margin-bottom: 8px; text-align: center; text-transform: uppercase; font-size: 11px;}
+        .dm-control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 5px; }
+        .dm-control-row label { width: 70px; color: #aaa; }
+        .dm-control-row input[type="range"] { flex-grow: 1; cursor: pointer; accent-color: #ffe877; }
+        .dm-control-row input[type="number"] { width: 45px; background: #000; border: 1px solid #555; color: #fff; padding: 2px; font-size: 11px;}
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="combat-mode" class="layer">
+        <div id="battlefield"></div>
+    </div>
+    
+    <svg id="targeting-layer">
+        <defs>
+            <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
+            <marker id="arrow-ally" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ffe877" /></marker>
+        </defs>
+    </svg>
+
+    <div id="dm-dashboard">
+        <div class="dm-header">LIMBUS: DM CONTROL PANEL</div>
+        <div class="dm-tools">
+            <button onclick="toggleGrid()">🗺️ Mostrar Cuadrícula</button>
+            
+            <div style="display:flex; gap:4px; margin-top:5px;">
+                <button style="flex:1; background: #331100; color: #ffdd44; border-color: #ffaa00;" onclick="deploy7v7()">⚔️ Combate 7v7</button>
+                <button style="flex:1; background: #400; color: #ffdd44; border-color: #ff4400;" onclick="deployBossFight()">👹 Boss Fight</button>
+            </div>
+            
+            <div id="boss-editor-panel" class="dm-editor-group" style="display:none;">
+                <div class="dm-editor-title">🛠️ Editor Global de Boss</div>
+                <div class="dm-control-row"><label>Escala:</label><input type="range" id="boss-scale-range" min="0.5" max="3.0" step="0.1" value="1.0" oninput="updateBossLive()"><input type="number" id="boss-scale-num" value="1.0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>Sprite X:</label><input type="range" id="boss-spriteX-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteX-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>Sprite Y:</label><input type="range" id="boss-spriteY-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteY-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>UI X:</label><input type="range" id="boss-uiX-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiX-num" value="0" oninput="updateBossLive()"></div>
+                <div class="dm-control-row"><label>UI Y:</label><input type="range" id="boss-uiY-range" min="-200" max="200" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiY-num" value="0" oninput="updateBossLive()"></div>
+            </div>
+
+            <button onclick="rollEnemyTargets()">🎲 Re-rollear Targets Enemigos</button>
+            <button style="background: #004466; color: #88eeff; border-color: #88eeff;" onclick="autoTargetAllies()">🤖 Auto-Respuesta Aliada</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let combatData = {};
+    let slotTargets = {}; 
+    let isDragging = false;
+    let dragStartSlotId = null;
+    let dragCurrentX = 0;
+    let dragCurrentY = 0;
+
+    // --- BASE DE DATOS DE TUS PECADORES ---
+    const customSinners = [
+        { name: "Jeske", img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Calipsys", img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Pierre", img: "https://i.imgur.com/11DglPK.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Agatha", img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Dalzay", img: "https://i.imgur.com/dv5h0TR.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Ishamon", img: "https://i.imgur.com/8J3F4Ls.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Angelo", img: "https://i.imgur.com/264tPzM.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
+    ];
+
+    function toggleGrid() { document.getElementById('floor-grid').classList.toggle('active'); }
+
+    function updateDepthSorting() {
+        const sprites = document.querySelectorAll('.sprite-container');
+        sprites.forEach(sprite => {
+            const y = parseFloat(sprite.style.bottom);
+            sprite.style.zIndex = Math.floor(1000 - (y * 10));
+        });
+    }
+
+    function generateHeptagonPoints(radius) {
+        const sides = 7; const points = []; const startAngle = Math.PI / 2; 
+        for (let i = 0; i < sides; i++) {
+            const angle = startAngle + (i * 2 * Math.PI / sides);
+            points.push({ x: (radius * Math.cos(angle)).toFixed(1), y: (radius * Math.sin(angle)).toFixed(1) });
+        }
+        const fullPoly = points.map(p => `${p.x},${p.y}`).join(' ');
+        const frontHalf = `${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
+        return { full: fullPoly, front: frontHalf };
+    }
+
+    function spawnCombatant(data) {
+        const battlefield = document.getElementById('battlefield');
+        const hpPct = Math.max(0, Math.min(100, (data.hp / data.maxHp) * 100));
+
+        if (!combatData[data.id]) {
+            combatData[data.id] = { ...data }; 
+        }
+        const unit = combatData[data.id];
+
+        const slotsHtml = Array.from({length: unit.actionSlots}).map((_, i) => {
+            const slotId = `${data.id}_slot_${i}`;
+            return `
+                <div class="action-slot-wrapper" id="${slotId}" data-faction="${data.faction}">
+                    <svg class="action-slot-svg" viewBox="0 0 100 100">
+                        <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
+                        <line class="slot-center-line" x1="25" y1="50" x2="75" y2="50" />
+                    </svg>
+                </div>
+            `;
+        }).join('');
+        
+        const container = document.createElement('div');
+        container.className = `sprite-container ${data.faction} ${unit.type || ''}`; 
+        container.id = `token-${data.id}`;
+        container.style.bottom = `${data.y}%`;
+        container.style.left = `${data.x}%`;
+
+        let uiHtml = '';
+        if (unit.type === 'boss') {
+            uiHtml = `
+                <div class="boss-ui-rect">
+                    <div class="boss-hp-bar-container">
+                        <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                    </div>
+                </div>
+            `;
+        } else {
+            const heptagon = generateHeptagonPoints(85);
+            uiHtml = `
+                <svg class="diegetic-floor" viewBox="-100 -100 200 200">
+                    <polygon class="floor-bg-poly" points="${heptagon.full}" />
+                    <polyline class="hp-track" points="${heptagon.front}" />
+                    <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
+                </svg>
+            `;
+        }
+
+        container.innerHTML = `
+            <div class="combatant">
+                ${uiHtml}
+
+                <div class="top-ui-panel" id="ui-panel-${data.id}" style="top: calc(60px + ${unit.uiY}px); left: calc(80px + ${unit.uiX}px); margin-left: ${unit.type === 'boss' ? unit.uiX : 0}px;">
+                    <div class="speed-number">${data.speed}</div>
+                    <div class="action-slots">${slotsHtml}</div>
+                </div>
+                
+                <div class="sprite-anchor" id="anchor-${data.id}" style="bottom: ${unit.spriteY}px; margin-left: ${unit.spriteX}px; transform: scale(${unit.scale});">
+                    <img src="${data.img}" class="sprite-img" onerror="this.src='https://via.placeholder.com/200x200/500/fff?text=Error'">
+                </div>
+
+                <div class="floating-hp-group">
+                    <div class="name-plate">${data.name}</div>
+                    <div class="hp-number" id="text-hp-${data.id}">${data.hp}</div>
+                </div>
+                <div class="floating-sp-group sp-neutral">0</div>
+            </div>
+        `;
+        battlefield.appendChild(container);
+        updateDepthSorting();
+    }
+
+    // --- FUNCIONES DEL EDITOR ---
+    function syncInputs(src, tgt) { document.getElementById(tgt).value = document.getElementById(src).value; }
+    function updateBossLive() {
+        if (!combatData['enemy_boss']) return;
+        const e = event.target.id;
+        if (e.includes('-range')) syncInputs(e, e.replace('-range', '-num'));
+        else if (e.includes('-num')) syncInputs(e, e.replace('-num', '-range'));
+
+        const nS = document.getElementById('boss-scale-num').value;
+        const nSX = document.getElementById('boss-spriteX-num').value;
+        const nSY = document.getElementById('boss-spriteY-num').value;
+        const nUX = document.getElementById('boss-uiX-num').value;
+        const nUY = document.getElementById('boss-uiY-num').value;
+
+        combatData['enemy_boss'].scale = nS; combatData['enemy_boss'].spriteX = nSX; combatData['enemy_boss'].spriteY = nSY;
+        combatData['enemy_boss'].uiX = nUX; combatData['enemy_boss'].uiY = nUY;
+
+        const anchor = document.getElementById('anchor-enemy_boss');
+        const uiPanel = document.getElementById('ui-panel-enemy_boss');
+        if (anchor) { anchor.style.transform = `scale(${nS})`; anchor.style.bottom = `${nSY}px`; anchor.style.marginLeft = `${nSX}px`; }
+        if (uiPanel) { uiPanel.style.top = `calc(60px + ${nUY}px)`; uiPanel.style.marginLeft = `${nUX}px`; }
+    }
+
+    // --- LOGICA DE TARGETING ---
+    function getUnitSpeed(slotId) { const baseId = slotId.split('_slot_')[0]; return combatData[baseId].speed; }
+
+    function rollEnemyTargets() {
+        const enemySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]');
+        const allySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]');
+        if (allySlots.length === 0) return;
+        enemySlots.forEach(eSlot => {
+            const randomAlly = allySlots[Math.floor(Math.random() * allySlots.length)];
+            slotTargets[eSlot.id] = randomAlly.id;
+        });
+    }
+
+    function autoTargetAllies() {
+        const allySlotsNodes = Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]'));
+        const enemySlotsNodes = Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]'));
+        if (enemySlotsNodes.length === 0) return;
+
+        allySlotsNodes.sort((a, b) => getUnitSpeed(b.id) - getUnitSpeed(a.id));
+        let availableEnemies = [...enemySlotsNodes];
+
+        allySlotsNodes.forEach(ally => {
+            let allyId = ally.id; let targetId = null;
+            let directAttacker = enemySlotsNodes.find(e => slotTargets[e.id] === allyId);
+            if (directAttacker) { targetId = directAttacker.id; } 
+            else {
+                let allySpeed = getUnitSpeed(allyId);
+                let interceptable = availableEnemies.find(e => {
+                    let enemyTargetingSomeoneElse = slotTargets[e.id] && slotTargets[e.id].startsWith('ally');
+                    let amIFaster = allySpeed > getUnitSpeed(e.id);
+                    return enemyTargetingSomeoneElse && amIFaster;
+                });
+                if (interceptable) { targetId = interceptable.id; } 
+                else {
+                    if (availableEnemies.length > 0) targetId = availableEnemies[0].id;
+                    else targetId = enemySlotsNodes[Math.floor(Math.random() * enemySlotsNodes.length)].id;
+                }
+            }
+            if (targetId) {
+                slotTargets[allyId] = targetId;
+                availableEnemies = availableEnemies.filter(e => e.id !== targetId);
+            }
+        });
+    }
+
+    function drawArcs() {
+        const svgLayer = document.getElementById('targeting-layer');
+        if(!svgLayer) return;
+        const defsHtml = `
+            <defs>
+                <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
+                <marker id="arrow-ally" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ffe877" /></marker>
+            </defs>
+        `;
+        let linesHtml = '';
+        let consumedEnemySlots = new Set(); let drawnClashes = new Set(); let unilateralAttacks = [];
+        
+        let activeAllies = Object.keys(slotTargets).filter(id => id.startsWith('ally'));
+        activeAllies.sort((a, b) => getUnitSpeed(b) - getUnitSpeed(a)); 
+
+        for (let allySlot of activeAllies) {
+            let enemySlot = slotTargets[allySlot]; if (!enemySlot) continue;
+            let allySpeed = getUnitSpeed(allySlot); let enemySpeed = getUnitSpeed(enemySlot);
+            let isDirectTarget = (slotTargets[enemySlot] === allySlot);
+            let isFaster = (allySpeed > enemySpeed);
+
+            if ((isDirectTarget || isFaster) && !consumedEnemySlots.has(enemySlot)) {
+                drawnClashes.add(allySlot); consumedEnemySlots.add(enemySlot);
+                const rectA = document.getElementById(allySlot).getBoundingClientRect();
+                const rectE = document.getElementById(enemySlot).getBoundingClientRect();
+                const x1 = rectA.left + rectA.width / 2; const y1 = rectA.top + rectA.height / 2;
+                const x2 = rectE.left + rectE.width / 2; const y2 = rectE.top + rectE.height / 2;
+                const cx = (x1 + x2) / 2; const cy = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.3 - 50;
+                const p01x = (x1 + cx) / 2; const p01y = (y1 + cy) / 2;
+                const p12x = (cx + x2) / 2; const p12y = (cy + y2) / 2;
+                const midX = (p01x + p12x) / 2; const midY = (p01y + p12y) / 2;
+
+                linesHtml += `<path class="arc-ally" d="M ${x1} ${y1} Q ${p01x} ${p01y} ${midX} ${midY}" marker-end="url(#arrow-ally)" />`;
+                linesHtml += `<path class="arc-enemy" d="M ${x2} ${y2} Q ${p12x} ${p12y} ${midX} ${midY}" marker-end="url(#arrow-enemy)" />`;
+            } else {
+                unilateralAttacks.push({ from: allySlot, to: enemySlot, type: 'ally' });
+            }
+        }
+
+        let activeEnemies = Object.keys(slotTargets).filter(id => id.startsWith('enemy'));
+        for (let enemySlot of activeEnemies) {
+            if (consumedEnemySlots.has(enemySlot)) continue; 
+            let targetSlot = slotTargets[enemySlot];
+            if (targetSlot) unilateralAttacks.push({ from: enemySlot, to: targetSlot, type: 'enemy' });
+        }
+
+        for (let attack of unilateralAttacks) {
+            const startNode = document.getElementById(attack.from); const targetNode = document.getElementById(attack.to);
+            if(!startNode || !targetNode) continue;
+            const rectS = startNode.getBoundingClientRect(); const rectT = targetNode.getBoundingClientRect();
+            const x1 = rectS.left + rectS.width / 2; const y1 = rectS.top + rectS.height / 2;
+            const x2 = rectT.left + rectT.width / 2; const y2 = rectT.top + rectT.height / 2;
+            const controlX = (x1 + x2) / 2; const controlY = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.3 - 50;
+            const lineClass = attack.type === 'enemy' ? "arc-enemy" : "arc-ally";
+            const markerRef = attack.type === 'enemy' ? "url(#arrow-enemy)" : "url(#arrow-ally)";
+            linesHtml += `<path class="${lineClass}" d="M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}" marker-end="${markerRef}" />`;
+        }
+
+        if (isDragging && dragStartSlotId) {
+            const startNode = document.getElementById(dragStartSlotId);
+            if (startNode) {
+                const rectA = startNode.getBoundingClientRect();
+                const x1 = rectA.left + rectA.width / 2; const y1 = rectA.top + rectA.height / 2;
+                const controlX = (x1 + dragCurrentX) / 2; const controlY = Math.min(y1, dragCurrentY) - Math.abs(x1 - dragCurrentX) * 0.3 - 50;
+                linesHtml += `<path class="arc-ally" d="M ${x1} ${y1} Q ${controlX} ${controlY} ${dragCurrentX} ${dragCurrentY}" marker-end="url(#arrow-ally)" />`;
+            }
+        }
+        svgLayer.innerHTML = defsHtml + linesHtml;
+    }
+
+    function initDragAndDrop() {
+        const container = document.getElementById('game-container');
+        function getPointerCoords(e) { if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; return { x: e.clientX, y: e.clientY }; }
+        function handleDragStart(e) {
+            const slot = e.target.closest('.action-slot-wrapper');
+            if (slot && slot.dataset.faction === 'ally') {
+                isDragging = true; dragStartSlotId = slot.id;
+                const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
+            }
+        }
+        function handleDragMove(e) {
+            if (!isDragging) return;
+            const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
+        }
+        function handleDragEnd(e) {
+            if (!isDragging) return;
+            let coords = null;
+            if (e.changedTouches && e.changedTouches.length > 0) coords = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            else coords = { x: e.clientX, y: e.clientY };
+            
+            let dropTarget = document.elementFromPoint(coords.x, coords.y);
+            let enemySlot = null;
+            
+            if (dropTarget) {
+                if (dropTarget.closest('.action-slot-wrapper[data-faction="enemy"]')) { enemySlot = dropTarget.closest('.action-slot-wrapper'); } 
+                else {
+                    let container = dropTarget.closest('.sprite-container.enemy');
+                    if (container) enemySlot = container.querySelector('.action-slot-wrapper');
+                }
+            }
+            if (enemySlot) slotTargets[dragStartSlotId] = enemySlot.id;
+            else delete slotTargets[dragStartSlotId];
+            isDragging = false; dragStartSlotId = null;
+        }
+        container.addEventListener('mousedown', handleDragStart); container.addEventListener('mousemove', handleDragMove); window.addEventListener('mouseup', handleDragEnd);
+        container.addEventListener('touchstart', handleDragStart, {passive: false}); container.addEventListener('touchmove', handleDragMove, {passive: false}); window.addEventListener('touchend', handleDragEnd);
+    }
+
+    // --- DESPLIEGUE HORDA 7v7 ---
+    function deploy7v7() {
+        document.getElementById('battlefield').innerHTML = '';
+        combatData = {}; slotTargets = {};
+        document.getElementById('boss-editor-panel').style.display = 'none'; // Ocultar panel de boss
+
+        const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
+        const enemyPositions = [{x: 94, y: 55}, {x: 88, y: 35}, {x: 82, y: 55}, {x: 76, y: 35}, {x: 70, y: 55}, {x: 64, y: 35}, {x: 58, y: 55}];
+
+        let allies = []; let enemies = [];
+        for(let i = 0; i < 7; i++) {
+            allies.push({ 
+                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
+                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+            });
+            enemies.push({ 
+                id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
+                hp: 145, maxHp: 145, actionSlots: 1, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png', 
+                scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
+            });
+        }
+
+        allies.sort((a, b) => b.speed - a.speed);
+        enemies.sort((a, b) => b.speed - a.speed);
+
+        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
+        enemies.forEach((unit, index) => { unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y; spawnCombatant(unit); });
+        
+        setTimeout(rollEnemyTargets, 500);
+    }
+
+    // --- DESPLIEGUE BOSS ---
+    function deployBossFight() {
+        document.getElementById('battlefield').innerHTML = '';
+        combatData = {}; slotTargets = {};
+        document.getElementById('boss-editor-panel').style.display = 'block';
+
+        const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
+        
+        let allies = [];
+        for(let i = 0; i < 7; i++) {
+            allies.push({ 
+                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
+                hp: 216, maxHp: 216, actionSlots: 1, ...customSinners[i] 
+            });
+        }
+        
+        allies.sort((a, b) => b.speed - a.speed);
+        allies.forEach((unit, index) => { unit.x = allyPositions[index].x; unit.y = allyPositions[index].y; spawnCombatant(unit); });
+
+        const bossData = { 
+            id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
+            hp: 1500, maxHp: 1500, actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png', 
+            x: 80, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
+        };
+        spawnCombatant(bossData);
+        
+        document.getElementById('boss-scale-range').value = bossData.scale; document.getElementById('boss-scale-num').value = bossData.scale;
+        document.getElementById('boss-spriteX-range').value = bossData.spriteX; document.getElementById('boss-spriteX-num').value = bossData.spriteX;
+        document.getElementById('boss-spriteY-range').value = bossData.spriteY; document.getElementById('boss-spriteY-num').value = bossData.spriteY;
+        document.getElementById('boss-uiX-range').value = bossData.uiX; document.getElementById('boss-uiX-num').value = bossData.uiX;
+        document.getElementById('boss-uiY-range').value = bossData.uiY; document.getElementById('boss-uiY-num').value = bossData.uiY;
+
+        setTimeout(rollEnemyTargets, 500);
+    }
+
+    function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
+    window.onload = () => { initDragAndDrop(); deployBossFight(); renderLoop(); };
+</script>
+</body>
+</html>
