@@ -3,499 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luminous</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
-
-
-        :root {
-            --neon-red: #ff003c;
-            --neon-gold: #ffcc00;
-            --panel-bg: #111111;
-            --metal-border: #4a4a4a;
-            --brass: #b5a642;
-            --text-main: #e0e0e0;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden; /* Prevent scrollbar from 110vw line */
-            background-color: transparent;
-            font-family: 'Oswald', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: var(--text-main);
-            /* Deep dark tones with red scanlines */
-            /* background-image removed so it doesn't cover the video */
-            /* repeating-linear-gradient(
-                0deg,
-                rgba(255, 0, 60, 0.05),
-                rgba(255, 0, 60, 0.05) 1px,
-                transparent 1px,
-                transparent 4px
-            ); */
-        }
-
-
-        /* Video Background */
-        #bg-video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            filter: brightness(0.8);
-        }
-
-        /* Splash Screen */
-        #splash-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding-bottom: 12vh;
-            align-items: center;
-            z-index: 20;
-            background-color: transparent;
-            transition: opacity 1s ease-out;
-            gap: 20px;
-        }
-
-        .main-logo {
-            max-width: 40%;
-            height: auto;
-            margin-bottom: 10px;
-        }
-
-        .red-strip-container {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 110vw; /* Extend beyond viewport */
-            margin-bottom: 20px;
-        }
-
-        .red-strip-base {
-            display: block;
-            width: 100%;
-            min-width: 110vw; /* Ensure it stretches */
-        }
-
-        .icon-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 25vw; /* Adjust icon size down since container grew */
-        }
-
-        #start-text {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 3rem;
-            color: var(--neon-gold);
-            cursor: pointer;
-            letter-spacing: 2px;
-            animation: blink 1.5s infinite;
-            text-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
-            user-select: none;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        /* Hide auth-terminal initially */
-        .auth-terminal {
-            display: none;
-            opacity: 0;
-            transition: opacity 1s ease-in;
-        }
-
-        /* Industrial Machinery Control Panel */
-        .auth-terminal {
-            background-color: var(--panel-bg);
-            border: 4px solid var(--metal-border);
-            border-radius: 8px; /* Industrial aesthetic */
-            padding: 40px;
-            width: 450px;
-            max-width: 90%;
-            position: relative;
-            box-shadow:
-                inset 0 0 20px rgba(0,0,0,0.8),
-                0 0 15px rgba(255, 0, 60, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            z-index: 10;
-        }
-
-        /* Screws/Rivets */
-        .auth-terminal::before, .auth-terminal::after {
-            content: '';
-            position: absolute;
-            width: 12px;
-            height: 12px;
-            background: #2a2a2a;
-            border: 2px solid #555;
-            border-radius: 50%;
-            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
-        }
-        .auth-terminal::before { top: 10px; left: 10px; }
-        .auth-terminal::after { top: 10px; right: 10px; }
-
-        .terminal-rivets-bottom::before, .terminal-rivets-bottom::after {
-            content: '';
-            position: absolute;
-            width: 12px;
-            height: 12px;
-            background: #2a2a2a;
-            border: 2px solid #555;
-            border-radius: 50%;
-            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
-            bottom: 10px;
-        }
-        .terminal-rivets-bottom::before { left: 10px; }
-        .terminal-rivets-bottom::after { right: 10px; }
-
-
-        /* Mechanical Gauges on Sides */
-        .side-gauge {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 150px;
-            background: #222;
-            border: 2px solid var(--brass);
-            border-radius: 10px;
-            box-shadow: inset 0 0 10px black;
-            overflow: hidden;
-        }
-        .side-gauge-left { left: -30px; }
-        .side-gauge-right { right: -30px; }
-
-        .gauge-fill {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 60%;
-            background: var(--neon-red);
-            box-shadow: 0 0 10px var(--neon-red);
-            animation: pulse-gauge 3s infinite alternate;
-        }
-
-        @keyframes pulse-gauge {
-            0% { height: 60%; }
-            100% { height: 85%; }
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            color: var(--neon-gold);
-            text-align: center;
-            margin: 0;
-            text-transform: uppercase;
-            text-shadow: 0 0 10px var(--neon-gold);
-            letter-spacing: 2px;
-            border-bottom: 2px solid var(--neon-red);
-            padding-bottom: 15px;
-            box-shadow: 0 10px 10px -10px rgba(255, 0, 60, 0.5);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        label {
-            font-family: 'Share Tech Mono', monospace;
-            color: var(--brass);
-            text-transform: uppercase;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-        }
-
-        input {
-            background-color: #0a0a0a;
-            border: 2px solid var(--metal-border);
-            color: var(--neon-gold);
-            padding: 12px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 1.2rem;
-            outline: none;
-            transition: all 0.3s ease;
-            box-shadow: inset 0 0 5px black;
-        }
-
-        input:focus {
-            border-color: var(--neon-red);
-            box-shadow: 0 0 8px var(--neon-red), inset 0 0 5px rgba(255,0,60,0.2);
-        }
-
-        .flavor-text {
-            text-align: center;
-            font-style: italic;
-            color: #888;
-            margin: 10px 0;
-            font-size: 1.1rem;
-        }
-
-        .btn-glow {
-            background: linear-gradient(45deg, #400, var(--neon-red));
-            border: 2px solid var(--neon-gold);
-            color: #fff;
-            padding: 15px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-shadow: 0 0 5px black;
-            box-shadow: 0 0 15px rgba(255, 0, 60, 0.6);
-            font-family: 'Oswald', sans-serif;
-            letter-spacing: 1px;
-        }
-
-        .btn-glow:hover {
-            box-shadow: 0 0 25px var(--neon-red), inset 0 0 10px var(--neon-gold);
-            transform: scale(1.02);
-            color: var(--neon-gold);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            border: 2px solid var(--brass);
-            color: var(--brass);
-            padding: 10px;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Oswald', sans-serif;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(181, 166, 66, 0.1);
-            color: var(--neon-gold);
-            border-color: var(--neon-gold);
-            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
-        }
-
-        .error-box {
-            background: rgba(255, 0, 60, 0.1);
-            border: 1px dashed var(--neon-red);
-            color: var(--neon-red);
-            padding: 10px;
-            text-align: center;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.9rem;
-            min-height: 20px;
-            text-shadow: 0 0 5px rgba(255,0,60,0.5);
-            display: none; /* hidden by default */
-        }
-    </style>
+    <title>Gestor de Bastiones</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <!-- Background Video -->
-    <video autoplay muted loop id="bg-video">
-        <source src="https://i.imgur.com/OzCik5N.mp4" type="video/mp4">
-    </video>
-
-    <!-- Splash Screen -->
-    <div id="splash-screen">
-        <img src="https://imgur.com/ujJb0vM.png" class="main-logo" alt="Main Logo">
-
-        <div class="red-strip-container">
-            <img src="https://imgur.com/JZiX2vG.png" class="red-strip-base" alt="Red Strip">
-            <img src="https://imgur.com/cXX21ji.png" class="icon-overlay" alt="Icon Overlay">
+    <!-- Top Header: Stats Panel -->
+    <header id="stats-panel" class="limbus-panel">
+        <div class="stat-box">
+            <span class="stat-label">SEMANA</span>
+            <span class="stat-value" id="ui-week">1</span>
         </div>
+        <div class="stat-box">
+            <span class="stat-label">ORO</span>
+            <span class="stat-value" id="ui-gold">1000</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">MORAL</span>
+            <span class="stat-value" id="ui-morale">0</span>
+        </div>
+    </header>
 
-        <div id="start-text">EMPEZAR</div>
+    <div id="main-container">
+        <!-- Main Area: Map / Canvas -->
+        <main id="map-area">
+            <div id="canvas-wrapper">
+                <canvas id="bastion-canvas" width="1024" height="768"></canvas>
+            </div>
+        </main>
+
+        <!-- Sidebar: Controls and Hirelings Table -->
+        <aside id="sidebar-panel" class="limbus-panel-sidebar">
+            <div class="controls-section" style="margin-bottom: 15px; padding-bottom: 15px;">
+                <h2>MODO CONSTRUCCIÓN (DM)</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button id="btn-build-corridor" class="btn-secondary btn-build" data-mode="corridor">PASILLO</button>
+                    <button id="btn-build-door" class="btn-secondary btn-build" data-mode="door">PUERTA</button>
+                    <button id="btn-build-erase" class="btn-secondary btn-build" data-mode="erase">BORRAR</button>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <h2>CONTROLES OPERATIVOS</h2>
+                <button id="btn-hire" class="btn-primary">CONTRATAR ASALARIADO</button>
+                <button id="btn-advance-week" class="btn-secondary">AVANZAR SEMANA</button>
+            </div>
+
+            <div class="hirelings-section">
+                <h2>REGISTRO DE ASALARIADOS</h2>
+                <div class="table-container">
+                    <table id="hirelings-table">
+                        <thead>
+                            <tr>
+                                <th>NOMBRE</th>
+                                <th>GRADO</th>
+                                <th>SEMANAS</th>
+                                <th>SALARIO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hirelings-tbody">
+                            <!-- Rows dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <!-- Sinner Audio Element -->
-    <audio id="audio-inicio"></audio>
-
-    <!-- Background Audio Elements -->
-    <audio id="audio-sfx" loop src="https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/Intro%20audio/220618_StorySound_1_busRattle.wav"></audio>
-    <audio id="audio-music" loop src="https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/Intro%20audio/Limbus%20Company%20OST%20-%20In%20Hell%20We%20Live%2C%20Lament%20Instrumental.mp3"></audio>
-
-<div class="auth-terminal">
-        <div class="terminal-rivets-bottom"></div>
-        <div class="side-gauge side-gauge-left"><div class="gauge-fill"></div></div>
-        <div class="side-gauge side-gauge-right"><div class="gauge-fill"></div></div>
-
-        <h1>SISTEMA DE IDENTIFICACIÓN</h1>
-
-        <div class="input-group">
-            <label for="auth-email">Email</label>
-            <input type="email" id="auth-email" placeholder="Entrada de datos...">
-        </div>
-
-        <div class="input-group">
-            <label for="auth-password">Contraseña</label>
-            <input type="password" id="auth-password" placeholder="Clave de acceso...">
-        </div>
-
-        
-        <div class="flavor-text">
-            "No pierdas tiempo, entra ya!"
-        </div>
-
-        <div id="auth-error" class="error-box"></div>
-
-        <button id="btn-login" class="btn-glow">INICIAR SESIÓN</button>
-        <button id="btn-register-mode" class="btn-secondary">CREAR CUENTA</button>
-        <!-- The actual register submission button, hidden initially -->
-        <button id="btn-register-submit" class="btn-glow" style="display: none;">CONFIRMAR REGISTRO</button>
-        <button id="btn-login-mode" class="btn-secondary" style="display: none;">VOLVER A INICIO</button>
-    </div>
-
-    <!-- Firebase App (núcleo) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <!-- Firebase Auth -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <!-- Firebase Realtime Database -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <!-- Script de autenticación -->
-    <script src="js/auth.js"></script>
-
-    <script>
-        // --- 💠 ARCHITECT: RANDOM SINNER LOGIN VOICE LOGIC ---
-        // Flavor: The Limbus terminal connects the Manager to a random Sinner on startup.
-        const sinners = {
-            "Yi Sang": ["login_10101_1.wav", "login_10101_2.wav", "login_10101_3.wav", "login_10101_4.wav"],
-            "Faust": ["login_10201_1.wav", "login_10201_2.wav", "login_10201_3.wav", "login_10201_4.wav"],
-            "Don Quixote": ["login_10301_1.wav", "login_10301_2.wav", "login_10301_3.wav", "login_10301_4.wav", "login_10301_5.wav"],
-            "Ryoshu": ["login_10401_1.wav", "login_10401_2.wav", "login_10401_3.wav", "login_10401_4.wav"],
-            "Meursault": ["login_10501_1.wav", "login_10501_2.wav", "login_10501_3.wav", "login_10501_4.wav"],
-            "Hong Lu": ["login_10601_1.wav", "login_10601_2.wav", "login_10601_3.wav"],
-            "Heathcliff": ["login_10701_1.wav", "login_10701_2.wav", "login_10701_3.wav"],
-            "Ishmael": ["login_10801_1.wav", "login_10801_2.wav", "login_10801_3.wav", "login_10801_4.wav"],
-            "Rodion": ["login_10901_1.wav", "login_10901_2.wav", "login_10901_3.wav", "login_10901_4.wav"],
-            "Sinclair": ["login_11001_1.wav", "login_11001_2.wav", "login_11001_3.wav", "login_11001_4.wav"],
-            "Outis": ["login_11101_1.wav", "login_11101_2.wav", "login_11101_3.wav"],
-            "Gregor": ["login_11201_1.wav", "login_11201_2.wav", "login_11201_3.wav", "login_11201_4.wav"]
-        };
-
-        const baseRepo = "https://raw.githubusercontent.com/sokcrow/Luminos-Character-Maker/main/Assets/Audio/";
-        const startText = document.getElementById('start-text');
-        const splashScreen = document.getElementById('splash-screen');
-        const authTerminal = document.querySelector('.auth-terminal');
-        const audioInicio = document.getElementById('audio-inicio');
-        const audioSfx = document.getElementById('audio-sfx');
-        const audioMusic = document.getElementById('audio-music');
-
-        // Set volume for audios
-        audioInicio.volume = 0.4;
-        audioSfx.volume = 0.2;
-        audioMusic.volume = 0.4;
-
-        // State flag: 0 if not played, 1 if played
-        let voicePlayed = 0;
-
-        // Helper function to pick and play a random Sinner voice
-        function playRandomSinnerVoice() {
-            if (voicePlayed === 1) return;
-
-            const sinnerNames = Object.keys(sinners);
-            const randomSinner = sinnerNames[Math.floor(Math.random() * sinnerNames.length)];
-            const audioFiles = sinners[randomSinner];
-            const randomAudio = audioFiles[Math.floor(Math.random() * audioFiles.length)];
-
-            // Lore: The path must precisely identify the Sinner's identity in the database.
-            // Critical: encodeURIComponent handles spaces in Sinner names (e.g., "Don Quixote")
-            const audioUrl = `${baseRepo}${encodeURIComponent(randomSinner)}/Login/${randomAudio}`;
-
-            audioInicio.src = audioUrl;
-            audioInicio.play()
-                .then(() => {
-                    voicePlayed = 1;
-                    console.log("💠 Architect Log: Audio successful, voicePlayed state:", voicePlayed);
-                })
-                .catch(err => {
-                    console.error("💠 Architect Log: Autoplay blocked by browser. Awaiting Manager authorization (click).", err);
-                });
-        }
-
-        // Helper function to play background audio elements
-        function playBackgroundAudio() {
-            audioSfx.play().catch(err => console.error("SFX autoplay blocked", err));
-            audioMusic.play().catch(err => console.error("Music autoplay blocked", err));
-        }
-
-        // --- 💠 ARCHITECT: AUTOPLAY ATTEMPT ---
-        // Flavor: The terminal attempts an automatic diagnostic connection 0.6s after boot.
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                playRandomSinnerVoice();
-                playBackgroundAudio();
-            }, 600);
-        });
-
-        startText.addEventListener('click', () => {
-            // Ensure background audio is playing on user interaction
-            playBackgroundAudio();
-
-            // Graceful Fallback: If autoplay was blocked (voicePlayed is 0), play audio now on click.
-            if (voicePlayed === 0) {
-                playRandomSinnerVoice();
-            }
-
-            // Transition UI
-            splashScreen.style.opacity = '0';
-
-            setTimeout(() => {
-                splashScreen.style.display = 'none';
-                authTerminal.style.display = 'flex';
-
-                // Allow browser reflow before fading in
-                setTimeout(() => {
-                    authTerminal.style.opacity = '1';
-                }, 50);
-            }, 1000); // Matches the 1s CSS transition
-
-        }, { once: true }); // Flavor: Ensure audio only plays once per boot sequence to respect Manager's ears.
-
-        // UI Logic to switch between Login and Register modes
-        const btnLogin = document.getElementById('btn-login');
-        const btnRegisterMode = document.getElementById('btn-register-mode');
-        const btnRegisterSubmit = document.getElementById('btn-register-submit');
-        const btnLoginMode = document.getElementById('btn-login-mode');
-        const flavorText = document.querySelector('.flavor-text');
-        const headerText = document.querySelector('h1');
-
-        btnRegisterMode.addEventListener('click', () => {
-            btnLogin.style.display = 'none';
-            btnRegisterMode.style.display = 'none';
-            btnRegisterSubmit.style.display = 'block';
-            btnLoginMode.style.display = 'block';
-            headerText.innerText = "NUEVO RECLUTA";
-            flavorText.innerText = "La maquinaria necesita carne fresca.";
-        });
-
-        btnLoginMode.addEventListener('click', () => {
-            btnLogin.style.display = 'block';
-            btnRegisterMode.style.display = 'block';
-            btnRegisterSubmit.style.display = 'none';
-            btnLoginMode.style.display = 'none';
-            headerText.innerText = "SISTEMA DE IDENTIFICACIÓN";
-            flavorText.innerText = '"No pierdas tiempo, entra ya!"';
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
