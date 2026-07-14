@@ -1256,6 +1256,7 @@
       <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
 
+      <button class="dm-tab-btn" data-tab="tab-combate">Combate</button>
       <button class="dm-tab-btn" data-tab="dashboard-actores">
         Gestión de Actores
       </button>
@@ -2197,6 +2198,113 @@
                 Esperando tirada...
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- TAB: COMBATE -->
+      <div id="tab-combate" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px;">
+          <h3>Gestión de Combate</h3>
+
+          <!-- PANEL DE HERRAMIENTAS DE COMBATE (Anterior dm-dashboard) -->
+          <div class="form-cyber-container">
+            <div class="form-cyber">
+              <h4 style="color: #0df;">Herramientas Globales</h4>
+              <button class="btn-cyber" style="background: #111; color: #cc9955; border: 1px solid #cc9955;" onclick="toggleGridDM()">🗺️ Mostrar/Ocultar Cuadrícula</button>
+              <div style="display:flex; gap:10px; margin-top: 10px;">
+                  <button class="btn-cyber" style="flex:1; background: #331100; color: #ffdd44; border: 1px solid #ffaa00;" onclick="deploy7v7DM()">⚔️ Combate 7v7</button>
+                  <button class="btn-cyber" style="flex:1; background: #400; color: #ffdd44; border: 1px solid #ff4400;" onclick="deployBossFightDM()">👹 Boss Fight</button>
+              </div>
+              <button class="btn-cyber" style="background: #111; color: #cc9955; border: 1px solid #cc9955; margin-top: 10px;" onclick="rollEnemyTargetsDM()">🎲 Re-rollear Targets Enemigos</button>
+              <button class="btn-cyber" style="background: #004466; color: #88eeff; border: 1px solid #0066aa; margin-top: 5px;" onclick="autoTargetAlliesDM()">🤖 Auto-Respuesta Aliada</button>
+              <button class="btn-cyber" style="background: #002244; color: #88eeff; border: 1px solid #0066aa; margin-top: 10px;" onclick="fetchPlayersFromFirebaseMockDM()">📥 Cargar Jugadores (Test)</button>
+            </div>
+
+            <!-- CREADOR DE ENTIDADES -->
+            <div class="form-cyber">
+              <h4 style="color: #aaffaa;">Creador de Entidades (NPC/Enemigo)</h4>
+              <input type="text" id="combat-npc-name" placeholder="Nombre (Ej. Hooligan)" value="Nuevo Enemigo">
+              <div style="display: flex; gap:10px;">
+                  <input type="number" id="combat-npc-hp" placeholder="HP Max" value="100" style="flex:1;">
+                  <select id="combat-npc-armor" style="flex:1;">
+                      <option value="light">Armadura Ligera</option>
+                      <option value="medium">Media</option>
+                      <option value="heavy">Pesada</option>
+                  </select>
+              </div>
+              <input type="text" id="combat-npc-img" placeholder="URL Imagen" value="https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png">
+              <div style="display: flex; gap:10px; align-items:center; margin-top:5px;">
+                  <label style="color:#aaa; font-size:12px;">Cantidad:</label>
+                  <input type="number" id="combat-npc-qty" value="1" min="1" max="10" style="width: 60px;">
+
+                  <label style="color:#aaa; font-size:12px; margin-left:10px;">Facción:</label>
+                  <select id="combat-npc-faction" style="flex:1;">
+                      <option value="enemy">Enemigo</option>
+                      <option value="ally">Aliado NPC</option>
+                  </select>
+              </div>
+
+              <div style="display: flex; gap:10px; align-items:center; margin-top:10px; padding: 5px; background:#111; border: 1px solid #444; border-radius:4px;">
+                  <label style="color:#0df; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                      <input type="checkbox" id="combat-npc-is-combatant" checked> Combatant? (Habilita HP, Slots, UI)
+                  </label>
+              </div>
+
+              <button class="btn-cyber btn-green" style="margin-top: 15px;" onclick="deployCustomNPCDM()">Desplegar Entidad</button>
+            </div>
+
+            <!-- EDITOR DE SPRITES (LIVE PREVIEW SE AÑADIRÁ EN EL SIGUIENTE PASO) -->
+            <div class="form-cyber" id="combat-sprite-editor-container">
+              <h4 style="color: #ffe877;">🛠️ Editor de Sprites (Live Preview)</h4>
+              <select id="editor-target-select-dm" onchange="loadEntityToEditorDM()" style="width:100%; margin-bottom: 10px;">
+                  <option value="">-- Seleccionar Entidad en Combate --</option>
+              </select>
+
+              <!-- Contenedor del Live Preview (Se inicializará por CSS/JS) -->
+              <div id="combat-live-preview-box" style="width: 100%; height: 250px; background: url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png') center bottom / cover; border: 2px solid #555; border-radius: 4px; margin-bottom: 15px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: flex-end;">
+                  <div id="preview-sprite-container" style="position: absolute; bottom: 10%; pointer-events: none; transform: translateX(-50%); left: 50%;">
+                      <!-- Preview rendering goes here -->
+                  </div>
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px;">Flip (X):</label>
+                  <input type="checkbox" id="boss-flip-x-dm" onchange="updateBossLiveDM()">
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px; width: 60px;">Escala:</label>
+                  <input type="range" id="boss-scale-range-dm" min="0.1" max="5.0" step="0.1" value="1.0" style="flex:1; margin: 0 10px;" oninput="updateBossLiveDM()">
+                  <input type="number" id="boss-scale-num-dm" value="1.0" style="width: 50px;" oninput="updateBossLiveDM()">
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px; width: 60px;">Sprite X:</label>
+                  <input type="range" id="boss-spriteX-range-dm" min="-500" max="500" step="1" value="0" style="flex:1; margin: 0 10px;" oninput="updateBossLiveDM()">
+                  <input type="number" id="boss-spriteX-num-dm" value="0" style="width: 50px;" oninput="updateBossLiveDM()">
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px; width: 60px;">Sprite Y:</label>
+                  <input type="range" id="boss-spriteY-range-dm" min="-500" max="500" step="1" value="0" style="flex:1; margin: 0 10px;" oninput="updateBossLiveDM()">
+                  <input type="number" id="boss-spriteY-num-dm" value="0" style="width: 50px;" oninput="updateBossLiveDM()">
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px; width: 60px;">UI X:</label>
+                  <input type="range" id="boss-uiX-range-dm" min="-300" max="300" step="1" value="0" style="flex:1; margin: 0 10px;" oninput="updateBossLiveDM()">
+                  <input type="number" id="boss-uiX-num-dm" value="0" style="width: 50px;" oninput="updateBossLiveDM()">
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                  <label style="color:#aaa; font-size:12px; width: 60px;">UI Y:</label>
+                  <input type="range" id="boss-uiY-range-dm" min="-300" max="300" step="1" value="0" style="flex:1; margin: 0 10px;" oninput="updateBossLiveDM()">
+                  <input type="number" id="boss-uiY-num-dm" value="0" style="width: 50px;" oninput="updateBossLiveDM()">
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                  <button class="btn-cyber" style="flex:1; background: #222; color: #fff; border: 1px solid #555;" onclick="refreshEditorDropdownDM()">🔄 Refrescar</button>
+                  <button class="btn-cyber btn-green" style="flex:1;" onclick="saveBossLiveDM()">💾 Guardar en Tablero</button>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -3810,6 +3918,253 @@
       });
 
       function initializeDMApp() {
+
+        // --- LOGICA DE COMBATE (MIGRADA DESDE BATTLE-VIEWER) ---
+        let dmCombatData = {};
+
+        // Escuchar cambios en combate para refrescar el dropdown del editor
+        db.ref('campaña/combate/combatants').on('value', snap => {
+            dmCombatData = snap.val() || {};
+            refreshEditorDropdownDM();
+        });
+
+        // 1. Herramientas Globales
+        window.toggleGridDM = function() {
+            db.ref('campaña/combate/settings/showGrid').once('value').then(snap => {
+                db.ref('campaña/combate/settings').update({ showGrid: !snap.val() });
+            });
+        };
+
+        window.deploy7v7DM = function() {
+            if(!confirm("¿Desplegar 7v7? Esto borrará el tablero actual.")) return;
+            const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
+            const enemyPositions = [{x: 94, y: 55}, {x: 88, y: 35}, {x: 82, y: 55}, {x: 76, y: 35}, {x: 70, y: 55}, {x: 64, y: 35}, {x: 58, y: 55}];
+
+            let newCombatants = {};
+            for(let i = 0; i < 7; i++) {
+                newCombatants['ally_' + i] = {
+                    id: 'ally_' + i, name: 'Sinner ' + (i+1), faction: 'ally', speed: Math.floor(Math.random() * 6) + 1,
+                    hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', img: 'https://via.placeholder.com/200x200?text=Ally',
+                    x: allyPositions[i].x, y: allyPositions[i].y, scale: 1.0, isCombatant: true
+                };
+                newCombatants['enemy_' + i] = {
+                    id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1,
+                    hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
+                    x: enemyPositions[i].x, y: enemyPositions[i].y, scale: 1.0, isCombatant: true
+                };
+            }
+            db.ref('campaña/combate/combatants').set(newCombatants);
+            db.ref('campaña/combate/slotTargets').remove();
+        };
+
+        window.deployBossFightDM = function() {
+            if(!confirm("¿Desplegar Boss Fight? Esto borrará el tablero actual.")) return;
+            const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
+
+            let newCombatants = {};
+            for(let i = 0; i < 7; i++) {
+                newCombatants['ally_' + i] = {
+                    id: 'ally_' + i, name: 'Sinner ' + (i+1), faction: 'ally', speed: Math.floor(Math.random() * 6) + 1,
+                    hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', img: 'https://via.placeholder.com/200x200?text=Ally',
+                    x: allyPositions[i].x, y: allyPositions[i].y, scale: 1.0, isCombatant: true
+                };
+            }
+            newCombatants['enemy_boss'] = {
+                id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8,
+                hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png',
+                x: 80, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0, isCombatant: true, flipX: true
+            };
+
+            db.ref('campaña/combate/combatants').set(newCombatants);
+            db.ref('campaña/combate/slotTargets').remove();
+        };
+
+        // 2. Creador de Entidades
+        window.deployCustomNPCDM = function() {
+            const name = document.getElementById('combat-npc-name').value || 'Unknown';
+            const hp = parseInt(document.getElementById('combat-npc-hp').value) || 100;
+            const armor = document.getElementById('combat-npc-armor').value;
+            const img = document.getElementById('combat-npc-img').value;
+            const qty = parseInt(document.getElementById('combat-npc-qty').value) || 1;
+            const faction = document.getElementById('combat-npc-faction').value;
+            const isCombatant = document.getElementById('combat-npc-is-combatant').checked;
+
+            let existingCount = Object.values(dmCombatData).filter(c => c.faction === faction).length;
+
+            let newUnits = {};
+            for (let i = 0; i < qty; i++) {
+                const uid = faction + '_custom_' + Date.now() + '_' + i;
+                newUnits[uid] = {
+                    id: uid,
+                    name: qty > 1 ? `${name} ${i+1}` : name,
+                    faction: faction,
+                    speed: Math.floor(Math.random() * 6) + 1,
+                    hp: hp,
+                    maxHp: hp,
+                    armorType: armor,
+                    actionSlots: 1,
+                    img: img,
+                    scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0,
+                    x: faction === 'enemy' ? (90 - (existingCount + i) * 6) : (10 + (existingCount + i) * 6),
+                    y: 45 + ((existingCount + i) % 2 === 0 ? 10 : -10),
+                    isCombatant: isCombatant
+                };
+            }
+
+            db.ref('campaña/combate/combatants').update(newUnits);
+            alert(`Desplegadas ${qty} entidades.`);
+        };
+
+        // 3. Editor de Sprites con Live Preview
+        window.refreshEditorDropdownDM = function() {
+            const select = document.getElementById('editor-target-select-dm');
+            if(!select) return;
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- Seleccionar Entidad en Combate --</option>';
+            Object.values(dmCombatData).forEach(unit => {
+                select.innerHTML += `<option value="${unit.id}">[${unit.faction === 'ally' ? 'Aliado' : 'Enemigo'}] ${unit.name}</option>`;
+            });
+            if (dmCombatData[currentVal]) select.value = currentVal;
+
+            loadEntityToEditorDM();
+        };
+
+        let currentPreviewData = null;
+
+        window.loadEntityToEditorDM = function() {
+            const targetId = document.getElementById('editor-target-select-dm').value;
+            if (!targetId || !dmCombatData[targetId]) {
+                document.getElementById('preview-sprite-container').innerHTML = '';
+                currentPreviewData = null;
+                return;
+            }
+
+            const unit = dmCombatData[targetId];
+            // Clonar para no modificar la DB directamente hasta guardar
+            currentPreviewData = JSON.parse(JSON.stringify(unit));
+
+            document.getElementById('boss-scale-range-dm').value = unit.scale || 1.0;
+            document.getElementById('boss-scale-num-dm').value = unit.scale || 1.0;
+            document.getElementById('boss-spriteX-range-dm').value = unit.spriteX || 0;
+            document.getElementById('boss-spriteX-num-dm').value = unit.spriteX || 0;
+            document.getElementById('boss-spriteY-range-dm').value = unit.spriteY || 0;
+            document.getElementById('boss-spriteY-num-dm').value = unit.spriteY || 0;
+            document.getElementById('boss-uiX-range-dm').value = unit.uiX || 0;
+            document.getElementById('boss-uiX-num-dm').value = unit.uiX || 0;
+            document.getElementById('boss-uiY-range-dm').value = unit.uiY || 0;
+            document.getElementById('boss-uiY-num-dm').value = unit.uiY || 0;
+            document.getElementById('boss-flip-x-dm').checked = unit.flipX || false;
+
+            renderLivePreview();
+        };
+
+        function syncInputsDM(src, tgt) { document.getElementById(tgt).value = document.getElementById(src).value; }
+
+        window.updateBossLiveDM = function(event) {
+            if(!currentPreviewData) return;
+
+            if (event) {
+                const e = event.target.id;
+                if (e.includes('-range')) syncInputsDM(e, e.replace('-range', '-num'));
+                else if (e.includes('-num')) syncInputsDM(e, e.replace('-num', '-range'));
+            }
+
+            currentPreviewData.scale = parseFloat(document.getElementById('boss-scale-num-dm').value);
+            currentPreviewData.spriteX = parseInt(document.getElementById('boss-spriteX-num-dm').value);
+            currentPreviewData.spriteY = parseInt(document.getElementById('boss-spriteY-num-dm').value);
+            currentPreviewData.uiX = parseInt(document.getElementById('boss-uiX-num-dm').value);
+            currentPreviewData.uiY = parseInt(document.getElementById('boss-uiY-num-dm').value);
+            currentPreviewData.flipX = document.getElementById('boss-flip-x-dm').checked;
+
+            renderLivePreview();
+        };
+
+        window.saveBossLiveDM = function() {
+            if(!currentPreviewData || !currentPreviewData.id) {
+                alert("No hay entidad seleccionada.");
+                return;
+            }
+            db.ref(`campaña/combate/combatants/${currentPreviewData.id}`).update({
+                scale: currentPreviewData.scale,
+                spriteX: currentPreviewData.spriteX,
+                spriteY: currentPreviewData.spriteY,
+                uiX: currentPreviewData.uiX,
+                uiY: currentPreviewData.uiY,
+                flipX: currentPreviewData.flipX
+            }).then(() => alert("Cambios guardados en el tablero."));
+        };
+
+        // Función para generar un preview visual (Mini Battle-Viewer)
+
+        window.rollEnemyTargetsDM = function() {
+            // Un simulador básico: asignar a los enemigos targets aleatorios entre los aliados
+            const allyIds = Object.keys(dmCombatData).filter(id => dmCombatData[id].faction === 'ally' && dmCombatData[id].isCombatant !== false);
+            const enemyIds = Object.keys(dmCombatData).filter(id => dmCombatData[id].faction === 'enemy' && dmCombatData[id].isCombatant !== false);
+
+            if (allyIds.length === 0) return;
+
+            let newTargets = {};
+            enemyIds.forEach(eid => {
+                const eData = dmCombatData[eid];
+                for (let i = 0; i < (eData.actionSlots || 1); i++) {
+                    const slotId = `${eid}_slot_${i}`;
+                    const targetId = allyIds[Math.floor(Math.random() * allyIds.length)];
+                    newTargets[slotId] = `${targetId}_slot_0`; // Simplificación
+                }
+            });
+
+            db.ref('campaña/combate/slotTargets').update(newTargets);
+        };
+
+        window.autoTargetAlliesDM = function() {
+            alert("Auto-Target ejecutado (simulación básica).");
+            // Aquí iría la lógica compleja de clash (similar a Battle-viewer)
+        };
+
+        window.fetchPlayersFromFirebaseMockDM = function() {
+             alert("Lógica de carga de jugadores activada.");
+        };
+
+        function renderLivePreview() {
+            const container = document.getElementById('preview-sprite-container');
+            if(!container || !currentPreviewData) return;
+
+            const data = currentPreviewData;
+            const isCombatant = data.isCombatant !== false;
+            const isBoss = data.type === 'boss';
+
+            let uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); transform: translateX(-50%); z-index:10; pointer-events:none; display: flex; flex-direction: column; align-items: center;`;
+            if(!isBoss) {
+                 uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); margin-left: 20px; z-index:10; pointer-events:none; display: flex; align-items: flex-start;`;
+            }
+
+            const scaleX = data.flipX ? -data.scale : data.scale;
+
+            // Construimos un mockup visual simplificado del sprite y su UI
+            container.innerHTML = `
+                <div style="position: relative; width: 260px; height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transform: scale(0.6); transform-origin: bottom center;">
+
+                    ${isCombatant ? `
+                    <div style="${uiStyle}">
+                        <div style="color: #ffe877; font-size: 30px; font-weight:bold; font-family:'BebasKai', sans-serif; text-shadow: 0 0 5px #ff4400, 1px 1px 2px #000; line-height: 0.8;">${data.speed || 5}</div>
+                        <div style="display:flex; gap:2px; margin-top:5px;">
+                            ${Array.from({length: data.actionSlots || 1}).map(() => `<div style="width: 30px; height: 30px; background: #1a1510; border: 2px solid #4a3520; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div style="position: absolute; bottom: ${data.spriteY || 0}px; margin-left: ${data.spriteX || 0}px; transform: scaleX(${scaleX}) scaleY(${data.scale || 1}); transform-origin: bottom center; z-index:3;">
+                        <img src="${data.img}" style="height: 200px; object-fit: contain; object-position: bottom; filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));">
+                    </div>
+
+                    <div style="position: absolute; bottom: 0; left: 0; z-index: 10; display: flex; flex-direction: column; align-items: flex-start;">
+                        <div style="background: #050505; color: #ddd; font-size: 14px; font-family: 'BebasKai', sans-serif; padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase;">${data.name}</div>
+                        ${isCombatant ? `<div style="font-size: 40px; color: #ff4a22; font-family: 'BebasKai', sans-serif; line-height: 0.85; text-shadow: 2px 2px 4px #000;">${data.hp || 100}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
         document
           .getElementById("btn-cerrar-sesion")
           .addEventListener("click", () => {
@@ -3870,7 +4225,21 @@
             // Add active class to clicked button and target pane
             btn.classList.add("active");
             const targetPane = document.getElementById(btn.dataset.tab);
-            if (targetPane) targetPane.classList.add("active");
+            if (btn.dataset.tab === 'tab-combate') {
+                // Initial fetch/refresh might be needed here
+                refreshEditorDropdownDM();
+            }
+            if (targetPane) {
+                targetPane.classList.add("active");
+                targetPane.style.display = "flex";
+            }
+
+            // hide other panes specifically to be safe
+            document.querySelectorAll(".dm-tab-pane").forEach((p) => {
+                if(p !== targetPane) {
+                    p.style.display = "none";
+                }
+            });
           });
         });
 
