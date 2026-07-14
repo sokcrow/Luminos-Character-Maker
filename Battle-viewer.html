@@ -137,55 +137,6 @@
     </div>
     
 
-    <!-- NPC CREATOR MODAL -->
-    <div id="npc-creator-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">CREADOR DE ENTIDADES</div>
-
-            <div class="modal-field">
-                <label>Nombre</label>
-                <input type="text" id="npc-name" placeholder="Ej. Hooligan" value="Nuevo Enemigo">
-            </div>
-
-            <div class="modal-field">
-                <label>HP Máximo</label>
-                <input type="number" id="npc-hp" value="100" min="1">
-            </div>
-
-            <div class="modal-field">
-                <label>Armadura</label>
-                <select id="npc-armor">
-                    <option value="light">Ligera / Sin Armadura</option>
-                    <option value="medium">Media</option>
-                    <option value="heavy">Pesada</option>
-                </select>
-            </div>
-
-            <div class="modal-field">
-                <label>URL Imagen (Sprite)</label>
-                <input type="text" id="npc-img" placeholder="https://..." value="https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png">
-            </div>
-
-            <div class="modal-field">
-                <label>Cantidad</label>
-                <input type="number" id="npc-qty" value="1" min="1" max="10">
-            </div>
-
-            <div class="modal-field">
-                <label>Facción</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="npc-faction" value="enemy" checked> Enemigo</label>
-                    <label><input type="radio" name="npc-faction" value="ally"> Aliado NPC</label>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeCreatorModal()">Cancelar</button>
-                <button class="btn-deploy" onclick="deployCustomNPCs()">Desplegar</button>
-            </div>
-        </div>
-    </div>
-
     <svg id="targeting-layer">
         <defs>
             <marker id="arrow-enemy" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3333" /></marker>
@@ -193,42 +144,26 @@
         </defs>
     </svg>
 
-    <div id="dm-dashboard">
-        <div class="dm-header">LIMBUS: DM CONTROL PANEL</div>
-        <div class="dm-tools">
-            <button onclick="toggleGrid()">🗺️ Mostrar Cuadrícula</button>
-            <button style="background: #224422; color: #aaffaa; border-color: #55aa55; margin-top:5px;" onclick="openCreatorModal()">➕ Crear NPC/Enemigo</button>
-            
-            <div style="display:flex; gap:4px; margin-top:5px;">
-                <button style="flex:1; background: #331100; color: #ffdd44; border-color: #ffaa00;" onclick="deploy7v7()">⚔️ Combate 7v7</button>
-                <button style="flex:1; background: #400; color: #ffdd44; border-color: #ff4400;" onclick="deployBossFight()">👹 Boss Fight</button>
-                <button style="flex:1; background: #002244; color: #88eeff; border-color: #0066aa;" onclick="fetchPlayersFromFirebaseMock()">📥 Test Firebase Players</button>
-            </div>
-            
-            <div id="boss-editor-panel" class="dm-editor-group">
-                <div class="dm-editor-title">🛠️ Editor de Sprites</div>
-                <div class="dm-control-row">
-                    <label>Entidad:</label>
-                    <select id="editor-target-select" onchange="loadEntityToEditor()" style="width:100%; background:#111; color:#fff; border:1px solid #555; font-size:11px; padding:2px;">
-                        <option value="">-- Seleccionar --</option>
-                    </select>
-                </div>
-                <div class="dm-control-row"><label>Flip (X):</label><input type="checkbox" id="boss-flip-x" onchange="updateBossLive()" style="accent-color: #ffe877;"></div>
-                <div class="dm-control-row"><label>Escala:</label><input type="range" id="boss-scale-range" min="0.1" max="5.0" step="0.1" value="1.0" oninput="updateBossLive()"><input type="number" id="boss-scale-num" value="1.0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>Sprite X:</label><input type="range" id="boss-spriteX-range" min="-500" max="500" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteX-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>Sprite Y:</label><input type="range" id="boss-spriteY-range" min="-500" max="500" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-spriteY-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>UI X:</label><input type="range" id="boss-uiX-range" min="-300" max="300" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiX-num" value="0" oninput="updateBossLive()"></div>
-                <div class="dm-control-row"><label>UI Y:</label><input type="range" id="boss-uiY-range" min="-300" max="300" step="1" value="0" oninput="updateBossLive()"><input type="number" id="boss-uiY-num" value="0" oninput="updateBossLive()"></div>
-                <button style="width:100%; background: #222; color: #fff; border: 1px solid #555; margin-top: 5px;" onclick="refreshEditorDropdown()">🔄 Actualizar Lista</button>
-            </div>
-
-            <button onclick="rollEnemyTargets()">🎲 Re-rollear Targets Enemigos</button>
-            <button style="background: #004466; color: #88eeff; border-color: #88eeff;" onclick="autoTargetAllies()">🤖 Auto-Respuesta Aliada</button>
-        </div>
     </div>
-</div>
+    <!-- Firebase App (núcleo) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+        authDomain: "luminous-system.firebaseapp.com",
+        databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+        projectId: "luminous-system",
+        storageBucket: "luminous-system.firebasestorage.app",
+        messagingSenderId: "330473029689",
+        appId: "1:330473029689:web:44a05e870d493a3b294de8",
+        measurementId: "G-X775P4YS7W",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     let combatData = {};
 
     // --- MODAL CREATOR LOGIC ---
@@ -311,14 +246,15 @@
 
     function spawnCombatant(data) {
         const battlefield = document.getElementById('battlefield');
-        const hpPct = Math.max(0, Math.min(100, (data.hp / data.maxHp) * 100));
+        const isCombatant = data.isCombatant !== false; // Default to true if undefined
+        const hpPct = Math.max(0, Math.min(100, ((data.hp ?? 1) / (data.maxHp || 1)) * 100));
 
         if (!combatData[data.id]) {
             combatData[data.id] = { ...data }; 
         }
         const unit = combatData[data.id];
 
-        const slotsHtml = Array.from({length: unit.actionSlots}).map((_, i) => {
+        const slotsHtml = isCombatant ? Array.from({length: unit.actionSlots || 1}).map((_, i) => {
             const slotId = `${data.id}_slot_${i}`;
             return `
                 <div class="action-slot-wrapper" id="${slotId}" data-faction="${data.faction}">
@@ -328,7 +264,7 @@
                     </svg>
                 </div>
             `;
-        }).join('');
+        }).join('') : '';
         
         const container = document.createElement('div');
         container.className = `sprite-container ${data.faction} ${unit.type || ''}`; 
@@ -338,56 +274,60 @@
 
         let uiHtml = '';
 
-        // Generate Stagger HTML
-        let staggerHtml = '';
-        if (unit.staggerThresholds) {
+        if (isCombatant) {
+            // Generate Stagger HTML
+            let staggerHtml = '';
+            if (unit.staggerThresholds) {
+                if (unit.type === 'boss') {
+                    staggerHtml = unit.staggerThresholds.map(pct => `<div class="boss-stagger-tick" style="left: ${pct}%;"></div>`).join('');
+                } else {
+                    const heptagon = generateHeptagonPoints(85);
+                    staggerHtml = unit.staggerThresholds.map(pct => `<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 2 98; stroke-dashoffset: -${(100 - pct) - 1};" />`).join('');
+                }
+            }
+
             if (unit.type === 'boss') {
-                staggerHtml = unit.staggerThresholds.map(pct => `<div class="boss-stagger-tick" style="left: ${pct}%;"></div>`).join('');
+                uiHtml = `
+                    <div class="boss-ui-rect">
+                        <div class="boss-hp-bar-container">
+                            <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                            ${staggerHtml}
+                        </div>
+                    </div>
+                `;
             } else {
                 const heptagon = generateHeptagonPoints(85);
-                staggerHtml = unit.staggerThresholds.map(pct => `<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 2 98; stroke-dashoffset: -${(100 - pct) - 1};" />`).join('');
-            }
-        }
-
-        if (unit.type === 'boss') {
-            uiHtml = `
-                <div class="boss-ui-rect">
-                    <div class="boss-hp-bar-container">
-                        <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                uiHtml = `
+                    <svg class="diegetic-floor" viewBox="-100 -100 200 200">
+                        <polygon class="floor-bg-poly" points="${heptagon.full}" />
+                        <polyline class="hp-track" points="${heptagon.front}" />
+                        <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
                         ${staggerHtml}
-                    </div>
-                </div>
-            `;
-        } else {
-            const heptagon = generateHeptagonPoints(85);
-            uiHtml = `
-                <svg class="diegetic-floor" viewBox="-100 -100 200 200">
-                    <polygon class="floor-bg-poly" points="${heptagon.full}" />
-                    <polyline class="hp-track" points="${heptagon.front}" />
-                    <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
-                    ${staggerHtml}
-                </svg>
-            `;
+                    </svg>
+                `;
+            }
         }
 
         container.innerHTML = `
             <div class="combatant">
                 ${uiHtml}
 
-                <div class="top-ui-panel" id="ui-panel-${data.id}" style="top: calc(60px + ${unit.uiY}px); left: calc(80px + ${unit.uiX}px); margin-left: ${unit.type === 'boss' ? unit.uiX : 0}px;">
-                    <div class="speed-number">${data.speed}</div>
+                ${isCombatant ? `
+                <div class="top-ui-panel" id="ui-panel-${data.id}" style="top: calc(60px + ${unit.uiY || 0}px); left: calc(80px + ${unit.uiX || 0}px); margin-left: ${unit.type === 'boss' ? (unit.uiX || 0) : 0}px;">
+                    <div class="speed-number">${data.speed || 0}</div>
                     <div class="action-slots">${slotsHtml}</div>
                 </div>
+                ` : ''}
                 
-                <div class="sprite-anchor" id="anchor-${data.id}" style="bottom: ${unit.spriteY}px; margin-left: ${unit.spriteX}px; transform: scale(${unit.scale});">
+                <div class="sprite-anchor" id="anchor-${data.id}" style="bottom: ${unit.spriteY || 0}px; margin-left: ${unit.spriteX || 0}px; transform: scale(${unit.scale || 1});">
                     <img src="${data.img}" class="sprite-img" onerror="this.src='https://via.placeholder.com/200x200/500/fff?text=Error'">
                 </div>
 
                 <div class="floating-hp-group">
                     <div class="name-plate">${data.name}</div>
-                    <div class="hp-number" id="text-hp-${data.id}">${data.hp}</div>
+                    ${isCombatant ? `<div class="hp-number" id="text-hp-${data.id}">${data.hp || 0}</div>` : ''}
                 </div>
-                <div class="floating-sp-group sp-neutral">0</div>
+                ${isCombatant ? `<div class="floating-sp-group sp-neutral">0</div>` : ''}
             </div>
         `;
         battlefield.appendChild(container);
@@ -396,12 +336,11 @@
         // Initial setup for flip if needed
         const anchor = document.getElementById(`anchor-${data.id}`);
         if(anchor) {
-             const scaleX = data.flipX ? -data.scale : data.scale;
-             anchor.style.transform = `scaleX(${scaleX}) scaleY(${data.scale})`;
+             const scaleX = data.flipX ? -(data.scale || 1) : (data.scale || 1);
+             anchor.style.transform = `scaleX(${scaleX}) scaleY(${data.scale || 1})`;
         }
-
-        if(typeof refreshEditorDropdown === 'function') refreshEditorDropdown();
     }
+
 
 
     // --- STAGGER THRESHOLD LOGIC ---
@@ -669,8 +608,8 @@
                     if (container) enemySlot = container.querySelector('.action-slot-wrapper');
                 }
             }
-            if (enemySlot) slotTargets[dragStartSlotId] = enemySlot.id;
-            else delete slotTargets[dragStartSlotId];
+            if (enemySlot) { slotTargets[dragStartSlotId] = enemySlot.id; db.ref('campaña/combate/slotTargets').update({[dragStartSlotId]: enemySlot.id}); }
+            else { delete slotTargets[dragStartSlotId]; db.ref('campaña/combate/slotTargets/' + dragStartSlotId).remove(); }
             isDragging = false; dragStartSlotId = null;
         }
         container.addEventListener('mousedown', handleDragStart); container.addEventListener('mousemove', handleDragMove); window.addEventListener('mouseup', handleDragEnd);
@@ -754,7 +693,51 @@
     }
 
     function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
-    window.onload = () => { initDragAndDrop(); deployBossFight(); renderLoop(); };
+
+    // --- FIREBASE SYNC LÓGICA ---
+    let dbCombatData = {};
+    let dbSlotTargets = {};
+    let dbCombatSettings = {};
+    let activeDragRef = null;
+
+    function initFirebaseCombat() {
+        // Escuchar datos de los combatientes
+        db.ref('campaña/combate/combatants').on('value', snap => {
+            const data = snap.val() || {};
+            dbCombatData = data;
+
+            // Re-render
+            const battlefield = document.getElementById('battlefield');
+            battlefield.innerHTML = '';
+            combatData = {}; // Clear local combat data cache
+
+            // Re-spawn each combatant based on db
+            Object.values(dbCombatData).forEach(unit => {
+                spawnCombatant(unit);
+            });
+            drawArcs();
+        });
+
+        // Escuchar configuración (Grid)
+        db.ref('campaña/combate/settings').on('value', snap => {
+            const settings = snap.val() || {};
+            dbCombatSettings = settings;
+
+            if (settings.showGrid) {
+                document.getElementById('floor-grid').classList.add('active');
+            } else {
+                document.getElementById('floor-grid').classList.remove('active');
+            }
+        });
+
+        // Escuchar los slotTargets
+        db.ref('campaña/combate/slotTargets').on('value', snap => {
+            slotTargets = snap.val() || {};
+            drawArcs();
+        });
+    }
+
+    window.onload = () => { initFirebaseCombat(); initDragAndDrop(); renderLoop(); };
 </script>
 </body>
 </html>
