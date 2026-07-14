@@ -2227,7 +2227,9 @@
               <h4 style="color: #aaffaa;">Creador de Entidades (NPC/Enemigo)</h4>
               <input type="text" id="combat-npc-name" placeholder="Nombre (Ej. Hooligan)" value="Nuevo Enemigo">
               <div style="display: flex; gap:10px;">
-                  <input type="number" id="combat-npc-hp" placeholder="HP Max" value="100" style="flex:1;">
+                  <input type="number" id="combat-npc-hp" placeholder="HP Base" value="100" style="flex:1;">
+                  <input type="number" id="combat-npc-hp-coef" placeholder="HP Coef" value="0" style="flex:1;">
+                  <input type="number" id="combat-npc-level" placeholder="Nivel" value="1" style="flex:1;">
                   <select id="combat-npc-armor" style="flex:1;">
                       <option value="light">Armadura Ligera</option>
                       <option value="medium">Media</option>
@@ -3871,6 +3873,7 @@
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/combatEngine.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -3982,12 +3985,16 @@
         // 2. Creador de Entidades
         window.deployCustomNPCDM = function() {
             const name = document.getElementById('combat-npc-name').value || 'Unknown';
-            const hp = parseInt(document.getElementById('combat-npc-hp').value) || 100;
+            const baseHp = parseInt(document.getElementById('combat-npc-hp').value) || 100;
+            const hpCoef = parseFloat(document.getElementById('combat-npc-hp-coef').value) || 0;
+            const level = parseInt(document.getElementById('combat-npc-level').value) || 1;
             const armor = document.getElementById('combat-npc-armor').value;
             const img = document.getElementById('combat-npc-img').value;
             const qty = parseInt(document.getElementById('combat-npc-qty').value) || 1;
             const faction = document.getElementById('combat-npc-faction').value;
             const isCombatant = document.getElementById('combat-npc-is-combatant').checked;
+
+            const hp = (window.CombatEngine && window.CombatEngine.calculateMaxHP) ? window.CombatEngine.calculateMaxHP(baseHp, hpCoef, level) : Math.floor(baseHp + (hpCoef * level));
 
             let existingCount = Object.values(dmCombatData).filter(c => c.faction === faction).length;
 
@@ -3999,8 +4006,11 @@
                     name: qty > 1 ? `${name} ${i+1}` : name,
                     faction: faction,
                     speed: Math.floor(Math.random() * 6) + 1,
+                    level: level,
+                    hpCoef: hpCoef,
                     hp: hp,
                     maxHp: hp,
+                    shield: 0,
                     armorType: armor,
                     actionSlots: 1,
                     img: img,
