@@ -1,4 +1,58 @@
 const CombatEngine = {
+// 0. Habilidades y Poder (Skills)
+    createSkill: function(config = {}) {
+        return {
+            basePower: config.basePower || 0,
+            coinPower: config.coinPower || 0,
+            coinAmount: Math.max(1, config.coinAmount || 1),
+            attackType: config.attackType || 'Slash',
+            sinAffinity: config.sinAffinity !== undefined ? config.sinAffinity : null,
+            levelModifier: config.levelModifier || 0,
+            attackWeight: config.attackWeight || 1,
+            skillAmount: config.skillAmount || 1
+        };
+    },
+
+    calculateFinalPower: function(skill, headsFlipped) {
+        return skill.basePower + (headsFlipped * skill.coinPower);
+    },
+
+    calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
+        let targetsHit = [primaryTarget];
+        let remainingWeight = skill.attackWeight - (primaryTarget.slotWeight || 1);
+
+        if (remainingWeight <= 0) return targetsHit;
+
+        // Filter out the primary target from the possible targets
+        let remainingTargets = allPossibleTargets.filter(t => t !== primaryTarget);
+
+        // Sort targets based on priority:
+        // 1. Untargeted in current round (assuming a property 'isTargetedThisRound' exists, false if undefined)
+        // 2. Lowest HP percentage
+        remainingTargets.sort((a, b) => {
+            let aTargeted = a.isTargetedThisRound ? 1 : 0;
+            let bTargeted = b.isTargetedThisRound ? 1 : 0;
+            if (aTargeted !== bTargeted) {
+                return aTargeted - bTargeted; // 0 comes before 1
+            }
+
+            let aHpPct = (a.hp / (a.maxHp || 1));
+            let bHpPct = (b.hp / (b.maxHp || 1));
+            return aHpPct - bHpPct; // Lower HP% comes first
+        });
+
+        for (let target of remainingTargets) {
+            if (remainingWeight > 0) {
+                targetsHit.push(target);
+                remainingWeight -= (target.slotWeight || 1);
+            } else {
+                break;
+            }
+        }
+
+        return targetsHit;
+    },
+
     // 1. Stats Base y Cálculo de HP
     calculateMaxHP: function(base, hpCoef, level) {
         return Math.floor(base + (hpCoef * level));
