@@ -259,6 +259,15 @@
         }
         const unit = combatData[data.id];
 
+        // Inicializar actionSlots de forma explicita con array si no lo tiene
+        if (!unit.slots) {
+            unit.slots = Array.from({length: unit.actionSlots || 1}).map((_, i) => ({
+                id: `${data.id}_slot_${i}`,
+                slotWeight: 1,
+                isTargetedThisRound: false
+            }));
+        }
+
         const slotsHtml = isCombatant ? Array.from({length: unit.actionSlots || 1}).map((_, i) => {
             const slotId = `${data.id}_slot_${i}`;
             return `
