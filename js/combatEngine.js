@@ -4,12 +4,42 @@ const CombatEngine = {
         return Math.floor(base + (hpCoef * level));
     },
 
-    getOffensiveLevel: function(level) {
-        return level;
+    getOffensiveLevel: function(level, skill = {}) {
+        const modifier = skill.offenseModifier || 0;
+        return Math.max(1, level + modifier);
     },
 
-    getDefensiveLevel: function(level) {
-        return level;
+    getDefensiveLevel: function(level, skillOrPart = {}) {
+        const modifier = skillOrPart.defenseModifier || 0;
+        return Math.max(1, level + modifier);
+    },
+
+    calculateClashBonus: function(skillA, levelA, skillB, levelB) {
+        let bonus = Math.floor(Math.abs(levelA - levelB) / 3);
+        let winner = levelA > levelB ? 'A' : (levelB > levelA ? 'B' : null);
+
+        if (!winner || bonus === 0) return { bonusA: 0, bonusB: 0 };
+
+        // Edge case: Attack vs Non-Clashable Defense
+        let aIsNonClashableDefense = skillA.isDefense === true && skillA.isClashable === false;
+        let bIsNonClashableDefense = skillB.isDefense === true && skillB.isClashable === false;
+
+        // If one is non-clashable defense and the other is an attack (not a defense)
+        if (aIsNonClashableDefense && !skillB.isDefense) {
+            // Only A (Defense) can get the bonus
+            if (winner === 'A') return { bonusA: bonus, bonusB: 0 };
+            return { bonusA: 0, bonusB: 0 };
+        } else if (bIsNonClashableDefense && !skillA.isDefense) {
+            // Only B (Defense) can get the bonus
+            if (winner === 'B') return { bonusA: 0, bonusB: bonus };
+            return { bonusA: 0, bonusB: 0 };
+        }
+
+        // Standard clash
+        return {
+            bonusA: winner === 'A' ? bonus : 0,
+            bonusB: winner === 'B' ? bonus : 0
+        };
     },
 
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
@@ -171,7 +201,7 @@ const CombatEngine = {
         }
     },
 
-    calculateDamageMultiplier: function(physRes, sinRes, flatBuffs = 0, staggerLevel = 0, isStaggered = false) {
+    calculateDamageMultiplier: function(physRes, sinRes, flatBuffs = 0, staggerLevel = 0, isStaggered = false, offLevel = null, defLevel = null) {
         // En Stagger, las resistencias físicas cambian temporalmente.
         if (isStaggered) {
             if (staggerLevel === 1) {
@@ -187,6 +217,13 @@ const CombatEngine = {
         let sinMod = this.calculateResistanceModifier(sinRes);
 
         let totalMod = physMod + sinMod + flatBuffs;
+
+        // Modifier por diferencia de niveles
+        if (offLevel !== null && defLevel !== null) {
+            let levelModifier = (offLevel - defLevel) / (Math.abs(offLevel - defLevel) + 25);
+            totalMod += levelModifier;
+        }
+
         let multiplier = 1 + totalMod;
 
         // Límites y Buffs: El daño nunca baja de x0 ni sube de x2 a menos que haya Stagger
