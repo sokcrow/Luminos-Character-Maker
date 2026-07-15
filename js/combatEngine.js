@@ -43,8 +43,8 @@ const CombatEngine = {
     },
 
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
-    applyDamage: function(unit, damage, tipoDaño = 'directo') {
-        let remainingDamage = damage;
+    applyDamage: function(unit, damage, tipoDaño = 'directo', isCritical = false) {
+        let remainingDamage = isCritical ? damage * 1.5 : damage;
 
         if (unit.shield && unit.shield > 0) {
             if (unit.shield >= remainingDamage) {
