@@ -55,6 +55,8 @@
         .boss-stagger-tick { position: absolute; top: 0; bottom: 0; width: 3px; background: #ffdd44; z-index: 5; pointer-events: none; box-shadow: 0 0 4px #000; }
         .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
 
+        .shield-fill-line { fill: none; stroke: #4a90e2; stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px #4a90e2); opacity: 0.8; }
+
         /* --- UI DE BOSS (RECTANGULAR) --- */
         .boss-ui-rect {
             position: absolute; bottom: -90px; width: 350px; height: 60px;
@@ -64,6 +66,7 @@
         }
         .boss-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
         .boss-hp-fill-rect { height: 100%; background: var(--limbus-hp-boss); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-boss)); }
+        .boss-shield-fill-rect { position: absolute; top: 0; left: 0; height: 100%; background: #4a90e2; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px #4a90e2); opacity: 0.8; z-index: 2; }
         
         .boss .floating-hp-group { bottom: 10px; left: 15px; }
         .boss .name-plate { font-size: 18px; }
@@ -148,6 +151,7 @@
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="js/combatEngine.js"></script>
 
 <script>
 
@@ -248,6 +252,7 @@
         const battlefield = document.getElementById('battlefield');
         const isCombatant = data.isCombatant !== false; // Default to true if undefined
         const hpPct = Math.max(0, Math.min(100, ((data.hp ?? 1) / (data.maxHp || 1)) * 100));
+        const shieldPct = Math.max(0, ((data.shield ?? 0) / (data.maxHp || 1)) * 100);
 
         if (!combatData[data.id]) {
             combatData[data.id] = { ...data }; 
@@ -291,6 +296,7 @@
                     <div class="boss-ui-rect">
                         <div class="boss-hp-bar-container">
                             <div id="svg-hp-${data.id}" class="boss-hp-fill-rect" pathLength="100" style="width: ${hpPct}%;"></div>
+                            ${data.shield > 0 ? `<div id="svg-shield-${data.id}" class="boss-shield-fill-rect" style="width: ${shieldPct}%;"></div>` : ''}
                             ${staggerHtml}
                         </div>
                     </div>
@@ -302,6 +308,7 @@
                         <polygon class="floor-bg-poly" points="${heptagon.full}" />
                         <polyline class="hp-track" points="${heptagon.front}" />
                         <polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - hpPct};" />
+                        ${data.shield > 0 ? `<polyline id="svg-shield-${data.id}" class="shield-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${100 - shieldPct};" />` : ''}
                         ${staggerHtml}
                     </svg>
                 `;
