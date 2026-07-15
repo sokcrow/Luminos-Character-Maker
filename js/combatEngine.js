@@ -13,7 +13,7 @@ const CombatEngine = {
     },
 
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
-    applyDamage: function(unit, damage) {
+    applyDamage: function(unit, damage, tipoDaño = 'directo') {
         let remainingDamage = damage;
 
         if (unit.shield && unit.shield > 0) {
@@ -28,12 +28,95 @@ const CombatEngine = {
 
         unit.hp = Math.max(0, unit.hp - remainingDamage);
 
+        // Chequeo de Stagger: Solo ocurre en impactos (daño directo),
+        // incluso si el daño fue absorbido por escudo o es 0.
+        if (tipoDaño === 'directo') {
+            this.checkStagger(unit);
+        }
+
         // Revisar SP tras aplicar daño
         if (unit.sp !== undefined) {
             this.checkSanityStates(unit);
         }
 
         return { hp: unit.hp, shield: unit.shield };
+    },
+
+    // 2.5 Sistema de Stagger
+    modifyNextStaggerThreshold: function(unit, amount) {
+        if (!unit.staggerThresholds || unit.staggerThresholds.length === 0) return;
+
+        if (!unit.crossedThresholds) {
+            unit.crossedThresholds = new Array(unit.staggerThresholds.length).fill(false);
+        }
+
+        // Buscar el umbral no cruzado con el porcentaje más alto
+        let targetIndex = -1;
+        let highestUncrossedValue = -Infinity;
+
+        for (let i = 0; i < unit.staggerThresholds.length; i++) {
+            if (!unit.crossedThresholds[i] && unit.staggerThresholds[i] > highestUncrossedValue) {
+                highestUncrossedValue = unit.staggerThresholds[i];
+                targetIndex = i;
+            }
+        }
+
+        if (targetIndex !== -1) {
+            unit.staggerThresholds[targetIndex] += amount;
+        }
+    },
+
+    checkStagger: function(unit) {
+        if (!unit.staggerThresholds || unit.staggerThresholds.length === 0) return;
+        if (!unit.maxHp || unit.maxHp <= 0) return;
+
+        // Inicializar array paralelo para registrar los umbrales cruzados
+        if (!unit.crossedThresholds) {
+            unit.crossedThresholds = new Array(unit.staggerThresholds.length).fill(false);
+        }
+
+        let currentHpPct = (unit.hp / unit.maxHp) * 100;
+        let newlyStaggered = false;
+
+        for (let i = 0; i < unit.staggerThresholds.length; i++) {
+            let threshold = unit.staggerThresholds[i];
+            // Si no ha sido cruzado y el umbral es >= 0 (los negativos no pueden ser cruzados por daño)
+            if (!unit.crossedThresholds[i] && threshold >= 0) {
+                if (currentHpPct <= threshold) {
+                    unit.crossedThresholds[i] = true;
+                    newlyStaggered = true;
+                }
+            }
+        }
+
+        if (newlyStaggered) {
+            // Vaciar la cola de acciones para cancelar las acciones de este turno
+            unit.actionQueue = [];
+
+            // Establecer el estado Stagger, que durará el resto de este turno y todo el siguiente (2 ticks)
+            unit.isStaggered = true;
+            unit.staggerTurns = 2;
+
+            // Actualizar el nivel de stagger basado en cuántos umbrales han sido superados en total
+            unit.staggerLevel = unit.crossedThresholds.filter(c => c).length;
+        }
+    },
+
+    tickStagger: function(unit) {
+        if (unit.isStaggered && unit.staggerTurns > 0) {
+            unit.staggerTurns--;
+            if (unit.staggerTurns <= 0) {
+                unit.isStaggered = false;
+                // staggerLevel se mantiene para el límite de multiplicador de daño en Stagger (por si se cruzan más),
+                // pero ya no aplicará x2/x2.5/x3.0 porque ya no está en Stagger, esto se maneja en calculateDamageMultiplier.
+                // Sin embargo, si staggerLevel se resetea al perder Stagger, deberíamos manejarlo:
+                // Según el diseño de Limbus, una vez que pierdes Stagger las defensas vuelven a la normalidad, pero
+                // para el siguiente Stagger, sumarías un staggerLevel más si pasas otro umbral.
+                // En calculateDamageMultiplier solo se aplica el cambio a physRes si unit.isStaggered es true,
+                // así que corregiremos eso en `calculateDamageMultiplier` o aquí. Lo mejor es usar `unit.isStaggered`
+                // en `calculateDamageMultiplier`.
+            }
+        }
     },
 
     // 3. Sanidad (SP), Monedas y Estados Mentales
@@ -88,14 +171,16 @@ const CombatEngine = {
         }
     },
 
-    calculateDamageMultiplier: function(physRes, sinRes, flatBuffs = 0, staggerLevel = 0) {
+    calculateDamageMultiplier: function(physRes, sinRes, flatBuffs = 0, staggerLevel = 0, isStaggered = false) {
         // En Stagger, las resistencias físicas cambian temporalmente.
-        if (staggerLevel === 1) {
-            physRes = 2.0; // Stagger
-        } else if (staggerLevel === 2) {
-            physRes = 2.5; // Stagger+
-        } else if (staggerLevel >= 3) {
-            physRes = 3.0; // Stagger++
+        if (isStaggered) {
+            if (staggerLevel === 1) {
+                physRes = 2.0; // Stagger
+            } else if (staggerLevel === 2) {
+                physRes = 2.5; // Stagger+
+            } else if (staggerLevel >= 3) {
+                physRes = 3.0; // Stagger++
+            }
         }
 
         let physMod = this.calculateResistanceModifier(physRes);
@@ -105,7 +190,7 @@ const CombatEngine = {
         let multiplier = 1 + totalMod;
 
         // Límites y Buffs: El daño nunca baja de x0 ni sube de x2 a menos que haya Stagger
-        if (staggerLevel === 0) {
+        if (!isStaggered) {
             multiplier = Math.max(0.0, Math.min(2.0, multiplier));
         } else {
             // Se rompe el límite superior por el estado de Stagger
