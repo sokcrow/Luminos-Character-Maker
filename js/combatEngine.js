@@ -42,7 +42,15 @@ const CombatEngine = {
             // D&D Hybrid Additions
             type: config.type || 'Normal', // 'Normal', 'Spell', 'Roll', 'Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'
             statUsed: config.statUsed || null,
-            skillUsed: config.skillUsed || null
+            skillUsed: config.skillUsed || null,
+
+            // Efectos (Hooks)
+            effects: config.effects || [],
+
+            // Flags misceláneas
+            isTargetFixed: config.isTargetFixed || false,
+            isIndiscriminate: config.isIndiscriminate || false,
+            isUnclashable: config.isUnclashable || false
         };
 
         const defenseTypes = ['Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'];
@@ -51,15 +59,17 @@ const CombatEngine = {
             skill.isClashable = (skill.type === 'ClashableGuard' || skill.type === 'ClashableCounter');
         } else {
             skill.isDefense = false;
-            skill.isClashable = true; // Assume standard attacks are clashable
+            skill.isClashable = !skill.isUnclashable; // Assume standard attacks are clashable unless isUnclashable is true
         }
 
         // Initialize coins array based on coinAmount
         skill.coins = [];
         for (let i = 0; i < skill.coinAmount; i++) {
+            let coinConfig = (config.coins && config.coins[i]) || {};
             skill.coins.push({
                 type: skill.coinType,
-                status: 'active'
+                status: 'active',
+                effects: coinConfig.effects || []
             });
         }
 
@@ -70,7 +80,8 @@ const CombatEngine = {
             for (let i = 0; i < skill.coinAmount; i++) {
                 skill.coins.push({
                     type: skill.coinType,
-                    status: 'active'
+                    status: 'active',
+                    effects: [] // Roll/Spell coins might not have standard coin effects
                 });
             }
 
@@ -160,24 +171,56 @@ const CombatEngine = {
         };
     },
 
-    resolveUnilateralWithCounter: function(unitAttacker, attackSkill, unitDefender, counterSkill) {
+    resolveUnilateralWithCounter: function(unitAttacker, attackSkill, unitDefender, counterSkill, options = { skipUseHooks: false, clashResult: null }) {
         let result = {
             attackLogs: [],
             pendingActions: [], // cracked coins and counter attacks
             defenderStaggered: false
         };
 
+
         // Assume the attack hits unilaterally first.
         if (!attackSkill.coins) {
-            attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active' }));
+            attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active', effects: [] }));
         }
+
+        let context = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: attackSkill, targetsHit: [unitDefender] };
+
+        // [Before Use] and [On Use] might have been triggered if it was originally an Unclashable attack,
+        // but if it's purely unilateral, we trigger them here.
+        if (!options.skipUseHooks) {
+            this.triggerEvent('[Before Use]', context, [unitDefender]);
+            this.triggerEvent('[On Use]', context, [unitDefender]);
+        }
+
+        this.triggerEvent('[Before Attack]', context, [unitDefender]);
+        this.triggerEvent('[On Unopposed Attack]', context, [unitDefender]);
+
+        let defContext = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: attackSkill };
+        this.triggerEvent('[Before Getting Hit]', defContext, [unitDefender]);
 
         let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked');
         let probAttacker = this.getCoinProbability(unitAttacker.sp || 0);
 
+
+
         for (let i = 0; i < activeAttackCoins.length; i++) {
+            let currentCoin = activeAttackCoins[i];
+            context.currentCoin = currentCoin;
+
+            this.triggerEvent('[Coin Start]', context, [unitDefender]);
+
             let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
             let attackPower = this.calculateFinalPower(attackSkill, attackTosses);
+
+            // current coin toss result (it's the i-th toss basically, if we consider only active ones we need mapping, but let's assume current toss is for current coin)
+            // Limbus note: toss result for current coin is attackTosses[i]
+            let isHeads = attackTosses[i];
+            if (isHeads) {
+                this.triggerEvent('[Heads Hit]', context, [unitDefender]);
+            } else {
+                this.triggerEvent('[Tails Hit]', context, [unitDefender]);
+            }
 
             result.attackLogs.push({
                 attackPower: attackPower,
@@ -187,13 +230,29 @@ const CombatEngine = {
             // Apply damage physically to process HP and Stagger states
             let dmgMult = this.calculateDamageMultiplier ? this.calculateDamageMultiplier(1, 1, 0, unitDefender.staggerLevel || 0, unitDefender.isStaggered) : 1;
             let finalDamage = Math.floor(attackPower * dmgMult);
-            this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
+
+            let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
+            context.damageDealt = finalDamage;
+
+            this.triggerEvent('[On Hit]', context, [unitDefender]);
+
+            // If they just won a clash
+            if (options.clashResult === 'Win') {
+                this.triggerEvent('[Hit after Clash Win]', context, [unitDefender]);
+            } else if (options.clashResult === 'Lose') {
+                this.triggerEvent('[Hit after Clash Lose]', context, [unitDefender]);
+            }
+
+            this.triggerEvent('[Current Coin Attack End]', context, [unitDefender]);
 
             if (unitDefender.isStaggered) {
                 result.defenderStaggered = true;
                 break; // Stop evaluating further coins if staggered
             }
         }
+
+        this.triggerEvent('[Attack End]', context, [unitDefender]);
+
 
         if (!unitDefender.isStaggered) {
             result.pendingActions.push({
@@ -247,12 +306,18 @@ const CombatEngine = {
                 attackTosses: attackTosses
             };
 
+
             if (evadePower >= attackPower) {
                 // Evade successful
                 log.result = 'Evaded';
                 result.evadeLogs.push(log);
+
+                let context = { engine: this, defender: unitDefender, attacker: unitAttacker, skill: evadeSkill, attackSkill: attackSkill };
+                this.triggerEvent('[On Evade]', context, [unitAttacker]);
+
                 // Evade is not consumed, move to next attack coin (if any)
             } else {
+
                 // Evade failed
                 log.result = 'Hit';
                 result.evadeLogs.push(log);
@@ -277,6 +342,17 @@ const CombatEngine = {
     },
 
     resolveStandardClash: function(unitA, skillA, unitB, skillB) {
+        // [Unclashable bypass fallback]
+        // The driver should theoretically not call resolveStandardClash if either skill is isUnclashable.
+        // But if it does, we can return a flag telling it to bypass, or handle it as Unilateral.
+        if (skillA.isUnclashable || skillB.isUnclashable) {
+            return {
+                winner: 'Unclashable',
+                clashLogs: [{ note: 'Clash bypassed due to isUnclashable flag. Evaluate as unilateral attacks.' }],
+                pendingActions: []
+            };
+        }
+
         let result = {
             winner: null,
             clashLogs: [],
@@ -284,13 +360,30 @@ const CombatEngine = {
             crackedCoinsToUse: null // Will hold the 'cracked' coins if counter attack is triggered
         };
 
+
         // Ensure skills have coins initialized (backward compatibility fallback)
         if (!skillA.coins) {
-            skillA.coins = Array.from({length: skillA.coinAmount}, () => ({ type: skillA.coinType || 'standard', status: 'active' }));
+            skillA.coins = Array.from({length: skillA.coinAmount}, () => ({ type: skillA.coinType || 'standard', status: 'active', effects: [] }));
         }
         if (!skillB.coins) {
-            skillB.coins = Array.from({length: skillB.coinAmount}, () => ({ type: skillB.coinType || 'standard', status: 'active' }));
+            skillB.coins = Array.from({length: skillB.coinAmount}, () => ({ type: skillB.coinType || 'standard', status: 'active', effects: [] }));
         }
+
+        let contextA = { engine: this, attacker: unitA, defender: unitB, skill: skillA, targetsHit: [unitB] };
+        let contextB = { engine: this, attacker: unitB, defender: unitA, skill: skillB, targetsHit: [unitA] };
+
+        // [Before Use]
+        this.triggerEvent('[Before Use]', contextA, [unitB]);
+        this.triggerEvent('[Before Use]', contextB, [unitA]);
+
+        // [On Use]
+        this.triggerEvent('[On Use]', contextA, [unitB]);
+        this.triggerEvent('[On Use]', contextB, [unitA]);
+
+        // [Clash Start]
+        this.triggerEvent('[Clash Start]', contextA, [unitB]);
+        this.triggerEvent('[Clash Start]', contextB, [unitA]);
+
 
         let round = 1;
 
@@ -380,9 +473,20 @@ const CombatEngine = {
             round++;
         }
 
+
+        // Event hooks for Clash Win/Lose
+        if (result.winner === 'A') {
+            this.triggerEvent('[Clash Win]', contextA, [unitB]);
+            this.triggerEvent('[Clash Lose]', contextB, [unitA]);
+        } else if (result.winner === 'B') {
+            this.triggerEvent('[Clash Win]', contextB, [unitA]);
+            this.triggerEvent('[Clash Lose]', contextA, [unitB]);
+        }
+
         result.pendingActions = [];
 
-        // Setup counter-attack if the loser has cracked coins (highest priority)
+        // Setup counter-attack if the loser has cracked coins
+
         let loserSkill = result.winner === 'A' ? skillB : (result.winner === 'B' ? skillA : null);
         let loserUnit = result.winner === 'A' ? unitB : (result.winner === 'B' ? unitA : null);
         let winnerSkill = result.winner === 'A' ? skillA : (result.winner === 'B' ? skillB : null);
@@ -536,6 +640,68 @@ const CombatEngine = {
         return targetsHit;
     },
 
+// 0.8 Event-Driven System (Hooks)
+    triggerEvent: function(tag, context, targetsHit = []) {
+        if (!context || !context.skill) return;
+
+        // Collect all effects that match the tag from the skill root
+        let applicableEffects = [];
+        if (context.skill.effects) {
+            applicableEffects.push(...context.skill.effects.filter(e => e.tag === tag));
+        }
+
+        // If context has a currentCoin, collect effects from that coin too
+        if (context.currentCoin && context.currentCoin.effects) {
+            applicableEffects.push(...context.currentCoin.effects.filter(e => e.tag === tag));
+        }
+
+        if (applicableEffects.length === 0) return;
+
+        // If it's a targeted event (like [On Hit]), it accumulates per target hit
+        let executionTargets = targetsHit.length > 0 ? targetsHit : [context.defender || null];
+
+        for (let target of executionTargets) {
+            if (!target) continue; // Si no hay objetivo aplicable (por ejemplo, Before Use puede no tener objetivo definido aún en algunos contextos, o es global)
+
+            // Set the current target in context for the effect to know who is being evaluated
+            context.currentTarget = target;
+
+            for (let effect of applicableEffects) {
+                if (typeof effect.execute === 'function') {
+                    effect.execute(context);
+                }
+            }
+        }
+    },
+
+    triggerPhase: function(phaseTag, allUnits) {
+        if (!allUnits || !Array.isArray(allUnits)) return;
+
+        for (let unit of allUnits) {
+            // Unidades pueden tener efectos pasivos en root (skills pasivas, equipamiento)
+            // que queremos disparar aquí. Asumimos que unit.passives es un arreglo de habilidades/efectos.
+            if (!unit.passives) continue;
+
+            let context = {
+                engine: this,
+                unit: unit,
+                phase: phaseTag
+            };
+
+            for (let passive of unit.passives) {
+                if (passive.effects) {
+                    let matchingEffects = passive.effects.filter(e => e.tag === phaseTag);
+                    for (let effect of matchingEffects) {
+                        if (typeof effect.execute === 'function') {
+                            effect.execute(context);
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    // 1. Stats Base y Cálculo de HP
     // 1. Stats Base y Cálculo de HP
     calculateMaxHP: function(base, hpCoef, level) {
         return Math.floor(base + (hpCoef * level));
