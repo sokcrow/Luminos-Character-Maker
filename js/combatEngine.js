@@ -40,10 +40,19 @@ const CombatEngine = {
             skillAmount: config.skillAmount || 1,
 
             // D&D Hybrid Additions
-            type: config.type || 'Normal', // 'Normal', 'Spell', 'Roll'
+            type: config.type || 'Normal', // 'Normal', 'Spell', 'Roll', 'Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'
             statUsed: config.statUsed || null,
             skillUsed: config.skillUsed || null
         };
+
+        const defenseTypes = ['Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'];
+        if (defenseTypes.includes(skill.type)) {
+            skill.isDefense = true;
+            skill.isClashable = (skill.type === 'ClashableGuard' || skill.type === 'ClashableCounter');
+        } else {
+            skill.isDefense = false;
+            skill.isClashable = true; // Assume standard attacks are clashable
+        }
 
         // Initialize coins array based on coinAmount
         skill.coins = [];
@@ -103,6 +112,17 @@ const CombatEngine = {
         return skill;
     },
 
+    checkOffset: function(skillA, skillB) {
+        if (!skillA || !skillB) return false;
+        if (skillA.isDefense && skillB.isDefense) {
+            const nonClashableDefenses = ['Guard', 'Evade'];
+            if (nonClashableDefenses.includes(skillA.type) && nonClashableDefenses.includes(skillB.type)) {
+                return true;
+            }
+        }
+        return false;
+    },
+
     resolveSpell: function(spellSkill, target, targetHeadsFlipped) {
         // Genera la tirada de salvación para el objetivo
         let saveSkill = this.createSaveSkill(target, spellSkill.statUsed);
@@ -111,6 +131,7 @@ const CombatEngine = {
         let isSuccess = savePower >= spellSkill.saveDC;
 
         return {
+            pendingActions: [],
             isStaticDC: true,
             dc: spellSkill.saveDC,
             savePower: savePower,
@@ -118,6 +139,141 @@ const CombatEngine = {
             winner: isSuccess ? 'Target' : 'Caster',
             message: `Spell DC ${spellSkill.saveDC} vs Save ${savePower}. ${isSuccess ? 'Save Successful!' : 'Save Failed!'}`
         };
+    },
+
+    resolveGuard: function(unitDefender, guardSkill) {
+        if (!guardSkill.coins) {
+            guardSkill.coins = Array.from({length: guardSkill.coinAmount}, () => ({ type: guardSkill.coinType || 'standard', status: 'active' }));
+        }
+
+        let probDefender = this.getCoinProbability(unitDefender.sp || 0);
+        let guardTosses = guardSkill.coins.map(c => c.status === 'active' ? (Math.random() * 100 < probDefender) : true);
+        let guardPower = this.calculateFinalPower(guardSkill, guardTosses);
+
+        unitDefender.shield = (unitDefender.shield || 0) + guardPower;
+
+        return {
+            pendingActions: [],
+            guardPower: guardPower,
+            guardTosses: guardTosses,
+            newShieldAmount: unitDefender.shield
+        };
+    },
+
+    resolveUnilateralWithCounter: function(unitAttacker, attackSkill, unitDefender, counterSkill) {
+        let result = {
+            attackLogs: [],
+            pendingActions: [], // cracked coins and counter attacks
+            defenderStaggered: false
+        };
+
+        // Assume the attack hits unilaterally first.
+        if (!attackSkill.coins) {
+            attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active' }));
+        }
+
+        let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked');
+        let probAttacker = this.getCoinProbability(unitAttacker.sp || 0);
+
+        for (let i = 0; i < activeAttackCoins.length; i++) {
+            let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
+            let attackPower = this.calculateFinalPower(attackSkill, attackTosses);
+
+            result.attackLogs.push({
+                attackPower: attackPower,
+                attackTosses: attackTosses
+            });
+
+            // Apply damage physically to process HP and Stagger states
+            let dmgMult = this.calculateDamageMultiplier ? this.calculateDamageMultiplier(1, 1, 0, unitDefender.staggerLevel || 0, unitDefender.isStaggered) : 1;
+            let finalDamage = Math.floor(attackPower * dmgMult);
+            this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
+
+            if (unitDefender.isStaggered) {
+                result.defenderStaggered = true;
+                break; // Stop evaluating further coins if staggered
+            }
+        }
+
+        if (!unitDefender.isStaggered) {
+            result.pendingActions.push({
+                type: 'counter',
+                unit: unitDefender,
+                target: unitAttacker,
+                skill: counterSkill
+            });
+        }
+
+        return result;
+    },
+
+    resolveEvade: function(unitDefender, evadeSkill, unitAttacker, attackSkill) {
+        let result = {
+            evadeLogs: [],
+            evadeDestroyed: false,
+            pendingActions: [],
+            damageTaken: 0, // Sum of damages from coins that beat the evade
+            coinsBeaten: [] // The attack coins that hit the defender
+        };
+
+        if (!evadeSkill.coins) {
+            evadeSkill.coins = Array.from({length: evadeSkill.coinAmount}, () => ({ type: evadeSkill.coinType || 'standard', status: 'active' }));
+        }
+        if (!attackSkill.coins) {
+            attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active' }));
+        }
+
+        let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked');
+        let probDefender = this.getCoinProbability(unitDefender.sp || 0);
+        let probAttacker = this.getCoinProbability(unitAttacker.sp || 0);
+
+        for (let i = 0; i < activeAttackCoins.length; i++) {
+            let attackCoin = activeAttackCoins[i];
+
+            // Roll Evade
+            let evadeTosses = evadeSkill.coins.map(c => c.status === 'active' ? (Math.random() * 100 < probDefender) : true);
+            let evadePower = this.calculateFinalPower(evadeSkill, evadeTosses);
+
+            // Roll Attack (only rolling the current coin + previous coins are usually evaluated as well,
+            // but in Evade vs Attack, the attacker usually rolls all their remaining coins for power)
+            // Limbus Rule: Attacker rolls ALL active coins for power. We will roll all active/cracked for the attacker.
+            let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
+            let attackPower = this.calculateFinalPower(attackSkill, attackTosses);
+
+            let log = {
+                evadePower: evadePower,
+                attackPower: attackPower,
+                evadeTosses: evadeTosses,
+                attackTosses: attackTosses
+            };
+
+            if (evadePower >= attackPower) {
+                // Evade successful
+                log.result = 'Evaded';
+                result.evadeLogs.push(log);
+                // Evade is not consumed, move to next attack coin (if any)
+            } else {
+                // Evade failed
+                log.result = 'Hit';
+                result.evadeLogs.push(log);
+                result.evadeDestroyed = true;
+
+                // Attack hits, calculate damage and stop evade processing
+                // The remaining coins (including this one) will hit the defender.
+                let remainingHitCoins = activeAttackCoins.slice(i);
+                result.coinsBeaten = remainingHitCoins;
+
+                // Evade is destroyed
+                evadeSkill.coins.forEach(c => c.status = 'broken');
+                break;
+            }
+        }
+
+        // If the defender has cracked coins and an evade was destroyed, they don't get to counter with cracked coins in Evade logic usually,
+        // but we'll stick to the rule: "Si una unidad sobrevive a un choque y tiene monedas en estado 'cracked' Y además tiene un 'Counter'... "
+        // Evade doesn't trigger cracked coin counter since evade doesn't lose a clash, it just gets destroyed. We leave pendingActions empty for Evade.
+
+        return result;
     },
 
     resolveStandardClash: function(unitA, skillA, unitB, skillB) {
@@ -224,15 +380,48 @@ const CombatEngine = {
             round++;
         }
 
-        // Setup counter-attack if the loser has cracked coins
+        result.pendingActions = [];
+
+        // Setup counter-attack if the loser has cracked coins (highest priority)
         let loserSkill = result.winner === 'A' ? skillB : (result.winner === 'B' ? skillA : null);
-        if (loserSkill) {
+        let loserUnit = result.winner === 'A' ? unitB : (result.winner === 'B' ? unitA : null);
+        let winnerSkill = result.winner === 'A' ? skillA : (result.winner === 'B' ? skillB : null);
+        let winnerUnit = result.winner === 'A' ? unitA : (result.winner === 'B' ? unitB : null);
+
+        if (loserSkill && loserUnit) {
             let crackedCoins = loserSkill.coins.filter(c => c.status === 'cracked');
             if (crackedCoins.length > 0) {
                 result.counterAttackPending = true;
                 result.crackedCoinsToUse = crackedCoins;
+                result.pendingActions.push({
+                    type: 'cracked_attack',
+                    unit: loserUnit,
+                    target: winnerUnit,
+                    skill: loserSkill,
+                    coins: crackedCoins
+                });
             }
         }
+
+        // Handle ClashableGuard logic
+        if (winnerSkill && winnerSkill.type === 'ClashableGuard') {
+            // If ClashableGuard wins, increase target's Stagger Threshold (Tremor effect) by Final Power
+            // Note: In standard clash logs, we need the final power of the winning skill in the last round.
+            let lastLog = result.clashLogs[result.clashLogs.length - 1];
+            let guardPower = result.winner === 'A' ? lastLog.powerA : lastLog.powerB;
+            this.modifyNextStaggerThreshold(loserUnit, guardPower);
+            result.clashableGuardTremorApplied = guardPower;
+        } else if (loserSkill && loserSkill.type === 'ClashableGuard') {
+            // If ClashableGuard loses, calculate mitigated power
+            let lastLog = result.clashLogs[result.clashLogs.length - 1];
+            let guardPower = result.winner === 'A' ? lastLog.powerB : lastLog.powerA;
+            let attackerPower = result.winner === 'A' ? lastLog.powerA : lastLog.powerB;
+            result.mitigatedPower = Math.max(0, attackerPower - guardPower);
+            result.mitigationApplied = true;
+        }
+
+        // We will push counter attack to pendingActions outside this function when processing unilateral attacks
+        // since Counters wait for the attack to finish. But if ClashableCounter is involved in a clash, it acts as normal attack.
 
         return result;
     },
@@ -268,6 +457,7 @@ const CombatEngine = {
         }
 
         return {
+            pendingActions: [],
             powerA: powerA,
             powerB: powerB,
             winner: winner,
