@@ -2,7 +2,7 @@ const DAMAGE_TYPES = ['Slash', 'Pierce', 'Blunt'];
 const SIN_TYPES = ['Wrath', 'Lust', 'Sloth', 'Gluttony', 'Gloom', 'Pride', 'Envy'];
 
 const STATUS_REGISTRY = {
-    // Core Statuses
+    // --- CORE STATUSES ---
     'burn': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "At turn end, take Burn Potency as Wrath damage and reduce Count by 1." },
     'bleed': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "Whenever tossing a coin for an Attack Skill, take Bleed Potency as damage and reduce Count by 1." },
     'tremor': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "When hit by an attack with Tremor Burst, raise Stagger Threshold by Tremor Potency. Count is reduced by 1 at turn end." },
@@ -11,20 +11,74 @@ const STATUS_REGISTRY = {
     'poise': { type: 'positive', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "Gain a chance to deal Critical Damage on hit. Potency increases Critical Chance, Count increases Critical Damage. Count is reduced by 1 at turn end." },
     'charge': { type: 'positive', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 20, description: "Resource used by certain skills for additional effects." },
 
-    // Generic Modifiers
-    'damage_up': { type: 'positive', mode: 'single', maxCount: 10, description: "Deal 10% more damage per Count. (Max 10)" },
+    // --- GENERIC BUFFS (Other Buffs) ---
+    'power_up': {
+        name: 'Power Up', type: 'positive', mode: 'single',
+        description: "All skills gain Final Power by the effect's Count for one turn."
+    },
+    'attack_power_up': {
+        name: 'Attack Power Up', type: 'positive', mode: 'single',
+        description: "Attack skills gain Final Power by the effect's Count for one turn."
+    },
+    'defense_power_up': {
+        name: 'Defense Power Up', type: 'positive', mode: 'single',
+        description: "Defense skills gain Final Power by the effect's Count for one turn."
+    },
+    'clash_power_up': {
+        name: 'Clash Power Up', type: 'positive', mode: 'single',
+        description: "Gain Clash Power by the effect's Count for one turn."
+    },
+    'base_power_up': {
+        name: 'Base Power Up', type: 'positive', mode: 'single',
+        description: "Raise the Base Power of Skills by the effect's Count."
+    },
+    'offense_level_up': {
+        name: 'Offense Level Up', type: 'positive', mode: 'single',
+        description: "Offense level increases based on the effect's Count for one turn."
+    },
+    'defense_level_up': {
+        name: 'Defense Level Up', type: 'positive', mode: 'single',
+        description: "Defense Level increases based on the effect's Count for one turn."
+    },
+    'damage_up': {
+        name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10,
+        description: "Deal 10% more damage with skills based on the effect's Count for one turn. (Max 10)"
+    },
+    'haste': {
+        name: 'Haste', type: 'positive', mode: 'single',
+        description: "Speed increases by the effect's Count for one turn."
+    },
+    'protection': {
+        name: 'Protection', type: 'positive', mode: 'single', maxCount: 10,
+        description: "Take 10% less damage per Count from attacks for one turn. (Max 10)"
+    },
+    'plus_coin_boost': {
+        name: 'Plus Coin Boost', type: 'positive', mode: 'single',
+        description: "Raise the Power of Plus Coins by the effect's Count for one turn."
+    },
+    'minus_coin_drop': {
+        name: 'Minus Coin Drop', type: 'positive', mode: 'single',
+        description: "Reduce the Power of Minus Coins by the effect's Count for one turn."
+    },
+    'weak_resist_dmg_boost': {
+        name: 'Weak-resist DMG Boost', type: 'positive', mode: 'single',
+        description: "Boost the damage of attacks against Weak resistances by 1% per Count for one turn."
+    },
+    'hp_healing_boost': {
+        name: 'HP Healing Boost', type: 'positive', mode: 'single', maxCount: 5,
+        description: "Increases HP healing provided by Passive abilities, Skills, and Coin effects by 10% per Count. (Max 5)"
+    },
+    'ego_resource_amp': {
+        name: 'E.G.O Resource Amp', type: 'positive', mode: 'single',
+        description: "Increases the amount of E.G.O resources earned from skills by the effect's Count for one turn."
+    },
+
+    // --- GENERIC DEBUFFS ---
     'damage_down': { type: 'negative', mode: 'single', maxCount: 10, description: "Deal 10% less damage per Count. (Max 10)" },
     'fragile': { type: 'negative', mode: 'single', maxCount: 10, description: "Take 10% more damage per Count. (Max 10)" },
-    'protection': { type: 'positive', mode: 'single', maxCount: 10, description: "Take 10% less damage per Count. (Max 10)" },
-    'attack_power_up': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Final Power of Attack Skills by Count." },
-    'defense_power_up': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Final Power of Defense Skills by Count." },
-    'clash_power_up': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Clash Power by Count." },
-    'haste': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Speed by Count." },
-    'bind': { type: 'negative', mode: 'single', maxCount: Infinity, description: "Decreases Speed by Count." },
-    'offense_level_up': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Offense Level by Count." },
-    'offense_level_down': { type: 'negative', mode: 'single', maxCount: Infinity, description: "Decreases Offense Level by Count." },
-    'defense_level_up': { type: 'positive', mode: 'single', maxCount: Infinity, description: "Increases Defense Level by Count." },
-    'defense_level_down': { type: 'negative', mode: 'single', maxCount: Infinity, description: "Decreases Defense Level by Count." },
+    'bind': { type: 'negative', mode: 'single', description: "Decreases Speed by Count." },
+    'offense_level_down': { type: 'negative', mode: 'single', description: "Decreases Offense Level by Count." },
+    'defense_level_down': { type: 'negative', mode: 'single', description: "Decreases Defense Level by Count." }
 };
 
 const generateElementalStatuses = () => {
@@ -42,12 +96,11 @@ const generateElementalStatuses = () => {
             description: `Deal 10% more damage with ${type} skills per Count for one turn. (Max 10)`
         };
 
-        // 2. Power Up (Limit: Infinity)
+        // 2. Power Up (Limit: 99)
         STATUS_REGISTRY[`${idPrefix}_power_up`] = {
             name: `${type} Power Up`,
             type: 'positive',
             mode: 'single',
-            maxCount: Infinity,
             description: `${type} skills gain final Power by the effect's Count for one turn.`
         };
 
@@ -69,12 +122,11 @@ const generateElementalStatuses = () => {
             description: `Deal 10% less damage with ${type} skills per Count for one turn. (Max 10)`
         };
 
-        // 5. Power Down (Limit: Infinity)
+        // 5. Power Down (Limit: 99)
         STATUS_REGISTRY[`${idPrefix}_power_down`] = {
             name: `${type} Power Down`,
             type: 'negative',
             mode: 'single',
-            maxCount: Infinity,
             description: `${type} skills lose final Power by the effect's Count for one turn.`
         };
 
@@ -192,7 +244,7 @@ const StatusManager = {
 
         // Apply max values
         if (registry.mode === 'single') {
-            const maxCount = registry.maxCount !== undefined ? registry.maxCount : Infinity;
+            const maxCount = registry.maxCount !== undefined ? registry.maxCount : 99;
             status.count = Math.min(status.count, maxCount);
         } else if (registry.mode === 'double') {
             const maxPotency = registry.maxPotency !== undefined ? registry.maxPotency : 99;
