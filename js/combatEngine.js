@@ -32,6 +32,7 @@ const CombatEngine = {
             basePower: config.basePower || 0,
             coinPower: config.coinPower || 0,
             coinAmount: Math.max(1, config.coinAmount || 1),
+            coinType: config.coinType || 'standard',
             attackType: config.attackType || 'Slash',
             sinAffinity: config.sinAffinity !== undefined ? config.sinAffinity : null,
             levelModifier: config.levelModifier || 0,
@@ -44,9 +45,25 @@ const CombatEngine = {
             skillUsed: config.skillUsed || null
         };
 
+        // Initialize coins array based on coinAmount
+        skill.coins = [];
+        for (let i = 0; i < skill.coinAmount; i++) {
+            skill.coins.push({
+                type: skill.coinType,
+                status: 'active'
+            });
+        }
+
         if (skill.type === 'Spell' || skill.type === 'Roll') {
             skill.coinPower = 4;
             skill.coinAmount = 5;
+            skill.coins = [];
+            for (let i = 0; i < skill.coinAmount; i++) {
+                skill.coins.push({
+                    type: skill.coinType,
+                    status: 'active'
+                });
+            }
 
             if (config.caster) {
                 let dndBonus = this.calculateDndBonus(config.caster, skill.statUsed, skill.skillUsed);
@@ -67,8 +84,17 @@ const CombatEngine = {
             basePower: 0,
             coinPower: 4,
             coinAmount: 5,
+            coinType: 'standard',
             statUsed: statUsed
         };
+
+        skill.coins = [];
+        for (let i = 0; i < skill.coinAmount; i++) {
+            skill.coins.push({
+                type: skill.coinType,
+                status: 'active'
+            });
+        }
 
         if (target) {
             skill.basePower = this.calculateDndBonus(target, statUsed, null);
@@ -92,6 +118,123 @@ const CombatEngine = {
             winner: isSuccess ? 'Target' : 'Caster',
             message: `Spell DC ${spellSkill.saveDC} vs Save ${savePower}. ${isSuccess ? 'Save Successful!' : 'Save Failed!'}`
         };
+    },
+
+    resolveStandardClash: function(unitA, skillA, unitB, skillB) {
+        let result = {
+            winner: null,
+            clashLogs: [],
+            counterAttackPending: false,
+            crackedCoinsToUse: null // Will hold the 'cracked' coins if counter attack is triggered
+        };
+
+        // Ensure skills have coins initialized (backward compatibility fallback)
+        if (!skillA.coins) {
+            skillA.coins = Array.from({length: skillA.coinAmount}, () => ({ type: skillA.coinType || 'standard', status: 'active' }));
+        }
+        if (!skillB.coins) {
+            skillB.coins = Array.from({length: skillB.coinAmount}, () => ({ type: skillB.coinType || 'standard', status: 'active' }));
+        }
+
+        let round = 1;
+
+        while (true) {
+            let activeCoinsA = skillA.coins.filter(c => c.status === 'active');
+            let activeCoinsB = skillB.coins.filter(c => c.status === 'active');
+
+            if (activeCoinsA.length === 0 && activeCoinsB.length === 0) {
+                result.winner = 'Tie';
+                break;
+            } else if (activeCoinsA.length === 0) {
+                result.winner = 'B';
+                break;
+            } else if (activeCoinsB.length === 0) {
+                result.winner = 'A';
+                break;
+            }
+
+            // Generate toss results for active + cracked coins (cracked always auto-heads in power calc, but we still pass an array)
+            // Actually, calculateFinalPower only cares about the toss results for 'active' coins.
+            // But we need to pass a boolean array that matches the length of (active + cracked) coins.
+
+            let allUsableA = skillA.coins.filter(c => c.status === 'active' || c.status === 'cracked');
+            let allUsableB = skillB.coins.filter(c => c.status === 'active' || c.status === 'cracked');
+
+            let probA = this.getCoinProbability(unitA.sp || 0);
+            let probB = this.getCoinProbability(unitB.sp || 0);
+
+            let tossesA = allUsableA.map(c => c.status === 'active' ? (Math.random() * 100 < probA) : true);
+            let tossesB = allUsableB.map(c => c.status === 'active' ? (Math.random() * 100 < probB) : true);
+
+            let powerA = this.calculateFinalPower(skillA, tossesA);
+            let powerB = this.calculateFinalPower(skillB, tossesB);
+
+            let roundWinner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
+
+            result.clashLogs.push({
+                round: round,
+                powerA: powerA,
+                powerB: powerB,
+                tossesA: tossesA,
+                tossesB: tossesB,
+                winner: roundWinner
+            });
+
+            // LIFO Coin Destruction Logic
+            const processLoss = (loserSkill, winnerSkill) => {
+                // Find the last active coin
+                for (let i = loserSkill.coins.length - 1; i >= 0; i--) {
+                    if (loserSkill.coins[i].status === 'active') {
+                        let loserCoin = loserSkill.coins[i];
+                        let winnerActiveCoins = winnerSkill ? winnerSkill.coins.filter(c => c.status === 'active') : [];
+                        let winningCoinType = winnerActiveCoins.length > 0 ? winnerActiveCoins[0].type : 'standard';
+
+                        if (loserCoin.type === 'unbreakable') {
+                            if (winningCoinType === 'excision') {
+                                loserCoin.status = 'broken';
+                            } else {
+                                loserCoin.status = 'cracked';
+                            }
+                        } else if (loserCoin.type === 'excision') {
+                            loserCoin.status = 'cracked';
+                        } else {
+                            loserCoin.status = 'broken';
+                        }
+                        break;
+                    }
+                }
+            };
+
+            if (roundWinner === 'A') {
+                processLoss(skillB, skillA);
+            } else if (roundWinner === 'B') {
+                processLoss(skillA, skillB);
+            } else {
+                // In a tie, both lose a coin (standard Limbus rules, though 'Tie' usually means continue without loss until parry limit)
+                // Assuming standard clash rules: tie means no coins are destroyed in standard, they just re-clash.
+                // However, to prevent infinite loops if they always tie, we need a tie-breaker or parry limit.
+                // If the user wants standard rules, ties destroy no coins. We will add a parry limit.
+            }
+
+            // To prevent infinite ties, introduce a limit
+            if (round >= 99) {
+                result.winner = 'Tie';
+                break;
+            }
+            round++;
+        }
+
+        // Setup counter-attack if the loser has cracked coins
+        let loserSkill = result.winner === 'A' ? skillB : (result.winner === 'B' ? skillA : null);
+        if (loserSkill) {
+            let crackedCoins = loserSkill.coins.filter(c => c.status === 'cracked');
+            if (crackedCoins.length > 0) {
+                result.counterAttackPending = true;
+                result.crackedCoinsToUse = crackedCoins;
+            }
+        }
+
+        return result;
     },
 
     resolveRollClash: function(skillA, headsA, skillB, headsB) {
@@ -134,7 +277,37 @@ const CombatEngine = {
     },
 
     calculateFinalPower: function(skill, headsFlipped) {
-        return skill.basePower + (headsFlipped * skill.coinPower);
+        if (typeof headsFlipped === 'number') {
+            return skill.basePower + (headsFlipped * skill.coinPower);
+        }
+
+        if (Array.isArray(headsFlipped)) {
+            let totalPower = skill.basePower;
+            let activeOrCrackedCoins = skill.coins ? skill.coins.filter(c => c.status === 'active' || c.status === 'cracked') : [];
+
+            for (let i = 0; i < headsFlipped.length; i++) {
+                let coinResult = headsFlipped[i];
+                let coin = activeOrCrackedCoins[i];
+
+                if (!coin) continue;
+
+                if (coin.status === 'active') {
+                    if (coinResult) {
+                        totalPower += skill.coinPower;
+                    }
+                } else if (coin.status === 'cracked') {
+                    // Cracked coins have a fixed base power of 1 or -1 before external modifiers
+                    // In calculateFinalPower context, the coin base is fixed and it acts as an automatic heads
+                    let crackedBasePower = skill.coinPower < 0 ? -1 : 1;
+                    totalPower += crackedBasePower;
+                    // Any external modifiers would be applied after this function,
+                    // as calculateFinalPower only calculates the base + coin power
+                }
+            }
+            return totalPower;
+        }
+
+        return skill.basePower;
     },
 
     calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
