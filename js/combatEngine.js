@@ -228,8 +228,8 @@ const CombatEngine = {
             });
 
             // Apply damage physically to process HP and Stagger states
-            let dmgMult = this.calculateDamageMultiplier ? this.calculateDamageMultiplier(1, 1, 0, unitDefender.staggerLevel || 0, unitDefender.isStaggered) : 1;
-            let finalDamage = Math.floor(attackPower * dmgMult);
+            let clashCount = options.clashCount || 0; // options.clashCount could be passed if from a clash, else 0
+            let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, false, clashCount);
 
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
             context.damageDealt = finalDamage;
@@ -745,6 +745,83 @@ const CombatEngine = {
         };
     },
 
+
+    // Nueva función para calcular el daño por moneda con modificadores planos
+    calculateCoinDamage: function(attacker, defender, skill, coinFinalPower, isCritical, clashCount) {
+        let staggerLevel = defender.staggerLevel || 0;
+        let isStaggered = defender.isStaggered || false;
+
+        let physRes = defender.physRes || 1.0;
+        let sinRes = defender.sinRes || 1.0;
+
+        // 1. Stagger Override para resistencia física
+        let physMod;
+        if (isStaggered) {
+            physMod = 0.5 + (0.5 * staggerLevel);
+        } else {
+            physMod = this.calculateResistanceModifier(physRes);
+        }
+        let sinMod = this.calculateResistanceModifier(sinRes);
+
+        // 2. Modificador de niveles
+        let offLevel = this.getOffensiveLevel(attacker.level || 1, skill);
+        let defLevel = this.getDefensiveLevel(defender.level || 1, defender);
+        let levelMod = (offLevel - defLevel) / (Math.abs(offLevel - defLevel) + 25);
+
+        // 3. Modificadores por Crítico y Choque
+        let critMod = isCritical ? 0.2 : 0;
+        let clashMod = (clashCount || 0) * 0.03;
+
+        let totalStaticMod = physMod + sinMod + levelMod + critMod + clashMod;
+
+        // Daño Base
+        let baseDamage = Math.floor(coinFinalPower * (1 + totalStaticMod));
+
+        // 4. Modificadores Dinámicos (Planos)
+        let dynamicMod = 0;
+
+        // Efectos del defensor (Fragile, Protection, etc.)
+        if (defender.statusEffects) {
+            if (defender.statusEffects['Fragile']) dynamicMod += defender.statusEffects['Fragile'];
+            if (defender.statusEffects['Protection']) dynamicMod -= defender.statusEffects['Protection'];
+            // Asume otros estados aquí si es necesario, o usa un bucle.
+        }
+
+        // Efectos del atacante (Damage Up, Damage Down, etc.)
+        if (attacker.statusEffects) {
+            if (attacker.statusEffects['Damage Up']) dynamicMod += attacker.statusEffects['Damage Up'];
+            if (attacker.statusEffects['Damage Down']) dynamicMod -= attacker.statusEffects['Damage Down'];
+        }
+
+        let damageWithDynamic = baseDamage + dynamicMod;
+
+        // 5. Límite de Daño Mínimo (5% o 1) envolviendo a los Modificadores Dinámicos
+        let finalDamage = Math.max(damageWithDynamic, Math.floor(coinFinalPower * 0.05), 1);
+
+        // 6. Attack Adders (Daño Adicional Condicional)
+        let attackAdders = 0;
+
+        // Daño fijo desde skill.effects (ej. "Daño +3")
+        if (skill.effects) {
+            for (let effect of skill.effects) {
+                // Buscamos algo parecido a un tag que añada daño
+                // Adaptamos la lógica de 'Damage Adder' basado en como este estructurado
+                if (effect.type === 'Damage Adder' && effect.value) {
+                    attackAdders += effect.value;
+                } else if (effect.value && typeof effect.value === 'number' && effect.type !== 'Damage Adder' && effect.type && effect.type.includes('Damage')) { // just a fallback
+                     attackAdders += effect.value;
+                }
+            }
+        }
+
+        // Daño por estados del objetivo (ej. Rupture)
+        if (defender.statusEffects && defender.statusEffects['Rupture']) {
+             attackAdders += defender.statusEffects['Rupture'];
+        }
+
+        return finalDamage + attackAdders;
+    },
+
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
     applyDamage: function(unit, damage, tipoDaño = 'directo', isCritical = false, skillUsed = null) {
         // Híbrido D&D: Si la habilidad es Spell o Roll, no se aplica daño automático.
@@ -752,7 +829,7 @@ const CombatEngine = {
             return { hp: unit.hp, shield: unit.shield, message: 'Daño automático omitido por tipo de habilidad (Spell/Roll).' };
         }
 
-        let remainingDamage = isCritical ? damage * 1.5 : damage;
+        let remainingDamage = damage; // Critical multiplier moved to calculateCoinDamage
 
         if (unit.shield && unit.shield > 0) {
             if (unit.shield >= remainingDamage) {
@@ -902,11 +979,9 @@ const CombatEngine = {
 
     // 5. Cálculo de Resistencias (Modo Limbus)
     calculateResistanceModifier: function(v) {
-        if (v >= 1) {
-            return v - 1;
-        } else {
-            return (v - 1) / 2;
-        }
+        if (v <= 0) return -0.5;
+        if (v < 1) return (v - 1) / 2;
+        return v - 1;
     },
 
     calculateDamageMultiplier: function(physRes, sinRes, flatBuffs = 0, staggerLevel = 0, isStaggered = false, offLevel = null, defLevel = null) {
