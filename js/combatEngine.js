@@ -1,7 +1,34 @@
 const CombatEngine = {
 // 0. Habilidades y Poder (Skills)
+    // 0.5 Helper D&D
+    getDndModifier: function(score) {
+        return Math.floor((score - 10) / 2);
+    },
+
+    calculateDndBonus: function(unit, statUsed, skillUsed) {
+        if (!unit || !unit.dndStats) return 0;
+        let modifier = 0;
+
+        if (statUsed && unit.dndStats[statUsed] !== undefined) {
+            modifier = this.getDndModifier(unit.dndStats[statUsed]);
+        }
+
+        let isProficient = false;
+        if (unit.dndStats.proficiencies) {
+            if (statUsed && unit.dndStats.proficiencies.includes(statUsed + "_SAVE")) {
+                isProficient = true;
+            }
+            if (skillUsed && unit.dndStats.proficiencies.includes(skillUsed)) {
+                isProficient = true;
+            }
+        }
+
+        let profBonus = isProficient ? (unit.dndStats.proficiencyBonus || 0) : 0;
+        return modifier + profBonus;
+    },
+
     createSkill: function(config = {}) {
-        return {
+        let skill = {
             basePower: config.basePower || 0,
             coinPower: config.coinPower || 0,
             coinAmount: Math.max(1, config.coinAmount || 1),
@@ -9,7 +36,100 @@ const CombatEngine = {
             sinAffinity: config.sinAffinity !== undefined ? config.sinAffinity : null,
             levelModifier: config.levelModifier || 0,
             attackWeight: config.attackWeight || 1,
-            skillAmount: config.skillAmount || 1
+            skillAmount: config.skillAmount || 1,
+
+            // D&D Hybrid Additions
+            type: config.type || 'Normal', // 'Normal', 'Spell', 'Roll'
+            statUsed: config.statUsed || null,
+            skillUsed: config.skillUsed || null
+        };
+
+        if (skill.type === 'Spell' || skill.type === 'Roll') {
+            skill.coinPower = 4;
+            skill.coinAmount = 5;
+
+            if (config.caster) {
+                let dndBonus = this.calculateDndBonus(config.caster, skill.statUsed, skill.skillUsed);
+                skill.basePower = dndBonus;
+
+                if (skill.type === 'Spell') {
+                    skill.saveDC = 8 + dndBonus;
+                }
+            }
+        }
+
+        return skill;
+    },
+
+    createSaveSkill: function(target, statUsed) {
+        let skill = {
+            type: 'Save',
+            basePower: 0,
+            coinPower: 4,
+            coinAmount: 5,
+            statUsed: statUsed
+        };
+
+        if (target) {
+            skill.basePower = this.calculateDndBonus(target, statUsed, null);
+        }
+
+        return skill;
+    },
+
+    resolveSpell: function(spellSkill, target, targetHeadsFlipped) {
+        // Genera la tirada de salvación para el objetivo
+        let saveSkill = this.createSaveSkill(target, spellSkill.statUsed);
+        let savePower = this.calculateFinalPower(saveSkill, targetHeadsFlipped);
+
+        let isSuccess = savePower >= spellSkill.saveDC;
+
+        return {
+            isStaticDC: true,
+            dc: spellSkill.saveDC,
+            savePower: savePower,
+            isSuccess: isSuccess,
+            winner: isSuccess ? 'Target' : 'Caster',
+            message: `Spell DC ${spellSkill.saveDC} vs Save ${savePower}. ${isSuccess ? 'Save Successful!' : 'Save Failed!'}`
+        };
+    },
+
+    resolveRollClash: function(skillA, headsA, skillB, headsB) {
+        let powerA = this.calculateFinalPower(skillA, headsA);
+        let powerB = this.calculateFinalPower(skillB, headsB);
+
+        let winner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
+
+        // Híbrido D&D: Determinar si es un Roll vs Ataque normal
+        let isRollVsAttack = (skillA.type === 'Roll' && (skillB.type !== 'Roll' && skillB.type !== 'Spell' && skillB.type !== 'Save')) ||
+                             (skillB.type === 'Roll' && (skillA.type !== 'Roll' && skillA.type !== 'Spell' && skillA.type !== 'Save'));
+
+        let message = `Roll A (${powerA}) vs Roll B (${powerB}). Winner: ${winner}`;
+
+        if (isRollVsAttack) {
+            if (winner === 'A') {
+                if (skillA.type === 'Roll') {
+                    message += ` (Roll wins! Stops normal attack. No damage applied automatically. DM discretion required.)`;
+                } else {
+                    message += ` (Normal attack wins! Applies normal damage.)`;
+                }
+            } else if (winner === 'B') {
+                if (skillB.type === 'Roll') {
+                    message += ` (Roll wins! Stops normal attack. No damage applied automatically. DM discretion required.)`;
+                } else {
+                    message += ` (Normal attack wins! Applies normal damage.)`;
+                }
+            } else {
+                message += ` (Tie! Both sides cancel out.)`;
+            }
+        }
+
+        return {
+            powerA: powerA,
+            powerB: powerB,
+            winner: winner,
+            isRollVsAttack: isRollVsAttack,
+            message: message
         };
     },
 
@@ -97,7 +217,12 @@ const CombatEngine = {
     },
 
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
-    applyDamage: function(unit, damage, tipoDaño = 'directo', isCritical = false) {
+    applyDamage: function(unit, damage, tipoDaño = 'directo', isCritical = false, skillUsed = null) {
+        // Híbrido D&D: Si la habilidad es Spell o Roll, no se aplica daño automático.
+        if (skillUsed && (skillUsed.type === 'Spell' || skillUsed.type === 'Roll' || skillUsed.type === 'Save')) {
+            return { hp: unit.hp, shield: unit.shield, message: 'Daño automático omitido por tipo de habilidad (Spell/Roll).' };
+        }
+
         let remainingDamage = isCritical ? damage * 1.5 : damage;
 
         if (unit.shield && unit.shield > 0) {
