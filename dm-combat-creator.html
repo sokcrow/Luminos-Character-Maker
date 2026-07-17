@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite & UI Preview Editor</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+
+        /* --- VARIABLES BASE --- */
+        :root {
+            --limbus-hp-orange: #ff4a22;
+            --limbus-speed-yellow: #ffe877;
+            --limbus-slot-dark: #1a1510;
+            --limbus-slot-border: #4a3520;
+            --limbus-boss-ui-bg: #110000;
+            --limbus-boss-ui-border: #440000;
+            --limbus-hp-boss: #ff2222;
+        }
+
+        body { margin: 0; padding: 0; background-color: #050010; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- CONTENEDOR DE UNIDAD --- */
+        .combatant {
+            position: relative;
+            width: 260px;
+            height: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        /* --- UI SUPERIOR (Velocidad y Slots) --- */
+        .top-ui-panel {
+            position: absolute;
+            top: -60px; /* Asegurar que quede por encima del sprite */
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            z-index: 10;
+        }
+        .speed-number { color: var(--limbus-speed-yellow); font-size: 50px; font-family: 'Bebas Neue', cursive; line-height: 0.9; }
+        .action-slot-svg { width: 44px; height: 44px; }
+        .slot-heptagon-bg { fill: var(--limbus-slot-dark); stroke: var(--limbus-slot-border); stroke-width: 10; }
+
+        /* --- CENTRO (Sprite) --- */
+        .sprite-anchor {
+            position: relative;
+            z-index: 5;
+        }
+        .sprite-img {
+            max-height: 200px;
+            transform-origin: bottom center;
+            /* Placeholder styles if empty */
+            min-width: 100px;
+            min-height: 100px;
+            object-fit: contain;
+            object-position: bottom;
+            filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));
+        }
+
+        /* --- UI INFERIOR (HP Base Normal) --- */
+        .diegetic-floor {
+            position: absolute;
+            bottom: -110px; /* Debajo de los pies */
+            width: 220px;
+            height: 220px;
+            transform: rotateX(65deg);
+            z-index: 1;
+        }
+        .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
+        .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
+        .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
+
+        /* --- UI DE BOSS (RECTANGULAR) --- */
+        .boss-ui-rect {
+            position: absolute; bottom: -90px; width: 350px; height: 60px;
+            background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); border-radius: 4px;
+            z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(100,50,0,0.5); pointer-events: auto;
+        }
+        .boss-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
+        .boss-hp-fill-rect { height: 100%; background: var(--limbus-hp-boss); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-boss)); }
+
+    </style>
+</head>
+<body>
+    <div id="editor-preview" style="flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative;">
+        <!-- Previsualización aquí -->
+    </div>
+
+
+    <div id="editor-sidebar" style="width: 350px; background: #111; padding: 20px; overflow-y: auto; border-left: 1px solid #333;">
+        <h2>Combat Encounter Creator</h2>
+
+        <!-- Controles Visuales -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Visuales</legend>
+            <label style="display:block; margin-bottom: 5px;">URL de Sprite:
+                <input type="text" id="spriteUrl" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:flex; justify-content: space-between; margin-bottom: 5px;">Modo Jefe:
+                <input type="checkbox" id="isBossToggle">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Scale (<span id="scaleVal">1.0</span>)
+                <input type="range" id="scaleSlider" min="0.1" max="3.0" step="0.05" value="1" style="width: 100%;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Sprite X (<span id="spriteXVal">0</span>)
+                <input type="range" id="spriteXSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Sprite Y (<span id="spriteYVal">0</span>)
+                <input type="range" id="spriteYSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">UI X (<span id="uiXVal">0</span>)
+                <input type="range" id="uiXSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">UI Y (<span id="uiYVal">0</span>)
+                <input type="range" id="uiYSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            </label>
+        </fieldset>
+
+        <!-- Stats Mecánicas -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Stats Mecánicas</legend>
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Max HP: <input type="number" id="statHp" value="100" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Nivel: <input type="number" id="statLevel" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Velocidad: <input type="text" id="statSpeed" value="2-4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Action Slots: <input type="number" id="statSlots" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+            <label style="display:block; margin-top: 5px;">Skills (JSON Array IDs):
+                <textarea id="statSkills" style="width: 100%; height: 60px; background: #222; color: white; border: 1px solid #555;">["skill_id_1"]</textarea>
+            </label>
+        </fieldset>
+
+        <!-- Metadata & Guardado -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Base de Datos</legend>
+            <label style="display:block; margin-bottom: 5px;">Nombre del Template:
+                <input type="text" id="metaName" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Linked NPC ID:
+                <input type="text" id="metaLinkedNpc" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Tags (separados por coma):
+                <input type="text" id="metaTags" placeholder="Facción, Tipo, Rango" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+
+            <button id="btnSave" style="width: 100%; padding: 10px; margin-top: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">Guardar Template</button>
+        </fieldset>
+
+        <!-- Buscador -->
+        <fieldset style="border: 1px solid #444; padding: 10px;">
+            <legend>Cargar Template</legend>
+            <div style="display:flex; gap: 5px;">
+                <input type="text" id="searchTemplateInput" placeholder="Nombre..." style="flex: 1; background: #222; color: white; border: 1px solid #555;">
+                <button id="btnSearch" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 5px 10px;">Buscar</button>
+            </div>
+            <div id="searchResults" style="margin-top: 10px; max-height: 100px; overflow-y: auto; font-size: 12px; background: #222;"></div>
+        </fieldset>
+    </div>
+
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+            authDomain: "luminous-system.firebaseapp.com",
+            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+            projectId: "luminous-system",
+            storageBucket: "luminous-system.firebasestorage.app",
+            messagingSenderId: "330473029689",
+            appId: "1:330473029689:web:44a05e870d493a3b294de8",
+            measurementId: "G-X775P4YS7W",
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        auth.onAuthStateChanged((user) => {
+            if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
+                window.location.replace("index.html");
+            } else {
+                initEditor();
+            }
+        });
+
+        // Utilidades SVG
+        function generateHeptagonPoints(radius) {
+            const sides = 7; const points = []; const startAngle = Math.PI / 2;
+            for (let i = 0; i < sides; i++) {
+                const angle = startAngle + (i * 2 * Math.PI / sides);
+                points.push({ x: (radius * Math.cos(angle)).toFixed(1), y: (radius * Math.sin(angle)).toFixed(1) });
+            }
+            const fullPoly = points.map(p => `${p.x},${p.y}`).join(' ');
+            const frontHalf = `${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
+            return { full: fullPoly, front: frontHalf };
+        }
+
+        const heptagonBase = generateHeptagonPoints(85);
+
+        // Variables de estado
+        let currentState = {
+            visual: {
+                spriteUrl: "",
+                scale: 1.0,
+                spriteX: 0,
+                spriteY: 0,
+                uiX: 0,
+                uiY: 0,
+                isBoss: false
+            },
+            mechanics: {
+                hp: 100,
+                level: 1,
+                speed: "2-4",
+                actionSlots: 1,
+                skills: ["skill_id_1"]
+            },
+            meta: {
+                name: "",
+                linkedNPC: "",
+                tags: []
+            }
+        };
+
+        function renderPreview() {
+            const previewContainer = document.getElementById("editor-preview");
+
+            // Layout offsets
+            const spriteTransform = `translate(${currentState.visual.spriteX}px, ${currentState.visual.spriteY}px) scale(${currentState.visual.scale})`;
+            const uiTransform = `translate(${currentState.visual.uiX}px, ${currentState.visual.uiY}px)`;
+
+            let bottomUI = '';
+            if (currentState.visual.isBoss) {
+                bottomUI = `
+                    <div class="boss-ui-rect" style="transform: ${uiTransform};">
+                        <div class="boss-hp-bar-container">
+                            <div class="boss-hp-fill-rect" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                bottomUI = `
+                    <svg class="diegetic-floor" viewBox="-100 -100 200 200" style="transform: rotateX(65deg) ${uiTransform};">
+                        <polygon class="floor-bg-poly" points="${heptagonBase.full}" />
+                        <polyline class="hp-track" points="${heptagonBase.front}" />
+                        <polyline class="hp-fill-line" points="${heptagonBase.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: 0;" />
+                    </svg>
+                `;
+            }
+
+            // Always render 3 slots for visual reference
+            const slotsHtml = [1, 2, 3].map(() => `
+                <svg class="action-slot-svg" viewBox="0 0 100 100">
+                    <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
+                </svg>
+            `).join('');
+
+            previewContainer.innerHTML = `
+                <div class="combatant">
+                    <div class="top-ui-panel" style="transform: ${uiTransform};">
+                        <div class="speed-number">${currentState.mechanics.speed}</div>
+                        ${slotsHtml}
+                    </div>
+
+                    <div class="sprite-anchor" style="transform: ${spriteTransform};">
+                        ${currentState.visual.spriteUrl ? `<img src="${currentState.visual.spriteUrl}" class="sprite-img">` : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888;"></div>`}
+                    </div>
+
+                    ${bottomUI}
+                </div>
+            `;
+        }
+
+        function initEditor() {
+            console.log("DM Autenticado. Editor Inicializado.");
+
+            // Inputs binding
+            const bindInput = (id, statePath, isNumber = false, valueLabelId = null) => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', (e) => {
+                    let val = e.target.value;
+                    if(e.target.type === 'checkbox') val = e.target.checked;
+                    else if (isNumber) val = parseFloat(val) || 0;
+
+                    if (valueLabelId) document.getElementById(valueLabelId).innerText = val;
+
+                    const paths = statePath.split('.');
+                    if(paths.length === 2) currentState[paths[0]][paths[1]] = val;
+
+                    renderPreview();
+                });
+            };
+
+            bindInput('spriteUrl', 'visual.spriteUrl');
+            bindInput('isBossToggle', 'visual.isBoss');
+            bindInput('scaleSlider', 'visual.scale', true, 'scaleVal');
+            bindInput('spriteXSlider', 'visual.spriteX', true, 'spriteXVal');
+            bindInput('spriteYSlider', 'visual.spriteY', true, 'spriteYVal');
+            bindInput('uiXSlider', 'visual.uiX', true, 'uiXVal');
+            bindInput('uiYSlider', 'visual.uiY', true, 'uiYVal');
+
+            bindInput('statHp', 'mechanics.hp', true);
+            bindInput('statLevel', 'mechanics.level', true);
+            bindInput('statSpeed', 'mechanics.speed');
+            bindInput('statSlots', 'mechanics.actionSlots', true);
+
+            document.getElementById('statSkills').addEventListener('input', (e) => {
+                try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
+            });
+
+            bindInput('metaName', 'meta.name');
+            bindInput('metaLinkedNpc', 'meta.linkedNPC');
+
+            document.getElementById('metaTags').addEventListener('input', (e) => {
+                currentState.meta.tags = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+            });
+
+            // Save logic
+            document.getElementById('btnSave').addEventListener('click', () => {
+                if(!currentState.meta.name) {
+                    alert("Por favor ingresa un Nombre del Template.");
+                    return;
+                }
+                if(!currentState.meta.tags || currentState.meta.tags.length === 0) {
+                    alert("Por favor ingresa al menos un Tag (ej. Facción, Tipo, Rango).");
+                    return;
+                }
+                const templateRef = db.ref('combatTemplates').push();
+                templateRef.set(currentState)
+                    .then(() => alert('Template guardado exitosamente con ID: ' + templateRef.key))
+                    .catch(err => alert('Error al guardar: ' + err.message));
+            });
+
+            // Search logic
+            document.getElementById('btnSearch').addEventListener('click', () => {
+                const term = document.getElementById('searchTemplateInput').value.toLowerCase();
+                if(!term) return;
+
+                db.ref('combatTemplates').once('value').then(snap => {
+                    const data = snap.val();
+                    const resultsContainer = document.getElementById('searchResults');
+                    resultsContainer.innerHTML = '';
+                    if(!data) return;
+
+                    Object.entries(data).forEach(([key, template]) => {
+                        if (template.meta && template.meta.name && template.meta.name.toLowerCase().includes(term)) {
+                            const div = document.createElement('div');
+                            div.style.padding = '5px';
+                            div.style.borderBottom = '1px solid #444';
+                            div.style.cursor = 'pointer';
+                            div.innerText = template.meta.name;
+                            div.addEventListener('click', () => {
+                                loadTemplate(template);
+                            });
+                            resultsContainer.appendChild(div);
+                        }
+                    });
+                });
+            });
+
+            renderPreview();
+        }
+
+        function loadTemplate(template) {
+            currentState = JSON.parse(JSON.stringify(template)); // deep copy
+
+            // Update UI inputs
+            document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
+            document.getElementById('isBossToggle').checked = currentState.visual.isBoss || false;
+
+            document.getElementById('scaleSlider').value = currentState.visual.scale;
+            document.getElementById('scaleVal').innerText = currentState.visual.scale;
+
+            document.getElementById('spriteXSlider').value = currentState.visual.spriteX;
+            document.getElementById('spriteXVal').innerText = currentState.visual.spriteX;
+
+            document.getElementById('spriteYSlider').value = currentState.visual.spriteY;
+            document.getElementById('spriteYVal').innerText = currentState.visual.spriteY;
+
+            document.getElementById('uiXSlider').value = currentState.visual.uiX;
+            document.getElementById('uiXVal').innerText = currentState.visual.uiX;
+
+            document.getElementById('uiYSlider').value = currentState.visual.uiY;
+            document.getElementById('uiYVal').innerText = currentState.visual.uiY;
+
+            document.getElementById('statHp').value = currentState.mechanics.hp;
+            document.getElementById('statLevel').value = currentState.mechanics.level;
+            document.getElementById('statSpeed').value = currentState.mechanics.speed;
+            document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
+            document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
+
+            document.getElementById('metaName').value = currentState.meta.name || '';
+            document.getElementById('metaLinkedNpc').value = currentState.meta.linkedNPC || '';
+            document.getElementById('metaTags').value = (currentState.meta.tags || []).join(', ');
+
+            renderPreview();
+            alert("Template cargado: " + currentState.meta.name);
+        }
+    </script>
+
+</body>
+</html>
