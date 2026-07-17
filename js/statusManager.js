@@ -73,12 +73,67 @@ const STATUS_REGISTRY = {
         description: "Increases the amount of E.G.O resources earned from skills by the effect's Count for one turn."
     },
 
-    // --- GENERIC DEBUFFS ---
-    'damage_down': { type: 'negative', mode: 'single', maxCount: 10, description: "Deal 10% less damage per Count. (Max 10)" },
-    'fragile': { type: 'negative', mode: 'single', maxCount: 10, description: "Take 10% more damage per Count. (Max 10)" },
-    'bind': { type: 'negative', mode: 'single', description: "Decreases Speed by Count." },
-    'offense_level_down': { type: 'negative', mode: 'single', description: "Decreases Offense Level by Count." },
-    'defense_level_down': { type: 'negative', mode: 'single', description: "Decreases Defense Level by Count." }
+    // --- MODIFICADORES NEGATIVOS GENÉRICOS (Other Debuffs) ---
+    'power_down': {
+        name: 'Power Down', type: 'negative', mode: 'single',
+        description: "All skills lose Final Power by the effect's Count for one turn."
+    },
+    'attack_power_down': {
+        name: 'Attack Power Down', type: 'negative', mode: 'single',
+        description: "Attack skills lose Final Power by the effect's Count for one turn."
+    },
+    'defense_power_down': {
+        name: 'Defense Power Down', type: 'negative', mode: 'single',
+        description: "Defense skills lose Final Power by the effect's Count for one turn."
+    },
+    'clash_power_down': {
+        name: 'Clash Power Down', type: 'negative', mode: 'single',
+        description: "Lose Clash Power by the effect's Count for one turn."
+    },
+    'offense_level_down': {
+        name: 'Offense Level Down', type: 'negative', mode: 'single',
+        description: "Offense level decreases based on the effect's Count for one turn."
+    },
+    'defense_level_down': {
+        name: 'Defense Level Down', type: 'negative', mode: 'single',
+        description: "Defense Level decreases based on the effect's Count for one turn."
+    },
+    'damage_down': {
+        name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10,
+        description: "Deal 10% less damage with skills per Count for one turn. (Max 10)"
+    },
+    'bind': {
+        name: 'Bind', type: 'negative', mode: 'single',
+        description: "Speed decreases by the effect's Count for one turn."
+    },
+    'fragile': {
+        name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10,
+        description: "Take 10% more damage from skills per Count for one turn. (Max 10)"
+    },
+    'paralyze': {
+        name: 'Paralyze', type: 'negative', mode: 'single',
+        description: "Fix the Power of X Coin(s) to 0 for one turn."
+    },
+    'plus_coin_drop': {
+        name: 'Plus Coin Drop', type: 'negative', mode: 'single',
+        description: "Reduce the Power of Plus Coins by the effect's Count for one turn."
+    },
+    'minus_coin_boost': {
+        name: 'Minus Coin Boost', type: 'negative', mode: 'single',
+        description: "Raise the Power of Minus Coins by the effect's Count for one turn."
+    },
+    'hp_healing_down': {
+        name: 'HP Healing Down', type: 'negative', mode: 'single',
+        description: "Decreases HP healing provided by Passive abilities, Skills, and Coin effects."
+    },
+    'poison': {
+        name: 'Poison', type: 'negative', mode: 'single',
+        description: "At the end of the turn, take fixed damage by the Count, then halve the Count."
+    },
+    'immobilized': {
+        name: 'Immobilized', type: 'negative', mode: 'single',
+        description: "Does not act for this turn."
+    }
 };
 
 const generateElementalStatuses = () => {
