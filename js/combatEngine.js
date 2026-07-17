@@ -1,6 +1,119 @@
+const RESONANCE_BONUS = {
+    // Índice: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11+]
+    REGULAR:  [0, 0, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+    ABSOLUTE: [0, 0, 0, 3, 5, 5, 7, 7, 9, 9, 11, 11]
+};
+
 const CombatEngine = {
 // 0. Habilidades y Poder (Skills)
     // 0.5 Helper D&D
+    calculateResonance: function(actionQueue) {
+        if (!actionQueue || actionQueue.length === 0) return;
+
+        // Reset previous resonance bonuses
+        actionQueue.forEach(action => {
+            if (action && action.skill) {
+                action.skill.resonanceOffenseBonus = 0;
+                action.skill.resonanceDefenseBonus = 0;
+            }
+        });
+
+        // Track global counts for Regular Resonance
+        const affinityCounts = {};
+
+        // Track chains for Absolute Resonance
+        let currentChainAffinity = null;
+        let currentChainLength = 0;
+        let currentChainStartIndex = 0;
+        const chains = [];
+
+        // First pass: identify absolute resonance chains and count regular resonance
+        actionQueue.forEach((action, index) => {
+            const skill = action && action.skill;
+            if (!skill || !skill.affinity) {
+                // Break chain if skill or affinity is missing
+                if (currentChainLength >= 3) {
+                    chains.push({
+                        affinity: currentChainAffinity,
+                        startIndex: currentChainStartIndex,
+                        length: currentChainLength
+                    });
+                }
+                currentChainAffinity = null;
+                currentChainLength = 0;
+                return;
+            }
+
+            const affinity = skill.affinity;
+
+            // Track global count
+            if (!affinityCounts[affinity]) affinityCounts[affinity] = 0;
+            affinityCounts[affinity]++;
+
+            // Track chains
+            if (affinity === currentChainAffinity) {
+                currentChainLength++;
+            } else {
+                if (currentChainLength >= 3) {
+                    chains.push({
+                        affinity: currentChainAffinity,
+                        startIndex: currentChainStartIndex,
+                        length: currentChainLength
+                    });
+                }
+                currentChainAffinity = affinity;
+                currentChainLength = 1;
+                currentChainStartIndex = index;
+            }
+        });
+
+        // Check if the last chain was >= 3
+        if (currentChainLength >= 3) {
+            chains.push({
+                affinity: currentChainAffinity,
+                startIndex: currentChainStartIndex,
+                length: currentChainLength
+            });
+        }
+
+        // Second pass: apply bonuses
+        // Track appearance order for Regular Resonance
+        const appearanceOrder = {};
+
+        actionQueue.forEach((action, index) => {
+            const skill = action && action.skill;
+            if (!skill || !skill.affinity) return;
+
+            const affinity = skill.affinity;
+
+            // Calculate Absolute Resonance bonus for this skill
+            let absoluteBonus = 0;
+            const chain = chains.find(c => c.affinity === affinity && index >= c.startIndex && index < c.startIndex + c.length);
+            if (chain) {
+                const lookupIndex = Math.min(chain.length, 11);
+                absoluteBonus = RESONANCE_BONUS.ABSOLUTE[lookupIndex];
+            }
+
+            // Calculate Regular Resonance bonus for this skill
+            let regularBonus = 0;
+            const globalCount = affinityCounts[affinity];
+            if (globalCount >= 2) {
+                if (!appearanceOrder[affinity]) appearanceOrder[affinity] = 0;
+                appearanceOrder[affinity]++;
+                const appearanceIndex = appearanceOrder[affinity];
+                const lookupIndex = Math.min(appearanceIndex, 11);
+                regularBonus = RESONANCE_BONUS.REGULAR[lookupIndex];
+            }
+
+            // Apply highest bonus
+            const finalBonus = Math.max(absoluteBonus, regularBonus);
+            if (finalBonus > 0) {
+                skill.resonanceOffenseBonus = finalBonus;
+                skill.resonanceDefenseBonus = finalBonus;
+            }
+        });
+    },
+
     getDndModifier: function(score) {
         return Math.floor((score - 10) / 2);
     },
@@ -709,12 +822,14 @@ const CombatEngine = {
 
     getOffensiveLevel: function(level, skill = {}) {
         const modifier = skill.offenseModifier || 0;
-        return Math.max(1, level + modifier);
+        const resonanceBonus = skill.resonanceOffenseBonus || 0;
+        return Math.max(1, level + modifier + resonanceBonus);
     },
 
     getDefensiveLevel: function(level, skillOrPart = {}) {
         const modifier = skillOrPart.defenseModifier || 0;
-        return Math.max(1, level + modifier);
+        const resonanceBonus = skillOrPart.resonanceDefenseBonus || 0;
+        return Math.max(1, level + modifier + resonanceBonus);
     },
 
     calculateClashBonus: function(skillA, levelA, skillB, levelB) {
