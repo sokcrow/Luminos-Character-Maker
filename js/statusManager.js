@@ -2,14 +2,67 @@ const DAMAGE_TYPES = ['Slash', 'Pierce', 'Blunt'];
 const SIN_TYPES = ['Wrath', 'Lust', 'Sloth', 'Gluttony', 'Gloom', 'Pride', 'Envy'];
 
 const STATUS_REGISTRY = {
-    // --- CORE STATUSES ---
-    'burn': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "At turn end, take Burn Potency as Wrath damage and reduce Count by 1." },
-    'bleed': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "Whenever tossing a coin for an Attack Skill, take Bleed Potency as damage and reduce Count by 1." },
-    'tremor': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "When hit by an attack with Tremor Burst, raise Stagger Threshold by Tremor Potency. Count is reduced by 1 at turn end." },
-    'rupture': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "When hit by an attack, take Rupture Potency as true damage and reduce Count by 1." },
-    'sinking': { type: 'negative', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "When hit by an attack, take Sinking Potency as Gloom damage and reduce Count by 1 (or SP damage if applicable)." },
-    'poise': { type: 'positive', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 99, description: "Gain a chance to deal Critical Damage on hit. Potency increases Critical Chance, Count increases Critical Damage. Count is reduced by 1 at turn end." },
-    'charge': { type: 'positive', mode: 'double', basePotency: 1, baseCount: 1, maxPotency: 99, maxCount: 20, description: "Resource used by certain skills for additional effects." },
+    // --- CORE STATUSES (Efectos Clave) ---
+    'burn': {
+        name: 'Burn', type: 'negative', mode: 'double',
+        description: "At the end of the turn, take fixed damage by the effect’s Potency, then reduce its Count by 1."
+    },
+    'bleed': {
+        name: 'Bleed', type: 'negative', mode: 'double',
+        description: "When tossing an attack Coin, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
+    },
+    'tremor': {
+        name: 'Tremor', type: 'negative', mode: 'double',
+        description: "When attacked by skills that burst Tremor, raise the Stagger Threshold by the effect’s Potency. At the end of the turn, reduce the Count by 1."
+    },
+    'tremor_decay': {
+        name: 'Tremor - Decay', type: 'negative', mode: 'double',
+        description: "Lose 1 Defense Level for every 4 Tremor Potency on self. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_fracture': {
+        name: 'Tremor - Fracture', type: 'negative', mode: 'double',
+        description: "When Staggered, and when the sum of Tremor Potency and Count adds up to 20 or higher, raise Stagger Level by 1. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_reverb': {
+        name: 'Tremor - Reverb', type: 'negative', mode: 'double',
+        description: "On Tremor Burst, take Sloth damage equal to Tremor Potency on self. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_everlasting': {
+        name: 'Tremor - Everlasting', type: 'negative', mode: 'double',
+        description: "When hit by Skills or Coin effects that trigger Tremor Burst, (Tremor Potency on self)% chance to trigger an additional Tremor Burst. When hit by Skills or Coin effects that trigger Tremor Burst, (Tremor Count on self)% chance to trigger an additional Tremor Burst. Turn End: reduce the Count by 1."
+    },
+    'tremor_chain': {
+        name: 'Tremor - Chain', type: 'negative', mode: 'double',
+        description: "Lose 1 Clash Power for every 10 Tremor Potency on self (max 3). When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_scorch': {
+        name: 'Tremor - Scorch', type: 'negative', mode: 'double',
+        description: "On Tremor Burst, take Wrath Damage equal to (sum of Tremor Potency and Burn Potency / 2), and lose 1 Burn Count. When hit by Skills that trigger Tremor Burst, raise this unit's Stagger Threshold equal by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_hemorrhage': {
+        name: 'Tremor - Hemorrhage', type: 'negative', mode: 'double',
+        description: "On Tremor Burst, take Lust Damage equal to (sum of Tremor Potency and Bleed Potency / 2), and lose 1 Bleed Count. When hit by Skills that trigger Tremor Burst, raise this unit's Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
+    },
+    'tremor_superposition': {
+        name: 'Tremor - Superposition', type: 'negative', mode: 'double',
+        description: "When triggering Amplitude Conversion, add the effects of the resulting Tremor type to the list of active Tremor effects under Tremor - Superposition."
+    },
+    'rupture': {
+        name: 'Rupture', type: 'negative', mode: 'double',
+        description: "When hit by an attack, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
+    },
+    'sinking': {
+        name: 'Sinking', type: 'negative', mode: 'double',
+        description: "When hit by an attack, take fixed SP damage by the effect’s Potency. (Non-SP Units take Gloom damage instead.) Then, reduce its Count by 1."
+    },
+    'poise': {
+        name: 'Poise', type: 'positive', mode: 'double',
+        description: "Gain a chance to deal Critical Damage on hit. Potency increases Critical Chance, Count increases Critical Damage. Count is reduced by 1 at turn end."
+    },
+    'charge': {
+        name: 'Charge', type: 'positive', mode: 'double', maxCount: 20,
+        description: "Resource used by certain skills for additional effects."
+    },
 
     // --- GENERIC BUFFS (Other Buffs) ---
     'power_up': {
