@@ -14,9 +14,9 @@
             --limbus-speed-yellow: #ffe877;
             --limbus-slot-dark: #1a1510;
             --limbus-slot-border: #4a3520;
-            --limbus-boss-ui-bg: #110000;
-            --limbus-boss-ui-border: #440000;
-            --limbus-hp-boss: #ff2222;
+            --limbus-focused-ui-bg: #110000;
+            --limbus-focused-ui-border: #440000;
+            --limbus-hp-focused: #ff2222;
         }
 
         body { margin: 0; padding: 0; background-color: #050010; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
@@ -61,7 +61,7 @@
             filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));
         }
 
-        /* --- UI INFERIOR (HP Base Normal) --- */
+        /* --- UI INFERIOR (HP Base Unfocused) --- */
         .diegetic-floor {
             position: absolute;
             bottom: -110px; /* Debajo de los pies */
@@ -74,15 +74,15 @@
         .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
         .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
 
-        /* --- UI DE BOSS (RECTANGULAR) --- */
-        .boss-ui-rect {
+        /* --- UI DE FOCUSED (RECTANGULAR) --- */
+        .focused-ui-rect {
             position: absolute; bottom: -90px; width: 350px; height: 60px;
-            background: var(--limbus-boss-ui-bg); border: 3px solid var(--limbus-boss-ui-border); border-radius: 4px;
+            background: var(--limbus-focused-ui-bg); border: 3px solid var(--limbus-focused-ui-border); border-radius: 4px;
             z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(100,50,0,0.5); pointer-events: auto;
         }
-        .boss-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
-        .boss-hp-fill-rect { height: 100%; background: var(--limbus-hp-boss); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-boss)); }
+        .focused-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
+        .focused-hp-fill-rect { height: 100%; background: var(--limbus-hp-focused); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-focused)); }
 
     </style>
 </head>
@@ -101,23 +101,23 @@
             <label style="display:block; margin-bottom: 5px;">URL de Sprite:
                 <input type="text" id="spriteUrl" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
-            <label style="display:flex; justify-content: space-between; margin-bottom: 5px;">Modo Jefe:
-                <input type="checkbox" id="isBossToggle">
+            <label style="display:flex; justify-content: space-between; margin-bottom: 5px;">Focused Encounter:
+                <input type="checkbox" id="isFocusedToggle">
             </label>
-            <label style="display:block; margin-bottom: 5px;">Scale (<span id="scaleVal">1.0</span>)
-                <input type="range" id="scaleSlider" min="0.1" max="3.0" step="0.05" value="1" style="width: 100%;">
+            <label style="display:block; margin-bottom: 5px;">Scale:
+                <input type="number" id="scaleSlider" step="0.05" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
-            <label style="display:block; margin-bottom: 5px;">Sprite X (<span id="spriteXVal">0</span>)
-                <input type="range" id="spriteXSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            <label style="display:block; margin-bottom: 5px;">Sprite X:
+                <input type="number" id="spriteXSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
-            <label style="display:block; margin-bottom: 5px;">Sprite Y (<span id="spriteYVal">0</span>)
-                <input type="range" id="spriteYSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            <label style="display:block; margin-bottom: 5px;">Sprite Y:
+                <input type="number" id="spriteYSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
-            <label style="display:block; margin-bottom: 5px;">UI X (<span id="uiXVal">0</span>)
-                <input type="range" id="uiXSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            <label style="display:block; margin-bottom: 5px;">UI X:
+                <input type="number" id="uiXSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
-            <label style="display:block; margin-bottom: 5px;">UI Y (<span id="uiYVal">0</span>)
-                <input type="range" id="uiYSlider" min="-300" max="300" step="1" value="0" style="width: 100%;">
+            <label style="display:block; margin-bottom: 5px;">UI Y:
+                <input type="number" id="uiYSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
         </fieldset>
 
@@ -135,6 +135,16 @@
             <label style="display:block; margin-top: 5px;">Skills (JSON Array IDs):
                 <textarea id="statSkills" style="width: 100%; height: 60px; background: #222; color: white; border: 1px solid #555;">["skill_id_1"]</textarea>
             </label>
+        </fieldset>
+
+        <!-- Constructor de Skills -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Constructor de Skills</legend>
+            <label style="display:block; margin-bottom: 5px; font-size: 11px; color: #aaa;">
+                Raw Skill Effects (ej. [On hit] apply 1 Bleed Potency and Count)
+            </label>
+            <textarea id="rawSkillEffects" style="width: 100%; height: 80px; background: #222; color: white; border: 1px solid #555;"></textarea>
+            <div id="parsedEffectsPreview" style="margin-top: 10px; font-size: 11px; color: #ffdd44; white-space: pre-wrap; background: #111; padding: 5px; border: 1px solid #333; display: none;"></div>
         </fieldset>
 
         <!-- Metadata & Guardado -->
@@ -218,7 +228,7 @@
                 spriteY: 0,
                 uiX: 0,
                 uiY: 0,
-                isBoss: false
+                isFocused: false
             },
             mechanics: {
                 hp: 100,
@@ -226,6 +236,10 @@
                 speed: "2-4",
                 actionSlots: 1,
                 skills: ["skill_id_1"]
+            },
+            skillsData: {
+                rawEffects: "",
+                parsedEffects: []
             },
             meta: {
                 name: "",
@@ -242,17 +256,17 @@
             const uiTransform = `translate(${currentState.visual.uiX}px, ${currentState.visual.uiY}px)`;
 
             let bottomUI = '';
-            if (currentState.visual.isBoss) {
+            if (currentState.visual.isFocused) {
                 bottomUI = `
-                    <div class="boss-ui-rect" style="transform: ${uiTransform};">
-                        <div class="boss-hp-bar-container">
-                            <div class="boss-hp-fill-rect" style="width: 100%;"></div>
+                    <div class="focused-ui-rect" style="transform: ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
+                        <div class="focused-hp-bar-container">
+                            <div class="focused-hp-fill-rect" style="width: 100%;"></div>
                         </div>
                     </div>
                 `;
             } else {
                 bottomUI = `
-                    <svg class="diegetic-floor" viewBox="-100 -100 200 200" style="transform: rotateX(65deg) ${uiTransform};">
+                    <svg class="diegetic-floor" viewBox="-100 -100 200 200" style="transform: rotateX(65deg) ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
                         <polygon class="floor-bg-poly" points="${heptagonBase.full}" />
                         <polyline class="hp-track" points="${heptagonBase.front}" />
                         <polyline class="hp-fill-line" points="${heptagonBase.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: 0;" />
@@ -269,12 +283,12 @@
 
             previewContainer.innerHTML = `
                 <div class="combatant">
-                    <div class="top-ui-panel" style="transform: ${uiTransform};">
+                    <div class="top-ui-panel" style="transform: ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
                         <div class="speed-number">${currentState.mechanics.speed}</div>
                         ${slotsHtml}
                     </div>
 
-                    <div class="sprite-anchor" style="transform: ${spriteTransform};">
+                    <div class="sprite-anchor" style="transform: ${spriteTransform}; cursor: pointer;" onclick="document.getElementById('spriteXSlider').focus();">
                         ${currentState.visual.spriteUrl ? `<img src="${currentState.visual.spriteUrl}" class="sprite-img">` : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888;"></div>`}
                     </div>
 
@@ -283,18 +297,56 @@
             `;
         }
 
+        function parseSkillEffects(rawText) {
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+            const parsed = [];
+
+            const effectRegex = /\[(.*?)\]\s+(gain|apply)\s+(\d+)\s+(.+)/i;
+
+            lines.forEach(line => {
+                const match = line.match(effectRegex);
+                if (match) {
+                    const trigger = match[1].trim();
+                    const targetWord = match[2].toLowerCase();
+                    const value = parseInt(match[3], 10);
+                    const rawStatus = match[4].trim();
+
+                    // Map Gain -> self, Apply -> target
+                    const target = targetWord === 'gain' ? 'self' : 'target';
+
+                    // Naive status cleanup (remove "potency and count" and other trailing stuff for ID mapping)
+                    // We'll just lowercase and replace spaces with underscores for a basic status ID
+                    let statusId = rawStatus.toLowerCase().replace(/potency and count/i, '').replace(/potency/i, '').replace(/count/i, '').trim().replace(/\s+/g, '_');
+
+                    parsed.push({
+                        trigger: `[${trigger}]`,
+                        target: target,
+                        value: value,
+                        status: statusId,
+                        raw: line
+                    });
+                } else {
+                    // Try to catch lines that might not have a number, or just log them as raw strings
+                    parsed.push({
+                        trigger: "Unknown",
+                        raw: line
+                    });
+                }
+            });
+
+            return parsed;
+        }
+
         function initEditor() {
             console.log("DM Autenticado. Editor Inicializado.");
 
             // Inputs binding
-            const bindInput = (id, statePath, isNumber = false, valueLabelId = null) => {
+            const bindInput = (id, statePath, isNumber = false) => {
                 const el = document.getElementById(id);
                 el.addEventListener('input', (e) => {
                     let val = e.target.value;
                     if(e.target.type === 'checkbox') val = e.target.checked;
                     else if (isNumber) val = parseFloat(val) || 0;
-
-                    if (valueLabelId) document.getElementById(valueLabelId).innerText = val;
 
                     const paths = statePath.split('.');
                     if(paths.length === 2) currentState[paths[0]][paths[1]] = val;
@@ -304,12 +356,12 @@
             };
 
             bindInput('spriteUrl', 'visual.spriteUrl');
-            bindInput('isBossToggle', 'visual.isBoss');
-            bindInput('scaleSlider', 'visual.scale', true, 'scaleVal');
-            bindInput('spriteXSlider', 'visual.spriteX', true, 'spriteXVal');
-            bindInput('spriteYSlider', 'visual.spriteY', true, 'spriteYVal');
-            bindInput('uiXSlider', 'visual.uiX', true, 'uiXVal');
-            bindInput('uiYSlider', 'visual.uiY', true, 'uiYVal');
+            bindInput('isFocusedToggle', 'visual.isFocused');
+            bindInput('scaleSlider', 'visual.scale', true);
+            bindInput('spriteXSlider', 'visual.spriteX', true);
+            bindInput('spriteYSlider', 'visual.spriteY', true);
+            bindInput('uiXSlider', 'visual.uiX', true);
+            bindInput('uiYSlider', 'visual.uiY', true);
 
             bindInput('statHp', 'mechanics.hp', true);
             bindInput('statLevel', 'mechanics.level', true);
@@ -318,6 +370,23 @@
 
             document.getElementById('statSkills').addEventListener('input', (e) => {
                 try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
+            });
+
+            document.getElementById('rawSkillEffects').addEventListener('input', (e) => {
+                const rawText = e.target.value;
+                currentState.skillsData = currentState.skillsData || {};
+                currentState.skillsData.rawEffects = rawText;
+
+                const parsed = parseSkillEffects(rawText);
+                currentState.skillsData.parsedEffects = parsed;
+
+                const previewEl = document.getElementById('parsedEffectsPreview');
+                if (rawText.trim() === '') {
+                    previewEl.style.display = 'none';
+                } else {
+                    previewEl.style.display = 'block';
+                    previewEl.innerText = JSON.stringify(parsed, null, 2);
+                }
             });
 
             bindInput('metaName', 'meta.name');
@@ -378,28 +447,30 @@
 
             // Update UI inputs
             document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
-            document.getElementById('isBossToggle').checked = currentState.visual.isBoss || false;
+            document.getElementById('isFocusedToggle').checked = currentState.visual.isFocused || false;
 
             document.getElementById('scaleSlider').value = currentState.visual.scale;
-            document.getElementById('scaleVal').innerText = currentState.visual.scale;
-
             document.getElementById('spriteXSlider').value = currentState.visual.spriteX;
-            document.getElementById('spriteXVal').innerText = currentState.visual.spriteX;
-
             document.getElementById('spriteYSlider').value = currentState.visual.spriteY;
-            document.getElementById('spriteYVal').innerText = currentState.visual.spriteY;
-
             document.getElementById('uiXSlider').value = currentState.visual.uiX;
-            document.getElementById('uiXVal').innerText = currentState.visual.uiX;
-
             document.getElementById('uiYSlider').value = currentState.visual.uiY;
-            document.getElementById('uiYVal').innerText = currentState.visual.uiY;
 
             document.getElementById('statHp').value = currentState.mechanics.hp;
             document.getElementById('statLevel').value = currentState.mechanics.level;
             document.getElementById('statSpeed').value = currentState.mechanics.speed;
             document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
             document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
+
+            if (currentState.skillsData && currentState.skillsData.rawEffects) {
+                const rawEl = document.getElementById('rawSkillEffects');
+                rawEl.value = currentState.skillsData.rawEffects;
+                // Trigger input event to update preview
+                rawEl.dispatchEvent(new Event('input'));
+            } else {
+                const rawEl = document.getElementById('rawSkillEffects');
+                rawEl.value = "";
+                rawEl.dispatchEvent(new Event('input'));
+            }
 
             document.getElementById('metaName').value = currentState.meta.name || '';
             document.getElementById('metaLinkedNpc').value = currentState.meta.linkedNPC || '';
