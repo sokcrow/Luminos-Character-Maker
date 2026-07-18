@@ -1311,6 +1311,11 @@
               <input type="number" id="custom-time-input" placeholder="Min..." style="width: 70px; background:#111; color:#fff; border:1px solid #555; text-align:center; border-radius:4px;">
               <button onclick="advanceCustomTime()" class="btn-cyber btn-green">Avanzar</button>
           </div>
+          <div style="font-size: 18px; color: #aaa; margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+            Clima: <select id="clima-selector-global" style="padding: 5px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;">
+              <!-- Injectado por JS si quieres -->
+            </select>
+          </div>
         </div>
         <div
           id="dashboard-clima"
@@ -3800,6 +3805,47 @@
 
       function initializeDMApp() {
 
+
+        // --- MOTOR DE CLIMA HEXAGONAL ---
+        const WEATHER_GRAPH_PRIMAVERA = {
+            "Soleado": ["Calor", "Parcialmente Nublado"],
+            "Calor": ["Soleado", "Parcialmente Nublado", "Húmedo"],
+            "Parcialmente Nublado": ["Soleado", "Calor", "Nublado"],
+            "Húmedo": ["Calor", "Nublado"],
+            "Nublado": ["Húmedo", "Parcialmente Nublado", "Lluvia"],
+            "Lluvia": ["Nublado"]
+        };
+
+        let currentWeather = "Soleado";
+        let previousWeather = null;
+
+        function calculateNextWeather(currentState, prevState) {
+            const connections = WEATHER_GRAPH_PRIMAVERA[currentState];
+            if (!connections || connections.length === 0) return currentState;
+
+            // Filtro Anti-Rebote: Eliminar el clima previo de las opciones válidas
+            let validTransitions = connections;
+            if (prevState && connections.includes(prevState) && connections.length > 1) {
+                validTransitions = connections.filter(w => w !== prevState);
+            }
+
+            // Distribuir probabilidad uniformemente
+            const roll = Math.floor(Math.random() * validTransitions.length);
+            return validTransitions[roll];
+        }
+
+        function forceWeatherUpdate(newWeather) {
+            previousWeather = currentWeather;
+            currentWeather = newWeather;
+            pushTimeUpdate(); // Usamos la misma función de update del reloj para subir a Firebase
+            updateWeatherUI();
+        }
+
+        function updateWeatherUI() {
+            const select = document.getElementById("clima-selector-global");
+            if (select) select.value = currentWeather;
+        }
+
         // --- GESTIÓN DE TIEMPO / RELOJ GLOBAL (Rollover Automático) ---
         let currentWorldDate = new Date();
         let currentWorldTimeSynced = false;
@@ -3831,6 +3877,9 @@
                                 currentWorldTimeSynced = true;
                                 updateTimeDisplay();
                             });
+                            currentWeather = data.clima || "Soleado";
+                            previousWeather = data.clima_previo || null;
+                            updateWeatherUI();
                         }
                     });
                 }
@@ -3853,7 +3902,18 @@
 
         window.advanceTime = function(minutes) {
             if (!currentWorldTimeSynced) return;
+            const oldDate = currentWorldDate.getDate();
             currentWorldDate.setMinutes(currentWorldDate.getMinutes() + minutes);
+
+            // Check for Rollover (Cambio de Día)
+            if (currentWorldDate.getDate() !== oldDate) {
+                const nextWeather = calculateNextWeather(currentWeather, previousWeather);
+                previousWeather = currentWeather;
+                currentWeather = nextWeather;
+                updateWeatherUI();
+                console.log("¡Medianoche superada! Nuevo clima tirado:", currentWeather);
+            }
+
             pushTimeUpdate();
             reduceTaskTimes(minutes);
         };
@@ -3880,7 +3940,9 @@
                 "campaña/estado_mundo/año": yyyy,
                 "campaña/estado_mundo/mes": mm,
                 "campaña/estado_mundo/dia": dd,
-                "campaña/hora_actual": horaActualStr
+                "campaña/hora_actual": horaActualStr,
+                "campaña/estado_mundo/clima": currentWeather,
+                "campaña/estado_mundo/clima_previo": previousWeather || null
             };
 
             db.ref().update(updates).then(() => {
@@ -3891,6 +3953,24 @@
         }
 
         syncWorldTime();
+        db.ref("campaña/estado_mundo").on("value", snap => {
+            const data = snap.val();
+            if (data && data.clima) {
+                currentWeather = data.clima;
+                previousWeather = data.clima_previo || null;
+                updateWeatherUI();
+            }
+        });
+
+        // Initialize UI Select
+        const climaSelect = document.getElementById("clima-selector-global");
+        if (climaSelect) {
+            climaSelect.innerHTML = Object.keys(WEATHER_GRAPH_PRIMAVERA).map(w => `<option value="${w}">${w}</option>`).join('');
+            climaSelect.addEventListener('change', (e) => {
+                forceWeatherUpdate(e.target.value);
+            });
+        }
+
 
         // --- MOTOR DE ROL TURNS ---
         // Se nutre de dbJugadoresCache que ya existe
@@ -4656,56 +4736,11 @@
           },
         );
 
-        document
-          .getElementById("btn-fijar-hora")
-          .addEventListener("click", () => {
-            const newTime = document.getElementById("dm-time-input").value;
 
-            if (newTime) {
-              // Guardar (set) el valor en el nodo de Firebase
-              db.ref("campaña/hora_actual")
-                .set(newTime)
-                .then(() => {
-                  console.log("Hora global actualizada a:", newTime);
-                  alert("Hora fijada a: " + newTime);
-                })
-                .catch((error) => {
-                  console.error("Error al actualizar la hora:", error);
-                  alert("Error al fijar la hora.");
-                });
             }
           });
 
-        document
-          .getElementById("btn-avanzar-hora")
-          .addEventListener("click", () => {
-            const currentTime = document.getElementById("dm-time-input").value;
 
-            if (currentTime) {
-              let [hours, minutes] = currentTime.split(":").map(Number);
-
-              // Random amount between 5 and 10 minutes
-              const minutesToAdd = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
-
-              minutes += minutesToAdd;
-
-              if (minutes >= 60) {
-                minutes -= 60;
-                hours = (hours + 1) % 24;
-              }
-
-              const newTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-              document.getElementById("dm-time-input").value = newTime;
-
-              db.ref("campaña/hora_actual")
-                .set(newTime)
-                .then(() => {
-                  console.log("Hora global avanzada a:", newTime);
-                })
-                .catch((error) => {
-                  console.error("Error al actualizar la hora:", error);
-                  alert("Error al avanzar la hora.");
-                });
             } else {
               alert(
                 "Por favor, ingresa o carga una hora inicial en el Reloj Global.",
@@ -4713,92 +4748,7 @@
             }
           });
 
-        document
-          .getElementById("btn-avanzar-dia")
-          .addEventListener("click", () => {
-            let nuevoAño = estadoActual.año;
-            let nuevoMes = estadoActual.mes;
-            let nuevoDia = estadoActual.dia + 1;
 
-            const diasMesActual = diasPorMes[nuevoMes] || 30;
-
-            if (nuevoDia > diasMesActual) {
-              nuevoDia = 1;
-              nuevoMes++;
-              if (nuevoMes > 12) {
-                nuevoMes = 1; // Un año nuevo
-                nuevoAño++;
-              }
-            }
-
-            const nuevoClima = calcularSiguienteClima(
-              estadoActual.clima,
-              nuevoMes,
-            );
-
-            const nuevoEstado = {
-              año: nuevoAño,
-              dia: nuevoDia,
-              mes: nuevoMes,
-              clima: nuevoClima,
-            };
-
-            db.ref("campaña/calendario")
-              .set(nuevoEstado)
-              .then(() => {
-                console.log("Calendario (Auto) actualizado:", nuevoEstado);
-
-                // Lógica de Auto-Restock de tiendas
-                const diasSemana = [
-                  "Domingo",
-                  "Lunes",
-                  "Martes",
-                  "Miércoles",
-                  "Jueves",
-                  "Viernes",
-                  "Sábado",
-                ];
-                // JS Date usa meses 0-11
-                const fechaJS = new Date(nuevoAño, nuevoMes - 1, nuevoDia);
-                const nuevoDiaSemana = diasSemana[fechaJS.getDay()];
-
-                db.ref("campaña/tiendas")
-                  .once("value")
-                  .then((snapshot) => {
-                    const tiendas = snapshot.val();
-                    if (tiendas) {
-                      const updates = {};
-                      for (const [idTienda, tiendaData] of Object.entries(
-                        tiendas,
-                      )) {
-                        if (
-                          tiendaData.dia_restock === nuevoDiaSemana &&
-                          tiendaData.items
-                        ) {
-                          for (const [idItem, itemData] of Object.entries(
-                            tiendaData.items,
-                          )) {
-                            if (itemData.stock_maximo !== -1) {
-                              updates[
-                                `${idTienda}/items/${idItem}/stock_actual`
-                              ] = itemData.stock_maximo;
-                            }
-                          }
-                        }
-                      }
-                      if (Object.keys(updates).length > 0) {
-                        db.ref("campaña/tiendas")
-                          .update(updates)
-                          .then(() =>
-                            console.log(
-                              "Restock de tiendas completado para el día:",
-                              nuevoDiaSemana,
-                            ),
-                          )
-                          .catch((e) => console.error("Error en restock:", e));
-                      }
-                    }
-                  });
               })
               .catch((error) => {
                 console.error("Error al actualizar calendario (Auto):", error);
@@ -4806,35 +4756,7 @@
               });
           });
 
-        document
-          .getElementById("btn-forzar-estado")
-          .addEventListener("click", () => {
-            const debugAño =
-              parseInt(document.getElementById("debug-año").value) || 984;
-            const debugDia =
-              parseInt(document.getElementById("debug-dia").value) || 1;
-            const debugMes =
-              parseInt(document.getElementById("debug-mes").value) || 1;
-            const debugClima =
-              document.getElementById("debug-clima").value || "Despejado";
 
-            const estadoForzado = {
-              año: debugAño,
-              dia: debugDia,
-              mes: debugMes,
-              clima: debugClima,
-            };
-
-            db.ref("campaña/calendario")
-              .set(estadoForzado)
-              .then(() => {
-                console.log("Calendario (Debug) actualizado:", estadoForzado);
-                alert("Estado del calendario forzado con éxito.");
-              })
-              .catch((error) => {
-                console.error("Error al forzar calendario:", error);
-                alert("Error al forzar calendario.");
-              });
           });
 
         // --- NUEVA LÓGICA DE METEOROLOGÍA Y CLIMA ---
