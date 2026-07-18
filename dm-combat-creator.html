@@ -92,7 +92,28 @@
     </div>
 
 
-    <div id="editor-sidebar" style="width: 350px; background: #111; padding: 20px; overflow-y: auto; border-left: 1px solid #333;">
+    <div id="editor-sidebar" style="width: 350px; background: #111; padding: 20px; overflow-y: auto; border-left: 1px solid #333; display: flex; flex-direction: column;">
+        <div id="dm-dashboard" style="background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; border-radius: 6px; display: flex; flex-direction: column; margin-bottom: 20px;">
+            <div class="dm-header" style="background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; color: #ffdd44; letter-spacing: 1px; text-transform: uppercase;">
+                Combat Creator & Directory
+            </div>
+            <div class="dm-tools" style="padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 300px;">
+                <div class="dm-directory-group">
+                    <div class="directory-tabs" style="display: flex; gap: 2px; margin-bottom: 5px;">
+                        <button onclick="switchTab('players')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">Jugadores</button>
+                        <button onclick="switchTab('npcs')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">NPCs</button>
+                        <button onclick="switchTab('enemies')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">Enemigos</button>
+                    </div>
+
+                    <input type="text" id="tag-search" placeholder="Buscar tags (ej. syndicate, boss)..." onkeyup="filterDirectory()" style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #555; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+
+                    <div id="directory-list" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid #443311; padding: 4px; border-radius: 3px;">
+                        <!-- Los resultados se renderizan aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <h2>Combat Encounter Creator</h2>
 
         <!-- Controles Visuales -->
@@ -267,6 +288,7 @@
                 window.location.replace("index.html");
             } else {
                 initEditor();
+                filterDirectory();
             }
         });
 
@@ -285,6 +307,21 @@
         const heptagonBase = generateHeptagonPoints(85);
 
         // Variables de estado
+        const ENTITY_DB = {
+            players: [
+                { id: "p_1", name: "Jeske", tags: ["sinner", "frontline"], isCombatant: true, combatTemplate: {} }
+            ],
+            npcs: [
+                { id: "n_1", name: "Pierre", tags: ["ally", "syndicate", "bistrot"], isCombatant: true, combatTemplate: {} }
+            ],
+            enemies: [
+                { id: "e_1", name: "Syndicate Hooligan", tags: ["enemy", "syndicate", "minion"], isCombatant: true, combatTemplate: {} },
+                { id: "e_2", name: "Distortion Faust", tags: ["enemy", "boss", "focused"], isCombatant: true, combatTemplate: {} }
+            ]
+        };
+
+        let currentDirectoryTab = 'enemies';
+
         let currentState = {
             visual: {
                 spriteUrl: "",
@@ -528,6 +565,48 @@
                     alert("Error generando skill JSON.");
                 }
             });
+        }
+
+        function switchTab(tabName) {
+            currentDirectoryTab = tabName;
+            filterDirectory();
+        }
+
+        function filterDirectory() {
+            const query = document.getElementById('tag-search').value.toLowerCase().trim();
+            const listContainer = document.getElementById('directory-list');
+            listContainer.innerHTML = ''; // Limpiar lista
+
+            // Buscar coincidencias parciales en el nombre o en el arreglo de tags
+            const results = ENTITY_DB[currentDirectoryTab].filter(entity => {
+                const matchName = entity.name.toLowerCase().includes(query);
+                const matchTag = entity.tags.some(tag => tag.toLowerCase().includes(query));
+                return matchName || matchTag;
+            });
+
+            // Renderizar botones de selección
+            results.forEach(entity => {
+                const btn = document.createElement('div');
+                btn.style.cssText = "padding: 4px; border-bottom: 1px solid #332211; cursor: pointer; color: #ccc; font-size: 11px;";
+                btn.innerHTML = `<strong>${entity.name}</strong> <span style="color: #886633;">[${entity.tags.join(', ')}]</span>`;
+
+                btn.onclick = () => loadEntityIntoEditor(entity);
+
+                // Efecto hover simple
+                btn.onmouseover = () => btn.style.background = '#221100';
+                btn.onmouseout = () => btn.style.background = 'transparent';
+
+                listContainer.appendChild(btn);
+            });
+        }
+
+        function loadEntityIntoEditor(entity) {
+            if (!entity.isCombatant || !entity.combatTemplate) {
+                console.warn("La entidad seleccionada no tiene datos de combate vinculados.");
+                return;
+            }
+            console.log("Cargando plantilla en el editor:", entity.name);
+            loadTemplate(entity.combatTemplate);
         }
 
         function initEditor() {
