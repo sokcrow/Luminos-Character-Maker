@@ -1250,8 +1250,9 @@
 
     <div class="dm-tabs-nav">
       <button class="dm-tab-btn active" data-tab="tab-tiempo">
-        Tiempo/Clima
+        Tiempo
       </button>
+      <button class="dm-tab-btn" data-tab="tab-clima">Clima</button>
       <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
       <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
       <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
@@ -1282,7 +1283,7 @@
         align-items: center;
       "
     >
-      <!-- TAB: TIEMPO / CLIMA -->
+      <!-- TAB: TIEMPO -->
       <div id="tab-tiempo" class="dm-tab-pane active">
         <div
           id="dm-auto-panel"
@@ -1311,94 +1312,85 @@
               <input type="number" id="custom-time-input" placeholder="Min..." style="width: 70px; background:#111; color:#fff; border:1px solid #555; text-align:center; border-radius:4px;">
               <button onclick="advanceCustomTime()" class="btn-cyber btn-green">Avanzar</button>
           </div>
-          <div style="font-size: 18px; color: #aaa; margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-            Clima: <select id="clima-selector-global" style="padding: 5px; background: #222; color: #0df; border: 1px solid #444; border-radius: 4px;">
-              <!-- Injectado por JS si quieres -->
-            </select>
-          </div>
-        </div>
-        <div
-          id="dashboard-clima"
-          class="panel-cyber"
-          style="
-            margin-top: 20px;
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            flex-wrap: wrap;
-          "
-        >
-          <div style="flex: 1; min-width: 300px">
-            <h3>Gestión de Climas</h3>
-            <div class="form-cyber" style="width: 100%; max-width: none">
-              <input
-                type="text"
-                id="clima-nombre"
-                placeholder="Nombre del Clima (Ej. Lluvia Ácida)"
-              />
-              <textarea
-                id="clima-desc"
-                placeholder="Descripción"
-                rows="2"
-              ></textarea>
-              <textarea
-                id="clima-efectos"
-                placeholder="Efectos Mecánicos"
-                rows="2"
-              ></textarea>
-              <select id="clima-estacion">
-                <option value="Todas">Todas las Estaciones</option>
-                <option value="Primavera">Primavera</option>
-                <option value="Verano">Verano</option>
-                <option value="Otoño">Otoño</option>
-                <option value="Invierno">Invierno</option>
-              </select>
-              <label
-                style="
-                  color: #c49a00;
-                  display: flex;
-                  align-items: center;
-                  gap: 10px;
-                "
-              >
-                ¿Es Hazard / Peligroso?
-                <input type="checkbox" id="clima-hazard" style="width: auto" />
-              </label>
-              <input
-                type="number"
-                id="clima-peso"
-                placeholder="Probabilidad / Peso"
-              />
-              <button id="btn-guardar-clima" class="btn-cyber btn-green">
-                Guardar Clima
-              </button>
-            </div>
-          </div>
 
-          <div
-            style="
-              flex: 1;
-              min-width: 300px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-            "
-          >
-            <h3>Grafo de Conexiones Climáticas</h3>
-            <div id="weather-hexagon-container" style="position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); border-radius: 8px; border: 1px solid #444;">
-                <svg id="weather-hexagon-svg" width="300" height="300" style="position: absolute; top: 0; left: 0; pointer-events: none;">
-                    <!-- SVG lines and text will be injected here -->
-                </svg>
-                <div id="weather-nodes-container" style="position: absolute; width: 100%; height: 100%;">
-                    <!-- HTML nodes will be injected here -->
+        </div>
+
+      <!-- TAB: CLIMA -->
+      <div id="tab-clima" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px; display: flex; flex-direction: row; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center;">
+
+            <div style="flex: 1; min-width: 320px; max-width: 400px; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 8px; border: 1px solid #c49a00; box-shadow: 0 0 15px rgba(196,154,0,0.2);">
+                <h3 style="color: #c49a00; margin-top:0;">Grafo Hexagonal</h3>
+
+                <div style="margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+                    <label style="color: #aaa; font-size: 14px; text-transform: uppercase;">Estado Actual en el Mundo:</label>
+                    <select id="clima-selector-global" style="padding: 10px; background: #111; color: #0df; border: 2px solid #0df; border-radius: 4px; font-size: 18px; font-weight: bold; width: 80%; text-align: center; cursor: pointer; outline: none; box-shadow: 0 0 10px rgba(0, 221, 255, 0.3);">
+                    <!-- Injectado por JS -->
+                    </select>
+                    <span style="font-size: 11px; color: #666;">(Cambiar aquí forza el clima instantáneamente)</span>
+                </div>
+
+                <div id="weather-hexagon-container" style="position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center;">
+                    <svg id="weather-hexagon-svg" width="300" height="300" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+                    </svg>
+                    <div id="weather-nodes-container" style="position: absolute; width: 100%; height: 100%;">
+                    </div>
                 </div>
             </div>
-          </div>
+
+            <div style="flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 15px;">
+                <button onclick="toggleWeatherManager()" class="btn-cyber" style="background: #111; color: #0df; border: 1px solid #0df; padding: 15px; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Gestor de Climas (Avanzado)</span>
+                    <span id="wm-toggle-icon">▼</span>
+                </button>
+
+                <div id="weather-manager-container" style="display: none; flex-direction: column; gap: 15px; animation: fadeIn 0.3s ease;">
+                    <div class="form-cyber" style="width: 100%; max-width: none; background: rgba(20,20,20,0.9);">
+                      <h4 style="color:#aaa;">Crear / Modificar Climas</h4>
+                      <input type="text" id="clima-nombre" placeholder="Nombre del Clima (Ej. Lluvia Ácida)"/>
+                      <textarea id="clima-desc" placeholder="Descripción" rows="2"></textarea>
+                      <textarea id="clima-efectos" placeholder="Efectos Mecánicos" rows="2"></textarea>
+                      <select id="clima-estacion">
+                        <option value="Todas">Todas las Estaciones</option>
+                        <option value="Primavera">Primavera</option>
+                        <option value="Verano">Verano</option>
+                        <option value="Otoño">Otoño</option>
+                        <option value="Invierno">Invierno</option>
+                      </select>
+                      <label style="color: #c49a00; display: flex; align-items: center; gap: 10px;">
+                        ¿Es Hazard / Peligroso?
+                        <input type="checkbox" id="clima-hazard" style="width: auto" />
+                      </label>
+                      <input type="number" id="clima-peso" placeholder="Probabilidad / Peso (Usar para Sesgos)"/>
+                      <button id="btn-guardar-clima" class="btn-cyber btn-green">Guardar en Base de Datos</button>
+                    </div>
+                </div>
+
+            </div>
         </div>
       </div>
 
+      <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
 
-      <!-- TAB: GESTIÓN DE TURNOS -->
+      <script>
+        function toggleWeatherManager() {
+            const container = document.getElementById('weather-manager-container');
+            const icon = document.getElementById('wm-toggle-icon');
+            if(container.style.display === 'none') {
+                container.style.display = 'flex';
+                icon.innerText = '▲';
+            } else {
+                container.style.display = 'none';
+                icon.innerText = '▼';
+            }
+        }
+      </script>
+<!-- TAB: GESTIÓN DE TURNOS -->
       <div id="tab-turnos" class="dm-tab-pane">
         <div class="panel-cyber" style="margin-top: 20px;">
           <h3>Gestión de Turnos (Cámara y Acción)</h3>
@@ -3952,6 +3944,9 @@
                 svg.appendChild(text);
             });
         }
+
+        // Render initial default
+        setTimeout(() => renderWeatherHexagon(), 500);
 
         function generateWeatherForecast(startState, startPrevState) {
             let forecast = [];
