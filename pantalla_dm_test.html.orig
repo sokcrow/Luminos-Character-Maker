@@ -3814,22 +3814,15 @@
             const connections = WEATHER_GRAPH_PRIMAVERA[currentState];
             if (!connections || connections.length === 0) return currentState;
 
+            // Filtro Anti-Rebote: Eliminar el clima previo de las opciones válidas
             let validTransitions = connections;
-            let hasBounceFilter = false;
             if (prevState && connections.includes(prevState) && connections.length > 1) {
                 validTransitions = connections.filter(w => w !== prevState);
-                hasBounceFilter = true;
             }
 
-            // Regla del 1%
-            const roll = Math.random() * 100;
-            if (hasBounceFilter && roll <= 1.0) {
-                return prevState;
-            }
-
-            // El 99% restante se divide entre las válidas
-            const index = Math.floor((roll - (hasBounceFilter ? 1 : 0)) / ( (hasBounceFilter ? 99 : 100) / validTransitions.length ));
-            return validTransitions[Math.min(index, validTransitions.length - 1)];
+            // Distribuir probabilidad uniformemente
+            const roll = Math.floor(Math.random() * validTransitions.length);
+            return validTransitions[roll];
         }
 
         function forceWeatherUpdate(newWeather) {
