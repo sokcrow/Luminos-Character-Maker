@@ -132,8 +132,8 @@
                 <label style="flex: 1;">Velocidad: <input type="text" id="statSpeed" value="2-4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
                 <label style="flex: 1;">Action Slots: <input type="number" id="statSlots" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
             </div>
-            <label style="display:none; margin-top: 5px;">Skills (JSON Array IDs):
-                <textarea id="statSkills" style="display:none; width: 100%; height: 60px; background: #222; color: white; border: 1px solid #555;">["skill_id_1"]</textarea>
+            <label style="display:block; margin-top: 5px;">Skills (JSON Array IDs):
+                <textarea id="statSkills" style="width: 100%; height: 60px; background: #222; color: white; border: 1px solid #555;">["skill_id_1"]</textarea>
             </label>
         </fieldset>
 
@@ -195,7 +195,7 @@
             <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px;">
                 <strong>Efectos Globales (Pre/Post)</strong>
                 <div id="sb-global-effects-container" style="margin-bottom: 5px;"></div>
-                <button type="button" id="sb-btn-add-global" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 11px; cursor: pointer;">+ Añadir Efecto Global</button>
+                <button id="sb-btn-add-global" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 11px; cursor: pointer;">+ Añadir Efecto Global</button>
             </div>
 
             <!-- Monedas Dinámicas -->
@@ -205,7 +205,7 @@
             </div>
 
             <div style="margin-top: 15px;">
-                <button type="button" id="sb-btn-push-skill" style="width: 100%; padding: 8px; margin-top: 5px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold;">Añadir a la Unidad</button>
+                <button id="sb-btn-push-skill" style="width: 100%; padding: 8px; margin-top: 5px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold;">Añadir a la Unidad</button>
             </div>
         </fieldset>
 
@@ -382,7 +382,7 @@
                     <input type="number" class="eff-potency" placeholder="Pot" style="width:40px; font-size:10px;">
                     <input type="number" class="eff-count" placeholder="Cnt" style="width:40px; font-size:10px;">
                     <select class="eff-status" style="flex:1.5; font-size:10px;">${generateStatusOptions()}</select>
-                    <button type="button" class="eff-remove" style="background:#dc3545; color:white; border:none; cursor:pointer; font-size:10px;">X</button>
+                    <button class="eff-remove" style="background:#dc3545; color:white; border:none; cursor:pointer; font-size:10px;">X</button>
                 </div>
             `;
         }
@@ -484,7 +484,7 @@
                         block.innerHTML = `
                             <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #ffdd44;">Moneda ${roman[i] || (i+1)}</div>
                             <div class="coin-effects-container"></div>
-                            <button type="button" class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
+                            <button class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
                         `;
                         const effectContainer = block.querySelector('.coin-effects-container');
                         block.querySelector('.sb-btn-add-coin-effect').addEventListener('click', () => {
