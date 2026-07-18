@@ -8122,3 +8122,10 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 .hud-right-container > *:last-child, .theatre-controls > *:last-child {
     margin-bottom: 0 !important;
 }
+
+.sheet-no-signal-overlay {
+    z-index: 1000;
+}
+.sheet-tab-banco, .sheet-tab-mail {
+    position: relative; /* to contain the overlay */
+}
