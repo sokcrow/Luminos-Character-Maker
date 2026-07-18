@@ -1250,8 +1250,10 @@
 
     <div class="dm-tabs-nav">
       <button class="dm-tab-btn active" data-tab="tab-tiempo">
-        Tiempo/Clima
+        Tiempo
       </button>
+      <button class="dm-tab-btn" data-tab="tab-clima">Clima</button>
+      <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
       <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
       <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
@@ -1281,17 +1283,8 @@
         align-items: center;
       "
     >
-      <!-- TAB: TIEMPO / CLIMA -->
+      <!-- TAB: TIEMPO -->
       <div id="tab-tiempo" class="dm-tab-pane active">
-        <div id="dm-time-panel">
-          <label for="dm-time-input">Reloj Global:</label>
-          <div style="display: flex; gap: 10px">
-            <input type="time" id="dm-time-input" />
-            <button id="btn-fijar-hora">Fijar Hora</button>
-            <button id="btn-avanzar-hora">+ 5-10 Min</button>
-          </div>
-        </div>
-
         <div
           id="dm-auto-panel"
           style="
@@ -1307,234 +1300,108 @@
             align-items: center;
           "
         >
-          <h3 style="margin: 0; color: #c49a00">ZONA 1: PILOTO AUTOMÁTICO</h3>
-          <div style="font-size: 16px">
-            Fecha Actual:
-            <span id="lbl-auto-fecha">Año 984 / Mes 1 / Día 1</span>
+          <h3 style="margin: 0; color: #c49a00; font-family: 'BebasKai', sans-serif; letter-spacing: 2px;">RELOJ GLOBAL Y AMBIENTE</h3>
+          <div id="dm-time-display" style="font-size: 28px; font-family: 'Share Tech Mono', monospace; color: #0df; text-shadow: 0 0 10px #0df; letter-spacing: 2px; text-align: center; background: #000; padding: 15px 30px; border-radius: 8px; border: 2px solid #0df;">
+            📅 --/--/---- | ⏱️ --:--
           </div>
-          <div style="font-size: 16px">
-            Clima Actual: <span id="lbl-auto-clima">Despejado</span>
+          <div class="dm-time-controls" style="display: flex; gap: 8px; margin-top: 10px;">
+              <button onclick="advanceTime(5)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+5m</button>
+              <button onclick="advanceTime(10)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+10m</button>
+              <button onclick="advanceTime(30)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+30m</button>
+              <button onclick="advanceTime(60)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+1h</button>
+              <input type="number" id="custom-time-input" placeholder="Min..." style="width: 70px; background:#111; color:#fff; border:1px solid #555; text-align:center; border-radius:4px;">
+              <button onclick="advanceCustomTime()" class="btn-cyber btn-green">Avanzar</button>
           </div>
-          <button
-            id="btn-avanzar-dia"
-            style="
-              padding: 15px 30px;
-              font-size: 18px;
-              margin-top: 10px;
-              background: #004400;
-              border-color: #00ff00;
-              color: white;
-              cursor: pointer;
-              border-radius: 4px;
-            "
-          >
-            Avanzar Día y Generar Clima
-          </button>
+
         </div>
 
-        <div
-          id="dm-debug-panel"
-          style="
-            margin-top: 20px;
-            background-color: rgba(15, 15, 20, 0.9);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #8b0000;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center;
-          "
-        >
-          <h3 style="margin: 0; color: #ff4444">ZONA 2: MODO DEBUG</h3>
+      <!-- TAB: CLIMA -->
+      <div id="tab-clima" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px; display: flex; flex-direction: row; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center;">
 
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label>Año:</label>
-            <input
-              type="number"
-              id="debug-año"
-              min="984"
-              value="984"
-              style="
-                width: 70px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
+            <div style="flex: 1; min-width: 320px; max-width: 400px; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 8px; border: 1px solid #c49a00; box-shadow: 0 0 15px rgba(196,154,0,0.2);">
+                <h3 style="color: #c49a00; margin-top:0;">Grafo Hexagonal</h3>
 
-            <label>Mes:</label>
-            <input
-              type="number"
-              id="debug-mes"
-              min="1"
-              max="12"
-              value="1"
-              style="
-                width: 50px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
+                <div style="margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+                    <label style="color: #aaa; font-size: 14px; text-transform: uppercase;">Estado Actual en el Mundo:</label>
+                    <select id="clima-selector-global" style="padding: 10px; background: #111; color: #0df; border: 2px solid #0df; border-radius: 4px; font-size: 18px; font-weight: bold; width: 80%; text-align: center; cursor: pointer; outline: none; box-shadow: 0 0 10px rgba(0, 221, 255, 0.3);">
+                    <!-- Injectado por JS -->
+                    </select>
+                    <span style="font-size: 11px; color: #666;">(Cambiar aquí forza el clima instantáneamente)</span>
+                </div>
 
-            <label>Día:</label>
-            <input
-              type="number"
-              id="debug-dia"
-              min="1"
-              max="31"
-              value="1"
-              style="
-                width: 50px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label>Nodo de Clima:</label>
-            <select
-              id="debug-clima"
-              style="
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            >
-              <option value="Despejado">Despejado</option>
-              <option value="Nublado">Nublado</option>
-              <option value="Húmedo">Húmedo</option>
-              <option value="Lluvia">Lluvia</option>
-              <option value="Lluvia Ácida">Lluvia Ácida</option>
-              <option value="Tormenta">Tormenta</option>
-              <option value="Tormenta Eléctrica">Tormenta Eléctrica</option>
-              <option value="Niebla">Niebla</option>
-              <option value="Niebla Densa">Niebla Densa</option>
-              <option value="Ola de Calor">Ola de Calor</option>
-              <option value="Nieve">Nieve</option>
-              <option value="Nevada Extrema">Nevada Extrema</option>
-              <option value="Vientos Fuertes">Vientos Fuertes</option>
-              <option value="Vientos Huracanados">Vientos Huracanados</option>
-            </select>
-          </div>
-
-          <button
-            id="btn-forzar-estado"
-            style="
-              padding: 10px 20px;
-              font-size: 16px;
-              margin-top: 10px;
-              background: #8b0000;
-              border-color: #ff0000;
-              color: white;
-            "
-          >
-            FORZAR ESTADO EN FIREBASE
-          </button>
-        </div>
-
-        <!-- NUEVO DASHBOARD: METEOROLOGÍA Y CLIMA -->
-        <div
-          id="dashboard-clima"
-          class="panel-cyber"
-          style="
-            margin-top: 20px;
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            flex-wrap: wrap;
-          "
-        >
-          <div style="flex: 1; min-width: 300px">
-            <h3>Gestión de Climas</h3>
-            <div class="form-cyber" style="width: 100%; max-width: none">
-              <input
-                type="text"
-                id="clima-nombre"
-                placeholder="Nombre del Clima (Ej. Lluvia Ácida)"
-              />
-              <textarea
-                id="clima-desc"
-                placeholder="Descripción"
-                rows="2"
-              ></textarea>
-              <textarea
-                id="clima-efectos"
-                placeholder="Efectos Mecánicos"
-                rows="2"
-              ></textarea>
-              <select id="clima-estacion">
-                <option value="Todas">Todas las Estaciones</option>
-                <option value="Primavera">Primavera</option>
-                <option value="Verano">Verano</option>
-                <option value="Otoño">Otoño</option>
-                <option value="Invierno">Invierno</option>
-              </select>
-              <label
-                style="
-                  color: #c49a00;
-                  display: flex;
-                  align-items: center;
-                  gap: 10px;
-                "
-              >
-                ¿Es Hazard / Peligroso?
-                <input type="checkbox" id="clima-hazard" style="width: auto" />
-              </label>
-              <input
-                type="number"
-                id="clima-peso"
-                placeholder="Probabilidad / Peso"
-              />
-              <button id="btn-guardar-clima" class="btn-cyber btn-green">
-                Guardar Clima
-              </button>
+                <div id="weather-hexagon-container" style="position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center;">
+                    <svg id="weather-hexagon-svg" width="300" height="300" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+                    </svg>
+                    <div id="weather-nodes-container" style="position: absolute; width: 100%; height: 100%;">
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div
-            style="
-              flex: 1;
-              min-width: 300px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-            "
-          >
-            <h3>Visualizador Radial</h3>
-            <div
-              id="clima-radial-container"
-              style="
-                position: relative;
-                width: 300px;
-                height: 300px;
-                border-radius: 50%;
-                border: 2px dashed #444;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: rgba(0, 0, 0, 0.5);
-              "
-            >
-              <!-- Inyectado por JS -->
+            <div style="flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 15px;">
+                <button onclick="toggleWeatherManager()" class="btn-cyber" style="background: #111; color: #0df; border: 1px solid #0df; padding: 15px; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Gestor de Climas (Avanzado)</span>
+                    <span id="wm-toggle-icon">▼</span>
+                </button>
+
+                <div id="weather-manager-container" style="display: none; flex-direction: column; gap: 15px; animation: fadeIn 0.3s ease;">
+                    <div class="form-cyber" style="width: 100%; max-width: none; background: rgba(20,20,20,0.9);">
+                      <h4 style="color:#aaa;">Crear / Modificar Climas</h4>
+                      <input type="text" id="clima-nombre" placeholder="Nombre del Clima (Ej. Lluvia Ácida)"/>
+                      <textarea id="clima-desc" placeholder="Descripción" rows="2"></textarea>
+                      <textarea id="clima-efectos" placeholder="Efectos Mecánicos" rows="2"></textarea>
+                      <select id="clima-estacion">
+                        <option value="Todas">Todas las Estaciones</option>
+                        <option value="Primavera">Primavera</option>
+                        <option value="Verano">Verano</option>
+                        <option value="Otoño">Otoño</option>
+                        <option value="Invierno">Invierno</option>
+                      </select>
+                      <label style="color: #c49a00; display: flex; align-items: center; gap: 10px;">
+                        ¿Es Hazard / Peligroso?
+                        <input type="checkbox" id="clima-hazard" style="width: auto" />
+                      </label>
+                      <input type="number" id="clima-peso" placeholder="Probabilidad / Peso (Usar para Sesgos)"/>
+                      <button id="btn-guardar-clima" class="btn-cyber btn-green">Guardar en Base de Datos</button>
+                    </div>
+                </div>
+
             </div>
-          </div>
         </div>
       </div>
 
-      <!-- TAB: BANCO / COMUNICACIONES -->
+      <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+
+      <script>
+        function toggleWeatherManager() {
+            const container = document.getElementById('weather-manager-container');
+            const icon = document.getElementById('wm-toggle-icon');
+            if(container.style.display === 'none') {
+                container.style.display = 'flex';
+                icon.innerText = '▲';
+            } else {
+                container.style.display = 'none';
+                icon.innerText = '▼';
+            }
+        }
+      </script>
+<!-- TAB: GESTIÓN DE TURNOS -->
+      <div id="tab-turnos" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px;">
+          <h3>Gestión de Turnos (Cámara y Acción)</h3>
+          <p style="text-align:center; color:#aaa;">Prioridad de Cámara: Jugadores Libres (Idle) suben, Jugadores Ocupados (Task) bajan.</p>
+
+          <div id="rol-turns-container" style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;">
+            <!-- Player Turn Cards Injected via JS -->
+          </div>
+        </div>
+      </div>
+<!-- TAB: BANCO / COMUNICACIONES -->
       <div id="tab-banco" class="dm-tab-pane">
         <div
           id="dm-banco-panel"
@@ -3922,6 +3789,470 @@
 
       function initializeDMApp() {
 
+        // --- MOTOR DE CLIMA HEXAGONAL ---
+        const WEATHER_GRAPH_PRIMAVERA = {
+            "Soleado": ["Calor", "Parcialmente Nublado"],
+            "Calor": ["Soleado", "Parcialmente Nublado", "Húmedo"],
+            "Parcialmente Nublado": ["Soleado", "Calor", "Nublado"],
+            "Húmedo": ["Calor", "Nublado"],
+            "Nublado": ["Húmedo", "Parcialmente Nublado", "Lluvia"],
+            "Lluvia": ["Nublado"]
+        };
+
+        let currentWeather = "Soleado";
+        let previousWeather = null;
+
+        function calculateNextWeather(currentState, prevState) {
+            const connections = WEATHER_GRAPH_PRIMAVERA[currentState];
+            if (!connections || connections.length === 0) return currentState;
+
+            let validTransitions = connections;
+            let hasBounceFilter = false;
+            if (prevState && connections.includes(prevState) && connections.length > 1) {
+                validTransitions = connections.filter(w => w !== prevState);
+                hasBounceFilter = true;
+            }
+
+            // Regla del 1%
+            const roll = Math.random() * 100;
+            if (hasBounceFilter && roll <= 1.0) {
+                return prevState;
+            }
+
+            // El 99% restante se divide entre las válidas
+            const index = Math.floor((roll - (hasBounceFilter ? 1 : 0)) / ( (hasBounceFilter ? 99 : 100) / validTransitions.length ));
+            return validTransitions[Math.min(index, validTransitions.length - 1)];
+        }
+
+        function forceWeatherUpdate(newWeather) {
+            previousWeather = currentWeather;
+            currentWeather = newWeather;
+            pushTimeUpdate(); // Usamos la misma función de update del reloj para subir a Firebase
+            updateWeatherUI();
+            renderWeatherHexagon();
+            generateWeatherForecast(currentWeather, previousWeather);
+        }
+
+        function updateWeatherUI() {
+            const select = document.getElementById("clima-selector-global");
+            if (select) select.value = currentWeather;
+        }
+
+        // --- PRONÓSTICO Y RENDERIZADO VISUAL ---
+        function renderWeatherHexagon() {
+            const svg = document.getElementById("weather-hexagon-svg");
+            const nodesContainer = document.getElementById("weather-nodes-container");
+            if (!svg || !nodesContainer) return;
+
+            svg.innerHTML = "";
+            nodesContainer.innerHTML = "";
+
+            const nodes = Object.keys(WEATHER_GRAPH_PRIMAVERA);
+            const radius = 100;
+            const centerX = 150;
+            const centerY = 150;
+
+            const nodePositions = {};
+
+            // Calculate positions for nodes (Hexagon layout)
+            nodes.forEach((node, index) => {
+                const angle = (index * 60 - 90) * (Math.PI / 180);
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                nodePositions[node] = { x, y };
+
+                // Draw HTML Node
+                const isCurrent = node === currentWeather;
+                const nodeDiv = document.createElement("div");
+                nodeDiv.innerText = node;
+                nodeDiv.style.position = "absolute";
+                nodeDiv.style.left = `${x}px`;
+                nodeDiv.style.top = `${y}px`;
+                nodeDiv.style.transform = "translate(-50%, -50%)";
+                nodeDiv.style.padding = "4px 8px";
+                nodeDiv.style.borderRadius = "4px";
+                nodeDiv.style.fontSize = "12px";
+                nodeDiv.style.fontWeight = "bold";
+                nodeDiv.style.textAlign = "center";
+                nodeDiv.style.zIndex = "10";
+                nodeDiv.style.background = isCurrent ? "#0df" : "#222";
+                nodeDiv.style.color = isCurrent ? "#000" : "#fff";
+                nodeDiv.style.border = `2px solid ${isCurrent ? "#fff" : "#444"}`;
+                nodeDiv.style.boxShadow = isCurrent ? "0 0 10px #0df" : "none";
+                nodesContainer.appendChild(nodeDiv);
+            });
+
+            // Calculate transitions and draw SVG lines
+            const connections = WEATHER_GRAPH_PRIMAVERA[currentWeather];
+            if (!connections) return;
+
+            let validTransitions = connections;
+            let hasBounceFilter = false;
+
+            if (previousWeather && connections.includes(previousWeather) && connections.length > 1) {
+                validTransitions = connections.filter(w => w !== previousWeather);
+                hasBounceFilter = true;
+            }
+
+            connections.forEach(target => {
+                const start = nodePositions[currentWeather];
+                const end = nodePositions[target];
+
+                // Regla del 1% y distribución
+                let prob = 0;
+                if (target === previousWeather && hasBounceFilter) {
+                    prob = 1;
+                } else {
+                    prob = 99 / validTransitions.length;
+                    prob = Math.max(1, prob); // Strict floor of 1% (though 99/N will be > 1 here)
+                }
+
+                // Draw Line
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", start.x);
+                line.setAttribute("y1", start.y);
+                line.setAttribute("x2", end.x);
+                line.setAttribute("y2", end.y);
+                line.setAttribute("stroke", "#c49a00");
+                line.setAttribute("stroke-width", "2");
+                line.setAttribute("stroke-dasharray", "5,5");
+                svg.appendChild(line);
+
+                // Draw Text (Probability)
+                const textX = (start.x + end.x) / 2;
+                const textY = (start.y + end.y) / 2;
+
+                // Background rect for text readability
+                const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                bg.setAttribute("x", textX - 15);
+                bg.setAttribute("y", textY - 10);
+                bg.setAttribute("width", "30");
+                bg.setAttribute("height", "14");
+                bg.setAttribute("fill", "#000");
+                bg.setAttribute("rx", "2");
+                svg.appendChild(bg);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", textX);
+                text.setAttribute("y", textY);
+                text.setAttribute("fill", "#fff");
+                text.setAttribute("font-size", "10px");
+                text.setAttribute("font-family", "monospace");
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("dominant-baseline", "middle");
+                text.textContent = `${prob.toFixed(1)}%`;
+                svg.appendChild(text);
+            });
+        }
+
+        // Render initial default
+        setTimeout(() => renderWeatherHexagon(), 500);
+
+        function generateWeatherForecast(startState, startPrevState) {
+            let forecast = [];
+            let simCurrent = startState;
+            let simPrev = startPrevState;
+
+            for (let i = 0; i < 7; i++) {
+                const connections = WEATHER_GRAPH_PRIMAVERA[simCurrent];
+                if (!connections || connections.length === 0) {
+                    forecast.push({ clima: simCurrent, probabilidad: 100 });
+                    continue;
+                }
+
+                let validTransitions = connections;
+                let hasBounceFilter = false;
+
+                if (simPrev && connections.includes(simPrev) && connections.length > 1) {
+                    validTransitions = connections.filter(w => w !== simPrev);
+                    hasBounceFilter = true;
+                }
+
+                // En un modelo de pronóstico "ideal" sin dados, elegimos la opción más probable.
+                // Como las transiciones válidas tienen probabilidad equitativa (99 / N),
+                // el modelo predictivo simplemente toma la primera de las válidas
+                // o podríamos simular el "camino más seguro".
+
+                const probValue = 99 / validTransitions.length;
+                const predictedNext = validTransitions[0]; // Simplificación: toma la primera ruta válida (podría randomizarse el pronóstico si se desea)
+
+                forecast.push({
+                    clima: predictedNext,
+                    probabilidad: parseFloat(probValue.toFixed(1))
+                });
+
+                simPrev = simCurrent;
+                simCurrent = predictedNext;
+            }
+
+            db.ref("campaña/worldData/weatherForecast").set(forecast)
+                .then(() => console.log("Pronóstico de 7 días calculado y subido a Firebase."))
+                .catch(err => console.error("Error subiendo pronóstico:", err));
+        }
+
+        // --- GESTIÓN DE TIEMPO / RELOJ GLOBAL (Rollover Automático) ---
+        let currentWorldDate = new Date();
+        let currentWorldTimeSynced = false;
+
+        function syncWorldTime() {
+            db.ref("campaña/calendario/timestamp").on("value", snap => {
+                const ts = snap.val();
+                if (ts) {
+                    currentWorldDate = new Date(ts);
+                    currentWorldTimeSynced = true;
+                    updateTimeDisplay();
+                } else {
+                    // Fallback a los nodos antiguos si el timestamp no existe aún
+                    db.ref("campaña/estado_mundo").once("value", oldSnap => {
+                        const data = oldSnap.val();
+                        if (data) {
+                            currentWorldDate = new Date();
+                            currentWorldDate.setFullYear(data.año || 984);
+                            currentWorldDate.setMonth((data.mes || 1) - 1); // 0-indexed
+                            currentWorldDate.setDate(data.dia || 1);
+
+                            // Parsear "HH:MM" de "campaña/hora_actual"
+                            db.ref("campaña/hora_actual").once("value", timeSnap => {
+                                const timeStr = timeSnap.val() || "08:00";
+                                const parts = timeStr.split(":");
+                                currentWorldDate.setHours(parseInt(parts[0]) || 8);
+                                currentWorldDate.setMinutes(parseInt(parts[1]) || 0);
+                                currentWorldDate.setSeconds(0);
+                                currentWorldTimeSynced = true;
+                                updateTimeDisplay();
+                            });
+                            currentWeather = data.clima || "Soleado";
+                            previousWeather = data.clima_previo || null;
+                            updateWeatherUI();
+                            renderWeatherHexagon();
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateTimeDisplay() {
+            const display = document.getElementById("dm-time-display");
+            if (!display) return;
+
+            const dd = String(currentWorldDate.getDate()).padStart(2, '0');
+            const mm = String(currentWorldDate.getMonth() + 1).padStart(2, '0');
+            const yyyy = currentWorldDate.getFullYear();
+
+            const hh = String(currentWorldDate.getHours()).padStart(2, '0');
+            const mins = String(currentWorldDate.getMinutes()).padStart(2, '0');
+
+            display.innerText = `📅 ${dd}/${mm}/${yyyy} | ⏱️ ${hh}:${mins}`;
+        }
+
+        window.advanceTime = function(minutes) {
+            if (!currentWorldTimeSynced) return;
+            const oldDate = currentWorldDate.getDate();
+            currentWorldDate.setMinutes(currentWorldDate.getMinutes() + minutes);
+
+            // Check for Rollover (Cambio de Día)
+            if (currentWorldDate.getDate() !== oldDate) {
+                const nextWeather = calculateNextWeather(currentWeather, previousWeather);
+                previousWeather = currentWeather;
+                currentWeather = nextWeather;
+                updateWeatherUI();
+                renderWeatherHexagon();
+                generateWeatherForecast(currentWeather, previousWeather);
+                console.log("¡Medianoche superada! Nuevo clima tirado:", currentWeather);
+            }
+
+            pushTimeUpdate();
+            reduceTaskTimes(minutes);
+        };
+
+        window.advanceCustomTime = function() {
+            const minutes = parseInt(document.getElementById("custom-time-input").value) || 0;
+            if (minutes > 0) {
+                advanceTime(minutes);
+                document.getElementById("custom-time-input").value = "";
+            }
+        };
+
+        function pushTimeUpdate() {
+            const timestamp = currentWorldDate.toISOString();
+            const yyyy = currentWorldDate.getFullYear();
+            const mm = currentWorldDate.getMonth() + 1;
+            const dd = currentWorldDate.getDate();
+            const hhStr = String(currentWorldDate.getHours()).padStart(2, '0');
+            const minStr = String(currentWorldDate.getMinutes()).padStart(2, '0');
+            const horaActualStr = `${hhStr}:${minStr}`;
+
+            const updates = {
+                "campaña/calendario/timestamp": timestamp,
+                "campaña/estado_mundo/año": yyyy,
+                "campaña/estado_mundo/mes": mm,
+                "campaña/estado_mundo/dia": dd,
+                "campaña/hora_actual": horaActualStr,
+                "campaña/estado_mundo/clima": currentWeather,
+                "campaña/estado_mundo/clima_previo": previousWeather || null
+            };
+
+            db.ref().update(updates).then(() => {
+                console.log("Tiempo avanzado y sincronizado.");
+            }).catch(err => {
+                console.error("Error avanzando el tiempo", err);
+            });
+        }
+
+        syncWorldTime();
+        setTimeout(() => generateWeatherForecast(currentWeather, previousWeather), 2000);
+
+        db.ref("campaña/estado_mundo").on("value", snap => {
+            const data = snap.val();
+            if (data && data.clima) {
+                currentWeather = data.clima;
+                previousWeather = data.clima_previo || null;
+                updateWeatherUI();
+                renderWeatherHexagon();
+            }
+        });
+
+        // Initialize UI Select
+        const climaSelect = document.getElementById("clima-selector-global");
+        if (climaSelect) {
+            climaSelect.innerHTML = Object.keys(WEATHER_GRAPH_PRIMAVERA).map(w => `<option value="${w}">${w}</option>`).join('');
+            climaSelect.addEventListener('change', (e) => {
+                forceWeatherUpdate(e.target.value);
+            });
+        }
+
+
+        // --- MOTOR DE ROL TURNS ---
+        // Se nutre de dbJugadoresCache que ya existe
+        let rolTurnsData = {};
+
+        function renderRolTurns() {
+            const container = document.getElementById("rol-turns-container");
+            if (!container) return;
+            container.innerHTML = "";
+
+            if (Object.keys(dbJugadoresCache).length === 0) {
+                container.innerHTML = "<p style='color:#888; text-align:center;'>No hay jugadores conectados/registrados.</p>";
+                return;
+            }
+
+            // Mapear y ordenar
+            let playersArray = Object.keys(dbJugadoresCache).map(name => {
+                const state = rolTurnsData[name] || { status: 'Idle', taskTime: 0, linkedTo: null };
+                return { name, ...state, isOnline: dbJugadoresCache[name].online };
+            });
+
+            // Sorting: Idle first, then Task sorted by remaining time (ascending)
+            playersArray.sort((a, b) => {
+                if (a.status === 'Idle' && b.status !== 'Idle') return -1;
+                if (a.status !== 'Idle' && b.status === 'Idle') return 1;
+                if (a.status === 'Task' && b.status === 'Task') {
+                    return a.taskTime - b.taskTime;
+                }
+                return 0; // Linked or equal
+            });
+
+            playersArray.forEach(p => {
+                const isIdle = p.status === 'Idle';
+                const cardColor = isIdle ? '#006600' : (p.status === 'Linked' ? '#004466' : '#8b0000');
+                const borderColor = isIdle ? '#00ff00' : (p.status === 'Linked' ? '#0df' : '#ff4444');
+                const timeText = p.status === 'Task' ? `<span style="color:#ffcc00;">[ Tarea: ${p.taskTime}m rest. ]</span>` : (p.status === 'Linked' ? `<span>[ Ayudando a ${p.linkedTo} ]</span>` : `<span style="color:#00ff00;">[ Cámara Disponible ]</span>`);
+
+                const card = document.createElement("div");
+                card.style.cssText = `background: ${cardColor}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);`;
+
+                card.innerHTML = `
+                    <div style="display: flex; flex-direction: column;">
+                        <strong style="color:#fff; font-size:18px;">${p.name} ${p.isOnline ? '●' : '○'}</strong>
+                        ${timeText}
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="assignTask('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #c49a00; color: #c49a00;">Asignar Tarea</button>
+                        <button onclick="linkPlayerPrompt('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #0df; color: #0df;">🔗 Link</button>
+                        <button onclick="setPlayerIdle('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #00ff00; color: #00ff00;">Set Idle</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.assignTask = function(playerName) {
+            const mins = parseInt(prompt(`¿Cuántos minutos durará la tarea de ${playerName}?`));
+            if (!isNaN(mins) && mins > 0) {
+                db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Task', taskTime: mins, linkedTo: null });
+            }
+        };
+
+        window.linkPlayerPrompt = function(playerName) {
+            const target = prompt(`¿A quién está ayudando ${playerName}?`);
+            if (target && dbJugadoresCache[target]) {
+                db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Linked', taskTime: 0, linkedTo: target });
+            } else if(target) {
+                alert("Jugador no encontrado.");
+            }
+        };
+
+        window.setPlayerIdle = function(playerName) {
+            db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Idle', taskTime: 0, linkedTo: null });
+        };
+
+        function reduceTaskTimes(minutesPassed) {
+            const updates = {};
+            const completedTasks = [];
+            for (const [name, state] of Object.entries(rolTurnsData)) {
+                if (state.status === 'Task') {
+                    const newTime = state.taskTime - minutesPassed;
+                    if (newTime <= 0) {
+                        updates[`${name}/status`] = 'Idle';
+                        updates[`${name}/taskTime`] = 0;
+                        completedTasks.push(name);
+                        console.log(`${name} terminó su tarea.`);
+                    } else {
+                        updates[`${name}/taskTime`] = newTime;
+                    }
+                }
+            }
+            // También resetear a Idle a los jugadores vinculados a las tareas completadas
+            for (const [name, state] of Object.entries(rolTurnsData)) {
+                if (state.status === 'Linked' && completedTasks.includes(state.linkedTo)) {
+                    updates[`${name}/status`] = 'Idle';
+                    updates[`${name}/taskTime`] = 0;
+                    updates[`${name}/linkedTo`] = null;
+                }
+            }
+
+            if (Object.keys(updates).length > 0) {
+                db.ref("campaña/rol_turns").update(updates);
+            }
+        }
+
+        // Suscribirse a Rol Turns
+        db.ref("campaña/rol_turns").on("value", snap => {
+            rolTurnsData = snap.val() || {};
+            // Asegurar que todos los jugadores en caché tengan entrada
+            let needsUpdate = false;
+            let updates = {};
+            for (const name of Object.keys(dbJugadoresCache)) {
+                if (!rolTurnsData[name]) {
+                    rolTurnsData[name] = { status: 'Idle', taskTime: 0, linkedTo: null };
+                    updates[name] = rolTurnsData[name];
+                    needsUpdate = true;
+                }
+            }
+            if(needsUpdate) db.ref("campaña/rol_turns").update(updates);
+
+            renderRolTurns();
+        });
+
+        // Asegurarse de renderizar cuando la DB de jugadores cambie también
+        const originalJugadoresListener = db.ref("campaña/jugadores").on("value", (snapshot) => {
+          dbJugadoresCache = snapshot.val() || {};
+          renderActorAsignacion();
+          renderRolTurns();
+        });
+
+
+
         // --- LOGICA DE COMBATE (MIGRADA DESDE BATTLE-VIEWER) ---
         let dmCombatData = {};
 
@@ -4553,186 +4884,9 @@
           },
         );
 
-        document
-          .getElementById("btn-fijar-hora")
-          .addEventListener("click", () => {
-            const newTime = document.getElementById("dm-time-input").value;
 
-            if (newTime) {
-              // Guardar (set) el valor en el nodo de Firebase
-              db.ref("campaña/hora_actual")
-                .set(newTime)
-                .then(() => {
-                  console.log("Hora global actualizada a:", newTime);
-                  alert("Hora fijada a: " + newTime);
-                })
-                .catch((error) => {
-                  console.error("Error al actualizar la hora:", error);
-                  alert("Error al fijar la hora.");
-                });
-            }
-          });
 
-        document
-          .getElementById("btn-avanzar-hora")
-          .addEventListener("click", () => {
-            const currentTime = document.getElementById("dm-time-input").value;
 
-            if (currentTime) {
-              let [hours, minutes] = currentTime.split(":").map(Number);
-
-              // Random amount between 5 and 10 minutes
-              const minutesToAdd = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
-
-              minutes += minutesToAdd;
-
-              if (minutes >= 60) {
-                minutes -= 60;
-                hours = (hours + 1) % 24;
-              }
-
-              const newTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-              document.getElementById("dm-time-input").value = newTime;
-
-              db.ref("campaña/hora_actual")
-                .set(newTime)
-                .then(() => {
-                  console.log("Hora global avanzada a:", newTime);
-                })
-                .catch((error) => {
-                  console.error("Error al actualizar la hora:", error);
-                  alert("Error al avanzar la hora.");
-                });
-            } else {
-              alert(
-                "Por favor, ingresa o carga una hora inicial en el Reloj Global.",
-              );
-            }
-          });
-
-        document
-          .getElementById("btn-avanzar-dia")
-          .addEventListener("click", () => {
-            let nuevoAño = estadoActual.año;
-            let nuevoMes = estadoActual.mes;
-            let nuevoDia = estadoActual.dia + 1;
-
-            const diasMesActual = diasPorMes[nuevoMes] || 30;
-
-            if (nuevoDia > diasMesActual) {
-              nuevoDia = 1;
-              nuevoMes++;
-              if (nuevoMes > 12) {
-                nuevoMes = 1; // Un año nuevo
-                nuevoAño++;
-              }
-            }
-
-            const nuevoClima = calcularSiguienteClima(
-              estadoActual.clima,
-              nuevoMes,
-            );
-
-            const nuevoEstado = {
-              año: nuevoAño,
-              dia: nuevoDia,
-              mes: nuevoMes,
-              clima: nuevoClima,
-            };
-
-            db.ref("campaña/calendario")
-              .set(nuevoEstado)
-              .then(() => {
-                console.log("Calendario (Auto) actualizado:", nuevoEstado);
-
-                // Lógica de Auto-Restock de tiendas
-                const diasSemana = [
-                  "Domingo",
-                  "Lunes",
-                  "Martes",
-                  "Miércoles",
-                  "Jueves",
-                  "Viernes",
-                  "Sábado",
-                ];
-                // JS Date usa meses 0-11
-                const fechaJS = new Date(nuevoAño, nuevoMes - 1, nuevoDia);
-                const nuevoDiaSemana = diasSemana[fechaJS.getDay()];
-
-                db.ref("campaña/tiendas")
-                  .once("value")
-                  .then((snapshot) => {
-                    const tiendas = snapshot.val();
-                    if (tiendas) {
-                      const updates = {};
-                      for (const [idTienda, tiendaData] of Object.entries(
-                        tiendas,
-                      )) {
-                        if (
-                          tiendaData.dia_restock === nuevoDiaSemana &&
-                          tiendaData.items
-                        ) {
-                          for (const [idItem, itemData] of Object.entries(
-                            tiendaData.items,
-                          )) {
-                            if (itemData.stock_maximo !== -1) {
-                              updates[
-                                `${idTienda}/items/${idItem}/stock_actual`
-                              ] = itemData.stock_maximo;
-                            }
-                          }
-                        }
-                      }
-                      if (Object.keys(updates).length > 0) {
-                        db.ref("campaña/tiendas")
-                          .update(updates)
-                          .then(() =>
-                            console.log(
-                              "Restock de tiendas completado para el día:",
-                              nuevoDiaSemana,
-                            ),
-                          )
-                          .catch((e) => console.error("Error en restock:", e));
-                      }
-                    }
-                  });
-              })
-              .catch((error) => {
-                console.error("Error al actualizar calendario (Auto):", error);
-                alert("Error al actualizar calendario.");
-              });
-          });
-
-        document
-          .getElementById("btn-forzar-estado")
-          .addEventListener("click", () => {
-            const debugAño =
-              parseInt(document.getElementById("debug-año").value) || 984;
-            const debugDia =
-              parseInt(document.getElementById("debug-dia").value) || 1;
-            const debugMes =
-              parseInt(document.getElementById("debug-mes").value) || 1;
-            const debugClima =
-              document.getElementById("debug-clima").value || "Despejado";
-
-            const estadoForzado = {
-              año: debugAño,
-              dia: debugDia,
-              mes: debugMes,
-              clima: debugClima,
-            };
-
-            db.ref("campaña/calendario")
-              .set(estadoForzado)
-              .then(() => {
-                console.log("Calendario (Debug) actualizado:", estadoForzado);
-                alert("Estado del calendario forzado con éxito.");
-              })
-              .catch((error) => {
-                console.error("Error al forzar calendario:", error);
-                alert("Error al forzar calendario.");
-              });
-          });
 
         // --- NUEVA LÓGICA DE METEOROLOGÍA Y CLIMA ---
         document
