@@ -152,6 +152,7 @@
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
                 <label style="flex: 1;">Velocidad: <input type="text" id="statSpeed" value="2-4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
                 <label style="flex: 1;">Action Slots: <input type="number" id="statSlots" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Max Action Slots: <input type="number" id="statMaxSlots" value="3" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
             </div>
             <label style="display:none; margin-top: 5px;">Skills (JSON Array IDs):
                 <textarea id="statSkills" style="display:none; width: 100%; height: 60px; background: #222; color: white; border: 1px solid #555;">["skill_id_1"]</textarea>
@@ -175,6 +176,23 @@
             <div style="display:flex; gap: 5px; margin-bottom: 10px;">
                 <label style="flex: 1;">Coin Count: <input type="number" id="sb-coin-count" value="1" min="1" max="5" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
                 <label style="flex: 1;">Weight: <input type="number" id="sb-weight" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <!-- Deckbuilding & Equipment -->
+            <div style="background: #1e1e1e; padding: 10px; margin-bottom: 10px; border: 1px solid #444; border-radius: 3px;">
+                <strong style="display:block; margin-bottom: 5px; color: #ffdd44; font-size: 13px;">Deckbuilding & Equipment</strong>
+                <div style="display:flex; gap: 5px; align-items: center;">
+                    <label style="flex: 1; font-size: 12px;">Tier (Costo):
+                        <select id="sb-tier" style="width: 100%; background: #222; color: white; border: 1px solid #555; padding: 2px;">
+                            <option value="1">Tier 1 (1 Slot)</option>
+                            <option value="2">Tier 2 (2 Slots)</option>
+                            <option value="3">Tier 3 (3 Slots)</option>
+                        </select>
+                    </label>
+                    <label style="flex: 1; display: flex; align-items: center; gap: 5px; font-size: 12px; margin-top: 15px;">
+                        <input type="checkbox" id="sb-is-item-skill"> Item Skill (Costo 0)
+                    </label>
+                </div>
             </div>
 
             <label style="display:block; margin-bottom: 10px;">Sin Type:
@@ -337,6 +355,7 @@
                 level: 1,
                 speed: "2-4",
                 actionSlots: 1,
+                maxSlotsLimit: 3,
                 skills: ["skill_id_1"]
             },
             skillsData: {
@@ -457,6 +476,8 @@
             const skillObj = {
                 id: document.getElementById('sb-id').value || "new_skill",
                 name: document.getElementById('sb-name').value || "New Skill",
+                tier: parseInt(document.getElementById('sb-tier').value) || 1,
+                isItemSkill: document.getElementById('sb-is-item-skill').checked,
                 basePower: parseInt(document.getElementById('sb-base').value) || 0,
                 coinPower: parseInt(document.getElementById('sb-coin-power').value) || 0,
                 coinAmount: parseInt(document.getElementById('sb-coin-count').value) || 1,
@@ -639,6 +660,7 @@
             bindInput('statLevel', 'mechanics.level', true);
             bindInput('statSpeed', 'mechanics.speed');
             bindInput('statSlots', 'mechanics.actionSlots', true);
+            bindInput('statMaxSlots', 'mechanics.maxSlotsLimit', true);
 
             document.getElementById('statSkills').addEventListener('input', (e) => {
                 try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
@@ -716,6 +738,7 @@
             document.getElementById('statLevel').value = currentState.mechanics.level;
             document.getElementById('statSpeed').value = currentState.mechanics.speed;
             document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
+            document.getElementById('statMaxSlots').value = currentState.mechanics.maxSlotsLimit !== undefined ? currentState.mechanics.maxSlotsLimit : 3;
             document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
 
             // Removed rawSkillEffects loading
