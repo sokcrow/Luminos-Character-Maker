@@ -140,11 +140,75 @@
         <!-- Constructor de Skills -->
         <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
             <legend>Constructor de Skills</legend>
-            <label style="display:block; margin-bottom: 5px; font-size: 11px; color: #aaa;">
-                Raw Skill Effects (ej. [On hit] apply 1 Bleed Potency and Count)
+
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">ID Habilidad: <input type="text" id="sb-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Nombre: <input type="text" id="sb-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Base Power: <input type="number" id="sb-base" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Coin Power: <input type="number" id="sb-coin-power" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <div style="display:flex; gap: 5px; margin-bottom: 10px;">
+                <label style="flex: 1;">Coin Count: <input type="number" id="sb-coin-count" value="1" min="1" max="5" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Weight: <input type="number" id="sb-weight" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <label style="display:block; margin-bottom: 10px;">Sin Type:
+                <select id="sb-sin" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <option value="Wrath">Wrath</option>
+                    <option value="Lust">Lust</option>
+                    <option value="Sloth">Sloth</option>
+                    <option value="Gluttony">Gluttony</option>
+                    <option value="Gloom">Gloom</option>
+                    <option value="Pride">Pride</option>
+                    <option value="Envy">Envy</option>
+                    <option value="Sinless">Sinless</option>
+                </select>
             </label>
-            <textarea id="rawSkillEffects" style="width: 100%; height: 80px; background: #222; color: white; border: 1px solid #555;"></textarea>
-            <div id="parsedEffectsPreview" style="margin-top: 10px; font-size: 11px; color: #ffdd44; white-space: pre-wrap; background: #111; padding: 5px; border: 1px solid #333; display: none;"></div>
+
+            <!-- Defensive Skill Engine -->
+            <div style="background: #1a1a1a; padding: 10px; margin-bottom: 10px; border: 1px solid #333;">
+                <label style="display:flex; justify-content: space-between; margin-bottom: 5px;"><strong>Defensive Skill</strong>
+                    <input type="checkbox" id="sb-is-defense">
+                </label>
+                <div id="sb-defense-options" style="display: none;">
+                    <label style="display:block; margin-bottom: 5px;">Subtipo:
+                        <select id="sb-defense-subtype" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                            <option value="Guard">Guard</option>
+                            <option value="Evade">Evade</option>
+                            <option value="Counter">Counter</option>
+                            <option value="ClashableGuard">Clashable Guard</option>
+                            <option value="ClashableCounter">Clashable Counter</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px;">Requires Unlock (Availability)
+                        <input type="checkbox" id="sb-defense-requires-unlock">
+                    </label>
+                    <p style="font-size: 10px; color: #888; margin-top:5px; margin-bottom: 0;">Si "Sin Type" no es asignado, se forzará a Sinless.</p>
+                </div>
+            </div>
+
+            <!-- Efectos Globales -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px;">
+                <strong>Efectos Globales (Pre/Post)</strong>
+                <div id="sb-global-effects-container" style="margin-bottom: 5px;"></div>
+                <button id="sb-btn-add-global" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 11px; cursor: pointer;">+ Añadir Efecto Global</button>
+            </div>
+
+            <!-- Monedas Dinámicas -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px;">
+                <strong>Monedas (Resolución)</strong>
+                <div id="sb-coins-container"></div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label style="display:block; font-size: 11px; margin-bottom: 2px;">JSON Preview:</label>
+                <textarea id="sb-json-preview" readonly style="width: 100%; height: 100px; background: #111; color: #aaa; border: 1px solid #333; font-family: monospace; font-size: 11px;"></textarea>
+                <button id="sb-btn-push-skill" style="width: 100%; padding: 8px; margin-top: 5px; background: #007bff; color: white; border: none; cursor: pointer;">Añadir a la Unidad</button>
+            </div>
         </fieldset>
 
         <!-- Metadata & Guardado -->
@@ -179,6 +243,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Limbus Combat Logic -->
+    <script src="js/statusManager.js"></script>
 
 
     <script>
@@ -297,44 +364,195 @@
             `;
         }
 
-        function parseSkillEffects(rawText) {
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
-            const parsed = [];
+        function generateStatusOptions() {
+            let options = '';
+            for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
+                options += `<option value="${id}">${data.name}</option>`;
+            }
+            return options;
+        }
 
-            const effectRegex = /\[(.*?)\]\s+(gain|apply)\s+(\d+)\s+(.+)/i;
+        function createEffectEditorHtml(isCoinEffect) {
+            const triggers = isCoinEffect
+                ? `<option value="[On Hit]">[On Hit]</option><option value="[On Heads Hit]">[On Heads Hit]</option><option value="[On Tails Hit]">[On Tails Hit]</option>`
+                : `<option value="[On Use]">[On Use]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
 
-            lines.forEach(line => {
-                const match = line.match(effectRegex);
-                if (match) {
-                    const trigger = match[1].trim();
-                    const targetWord = match[2].toLowerCase();
-                    const value = parseInt(match[3], 10);
-                    const rawStatus = match[4].trim();
+            return `
+                <div class="effect-row" style="display:flex; gap: 5px; margin-bottom: 5px; background: #222; padding: 5px; border: 1px solid #444;">
+                    <select class="eff-trigger" style="flex:1; font-size:10px;">${triggers}</select>
+                    <select class="eff-target" style="flex:0.8; font-size:10px;"><option value="self">Gain</option><option value="target">Apply</option></select>
+                    <input type="number" class="eff-potency" placeholder="Pot" style="width:40px; font-size:10px;">
+                    <input type="number" class="eff-count" placeholder="Cnt" style="width:40px; font-size:10px;">
+                    <select class="eff-status" style="flex:1.5; font-size:10px;">${generateStatusOptions()}</select>
+                    <button class="eff-remove" style="background:#dc3545; color:white; border:none; cursor:pointer; font-size:10px;">X</button>
+                </div>
+            `;
+        }
 
-                    // Map Gain -> self, Apply -> target
-                    const target = targetWord === 'gain' ? 'self' : 'target';
+        function bindEffectList(containerId, isCoinEffect) {
+            const container = document.getElementById(containerId);
+            container.addEventListener('click', (e) => {
+                if(e.target.classList.contains('eff-remove')) {
+                    e.target.closest('.effect-row').remove();
+                    updateSkillPreview();
+                }
+            });
+            return function addEffect() {
+                container.insertAdjacentHTML('beforeend', createEffectEditorHtml(isCoinEffect));
+                updateSkillPreview();
+            };
+        }
 
-                    // Naive status cleanup (remove "potency and count" and other trailing stuff for ID mapping)
-                    // We'll just lowercase and replace spaces with underscores for a basic status ID
-                    let statusId = rawStatus.toLowerCase().replace(/potency and count/i, '').replace(/potency/i, '').replace(/count/i, '').trim().replace(/\s+/g, '_');
+        function gatherEffects(container) {
+            const effects = [];
+            container.querySelectorAll('.effect-row').forEach(row => {
+                effects.push({
+                    trigger: row.querySelector('.eff-trigger').value,
+                    target: row.querySelector('.eff-target').value,
+                    potency: parseInt(row.querySelector('.eff-potency').value) || 0,
+                    count: parseInt(row.querySelector('.eff-count').value) || 0,
+                    status: row.querySelector('.eff-status').value
+                });
+            });
+            return effects;
+        }
 
-                    parsed.push({
-                        trigger: `[${trigger}]`,
-                        target: target,
-                        value: value,
-                        status: statusId,
-                        raw: line
+        function updateSkillPreview() {
+            const isDefense = document.getElementById('sb-is-defense').checked;
+            let sinType = document.getElementById('sb-sin').value;
+
+            if (isDefense && sinType === 'Sinless') {
+                // Keep sinless
+            } else if (isDefense) {
+                // Allow explicit sinType but visually indicate or handle if forced
+            }
+
+            const skillObj = {
+                id: document.getElementById('sb-id').value || "new_skill",
+                name: document.getElementById('sb-name').value || "New Skill",
+                basePower: parseInt(document.getElementById('sb-base').value) || 0,
+                coinPower: parseInt(document.getElementById('sb-coin-power').value) || 0,
+                coinAmount: parseInt(document.getElementById('sb-coin-count').value) || 1,
+                affinity: isDefense && sinType === '' ? 'Sinless' : sinType, // enforce Sinless on defense if somehow empty
+                weight: parseInt(document.getElementById('sb-weight').value) || 1,
+                isDefense: isDefense,
+                effects: gatherEffects(document.getElementById('sb-global-effects-container')),
+                coins: []
+            };
+
+            if (isDefense) {
+                skillObj.defenseSubtype = document.getElementById('sb-defense-subtype').value;
+                const requiresUnlock = document.getElementById('sb-defense-requires-unlock').checked;
+                if (['Counter', 'ClashableCounter', 'ClashableGuard'].includes(skillObj.defenseSubtype)) {
+                    skillObj.requiresUnlock = requiresUnlock;
+                }
+
+                if (['ClashableGuard', 'ClashableCounter'].includes(skillObj.defenseSubtype)) {
+                    skillObj.isClashable = true;
+                }
+            }
+
+            const coinContainers = document.querySelectorAll('.sb-coin-block');
+            for(let i = 0; i < skillObj.coinAmount; i++) {
+                if (coinContainers[i]) {
+                    skillObj.coins.push({
+                        type: 'active',
+                        effects: gatherEffects(coinContainers[i].querySelector('.coin-effects-container'))
                     });
-                } else {
-                    // Try to catch lines that might not have a number, or just log them as raw strings
-                    parsed.push({
-                        trigger: "Unknown",
-                        raw: line
-                    });
+                }
+            }
+
+            document.getElementById('sb-json-preview').value = JSON.stringify(skillObj, null, 2);
+        }
+
+        function initSkillBuilder() {
+            const addGlobalEffect = bindEffectList('sb-global-effects-container', false);
+            document.getElementById('sb-btn-add-global').addEventListener('click', () => addGlobalEffect());
+
+            document.getElementById('sb-is-defense').addEventListener('change', (e) => {
+                document.getElementById('sb-defense-options').style.display = e.target.checked ? 'block' : 'none';
+                if (e.target.checked) document.getElementById('sb-sin').value = 'Sinless';
+                updateSkillPreview();
+            });
+
+            document.getElementById('sb-coin-count').addEventListener('input', (e) => {
+                let count = parseInt(e.target.value) || 1;
+                count = Math.max(1, count);
+
+                const container = document.getElementById('sb-coins-container');
+                const fragment = document.createDocumentFragment();
+                const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+                const existingBlocks = Array.from(container.querySelectorAll('.sb-coin-block'));
+
+                for (let i = 0; i < count; i++) {
+                    if (existingBlocks[i]) {
+                        fragment.appendChild(existingBlocks[i]);
+                    } else {
+                        const block = document.createElement('div');
+                        block.className = 'sb-coin-block';
+                        block.style.cssText = 'background: #1a1a1a; padding: 5px; margin-bottom: 5px; border: 1px solid #333;';
+                        block.innerHTML = `
+                            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #ffdd44;">Moneda ${roman[i] || (i+1)}</div>
+                            <div class="coin-effects-container"></div>
+                            <button class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
+                        `;
+                        const effectContainer = block.querySelector('.coin-effects-container');
+                        block.querySelector('.sb-btn-add-coin-effect').addEventListener('click', () => {
+                            effectContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
+                            updateSkillPreview();
+                        });
+                        effectContainer.addEventListener('click', (e) => {
+                            if(e.target.classList.contains('eff-remove')) {
+                                e.target.closest('.effect-row').remove();
+                                updateSkillPreview();
+                            }
+                        });
+                        fragment.appendChild(block);
+                    }
+                }
+                container.innerHTML = '';
+                container.appendChild(fragment);
+                updateSkillPreview();
+            });
+
+            // Trigger initial generation
+            document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+            ['sb-id', 'sb-name', 'sb-base', 'sb-coin-power', 'sb-weight', 'sb-sin', 'sb-defense-subtype', 'sb-defense-requires-unlock'].forEach(id => {
+                document.getElementById(id).addEventListener('change', updateSkillPreview);
+                document.getElementById(id).addEventListener('input', updateSkillPreview);
+            });
+
+            document.getElementById('sb-btn-push-skill').addEventListener('click', () => {
+                const previewText = document.getElementById('sb-json-preview').value;
+                if (!previewText) return;
+
+                try {
+                    const skillObj = JSON.parse(previewText);
+                    const skillsTextarea = document.getElementById('statSkills');
+                    let currentSkills = [];
+                    try {
+                        currentSkills = JSON.parse(skillsTextarea.value);
+                    } catch (e) {
+                        currentSkills = [];
+                    }
+
+                    if (Array.isArray(currentState.mechanics.skills)) {
+                        currentState.mechanics.skills.push(skillObj);
+                    } else {
+                        currentState.mechanics.skills = [skillObj];
+                    }
+                    skillsTextarea.value = JSON.stringify(currentState.mechanics.skills, null, 2);
+
+                    alert(`Habilidad "${skillObj.name}" añadida a la unidad.`);
+                } catch (e) {
+                    alert("Error parsing skill JSON.");
                 }
             });
 
-            return parsed;
+            document.getElementById('sb-global-effects-container').addEventListener('input', updateSkillPreview);
+            document.getElementById('sb-coins-container').addEventListener('input', updateSkillPreview);
         }
 
         function initEditor() {
@@ -372,22 +590,7 @@
                 try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
             });
 
-            document.getElementById('rawSkillEffects').addEventListener('input', (e) => {
-                const rawText = e.target.value;
-                currentState.skillsData = currentState.skillsData || {};
-                currentState.skillsData.rawEffects = rawText;
-
-                const parsed = parseSkillEffects(rawText);
-                currentState.skillsData.parsedEffects = parsed;
-
-                const previewEl = document.getElementById('parsedEffectsPreview');
-                if (rawText.trim() === '') {
-                    previewEl.style.display = 'none';
-                } else {
-                    previewEl.style.display = 'block';
-                    previewEl.innerText = JSON.stringify(parsed, null, 2);
-                }
-            });
+            initSkillBuilder();
 
             bindInput('metaName', 'meta.name');
             bindInput('metaLinkedNpc', 'meta.linkedNPC');
@@ -461,16 +664,7 @@
             document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
             document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
 
-            if (currentState.skillsData && currentState.skillsData.rawEffects) {
-                const rawEl = document.getElementById('rawSkillEffects');
-                rawEl.value = currentState.skillsData.rawEffects;
-                // Trigger input event to update preview
-                rawEl.dispatchEvent(new Event('input'));
-            } else {
-                const rawEl = document.getElementById('rawSkillEffects');
-                rawEl.value = "";
-                rawEl.dispatchEvent(new Event('input'));
-            }
+            // Removed rawSkillEffects loading
 
             document.getElementById('metaName').value = currentState.meta.name || '';
             document.getElementById('metaLinkedNpc').value = currentState.meta.linkedNPC || '';
