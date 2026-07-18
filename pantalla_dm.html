@@ -1252,6 +1252,7 @@
       <button class="dm-tab-btn active" data-tab="tab-tiempo">
         Tiempo/Clima
       </button>
+      <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
       <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
       <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
@@ -1283,15 +1284,6 @@
     >
       <!-- TAB: TIEMPO / CLIMA -->
       <div id="tab-tiempo" class="dm-tab-pane active">
-        <div id="dm-time-panel">
-          <label for="dm-time-input">Reloj Global:</label>
-          <div style="display: flex; gap: 10px">
-            <input type="time" id="dm-time-input" />
-            <button id="btn-fijar-hora">Fijar Hora</button>
-            <button id="btn-avanzar-hora">+ 5-10 Min</button>
-          </div>
-        </div>
-
         <div
           id="dm-auto-panel"
           style="
@@ -1307,145 +1299,19 @@
             align-items: center;
           "
         >
-          <h3 style="margin: 0; color: #c49a00">ZONA 1: PILOTO AUTOMÁTICO</h3>
-          <div style="font-size: 16px">
-            Fecha Actual:
-            <span id="lbl-auto-fecha">Año 984 / Mes 1 / Día 1</span>
+          <h3 style="margin: 0; color: #c49a00; font-family: 'BebasKai', sans-serif; letter-spacing: 2px;">RELOJ GLOBAL Y AMBIENTE</h3>
+          <div id="dm-time-display" style="font-size: 28px; font-family: 'Share Tech Mono', monospace; color: #0df; text-shadow: 0 0 10px #0df; letter-spacing: 2px; text-align: center; background: #000; padding: 15px 30px; border-radius: 8px; border: 2px solid #0df;">
+            📅 --/--/---- | ⏱️ --:--
           </div>
-          <div style="font-size: 16px">
-            Clima Actual: <span id="lbl-auto-clima">Despejado</span>
+          <div class="dm-time-controls" style="display: flex; gap: 8px; margin-top: 10px;">
+              <button onclick="advanceTime(5)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+5m</button>
+              <button onclick="advanceTime(10)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+10m</button>
+              <button onclick="advanceTime(30)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+30m</button>
+              <button onclick="advanceTime(60)" class="btn-cyber" style="background:#222; border-color:#0df; color:#0df;">+1h</button>
+              <input type="number" id="custom-time-input" placeholder="Min..." style="width: 70px; background:#111; color:#fff; border:1px solid #555; text-align:center; border-radius:4px;">
+              <button onclick="advanceCustomTime()" class="btn-cyber btn-green">Avanzar</button>
           </div>
-          <button
-            id="btn-avanzar-dia"
-            style="
-              padding: 15px 30px;
-              font-size: 18px;
-              margin-top: 10px;
-              background: #004400;
-              border-color: #00ff00;
-              color: white;
-              cursor: pointer;
-              border-radius: 4px;
-            "
-          >
-            Avanzar Día y Generar Clima
-          </button>
         </div>
-
-        <div
-          id="dm-debug-panel"
-          style="
-            margin-top: 20px;
-            background-color: rgba(15, 15, 20, 0.9);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #8b0000;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center;
-          "
-        >
-          <h3 style="margin: 0; color: #ff4444">ZONA 2: MODO DEBUG</h3>
-
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label>Año:</label>
-            <input
-              type="number"
-              id="debug-año"
-              min="984"
-              value="984"
-              style="
-                width: 70px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
-
-            <label>Mes:</label>
-            <input
-              type="number"
-              id="debug-mes"
-              min="1"
-              max="12"
-              value="1"
-              style="
-                width: 50px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
-
-            <label>Día:</label>
-            <input
-              type="number"
-              id="debug-dia"
-              min="1"
-              max="31"
-              value="1"
-              style="
-                width: 50px;
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            />
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label>Nodo de Clima:</label>
-            <select
-              id="debug-clima"
-              style="
-                padding: 5px;
-                border-radius: 4px;
-                background: #222;
-                color: #0df;
-                border: 1px solid #444;
-              "
-            >
-              <option value="Despejado">Despejado</option>
-              <option value="Nublado">Nublado</option>
-              <option value="Húmedo">Húmedo</option>
-              <option value="Lluvia">Lluvia</option>
-              <option value="Lluvia Ácida">Lluvia Ácida</option>
-              <option value="Tormenta">Tormenta</option>
-              <option value="Tormenta Eléctrica">Tormenta Eléctrica</option>
-              <option value="Niebla">Niebla</option>
-              <option value="Niebla Densa">Niebla Densa</option>
-              <option value="Ola de Calor">Ola de Calor</option>
-              <option value="Nieve">Nieve</option>
-              <option value="Nevada Extrema">Nevada Extrema</option>
-              <option value="Vientos Fuertes">Vientos Fuertes</option>
-              <option value="Vientos Huracanados">Vientos Huracanados</option>
-            </select>
-          </div>
-
-          <button
-            id="btn-forzar-estado"
-            style="
-              padding: 10px 20px;
-              font-size: 16px;
-              margin-top: 10px;
-              background: #8b0000;
-              border-color: #ff0000;
-              color: white;
-            "
-          >
-            FORZAR ESTADO EN FIREBASE
-          </button>
-        </div>
-
-        <!-- NUEVO DASHBOARD: METEOROLOGÍA Y CLIMA -->
         <div
           id="dashboard-clima"
           class="panel-cyber"
@@ -1534,7 +1400,19 @@
         </div>
       </div>
 
-      <!-- TAB: BANCO / COMUNICACIONES -->
+
+      <!-- TAB: GESTIÓN DE TURNOS -->
+      <div id="tab-turnos" class="dm-tab-pane">
+        <div class="panel-cyber" style="margin-top: 20px;">
+          <h3>Gestión de Turnos (Cámara y Acción)</h3>
+          <p style="text-align:center; color:#aaa;">Prioridad de Cámara: Jugadores Libres (Idle) suben, Jugadores Ocupados (Task) bajan.</p>
+
+          <div id="rol-turns-container" style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;">
+            <!-- Player Turn Cards Injected via JS -->
+          </div>
+        </div>
+      </div>
+<!-- TAB: BANCO / COMUNICACIONES -->
       <div id="tab-banco" class="dm-tab-pane">
         <div
           id="dm-banco-panel"
@@ -3921,6 +3799,231 @@
       });
 
       function initializeDMApp() {
+
+        // --- GESTIÓN DE TIEMPO / RELOJ GLOBAL (Rollover Automático) ---
+        let currentWorldDate = new Date();
+        let currentWorldTimeSynced = false;
+
+        function syncWorldTime() {
+            db.ref("campaña/calendario/timestamp").on("value", snap => {
+                const ts = snap.val();
+                if (ts) {
+                    currentWorldDate = new Date(ts);
+                    currentWorldTimeSynced = true;
+                    updateTimeDisplay();
+                } else {
+                    // Fallback a los nodos antiguos si el timestamp no existe aún
+                    db.ref("campaña/estado_mundo").once("value", oldSnap => {
+                        const data = oldSnap.val();
+                        if (data) {
+                            currentWorldDate = new Date();
+                            currentWorldDate.setFullYear(data.año || 984);
+                            currentWorldDate.setMonth((data.mes || 1) - 1); // 0-indexed
+                            currentWorldDate.setDate(data.dia || 1);
+
+                            // Parsear "HH:MM" de "campaña/hora_actual"
+                            db.ref("campaña/hora_actual").once("value", timeSnap => {
+                                const timeStr = timeSnap.val() || "08:00";
+                                const parts = timeStr.split(":");
+                                currentWorldDate.setHours(parseInt(parts[0]) || 8);
+                                currentWorldDate.setMinutes(parseInt(parts[1]) || 0);
+                                currentWorldDate.setSeconds(0);
+                                currentWorldTimeSynced = true;
+                                updateTimeDisplay();
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateTimeDisplay() {
+            const display = document.getElementById("dm-time-display");
+            if (!display) return;
+
+            const dd = String(currentWorldDate.getDate()).padStart(2, '0');
+            const mm = String(currentWorldDate.getMonth() + 1).padStart(2, '0');
+            const yyyy = currentWorldDate.getFullYear();
+
+            const hh = String(currentWorldDate.getHours()).padStart(2, '0');
+            const mins = String(currentWorldDate.getMinutes()).padStart(2, '0');
+
+            display.innerText = `📅 ${dd}/${mm}/${yyyy} | ⏱️ ${hh}:${mins}`;
+        }
+
+        window.advanceTime = function(minutes) {
+            if (!currentWorldTimeSynced) return;
+            currentWorldDate.setMinutes(currentWorldDate.getMinutes() + minutes);
+            pushTimeUpdate();
+            reduceTaskTimes(minutes);
+        };
+
+        window.advanceCustomTime = function() {
+            const minutes = parseInt(document.getElementById("custom-time-input").value) || 0;
+            if (minutes > 0) {
+                advanceTime(minutes);
+                document.getElementById("custom-time-input").value = "";
+            }
+        };
+
+        function pushTimeUpdate() {
+            const timestamp = currentWorldDate.toISOString();
+            const yyyy = currentWorldDate.getFullYear();
+            const mm = currentWorldDate.getMonth() + 1;
+            const dd = currentWorldDate.getDate();
+            const hhStr = String(currentWorldDate.getHours()).padStart(2, '0');
+            const minStr = String(currentWorldDate.getMinutes()).padStart(2, '0');
+            const horaActualStr = `${hhStr}:${minStr}`;
+
+            const updates = {
+                "campaña/calendario/timestamp": timestamp,
+                "campaña/estado_mundo/año": yyyy,
+                "campaña/estado_mundo/mes": mm,
+                "campaña/estado_mundo/dia": dd,
+                "campaña/hora_actual": horaActualStr
+            };
+
+            db.ref().update(updates).then(() => {
+                console.log("Tiempo avanzado y sincronizado.");
+            }).catch(err => {
+                console.error("Error avanzando el tiempo", err);
+            });
+        }
+
+        syncWorldTime();
+
+        // --- MOTOR DE ROL TURNS ---
+        // Se nutre de dbJugadoresCache que ya existe
+        let rolTurnsData = {};
+
+        function renderRolTurns() {
+            const container = document.getElementById("rol-turns-container");
+            if (!container) return;
+            container.innerHTML = "";
+
+            if (Object.keys(dbJugadoresCache).length === 0) {
+                container.innerHTML = "<p style='color:#888; text-align:center;'>No hay jugadores conectados/registrados.</p>";
+                return;
+            }
+
+            // Mapear y ordenar
+            let playersArray = Object.keys(dbJugadoresCache).map(name => {
+                const state = rolTurnsData[name] || { status: 'Idle', taskTime: 0, linkedTo: null };
+                return { name, ...state, isOnline: dbJugadoresCache[name].online };
+            });
+
+            // Sorting: Idle first, then Task sorted by remaining time (ascending)
+            playersArray.sort((a, b) => {
+                if (a.status === 'Idle' && b.status !== 'Idle') return -1;
+                if (a.status !== 'Idle' && b.status === 'Idle') return 1;
+                if (a.status === 'Task' && b.status === 'Task') {
+                    return a.taskTime - b.taskTime;
+                }
+                return 0; // Linked or equal
+            });
+
+            playersArray.forEach(p => {
+                const isIdle = p.status === 'Idle';
+                const cardColor = isIdle ? '#006600' : (p.status === 'Linked' ? '#004466' : '#8b0000');
+                const borderColor = isIdle ? '#00ff00' : (p.status === 'Linked' ? '#0df' : '#ff4444');
+                const timeText = p.status === 'Task' ? `<span style="color:#ffcc00;">[ Tarea: ${p.taskTime}m rest. ]</span>` : (p.status === 'Linked' ? `<span>[ Ayudando a ${p.linkedTo} ]</span>` : `<span style="color:#00ff00;">[ Cámara Disponible ]</span>`);
+
+                const card = document.createElement("div");
+                card.style.cssText = `background: ${cardColor}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);`;
+
+                card.innerHTML = `
+                    <div style="display: flex; flex-direction: column;">
+                        <strong style="color:#fff; font-size:18px;">${p.name} ${p.isOnline ? '●' : '○'}</strong>
+                        ${timeText}
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="assignTask('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #c49a00; color: #c49a00;">Asignar Tarea</button>
+                        <button onclick="linkPlayerPrompt('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #0df; color: #0df;">🔗 Link</button>
+                        <button onclick="setPlayerIdle('${p.name}')" class="btn-cyber" style="padding: 5px; font-size: 12px; background: #222; border-color: #00ff00; color: #00ff00;">Set Idle</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.assignTask = function(playerName) {
+            const mins = parseInt(prompt(`¿Cuántos minutos durará la tarea de ${playerName}?`));
+            if (!isNaN(mins) && mins > 0) {
+                db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Task', taskTime: mins, linkedTo: null });
+            }
+        };
+
+        window.linkPlayerPrompt = function(playerName) {
+            const target = prompt(`¿A quién está ayudando ${playerName}?`);
+            if (target && dbJugadoresCache[target]) {
+                db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Linked', taskTime: 0, linkedTo: target });
+            } else if(target) {
+                alert("Jugador no encontrado.");
+            }
+        };
+
+        window.setPlayerIdle = function(playerName) {
+            db.ref(`campaña/rol_turns/${playerName}`).set({ status: 'Idle', taskTime: 0, linkedTo: null });
+        };
+
+        function reduceTaskTimes(minutesPassed) {
+            const updates = {};
+            const completedTasks = [];
+            for (const [name, state] of Object.entries(rolTurnsData)) {
+                if (state.status === 'Task') {
+                    const newTime = state.taskTime - minutesPassed;
+                    if (newTime <= 0) {
+                        updates[`${name}/status`] = 'Idle';
+                        updates[`${name}/taskTime`] = 0;
+                        completedTasks.push(name);
+                        console.log(`${name} terminó su tarea.`);
+                    } else {
+                        updates[`${name}/taskTime`] = newTime;
+                    }
+                }
+            }
+            // También resetear a Idle a los jugadores vinculados a las tareas completadas
+            for (const [name, state] of Object.entries(rolTurnsData)) {
+                if (state.status === 'Linked' && completedTasks.includes(state.linkedTo)) {
+                    updates[`${name}/status`] = 'Idle';
+                    updates[`${name}/taskTime`] = 0;
+                    updates[`${name}/linkedTo`] = null;
+                }
+            }
+
+            if (Object.keys(updates).length > 0) {
+                db.ref("campaña/rol_turns").update(updates);
+            }
+        }
+
+        // Suscribirse a Rol Turns
+        db.ref("campaña/rol_turns").on("value", snap => {
+            rolTurnsData = snap.val() || {};
+            // Asegurar que todos los jugadores en caché tengan entrada
+            let needsUpdate = false;
+            let updates = {};
+            for (const name of Object.keys(dbJugadoresCache)) {
+                if (!rolTurnsData[name]) {
+                    rolTurnsData[name] = { status: 'Idle', taskTime: 0, linkedTo: null };
+                    updates[name] = rolTurnsData[name];
+                    needsUpdate = true;
+                }
+            }
+            if(needsUpdate) db.ref("campaña/rol_turns").update(updates);
+
+            renderRolTurns();
+        });
+
+        // Asegurarse de renderizar cuando la DB de jugadores cambie también
+        const originalJugadoresListener = db.ref("campaña/jugadores").on("value", (snapshot) => {
+          dbJugadoresCache = snapshot.val() || {};
+          renderActorAsignacion();
+          renderRolTurns();
+        });
+
+        // Remove duplicate old listeners for UI buttons of time
+        // The old buttons were removed via HTML replacement.
+
 
         // --- LOGICA DE COMBATE (MIGRADA DESDE BATTLE-VIEWER) ---
         let dmCombatData = {};
