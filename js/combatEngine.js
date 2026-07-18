@@ -151,6 +151,8 @@ const CombatEngine = {
             levelModifier: config.levelModifier || 0,
             attackWeight: config.attackWeight || 1,
             skillAmount: config.skillAmount || 1,
+            tier: config.tier !== undefined ? config.tier : 1, // Fallback a tier 1
+            isItemSkill: config.isItemSkill || false, // Fallback a false
 
             // D&D Hybrid Additions
             type: config.type || 'Normal', // 'Normal', 'Spell', 'Roll', 'Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'
@@ -1073,6 +1075,55 @@ const CombatEngine = {
     },
 
     // 4. Velocidad, Slots y Targeting
+
+    calculateActionSlots: function(combatants, currentRound, hasReinforcements, isPlayerFaction) {
+        let maxGlobalSlots = (isPlayerFaction && !hasReinforcements) ? 11 : 12;
+        let totalSlotsToDistribute = combatants.length + (currentRound - 1);
+
+        totalSlotsToDistribute = Math.min(totalSlotsToDistribute, maxGlobalSlots);
+
+        // Ordenar combatientes por Velocidad (de mayor a menor)
+        let sortedCombatants = combatants.sort((a, b) => b.speed - a.speed);
+
+        // Asignar 1 slot base a cada uno vivo
+        sortedCombatants.forEach(c => {
+            c.activeSlots = 1;
+            // Aseguramos que la propiedad exista, si no, asumimos 3 (minion)
+            if (c.maxSlotsLimit === undefined) {
+                c.maxSlotsLimit = 3;
+            }
+        });
+
+        let remainingSlots = totalSlotsToDistribute - sortedCombatants.length;
+
+        // Bucle para repartir los restantes al más rápido, respetando sus topes individuales
+        let i = 0;
+        let iterationsWithoutAssignment = 0; // Guard against infinite loop
+
+        while(remainingSlots > 0 && i < sortedCombatants.length) {
+            let unit = sortedCombatants[i];
+            if (unit.activeSlots < unit.maxSlotsLimit) {
+                unit.activeSlots++;
+                remainingSlots--;
+                iterationsWithoutAssignment = 0;
+            } else {
+                iterationsWithoutAssignment++;
+            }
+
+            i++; // Pasar al siguiente más rápido
+
+            // Reiniciar el loop si aún hay slots y todos los rápidos ya recibieron su ronda
+            if (i >= sortedCombatants.length && remainingSlots > 0) {
+                if (iterationsWithoutAssignment >= sortedCombatants.length) {
+                    // Everyone is at their limit, break the loop to prevent infinite loop
+                    break;
+                }
+                i = 0;
+            }
+        }
+        return sortedCombatants;
+    },
+
     autoTarget: function(attacker, skill, enemies) {
         if (!enemies || enemies.length === 0) return null;
 
