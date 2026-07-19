@@ -561,7 +561,10 @@
               >| Día 1 de Mes 1, Año 984 | ☀️ Despejado</span
             >
           </div>
-          <div class="sheet-statusbar-right">📶 100% 🔋</div>
+          <div class="sheet-statusbar-right" style="display: flex; gap: 5px; align-items: center;">
+              <button id="btn-toggle-mute" style="background: transparent; border: none; color: #fff; cursor: pointer; font-size: 1em;">🔔</button>
+              📶 100% 🔋
+          </div>
         </div>
         <div class="sheet-phone-screen">
           <!-- Home Tab -->
@@ -646,12 +649,46 @@
 
           <div class="sheet-tab-content sheet-tab-mail">
             <div class="sheet-app-header"><h2>Mail</h2></div>
-            <div
-              class="sheet-app-body-mail"
-              style="display: flex; height: calc(100% - 60px); width: 100%"
-            >
+            <div class="sheet-no-signal-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+              <h1 style="color: #ff0033; font-family: 'Share Tech Mono', monospace; font-size: 3em; margin: 0; text-shadow: 0 0 10px #ff0033;">NO SIGNAL</h1>
+              <h3 style="color: #fff; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px;">DEVICE MISSING</h3>
+            </div>
+
+            <div class="sheet-app-body-mail" style="display: flex; flex-direction: column; height: calc(100% - 60px); width: 100%;">
+
+          <!-- Sub Tabs para Mail y Chat -->
+          <div style="display: flex; background: #111; border-bottom: 2px solid #333;">
+              <button id="btn-show-mail" style="flex: 1; padding: 10px; background: transparent; color: #aaa; border: none; font-family: 'Share Tech Mono', monospace; cursor: pointer; border-bottom: 2px solid var(--cyan-tech); color: var(--cyan-tech);">EMAIL</button>
+              <button id="btn-show-chat" style="flex: 1; padding: 10px; background: transparent; color: #aaa; border: none; font-family: 'Share Tech Mono', monospace; cursor: pointer;">CHAT</button>
+          </div>
+
+          <div id="subtab-mail" style="display: flex; height: calc(100% - 100px); width: 100%">
               <div class="mail-inbox-list"></div>
               <div class="mail-read-area"></div>
+          </div>
+
+          <div id="subtab-chat" style="display: none; height: calc(100% - 100px); width: 100%; flex-direction: row;">
+              <div style="width: 30%; border-right: 1px solid #333; display: flex; flex-direction: column; background: #0a0a0a;">
+                  <button id="btn-create-group" style="padding: 10px; background: #111; color: var(--cyan-tech); border: none; border-bottom: 1px solid #333; font-family: 'Share Tech Mono', monospace; cursor: pointer;">+ NUEVO GRUPO</button>
+                  <div id="chat-threads-list" style="flex: 1; overflow-y: auto;">
+                      <!-- Lista de chats -->
+                  </div>
+              </div>
+              <div id="chat-active-area" style="width: 70%; display: flex; flex-direction: column; background: #000; position: relative;">
+                  <div id="chat-header" style="padding: 10px; border-bottom: 1px solid #333; background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center;">
+                      <span id="chat-header-name">Selecciona un Chat</span>
+                      <button id="btn-save-contact" style="display: none; background: #222; color: #0df; border: 1px solid #0df; padding: 5px; font-family: inherit; cursor: pointer; border-radius: 3px; font-size: 0.8em;">[Guardar Contacto]</button>
+                  </div>
+                  <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;">
+                      <!-- Mensajes -->
+                  </div>
+                  <div style="display: flex; padding: 10px; border-top: 1px solid #333; background: #111;">
+                      <input type="text" id="chat-input" placeholder="Escribe un mensaje..." style="flex: 1; padding: 10px; background: #000; color: #fff; border: 1px solid #444; border-radius: 4px 0 0 4px; font-family: 'Share Tech Mono', monospace;">
+                      <button id="btn-send-chat" style="padding: 10px 20px; background: var(--cyan-tech); color: #000; font-weight: bold; border: none; border-radius: 0 4px 4px 0; cursor: pointer;">ENVIAR</button>
+                  </div>
+              </div>
+          </div>
+
             </div>
           </div>
 
@@ -687,6 +724,11 @@
           <!-- Banco Tab -->
           <div class="sheet-tab-content sheet-tab-banco">
             <div class="sheet-app-header"><h2>Banco</h2></div>
+            <div class="sheet-no-signal-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+              <h1 style="color: #ff0033; font-family: 'Share Tech Mono', monospace; font-size: 3em; margin: 0; text-shadow: 0 0 10px #ff0033;">NO SIGNAL</h1>
+              <h3 style="color: #fff; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px;">DEVICE MISSING</h3>
+            </div>
+
             <div class="sheet-app-body">
               <div class="sheet-banco-balance-card">
                 <h3 class="sheet-banco-title">BALANCE ACTUAL</h3>
@@ -709,6 +751,33 @@
                 </div>
               </div>
 
+
+              <div style="margin-bottom: 15px; text-align: center;">
+                <button type="button" id="btn-open-transfer" style="background-color: var(--cyan-tech); color: #000; font-family: 'Share Tech Mono', monospace; font-size: 1.2em; font-weight: bold; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; text-transform: uppercase;">
+                    Transferir Ahn
+                </button>
+              </div>
+
+              <!-- Transfer Modal Structure (Hidden by default) -->
+              <div id="transfer-modal" class="sheet-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 200; justify-content: center; align-items: center;">
+                <div class="sheet-modal-content" style="background: #1a1a1a; padding: 20px; border: 2px solid var(--cyan-tech); border-radius: 8px; width: 90%; max-width: 400px; text-align: left;">
+                    <h3 style="color: var(--cyan-tech); margin-top: 0;">NUEVA TRANSFERENCIA</h3>
+
+                    <label style="color: #fff; font-size: 0.8em; margin-bottom: 5px; display: block;">CONTACTO O NÚMERO:</label>
+                    <input type="text" id="transfer-contact-input" placeholder="Ej. 555-0192" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
+
+                    <label style="color: #fff; font-size: 0.8em; margin-bottom: 5px; display: block;">MONTO (Ahn):</label>
+                    <input type="number" id="transfer-amount-input" min="1" placeholder="0" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
+
+                    <label style="color: #fff; font-size: 0.8em; margin-bottom: 5px; display: block;">CONCEPTO:</label>
+                    <input type="text" id="transfer-concept-input" placeholder="Opcional" style="width: 100%; padding: 8px; background: #000; color: #0df; border: 1px solid #444; border-radius: 4px; margin-bottom: 20px; box-sizing: border-box; font-family: 'Share Tech Mono', monospace;">
+
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-cancel-transfer" style="flex: 1; padding: 10px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer;">CANCELAR</button>
+                        <button id="btn-confirm-transfer" style="flex: 1; padding: 10px; background: var(--cyan-tech); color: #000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">ENVIAR</button>
+                    </div>
+                </div>
+              </div>
               <div class="sheet-banco-transactions">
                 <h4 class="sheet-banco-subtitle">ÚLTIMAS TRANSACCIONES</h4>
                 <div

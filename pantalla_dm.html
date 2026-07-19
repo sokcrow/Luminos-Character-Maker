@@ -1254,7 +1254,8 @@
       </button>
       <button class="dm-tab-btn" data-tab="tab-clima">Clima</button>
       <button class="dm-tab-btn" data-tab="tab-turnos">Gestión de Turnos</button>
-      <button class="dm-tab-btn" data-tab="tab-banco">Banco/Comms</button>
+      <button class="dm-tab-btn" data-tab="tab-banco">Banco</button>
+      <button class="dm-tab-btn" data-tab="tab-comms">Comms</button>
       <button class="dm-tab-btn" data-tab="tab-forja">Forja/Mercado</button>
       <button class="dm-tab-btn" data-tab="tab-loot">Botín</button>
 
@@ -1401,6 +1402,53 @@
           </div>
         </div>
       </div>
+
+<!-- TAB: COMUNICACIONES (Burner Phone) -->
+      <div id="tab-comms" class="dm-tab-pane">
+        <div id="dm-comms-panel" class="panel-cyber" style="margin-top: 20px; width: 90%; max-width: 1000px; margin: 20px auto;">
+          <h3 style="color: #0df;">RED DE COMUNICACIONES (Burner Phone)</h3>
+
+          <div style="display: flex; gap: 20px; height: 600px;">
+              <!-- Selector de Actor y Lista de Chats -->
+              <div style="width: 30%; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #444; padding-right: 10px;">
+                  <label style="color: #aaa; font-size: 0.9em;">Hablar como:</label>
+                  <select id="dm-comms-actor-select" class="form-cyber">
+                      <option value="system">SISTEMA (000-0000)</option>
+                  </select>
+
+                  <div style="margin-top: 20px;">
+                      <h4 style="margin-bottom: 5px; color: #fff;">Nuevo Chat / Enviar a:</h4>
+                      <select id="dm-comms-target-select" class="form-cyber">
+                          <!-- Populated with Players and Actors -->
+                      </select>
+                      <button id="btn-dm-create-chat" class="btn-cyber" style="width: 100%; margin-top: 10px;">Iniciar / Abrir Chat</button>
+                  </div>
+
+                  <div style="margin-top: 20px;">
+                      <h4 style="margin-bottom: 5px; color: #fff;">Chats Activos</h4>
+                      <div id="dm-comms-chat-list" style="overflow-y: auto; flex: 1; border: 1px solid #333; background: #0a0a0a;">
+                          <!-- Populated via JS -->
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Área de Mensajería -->
+              <div style="width: 70%; display: flex; flex-direction: column; background: #000; border: 1px solid #333; position: relative;">
+                  <div id="dm-chat-header" style="padding: 10px; background: #111; border-bottom: 1px solid #333; color: #0df; font-weight: bold;">
+                      Selecciona un chat
+                  </div>
+                  <div id="dm-chat-messages" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                      <!-- Messages here -->
+                  </div>
+                  <div style="display: flex; padding: 10px; background: #111; border-top: 1px solid #333;">
+                      <input type="text" id="dm-chat-input" class="form-cyber" placeholder="Mensaje..." style="flex: 1; border-radius: 4px 0 0 4px; border: none; background: #0a0a0a; color: #fff; padding: 10px;">
+                      <button id="btn-dm-send-chat" class="btn-cyber" style="border-radius: 0 4px 4px 0; background: #0df; color: #000; border: none; padding: 10px 20px; font-weight: bold;">ENVIAR</button>
+                  </div>
+              </div>
+          </div>
+        </div>
+      </div>
+
 <!-- TAB: BANCO / COMUNICACIONES -->
       <div id="tab-banco" class="dm-tab-pane">
         <div
@@ -3789,6 +3837,50 @@
 
       function initializeDMApp() {
 
+
+        // --- INICIALIZADOR DE TELEFONOS ---
+        function initPhoneNumbers() {
+          function generatePhoneNumber() {
+            const prefix = Math.floor(100 + Math.random() * 900); // 3 digits
+            const suffix = Math.floor(1000 + Math.random() * 9000); // 4 digits
+            return `${prefix}-${suffix}`;
+          }
+
+          // Jugadores
+          db.ref("campaña/jugadores").once("value", snap => {
+            const players = snap.val();
+            if (players) {
+              const updates = {};
+              for (const [playerId, data] of Object.entries(players)) {
+                if (!data.phoneNumber) {
+                  updates[`campaña/jugadores/${playerId}/phoneNumber`] = generatePhoneNumber();
+                }
+              }
+              if (Object.keys(updates).length > 0) {
+                db.ref().update(updates);
+              }
+            }
+          });
+
+          // Actores (NPCs)
+          db.ref("campaña/actores").once("value", snap => {
+            const actors = snap.val();
+            if (actors) {
+              const updates = {};
+              for (const [actorId, data] of Object.entries(actors)) {
+                // Generar telefono para todos los actores o solo los "sociales"
+                if (!data.phoneNumber) {
+                  updates[`campaña/actores/${actorId}/phoneNumber`] = generatePhoneNumber();
+                }
+              }
+              if (Object.keys(updates).length > 0) {
+                db.ref().update(updates);
+              }
+            }
+          });
+        }
+        initPhoneNumbers();
+
         // --- MOTOR DE CLIMA HEXAGONAL ---
         const WEATHER_GRAPH_PRIMAVERA = {
             "Soleado": ["Calor", "Parcialmente Nublado"],
@@ -4596,6 +4688,173 @@
             }
           });
 
+
+        // --- COMUNICACIONES DM ---
+        let currentDmChatId = null;
+        let dmActorsMap = {};
+        let dmPlayersMap = {};
+
+        function initDmComms() {
+            // Load actors
+            db.ref("campaña/actores").on("value", snap => {
+                const actors = snap.val() || {};
+                dmActorsMap = actors;
+
+                const select = document.getElementById("dm-comms-actor-select");
+                const targetSelect = document.getElementById("dm-comms-target-select");
+
+                // Clear except first (system)
+                select.innerHTML = '<option value="system">SISTEMA (000-0000)</option>';
+                // Keep target empty initially
+
+                let targetHtml = '';
+
+                for (const [aId, aData] of Object.entries(actors)) {
+                    if (aData.phoneNumber) {
+                        select.innerHTML += `<option value="${aData.phoneNumber}">${aData.nombre || aId} (${aData.phoneNumber})</option>`;
+                        targetHtml += `<option value="${aData.phoneNumber}">[NPC] ${aData.nombre || aId} (${aData.phoneNumber})</option>`;
+                    }
+                }
+
+                // Load Players for target
+                db.ref("campaña/jugadores").once("value", psnap => {
+                    const players = psnap.val() || {};
+                    dmPlayersMap = players;
+                    for (const [pId, pData] of Object.entries(players)) {
+                        if (pData.phoneNumber) {
+                            targetHtml += `<option value="${pData.phoneNumber}">[Jugador] ${pData.character_name || pId} (${pData.phoneNumber})</option>`;
+                        }
+                    }
+                    targetSelect.innerHTML = targetHtml;
+                });
+            });
+
+            // Load all chats
+            db.ref("campaña/comms/chats").on("value", snap => {
+                const chats = snap.val() || {};
+                const listDiv = document.getElementById("dm-comms-chat-list");
+                listDiv.innerHTML = "";
+
+                for (const [cId, cData] of Object.entries(chats)) {
+                    const div = document.createElement("div");
+                    div.style.padding = "10px";
+                    div.style.borderBottom = "1px solid #333";
+                    div.style.cursor = "pointer";
+                    div.style.color = "#aaa";
+                    div.innerText = cData.name || cId;
+                    div.onclick = () => loadDmChat(cId, cData);
+                    listDiv.appendChild(div);
+                }
+            });
+
+            document.getElementById("btn-dm-create-chat").onclick = () => {
+                const targetPhone = document.getElementById("dm-comms-target-select").value;
+                const senderPhone = document.getElementById("dm-comms-actor-select").value;
+
+                if (!targetPhone) return alert("Selecciona un destinatario");
+                if (targetPhone === senderPhone) return alert("No puedes abrir un chat contigo mismo.");
+
+                // Check if chat exists between these two
+                db.ref("campaña/comms/chats").once("value", snap => {
+                    const chats = snap.val() || {};
+                    let existingChatId = null;
+
+                    for (const [cId, cData] of Object.entries(chats)) {
+                        if (cData.participants && cData.participants[targetPhone] && cData.participants[senderPhone] && Object.keys(cData.participants).length === 2) {
+                            existingChatId = cId;
+                            break;
+                        }
+                    }
+
+                    if (existingChatId) {
+                        loadDmChat(existingChatId, chats[existingChatId]);
+                    } else {
+                        // Create new
+                        const newChatRef = db.ref("campaña/comms/chats").push();
+                        const parts = {};
+                        parts[targetPhone] = true;
+                        parts[senderPhone] = true;
+
+                        const name = `DM Chat: ${senderPhone} - ${targetPhone}`;
+                        newChatRef.set({
+                            name: name,
+                            participants: parts
+                        }).then(() => {
+                            // Assign to participants (if players)
+                            assignChatToParticipant(targetPhone, newChatRef.key);
+                            assignChatToParticipant(senderPhone, newChatRef.key);
+
+                            loadDmChat(newChatRef.key, {name, participants: parts});
+                        });
+                    }
+                });
+            };
+
+            document.getElementById("btn-dm-send-chat").onclick = () => {
+                if (!currentDmChatId) return;
+                let senderPhone = document.getElementById("dm-comms-actor-select").value;
+                const input = document.getElementById("dm-chat-input");
+                const msg = input.value.trim();
+
+                if (!msg) return;
+                if (senderPhone === "system") {
+                    senderPhone = "000-0000"; // Fake system number
+                }
+
+                const ts = Date.now();
+                db.ref(`campaña/comms/chats/${currentDmChatId}/messages`).push({
+                    sender: senderPhone,
+                    text: msg,
+                    timestamp: ts
+                });
+                db.ref(`campaña/comms/chats/${currentDmChatId}`).update({ lastMessageTimestamp: ts });
+                input.value = "";
+            };
+        }
+
+        function assignChatToParticipant(phone, chatId) {
+            // Find if player
+            db.ref("campaña/jugadores").once("value", snap => {
+                const players = snap.val() || {};
+                for (const [pId, pData] of Object.entries(players)) {
+                    if (pData.phoneNumber === phone) {
+                        db.ref(`campaña/jugadores/${pId}/chats/${chatId}`).set(true);
+                        return;
+                    }
+                }
+            });
+        }
+
+        function loadDmChat(chatId, chatData) {
+            currentDmChatId = chatId;
+            document.getElementById("dm-chat-header").innerText = chatData.name || chatId;
+
+            db.ref(`campaña/comms/chats/${chatId}/messages`).off();
+            db.ref(`campaña/comms/chats/${chatId}/messages`).on("value", snap => {
+                const container = document.getElementById("dm-chat-messages");
+                container.innerHTML = "";
+                snap.forEach(child => {
+                    const m = child.val();
+                    const isSystem = m.sender === "000-0000";
+
+                    const div = document.createElement("div");
+                    div.style.padding = "10px";
+                    div.style.borderRadius = "4px";
+                    div.style.background = isSystem ? "#300" : "#222";
+                    div.style.border = isSystem ? "1px solid #f00" : "1px solid #444";
+                    div.style.color = "#ddd";
+                    div.style.fontFamily = "'Share Tech Mono', monospace";
+
+                    div.innerHTML = `<strong style="color: ${isSystem ? '#f00' : '#0df'}; display: block; font-size: 0.8em;">${m.sender}</strong> ${m.text}`;
+                    container.appendChild(div);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        // Llamar a initDmComms una vez auth funcione
+
+        initDmComms();
         // --- LÓGICA DE CALENDARIO Y CLIMA AUTOMÁTICO ---
 
         // Días por mes (Año con meses variados)

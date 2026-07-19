@@ -882,12 +882,12 @@ function renderCharacterSheet(data) {
     transContainer.innerHTML = ""; // Limpia lo viejo
 
     // Ensure we check for transacciones too if transactions is not found
-    const dataTrans = data.transacciones || data.transactions;
+    const dataTrans = (data.finance && data.finance.transactionHistory) ? data.finance.transactionHistory : (data.transacciones || data.transactions);
     if (dataTrans) {
       // Convertir a array, ordenar por fecha y tomar las últimas 3
       const transArray = Object.values(dataTrans)
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-        .slice(0, 3);
+        .slice(0, 5);
 
       transArray.forEach((t) => {
         const div = document.createElement("div");
@@ -1465,6 +1465,41 @@ function initializeCharacterSheet() {
       "shop",
     ];
 
+
+    function checkCellphone(playerId, callback) {
+      if (!playerId) {
+        callback(false);
+        return;
+      }
+
+      let hasCellphone = false;
+
+      // We will do a one-time check or we can track it globally.
+      // Let's check both activo and stash right away.
+      const checkInventories = [
+        db.ref(`campaña/jugadores/${playerId}/inventario_activo`).once('value'),
+        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).once('value')
+      ];
+
+      Promise.all(checkInventories).then(snaps => {
+        snaps.forEach(snap => {
+          const inv = snap.val();
+          if (inv) {
+            Object.values(inv).forEach(item => {
+              // We'll check if id is "cellphone" or tags includes "cellphone"
+              // Just in case, let's also check if id was defined as "cellphone"
+              if (item.id === "cellphone" || (item.tags && typeof item.tags === 'string' && item.tags.toLowerCase().includes("cellphone"))) {
+                hasCellphone = true;
+              }
+            });
+          }
+        });
+        callback(hasCellphone);
+      }).catch(() => {
+        callback(false);
+      });
+    }
+
     // Tab switching logic for Main Nav
     document.addEventListener("click", (e) => {
       const btn = e.target.closest('button[type="action"]');
@@ -1490,6 +1525,44 @@ function initializeCharacterSheet() {
       const targetTab = document.querySelector(`.sheet-tab-${tabName}`);
       if (targetTab) {
         targetTab.style.display = "block";
+
+        if (tabName === "banco" || tabName === "mail") {
+          const charNameInput = document.querySelector('input[name="attr_character_name"]');
+          const pName = charNameInput ? charNameInput.value.trim() : "";
+
+          if (pName) {
+            checkCellphone(pName, (hasDevice) => {
+              const overlay = targetTab.querySelector('.sheet-no-signal-overlay');
+              const bodyElements = targetTab.querySelectorAll('.sheet-app-body, .sheet-app-body-mail');
+
+              if (!hasDevice) {
+                if (overlay) overlay.style.display = "flex";
+                bodyElements.forEach(el => el.style.display = "none");
+              } else {
+                if (overlay) overlay.style.display = "none";
+                bodyElements.forEach(el => el.style.display = "flex");
+                // Reset to display block for app body if it's not flex originally, but flex works or empty
+              }
+              if (tabName === "banco") {
+                  // Limpiar unread transacciones
+                  const txRef = db.ref(`campaña/jugadores/${pName}/finance/transactionHistory`);
+                  txRef.once("value", snap => {
+                      const updates = {};
+                      let hasUpdates = false;
+                      snap.forEach(child => {
+                          const tx = child.val();
+                          if (tx.unread) {
+                              updates[`${child.key}/unread`] = false;
+                              hasUpdates = true;
+                          }
+                      });
+                      if (hasUpdates) txRef.update(updates);
+                  });
+              }
+
+            });
+          }
+        }
       }
     });
 
@@ -1500,7 +1573,125 @@ function initializeCharacterSheet() {
     const homeTab = document.querySelector(".sheet-tab-home");
     if (homeTab) homeTab.style.display = "block";
 
-    // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
+
+  // Transferencia P2P Automatizada
+  const btnOpenTransfer = document.getElementById("btn-open-transfer");
+  const transferModal = document.getElementById("transfer-modal");
+  const btnCancelTransfer = document.getElementById("btn-cancel-transfer");
+  const btnConfirmTransfer = document.getElementById("btn-confirm-transfer");
+
+  if (btnOpenTransfer && transferModal) {
+    btnOpenTransfer.addEventListener("click", () => {
+        transferModal.style.display = "flex";
+    });
+
+    btnCancelTransfer.addEventListener("click", () => {
+        transferModal.style.display = "none";
+        document.getElementById("transfer-contact-input").value = "";
+        document.getElementById("transfer-amount-input").value = "";
+        document.getElementById("transfer-concept-input").value = "";
+    });
+
+    btnConfirmTransfer.addEventListener("click", () => {
+        const contactInput = document.getElementById("transfer-contact-input").value.trim();
+        const amount = parseInt(document.getElementById("transfer-amount-input").value, 10);
+        const concept = document.getElementById("transfer-concept-input").value.trim() || "Transferencia P2P";
+
+        if (!contactInput || isNaN(amount) || amount <= 0) {
+            alert("Datos inválidos.");
+            return;
+        }
+
+        // Find target player by phoneNumber or Name
+        db.ref('campaña/jugadores').once('value', (snap) => {
+            const players = snap.val() || {};
+            let targetPlayerId = null;
+
+            // Search by name or phone
+            for (const [pId, pData] of Object.entries(players)) {
+                if (pData.phoneNumber === contactInput || pId.toLowerCase() === contactInput.toLowerCase() || (pData.character_name && pData.character_name.toLowerCase() === contactInput.toLowerCase())) {
+                    targetPlayerId = pId;
+                    break;
+                }
+            }
+
+            if (!targetPlayerId) {
+                // Check actors
+                db.ref('campaña/actores').once('value', (actSnap) => {
+                    const actors = actSnap.val() || {};
+                    let targetActorId = null;
+                    for (const [aId, aData] of Object.entries(actors)) {
+                        if (aData.phoneNumber === contactInput || aId.toLowerCase() === contactInput.toLowerCase() || (aData.nombre && aData.nombre.toLowerCase() === contactInput.toLowerCase())) {
+                            targetActorId = aId;
+                            break;
+                        }
+                    }
+
+                    if (!targetActorId) {
+                        alert("Destinatario no encontrado. Verifica el número.");
+                    } else {
+                        // Transfer to NPC
+                        processTransfer(playerId, 'campaña/actores/'+targetActorId, amount, concept, actors[targetActorId].nombre || targetActorId);
+                    }
+                });
+            } else {
+                // Transfer to Player
+                processTransfer(playerId, 'campaña/jugadores/'+targetPlayerId, amount, concept, players[targetPlayerId].character_name || targetPlayerId);
+            }
+        });
+    });
+  }
+
+  function processTransfer(senderId, targetPath, amount, concept, targetName) {
+      db.ref(`campaña/jugadores/${senderId}`).once('value', (snap) => {
+          const senderData = snap.val();
+          const currentBalance = (senderData.finance && senderData.finance.currentBalance !== undefined) ? senderData.finance.currentBalance : (senderData.ahn || 0);
+
+          if (currentBalance < amount) {
+              alert("Ahn insuficientes para esta transferencia.");
+              return;
+          }
+
+          const newSenderBalance = currentBalance - amount;
+          const txOut = { monto: -amount, concepto: `A: ${targetName} - ${concept}`, timestamp: Date.now(), unread: true };
+          const txIn = { monto: amount, concepto: `De: ${senderData.character_name || senderId} - ${concept}`, timestamp: Date.now(), unread: true };
+
+          // Actualizar sender
+          const updates = {};
+          updates[`campaña/jugadores/${senderId}/ahn`] = newSenderBalance;
+          updates[`campaña/jugadores/${senderId}/finance/currentBalance`] = newSenderBalance;
+
+          // Try to update target balance if it's a player
+          db.ref(targetPath).once('value', (tgtSnap) => {
+              const tgtData = tgtSnap.val();
+              if (targetPath.includes('jugadores')) {
+                  const targetBalance = (tgtData.finance && tgtData.finance.currentBalance !== undefined) ? tgtData.finance.currentBalance : (tgtData.ahn || 0);
+                  const newTgtBalance = targetBalance + amount;
+                  updates[`${targetPath}/ahn`] = newTgtBalance;
+                  updates[`${targetPath}/finance/currentBalance`] = newTgtBalance;
+              }
+
+              db.ref().update(updates).then(() => {
+                  // Push transactions
+                  db.ref(`campaña/jugadores/${senderId}/finance/transactionHistory`).push(txOut);
+                  db.ref(`campaña/jugadores/${senderId}/transacciones`).push(txOut);
+
+                  db.ref(`${targetPath}/finance/transactionHistory`).push(txIn);
+                  db.ref(`${targetPath}/transacciones`).push(txIn);
+
+                  alert(`Transferencia de ${amount} Ahn a ${targetName} completada.`);
+                  if (transferModal) {
+                      transferModal.style.display = "none";
+                      document.getElementById("transfer-contact-input").value = "";
+                      document.getElementById("transfer-amount-input").value = "";
+                      document.getElementById("transfer-concept-input").value = "";
+                  }
+              });
+          });
+      });
+  }
+
+  // --- NUEVO SISTEMA DE NAVEGACIÓN DE VENTANAS (VANILLA JS) ---
     // Buscar todos los botones de acción del HUD y Codex
     document.querySelectorAll('button[type="action"]').forEach((btn) => {
       btn.addEventListener("click", function () {
@@ -1556,6 +1747,385 @@ function initializeCharacterSheet() {
       });
     });
   }
+
+  // --- GLOBALS FOR CHAT ---
+  let chatListenerActive = false;
+  let currentChatId = null;
+  let myPhoneNumber = null;
+  let contactsDictionary = {}; // phoneNumber -> alias
+  let knownPortraits = {}; // phoneNumber -> sprite URL
+
+  function initChatSystem() {
+      if (chatListenerActive) return;
+      chatListenerActive = true;
+
+      const charNameInput = document.querySelector('input[name="attr_character_name"]');
+      const pName = charNameInput ? charNameInput.value.trim() : "";
+      if (!pName) return;
+
+      // Fetch my phone number and contacts
+      db.ref(`campaña/jugadores/${pName}`).on("value", snap => {
+          const pData = snap.val();
+          if (!pData) return;
+          myPhoneNumber = pData.phoneNumber;
+          contactsDictionary = pData.contacts || {};
+
+          const chats = pData.chats || {};
+          renderChatList(chats);
+      });
+
+      // Send logic
+      const btnSend = document.getElementById("btn-send-chat");
+      if (btnSend) {
+          btnSend.onclick = () => {
+              if (!currentChatId || !myPhoneNumber) return;
+              const input = document.getElementById("chat-input");
+              const msg = input.value.trim();
+              if (!msg) return;
+
+              const ts = Date.now();
+              db.ref(`campaña/comms/chats/${currentChatId}/messages`).push({
+                  sender: myPhoneNumber,
+                  text: msg,
+                  timestamp: ts
+              });
+              db.ref(`campaña/comms/chats/${currentChatId}`).update({ lastMessageTimestamp: ts });
+              input.value = "";
+          };
+      }
+
+      // Group creation
+      const btnGroup = document.getElementById("btn-create-group");
+      if (btnGroup) {
+          btnGroup.onclick = () => {
+              const input = prompt("Introduce los números de teléfono (separados por coma) para el nuevo grupo:");
+              if (!input) return;
+              const phones = input.split(",").map(s => s.trim()).filter(s => s);
+              if (phones.length === 0) return;
+
+              const groupName = prompt("Nombre del Grupo:");
+              if (!groupName) return;
+
+              // Validate and create
+              const participants = {};
+              participants[myPhoneNumber] = true;
+              phones.forEach(p => participants[p] = true);
+
+              const newChatRef = db.ref("campaña/comms/chats").push();
+              newChatRef.set({
+                  name: groupName,
+                  participants: participants,
+                  isGroup: true
+              }).then(() => {
+                  // Add chat ID to myself
+                  db.ref(`campaña/jugadores/${pName}/chats/${newChatRef.key}`).set(true);
+
+                  // For the other participants, we need a server-side or global way to add it.
+                  // For simplicity, we just do a blind update if they exist.
+                  // In a real scenario, this would be cleaner.
+                  phones.forEach(p => {
+                      db.ref("campaña/jugadores").once("value", psnap => {
+                          const players = psnap.val() || {};
+                          for (const [pId, pData] of Object.entries(players)) {
+                              if (pData.phoneNumber === p) {
+                                  db.ref(`campaña/jugadores/${pId}/chats/${newChatRef.key}`).set(true);
+                              }
+                          }
+                      });
+                      db.ref("campaña/actores").once("value", asnap => {
+                          const actors = asnap.val() || {};
+                          for (const [aId, aData] of Object.entries(actors)) {
+                              if (aData.phoneNumber === p) {
+                                  // NPCs don't strictly have a /chats array, but DM manages them
+                              }
+                          }
+                      });
+                  });
+              });
+          };
+      }
+  }
+
+  function renderChatList(chatIds) {
+      const listDiv = document.getElementById("chat-threads-list");
+      if (!listDiv) return;
+      listDiv.innerHTML = "";
+      Object.keys(chatIds).forEach(chatId => {
+          db.ref(`campaña/comms/chats/${chatId}`).once("value", snap => {
+              const chatData = snap.val();
+              if (!chatData) return;
+
+              const div = document.createElement("div");
+              div.style.padding = "10px";
+              div.style.borderBottom = "1px solid #333";
+              div.style.cursor = "pointer";
+              div.style.color = "#ddd";
+              div.style.fontFamily = "'Share Tech Mono', monospace";
+              div.innerText = chatData.name || "Chat";
+
+              div.onclick = () => loadChat(chatId, chatData);
+              listDiv.appendChild(div);
+          });
+      });
+  }
+
+  function loadChat(chatId, chatData) {
+      currentChatId = chatId;
+      const charNameInput = document.querySelector('input[name="attr_character_name"]');
+      const pName = charNameInput ? charNameInput.value.trim() : "";
+      if (pName) {
+          db.ref(`campaña/jugadores/${pName}/chats/${chatId}`).set({ lastRead: Date.now() }).then(() => {
+              if (typeof window.updateNotifications === 'function') {
+                  // Trigger a manual check to hide the badge quickly
+                  db.ref(`campaña/jugadores/${pName}/chats`).once("value", snap => {
+                     // The global listener will handle it, but we can force it
+                     // Or just rely on the global `value` listener that will fire after the `set`.
+                  });
+              }
+          });
+      }
+      const headerName = document.getElementById("chat-header-name");
+      if (headerName) headerName.innerText = chatData.name || "Chat";
+      const btnSave = document.getElementById("btn-save-contact");
+      if (btnSave) btnSave.style.display = "none";
+
+      // Detect unknown participants in a 1-on-1 chat
+      if (chatData.participants && !chatData.isGroup) {
+          const others = Object.keys(chatData.participants).filter(p => p !== myPhoneNumber);
+          if (others.length === 1) {
+              const otherPhone = others[0];
+              if (!contactsDictionary[otherPhone]) {
+                  if (btnSave) {
+                      btnSave.style.display = "block";
+                      btnSave.onclick = () => saveContactPrompt(otherPhone);
+                  }
+              } else {
+                  if (headerName) headerName.innerText = contactsDictionary[otherPhone];
+              }
+          }
+      }
+
+      db.ref(`campaña/comms/chats/${chatId}/messages`).off();
+      db.ref(`campaña/comms/chats/${chatId}/messages`).on("value", snap => {
+          const msgsContainer = document.getElementById("chat-messages");
+          if (!msgsContainer) return;
+          msgsContainer.innerHTML = "";
+          snap.forEach(child => {
+              const m = child.val();
+              const isMe = m.sender === myPhoneNumber;
+              const senderName = isMe ? "Yo" : (contactsDictionary[m.sender] || m.sender);
+
+              const wrap = document.createElement("div");
+              wrap.style.display = "flex";
+              wrap.style.flexDirection = "column";
+              wrap.style.alignItems = isMe ? "flex-end" : "flex-start";
+
+              const bubble = document.createElement("div");
+              bubble.style.maxWidth = "80%";
+              bubble.style.padding = "8px 12px";
+              bubble.style.borderRadius = "4px";
+              bubble.style.background = isMe ? "var(--cyan-tech)" : "#222";
+              bubble.style.color = isMe ? "#000" : "#fff";
+              bubble.style.border = isMe ? "none" : "1px solid #444";
+              bubble.style.fontFamily = "'Share Tech Mono', monospace";
+
+              bubble.innerHTML = `<strong style="font-size: 0.8em; display: block; opacity: 0.7; margin-bottom: 2px;">${senderName}</strong>${m.text}`;
+
+              wrap.appendChild(bubble);
+              msgsContainer.appendChild(wrap);
+          });
+          msgsContainer.scrollTop = msgsContainer.scrollHeight;
+      });
+  }
+
+  function saveContactPrompt(phoneStr) {
+      const alias = prompt(`Guardar contacto para el número ${phoneStr}:`);
+      if (alias) {
+          const charNameInput = document.querySelector('input[name="attr_character_name"]');
+          const pName = charNameInput ? charNameInput.value.trim() : "";
+          if (pName) {
+              db.ref(`campaña/jugadores/${pName}/contacts/${phoneStr}`).set(alias).then(() => {
+                  const btnSave = document.getElementById("btn-save-contact");
+                  if(btnSave) btnSave.style.display = "none";
+                  const headerName = document.getElementById("chat-header-name");
+                  if (headerName) headerName.innerText = alias;
+              });
+          }
+      }
+  }
+
+
+  // Mute System Toggle
+  const btnMute = document.getElementById("btn-toggle-mute");
+  if (btnMute) {
+      btnMute.addEventListener("click", () => {
+          const charNameInput = document.querySelector('input[name="attr_character_name"]');
+          const pName = charNameInput ? charNameInput.value.trim() : "";
+          if (pName) {
+              db.ref(`campaña/jugadores/${pName}/settings/isMuted`).once("value", snap => {
+                  const currentMuted = snap.val() === true;
+                  db.ref(`campaña/jugadores/${pName}/settings/isMuted`).set(!currentMuted);
+              });
+          }
+      });
+  }
+
+  // Escuchar isMuted
+  const charNameInputGlobal = document.querySelector('input[name="attr_character_name"]');
+  const globalPName = charNameInputGlobal ? charNameInputGlobal.value.trim() : "";
+  if (globalPName) {
+      db.ref(`campaña/jugadores/${globalPName}/settings/isMuted`).on("value", snap => {
+          const isMuted = snap.val() === true;
+          if (btnMute) {
+              btnMute.innerText = isMuted ? "🔕" : "🔔";
+          }
+          window.isPhoneMuted = isMuted;
+          if (typeof updateNotifications === 'function') updateNotifications();
+      });
+  }
+
+
+  // --- SISTEMA DE NOTIFICACIONES REACTIVAS ---
+  let unreadBank = false;
+  let unreadMail = false;
+  let unreadChat = false;
+
+  window.updateNotifications = function() {
+      // Helper para renderizar badges
+      const renderBadge = (elementIdOrSelector, hasUnread, checkMuted = false) => {
+          const el = document.querySelector(elementIdOrSelector);
+          if (!el) return;
+
+          let badge = el.querySelector('.limbus-badge');
+
+          const shouldShow = hasUnread && (!checkMuted || !window.isPhoneMuted);
+
+          if (shouldShow) {
+              if (!badge) {
+                  badge = document.createElement('div');
+                  badge.className = 'limbus-badge';
+                  badge.innerText = '!';
+                  el.appendChild(badge);
+              }
+          } else {
+              if (badge) {
+                  badge.remove();
+              }
+          }
+      };
+
+      // Main HUD Icon (checks if muted)
+      renderBadge('#btn-toggle-phone', unreadBank || unreadMail || unreadChat, true);
+
+      // Inside apps (always shows if unread)
+      renderBadge('button[name="act_tab_banco"]', unreadBank, false);
+      renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat, false);
+
+      // Subtabs
+      renderBadge('#btn-show-mail', unreadMail, false);
+      renderBadge('#btn-show-chat', unreadChat, false);
+  };
+
+  // Listeners para Banco
+  const charNameInputGlobal2 = document.querySelector('input[name="attr_character_name"]');
+  const globalPName2 = charNameInputGlobal2 ? charNameInputGlobal2.value.trim() : "";
+  if (globalPName2) {
+      db.ref(`campaña/jugadores/${globalPName2}/finance/transactionHistory`).on("value", snap => {
+          let hasUnread = false;
+          snap.forEach(child => {
+              if (child.val().unread === true) hasUnread = true;
+          });
+          unreadBank = hasUnread;
+          window.updateNotifications();
+      });
+
+      // Listeners para Mail
+      db.ref(`campaña/jugadores/${globalPName2}/correos`).on("value", snap => {
+          let hasUnread = false;
+          snap.forEach(child => {
+              if (child.val().leido === false) hasUnread = true;
+          });
+          unreadMail = hasUnread;
+          window.updateNotifications();
+      });
+
+      // Listeners para Chat
+      db.ref(`campaña/jugadores/${globalPName2}/chats`).on("value", snap => {
+          const chats = snap.val() || {};
+          let hasUnread = false;
+
+          // Need to compare lastRead against global lastMessageTimestamp
+          const checkPromises = Object.entries(chats).map(([chatId, data]) => {
+              const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
+
+              return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
+                  const lastMsg = tsSnap.val() || 0;
+                  if (lastMsg > lastRead) {
+                      return true;
+                  }
+                  return false;
+              });
+          });
+
+          Promise.all(checkPromises).then(results => {
+              if (results.some(r => r === true)) {
+                  unreadChat = true;
+              } else {
+                  unreadChat = false;
+              }
+              window.updateNotifications();
+          });
+      });
+
+      // Update once when global chat updates as well
+      db.ref(`campaña/comms/chats`).on("child_changed", snap => {
+          // Trigger a re-eval of chat badges
+          db.ref(`campaña/jugadores/${globalPName2}/chats`).once("value", snap2 => {
+              const chats = snap2.val() || {};
+              let hasUnread = false;
+              const checkPromises = Object.entries(chats).map(([chatId, data]) => {
+                  const lastRead = typeof data === 'object' && data.lastRead ? data.lastRead : 0;
+                  return db.ref(`campaña/comms/chats/${chatId}/lastMessageTimestamp`).once("value").then(tsSnap => {
+                      if ((tsSnap.val() || 0) > lastRead) return true;
+                      return false;
+                  });
+              });
+              Promise.all(checkPromises).then(results => {
+                  unreadChat = results.some(r => r === true);
+                  window.updateNotifications();
+              });
+          });
+      });
+  }
+
+  // Set up Sub-Tab Switcher once DOM is ready
+  document.addEventListener("DOMContentLoaded", () => {
+        const btnMail = document.getElementById("btn-show-mail");
+        const btnChat = document.getElementById("btn-show-chat");
+        const subMail = document.getElementById("subtab-mail");
+        const subChat = document.getElementById("subtab-chat");
+
+        if (btnMail && btnChat) {
+            btnMail.addEventListener("click", () => {
+                subMail.style.display = "flex";
+                subChat.style.display = "none";
+                btnMail.style.borderBottom = "2px solid var(--cyan-tech)";
+                btnMail.style.color = "var(--cyan-tech)";
+                btnChat.style.borderBottom = "none";
+                btnChat.style.color = "#aaa";
+            });
+            btnChat.addEventListener("click", () => {
+                subMail.style.display = "none";
+                subChat.style.display = "flex";
+                btnChat.style.borderBottom = "2px solid var(--cyan-tech)";
+                btnChat.style.color = "var(--cyan-tech)";
+                btnMail.style.borderBottom = "none";
+                btnMail.style.color = "#aaa";
+                initChatSystem();
+            });
+        }
+  });
+
   // --- Inventory Modal Logic ---
   {
     // Mail Tab Logic
@@ -1563,6 +2133,8 @@ function initializeCharacterSheet() {
     const mailTabBtn = document.querySelector('button[name="act_tab_mail"]');
     if (mailTabBtn) {
       mailTabBtn.addEventListener("click", () => {
+
+
         if (mailListenerActive) return;
         mailListenerActive = true;
 
@@ -3422,30 +3994,41 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
     const itemData = snap.val();
     if (!itemData) return alert("El objeto ya no está disponible.");
 
-    db.ref(`campaña/jugadores/${playerId}/transacciones`).once('value', (transSnap) => {
-      let saldoAhn = 0;
-      transSnap.forEach(t => { saldoAhn += (t.val().monto || 0); });
+    db.ref(`campaña/jugadores/${playerId}`).once('value', (playerSnap) => {
+      const playerData = playerSnap.val();
+      const currentBalance = (playerData.finance && playerData.finance.currentBalance !== undefined) ? playerData.finance.currentBalance : (playerData.ahn || 0);
 
-      if (saldoAhn < precioReal) {
+      if (currentBalance < precioReal) {
         return alert("Ahn insuficientes para esta compra.");
       }
 
-      const nuevaTransaccion = {
+      const newBalance = currentBalance - precioReal;
+      const tx = {
         monto: -precioReal,
-        motivo: `Compra en Tienda: ${itemData.nombre}`,
-        timestamp: Date.now()
+        concepto: `Compra: ${itemData.nombre}`,
+        timestamp: Date.now(),
+        unread: true
       };
-      db.ref(`campaña/jugadores/${playerId}/transacciones`).push(nuevaTransaccion);
 
-      const nuevoItem = { ...itemData };
-      delete nuevoItem.costo;
-      delete nuevoItem._key;
-      nuevoItem.cantidad = 1;
-      nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+      const updates = {};
+      updates[`campaña/jugadores/${playerId}/ahn`] = newBalance; // Retro-compatibility
+      updates[`campaña/jugadores/${playerId}/finance/currentBalance`] = newBalance;
 
-      db.ref(`campaña/jugadores/${playerId}/inventario_stash`).push(nuevoItem)
-        .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
-        .catch(err => console.error("Error al entregar item:", err));
+      // Auto-update transaction logic
+      db.ref().update(updates).then(() => {
+        db.ref(`campaña/jugadores/${playerId}/finance/transactionHistory`).push(tx);
+        db.ref(`campaña/jugadores/${playerId}/transacciones`).push(tx); // Retro-compatibility
+
+        const nuevoItem = { ...itemData };
+        delete nuevoItem.costo;
+        delete nuevoItem._key;
+        nuevoItem.cantidad = 1;
+        nuevoItem.id_instancia = 'item_' + Date.now() + Math.floor(Math.random() * 1000);
+
+        db.ref(`campaña/jugadores/${playerId}/inventario_stash`).push(nuevoItem)
+          .then(() => alert(`¡Has comprado: ${itemData.nombre}!`))
+          .catch(err => console.error("Error al entregar item:", err));
+      });
     });
   });
 };
