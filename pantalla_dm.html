@@ -1144,7 +1144,19 @@
       }
 
       /* --- ICON BUTTON BASE COMPONENT --- */</style>
-  </head>
+
+    <style>
+      #tab-comms .panel-cyber { position: relative; overflow: hidden; }
+      #tab-comms .panel-cyber::before {
+          content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+          background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+          z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+      }
+      #tab-comms .chat-text-crt { text-shadow: 0 0 5px #0df; }
+      #tab-comms .mail-text-crt { text-shadow: 0 0 5px #c49a00; }
+    </style>
+</head>
+
   <body>
     <div id="system-loading-overlay">
       <img
@@ -1407,7 +1419,8 @@
 
 <!-- TAB: COMUNICACIONES (Burner Phone) -->
       <div id="tab-comms" class="dm-tab-pane">
-        <div id="dm-comms-panel" class="panel-cyber" style="margin-top: 20px; width: 90%; max-width: 1000px; margin: 20px auto;">
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 1400px; margin: 0 auto;">
+<div id="dm-comms-panel" class="panel-cyber" style="margin-top: 20px; width: 90%; max-width: 1000px; margin: 20px auto;">
           <h3 style="color: #0df;">RED DE COMUNICACIONES (Burner Phone)</h3>
 
           <div style="display: flex; gap: 20px; height: 600px;">
@@ -1439,7 +1452,7 @@
                   <div id="dm-chat-header" style="padding: 10px; background: #111; border-bottom: 1px solid #333; color: #0df; font-weight: bold;">
                       Selecciona un chat
                   </div>
-                  <div id="dm-chat-messages" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                  <div id="dm-chat-messages" class="chat-text-crt" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;">
                       <!-- Messages here -->
                   </div>
                   <div style="display: flex; padding: 10px; background: #111; border-top: 1px solid #333;">
@@ -1450,6 +1463,36 @@
           </div>
         </div>
       </div>
+
+
+        <!-- NUEVO DASHBOARD: TERMINAL DE COMUNICACIONES -->
+        <div
+          id="dashboard-comunicaciones"
+          class="panel-cyber mail-text-crt"
+          style="margin-top: 20px"
+        >
+          <h3>Terminal de Comunicaciones</h3>
+          <div class="form-cyber-container">
+            <div class="form-cyber" style="width: 100%; max-width: 600px">
+              <select id="comms-jugador">
+                <option value="">Selecciona Jugador...</option>
+              </select>
+              <input
+                type="text"
+                id="comms-remitente"
+                placeholder="Remitente (Ej: L-Corp RRHH)"
+              />
+              <input type="text" id="comms-asunto" placeholder="Asunto" />
+              <textarea
+                id="comms-mensaje"
+                placeholder="Mensaje..."
+                style="height: 150px; resize: vertical"
+              ></textarea>
+              <button id="btn-enviar-mail">Enviar Transmisión</button>
+            </div>
+          </div>
+        </div>
+</div>
 
 <!-- TAB: BANCO / COMUNICACIONES -->
       <div id="tab-banco" class="dm-tab-pane">
@@ -1580,33 +1623,55 @@
           </div>
         </div>
 
-        <!-- NUEVO DASHBOARD: TERMINAL DE COMUNICACIONES -->
-        <div
-          id="dashboard-comunicaciones"
-          class="panel-cyber"
-          style="margin-top: 20px"
-        >
-          <h3>Terminal de Comunicaciones</h3>
-          <div class="form-cyber-container">
-            <div class="form-cyber" style="width: 100%; max-width: 600px">
-              <select id="comms-jugador">
-                <option value="">Selecciona Jugador...</option>
-              </select>
-              <input
-                type="text"
-                id="comms-remitente"
-                placeholder="Remitente (Ej: L-Corp RRHH)"
-              />
-              <input type="text" id="comms-asunto" placeholder="Asunto" />
-              <textarea
-                id="comms-mensaje"
-                placeholder="Mensaje..."
-                style="height: 150px; resize: vertical"
-              ></textarea>
-              <button id="btn-enviar-mail">Enviar Transmisión</button>
+        <!-- NUEVO DASHBOARD: CONTRATOS ACTIVOS -->
+        <div id="dashboard-contratos" class="panel-cyber" style="margin-top: 20px; width: 100%;">
+          <h3 style="color: #c49a00;">Contratos Activos (Smart Contracts)</h3>
+
+          <div class="form-cyber-container" style="margin-bottom: 20px;">
+            <div class="form-cyber" style="width: 100%; max-width: 800px; display: flex; gap: 10px; align-items: flex-start;">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                  <input type="text" id="contrato-nombre" placeholder="Nombre del Contrato" />
+                  <input type="number" id="contrato-recompensa" placeholder="Recompensa Total (Ahn)" />
+              </div>
+              <div style="flex: 1; border: 1px solid #333; padding: 10px; background: #0a0a0a; border-radius: 4px;">
+                  <h4 style="margin-top: 0; color: #aaa; margin-bottom: 5px;">Jugadores Asignados:</h4>
+                  <div id="contrato-jugadores-checkboxes" style="display: flex; flex-direction: column; gap: 5px; max-height: 100px; overflow-y: auto;">
+                      <!-- Checkboxes inyectados por JS -->
+                  </div>
+              </div>
+              <button id="btn-crear-contrato" class="btn-cyber" style="background: #222; border-color: #c49a00; color: #c49a00; height: 100%;">Crear Contrato</button>
             </div>
           </div>
+
+          <div id="contratos-activos-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+              <!-- Tarjetas de contratos inyectadas por JS -->
+          </div>
         </div>
+
+        <!-- NUEVO DASHBOARD: SISTEMA DE NÓMINAS (SALARIOS) -->
+        <div id="dashboard-salarios" class="panel-cyber" style="margin-top: 20px; width: 100%;">
+          <h3 style="color: #0df;">Sistema de Nóminas (Salarios)</h3>
+
+          <div class="form-cyber-container" style="margin-bottom: 20px;">
+            <div class="form-cyber" style="width: 100%; max-width: 800px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <select id="salario-jugador" style="flex: 1; min-width: 200px;">
+                <option value="">Selecciona Jugador...</option>
+              </select>
+              <input type="number" id="salario-monto" placeholder="Monto (Ahn)" style="width: 150px;" />
+              <select id="salario-frecuencia" style="width: 150px;">
+                <option value="1">Diario</option>
+                <option value="7">Semanal</option>
+                <option value="30">Mensual</option>
+              </select>
+              <button id="btn-crear-salario" class="btn-cyber" style="background: #222; border-color: #0df; color: #0df;">Asignar Salario</button>
+            </div>
+          </div>
+
+          <div id="salarios-activos-container" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+              <!-- Tarjetas de salarios inyectadas por JS -->
+          </div>
+        </div>
+
       </div>
 
       <!-- TAB: FORJA / MERCADO -->
@@ -4156,6 +4221,7 @@
 
             // Check for Rollover (Cambio de Día)
             if (currentWorldDate.getDate() !== oldDate) {
+                procesarSalarios();
                 const nextWeather = calculateNextWeather(currentWeather, previousWeather);
                 previousWeather = currentWeather;
                 currentWeather = nextWeather;
@@ -5283,6 +5349,284 @@
             });
         }
 
+
+        // --- ZONA DE CONTRATOS Y SALARIOS ACTIVOS ---
+        const contratoNombreInput = document.getElementById('contrato-nombre');
+        const contratoRecompensaInput = document.getElementById('contrato-recompensa');
+        const contratoJugadoresCheckboxes = document.getElementById('contrato-jugadores-checkboxes');
+        const btnCrearContrato = document.getElementById('btn-crear-contrato');
+        const contratosContainer = document.getElementById('contratos-activos-container');
+
+        const salarioJugadorSelect = document.getElementById('salario-jugador');
+        const salarioMontoInput = document.getElementById('salario-monto');
+        const salarioFrecuenciaSelect = document.getElementById('salario-frecuencia');
+        const btnCrearSalario = document.getElementById('btn-crear-salario');
+        const salariosContainer = document.getElementById('salarios-activos-container');
+
+        // Poblar checkboxes y select cuando jugadores cambian
+        db.ref("campaña/jugadores/").on("value", (snapshot) => {
+            const jugadores = snapshot.val();
+            if (contratoJugadoresCheckboxes) {
+                const checked = Array.from(contratoJugadoresCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value);
+                contratoJugadoresCheckboxes.innerHTML = '';
+                if(jugadores) {
+                    for (const nombre of Object.keys(jugadores)) {
+                        const lbl = document.createElement("label");
+                        lbl.style.cssText = "color:#fff; font-size:12px; display:flex; align-items:center; gap:5px; cursor:pointer;";
+                        const isChecked = checked.includes(nombre) ? "checked" : "";
+                        lbl.innerHTML = `<input type="checkbox" value="${nombre}" class="check-jugador-contrato" ${isChecked}/> ${nombre}`;
+                        contratoJugadoresCheckboxes.appendChild(lbl);
+                    }
+                }
+            }
+            if (salarioJugadorSelect) {
+                const currentVal = salarioJugadorSelect.value;
+                salarioJugadorSelect.innerHTML = '<option value="">Selecciona Jugador...</option>';
+                if(jugadores) {
+                    for (const nombre of Object.keys(jugadores)) {
+                        const option = document.createElement("option");
+                        option.value = nombre;
+                        option.textContent = nombre;
+                        salarioJugadorSelect.appendChild(option);
+                    }
+                    if(currentVal && jugadores[currentVal]) {
+                        salarioJugadorSelect.value = currentVal;
+                    }
+                }
+            }
+        });
+
+        // Crear Contrato
+        if(btnCrearContrato) {
+            btnCrearContrato.addEventListener('click', () => {
+                const nombre = contratoNombreInput.value.trim();
+                const recompensa = parseInt(contratoRecompensaInput.value) || 0;
+                const checkboxes = document.querySelectorAll('.check-jugador-contrato:checked');
+                const asignados = Array.from(checkboxes).map(cb => cb.value);
+
+                if(!nombre || recompensa <= 0 || asignados.length === 0) {
+                    alert("Faltan datos (nombre, recompensa válida, o al menos 1 jugador asignado).");
+                    return;
+                }
+
+                const newContratoRef = db.ref('campaña/economia/contratos').push();
+                newContratoRef.set({
+                    nombre: nombre,
+                    recompensa: recompensa,
+                    asignados: asignados,
+                    fecha: Date.now()
+                }).then(() => {
+                    contratoNombreInput.value = '';
+                    contratoRecompensaInput.value = '';
+                    checkboxes.forEach(cb => cb.checked = false);
+                }).catch(err => alert("Error creando contrato: " + err));
+            });
+        }
+
+        // Crear Salario
+        if(btnCrearSalario) {
+            btnCrearSalario.addEventListener('click', () => {
+                const jugador = salarioJugadorSelect.value;
+                const monto = parseInt(salarioMontoInput.value) || 0;
+                const frecuencia = parseInt(salarioFrecuenciaSelect.value) || 1;
+
+                if(!jugador || monto <= 0) {
+                    alert("Selecciona un jugador y un monto válido.");
+                    return;
+                }
+
+                const newSalarioRef = db.ref('campaña/economia/salarios').push();
+                newSalarioRef.set({
+                    jugador: jugador,
+                    monto: monto,
+                    frecuencia: frecuencia,
+                    diasRestantes: frecuencia
+                }).then(() => {
+                    salarioMontoInput.value = '';
+                }).catch(err => alert("Error creando salario: " + err));
+            });
+        }
+
+        // Leer y Renderizar Contratos
+        db.ref('campaña/economia/contratos').on('value', snap => {
+            if(!contratosContainer) return;
+            contratosContainer.innerHTML = '';
+
+            const contratos = snap.val();
+            if(!contratos) {
+                contratosContainer.innerHTML = '<span style="color: #888;">Sin contratos activos.</span>';
+                return;
+            }
+
+            for(const [id, data] of Object.entries(contratos)) {
+                const card = document.createElement('div');
+                card.className = 'card-cyber';
+                card.style.cssText = "display: flex; flex-direction: column; gap: 10px; width: 250px; background: #0a0a0a; border: 1px solid #c49a00; padding: 15px;";
+
+                card.innerHTML = `
+                    <h4 style="margin: 0; color: #c49a00; text-align: center;">${data.nombre}</h4>
+                    <div style="font-size: 14px; color: #fff;">Recompensa Total: <span style="color: #0df; font-weight: bold;">${data.recompensa} Ahn</span></div>
+                    <div style="font-size: 12px; color: #aaa;">Asignados: ${data.asignados.join(', ')}</div>
+                    <div style="display: flex; gap: 10px; margin-top: auto;">
+                        <button class="btn-cyber btn-completar-contrato" data-id="${id}" style="flex: 1; background: #004400; color: #00ff00; border-color: #00ff00;">✔ Completar</button>
+                        <button class="btn-cyber btn-fallar-contrato" data-id="${id}" style="flex: 1; background: #440000; color: #ff4444; border-color: #ff4444;">❌ Fallar</button>
+                    </div>
+                `;
+                contratosContainer.appendChild(card);
+            }
+
+            // Eventos para completar
+            document.querySelectorAll('.btn-completar-contrato').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const cData = contratos[id];
+                    if(!cData) return;
+
+                    const porJugador = Math.floor(cData.recompensa / cData.asignados.length);
+
+                    for(const jugador of cData.asignados) {
+                        try {
+                            const pSnap = await db.ref(`campaña/jugadores/${jugador}`).once('value');
+                            if(pSnap.exists()) {
+                                const pData = pSnap.val();
+                                const oldAhn = pData.ahn || 0;
+                                await db.ref(`campaña/jugadores/${jugador}`).update({ ahn: oldAhn + porJugador });
+
+                                // Log de transacción
+                                await db.ref(`campaña/jugadores/${jugador}/transacciones`).push({
+                                    concepto: `Contrato Completado: ${cData.nombre}`,
+                                    monto: porJugador,
+                                    fecha: Date.now()
+                                });
+                            }
+                        } catch(err) {
+                            console.error(`Error procesando pago a ${jugador}:`, err);
+                        }
+                    }
+
+                    db.ref(`campaña/economia/contratos/${id}`).remove();
+                });
+            });
+
+            // Eventos para fallar
+            document.querySelectorAll('.btn-fallar-contrato').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const cData = contratos[id];
+                    if(!cData) return;
+
+                    const multa = prompt("Ingresa la multa corporativa (Ahn):");
+                    if(multa === null) return;
+
+                    const multaNum = parseInt(multa);
+                    if(isNaN(multaNum) || multaNum < 0) {
+                        alert("Multa inválida.");
+                        return;
+                    }
+
+                    for(const jugador of cData.asignados) {
+                        try {
+                            const pSnap = await db.ref(`campaña/jugadores/${jugador}`).once('value');
+                            if(pSnap.exists()) {
+                                const pData = pSnap.val();
+                                const oldAhn = pData.ahn || 0;
+                                await db.ref(`campaña/jugadores/${jugador}`).update({ ahn: oldAhn - multaNum });
+
+                                // Log de transacción
+                                await db.ref(`campaña/jugadores/${jugador}/transacciones`).push({
+                                    concepto: `Contrato Fallado: ${cData.nombre}`,
+                                    monto: -multaNum,
+                                    fecha: Date.now()
+                                });
+                            }
+                        } catch(err) {
+                            console.error(`Error procesando multa a ${jugador}:`, err);
+                        }
+                    }
+
+                    db.ref(`campaña/economia/contratos/${id}`).remove();
+                });
+            });
+        });
+
+        // Leer y Renderizar Salarios
+        db.ref('campaña/economia/salarios').on('value', snap => {
+            if(!salariosContainer) return;
+            salariosContainer.innerHTML = '';
+
+            const salarios = snap.val();
+            if(!salarios) {
+                salariosContainer.innerHTML = '<span style="color: #888;">Sin salarios activos.</span>';
+                return;
+            }
+
+            for(const [id, data] of Object.entries(salarios)) {
+                const card = document.createElement('div');
+                card.className = 'card-cyber';
+                card.style.cssText = "display: flex; flex-direction: column; gap: 5px; width: 220px; background: #0a0a0a; border: 1px solid #0df; padding: 15px; position: relative;";
+
+                let freqText = data.frecuencia == 1 ? "Diario" : (data.frecuencia == 7 ? "Semanal" : "Mensual");
+
+                card.innerHTML = `
+                    <button class="btn-eliminar-salario" data-id="${id}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; color: #ff4444; cursor: pointer; font-weight: bold;">X</button>
+                    <h4 style="margin: 0; color: #fff;">${data.jugador}</h4>
+                    <div style="font-size: 14px; color: #0df; font-weight: bold;">+${data.monto} Ahn</div>
+                    <div style="font-size: 12px; color: #aaa;">Frecuencia: ${freqText}</div>
+                    <div style="font-size: 12px; color: #c49a00;">Días restantes: ${data.diasRestantes}</div>
+                `;
+                salariosContainer.appendChild(card);
+            }
+
+            document.querySelectorAll('.btn-eliminar-salario').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    if(confirm("¿Eliminar este salario?")) {
+                        db.ref(`campaña/economia/salarios/${id}`).remove();
+                    }
+                });
+            });
+        });
+
+        async function procesarSalarios() {
+            try {
+                const snap = await db.ref('campaña/economia/salarios').once('value');
+                if(!snap.exists()) return;
+
+                const salarios = snap.val();
+                for(const [id, data] of Object.entries(salarios)) {
+                    let diasRestantes = (data.diasRestantes || 1) - 1;
+
+                    if(diasRestantes <= 0) {
+                        // Pay salary
+                        try {
+                            const pSnap = await db.ref(`campaña/jugadores/${data.jugador}`).once('value');
+                            if(pSnap.exists()) {
+                                const pData = pSnap.val();
+                                const oldAhn = pData.ahn || 0;
+                                await db.ref(`campaña/jugadores/${data.jugador}`).update({ ahn: oldAhn + data.monto });
+
+                                // Log
+                                await db.ref(`campaña/jugadores/${data.jugador}/transacciones`).push({
+                                    concepto: `Pago de Nómina (${data.frecuencia == 1 ? 'Diaria' : data.frecuencia == 7 ? 'Semanal' : 'Mensual'})`,
+                                    monto: data.monto,
+                                    fecha: Date.now()
+                                });
+                            }
+                        } catch(e) {
+                            console.error(`Error pagando salario a ${data.jugador}`, e);
+                        }
+
+                        // Reset
+                        diasRestantes = data.frecuencia;
+                    }
+
+                    await db.ref(`campaña/economia/salarios/${id}`).update({ diasRestantes: diasRestantes });
+                }
+            } catch(e) {
+                console.error("Error procesando salarios:", e);
+            }
+        }
+
         // --- ZONA A: RED BANCARIA ---
         const bancoContainer = document.getElementById(
           "banco-jugadores-container",
@@ -5544,6 +5888,47 @@
               tarjeta.appendChild(title);
               tarjeta.appendChild(inputAhn);
               tarjeta.appendChild(btnForzar);
+
+              const btnHistorial = document.createElement("button");
+              btnHistorial.className = "btn-ver-historial btn-cyber";
+              btnHistorial.dataset.jugador = nombre;
+              btnHistorial.innerText = "Historial";
+              btnHistorial.style.cssText = "background: #222; color: #fff; border: 1px solid #444; padding: 5px; cursor: pointer; border-radius: 3px; width: 100%; margin-top: 5px; font-size: 12px;";
+
+              const historialContainer = document.createElement("div");
+              historialContainer.style.cssText = "display: none; flex-direction: column; gap: 5px; width: 100%; margin-top: 5px; font-size: 11px; text-align: left; background: #000; padding: 5px; border: 1px solid #333; border-radius: 3px;";
+
+              btnHistorial.onclick = () => {
+                  if (historialContainer.style.display === "flex") {
+                      historialContainer.style.display = "none";
+                      return;
+                  }
+
+                  db.ref('campaña/jugadores/' + nombre + '/transacciones').orderByKey().limitToLast(5).once('value', (snap) => {
+                      historialContainer.innerHTML = '';
+                      if (!snap.exists()) {
+                          historialContainer.innerHTML = '<span style="color: #888;">Sin transacciones.</span>';
+                      } else {
+                          const txs = [];
+                          snap.forEach(child => { txs.unshift(child.val()); }); // Reverse chronological
+
+                          txs.forEach(tx => {
+                              const amountColor = tx.monto >= 0 ? '#00ff00' : '#ff4444';
+                              const sign = tx.monto > 0 ? '+' : '';
+                              const dateStr = new Date(tx.fecha || Date.now()).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+
+                              const txEl = document.createElement('div');
+                              txEl.style.cssText = "display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 2px;";
+                              txEl.innerHTML = `<span style="color: #aaa;">${dateStr} - ${tx.concepto || 'Transacción'}</span> <span style="color: ${amountColor}; font-weight: bold;">${sign}${tx.monto}</span>`;
+                              historialContainer.appendChild(txEl);
+                          });
+                      }
+                      historialContainer.style.display = "flex";
+                  });
+              };
+
+              tarjeta.appendChild(btnHistorial);
+              tarjeta.appendChild(historialContainer);
               bancoContainer.appendChild(tarjeta);
             }
 
