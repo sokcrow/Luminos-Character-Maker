@@ -1077,6 +1077,7 @@
         width: 100vw;
         height: 100vh;
         z-index: 10000;
+        pointer-events: none;
         background-color: #0b0a0a;
         display: flex;
         align-items: center;
@@ -4659,7 +4660,10 @@
               .forEach((b) => b.classList.remove("active"));
             document
               .querySelectorAll(".dm-tab-pane")
-              .forEach((p) => p.classList.remove("active"));
+              .forEach((p) => {
+                  p.classList.remove("active");
+                  p.style.display = ""; // Fix the inline display styles issue
+              });
 
             // Add active class to clicked button and target pane
             btn.classList.add("active");
@@ -4670,15 +4674,10 @@
             }
             if (targetPane) {
                 targetPane.classList.add("active");
-                targetPane.style.display = "flex";
+                targetPane.style.display = ""; // Let CSS handle flex
             }
 
-            // hide other panes specifically to be safe
-            document.querySelectorAll(".dm-tab-pane").forEach((p) => {
-                if(p !== targetPane) {
-                    p.style.display = "none";
-                }
-            });
+
           });
         });
 
