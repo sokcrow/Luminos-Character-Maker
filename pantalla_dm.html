@@ -677,7 +677,7 @@
         max-width: 95% !important;
         height: 60vh !important;
         max-height: 500px !important;
-        z-index: 99999 !important;
+        z-index: 105 !important;
 
         background-color: var(--bg-color) !important;
         background-image: repeating-linear-gradient(
@@ -939,7 +939,7 @@
       /* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
       .theatre-controls {
           position: relative !important;
-          z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+          z-index: 100 !important; /* Changed from 9999 to not block overlays */
           background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
           padding: 15px !important;
           border-top: 2px solid var(--border-accent, #c49a00) !important;
@@ -977,7 +977,7 @@
     flex-direction: column !important;
     justify-content: flex-end !important;
     align-items: center !important; /* Centra las cajas de texto horizontalmente */
-    z-index: 8500 !important; /* Por encima del stage */
+    z-index: 15 !important; /* Reduced to allow interaction */
     pointer-events: none !important; /* Deja pasar los clics en el fondo vacío */
     margin: 0 !important;
     padding: 0 !important;
@@ -999,7 +999,7 @@
     line-height: 1.6 !important;
     font-family: 'Roboto', sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
     position: relative !important;
-    z-index: 9000 !important; /* Al frente del wrapper */
+    z-index: 100 !important;
     pointer-events: auto !important; /* Reactiva los clics y el scroll */
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -1013,7 +1013,7 @@
     max-width: 1200px !important;
     margin: 0 auto !important; /* Centrado absoluto */
     height: 100% !important; /* Llena los 25vh del wrapper */
-    z-index: 9000 !important;
+    z-index: 100 !important;
     background: rgba(5, 5, 5, 0.85) !important;
     border-top: 2px solid #c49a00 !important;
     pointer-events: auto !important;
@@ -1036,7 +1036,7 @@
     left: 0 !important;
     width: 100vw !important;
     height: 25vh !important;
-    z-index: 900 !important;
+    z-index: 100 !important; /* lowered from 900 */
     background: rgba(5, 5, 5, 0.85) !important;
     border-top: 2px solid #c49a00 !important;
     overflow-y: auto !important;
@@ -1055,7 +1055,7 @@
     align-items: center !important;
     justify-content: flex-end !important;
     gap: 20px !important; /* SEPARACIÓN OBLIGATORIA ENTRE BOTONES */
-    z-index: 9999 !important;
+    z-index: 100 !important;
     padding: 0 !important;
     margin: 0 !important;
 }
@@ -1082,6 +1082,7 @@
         align-items: center;
         justify-content: center;
         transition: opacity 1s ease;
+        pointer-events: none; /* HOTFIX: Prevents blocking */
       }
 
       #system-loading-overlay img {
@@ -2936,7 +2937,7 @@
 
     <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
 
-<div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 10000; justify-content: center; align-items: center;">
+<div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;">
     <div class="modal-content" style="background: rgba(10, 10, 10, 0.85); border: 2px solid #c49a00; padding: 25px; border-radius: 8px; max-width: 90%; position: relative; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8);">
         <button class="close-modal" style="position: absolute; top: 10px; right: 15px; color: #fff; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
         <h3 style="color: #c49a00; margin-top: 0; font-family: 'Share Tech Mono', monospace;">Herramientas del Teatro</h3>
@@ -2954,7 +2955,7 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 2000;
+        z-index: 100; /* lowered z-index */
         background: linear-gradient(135deg, #1a1c23 0%, #111 100%);
         background-size: cover;
         background-position: center;
@@ -3808,11 +3809,16 @@
       const db = firebase.database();
 
       let isInitialLoad = true;
+      setTimeout(() => {
+          if(window.hideLoadingOverlay) window.hideLoadingOverlay();
+      }, 5000); // Failsafe
 
       // Helper to hide the loading overlay
       window.hideLoadingOverlay = function () {
         const overlay = document.getElementById("system-loading-overlay");
         if (overlay && overlay.style.display !== "none") {
+          overlay.style.pointerEvents = "none";
+          overlay.style.zIndex = "-1";
           overlay.style.opacity = "0";
           setTimeout(() => {
             overlay.style.display = "none";
