@@ -1,0 +1,31 @@
+--- pantalla_dm.html
++++ pantalla_dm.html
+@@ -1071,11 +1071,12 @@
+     <style>
+       #system-loading-overlay {
+         position: fixed;
+         top: 0;
+         left: 0;
+         width: 100vw;
+         height: 100vh;
+         z-index: 10000;
+         background-color: #0b0a0a;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         transition: opacity 1s ease;
++        pointer-events: auto; /* Fallback to block only during loading */
+       }
+
+       #system-loading-overlay img {
+@@ -3811,9 +3812,10 @@
+       // Helper to hide the loading overlay
+       window.hideLoadingOverlay = function () {
+         const overlay = document.getElementById("system-loading-overlay");
+         if (overlay && overlay.style.display !== "none") {
++          overlay.style.pointerEvents = "none";
+           overlay.style.opacity = "0";
+           setTimeout(() => {
+             overlay.style.display = "none";
+             overlay.remove();
+           }, 1000);

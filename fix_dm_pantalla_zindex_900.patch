@@ -1,0 +1,11 @@
+--- pantalla_dm.html
++++ pantalla_dm.html
+@@ -1035,7 +1035,7 @@
+     left: 0 !important;
+     width: 100vw !important;
+     height: 25vh !important;
+-    z-index: 900 !important;
++    z-index: 100 !important; /* lowered from 900 */
+     background: rgba(5, 5, 5, 0.85) !important;
+     border-top: 2px solid #c49a00 !important;
+     overflow-y: auto !important;

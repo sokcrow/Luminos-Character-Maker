@@ -1,0 +1,19 @@
+--- pantalla_dm.html
++++ pantalla_dm.html
+@@ -2937,7 +2937,7 @@
+     <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
+
+-<div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 10000; justify-content: center; align-items: center;">
++<div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;">
+     <div class="modal-content" style="background: rgba(10, 10, 10, 0.85); border: 2px solid #c49a00; padding: 25px; border-radius: 8px; max-width: 90%; position: relative; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8);">
+         <button class="close-modal" style="position: absolute; top: 10px; right: 15px; color: #fff; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+         <h3 style="color: #c49a00; margin-top: 0; font-family: 'Share Tech Mono', monospace;">Herramientas del Teatro</h3>
+@@ -2955,7 +2955,7 @@
+         top: 0;
+         left: 0;
+         width: 100vw;
+         height: 100vh;
+-        z-index: 2000;
++        z-index: 100; /* lowered z-index */
+         background: linear-gradient(135deg, #1a1c23 0%, #111 100%);
+         background-size: cover;
