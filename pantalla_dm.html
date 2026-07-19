@@ -4801,11 +4801,13 @@
                     senderPhone = "000-0000"; // Fake system number
                 }
 
+                const ts = Date.now();
                 db.ref(`campaña/comms/chats/${currentDmChatId}/messages`).push({
                     sender: senderPhone,
                     text: msg,
-                    timestamp: Date.now()
+                    timestamp: ts
                 });
+                db.ref(`campaña/comms/chats/${currentDmChatId}`).update({ lastMessageTimestamp: ts });
                 input.value = "";
             };
         }

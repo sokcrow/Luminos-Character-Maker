@@ -8129,3 +8129,38 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 .sheet-tab-banco, .sheet-tab-mail {
     position: relative; /* to contain the overlay */
 }
+
+
+/* LIMBUS BRUTALIST BADGES (Notificaciones) */
+.limbus-badge {
+    position: absolute;
+    top: -5px;
+    left: -5px; /* Superpuesto a la izquierda como se pidió */
+    background-color: #D91E18; /* Rojo Sangre Industrial */
+    color: #fff;
+    border: 2px solid #000;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Share Tech Mono', monospace, sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    line-height: 1;
+    z-index: 100;
+    box-shadow: 0 0 5px rgba(0,0,0,0.8);
+    pointer-events: none; /* No bloquear clics en los botones */
+}
+
+/* Ensure buttons holding badges have position relative */
+button.sheet-app-btn, button.btn-toggle-phone, button#btn-show-mail, button#btn-show-chat {
+    position: relative;
+}
+
+/* The Mail items already have a way to display unread */
+.mail-item.unread {
+    border-left: 4px solid var(--cyan-tech);
+    background-color: #222;
+}
