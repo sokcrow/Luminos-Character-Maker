@@ -1137,6 +1137,20 @@ function initializeCharacterSheet() {
         if (assignedActorId && window.actoresJugador[assignedActorId]) {
           const actorData = window.actoresJugador[assignedActorId];
 
+          // Sincronizar el phoneNumber del Actor con el nodo del Jugador
+          if (actorData.phoneNumber && window.datosJugador && window.datosJugador.phoneNumber !== actorData.phoneNumber) {
+             db.ref(`campaña/jugadores/${playerId}`).update({
+                 phoneNumber: actorData.phoneNumber
+             });
+             window.datosJugador.phoneNumber = actorData.phoneNumber; // Update local cache instantly
+          }
+
+          // Actualizar UI del teléfono
+          const deviceNumberUI = document.getElementById("player-device-number");
+          if (deviceNumberUI) {
+              deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
+          }
+
           if (exprSelect && actorData.expresiones) {
             exprSelect.innerHTML = "";
             const expKeys = Object.keys(actorData.expresiones);
@@ -1768,7 +1782,17 @@ function initializeCharacterSheet() {
           const pData = snap.val();
           if (!pData) return;
           myPhoneNumber = pData.phoneNumber;
-          contactsDictionary = pData.contacts || {};
+
+          // Legacy check for old 'contacts' structure just in case
+          let rawContacts = pData.contactos || pData.contacts || {};
+          contactsDictionary = {};
+          for (const [phone, data] of Object.entries(rawContacts)) {
+              if (typeof data === "object" && data.alias) {
+                 contactsDictionary[phone] = data.alias;
+              } else if (typeof data === "string") {
+                  contactsDictionary[phone] = data;
+              }
+          }
 
           const chats = pData.chats || {};
           renderChatList(chats);
@@ -1796,33 +1820,74 @@ function initializeCharacterSheet() {
 
       // Group creation
       const btnGroup = document.getElementById("btn-create-group");
-      if (btnGroup) {
+      const modalNewGroup = document.getElementById("modal-new-group");
+      const btnCancelGroup = document.getElementById("btn-cancel-group");
+      const btnConfirmGroup = document.getElementById("btn-confirm-group");
+
+      if (btnGroup && modalNewGroup) {
           btnGroup.onclick = () => {
-              const input = prompt("Introduce los números de teléfono (separados por coma) para el nuevo grupo:");
-              if (!input) return;
-              const phones = input.split(",").map(s => s.trim()).filter(s => s);
-              if (phones.length === 0) return;
+              modalNewGroup.style.display = "flex";
+              document.getElementById("new-group-name").value = "";
+              document.getElementById("new-group-icon-url").value = "";
 
-              const groupName = prompt("Nombre del Grupo:");
-              if (!groupName) return;
+              const listDiv = document.getElementById("new-group-contacts-list");
+              listDiv.innerHTML = "";
 
-              // Validate and create
+              if (Object.keys(contactsDictionary).length === 0) {
+                  listDiv.innerHTML = "<div style='color: #666; font-style: italic;'>No tienes contactos guardados.</div>";
+              } else {
+                  for (const [phone, alias] of Object.entries(contactsDictionary)) {
+                      const div = document.createElement("div");
+                      div.style.padding = "5px";
+                      div.style.borderBottom = "1px solid #333";
+                      div.innerHTML = `
+                          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #ddd; font-family: 'Share Tech Mono', monospace;">
+                              <input type="checkbox" class="group-contact-cb" value="${phone}">
+                              <span>${alias} <span style="color: #666; font-size: 0.8em;">[${phone}]</span></span>
+                          </label>
+                      `;
+                      listDiv.appendChild(div);
+                  }
+              }
+          };
+      }
+
+      if (btnCancelGroup && modalNewGroup) {
+          btnCancelGroup.onclick = () => {
+              modalNewGroup.style.display = "none";
+          };
+      }
+
+      if (btnConfirmGroup && modalNewGroup) {
+          btnConfirmGroup.onclick = () => {
+              const groupName = document.getElementById("new-group-name").value.trim();
+              const iconUrl = document.getElementById("new-group-icon-url").value.trim();
+
+              if (!groupName) return alert("Nombre del Grupo requerido.");
+
+              const cbs = document.querySelectorAll(".group-contact-cb:checked");
+              const phones = Array.from(cbs).map(cb => cb.value);
+
+              if (phones.length === 0) return alert("Debes seleccionar al menos un contacto.");
+
               const participants = {};
               participants[myPhoneNumber] = true;
               phones.forEach(p => participants[p] = true);
 
-              const newChatRef = db.ref("campaña/comms/chats").push();
-              newChatRef.set({
+              const chatData = {
                   name: groupName,
                   participants: participants,
                   isGroup: true
-              }).then(() => {
+              };
+
+              if (iconUrl) chatData.icon = iconUrl;
+
+              const newChatRef = db.ref("campaña/comms/chats").push();
+              newChatRef.set(chatData).then(() => {
                   // Add chat ID to myself
                   db.ref(`campaña/jugadores/${pName}/chats/${newChatRef.key}`).set(true);
 
-                  // For the other participants, we need a server-side or global way to add it.
-                  // For simplicity, we just do a blind update if they exist.
-                  // In a real scenario, this would be cleaner.
+                  // Update for other players globally
                   phones.forEach(p => {
                       db.ref("campaña/jugadores").once("value", psnap => {
                           const players = psnap.val() || {};
@@ -1832,15 +1897,8 @@ function initializeCharacterSheet() {
                               }
                           }
                       });
-                      db.ref("campaña/actores").once("value", asnap => {
-                          const actors = asnap.val() || {};
-                          for (const [aId, aData] of Object.entries(actors)) {
-                              if (aData.phoneNumber === p) {
-                                  // NPCs don't strictly have a /chats array, but DM manages them
-                              }
-                          }
-                      });
                   });
+                  modalNewGroup.style.display = "none";
               });
           };
       }
@@ -1861,7 +1919,29 @@ function initializeCharacterSheet() {
               div.style.cursor = "pointer";
               div.style.color = "#ddd";
               div.style.fontFamily = "'Share Tech Mono', monospace";
-              div.innerText = chatData.name || "Chat";
+              div.style.display = "flex";
+              div.style.alignItems = "center";
+              div.style.gap = "10px";
+
+              const chatName = chatData.name || "Chat";
+
+              // Group Icon generation
+              let iconHtml = "";
+              if (chatData.isGroup) {
+                  if (chatData.icon) {
+                      iconHtml = `<img src="${chatData.icon}" style="width: 30px; height: 30px; border-radius: 2px; border: 1px solid var(--cyan-tech); object-fit: cover;">`;
+                  } else {
+                      const initials = chatName.substring(0, 2).toUpperCase();
+                      iconHtml = `<div style="width: 30px; height: 30px; background: #111; border: 1px solid var(--cyan-tech); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--cyan-tech); font-family: 'BebasKai', sans-serif; font-size: 14px; text-shadow: 0 0 5px rgba(0, 221, 255, 0.5);">${initials}</div>`;
+                  }
+              } else {
+                  iconHtml = `<div style="width: 30px; height: 30px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #aaa;">👤</div>`;
+              }
+
+              div.innerHTML = `
+                  ${iconHtml}
+                  <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${chatName}</span>
+              `;
 
               div.onclick = () => loadChat(chatId, chatData);
               listDiv.appendChild(div);
@@ -1885,7 +1965,13 @@ function initializeCharacterSheet() {
           });
       }
       const headerName = document.getElementById("chat-header-name");
-      if (headerName) headerName.innerText = chatData.name || "Chat";
+      if (headerName) {
+          if (chatData.isGroup) {
+              headerName.innerText = chatData.name || "Chat Grupal";
+          } else {
+              headerName.innerText = chatData.name || "Chat";
+          }
+      }
       const btnSave = document.getElementById("btn-save-contact");
       if (btnSave) btnSave.style.display = "none";
 
@@ -1944,7 +2030,7 @@ function initializeCharacterSheet() {
           const charNameInput = document.querySelector('input[name="attr_character_name"]');
           const pName = charNameInput ? charNameInput.value.trim() : "";
           if (pName) {
-              db.ref(`campaña/jugadores/${pName}/contacts/${phoneStr}`).set(alias).then(() => {
+              db.ref(`campaña/jugadores/${pName}/contactos/${phoneStr}`).set({ alias: alias }).then(() => {
                   const btnSave = document.getElementById("btn-save-contact");
                   if(btnSave) btnSave.style.display = "none";
                   const headerName = document.getElementById("chat-header-name");
@@ -2102,26 +2188,37 @@ function initializeCharacterSheet() {
   document.addEventListener("DOMContentLoaded", () => {
         const btnMail = document.getElementById("btn-show-mail");
         const btnChat = document.getElementById("btn-show-chat");
+        const btnContacts = document.getElementById("btn-show-contacts");
         const subMail = document.getElementById("subtab-mail");
         const subChat = document.getElementById("subtab-chat");
+        const subContacts = document.getElementById("subtab-contacts");
 
-        if (btnMail && btnChat) {
-            btnMail.addEventListener("click", () => {
-                subMail.style.display = "flex";
-                subChat.style.display = "none";
-                btnMail.style.borderBottom = "2px solid var(--cyan-tech)";
-                btnMail.style.color = "var(--cyan-tech)";
-                btnChat.style.borderBottom = "none";
-                btnChat.style.color = "#aaa";
+        function switchTab(activeBtn, activeSub) {
+            [btnMail, btnChat, btnContacts].forEach(b => {
+                if(b) {
+                    b.style.borderBottom = "none";
+                    b.style.color = "#aaa";
+                }
             });
+            [subMail, subChat, subContacts].forEach(s => {
+                if(s) s.style.display = "none";
+            });
+            if(activeBtn) {
+                activeBtn.style.borderBottom = "2px solid var(--cyan-tech)";
+                activeBtn.style.color = "var(--cyan-tech)";
+            }
+            if(activeSub) activeSub.style.display = "flex";
+        }
+
+        if (btnMail && btnChat && btnContacts) {
+            btnMail.addEventListener("click", () => switchTab(btnMail, subMail));
             btnChat.addEventListener("click", () => {
-                subMail.style.display = "none";
-                subChat.style.display = "flex";
-                btnChat.style.borderBottom = "2px solid var(--cyan-tech)";
-                btnChat.style.color = "var(--cyan-tech)";
-                btnMail.style.borderBottom = "none";
-                btnMail.style.color = "#aaa";
+                switchTab(btnChat, subChat);
                 initChatSystem();
+            });
+            btnContacts.addEventListener("click", () => {
+                switchTab(btnContacts, subContacts);
+                initContactsSystem();
             });
         }
   });
@@ -4032,3 +4129,103 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
     });
   });
 };
+
+  // Note: Contacts listener and globals are handled above in initChatSystem which already initializes contactsDictionary
+  // but we should separate it for the explicit agenda UI.
+
+  let contactsListenerActive = false;
+  function initContactsSystem() {
+      if (contactsListenerActive) return;
+      contactsListenerActive = true;
+
+      const charNameInput = document.querySelector('input[name="attr_character_name"]');
+      const pName = charNameInput ? charNameInput.value.trim() : "";
+      if (!pName) return;
+
+      const contactsRef = db.ref(`campaña/jugadores/${pName}/contactos`);
+
+      contactsRef.on("value", snap => {
+          const listDiv = document.getElementById("contacts-list");
+          if (!listDiv) return;
+          listDiv.innerHTML = "";
+
+          const contacts = snap.val() || {};
+          // Update the dictionary for chats
+          contactsDictionary = {};
+
+          for (const [phone, data] of Object.entries(contacts)) {
+              if (typeof data === "object" && data.alias) {
+                 contactsDictionary[phone] = data.alias;
+              } else if (typeof data === "string") {
+                  contactsDictionary[phone] = data; // Legacy support
+              }
+
+              const alias = contactsDictionary[phone];
+
+              const itemDiv = document.createElement("div");
+              itemDiv.className = "contact-item";
+
+              itemDiv.innerHTML = `
+                  <div class="contact-info">
+                      <span class="contact-alias">${alias}</span>
+                      <span class="contact-number">[${phone}]</span>
+                  </div>
+                  <div class="contact-actions">
+                      <button class="btn-contact-edit" data-phone="${phone}">EDITAR</button>
+                      <button class="btn-contact-delete" data-phone="${phone}">ELIMINAR</button>
+                  </div>
+              `;
+
+              listDiv.appendChild(itemDiv);
+          }
+
+          if (Object.keys(contacts).length === 0) {
+              listDiv.innerHTML = "<div style='color: #666; text-align: center; padding: 20px;'><span style='font-family: \"Share Tech Mono\", monospace;'>El directorio está vacío.</span></div>";
+          }
+
+          // Re-attach listeners to dynamically created buttons
+          document.querySelectorAll(".btn-contact-edit").forEach(btn => {
+              btn.addEventListener("click", (e) => {
+                  const phone = e.target.getAttribute("data-phone");
+                  const currentAlias = contactsDictionary[phone];
+                  const newAlias = prompt("Nuevo alias para " + phone + ":", currentAlias);
+                  if (newAlias && newAlias.trim() !== "") {
+                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: newAlias.trim() });
+                  }
+              });
+          });
+
+          document.querySelectorAll(".btn-contact-delete").forEach(btn => {
+              btn.addEventListener("click", (e) => {
+                  const phone = e.target.getAttribute("data-phone");
+                  if (confirm("¿Eliminar a " + (contactsDictionary[phone] || phone) + " de tus contactos?")) {
+                      db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).remove();
+                  }
+              });
+          });
+      });
+
+      const btnAdd = document.getElementById("btn-add-contact");
+      if (btnAdd) {
+          // Replace it to clear any old listeners
+          const newBtnAdd = btnAdd.cloneNode(true);
+          btnAdd.parentNode.replaceChild(newBtnAdd, btnAdd);
+
+          newBtnAdd.addEventListener("click", () => {
+              const numInput = document.getElementById("new-contact-number");
+              const aliasInput = document.getElementById("new-contact-alias");
+              const phone = numInput.value.trim();
+              const alias = aliasInput.value.trim();
+
+              if (!phone || !alias) {
+                  alert("Debe ingresar un número y un alias.");
+                  return;
+              }
+
+              db.ref(`campaña/jugadores/${pName}/contactos/${phone}`).set({ alias: alias }).then(() => {
+                  numInput.value = "";
+                  aliasInput.value = "";
+              });
+          });
+      }
+  }

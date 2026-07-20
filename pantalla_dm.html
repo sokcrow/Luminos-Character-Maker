@@ -1427,16 +1427,36 @@
               <!-- Selector de Actor y Lista de Chats -->
               <div style="width: 30%; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #444; padding-right: 10px;">
                   <label style="color: #aaa; font-size: 0.9em;">Hablar como:</label>
-                  <select id="dm-comms-actor-select" class="form-cyber">
-                      <option value="system">SISTEMA (000-0000)</option>
-                  </select>
+                  <div class="custom-select-container" id="dm-comms-actor-select-container">
+                      <div class="custom-select-header" id="dm-comms-actor-header">
+                          <img src="https://i.imgur.com/kP8s7Ww.png" style="width: 24px; height: 24px; object-fit: cover;">
+                          <span>SISTEMA (000-0000)</span>
+                      </div>
+                      <div class="custom-select-dropdown" id="dm-comms-actor-dropdown">
+                          <input type="text" class="custom-select-search" id="dm-comms-actor-search" placeholder="Buscar por nombre o número...">
+                          <div class="custom-select-options" id="dm-comms-actor-options">
+                              <!-- Opciones inyectadas por JS -->
+                          </div>
+                      </div>
+                      <input type="hidden" id="dm-comms-actor-value" value="system">
+                  </div>
 
                   <div style="margin-top: 20px;">
                       <h4 style="margin-bottom: 5px; color: #fff;">Nuevo Chat / Enviar a:</h4>
-                      <select id="dm-comms-target-select" class="form-cyber">
-                          <!-- Populated with Players and Actors -->
-                      </select>
-                      <button id="btn-dm-create-chat" class="btn-cyber" style="width: 100%; margin-top: 10px;">Iniciar / Abrir Chat</button>
+                      <div class="custom-select-container" id="dm-comms-target-select-container">
+                          <div class="custom-select-header" id="dm-comms-target-header">
+                              <span>Selecciona Destinatario...</span>
+                          </div>
+                          <div class="custom-select-dropdown" id="dm-comms-target-dropdown">
+                              <input type="text" class="custom-select-search" id="dm-comms-target-search" placeholder="Buscar por nombre o número...">
+                              <div class="custom-select-options" id="dm-comms-target-options">
+                                  <!-- Opciones inyectadas por JS -->
+                              </div>
+                          </div>
+                          <input type="hidden" id="dm-comms-target-value" value="">
+                      </div>
+                      <button id="btn-dm-create-chat" class="btn-cyber" style="width: 100%; margin-top: 10px;">Iniciar / Abrir Chat 1-on-1</button>
+                      <button id="btn-dm-create-group-chat" class="btn-cyber" style="width: 100%; margin-top: 5px; background: #c49a00; color: #000;">NUEVO GRUPO</button>
                   </div>
 
                   <div style="margin-top: 20px;">
@@ -3716,7 +3736,103 @@
     padding-right: 20px; /* Separación del borde de la pantalla */
 }
 
+
+    /* --- CUSTOM SELECTS PARA COMUNICACIONES --- */
+    .custom-select-container {
+        position: relative;
+        width: 100%;
+        font-family: 'Share Tech Mono', monospace;
+        color: #fff;
+    }
+    .custom-select-header {
+        background: #111;
+        border: 1px solid #444;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    }
+    .custom-select-header:hover {
+        border-color: #0df;
+    }
+    .custom-select-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: #0a0a0a;
+        border: 1px solid #444;
+        border-top: none;
+        z-index: 100;
+        max-height: 250px;
+        flex-direction: column;
+    }
+    .custom-select-container.active .custom-select-dropdown {
+        display: flex;
+    }
+    .custom-select-search {
+        padding: 8px;
+        background: #000;
+        border: none;
+        border-bottom: 1px solid #444;
+        color: #fff;
+        font-family: 'Share Tech Mono', monospace;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .custom-select-options {
+        overflow-y: auto;
+        flex: 1;
+    }
+    .custom-option {
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #222;
+    }
+    .custom-option:hover {
+        background: #1a1a1a;
+        color: #0df;
+    }
+    .custom-option img {
+        width: 24px;
+        height: 24px;
+        object-fit: cover;
+        border: 1px solid #444;
+        border-radius: 2px;
+    }
+
+    /* MODAL DE NUEVO GRUPO DM */
+    .dm-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 2000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+    .dm-modal-box {
+        background: #0a0a0a;
+        border: 1px solid #444;
+        padding: 20px;
+        width: 500px;
+        max-width: 90%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-family: 'Share Tech Mono', monospace;
+        color: #fff;
+    }
 </style>
+
 
     <!-- MODAL: EDITOR INTERACTIVO DE TIENDAS -->
     <div id="modal-editar-tienda" class="modal-overlay">
@@ -3917,22 +4033,6 @@
             const suffix = Math.floor(1000 + Math.random() * 9000); // 4 digits
             return `${prefix}-${suffix}`;
           }
-
-          // Jugadores
-          db.ref("campaña/jugadores").once("value", snap => {
-            const players = snap.val();
-            if (players) {
-              const updates = {};
-              for (const [playerId, data] of Object.entries(players)) {
-                if (!data.phoneNumber) {
-                  updates[`campaña/jugadores/${playerId}/phoneNumber`] = generatePhoneNumber();
-                }
-              }
-              if (Object.keys(updates).length > 0) {
-                db.ref().update(updates);
-              }
-            }
-          });
 
           // Actores (NPCs)
           db.ref("campaña/actores").once("value", snap => {
@@ -4769,40 +4869,121 @@
         let currentDmChatId = null;
         let dmActorsMap = {};
         let dmPlayersMap = {};
+        let allEntitiesList = []; // Array of {phone, name, icon, type, rawData}
+
+        function setupCustomSelect(containerId, optionsId, searchId, headerId, valueId, onSelectCallback) {
+            const container = document.getElementById(containerId);
+            const header = document.getElementById(headerId);
+            const search = document.getElementById(searchId);
+            const optionsContainer = document.getElementById(optionsId);
+            const valueInput = document.getElementById(valueId);
+
+            header.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-container').forEach(c => {
+                    if(c !== container) c.classList.remove('active');
+                });
+                container.classList.toggle('active');
+                if (container.classList.contains('active')) {
+                    search.focus();
+                }
+            };
+
+            search.oninput = () => {
+                const query = search.value.toLowerCase();
+                Array.from(optionsContainer.children).forEach(opt => {
+                    const text = opt.innerText.toLowerCase();
+                    opt.style.display = text.includes(query) ? "flex" : "none";
+                });
+            };
+
+            optionsContainer.addEventListener('click', (e) => {
+                const option = e.target.closest('.custom-option');
+                if (option) {
+                    const val = option.getAttribute('data-value');
+                    const img = option.querySelector('img').src;
+                    const text = option.querySelector('span').innerText;
+
+                    valueInput.value = val;
+                    header.innerHTML = `<img src="${img}" style="width: 24px; height: 24px; object-fit: cover; border-radius: 2px;"><span>${text}</span>`;
+                    container.classList.remove('active');
+                    if (onSelectCallback) onSelectCallback(val);
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove('active');
+                }
+            });
+        }
+
+        function populateCustomSelect(optionsId, entities, includeSystem = false) {
+            const container = document.getElementById(optionsId);
+            container.innerHTML = "";
+
+            if (includeSystem) {
+                const sysOpt = document.createElement("div");
+                sysOpt.className = "custom-option";
+                sysOpt.setAttribute("data-value", "system");
+                sysOpt.innerHTML = `<img src="https://i.imgur.com/kP8s7Ww.png"><span>SISTEMA (000-0000)</span>`;
+                container.appendChild(sysOpt);
+            }
+
+            entities.forEach(ent => {
+                if (!ent.phone) return;
+                const opt = document.createElement("div");
+                opt.className = "custom-option";
+                opt.setAttribute("data-value", ent.phone);
+
+                let iconSrc = ent.icon || "https://i.imgur.com/kP8s7Ww.png";
+                let prefix = ent.type === "player" ? "[Jugador]" : "[NPC]";
+
+                opt.innerHTML = `<img src="${iconSrc}"><span>${prefix} ${ent.name} (${ent.phone})</span>`;
+                container.appendChild(opt);
+            });
+        }
 
         function initDmComms() {
-            // Load actors
-            db.ref("campaña/actores").on("value", snap => {
-                const actors = snap.val() || {};
+            setupCustomSelect('dm-comms-actor-select-container', 'dm-comms-actor-options', 'dm-comms-actor-search', 'dm-comms-actor-header', 'dm-comms-actor-value');
+            setupCustomSelect('dm-comms-target-select-container', 'dm-comms-target-options', 'dm-comms-target-search', 'dm-comms-target-header', 'dm-comms-target-value');
+
+            // Load actors & players
+            db.ref("campaña").on("value", snap => {
+                const data = snap.val() || {};
+                const actors = data.actores || {};
+                const players = data.jugadores || {};
+
                 dmActorsMap = actors;
-
-                const select = document.getElementById("dm-comms-actor-select");
-                const targetSelect = document.getElementById("dm-comms-target-select");
-
-                // Clear except first (system)
-                select.innerHTML = '<option value="system">SISTEMA (000-0000)</option>';
-                // Keep target empty initially
-
-                let targetHtml = '';
+                dmPlayersMap = players;
+                allEntitiesList = [];
 
                 for (const [aId, aData] of Object.entries(actors)) {
                     if (aData.phoneNumber) {
-                        select.innerHTML += `<option value="${aData.phoneNumber}">${aData.nombre || aId} (${aData.phoneNumber})</option>`;
-                        targetHtml += `<option value="${aData.phoneNumber}">[NPC] ${aData.nombre || aId} (${aData.phoneNumber})</option>`;
+                        allEntitiesList.push({
+                            phone: aData.phoneNumber,
+                            name: aData.nombre || aId,
+                            icon: aData.icono,
+                            type: "actor",
+                            rawData: aData
+                        });
                     }
                 }
 
-                // Load Players for target
-                db.ref("campaña/jugadores").once("value", psnap => {
-                    const players = psnap.val() || {};
-                    dmPlayersMap = players;
-                    for (const [pId, pData] of Object.entries(players)) {
-                        if (pData.phoneNumber) {
-                            targetHtml += `<option value="${pData.phoneNumber}">[Jugador] ${pData.character_name || pId} (${pData.phoneNumber})</option>`;
-                        }
+                for (const [pId, pData] of Object.entries(players)) {
+                    if (pData.phoneNumber) {
+                        allEntitiesList.push({
+                            phone: pData.phoneNumber,
+                            name: pData.character_name || pId,
+                            icon: pData.icono_jugador,
+                            type: "player",
+                            rawData: pData
+                        });
                     }
-                    targetSelect.innerHTML = targetHtml;
-                });
+                }
+
+                populateCustomSelect('dm-comms-actor-options', allEntitiesList, true);
+                populateCustomSelect('dm-comms-target-options', allEntitiesList, false);
             });
 
             // Load all chats
@@ -4817,15 +4998,51 @@
                     div.style.borderBottom = "1px solid #333";
                     div.style.cursor = "pointer";
                     div.style.color = "#aaa";
-                    div.innerText = cData.name || cId;
+                    div.style.fontFamily = "'Share Tech Mono', monospace";
+                    div.style.display = "flex";
+                    div.style.alignItems = "center";
+                    div.style.gap = "10px";
+
+                    const chatName = cData.name || cId;
+
+                    let iconHtml = "";
+                    if (cData.isGroup) {
+                        if (cData.icon) {
+                            iconHtml = `<img src="${cData.icon}" style="width: 30px; height: 30px; border-radius: 2px; border: 1px solid var(--cyan-tech); object-fit: cover;">`;
+                        } else {
+                            const initials = chatName.substring(0, 2).toUpperCase();
+                            iconHtml = `<div style="width: 30px; height: 30px; background: #111; border: 1px solid var(--cyan-tech); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--cyan-tech); font-family: 'BebasKai', sans-serif; font-size: 14px; text-shadow: 0 0 5px rgba(0, 221, 255, 0.5);">${initials}</div>`;
+                        }
+                    } else {
+                        iconHtml = `<div style="width: 30px; height: 30px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #aaa;">👤</div>`;
+                    }
+
+                    // Add last message preview if available
+                    let previewStr = "";
+                    if (cData.messages) {
+                        const msgs = Object.values(cData.messages);
+                        if (msgs.length > 0) {
+                            const lastMsg = msgs[msgs.length - 1];
+                            previewStr = `<div style="font-size: 0.8em; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${lastMsg.text || ''}</div>`;
+                        }
+                    }
+
+                    div.innerHTML = `
+                        ${iconHtml}
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ddd;">${chatName}</div>
+                            ${previewStr}
+                        </div>
+                    `;
+
                     div.onclick = () => loadDmChat(cId, cData);
                     listDiv.appendChild(div);
                 }
             });
 
             document.getElementById("btn-dm-create-chat").onclick = () => {
-                const targetPhone = document.getElementById("dm-comms-target-select").value;
-                const senderPhone = document.getElementById("dm-comms-actor-select").value;
+                const targetPhone = document.getElementById("dm-comms-target-value").value;
+                const senderPhone = document.getElementById("dm-comms-actor-value").value;
 
                 if (!targetPhone) return alert("Selecciona un destinatario");
                 if (targetPhone === senderPhone) return alert("No puedes abrir un chat contigo mismo.");
@@ -4836,7 +5053,7 @@
                     let existingChatId = null;
 
                     for (const [cId, cData] of Object.entries(chats)) {
-                        if (cData.participants && cData.participants[targetPhone] && cData.participants[senderPhone] && Object.keys(cData.participants).length === 2) {
+                        if (!cData.isGroup && cData.participants && cData.participants[targetPhone] && cData.participants[senderPhone] && Object.keys(cData.participants).length === 2) {
                             existingChatId = cId;
                             break;
                         }
@@ -4854,21 +5071,102 @@
                         const name = `DM Chat: ${senderPhone} - ${targetPhone}`;
                         newChatRef.set({
                             name: name,
-                            participants: parts
+                            participants: parts,
+                            isGroup: false
                         }).then(() => {
-                            // Assign to participants (if players)
                             assignChatToParticipant(targetPhone, newChatRef.key);
                             assignChatToParticipant(senderPhone, newChatRef.key);
 
-                            loadDmChat(newChatRef.key, {name, participants: parts});
+                            loadDmChat(newChatRef.key, {name, participants: parts, isGroup: false});
                         });
                     }
                 });
             };
 
+            // Group Creation Logic
+            const btnNewGroup = document.getElementById("btn-dm-create-group-chat");
+            const modalGroup = document.getElementById("dm-modal-new-group");
+            const btnCancelGroup = document.getElementById("btn-dm-cancel-group");
+            const btnConfirmGroup = document.getElementById("btn-dm-confirm-group");
+            const searchInput = document.getElementById("dm-new-group-search");
+
+            btnNewGroup.onclick = () => {
+                modalGroup.style.display = "flex";
+                document.getElementById("dm-new-group-name").value = "";
+                document.getElementById("dm-new-group-icon").value = "";
+                searchInput.value = "";
+
+                const listDiv = document.getElementById("dm-new-group-list");
+                listDiv.innerHTML = "";
+
+                allEntitiesList.forEach(ent => {
+                    const div = document.createElement("div");
+                    div.className = "dm-group-cb-container";
+                    div.style.padding = "5px";
+                    div.style.borderBottom = "1px solid #333";
+
+                    let prefix = ent.type === "player" ? "[JUGADOR]" : "[NPC]";
+                    let iconSrc = ent.icon || "https://i.imgur.com/kP8s7Ww.png";
+
+                    div.innerHTML = `
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" class="dm-group-cb" value="${ent.phone}">
+                            <img src="${iconSrc}" style="width: 24px; height: 24px; object-fit: cover;">
+                            <span>${prefix} ${ent.name} <span style="color: #666; font-size: 0.8em;">[${ent.phone}]</span></span>
+                        </label>
+                    `;
+                    listDiv.appendChild(div);
+                });
+            };
+
+            searchInput.oninput = () => {
+                const q = searchInput.value.toLowerCase();
+                const items = document.querySelectorAll(".dm-group-cb-container");
+                items.forEach(item => {
+                    const text = item.innerText.toLowerCase();
+                    item.style.display = text.includes(q) ? "block" : "none";
+                });
+            };
+
+            btnCancelGroup.onclick = () => {
+                modalGroup.style.display = "none";
+            };
+
+            btnConfirmGroup.onclick = () => {
+                const groupName = document.getElementById("dm-new-group-name").value.trim();
+                const iconUrl = document.getElementById("dm-new-group-icon").value.trim();
+
+                if (!groupName) return alert("Nombre del Grupo requerido.");
+
+                const cbs = document.querySelectorAll(".dm-group-cb:checked");
+                const phones = Array.from(cbs).map(cb => cb.value);
+
+                if (phones.length < 2) return alert("Debes seleccionar al menos dos participantes.");
+
+                const participants = {};
+                phones.forEach(p => participants[p] = true);
+                // Si el DM quiere incluirse como sistema:
+                // participants["000-0000"] = true; // Opcional, pero dejémoslo solo a los elegidos
+
+                const chatData = {
+                    name: groupName,
+                    participants: participants,
+                    isGroup: true
+                };
+                if (iconUrl) chatData.icon = iconUrl;
+
+                const newChatRef = db.ref("campaña/comms/chats").push();
+                newChatRef.set(chatData).then(() => {
+                    phones.forEach(p => {
+                        assignChatToParticipant(p, newChatRef.key);
+                    });
+                    modalGroup.style.display = "none";
+                });
+            };
+
             document.getElementById("btn-dm-send-chat").onclick = () => {
                 if (!currentDmChatId) return;
-                let senderPhone = document.getElementById("dm-comms-actor-select").value;
+                let senderPhone = document.getElementById("dm-comms-actor-value").value;
                 const input = document.getElementById("dm-chat-input");
                 const msg = input.value.trim();
 
@@ -4903,7 +5201,12 @@
 
         function loadDmChat(chatId, chatData) {
             currentDmChatId = chatId;
-            document.getElementById("dm-chat-header").innerText = chatData.name || chatId;
+            const header = document.getElementById("dm-chat-header");
+            if (chatData.isGroup) {
+                header.innerText = (chatData.name || "Chat Grupal") + " [GRUPO]";
+            } else {
+                header.innerText = (chatData.name || "Chat") + " [PRIVADO]";
+            }
 
             db.ref(`campaña/comms/chats/${chatId}/messages`).off();
             db.ref(`campaña/comms/chats/${chatId}/messages`).on("value", snap => {
@@ -9169,5 +9472,21 @@
         }
       }
     </script>
-  </body>
+
+    <div id="dm-modal-new-group" class="dm-modal-overlay">
+        <div class="dm-modal-box">
+            <h3 style="color: var(--cyan-tech); margin-top: 0; text-align: center;">CREAR RED MULTIPUNTO (GRUPO)</h3>
+            <input type="text" id="dm-new-group-name" class="form-cyber" placeholder="Nombre del Grupo...">
+            <input type="text" id="dm-new-group-icon" class="form-cyber" placeholder="URL Ícono (Opcional)...">
+            <input type="text" id="dm-new-group-search" class="form-cyber" placeholder="Buscar participantes..." style="margin-top: 10px;">
+            <div id="dm-new-group-list" style="height: 200px; overflow-y: auto; border: 1px solid #333; background: #000; padding: 10px;">
+                <!-- Opciones de participantes inyectadas -->
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="btn-dm-cancel-group" class="btn-cyber" style="flex: 1; background: #333; color: #fff;">CANCELAR</button>
+                <button id="btn-dm-confirm-group" class="btn-cyber" style="flex: 1; background: #0df; color: #000;">CREAR</button>
+            </div>
+        </div>
+    </div>
+</body>
 </html>
