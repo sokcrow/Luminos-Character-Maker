@@ -8164,3 +8164,56 @@ button.sheet-app-btn, button.btn-toggle-phone, button#btn-show-mail, button#btn-
     border-left: 4px solid var(--cyan-tech);
     background-color: #222;
 }
+
+.contact-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #111;
+    border-bottom: 1px solid #333;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-left: 2px solid transparent;
+    transition: border-left 0.2s, background 0.2s;
+}
+.contact-item:hover {
+    border-left: 2px solid #0df;
+    background: #1a1a1a;
+}
+.contact-info {
+    display: flex;
+    flex-direction: column;
+}
+.contact-alias {
+    color: #fff;
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+.contact-number {
+    color: #888;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+.contact-actions {
+    display: flex;
+    gap: 5px;
+}
+.btn-contact-edit {
+    background: #c49a00;
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+}
+.btn-contact-delete {
+    background: #ff4444;
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+}
