@@ -1,3 +1,13 @@
+
+// =====================================================================================
+// DOCUMENTACIÓN FASE 5: VALIDACIÓN DE MUNICIÓN Y CONSUMIBLES (PREPARACIÓN PARA COMBATE)
+// =====================================================================================
+// El campo `vinculo_item` en ítems con el tag 'arma' será estrictamente validado
+// por el motor de combate en futuras fases. Un arma no podrá dispararse ni recargarse
+// a menos que el script detecte en el inventario activo (o stash) el ID exacto del ítem
+// listado en su `vinculo_item` (ej. "balas_9mm", "flechas_acero").
+// =====================================================================================
+
 // Data Maps for resolving IDs to Names
 const racesData = [
   { id: "humano", nombre: "Humano" },
@@ -4229,3 +4239,345 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           });
       }
   }
+
+    // --- LÓGICA DE FORJA Y SÍNTESIS ---
+    let mesaCrafteoActiva = false;
+    let forjaSlotsData = { 1: null, 2: null, 3: null, 4: null, 5: null };
+    let currentForjaSlot = null;
+    let cachedRecetasGlobales = {};
+
+    db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", (snap) => {
+        mesaCrafteoActiva = snap.val() === true;
+        updateForjaSlotsLock();
+    });
+
+    db.ref("campaña/forja/recetas").on("value", (snap) => {
+        cachedRecetasGlobales = snap.val() || {};
+    });
+
+    function updateForjaSlotsLock() {
+        const hasToolkit = Object.values(window.currentInventarioActivo || {}).some(
+            item => (item.tags && item.tags.map(t=>t.toLowerCase()).includes('toolkit')) ||
+                    (item.keywords && item.keywords.some(k => typeof k === 'string' && k.toLowerCase().includes('toolkit')))
+        );
+        const unlocked = mesaCrafteoActiva || hasToolkit;
+
+        [4, 5].forEach(slotNum => {
+            const slotEl = document.querySelector(`.forja-slot[data-slot="${slotNum}"]`);
+            if (!slotEl) return;
+            if (unlocked) {
+                slotEl.classList.remove('locked');
+                slotEl.style.cursor = 'pointer';
+                slotEl.innerHTML = forjaSlotsData[slotNum] ? renderForjaSlotFilled(slotNum) : '<span style="color: #666; font-size: 24px;">+</span>';
+            } else {
+                slotEl.classList.add('locked');
+                slotEl.style.cursor = 'not-allowed';
+                slotEl.innerHTML = `
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(45deg, #000, #000 10px, #ffaa00 10px, #ffaa00 20px); opacity: 0.3;"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#ffaa00" stroke-width="2" style="width: 30px; height: 30px; position: relative; z-index: 2;">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                `;
+                forjaSlotsData[slotNum] = null; // Clear data if locked
+            }
+        });
+    }
+
+    // Call update lock when inventory changes
+    const originalRenderInventario = window.renderInventario; // We'll hook into existing inventario observer implicitly or just call it
+    // Note: We already have an active listener on 'inventario_activo' around line 3500 that populates window.currentInventarioActivo. We can just add a specific listener for the lock.
+    db.ref(`campaña/jugadores/${currentName}/inventario_activo`).on("value", (snap) => {
+        window.currentInventarioActivo = snap.val() || {};
+        updateForjaSlotsLock();
+    });
+
+    function renderForjaSlotFilled(slotNum) {
+        const data = forjaSlotsData[slotNum];
+        if (!data) return '<span style="color: #666; font-size: 24px;">+</span>';
+        return `
+            <img src="${data.icono || 'https://via.placeholder.com/80'}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8;">
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); text-align: center; color: #fff; font-size: 10px; padding: 2px;">x${data.cantidadUsar}</div>
+            <button class="btn-clear-slot" data-slot="${slotNum}" style="position: absolute; top: -5px; right: -5px; background: #ff4444; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; z-index: 10;">X</button>
+        `;
+    }
+
+    document.getElementById("forja-slots-container").addEventListener("click", (e) => {
+        const clearBtn = e.target.closest('.btn-clear-slot');
+        if (clearBtn) {
+            e.stopPropagation();
+            const slotNum = clearBtn.getAttribute('data-slot');
+            forjaSlotsData[slotNum] = null;
+            const slotEl = document.querySelector(`.forja-slot[data-slot="${slotNum}"]`);
+            slotEl.innerHTML = '<span style="color: #666; font-size: 24px;">+</span>';
+            return;
+        }
+
+        const slotEl = e.target.closest('.forja-slot');
+        if (!slotEl) return;
+        if (slotEl.classList.contains('locked')) return;
+
+        currentForjaSlot = slotEl.getAttribute('data-slot');
+        abrirModalSeleccionForja();
+    });
+
+    function abrirModalSeleccionForja() {
+        document.getElementById("forja-select-modal").style.display = "flex";
+        renderizarListaForja("");
+    }
+
+    document.getElementById("btn-cerrar-forja-modal").addEventListener("click", () => {
+        document.getElementById("forja-select-modal").style.display = "none";
+    });
+
+    document.getElementById("forja-search-input").addEventListener("input", (e) => {
+        renderizarListaForja(e.target.value.toLowerCase());
+    });
+
+    function renderizarListaForja(query) {
+        const listContainer = document.getElementById("forja-inventory-list");
+        listContainer.innerHTML = "";
+
+        // Combinar activo y stash
+        const combined = {};
+
+        const activo = window.currentInventarioActivo || {};
+        for(const [k, v] of Object.entries(activo)) {
+            if(!combined[v.nombre]) combined[v.nombre] = {...v, totalCant: 0, originKeys: []};
+            combined[v.nombre].totalCant += (v.cantidad || 1);
+            combined[v.nombre].originKeys.push({list: 'inventario_activo', key: k, cant: v.cantidad || 1});
+        }
+
+        let stashData = null; // Need to fetch stash data, let's assume we can fetch it once when opening modal or use a cached version.
+        db.ref(`campaña/jugadores/${currentName}/inventario_stash`).once("value").then(snap => {
+            const stash = snap.val() || {};
+            for(const [k, v] of Object.entries(stash)) {
+                if(!combined[v.nombre]) combined[v.nombre] = {...v, totalCant: 0, originKeys: []};
+                combined[v.nombre].totalCant += (v.cantidad || 1);
+                combined[v.nombre].originKeys.push({list: 'inventario_stash', key: k, cant: v.cantidad || 1});
+            }
+
+            for(const item of Object.values(combined)) {
+                if (query && !item.nombre.toLowerCase().includes(query)) continue;
+
+                // Exclude items already placed in other slots to avoid confusing qty management for now,
+                // or just allow it and validate total at the end. For simplicity, we allow selection but limit max qty to total.
+
+                const row = document.createElement("div");
+                row.style.cssText = "display: flex; align-items: center; background: #222; border: 1px solid #444; padding: 10px; border-radius: 4px; gap: 10px;";
+                row.innerHTML = `
+                    <img src="${item.icono || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; object-fit: cover;">
+                    <div style="flex: 1; color: #fff; font-size: 14px;">${item.nombre}</div>
+                    <div style="color: #0df; font-weight: bold;">x${item.totalCant}</div>
+                    <button class="btn-seleccionar-ingrediente" style="background: var(--cyan-tech); color: #000; font-weight: bold; border: none; padding: 5px 10px; cursor: pointer;">Elegir</button>
+                `;
+
+                row.querySelector(".btn-seleccionar-ingrediente").addEventListener("click", () => {
+                    let cantToUse = parseInt(prompt(`¿Cuántos ${item.nombre} quieres usar? (Max: ${item.totalCant})`, "1"));
+                    if (isNaN(cantToUse) || cantToUse <= 0) return;
+                    if (cantToUse > item.totalCant) cantToUse = item.totalCant;
+
+                    forjaSlotsData[currentForjaSlot] = {
+                        nombre: item.nombre,
+                        icono: item.icono,
+                        cantidadUsar: cantToUse,
+                        origins: item.originKeys // Store origins to know where to subtract from
+                    };
+
+                    const slotEl = document.querySelector(`.forja-slot[data-slot="${currentForjaSlot}"]`);
+                    slotEl.innerHTML = renderForjaSlotFilled(currentForjaSlot);
+                    document.getElementById("forja-select-modal").style.display = "none";
+                });
+
+                listContainer.appendChild(row);
+            }
+        });
+    }
+
+
+    document.getElementById("btn-iniciar-sintesis").addEventListener("click", () => {
+        // Recolectar ingredientes colocados
+        const ingredientesColocados = {}; // key: global id (we use nombre as ID matching pattern for now, or match by nombre)
+
+        let emptyCount = 0;
+        for(let i=1; i<=5; i++) {
+            if (forjaSlotsData[i]) {
+                const nameKey = forjaSlotsData[i].nombre.toLowerCase().replace(/[^a-z0-9]/g, "_"); // Try to reconstruct ID, or we search recetas by name
+                // Actually, recipes store ingredient IDs which are usually the sanitized name. Let's find the ID in dbItemsCache.
+                let idItem = null;
+                for(const [k, v] of Object.entries(window.dbItemsCache || {})) {
+                    if (v.nombre === forjaSlotsData[i].nombre) {
+                        idItem = k; break;
+                    }
+                }
+                if (!idItem) idItem = nameKey; // Fallback
+
+                if (!ingredientesColocados[idItem]) ingredientesColocados[idItem] = 0;
+                ingredientesColocados[idItem] += forjaSlotsData[i].cantidadUsar;
+            } else {
+                emptyCount++;
+            }
+        }
+
+        if (emptyCount === 5) {
+            alert("Coloca al menos un ingrediente.");
+            return;
+        }
+
+        // Buscar coincidencia en recetas
+        let recetaCoincidente = null;
+        let recetaKey = null;
+
+        for (const [key, receta] of Object.entries(cachedRecetasGlobales)) {
+            // Requerimiento de mesa
+            if (receta.requiere_mesa && !mesaCrafteoActiva) continue;
+
+            // Verificar si los ingredientes requeridos coinciden EXACTAMENTE con los colocados
+            let match = true;
+            const reqMap = {};
+            receta.ingredientes.forEach(ing => reqMap[ing.id] = ing.cantidad);
+
+            // Tienen que tener la misma cantidad de items distintos
+            if (Object.keys(reqMap).length !== Object.keys(ingredientesColocados).length) continue;
+
+            for (const [id, cant] of Object.entries(reqMap)) {
+                if (!ingredientesColocados[id] || ingredientesColocados[id] !== cant) {
+                    match = false; break;
+                }
+            }
+
+            if (match) {
+                recetaCoincidente = receta;
+                recetaKey = key;
+                break;
+            }
+        }
+
+        // Calculate difficulty even if no exact match (it will just fail but consume items)
+        let dificultadActual = recetaCoincidente ? recetaCoincidente.dificultad_base : 999;
+
+        if (recetaCoincidente) {
+            // Check for keywords like crafting_up_X
+            const activo = window.currentInventarioActivo || {};
+            for (const item of Object.values(activo)) {
+                if (item.keywords && Array.isArray(item.keywords)) {
+                    item.keywords.forEach(kw => {
+                        if (kw.toLowerCase().startsWith('crafting_up_')) {
+                            const bonus = parseInt(kw.split('_')[2]) || 0;
+                            dificultadActual -= bonus;
+                        } else if (kw.toLowerCase().startsWith('synth_bonus_')) {
+                            const bonus = parseInt(kw.split('_')[2]) || 0;
+                            dificultadActual -= bonus;
+                        }
+                    });
+                }
+            }
+        }
+
+        document.getElementById("forja-roll-dc").innerText = recetaCoincidente ? dificultadActual : "???";
+        document.getElementById("forja-roll-input").value = "";
+        document.getElementById("forja-roll-modal").style.display = "flex";
+
+        document.getElementById("btn-confirmar-roll").onclick = () => {
+            const rollVal = parseInt(document.getElementById("forja-roll-input").value);
+            if (isNaN(rollVal)) {
+                alert("Ingresa un valor numérico.");
+                return;
+            }
+
+            document.getElementById("forja-roll-modal").style.display = "none";
+
+            // Consumir ingredientes siempre
+            const updates = consumirIngredientesLocal(forjaSlotsData);
+
+            if (recetaCoincidente && rollVal >= dificultadActual) {
+                // Éxito
+                const idRes = recetaCoincidente.item_resultado;
+                const itemResData = window.dbItemsCache[idRes];
+                if (itemResData) {
+                    const newItem = {...itemResData, cantidad: 1, valorBase: itemResData.costo || 0};
+                    const newItemKey = db.ref().push().key;
+                    updates[`campaña/jugadores/${currentName}/inventario_stash/${newItemKey}`] = newItem;
+                    db.ref().update(updates).then(() => {
+                        alert(`¡Éxito! Has sintetizado: ${itemResData.nombre}`);
+                        limpiarSlotsForja();
+                    }).catch(e => alert("Error procesando transacción: " + e));
+                } else {
+                    alert("Error: El ítem resultado no existe en la base de datos global.");
+                    limpiarSlotsForja();
+                }
+            } else {
+                // Fallo, solo consumimos
+                db.ref().update(updates).then(() => {
+                    alert("Síntesis fallida. Los materiales se han consumido.");
+                    limpiarSlotsForja();
+                }).catch(e => alert("Error procesando materiales: " + e));
+            }
+        };
+
+        document.getElementById("btn-cancelar-roll").onclick = () => {
+            document.getElementById("forja-roll-modal").style.display = "none";
+        };
+    });
+
+    function limpiarSlotsForja() {
+        for(let i=1; i<=5; i++) {
+            forjaSlotsData[i] = null;
+            const slotEl = document.querySelector(`.forja-slot[data-slot="${i}"]`);
+            if (!slotEl.classList.contains('locked')) {
+                slotEl.innerHTML = '<span style="color: #666; font-size: 24px;">+</span>';
+            }
+        }
+    }
+
+    function consumirIngredientesLocal(slotsData) {
+        const updates = {};
+        const currentStock = {};
+
+        for (let i=1; i<=5; i++) {
+            const data = slotsData[i];
+            if (data && data.origins) {
+                let remainingToConsume = data.cantidadUsar;
+                for (const origin of data.origins) {
+                    if (remainingToConsume <= 0) break;
+
+                    const stockKey = `${origin.list}/${origin.key}`;
+                    if (currentStock[stockKey] === undefined) {
+                        currentStock[stockKey] = origin.cant;
+                    }
+
+                    const availableInThisOrigin = currentStock[stockKey];
+                    const basePath = `campaña/jugadores/${currentName}/${origin.list}/${origin.key}`;
+
+                    if (availableInThisOrigin <= remainingToConsume) {
+                        updates[basePath] = null;
+                        if (updates[basePath + '/cantidad'] !== undefined) delete updates[basePath + '/cantidad'];
+
+                        remainingToConsume -= availableInThisOrigin;
+                        currentStock[stockKey] = 0;
+                    } else {
+                        currentStock[stockKey] = availableInThisOrigin - remainingToConsume;
+                        if (updates[basePath] !== null) {
+                            updates[basePath + '/cantidad'] = currentStock[stockKey];
+                        }
+                        remainingToConsume = 0;
+                    }
+                }
+            }
+        }
+        return updates;
+    }
+
+    // Fetch global items to cache for recipes
+    db.ref("campaña/base_datos_items").on("value", snap => {
+        window.dbItemsCache = snap.val() || {};
+    });
+
+// =====================================================================================
+// DOCUMENTACIÓN FASE 5: VALIDACIÓN DE MUNICIÓN Y CONSUMIBLES (PREPARACIÓN PARA COMBATE)
+// =====================================================================================
+// El campo `vinculo_item` en ítems con el tag 'arma' será estrictamente validado
+// por el motor de combate en futuras fases. Un arma no podrá dispararse ni recargarse
+// a menos que el script detecte en el inventario activo (o stash) el ID exacto del ítem
+// listado en su `vinculo_item` (ej. "balas_9mm", "flechas_acero").
+// =====================================================================================
