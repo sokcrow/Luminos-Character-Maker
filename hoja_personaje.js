@@ -4581,3 +4581,64 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 // a menos que el script detecte en el inventario activo (o stash) el ID exacto del ítem
 // listado en su `vinculo_item` (ej. "balas_9mm", "flechas_acero").
 // =====================================================================================
+
+
+// Safe Ctrl+Click delegation for Forja
+document.addEventListener("click", (e) => {
+    const slot = e.target.closest('.item-slot') || e.target.closest('.inv-item-slot');
+    if(slot && e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const forjaTab = document.getElementById("sheet-tab-forja");
+        if (forjaTab && window.forjaSlotsData) {
+            const key = slot.dataset.key;
+            const playerId = document.querySelector('input[name="attr_character_name"]')?.value.trim();
+            const isStash = slot.closest('#inv-stash-grid') !== null;
+            const listPath = isStash ? 'inventario_stash' : 'inventario_activo';
+
+            db.ref(`campaña/jugadores/${playerId}/${listPath}/${key}`).once("value").then(snap => {
+                const item = snap.val();
+                if(!item) return;
+
+                let targetSlot = null;
+                for(let i=1; i<=5; i++){
+                    const s = document.querySelector(`.forja-slot[data-slot="${i}"]`);
+                    if(s && !s.classList.contains("locked") && !window.forjaSlotsData[i]){
+                        targetSlot = i; break;
+                    }
+                }
+
+                if(targetSlot) {
+                    let alreadyPlaced = 0;
+                    for (let j = 1; j <= 5; j++) {
+                        if (window.forjaSlotsData[j] && window.forjaSlotsData[j].nombre === (item.nombre || 'Desconocido')) {
+                            alreadyPlaced += window.forjaSlotsData[j].cantidadUsar;
+                        }
+                    }
+                    if (alreadyPlaced >= (item.cantidad || 1)) {
+                        alert("No tienes más cantidad de este ítem.");
+                        return;
+                    }
+
+                    window.forjaSlotsData[targetSlot] = {
+                        nombre: item.nombre || 'Desconocido',
+                        icono: item.icono,
+                        cantidadUsar: 1,
+                        origins: [{list: listPath, key: snap.key, cant: item.cantidad || 1}]
+                    };
+
+                    const s = document.querySelector(`.forja-slot[data-slot="${targetSlot}"]`);
+                    if(typeof renderForjaSlotFilled === 'function') {
+                        s.innerHTML = renderForjaSlotFilled(targetSlot);
+                    }
+
+                    slot.style.border = "2px solid #0f0";
+                    setTimeout(() => { slot.style.border = ""; }, 200);
+                } else {
+                    alert("Forja llena o bloqueada.");
+                }
+            });
+        }
+    }
+});
