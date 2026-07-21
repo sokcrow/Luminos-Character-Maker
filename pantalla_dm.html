@@ -1275,7 +1275,7 @@
 
       <button class="dm-tab-btn" data-tab="tab-combate">Combate</button>
       <button class="dm-tab-btn" data-tab="dashboard-actores">
-        Gestión de Actores
+        Gestión de Personajes
       </button>
       <button class="dm-tab-btn" data-tab="dashboard-jugadores">
         Gestión de Jugadores
@@ -2473,7 +2473,43 @@
 
       <div id="dashboard-actores" class="dm-tab-pane">
         <div class="panel-cyber" style="margin-top: 20px">
-          <h3>Gestión de Actores</h3>
+          <style>
+      /* Accordion & Directory Styling */
+      .accordion-level-1 { margin-bottom: 10px; background: #1a1a1a; border: 1px solid #333; }
+      .accordion-header-1 { padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #ffeb3b; font-weight: bold; }
+      .accordion-content-1 { padding: 0; display: none; }
+      .accordion-content-1.open { display: block; }
+
+      .accordion-level-2 { border-top: 1px solid #333; background: #111; }
+      .accordion-header-2 { padding: 8px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #00ffff; }
+      .accordion-content-2 { padding: 10px; display: none; background: #0a0a0a; }
+      .accordion-content-2.open { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+
+      .character-card { background: #222; border: 1px solid #444; padding: 10px; border-radius: 4px; display: flex; flex-direction: column; gap: 5px; position: relative; }
+      .character-card img { width: 40px; height: 40px; object-fit: cover; border-radius: 50%; }
+      .character-card .actions { display: flex; gap: 5px; margin-top: auto; }
+      .character-card button { flex: 1; padding: 5px; font-size: 0.8em; }
+
+      /* Expressions Gallery */
+      .expressions-gallery { display: flex; overflow-x: auto; gap: 5px; padding: 5px 0; }
+      .expression-thumb { width: 30px; height: 30px; object-fit: cover; border: 1px solid #555; cursor: help; }
+          </style>
+
+          <h3>Gestión de Personajes</h3>
+          <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; background: #111; padding: 10px; border: 1px solid #333;">
+              <input type="text" id="dir-search" placeholder="Buscar personaje..." onkeyup="renderListaActores()" style="flex: 1; min-width: 150px; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
+              <select id="dir-filter-alignment" onchange="renderListaActores()" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444;">
+                <option value="">Cualquier Alineamiento</option>
+                <option value="Jugador">Jugador</option>
+                <option value="Aliado">Aliado</option>
+                <option value="Neutral">Neutral</option>
+                <option value="Enemigo">Enemigo</option>
+              </select>
+              <select id="dir-filter-faction" onchange="renderListaActores()" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444;">
+                <option value="">Cualquier Facción</option>
+              </select>
+              <input type="text" id="dir-filter-tags" placeholder="Filtrar por etiqueta..." onkeyup="renderListaActores()" style="flex: 1; min-width: 150px; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
+          </div>
 
           <div class="form-cyber-container">
             <div class="form-cyber">
@@ -2543,36 +2579,57 @@
                 />
               </div>
 
-              <div
-                style="
-                  display: flex;
-                  gap: 10px;
-                  align-items: center;
-                  margin-top: 10px;
-                "
-              >
-                <label style="font-size: 0.85em; color: #aaa"
-                  >Tipo de Actor:</label
-                >
-                <label style="color: #fff; font-size: 0.9em"
-                  ><input
-                    type="radio"
-                    name="actor-tipo"
-                    id="actor-tipo-npc"
-                    value="NPC"
-                    checked
-                  />
-                  NPC</label
-                >
-                <label style="color: #fff; font-size: 0.9em"
-                  ><input
-                    type="radio"
-                    name="actor-tipo"
-                    id="actor-tipo-jugador"
-                    value="Jugador"
-                  />
-                  Jugador</label
-                >
+              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                <label style="flex: 1; font-size: 0.85em; color: #aaa">Tipo / Alineamiento:</label>
+                <select id="actor-tipo" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" onchange="togglePlayerLink()">
+                  <option value="Neutral">Neutral</option>
+                  <option value="Jugador">Jugador</option>
+                  <option value="Aliado">Aliado</option>
+                  <option value="Enemigo">Enemigo</option>
+                  <option value="NPC">NPC</option>
+                  <option value="Sistema">Sistema</option>
+                </select>
+              </div>
+
+              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                <label style="flex: 1; font-size: 0.85em; color: #aaa">Facción:</label>
+                <input type="text" id="actor-faccion" list="faction-list" placeholder="Ej. L-Corp" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
+                <datalist id="faction-list"></datalist>
+              </div>
+
+              <div id="player-link-container" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
+                <label style="flex: 1; font-size: 0.85em; color: #aaa">Vínculo Jugador:</label>
+                <select id="actor-vinculo-jugador" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;">
+                  <option value="">Ninguno</option>
+                </select>
+              </div>
+
+              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                <label style="flex: 1; font-size: 0.85em; color: #aaa">Etiquetas:</label>
+                <input type="text" id="actor-etiquetas" placeholder="Ej. jefe, mecha (separadas por comas)" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
+              </div>
+
+              <div class="panel-cyber" style="margin-top: 15px; border-color: #555; padding: 10px;">
+                <h4 style="color: #ff4444; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 5px;">Propiedades de Combate</h4>
+                <label style="display: flex; align-items: center; gap: 10px; color: #fff; margin-bottom: 10px;">
+                  <input type="checkbox" id="actor-combatiente" onchange="toggleCombatProperties()"/> Es Combatiente (Requiere Sprite)
+                </label>
+                <div id="combat-props" style="display: none; flex-direction: column; gap: 10px;">
+                  <div id="combat-stats-warning" style="display: none; color: #c49a00; font-size: 0.8em; margin-bottom: 5px; font-weight: bold;">
+                    ⚠️ ATRIBUTOS HEREDADOS DEL VÍNCULO DE ALMA
+                  </div>
+                  <input type="url" id="actor-sprite-combate" placeholder="URL del Sprite de Combate" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/>
+
+                  <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">HP Max:</label><input type="number" id="actor-hp" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">SP Max:</label><input type="number" id="actor-sp" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                  </div>
+                  <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">Velocidad:</label><input type="number" id="actor-vel" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">Nivel Ofensivo:</label><input type="number" id="actor-atk" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">AC:</label><input type="number" id="actor-ac" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                  </div>
+                </div>
               </div>
 
               <h5 style="color: #aaa; margin: 10px 0 5px 0">
@@ -8188,7 +8245,22 @@
           document.getElementById("actor-escala").value = "1.0";
           document.getElementById("actor-icono").value = "";
           document.getElementById("actor-sprite").value = "";
-          document.getElementById("actor-tipo-npc").checked = true;
+
+          if(document.getElementById("actor-tipo")) document.getElementById("actor-tipo").value = "Neutral";
+          if(document.getElementById("actor-faccion")) document.getElementById("actor-faccion").value = "";
+          if(document.getElementById("actor-etiquetas")) document.getElementById("actor-etiquetas").value = "";
+          if(document.getElementById("actor-vinculo-jugador")) document.getElementById("actor-vinculo-jugador").value = "";
+          if(document.getElementById("actor-combatiente")) document.getElementById("actor-combatiente").checked = false;
+          if(document.getElementById("actor-sprite-combate")) document.getElementById("actor-sprite-combate").value = "";
+          if(document.getElementById("actor-hp")) document.getElementById("actor-hp").value = "";
+          if(document.getElementById("actor-sp")) document.getElementById("actor-sp").value = "";
+          if(document.getElementById("actor-vel")) document.getElementById("actor-vel").value = "";
+          if(document.getElementById("actor-atk")) document.getElementById("actor-atk").value = "";
+          if(document.getElementById("actor-ac")) document.getElementById("actor-ac").value = "";
+
+          if(typeof togglePlayerLink === 'function') togglePlayerLink();
+          if(typeof toggleCombatProperties === 'function') toggleCombatProperties();
+
           document.getElementById("actor-expresiones-container").innerHTML = "";
 
           document.getElementById("btn-crear-actor").innerText = "Crear Actor";
@@ -8226,111 +8298,278 @@
             }
           });
 
-        function renderListaActores() {
-          const gridActores = document.getElementById("grid-actores");
-          if (!gridActores) return;
+        function togglePlayerLink() {
+        const align = document.getElementById('actor-tipo')?.value;
+        const linkContainer = document.getElementById('player-link-container');
+        const combatStats = document.querySelectorAll('.combat-stat');
+        const warningEl = document.getElementById('combat-stats-warning');
 
-          gridActores.innerHTML = "";
+        if (align === 'Jugador') {
+          if(linkContainer) linkContainer.style.display = 'flex';
+          if(warningEl) warningEl.style.display = 'block';
+          combatStats.forEach(input => {
+            input.disabled = true;
+            input.style.filter = 'grayscale(1)';
+            input.title = "Atributos heredados del jugador vinculado";
+          });
+        } else {
+          if(linkContainer) linkContainer.style.display = 'none';
+          if(warningEl) warningEl.style.display = 'none';
+          combatStats.forEach(input => {
+            input.disabled = false;
+            input.style.filter = 'none';
+            input.title = "";
+          });
+        }
+      }
 
-          const fragmentActores = document.createDocumentFragment();
+      function toggleCombatProperties() {
+        const isCombatant = document.getElementById('actor-combatiente')?.checked;
+        const props = document.getElementById('combat-props');
+        if(props) props.style.display = isCombatant ? 'flex' : 'none';
+      }
 
-          if (Object.keys(dbActoresCache).length === 0) {
-            gridActores.innerHTML =
-              '<span style="color: #888;">No hay actores registrados.</span>';
-            return;
+      function populateFilters() {
+        const factions = new Set();
+        Object.values(dbActoresCache).forEach(actor => {
+          if (actor.faccion) factions.add(actor.faccion);
+        });
+
+        const datalist = document.getElementById('faction-list');
+        const filterDropdown = document.getElementById('dir-filter-faction');
+
+        if (datalist && filterDropdown) {
+          const currentFilter = filterDropdown.value;
+          let options = '<option value="">Cualquier Facción</option>';
+          let dataOptions = '';
+          factions.forEach(f => {
+            dataOptions += `<option value="${f}">`;
+            options += `<option value="${f}" ${currentFilter === f ? 'selected' : ''}>${f}</option>`;
+          });
+          datalist.innerHTML = dataOptions;
+          filterDropdown.innerHTML = options;
+        }
+
+        const playerSelect = document.getElementById('actor-vinculo-jugador');
+        if (playerSelect) {
+          const currentVal = playerSelect.value;
+          let pOptions = '<option value="">Ninguno</option>';
+          if (window.jugadoresDB) {
+             Object.entries(window.jugadoresDB).forEach(([pid, pdata]) => {
+               pOptions += `<option value="${pid}" ${currentVal === pid ? 'selected' : ''}>${pdata.nombre} (${pid})</option>`;
+             });
           }
+          playerSelect.innerHTML = pOptions;
+        }
+      }
 
-          for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
-            const card = document.createElement("div");
-            card.className = "card-cyber card-store"; // reusing store card style for the pointer cursor and hover
-
-            const imgUrl =
-              actorData.icono ||
-              actorData.sprite ||
-              "https://via.placeholder.com/60/222222/ffffff?text=?";
-            const badgeColor =
-              actorData.tipo === "Jugador" ? "#0df" : "#ff4444";
-            const badgeText = actorData.tipo || "NPC";
-
-            card.innerHTML = `
-                <div style="position: absolute; top: 5px; left: 5px; background: ${badgeColor}; color: #000; font-size: 10px; padding: 2px 5px; border-radius: 3px; font-weight: bold;">[${badgeText}]</div>
-                <button class="btn-delete-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 5px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Eliminar Actor">🗑️</button>
-                <button class="btn-edit-actor" data-id="${actorId}" style="position: absolute; top: 5px; right: 30px; background: transparent; border: none; cursor: pointer; font-size: 16px;" title="Editar Actor">✏️</button>
-                <img src="${imgUrl}" alt="${actorData.nombre}" style="border-radius: 50%; border-color: ${actorData.color_titulo || "#555"};">
-                <h5 style="color:${actorData.color_nombre || "#fff"};">${actorData.nombre}</h5>
-                <span style="color:${actorData.color_titulo || "#c49a00"};">${actorData.titulo || ""}</span>
-            `;
-
-            // Delete event
-            const btnDelete = card.querySelector(".btn-delete-actor");
-            btnDelete.addEventListener("click", (e) => {
-              e.stopPropagation();
-              if (
-                confirm(
-                  `¿Estás seguro de eliminar permanentemente al actor "${actorData.nombre}"?`,
-                )
-              ) {
-                db.ref(`campaña/actores/${actorId}`)
-                  .remove()
-                  .then(() => alert("Actor eliminado."))
-                  .catch((err) => alert("Error al eliminar: " + err));
-              }
-            });
-
-            // Edit event
-            const btnEdit = card.querySelector(".btn-edit-actor");
-            btnEdit.addEventListener("click", (e) => {
-              e.stopPropagation();
+      function loadActorIntoFormInternal(actorId, actorData) {
               editModeActorKey = actorId;
 
-              document.getElementById("actor-nombre").value =
-                actorData.nombre || "";
-              document.getElementById("actor-titulo").value =
-                actorData.titulo || "";
-              document.getElementById("actor-color-nombre").value =
-                actorData.color_nombre || "#ffffff";
-              document.getElementById("actor-color-titulo").value =
-                actorData.color_titulo || "#c49a00";
-              document.getElementById("actor-escala").value =
-                actorData.escala !== undefined ? actorData.escala : "1.0";
-              document.getElementById("actor-icono").value =
-                actorData.icono || "";
-              document.getElementById("actor-sprite").value =
-                actorData.sprite || "";
+              document.getElementById("actor-nombre").value = actorData.nombre || "";
+              document.getElementById("actor-titulo").value = actorData.titulo || "";
+              document.getElementById("actor-color-nombre").value = actorData.color_nombre || "#ffffff";
+              document.getElementById("actor-color-titulo").value = actorData.color_titulo || "#c49a00";
 
-              if (actorData.tipo === "Jugador") {
-                document.getElementById("actor-tipo-jugador").checked = true;
-              } else {
-                document.getElementById("actor-tipo-npc").checked = true;
+              if(document.getElementById("actor-escala")) {
+                document.getElementById("actor-escala").value = actorData.escala !== undefined ? actorData.escala : "1.0";
+              }
+              if(document.getElementById("actor-icono")) {
+                  document.getElementById("actor-icono").value = actorData.icono || "";
+              }
+              if(document.getElementById("actor-sprite")) {
+                  document.getElementById("actor-sprite").value = actorData.sprite || "";
               }
 
-              document.getElementById("actor-expresiones-container").innerHTML =
-                "";
+              const tSel = document.getElementById("actor-tipo");
+              if(tSel) tSel.value = actorData.tipo || "NPC";
+
+              if(document.getElementById("actor-faccion")) document.getElementById("actor-faccion").value = actorData.faccion || "";
+              if(document.getElementById("actor-vinculo-jugador")) document.getElementById("actor-vinculo-jugador").value = actorData.vinculo_jugador || "";
+              if(document.getElementById("actor-etiquetas")) document.getElementById("actor-etiquetas").value = (actorData.etiquetas || []).join(", ");
+
+              if(document.getElementById("actor-combatiente")) document.getElementById("actor-combatiente").checked = actorData.es_combatiente || false;
+              if(document.getElementById("actor-sprite-combate")) document.getElementById("actor-sprite-combate").value = actorData.sprite_combate || "";
+              if(document.getElementById("actor-hp")) document.getElementById("actor-hp").value = actorData.combat_stats?.hp || "";
+              if(document.getElementById("actor-sp")) document.getElementById("actor-sp").value = actorData.combat_stats?.sp || "";
+              if(document.getElementById("actor-vel")) document.getElementById("actor-vel").value = actorData.combat_stats?.velocidad || "";
+              if(document.getElementById("actor-atk")) document.getElementById("actor-atk").value = actorData.combat_stats?.atk || "";
+              if(document.getElementById("actor-ac")) document.getElementById("actor-ac").value = actorData.combat_stats?.ac || "";
+
+              togglePlayerLink();
+              toggleCombatProperties();
+
+              // Expresiones
+              const cont = document.getElementById("actor-expresiones-container");
+              if(cont) cont.innerHTML = "";
+
               if (actorData.expresiones) {
-                for (const [name, url] of Object.entries(
-                  actorData.expresiones,
-                )) {
-                  if (name !== "Neutral") {
+                for (const [name, url] of Object.entries(actorData.expresiones)) {
+                  if (name !== "Neutral" && typeof createExpresionRow === "function") {
                     createExpresionRow(name, url);
                   }
                 }
               }
 
-              document.getElementById("btn-crear-actor").innerText =
-                "Actualizar Actor";
-              document.getElementById("btn-cancelar-actor").style.display =
-                "block";
+              const btnCrear = document.getElementById("btn-crear-actor");
+              if(btnCrear) btnCrear.innerText = "Actualizar Actor";
 
-              // Scroll to top of actors tab smoothly
-              document
-                .getElementById("dashboard-actores")
-                .scrollIntoView({ behavior: "smooth" });
+              const btnCancel = document.getElementById("btn-cancelar-actor");
+              if(btnCancel) btnCancel.style.display = "block";
+
+              const dash = document.getElementById("dashboard-actores");
+              if(dash) dash.scrollIntoView({ behavior: "smooth" });
+      }
+
+      function renderListaActores() {
+        populateFilters();
+        const gridActores = document.getElementById("grid-actores");
+        if (!gridActores) return;
+
+        const searchTerm = (document.getElementById('dir-search')?.value || '').toLowerCase();
+        const alignFilter = document.getElementById('dir-filter-alignment')?.value || '';
+        const facFilter = document.getElementById('dir-filter-faction')?.value || '';
+        const tagsFilter = (document.getElementById('dir-filter-tags')?.value || '').toLowerCase();
+
+        gridActores.innerHTML = "";
+
+        if (Object.keys(dbActoresCache).length === 0) {
+          gridActores.innerHTML = '<span style="color: #888;">No hay actores registrados.</span>';
+          return;
+        }
+
+        // Agrupar
+        const tree = {};
+
+        for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+          if (searchTerm && !(actorData.nombre || '').toLowerCase().includes(searchTerm) && !actorId.toLowerCase().includes(searchTerm)) continue;
+          if (alignFilter && (actorData.tipo || 'Sin Clasificar') !== alignFilter) continue;
+          if (facFilter && (actorData.faccion || 'Independiente') !== facFilter) continue;
+          if (tagsFilter) {
+            const tags = actorData.etiquetas || [];
+            if (!tags.some(t => t.toLowerCase().includes(tagsFilter))) continue;
+          }
+
+          const align = actorData.tipo || 'Sin Clasificar';
+          const fac = actorData.faccion || 'Independiente';
+
+          if (!tree[align]) tree[align] = {};
+          if (!tree[align][fac]) tree[align][fac] = [];
+
+          tree[align][fac].push({ id: actorId, ...actorData });
+        }
+
+        // Renderizar Acordeón
+        Object.keys(tree).sort().forEach(align => {
+          const alignDiv = document.createElement('div');
+          alignDiv.className = 'accordion-level-1';
+
+          const alignHeader = document.createElement('div');
+          alignHeader.className = 'accordion-header-1';
+          alignHeader.innerHTML = `<span>[ ${align.toUpperCase()} ]</span><span>+</span>`;
+
+          const alignContent = document.createElement('div');
+          alignContent.className = 'accordion-content-1';
+
+          alignHeader.onclick = () => {
+            alignContent.classList.toggle('open');
+            alignHeader.querySelector('span:last-child').textContent = alignContent.classList.contains('open') ? '-' : '+';
+          };
+
+          Object.keys(tree[align]).sort().forEach(fac => {
+            const facDiv = document.createElement('div');
+            facDiv.className = 'accordion-level-2';
+
+            const facHeader = document.createElement('div');
+            facHeader.className = 'accordion-header-2';
+            facHeader.innerHTML = `<span>${fac}</span><span>+</span>`;
+
+            const facContent = document.createElement('div');
+            facContent.className = 'accordion-content-2';
+
+            facHeader.onclick = () => {
+              facContent.classList.toggle('open');
+              facHeader.querySelector('span:last-child').textContent = facContent.classList.contains('open') ? '-' : '+';
+            };
+
+            tree[align][fac].forEach(actor => {
+              const card = document.createElement('div');
+              card.className = 'character-card';
+
+              const header = document.createElement('div');
+              header.style.display = 'flex';
+              header.style.gap = '10px';
+              header.style.alignItems = 'center';
+
+              const imgUrl = actor.icono || actor.sprite || "https://via.placeholder.com/40";
+              const img = document.createElement('img');
+              img.src = imgUrl;
+
+              const info = document.createElement('div');
+              info.innerHTML = `<strong style="color: ${actor.color_nombre || '#fff'}">${actor.nombre}</strong><br/><span style="color: ${actor.color_titulo || '#888'}; font-size: 0.8em">${actor.titulo || actor.id}</span>`;
+
+              header.appendChild(img);
+              header.appendChild(info);
+
+              // Galería de expresiones
+              const gallery = document.createElement('div');
+              gallery.className = 'expressions-gallery';
+              if (actor.expresiones && Object.keys(actor.expresiones).length > 0) {
+                Object.entries(actor.expresiones).forEach(([state, url]) => {
+                  if(typeof url === 'string' && url.startsWith('http')) {
+                      const thumb = document.createElement('img');
+                      thumb.src = url;
+                      thumb.className = 'expression-thumb';
+                      thumb.title = state;
+                      gallery.appendChild(thumb);
+                  }
+                });
+              } else {
+                gallery.innerHTML = '<span style="color: #666; font-size: 0.8em; font-style: italic; padding: 5px;">SIN EXPRESIONES REGISTRADAS</span>';
+                gallery.style.background = '#222';
+                gallery.style.border = '1px dashed #444';
+                gallery.style.justifyContent = 'center';
+              }
+
+              const actions = document.createElement('div');
+              actions.className = 'actions';
+
+              const btnEdit = document.createElement('button');
+              btnEdit.style.cssText = "background: #333; color: #ffeb3b; border: 1px solid #ffeb3b; cursor: pointer;";
+              btnEdit.textContent = "Editar";
+              btnEdit.onclick = () => loadActorIntoFormInternal(actor.id, actor);
+
+              const btnDelete = document.createElement('button');
+              btnDelete.style.cssText = "background: #333; color: #ff4444; border: 1px solid #ff4444; cursor: pointer;";
+              btnDelete.textContent = "Borrar";
+              btnDelete.onclick = () => {
+                if (confirm(`¿Estás seguro de eliminar permanentemente al actor "${actor.nombre}"?`)) {
+                    db.ref(`campaña/actores/${actor.id}`)
+                      .remove()
+                      .then(() => alert("Actor eliminado."))
+                      .catch((err) => alert("Error al eliminar: " + err));
+                }
+              };
+
+              actions.appendChild(btnEdit);
+              actions.appendChild(btnDelete);
+
+              card.appendChild(header);
+              card.appendChild(gallery);
+              card.appendChild(actions);
+              facContent.appendChild(card);
             });
 
-            fragmentActores.appendChild(card);
-          }
-          gridActores.appendChild(fragmentActores);
-        }
+            facDiv.appendChild(facHeader);
+            facDiv.appendChild(facContent);
+            alignContent.appendChild(facDiv);
+          });
+
+          alignDiv.appendChild(alignHeader);
+          alignDiv.appendChild(alignContent);
+          gridActores.appendChild(alignDiv);
+        });
+      }
 
         // Escuchar actores para la lista y el select
         db.ref("campaña/actores").on("value", (snapshot) => {
