@@ -1388,7 +1388,7 @@
         <h4>Control de Instancias de Juego</h4>
         <div class="instance-options">
           <input type="radio" id="inst-standby" name="game-instance" value="ninguno" class="instance-radio" checked>
-          <label for="inst-standby" class="instance-radio-label">[ STANDBY / MODO ESTÁNDAR ]</label>
+          <label for="inst-standby" class="instance-radio-label">[ PANTALLA NEGRA ]</label>
 
           <input type="radio" id="inst-teatro" name="game-instance" value="teatro" class="instance-radio">
           <label for="inst-teatro" class="instance-radio-label">[ SISTEMA DE LORE / TEATRO ]</label>
@@ -1441,7 +1441,7 @@
         Control de Acceso
       </button>
       <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
-        MODO DIRECTOR
+        VISUALIZADOR DE JUEGO
       </button>
     </div>
 
@@ -3283,7 +3283,7 @@
       </div>
     </div>
 
-    <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
+    <!-- VISTA DEL TEATRO (VISUALIZADOR DE JUEGO) -->
 
 <div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;">
     <div class="modal-content" style="background: rgba(10, 10, 10, 0.85); border: 2px solid #c49a00; padding: 25px; border-radius: 8px; max-width: 90%; position: relative; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8);">
@@ -5082,7 +5082,7 @@
           });
         }
 
-        // --- LÓGICA DE TABS MODO DIRECTOR ---
+        // --- LÓGICA DE TABS VISUALIZADOR DE JUEGO ---
         document.querySelectorAll(".dm-tab-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
             if (btn.id === "btn-modo-director") return;
@@ -5117,13 +5117,23 @@
         document
           .getElementById("btn-modo-director")
           .addEventListener("click", () => {
-            document.querySelector(".dm-tabs-nav").style.display = "none";
-            document.querySelector(".dm-tabs-content").style.display = "none";
+            // Evaluamos la instancia global activa antes de abrir
+            db.ref("campaña/estado_mundo/instancia_activa").once("value").then((snap) => {
+              const activeInstance = snap.val() || "ninguno";
 
-            const theatreView = document.getElementById("theatre-view-dm");
-            if (theatreView) {
-              theatreView.style.display = "flex";
-            }
+              if (activeInstance === "teatro") {
+                document.querySelector(".dm-tabs-nav").style.display = "none";
+                document.querySelector(".dm-tabs-content").style.display = "none";
+                const theatreView = document.getElementById("theatre-view-dm");
+                if (theatreView) {
+                  theatreView.style.display = "flex";
+                }
+              } else if (activeInstance === "ninguno") {
+                alert("No hay ninguna instancia en transmisión (PANTALLA NEGRA).");
+              } else {
+                alert("La instancia activa ('" + activeInstance + "') no tiene un visualizador disponible localmente todavía.");
+              }
+            });
           });
 
 
@@ -8806,7 +8816,7 @@
           }
         }
 
-        // --- LÓGICA DEL TEATRO (MODO DIRECTOR) ---
+        // --- LÓGICA DEL TEATRO (VISUALIZADOR DE JUEGO) ---
 
         let isTheatreContinuous = false;
         let continuousTimeout = null;
@@ -8840,12 +8850,7 @@
             // db.ref("campaña/teatro").update({ activo: false }); // Desacoplado localmente
           });
 
-        // When entering Modo Director, set active true
-        document
-          .getElementById("btn-modo-director")
-          .addEventListener("click", () => {
-            // db.ref("campaña/teatro").update({ activo: true }); // Desacoplado localmente
-          });
+
 
 
         // --- CONTROL DE INSTANCIAS (GLOBAL) ---
