@@ -6402,16 +6402,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
 
 /* --- TACTICAL HUD LEFT --- */
-.hud-sidebar-left {
-    position: fixed;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    z-index: 9999;
-}
+/* hud-sidebar-left purged */
 
 .btn-hud {
     background: #111;

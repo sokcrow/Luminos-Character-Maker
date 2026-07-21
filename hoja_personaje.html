@@ -5575,6 +5575,54 @@
                     </div>
                   </div>
 
+
+
+                  <!-- Atributos Core (D&D) -->
+                  <div class="sheet-dnd-stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-sub); padding-top: 15px;">
+                      <!-- Fuerza -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Fuerza</div>
+                          <input type="number" id="stat-fuerza" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-fuerza" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_fuerza" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                      <!-- Destreza -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Destreza</div>
+                          <input type="number" id="stat-destreza" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-destreza" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_destreza" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                      <!-- Constitución -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Constitución</div>
+                          <input type="number" id="stat-constitucion" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-constitucion" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_constitucion" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                      <!-- Inteligencia -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Inteligencia</div>
+                          <input type="number" id="stat-inteligencia" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-inteligencia" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_inteligencia" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                      <!-- Sabiduría -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Sabiduría</div>
+                          <input type="number" id="stat-sabiduria" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-sabiduria" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_sabiduria" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                      <!-- Carisma -->
+                      <div class="sheet-dnd-stat-box sheet-skill-row" style="background: var(--bg-card); border: 1px solid var(--border-accent); padding: 5px; text-align: center; border-radius: 4px; position: relative;">
+                          <div style="font-size: 0.8em; color: var(--text-muted); text-transform: uppercase;" class="sheet-skill-name">Carisma</div>
+                          <input type="number" id="stat-carisma" value="10" style="width: 100%; text-align: center; font-size: 1.2em; background: transparent; border: none; color: var(--text-main); font-family: monospace;">
+                          <div id="mod-carisma" style="font-size: 0.9em; color: var(--cyan-tech); font-weight: bold; margin-bottom: 5px;">+0</div>
+                          <button type="action" name="act_roll_skill_carisma" class="sheet-roll-skill-btn" style="width: 100%; font-size: 0.8em; padding: 2px;">[ TIRAR ]</button>
+                      </div>
+                  </div>
+
                   <div class="sheet-xp-row">
                     <input
                       type="hidden"
@@ -7397,41 +7445,40 @@
       </div>
       <!-- End Phone Wrapper -->
 
-      <!-- Tactical HUD Left -->
-      <div class="hud-sidebar-left">
-        <button
-          type="action"
-          name="act_hud_stats"
-          class="btn-hud"
-          title="Stats"
-        >
-          📊
+
+      <!-- Tactical HUD Right (Heptagonal Menu) -->
+      <div class="hud-sidebar-right" style="position: absolute; top: 20px; right: 20px; z-index: 9000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+        <button id="btn-toggle-hud-menu" type="button" class="btn-hud heptagon-btn" style="background: var(--bg-card, #000); border: 2px solid var(--cyan-tech, #0df); color: var(--cyan-tech, #0df); width: 50px; height: 50px; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center;" title="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
         </button>
-        <button
-          type="action"
-          name="act_hud_perks"
-          class="btn-hud"
-          title="Perks"
-        >
-          ⭐
-        </button>
-        <button
-          type="action"
-          name="act_hud_skills"
-          class="btn-hud"
-          title="Skills"
-        >
-          ⚔️
-        </button>
-        <button
-          type="action"
-          name="act_hud_apego"
-          class="btn-hud"
-          title="Apego"
-        >
-          🤝
-        </button>
+        <div id="hud-menu-dropdown" style="display: none; flex-direction: column; gap: 10px; background: #000; border: 1px solid var(--cyan-tech, #0df); padding: 10px; box-shadow: 0 0 10px rgba(0,221,255,0.2);">
+          <button type="action" name="act_hud_stats" class="btn-hud heptagon-btn" title="Stats" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <rect x="18" y="3" width="4" height="18"></rect>
+              <rect x="10" y="8" width="4" height="13"></rect>
+              <rect x="2" y="13" width="4" height="8"></rect>
+            </svg>
+          </button>
+          <button type="action" name="act_tab_home" class="btn-hud heptagon-btn" title="Phone" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+          </button>
+          <button type="action" name="act_tab_inventory" class="btn-hud heptagon-btn" title="Inventory" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
+
       <input
         type="hidden"
         name="attr_active_hud_modal"
