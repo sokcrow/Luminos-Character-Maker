@@ -4274,14 +4274,15 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           const unlocked4_5 = mesaCrafteoGlobal || tieneToolkit();
 
           [4, 5].forEach(slotNum => {
-              const el = document.querySelector(`.sheet-forja-slot[data-slot="${slotNum}"]`);
+              const el = document.querySelector(`.synth-slot[data-slot="${slotNum}"]`);
               if (el) {
+                  const lockOverlay = el.querySelector('.lock-overlay');
                   if (unlocked4_5) {
                       el.classList.remove("locked");
-                      if (!forjaSlots[slotNum]) el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+                      if (lockOverlay) lockOverlay.style.display = 'none';
                   } else {
                       el.classList.add("locked");
-                      el.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+                      if (lockOverlay) lockOverlay.style.display = 'block';
                       forjaSlots[slotNum] = null; // Clear if locked
                   }
               }
@@ -4292,31 +4293,40 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
 
       function renderSlotsContent() {
           [1, 2, 3, 4, 5].forEach(slotNum => {
-              const el = document.querySelector(`.sheet-forja-slot[data-slot="${slotNum}"]`);
+              const el = document.querySelector(`.synth-slot[data-slot="${slotNum}"]`);
               if (!el || el.classList.contains("locked")) return;
+
+              const inner = el.querySelector('.synth-slot-inner');
+              if(!inner) return;
 
               const item = forjaSlots[slotNum];
               if (item) {
-                  el.innerHTML = `<img src="${item.data.icono || ''}" alt="${item.data.nombre}" title="${item.data.nombre}"><div class="slot-qty">x1</div>`;
+                  // Clear inner, preserve lock-overlay just in case though it shouldn't be here
+                  inner.innerHTML = `<img src="${item.data.icono || ''}" alt="${item.data.nombre}" title="${item.data.nombre}" style="width: 100%; height: 100%; object-fit: contain;">`;
               } else {
-                  el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+                  inner.innerHTML = '';
               }
           });
       }
 
       // Slot click logic
-      document.querySelectorAll(".sheet-forja-slot").forEach(slotEl => {
+      document.querySelectorAll(".synth-slot, .synth-slot-center").forEach(slotEl => {
           slotEl.addEventListener("click", (e) => {
               if (slotEl.classList.contains("locked")) return;
-              const slotNum = parseInt(slotEl.getAttribute("data-slot"));
+              const slotNum = slotEl.getAttribute("data-slot");
 
-              if (forjaSlots[slotNum]) {
+              // Only regular slots are clickable for ingredients
+              if(slotNum === "result") return;
+
+              const sNum = parseInt(slotNum);
+
+              if (forjaSlots[sNum]) {
                   // Click on filled slot -> remove item
-                  forjaSlots[slotNum] = null;
+                  forjaSlots[sNum] = null;
                   renderSlotsContent();
               } else {
                   // Click on empty slot -> open inventory selection
-                  targetSlot = slotNum;
+                  targetSlot = sNum;
                   openForjaSelectionModal();
               }
           });
@@ -4408,7 +4418,112 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
   // RESOLUCIÓN DE CRAFTEO (SÍNTESIS)
   // ==========================================
   function initForjaResolution() {
-      const btnIniciar = document.getElementById("btn-iniciar-sintesis");
+      const btnIniciar = document.querySelector(".btn-synth-action");
+      const btnForecast = document.querySelector(".btn-forecast");
+      const probValueEl = document.querySelector(".prob-value");
+
+      btnForecast.addEventListener("click", () => {
+          // 1. Recolectar ingredientes actuales en los slots
+          let ingredientesInput = {};
+          let totalSlotsUsed = 0;
+
+          [1,2,3,4,5].forEach(slotNum => {
+              if (window.forjaSlots[slotNum]) {
+                  let id = window.forjaSlots[slotNum].data.nombre;
+                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
+                  totalSlotsUsed++;
+              }
+          });
+
+          if (totalSlotsUsed === 0) {
+              alert("Debes colocar ingredientes en los slots para predecir.");
+              probValueEl.innerText = "0%";
+              return;
+          }
+
+          // 2. Buscar receta
+          db.ref("campaña/forja/recetas").once("value").then(snap => {
+              const recetas = snap.val() || {};
+              let recetaCoincidente = null;
+
+              for (const recetaId in recetas) {
+                  const receta = recetas[recetaId];
+                  let match = true;
+
+                  let recIng = {};
+                  let totalRecIng = 0;
+                  receta.ingredientes.forEach(ing => {
+                      recIng[ing.id] = ing.cantidad;
+                      totalRecIng += ing.cantidad;
+                  });
+
+                  if (totalSlotsUsed !== totalRecIng) continue;
+
+                  for (let id in ingredientesInput) {
+                      if (ingredientesInput[id] !== recIng[id]) {
+                          match = false;
+                          break;
+                      }
+                  }
+
+                  if (match) {
+                      recetaCoincidente = receta;
+                      break;
+                  }
+              }
+
+              if (!recetaCoincidente) {
+                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
+                  probValueEl.innerText = "0%";
+                  return;
+              }
+
+              // 3. Calcular Dificultad Dinámica
+              let dcActual = recetaCoincidente.dificultad_base;
+
+              // Buscar modificadores en el inventario activo (tags/keywords)
+              if (localPlayerData.inventario_activo) {
+                  for (let key in localPlayerData.inventario_activo) {
+                      let item = localPlayerData.inventario_activo[key];
+                      if (item.keywords && Array.isArray(item.keywords)) {
+                          item.keywords.forEach(kw => {
+                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
+                              if (synthMatch) {
+                                  dcActual -= parseInt(synthMatch[1]);
+                              }
+                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
+                              if (craftMatch) {
+                                  dcActual -= parseInt(craftMatch[1]);
+                              }
+                          });
+                      } else if (typeof item.keywords === 'string') {
+                            const kwList = item.keywords.split(',').map(k => k.trim());
+                            kwList.forEach(kw => {
+                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
+                                if (synthMatch) {
+                                    dcActual -= parseInt(synthMatch[1]);
+                                }
+                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
+                                if (craftMatch) {
+                                    dcActual -= parseInt(craftMatch[1]);
+                                }
+                            });
+                      }
+                  }
+              }
+
+              if (dcActual < 0) dcActual = 0;
+
+              // Map DC to a visual probability roughly.
+              // Standard Limbus probability or generic DC mapping. (Lower DC is better)
+              // Since it's purely visual info for player, let's map DC to %.
+              let prob = 100 - (dcActual * 5); // Example naive mapping. 20 DC = 0%, 10 DC = 50%
+              if (prob < 0) prob = 0;
+              if (prob > 100) prob = 100;
+
+              probValueEl.innerText = `${prob}% [DC:${dcActual}]`;
+          });
+      });
 
       btnIniciar.addEventListener("click", () => {
           // 1. Recolectar ingredientes actuales en los slots
@@ -4639,9 +4754,10 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
       function limpiarSlotsForja() {
           window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
           // Re-render
-          document.querySelectorAll(".sheet-forja-slot").forEach(el => {
+          document.querySelectorAll(".synth-slot").forEach(el => {
               if (!el.classList.contains("locked")) {
-                  el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+                  const inner = el.querySelector('.synth-slot-inner');
+                  if (inner) inner.innerHTML = '';
               }
           });
       }
