@@ -1143,6 +1143,80 @@
         src: url("Fonts/BebasKai.otf") format("opentype");
       }
 
+
+      /* --- HEADER Y CONTROL DE INSTANCIAS --- */
+      .dm-global-header {
+        width: 100%;
+        background-color: #0a0a0a;
+        border-bottom: 2px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        box-sizing: border-box;
+        margin-bottom: 15px;
+      }
+      .instance-control-panel {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: #050505;
+        padding: 5px 15px;
+        border: 1px solid #444;
+      }
+      .instance-control-panel h4 {
+        margin: 0;
+        color: #fff;
+        font-family: "BebasKai", sans-serif;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-right: 1px solid #444;
+        padding-right: 15px;
+      }
+      .instance-options {
+        display: flex;
+        gap: 10px;
+      }
+      .instance-radio {
+        display: none;
+      }
+      .instance-radio-label {
+        background: #111;
+        color: #888;
+        border: 1px solid #333;
+        padding: 8px 12px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .instance-radio-label:hover:not(.disabled) {
+        border-color: #555;
+        color: #ccc;
+      }
+      input[type="radio"].instance-radio:checked + .instance-radio-label {
+        background: #c49a00;
+        color: #000;
+        border: 1px solid #ffcc00;
+        box-shadow: 0 0 10px rgba(196, 154, 0, 0.6);
+        text-shadow: 0px 0px 2px rgba(255, 255, 255, 0.5);
+      }
+      .instance-radio-label.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #000;
+      }
+      .instance-radio-label.disabled:hover {
+        border-color: #333;
+        color: #888;
+      }
+
       /* --- ICON BUTTON BASE COMPONENT --- */</style>
 
     <style>
@@ -1233,17 +1307,99 @@
         display: flex;
       }
 
+
+      /* --- HEADER Y CONTROL DE INSTANCIAS --- */
+      .dm-global-header {
+        width: 100%;
+        background-color: #0a0a0a;
+        border-bottom: 2px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        box-sizing: border-box;
+        margin-bottom: 15px;
+      }
+      .instance-control-panel {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: #050505;
+        padding: 5px 15px;
+        border: 1px solid #444;
+      }
+      .instance-control-panel h4 {
+        margin: 0;
+        color: #fff;
+        font-family: "BebasKai", sans-serif;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-right: 1px solid #444;
+        padding-right: 15px;
+      }
+      .instance-options {
+        display: flex;
+        gap: 10px;
+      }
+      .instance-radio {
+        display: none;
+      }
+      .instance-radio-label {
+        background: #111;
+        color: #888;
+        border: 1px solid #333;
+        padding: 8px 12px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .instance-radio-label:hover:not(.disabled) {
+        border-color: #555;
+        color: #ccc;
+      }
+      input[type="radio"].instance-radio:checked + .instance-radio-label {
+        background: #c49a00;
+        color: #000;
+        border: 1px solid #ffcc00;
+        box-shadow: 0 0 10px rgba(196, 154, 0, 0.6);
+        text-shadow: 0px 0px 2px rgba(255, 255, 255, 0.5);
+      }
+      .instance-radio-label.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #000;
+      }
+      .instance-radio-label.disabled:hover {
+        border-color: #333;
+        color: #888;
+      }
+
       /* --- ICON BUTTON BASE COMPONENT --- */</style>
 
-    <div
-      style="
-        width: 100%;
-        display: flex;
-        justify-content: flex-end;
-        padding-right: 20px;
-        margin-bottom: 10px;
-      "
-    >
+    <div class="dm-global-header">
+      <div class="instance-control-panel">
+        <h4>Control de Instancias de Juego</h4>
+        <div class="instance-options">
+          <input type="radio" id="inst-standby" name="game-instance" value="ninguno" class="instance-radio" checked>
+          <label for="inst-standby" class="instance-radio-label">[ PANTALLA NEGRA ]</label>
+
+          <input type="radio" id="inst-teatro" name="game-instance" value="teatro" class="instance-radio">
+          <label for="inst-teatro" class="instance-radio-label">[ SISTEMA DE LORE / TEATRO ]</label>
+
+          <input type="radio" id="inst-mapa" name="game-instance" value="mapa" class="instance-radio" disabled>
+          <label for="inst-mapa" class="instance-radio-label disabled">[ SISTEMA DE EXPLORACIÓN / MAPA ] <span style="font-size: 10px; color: #ffaa00; margin-left: 5px;">(PRÓXIMAMENTE - EN DESARROLLO)</span></label>
+
+          <input type="radio" id="inst-combate" name="game-instance" value="combate" class="instance-radio" disabled>
+          <label for="inst-combate" class="instance-radio-label disabled">[ SISTEMA DE COMBATE ] <span style="font-size: 10px; color: #ffaa00; margin-left: 5px;">(PRÓXIMAMENTE - EN DESARROLLO)</span></label>
+        </div>
+      </div>
       <button
         id="btn-cerrar-sesion"
         style="
@@ -1285,7 +1441,7 @@
         Control de Acceso
       </button>
       <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
-        MODO DIRECTOR
+        VISUALIZADOR DE JUEGO
       </button>
     </div>
 
@@ -3127,7 +3283,7 @@
       </div>
     </div>
 
-    <!-- VISTA DEL TEATRO (MODO DIRECTOR) -->
+    <!-- VISTA DEL TEATRO (VISUALIZADOR DE JUEGO) -->
 
 <div id="dm-teatro-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;">
     <div class="modal-content" style="background: rgba(10, 10, 10, 0.85); border: 2px solid #c49a00; padding: 25px; border-radius: 8px; max-width: 90%; position: relative; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.8);">
@@ -4926,7 +5082,7 @@
           });
         }
 
-        // --- LÓGICA DE TABS MODO DIRECTOR ---
+        // --- LÓGICA DE TABS VISUALIZADOR DE JUEGO ---
         document.querySelectorAll(".dm-tab-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
             if (btn.id === "btn-modo-director") return;
@@ -4961,13 +5117,23 @@
         document
           .getElementById("btn-modo-director")
           .addEventListener("click", () => {
-            document.querySelector(".dm-tabs-nav").style.display = "none";
-            document.querySelector(".dm-tabs-content").style.display = "none";
+            // Evaluamos la instancia global activa antes de abrir
+            db.ref("campaña/estado_mundo/instancia_activa").once("value").then((snap) => {
+              const activeInstance = snap.val() || "ninguno";
 
-            const theatreView = document.getElementById("theatre-view-dm");
-            if (theatreView) {
-              theatreView.style.display = "flex";
-            }
+              if (activeInstance === "teatro") {
+                document.querySelector(".dm-tabs-nav").style.display = "none";
+                document.querySelector(".dm-tabs-content").style.display = "none";
+                const theatreView = document.getElementById("theatre-view-dm");
+                if (theatreView) {
+                  theatreView.style.display = "flex";
+                }
+              } else if (activeInstance === "ninguno") {
+                alert("No hay ninguna instancia en transmisión (PANTALLA NEGRA).");
+              } else {
+                alert("La instancia activa ('" + activeInstance + "') no tiene un visualizador disponible localmente todavía.");
+              }
+            });
           });
 
 
@@ -8650,7 +8816,7 @@
           }
         }
 
-        // --- LÓGICA DEL TEATRO (MODO DIRECTOR) ---
+        // --- LÓGICA DEL TEATRO (VISUALIZADOR DE JUEGO) ---
 
         let isTheatreContinuous = false;
         let continuousTimeout = null;
@@ -8681,17 +8847,35 @@
             document.getElementById("theatre-view-dm").style.display = "none";
             document.querySelector(".dm-tabs-nav").style.display = "flex";
             document.querySelector(".dm-tabs-content").style.display = "flex";
-            db.ref("campaña/teatro").update({ activo: false });
+            // db.ref("campaña/teatro").update({ activo: false }); // Desacoplado localmente
           });
 
-        // When entering Modo Director, set active true
-        document
-          .getElementById("btn-modo-director")
-          .addEventListener("click", () => {
-            db.ref("campaña/teatro").update({ activo: true });
-          });
 
+
+
+        // --- CONTROL DE INSTANCIAS (GLOBAL) ---
+        const instanceRadios = document.querySelectorAll('.instance-radio');
+        instanceRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+              const selectedInstance = e.target.value;
+              db.ref("campaña/estado_mundo/instancia_activa").set(selectedInstance);
+            }
+          });
+        });
+
+        // Sincronizar UI del DM con el estado global de instancias
+        db.ref("campaña/estado_mundo/instancia_activa").on("value", (snap) => {
+          const val = snap.val() || "ninguno";
+          const targetRadio = document.querySelector(`.instance-radio[value="${val}"]`);
+          if (targetRadio) {
+            targetRadio.checked = true;
+          }
+        });
+
+        // (Original code below)
         // Lock Toggle
+
         document
           .getElementById("dm-theatre-lock")
           .addEventListener("change", (e) => {

@@ -13096,17 +13096,21 @@
         }
       });
 
-      // Listen to active state
-      db.ref("campaña/teatro/activo").on("value", (snap) => {
-        const isActivo = snap.val();
+      // Listen to global instance state (Teatro, Mapa, Combate)
+      db.ref("campaña/estado_mundo/instancia_activa").on("value", (snap) => {
+        const activeInstance = snap.val() || "ninguno";
+
+        // Vista local del Teatro
         const theatreView = document.getElementById("theatre-view-player");
         if (theatreView) {
-          if (isActivo) {
+          if (activeInstance === "teatro") {
             theatreView.classList.add("theatre-active");
           } else {
             theatreView.classList.remove("theatre-active");
           }
         }
+
+        // Futuro: Agregar aquí la lógica para mostrar Mapas o Combates cuando existan
       });
 
       // --- LÓGICA BOTÓN COLLAPSE CONTROLES MÓVIL JUGADOR ---
