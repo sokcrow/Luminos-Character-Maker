@@ -704,6 +704,24 @@ function renderCharacterSheet(data) {
     if (displayAhn.innerText !== String(newVal)) displayAhn.innerText = newVal;
   }
 
+
+  // --- D&D Core Attributes ---
+  if (data.stats) {
+      const coreStats = ['fuerza', 'destreza', 'constitucion', 'inteligencia', 'sabiduria', 'carisma'];
+      coreStats.forEach(stat => {
+          const val = data.stats[stat] !== undefined ? data.stats[stat] : 10;
+          const inputEl = document.getElementById(`stat-${stat}`);
+          if (inputEl && document.activeElement !== inputEl) {
+              inputEl.value = val;
+          }
+          const mod = Math.floor((val - 10) / 2);
+          const modEl = document.getElementById(`mod-${stat}`);
+          if (modEl) {
+              modEl.textContent = (mod >= 0 ? '+' : '') + mod;
+          }
+      });
+  }
+
   // --- ACTUALIZAR RETRATO DEL HUD DE VITALES ---
   const combatHudPortrait = document.getElementById("portrait-img");
 
@@ -3619,6 +3637,23 @@ function initializeCharacterSheet() {
 
     // Detectar cambios directos en los inputs y actualizarlos en Firebase (Reemplaza el auto-sync de Roll20)
     document.addEventListener("change", (e) => {
+      // D&D Core Attributes Save
+      if (e.target.id && e.target.id.match(/^stat-(fuerza|destreza|constitucion|inteligencia|sabiduria|carisma)$/)) {
+        const statName = e.target.id.replace('stat-', '');
+        let val = parseInt(e.target.value) || 10;
+
+        // Update local UI
+        const mod = Math.floor((val - 10) / 2);
+        const modEl = document.getElementById(`mod-${statName}`);
+        if (modEl) modEl.textContent = (mod >= 0 ? '+' : '') + mod;
+
+        if (window.currentPlayerId) {
+           db.ref(`campaña/jugadores/${window.currentPlayerId}/stats/${statName}`).set(val);
+        }
+        return; // Prevent other logic
+      }
+
+
       if (!e.target.name || !e.target.name.startsWith("attr_")) return;
       if (
         e.target.tagName !== "INPUT" &&
@@ -3720,8 +3755,15 @@ function initializeCharacterSheet() {
         let modVal = 0;
 
         if (pd) {
+          if (["fuerza", "destreza", "constitucion", "inteligencia", "sabiduria", "carisma"].includes(skillNameRaw.toLowerCase())) {
+            const statName = skillNameRaw.toLowerCase();
+            const rawVal = pd.stats && pd.stats[statName] !== undefined ? parseInt(pd.stats[statName]) : 10;
+            // The modifier is the base for the roll!
+            baseVal = Math.floor((rawVal - 10) / 2);
+            modVal = 0;
+          }
           // For Core Stats (cuerpo, mente, alma)
-          if (
+          else if (
             ["cuerpo", "mente", "alma"].includes(skillNameRaw.toLowerCase())
           ) {
             if (pd.baseStats) {
@@ -3857,7 +3899,7 @@ function initializeCharacterSheet() {
               const coinHeadsAudio = new Audio("Assets/Audio/SFX/UI/Coin%20SFX/Coin_Heads.wav");
               coinHeadsAudio.volume = 0.3;
               coinHeadsAudio.play().catch(e => console.warn("Audio play blocked:", e));
-              currentTotal += 3;
+              currentTotal += 4;
               if (resultEl) resultEl.textContent = currentTotal;
             } else {
               coinImg.src = "https://imgur.com/XDx0ICt.png"; // Visual Cruz
@@ -3900,6 +3942,17 @@ function initializeCharacterSheet() {
       if (e.target.id === "craft-cantidad") {
         const display = document.getElementById("craft-cantidad-display");
         if (display) display.innerText = e.target.value;
+      }
+    });
+
+    // --- LÓGICA DEL TOGGLE DEL MENÚ HAMBURGUESA DERECHO ---
+    document.addEventListener("click", (e) => {
+      const btnMenu = e.target.closest("#btn-toggle-hud-menu");
+      if (btnMenu) {
+        const dropdown = document.getElementById("hud-menu-dropdown");
+        if (dropdown) {
+          dropdown.style.display = dropdown.style.display === "none" || dropdown.style.display === "" ? "flex" : "none";
+        }
       }
     });
 
