@@ -7458,6 +7458,14 @@
         </button>
         <div id="hud-menu-dropdown" style="display: none; flex-direction: column; gap: 10px; background: #000; border: 1px solid var(--cyan-tech, #0df); padding: 10px; box-shadow: 0 0 10px rgba(0,221,255,0.2);">
 
+
+          <!-- HP (Vitales) -->
+          <button id="btn-toggle-hud" class="btn-hud heptagon-btn" title="Alternar HUD de Combate" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+          </button>
+
           <!-- Stats -->
           <button type="action" name="act_hud_stats" class="btn-hud heptagon-btn" title="Stats" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
@@ -7492,7 +7500,7 @@
           </button>
 
           <!-- Phone (Celular) -->
-          <button type="action" name="act_tab_home" class="btn-hud heptagon-btn" title="Phone" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+          <button type="action" name="act_tab_home" id="btn-toggle-phone" class="btn-hud heptagon-btn" title="Phone" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
               <line x1="12" y1="18" x2="12.01" y2="18"></line>
@@ -7500,7 +7508,7 @@
           </button>
 
           <!-- Inventory -->
-          <button type="action" name="act_tab_inventory" class="btn-hud heptagon-btn" title="Inventory" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+          <button type="action" name="act_tab_inventory" class="btn-hud heptagon-btn btn-global-inventory" title="Inventory" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
@@ -12532,16 +12540,9 @@
     </div>
 
     <!-- Toggle Button -->
-    <button class="btn-toggle-phone btn-icon-base size-36" id="btn-toggle-phone" title="Alternar Celular" aria-label="Alternar Celular"><img src="Assets/Images/Buttons/Cellphone.svg" class="svg-icon" alt="Phone" /></button>
+    <!-- Phone button removed to use Hamburger menu -->
 
     <!-- HUD DE COMBATE (VITALES) -->
-    <button
-      id="btn-toggle-hud"
-      title="Alternar HUD de Combate"
-      aria-label="Alternar HUD de Combate"
-    >
-      ❤️
-    </button>
     <div id="player-combat-hud" class="theatre-player-hud hud-container">
       <svg class="hp-svg" viewBox="0 0 200 200">
         <defs>

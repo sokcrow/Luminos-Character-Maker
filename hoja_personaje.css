@@ -6155,26 +6155,10 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 /* ---- MOBILE OVERRIDES ---- */
 @media (max-width: 768px) {
     /* ---- Ultra Compact HUD Toggles ---- */
-    #btn-toggle-hud {
-        width: 36px !important;
-        height: 36px !important;
-        border-radius: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px !important;
-    }
+    /* #btn-toggle-hud moved to hamburger menu */
 
     /* ---- Ultra Compact HUD Toggles (Phone & Inventory) ---- */
-    .btn-toggle-phone {
-        width: 36px !important;
-        height: 36px !important;
-        font-size: 16px !important;
-        bottom: 10px !important;
-        right: 10px !important;
-        border-radius: 0 !important;
-    }
+    /* .btn-toggle-phone purged */
     .btn-global-inventory {
         width: 36px !important;
         height: 36px !important;
@@ -6353,31 +6337,9 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 }
 
 /* Toggle Button Styles */
-.btn-toggle-phone {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-    background: #0f0f0f;
-    color: #F5F5DC;
-    border: 1px solid #FFD700;
-    border-radius: 0;
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 16px !important;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+/* .btn-toggle-phone purged */
 
-.btn-toggle-phone:hover {
-    transform: scale(1.05);
-    background: #F5F5DC;
-    color: #0f0f0f;
-    border: 1px solid #3E2723;
-}
+/* .btn-toggle-phone:hover purged */
 
 .phone-hidden {
     transform: translateY(150vh) !important;
@@ -6532,33 +6494,9 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 /* --- HUD DE COMBATE (VITALES) --- */
-#btn-toggle-hud {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 9999;
-    background: #0f0f0f;
-    color: #F5F5DC;
-    border: 1px solid #FFD700;
-    padding: 0 !important;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 16px !important;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 0 !important;
-    width: 36px !important;
-    height: 36px !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-}
+/* #btn-toggle-hud moved to hamburger menu */
 
-#btn-toggle-hud:hover {
-    background: #F5F5DC;
-    color: #0f0f0f;
-    border: 1px solid #3E2723;
-}
+/* hover moved */
 
 
 /* --- NUEVO HUD HEXAGONAL (SVG) --- */
@@ -8146,7 +8084,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
 }
 
 /* Ensure buttons holding badges have position relative */
-button.sheet-app-btn, button.btn-toggle-phone, button#btn-show-mail, button#btn-show-chat {
+button.sheet-app-btn, button#btn-show-mail, button#btn-show-chat {
     position: relative;
 }
 
