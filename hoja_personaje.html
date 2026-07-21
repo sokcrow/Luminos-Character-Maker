@@ -7446,6 +7446,7 @@
       <!-- End Phone Wrapper -->
 
 
+
       <!-- Tactical HUD Right (Heptagonal Menu) -->
       <div class="hud-sidebar-right" style="position: absolute; top: 20px; right: 20px; z-index: 9000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
         <button id="btn-toggle-hud-menu" type="button" class="btn-hud heptagon-btn" style="background: var(--bg-card, #000); border: 2px solid var(--cyan-tech, #0df); color: var(--cyan-tech, #0df); width: 50px; height: 50px; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center;" title="Menu">
@@ -7456,6 +7457,8 @@
           </svg>
         </button>
         <div id="hud-menu-dropdown" style="display: none; flex-direction: column; gap: 10px; background: #000; border: 1px solid var(--cyan-tech, #0df); padding: 10px; box-shadow: 0 0 10px rgba(0,221,255,0.2);">
+
+          <!-- Stats -->
           <button type="action" name="act_hud_stats" class="btn-hud heptagon-btn" title="Stats" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <rect x="18" y="3" width="4" height="18"></rect>
@@ -7463,12 +7466,40 @@
               <rect x="2" y="13" width="4" height="8"></rect>
             </svg>
           </button>
+
+          <!-- Perks -->
+          <button type="action" name="act_hud_perks" class="btn-hud heptagon-btn" title="Perks" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </button>
+
+          <!-- Skills -->
+          <button type="action" name="act_hud_skills" class="btn-hud heptagon-btn" title="Skills" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path>
+              <path d="M13 19l6-6"></path>
+              <path d="M16 16l4 4"></path>
+              <path d="M19 21l2-2"></path>
+            </svg>
+          </button>
+
+          <!-- Apego (Hablar) -->
+          <button type="action" name="act_hud_apego" class="btn-hud heptagon-btn" title="Hablar / Apego" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </button>
+
+          <!-- Phone (Celular) -->
           <button type="action" name="act_tab_home" class="btn-hud heptagon-btn" title="Phone" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
               <line x1="12" y1="18" x2="12.01" y2="18"></line>
             </svg>
           </button>
+
+          <!-- Inventory -->
           <button type="action" name="act_tab_inventory" class="btn-hud heptagon-btn" title="Inventory" style="background: var(--bg-card, #111); width: 40px; height: 40px; border: none; cursor: pointer; clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%); display: flex; justify-content: center; align-items: center; background-color: var(--cyan-tech, #0df); color: #000;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
               <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
@@ -7476,8 +7507,10 @@
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </button>
+
         </div>
       </div>
+
 
       <input
         type="hidden"
