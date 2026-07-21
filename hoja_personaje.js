@@ -4229,3 +4229,422 @@ window.comprarItemTienda = function(tiendaId, itemKey, precioReal) {
           });
       }
   }
+
+  // ==========================================
+  // MOTOR DE SÍNTESIS (FORJA)
+  // ==========================================
+  function initForja() {
+      let forjaSlots = {
+          1: null, // { key, inventarioTipo, data }
+          2: null,
+          3: null,
+          4: null,
+          5: null
+      };
+
+      let mesaCrafteoGlobal = false;
+      let targetSlot = null;
+
+      // Escuchar la mesa de crafteo global
+      db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", snap => {
+          mesaCrafteoGlobal = !!snap.val();
+          updateForjaSlotsVisuals();
+      });
+
+      function tieneToolkit() {
+          let hasToolkit = false;
+          // Buscar toolkit en activo
+          if (localPlayerData.inventario_activo) {
+              Object.values(localPlayerData.inventario_activo).forEach(item => {
+                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
+                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
+              });
+          }
+          // Buscar toolkit en stash
+          if (localPlayerData.inventario_stash) {
+              Object.values(localPlayerData.inventario_stash).forEach(item => {
+                  if (item.tags && item.tags.includes("toolkit")) hasToolkit = true;
+                  if (item.keywords && item.keywords.includes("toolkit")) hasToolkit = true;
+              });
+          }
+          return hasToolkit;
+      }
+
+      function updateForjaSlotsVisuals() {
+          const unlocked4_5 = mesaCrafteoGlobal || tieneToolkit();
+
+          [4, 5].forEach(slotNum => {
+              const el = document.querySelector(`.sheet-forja-slot[data-slot="${slotNum}"]`);
+              if (el) {
+                  if (unlocked4_5) {
+                      el.classList.remove("locked");
+                      if (!forjaSlots[slotNum]) el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+                  } else {
+                      el.classList.add("locked");
+                      el.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+                      forjaSlots[slotNum] = null; // Clear if locked
+                  }
+              }
+          });
+
+          renderSlotsContent();
+      }
+
+      function renderSlotsContent() {
+          [1, 2, 3, 4, 5].forEach(slotNum => {
+              const el = document.querySelector(`.sheet-forja-slot[data-slot="${slotNum}"]`);
+              if (!el || el.classList.contains("locked")) return;
+
+              const item = forjaSlots[slotNum];
+              if (item) {
+                  el.innerHTML = `<img src="${item.data.icono || ''}" alt="${item.data.nombre}" title="${item.data.nombre}"><div class="slot-qty">x1</div>`;
+              } else {
+                  el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+              }
+          });
+      }
+
+      // Slot click logic
+      document.querySelectorAll(".sheet-forja-slot").forEach(slotEl => {
+          slotEl.addEventListener("click", (e) => {
+              if (slotEl.classList.contains("locked")) return;
+              const slotNum = parseInt(slotEl.getAttribute("data-slot"));
+
+              if (forjaSlots[slotNum]) {
+                  // Click on filled slot -> remove item
+                  forjaSlots[slotNum] = null;
+                  renderSlotsContent();
+              } else {
+                  // Click on empty slot -> open inventory selection
+                  targetSlot = slotNum;
+                  openForjaSelectionModal();
+              }
+          });
+      });
+
+      function openForjaSelectionModal() {
+          document.getElementById("forja-selection-modal").style.display = "flex";
+          renderForjaSelectionInventory();
+      }
+
+      document.getElementById("forja-selection-close").addEventListener("click", () => {
+          document.getElementById("forja-selection-modal").style.display = "none";
+      });
+
+      // Tabs in Forja Selection Modal
+      document.querySelectorAll("#forja-selection-modal .inv-tab-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+              document.querySelectorAll("#forja-selection-modal .inv-tab-btn").forEach((b) => b.classList.remove("active"));
+              document.querySelectorAll("#forja-selection-modal .inventory-tab-content").forEach((c) => c.classList.remove("active"));
+              e.target.classList.add("active");
+              document.getElementById(e.target.getAttribute("data-tab")).classList.add("active");
+          });
+      });
+
+      function renderForjaSelectionInventory() {
+          const activeGrid = document.getElementById("forja-sel-active-grid");
+          const stashGrid = document.getElementById("forja-sel-stash-grid");
+          activeGrid.innerHTML = "";
+          stashGrid.innerHTML = "";
+
+          // Count how many of each item are already in slots
+          let usedCounts = {};
+          Object.values(forjaSlots).forEach(slotItem => {
+              if (slotItem) {
+                  const id = slotItem.data.nombre; // We use nombre as ID for recipes
+                  usedCounts[id] = (usedCounts[id] || 0) + 1;
+              }
+          });
+
+          function renderGrid(dataNode, gridEl, invType) {
+              if (!dataNode) return;
+              for (const [key, item] of Object.entries(dataNode)) {
+                  let cant = item.cantidad || 1;
+                  let used = usedCounts[item.nombre] || 0;
+
+                  // If all available copies of this item are in slots, hide it from selection
+                  if (cant <= used) continue;
+
+                  // Solo permitir items que podrían ser ingredientes (no filtrar por ahora, mostrar todos)
+
+                  const div = document.createElement("div");
+                  div.className = "inv-item";
+                  div.innerHTML = `
+                      <div class="item-img" style="background-image: url('${item.icono}')"></div>
+                      <div class="item-qty">x${cant - used}</div>
+                  `;
+                  div.addEventListener("click", () => {
+                      // Asignar al slot
+                      forjaSlots[targetSlot] = { key, inventarioTipo: invType, data: item };
+                      document.getElementById("forja-selection-modal").style.display = "none";
+                      renderSlotsContent();
+                  });
+                  gridEl.appendChild(div);
+              }
+          }
+
+          renderGrid(localPlayerData.inventario_activo, activeGrid, "inventario_activo");
+          renderGrid(localPlayerData.inventario_stash, stashGrid, "inventario_stash");
+      }
+
+      // Update whenever player data changes
+      db.ref(`campaña/jugadores/${pName}`).on("value", (snap) => {
+          updateForjaSlotsVisuals();
+          // We don't automatically clear slots if items disappear, but extraction validation will catch it
+      });
+
+      // INIT
+      updateForjaSlotsVisuals();
+
+      // Make globals accessible for the next step
+      window.forjaSlots = forjaSlots;
+  }
+
+  // Llama a initForja después de cargar
+  setTimeout(initForja, 2000);
+
+
+  // ==========================================
+  // RESOLUCIÓN DE CRAFTEO (SÍNTESIS)
+  // ==========================================
+  function initForjaResolution() {
+      const btnIniciar = document.getElementById("btn-iniciar-sintesis");
+
+      btnIniciar.addEventListener("click", () => {
+          // 1. Recolectar ingredientes actuales en los slots
+          let ingredientesInput = {};
+          let totalSlotsUsed = 0;
+
+          [1,2,3,4,5].forEach(slotNum => {
+              if (window.forjaSlots[slotNum]) {
+                  let id = window.forjaSlots[slotNum].data.nombre;
+                  ingredientesInput[id] = (ingredientesInput[id] || 0) + 1;
+                  totalSlotsUsed++;
+              }
+          });
+
+          if (totalSlotsUsed === 0) {
+              alert("Debes colocar ingredientes en los slots.");
+              return;
+          }
+
+          // 2. Buscar receta que coincida EXACTAMENTE
+          db.ref("campaña/forja/recetas").once("value").then(snap => {
+              const recetas = snap.val() || {};
+              let recetaCoincidente = null;
+
+              for (const recetaId in recetas) {
+                  const receta = recetas[recetaId];
+                  let match = true;
+
+                  // Verificar si requiere mesa y si está activa/tiene toolkit (ya validado por UI, pero por seguridad)
+
+                  // Construir mapa de ingredientes de la receta
+                  let recIng = {};
+                  let totalRecIng = 0;
+                  receta.ingredientes.forEach(ing => {
+                      recIng[ing.id] = ing.cantidad;
+                      totalRecIng += ing.cantidad;
+                  });
+
+                  if (totalSlotsUsed !== totalRecIng) continue;
+
+                  for (let id in ingredientesInput) {
+                      if (ingredientesInput[id] !== recIng[id]) {
+                          match = false;
+                          break;
+                      }
+                  }
+
+                  if (match) {
+                      recetaCoincidente = receta;
+                      break;
+                  }
+              }
+
+              if (!recetaCoincidente) {
+                  alert("La combinación de materiales es inestable. No se encontró ninguna receta.");
+                  return;
+              }
+
+              // 3. Calcular Dificultad Dinámica
+              let dcActual = recetaCoincidente.dificultad_base;
+              let modTexto = [];
+
+              // Buscar modificadores en el inventario activo (tags/keywords)
+              if (localPlayerData.inventario_activo) {
+                  for (let key in localPlayerData.inventario_activo) {
+                      let item = localPlayerData.inventario_activo[key];
+                      if (item.keywords && Array.isArray(item.keywords)) {
+                          item.keywords.forEach(kw => {
+                              const synthMatch = kw.match(/synth_bonus_(\d+)/i);
+                              if (synthMatch) {
+                                  dcActual -= parseInt(synthMatch[1]);
+                                  modTexto.push(`+${synthMatch[1]} (Synth)`);
+                              }
+                              const craftMatch = kw.match(/crafting_up_(\d+)/i);
+                              if (craftMatch) {
+                                  dcActual -= parseInt(craftMatch[1]);
+                                  modTexto.push(`+${craftMatch[1]} (Craft)`);
+                              }
+                          });
+                      } else if (typeof item.keywords === 'string') {
+                            const kwList = item.keywords.split(',').map(k => k.trim());
+                            kwList.forEach(kw => {
+                                const synthMatch = kw.match(/synth_bonus_(\d+)/i);
+                                if (synthMatch) {
+                                    dcActual -= parseInt(synthMatch[1]);
+                                    modTexto.push(`+${synthMatch[1]} (Synth)`);
+                                }
+                                const craftMatch = kw.match(/crafting_up_(\d+)/i);
+                                if (craftMatch) {
+                                    dcActual -= parseInt(craftMatch[1]);
+                                    modTexto.push(`+${craftMatch[1]} (Craft)`);
+                                }
+                            });
+                      }
+                  }
+              }
+
+              // Asegurar DC no sea negativa extrema
+              if (dcActual < 0) dcActual = 0;
+
+              // 4. Lanzar Modal
+              document.getElementById("forja-roll-dc").innerText = dcActual + (modTexto.length > 0 ? ` [${modTexto.join(", ")}]` : "");
+              document.getElementById("forja-roll-input").value = "";
+              document.getElementById("forja-roll-modal").style.display = "flex";
+
+              // Handlers for modal
+              window.currentForjaAttempt = {
+                  receta: recetaCoincidente,
+                  dc: dcActual,
+                  slots: window.forjaSlots // copy current state
+              };
+          });
+      });
+
+      document.getElementById("btn-forja-cancel").addEventListener("click", () => {
+          document.getElementById("forja-roll-modal").style.display = "none";
+          window.currentForjaAttempt = null;
+      });
+
+      document.getElementById("btn-forja-confirm").addEventListener("click", () => {
+          const tirada = parseInt(document.getElementById("forja-roll-input").value) || 0;
+          const attempt = window.currentForjaAttempt;
+          if (!attempt) return;
+
+          document.getElementById("forja-roll-modal").style.display = "none";
+
+          let exito = tirada >= attempt.dc;
+
+          // EJECUTAR TRANSACCIÓN ATÓMICA
+          ejecutarTransaccionForja(attempt, exito);
+      });
+
+      function ejecutarTransaccionForja(attempt, exito) {
+          // Para seguridad y atomicidad, debemos hacer un update múltiple en la base de datos del jugador
+          const playerRef = db.ref(`campaña/jugadores/${pName}`);
+
+          playerRef.once("value").then(snap => {
+              const playerData = snap.val();
+              let updates = {};
+              let error = false;
+
+              // 1. Restar/Consumir ingredientes de los slots
+              // Calculamos qué restar de activo y qué de stash según cómo se seleccionaron
+
+              // Para cada slot que tenga un item
+              let itemsARestarActivo = {}; // key -> cant
+              let itemsARestarStash = {}; // key -> cant
+
+              [1,2,3,4,5].forEach(s => {
+                  if (attempt.slots[s]) {
+                      const slotData = attempt.slots[s];
+                      const key = slotData.key;
+                      const invType = slotData.inventarioTipo;
+                      if (invType === "inventario_activo") {
+                          itemsARestarActivo[key] = (itemsARestarActivo[key] || 0) + 1;
+                      } else {
+                          itemsARestarStash[key] = (itemsARestarStash[key] || 0) + 1;
+                      }
+                  }
+              });
+
+              // Validar y preparar updates para restar
+              for (let key in itemsARestarActivo) {
+                  let cantActual = playerData.inventario_activo?.[key]?.cantidad || 1; // Si no tiene cantidad, asumimos 1
+                  if (cantActual < itemsARestarActivo[key]) {
+                      error = true; break;
+                  }
+                  if (cantActual === itemsARestarActivo[key]) {
+                      updates[`inventario_activo/${key}`] = null; // Borrar
+                  } else {
+                      updates[`inventario_activo/${key}/cantidad`] = cantActual - itemsARestarActivo[key];
+                  }
+              }
+              for (let key in itemsARestarStash) {
+                  let cantActual = playerData.inventario_stash?.[key]?.cantidad || 1;
+                  if (cantActual < itemsARestarStash[key]) {
+                      error = true; break;
+                  }
+                  if (cantActual === itemsARestarStash[key]) {
+                      updates[`inventario_stash/${key}`] = null; // Borrar
+                  } else {
+                      updates[`inventario_stash/${key}/cantidad`] = cantActual - itemsARestarStash[key];
+                  }
+              }
+
+              if (error) {
+                  alert("Error de sincronización de inventario. No se tienen los ítems necesarios.");
+                  // Limpiar slots
+                  limpiarSlotsForja();
+                  return;
+              }
+
+              // Si éxito, buscar el ítem en la base de datos global y agregarlo
+              if (exito) {
+                  db.ref(`campaña/items_globales/${attempt.receta.item_resultado}`).once("value").then(itemSnap => {
+                      const itemData = itemSnap.val();
+                      if (itemData) {
+                          // Generar ID único para el nuevo item
+                          const newItemKey = "forjado_" + Date.now();
+
+                          // Lógica simple: lo ponemos en el inventario activo si hay espacio
+                          itemData.cantidad = 1;
+                          updates[`inventario_activo/${newItemKey}`] = itemData;
+
+                          // Commit atómico final
+                          playerRef.update(updates).then(() => {
+                              alert(`¡Síntesis Exitosa! Has creado: ${itemData.nombre}`);
+                              limpiarSlotsForja();
+                          });
+                      } else {
+                          // Item no encontrado en globales
+                          alert("Transmutación exitosa, pero el ítem resultante no existe en los registros globales.");
+                          // Aún así consumimos
+                          playerRef.update(updates);
+                          limpiarSlotsForja();
+                      }
+                  });
+              } else {
+                  // Fallo, solo consumir
+                  playerRef.update(updates).then(() => {
+                      alert("Síntesis Fallida. Los materiales se han consumido.");
+                      limpiarSlotsForja();
+                  });
+              }
+          });
+      }
+
+      function limpiarSlotsForja() {
+          window.forjaSlots = {1:null, 2:null, 3:null, 4:null, 5:null};
+          // Re-render
+          document.querySelectorAll(".sheet-forja-slot").forEach(el => {
+              if (!el.classList.contains("locked")) {
+                  el.innerHTML = '<span style="color: #0df; opacity: 0.5;">+</span>';
+              }
+          });
+      }
+  }
+
+  setTimeout(initForjaResolution, 2100);

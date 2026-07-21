@@ -8217,3 +8217,5 @@ button.sheet-app-btn, button.btn-toggle-phone, button#btn-show-mail, button#btn-
     cursor: pointer;
     font-family: 'Share Tech Mono', monospace;
 }
+
+/* Forja Slots Estilos Adicionales */\n.sheet-forja-slot {\n  transition: all 0.2s ease;\n}\n.sheet-forja-slot:hover:not(.locked) {\n  border-color: #fff !important;\n  background: rgba(0, 221, 255, 0.3) !important;\n}\n.sheet-forja-slot.locked {\n  cursor: not-allowed !important;\n}\n.sheet-forja-slot img {\n  width: 100%;\n  height: 100%;\n  object-fit: cover;\n}\n.sheet-forja-slot .slot-qty {\n  position: absolute;\n  bottom: 0;\n  right: 0;\n  background: rgba(0,0,0,0.8);\n  color: #fff;\n  font-size: 10px;\n  padding: 1px 3px;\n}

@@ -1761,6 +1761,31 @@
                 id="forja-usos"
                 placeholder="Usos Máximos (opcional)"
               />
+              <!-- Atributos Consumible (Solo números) -->
+              <div id="forja-consumible-fields"
+                style="
+                  display: none;
+                  flex-wrap: wrap;
+                  gap: 10px;
+                  border-top: 1px dashed #444;
+                  padding-top: 10px;
+                  margin-top: 5px;
+                "
+              >
+                <strong style="width: 100%; color: #0df; font-size: 12px">Stats de Consumible</strong>
+                <input
+                  type="number"
+                  id="forja-curacion-hp"
+                  placeholder="Curación HP (Ej. 15)"
+                  style="flex: 1; min-width: 80px"
+                />
+                <input
+                  type="number"
+                  id="forja-curacion-sp"
+                  placeholder="Curación SP (Ej. 5)"
+                  style="flex: 1; min-width: 80px"
+                />
+              </div>
               <div
                 style="
                   display: flex;
@@ -1908,6 +1933,30 @@
                 >
                   Cancelar
                 </button>
+              </div>
+            </div>
+
+            <!-- Formulario y Lista de Recetas (Motor de Recetas) -->
+            <div class="form-cyber" style="margin-top: 15px;">
+              <h4>Motor de Recetas (Síntesis)</h4>
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                <label style="color: #0df; font-size: 12px; display:flex; align-items: center; gap: 5px; cursor: pointer;">
+                  <input type="checkbox" id="toggle-mesa-crafteo" style="accent-color: #0df;">
+                  Mesa de Crafteo Global Activa (Desbloquea Slots 4 y 5)
+                </label>
+              </div>
+              <input type="text" id="receta-item-resultado" placeholder="ID del Ítem Resultado (Debe coincidir con la BD)" />
+              <input type="text" id="receta-ingredientes" placeholder="Ingredientes: ID:Cant, ID:Cant (Ej: scrap:2, metal:1)" />
+              <div style="display: flex; gap: 10px;">
+                <input type="number" id="receta-dificultad" placeholder="Dificultad Base (DC)" style="flex: 1" />
+                <label style="flex: 1; display:flex; align-items:center; gap: 5px; color: #aaa; font-size: 14px;">
+                  <input type="checkbox" id="receta-requiere-mesa" /> Requiere Mesa?
+                </label>
+              </div>
+              <button id="btn-crear-receta" class="btn-cyber" style="margin-top: 10px; width: 100%; border-color: #f90; color: #f90;">Añadir Receta</button>
+
+              <div id="lista-recetas-globales" style="margin-top: 15px; display: flex; flex-direction: column; gap: 5px;">
+                <!-- Aquí se renderizan las recetas -->
               </div>
             </div>
 
@@ -6401,6 +6450,97 @@
 
         // --- LÓGICA DEL DASHBOARD DE FORJA Y MERCADO ---
 
+        // --- MOTOR DE RECETAS ---
+        const toggleMesaCrafteo = document.getElementById("toggle-mesa-crafteo");
+        db.ref("campaña/estado_mundo/mesa_crafteo_activa").on("value", (snap) => {
+            toggleMesaCrafteo.checked = !!snap.val();
+        });
+        toggleMesaCrafteo.addEventListener("change", (e) => {
+            db.ref("campaña/estado_mundo/mesa_crafteo_activa").set(e.target.checked);
+        });
+
+        document.getElementById("btn-crear-receta").addEventListener("click", () => {
+            const itemResultado = document.getElementById("receta-item-resultado").value.trim();
+            const ingredientesStr = document.getElementById("receta-ingredientes").value.trim();
+            const dificultad = parseInt(document.getElementById("receta-dificultad").value) || 0;
+            const requiereMesa = document.getElementById("receta-requiere-mesa").checked;
+
+            if (!itemResultado || !ingredientesStr) {
+                alert("Completa el ID del ítem y los ingredientes.");
+                return;
+            }
+
+            // Parsear ingredientes: "scrap:2, metal:1" -> [{id: "scrap", cantidad: 2}, {id: "metal", cantidad: 1}]
+            const ingredientes = [];
+            const pares = ingredientesStr.split(",");
+            for (let par of pares) {
+                const [id, cant] = par.split(":");
+                if (id && cant) {
+                    ingredientes.push({ id: id.trim(), cantidad: parseInt(cant.trim()) || 1 });
+                }
+            }
+
+            if (ingredientes.length === 0) {
+                alert("Formato de ingredientes inválido. Usa ID:Cant (Ej: chatarra:2)");
+                return;
+            }
+
+            const nuevaReceta = {
+                item_resultado: itemResultado,
+                ingredientes: ingredientes,
+                dificultad_base: dificultad,
+                requiere_mesa: requiereMesa
+            };
+
+            const recetaId = itemResultado + "_" + Date.now(); // Generar ID único simple
+            db.ref(`campaña/forja/recetas/${recetaId}`).set(nuevaReceta).then(() => {
+                document.getElementById("receta-item-resultado").value = "";
+                document.getElementById("receta-ingredientes").value = "";
+                document.getElementById("receta-dificultad").value = "";
+                document.getElementById("receta-requiere-mesa").checked = false;
+                alert("Receta añadida con éxito");
+            });
+        });
+
+        // Renderizar lista de recetas
+        db.ref("campaña/forja/recetas").on("value", (snap) => {
+            const container = document.getElementById("lista-recetas-globales");
+            container.innerHTML = "";
+            const recetas = snap.val();
+            if (recetas) {
+                for (const [id, data] of Object.entries(recetas)) {
+                    const div = document.createElement("div");
+                    div.style.background = "#222";
+                    div.style.padding = "10px";
+                    div.style.borderLeft = "3px solid #f90";
+                    div.style.display = "flex";
+                    div.style.justifyContent = "space-between";
+                    div.style.alignItems = "center";
+
+                    const ingredientesText = data.ingredientes.map(i => `${i.id} (x${i.cantidad})`).join(", ");
+
+                    div.innerHTML = `
+                        <div>
+                            <strong style="color: #0df;">${data.item_resultado}</strong> <span style="font-size:12px; color:#aaa;">(DC: ${data.dificultad_base})</span>
+                            <div style="font-size: 12px; color: #ccc;">Req: ${ingredientesText}</div>
+                            ${data.requiere_mesa ? '<div style="font-size:10px; color:#f90;">Requiere Mesa de Crafteo</div>' : ''}
+                        </div>
+                        <button class="btn-cyber btn-red" style="padding: 5px; font-size: 12px;" onclick="eliminarReceta('${id}')">Borrar</button>
+                    `;
+                    container.appendChild(div);
+                }
+            } else {
+                 container.innerHTML = "<div style='color: #888; font-size: 12px;'>No hay recetas globales.</div>";
+            }
+        });
+
+        window.eliminarReceta = function(id) {
+            if (confirm("¿Borrar esta receta?")) {
+                db.ref(`campaña/forja/recetas/${id}`).remove();
+            }
+        };
+
+
         let dbItemsCache = {}; // Caché local de TODOS los ítems globales
         let tiendaActualEditada = null; // ID de la tienda abierta en el modal
 
@@ -6422,9 +6562,20 @@
             chip.onclick = () => {
               currentItemTags.splice(index, 1);
               renderForjaTags();
+              updateConsumibleFieldsVisibility();
             };
             forjaTagsContainer.appendChild(chip);
           });
+        }
+
+        // --- MOSTRAR/OCULTAR CAMPOS DE CONSUMIBLE SEGÚN TAGS ---
+        function updateConsumibleFieldsVisibility() {
+          const consumibleFields = document.getElementById("forja-consumible-fields");
+          if (currentItemTags.some(tag => tag.toLowerCase() === "consumible")) {
+            consumibleFields.style.display = "flex";
+          } else {
+            consumibleFields.style.display = "none";
+          }
         }
 
         document.getElementById("btn-add-tag").addEventListener("click", () => {
@@ -6432,6 +6583,7 @@
           if (val && !currentItemTags.includes(val)) {
             currentItemTags.push(val);
             renderForjaTags();
+            updateConsumibleFieldsVisibility();
             forjaTagInput.value = "";
           }
         });
@@ -6443,6 +6595,7 @@
           document.getElementById("forja-tag-input").value = "";
           currentItemTags = [];
           renderForjaTags();
+          updateConsumibleFieldsVisibility();
           document.getElementById("forja-costo").value = "";
           document.getElementById("forja-usos").value = "";
           document.getElementById("forja-limite-activo").value = "";
@@ -6457,6 +6610,8 @@
           document.getElementById("forja-cargas-maximas").value = "";
           document.getElementById("forja-cargas-actuales").value = "";
           document.getElementById("forja-keywords").value = "";
+          document.getElementById("forja-curacion-hp").value = "";
+          document.getElementById("forja-curacion-sp").value = "";
           document.getElementById("btn-crear-item").innerText = "Crear Ítem";
           document.getElementById("btn-cancelar-item").style.display = "none";
           editModeItemKey = null;
@@ -6514,9 +6669,20 @@
               .getElementById("forja-keywords")
               .value.trim();
 
+            const curacionHp = document.getElementById("forja-curacion-hp").value;
+            const curacionSp = document.getElementById("forja-curacion-sp").value;
+
             if (currentItemTags.length === 0) {
               alert("Agrega al menos una etiqueta al ítem.");
               return;
+            }
+
+            // Validación estricta para armas y su vínculo de munición (preparación fase de combate)
+            if (currentItemTags.some(tag => tag.toLowerCase() === "arma") && vinculo_item !== "") {
+              if (typeof vinculo_item !== 'string' || vinculo_item.trim() === "") {
+                 alert("Las armas con munición vinculada deben especificar un string estricto de ID de ítem.");
+                 return;
+              }
             }
 
             const item = {
@@ -6550,6 +6716,11 @@
               item.vinculo_cantidad = vinculo_cantidad;
               item.vinculo_stacks_max = vinculo_stacks_max;
               item.carga_actual = 0;
+            }
+
+            if (currentItemTags.some(tag => tag.toLowerCase() === "consumible")) {
+              if (curacionHp !== "") item.curacion_hp = parseInt(curacionHp);
+              if (curacionSp !== "") item.curacion_sp = parseInt(curacionSp);
             }
 
             const isEditing = editModeItemKey !== null;
@@ -6920,6 +7091,16 @@
                   data.keywords && Array.isArray(data.keywords)
                     ? data.keywords.join(", ")
                     : "";
+
+                if (data.tags && data.tags.some(tag => tag.toLowerCase() === "consumible") || (data.tipo && data.tipo.toLowerCase() === "consumible")) {
+                    document.getElementById("forja-consumible-fields").style.display = "flex";
+                    document.getElementById("forja-curacion-hp").value = data.curacion_hp !== undefined ? data.curacion_hp : "";
+                    document.getElementById("forja-curacion-sp").value = data.curacion_sp !== undefined ? data.curacion_sp : "";
+                } else {
+                    document.getElementById("forja-consumible-fields").style.display = "none";
+                    document.getElementById("forja-curacion-hp").value = "";
+                    document.getElementById("forja-curacion-sp").value = "";
+                }
 
                 document.getElementById("btn-crear-item").innerText =
                   "Actualizar Ítem";

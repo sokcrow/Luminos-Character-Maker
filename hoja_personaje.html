@@ -616,6 +616,18 @@
                 <div class="sheet-app-icon">📋</div>
                 <span>Contratos</span>
               </button>
+              <button
+                type="action"
+                name="act_tab_forja"
+                class="sheet-app-btn"
+              >
+                <div class="sheet-app-icon" style="display:flex; align-items:center; justify-content:center;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </div>
+                <span>Síntesis</span>
+              </button>
               <button type="action" name="act_tab_codex" class="sheet-app-btn">
                 <div class="sheet-app-icon">📚</div>
                 <span>Codex</span>
@@ -748,6 +760,37 @@
                   </select>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Síntesis (Forja) Tab -->
+          <div class="sheet-tab-content sheet-tab-forja">
+            <div class="sheet-app-header"><h2>Motor de Síntesis</h2></div>
+            <div class="sheet-app-body" style="padding: 10px;">
+              <p style="color: #aaa; font-size: 12px; margin-bottom: 10px;">Selecciona materiales para iniciar la transmutación.</p>
+
+              <div class="sheet-forja-slots" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                <!-- Slots 1, 2, 3 (Siempre disponibles) -->
+                <div class="sheet-forja-slot" data-slot="1" style="width: 60px; height: 60px; border: 2px solid #0df; background: rgba(0, 221, 255, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+                  <span style="color: #0df; opacity: 0.5;">+</span>
+                </div>
+                <div class="sheet-forja-slot" data-slot="2" style="width: 60px; height: 60px; border: 2px solid #0df; background: rgba(0, 221, 255, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+                  <span style="color: #0df; opacity: 0.5;">+</span>
+                </div>
+                <div class="sheet-forja-slot" data-slot="3" style="width: 60px; height: 60px; border: 2px solid #0df; background: rgba(0, 221, 255, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+                  <span style="color: #0df; opacity: 0.5;">+</span>
+                </div>
+
+                <!-- Slots 4, 5 (Bloqueados por defecto) -->
+                <div class="sheet-forja-slot locked" data-slot="4" style="width: 60px; height: 60px; border: 2px dashed #f90; background: repeating-linear-gradient(45deg, #111, #111 10px, #331a00 10px, #331a00 20px); display: flex; align-items: center; justify-content: center; position: relative;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <div class="sheet-forja-slot locked" data-slot="5" style="width: 60px; height: 60px; border: 2px dashed #f90; background: repeating-linear-gradient(45deg, #111, #111 10px, #331a00 10px, #331a00 20px); display: flex; align-items: center; justify-content: center; position: relative;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+              </div>
+
+              <button id="btn-iniciar-sintesis" type="button" style="width: 100%; padding: 10px; background: #0df; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase;">[ INICIAR SÍNTESIS ]</button>
             </div>
           </div>
 
@@ -13487,6 +13530,41 @@
 </div>
 
     <button id="btn-shop-notifier" class="btn-icon-base size-50"><img src="Assets/Images/Buttons/Shop.svg" class="svg-icon" alt="Shop" /></button>
+
+    <!-- Modal Selección de Ítem (Forja) -->
+    <div id="forja-selection-modal" class="inventory-modal">
+      <div class="inventory-modal-content" style="max-width: 400px; height: 60vh;">
+        <button id="forja-selection-close" class="inventory-modal-close">×</button>
+        <div class="inventory-tabs" style="margin-bottom: 10px;">
+            <button class="inv-tab-btn active" data-tab="forja-sel-active">Inv. Activo</button>
+            <button class="inv-tab-btn" data-tab="forja-sel-stash">Alijo</button>
+        </div>
+        <div class="inventory-body-wrapper" style="height: calc(100% - 60px);">
+            <div class="inventory-left-panel" style="width: 100%;">
+                <div class="inventory-tab-content active" id="forja-sel-active">
+                    <div class="inv-grid" id="forja-sel-active-grid"></div>
+                </div>
+                <div class="inventory-tab-content" id="forja-sel-stash">
+                    <div class="inv-grid" id="forja-sel-stash-grid"></div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Tirada de Forja -->
+    <div id="forja-roll-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+      <div style="background: #111; border: 2px solid #0df; padding: 20px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; text-align: center;">
+        <h3 style="margin: 0; color: #0df; text-transform: uppercase;">Resolución de Síntesis</h3>
+        <p style="color: #ccc; font-size: 14px; margin: 0;">Ingresa el resultado de tu tirada (Modificadores calculados automáticamente).</p>
+        <div style="font-size: 24px; color: #f90; font-weight: bold; margin: 10px 0;">DC Actual: <span id="forja-roll-dc">-</span></div>
+        <input type="number" id="forja-roll-input" placeholder="0" style="font-size: 32px; text-align: center; background: #000; color: #fff; border: 1px solid #444; padding: 10px;" />
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="btn-forja-cancel" style="flex: 1; background: #333; color: white; border: none; padding: 10px; cursor: pointer;">ABORTAR</button>
+          <button id="btn-forja-confirm" style="flex: 1; background: #0df; color: #000; font-weight: bold; border: none; padding: 10px; cursor: pointer;">EJECUTAR</button>
+        </div>
+      </div>
+    </div>
 
     <div id="modal-escritura-teatro" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: #0b0a0a; border: 1px solid #c49a00; padding: 20px; width: 90%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;">
