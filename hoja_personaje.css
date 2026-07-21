@@ -5266,7 +5266,6 @@ input[name="attr_tab"][value="profile"] ~ .sheet-phone-screen .sheet-tab-profile
 input[name="attr_tab"][value="apego"] ~ .sheet-phone-screen .sheet-tab-apego,
 input[name="attr_tab"][value="mail"] ~ .sheet-phone-screen .sheet-tab-mail,
 input[name="attr_tab"][value="settings"] ~ .sheet-phone-screen .sheet-tab-settings,
-input[name="attr_tab"][value="forja"] ~ .sheet-phone-screen .sheet-tab-forja,
 input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     display: flex !important;
 }
