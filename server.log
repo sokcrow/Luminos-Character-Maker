@@ -4,3 +4,9 @@
 127.0.0.1 - - [21/Jul/2026 22:44:26] "GET /js/vtt/mapData.js HTTP/1.1" 200 -
 127.0.0.1 - - [21/Jul/2026 22:44:26] "GET /js/vtt/renderer.js HTTP/1.1" 200 -
 127.0.0.1 - - [21/Jul/2026 22:44:26] "GET /js/vtt/camera.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /vtt.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /js/vtt/main.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /js/vtt/engine.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /js/vtt/mapData.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /js/vtt/camera.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2026 23:28:54] "GET /js/vtt/renderer.js HTTP/1.1" 200 -

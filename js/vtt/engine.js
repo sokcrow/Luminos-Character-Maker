@@ -27,9 +27,9 @@ export class Engine {
     }
 
     centerCamera() {
-        const { cols, rows, cellSize } = this.mapData.grid;
-        const mapWidth = cols * cellSize;
-        const mapHeight = rows * cellSize;
+        const { cols, rows, size } = this.mapData.grid;
+        const mapWidth = cols * size;
+        const mapHeight = rows * size;
 
         this.camera.x = (this.canvas.width / 2) - (mapWidth / 2);
         this.camera.y = (this.canvas.height / 2) - (mapHeight / 2);
