@@ -5,18 +5,20 @@ export class Renderer {
         this.mapData = mapData;
     }
 
-    clear() {
+    clear(isExporting) {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = '#111'; // Match CSS background
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        if (!isExporting) {
+            this.ctx.fillStyle = '#000'; // Absolute black (Fog of war) outside vision
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
     }
 
-    drawGrid() {
+    drawGrid(isExporting = false) {
         const { cols, rows, size } = this.mapData.grid;
         const width = cols * size;
         const height = rows * size;
 
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        this.ctx.strokeStyle = isExporting ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)';
         this.ctx.lineWidth = 1;
 
         this.ctx.beginPath();
@@ -39,7 +41,7 @@ export class Renderer {
         this.ctx.save();
 
         if (isOnionSkin) {
-            this.ctx.strokeStyle = '#aaaaaa'; // Desaturated gray
+            this.ctx.strokeStyle = '#666666'; // Desaturated gray
             this.ctx.globalAlpha = 0.3;
         } else {
             this.ctx.strokeStyle = '#ff0000'; // Active layer
@@ -80,28 +82,94 @@ export class Renderer {
         }
     }
 
-    render(camera, currentZLayer = 0) {
-        this.clear();
+    render(camera, activeZ, renderData, isExporting = false) {
+        this.clear(isExporting);
+
+        if (isExporting) {
+            this.ctx.save();
+            camera.applyTransformSimple(this.ctx);
+            this.drawGrid(true);
+            this.drawWalls(activeZ, false);
+            this.ctx.restore();
+            return;
+        }
+
+        if (!renderData) return;
+
+        const { fovPolygon, visionRadius, tokenPos, isLookingAway } = renderData;
 
         this.ctx.save();
 
         // Apply camera transformations
         camera.applyTransformSimple(this.ctx);
 
+        // 1. Create clipping mask for vision
+        if (fovPolygon && fovPolygon.length > 0) {
+            // First clip: topological raycasting FOV polygon
+            this.ctx.beginPath();
+            this.ctx.moveTo(fovPolygon[0].x, fovPolygon[0].y);
+            for (let i = 1; i < fovPolygon.length; i++) {
+                this.ctx.lineTo(fovPolygon[i].x, fovPolygon[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.clip(); // Standard non-zero winding rule
+
+            // Second clip: The maximum circular vision radius limit
+            this.ctx.beginPath();
+            this.ctx.arc(tokenPos.x, tokenPos.y, visionRadius, 0, Math.PI * 2, false);
+            this.ctx.clip();
+        }
+
+        // Fill revealed area with floor color
+        this.ctx.fillStyle = '#111';
+        const cameraRectSize = 10000;
+        this.ctx.fillRect(
+            tokenPos.x - cameraRectSize/2,
+            tokenPos.y - cameraRectSize/2,
+            cameraRectSize,
+            cameraRectSize
+        );
+
         // Draw grid
         this.drawGrid();
 
         // Draw onion skin for lower layer (Z-1) if applicable
-        if (currentZLayer > 0) {
-            this.drawWalls(currentZLayer - 1, true); // true = isOnionSkin
+        if (activeZ > 0) {
+            this.drawWalls(activeZ - 1, true); // true = isOnionSkin
         }
 
         // Draw active walls
-        this.drawWalls(currentZLayer, false);
+        this.drawWalls(activeZ, false);
 
         // Draw tokens
-        this.drawTokens(currentZLayer);
+        this.drawTokens(activeZ);
+
+        // Apply effort vignette if looking at a different layer
+        if (isLookingAway) {
+            const gradient = this.ctx.createRadialGradient(
+                tokenPos.x, tokenPos.y, visionRadius * 0.5,
+                tokenPos.x, tokenPos.y, visionRadius
+            );
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(tokenPos.x, tokenPos.y, visionRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
 
         this.ctx.restore();
+
+        // Since we constrained the render by clip mask, draw the player token regardless
+        // if they are on a different Z layer so we always see where we are.
+        if (isLookingAway) {
+            this.ctx.save();
+            camera.applyTransformSimple(this.ctx);
+            // Draw physical layer token with some transparency to indicate they aren't on this floor
+            this.ctx.globalAlpha = 0.5;
+            this.drawTokens(this.mapData.tokens[0].z[0]);
+            this.ctx.restore();
+        }
     }
 }

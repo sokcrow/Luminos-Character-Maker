@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const engine = new Engine(canvas, mockMapData);
 
+    // Wire UI
+    const exportBtn = document.getElementById('btn-export-uv');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            engine.exportUVTemplate();
+        });
+    }
+
     // Start the game loop
     engine.start();
 
