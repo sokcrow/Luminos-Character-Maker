@@ -1184,6 +1184,25 @@ const CombatEngine = {
         }
 
         return multiplier;
+    },
+
+    // 6. Matriz de Flanqueo (Flanking Matrix)
+    evaluateFlanking: function(attackerCoords, allyCoords, targetCoords) {
+        // Un flanqueo ocurre si las coordenadas del atacante y el aliado están
+        // diametralmente opuestas alrededor del objetivo.
+        // Vector desde el objetivo al aliado
+        let vecAllyX = allyCoords.x - targetCoords.x;
+        let vecAllyY = allyCoords.y - targetCoords.y;
+
+        // Vector desde el objetivo al atacante
+        let vecAtkX = attackerCoords.x - targetCoords.x;
+        let vecAtkY = attackerCoords.y - targetCoords.y;
+
+        // Deben ser vectores no nulos
+        if ((vecAllyX === 0 && vecAllyY === 0) || (vecAtkX === 0 && vecAtkY === 0)) return false;
+
+        // Son diametralmente opuestos si vecAtk == -vecAlly
+        return (vecAtkX === -vecAllyX && vecAtkY === -vecAllyY);
     }
 };
 
