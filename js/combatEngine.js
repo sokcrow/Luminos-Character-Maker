@@ -353,9 +353,9 @@ const CombatEngine = {
 
             // If they just won a clash
             if (options.clashResult === 'Win') {
-                this.triggerEvent('[Hit after Clash Win]', context, [unitDefender]);
+                this.triggerEvent('[On Clash Win]', context, [unitDefender]);
             } else if (options.clashResult === 'Lose') {
-                this.triggerEvent('[Hit after Clash Lose]', context, [unitDefender]);
+                this.triggerEvent('[On Clash Lose]', context, [unitDefender]);
             }
 
             this.triggerEvent('[Current Coin Attack End]', context, [unitDefender]);
@@ -591,11 +591,11 @@ const CombatEngine = {
 
         // Event hooks for Clash Win/Lose
         if (result.winner === 'A') {
-            this.triggerEvent('[Clash Win]', contextA, [unitB]);
-            this.triggerEvent('[Clash Lose]', contextB, [unitA]);
+            this.triggerEvent('[On Clash Win]', contextA, [unitB]);
+            this.triggerEvent('[On Clash Lose]', contextB, [unitA]);
         } else if (result.winner === 'B') {
-            this.triggerEvent('[Clash Win]', contextB, [unitA]);
-            this.triggerEvent('[Clash Lose]', contextA, [unitB]);
+            this.triggerEvent('[On Clash Win]', contextB, [unitA]);
+            this.triggerEvent('[On Clash Lose]', contextA, [unitB]);
         }
 
         result.pendingActions = [];
@@ -606,6 +606,28 @@ const CombatEngine = {
         let loserUnit = result.winner === 'A' ? unitB : (result.winner === 'B' ? unitA : null);
         let winnerSkill = result.winner === 'A' ? skillA : (result.winner === 'B' ? skillB : null);
         let winnerUnit = result.winner === 'A' ? unitA : (result.winner === 'B' ? unitB : null);
+
+        // Sanity (SP) Gain for Winner and UI Logger Custom Event
+        let actualClashCount = result.clashLogs.length;
+
+        if (winnerUnit) { // Simple check to ensure we have a unit
+            let spGain = 10 + actualClashCount;
+            winnerUnit.sp = winnerUnit.sp !== undefined ? winnerUnit.sp : 0;
+            winnerUnit.sp = this.limitSP(winnerUnit.sp + spGain);
+            this.checkSanityStates(winnerUnit);
+
+            let bonoPorcentaje = 3 + (3 * actualClashCount);
+
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('logCombate', {
+                    detail: {
+                        tipo: 'clash_result',
+                        mensaje: `[ RESOLUCIÓN DE CHOQUE ] - ${winnerUnit.name || 'Unidad'} domina el duelo.`,
+                        data: { clashCount: actualClashCount, bonoPorcentaje: bonoPorcentaje, spGanado: spGain }
+                    }
+                }));
+            }
+        }
 
         if (loserSkill && loserUnit) {
             let crackedCoins = loserSkill.coins.filter(c => c.status === 'cracked');
@@ -887,7 +909,11 @@ const CombatEngine = {
 
         // 3. Modificadores por Crítico y Choque
         let critMod = isCritical ? 0.2 : 0;
-        let clashMod = (clashCount || 0) * 0.03;
+        let cCount = clashCount || 0;
+        let clashMod = 0;
+        if (cCount >= 1) {
+            clashMod = 0.03 + (0.03 * cCount); // 3% + (3% * clashCount)
+        }
 
         let totalStaticMod = physMod + sinMod + levelMod + critMod + clashMod;
 
