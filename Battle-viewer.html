@@ -130,11 +130,81 @@
         .radio-group { display: flex; gap: 10px; }
         .radio-group label { display: flex; align-items: center; gap: 5px; font-size: 12px; text-transform: none; color: #fff; font-weight: normal; }
 
-    </style>
+
+        /* --- MATRIZ DE FLANQUEO (TARGETING GRID) --- */
+        #matrix-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75); z-index: 5000; display: none;
+            justify-content: center; align-items: center; pointer-events: auto;
+        }
+        .matrix-grid {
+            display: grid; gap: 4px;
+            background: rgba(10, 5, 5, 0.9); padding: 10px;
+            border: 4px solid var(--limbus-hp-orange);
+            box-shadow: 0 0 20px rgba(255, 74, 34, 0.5);
+            transform: perspective(800px) rotateX(45deg);
+        }
+        .matrix-cell {
+            width: 60px; height: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #4a3520;
+            display: flex; justify-content: center; align-items: center;
+            color: #fff; font-family: var(--font-limbus); font-size: 14px;
+            transition: all 0.2s;
+        }
+        .matrix-cell.center {
+            background: rgba(255, 0, 0, 0.3); border-color: red;
+        }
+        .matrix-cell.periphery {
+            cursor: pointer; background: rgba(136, 238, 255, 0.1); border-color: var(--limbus-sp-cyan);
+        }
+        .matrix-cell.periphery:hover {
+            background: var(--limbus-sp-cyan); color: #000; box-shadow: 0 0 10px var(--limbus-sp-cyan);
+        }
+        .matrix-cell.occupied {
+            background: rgba(255, 232, 119, 0.3); border-color: var(--limbus-speed-yellow);
+            cursor: not-allowed;
+        }
+
+        /* --- TERMINAL DE LOGS --- */
+        #combat-log-terminal {
+            position: absolute; bottom: 10px; right: 10px; width: 350px; height: 200px;
+            background: rgba(5, 0, 16, 0.9); border: 2px solid var(--limbus-slot-border);
+            color: #ccc; font-family: 'Courier New', Courier, monospace; font-size: 11px;
+            overflow-y: auto; z-index: 10000; padding: 10px; pointer-events: auto;
+            border-left: 4px solid var(--limbus-hp-orange);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .log-entry { margin: 0; padding: 2px; border-bottom: 1px solid #222; }
+        .log-entry.flank { color: var(--limbus-sp-cyan); font-weight: bold; }
+        .log-entry.interrupt { color: var(--limbus-hp-orange); font-weight: bold; }
+
+        #btn-execute-clash {
+            position: absolute; bottom: 220px; right: 10px; z-index: 10000;
+            background: var(--limbus-hp-orange); color: #000; font-family: var(--font-limbus);
+            font-size: 24px; padding: 10px 20px; border: 2px solid #000; cursor: pointer;
+            box-shadow: 2px 2px 0px #000; text-transform: uppercase;
+        }
+        #btn-execute-clash:hover { background: #ff6a42; }
+        #btn-execute-clash:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+
+</style>
 </head>
 <body>
 
 <div id="game-container">
+
+    <!-- Matrix Overlay -->
+    <div id="matrix-overlay">
+        <div id="matrix-container" class="matrix-grid"></div>
+    </div>
+
+    <!-- Logs and Execute Button -->
+    <button id="btn-execute-clash" onclick="executeCombatTimeline()">[ EJECUTAR CHOQUE ]</button>
+    <div id="combat-log-terminal">
+        <div class="log-entry">VTT LUMINOS SYSTEM INITIALIZED...</div>
+    </div>
+
     <div id="combat-mode" class="layer">
         <div id="battlefield"></div>
     </div>
@@ -187,6 +257,7 @@
         for (let i = 0; i < qty; i++) {
             const uid = faction + '_custom_' + Date.now() + '_' + i;
             const npcData = {
+                escala_matriz: 3,
                 id: uid,
                 name: qty > 1 ? `${name} ${i+1}` : name,
                 faction: faction,
@@ -218,10 +289,10 @@
 
     // --- BASE DE DATOS DE TUS PECADORES ---
     const customSinners = [
-        { name: "Jeske", img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Calipsys", img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Jeske", escala_matriz: 3, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Calipsys", escala_matriz: 3, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
         { name: "Pierre", img: "https://i.imgur.com/11DglPK.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Agatha", img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
+        { name: "Agatha", escala_matriz: 3, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
         { name: "Dalzay", img: "https://i.imgur.com/dv5h0TR.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
         { name: "Ishamon", img: "https://i.imgur.com/8J3F4Ls.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
         { name: "Angelo", img: "https://i.imgur.com/264tPzM.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
@@ -413,8 +484,9 @@
     // --- FUNCIONES DEL EDITOR GENERALIZADO ---
     function syncInputs(src, tgt) { document.getElementById(tgt).value = document.getElementById(src).value; }
 
-    function refreshEditorDropdown() {
+        function refreshEditorDropdown() {
         const select = document.getElementById('editor-target-select');
+        if (!select) return;
         const currentVal = select.value;
         select.innerHTML = '<option value="">-- Seleccionar --</option>';
         Object.values(combatData).forEach(unit => {
@@ -480,7 +552,6 @@
     }
 
     // --- LOGICA DE TARGETING ---
-    function getUnitSpeed(slotId) { const baseId = slotId.split('_slot_')[0]; return combatData[baseId].speed; }
 
     function rollEnemyTargets() {
         const enemySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]');
@@ -497,7 +568,7 @@
         const enemySlotsNodes = Array.from(document.querySelectorAll('.action-slot-wrapper[data-faction="enemy"]'));
         if (enemySlotsNodes.length === 0) return;
 
-        allySlotsNodes.sort((a, b) => getUnitSpeed(b.id) - getUnitSpeed(a.id));
+        allySlotsNodes.sort((a, b) => combatData[b.id.split('_slot_')[0]].speed - combatData[a.id.split('_slot_')[0]].speed);
         let availableEnemies = [...enemySlotsNodes];
 
         allySlotsNodes.forEach(ally => {
@@ -505,10 +576,10 @@
             let directAttacker = enemySlotsNodes.find(e => slotTargets[e.id] === allyId);
             if (directAttacker) { targetId = directAttacker.id; } 
             else {
-                let allySpeed = getUnitSpeed(allyId);
+                let allySpeed = combatData[allyId.split('_slot_')[0]].speed;
                 let interceptable = availableEnemies.find(e => {
                     let enemyTargetingSomeoneElse = slotTargets[e.id] && slotTargets[e.id].startsWith('ally');
-                    let amIFaster = allySpeed > getUnitSpeed(e.id);
+                    let amIFaster = allySpeed > combatData[e.id.split('_slot_')[0]].speed;
                     return enemyTargetingSomeoneElse && amIFaster;
                 });
                 if (interceptable) { targetId = interceptable.id; } 
@@ -537,11 +608,11 @@
         let consumedEnemySlots = new Set(); let drawnClashes = new Set(); let unilateralAttacks = [];
         
         let activeAllies = Object.keys(slotTargets).filter(id => id.startsWith('ally'));
-        activeAllies.sort((a, b) => getUnitSpeed(b) - getUnitSpeed(a)); 
+        activeAllies.sort((a, b) => combatData[b.split('_slot_')[0]].speed - combatData[a.split('_slot_')[0]].speed);
 
         for (let allySlot of activeAllies) {
             let enemySlot = slotTargets[allySlot]; if (!enemySlot) continue;
-            let allySpeed = getUnitSpeed(allySlot); let enemySpeed = getUnitSpeed(enemySlot);
+            let allySpeed = combatData[allySlot.split('_slot_')[0]].speed; let enemySpeed = combatData[enemySlot.split('_slot_')[0]].speed;
             let isDirectTarget = (slotTargets[enemySlot] === allySlot);
             let isFaster = (allySpeed > enemySpeed);
 
@@ -608,6 +679,7 @@
             if (!isDragging) return;
             const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
         }
+
         function handleDragEnd(e) {
             if (!isDragging) return;
             let coords = null;
@@ -624,45 +696,315 @@
                     if (container) enemySlot = container.querySelector('.action-slot-wrapper');
                 }
             }
-            if (enemySlot) { slotTargets[dragStartSlotId] = enemySlot.id; db.ref('campaña/combate/slotTargets').update({[dragStartSlotId]: enemySlot.id}); }
-            else { delete slotTargets[dragStartSlotId]; db.ref('campaña/combate/slotTargets/' + dragStartSlotId).remove(); }
-            isDragging = false; dragStartSlotId = null;
+            if (enemySlot) {
+                // Step 2: Open Matrix instead of direct assignment
+                openTargetingMatrix(dragStartSlotId, enemySlot.id);
+            }
+            else {
+                delete slotTargets[dragStartSlotId];
+                // Also clear from db if needed
+                if(db && db.ref) db.ref('campaña/combate/slotTargets/' + dragStartSlotId).remove().catch(()=>{});
+            }
+            isDragging = false;
+            // We don't reset dragStartSlotId yet because the matrix needs it
+            drawArcs(); // clean up drawing
         }
+
         container.addEventListener('mousedown', handleDragStart); container.addEventListener('mousemove', handleDragMove); window.addEventListener('mouseup', handleDragEnd);
         container.addEventListener('touchstart', handleDragStart, {passive: false}); container.addEventListener('touchmove', handleDragMove, {passive: false}); window.addEventListener('touchend', handleDragEnd);
     }
 
+
+
+    function addLogEntry(text, type = 'normal') {
+        const terminal = document.getElementById('combat-log-terminal');
+        const div = document.createElement('div');
+        div.className = 'log-entry ' + type;
+        div.innerText = `> ${text}`;
+        terminal.appendChild(div);
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+
+
+    // --- TIMELINE DE EJECUCIÓN (Flanqueo y Movimiento) ---
+    async function executeCombatTimeline() {
+        addLogEntry('--- INICIANDO FASE DE RESOLUCIÓN ---', 'interrupt');
+
+        // Colectar todos los slots que van a actuar
+        // Para simplificar, iteramos sobre los atacantes (aliados) registrados en attackVectors
+
+        let actingSlots = Object.keys(attackVectors);
+        if (actingSlots.length === 0) {
+            addLogEntry('NO HAY ACCIONES REGISTRADAS.');
+            return;
+        }
+
+        // Ordenar por velocidad (descendente)
+        actingSlots.sort((a, b) => combatData[b.split('_slot_')[0]].speed - combatData[a.split('_slot_')[0]].speed);
+
+        // Registrar qué unidades ya actuaron para validar desincronización
+        let resolvedSlots = new Set();
+
+        // Loop secuencial
+        for (let attackerSlotId of actingSlots) {
+            const vector = attackVectors[attackerSlotId];
+            const targetSlotId = vector.target;
+
+            const attackerBaseId = attackerSlotId.split('_slot_')[0];
+            const targetBaseId = targetSlotId.split('_slot_')[0];
+
+            const attackerUnit = combatData[attackerBaseId];
+            const targetUnit = combatData[targetBaseId];
+
+            addLogEntry(`${attackerUnit.name} se mueve hacia ${targetUnit.name}...`);
+
+            // 1. Evaluar Flanqueo Activo (Sincronización Cerebral)
+            // Revisamos si algún otro aliado que está targeteando al mismo enemigo
+            // está en una posición diametralmente opuesta.
+            let flankingPartnerSlot = null;
+            let flankingBonus = 0;
+
+            if (matrixOccupancy[targetSlotId]) {
+                const myCoords = matrixOccupancy[targetSlotId].find(c => c.attackerSlotId === attackerSlotId);
+                if (myCoords) {
+                    for (let other of matrixOccupancy[targetSlotId]) {
+                        if (other.attackerSlotId !== attackerSlotId) {
+                            // Check using combatEngine evaluateFlanking logic
+                            // evaluateFlanking expects: attackerCoords, allyCoords, targetCoords (0,0 relative)
+                            const isFlanking = CombatEngine.evaluateFlanking(
+                                {x: myCoords.x, y: myCoords.y},
+                                {x: other.x, y: other.y},
+                                {x: 0, y: 0}
+                            );
+
+                            if (isFlanking) {
+                                flankingPartnerSlot = other.attackerSlotId;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (flankingPartnerSlot) {
+                // Partner found! Let's check Interrupt Conditions
+                let partnerBaseId = flankingPartnerSlot.split('_slot_')[0];
+                let partnerUnit = combatData[partnerBaseId];
+
+                // Condición 2: Desincronización. El compañero resolvió su ataque antes que yo.
+                if (resolvedSlots.has(flankingPartnerSlot)) {
+                    addLogEntry(`[ INTERRUPT ] - Desincronización. ${partnerUnit.name} resolvió su ataque prematuramente. Flanqueo roto.`, 'interrupt');
+                }
+                // Condición 1 (Simulada): Daño recibido en tránsito.
+                // En un motor real, evaluaríamos interceptaciones. Aquí usamos una probabilidad condicional
+                // para demostrar la lógica del interrupt en la UI/Log si un enemigo rápido targetea al atacante.
+                else {
+                    let intercepted = false;
+                    let interceptorName = null;
+                    // Detect if an enemy targeted this ally and is faster (simulated intercept)
+                    const enemySlots = Object.keys(slotTargets).filter(k => k.startsWith('enemy'));
+                    for(let eSlot of enemySlots) {
+                        if(slotTargets[eSlot] === attackerSlotId && combatData[eSlot.split('_slot_')[0]].speed > attackerUnit.speed) {
+                            intercepted = true;
+                            interceptorName = combatData[eSlot.split('_slot_')[0]].name;
+                            break;
+                        }
+                    }
+
+                    if(intercepted) {
+                         addLogEntry(`[ INTERRUPT ] - ${attackerUnit.name} recibió daño de ${interceptorName} en tránsito. Flanqueo roto.`, 'interrupt');
+                    } else {
+                         flankingBonus = 2;
+                         addLogEntry(`[ FLANQUEO DETECTADO ] - ${attackerUnit.name} y ${partnerUnit.name} posicionados en ejes diametrales (+2 Power).`, 'flank');
+                    }
+                }
+            }
+
+            // 2. Transición Visual (Mover el sprite a la matriz del objetivo)
+            const spriteNode = document.getElementById(`token-${attackerUnit.id}`);
+            const targetNode = document.getElementById(`token-${targetUnit.id}`);
+
+            if (spriteNode && targetNode) {
+                // Posición original
+                const origLeft = spriteNode.style.left;
+                const origBottom = spriteNode.style.bottom;
+
+                // Calcular destino (simplificado: cerca del objetivo)
+                const tX = parseFloat(targetNode.style.left);
+                const tY = parseFloat(targetNode.style.bottom);
+
+                // Añadir un pequeño offset visual basado en el vector elegido para que se note
+                const myCoords = matrixOccupancy[targetSlotId].find(c => c.attackerSlotId === attackerSlotId);
+                const offsetX = myCoords ? myCoords.x * 3 : 0;
+                const offsetY = myCoords ? myCoords.y * -3 : 0; // - because bottom is inverted
+
+                spriteNode.style.left = `calc(${tX}% + ${offsetX}%)`;
+                spriteNode.style.bottom = `calc(${tY}% + ${offsetY}%)`;
+                spriteNode.style.zIndex = 3000; // Bring to front
+
+                // Simular el choque (delay)
+                await new Promise(r => setTimeout(r, 800));
+
+                // Retornar a la posición original
+                spriteNode.style.left = origLeft;
+                spriteNode.style.bottom = origBottom;
+                updateDepthSorting();
+
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Registrar como resuelto
+            resolvedSlots.add(attackerSlotId);
+        }
+
+        addLogEntry('--- FASE DE RESOLUCIÓN COMPLETADA ---', 'interrupt');
+        // Clear vectors for next round (optional, usually requires a new turn init)
+    }
+
+
+    // --- TARGETING MATRIX LOGIC ---
+    let pendingAttackerSlotId = null;
+    let pendingTargetSlotId = null;
+
+    // Store matrix choices: { targetSlotId: { x, y, attackerSlotId } }
+    let matrixOccupancy = {};
+
+    // For storing chosen vectors to be sent to slotTargets (which we format as targetId_x_y later or just use a separate registry)
+    let attackVectors = {};
+
+    function openTargetingMatrix(attackerSlotId, targetSlotId) {
+        pendingAttackerSlotId = attackerSlotId;
+        pendingTargetSlotId = targetSlotId;
+
+        const targetBaseId = targetSlotId.split('_slot_')[0];
+        const targetUnit = combatData[targetBaseId];
+        const size = targetUnit.escala_matriz || 3;
+
+        const overlay = document.getElementById('matrix-overlay');
+        const container = document.getElementById('matrix-container');
+
+        container.style.gridTemplateColumns = `repeat(${size}, 60px)`;
+        container.innerHTML = '';
+
+        const centerOffset = Math.floor(size / 2);
+
+        // Initialize occupancy tracking for this target if not exists
+        if (!matrixOccupancy[targetSlotId]) matrixOccupancy[targetSlotId] = [];
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                let cell = document.createElement('div');
+                cell.className = 'matrix-cell';
+
+                // Coordinates relative to center
+                let relX = x - centerOffset;
+                let relY = y - centerOffset;
+
+                if (relX === 0 && relY === 0) {
+                    cell.classList.add('center');
+                    cell.innerText = 'TARGET';
+                } else {
+                    // Check if occupied
+                    const isOccupied = matrixOccupancy[targetSlotId].find(c => c.x === relX && c.y === relY);
+
+                    if (isOccupied) {
+                        cell.classList.add('occupied');
+                        // If occupied by myself, allow re-clicking to clear or highlight? Keep it simple, just blocked.
+                        if (isOccupied.attackerSlotId === attackerSlotId) {
+                            cell.style.borderColor = '#0f0'; // indicate own slot
+                        }
+                    } else {
+                        cell.classList.add('periphery');
+                        cell.onclick = () => selectMatrixCell(relX, relY);
+                    }
+                }
+
+                container.appendChild(cell);
+            }
+        }
+
+        overlay.style.display = 'flex';
+    }
+
+    function selectMatrixCell(x, y) {
+        const attackerId = pendingAttackerSlotId;
+        const targetId = pendingTargetSlotId;
+
+        // Clear previous selection by this attacker on this target if any
+        if (matrixOccupancy[targetId]) {
+            matrixOccupancy[targetId] = matrixOccupancy[targetId].filter(c => c.attackerSlotId !== attackerId);
+        } else {
+            matrixOccupancy[targetId] = [];
+        }
+
+        // Register new choice
+        matrixOccupancy[targetId].push({ x, y, attackerSlotId: attackerId });
+
+        // Register the overall target
+        slotTargets[attackerId] = targetId;
+
+        // Register the specific vector for execution
+        attackVectors[attackerId] = { target: targetId, x: x, y: y };
+
+        // Sync to firebase if needed
+        if(db && db.ref) db.ref('campaña/combate/slotTargets').update({[attackerId]: targetId}).catch(()=>{});
+
+        closeTargetingMatrix();
+        drawArcs();
+    }
+
+    function closeTargetingMatrix() {
+        document.getElementById('matrix-overlay').style.display = 'none';
+        pendingAttackerSlotId = null;
+        pendingTargetSlotId = null;
+        dragStartSlotId = null; // Clear drag state completely
+    }
+
+
     // --- DESPLIEGUE HORDA 7v7 ---
-    function deploy7v7() {
+        function deploy7v7() {
         document.getElementById('battlefield').innerHTML = '';
         combatData = {}; slotTargets = {};
-
-        const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
-        const enemyPositions = [{x: 94, y: 55}, {x: 88, y: 35}, {x: 82, y: 55}, {x: 76, y: 35}, {x: 70, y: 55}, {x: 64, y: 35}, {x: 58, y: 55}];
 
         let allies = []; let enemies = [];
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
             });
             enemies.push({ 
                 id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
+                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', escala_matriz: 3, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
                 scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
             });
         }
 
-        allies.sort((a, b) => b.speed - a.speed);
-        enemies.sort((a, b) => b.speed - a.speed);
+        allies.sort((a, b) => a.speed - b.speed);
+        enemies.sort((a, b) => a.speed - b.speed);
 
+        // Distribution algorithm: Speed Topology
+        // Slowest near center (X=50), Fastest towards edges (X=10 and X=90)
+        // Allies X: 40% (slowest) to 10% (fastest)
+        // Enemies X: 60% (slowest) to 90% (fastest)
+        // Y staggered (45 +- 10)
+
+        const allyCount = allies.length;
         allies.forEach((unit, index) => {
-            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            // index 0 is slowest, index allyCount-1 is fastest
+            // map index 0 -> 40%, index max -> 10%
+            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
+            unit.x = 40 - (fraction * 30); // 40 to 10
+            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
             unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
             spawnCombatant(unit);
         });
+
+        const enemyCount = enemies.length;
         enemies.forEach((unit, index) => {
-            unit.x = enemyPositions[index].x; unit.y = enemyPositions[index].y;
+            let fraction = enemyCount > 1 ? (index / (enemyCount - 1)) : 0.5;
+            unit.x = 60 + (fraction * 30); // 60 to 90
+            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
             unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
             spawnCombatant(unit);
         });
@@ -670,45 +1012,50 @@
         setTimeout(rollEnemyTargets, 500);
     }
 
-    // --- DESPLIEGUE BOSS ---
     function deployBossFight() {
         document.getElementById('battlefield').innerHTML = '';
         combatData = {}; slotTargets = {};
-        document.getElementById('boss-editor-panel').style.display = 'block';
+        const bossEditor = document.getElementById('boss-editor-panel');
+        if (bossEditor) bossEditor.style.display = 'block';
 
-        const allyPositions = [{x: 6, y: 55}, {x: 12, y: 35}, {x: 18, y: 55}, {x: 24, y: 35}, {x: 30, y: 55}, {x: 36, y: 35}, {x: 42, y: 55}];
-        
         let allies = [];
         for(let i = 0; i < 7; i++) {
             allies.push({ 
                 id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', ...customSinners[i]
+                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
             });
         }
         
-        allies.sort((a, b) => b.speed - a.speed);
+        allies.sort((a, b) => a.speed - b.speed);
+
+        const allyCount = allies.length;
         allies.forEach((unit, index) => {
-            unit.x = allyPositions[index].x; unit.y = allyPositions[index].y;
+            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
+            unit.x = 40 - (fraction * 30); // 40 to 10
+            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
             unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
             spawnCombatant(unit);
         });
 
         const bossData = { 
             id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
-            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, img: 'https://i.imgur.com/URvF0s1.png',
-            x: 80, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
+            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, escala_matriz: 5, img: 'https://i.imgur.com/URvF0s1.png',
+            x: 75, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0
         };
         bossData.staggerThresholds = calculateStaggerThresholds(bossData.armorType);
         spawnCombatant(bossData);
         
-        refreshEditorDropdown();
-        document.getElementById('editor-target-select').value = 'enemy_boss';
-        loadEntityToEditor();
+                refreshEditorDropdown();
+        const editorTargetSelect = document.getElementById('editor-target-select');
+        if (editorTargetSelect) {
+            editorTargetSelect.value = 'enemy_boss';
+            loadEntityToEditor();
+        }
 
         setTimeout(rollEnemyTargets, 500);
     }
 
-    function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
+function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
 
     // --- FIREBASE SYNC LÓGICA ---
     let dbCombatData = {};
