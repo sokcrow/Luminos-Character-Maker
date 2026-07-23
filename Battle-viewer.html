@@ -176,8 +176,10 @@
             display: flex; flex-direction: column; gap: 4px;
         }
         .log-entry { margin: 0; padding: 2px; border-bottom: 1px solid #222; }
-        .log-entry.flank { color: var(--limbus-sp-cyan); font-weight: bold; }
-        .log-entry.interrupt { color: var(--limbus-hp-orange); font-weight: bold; }
+        .log-entry.flank { color: #c49a00; font-weight: bold; }
+        .log-entry.interrupt { color: #c49a00; font-weight: bold; }
+        .log-entry.damage { color: #8a0303; font-weight: bold; }
+        .log-entry.clash-result { color: #cccccc; font-family: 'Courier New', Courier, monospace; }
 
         #btn-execute-clash {
             position: absolute; bottom: 220px; right: 10px; z-index: 10000;
@@ -724,6 +726,33 @@
         terminal.appendChild(div);
         terminal.scrollTop = terminal.scrollHeight;
     }
+
+    // --- ESCUCHA DE EVENTOS LOGCOMBATE ---
+    window.addEventListener('logCombate', function(e) {
+        if (!e.detail) return;
+        const { tipo, mensaje, data } = e.detail;
+
+        // Mapear tipo a clase CSS brutalista
+        let cssClass = 'normal';
+        if (tipo === 'clash_result') cssClass = 'clash-result';
+        if (tipo === 'interrupt') cssClass = 'interrupt';
+        if (tipo === 'damage') cssClass = 'damage';
+        if (tipo === 'flank') cssClass = 'flank';
+
+        let formattedMessage = mensaje;
+        if (data) {
+            let dataArr = [];
+            if (data.clashCount !== undefined) dataArr.push(`Clashes: ${data.clashCount}`);
+            if (data.bonoPorcentaje !== undefined) dataArr.push(`Bono: +${data.bonoPorcentaje}%`);
+            if (data.spGanado !== undefined) dataArr.push(`SP: +${data.spGanado}`);
+            if (dataArr.length > 0) {
+                formattedMessage += ` [ ${dataArr.join(' | ')} ]`;
+            }
+        }
+
+        addLogEntry(formattedMessage, cssClass);
+    });
+
 
 
 
