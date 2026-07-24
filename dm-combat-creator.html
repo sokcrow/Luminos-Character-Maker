@@ -85,6 +85,115 @@
         .focused-hp-fill-rect { height: 100%; background: var(--limbus-hp-focused); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-focused)); }
 
     </style>
+    <style>
+        /* Heptagon styles */
+        .sin-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .sin-radio {
+            display: none;
+        }
+
+        .sin-label {
+            width: 40px;
+            height: 40px;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            clip-path: polygon(50% 100%, 90% 80%, 100% 40%, 75% 0%, 25% 0%, 0% 40%, 10% 80%);
+            transition: all 0.2s;
+            position: relative;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+            opacity: 0.5;
+        }
+
+        .sin-label img {
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+        }
+
+        .sin-radio:checked + .sin-label {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .sin-radio[value="wrath"]:checked + .sin-label { background: #FF0000; box-shadow: 0 0 10px #FF0000; }
+        .sin-radio[value="lust"]:checked + .sin-label { background: #FFA500; box-shadow: 0 0 10px #FFA500; }
+        .sin-radio[value="sloth"]:checked + .sin-label { background: #FFFF00; box-shadow: 0 0 10px #FFFF00; }
+        .sin-radio[value="gluttony"]:checked + .sin-label { background: #008000; box-shadow: 0 0 10px #008000; }
+        .sin-radio[value="gloom"]:checked + .sin-label { background: #00FFFF; box-shadow: 0 0 10px #00FFFF; }
+        .sin-radio[value="pride"]:checked + .sin-label { background: #4169E1; box-shadow: 0 0 10px #4169E1; }
+        .sin-radio[value="envy"]:checked + .sin-label { background: #800080; box-shadow: 0 0 10px #800080; }
+        .sin-radio[value="sinless"]:checked + .sin-label { background: #555; box-shadow: 0 0 10px #555; }
+
+        /* Fallback for border since clip-path cuts off normal borders, we use an inner div */
+        .sin-label::before {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px; right: 2px; bottom: 2px;
+            background: #1a1a1a;
+            clip-path: polygon(50% 100%, 90% 80%, 100% 40%, 75% 0%, 25% 0%, 0% 40%, 10% 80%);
+            z-index: -1;
+        }
+
+        /* Damage styles */
+        .damage-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+            justify-content: center;
+        }
+
+        .damage-radio {
+            display: none;
+        }
+
+        .damage-label {
+            background: #222;
+            border: 2px solid #444;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            color: #888;
+            font-family: monospace;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .damage-label img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .damage-radio:checked + .damage-label {
+            background: #111;
+            border-color: #00FFFF; /* Cyan limbus aesthetic */
+            color: #00FFFF;
+            box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+        }
+
+        .tooltip-fireball {
+            color: #c49a00;
+            font-size: 11px;
+            text-align: center;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            font-family: sans-serif;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
     <div id="editor-preview" style="flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative;">
@@ -195,18 +304,72 @@
                 </div>
             </div>
 
-            <label style="display:block; margin-bottom: 10px;">Sin Type:
-                <select id="sb-sin" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
-                    <option value="Wrath">Wrath</option>
-                    <option value="Lust">Lust</option>
-                    <option value="Sloth">Sloth</option>
-                    <option value="Gluttony">Gluttony</option>
-                    <option value="Gloom">Gloom</option>
-                    <option value="Pride">Pride</option>
-                    <option value="Envy">Envy</option>
-                    <option value="Sinless">Sinless</option>
-                </select>
-            </label>
+            <!-- Kinetic Damage Selector -->
+            <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Tipo de Daño Cinético:</label>
+            <div class="damage-selector">
+                <input type="radio" id="dmg-cortante" name="sb-damage-radio" value="cortante" class="damage-radio" checked>
+                <label for="dmg-cortante" class="damage-label">
+                    <img src="https://imgur.com/Akf25L5.png" alt="Cortante"> Cortante
+                </label>
+
+                <input type="radio" id="dmg-perforante" name="sb-damage-radio" value="perforante" class="damage-radio">
+                <label for="dmg-perforante" class="damage-label">
+                    <img src="https://imgur.com/slcQlpc.png" alt="Perforante"> Perforante
+                </label>
+
+                <input type="radio" id="dmg-contundente" name="sb-damage-radio" value="contundente" class="damage-radio">
+                <label for="dmg-contundente" class="damage-label">
+                    <img src="https://imgur.com/cg8Wh4w.png" alt="Contundente"> Contundente
+                </label>
+            </div>
+
+            <!-- Sin Selector -->
+            <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Alineación de Pecado:</label>
+            <div class="sin-selector">
+                <input type="radio" id="sin-wrath" name="sb-sin-radio" value="wrath" class="sin-radio" checked>
+                <label for="sin-wrath" class="sin-label" title="Wrath">
+                    <img src="https://imgur.com/Nn33MJR.png" alt="Wrath">
+                </label>
+
+                <input type="radio" id="sin-lust" name="sb-sin-radio" value="lust" class="sin-radio">
+                <label for="sin-lust" class="sin-label" title="Lust">
+                    <img src="https://imgur.com/bF7bHHT.png" alt="Lust">
+                </label>
+
+                <input type="radio" id="sin-sloth" name="sb-sin-radio" value="sloth" class="sin-radio">
+                <label for="sin-sloth" class="sin-label" title="Sloth">
+                    <img src="https://imgur.com/igYFF1I.png" alt="Sloth">
+                </label>
+
+                <input type="radio" id="sin-gluttony" name="sb-sin-radio" value="gluttony" class="sin-radio">
+                <label for="sin-gluttony" class="sin-label" title="Gluttony">
+                    <img src="https://imgur.com/0KArwDU.png" alt="Gluttony">
+                </label>
+
+                <input type="radio" id="sin-gloom" name="sb-sin-radio" value="gloom" class="sin-radio">
+                <label for="sin-gloom" class="sin-label" title="Gloom">
+                    <img src="https://imgur.com/DCTX5Jy.png" alt="Gloom">
+                </label>
+
+                <input type="radio" id="sin-pride" name="sb-sin-radio" value="pride" class="sin-radio">
+                <label for="sin-pride" class="sin-label" title="Pride">
+                    <img src="https://imgur.com/w6z9THA.png" alt="Pride">
+                </label>
+
+                <input type="radio" id="sin-envy" name="sb-sin-radio" value="envy" class="sin-radio">
+                <label for="sin-envy" class="sin-label" title="Envy">
+                    <img src="https://imgur.com/SuNHY9D.png" alt="Envy">
+                </label>
+
+                <input type="radio" id="sin-sinless" name="sb-sin-radio" value="sinless" class="sin-radio">
+                <label for="sin-sinless" class="sin-label" title="Sinless">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px dashed #888;"></div>
+                </label>
+            </div>
+
+            <div class="tooltip-fireball">
+                "Los elementos mágicos no son tipos de daño. Se aplican como Efectos de Estado. Ej: Fireball = Daño Contundente + Pecado Wrath + Aplica Quemadura (Burn)."
+            </div>
 
             <!-- Defensive Skill Engine -->
             <div style="background: #1a1a1a; padding: 10px; margin-bottom: 10px; border: 1px solid #333;">
@@ -471,17 +634,23 @@
 
         function generateSkillObject() {
             const isDefense = document.getElementById('sb-is-defense').checked;
-            let sinType = document.getElementById('sb-sin').value;
+
+            let selectedSinEl = document.querySelector('input[name="sb-sin-radio"]:checked');
+            let sinType = selectedSinEl ? selectedSinEl.value : 'sinless';
+
+            let selectedDamageEl = document.querySelector('input[name="sb-damage-radio"]:checked');
+            let damageType = selectedDamageEl ? selectedDamageEl.value : 'contundente';
 
             const skillObj = {
                 id: document.getElementById('sb-id').value || "new_skill",
                 name: document.getElementById('sb-name').value || "New Skill",
+                pecado: isDefense && sinType === '' ? 'sinless' : sinType,
+                tipo_dano: damageType,
                 tier: parseInt(document.getElementById('sb-tier').value) || 1,
                 isItemSkill: document.getElementById('sb-is-item-skill').checked,
                 basePower: parseInt(document.getElementById('sb-base').value) || 0,
                 coinPower: parseInt(document.getElementById('sb-coin-power').value) || 0,
                 coinAmount: parseInt(document.getElementById('sb-coin-count').value) || 1,
-                affinity: isDefense && sinType === '' ? 'Sinless' : sinType, // enforce Sinless on defense if somehow empty
                 weight: parseInt(document.getElementById('sb-weight').value) || 1,
                 isDefense: isDefense,
                 effects: gatherEffects(document.getElementById('sb-global-effects-container')),
@@ -519,7 +688,12 @@
 
             document.getElementById('sb-is-defense').addEventListener('change', (e) => {
                 document.getElementById('sb-defense-options').style.display = e.target.checked ? 'block' : 'none';
-                if (e.target.checked) document.getElementById('sb-sin').value = 'Sinless';
+                if (e.target.checked) {
+                    const sinlessRadio = document.querySelector('input[name="sb-sin-radio"][value="sinless"]');
+                    if (sinlessRadio) {
+                        sinlessRadio.checked = true;
+                    }
+                }
             });
 
             document.getElementById('sb-coin-count').addEventListener('input', (e) => {
