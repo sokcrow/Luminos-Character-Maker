@@ -4,15 +4,15 @@ const SIN_TYPES = ['Wrath', 'Lust', 'Sloth', 'Gluttony', 'Gloom', 'Pride', 'Envy
 const STATUS_REGISTRY = {
     // --- CORE STATUSES (Efectos Clave) ---
     'burn': {
-        name: 'Burn', type: 'negative', mode: 'double',
+        name: 'Burn', type: 'negative', mode: 'double', icon: 'https://imgur.com/L4bRd44.png',
         description: "At the end of the turn, take fixed damage by the effect’s Potency, then reduce its Count by 1."
     },
     'bleed': {
-        name: 'Bleed', type: 'negative', mode: 'double',
+        name: 'Bleed', type: 'negative', mode: 'double', icon: 'https://imgur.com/mp9fbme.png',
         description: "When tossing an attack Coin, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
     },
     'tremor': {
-        name: 'Tremor', type: 'negative', mode: 'double',
+        name: 'Tremor', type: 'negative', mode: 'double', icon: 'https://imgur.com/fuDGjpn.png',
         description: "When attacked by skills that burst Tremor, raise the Stagger Threshold by the effect’s Potency. At the end of the turn, reduce the Count by 1."
     },
     'tremor_decay': {
@@ -48,19 +48,19 @@ const STATUS_REGISTRY = {
         description: "When triggering Amplitude Conversion, add the effects of the resulting Tremor type to the list of active Tremor effects under Tremor - Superposition."
     },
     'rupture': {
-        name: 'Rupture', type: 'negative', mode: 'double',
+        name: 'Rupture', type: 'negative', mode: 'double', icon: 'https://imgur.com/g5LTeDs.png',
         description: "When hit by an attack, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
     },
     'sinking': {
-        name: 'Sinking', type: 'negative', mode: 'double',
+        name: 'Sinking', type: 'negative', mode: 'double', icon: 'https://imgur.com/ZnulGzZ.png',
         description: "When hit by an attack, take fixed SP damage by the effect’s Potency. (Non-SP Units take Gloom damage instead.) Then, reduce its Count by 1."
     },
     'poise': {
-        name: 'Poise', type: 'positive', mode: 'double',
+        name: 'Poise', type: 'positive', mode: 'double', icon: 'https://imgur.com/KFEmJB5.png',
         description: "Gain a chance to deal Critical Damage on hit. Potency increases Critical Chance, Count increases Critical Damage. Count is reduced by 1 at turn end."
     },
     'charge': {
-        name: 'Charge', type: 'positive', mode: 'double', maxCount: 20,
+        name: 'Charge', type: 'positive', mode: 'double', maxCount: 20, icon: 'https://imgur.com/GzJzNPV.png',
         description: "Resource used by certain skills for additional effects."
     },
 
@@ -70,15 +70,15 @@ const STATUS_REGISTRY = {
         description: "All skills gain Final Power by the effect's Count for one turn."
     },
     'attack_power_up': {
-        name: 'Attack Power Up', type: 'positive', mode: 'single',
+        name: 'Attack Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/JbDs4X0.png',
         description: "Attack skills gain Final Power by the effect's Count for one turn."
     },
     'defense_power_up': {
-        name: 'Defense Power Up', type: 'positive', mode: 'single',
+        name: 'Defense Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/AkiiCza.png',
         description: "Defense skills gain Final Power by the effect's Count for one turn."
     },
     'clash_power_up': {
-        name: 'Clash Power Up', type: 'positive', mode: 'single',
+        name: 'Clash Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/Q49TCVN.png',
         description: "Gain Clash Power by the effect's Count for one turn."
     },
     'base_power_up': {
@@ -86,23 +86,23 @@ const STATUS_REGISTRY = {
         description: "Raise the Base Power of Skills by the effect's Count."
     },
     'offense_level_up': {
-        name: 'Offense Level Up', type: 'positive', mode: 'single',
+        name: 'Offense Level Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/p70Fei4.png',
         description: "Offense level increases based on the effect's Count for one turn."
     },
     'defense_level_up': {
-        name: 'Defense Level Up', type: 'positive', mode: 'single',
+        name: 'Defense Level Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/C0apZVL.png',
         description: "Defense Level increases based on the effect's Count for one turn."
     },
     'damage_up': {
-        name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10,
+        name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/KDLYRCR.png',
         description: "Deal 10% more damage with skills based on the effect's Count for one turn. (Max 10)"
     },
     'haste': {
-        name: 'Haste', type: 'positive', mode: 'single',
+        name: 'Haste', type: 'positive', mode: 'single', icon: 'https://imgur.com/zxUsYIN.png',
         description: "Speed increases by the effect's Count for one turn."
     },
     'protection': {
-        name: 'Protection', type: 'positive', mode: 'single', maxCount: 10,
+        name: 'Protection', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/yjPgnjd.png',
         description: "Take 10% less damage per Count from attacks for one turn. (Max 10)"
     },
     'plus_coin_boost': {
@@ -118,7 +118,7 @@ const STATUS_REGISTRY = {
         description: "Boost the damage of attacks against Weak resistances by 1% per Count for one turn."
     },
     'hp_healing_boost': {
-        name: 'HP Healing Boost', type: 'positive', mode: 'single', maxCount: 5,
+        name: 'HP Healing Boost', type: 'positive', mode: 'single', maxCount: 5, icon: 'https://imgur.com/uynjNTN.png',
         description: "Increases HP healing provided by Passive abilities, Skills, and Coin effects by 10% per Count. (Max 5)"
     },
     'ego_resource_amp': {
@@ -132,39 +132,39 @@ const STATUS_REGISTRY = {
         description: "All skills lose Final Power by the effect's Count for one turn."
     },
     'attack_power_down': {
-        name: 'Attack Power Down', type: 'negative', mode: 'single',
+        name: 'Attack Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/g69L38F.png',
         description: "Attack skills lose Final Power by the effect's Count for one turn."
     },
     'defense_power_down': {
-        name: 'Defense Power Down', type: 'negative', mode: 'single',
+        name: 'Defense Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/MGdXCaC.png',
         description: "Defense skills lose Final Power by the effect's Count for one turn."
     },
     'clash_power_down': {
-        name: 'Clash Power Down', type: 'negative', mode: 'single',
+        name: 'Clash Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/TppbWXb.png',
         description: "Lose Clash Power by the effect's Count for one turn."
     },
     'offense_level_down': {
-        name: 'Offense Level Down', type: 'negative', mode: 'single',
+        name: 'Offense Level Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/usBnT9m.png',
         description: "Offense level decreases based on the effect's Count for one turn."
     },
     'defense_level_down': {
-        name: 'Defense Level Down', type: 'negative', mode: 'single',
+        name: 'Defense Level Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/C0apZVL.png',
         description: "Defense Level decreases based on the effect's Count for one turn."
     },
     'damage_down': {
-        name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10,
+        name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/bo7reA0.png',
         description: "Deal 10% less damage with skills per Count for one turn. (Max 10)"
     },
     'bind': {
-        name: 'Bind', type: 'negative', mode: 'single',
+        name: 'Bind', type: 'negative', mode: 'single', icon: 'https://imgur.com/QndWew8.png',
         description: "Speed decreases by the effect's Count for one turn."
     },
     'fragile': {
-        name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10,
+        name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/wSFboZT.png',
         description: "Take 10% more damage from skills per Count for one turn. (Max 10)"
     },
     'paralyze': {
-        name: 'Paralyze', type: 'negative', mode: 'single',
+        name: 'Paralyze', type: 'negative', mode: 'single', icon: 'https://imgur.com/9TkO8Ce.png',
         description: "Fix the Power of X Coin(s) to 0 for one turn."
     },
     'plus_coin_drop': {
@@ -176,7 +176,7 @@ const STATUS_REGISTRY = {
         description: "Raise the Power of Minus Coins by the effect's Count for one turn."
     },
     'hp_healing_down': {
-        name: 'HP Healing Down', type: 'negative', mode: 'single',
+        name: 'HP Healing Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/5WYFFVt.png',
         description: "Decreases HP healing provided by Passive abilities, Skills, and Coin effects."
     },
     'poison': {

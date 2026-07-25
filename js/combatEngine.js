@@ -252,7 +252,7 @@ const CombatEngine = {
     resolveSpell: function(spellSkill, target, targetHeadsFlipped) {
         // Genera la tirada de salvación para el objetivo
         let saveSkill = this.createSaveSkill(target, spellSkill.statUsed);
-        let savePower = this.calculateFinalPower(saveSkill, targetHeadsFlipped);
+        let savePower = this.calculateFinalPower(saveSkill, targetHeadsFlipped, target);
 
         let isSuccess = savePower >= spellSkill.saveDC;
 
@@ -274,7 +274,7 @@ const CombatEngine = {
 
         let probDefender = this.getCoinProbability(unitDefender.sp || 0);
         let guardTosses = guardSkill.coins.map(c => c.status === 'active' ? (Math.random() * 100 < probDefender) : true);
-        let guardPower = this.calculateFinalPower(guardSkill, guardTosses);
+        let guardPower = this.calculateFinalPower(guardSkill, guardTosses, unitDefender);
 
         unitDefender.shield = (unitDefender.shield || 0) + guardPower;
 
@@ -326,7 +326,7 @@ const CombatEngine = {
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
 
             let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
-            let attackPower = this.calculateFinalPower(attackSkill, attackTosses);
+            let attackPower = this.calculateFinalPower(attackSkill, attackTosses, unitAttacker);
 
             // current coin toss result (it's the i-th toss basically, if we consider only active ones we need mapping, but let's assume current toss is for current coin)
             // Limbus note: toss result for current coin is attackTosses[i]
@@ -406,13 +406,13 @@ const CombatEngine = {
 
             // Roll Evade
             let evadeTosses = evadeSkill.coins.map(c => c.status === 'active' ? (Math.random() * 100 < probDefender) : true);
-            let evadePower = this.calculateFinalPower(evadeSkill, evadeTosses);
+            let evadePower = this.calculateFinalPower(evadeSkill, evadeTosses, unitDefender);
 
             // Roll Attack (only rolling the current coin + previous coins are usually evaluated as well,
             // but in Evade vs Attack, the attacker usually rolls all their remaining coins for power)
             // Limbus Rule: Attacker rolls ALL active coins for power. We will roll all active/cracked for the attacker.
             let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
-            let attackPower = this.calculateFinalPower(attackSkill, attackTosses);
+            let attackPower = this.calculateFinalPower(attackSkill, attackTosses, unitAttacker);
 
             let log = {
                 evadePower: evadePower,
@@ -530,8 +530,8 @@ const CombatEngine = {
             let tossesA = allUsableA.map(c => c.status === 'active' ? (Math.random() * 100 < probA) : true);
             let tossesB = allUsableB.map(c => c.status === 'active' ? (Math.random() * 100 < probB) : true);
 
-            let powerA = this.calculateFinalPower(skillA, tossesA);
-            let powerB = this.calculateFinalPower(skillB, tossesB);
+            let powerA = this.calculateFinalPower(skillA, tossesA, unitA);
+            let powerB = this.calculateFinalPower(skillB, tossesB, unitB);
 
             let roundWinner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
 
@@ -667,9 +667,9 @@ const CombatEngine = {
         return result;
     },
 
-    resolveRollClash: function(skillA, headsA, skillB, headsB) {
-        let powerA = this.calculateFinalPower(skillA, headsA);
-        let powerB = this.calculateFinalPower(skillB, headsB);
+    resolveRollClash: function(skillA, headsA, skillB, headsB, unitA, unitB) {
+        let powerA = this.calculateFinalPower(skillA, headsA, unitA);
+        let powerB = this.calculateFinalPower(skillB, headsB, unitB);
 
         let winner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
 
@@ -707,9 +707,23 @@ const CombatEngine = {
         };
     },
 
-    calculateFinalPower: function(skill, headsFlipped) {
+    calculateFinalPower: function(skill, headsFlipped, unit = null) {
         if (typeof headsFlipped === 'number') {
-            return skill.basePower + (headsFlipped * skill.coinPower);
+            // No se puede aplicar paralisis de forma secuencial en una tirada agregada sin desglose,
+            // pero para mantener consistencia matematica, si hay paralisis, anulamos X monedas simuladas.
+            let power = skill.basePower;
+            let effectiveHeads = headsFlipped;
+            if (unit && unit.statusEffects && unit.statusEffects['paralyze'] && unit.statusEffects['paralyze'].count > 0) {
+                // Simplificacion para casos donde headsFlipped es un numero entero
+                let paralyzeCount = unit.statusEffects['paralyze'].count;
+                let paralyzedCoins = Math.min(effectiveHeads, paralyzeCount);
+                effectiveHeads -= paralyzedCoins;
+                unit.statusEffects['paralyze'].count -= paralyzedCoins;
+                if (unit.statusEffects['paralyze'].count <= 0) {
+                    delete unit.statusEffects['paralyze'];
+                }
+            }
+            return power + (effectiveHeads * skill.coinPower);
         }
 
         if (Array.isArray(headsFlipped)) {
@@ -722,17 +736,34 @@ const CombatEngine = {
 
                 if (!coin) continue;
 
-                if (coin.status === 'active') {
-                    if (coinResult) {
-                        totalPower += skill.coinPower;
-                    }
+                // Determinar si la moneda salio Cara o es una moneda agrietada (cracked) que actua como Cara
+                let isHeads = false;
+                if (coin.status === 'active' && coinResult) {
+                    isHeads = true;
                 } else if (coin.status === 'cracked') {
-                    // Cracked coins have a fixed base power of 1 or -1 before external modifiers
-                    // In calculateFinalPower context, the coin base is fixed and it acts as an automatic heads
-                    let crackedBasePower = skill.coinPower < 0 ? -1 : 1;
-                    totalPower += crackedBasePower;
-                    // Any external modifiers would be applied after this function,
-                    // as calculateFinalPower only calculates the base + coin power
+                    isHeads = true;
+                }
+
+                // Intercepcion de Paralisis (Paralyze)
+                let powerModifier = 0;
+                if (coin.status === 'active') {
+                    powerModifier = skill.coinPower;
+                } else if (coin.status === 'cracked') {
+                    powerModifier = skill.coinPower < 0 ? -1 : 1;
+                }
+
+                if (isHeads) {
+                    // Si la moneda es Cara, verificar si hay Paralisis activa
+                    if (unit && unit.statusEffects && unit.statusEffects['paralyze'] && unit.statusEffects['paralyze'].count > 0) {
+                        // La Paralisis fuerza el modificador a 0
+                        powerModifier = 0;
+                        // Consumir carga de Paralisis
+                        unit.statusEffects['paralyze'].count--;
+                        if (unit.statusEffects['paralyze'].count <= 0) {
+                            delete unit.statusEffects['paralyze'];
+                        }
+                    }
+                    totalPower += powerModifier;
                 }
             }
             return totalPower;
