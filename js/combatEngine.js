@@ -332,9 +332,9 @@ const CombatEngine = {
             // Limbus note: toss result for current coin is attackTosses[i]
             let isHeads = attackTosses[i];
             if (isHeads) {
-                this.triggerEvent('[Heads Hit]', context, [unitDefender]);
+                this.triggerEvent('[Heads]', context, [unitDefender]);
             } else {
-                this.triggerEvent('[Tails Hit]', context, [unitDefender]);
+                this.triggerEvent('[Tails]', context, [unitDefender]);
             }
 
             result.attackLogs.push({
@@ -875,16 +875,28 @@ const CombatEngine = {
         return Math.floor(base + (hpCoef * level));
     },
 
-    getOffensiveLevel: function(level, skill = {}) {
-        const modifier = skill.offenseModifier || 0;
+    getOffensiveLevel: function(unit, skill = {}) {
+        const baseLevel = unit && unit.level ? unit.level : 1;
+        let statModifier = 0;
+        if (unit && unit.stats && skill && skill.scaling_stat) {
+            statModifier = unit.stats[skill.scaling_stat.toLowerCase()] || 0;
+        } else if (skill.offenseModifier) {
+            statModifier = skill.offenseModifier;
+        }
         const resonanceBonus = skill.resonanceOffenseBonus || 0;
-        return Math.max(1, level + modifier + resonanceBonus);
+        return Math.max(1, baseLevel + statModifier + resonanceBonus);
     },
 
-    getDefensiveLevel: function(level, skillOrPart = {}) {
-        const modifier = skillOrPart.defenseModifier || 0;
+    getDefensiveLevel: function(unit, skillOrPart = {}) {
+        const baseLevel = unit && unit.level ? unit.level : 1;
+        let statModifier = 0;
+        if (unit && unit.stats && skillOrPart && skillOrPart.scaling_stat) {
+            statModifier = unit.stats[skillOrPart.scaling_stat.toLowerCase()] || 0;
+        } else if (skillOrPart.defenseModifier) {
+            statModifier = skillOrPart.defenseModifier;
+        }
         const resonanceBonus = skillOrPart.resonanceDefenseBonus || 0;
-        return Math.max(1, level + modifier + resonanceBonus);
+        return Math.max(1, baseLevel + statModifier + resonanceBonus);
     },
 
     calculateClashBonus: function(skillA, levelA, skillB, levelB) {
@@ -934,8 +946,8 @@ const CombatEngine = {
         let sinMod = this.calculateResistanceModifier(sinRes);
 
         // 2. Modificador de niveles
-        let offLevel = this.getOffensiveLevel(attacker.level || 1, skill);
-        let defLevel = this.getDefensiveLevel(defender.level || 1, defender);
+        let offLevel = this.getOffensiveLevel(attacker, skill);
+        let defLevel = this.getDefensiveLevel(defender, defender);
         let levelMod = (offLevel - defLevel) / (Math.abs(offLevel - defLevel) + 25);
 
         // 3. Modificadores por Crítico y Choque
