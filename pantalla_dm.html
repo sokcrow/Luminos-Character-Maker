@@ -9695,9 +9695,15 @@
               parseFloat(document.getElementById("actor-escala").value) || 1.0;
             const sprite = document.getElementById("actor-sprite").value.trim();
             let icono = document.getElementById("actor-icono").value.trim();
-            const tipo = document.getElementById("actor-tipo-jugador").checked
-              ? "Jugador"
-              : "NPC";
+            const tipo = document.getElementById("actor-tipo") ? document.getElementById("actor-tipo").value : "NPC";
+            const faccion = document.getElementById("actor-faccion") ? document.getElementById("actor-faccion").value.trim() : "";
+            const vinculoJugador = document.getElementById("actor-vinculo-jugador") ? document.getElementById("actor-vinculo-jugador").value : "";
+
+            const etiquetasStr = document.getElementById("actor-etiquetas") ? document.getElementById("actor-etiquetas").value.trim() : "";
+            const etiquetas = etiquetasStr ? etiquetasStr.split(",").map(e => e.trim()).filter(e => e) : [];
+
+            const esCombatiente = document.getElementById("actor-combatiente") ? document.getElementById("actor-combatiente").checked : false;
+            const spriteCombate = document.getElementById("actor-sprite-combate") ? document.getElementById("actor-sprite-combate").value.trim() : "";
 
             if (!nombre || !sprite) {
               alert(
@@ -9744,7 +9750,27 @@
               tipo: tipo,
               sprite: sprite,
               expresiones: expresiones,
+              faccion: faccion,
+              vinculo_jugador: vinculoJugador,
+              etiquetas: etiquetas,
+              es_combatiente: esCombatiente,
+              sprite_combate: spriteCombate,
             };
+
+            if (tipo !== "Jugador") {
+              const hp = parseInt(document.getElementById("actor-hp")?.value) || 0;
+              const sp = parseInt(document.getElementById("actor-sp")?.value) || 0;
+              const vel = parseInt(document.getElementById("actor-vel")?.value) || 0;
+              const atk = parseInt(document.getElementById("actor-atk")?.value) || 0;
+              const ac = parseInt(document.getElementById("actor-ac")?.value) || 0;
+              actorData.combat_stats = {
+                hp: hp,
+                sp: sp,
+                velocidad: vel,
+                atk: atk,
+                ac: ac
+              };
+            }
 
             if (isEditing) {
               db.ref(`campaña/actores/${editModeActorKey}`)
