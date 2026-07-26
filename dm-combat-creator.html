@@ -312,12 +312,12 @@
 
         <div id="module-skills" style="display: none;">
         <!-- Constructor de Skills -->
-        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+        <fieldset id="skill-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
             <legend>Constructor de Skills</legend>
 
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
                 <label style="flex: 1;">ID Habilidad: <input type="text" id="sb-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
-                <label style="flex: 1;">Nombre: <input type="text" id="skill-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Nombre: <input type="text" id="sb-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
             </div>
 
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
@@ -689,7 +689,7 @@
 
         // 4. SAVE DB LOGIC
         function saveSkillToDB() {
-            const name = document.getElementById('skill-name').value;
+            const name = document.getElementById('sb-name').value;
             if(!name) { alert('[!] El nombre de la Habilidad es requerido para guardar.'); return; }
 
             const skillObj = generateSkillObject();
@@ -706,7 +706,7 @@
                 setTimeout(() => container.style.border = originalBorder, 500);
 
                 // Reset form
-                document.getElementById('skill-name').value = '';
+                document.getElementById('sb-name').value = '';
                 document.querySelectorAll('.sin-radio').forEach(el => el.checked = false);
                 document.getElementById('sb-base').value = '4';
                 document.getElementById('sb-coin-power').value = '4';
@@ -992,29 +992,6 @@
             // Trigger initial generation
             document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
 
-            document.getElementById('sb-btn-push-skill').addEventListener('click', () => {
-                try {
-                    const skillObj = generateSkillObject();
-                    const skillsTextarea = document.getElementById('statSkills');
-                    let currentSkills = [];
-                    try {
-                        currentSkills = JSON.parse(skillsTextarea.value);
-                    } catch (e) {
-                        currentSkills = [];
-                    }
-
-                    if (Array.isArray(currentState.mechanics.skills)) {
-                        currentState.mechanics.skills.push(skillObj);
-                    } else {
-                        currentState.mechanics.skills = [skillObj];
-                    }
-                    skillsTextarea.value = JSON.stringify(currentState.mechanics.skills, null, 2);
-
-                    alert(`Habilidad "${skillObj.name}" añadida a la unidad.`);
-                } catch (e) {
-                    alert("Error generando skill JSON.");
-                }
-            });
         }
 
         function switchTab(tabName) {
