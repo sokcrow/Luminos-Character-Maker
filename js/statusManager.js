@@ -457,3 +457,8 @@ const StatusManager = {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { STATUS_REGISTRY, StatusManager };
 }
+
+if (typeof window !== 'undefined') {
+    window.STATUS_REGISTRY = STATUS_REGISTRY;
+    window.StatusManager = StatusManager;
+}
