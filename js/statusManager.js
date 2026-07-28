@@ -64,6 +64,24 @@ const STATUS_REGISTRY = {
         description: "Resource used by certain skills for additional effects."
     },
 
+    // --- INSTANT EFFECTS (HP/SP Recovery & Damage) ---
+    'heal_hp': {
+        name: 'Heal HP', type: 'positive', mode: 'single',
+        description: "Instantly restores HP based on the effect's Potency/Count."
+    },
+    'take_hp_dmg': {
+        name: 'Take HP DMG', type: 'negative', mode: 'single',
+        description: "Instantly takes HP Damage based on the effect's Potency/Count."
+    },
+    'heal_sp': {
+        name: 'Heal SP', type: 'positive', mode: 'single',
+        description: "Instantly restores SP (Sanity) based on the effect's Potency/Count."
+    },
+    'lose_sp': {
+        name: 'Lose SP', type: 'negative', mode: 'single',
+        description: "Instantly loses SP (Sanity) based on the effect's Potency/Count."
+    },
+
     // --- GENERIC BUFFS (Other Buffs) ---
     'power_up': {
         name: 'Power Up', type: 'positive', mode: 'single',
@@ -453,10 +471,6 @@ const StatusManager = {
         }
     }
 };
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { STATUS_REGISTRY, StatusManager };
-}
 
 if (typeof window !== 'undefined') {
     window.STATUS_REGISTRY = STATUS_REGISTRY;

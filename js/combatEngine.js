@@ -498,6 +498,8 @@ const CombatEngine = {
         // [Clash Start]
         this.triggerEvent('[Clash Start]', contextA, [unitB]);
         this.triggerEvent('[Clash Start]', contextB, [unitA]);
+        this.triggerEvent('[Before Clash]', contextA, [unitB]);
+        this.triggerEvent('[Before Clash]', contextB, [unitA]);
 
 
         let round = 1;

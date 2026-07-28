@@ -311,8 +311,11 @@
         </div> <!-- End module-units -->
 
         <div id="module-skills" style="display: none;">
+
+        <button id="btn-start-skill-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;">[ INICIAR NUEVO CONSTRUCTOR DE SKILL ]</button>
+
         <!-- Constructor de Skills -->
-        <fieldset id="skill-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+        <fieldset id="skill-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px; display: none;">
             <legend>Constructor de Skills</legend>
 
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
@@ -321,13 +324,25 @@
             </div>
 
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
-                <label style="flex: 1;">Base Power: <input type="number" id="sb-base" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
-                <label style="flex: 1;">Coin Power: <input type="number" id="sb-coin-power" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">
+                    Base Power: <input type="number" id="sb-base" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">El poder base (mínimo) del ataque.</small>
+                </label>
+                <label style="flex: 1;">
+                    Coin Power: <input type="number" id="sb-coin-power" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">El poder adicional que otorga cada moneda (cara).</small>
+                </label>
             </div>
 
             <div style="display:flex; gap: 5px; margin-bottom: 10px;">
-                <label style="flex: 1;">Coin Count: <input type="number" id="sb-coin-count" value="1" min="1" max="5" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
-                <label style="flex: 1;">Weight: <input type="number" id="sb-weight" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">
+                    Coin Count: <input type="number" id="sb-coin-count" value="1" min="1" max="5" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">Número de monedas (golpes/caras) del ataque.</small>
+                </label>
+                <label style="flex: 1;">
+                    Weight: <input type="number" id="sb-weight" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">A cuántos objetivos golpea (1 es single-target).</small>
+                </label>
             </div>
 
             <!-- Deckbuilding & Equipment -->
@@ -712,6 +727,10 @@
                 document.getElementById('sb-coin-power').value = '4';
                 document.getElementById('sb-coin-count').value = '1';
                 document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+                // Hide builder and show start button again
+                container.style.display = 'none';
+                document.getElementById('btn-start-skill-builder').style.display = 'block';
             });
         }
 
@@ -844,7 +863,7 @@
         function createEffectEditorHtml(isCoinEffect) {
             const triggers = isCoinEffect
                 ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option>`
-                : `<option value="[On Use]">[On Use]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
+                : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
 
             return `
                 <div class="effect-row" style="display:flex; gap: 5px; margin-bottom: 5px; background: #222; padding: 5px; border: 1px solid #444;">
@@ -992,6 +1011,11 @@
             // Trigger initial generation
             document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
 
+            document.getElementById('btn-start-skill-builder').addEventListener('click', () => {
+                const container = document.getElementById('skill-builder-container');
+                container.style.display = 'block';
+                document.getElementById('btn-start-skill-builder').style.display = 'none';
+            });
         }
 
         function switchTab(tabName) {
