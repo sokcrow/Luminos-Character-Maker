@@ -975,15 +975,12 @@
                 count = Math.max(1, count);
 
                 const container = document.getElementById('sb-coins-container');
-                const fragment = document.createDocumentFragment();
                 const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+                const existingBlocks = container.querySelectorAll('.sb-coin-block');
+                const currentCount = existingBlocks.length;
 
-                const existingBlocks = Array.from(container.querySelectorAll('.sb-coin-block'));
-
-                for (let i = 0; i < count; i++) {
-                    if (existingBlocks[i]) {
-                        fragment.appendChild(existingBlocks[i]);
-                    } else {
+                if (count > currentCount) {
+                    for (let i = currentCount; i < count; i++) {
                         const block = document.createElement('div');
                         block.className = 'sb-coin-block';
                         block.style.cssText = 'background: #1a1a1a; padding: 5px; margin-bottom: 5px; border: 1px solid #333;';
@@ -992,20 +989,28 @@
                             <div class="coin-effects-container"></div>
                             <button type="button" class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
                         `;
-                        const effectContainer = block.querySelector('.coin-effects-container');
-                        block.querySelector('.sb-btn-add-coin-effect').addEventListener('click', () => {
-                            effectContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
-                        });
-                        effectContainer.addEventListener('click', (e) => {
-                            if(e.target.classList.contains('eff-remove')) {
-                                e.target.closest('.effect-row').remove();
-                            }
-                        });
-                        fragment.appendChild(block);
+                        container.appendChild(block);
+                    }
+                } else if (count < currentCount) {
+                    for (let i = currentCount - 1; i >= count; i--) {
+                        container.removeChild(existingBlocks[i]);
                     }
                 }
-                container.innerHTML = '';
-                container.appendChild(fragment);
+            });
+
+            // Delegación de eventos para el contenedor de monedas
+            document.getElementById('sb-coins-container').addEventListener('click', (e) => {
+                if (e.target.classList.contains('sb-btn-add-coin-effect')) {
+                    const effectContainer = e.target.closest('.sb-coin-block').querySelector('.coin-effects-container');
+                    if (effectContainer) {
+                        effectContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
+                    }
+                } else if (e.target.classList.contains('eff-remove')) {
+                    const row = e.target.closest('.effect-row');
+                    if (row) {
+                        row.remove();
+                    }
+                }
             });
 
             // Trigger initial generation
@@ -1086,15 +1091,23 @@
             bindInput('uiXSlider', 'visual.uiX', true);
             bindInput('uiYSlider', 'visual.uiY', true);
 
-            bindInput('statHp', 'mechanics.hp', true);
+            if (document.getElementById('statHp')) bindInput('statHp', 'mechanics.hp', true);
+            else if (document.getElementById('unit-hp')) bindInput('unit-hp', 'mechanics.hp', true);
+
             bindInput('statLevel', 'mechanics.level', true);
-            bindInput('statSpeed', 'mechanics.speed');
+
+            if (document.getElementById('statSpeed')) bindInput('statSpeed', 'mechanics.speed');
+            else if (document.getElementById('unit-speed')) bindInput('unit-speed', 'mechanics.speed');
+
             bindInput('statSlots', 'mechanics.actionSlots', true);
             bindInput('statMaxSlots', 'mechanics.maxSlotsLimit', true);
 
-            document.getElementById('statSkills').addEventListener('input', (e) => {
-                try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
-            });
+            const statSkillsEl = document.getElementById('statSkills');
+            if (statSkillsEl) {
+                statSkillsEl.addEventListener('input', (e) => {
+                    try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
+                });
+            }
 
             initSkillBuilder();
 
@@ -1142,21 +1155,23 @@
             currentState = JSON.parse(JSON.stringify(template)); // deep copy
 
             // Update UI inputs
-            document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
-            document.getElementById('isFocusedToggle').checked = currentState.visual.isFocused || false;
+            if (document.getElementById('spriteUrl')) document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
+            if (document.getElementById('isFocusedToggle')) document.getElementById('isFocusedToggle').checked = currentState.visual.isFocused || false;
 
-            document.getElementById('scaleSlider').value = currentState.visual.scale;
-            document.getElementById('spriteXSlider').value = currentState.visual.spriteX;
-            document.getElementById('spriteYSlider').value = currentState.visual.spriteY;
-            document.getElementById('uiXSlider').value = currentState.visual.uiX;
-            document.getElementById('uiYSlider').value = currentState.visual.uiY;
+            if (document.getElementById('scaleSlider')) document.getElementById('scaleSlider').value = currentState.visual.scale;
+            if (document.getElementById('spriteXSlider')) document.getElementById('spriteXSlider').value = currentState.visual.spriteX;
+            if (document.getElementById('spriteYSlider')) document.getElementById('spriteYSlider').value = currentState.visual.spriteY;
+            if (document.getElementById('uiXSlider')) document.getElementById('uiXSlider').value = currentState.visual.uiX;
+            if (document.getElementById('uiYSlider')) document.getElementById('uiYSlider').value = currentState.visual.uiY;
 
-            document.getElementById('statHp').value = currentState.mechanics.hp;
-            document.getElementById('statLevel').value = currentState.mechanics.level;
-            document.getElementById('statSpeed').value = currentState.mechanics.speed;
-            document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
-            document.getElementById('statMaxSlots').value = currentState.mechanics.maxSlotsLimit !== undefined ? currentState.mechanics.maxSlotsLimit : 3;
-            document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
+            if (document.getElementById('statHp')) document.getElementById('statHp').value = currentState.mechanics.hp;
+            else if (document.getElementById('unit-hp')) document.getElementById('unit-hp').value = currentState.mechanics.hp;
+            if (document.getElementById('statLevel')) document.getElementById('statLevel').value = currentState.mechanics.level;
+            if (document.getElementById('statSpeed')) document.getElementById('statSpeed').value = currentState.mechanics.speed;
+            else if (document.getElementById('unit-speed')) document.getElementById('unit-speed').value = currentState.mechanics.speed;
+            if (document.getElementById('statSlots')) document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
+            if (document.getElementById('statMaxSlots')) document.getElementById('statMaxSlots').value = currentState.mechanics.maxSlotsLimit !== undefined ? currentState.mechanics.maxSlotsLimit : 3;
+            if (document.getElementById('statSkills')) document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
 
             // Removed rawSkillEffects loading
 
