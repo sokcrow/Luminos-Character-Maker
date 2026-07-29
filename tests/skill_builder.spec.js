@@ -71,7 +71,9 @@ test('Skill builder UI flow', async ({ page }) => {
     // Interactuar con selectores del efecto 3
     await effect3.locator('.eff-trigger').selectOption('[On Hit]');
     await effect3.locator('.eff-target').selectOption('target');
-    await effect3.locator('.eff-status').selectOption({ label: 'Bleed' });
+    // .eff-status is now a hidden input, select by clicking custom UI
+    await effect3.locator('.eff-status-btn').click();
+    await effect3.locator('.status-list-item[title="Bleed"]').click();
 
     // 5. Clic en [ GUARDAR HABILIDAD EN DB ].
     // Evitamos el alert/redirección en el guardado que podría romper la prueba de playwright, escuchamos la alerta de firebase mock
