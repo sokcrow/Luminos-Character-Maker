@@ -874,8 +874,10 @@
             document.getElementById('sb-is-item-skill').checked = !!skill.isItemSkill;
 
             // Stats
-            const statRadio = document.querySelector(`input[name="sb-scaling-stat"][value="${skill.scaling_stat || 'Fuerza'}"]`);
-            if (statRadio) statRadio.checked = true;
+            if (skill.scaling_stat) {
+                const statRadio = document.querySelector(`input[name="sb-scaling-stat"][value="${skill.scaling_stat}"]`);
+                if (statRadio) statRadio.checked = true;
+            }
 
             // Damage
             const dmgRadio = document.querySelector(`input[name="sb-damage-radio"][value="${skill.tipo_dano || 'contundente'}"]`);
@@ -888,9 +890,12 @@
             // Defense
             const isDefense = !!skill.isDefense;
             document.getElementById('sb-is-defense').checked = isDefense;
-            document.getElementById('sb-is-defense').dispatchEvent(new Event('change'));
+            // First set subtype if it is defense so that change event picks it up correctly
             if (isDefense) {
                 document.getElementById('sb-defense-subtype').value = skill.defenseSubtype || 'Guard';
+            }
+            document.getElementById('sb-is-defense').dispatchEvent(new Event('change'));
+            if (isDefense) {
                 document.getElementById('sb-defense-subtype').dispatchEvent(new Event('change'));
                 document.getElementById('sb-defense-requires-unlock').checked = !!skill.requiresUnlock;
             }
@@ -1595,16 +1600,19 @@
             let selectedStatEl = document.querySelector('input[name="sb-scaling-stat"]:checked');
             let scalingStat = selectedStatEl ? selectedStatEl.value : 'Fuerza';
 
+            const basePowerVal = parseInt(document.getElementById('sb-base').value);
+            const coinPowerVal = parseInt(document.getElementById('sb-coin-power').value);
+
             const skillObj = {
                 id: document.getElementById('sb-id').value || "new_skill",
                 name: document.getElementById('sb-name').value || "New Skill",
-                pecado: isDefense && sinType === '' ? 'sinless' : sinType,
+                pecado: sinType,
                 tipo_dano: damageType,
-                scaling_stat: scalingStat,
+                scaling_stat: isDefense ? null : scalingStat,
                 tier: parseInt(document.getElementById('sb-tier').value) || 1,
                 isItemSkill: document.getElementById('sb-is-item-skill').checked,
-                basePower: parseInt(document.getElementById('sb-base').value) || 0,
-                coinPower: parseInt(document.getElementById('sb-coin-power').value) || 0,
+                basePower: isDefense ? 0 : (isNaN(basePowerVal) ? 0 : basePowerVal),
+                coinPower: isDefense ? 0 : (isNaN(coinPowerVal) ? 0 : coinPowerVal),
                 coinAmount: parseInt(document.getElementById('sb-coin-count').value) || 1,
                 weight: parseInt(document.getElementById('sb-weight').value) || 1,
                 isDefense: isDefense,
@@ -1656,16 +1664,56 @@
                 const subtype = document.getElementById('sb-defense-subtype').value;
                 const kineticContainer = document.getElementById('sb-kinetic-damage-container');
 
+                const baseInput = document.getElementById('sb-base');
+                const coinPowerInput = document.getElementById('sb-coin-power');
+                const coinCountInput = document.getElementById('sb-coin-count');
+                const scalingRadios = document.querySelectorAll('input[name="sb-scaling-stat"]');
+
                 document.getElementById('sb-defense-options').style.display = isDefense ? 'block' : 'none';
 
                 if (isDefense) {
-                    if (subtype === 'Guard' || subtype === 'Evade') {
+                    // Disable inputs and set auto text/values for all defenses
+                    baseInput.disabled = true;
+                    coinPowerInput.disabled = true;
+                    baseInput.type = 'text';
+                    coinPowerInput.type = 'text';
+
+                    const statName = subtype === 'Evade' ? 'Destreza' : 'Constitución';
+                    baseInput.value = `Auto (${statName})`;
+                    coinPowerInput.value = `Auto (${statName})`;
+
+                    scalingRadios.forEach(radio => radio.disabled = true);
+
+                    if (subtype === 'Guard' || subtype === 'ClashableGuard' || subtype === 'Evade') {
                         kineticContainer.style.display = 'none';
+                        coinCountInput.disabled = true;
+                        coinCountInput.value = 1;
+                        // Trigger input event to update coin blocks
+                        coinCountInput.dispatchEvent(new Event('input'));
                     } else {
                         kineticContainer.style.display = 'block';
+                        coinCountInput.disabled = false;
+                        if (coinCountInput.value === '1') {
+                             // Let it be what it was, but we ensure it's not locked
+                        }
                     }
                 } else {
                     kineticContainer.style.display = 'block';
+
+                    // Enable inputs
+                    baseInput.disabled = false;
+                    coinPowerInput.disabled = false;
+                    baseInput.type = 'number';
+                    coinPowerInput.type = 'number';
+
+                    // Restore previous numeric value if possible, else 0
+                    const prevBase = parseInt(baseInput.value);
+                    const prevCoin = parseInt(coinPowerInput.value);
+                    baseInput.value = isNaN(prevBase) ? 0 : prevBase;
+                    coinPowerInput.value = isNaN(prevCoin) ? 0 : prevCoin;
+
+                    coinCountInput.disabled = false;
+                    scalingRadios.forEach(radio => radio.disabled = false);
                 }
             }
 

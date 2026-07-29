@@ -734,10 +734,30 @@ const CombatEngine = {
     },
 
     calculateFinalPower: function(skill, headsFlipped, unit = null) {
+        // Defensive Skill Scaling Intercept
+        let basePowerOverride = null;
+        let coinPowerOverride = null;
+
+        if (skill.isDefense && unit && unit.stats) {
+            if (skill.defenseSubtype === 'Evade') {
+                const dex = unit.stats['destreza'] !== undefined ? unit.stats['destreza'] : 10;
+                basePowerOverride = Math.floor((dex - 10) / 2); // D&D Modifier
+                coinPowerOverride = dex; // Raw Stat
+            } else {
+                // Guard, ClashableGuard, Counter, ClashableCounter use Constitution
+                const con = unit.stats['constitucion'] !== undefined ? unit.stats['constitucion'] : 10;
+                basePowerOverride = Math.floor((con - 10) / 2); // D&D Modifier
+                coinPowerOverride = con; // Raw Stat
+            }
+        }
+
+        const actualBasePower = basePowerOverride !== null ? basePowerOverride : skill.basePower;
+        const actualCoinPower = coinPowerOverride !== null ? coinPowerOverride : skill.coinPower;
+
         if (typeof headsFlipped === 'number') {
             // No se puede aplicar paralisis de forma secuencial en una tirada agregada sin desglose,
             // pero para mantener consistencia matematica, si hay paralisis, anulamos X monedas simuladas.
-            let power = skill.basePower;
+            let power = actualBasePower;
             let effectiveHeads = headsFlipped;
             if (unit && unit.statusEffects && unit.statusEffects['paralyze'] && unit.statusEffects['paralyze'].count > 0) {
                 // Simplificacion para casos donde headsFlipped es un numero entero
@@ -749,11 +769,11 @@ const CombatEngine = {
                     delete unit.statusEffects['paralyze'];
                 }
             }
-            return power + (effectiveHeads * skill.coinPower);
+            return power + (effectiveHeads * actualCoinPower);
         }
 
         if (Array.isArray(headsFlipped)) {
-            let totalPower = skill.basePower;
+            let totalPower = actualBasePower;
             let activeOrCrackedCoins = skill.coins ? skill.coins.filter(c => c.status === 'active' || c.status === 'cracked') : [];
 
             for (let i = 0; i < headsFlipped.length; i++) {
@@ -773,9 +793,9 @@ const CombatEngine = {
                 // Intercepcion de Paralisis (Paralyze)
                 let powerModifier = 0;
                 if (coin.status === 'active') {
-                    powerModifier = skill.coinPower;
+                    powerModifier = actualCoinPower;
                 } else if (coin.status === 'cracked') {
-                    powerModifier = skill.coinPower < 0 ? -1 : 1;
+                    powerModifier = actualCoinPower < 0 ? -1 : 1;
                 }
 
                 if (isHeads) {
@@ -795,7 +815,7 @@ const CombatEngine = {
             return totalPower;
         }
 
-        return skill.basePower;
+        return actualBasePower;
     },
 
     calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
