@@ -314,7 +314,7 @@ const CombatEngine = {
         let defContext = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: attackSkill };
         this.triggerEvent('[Before Getting Hit]', defContext, [unitDefender]);
 
-        let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked');
+        let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked' || c.status === 'latent');
         let probAttacker = this.getCoinProbability(unitAttacker.sp || 0);
 
 
@@ -325,12 +325,24 @@ const CombatEngine = {
 
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
 
-            let attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
-            let attackPower = this.calculateFinalPower(attackSkill, attackTosses, unitAttacker);
+            let attackPower;
+            let isHeads = false;
+            let attackTosses = [];
 
-            // current coin toss result (it's the i-th toss basically, if we consider only active ones we need mapping, but let's assume current toss is for current coin)
-            // Limbus note: toss result for current coin is attackTosses[i]
-            let isHeads = attackTosses[i];
+            if (currentCoin.status === 'latent') {
+                // Latent unbreakable coins deal exactly 1 power
+                attackPower = 1;
+                // Assuming latent coins don't "toss" for mechanics like Heads/Tails triggers (or maybe they always hit heads? We will say they don't toss heads)
+                isHeads = false;
+                attackTosses = activeAttackCoins.map(c => false); // Mock array
+            } else {
+                attackTosses = activeAttackCoins.map(c => c.status === 'active' ? (Math.random() * 100 < probAttacker) : true);
+                attackPower = this.calculateFinalPower(attackSkill, attackTosses, unitAttacker);
+
+                // current coin toss result (it's the i-th toss basically, if we consider only active ones we need mapping, but let's assume current toss is for current coin)
+                // Limbus note: toss result for current coin is attackTosses[i]
+                isHeads = attackTosses[i];
+            }
             if (isHeads) {
                 this.triggerEvent('[Heads]', context, [unitDefender]);
             } else {
@@ -341,6 +353,21 @@ const CombatEngine = {
                 attackPower: attackPower,
                 attackTosses: attackTosses
             });
+
+            // Handle Crashable Guard Mitigation
+            if (options.clashResult === 'Win' && options.mitigationPenalty !== undefined) {
+                // The attacker's power was permanently mitigated by the Clashable Guard for this attack sequence.
+                // Replace attackPower with mitigatedPower if provided. We apply mitigation mathematically.
+                // It makes sense that mitigation reduces the attackPower, not below 0 though.
+                // If it's a completely mitigated hit, attack power would be 0. We'll use Math.max to prevent negative power.
+                // The instructions say "reduce el Poder Final del atacante en una cantidad igual a su propio resultado... para el resto de los golpes secuenciales de ese turno".
+                // Since mitigatedPower was already calculated as max(0, attackerPower - guardPower) in clash resolution,
+                // wait, if we are recalculating power here, we should apply a flat penalty.
+                // Let's modify options to hold mitigationPenalty instead, or just subtract here.
+                if (options.mitigationPenalty) {
+                    attackPower = Math.max(0, attackPower - options.mitigationPenalty);
+                }
+            }
 
             // Apply damage physically to process HP and Stagger states
             let clashCount = options.clashCount || 0; // options.clashCount could be passed if from a clash, else 0
@@ -546,21 +573,18 @@ const CombatEngine = {
                 winner: roundWinner
             });
 
-            // LIFO Coin Destruction Logic
+            // FIFO Coin Destruction Logic (from 'I' to 'V')
             const processLoss = (loserSkill, winnerSkill) => {
-                // Find the last active coin
-                for (let i = loserSkill.coins.length - 1; i >= 0; i--) {
+                // Find the first active coin
+                for (let i = 0; i < loserSkill.coins.length; i++) {
                     if (loserSkill.coins[i].status === 'active') {
                         let loserCoin = loserSkill.coins[i];
                         let winnerActiveCoins = winnerSkill ? winnerSkill.coins.filter(c => c.status === 'active') : [];
                         let winningCoinType = winnerActiveCoins.length > 0 ? winnerActiveCoins[0].type : 'standard';
 
                         if (loserCoin.type === 'unbreakable') {
-                            if (winningCoinType === 'excision') {
-                                loserCoin.status = 'broken';
-                            } else {
-                                loserCoin.status = 'cracked';
-                            }
+                            // Unbreakable Doctrine: Red Coins become 'latent' on clash loss, power reduced to 1 for hit
+                            loserCoin.status = 'latent';
                         } else if (loserCoin.type === 'excision') {
                             loserCoin.status = 'cracked';
                         } else {
@@ -658,8 +682,8 @@ const CombatEngine = {
             // If ClashableGuard loses, calculate mitigated power
             let lastLog = result.clashLogs[result.clashLogs.length - 1];
             let guardPower = result.winner === 'A' ? lastLog.powerB : lastLog.powerA;
-            let attackerPower = result.winner === 'A' ? lastLog.powerA : lastLog.powerB;
-            result.mitigatedPower = Math.max(0, attackerPower - guardPower);
+            // The penalty to the attacker's final power is equal to the guard's final power.
+            result.mitigationPenalty = guardPower;
             result.mitigationApplied = true;
         }
 

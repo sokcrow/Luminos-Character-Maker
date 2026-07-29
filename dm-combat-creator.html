@@ -482,22 +482,24 @@
             </div>
 
             <!-- Kinetic Damage Selector -->
-            <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Tipo de Daño Cinético:</label>
-            <div class="damage-selector">
-                <input type="radio" id="dmg-cortante" name="sb-damage-radio" value="cortante" class="damage-radio" checked>
-                <label for="dmg-cortante" class="damage-label">
-                    <img src="https://imgur.com/Akf25L5.png" alt="Cortante"> Cortante
-                </label>
+            <div id="sb-kinetic-damage-container">
+                <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Tipo de Daño Cinético:</label>
+                <div class="damage-selector">
+                    <input type="radio" id="dmg-cortante" name="sb-damage-radio" value="cortante" class="damage-radio" checked>
+                    <label for="dmg-cortante" class="damage-label">
+                        <img src="https://imgur.com/Akf25L5.png" alt="Cortante"> Cortante
+                    </label>
 
-                <input type="radio" id="dmg-perforante" name="sb-damage-radio" value="perforante" class="damage-radio">
-                <label for="dmg-perforante" class="damage-label">
-                    <img src="https://imgur.com/slcQlpc.png" alt="Perforante"> Perforante
-                </label>
+                    <input type="radio" id="dmg-perforante" name="sb-damage-radio" value="perforante" class="damage-radio">
+                    <label for="dmg-perforante" class="damage-label">
+                        <img src="https://imgur.com/slcQlpc.png" alt="Perforante"> Perforante
+                    </label>
 
-                <input type="radio" id="dmg-contundente" name="sb-damage-radio" value="contundente" class="damage-radio">
-                <label for="dmg-contundente" class="damage-label">
-                    <img src="https://imgur.com/cg8Wh4w.png" alt="Contundente"> Contundente
-                </label>
+                    <input type="radio" id="dmg-contundente" name="sb-damage-radio" value="contundente" class="damage-radio">
+                    <label for="dmg-contundente" class="damage-label">
+                        <img src="https://imgur.com/cg8Wh4w.png" alt="Contundente"> Contundente
+                    </label>
+                </div>
             </div>
 
             <!-- Sin Selector -->
@@ -889,6 +891,7 @@
             document.getElementById('sb-is-defense').dispatchEvent(new Event('change'));
             if (isDefense) {
                 document.getElementById('sb-defense-subtype').value = skill.defenseSubtype || 'Guard';
+                document.getElementById('sb-defense-subtype').dispatchEvent(new Event('change'));
                 document.getElementById('sb-defense-requires-unlock').checked = !!skill.requiresUnlock;
             }
 
@@ -903,7 +906,16 @@
                     row.querySelector('.eff-target').value = eff.target || 'self';
                     row.querySelector('.eff-potency').value = eff.potency || 0;
                     row.querySelector('.eff-count').value = eff.count || 0;
-                                        row.querySelector('.eff-status').value = eff.status || '';
+
+                    const effStatus = eff.status || '';
+                    row.querySelector('.eff-status').value = effStatus;
+                    const statusBtnLabel = row.querySelector('.status-btn-label');
+                    if (effStatus && window.STATUS_REGISTRY && window.STATUS_REGISTRY[effStatus]) {
+                        statusBtnLabel.textContent = window.STATUS_REGISTRY[effStatus].name;
+                    } else {
+                        statusBtnLabel.textContent = 'Select Status';
+                    }
+
                     if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
                         const condContainer = row.querySelector('.cond-container');
                         condContainer.classList.add('active');
@@ -951,17 +963,31 @@
                 const coinContainers = document.querySelectorAll('.sb-coin-block');
                 if (skill.coins && Array.isArray(skill.coins)) {
                     skill.coins.forEach((coin, i) => {
-                        if (coinContainers[i] && coin.effects && Array.isArray(coin.effects)) {
-                            const effContainer = coinContainers[i].querySelector('.coin-effects-container');
-                            effContainer.innerHTML = '';
-                            coin.effects.forEach(eff => {
+                        if (coinContainers[i]) {
+                            const toggleInput = coinContainers[i].querySelector('.sb-coin-nature-toggle');
+                            if (toggleInput) {
+                                toggleInput.checked = (coin.type === 'unbreakable');
+                            }
+                            if (coin.effects && Array.isArray(coin.effects)) {
+                                const effContainer = coinContainers[i].querySelector('.coin-effects-container');
+                                effContainer.innerHTML = '';
+                                coin.effects.forEach(eff => {
                                 effContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
                                 const row = effContainer.lastElementChild;
                                 row.querySelector('.eff-trigger').value = eff.trigger || '[On Hit]';
                                 row.querySelector('.eff-target').value = eff.target || 'target';
                                 row.querySelector('.eff-potency').value = eff.potency || 0;
                                 row.querySelector('.eff-count').value = eff.count || 0;
-                                                    row.querySelector('.eff-status').value = eff.status || '';
+
+                    const effStatusCoin = eff.status || '';
+                    row.querySelector('.eff-status').value = effStatusCoin;
+                    const statusBtnLabelCoin = row.querySelector('.status-btn-label');
+                    if (effStatusCoin && window.STATUS_REGISTRY && window.STATUS_REGISTRY[effStatusCoin]) {
+                        statusBtnLabelCoin.textContent = window.STATUS_REGISTRY[effStatusCoin].name;
+                    } else {
+                        statusBtnLabelCoin.textContent = 'Select Status';
+                    }
+
                     if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
                         const condContainer = row.querySelector('.cond-container');
                         condContainer.classList.add('active');
@@ -998,7 +1024,8 @@
                         }
                     }
 
-                            });
+                                });
+                            }
                         }
                     });
                 }
@@ -1067,6 +1094,21 @@
 
             const sinData = VISUAL_DICT.sins[skill.pecado || 'sinless'] || VISUAL_DICT.sins['sinless'];
             const dmgData = VISUAL_DICT.damage[skill.tipo_dano || 'contundente'] || VISUAL_DICT.damage['contundente'];
+
+            let actionIconUrl = dmgData.url;
+            let showDmgIcon = true;
+            let counterIconHtml = '';
+
+            if (skill.isDefense) {
+                if (skill.defenseSubtype === 'Evade') {
+                    actionIconUrl = 'https://imgur.com/YXyy0mS.png'; // Evade Icon
+                } else if (skill.defenseSubtype === 'Guard') {
+                    actionIconUrl = 'https://imgur.com/c2DI4lM.png'; // Guard Icon
+                } else if (['Counter', 'ClashableCounter', 'ClashableGuard'].includes(skill.defenseSubtype)) {
+                    // Kinetic defensive skills keep damage type, but add Counter icon
+                    counterIconHtml = `<img src="https://imgur.com/dyayioM.png" style="width: 24px; height: 24px; object-fit: contain; margin-left: 4px;" alt="Counter">`;
+                }
+            }
 
             const sinIconHtml = sinData.url ? `<img src="${sinData.url}" style="width: 45px; height: 45px; object-fit: contain;">` : '<div style="width: 45px; height: 45px; border-radius: 50%; border: 2px dashed #888;"></div>';
 
@@ -1173,8 +1215,21 @@
 
             for (let i = 0; i < coinAmount; i++) {
                 const coinData = coinsArr[i] || {};
-                const coinUrl = coinData.type === 'minus' ? 'https://imgur.com/yCxmI84.png' : 'https://imgur.com/yshLPnQ.png';
-                coinsHtml += `<img src="${coinUrl}" style="width: 24px; height: 24px; border-radius: 50%;" alt="coin">`;
+                let coinColor = '#FFD700'; // Default yellow
+                if (coinData.type === 'unbreakable') {
+                    coinColor = '#FF3333'; // Unbreakable Red
+                }
+                const isMinus = skill.coinPower < 0;
+
+                // Instead of using emoji or standard image based just on minus,
+                // we render a styled div to match UI requirements and differentiate Red Coins
+                coinsHtml += `
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: ${coinColor}; display: flex; justify-content: center; align-items: center; border: 1px solid #111; box-shadow: 0 0 3px ${coinColor};">
+                        <div style="width: 18px; height: 18px; border-radius: 50%; background-color: #000; display: flex; justify-content: center; align-items: center; color: ${coinColor}; font-weight: bold; font-size: 14px; line-height: 1;">
+                            ${isMinus ? '-' : '+'}
+                        </div>
+                    </div>
+                `;
             }
 
             const html = `
@@ -1196,7 +1251,8 @@
                         <!-- Poder Base y Daño -->
                         <div class="skill-power" style="margin-top: 10px; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                             ${skill.basePower || 0}
-                            <img src="${dmgData.url}" style="width: 24px; height: 24px; object-fit: contain;" alt="${skill.tipo_dano}">
+                            <img src="${actionIconUrl}" style="width: 24px; height: 24px; object-fit: contain;" alt="Action Type">
+                            ${counterIconHtml}
                             + ${skill.coinPower || 0}
                         </div>
                     </div>
@@ -1365,11 +1421,30 @@
         }
 
                 function generateStatusOptions() {
-            let options = '';
+            let html = '';
             for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
-                options += `<option value="${id}">${data.name}</option>`;
+                const iconHtml = data.icon ? `<img src="${data.icon}" style="width: 14px; height: 14px; margin-right: 4px;">` : `<div style="width: 14px; height: 14px; margin-right: 4px; border-radius: 50%; border: 1px dashed #555;"></div>`;
+                html += `
+                    <div class="stat-grid-item status-list-item" data-val="${id}" title="${data.name}" style="width: 100%; justify-content: flex-start; padding: 4px; height: auto;">
+                        ${iconHtml}
+                        <span style="font-size: 11px;">${data.name}</span>
+                    </div>
+                `;
             }
-            return options;
+            return html;
+        }
+
+        function filterStatusGrid(searchInput, gridItemsContainer) {
+            const query = searchInput.value.toLowerCase().trim();
+            const items = gridItemsContainer.querySelectorAll('.status-list-item');
+            items.forEach(item => {
+                const text = item.getAttribute('title').toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         }
 
         function generateStatGridItems() {
@@ -1414,9 +1489,18 @@
                         <span style="color: #888; font-size: 11px;">Cnt.</span>
                         <input type="number" class="eff-count" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
 
-                        <select class="eff-status" style="background: #222; color: #fff; border: 1px solid #444; flex-grow: 1; max-width: 120px;">
-                            ${generateStatusOptions()}
-                        </select>
+                        <div class="stat-grid-selector status-grid-selector" style="flex-grow: 1; max-width: 150px;">
+                            <button type="button" class="stat-grid-btn eff-status-btn" style="width: 100%; justify-content: space-between;">
+                                <span class="status-btn-label">Select Status</span> ▼
+                            </button>
+                            <input type="hidden" class="eff-status" value="">
+                            <div class="stat-grid-dropdown status-grid-dropdown" style="width: 250px; max-height: 200px; overflow-y: auto;">
+                                <input type="text" class="status-search-input" placeholder="Search..." style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #444; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+                                <div class="status-grid-items">
+                                    ${generateStatusOptions()}
+                                </div>
+                            </div>
+                        </div>
 
                         <button type="button" class="cond-btn btn-toggle-cond">[+ CONDICIÓN / TIEMPO]</button>
 
@@ -1543,8 +1627,18 @@
             const coinContainers = document.querySelectorAll('.sb-coin-block');
             for(let i = 0; i < skillObj.coinAmount; i++) {
                 if (coinContainers[i]) {
+                    const toggleInput = coinContainers[i].querySelector('.sb-coin-nature-toggle');
+                    let coinNature = 'standard';
+                    if (toggleInput && toggleInput.checked) {
+                        coinNature = 'unbreakable';
+                    }
+                    if (isDefense && skillObj.defenseSubtype === 'ClashableGuard') {
+                        coinNature = 'unbreakable'; // Force unbreakable
+                    }
+
                     skillObj.coins.push({
-                        type: 'active',
+                        type: coinNature,
+                        status: 'active',
                         effects: gatherEffects(coinContainers[i].querySelector('.coin-effects-container'))
                     });
                 }
@@ -1557,14 +1651,36 @@
             const addGlobalEffect = bindEffectList('sb-global-effects-container', false);
             document.getElementById('sb-btn-add-global').addEventListener('click', () => addGlobalEffect());
 
+            function updateDefenseVisibility() {
+                const isDefense = document.getElementById('sb-is-defense').checked;
+                const subtype = document.getElementById('sb-defense-subtype').value;
+                const kineticContainer = document.getElementById('sb-kinetic-damage-container');
+
+                document.getElementById('sb-defense-options').style.display = isDefense ? 'block' : 'none';
+
+                if (isDefense) {
+                    if (subtype === 'Guard' || subtype === 'Evade') {
+                        kineticContainer.style.display = 'none';
+                    } else {
+                        kineticContainer.style.display = 'block';
+                    }
+                } else {
+                    kineticContainer.style.display = 'block';
+                }
+            }
+
             document.getElementById('sb-is-defense').addEventListener('change', (e) => {
-                document.getElementById('sb-defense-options').style.display = e.target.checked ? 'block' : 'none';
+                updateDefenseVisibility();
                 if (e.target.checked) {
                     const sinlessRadio = document.querySelector('input[name="sb-sin-radio"][value="sinless"]');
                     if (sinlessRadio) {
                         sinlessRadio.checked = true;
                     }
                 }
+            });
+
+            document.getElementById('sb-defense-subtype').addEventListener('change', () => {
+                updateDefenseVisibility();
             });
 
             document.getElementById('sb-coin-count').addEventListener('input', (e) => {
@@ -1582,7 +1698,12 @@
                         block.className = 'sb-coin-block';
                         block.style.cssText = 'background: #1a1a1a; padding: 5px; margin-bottom: 5px; border: 1px solid #333;';
                         block.innerHTML = `
-                            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #ffdd44;">Moneda ${roman[i] || (i+1)}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <div style="font-size: 11px; font-weight: bold; color: #ffdd44;">Moneda ${roman[i] || (i+1)}</div>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer;">
+                                    <input type="checkbox" class="sb-coin-nature-toggle"> <span style="color:#ff5555; border-bottom: 1px dashed #ff5555;">Unbreakable (Red Coin)</span>
+                                </label>
+                            </div>
                             <div class="coin-effects-container"></div>
                             <button type="button" class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
                         `;
@@ -1598,6 +1719,20 @@
                         // Delegación de eventos para el contenedor de monedas
             document.getElementById('sb-coins-container').addEventListener('click', handleEffectContainerClick);
             document.getElementById('sb-global-effects-container').addEventListener('click', handleEffectContainerClick);
+
+            // Add listener for input on status search
+            document.getElementById('sb-global-effects-container').addEventListener('input', (e) => {
+                if (e.target.classList.contains('status-search-input')) {
+                    const gridItemsContainer = e.target.closest('.status-grid-dropdown');
+                    filterStatusGrid(e.target, gridItemsContainer);
+                }
+            });
+            document.getElementById('sb-coins-container').addEventListener('input', (e) => {
+                if (e.target.classList.contains('status-search-input')) {
+                    const gridItemsContainer = e.target.closest('.status-grid-dropdown');
+                    filterStatusGrid(e.target, gridItemsContainer);
+                }
+            });
 
             function handleEffectContainerClick(e) {
                 if (e.target.classList.contains('sb-btn-add-coin-effect')) {
@@ -1622,6 +1757,27 @@
                         });
                         dropdown.classList.toggle('active');
                     }
+                } else if (e.target.closest('.eff-status-btn')) {
+                    const dropdown = e.target.closest('.status-grid-selector').querySelector('.status-grid-dropdown');
+                    if (dropdown) {
+                        // Close others
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => {
+                            if (d !== dropdown) d.classList.remove('active');
+                        });
+                        dropdown.classList.toggle('active');
+                    }
+                } else if (e.target.closest('.status-list-item')) {
+                    const item = e.target.closest('.status-list-item');
+                    const val = item.getAttribute('data-val');
+                    const selector = item.closest('.status-grid-selector');
+                    selector.querySelector('.eff-status').value = val;
+                    const btnLabel = selector.querySelector('.status-btn-label');
+                    const statusData = window.STATUS_REGISTRY[val];
+                    if (statusData) {
+                        btnLabel.textContent = statusData.name;
+                    }
+                    selector.querySelector('.status-grid-dropdown').classList.remove('active');
+                    if (typeof renderPreview === 'function') renderPreview();
                 } else if (e.target.closest('.stat-item')) {
                     const item = e.target.closest('.stat-item');
                     const val = item.getAttribute('data-val');
@@ -1678,7 +1834,7 @@
                     if (typeof renderPreview === 'function') renderPreview();
                 } else {
                     // Close dropdowns if clicking outside
-                    if (!e.target.closest('.stat-grid-selector')) {
+                    if (!e.target.closest('.stat-grid-selector') && !e.target.closest('.status-grid-selector')) {
                         document.querySelectorAll('.stat-grid-dropdown').forEach(d => d.classList.remove('active'));
                     }
                 }
