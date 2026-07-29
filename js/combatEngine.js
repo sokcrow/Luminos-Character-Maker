@@ -744,10 +744,11 @@ const CombatEngine = {
                 basePowerOverride = Math.floor((dex - 10) / 2); // D&D Modifier
                 coinPowerOverride = dex; // Raw Stat
             } else {
-                // Guard, ClashableGuard, Counter, ClashableCounter use Constitution
-                const con = unit.stats['constitucion'] !== undefined ? unit.stats['constitucion'] : 10;
-                basePowerOverride = Math.floor((con - 10) / 2); // D&D Modifier
-                coinPowerOverride = con; // Raw Stat
+                // Counter, ClashableCounter use Fuerza, Guard, ClashableGuard use Constitución
+                const statKey = (skill.defenseSubtype === 'Counter' || skill.defenseSubtype === 'ClashableCounter') ? 'fuerza' : 'constitucion';
+                const statVal = unit.stats[statKey] !== undefined ? unit.stats[statKey] : 10;
+                basePowerOverride = Math.floor((statVal - 10) / 2); // D&D Modifier
+                coinPowerOverride = statVal; // Raw Stat
             }
         }
 

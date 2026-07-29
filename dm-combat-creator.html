@@ -1678,7 +1678,9 @@
                     baseInput.type = 'text';
                     coinPowerInput.type = 'text';
 
-                    const statName = subtype === 'Evade' ? 'Destreza' : 'Constitución';
+                    const statName = subtype === 'Evade' ? 'Destreza' :
+                                     (subtype === 'Counter' || subtype === 'ClashableCounter') ? 'Fuerza' :
+                                     'Constitución';
                     baseInput.value = `Auto (${statName})`;
                     coinPowerInput.value = `Auto (${statName})`;
 
