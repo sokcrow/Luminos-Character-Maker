@@ -913,7 +913,6 @@
 
                     effectsHtml += `
                         <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
-                            <div class="coin-index" style="border: 1px solid #777; border-radius: 2px; width: 22px; height: 22px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; background: #222;">G</div>
                             <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
                             <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
                             ${statusIcon}
@@ -935,7 +934,14 @@
 
                             effectsHtml += `
                                 <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
-                                    <div class="coin-index" style="border: 1px solid #777; border-radius: 2px; width: 22px; height: 22px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; background: #222;">${roman[index] || (index+1)}</div>
+
+                                    <!-- Índice Heptagonal de la Moneda -->
+                                    <div class="coin-index-border" style="width: 22px; height: 22px; background-color: #FFF; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
+                                        <div class="coin-index-bg" style="width: 18px; height: 18px; background-color: #000; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center; font-size: 0.75rem; color: #FFF; font-weight: bold;">
+                                            ${roman[index] || (index+1)}
+                                        </div>
+                                    </div>
+
                                     <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
                                     <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
                                     ${statusIcon}
@@ -947,43 +953,57 @@
                 });
             }
 
+            let coinsHtml = '';
+            const coinAmount = skill.coinAmount || 1;
+            const coinsArr = skill.coins || [];
+
+            for (let i = 0; i < coinAmount; i++) {
+                const coinData = coinsArr[i] || {};
+                const coinColor = coinData.type === 'minus' ? '#FF3333' : '#FFD700';
+                coinsHtml += `<div style="width: 14px; height: 14px; background-color: ${coinColor}; border-radius: 50%;"></div>`;
+            }
+
             const html = `
                 <!-- Contenedor Principal (Fondo Negro Absoluto) -->
                 <div class="skill-card-preview" style="background-color: #000; color: #fff; display: flex; gap: 20px; padding: 15px; font-family: 'Courier New', Courier, monospace; border: 1px solid #333;">
 
                     <!-- Columna Izquierda: Geometría y Poder Base -->
                     <div class="skill-left" style="display: flex; flex-direction: column; align-items: center; min-width: 100px;">
-                        <!-- Heptágono de Pecado -->
-                        <div class="sin-container" style="width: 80px; height: 80px; background-color: #000; border: 4px solid ${sinData.color}; clip-path: polygon(50% 100%, 0 75%, 0 25%, 50% 0, 100% 25%, 100% 75%); display: flex; justify-content: center; align-items: center;">
-                            ${sinIconHtml}
+
+                        <!-- Heptágono Invertido (Contenedor Exterior para Borde Cyan) -->
+                        <div class="sin-border" style="width: 84px; height: 84px; background-color: ${sinData.color}; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
+                            <!-- Fondo Negro Interior -->
+                            <div class="sin-bg" style="width: 76px; height: 76px; background-color: #000; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
+                                <!-- Ícono de Pecado -->
+                                ${sinIconHtml}
+                            </div>
                         </div>
-                        <!-- Valores de Moneda -->
-                        <div class="skill-power" style="margin-top: 10px; font-size: 1.3rem; font-weight: bold; display: flex; align-items: center; gap: 5px;">
-                            ${skill.basePower || 0} <span class="coin-icon" style="color: #b87333;">🌙</span> +${skill.coinPower || 0}
+
+                        <!-- Poder Base y Daño -->
+                        <div class="skill-power" style="margin-top: 10px; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                            ${skill.basePower || 0}
+                            <img src="${dmgData.url}" style="width: 24px; height: 24px; object-fit: contain;" alt="${skill.tipo_dano}">
+                            + ${skill.coinPower || 0}
                         </div>
                     </div>
 
                     <!-- Columna Derecha: Datos Mecánicos y Activadores -->
                     <div class="skill-right" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
 
-                        <!-- Cabecera: Daño Cinético y Nombre (Banner Inclinado) -->
-                        <div class="skill-header" style="display: flex; align-items: center; gap: 10px;">
-                            <img src="${dmgData.url}" style="width: 28px; height: 28px;" alt="${skill.tipo_dano}">
-                            <!-- Banner con corte diagonal derecho -->
-                            <div class="skill-name-banner" style="background-color: ${sinData.color}; color: #000; padding: 4px 25px 4px 10px; font-weight: 900; font-size: 1.4rem; clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%); letter-spacing: 1px; text-shadow: ${sinData.color === '#FFFF00' ? '1px 1px 0px rgba(255,255,255,0.5)' : 'none'};">
-                                ${skill.name || 'Unnamed Skill'}
-                            </div>
+                        <!-- Íconos de Monedas (Arriba del nombre) -->
+                        <div class="coin-amount-container" style="display: flex; gap: 4px; margin-bottom: -4px;">
+                            ${coinsHtml}
                         </div>
 
-                        <!-- Nivel, Peso y Cantidad -->
-                        <div class="skill-stats" style="display: flex; gap: 15px; font-size: 1rem; color: #ccc;">
-                            <span style="display: flex; align-items: center; gap: 5px;">
-                                ⚔️ Base + Mod. (${skill.scaling_stat})
-                            </span>
-                            <span style="color: #FFD700;">Atk Weight ${skill.weight || 1}</span>
+                        <!-- Nombre de Habilidad con delineado negro -->
+                        <div class="skill-name-banner" style="background-color: ${sinData.color}; padding: 4px 25px 4px 10px; font-weight: 900; font-size: 1.5rem; clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%); letter-spacing: 1px; color: #FFF; -webkit-text-stroke: 1px #000; text-shadow: 1px 1px 0 #000;">
+                            ${skill.name || 'Unnamed Skill'}
                         </div>
-                        <div class="skill-amount" style="font-weight: bold; font-size: 1.1rem;">
-                            Amt. x${skill.coinAmount || 1}
+
+                        <!-- Nivel y Peso (Sin Emojis) -->
+                        <div class="skill-stats" style="display: flex; gap: 15px; font-size: 1rem; color: #ccc;">
+                            <span>Base + Mod. (${skill.scaling_stat || 'Fuerza'})</span>
+                            <span style="color: #FFD700;">Atk Weight ${skill.weight || 1}</span>
                         </div>
 
                         <!-- Lista de Efectos (Coin Triggers) -->
