@@ -911,12 +911,23 @@
                     const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
                     const statusName = statusObj ? statusObj.name : eff.status;
 
+                    const pot = eff.potency || 0;
+                    const cnt = eff.count || 0;
+                    const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
+                    const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
+                    let effectText = '';
+                    if (pot > 0 && cnt > 0) {
+                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    } else if (cnt > 0 && pot === 0) {
+                        effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    } else {
+                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                    }
+
                     effectsHtml += `
                         <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
                             <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
-                            <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
-                            ${statusIcon}
-                            <span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>
+                            ${effectText}
                         </div>
                     `;
                 });
@@ -932,6 +943,19 @@
                             const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
                             const statusName = statusObj ? statusObj.name : eff.status;
 
+                            const pot = eff.potency || 0;
+                            const cnt = eff.count || 0;
+                            const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
+                            const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
+                            let effectText = '';
+                            if (pot > 0 && cnt > 0) {
+                                effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                            } else if (cnt > 0 && pot === 0) {
+                                effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                            } else {
+                                effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                            }
+
                             effectsHtml += `
                                 <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
 
@@ -943,9 +967,7 @@
                                     </div>
 
                                     <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
-                                    <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
-                                    ${statusIcon}
-                                    <span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>
+                                    ${effectText}
                                 </div>
                             `;
                         });
