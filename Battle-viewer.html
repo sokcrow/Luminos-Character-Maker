@@ -332,6 +332,15 @@
         }
         const unit = combatData[data.id];
 
+        // Inicializar secuencias de ataque ocultas en backend
+        unit.attack_tier_1_sequence = unit.attack_tier_1_sequence || [];
+        unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
+        unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
+
+        if (window.CombatEngine && window.CombatEngine.initializeUnitAnimations) {
+            window.CombatEngine.initializeUnitAnimations(unit);
+        }
+
         // Inicializar actionSlots de forma explicita con array si no lo tiene
         if (!unit.slots) {
             unit.slots = Array.from({length: unit.actionSlots || 1}).map((_, i) => ({
@@ -409,7 +418,7 @@
                 ` : ''}
                 
                 <div class="sprite-anchor" id="anchor-${data.id}" style="bottom: ${unit.spriteY || 0}px; margin-left: ${unit.spriteX || 0}px; transform: scale(${unit.scale || 1});">
-                    <img src="${data.img}" class="sprite-img" onerror="this.src='https://via.placeholder.com/200x200/500/fff?text=Error'">
+                    <img src="${unit.current_sprite || data.img}" class="sprite-img" onerror="this.src='https://via.placeholder.com/200x200/500/fff?text=Error'">
                 </div>
 
                 <div class="floating-hp-group">
