@@ -310,13 +310,14 @@
 
         </div> <!-- End module-units -->
 
-        <div id="module-skills" style="display: none;">
+        <div id="module-skills" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);"><div id="ms-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
 
         <button id="btn-start-skill-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;">[ INICIAR NUEVO CONSTRUCTOR DE SKILL ]</button>
 
         <!-- Constructor de Skills -->
         <fieldset id="skill-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px; display: none;">
             <legend>Constructor de Skills</legend>
+            <input type="hidden" id="sb-current-id" value="">
 
             <div style="display:flex; gap: 5px; margin-bottom: 5px;">
                 <label style="flex: 1;">ID Habilidad: <input type="text" id="sb-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
@@ -491,6 +492,19 @@
             </div>
         </fieldset>
 
+        </div> <!-- End ms-left -->
+        <div id="ms-right" style="flex: 1; overflow-y: auto; padding-left: 5px; border-left: 1px solid #444;">
+            <div style="background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; border-radius: 6px; display: flex; flex-direction: column; margin-bottom: 20px;">
+                <div class="dm-header" style="background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; color: #ffdd44; letter-spacing: 1px; text-transform: uppercase;">
+                    Directorio Activo
+                </div>
+                <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <input type="text" id="skill-dir-search" placeholder="Buscar por nombre, daño o pecado..." onkeyup="filterSkillDirectory()" style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #555; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+                    <div id="skill-directory-list" style="overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid #443311; padding: 4px; border-radius: 3px; max-height: 400px; display: flex; flex-direction: column; gap: 4px;">
+                    </div>
+                </div>
+            </div>
+        </div>
 
         </div> <!-- End module-skills -->
 <!-- Buscador -->
@@ -590,7 +604,8 @@
         // 1. TABS LOGIC
         function switchEditorTab(tab) {
             document.getElementById('module-units').style.display = tab === 'units' ? 'block' : 'none';
-            document.getElementById('module-skills').style.display = tab === 'skills' ? 'block' : 'none';
+            document.getElementById('module-skills').style.display = tab === 'skills' ? 'flex' : 'none';
+            document.getElementById('editor-sidebar').style.width = tab === 'skills' ? '750px' : '350px';
 
             document.getElementById('tab-btn-units').className = tab === 'units' ? 'tab-btn active' : 'tab-btn';
             document.getElementById('tab-btn-skills').className = tab === 'skills' ? 'tab-btn active' : 'tab-btn';
@@ -602,7 +617,11 @@
 
             const previewLabel = document.getElementById('editor-preview');
             if (previewLabel) {
-                previewLabel.innerText = tab === 'units' ? 'ENSAMBLAJE DE ENTIDADES' : 'ARCHIVO DE HABILIDADES';
+                if (tab === 'units') {
+                    renderPreview();
+                } else {
+                    previewLabel.innerHTML = '<span style="color: #555; font-size: 24px; font-weight: bold; font-family: \'Bebas Neue\', cursive; border: 2px dashed #555; padding: 20px;">[ SELECCIONA UNA HABILIDAD DEL DIRECTORIO ]</span>';
+                }
             }
         }
 
@@ -708,8 +727,9 @@
             if(!name) { alert('[!] El nombre de la Habilidad es requerido para guardar.'); return; }
 
             const skillObj = generateSkillObject();
+            const currentId = document.getElementById("sb-current-id").value;
             const uuid = Date.now().toString() + "_" + Math.random().toString(36).substring(2, 7);
-            const id = document.getElementById("sb-id").value || "db_skill_" + uuid;
+            const id = currentId || document.getElementById("sb-id").value || "db_skill_" + uuid;
             skillObj.id = id;
             skillObj.name = name;
 
@@ -722,16 +742,99 @@
 
                 // Reset form
                 document.getElementById('sb-name').value = '';
+                document.getElementById('sb-id').value = '';
+                document.getElementById('sb-current-id').value = '';
                 document.querySelectorAll('.sin-radio').forEach(el => el.checked = false);
+                const wrathRadio = document.getElementById('sin-wrath');
+                if(wrathRadio) wrathRadio.checked = true;
+
                 document.getElementById('sb-base').value = '4';
                 document.getElementById('sb-coin-power').value = '4';
                 document.getElementById('sb-coin-count').value = '1';
                 document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
 
+                document.getElementById('sb-global-effects-container').innerHTML = '';
+
                 // Hide builder and show start button again
                 container.style.display = 'none';
                 document.getElementById('btn-start-skill-builder').style.display = 'block';
             });
+        }
+
+        function loadSkillIntoForm(skill) {
+            document.getElementById('btn-start-skill-builder').style.display = 'none';
+            document.getElementById('skill-builder-container').style.display = 'block';
+
+            document.getElementById('sb-current-id').value = skill.id || '';
+            document.getElementById('sb-id').value = skill.id || '';
+            document.getElementById('sb-name').value = skill.name || '';
+            document.getElementById('sb-base').value = skill.basePower || 0;
+            document.getElementById('sb-coin-power').value = skill.coinPower || 0;
+            document.getElementById('sb-coin-count').value = skill.coinAmount || 1;
+            document.getElementById('sb-weight').value = skill.weight || 1;
+            document.getElementById('sb-tier').value = skill.tier || 1;
+            document.getElementById('sb-is-item-skill').checked = !!skill.isItemSkill;
+
+            // Stats
+            const statRadio = document.querySelector(`input[name="sb-scaling-stat"][value="${skill.scaling_stat || 'Fuerza'}"]`);
+            if (statRadio) statRadio.checked = true;
+
+            // Damage
+            const dmgRadio = document.querySelector(`input[name="sb-damage-radio"][value="${skill.tipo_dano || 'contundente'}"]`);
+            if (dmgRadio) dmgRadio.checked = true;
+
+            // Sin
+            const sinRadio = document.querySelector(`input[name="sb-sin-radio"][value="${skill.pecado || 'sinless'}"]`);
+            if (sinRadio) sinRadio.checked = true;
+
+            // Defense
+            const isDefense = !!skill.isDefense;
+            document.getElementById('sb-is-defense').checked = isDefense;
+            document.getElementById('sb-is-defense').dispatchEvent(new Event('change'));
+            if (isDefense) {
+                document.getElementById('sb-defense-subtype').value = skill.defenseSubtype || 'Guard';
+                document.getElementById('sb-defense-requires-unlock').checked = !!skill.requiresUnlock;
+            }
+
+            // Global Effects
+            const globalContainer = document.getElementById('sb-global-effects-container');
+            globalContainer.innerHTML = '';
+            if (skill.effects && Array.isArray(skill.effects)) {
+                skill.effects.forEach(eff => {
+                    globalContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(false));
+                    const row = globalContainer.lastElementChild;
+                    row.querySelector('.eff-trigger').value = eff.trigger || '[On Use]';
+                    row.querySelector('.eff-target').value = eff.target || 'self';
+                    row.querySelector('.eff-potency').value = eff.potency || 0;
+                    row.querySelector('.eff-count').value = eff.count || 0;
+                    row.querySelector('.eff-status').value = eff.status || '';
+                });
+            }
+
+            // Trigger coin regeneration
+            document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+            // Wait a tick for DOM to update
+            setTimeout(() => {
+                const coinContainers = document.querySelectorAll('.sb-coin-block');
+                if (skill.coins && Array.isArray(skill.coins)) {
+                    skill.coins.forEach((coin, i) => {
+                        if (coinContainers[i] && coin.effects && Array.isArray(coin.effects)) {
+                            const effContainer = coinContainers[i].querySelector('.coin-effects-container');
+                            effContainer.innerHTML = '';
+                            coin.effects.forEach(eff => {
+                                effContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
+                                const row = effContainer.lastElementChild;
+                                row.querySelector('.eff-trigger').value = eff.trigger || '[On Hit]';
+                                row.querySelector('.eff-target').value = eff.target || 'target';
+                                row.querySelector('.eff-potency').value = eff.potency || 0;
+                                row.querySelector('.eff-count').value = eff.count || 0;
+                                row.querySelector('.eff-status').value = eff.status || '';
+                            });
+                        }
+                    });
+                }
+            }, 50);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -772,6 +875,181 @@
 
         let unitActionSlots = [];
         let allGlobalSkills = {};
+
+        const VISUAL_DICT = {
+            sins: {
+                wrath: { url: "https://imgur.com/Nn33MJR.png", color: "#FF0000" },
+                lust: { url: "https://imgur.com/bF7bHHT.png", color: "#FFA500" },
+                sloth: { url: "https://imgur.com/igYFF1I.png", color: "#FFFF00" },
+                gluttony: { url: "https://imgur.com/0KArwDU.png", color: "#008000" },
+                gloom: { url: "https://imgur.com/DCTX5Jy.png", color: "#00FFFF" },
+                pride: { url: "https://imgur.com/w6z9THA.png", color: "#4169E1" },
+                envy: { url: "https://imgur.com/SuNHY9D.png", color: "#800080" },
+                sinless: { url: "", color: "#555555" }
+            },
+            damage: {
+                cortante: { url: "https://imgur.com/Akf25L5.png" },
+                perforante: { url: "https://imgur.com/slcQlpc.png" },
+                contundente: { url: "https://imgur.com/cg8Wh4w.png" }
+            }
+        };
+
+        function renderSkillCard(skill) {
+            const previewContainer = document.getElementById("editor-preview");
+
+            const sinData = VISUAL_DICT.sins[skill.pecado || 'sinless'] || VISUAL_DICT.sins['sinless'];
+            const dmgData = VISUAL_DICT.damage[skill.tipo_dano || 'contundente'] || VISUAL_DICT.damage['contundente'];
+
+            const sinIconHtml = sinData.url ? `<img src="${sinData.url}" style="width: 45px; height: 45px; object-fit: contain;">` : '<div style="width: 45px; height: 45px; border-radius: 50%; border: 2px dashed #888;"></div>';
+
+            let effectsHtml = '';
+
+            // Global Effects
+            if (skill.effects && Array.isArray(skill.effects)) {
+                skill.effects.forEach((eff) => {
+                    const statusObj = window.STATUS_REGISTRY ? window.STATUS_REGISTRY[eff.status] : null;
+                    const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
+                    const statusName = statusObj ? statusObj.name : eff.status;
+
+                    effectsHtml += `
+                        <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                            <div class="coin-index" style="border: 1px solid #777; border-radius: 2px; width: 22px; height: 22px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; background: #222;">G</div>
+                            <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                            <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
+                            ${statusIcon}
+                            <span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Coin Effects
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+            if (skill.coins && Array.isArray(skill.coins)) {
+                skill.coins.forEach((coin, index) => {
+                    if (coin.effects && Array.isArray(coin.effects)) {
+                        coin.effects.forEach((eff) => {
+                            const statusObj = window.STATUS_REGISTRY ? window.STATUS_REGISTRY[eff.status] : null;
+                            const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
+                            const statusName = statusObj ? statusObj.name : eff.status;
+
+                            effectsHtml += `
+                                <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                                    <div class="coin-index" style="border: 1px solid #777; border-radius: 2px; width: 22px; height: 22px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; background: #222;">${roman[index] || (index+1)}</div>
+                                    <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                                    <span>${eff.target === 'self' ? 'Gain' : 'Inflict'} ${eff.potency || ''}${eff.count ? '/' + eff.count : ''}</span>
+                                    ${statusIcon}
+                                    <span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+            }
+
+            const html = `
+                <!-- Contenedor Principal (Fondo Negro Absoluto) -->
+                <div class="skill-card-preview" style="background-color: #000; color: #fff; display: flex; gap: 20px; padding: 15px; font-family: 'Courier New', Courier, monospace; border: 1px solid #333;">
+
+                    <!-- Columna Izquierda: Geometría y Poder Base -->
+                    <div class="skill-left" style="display: flex; flex-direction: column; align-items: center; min-width: 100px;">
+                        <!-- Heptágono de Pecado -->
+                        <div class="sin-container" style="width: 80px; height: 80px; background-color: #000; border: 4px solid ${sinData.color}; clip-path: polygon(50% 100%, 0 75%, 0 25%, 50% 0, 100% 25%, 100% 75%); display: flex; justify-content: center; align-items: center;">
+                            ${sinIconHtml}
+                        </div>
+                        <!-- Valores de Moneda -->
+                        <div class="skill-power" style="margin-top: 10px; font-size: 1.3rem; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                            ${skill.basePower || 0} <span class="coin-icon" style="color: #b87333;">🌙</span> +${skill.coinPower || 0}
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Datos Mecánicos y Activadores -->
+                    <div class="skill-right" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+
+                        <!-- Cabecera: Daño Cinético y Nombre (Banner Inclinado) -->
+                        <div class="skill-header" style="display: flex; align-items: center; gap: 10px;">
+                            <img src="${dmgData.url}" style="width: 28px; height: 28px;" alt="${skill.tipo_dano}">
+                            <!-- Banner con corte diagonal derecho -->
+                            <div class="skill-name-banner" style="background-color: ${sinData.color}; color: #000; padding: 4px 25px 4px 10px; font-weight: 900; font-size: 1.4rem; clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%); letter-spacing: 1px; text-shadow: ${sinData.color === '#FFFF00' ? '1px 1px 0px rgba(255,255,255,0.5)' : 'none'};">
+                                ${skill.name || 'Unnamed Skill'}
+                            </div>
+                        </div>
+
+                        <!-- Nivel, Peso y Cantidad -->
+                        <div class="skill-stats" style="display: flex; gap: 15px; font-size: 1rem; color: #ccc;">
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                ⚔️ Base + Mod. (${skill.scaling_stat})
+                            </span>
+                            <span style="color: #FFD700;">Atk Weight ${skill.weight || 1}</span>
+                        </div>
+                        <div class="skill-amount" style="font-weight: bold; font-size: 1.1rem;">
+                            Amt. x${skill.coinAmount || 1}
+                        </div>
+
+                        <!-- Lista de Efectos (Coin Triggers) -->
+                        <div class="coin-effects-list" style="margin-top: 5px; display: flex; flex-direction: column; gap: 4px;">
+                            ${effectsHtml}
+                        </div>
+
+                    </div>
+                </div>
+            `;
+
+            previewContainer.innerHTML = html;
+        }
+
+        function listenToSkillDirectory() {
+            db.ref('campaña/base_datos_skills/').on('value', (snap) => {
+                allGlobalSkills = snap.val() || {};
+                filterSkillDirectory();
+            });
+        }
+
+        function filterSkillDirectory() {
+            const query = (document.getElementById('skill-dir-search').value || '').toLowerCase().trim();
+            const listContainer = document.getElementById('skill-directory-list');
+            listContainer.innerHTML = '';
+
+            Object.entries(allGlobalSkills).forEach(([id, skill]) => {
+                const name = (skill.name || '').toLowerCase();
+                const damage = (skill.tipo_dano || '').toLowerCase();
+                const sin = (skill.pecado || '').toLowerCase();
+
+                if (name.includes(query) || damage.includes(query) || sin.includes(query)) {
+                    const row = document.createElement('div');
+                    row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: #222; padding: 6px; border: 1px solid #443311;";
+
+                    const info = document.createElement('div');
+                    info.style.cssText = "display: flex; flex-direction: column; cursor: pointer; flex-grow: 1;";
+                    info.innerHTML = `<strong style="color: #00FFFF; font-size: 13px;">${skill.name}</strong><span style="color: #aaa; font-size: 10px;">${skill.tipo_dano} | ${skill.pecado}</span>`;
+                    info.onclick = () => { renderSkillCard(skill); };
+
+                    const actions = document.createElement('div');
+                    actions.style.cssText = "display: flex; gap: 4px;";
+
+                    const btnEdit = document.createElement('button');
+                    btnEdit.innerText = "[ EDITAR ]";
+                    btnEdit.style.cssText = "background: #c49a00; color: #000; border: none; font-size: 10px; font-weight: bold; cursor: pointer; padding: 2px 5px;";
+                    btnEdit.onclick = () => { loadSkillIntoForm(skill); };
+
+                    const btnDel = document.createElement('button');
+                    btnDel.innerText = "[ BORRAR ]";
+                    btnDel.style.cssText = "background: #8a0303; color: #fff; border: none; font-size: 10px; font-weight: bold; cursor: pointer; padding: 2px 5px;";
+                    btnDel.onclick = () => {
+                        if(confirm("¿Purgar " + skill.name + " de la base de datos?")) {
+                            db.ref('campaña/base_datos_skills/' + id).remove();
+                        }
+                    };
+
+                    actions.appendChild(btnEdit);
+                    actions.appendChild(btnDel);
+
+                    row.appendChild(info);
+                    row.appendChild(actions);
+                    listContainer.appendChild(row);
+                }
+            });
+        }
 
 
         let currentState = {
@@ -1067,6 +1345,7 @@
 
         function initEditor() {
             console.log("DM Autenticado. Editor Inicializado.");
+            listenToSkillDirectory();
 
             // Inputs binding
             const bindInput = (id, statePath, isNumber = false) => {
