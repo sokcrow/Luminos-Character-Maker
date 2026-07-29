@@ -7,6 +7,27 @@ const RESONANCE_BONUS = {
 const CombatEngine = {
 // 0. Habilidades y Poder (Skills)
     // 0.5 Helper D&D
+    // 0.4 Initialization Helpers
+    initializeUnitAnimations: function(unit) {
+        if (!unit) return;
+
+        // Ensure visual animation state variables exist
+        unit.idle_sprite = unit.idle_sprite || unit.img || '';
+        unit.moving_sprite = unit.moving_sprite || '';
+        unit.guard_sprite = unit.guard_sprite || '';
+        unit.evade_sprite = unit.evade_sprite || '';
+        unit.hurt_sprite = unit.hurt_sprite || '';
+        unit.dead_sprite = unit.dead_sprite || '';
+
+        // Ensure attack sequence architecture arrays exist
+        unit.attack_tier_1_sequence = unit.attack_tier_1_sequence || [];
+        unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
+        unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
+
+        // At runtime, default current sprite to idle
+        unit.current_sprite = unit.idle_sprite;
+    },
+
     calculateResonance: function(actionQueue) {
         if (!actionQueue || actionQueue.length === 0) return;
 
@@ -268,6 +289,9 @@ const CombatEngine = {
     },
 
     resolveGuard: function(unitDefender, guardSkill) {
+        if (unitDefender && unitDefender.guard_sprite) {
+            unitDefender.current_sprite = unitDefender.guard_sprite;
+        }
         if (!guardSkill.coins) {
             guardSkill.coins = Array.from({length: guardSkill.coinAmount}, () => ({ type: guardSkill.coinType || 'standard', status: 'active' }));
         }
@@ -409,6 +433,9 @@ const CombatEngine = {
     },
 
     resolveEvade: function(unitDefender, evadeSkill, unitAttacker, attackSkill) {
+        if (unitDefender && unitDefender.evade_sprite) {
+            unitDefender.current_sprite = unitDefender.evade_sprite;
+        }
         let result = {
             evadeLogs: [],
             evadeDestroyed: false,
@@ -857,6 +884,10 @@ const CombatEngine = {
 
 // 0.8 Event-Driven System (Hooks)
     triggerEvent: function(tag, context, targetsHit = []) {
+        if (context && context.unitAttacker && context.unitAttacker.moving_sprite && (tag === '[On Attack]' || tag === '[Clash Start]')) {
+            context.unitAttacker.current_sprite = context.unitAttacker.moving_sprite;
+        }
+
         if (!context || !context.skill) return;
 
         // Collect all effects that match the tag from the skill root
@@ -893,6 +924,10 @@ const CombatEngine = {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
+            // Restore idle sprite on certain phases if not dead
+            if (unit.hp > 0 && unit.idle_sprite && (phaseTag === '[Phase Start]' || phaseTag === '[Round Start]')) {
+                unit.current_sprite = unit.idle_sprite;
+            }
             // Unidades pueden tener efectos pasivos en root (skills pasivas, equipamiento)
             // que queremos disparar aquí. Asumimos que unit.passives es un arreglo de habilidades/efectos.
             if (!unit.passives) continue;
@@ -1057,6 +1092,11 @@ const CombatEngine = {
 
     // 2. Sistema de Escudos (Shield) y Daño (Aplicación)
     applyDamage: function(unit, damage, tipoDaño = 'directo', isCritical = false, skillUsed = null) {
+        if (unit.hurt_sprite) {
+            unit.current_sprite = unit.hurt_sprite;
+            // Un motor real de animaciones regresaría esto a idle con un timeout o trigger,
+            // pero por ahora el modelo dicta mapear la lógica base
+        }
         // Híbrido D&D: Si la habilidad es Spell o Roll, no se aplica daño automático.
         if (skillUsed && (skillUsed.type === 'Spell' || skillUsed.type === 'Roll' || skillUsed.type === 'Save')) {
             return { hp: unit.hp, shield: unit.shield, message: 'Daño automático omitido por tipo de habilidad (Spell/Roll).' };
@@ -1115,6 +1155,10 @@ const CombatEngine = {
     },
 
     checkStagger: function(unit) {
+        if (unit.hp <= 0 && unit.dead_sprite) {
+            unit.current_sprite = unit.dead_sprite;
+        }
+
         if (!unit.staggerThresholds || unit.staggerThresholds.length === 0) return;
         if (!unit.maxHp || unit.maxHp <= 0) return;
 

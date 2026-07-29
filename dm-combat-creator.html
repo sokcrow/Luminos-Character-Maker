@@ -335,6 +335,24 @@
             <label style="display:block; margin-bottom: 5px;">URL de Sprite:
                 <input type="text" id="spriteUrl" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
             </label>
+            <label style="display:block; margin-bottom: 5px;">Idle Sprite:
+                <input type="text" id="idle_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Moving Sprite:
+                <input type="text" id="moving_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Guard Sprite:
+                <input type="text" id="guard_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Evade Sprite:
+                <input type="text" id="evade_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Hurt Sprite:
+                <input type="text" id="hurt_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Dead Sprite:
+                <input type="text" id="dead_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
             <label style="display:flex; justify-content: space-between; margin-bottom: 5px;">Focused Encounter:
                 <input type="checkbox" id="isFocusedToggle">
             </label>
@@ -1052,7 +1070,10 @@
                         linkedPlayerUID: document.getElementById('metaLinkedNpc').value,
                         tags: document.getElementById('metaTags').value.split(',').map(s => s.trim()),
                         visual: currentState.visual,
-                        action_slots: unitActionSlots
+                        action_slots: unitActionSlots,
+                        attack_tier_1_sequence: [],
+                        attack_tier_2_sequence: [],
+                        attack_tier_3_sequence: []
                     };
 
                     if (!isPlayer) {
@@ -1350,6 +1371,12 @@
         let currentState = {
             visual: {
                 spriteUrl: "",
+                idle_sprite: "",
+                moving_sprite: "",
+                guard_sprite: "",
+                evade_sprite: "",
+                hurt_sprite: "",
+                dead_sprite: "",
                 scale: 1.0,
                 spriteX: 0,
                 spriteY: 0,
@@ -1962,6 +1989,12 @@
             };
 
             bindInput('spriteUrl', 'visual.spriteUrl');
+            bindInput('idle_sprite', 'visual.idle_sprite');
+            bindInput('moving_sprite', 'visual.moving_sprite');
+            bindInput('guard_sprite', 'visual.guard_sprite');
+            bindInput('evade_sprite', 'visual.evade_sprite');
+            bindInput('hurt_sprite', 'visual.hurt_sprite');
+            bindInput('dead_sprite', 'visual.dead_sprite');
             bindInput('isFocusedToggle', 'visual.isFocused');
             bindInput('scaleSlider', 'visual.scale', true);
             bindInput('spriteXSlider', 'visual.spriteX', true);
@@ -2034,6 +2067,12 @@
 
             // Update UI inputs
             if (document.getElementById('spriteUrl')) document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
+            if (document.getElementById('idle_sprite')) document.getElementById('idle_sprite').value = currentState.visual.idle_sprite || '';
+            if (document.getElementById('moving_sprite')) document.getElementById('moving_sprite').value = currentState.visual.moving_sprite || '';
+            if (document.getElementById('guard_sprite')) document.getElementById('guard_sprite').value = currentState.visual.guard_sprite || '';
+            if (document.getElementById('evade_sprite')) document.getElementById('evade_sprite').value = currentState.visual.evade_sprite || '';
+            if (document.getElementById('hurt_sprite')) document.getElementById('hurt_sprite').value = currentState.visual.hurt_sprite || '';
+            if (document.getElementById('dead_sprite')) document.getElementById('dead_sprite').value = currentState.visual.dead_sprite || '';
             if (document.getElementById('isFocusedToggle')) document.getElementById('isFocusedToggle').checked = currentState.visual.isFocused || false;
 
             if (document.getElementById('scaleSlider')) document.getElementById('scaleSlider').value = currentState.visual.scale;
