@@ -193,7 +193,103 @@
             font-family: sans-serif;
             opacity: 0.8;
         }
-    </style>
+
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Condition/Timing Controls */
+        .cond-btn {
+            background: #221100;
+            border: 1px solid #442200;
+            color: #cc8833;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-family: monospace;
+            transition: all 0.2s;
+        }
+        .cond-btn:hover { background: #442200; color: #ffaa33; }
+        .cond-container {
+            display: none;
+            background: #110800;
+            border: 1px solid #331a00;
+            padding: 5px;
+            margin-top: 5px;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .cond-container.active { display: flex; }
+
+        .stat-grid-selector {
+            position: relative;
+            display: inline-block;
+        }
+        .stat-grid-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stat-grid-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #111;
+            border: 1px solid #444;
+            padding: 5px;
+            z-index: 50;
+            width: 150px;
+        }
+        .stat-grid-dropdown.active { display: block; }
+        .stat-grid-section { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 5px; }
+        .stat-grid-item {
+            width: 24px; height: 24px;
+            background: #222; border: 1px solid #333;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; font-size: 10px; font-weight: bold; color: #888;
+        }
+        .stat-grid-item:hover { background: #444; color: white; border-color: #666; }
+        .stat-grid-item img { width: 16px; height: 16px; object-fit: contain; }
+
+        .math-op-group { display: flex; gap: 2px; }
+        .math-op-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            width: 20px; height: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-family: monospace; font-weight: bold;
+        }
+        .math-op-btn.active { background: #442200; border-color: #cc8833; color: #ffaa33; }
+        .math-op-btn:hover { background: #333; }
+
+        .cond-val-input { width: 30px; background: #222; border: 1px solid #444; color: #ccc; text-align: center; font-family: monospace; padding: 2px; }
+
+        .timing-group { display: flex; gap: 2px; margin-left: auto; }
+        .timing-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            padding: 2px 6px; font-size: 10px; cursor: pointer; text-transform: uppercase;
+        }
+        .timing-btn.active { background: #002244; border-color: #3388cc; color: #3388cc; }
+        .timing-btn:hover { background: #333; }
+        .target-toggle-group .target-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            padding: 2px 6px; font-size: 10px; cursor: pointer; text-transform: uppercase; font-family: monospace;
+        }
+        .target-toggle-group .target-btn.active { background: #440000; border-color: #ff3333; color: #ff3333; }
+        .target-toggle-group .target-btn:hover { background: #333; }
+
+</style>
 </head>
 <body>
     <div id="editor-preview" style="flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative;">
@@ -807,7 +903,43 @@
                     row.querySelector('.eff-target').value = eff.target || 'self';
                     row.querySelector('.eff-potency').value = eff.potency || 0;
                     row.querySelector('.eff-count').value = eff.count || 0;
-                    row.querySelector('.eff-status').value = eff.status || '';
+                                        row.querySelector('.eff-status').value = eff.status || '';
+                    if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
+                        const condContainer = row.querySelector('.cond-container');
+                        condContainer.classList.add('active');
+                        if (eff.condition) {
+                            const targetVal = eff.condition.target || 'target';
+                            condContainer.querySelector('.cond-target').value = targetVal;
+                            condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                            const statVal = eff.condition.stat || 'HP';
+                            condContainer.querySelector('.cond-stat').value = statVal;
+                            // Update label
+                            const btnLabel = condContainer.querySelector('.stat-btn-label');
+                            if (statVal === 'HP' || statVal === 'SP') {
+                                btnLabel.textContent = statVal;
+                            } else {
+                                const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                                if (item) {
+                                    btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
+                                }
+                            }
+
+                            const opVal = eff.condition.operator || 'equal to';
+                            condContainer.querySelector('.cond-operator').value = opVal;
+                            condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                            condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+                        }
+                        if (eff.timing) {
+                            condContainer.querySelector('.cond-timing').value = eff.timing;
+                            condContainer.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                        }
+                    }
+
                 });
             }
 
@@ -829,7 +961,43 @@
                                 row.querySelector('.eff-target').value = eff.target || 'target';
                                 row.querySelector('.eff-potency').value = eff.potency || 0;
                                 row.querySelector('.eff-count').value = eff.count || 0;
-                                row.querySelector('.eff-status').value = eff.status || '';
+                                                    row.querySelector('.eff-status').value = eff.status || '';
+                    if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
+                        const condContainer = row.querySelector('.cond-container');
+                        condContainer.classList.add('active');
+                        if (eff.condition) {
+                            const targetVal = eff.condition.target || 'target';
+                            condContainer.querySelector('.cond-target').value = targetVal;
+                            condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                            const statVal = eff.condition.stat || 'HP';
+                            condContainer.querySelector('.cond-stat').value = statVal;
+                            // Update label
+                            const btnLabel = condContainer.querySelector('.stat-btn-label');
+                            if (statVal === 'HP' || statVal === 'SP') {
+                                btnLabel.textContent = statVal;
+                            } else {
+                                const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                                if (item) {
+                                    btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
+                                }
+                            }
+
+                            const opVal = eff.condition.operator || 'equal to';
+                            condContainer.querySelector('.cond-operator').value = opVal;
+                            condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                            condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+                        }
+                        if (eff.timing) {
+                            condContainer.querySelector('.cond-timing').value = eff.timing;
+                            condContainer.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                            condContainer.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                        }
+                    }
+
                             });
                         }
                     });
@@ -915,6 +1083,17 @@
                     const cnt = eff.count || 0;
                     const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
                     const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
+
+                    let conditionText = '';
+                    if (eff.condition) {
+                        conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                    }
+
+                    let timingText = '';
+                    if (eff.timing === 'next_turn') {
+                        timingText = ` <span>next turn</span>`;
+                    }
+
                     let effectText = '';
                     if (pot > 0 && cnt > 0) {
                         effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
@@ -927,7 +1106,9 @@
                     effectsHtml += `
                         <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
                             <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                            ${conditionText}
                             ${effectText}
+                            ${timingText}
                         </div>
                     `;
                 });
@@ -944,32 +1125,43 @@
                             const statusName = statusObj ? statusObj.name : eff.status;
 
                             const pot = eff.potency || 0;
-                            const cnt = eff.count || 0;
-                            const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
-                            const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
-                            let effectText = '';
-                            if (pot > 0 && cnt > 0) {
-                                effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
-                            } else if (cnt > 0 && pot === 0) {
-                                effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
-                            } else {
-                                effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
-                            }
+                    const cnt = eff.count || 0;
+                    const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
+                    const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
 
-                            effectsHtml += `
-                                <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                    let conditionText = '';
+                    if (eff.condition) {
+                        conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                    }
 
-                                    <!-- Índice Heptagonal de la Moneda -->
-                                    <div class="coin-index-border" style="width: 22px; height: 22px; background-color: #FFF; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
-                                        <div class="coin-index-bg" style="width: 18px; height: 18px; background-color: #000; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center; font-size: 0.75rem; color: #FFF; font-weight: bold;">
-                                            ${roman[index] || (index+1)}
-                                        </div>
-                                    </div>
+                    let timingText = '';
+                    if (eff.timing === 'next_turn') {
+                        timingText = ` <span>next turn</span>`;
+                    }
 
-                                    <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
-                                    ${effectText}
+                    let effectText = '';
+                    if (pot > 0 && cnt > 0) {
+                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    } else if (cnt > 0 && pot === 0) {
+                        effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    } else {
+                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                    }
+
+
+                    effectsHtml += `
+                        <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                            <div style="width: 22px; height: 22px; background-color: #fff; display: flex; justify-content: center; align-items: center; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%);">
+                                <div style="width: 20px; height: 20px; background-color: #000; color: #fff; display: flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%);">
+                                ${roman[index] || (index+1)}
                                 </div>
-                            `;
+                            </div>
+                            <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                            ${conditionText}
+                            ${effectText}
+                            ${timingText}
+                        </div>
+                    `;
                         });
                     }
                 });
@@ -1172,7 +1364,7 @@
             `;
         }
 
-        function generateStatusOptions() {
+                function generateStatusOptions() {
             let options = '';
             for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
                 options += `<option value="${id}">${data.name}</option>`;
@@ -1180,19 +1372,87 @@
             return options;
         }
 
-        function createEffectEditorHtml(isCoinEffect) {
+        function generateStatGridItems() {
+            let html = `
+                <div class="stat-grid-section">
+                    <div class="stat-grid-item stat-item" data-val="HP" title="HP">HP</div>
+                    <div class="stat-grid-item stat-item" data-val="SP" title="SP">SP</div>
+                </div>
+                <div class="stat-grid-section">
+            `;
+            for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
+                if (data.icon) {
+                    html += `<div class="stat-grid-item stat-item" data-val="${id}" title="${data.name}"><img src="${data.icon}"></div>`;
+                }
+            }
+            html += `</div>`;
+            return html;
+        }
+
+                function createEffectEditorHtml(isCoinEffect) {
             const triggers = isCoinEffect
                 ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option>`
                 : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
 
+            const statGridHtml = generateStatGridItems();
+
             return `
-                <div class="effect-row" style="display:flex; gap: 5px; margin-bottom: 5px; background: #222; padding: 5px; border: 1px solid #444;">
-                    <select class="eff-trigger" style="flex:1; font-size:10px;">${triggers}</select>
-                    <select class="eff-target" style="flex:0.8; font-size:10px;"><option value="self">Gain</option><option value="target">Apply</option></select>
-                    <input type="number" class="eff-potency" placeholder="Pot" style="width:40px; font-size:10px;">
-                    <input type="number" class="eff-count" placeholder="Cnt" style="width:40px; font-size:10px;">
-                    <select class="eff-status" style="flex:1.5; font-size:10px;">${generateStatusOptions()}</select>
-                    <button type="button" class="eff-remove" style="background:#dc3545; color:white; border:none; cursor:pointer; font-size:10px;">X</button>
+                <div class="effect-row" style="background: #1a1a1a; padding: 5px; margin-bottom: 2px; border: 1px solid #333; position: relative;">
+                    <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                        <select class="eff-trigger" style="background: #000; color: #0f0; border: 1px solid #0f0; font-weight: bold; width: 100px;">
+                            ${triggers}
+                        </select>
+
+                        <select class="eff-target" style="background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="target">Target</option>
+                            <option value="self">Self</option>
+                        </select>
+
+                        <span style="color: #888; font-size: 11px;">Pot.</span>
+                        <input type="number" class="eff-potency" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
+
+                        <span style="color: #888; font-size: 11px;">Cnt.</span>
+                        <input type="number" class="eff-count" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
+
+                        <select class="eff-status" style="background: #222; color: #fff; border: 1px solid #444; flex-grow: 1; max-width: 120px;">
+                            ${generateStatusOptions()}
+                        </select>
+
+                        <button type="button" class="cond-btn btn-toggle-cond">[+ CONDICIÓN / TIEMPO]</button>
+
+                        <button type="button" class="eff-remove" style="background: #4a0000; color: #ff5555; border: 1px solid #ff0000; cursor: pointer; padding: 2px 5px; font-weight: bold; margin-left: auto;">X</button>
+                    </div>
+
+                    <div class="cond-container">
+                        <div class="target-toggle-group" style="display: flex; gap: 2px;">
+                            <button type="button" class="target-btn active" data-target="target">TARGET</button>
+                            <button type="button" class="target-btn" data-target="self">SELF</button>
+                            <input type="hidden" class="cond-target" value="target">
+                        </div>
+
+                        <div class="stat-grid-selector">
+                            <button type="button" class="stat-grid-btn"><span class="stat-btn-label">HP</span> ▼</button>
+                            <input type="hidden" class="cond-stat" value="HP">
+                            <div class="stat-grid-dropdown">${statGridHtml}</div>
+                        </div>
+
+                        <div class="math-op-group">
+                            <button type="button" class="math-op-btn" data-op="less than">&lt;</button>
+                            <button type="button" class="math-op-btn active" data-op="equal to">=</button>
+                            <button type="button" class="math-op-btn" data-op="more than">&gt;</button>
+                            <input type="hidden" class="cond-operator" value="equal to">
+                        </div>
+
+                        <input type="number" class="cond-val-input cond-value" value="0">
+
+                        <div class="timing-group">
+                            <button type="button" class="timing-btn active" data-timing="this_turn">This Turn</button>
+                            <button type="button" class="timing-btn" data-timing="next_turn">Next Turn</button>
+                            <input type="hidden" class="cond-timing" value="this_turn">
+                        </div>
+
+                        <button type="button" class="btn-clear-cond" style="background: #331111; color: #aa5555; border: 1px solid #552222; cursor: pointer; padding: 2px; font-size: 10px; margin-left: 5px;" title="Clear Condition">Clear</button>
+                    </div>
                 </div>
             `;
         }
@@ -1209,16 +1469,33 @@
             };
         }
 
-        function gatherEffects(container) {
+                function gatherEffects(container) {
             const effects = [];
             container.querySelectorAll('.effect-row').forEach(row => {
-                effects.push({
+                const eff = {
                     trigger: row.querySelector('.eff-trigger').value,
                     target: row.querySelector('.eff-target').value,
+                    status: row.querySelector('.eff-status').value,
                     potency: parseInt(row.querySelector('.eff-potency').value) || 0,
-                    count: parseInt(row.querySelector('.eff-count').value) || 0,
-                    status: row.querySelector('.eff-status').value
-                });
+                    count: parseInt(row.querySelector('.eff-count').value) || 0
+                };
+
+                                // Add conditional data if active (not cleared)
+                const condContainer = row.querySelector('.cond-container');
+                if (condContainer.classList.contains('active')) {
+                    eff.condition = {
+                        target: condContainer.querySelector('.cond-target').value,
+                        stat: condContainer.querySelector('.cond-stat').value,
+                        operator: condContainer.querySelector('.cond-operator').value,
+                        value: parseInt(condContainer.querySelector('.cond-value').value) || 0
+                    };
+                    eff.timing = condContainer.querySelector('.cond-timing').value;
+                } else {
+                    // Check if timing was set even without condition? The UI groups them.
+                    // Let's assume if the container is hidden, there is no condition and timing is this_turn.
+                }
+
+                effects.push(eff);
             });
             return effects;
         }
@@ -1318,8 +1595,11 @@
                 }
             });
 
-            // Delegación de eventos para el contenedor de monedas
-            document.getElementById('sb-coins-container').addEventListener('click', (e) => {
+                        // Delegación de eventos para el contenedor de monedas
+            document.getElementById('sb-coins-container').addEventListener('click', handleEffectContainerClick);
+            document.getElementById('sb-global-effects-container').addEventListener('click', handleEffectContainerClick);
+
+            function handleEffectContainerClick(e) {
                 if (e.target.classList.contains('sb-btn-add-coin-effect')) {
                     const effectContainer = e.target.closest('.sb-coin-block').querySelector('.coin-effects-container');
                     if (effectContainer) {
@@ -1330,8 +1610,79 @@
                     if (row) {
                         row.remove();
                     }
+                } else if (e.target.classList.contains('btn-toggle-cond')) {
+                    const condContainer = e.target.closest('.effect-row').querySelector('.cond-container');
+                    if (condContainer) condContainer.classList.toggle('active');
+                } else if (e.target.closest('.stat-grid-btn')) {
+                    const dropdown = e.target.closest('.stat-grid-selector').querySelector('.stat-grid-dropdown');
+                    if (dropdown) {
+                        // Close others
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => {
+                            if (d !== dropdown) d.classList.remove('active');
+                        });
+                        dropdown.classList.toggle('active');
+                    }
+                } else if (e.target.closest('.stat-item')) {
+                    const item = e.target.closest('.stat-item');
+                    const val = item.getAttribute('data-val');
+                    const selector = item.closest('.stat-grid-selector');
+                    selector.querySelector('.cond-stat').value = val;
+                    const btnLabel = selector.querySelector('.stat-btn-label');
+
+                    if (val === 'HP' || val === 'SP') {
+                        btnLabel.textContent = val;
+                    } else if (item.querySelector('img')) {
+                        btnLabel.innerHTML = `<img src="${item.querySelector('img').src}" style="width:12px;height:12px;">`;
+                    }
+                                        selector.querySelector('.stat-grid-dropdown').classList.remove('active');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('math-op-btn')) {
+                    const group = e.target.closest('.math-op-group');
+                    group.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-operator').value = e.target.getAttribute('data-op');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('target-btn')) {
+                    const group = e.target.closest('.target-toggle-group');
+                    group.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-target').value = e.target.getAttribute('data-target');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('timing-btn')) {
+                    const group = e.target.closest('.timing-group');
+                    group.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-timing').value = e.target.getAttribute('data-timing');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('btn-clear-cond')) {
+                    const condContainer = e.target.closest('.cond-container');
+                    // Reset to default
+                    condContainer.querySelector('.cond-target').value = 'target';
+                    const statSelector = condContainer.querySelector('.stat-grid-selector');
+                    statSelector.querySelector('.cond-stat').value = 'HP';
+                    statSelector.querySelector('.stat-btn-label').textContent = 'HP';
+
+                    const opGroup = condContainer.querySelector('.math-op-group');
+                    opGroup.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                    opGroup.querySelector('.math-op-btn[data-op="equal to"]').classList.add('active');
+                    opGroup.querySelector('.cond-operator').value = 'equal to';
+
+                    condContainer.querySelector('.cond-value').value = 0;
+
+                    const timingGroup = condContainer.querySelector('.timing-group');
+                    timingGroup.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                    timingGroup.querySelector('.timing-btn[data-timing="this_turn"]').classList.add('active');
+                                        timingGroup.querySelector('.cond-timing').value = 'this_turn';
+
+                    condContainer.classList.remove('active');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else {
+                    // Close dropdowns if clicking outside
+                    if (!e.target.closest('.stat-grid-selector')) {
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => d.classList.remove('active'));
+                    }
                 }
-            });
+            }
 
             // Trigger initial generation
             document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
