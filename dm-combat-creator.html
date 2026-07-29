@@ -959,8 +959,8 @@
 
             for (let i = 0; i < coinAmount; i++) {
                 const coinData = coinsArr[i] || {};
-                const coinColor = coinData.type === 'minus' ? '#FF3333' : '#FFD700';
-                coinsHtml += `<div style="width: 14px; height: 14px; background-color: ${coinColor}; border-radius: 50%;"></div>`;
+                const coinUrl = coinData.type === 'minus' ? 'https://imgur.com/yCxmI84.png' : 'https://imgur.com/yshLPnQ.png';
+                coinsHtml += `<img src="${coinUrl}" style="width: 14px; height: 14px; border-radius: 50%;" alt="coin">`;
             }
 
             const html = `
