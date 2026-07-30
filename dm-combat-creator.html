@@ -1355,12 +1355,18 @@
                     }
 
                     let effectText = '';
-                    if (pot > 0 && cnt > 0) {
-                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
-                    } else if (cnt > 0 && pot === 0) {
-                        effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    if (statusObj && statusObj.mode === 'zero') {
+                        effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else if (statusObj && statusObj.mode === 'single') {
+                        effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
                     } else {
-                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        if (pot > 0 && cnt > 0) {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else if (cnt > 0 && pot === 0) {
+                            effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        }
                     }
 
                     effectsHtml += `
@@ -1400,12 +1406,18 @@
                     }
 
                     let effectText = '';
-                    if (pot > 0 && cnt > 0) {
-                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
-                    } else if (cnt > 0 && pot === 0) {
-                        effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                    if (statusObj && statusObj.mode === 'zero') {
+                        effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else if (statusObj && statusObj.mode === 'single') {
+                        effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
                     } else {
-                        effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        if (pot > 0 && cnt > 0) {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else if (cnt > 0 && pot === 0) {
+                            effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        }
                     }
 
 
@@ -1781,10 +1793,10 @@
                             <option value="self">Self</option>
                         </select>
 
-                        <span style="color: #888; font-size: 11px;">Pot.</span>
+                        <span class="eff-potency-label" style="color: #888; font-size: 11px;">Pot.</span>
                         <input type="number" class="eff-potency" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
 
-                        <span style="color: #888; font-size: 11px;">Cnt.</span>
+                        <span class="eff-count-label" style="color: #888; font-size: 11px;">Cnt.</span>
                         <input type="number" class="eff-count" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
 
                         <div class="stat-grid-selector status-grid-selector" style="flex-grow: 1; max-width: 150px;">
@@ -2197,6 +2209,31 @@
                     const statusData = window.STATUS_REGISTRY[val];
                     if (statusData) {
                         btnLabel.textContent = statusData.name;
+                        // Dynamically update UI based on status mode
+                        const effectRow = selector.closest('.effect-row');
+                        if (effectRow) {
+                            const potInput = effectRow.querySelector('.eff-potency');
+                            const cntInput = effectRow.querySelector('.eff-count');
+                            const potLabel = effectRow.querySelector('.eff-potency-label');
+                            const cntLabel = effectRow.querySelector('.eff-count-label');
+
+                            if (statusData.mode === 'zero') {
+                                if(potInput) { potInput.style.setProperty('display', 'none', 'important'); potInput.disabled = true; potInput.value = 1; }
+                                if(cntInput) { cntInput.style.setProperty('display', 'none', 'important'); cntInput.disabled = true; cntInput.value = 1; }
+                                if(potLabel) potLabel.style.setProperty('display', 'none', 'important');
+                                if(cntLabel) cntLabel.style.setProperty('display', 'none', 'important');
+                            } else if (statusData.mode === 'single') {
+                                if(potInput) { potInput.style.setProperty('display', 'none', 'important'); potInput.disabled = true; potInput.value = 1; }
+                                if(cntInput) { cntInput.style.display = 'inline-block'; cntInput.disabled = false; }
+                                if(potLabel) potLabel.style.setProperty('display', 'none', 'important');
+                                if(cntLabel) cntLabel.style.display = 'inline-block';
+                            } else {
+                                if(potInput) { potInput.style.display = 'inline-block'; potInput.disabled = false; }
+                                if(cntInput) { cntInput.style.display = 'inline-block'; cntInput.disabled = false; }
+                                if(potLabel) potLabel.style.display = 'inline-block';
+                                if(cntLabel) cntLabel.style.display = 'inline-block';
+                            }
+                        }
                     }
                     selector.querySelector('.status-grid-dropdown').classList.remove('active');
                     if (typeof renderPreview === 'function') renderPreview();
