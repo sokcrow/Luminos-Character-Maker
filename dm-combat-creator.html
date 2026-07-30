@@ -1402,13 +1402,16 @@
             const container = document.getElementById('active-status-directory');
             if(!container) return;
             container.innerHTML = '';
-            if(data) {
-                Object.entries(data).forEach(([key, status]) => {
-                    // Inyectar visualmente en window.STATUS_REGISTRY para el editor
-                    if(window.STATUS_REGISTRY) {
-                        window.STATUS_REGISTRY[key] = status;
-                    }
 
+            // Fusionamos la base de datos de Firebase con el STATUS_REGISTRY por defecto para mostrar todos
+            if(data && window.STATUS_REGISTRY) {
+                Object.entries(data).forEach(([key, status]) => {
+                    window.STATUS_REGISTRY[key] = status;
+                });
+            }
+
+            if(window.STATUS_REGISTRY) {
+                Object.entries(window.STATUS_REGISTRY).forEach(([key, status]) => {
                     const hasIcon = status.icon && status.icon.trim() !== '';
 
                     if (isMissingIconFilterActive && hasIcon) {
@@ -1416,7 +1419,8 @@
                     }
 
                     const colorMap = { 'positive': '#ccaa00', 'neutral': '#886633', 'negative': '#aa3333' };
-                    let color = colorMap[status.tag] || '#886633';
+                    let tag = status.tag || status.type || 'neutral';
+                    let color = colorMap[tag] || '#886633';
                     let alertHtml = '';
                     let borderStyle = `1px solid ${color}`;
 
@@ -1437,7 +1441,7 @@
                         ${iconHtml}
                         <div style="flex: 1;">
                             <strong style="color: ${color};">${status.name}</strong>
-                            <span style="color: #666;">[${status.mode}]</span>
+                            <span style="color: #666;">[${status.mode || 'N/A'}]</span>
                         </div>
                         ${alertHtml}
                     `;
