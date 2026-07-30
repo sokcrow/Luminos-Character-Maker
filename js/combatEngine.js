@@ -684,8 +684,11 @@ const CombatEngine = {
             let tossesA = allUsableA.map(c => c.status === 'active' ? (Math.random() * 100 < probA) : true);
             let tossesB = allUsableB.map(c => c.status === 'active' ? (Math.random() * 100 < probB) : true);
 
-            let powerA = this.calculateFinalPower(skillA, tossesA, unitA) + (this.applyPassiveModifiers(unitA).clash_power || 0);
-            let powerB = this.calculateFinalPower(skillB, tossesB, unitB) + (this.applyPassiveModifiers(unitB).clash_power || 0);
+            let powerA = this.calculateFinalPower(skillA, tossesA, unitA);
+            let powerB = this.calculateFinalPower(skillB, tossesB, unitB);
+
+            if (!skillA.isDefense) powerA += (this.applyPassiveModifiers(unitA).clash_power || 0);
+            if (!skillB.isDefense) powerB += (this.applyPassiveModifiers(unitB).clash_power || 0);
 
             let roundWinner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
 
@@ -877,8 +880,24 @@ const CombatEngine = {
             }
         }
 
-        const actualBasePower = basePowerOverride !== null ? basePowerOverride : skill.basePower;
-        const actualCoinPower = coinPowerOverride !== null ? coinPowerOverride : skill.coinPower;
+        let passiveMods = unit ? this.applyPassiveModifiers(unit) : {};
+        let finalActualBasePower = basePowerOverride !== null ? basePowerOverride : skill.basePower;
+        let finalActualCoinPower = coinPowerOverride !== null ? coinPowerOverride : skill.coinPower;
+        let finalPowerBonus = 0;
+
+        if (skill.isDefense) {
+            finalActualBasePower += (passiveMods.defense_power || 0);
+            if (skill.defenseSubtype === 'ClashableGuard' || skill.defenseSubtype === 'ClashableCounter') {
+                 finalActualBasePower += (passiveMods.clash_power || 0);
+            }
+        } else {
+            finalActualBasePower += (passiveMods.base_power || 0);
+            finalActualCoinPower += (passiveMods.coin_power || 0);
+            finalPowerBonus += (passiveMods.final_power || 0);
+        }
+
+        const actualBasePower = finalActualBasePower;
+        const actualCoinPower = finalActualCoinPower;
 
         if (typeof headsFlipped === 'number') {
             // No se puede aplicar paralisis de forma secuencial en una tirada agregada sin desglose,
@@ -895,7 +914,7 @@ const CombatEngine = {
                     delete unit.statusEffects['paralyze'];
                 }
             }
-            return power + (effectiveHeads * actualCoinPower);
+            return power + (effectiveHeads * actualCoinPower) + finalPowerBonus;
         }
 
         if (Array.isArray(headsFlipped)) {
@@ -938,10 +957,10 @@ const CombatEngine = {
                     totalPower += powerModifier;
                 }
             }
-            return totalPower;
+            return totalPower + finalPowerBonus;
         }
 
-        return actualBasePower;
+        return actualBasePower + finalPowerBonus;
     },
 
     calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
@@ -1123,6 +1142,7 @@ const CombatEngine = {
             healing_multiplier: 0,
             final_power: 0,
             base_power: 0,
+            defense_power: 0,
             clash_power: 0,
             offensive_level: 0,
             defensive_level: 0,
@@ -1230,7 +1250,7 @@ const CombatEngine = {
                          } else if (rule.operation === 'sub') {
                              this.modifyNextStaggerThreshold(unit, -effectValue);
                          }
-                    } else if (affectation === 'damage_multiplier' || affectation === 'healing_multiplier' || affectation === 'speed' || affectation === 'resource' || affectation === 'defensive_level' || affectation === 'offensive_level' || affectation === 'clash_power' || affectation === 'coin_power' || affectation === 'base_power' || affectation === 'final_power') {
+                    } else if (affectation === 'damage_multiplier' || affectation === 'healing_multiplier' || affectation === 'speed' || affectation === 'resource' || affectation === 'defensive_level' || affectation === 'offensive_level' || affectation === 'clash_power' || affectation === 'coin_power' || affectation === 'base_power' || affectation === 'final_power' || affectation === 'defense_power') {
                         if (context && typeof context === 'object') {
                             if (!context.modifiers) context.modifiers = {};
                             if (!context.modifiers[affectation]) context.modifiers[affectation] = 0;
