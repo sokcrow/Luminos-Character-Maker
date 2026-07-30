@@ -1491,7 +1491,7 @@
 
                 function createEffectEditorHtml(isCoinEffect) {
             const triggers = isCoinEffect
-                ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option>`
+                ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option><option value="[Before Attack]">[Before Attack]</option><option value="[On Unopposed Attack]">[On Unopposed Attack]</option><option value="[Attack End]">[Attack End]</option><option value="[Before Getting Hit]">[Before Getting Hit]</option><option value="[On Kill]">[On Kill]</option>`
                 : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
 
             const statGridHtml = generateStatGridItems();
