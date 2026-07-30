@@ -1042,6 +1042,60 @@ const CombatEngine = {
                     }
                 }
 
+                // --- CONDITION VALIDATION ---
+                let conditionPassed = true;
+                if (effect.condition) {
+                    let condTargetUnit = effect.condition.target === 'self' ? context.attacker : context.currentTarget;
+                    if (condTargetUnit) {
+                        let statVal = 0;
+                        if (effect.condition.stat === 'HP') {
+                            statVal = condTargetUnit.hp || 0;
+                        } else if (effect.condition.stat === 'SP') {
+                            statVal = condTargetUnit.sp || 0;
+                        } else {
+                            // Status effect check
+                            let statusObj = condTargetUnit.statusEffects && condTargetUnit.statusEffects[effect.condition.stat];
+                            if (statusObj) {
+                                statVal = typeof statusObj === 'number' ? statusObj : (statusObj.potency || statusObj.count || 0);
+                            } else {
+                                statVal = 0;
+                            }
+                        }
+
+                        let op = effect.condition.operator;
+                        let val = effect.condition.value;
+                        if (op === 'equal to' && statVal !== val) conditionPassed = false;
+                        else if (op === 'more than' && statVal <= val) conditionPassed = false;
+                        else if (op === 'less than' && statVal >= val) conditionPassed = false;
+                    } else {
+                        conditionPassed = false; // Cannot evaluate condition if target doesn't exist
+                    }
+                }
+
+                if (!conditionPassed) {
+                    continue; // Condition failed, skip this effect
+                }
+
+                // --- TIMING VALIDATION ---
+                if (effect.timing === 'next_turn') {
+                    let delayTargetUnit = effect.target === 'self' ? context.attacker : context.currentTarget;
+                    if (delayTargetUnit) {
+                        if (!delayTargetUnit.delayed_effects) {
+                            delayTargetUnit.delayed_effects = [];
+                        }
+                        // Package the effect and context for execution later
+                        // Clone necessary context to avoid reference mutations, but keep unit refs
+                        delayTargetUnit.delayed_effects.push({
+                            effect: effect,
+                            attacker: context.attacker,
+                            defender: context.defender,
+                            skill: context.skill,
+                            currentCoin: context.currentCoin
+                        });
+                    }
+                    continue; // Skip immediate execution
+                }
+
 
                 if (typeof effect.execute === 'function') {
                     effect.execute(context);
@@ -1246,6 +1300,30 @@ const CombatEngine = {
             if (unit.hp > 0 && unit.idle_sprite && (phaseTag === '[Phase Start]' || phaseTag === '[Round Start]')) {
                 unit.current_sprite = unit.idle_sprite;
             }
+
+            // Process Delayed Effects on [Round Start]
+            if (phaseTag === '[Round Start]' && unit.delayed_effects && unit.delayed_effects.length > 0) {
+                for (let delayed of unit.delayed_effects) {
+                    let eff = delayed.effect;
+                    let context = {
+                        engine: this,
+                        attacker: delayed.attacker,
+                        defender: delayed.defender,
+                        skill: delayed.skill,
+                        currentCoin: delayed.currentCoin,
+                        currentTarget: unit
+                    };
+
+                    if (typeof eff.execute === 'function') {
+                        eff.execute(context);
+                    }
+                    if (eff.status) {
+                        this.processStatusEffects(unit, 'instant', context);
+                    }
+                }
+                unit.delayed_effects = []; // Clear buffer
+            }
+
             // Unidades pueden tener efectos pasivos en root (skills pasivas, equipamiento)
             // que queremos disparar aquí. Asumimos que unit.passives es un arreglo de habilidades/efectos.
             if (!unit.passives) continue;
