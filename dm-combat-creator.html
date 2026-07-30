@@ -1866,6 +1866,13 @@
                         }
                     }
                 });
+
+                document.querySelectorAll('.eff-is-reuse').forEach(checkbox => {
+                    checkbox.disabled = isDefense;
+                    if (isDefense) {
+                        checkbox.checked = false;
+                    }
+                });
             }
 
             document.addEventListener('change', (e) => {

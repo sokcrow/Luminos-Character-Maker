@@ -563,12 +563,7 @@ const CombatEngine = {
 
                 let context = { engine: this, defender: unitDefender, attacker: unitAttacker, skill: evadeSkill, attackSkill: attackSkill };
 
-                // Track if it's the first time or reuse (if applicable, Evades technically reuse themselves)
-                // For evasion, we will just mark the evade coin as reused after the first success
                 if (evadeSkill.coins && evadeSkill.coins.length > 0) {
-                    if (i > 0) {
-                        evadeSkill.coins[0].isReused = true;
-                    }
                     context.currentCoin = evadeSkill.coins[0];
                 }
 
