@@ -360,6 +360,7 @@ const CombatEngine = {
             context.currentCoin = currentCoin;
 
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
+            this.processStatusEffects(unitAttacker, 'on_coin_flip', context);
 
             let attackPower;
             let isHeads = false;
@@ -381,8 +382,10 @@ const CombatEngine = {
             }
             if (isHeads) {
                 this.triggerEvent('[Heads]', context, [unitDefender]);
+            this.processStatusEffects(unitAttacker, 'on_heads', context);
             } else {
                 this.triggerEvent('[Tails]', context, [unitDefender]);
+            this.processStatusEffects(unitAttacker, 'on_tails', context);
             }
 
             result.attackLogs.push({
@@ -419,18 +422,22 @@ const CombatEngine = {
 
             let hpBeforeHit = unitDefender.hp;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
+            this.processStatusEffects(unitDefender, 'getting_hit', context);
             context.damageDealt = finalDamage;
 
             this.triggerEvent('[On Hit]', context, [unitDefender]);
 
             if (isHeads) {
                 this.triggerEvent('[Heads Hit]', context, [unitDefender]);
+                this.processStatusEffects(unitAttacker, 'on_heads', context);
             } else if (!isHeads && currentCoin.status !== 'latent') { // Latent has no toss, so it isn't tails
                 this.triggerEvent('[Tails Hit]', context, [unitDefender]);
+                this.processStatusEffects(unitAttacker, 'on_tails', context);
             }
 
             if (isCritical) {
                 this.triggerEvent('[On Crit]', context, [unitDefender]);
+                this.processStatusEffects(unitAttacker, 'on_crit', context);
                 if (isHeads) {
                     this.triggerEvent('[On Crit - Heads Hit]', context, [unitDefender]);
                 } else if (!isHeads && currentCoin.status !== 'latent') {
@@ -1035,12 +1042,116 @@ const CombatEngine = {
                     }
                 }
 
+
                 if (typeof effect.execute === 'function') {
                     effect.execute(context);
+                }
+
+                // Si el efecto aplicado tiene un status, checar si es instant
+                if (effect.status) {
+                    let targetUnit = (effect.target === 'self') ? context.attacker : context.currentTarget;
+                    if (targetUnit) {
+                        this.processStatusEffects(targetUnit, 'instant', context);
+                    }
+                }
+
+            }
+        }
+    },
+
+
+    processStatusEffects: function(unit, triggerKey, context = {}) {
+        if (!unit || !unit.statusEffects) return;
+
+        // Since we are iterating and potentially deleting keys, we get the keys first
+        const activeStatuses = Object.keys(unit.statusEffects);
+
+        for (let statusId of activeStatuses) {
+            let statusConfig = null;
+
+            // Try to find the status config from the global STATUS_REGISTRY
+            if (typeof window !== 'undefined' && window.STATUS_REGISTRY) {
+                statusConfig = window.STATUS_REGISTRY[statusId];
+            }
+            // Fallback for non-browser environments or if window is not available
+            if (!statusConfig && typeof STATUS_REGISTRY !== 'undefined') {
+                statusConfig = STATUS_REGISTRY[statusId];
+            }
+
+            if (!statusConfig) continue;
+
+            if (statusConfig.trigger === triggerKey) {
+                let statusInstance = unit.statusEffects[statusId];
+                let valueToUse = statusInstance.potency || statusInstance.count || statusInstance; // Default fallback to instance if it's just a number
+                if (typeof valueToUse === 'object') {
+                    // For single value, 'count' is mostly used
+                    valueToUse = statusInstance.count || statusInstance.potency || 1;
+                }
+
+                // 2. Mathematical Resolution and Vectors
+                if (statusConfig.affectation_vector) {
+                    let vector = statusConfig.affectation_vector;
+                    if (vector === 'hp') {
+                        // Apply HP modification
+                        let dmg = valueToUse;
+                        // Example: Rupture, Burn
+                        if (statusConfig.type === 'negative') {
+                            this.applyDamage(unit, dmg, 'efecto_estado');
+                        } else {
+                            unit.hp = Math.min(unit.hp + dmg, unit.maxHp || unit.hp);
+                        }
+                    } else if (vector === 'sp') {
+                        let spMod = valueToUse;
+                        if (statusConfig.type === 'negative') {
+                            unit.sp = this.limitSP((unit.sp || 0) - spMod);
+                        } else {
+                            unit.sp = this.limitSP((unit.sp || 0) + spMod);
+                        }
+                    } else if (vector === 'stagger_threshold') {
+                        // Raise Stagger Threshold
+                        if (statusConfig.type === 'negative') {
+                             this.modifyNextStaggerThreshold(unit, -valueToUse); // Assuming negative amount raises threshold towards HP
+                        }
+                    }
+                    // other vectors like final_power, defensive_level are calculated dynamically during their specific routines (e.g. calculateFinalPower),
+                    // but we might need to trigger decay if they have triggers. However, those are mostly 'on_round_end'.
+                }
+
+                // 3. Execution of Decay Rule
+                if (statusConfig.decay_rule) {
+                    if (statusConfig.decay_rule === 'sub_per_trigger') {
+                        if (typeof unit.statusEffects[statusId] === 'object' && unit.statusEffects[statusId] !== null) {
+                             if (unit.statusEffects[statusId].count) unit.statusEffects[statusId].count -= 1;
+                             else if (unit.statusEffects[statusId].potency) unit.statusEffects[statusId].potency -= 1;
+                        } else if (typeof unit.statusEffects[statusId] === 'number') {
+                             unit.statusEffects[statusId] -= 1;
+                        }
+                    } else if (statusConfig.decay_rule === 'total_loss_round_end' && triggerKey === 'on_round_end') {
+                         unit.statusEffects[statusId] = 0; // Will be deleted below
+                    } else if (statusConfig.decay_rule === 'total_loss') {
+                         unit.statusEffects[statusId] = 0;
+                    }
+                }
+
+                // Mathematical Purge
+                let currentVal = unit.statusEffects[statusId];
+                let shouldDelete = false;
+                if (typeof currentVal === 'object' && currentVal !== null) {
+                    if ((currentVal.count !== undefined && currentVal.count <= 0) ||
+                        (currentVal.potency !== undefined && currentVal.potency <= 0 && currentVal.count === undefined)) {
+                        shouldDelete = true;
+                    }
+                } else if (typeof currentVal === 'number' && currentVal <= 0) {
+                    shouldDelete = true;
+                }
+
+                if (shouldDelete) {
+                    delete unit.statusEffects[statusId];
                 }
             }
         }
     },
+
 
     triggerPhase: function(phaseTag, allUnits) {
         if (!allUnits || !Array.isArray(allUnits)) return;

@@ -5,204 +5,253 @@ const STATUS_REGISTRY = {
     // --- CORE STATUSES (Efectos Clave) ---
     'burn': {
         name: 'Burn', type: 'negative', mode: 'double', icon: 'https://imgur.com/L4bRd44.png',
+        trigger: 'on_round_end', affectation_vector: 'hp', decay_rule: 'sub_per_trigger',
         description: "At the end of the turn, take fixed damage by the effect’s Potency, then reduce its Count by 1."
     },
     'bleed': {
         name: 'Bleed', type: 'negative', mode: 'double', icon: 'https://imgur.com/mp9fbme.png',
+        trigger: 'on_coin_flip', affectation_vector: 'hp', decay_rule: 'sub_per_trigger',
         description: "When tossing an attack Coin, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
     },
     'tremor': {
         name: 'Tremor', type: 'negative', mode: 'double', icon: 'https://imgur.com/fuDGjpn.png',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "When attacked by skills that burst Tremor, raise the Stagger Threshold by the effect’s Potency. At the end of the turn, reduce the Count by 1."
     },
     'tremor_decay': {
         name: 'Tremor - Decay', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "Lose 1 Defense Level for every 4 Tremor Potency on self. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_fracture': {
         name: 'Tremor - Fracture', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "When Staggered, and when the sum of Tremor Potency and Count adds up to 20 or higher, raise Stagger Level by 1. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_reverb': {
         name: 'Tremor - Reverb', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "On Tremor Burst, take Sloth damage equal to Tremor Potency on self. When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_everlasting': {
         name: 'Tremor - Everlasting', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "When hit by Skills or Coin effects that trigger Tremor Burst, (Tremor Potency on self)% chance to trigger an additional Tremor Burst. When hit by Skills or Coin effects that trigger Tremor Burst, (Tremor Count on self)% chance to trigger an additional Tremor Burst. Turn End: reduce the Count by 1."
     },
     'tremor_chain': {
         name: 'Tremor - Chain', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "Lose 1 Clash Power for every 10 Tremor Potency on self (max 3). When Hit by Skills that trigger Tremor Burst, raise the Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_scorch': {
         name: 'Tremor - Scorch', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "On Tremor Burst, take Wrath Damage equal to (sum of Tremor Potency and Burn Potency / 2), and lose 1 Burn Count. When hit by Skills that trigger Tremor Burst, raise this unit's Stagger Threshold equal by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_hemorrhage': {
         name: 'Tremor - Hemorrhage', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "On Tremor Burst, take Lust Damage equal to (sum of Tremor Potency and Bleed Potency / 2), and lose 1 Bleed Count. When hit by Skills that trigger Tremor Burst, raise this unit's Stagger Threshold by the effect's Potency. Turn End: reduce the Count by 1."
     },
     'tremor_superposition': {
         name: 'Tremor - Superposition', type: 'negative', mode: 'double',
+        trigger: 'on_tremor_burst', affectation_vector: 'stagger_threshold', decay_rule: 'sub_per_trigger',
         description: "When triggering Amplitude Conversion, add the effects of the resulting Tremor type to the list of active Tremor effects under Tremor - Superposition."
     },
     'rupture': {
         name: 'Rupture', type: 'negative', mode: 'double', icon: 'https://imgur.com/g5LTeDs.png',
+        trigger: 'getting_hit', affectation_vector: 'hp', decay_rule: 'sub_per_trigger',
         description: "When hit by an attack, take fixed damage by the effect’s Potency. Then, reduce its Count by 1."
     },
     'sinking': {
         name: 'Sinking', type: 'negative', mode: 'double', icon: 'https://imgur.com/ZnulGzZ.png',
+        trigger: 'getting_hit', affectation_vector: 'sp', decay_rule: 'sub_per_trigger',
         description: "When hit by an attack, take fixed SP damage by the effect’s Potency. (Non-SP Units take Gloom damage instead.) Then, reduce its Count by 1."
     },
     'poise': {
         name: 'Poise', type: 'positive', mode: 'double', icon: 'https://imgur.com/KFEmJB5.png',
+        trigger: 'on_crit', affectation_vector: 'crit_chance_dmg', decay_rule: 'sub_per_trigger',
         description: "Gain a chance to deal Critical Damage on hit. Potency increases Critical Chance, Count increases Critical Damage. Count is reduced by 1 at turn end."
     },
     'charge': {
         name: 'Charge', type: 'positive', mode: 'double', maxCount: 20, icon: 'https://imgur.com/GzJzNPV.png',
+        trigger: 'on_round_end', affectation_vector: 'resource', decay_rule: 'sub_per_trigger',
         description: "Resource used by certain skills for additional effects."
     },
 
     // --- INSTANT EFFECTS (HP/SP Recovery & Damage) ---
     'heal_hp': {
         name: 'Heal HP', type: 'positive', mode: 'single',
+        trigger: 'instant', affectation_vector: 'hp', decay_rule: 'total_loss',
         description: "Instantly restores HP based on the effect's Potency/Count."
     },
     'take_hp_dmg': {
         name: 'Take HP DMG', type: 'negative', mode: 'single',
+        trigger: 'instant', affectation_vector: 'hp', decay_rule: 'total_loss',
         description: "Instantly takes HP Damage based on the effect's Potency/Count."
     },
     'heal_sp': {
         name: 'Heal SP', type: 'positive', mode: 'single',
+        trigger: 'instant', affectation_vector: 'sp', decay_rule: 'total_loss',
         description: "Instantly restores SP (Sanity) based on the effect's Potency/Count."
     },
     'lose_sp': {
         name: 'Lose SP', type: 'negative', mode: 'single',
+        trigger: 'instant', affectation_vector: 'sp', decay_rule: 'total_loss',
         description: "Instantly loses SP (Sanity) based on the effect's Potency/Count."
     },
 
     // --- GENERIC BUFFS (Other Buffs) ---
     'power_up': {
         name: 'Power Up', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
         description: "All skills gain Final Power by the effect's Count for one turn."
     },
     'attack_power_up': {
         name: 'Attack Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/JbDs4X0.png',
+        trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
         description: "Attack skills gain Final Power by the effect's Count for one turn."
     },
     'defense_power_up': {
         name: 'Defense Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/AkiiCza.png',
+        trigger: 'on_round_end', affectation_vector: 'defense_power', decay_rule: 'total_loss_round_end',
         description: "Defense skills gain Final Power by the effect's Count for one turn."
     },
     'clash_power_up': {
         name: 'Clash Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/Q49TCVN.png',
+        trigger: 'on_round_end', affectation_vector: 'clash_power', decay_rule: 'total_loss_round_end',
         description: "Gain Clash Power by the effect's Count for one turn."
     },
     'base_power_up': {
         name: 'Base Power Up', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'base_power', decay_rule: 'total_loss_round_end',
         description: "Raise the Base Power of Skills by the effect's Count."
     },
     'offense_level_up': {
         name: 'Offense Level Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/p70Fei4.png',
+        trigger: 'on_round_end', affectation_vector: 'offensive_level', decay_rule: 'total_loss_round_end',
         description: "Offense level increases based on the effect's Count for one turn."
     },
     'defense_level_up': {
         name: 'Defense Level Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/C0apZVL.png',
+        trigger: 'on_round_end', affectation_vector: 'defensive_level', decay_rule: 'total_loss_round_end',
         description: "Defense Level increases based on the effect's Count for one turn."
     },
     'damage_up': {
         name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/KDLYRCR.png',
+        trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
         description: "Deal 10% more damage with skills based on the effect's Count for one turn. (Max 10)"
     },
     'haste': {
         name: 'Haste', type: 'positive', mode: 'single', icon: 'https://imgur.com/zxUsYIN.png',
+        trigger: 'on_round_end', affectation_vector: 'speed', decay_rule: 'total_loss_round_end',
         description: "Speed increases by the effect's Count for one turn."
     },
     'protection': {
         name: 'Protection', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/yjPgnjd.png',
+        trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
         description: "Take 10% less damage per Count from attacks for one turn. (Max 10)"
     },
     'plus_coin_boost': {
         name: 'Plus Coin Boost', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'coin_power', decay_rule: 'total_loss_round_end',
         description: "Raise the Power of Plus Coins by the effect's Count for one turn."
     },
     'minus_coin_drop': {
         name: 'Minus Coin Drop', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'coin_power', decay_rule: 'total_loss_round_end',
         description: "Reduce the Power of Minus Coins by the effect's Count for one turn."
     },
     'weak_resist_dmg_boost': {
         name: 'Weak-resist DMG Boost', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
         description: "Boost the damage of attacks against Weak resistances by 1% per Count for one turn."
     },
     'hp_healing_boost': {
         name: 'HP Healing Boost', type: 'positive', mode: 'single', maxCount: 5, icon: 'https://imgur.com/uynjNTN.png',
+        trigger: 'on_round_end', affectation_vector: 'healing_multiplier', decay_rule: 'total_loss_round_end',
         description: "Increases HP healing provided by Passive abilities, Skills, and Coin effects by 10% per Count. (Max 5)"
     },
     'ego_resource_amp': {
         name: 'E.G.O Resource Amp', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'resource', decay_rule: 'total_loss_round_end',
         description: "Increases the amount of E.G.O resources earned from skills by the effect's Count for one turn."
     },
 
     // --- MODIFICADORES NEGATIVOS GENÉRICOS (Other Debuffs) ---
     'power_down': {
         name: 'Power Down', type: 'negative', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
         description: "All skills lose Final Power by the effect's Count for one turn."
     },
     'attack_power_down': {
         name: 'Attack Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/g69L38F.png',
+        trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
         description: "Attack skills lose Final Power by the effect's Count for one turn."
     },
     'defense_power_down': {
         name: 'Defense Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/MGdXCaC.png',
+        trigger: 'on_round_end', affectation_vector: 'defense_power', decay_rule: 'total_loss_round_end',
         description: "Defense skills lose Final Power by the effect's Count for one turn."
     },
     'clash_power_down': {
         name: 'Clash Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/TppbWXb.png',
+        trigger: 'on_round_end', affectation_vector: 'clash_power', decay_rule: 'total_loss_round_end',
         description: "Lose Clash Power by the effect's Count for one turn."
     },
     'offense_level_down': {
         name: 'Offense Level Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/usBnT9m.png',
+        trigger: 'on_round_end', affectation_vector: 'offensive_level', decay_rule: 'total_loss_round_end',
         description: "Offense level decreases based on the effect's Count for one turn."
     },
     'defense_level_down': {
         name: 'Defense Level Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/C0apZVL.png',
+        trigger: 'on_round_end', affectation_vector: 'defensive_level', decay_rule: 'total_loss_round_end',
         description: "Defense Level decreases based on the effect's Count for one turn."
     },
     'damage_down': {
         name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/bo7reA0.png',
+        trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
         description: "Deal 10% less damage with skills per Count for one turn. (Max 10)"
     },
     'bind': {
         name: 'Bind', type: 'negative', mode: 'single', icon: 'https://imgur.com/QndWew8.png',
+        trigger: 'on_round_end', affectation_vector: 'speed', decay_rule: 'total_loss_round_end',
         description: "Speed decreases by the effect's Count for one turn."
     },
     'fragile': {
         name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/wSFboZT.png',
+        trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
         description: "Take 10% more damage from skills per Count for one turn. (Max 10)"
     },
     'paralyze': {
         name: 'Paralyze', type: 'negative', mode: 'single', icon: 'https://imgur.com/9TkO8Ce.png',
+        trigger: 'on_heads', affectation_vector: 'coin_power', decay_rule: 'total_loss_round_end',
         description: "Fix the Power of X Coin(s) to 0 for one turn."
     },
     'plus_coin_drop': {
         name: 'Plus Coin Drop', type: 'negative', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'coin_power', decay_rule: 'total_loss_round_end',
         description: "Reduce the Power of Plus Coins by the effect's Count for one turn."
     },
     'minus_coin_boost': {
         name: 'Minus Coin Boost', type: 'negative', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'coin_power', decay_rule: 'total_loss_round_end',
         description: "Raise the Power of Minus Coins by the effect's Count for one turn."
     },
     'hp_healing_down': {
         name: 'HP Healing Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/5WYFFVt.png',
+        trigger: 'on_round_end', affectation_vector: 'healing_multiplier', decay_rule: 'total_loss_round_end',
         description: "Decreases HP healing provided by Passive abilities, Skills, and Coin effects."
     },
     'poison': {
         name: 'Poison', type: 'negative', mode: 'single',
+        trigger: 'on_round_end', affectation_vector: 'hp', decay_rule: 'sub_per_trigger',
         description: "At the end of the turn, take fixed damage by the Count, then halve the Count."
     },
     'immobilized': {
-        name: 'Immobilized', type: 'negative', mode: 'single',
+        name: 'Immobilized', type: 'negative', mode: 'zero',
+        trigger: 'on_round_end', affectation_vector: 'action', decay_rule: 'total_loss_round_end',
         description: "Does not act for this turn."
     }
 };
@@ -213,54 +262,54 @@ const generateElementalStatuses = () => {
     allTypes.forEach(type => {
         const idPrefix = type.toLowerCase();
 
-        // 1. DMG Up (Limit: 10)
         STATUS_REGISTRY[`${idPrefix}_dmg_up`] = {
             name: `${type} DMG Up`,
             type: 'positive',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
             maxCount: 10,
             description: `Deal 10% more damage with ${type} skills per Count for one turn. (Max 10)`
         };
 
-        // 2. Power Up (Limit: 99)
         STATUS_REGISTRY[`${idPrefix}_power_up`] = {
             name: `${type} Power Up`,
             type: 'positive',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
             description: `${type} skills gain final Power by the effect's Count for one turn.`
         };
 
-        // 3. Protection (Limit: 10)
         STATUS_REGISTRY[`${idPrefix}_protection`] = {
             name: `${type} Protection`,
             type: 'positive',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
             maxCount: 10,
             description: `Take 10% less damage from ${type} skills per Count for one turn. (Max 10)`
         };
 
-        // 4. DMG Down (Limit: 10)
         STATUS_REGISTRY[`${idPrefix}_dmg_down`] = {
             name: `${type} DMG Down`,
             type: 'negative',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
             maxCount: 10,
             description: `Deal 10% less damage with ${type} skills per Count for one turn. (Max 10)`
         };
 
-        // 5. Power Down (Limit: 99)
         STATUS_REGISTRY[`${idPrefix}_power_down`] = {
             name: `${type} Power Down`,
             type: 'negative',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'final_power', decay_rule: 'total_loss_round_end',
             description: `${type} skills lose final Power by the effect's Count for one turn.`
         };
 
-        // 6. Fragility (Limit: 10)
         STATUS_REGISTRY[`${idPrefix}_fragility`] = {
             name: `${type} Fragility`,
             type: 'negative',
             mode: 'single',
+            trigger: 'on_round_end', affectation_vector: 'damage_multiplier', decay_rule: 'total_loss_round_end',
             maxCount: 10,
             description: `Take 10% more damage from ${type} skills per Count for one turn. (Max 10)`
         };
