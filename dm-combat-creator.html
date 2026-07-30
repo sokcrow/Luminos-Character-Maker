@@ -777,7 +777,6 @@
 
         <div id="module-status" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);">
             <div id="mst-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
-                <button id="btn-start-status-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;" onclick="startStatusBuilder()">[ INICIAR NUEVO CONSTRUCTOR DE ESTADO ]</button>
 
                 <!-- Constructor de Estados -->
                 <fieldset id="status-builder-container">
@@ -785,41 +784,11 @@
                     <input type="hidden" id="sb-status-current-id" value="">
 
                     <div class="sb-row">
-                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id"></label>
-                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name"></label>
+                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id" disabled></label>
+                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name" disabled></label>
                     </div>
 
-                    <label class="sb-block-label" style="margin-bottom: 15px;">Descripción: <textarea id="sb-status-desc"></textarea></label>
 
-                    <div class="sb-row">
-                        <label class="sb-block-label">Modo de Valor:
-                            <div class="limbus-radio-group">
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="zero"> Zero</label>
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="single" checked> Single</label>
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="double"> Double</label>
-                            </div>
-                        </label>
-                        <label class="sb-block-label">Naturaleza Lógica (Tag):
-                            <div class="limbus-radio-group">
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="positive"> Positive</label>
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="neutral" checked> Neutral</label>
-                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="negative"> Negative</label>
-                            </div>
-                        </label>
-                    </div>
-
-                    <label class="sb-block-label" style="margin-bottom: 15px;">Condición de Consumo (Decay):
-                        <div class="limbus-radio-group">
-                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="turn_end" checked> Pasivo por Turno</label>
-                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="on_hit_taken"> Al recibir golpe</label>
-                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="on_hit_dealt"> Al asestar golpe</label>
-                        </div>
-                    </label>
-
-                    <div class="sb-row">
-                        <label class="sb-block-label">Base Value: <input type="number" id="sb-status-base-value" value="1"></label>
-                        <label class="sb-block-label">Max Value: <input type="number" id="sb-status-max-value" value="99"></label>
-                    </div>
 
                     <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
 
@@ -2438,45 +2407,14 @@
             renderPreview();
         }
 
-        function startStatusBuilder() {
-            document.getElementById('status-builder-container').style.display = 'block';
-            document.getElementById('btn-start-status-builder').style.display = 'none';
-            document.getElementById('sb-status-current-id').value = '';
-            document.getElementById('sb-status-id').value = `db_status_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-            document.getElementById('sb-status-name').value = '';
-            document.getElementById('sb-status-desc').value = '';
-            document.querySelector('input[name="sb-status-mode"][value="single"]').checked = true;
-            document.querySelector('input[name="sb-status-tag"][value="neutral"]').checked = true;
-            document.querySelector('input[name="sb-status-decay"][value="turn_end"]').checked = true;
-            document.getElementById('sb-status-base-value').value = 1;
-            document.getElementById('sb-status-max-value').value = 99;
-            document.getElementById('sb-status-icon').value = '';
-        }
+
 
         function loadStatusIntoBuilder(id, status) {
             document.getElementById('status-builder-container').style.display = 'block';
-            document.getElementById('btn-start-status-builder').style.display = 'none';
 
             document.getElementById('sb-status-current-id').value = id;
             document.getElementById('sb-status-id').value = id;
             document.getElementById('sb-status-name').value = status.name || '';
-            document.getElementById('sb-status-desc').value = status.description || '';
-
-            if(status.mode) {
-                const modeEl = document.querySelector(`input[name="sb-status-mode"][value="${status.mode}"]`);
-                if(modeEl) modeEl.checked = true;
-            }
-            if(status.tag) {
-                const tagEl = document.querySelector(`input[name="sb-status-tag"][value="${status.tag}"]`);
-                if(tagEl) tagEl.checked = true;
-            }
-            if(status.decay_condition) {
-                const decayEl = document.querySelector(`input[name="sb-status-decay"][value="${status.decay_condition}"]`);
-                if(decayEl) decayEl.checked = true;
-            }
-
-            document.getElementById('sb-status-base-value').value = status.baseValue || 1;
-            document.getElementById('sb-status-max-value').value = status.maxCount || status.maxPotency || 99; // maxCount covers single, maxPotency for double compatibility if needed
 
             const iconInput = document.getElementById('sb-status-icon');
             iconInput.value = status.icon || '';
@@ -2488,39 +2426,31 @@
 
         function saveStatusToFirebase() {
             const currentId = document.getElementById('sb-status-current-id').value;
-            let id = document.getElementById('sb-status-id').value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+            let id = document.getElementById('sb-status-id').value.trim();
 
-            if(!id) {
-                alert("El ID del estado es obligatorio.");
+            if(!id || !currentId) {
+                alert("ID de estado no válido o no seleccionado.");
                 return;
             }
 
-            const statusData = {
-                name: document.getElementById('sb-status-name').value.trim(),
-                description: document.getElementById('sb-status-desc').value.trim(),
-                mode: document.querySelector('input[name="sb-status-mode"]:checked').value,
-                tag: document.querySelector('input[name="sb-status-tag"]:checked').value,
-                decay_condition: document.querySelector('input[name="sb-status-decay"]:checked').value,
-                baseValue: parseInt(document.getElementById('sb-status-base-value').value) || 1,
-                maxCount: parseInt(document.getElementById('sb-status-max-value').value) || 99,
-                icon: document.getElementById('sb-status-icon').value.trim()
+            // Paylod inyectando solo el icono y purgando (null) campos inútiles
+            const updates = {
+                icon: document.getElementById('sb-status-icon').value.trim(),
+                mode: null,
+                tag: null,
+                type: null,
+                decay_condition: null,
+                baseValue: null,
+                maxCount: null,
+                maxPotency: null
             };
 
-            // For double mode compatibility in engine
-            if (statusData.mode === 'double') {
-                statusData.maxPotency = statusData.maxCount;
-            }
-
-            // Para mapeo de colores
-            statusData.type = statusData.tag;
-
-            const finalId = currentId ? currentId : id;
-
-            db.ref(`campaña/base_datos_status/${finalId}`).set(statusData).then(() => {
-                alert("Estado guardado globalmente con éxito.");
-                startStatusBuilder(); // Reset UI
+            db.ref(`campaña/base_datos_status/${currentId}`).update(updates).then(() => {
+                alert("Ícono actualizado y campos residuales purgados con éxito.");
+                // Reset UI
+                document.getElementById('status-builder-container').style.display = 'none';
             }).catch(err => {
-                alert("Error al guardar estado: " + err.message);
+                alert("Error al actualizar estado: " + err.message);
             });
         }
 
