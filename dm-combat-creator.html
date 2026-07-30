@@ -6,6 +6,7 @@
     <title>Sprite & UI Preview Editor</title>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
     <style>
 
         /* --- VARIABLES BASE --- */
@@ -288,6 +289,155 @@
         }
         .target-toggle-group .target-btn.active { background: #440000; border-color: #ff3333; color: #ff3333; }
         .target-toggle-group .target-btn:hover { background: #333; }
+
+        /* --- LIMBUS UI PROTOCOL: STATUS BUILDER OVERRIDE --- */
+        #status-builder-container {
+            border: 1px solid #444 !important;
+            margin-bottom: 15px;
+            padding: 15px !important;
+            background-color: #1a1a1a !important;
+            color: #d1d1d1;
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        #status-builder-container legend {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            color: #d1d1d1;
+            padding: 0 5px;
+            border: none;
+        }
+
+        .sb-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .sb-block-label {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            font-size: 13px;
+            color: #d1d1d1;
+            box-sizing: border-box;
+        }
+
+        #status-builder-container input[type="text"],
+        #status-builder-container input[type="number"],
+        #status-builder-container textarea {
+            background-color: #2a2a2a !important;
+            color: #d1d1d1 !important;
+            border: none !important;
+            outline: none !important;
+            border-bottom: 2px solid #b8943b !important;
+            padding: 8px !important;
+            font-family: sans-serif;
+            font-size: 14px;
+            border-radius: 0;
+            transition: border-bottom-color 0.2s ease, background-color 0.2s ease;
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        #status-builder-container input[type="text"]:focus,
+        #status-builder-container input[type="number"]:focus,
+        #status-builder-container textarea:focus {
+            border-bottom: 2px solid #8a1c1c !important;
+            background-color: #333 !important;
+        }
+
+        #status-builder-container textarea {
+            resize: vertical;
+            min-height: 60px !important;
+        }
+
+        /* Ocultar spinners de input number (si no estaban ocultos) */
+        #status-builder-container input[type="number"]::-webkit-inner-spin-button,
+        #status-builder-container input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Limbus Radio Group */
+        .limbus-radio-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .limbus-radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #d1d1d1;
+        }
+
+        .limbus-radio-group input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #b8943b;
+            border-radius: 0; /* Strict square corners */
+            outline: none;
+            background-color: transparent;
+            position: relative;
+            cursor: pointer;
+            margin: 0;
+            transition: border-color 0.2s ease;
+        }
+
+        .limbus-radio-group input[type="radio"]::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background-color: transparent;
+            transition: background-color 0.2s ease;
+            border-radius: 0;
+        }
+
+        .limbus-radio-group input[type="radio"]:checked {
+            border-color: #8a1c1c;
+        }
+
+        .limbus-radio-group input[type="radio"]:checked::after {
+            background-color: #8a1c1c;
+        }
+
+        /* Limbus Save Button */
+        #btnSaveStatus {
+            width: 100% !important;
+            padding: 12px !important;
+            margin-top: 15px !important;
+            background: #121212 !important; /* Gris oscuro / negro */
+            color: #8a1c1c !important;
+            border: 2px solid #8a1c1c !important;
+            border-radius: 0;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-weight: bold !important;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background-color 0.1s, color 0.1s;
+        }
+
+        #btnSaveStatus:hover {
+            background-color: #8a1c1c !important;
+            color: #121212 !important;
+        }
 
 </style>
 </head>
@@ -630,50 +780,50 @@
                 <button id="btn-start-status-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;" onclick="startStatusBuilder()">[ INICIAR NUEVO CONSTRUCTOR DE ESTADO ]</button>
 
                 <!-- Constructor de Estados -->
-                <fieldset id="status-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px; display: none;">
+                <fieldset id="status-builder-container">
                     <legend>Constructor de Estados</legend>
                     <input type="hidden" id="sb-status-current-id" value="">
 
-                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
-                        <label style="flex: 1;">ID Estado: <input type="text" id="sb-status-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
-                        <label style="flex: 1;">Nombre: <input type="text" id="sb-status-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                    <div class="sb-row">
+                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id"></label>
+                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name"></label>
                     </div>
 
-                    <label style="display:block; margin-bottom: 5px;">Descripción: <textarea id="sb-status-desc" style="width: 100%; background: #222; color: white; border: 1px solid #555; height: 60px;"></textarea></label>
+                    <label class="sb-block-label" style="margin-bottom: 15px;">Descripción: <textarea id="sb-status-desc"></textarea></label>
 
-                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
-                        <label style="flex: 1;">Modo de Valor:
-                            <div class="custom-radio-group">
-                                <label><input type="radio" name="sb-status-mode" value="zero"> Zero</label>
-                                <label><input type="radio" name="sb-status-mode" value="single" checked> Single</label>
-                                <label><input type="radio" name="sb-status-mode" value="double"> Double</label>
+                    <div class="sb-row">
+                        <label class="sb-block-label">Modo de Valor:
+                            <div class="limbus-radio-group">
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="zero"> Zero</label>
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="single" checked> Single</label>
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-mode" value="double"> Double</label>
                             </div>
                         </label>
-                        <label style="flex: 1;">Naturaleza Lógica (Tag):
-                            <div class="custom-radio-group">
-                                <label><input type="radio" name="sb-status-tag" value="positive"> Positive</label>
-                                <label><input type="radio" name="sb-status-tag" value="neutral" checked> Neutral</label>
-                                <label><input type="radio" name="sb-status-tag" value="negative"> Negative</label>
+                        <label class="sb-block-label">Naturaleza Lógica (Tag):
+                            <div class="limbus-radio-group">
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="positive"> Positive</label>
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="neutral" checked> Neutral</label>
+                                <label class="limbus-radio-label"><input type="radio" name="sb-status-tag" value="negative"> Negative</label>
                             </div>
                         </label>
                     </div>
 
-                    <label style="display:block; margin-bottom: 5px;">Condición de Consumo (Decay):
-                        <div class="custom-radio-group" style="flex-wrap: wrap;">
-                            <label><input type="radio" name="sb-status-decay" value="turn_end" checked> Pasivo por Turno</label>
-                            <label><input type="radio" name="sb-status-decay" value="on_hit_taken"> Al recibir golpe</label>
-                            <label><input type="radio" name="sb-status-decay" value="on_hit_dealt"> Al asestar golpe</label>
+                    <label class="sb-block-label" style="margin-bottom: 15px;">Condición de Consumo (Decay):
+                        <div class="limbus-radio-group">
+                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="turn_end" checked> Pasivo por Turno</label>
+                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="on_hit_taken"> Al recibir golpe</label>
+                            <label class="limbus-radio-label"><input type="radio" name="sb-status-decay" value="on_hit_dealt"> Al asestar golpe</label>
                         </div>
                     </label>
 
-                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
-                        <label style="flex: 1;">Base Value: <input type="number" id="sb-status-base-value" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
-                        <label style="flex: 1;">Max Value: <input type="number" id="sb-status-max-value" value="99" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                    <div class="sb-row">
+                        <label class="sb-block-label">Base Value: <input type="number" id="sb-status-base-value" value="1"></label>
+                        <label class="sb-block-label">Max Value: <input type="number" id="sb-status-max-value" value="99"></label>
                     </div>
 
-                    <label style="display:block; margin-bottom: 10px;">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                    <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
 
-                    <button id="btnSaveStatus" style="width: 100%; padding: 10px; margin-top: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;" onclick="saveStatusToFirebase()">[ GUARDAR ESTADO GLOBAL ]</button>
+                    <button id="btnSaveStatus" onclick="saveStatusToFirebase()">[ GUARDAR ESTADO GLOBAL ]</button>
                 </fieldset>
             </div>
 
