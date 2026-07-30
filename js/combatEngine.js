@@ -350,6 +350,13 @@ const CombatEngine = {
 
         for (let i = 0; i < activeAttackCoins.length; i++) {
             let currentCoin = activeAttackCoins[i];
+            if (i > 0 && options.clashResult === null && attackSkill.coins && attackSkill.coins.length === 1) {
+                // If this is a unilateral attack with a single-coin skill looping multiple times (like a recycled coin)
+                // However, our loop is over activeAttackCoins which is just the coins array.
+                // A true recycled coin is pushed to the coins array or re-evaluated.
+                // Let's just set it generically if i > 0 and coinAmount is 1 (meaning it's the same coin reused)
+                if (attackSkill.coinAmount === 1) currentCoin.isReused = true;
+            }
             context.currentCoin = currentCoin;
 
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
@@ -400,23 +407,63 @@ const CombatEngine = {
 
             // Apply damage physically to process HP and Stagger states
             let clashCount = options.clashCount || 0; // options.clashCount could be passed if from a clash, else 0
-            let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, false, clashCount);
+
+            let isCritical = false;
+            if (unitAttacker.statusEffects && unitAttacker.statusEffects['poise'] > 0) {
+                // Future poise integration can override this logic.
+                // Assuming it's calculated elsewhere or we hook into it.
+                // We'll leave it as false unless overridden, but the code structure handles it.
+            }
+
+            let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, isCritical, clashCount);
 
             let hpBeforeHit = unitDefender.hp;
-            let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
+            let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
             context.damageDealt = finalDamage;
 
             this.triggerEvent('[On Hit]', context, [unitDefender]);
 
+            if (isHeads) {
+                this.triggerEvent('[Heads Hit]', context, [unitDefender]);
+            } else if (!isHeads && currentCoin.status !== 'latent') { // Latent has no toss, so it isn't tails
+                this.triggerEvent('[Tails Hit]', context, [unitDefender]);
+            }
+
+            if (isCritical) {
+                this.triggerEvent('[On Crit]', context, [unitDefender]);
+                if (isHeads) {
+                    this.triggerEvent('[On Crit - Heads Hit]', context, [unitDefender]);
+                } else if (!isHeads && currentCoin.status !== 'latent') {
+                    this.triggerEvent('[On Crit - Tails Hit]', context, [unitDefender]);
+                }
+            }
+
             if (hpBeforeHit > 0 && unitDefender.hp <= 0) {
                 this.triggerEvent('[On Kill]', context, [unitDefender]);
+                if (isCritical) {
+                    this.triggerEvent('[On Crit Kill]', context, [unitDefender]);
+                    if (unitAttacker.faccion !== unitDefender.faccion) {
+                        this.triggerEvent('[On Crit Kill Against Enemy]', context, [unitDefender]);
+                    }
+                }
             }
 
             // If they just won a clash
             if (options.clashResult === 'Win') {
                 this.triggerEvent('[On Clash Win]', context, [unitDefender]);
+                this.triggerEvent('[Hit after Clash Win]', context, [unitDefender]);
             } else if (options.clashResult === 'Lose') {
                 this.triggerEvent('[On Clash Lose]', context, [unitDefender]);
+
+                // Exclusivo para Monedas Rojas (Unbreakable)
+                if (currentCoin.type === 'unbreakable') {
+                    this.triggerEvent('[Hit after Clash Lose]', context, [unitDefender]);
+                }
+            }
+
+            // Exclusivo para Monedas Rojas sin romperse (status sigue 'active', no ha pasado a 'latent')
+            if (currentCoin.type === 'unbreakable' && currentCoin.status === 'active') {
+                this.triggerEvent('[On Hit without Cracking]', context, [unitDefender]);
             }
 
             this.triggerEvent('[Current Coin Attack End]', context, [unitDefender]);
@@ -428,6 +475,29 @@ const CombatEngine = {
         }
 
         this.triggerEvent('[Attack End]', context, [unitDefender]);
+
+        // Final Triggers strictly for 1-coin skills
+        if (attackSkill.coins && attackSkill.coins.length === 1) {
+            let singleCoin = attackSkill.coins[0];
+            context.currentCoin = singleCoin; // Explicitly set it just in case
+            if (activeAttackCoins.length === 1 && activeAttackCoins[0] === singleCoin) {
+                // If it was heads, fire Heads Attack End. We tracked currentCoinToss earlier, let's use the local context state if available or deduce it
+                // isHeads was local to the loop, we'll retrieve it if possible or deduce from context. Let's look up how isHeads is tracked... it's attackTosses[0]
+                let finalTossIsHeads = false;
+                if (result.attackLogs.length > 0) {
+                     let lastLog = result.attackLogs[result.attackLogs.length - 1];
+                     if (lastLog.attackTosses && lastLog.attackTosses.length > 0) {
+                         finalTossIsHeads = lastLog.attackTosses[0];
+                     }
+                }
+
+                if (finalTossIsHeads) {
+                    this.triggerEvent('[Heads Attack End]', context, [unitDefender]);
+                } else if (singleCoin.status !== 'latent') {
+                    this.triggerEvent('[Tails Attack End]', context, [unitDefender]);
+                }
+            }
+        }
 
 
         if (!unitDefender.isStaggered) {
@@ -492,6 +562,11 @@ const CombatEngine = {
                 result.evadeLogs.push(log);
 
                 let context = { engine: this, defender: unitDefender, attacker: unitAttacker, skill: evadeSkill, attackSkill: attackSkill };
+
+                if (evadeSkill.coins && evadeSkill.coins.length > 0) {
+                    context.currentCoin = evadeSkill.coins[0];
+                }
+
                 this.triggerEvent('[On Evade]', context, [unitAttacker]);
 
                 // Evade is not consumed, move to next attack coin (if any)
@@ -571,6 +646,12 @@ const CombatEngine = {
         while (true) {
             let activeCoinsA = skillA.coins.filter(c => c.status === 'active');
             let activeCoinsB = skillB.coins.filter(c => c.status === 'active');
+
+            // Mark reused coins if they were already used in a previous round
+            if (round > 1) {
+                if (activeCoinsA.length === 1 && skillA.coinAmount === 1) activeCoinsA[0].isReused = true;
+                if (activeCoinsB.length === 1 && skillB.coinAmount === 1) activeCoinsB[0].isReused = true;
+            }
 
             if (activeCoinsA.length === 0 && activeCoinsB.length === 0) {
                 result.winner = 'Tie';
@@ -907,7 +988,7 @@ const CombatEngine = {
         }
 
         // For some global tags, we need to scan all active coins in the skill
-        let globalCoinTags = ['[Before Attack]', '[On Unopposed Attack]', '[Attack End]', '[Before Getting Hit]'];
+        let globalCoinTags = ['[Before Attack]', '[On Unopposed Attack]', '[Attack End]', '[Heads Attack End]', '[Tails Attack End]', '[Before Getting Hit]'];
         if (globalCoinTags.includes(tag) && context.skill.coins) {
             for (let coin of context.skill.coins) {
                 if (coin.status === 'active' || coin.status === 'cracked' || coin.status === 'latent') {
@@ -925,6 +1006,17 @@ const CombatEngine = {
 
         if (applicableEffects.length === 0) return;
 
+        // Apply Boolean Architecture Filters (Reuse and Ally)
+        applicableEffects = applicableEffects.filter(e => {
+            // Filter by Reuse
+            if (e.is_reuse && (!context.currentCoin || !context.currentCoin.isReused)) {
+                return false;
+            }
+            return true;
+        });
+
+        if (applicableEffects.length === 0) return;
+
         // If it's a targeted event (like [On Hit]), it accumulates per target hit
         let executionTargets = targetsHit.length > 0 ? targetsHit : [context.defender || null];
 
@@ -935,6 +1027,14 @@ const CombatEngine = {
             context.currentTarget = target;
 
             for (let effect of applicableEffects) {
+                // Apply Ally Filter
+                if (effect.target_ally) {
+                    let execTarget = effect.target === 'self' ? context.attacker : target;
+                    if (!context.attacker || !execTarget || context.attacker.faccion !== execTarget.faccion) {
+                        continue; // Skip if they are not allies
+                    }
+                }
+
                 if (typeof effect.execute === 'function') {
                     effect.execute(context);
                 }

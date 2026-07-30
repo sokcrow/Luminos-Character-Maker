@@ -929,6 +929,8 @@
                     row.querySelector('.eff-target').value = eff.target || 'self';
                     row.querySelector('.eff-potency').value = eff.potency || 0;
                     row.querySelector('.eff-count').value = eff.count || 0;
+                    if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
+                    if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
 
                     const effStatus = eff.status || '';
                     row.querySelector('.eff-status').value = effStatus;
@@ -1001,6 +1003,8 @@
                                 row.querySelector('.eff-target').value = eff.target || 'target';
                                 row.querySelector('.eff-potency').value = eff.potency || 0;
                                 row.querySelector('.eff-count').value = eff.count || 0;
+                                if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
+                                if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
 
                     const effStatusCoin = eff.status || '';
                     row.querySelector('.eff-status').value = effStatusCoin;
@@ -1491,14 +1495,20 @@
 
                 function createEffectEditorHtml(isCoinEffect) {
             const triggers = isCoinEffect
-                ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option><option value="[Before Attack]">[Before Attack]</option><option value="[On Unopposed Attack]">[On Unopposed Attack]</option><option value="[Attack End]">[Attack End]</option><option value="[Before Getting Hit]">[Before Getting Hit]</option><option value="[On Kill]">[On Kill]</option>`
-                : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option>`;
+                ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads Hit]">[Heads Hit]</option><option value="[Tails Hit]">[Tails Hit]</option><option value="[On Crit]">[On Crit]</option><option value="[On Crit - Heads Hit]">[On Crit - Heads Hit]</option><option value="[On Crit - Tails Hit]">[On Crit - Tails Hit]</option><option value="[Hit after Clash Win]">[Hit after Clash Win]</option><option value="[Hit after Clash Lose]">[Hit after Clash Lose]</option><option value="[On Hit without Cracking]">[On Hit without Cracking]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option><option value="[Before Attack]">[Before Attack]</option><option value="[On Unopposed Attack]">[On Unopposed Attack]</option><option value="[Attack End]">[Attack End]</option><option value="[Current Coin Attack End]">[Current Coin Attack End]</option><option value="[Heads Attack End]">[Heads Attack End]</option><option value="[Tails Attack End]">[Tails Attack End]</option><option value="[Before Getting Hit]">[Before Getting Hit]</option><option value="[On Kill]">[On Kill]</option><option value="[On Crit Kill]">[On Crit Kill]</option><option value="[On Crit Kill Against Enemy]">[On Crit Kill Against Enemy]</option>`
+                : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option><option value="[On Evade]">[On Evade]</option>`;
 
             const statGridHtml = generateStatGridItems();
 
             return `
                 <div class="effect-row" style="background: #1a1a1a; padding: 5px; margin-bottom: 2px; border: 1px solid #333; position: relative;">
                     <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Reuse Modifier">
+                            <input type="checkbox" class="eff-is-reuse" style="margin:0; width:10px; height:10px;"> Reuse
+                        </label>
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Ally Modifier">
+                            <input type="checkbox" class="eff-target-ally" style="margin:0; width:10px; height:10px;"> Ally
+                        </label>
                         <select class="eff-trigger" style="background: #000; color: #0f0; border: 1px solid #0f0; font-weight: bold; width: 100px;">
                             ${triggers}
                         </select>
@@ -1581,12 +1591,16 @@
                 function gatherEffects(container) {
             const effects = [];
             container.querySelectorAll('.effect-row').forEach(row => {
+                const isReuse = row.querySelector('.eff-is-reuse') ? row.querySelector('.eff-is-reuse').checked : false;
+                const targetAlly = row.querySelector('.eff-target-ally') ? row.querySelector('.eff-target-ally').checked : false;
                 const eff = {
                     trigger: row.querySelector('.eff-trigger').value,
                     target: row.querySelector('.eff-target').value,
                     status: row.querySelector('.eff-status').value,
                     potency: parseInt(row.querySelector('.eff-potency').value) || 0,
-                    count: parseInt(row.querySelector('.eff-count').value) || 0
+                    count: parseInt(row.querySelector('.eff-count').value) || 0,
+                    is_reuse: isReuse,
+                    target_ally: targetAlly
                 };
 
                                 // Add conditional data if active (not cleared)
@@ -1803,6 +1817,81 @@
                     filterStatusGrid(e.target, gridItemsContainer);
                 }
             });
+
+            function enforceUIValidation() {
+                const isDefense = document.getElementById('sb-is-defense').checked;
+                const defenseSubtype = document.getElementById('sb-defense-subtype').value;
+                const isEvade = isDefense && defenseSubtype === 'Evade';
+
+                const coinCount = parseInt(document.getElementById('sb-coin-count').value) || 1;
+                const isSingleCoin = coinCount === 1;
+
+                document.querySelectorAll('.eff-trigger').forEach(select => {
+                    let optEvade = select.querySelector('option[value="[On Evade]"]');
+                    if (optEvade) {
+                        optEvade.disabled = !isEvade;
+                        if (!isEvade && select.value === '[On Evade]') select.value = select.querySelector('option').value;
+                    }
+
+                    let optHeadsEnd = select.querySelector('option[value="[Heads Attack End]"]');
+                    if (optHeadsEnd) {
+                        optHeadsEnd.disabled = !isSingleCoin;
+                        if (!isSingleCoin && select.value === '[Heads Attack End]') select.value = select.querySelector('option').value;
+                    }
+
+                    let optTailsEnd = select.querySelector('option[value="[Tails Attack End]"]');
+                    if (optTailsEnd) {
+                        optTailsEnd.disabled = !isSingleCoin;
+                        if (!isSingleCoin && select.value === '[Tails Attack End]') select.value = select.querySelector('option').value;
+                    }
+
+                    let coinBlock = select.closest('.sb-coin-block');
+                    if (coinBlock) {
+                        let isUnbreakable = false;
+                        const toggleInput = coinBlock.querySelector('.sb-coin-nature-toggle');
+                        if (toggleInput && toggleInput.checked) {
+                            isUnbreakable = true;
+                        }
+
+                        let optClashLose = select.querySelector('option[value="[Hit after Clash Lose]"]');
+                        if (optClashLose) {
+                            optClashLose.disabled = !isUnbreakable;
+                            if (!isUnbreakable && select.value === '[Hit after Clash Lose]') select.value = select.querySelector('option').value;
+                        }
+
+                        let optHitNoCrack = select.querySelector('option[value="[On Hit without Cracking]"]');
+                        if (optHitNoCrack) {
+                            optHitNoCrack.disabled = !isUnbreakable;
+                            if (!isUnbreakable && select.value === '[On Hit without Cracking]') select.value = select.querySelector('option').value;
+                        }
+                    }
+                });
+
+                document.querySelectorAll('.eff-is-reuse').forEach(checkbox => {
+                    checkbox.disabled = isDefense;
+                    if (isDefense) {
+                        checkbox.checked = false;
+                    }
+                });
+            }
+
+            document.addEventListener('change', (e) => {
+                if (e.target.id === 'sb-is-defense' || e.target.id === 'sb-defense-subtype' || e.target.id === 'sb-coin-count' || e.target.classList.contains('sb-coin-nature-toggle')) {
+                    enforceUIValidation();
+                }
+            });
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    if (mutation.addedNodes.length > 0) {
+                        enforceUIValidation();
+                    }
+                });
+            });
+
+            observer.observe(document.getElementById('sb-coins-container'), { childList: true, subtree: true });
+            observer.observe(document.getElementById('sb-global-effects-container'), { childList: true, subtree: true });
+
 
             function handleEffectContainerClick(e) {
                 if (e.target.classList.contains('sb-btn-add-coin-effect')) {
