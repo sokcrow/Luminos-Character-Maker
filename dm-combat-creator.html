@@ -778,21 +778,42 @@
         <div id="module-status" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);">
             <div id="mst-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
 
-                <!-- Constructor de Estados -->
+                                <!-- Constructor de Estados -->
                 <fieldset id="status-builder-container">
-                    <legend>Constructor de Estados</legend>
+                    <legend>Constructor de Estados Avanzado</legend>
                     <input type="hidden" id="sb-status-current-id" value="">
 
                     <div class="sb-row">
-                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id" disabled></label>
-                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name" disabled></label>
+                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id"></label>
+                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name"></label>
                     </div>
 
-
+                    <div class="sb-row">
+                        <label class="sb-block-label">Value Mode:
+                            <select id="sb-status-mode">
+                                <option value="zero">Zero (Solo Ícono/Presencia)</option>
+                                <option value="single">Single (Count o Potency)</option>
+                                <option value="double">Double (Count y Potency)</option>
+                            </select>
+                        </label>
+                        <label class="sb-block-label">Tag Lógico:
+                            <select id="sb-status-tag">
+                                <option value="positive">Positive (Buff)</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="negative">Negative (Debuff)</option>
+                            </select>
+                        </label>
+                    </div>
 
                     <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
 
-                    <button id="btnSaveStatus" onclick="saveStatusToFirebase()">[ GUARDAR ESTADO GLOBAL ]</button>
+                    <fieldset id="sb-rules-container" style="margin-top: 10px; border: 1px solid #b8943b;">
+                        <legend style="color: #b8943b;">Reglas del Motor (Multi-Rule System)</legend>
+                        <div id="sb-rules-list"></div>
+                        <button type="button" onclick="addStatusRule()" style="background: #8a1c1c; color: white; border: none; padding: 5px; margin-top: 5px; cursor: pointer;">[ + AÑADIR REGLA ]</button>
+                    </fieldset>
+
+                    <button id="btnSaveStatus" onclick="saveStatusToFirebase()" style="margin-top: 15px;">[ GUARDAR ESTADO GLOBAL ]</button>
                 </fieldset>
             </div>
 
@@ -2446,15 +2467,110 @@
 
 
 
+
+        function addStatusRule(ruleData = {}) {
+            const list = document.getElementById('sb-rules-list');
+            const block = document.createElement('div');
+            block.className = 'sb-rule-block';
+            block.style.cssText = 'border: 1px dashed #555; padding: 8px; margin-bottom: 5px; background: #111; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: space-between;';
+
+            block.innerHTML = `
+                <select class="rule-trigger">
+                    <option value="passive">Pasiva (Stats Estáticos)</option>
+                    <option value="on_turn_start">Turn Start</option>
+                    <option value="on_round_end">Turn End</option>
+                    <option value="on_attack">On Attack</option>
+                    <option value="getting_hit">Getting Hit</option>
+                    <option value="on_crit">On Crit</option>
+                    <option value="on_coin_flip">On Coin Flip</option>
+                    <option value="on_heads">On Heads</option>
+                    <option value="on_tails">On Tails</option>
+                    <option value="on_tremor_burst">On Tremor Burst</option>
+                    <option value="instant">Instant (Solo Single Mode)</option>
+                </select>
+                <span style="color: #d1d1d1;">[Por cada]</span>
+                <input type="number" class="rule-cond-input" value="${ruleData.cond_input !== undefined ? ruleData.cond_input : 1}" style="width: 40px; background: #222; color: white; border: 1px solid #555;">
+                <select class="rule-cond-type">
+                    <option value="potency">Potency</option>
+                    <option value="count">Count</option>
+                </select>
+                <select class="rule-operation">
+                    <option value="add">Sumar</option>
+                    <option value="sub">Restar</option>
+                    <option value="mult">Multiplicar</option>
+                    <option value="div">Dividir</option>
+                    <option value="set">Igualar a</option>
+                </select>
+                <input type="number" class="rule-aff-input" value="${ruleData.aff_input !== undefined ? ruleData.aff_input : 1}" style="width: 40px; background: #222; color: white; border: 1px solid #555;">
+                <span style="color: #d1d1d1;">a</span>
+                <select class="rule-affectation">
+                    <option value="hp">HP</option>
+                    <option value="sp">SP</option>
+                    <option value="stagger_threshold">Stagger Threshold</option>
+                    <option value="defensive_level">Defense Level</option>
+                    <option value="offensive_level">Offensive Level</option>
+                    <option value="clash_power">Clash Power</option>
+                    <option value="coin_power">Coin Power</option>
+                    <option value="base_power">Base Power</option>
+                    <option value="final_power">Final Power</option>
+                    <option value="damage_multiplier">Damage Multiplier (x0.1)</option>
+                    <option value="healing_multiplier">Healing Multiplier</option>
+                    <option value="speed">Speed</option>
+                    <option value="resource">Resource</option>
+                </select>
+                <select class="rule-decay" style="margin-left: auto;">
+                    <option value="none">Sin Decaimiento</option>
+                    <option value="sub_count_1">Reducir Count en 1</option>
+                    <option value="sub_potency_1">Reducir Potency en 1</option>
+                    <option value="half_count">Reducir Count a la mitad</option>
+                    <option value="half_potency">Reducir Potency a la mitad</option>
+                    <option value="total_loss">Pérdida Total</option>
+                </select>
+                <button type="button" onclick="this.parentElement.remove()" style="background: #333; color: white; border: 1px solid #555; cursor: pointer;">X</button>
+            `;
+
+            if (ruleData.trigger) block.querySelector('.rule-trigger').value = ruleData.trigger;
+            if (ruleData.cond_type) block.querySelector('.rule-cond-type').value = ruleData.cond_type;
+            if (ruleData.operation) block.querySelector('.rule-operation').value = ruleData.operation;
+            if (ruleData.affectation) block.querySelector('.rule-affectation').value = ruleData.affectation;
+            if (ruleData.decay) block.querySelector('.rule-decay').value = ruleData.decay;
+
+            list.appendChild(block);
+        }
+
         function loadStatusIntoBuilder(id, status) {
             document.getElementById('status-builder-container').style.display = 'block';
 
             document.getElementById('sb-status-current-id').value = id;
             document.getElementById('sb-status-id').value = id;
             document.getElementById('sb-status-name').value = status.name || '';
+            document.getElementById('sb-status-mode').value = status.mode || 'single';
+            document.getElementById('sb-status-tag').value = status.type || status.tag || 'neutral';
 
             const iconInput = document.getElementById('sb-status-icon');
             iconInput.value = status.icon || '';
+
+            // Load Rules
+            const rulesList = document.getElementById('sb-rules-list');
+            rulesList.innerHTML = '';
+
+            if (status.rules && Array.isArray(status.rules)) {
+                status.rules.forEach(rule => addStatusRule(rule));
+            } else if (status.trigger && status.affectation_vector) {
+                // Legacy migration
+                const legacyRule = {
+                    trigger: status.trigger,
+                    cond_input: 1,
+                    cond_type: 'count', // Potency vs count default
+                    operation: 'add',
+                    aff_input: 1,
+                    affectation: status.affectation_vector,
+                    decay: status.decay_rule || 'none'
+                };
+                if (status.decay_rule === 'total_loss_round_end') legacyRule.decay = 'total_loss';
+                if (status.decay_rule === 'sub_per_trigger') legacyRule.decay = 'sub_count_1';
+                addStatusRule(legacyRule);
+            }
 
             if (!status.icon || status.icon.trim() === '') {
                 iconInput.focus();
@@ -2465,29 +2581,53 @@
             const currentId = document.getElementById('sb-status-current-id').value;
             let id = document.getElementById('sb-status-id').value.trim();
 
-            if(!id || !currentId) {
-                alert("ID de estado no válido o no seleccionado.");
+            if(!id) {
+                alert("ID de estado no válido.");
                 return;
             }
 
-            // Paylod inyectando solo el icono y purgando (null) campos inútiles
+            // Gather rules
+            const rules = [];
+            const ruleBlocks = document.querySelectorAll('.sb-rule-block');
+            ruleBlocks.forEach(block => {
+                rules.push({
+                    trigger: block.querySelector('.rule-trigger').value,
+                    cond_input: (() => { const val = parseFloat(block.querySelector('.rule-cond-input').value); return isNaN(val) ? 0 : val; })(),
+                    cond_type: block.querySelector('.rule-cond-type').value,
+                    operation: block.querySelector('.rule-operation').value,
+                    aff_input: (() => { const val = parseFloat(block.querySelector('.rule-aff-input').value); return isNaN(val) ? 0 : val; })(),
+                    affectation: block.querySelector('.rule-affectation').value,
+                    decay: block.querySelector('.rule-decay').value
+                });
+            });
+
             const updates = {
+                name: document.getElementById('sb-status-name').value.trim(),
                 icon: document.getElementById('sb-status-icon').value.trim(),
-                mode: null,
+                mode: document.getElementById('sb-status-mode').value,
+                type: document.getElementById('sb-status-tag').value,
+                rules: rules,
+                // Nullify legacy fields
+                trigger: null,
+                affectation_vector: null,
+                decay_rule: null,
                 tag: null,
-                type: null,
                 decay_condition: null,
                 baseValue: null,
                 maxCount: null,
                 maxPotency: null
             };
 
-            db.ref(`campaña/base_datos_status/${currentId}`).update(updates).then(() => {
-                alert("Ícono actualizado y campos residuales purgados con éxito.");
-                // Reset UI
-                document.getElementById('status-builder-container').style.display = 'none';
+            if (id !== currentId && currentId !== '') {
+                db.ref(`campaña/base_datos_status/${currentId}`).remove();
+            }
+
+            db.ref(`campaña/base_datos_status/${id}`).update(updates).then(() => {
+                alert("Estado guardado con éxito.");
+                document.getElementById('sb-status-current-id').value = id;
             }).catch(err => {
-                alert("Error al actualizar estado: " + err.message);
+                console.error(err);
+                alert("Error al guardar estado: " + err.message);
             });
         }
 

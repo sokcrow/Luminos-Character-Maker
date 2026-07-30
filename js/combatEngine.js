@@ -684,8 +684,8 @@ const CombatEngine = {
             let tossesA = allUsableA.map(c => c.status === 'active' ? (Math.random() * 100 < probA) : true);
             let tossesB = allUsableB.map(c => c.status === 'active' ? (Math.random() * 100 < probB) : true);
 
-            let powerA = this.calculateFinalPower(skillA, tossesA, unitA);
-            let powerB = this.calculateFinalPower(skillB, tossesB, unitB);
+            let powerA = this.calculateFinalPower(skillA, tossesA, unitA) + (this.applyPassiveModifiers(unitA).clash_power || 0);
+            let powerB = this.calculateFinalPower(skillB, tossesB, unitB) + (this.applyPassiveModifiers(unitB).clash_power || 0);
 
             let roundWinner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
 
@@ -1060,94 +1060,179 @@ const CombatEngine = {
     },
 
 
-    processStatusEffects: function(unit, triggerKey, context = {}) {
-        if (!unit || !unit.statusEffects) return;
 
-        // Since we are iterating and potentially deleting keys, we get the keys first
+    applyPassiveModifiers: function(unit) {
+        if (!unit || !unit.statusEffects) return {};
+
+        let modifiers = {
+            damage_multiplier: 0,
+            healing_multiplier: 0,
+            final_power: 0,
+            base_power: 0,
+            clash_power: 0,
+            offensive_level: 0,
+            defensive_level: 0,
+            speed: 0,
+            resource: 0,
+            coin_power: 0
+        };
+
         const activeStatuses = Object.keys(unit.statusEffects);
 
         for (let statusId of activeStatuses) {
             let statusConfig = null;
 
-            // Try to find the status config from the global STATUS_REGISTRY
             if (typeof window !== 'undefined' && window.STATUS_REGISTRY) {
                 statusConfig = window.STATUS_REGISTRY[statusId];
             }
-            // Fallback for non-browser environments or if window is not available
             if (!statusConfig && typeof STATUS_REGISTRY !== 'undefined') {
                 statusConfig = STATUS_REGISTRY[statusId];
             }
 
-            if (!statusConfig) continue;
+            if (!statusConfig || !statusConfig.rules) continue;
 
-            if (statusConfig.trigger === triggerKey) {
-                let statusInstance = unit.statusEffects[statusId];
-                let valueToUse = statusInstance.potency || statusInstance.count || statusInstance; // Default fallback to instance if it's just a number
-                if (typeof valueToUse === 'object') {
-                    // For single value, 'count' is mostly used
-                    valueToUse = statusInstance.count || statusInstance.potency || 1;
+            let statusInstance = unit.statusEffects[statusId];
+
+            for (let rule of statusConfig.rules) {
+                if (rule.trigger !== 'passive') continue;
+
+                let potency = typeof statusInstance === 'object' ? (statusInstance.potency || 1) : 1;
+                let count = typeof statusInstance === 'object' ? (statusInstance.count || 1) : (typeof statusInstance === 'number' ? statusInstance : 1);
+
+                let baseVar = rule.cond_type === 'potency' ? potency : count;
+                let factor = Math.floor(baseVar / (rule.cond_input || 1));
+
+                let effectValue = factor * (rule.aff_input !== undefined ? rule.aff_input : 1);
+
+                let affectation = rule.affectation;
+                if (modifiers[affectation] !== undefined) {
+                    if (rule.operation === 'add') modifiers[affectation] += effectValue;
+                    if (rule.operation === 'sub') modifiers[affectation] -= effectValue;
+                    if (rule.operation === 'mult') {
+                         if (modifiers[affectation] === 0) modifiers[affectation] = effectValue;
+                         else modifiers[affectation] *= effectValue;
+                    }
+                    if (rule.operation === 'set') modifiers[affectation] = effectValue;
                 }
+            }
+        }
+        return modifiers;
+    },
 
-                // 2. Mathematical Resolution and Vectors
-                if (statusConfig.affectation_vector) {
-                    let vector = statusConfig.affectation_vector;
-                    if (vector === 'hp') {
-                        // Apply HP modification
-                        let dmg = valueToUse;
-                        // Example: Rupture, Burn
-                        if (statusConfig.type === 'negative') {
-                            this.applyDamage(unit, dmg, 'efecto_estado');
-                        } else {
-                            unit.hp = Math.min(unit.hp + dmg, unit.maxHp || unit.hp);
+    processStatusEffects: function(unit, triggerKey, context = {}) {
+        if (!unit || !unit.statusEffects) return;
+
+        const activeStatuses = Object.keys(unit.statusEffects);
+
+        for (let statusId of activeStatuses) {
+            let statusConfig = null;
+
+            if (typeof window !== 'undefined' && window.STATUS_REGISTRY) {
+                statusConfig = window.STATUS_REGISTRY[statusId];
+            }
+            if (!statusConfig && typeof STATUS_REGISTRY !== 'undefined') {
+                statusConfig = STATUS_REGISTRY[statusId];
+            }
+
+            if (!statusConfig || !statusConfig.rules) continue;
+
+            let statusInstance = unit.statusEffects[statusId];
+
+            for (let rule of statusConfig.rules) {
+                if (rule.trigger !== triggerKey) continue;
+
+                let potency = typeof statusInstance === 'object' ? (statusInstance.potency || 1) : 1;
+                let count = typeof statusInstance === 'object' ? (statusInstance.count || 1) : (typeof statusInstance === 'number' ? statusInstance : 1);
+
+                let baseVar = rule.cond_type === 'potency' ? potency : count;
+                let factor = Math.floor(baseVar / (rule.cond_input || 1));
+
+                let effectValue = factor * (rule.aff_input !== undefined ? rule.aff_input : 1);
+
+                let finalDmg = 0;
+                let affectation = rule.affectation;
+
+                if (affectation && affectation !== '') {
+                    if (affectation === 'hp') {
+                        finalDmg = effectValue;
+                        if (rule.operation === 'sub') {
+                            this.applyDamage(unit, finalDmg, 'efecto_estado');
+                        } else if (rule.operation === 'add') {
+                            unit.hp = Math.min(unit.hp + finalDmg, unit.maxHp || unit.hp);
+                        } else if (rule.operation === 'set') {
+                            unit.hp = Math.min(finalDmg, unit.maxHp || unit.hp);
                         }
-                    } else if (vector === 'sp') {
-                        let spMod = valueToUse;
-                        if (statusConfig.type === 'negative') {
-                            unit.sp = this.limitSP((unit.sp || 0) - spMod);
-                        } else {
-                            unit.sp = this.limitSP((unit.sp || 0) + spMod);
+                    } else if (affectation === 'sp') {
+                        if (rule.operation === 'sub') {
+                            unit.sp = this.limitSP((unit.sp || 0) - effectValue);
+                        } else if (rule.operation === 'add') {
+                            unit.sp = this.limitSP((unit.sp || 0) + effectValue);
+                        } else if (rule.operation === 'set') {
+                            unit.sp = this.limitSP(effectValue);
                         }
-                    } else if (vector === 'stagger_threshold') {
-                        // Raise Stagger Threshold
-                        if (statusConfig.type === 'negative') {
-                             this.modifyNextStaggerThreshold(unit, -valueToUse); // Assuming negative amount raises threshold towards HP
+                    } else if (affectation === 'stagger_threshold') {
+                         if (rule.operation === 'add') {
+                             this.modifyNextStaggerThreshold(unit, effectValue);
+                         } else if (rule.operation === 'sub') {
+                             this.modifyNextStaggerThreshold(unit, -effectValue);
+                         }
+                    } else if (affectation === 'damage_multiplier' || affectation === 'healing_multiplier' || affectation === 'speed' || affectation === 'resource' || affectation === 'defensive_level' || affectation === 'offensive_level' || affectation === 'clash_power' || affectation === 'coin_power' || affectation === 'base_power' || affectation === 'final_power') {
+                        if (context && typeof context === 'object') {
+                            if (!context.modifiers) context.modifiers = {};
+                            if (!context.modifiers[affectation]) context.modifiers[affectation] = 0;
+
+                            if (rule.operation === 'add') context.modifiers[affectation] += effectValue;
+                            if (rule.operation === 'sub') context.modifiers[affectation] -= effectValue;
+                            if (rule.operation === 'mult') context.modifiers[affectation] *= effectValue;
+                            if (rule.operation === 'div' && effectValue !== 0) context.modifiers[affectation] /= effectValue;
+                            if (rule.operation === 'set') context.modifiers[affectation] = effectValue;
                         }
                     }
-                    // other vectors like final_power, defensive_level are calculated dynamically during their specific routines (e.g. calculateFinalPower),
-                    // but we might need to trigger decay if they have triggers. However, those are mostly 'on_round_end'.
+
                 }
 
-                // 3. Execution of Decay Rule
-                if (statusConfig.decay_rule) {
-                    if (statusConfig.decay_rule === 'sub_per_trigger') {
+                // Rule Decay Execution
+                if (rule.decay) {
+                    if (rule.decay === 'sub_count_1') {
                         if (typeof unit.statusEffects[statusId] === 'object' && unit.statusEffects[statusId] !== null) {
-                             if (unit.statusEffects[statusId].count) unit.statusEffects[statusId].count -= 1;
-                             else if (unit.statusEffects[statusId].potency) unit.statusEffects[statusId].potency -= 1;
+                            if (unit.statusEffects[statusId].count !== undefined) unit.statusEffects[statusId].count -= 1;
                         } else if (typeof unit.statusEffects[statusId] === 'number') {
-                             unit.statusEffects[statusId] -= 1;
+                            unit.statusEffects[statusId] -= 1;
                         }
-                    } else if (statusConfig.decay_rule === 'total_loss_round_end' && triggerKey === 'on_round_end') {
-                         unit.statusEffects[statusId] = 0; // Will be deleted below
-                    } else if (statusConfig.decay_rule === 'total_loss') {
-                         unit.statusEffects[statusId] = 0;
+                    } else if (rule.decay === 'sub_potency_1') {
+                        if (typeof unit.statusEffects[statusId] === 'object' && unit.statusEffects[statusId] !== null) {
+                            if (unit.statusEffects[statusId].potency !== undefined) unit.statusEffects[statusId].potency -= 1;
+                        }
+                    } else if (rule.decay === 'half_count') {
+                        if (typeof unit.statusEffects[statusId] === 'object' && unit.statusEffects[statusId] !== null && unit.statusEffects[statusId].count !== undefined) {
+                            unit.statusEffects[statusId].count = Math.floor(unit.statusEffects[statusId].count / 2);
+                        } else if (typeof unit.statusEffects[statusId] === 'number') {
+                            unit.statusEffects[statusId] = Math.floor(unit.statusEffects[statusId] / 2);
+                        }
+                    } else if (rule.decay === 'half_potency') {
+                        if (typeof unit.statusEffects[statusId] === 'object' && unit.statusEffects[statusId] !== null && unit.statusEffects[statusId].potency !== undefined) {
+                            unit.statusEffects[statusId].potency = Math.floor(unit.statusEffects[statusId].potency / 2);
+                        }
+                    } else if (rule.decay === 'total_loss') {
+                        unit.statusEffects[statusId] = 0;
                     }
                 }
+            }
 
-                // Mathematical Purge
-                let currentVal = unit.statusEffects[statusId];
-                let shouldDelete = false;
-                if (typeof currentVal === 'object' && currentVal !== null) {
-                    if ((currentVal.count !== undefined && currentVal.count <= 0) ||
-                        (currentVal.potency !== undefined && currentVal.potency <= 0 && currentVal.count === undefined)) {
-                        shouldDelete = true;
-                    }
-                } else if (typeof currentVal === 'number' && currentVal <= 0) {
+            // Cleanup check
+            let currentVal = unit.statusEffects[statusId];
+            let shouldDelete = false;
+            if (typeof currentVal === 'object' && currentVal !== null) {
+                if ((currentVal.count !== undefined && currentVal.count <= 0) ||
+                    (currentVal.potency !== undefined && currentVal.potency <= 0 && currentVal.count === undefined)) {
                     shouldDelete = true;
                 }
+            } else if (typeof currentVal === 'number' && currentVal <= 0) {
+                shouldDelete = true;
+            }
 
-                if (shouldDelete) {
-                    delete unit.statusEffects[statusId];
-                }
+            if (shouldDelete) {
+                delete unit.statusEffects[statusId];
             }
         }
     },
@@ -1192,6 +1277,8 @@ const CombatEngine = {
 
     getOffensiveLevel: function(unit, skill = {}) {
         const baseLevel = unit && unit.level ? unit.level : 1;
+        let passiveMods = this.applyPassiveModifiers(unit);
+        let offLevelMod = passiveMods.offensive_level || 0;
         let statModifier = 0;
         if (unit && unit.stats && skill && skill.scaling_stat) {
             statModifier = unit.stats[skill.scaling_stat.toLowerCase()] || 0;
@@ -1199,11 +1286,13 @@ const CombatEngine = {
             statModifier = skill.offenseModifier;
         }
         const resonanceBonus = skill.resonanceOffenseBonus || 0;
-        return Math.max(1, baseLevel + statModifier + resonanceBonus);
+        return Math.max(1, baseLevel + statModifier + resonanceBonus + offLevelMod);
     },
 
     getDefensiveLevel: function(unit, skillOrPart = {}) {
         const baseLevel = unit && unit.level ? unit.level : 1;
+        let passiveMods = this.applyPassiveModifiers(unit);
+        let defLevelMod = passiveMods.defensive_level || 0;
         let statModifier = 0;
         if (unit && unit.stats && skillOrPart && skillOrPart.scaling_stat) {
             statModifier = unit.stats[skillOrPart.scaling_stat.toLowerCase()] || 0;
@@ -1211,7 +1300,7 @@ const CombatEngine = {
             statModifier = skillOrPart.defenseModifier;
         }
         const resonanceBonus = skillOrPart.resonanceDefenseBonus || 0;
-        return Math.max(1, baseLevel + statModifier + resonanceBonus);
+        return Math.max(1, baseLevel + statModifier + resonanceBonus + defLevelMod);
     },
 
     calculateClashBonus: function(skillA, levelA, skillB, levelB) {
@@ -1245,6 +1334,12 @@ const CombatEngine = {
 
     // Nueva función para calcular el daño por moneda con modificadores planos
     calculateCoinDamage: function(attacker, defender, skill, coinFinalPower, isCritical, clashCount) {
+        // Passive modifiers
+        let attackerMods = this.applyPassiveModifiers(attacker);
+        let defenderMods = this.applyPassiveModifiers(defender);
+        let dmgMultiplierMod = attackerMods.damage_multiplier || 0;
+        let defDmgMultiplierMod = defenderMods.damage_multiplier || 0;
+
         let staggerLevel = defender.staggerLevel || 0;
         let isStaggered = defender.isStaggered || false;
 
@@ -1276,7 +1371,7 @@ const CombatEngine = {
         let totalStaticMod = physMod + sinMod + levelMod + critMod + clashMod;
 
         // Daño Base
-        let baseDamage = Math.floor(coinFinalPower * (1 + totalStaticMod));
+        let baseDamage = Math.floor(coinFinalPower * (1 + totalStaticMod) * (1 + (dmgMultiplierMod * 0.1)) * Math.max(0.1, (1 - (defDmgMultiplierMod * 0.1))));
 
         // 4. Modificadores Dinámicos (Planos)
         let dynamicMod = 0;
