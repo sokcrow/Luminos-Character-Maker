@@ -1241,20 +1241,13 @@
 
             for (let i = 0; i < coinAmount; i++) {
                 const coinData = coinsArr[i] || {};
-                let coinColor = '#FFD700'; // Default yellow
+                let coinUrl = 'https://imgur.com/yshLPnQ.png'; // Normal Coin
                 if (coinData.type === 'unbreakable') {
-                    coinColor = '#FF3333'; // Unbreakable Red
+                    coinUrl = 'https://imgur.com/yCxmI84.png'; // Unbreakable Red Coin
                 }
-                const isMinus = skill.coinPower < 0;
 
-                // Instead of using emoji or standard image based just on minus,
-                // we render a styled div to match UI requirements and differentiate Red Coins
                 coinsHtml += `
-                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: ${coinColor}; display: flex; justify-content: center; align-items: center; border: 1px solid #111; box-shadow: 0 0 3px ${coinColor};">
-                        <div style="width: 18px; height: 18px; border-radius: 50%; background-color: #000; display: flex; justify-content: center; align-items: center; color: ${coinColor}; font-weight: bold; font-size: 14px; line-height: 1;">
-                            ${isMinus ? '-' : '+'}
-                        </div>
-                    </div>
+                    <img src="${coinUrl}" style="width: 24px; height: 24px; object-fit: contain;">
                 `;
             }
 
