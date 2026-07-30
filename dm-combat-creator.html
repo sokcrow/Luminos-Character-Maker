@@ -1150,40 +1150,40 @@
                         statusBtnLabel.textContent = 'Select Status';
                     }
 
-                    if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
+                    if (eff.timing) {
+                        row.querySelector('.cond-timing').value = eff.timing;
+                        row.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                        row.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                    }
+                    if (eff.condition) {
+                        row.querySelector('.eff-has-condition').checked = true;
                         const condContainer = row.querySelector('.cond-container');
-                        condContainer.classList.add('active');
-                        if (eff.condition) {
-                            const targetVal = eff.condition.target || 'target';
-                            condContainer.querySelector('.cond-target').value = targetVal;
-                            condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+                        condContainer.style.display = 'block';
 
-                            const statVal = eff.condition.stat || 'HP';
-                            condContainer.querySelector('.cond-stat').value = statVal;
-                            // Update label
-                            const btnLabel = condContainer.querySelector('.stat-btn-label');
-                            if (statVal === 'HP' || statVal === 'SP') {
-                                btnLabel.textContent = statVal;
-                            } else {
-                                const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
-                                if (item) {
-                                    btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
-                                }
+                        const targetVal = eff.condition.target || 'target';
+                        condContainer.querySelector('.cond-target').value = targetVal;
+                        condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                        const statVal = eff.condition.stat || 'HP';
+                        condContainer.querySelector('.cond-stat').value = statVal;
+                        // Update label
+                        const btnLabel = condContainer.querySelector('.stat-btn-label');
+                        if (statVal === 'HP' || statVal === 'SP') {
+                            btnLabel.textContent = statVal;
+                        } else {
+                            const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                            if (item) {
+                                btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
                             }
-
-                            const opVal = eff.condition.operator || 'equal to';
-                            condContainer.querySelector('.cond-operator').value = opVal;
-                            condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
-
-                            condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
                         }
-                        if (eff.timing) {
-                            condContainer.querySelector('.cond-timing').value = eff.timing;
-                            condContainer.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
-                        }
+
+                        const opVal = eff.condition.operator || 'equal to';
+                        condContainer.querySelector('.cond-operator').value = opVal;
+                        condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                        condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
                     }
 
                 });
@@ -1224,40 +1224,40 @@
                         statusBtnLabelCoin.textContent = 'Select Status';
                     }
 
-                    if (eff.condition || (eff.timing && eff.timing !== 'this_turn')) {
+                    if (eff.timing) {
+                        row.querySelector('.cond-timing').value = eff.timing;
+                        row.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                        row.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                    }
+                    if (eff.condition) {
+                        row.querySelector('.eff-has-condition').checked = true;
                         const condContainer = row.querySelector('.cond-container');
-                        condContainer.classList.add('active');
-                        if (eff.condition) {
-                            const targetVal = eff.condition.target || 'target';
-                            condContainer.querySelector('.cond-target').value = targetVal;
-                            condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+                        condContainer.style.display = 'block';
 
-                            const statVal = eff.condition.stat || 'HP';
-                            condContainer.querySelector('.cond-stat').value = statVal;
-                            // Update label
-                            const btnLabel = condContainer.querySelector('.stat-btn-label');
-                            if (statVal === 'HP' || statVal === 'SP') {
-                                btnLabel.textContent = statVal;
-                            } else {
-                                const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
-                                if (item) {
-                                    btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
-                                }
+                        const targetVal = eff.condition.target || 'target';
+                        condContainer.querySelector('.cond-target').value = targetVal;
+                        condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                        const statVal = eff.condition.stat || 'HP';
+                        condContainer.querySelector('.cond-stat').value = statVal;
+                        // Update label
+                        const btnLabel = condContainer.querySelector('.stat-btn-label');
+                        if (statVal === 'HP' || statVal === 'SP') {
+                            btnLabel.textContent = statVal;
+                        } else {
+                            const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                            if (item) {
+                                btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
                             }
-
-                            const opVal = eff.condition.operator || 'equal to';
-                            condContainer.querySelector('.cond-operator').value = opVal;
-                            condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
-
-                            condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
                         }
-                        if (eff.timing) {
-                            condContainer.querySelector('.cond-timing').value = eff.timing;
-                            condContainer.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
-                            condContainer.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
-                        }
+
+                        const opVal = eff.condition.operator || 'equal to';
+                        condContainer.querySelector('.cond-operator').value = opVal;
+                        condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                        condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
                     }
 
                                 });
@@ -1833,40 +1833,44 @@
                             </div>
                         </div>
 
-                        <button type="button" class="cond-btn btn-toggle-cond">[+ CONDICIÓN / TIEMPO]</button>
-
-                        <button type="button" class="eff-remove" style="background: #4a0000; color: #ff5555; border: 1px solid #ff0000; cursor: pointer; padding: 2px 5px; font-weight: bold; margin-left: auto;">X</button>
-                    </div>
-
-                    <div class="cond-container">
-                        <div class="target-toggle-group" style="display: flex; gap: 2px;">
-                            <button type="button" class="target-btn active" data-target="target">TARGET</button>
-                            <button type="button" class="target-btn" data-target="self">SELF</button>
-                            <input type="hidden" class="cond-target" value="target">
-                        </div>
-
-                        <div class="stat-grid-selector">
-                            <button type="button" class="stat-grid-btn"><span class="stat-btn-label">HP</span> ▼</button>
-                            <input type="hidden" class="cond-stat" value="HP">
-                            <div class="stat-grid-dropdown">${statGridHtml}</div>
-                        </div>
-
-                        <div class="math-op-group">
-                            <button type="button" class="math-op-btn" data-op="less than">&lt;</button>
-                            <button type="button" class="math-op-btn active" data-op="equal to">=</button>
-                            <button type="button" class="math-op-btn" data-op="more than">&gt;</button>
-                            <input type="hidden" class="cond-operator" value="equal to">
-                        </div>
-
-                        <input type="number" class="cond-val-input cond-value" value="0">
-
-                        <div class="timing-group">
+                        <div class="timing-group" style="display: flex; align-items: center; background: #222; padding: 2px; border: 1px solid #444; border-radius: 3px;">
                             <button type="button" class="timing-btn active" data-timing="this_turn">This Turn</button>
                             <button type="button" class="timing-btn" data-timing="next_turn">Next Turn</button>
                             <input type="hidden" class="cond-timing" value="this_turn">
                         </div>
 
-                        <button type="button" class="btn-clear-cond" style="background: #331111; color: #aa5555; border: 1px solid #552222; cursor: pointer; padding: 2px; font-size: 10px; margin-left: 5px;" title="Clear Condition">Clear</button>
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Enable Condition">
+                            <input type="checkbox" class="eff-has-condition" style="margin:0; width:10px; height:10px;"> Condición
+                        </label>
+
+                        <button type="button" class="eff-remove" style="background: #4a0000; color: #ff5555; border: 1px solid #ff0000; cursor: pointer; padding: 2px 5px; font-weight: bold; margin-left: auto;">X</button>
+                    </div>
+
+                    <div class="cond-container" style="display: none; background: #111; padding: 5px; border-top: 1px dashed #444; margin-top: 5px;">
+                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                            <span style="color: #888; font-size: 11px;">If</span>
+                            <div class="target-toggle-group" style="display: flex; gap: 2px;">
+                                <button type="button" class="target-btn active" data-target="target">TARGET</button>
+                                <button type="button" class="target-btn" data-target="self">SELF</button>
+                                <input type="hidden" class="cond-target" value="target">
+                            </div>
+                            <span style="color: #888; font-size: 11px;">has</span>
+
+                            <div class="math-op-group">
+                                <button type="button" class="math-op-btn" data-op="less than">&lt;</button>
+                                <button type="button" class="math-op-btn active" data-op="equal to">=</button>
+                                <button type="button" class="math-op-btn" data-op="more than">&gt;</button>
+                                <input type="hidden" class="cond-operator" value="equal to">
+                            </div>
+
+                            <input type="number" class="cond-val-input cond-value" value="0" style="width: 40px;">
+
+                            <div class="stat-grid-selector">
+                                <button type="button" class="stat-grid-btn"><span class="stat-btn-label">HP</span> ▼</button>
+                                <input type="hidden" class="cond-stat" value="HP">
+                                <div class="stat-grid-dropdown">${statGridHtml}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1899,19 +1903,19 @@
                     target_ally: targetAlly
                 };
 
-                                // Add conditional data if active (not cleared)
-                const condContainer = row.querySelector('.cond-container');
-                if (condContainer.classList.contains('active')) {
+                                // Always get timing
+                eff.timing = row.querySelector('.cond-timing').value || 'this_turn';
+
+                // Add conditional data if active
+                const hasCondition = row.querySelector('.eff-has-condition').checked;
+                if (hasCondition) {
+                    const condContainer = row.querySelector('.cond-container');
                     eff.condition = {
                         target: condContainer.querySelector('.cond-target').value,
                         stat: condContainer.querySelector('.cond-stat').value,
                         operator: condContainer.querySelector('.cond-operator').value,
                         value: parseInt(condContainer.querySelector('.cond-value').value) || 0
                     };
-                    eff.timing = condContainer.querySelector('.cond-timing').value;
-                } else {
-                    // Check if timing was set even without condition? The UI groups them.
-                    // Let's assume if the container is hidden, there is no condition and timing is this_turn.
                 }
 
                 effects.push(eff);
@@ -2200,9 +2204,12 @@
                     if (row) {
                         row.remove();
                     }
-                } else if (e.target.classList.contains('btn-toggle-cond')) {
+                } else if (e.target.classList.contains('eff-has-condition')) {
                     const condContainer = e.target.closest('.effect-row').querySelector('.cond-container');
-                    if (condContainer) condContainer.classList.toggle('active');
+                    if (condContainer) {
+                        condContainer.style.display = e.target.checked ? 'block' : 'none';
+                    }
+                    if (typeof renderPreview === 'function') renderPreview();
                 } else if (e.target.closest('.stat-grid-btn')) {
                     const dropdown = e.target.closest('.stat-grid-selector').querySelector('.stat-grid-dropdown');
                     if (dropdown) {
@@ -2290,28 +2297,7 @@
                     e.target.classList.add('active');
                     group.querySelector('.cond-timing').value = e.target.getAttribute('data-timing');
                     if (typeof renderPreview === 'function') renderPreview();
-                } else if (e.target.classList.contains('btn-clear-cond')) {
-                    const condContainer = e.target.closest('.cond-container');
-                    // Reset to default
-                    condContainer.querySelector('.cond-target').value = 'target';
-                    const statSelector = condContainer.querySelector('.stat-grid-selector');
-                    statSelector.querySelector('.cond-stat').value = 'HP';
-                    statSelector.querySelector('.stat-btn-label').textContent = 'HP';
 
-                    const opGroup = condContainer.querySelector('.math-op-group');
-                    opGroup.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
-                    opGroup.querySelector('.math-op-btn[data-op="equal to"]').classList.add('active');
-                    opGroup.querySelector('.cond-operator').value = 'equal to';
-
-                    condContainer.querySelector('.cond-value').value = 0;
-
-                    const timingGroup = condContainer.querySelector('.timing-group');
-                    timingGroup.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
-                    timingGroup.querySelector('.timing-btn[data-timing="this_turn"]').classList.add('active');
-                                        timingGroup.querySelector('.cond-timing').value = 'this_turn';
-
-                    condContainer.classList.remove('active');
-                    if (typeof renderPreview === 'function') renderPreview();
                 } else {
                     // Close dropdowns if clicking outside
                     if (!e.target.closest('.stat-grid-selector') && !e.target.closest('.status-grid-selector')) {
