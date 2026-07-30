@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('Status builder UI flow', async ({ page }) => {
+test('Status builder UI flow (Purged)', async ({ page }) => {
     let hasErrors = false;
     page.on('pageerror', exception => {
         if (exception.message.includes('PERMISSION_DENIED')) return;
@@ -16,19 +16,22 @@ test('Status builder UI flow', async ({ page }) => {
     });
 
     await page.goto(`file://${process.cwd()}/dm-combat-creator.html`);
-    // Wait for the tab to be available before clicking
     await page.waitForSelector('#tab-btn-status');
     await page.click('#tab-btn-status');
 
-    await page.click('#btn-start-status-builder');
+    await page.evaluate(() => {
+        loadStatusIntoBuilder('test_id', { name: 'Test Status', icon: '' });
+    });
 
-    await page.fill('#sb-status-name', 'Test Status');
-    await page.fill('#sb-status-desc', 'A test status description.');
-    await page.check('input[name="sb-status-mode"][value="double"]');
-    await page.check('input[name="sb-status-tag"][value="positive"]');
-    await page.check('input[name="sb-status-decay"][value="on_hit_dealt"]');
-    await page.fill('#sb-status-base-value', '5');
-    await page.fill('#sb-status-max-value', '10');
+    const idInput = page.locator('#sb-status-id');
+    await expect(idInput).toBeDisabled();
+    await expect(idInput).toHaveValue('test_id');
+
+    const nameInput = page.locator('#sb-status-name');
+    await expect(nameInput).toBeDisabled();
+    await expect(nameInput).toHaveValue('Test Status');
+
+    await page.fill('#sb-status-icon', 'https://imgur.com/test.png');
 
     page.on('dialog', dialog => dialog.accept());
     await page.click('#btnSaveStatus');
