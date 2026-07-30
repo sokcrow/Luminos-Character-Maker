@@ -323,6 +323,7 @@
         <div style="display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #553311; padding-bottom: 10px;">
             <button class="tab-btn active" id="tab-btn-units" onclick="switchEditorTab('units')" style="flex: 1; padding: 10px; background: #c49a00; color: #000; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ENSAMBLAJE DE ENTIDADES ]</button>
             <button class="tab-btn" id="tab-btn-skills" onclick="switchEditorTab('skills')" style="flex: 1; padding: 10px; background: #332211; color: #ccc; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ARCHIVO DE HABILIDADES ]</button>
+            <button class="tab-btn" id="tab-btn-status" onclick="switchEditorTab('status')" style="flex: 1; padding: 10px; background: #332211; color: #ccc; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ESTADOS (STATUS) ]</button>
         </div>
 
         <div id="module-units">
@@ -623,6 +624,67 @@
         </div>
 
         </div> <!-- End module-skills -->
+
+        <div id="module-status" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);">
+            <div id="mst-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+                <button id="btn-start-status-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;" onclick="startStatusBuilder()">[ INICIAR NUEVO CONSTRUCTOR DE ESTADO ]</button>
+
+                <!-- Constructor de Estados -->
+                <fieldset id="status-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px; display: none;">
+                    <legend>Constructor de Estados</legend>
+                    <input type="hidden" id="sb-status-current-id" value="">
+
+                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                        <label style="flex: 1;">ID Estado: <input type="text" id="sb-status-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                        <label style="flex: 1;">Nombre: <input type="text" id="sb-status-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                    </div>
+
+                    <label style="display:block; margin-bottom: 5px;">Descripción: <textarea id="sb-status-desc" style="width: 100%; background: #222; color: white; border: 1px solid #555; height: 60px;"></textarea></label>
+
+                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                        <label style="flex: 1;">Modo de Valor:
+                            <div class="custom-radio-group">
+                                <label><input type="radio" name="sb-status-mode" value="zero"> Zero</label>
+                                <label><input type="radio" name="sb-status-mode" value="single" checked> Single</label>
+                                <label><input type="radio" name="sb-status-mode" value="double"> Double</label>
+                            </div>
+                        </label>
+                        <label style="flex: 1;">Naturaleza Lógica (Tag):
+                            <div class="custom-radio-group">
+                                <label><input type="radio" name="sb-status-tag" value="positive"> Positive</label>
+                                <label><input type="radio" name="sb-status-tag" value="neutral" checked> Neutral</label>
+                                <label><input type="radio" name="sb-status-tag" value="negative"> Negative</label>
+                            </div>
+                        </label>
+                    </div>
+
+                    <label style="display:block; margin-bottom: 5px;">Condición de Consumo (Decay):
+                        <div class="custom-radio-group" style="flex-wrap: wrap;">
+                            <label><input type="radio" name="sb-status-decay" value="turn_end" checked> Pasivo por Turno</label>
+                            <label><input type="radio" name="sb-status-decay" value="on_hit_taken"> Al recibir golpe</label>
+                            <label><input type="radio" name="sb-status-decay" value="on_hit_dealt"> Al asestar golpe</label>
+                        </div>
+                    </label>
+
+                    <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                        <label style="flex: 1;">Base Value: <input type="number" id="sb-status-base-value" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                        <label style="flex: 1;">Max Value: <input type="number" id="sb-status-max-value" value="99" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                    </div>
+
+                    <label style="display:block; margin-bottom: 10px;">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+
+                    <button id="btnSaveStatus" style="width: 100%; padding: 10px; margin-top: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;" onclick="saveStatusToFirebase()">[ GUARDAR ESTADO GLOBAL ]</button>
+                </fieldset>
+            </div>
+
+            <div id="mst-right" style="flex: 1; border-left: 1px solid #553311; padding-left: 10px; overflow-y: auto;">
+                <h3 style="margin-top: 0; border-bottom: 1px solid #553311; padding-bottom: 5px; font-family: 'Bebas Neue', cursive;">Directorio Activo de Estados</h3>
+                <div id="active-status-directory" style="display: flex; flex-direction: column; gap: 5px;">
+                    <!-- Los estados globales se listarán aquí -->
+                </div>
+            </div>
+        </div>
+
 <!-- Buscador -->
         <fieldset style="border: 1px solid #444; padding: 10px;">
             <legend>Cargar Template</legend>
@@ -721,15 +783,19 @@
         function switchEditorTab(tab) {
             document.getElementById('module-units').style.display = tab === 'units' ? 'block' : 'none';
             document.getElementById('module-skills').style.display = tab === 'skills' ? 'flex' : 'none';
-            document.getElementById('editor-sidebar').style.width = tab === 'skills' ? '750px' : '350px';
+            document.getElementById('module-status').style.display = tab === 'status' ? 'flex' : 'none';
+            document.getElementById('editor-sidebar').style.width = tab === 'skills' || tab === 'status' ? '750px' : '350px';
 
             document.getElementById('tab-btn-units').className = tab === 'units' ? 'tab-btn active' : 'tab-btn';
             document.getElementById('tab-btn-skills').className = tab === 'skills' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-btn-status').className = tab === 'status' ? 'tab-btn active' : 'tab-btn';
 
             document.getElementById('tab-btn-units').style.background = tab === 'units' ? '#c49a00' : '#332211';
             document.getElementById('tab-btn-units').style.color = tab === 'units' ? '#000' : '#ccc';
             document.getElementById('tab-btn-skills').style.background = tab === 'skills' ? '#c49a00' : '#332211';
             document.getElementById('tab-btn-skills').style.color = tab === 'skills' ? '#000' : '#ccc';
+            document.getElementById('tab-btn-status').style.background = tab === 'status' ? '#c49a00' : '#332211';
+            document.getElementById('tab-btn-status').style.color = tab === 'status' ? '#000' : '#ccc';
 
             const previewLabel = document.getElementById('editor-preview');
             if (previewLabel) {
@@ -1312,6 +1378,42 @@
         }
 
         function listenToSkillDirectory() {
+            db.ref('campaña/base_datos_status').on('value', snap => {
+                const data = snap.val();
+                const container = document.getElementById('active-status-directory');
+                if(!container) return;
+                container.innerHTML = '';
+                if(data) {
+                    Object.entries(data).forEach(([key, status]) => {
+                        // Inyectar visualmente en window.STATUS_REGISTRY para el editor
+                        if(window.STATUS_REGISTRY) {
+                            window.STATUS_REGISTRY[key] = status;
+                        }
+
+                        const colorMap = { 'positive': '#ccaa00', 'neutral': '#886633', 'negative': '#aa3333' };
+                        const color = colorMap[status.tag] || '#886633';
+
+                        const div = document.createElement('div');
+                        div.style.cssText = `padding: 5px; border: 1px solid ${color}; cursor: pointer; color: #ccc; font-size: 11px; background: rgba(0,0,0,0.5); display: flex; align-items: center; gap: 5px; margin-bottom: 2px;`;
+
+                        let iconHtml = '';
+                        if(status.icon) {
+                            iconHtml = `<img src="${status.icon}" style="width: 20px; height: 20px; object-fit: contain;">`;
+                        }
+
+                        div.innerHTML = `
+                            ${iconHtml}
+                            <div style="flex: 1;">
+                                <strong style="color: ${color};">${status.name}</strong>
+                                <span style="color: #666;">[${status.mode}]</span>
+                            </div>
+                        `;
+                        div.onclick = () => loadStatusIntoBuilder(key, status);
+                        container.appendChild(div);
+                    });
+                }
+            });
+
             db.ref('campaña/base_datos_skills/').on('value', (snap) => {
                 allGlobalSkills = snap.val() || {};
                 filterSkillDirectory();
@@ -2142,6 +2244,86 @@
             });
 
             renderPreview();
+        }
+
+        function startStatusBuilder() {
+            document.getElementById('status-builder-container').style.display = 'block';
+            document.getElementById('btn-start-status-builder').style.display = 'none';
+            document.getElementById('sb-status-current-id').value = '';
+            document.getElementById('sb-status-id').value = `db_status_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            document.getElementById('sb-status-name').value = '';
+            document.getElementById('sb-status-desc').value = '';
+            document.querySelector('input[name="sb-status-mode"][value="single"]').checked = true;
+            document.querySelector('input[name="sb-status-tag"][value="neutral"]').checked = true;
+            document.querySelector('input[name="sb-status-decay"][value="turn_end"]').checked = true;
+            document.getElementById('sb-status-base-value').value = 1;
+            document.getElementById('sb-status-max-value').value = 99;
+            document.getElementById('sb-status-icon').value = '';
+        }
+
+        function loadStatusIntoBuilder(id, status) {
+            document.getElementById('status-builder-container').style.display = 'block';
+            document.getElementById('btn-start-status-builder').style.display = 'none';
+
+            document.getElementById('sb-status-current-id').value = id;
+            document.getElementById('sb-status-id').value = id;
+            document.getElementById('sb-status-name').value = status.name || '';
+            document.getElementById('sb-status-desc').value = status.description || '';
+
+            if(status.mode) {
+                const modeEl = document.querySelector(`input[name="sb-status-mode"][value="${status.mode}"]`);
+                if(modeEl) modeEl.checked = true;
+            }
+            if(status.tag) {
+                const tagEl = document.querySelector(`input[name="sb-status-tag"][value="${status.tag}"]`);
+                if(tagEl) tagEl.checked = true;
+            }
+            if(status.decay_condition) {
+                const decayEl = document.querySelector(`input[name="sb-status-decay"][value="${status.decay_condition}"]`);
+                if(decayEl) decayEl.checked = true;
+            }
+
+            document.getElementById('sb-status-base-value').value = status.baseValue || 1;
+            document.getElementById('sb-status-max-value').value = status.maxCount || status.maxPotency || 99; // maxCount covers single, maxPotency for double compatibility if needed
+            document.getElementById('sb-status-icon').value = status.icon || '';
+        }
+
+        function saveStatusToFirebase() {
+            const currentId = document.getElementById('sb-status-current-id').value;
+            let id = document.getElementById('sb-status-id').value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+
+            if(!id) {
+                alert("El ID del estado es obligatorio.");
+                return;
+            }
+
+            const statusData = {
+                name: document.getElementById('sb-status-name').value.trim(),
+                description: document.getElementById('sb-status-desc').value.trim(),
+                mode: document.querySelector('input[name="sb-status-mode"]:checked').value,
+                tag: document.querySelector('input[name="sb-status-tag"]:checked').value,
+                decay_condition: document.querySelector('input[name="sb-status-decay"]:checked').value,
+                baseValue: parseInt(document.getElementById('sb-status-base-value').value) || 1,
+                maxCount: parseInt(document.getElementById('sb-status-max-value').value) || 99,
+                icon: document.getElementById('sb-status-icon').value.trim()
+            };
+
+            // For double mode compatibility in engine
+            if (statusData.mode === 'double') {
+                statusData.maxPotency = statusData.maxCount;
+            }
+
+            // Para mapeo de colores
+            statusData.type = statusData.tag;
+
+            const finalId = currentId ? currentId : id;
+
+            db.ref(`campaña/base_datos_status/${finalId}`).set(statusData).then(() => {
+                alert("Estado guardado globalmente con éxito.");
+                startStatusBuilder(); // Reset UI
+            }).catch(err => {
+                alert("Error al guardar estado: " + err.message);
+            });
         }
 
         function loadTemplate(template) {
