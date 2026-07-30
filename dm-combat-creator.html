@@ -678,7 +678,10 @@
             </div>
 
             <div id="mst-right" style="flex: 1; border-left: 1px solid #553311; padding-left: 10px; overflow-y: auto;">
-                <h3 style="margin-top: 0; border-bottom: 1px solid #553311; padding-bottom: 5px; font-family: 'Bebas Neue', cursive;">Directorio Activo de Estados</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #553311; padding-bottom: 5px; margin-bottom: 5px;">
+                    <h3 style="margin: 0; font-family: 'Bebas Neue', cursive;">Directorio Activo de Estados</h3>
+                    <button id="btn-filter-missing-icons" onclick="toggleMissingIconFilter()" style="background: #aa3333; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; font-weight: bold;">[ Filtrar Sin Ícono ]</button>
+                </div>
                 <div id="active-status-directory" style="display: flex; flex-direction: column; gap: 5px;">
                     <!-- Los estados globales se listarán aquí -->
                 </div>
@@ -1377,41 +1380,80 @@
             previewContainer.innerHTML = html;
         }
 
+        let isMissingIconFilterActive = false;
+
+        function toggleMissingIconFilter() {
+            isMissingIconFilterActive = !isMissingIconFilterActive;
+            const btn = document.getElementById('btn-filter-missing-icons');
+            if (isMissingIconFilterActive) {
+                btn.style.background = '#007bff';
+                btn.textContent = '[ Mostrando Sin Ícono ]';
+            } else {
+                btn.style.background = '#aa3333';
+                btn.textContent = '[ Filtrar Sin Ícono ]';
+            }
+            // Trigger a re-render of the directory
+            db.ref('campaña/base_datos_status').once('value').then(snap => {
+                renderStatusDirectory(snap.val());
+            });
+        }
+
+        function renderStatusDirectory(data) {
+            const container = document.getElementById('active-status-directory');
+            if(!container) return;
+            container.innerHTML = '';
+
+            // Fusionamos la base de datos de Firebase con el STATUS_REGISTRY por defecto para mostrar todos
+            if(data && window.STATUS_REGISTRY) {
+                Object.entries(data).forEach(([key, status]) => {
+                    window.STATUS_REGISTRY[key] = status;
+                });
+            }
+
+            if(window.STATUS_REGISTRY) {
+                Object.entries(window.STATUS_REGISTRY).forEach(([key, status]) => {
+                    const hasIcon = status.icon && status.icon.trim() !== '';
+
+                    if (isMissingIconFilterActive && hasIcon) {
+                        return; // Ocultar si tiene icono y el filtro esta activo
+                    }
+
+                    const colorMap = { 'positive': '#ccaa00', 'neutral': '#886633', 'negative': '#aa3333' };
+                    let tag = status.tag || status.type || 'neutral';
+                    let color = colorMap[tag] || '#886633';
+                    let alertHtml = '';
+                    let borderStyle = `1px solid ${color}`;
+
+                    if (!hasIcon) {
+                        borderStyle = `2px solid red`;
+                        alertHtml = `<span style="color: red; font-weight: bold; margin-left: auto;">[!]</span>`;
+                    }
+
+                    const div = document.createElement('div');
+                    div.style.cssText = `padding: 5px; border: ${borderStyle}; cursor: pointer; color: #ccc; font-size: 11px; background: rgba(0,0,0,0.5); display: flex; align-items: center; gap: 5px; margin-bottom: 2px;`;
+
+                    let iconHtml = '';
+                    if(hasIcon) {
+                        iconHtml = `<img src="${status.icon}" style="width: 20px; height: 20px; object-fit: contain;">`;
+                    }
+
+                    div.innerHTML = `
+                        ${iconHtml}
+                        <div style="flex: 1;">
+                            <strong style="color: ${color};">${status.name}</strong>
+                            <span style="color: #666;">[${status.mode || 'N/A'}]</span>
+                        </div>
+                        ${alertHtml}
+                    `;
+                    div.onclick = () => loadStatusIntoBuilder(key, status);
+                    container.appendChild(div);
+                });
+            }
+        }
+
         function listenToSkillDirectory() {
             db.ref('campaña/base_datos_status').on('value', snap => {
-                const data = snap.val();
-                const container = document.getElementById('active-status-directory');
-                if(!container) return;
-                container.innerHTML = '';
-                if(data) {
-                    Object.entries(data).forEach(([key, status]) => {
-                        // Inyectar visualmente en window.STATUS_REGISTRY para el editor
-                        if(window.STATUS_REGISTRY) {
-                            window.STATUS_REGISTRY[key] = status;
-                        }
-
-                        const colorMap = { 'positive': '#ccaa00', 'neutral': '#886633', 'negative': '#aa3333' };
-                        const color = colorMap[status.tag] || '#886633';
-
-                        const div = document.createElement('div');
-                        div.style.cssText = `padding: 5px; border: 1px solid ${color}; cursor: pointer; color: #ccc; font-size: 11px; background: rgba(0,0,0,0.5); display: flex; align-items: center; gap: 5px; margin-bottom: 2px;`;
-
-                        let iconHtml = '';
-                        if(status.icon) {
-                            iconHtml = `<img src="${status.icon}" style="width: 20px; height: 20px; object-fit: contain;">`;
-                        }
-
-                        div.innerHTML = `
-                            ${iconHtml}
-                            <div style="flex: 1;">
-                                <strong style="color: ${color};">${status.name}</strong>
-                                <span style="color: #666;">[${status.mode}]</span>
-                            </div>
-                        `;
-                        div.onclick = () => loadStatusIntoBuilder(key, status);
-                        container.appendChild(div);
-                    });
-                }
+                renderStatusDirectory(snap.val());
             });
 
             db.ref('campaña/base_datos_skills/').on('value', (snap) => {
@@ -2285,7 +2327,13 @@
 
             document.getElementById('sb-status-base-value').value = status.baseValue || 1;
             document.getElementById('sb-status-max-value').value = status.maxCount || status.maxPotency || 99; // maxCount covers single, maxPotency for double compatibility if needed
-            document.getElementById('sb-status-icon').value = status.icon || '';
+
+            const iconInput = document.getElementById('sb-status-icon');
+            iconInput.value = status.icon || '';
+
+            if (!status.icon || status.icon.trim() === '') {
+                iconInput.focus();
+            }
         }
 
         function saveStatusToFirebase() {
