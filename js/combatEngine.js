@@ -333,10 +333,15 @@ const CombatEngine = {
         }
 
         this.triggerEvent('[Before Attack]', context, [unitDefender]);
-        this.triggerEvent('[On Unopposed Attack]', context, [unitDefender]);
 
-        let defContext = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: attackSkill };
-        this.triggerEvent('[Before Getting Hit]', defContext, [unitDefender]);
+        if (!options.clashResult) {
+            this.triggerEvent('[On Unopposed Attack]', context, [unitDefender]);
+        }
+
+        if (counterSkill) {
+            let defContext = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: counterSkill };
+            this.triggerEvent('[Before Getting Hit]', defContext, [unitDefender]);
+        }
 
         let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked' || c.status === 'latent');
         let probAttacker = this.getCoinProbability(unitAttacker.sp || 0);
@@ -397,10 +402,15 @@ const CombatEngine = {
             let clashCount = options.clashCount || 0; // options.clashCount could be passed if from a clash, else 0
             let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, false, clashCount);
 
+            let hpBeforeHit = unitDefender.hp;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', false, attackSkill);
             context.damageDealt = finalDamage;
 
             this.triggerEvent('[On Hit]', context, [unitDefender]);
+
+            if (hpBeforeHit > 0 && unitDefender.hp <= 0) {
+                this.triggerEvent('[On Kill]', context, [unitDefender]);
+            }
 
             // If they just won a clash
             if (options.clashResult === 'Win') {
@@ -894,6 +904,18 @@ const CombatEngine = {
         let applicableEffects = [];
         if (context.skill.effects) {
             applicableEffects.push(...context.skill.effects.filter(e => e.tag === tag));
+        }
+
+        // For some global tags, we need to scan all active coins in the skill
+        let globalCoinTags = ['[Before Attack]', '[On Unopposed Attack]', '[Attack End]', '[Before Getting Hit]'];
+        if (globalCoinTags.includes(tag) && context.skill.coins) {
+            for (let coin of context.skill.coins) {
+                if (coin.status === 'active' || coin.status === 'cracked' || coin.status === 'latent') {
+                    if (coin.effects) {
+                        applicableEffects.push(...coin.effects.filter(e => e.tag === tag));
+                    }
+                }
+            }
         }
 
         // If context has a currentCoin, collect effects from that coin too
