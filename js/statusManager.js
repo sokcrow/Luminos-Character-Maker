@@ -60,7 +60,7 @@ const STATUS_REGISTRY = {
     },
     'damage_up': {
         name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/KDLYRCR.png',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
         description: "Deal 10% more damage with skills based on the effect's Count for one turn. (Max 10)"
     },
     'haste': {
@@ -70,7 +70,7 @@ const STATUS_REGISTRY = {
     },
     'protection': {
         name: 'Protection', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/yjPgnjd.png',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
         description: "Take 10% less damage per Count from attacks for one turn. (Max 10)"
     },
     'plus_coin_boost': {
@@ -85,7 +85,7 @@ const STATUS_REGISTRY = {
     },
     'weak_resist_dmg_boost': {
         name: 'Weak-resist DMG Boost', type: 'positive', mode: 'single',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
         description: "Boost the damage of attacks against Weak resistances by 1% per Count for one turn."
     },
     'hp_healing_boost': {
@@ -132,7 +132,7 @@ const STATUS_REGISTRY = {
     },
     'damage_down': {
         name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/bo7reA0.png',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
         description: "Deal 10% less damage with skills per Count for one turn. (Max 10)"
     },
     'bind': {
@@ -142,7 +142,7 @@ const STATUS_REGISTRY = {
     },
     'fragile': {
         name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/wSFboZT.png',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
         description: "Take 10% more damage from skills per Count for one turn. (Max 10)"
     },
     'paralyze': {
@@ -187,7 +187,7 @@ const generateElementalStatuses = () => {
             name: `${type} DMG Up`,
             type: 'positive',
             mode: 'single',
-            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Deal 10% more damage with ${type} skills per Count for one turn. (Max 10)`
         };
@@ -204,7 +204,7 @@ const generateElementalStatuses = () => {
             name: `${type} Protection`,
             type: 'positive',
             mode: 'single',
-            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Take 10% less damage from ${type} skills per Count for one turn. (Max 10)`
         };
@@ -213,7 +213,7 @@ const generateElementalStatuses = () => {
             name: `${type} DMG Down`,
             type: 'negative',
             mode: 'single',
-            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Deal 10% less damage with ${type} skills per Count for one turn. (Max 10)`
         };
@@ -230,7 +230,7 @@ const generateElementalStatuses = () => {
             name: `${type} Fragility`,
             type: 'negative',
             mode: 'single',
-            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Take 10% more damage from ${type} skills per Count for one turn. (Max 10)`
         };

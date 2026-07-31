@@ -56,7 +56,7 @@ content = content.replace(
 // Elemental Up
 content = content.replace(
     /name: `\$\{type\} DMG Up`,.*?rules: \[.*?\]/s,
-    "name: `${type} DMG Up`,\n            type: 'positive',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
+    "name: `${type} DMG Up`,\n            type: 'positive',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
 );
 content = content.replace(
     /name: `\$\{type\} Power Up`,.*?rules: \[.*?\]/s,
@@ -64,13 +64,13 @@ content = content.replace(
 );
 content = content.replace(
     /name: `\$\{type\} Protection`,.*?rules: \[.*?\]/s,
-    "name: `${type} Protection`,\n            type: 'positive',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
+    "name: `${type} Protection`,\n            type: 'positive',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
 );
 
 // Elemental Down
 content = content.replace(
     /name: `\$\{type\} DMG Down`,.*?rules: \[.*?\]/s,
-    "name: `${type} DMG Down`,\n            type: 'negative',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
+    "name: `${type} DMG Down`,\n            type: 'negative',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
 );
 content = content.replace(
     /name: `\$\{type\} Power Down`,.*?rules: \[.*?\]/s,
@@ -78,14 +78,14 @@ content = content.replace(
 );
 content = content.replace(
     /name: `\$\{type\} Fragility`,.*?rules: \[.*?\]/s,
-    "name: `${type} Fragility`,\n            type: 'negative',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
+    "name: `${type} Fragility`,\n            type: 'negative',\n            mode: 'single',\n            rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}]"
 );
 
 
 // Generic buffs
 content = content.replace(
     /name: 'Damage Up',.*?\],/s,
-    "name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/KDLYRCR.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
+    "name: 'Damage Up', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/KDLYRCR.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
 );
 content = content.replace(
     /name: 'Haste',.*?\],/s,
@@ -93,7 +93,7 @@ content = content.replace(
 );
 content = content.replace(
     /name: 'Protection',.*?\],/s,
-    "name: 'Protection', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/yjPgnjd.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
+    "name: 'Protection', type: 'positive', mode: 'single', maxCount: 10, icon: 'https://imgur.com/yjPgnjd.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
 );
 content = content.replace(
     /name: 'Plus Coin Boost',.*?\],/s,
@@ -105,7 +105,7 @@ content = content.replace(
 );
 content = content.replace(
     /name: 'Weak-resist DMG Boost',.*?\],/s,
-    "name: 'Weak-resist DMG Boost', type: 'positive', mode: 'single',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
+    "name: 'Weak-resist DMG Boost', type: 'positive', mode: 'single',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
 );
 content = content.replace(
     /name: 'HP Healing Boost',.*?\],/s,
@@ -143,7 +143,7 @@ content = content.replace(
 );
 content = content.replace(
     /name: 'Damage Down',.*?\],/s,
-    "name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/bo7reA0.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
+    "name: 'Damage Down', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/bo7reA0.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
 );
 content = content.replace(
     /name: 'Bind',.*?\],/s,
@@ -151,7 +151,7 @@ content = content.replace(
 );
 content = content.replace(
     /name: 'Fragile',.*?\],/s,
-    "name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/wSFboZT.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
+    "name: 'Fragile', type: 'negative', mode: 'single', maxCount: 10, icon: 'https://imgur.com/wSFboZT.png',\n        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],"
 );
 content = content.replace(
     /name: 'Paralyze',.*?\],/s,
@@ -182,7 +182,7 @@ let engine = fs.readFileSync('js/combatEngine.js', 'utf8');
 // I have done this above. We just need to make sure the engine handles empty affectations correctly.
 engine = engine.replace(
     /if \(affectation\) \{.*?\}\n\s*\}/s,
-    "if (affectation && affectation !== '') {\n                    if (affectation === 'hp') {\n                        finalDmg = effectValue;\n                        if (rule.operation === 'sub') {\n                            this.applyDamage(unit, finalDmg, 'efecto_estado');\n                        } else if (rule.operation === 'add') {\n                            unit.hp = Math.min(unit.hp + finalDmg, unit.maxHp || unit.hp);\n                        } else if (rule.operation === 'set') {\n                            unit.hp = Math.min(finalDmg, unit.maxHp || unit.hp);\n                        }\n                    } else if (affectation === 'sp') {\n                        if (rule.operation === 'sub') {\n                            unit.sp = this.limitSP((unit.sp || 0) - effectValue);\n                        } else if (rule.operation === 'add') {\n                            unit.sp = this.limitSP((unit.sp || 0) + effectValue);\n                        } else if (rule.operation === 'set') {\n                            unit.sp = this.limitSP(effectValue);\n                        }\n                    } else if (affectation === 'stagger_threshold') {\n                         if (rule.operation === 'add') {\n                             this.modifyNextStaggerThreshold(unit, effectValue);\n                         } else if (rule.operation === 'sub') {\n                             this.modifyNextStaggerThreshold(unit, -effectValue);\n                         }\n                    } else if (affectation === 'damage_multiplier' || affectation === 'healing_multiplier' || affectation === 'speed' || affectation === 'resource' || affectation === 'defensive_level' || affectation === 'offensive_level' || affectation === 'clash_power' || affectation === 'coin_power' || affectation === 'base_power' || affectation === 'final_power') {\n                        if (context && typeof context === 'object') {\n                            if (!context.modifiers) context.modifiers = {};\n                            if (!context.modifiers[affectation]) context.modifiers[affectation] = 0;\n                            \n                            if (rule.operation === 'add') context.modifiers[affectation] += effectValue;\n                            if (rule.operation === 'sub') context.modifiers[affectation] -= effectValue;\n                            if (rule.operation === 'mult') context.modifiers[affectation] *= effectValue;\n                            if (rule.operation === 'div' && effectValue !== 0) context.modifiers[affectation] /= effectValue;\n                            if (rule.operation === 'set') context.modifiers[affectation] = effectValue;\n                        }\n                    }\n                }"
+    "if (affectation && affectation !== '') {\n                    let actualAffectation = affectation === 'damage_multiplier' ? 'damage_dealt_multiplier' : affectation;\n                    if (actualAffectation === 'hp') {\n                        finalDmg = effectValue;\n                        if (rule.operation === 'sub') {\n                            this.applyDamage(unit, finalDmg, 'efecto_estado');\n                        } else if (rule.operation === 'add') {\n                            unit.hp = Math.min(unit.hp + finalDmg, unit.maxHp || unit.hp);\n                        } else if (rule.operation === 'set') {\n                            unit.hp = Math.min(finalDmg, unit.maxHp || unit.hp);\n                        }\n                    } else if (actualAffectation === 'sp') {\n                        if (rule.operation === 'sub') {\n                            unit.sp = this.limitSP((unit.sp || 0) - effectValue);\n                        } else if (rule.operation === 'add') {\n                            unit.sp = this.limitSP((unit.sp || 0) + effectValue);\n                        } else if (rule.operation === 'set') {\n                            unit.sp = this.limitSP(effectValue);\n                        }\n                    } else if (actualAffectation === 'stagger_threshold') {\n                         if (rule.operation === 'add') {\n                             this.modifyNextStaggerThreshold(unit, effectValue);\n                         } else if (rule.operation === 'sub') {\n                             this.modifyNextStaggerThreshold(unit, -effectValue);\n                         }\n                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power') {\n                        if (context && typeof context === 'object') {\n                            if (!context.modifiers) context.modifiers = {};\n                            if (!context.modifiers[actualAffectation]) context.modifiers[actualAffectation] = 0;\n                            \n                            if (rule.operation === 'add') context.modifiers[actualAffectation] += effectValue;\n                            if (rule.operation === 'sub') context.modifiers[actualAffectation] -= effectValue;\n                            if (rule.operation === 'mult') context.modifiers[actualAffectation] *= effectValue;\n                            if (rule.operation === 'div' && effectValue !== 0) context.modifiers[actualAffectation] /= effectValue;\n                            if (rule.operation === 'set') context.modifiers[actualAffectation] = effectValue;\n                        }\n                    }\n                }"
 );
 
 fs.writeFileSync('js/combatEngine.js', engine, 'utf8');
