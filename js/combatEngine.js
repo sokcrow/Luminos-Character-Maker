@@ -1138,7 +1138,8 @@ const CombatEngine = {
         if (!unit || !unit.statusEffects) return {};
 
         let modifiers = {
-            damage_multiplier: 0,
+            damage_dealt_multiplier: 0,
+            damage_taken_multiplier: 0,
             healing_multiplier: 0,
             final_power: 0,
             base_power: 0,
@@ -1227,7 +1228,10 @@ const CombatEngine = {
                 let affectation = rule.affectation;
 
                 if (affectation && affectation !== '') {
-                    if (affectation === 'hp') {
+                    // Legacy Fallback for older skills
+                    let actualAffectation = affectation === 'damage_multiplier' ? 'damage_dealt_multiplier' : affectation;
+
+                    if (actualAffectation === 'hp') {
                         finalDmg = effectValue;
                         if (rule.operation === 'sub') {
                             this.applyDamage(unit, finalDmg, 'efecto_estado');
@@ -1236,7 +1240,7 @@ const CombatEngine = {
                         } else if (rule.operation === 'set') {
                             unit.hp = Math.min(finalDmg, unit.maxHp || unit.hp);
                         }
-                    } else if (affectation === 'sp') {
+                    } else if (actualAffectation === 'sp') {
                         if (rule.operation === 'sub') {
                             unit.sp = this.limitSP((unit.sp || 0) - effectValue);
                         } else if (rule.operation === 'add') {
@@ -1244,22 +1248,22 @@ const CombatEngine = {
                         } else if (rule.operation === 'set') {
                             unit.sp = this.limitSP(effectValue);
                         }
-                    } else if (affectation === 'stagger_threshold') {
+                    } else if (actualAffectation === 'stagger_threshold') {
                          if (rule.operation === 'add') {
                              this.modifyNextStaggerThreshold(unit, effectValue);
                          } else if (rule.operation === 'sub') {
                              this.modifyNextStaggerThreshold(unit, -effectValue);
                          }
-                    } else if (affectation === 'damage_multiplier' || affectation === 'healing_multiplier' || affectation === 'speed' || affectation === 'resource' || affectation === 'defensive_level' || affectation === 'offensive_level' || affectation === 'clash_power' || affectation === 'coin_power' || affectation === 'base_power' || affectation === 'final_power' || affectation === 'defense_power') {
+                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power' || actualAffectation === 'defense_power') {
                         if (context && typeof context === 'object') {
                             if (!context.modifiers) context.modifiers = {};
-                            if (!context.modifiers[affectation]) context.modifiers[affectation] = 0;
+                            if (!context.modifiers[actualAffectation]) context.modifiers[actualAffectation] = 0;
 
-                            if (rule.operation === 'add') context.modifiers[affectation] += effectValue;
-                            if (rule.operation === 'sub') context.modifiers[affectation] -= effectValue;
-                            if (rule.operation === 'mult') context.modifiers[affectation] *= effectValue;
-                            if (rule.operation === 'div' && effectValue !== 0) context.modifiers[affectation] /= effectValue;
-                            if (rule.operation === 'set') context.modifiers[affectation] = effectValue;
+                            if (rule.operation === 'add') context.modifiers[actualAffectation] += effectValue;
+                            if (rule.operation === 'sub') context.modifiers[actualAffectation] -= effectValue;
+                            if (rule.operation === 'mult') context.modifiers[actualAffectation] *= effectValue;
+                            if (rule.operation === 'div' && effectValue !== 0) context.modifiers[actualAffectation] /= effectValue;
+                            if (rule.operation === 'set') context.modifiers[actualAffectation] = effectValue;
                         }
                     }
 
@@ -1435,8 +1439,8 @@ const CombatEngine = {
         // Passive modifiers
         let attackerMods = this.applyPassiveModifiers(attacker);
         let defenderMods = this.applyPassiveModifiers(defender);
-        let dmgMultiplierMod = attackerMods.damage_multiplier || 0;
-        let defDmgMultiplierMod = defenderMods.damage_multiplier || 0;
+        let dmgDealtMultiplierMod = attackerMods.damage_dealt_multiplier || 0;
+        let dmgTakenMultiplierMod = defenderMods.damage_taken_multiplier || 0;
 
         let staggerLevel = defender.staggerLevel || 0;
         let isStaggered = defender.isStaggered || false;
@@ -1468,29 +1472,19 @@ const CombatEngine = {
 
         let totalStaticMod = physMod + sinMod + levelMod + critMod + clashMod;
 
-        // Daño Base
-        let baseDamage = Math.floor(coinFinalPower * (1 + totalStaticMod) * (1 + (dmgMultiplierMod * 0.1)) * Math.max(0.1, (1 - (defDmgMultiplierMod * 0.1))));
+        // --- NUEVA ARQUITECTURA DE CÁLCULO DE DAÑO (La Regla del 0.1) ---
+        // Paso 1: Cálculo de poder en bruto
+        let rawDamage = coinFinalPower * (1 + totalStaticMod);
 
-        // 4. Modificadores Dinámicos (Planos)
-        let dynamicMod = 0;
+        // Paso 3: Aplicación del modificador ofensivo (Damage Dealt Multiplier del atacante)
+        let offMult = Math.max(0, 1.0 + (dmgDealtMultiplierMod * 0.1));
+        let damageWithOffensive = rawDamage * offMult;
 
-        // Efectos del defensor (Fragile, Protection, etc.)
-        if (defender.statusEffects) {
-            if (defender.statusEffects['Fragile']) dynamicMod += defender.statusEffects['Fragile'];
-            if (defender.statusEffects['Protection']) dynamicMod -= defender.statusEffects['Protection'];
-            // Asume otros estados aquí si es necesario, o usa un bucle.
-        }
+        // Paso 4: Paso Final: Aplicación del modificador defensivo (Damage Taken Multiplier del objetivo)
+        let defMult = Math.max(0, 1.0 - (dmgTakenMultiplierMod * 0.1));
+        let damageWithDefensive = damageWithOffensive * defMult;
 
-        // Efectos del atacante (Damage Up, Damage Down, etc.)
-        if (attacker.statusEffects) {
-            if (attacker.statusEffects['Damage Up']) dynamicMod += attacker.statusEffects['Damage Up'];
-            if (attacker.statusEffects['Damage Down']) dynamicMod -= attacker.statusEffects['Damage Down'];
-        }
-
-        let damageWithDynamic = baseDamage + dynamicMod;
-
-        // 5. Límite de Daño Mínimo (5% o 1) envolviendo a los Modificadores Dinámicos
-        let finalDamage = Math.max(damageWithDynamic, Math.floor(coinFinalPower * 0.05), 1);
+        let finalDamage = Math.max(Math.floor(damageWithDefensive), 0);
 
         // 6. Attack Adders (Daño Adicional Condicional)
         let attackAdders = 0;
