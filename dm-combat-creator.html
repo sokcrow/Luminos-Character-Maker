@@ -754,6 +754,55 @@
                 <div id="sb-coins-container"></div>
             </div>
 
+
+            <!-- Skill Evolution Module -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px; background: #1a0a0a; border: 1px solid #500; padding: 10px; border-radius: 4px;">
+                <h3 style="margin-top: 0; color: #ff4a22; font-family: 'Cinzel', serif; font-size: 14px;">[ MUTACIÓN DE HABILIDAD (Skill Evolution) ]</h3>
+                <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Habilitar Mutación
+                    <input type="checkbox" id="sb-evo-enable" onchange="document.getElementById('sb-evo-config').style.display = this.checked ? 'block' : 'none'">
+                </label>
+                <div id="sb-evo-config" style="display: none; border-left: 2px solid #8a0303; padding-left: 10px; margin-top: 5px;">
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Target Skill ID
+                        <select id="sb-evo-target-id" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Condition Target
+                        <select id="sb-evo-target" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="Self">Self</option>
+                            <option value="Target">Target</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Condition Type
+                        <select id="sb-evo-cond-type" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="hp_percent">HP %</option>
+                            <option value="status_potency">Status Potency</option>
+                            <option value="status_count">Status Count</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Status ID (si aplica)
+                        <input type="text" id="sb-evo-status-id" placeholder="Ej. burn" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                    </label>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <label style="font-size: 11px; flex: 1;">Operador
+                            <select id="sb-evo-operator" style="width: 100%; background: #000; color: #fff; border: 1px solid #444;">
+                                <option value="<"><</option>
+                                <option value="<="><=</option>
+                                <option value="=">=</option>
+                                <option value=">=">>=</option>
+                                <option value=">">></option>
+                            </select>
+                        </label>
+                        <label style="font-size: 11px; flex: 1;">Valor
+                            <input type="number" id="sb-evo-value" style="width: 100%; background: #000; color: #fff; border: 1px solid #444;">
+                        </label>
+                    </div>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-top: 5px;">Evolución Permanente
+                        <input type="checkbox" id="sb-evo-permanent">
+                    </label>
+                </div>
+            </div>
+
             <div style="margin-top: 15px;">
                 <button type="button" id="save-skill-db-btn" onclick="saveSkillToDB()" style="width: 100%; padding: 8px; margin-top: 5px; background: #8a0303; color: white; border: none; cursor: pointer; font-weight: bold;">[ GUARDAR HABILIDAD EN DB ]</button>
             </div>
@@ -980,6 +1029,7 @@
             db.ref('campaña/base_datos_skills/').once('value').then(snap => {
                 allGlobalSkills = snap.val() || {};
                 renderSkillModalList('');
+                updateEvolutionDropdown();
             });
         }
 
@@ -1079,6 +1129,15 @@
                 document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
 
                 document.getElementById('sb-global-effects-container').innerHTML = '';
+                document.getElementById('sb-evo-enable').checked = false;
+                document.getElementById('sb-evo-enable').dispatchEvent(new Event('change'));
+                document.getElementById('sb-evo-target-id').value = '';
+                document.getElementById('sb-evo-target').value = 'Self';
+                document.getElementById('sb-evo-cond-type').value = 'hp_percent';
+                document.getElementById('sb-evo-status-id').value = '';
+                document.getElementById('sb-evo-operator').value = '<';
+                document.getElementById('sb-evo-value').value = '';
+                document.getElementById('sb-evo-permanent').checked = false;
 
                 // Hide builder and show start button again
                 container.style.display = 'none';
@@ -1677,10 +1736,28 @@
                 renderStatusDirectory(snap.val());
             });
 
-            db.ref('campaña/base_datos_skills/').on('value', (snap) => {
+                        db.ref('campaña/base_datos_skills/').on('value', (snap) => {
                 allGlobalSkills = snap.val() || {};
                 filterSkillDirectory();
+                updateEvolutionDropdown();
             });
+        function updateEvolutionDropdown() {
+            const select = document.getElementById('sb-evo-target-id');
+            if(!select) return;
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Seleccionar --</option>';
+            if(allGlobalSkills) {
+                Object.entries(allGlobalSkills).forEach(([id, skill]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = skill.name + " (" + id + ")";
+                    select.appendChild(option);
+                });
+            }
+            if(currentValue && allGlobalSkills[currentValue]) {
+                select.value = currentValue;
+            }
+        }
         }
 
         function filterSkillDirectory() {
@@ -2116,6 +2193,19 @@
                 effects: gatherEffects(document.getElementById('sb-global-effects-container')),
                 coins: []
             };
+
+            if (document.getElementById('sb-evo-enable').checked) {
+                const conditionValue = parseFloat(document.getElementById('sb-evo-value').value);
+                skillObj.evolution = {
+                    target_skill_id: document.getElementById('sb-evo-target-id').value,
+                    condition_target: document.getElementById('sb-evo-target').value,
+                    condition_type: document.getElementById('sb-evo-cond-type').value,
+                    condition_status_id: document.getElementById('sb-evo-status-id').value,
+                    condition_operator: document.getElementById('sb-evo-operator').value,
+                    condition_value: isNaN(conditionValue) ? 0 : conditionValue,
+                    is_permanent: document.getElementById('sb-evo-permanent').checked
+                };
+            }
 
             if (isDefense) {
                 skillObj.defenseSubtype = document.getElementById('sb-defense-subtype').value;
