@@ -1396,9 +1396,9 @@
                     if (eff.condition) {
                         if (eff.condition.stat.includes('took_')) {
                              let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
-                             conditionText = \`<span>If ${eff.condition.target} ${condStr}, </span>\`;
+                             conditionText = `<span>If ${eff.condition.target} ${condStr}, </span>`;
                         } else {
-                             conditionText = \`<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>\`;
+                             conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
                         }
                     }
 
@@ -1410,20 +1410,20 @@
                     let effectText = '';
                     if (eff.type === 'scale_power') {
                         let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
-                        let limitText = eff.maxCap > 0 ? \` (Max ${eff.maxCap})\` : '';
+                        let limitText = eff.maxCap > 0 ? ` (Max ${eff.maxCap})` : '';
                         let perWhat = '';
                         if (eff.scaleCondition === 'negative_types') {
-                            perWhat = \`for every type of negative effect on ${eff.target}\`;
+                            perWhat = `for every type of negative effect on ${eff.target}`;
                         } else {
                             let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
-                            perWhat = \`for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}\`.trim();
+                            perWhat = `for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}`.trim();
                         }
-                        effectText = \`<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>\`;
+                        effectText = `<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>`;
                     } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
                         let isRaw = eff.type === 'raw_damage';
                         let amt = eff.potency;
-                        let textStr = isRaw ? \`Damage +${amt}\` : \`+${amt}% damage for this Coin\`;
-                        effectText = \`<span>${textStr}</span>\`;
+                        let textStr = isRaw ? `Damage +${amt}` : `+${amt}% damage for this Coin`;
+                        effectText = `<span>${textStr}</span>`;
                     } else if (statusObj && statusObj.mode === 'zero') {
                         effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
                     } else if (statusObj && statusObj.mode === 'single') {
@@ -1468,9 +1468,9 @@
                     if (eff.condition) {
                         if (eff.condition.stat.includes('took_')) {
                              let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
-                             conditionText = \`<span>If ${eff.condition.target} ${condStr}, </span>\`;
+                             conditionText = `<span>If ${eff.condition.target} ${condStr}, </span>`;
                         } else {
-                             conditionText = \`<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>\`;
+                             conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
                         }
                     }
 
@@ -1482,20 +1482,20 @@
                     let effectText = '';
                     if (eff.type === 'scale_power') {
                         let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
-                        let limitText = eff.maxCap > 0 ? \` (Max ${eff.maxCap})\` : '';
+                        let limitText = eff.maxCap > 0 ? ` (Max ${eff.maxCap})` : '';
                         let perWhat = '';
                         if (eff.scaleCondition === 'negative_types') {
-                            perWhat = \`for every type of negative effect on ${eff.target}\`;
+                            perWhat = `for every type of negative effect on ${eff.target}`;
                         } else {
                             let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
-                            perWhat = \`for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}\`.trim();
+                            perWhat = `for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}`.trim();
                         }
-                        effectText = \`<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>\`;
+                        effectText = `<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>`;
                     } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
                         let isRaw = eff.type === 'raw_damage';
                         let amt = eff.potency;
-                        let textStr = isRaw ? \`Damage +${amt}\` : \`+${amt}% damage for this Coin\`;
-                        effectText = \`<span>${textStr}</span>\`;
+                        let textStr = isRaw ? `Damage +${amt}` : `+${amt}% damage for this Coin`;
+                        effectText = `<span>${textStr}</span>`;
                     } else if (statusObj && statusObj.mode === 'zero') {
                         effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
                     } else if (statusObj && statusObj.mode === 'single') {
@@ -2282,7 +2282,7 @@
             });
 
             function enforceUIValidation() {
-            const coinCount = parseInt(document.getElementById('sb-coins').value) || 1;
+            const coinCount = parseInt(document.getElementById('sb-coin-count').value) || 1;
             const globalEffects = document.querySelectorAll('#sb-global-effects-container .effect-row');
             globalEffects.forEach(row => {
                  const reuseCheckbox = row.querySelector('.eff-is-reuse');
@@ -2304,7 +2304,7 @@
                 const defenseSubtype = document.getElementById('sb-defense-subtype').value;
                 const isEvade = isDefense && defenseSubtype === 'Evade';
 
-                const coinCount = parseInt(document.getElementById('sb-coin-count').value) || 1;
+
                 const isSingleCoin = coinCount === 1;
 
                 document.querySelectorAll('.eff-trigger').forEach(select => {
