@@ -1136,8 +1136,18 @@
                     const row = globalContainer.lastElementChild;
                     row.querySelector('.eff-trigger').value = eff.trigger || '[On Use]';
                     row.querySelector('.eff-target').value = eff.target || 'self';
+                    if (row.querySelector('.eff-type')) {
+                        row.querySelector('.eff-type').value = eff.type || 'status';
+                        row.querySelector('.eff-type').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (row.querySelector('.eff-scale-target')) row.querySelector('.eff-scale-target').value = eff.scaleTarget || 'base_power';
+                    if (row.querySelector('.eff-scale-condition')) {
+                        row.querySelector('.eff-scale-condition').value = eff.scaleCondition || 'status_potency';
+                        row.querySelector('.eff-scale-condition').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                     row.querySelector('.eff-potency').value = eff.potency || 0;
                     row.querySelector('.eff-count').value = eff.count || 0;
+                    if (row.querySelector('.eff-maxcap')) row.querySelector('.eff-maxcap').value = eff.maxCap || 0;
                     if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
                     if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
 
@@ -1178,12 +1188,20 @@
                             }
                         }
 
-                        const opVal = eff.condition.operator || 'equal to';
+                                                const opVal = eff.condition.operator || 'equal to';
                         condContainer.querySelector('.cond-operator').value = opVal;
                         condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
                         condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
 
                         condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+
+                        if (statVal && statVal.includes('took_')) {
+                             condContainer.querySelector('.math-op-group').style.display = 'none';
+                             condContainer.querySelector('.cond-value').style.display = 'none';
+                        } else {
+                             condContainer.querySelector('.math-op-group').style.display = 'inline-flex';
+                             condContainer.querySelector('.cond-value').style.display = 'inline-block';
+                        }
                     }
 
                 });
@@ -1212,6 +1230,7 @@
                                 row.querySelector('.eff-target').value = eff.target || 'target';
                                 row.querySelector('.eff-potency').value = eff.potency || 0;
                                 row.querySelector('.eff-count').value = eff.count || 0;
+                    if (row.querySelector('.eff-maxcap')) row.querySelector('.eff-maxcap').value = eff.maxCap || 0;
                                 if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
                                 if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
 
@@ -1252,12 +1271,20 @@
                             }
                         }
 
-                        const opVal = eff.condition.operator || 'equal to';
+                                                const opVal = eff.condition.operator || 'equal to';
                         condContainer.querySelector('.cond-operator').value = opVal;
                         condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
                         condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
 
                         condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+
+                        if (statVal && statVal.includes('took_')) {
+                             condContainer.querySelector('.math-op-group').style.display = 'none';
+                             condContainer.querySelector('.cond-value').style.display = 'none';
+                        } else {
+                             condContainer.querySelector('.math-op-group').style.display = 'inline-flex';
+                             condContainer.querySelector('.cond-value').style.display = 'inline-block';
+                        }
                     }
 
                                 });
@@ -1365,9 +1392,14 @@
                     const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
                     const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
 
-                    let conditionText = '';
+                                        let conditionText = '';
                     if (eff.condition) {
-                        conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                        if (eff.condition.stat.includes('took_')) {
+                             let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
+                             conditionText = \`<span>If ${eff.condition.target} ${condStr}, </span>\`;
+                        } else {
+                             conditionText = \`<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>\`;
+                        }
                     }
 
                     let timingText = '';
@@ -1376,7 +1408,23 @@
                     }
 
                     let effectText = '';
-                    if (statusObj && statusObj.mode === 'zero') {
+                    if (eff.type === 'scale_power') {
+                        let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
+                        let limitText = eff.maxCap > 0 ? \` (Max ${eff.maxCap})\` : '';
+                        let perWhat = '';
+                        if (eff.scaleCondition === 'negative_types') {
+                            perWhat = \`for every type of negative effect on ${eff.target}\`;
+                        } else {
+                            let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
+                            perWhat = \`for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}\`.trim();
+                        }
+                        effectText = \`<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>\`;
+                    } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
+                        let isRaw = eff.type === 'raw_damage';
+                        let amt = eff.potency;
+                        let textStr = isRaw ? \`Damage +${amt}\` : \`+${amt}% damage for this Coin\`;
+                        effectText = \`<span>${textStr}</span>\`;
+                    } else if (statusObj && statusObj.mode === 'zero') {
                         effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
                     } else if (statusObj && statusObj.mode === 'single') {
                         effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
@@ -1416,9 +1464,14 @@
                     const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
                     const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
 
-                    let conditionText = '';
+                                        let conditionText = '';
                     if (eff.condition) {
-                        conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                        if (eff.condition.stat.includes('took_')) {
+                             let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
+                             conditionText = \`<span>If ${eff.condition.target} ${condStr}, </span>\`;
+                        } else {
+                             conditionText = \`<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>\`;
+                        }
                     }
 
                     let timingText = '';
@@ -1427,7 +1480,23 @@
                     }
 
                     let effectText = '';
-                    if (statusObj && statusObj.mode === 'zero') {
+                    if (eff.type === 'scale_power') {
+                        let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
+                        let limitText = eff.maxCap > 0 ? \` (Max ${eff.maxCap})\` : '';
+                        let perWhat = '';
+                        if (eff.scaleCondition === 'negative_types') {
+                            perWhat = \`for every type of negative effect on ${eff.target}\`;
+                        } else {
+                            let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
+                            perWhat = \`for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}\`.trim();
+                        }
+                        effectText = \`<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>\`;
+                    } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
+                        let isRaw = eff.type === 'raw_damage';
+                        let amt = eff.potency;
+                        let textStr = isRaw ? \`Damage +${amt}\` : \`+${amt}% damage for this Coin\`;
+                        effectText = \`<span>${textStr}</span>\`;
+                    } else if (statusObj && statusObj.mode === 'zero') {
                         effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
                     } else if (statusObj && statusObj.mode === 'single') {
                         effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
@@ -1777,6 +1846,10 @@
                 <div class="stat-grid-section">
                     <div class="stat-grid-item stat-item" data-val="HP" title="HP">HP</div>
                     <div class="stat-grid-item stat-item" data-val="SP" title="SP">SP</div>
+                    <div class="stat-grid-item stat-item" data-val="took_damage_this_turn" title="Took DMG this turn">DMG T.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_damage_last_turn" title="Took DMG last turn">DMG L.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_no_damage_this_turn" title="Took No DMG this turn">No DMG T.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_no_damage_last_turn" title="Took No DMG last turn">No DMG L.Turn</div>
                 </div>
                 <div class="stat-grid-section">
             `;
@@ -1809,16 +1882,43 @@
                             ${triggers}
                         </select>
 
-                        <select class="eff-target" style="background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+
+                        <select class="eff-type" style="background: #222; color: #fff; border: 1px solid #444; width: 80px;">
+                            <option value="status">Status</option>
+                            <option value="scale_power">Scale Pwr</option>
+                            <option value="raw_damage">Raw DMG</option>
+                            <option value="percentage_damage">% DMG</option>
+                        </select>
+
+                        <select class="eff-scale-target" style="display:none; background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="base_power">Base Pwr</option>
+                            <option value="clash_power">Clash Pwr</option>
+                            <option value="final_power">Final Pwr</option>
+                            <option value="coin_power">Coin Pwr</option>
+                            <option value="damage_dealt_multiplier">% Damage</option>
+                            <option value="raw_damage">Raw Damage</option>
+                        </select>
+
+                        <select class="eff-scale-condition" style="display:none; background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="status_potency">Status Pot.</option>
+                            <option value="status_count">Status Cnt.</option>
+                            <option value="negative_types">Neg. Types</option>
+                        </select>
+<select class="eff-target" style="background: #222; color: #fff; border: 1px solid #444; width: 70px;">
                             <option value="target">Target</option>
                             <option value="self">Self</option>
                         </select>
+
 
                         <span class="eff-potency-label" style="color: #888; font-size: 11px;">Pot.</span>
                         <input type="number" class="eff-potency" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
 
                         <span class="eff-count-label" style="color: #888; font-size: 11px;">Cnt.</span>
                         <input type="number" class="eff-count" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
+
+                        <span class="eff-maxcap-label" style="color: #888; font-size: 11px; display: none;">Max Cap</span>
+                        <input type="number" class="eff-maxcap" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center; display: none;">
+
 
                         <div class="stat-grid-selector status-grid-selector" style="flex-grow: 1; max-width: 150px;">
                             <button type="button" class="stat-grid-btn eff-status-btn" style="width: 100%; justify-content: space-between;">
@@ -1878,7 +1978,66 @@
 
         function bindEffectList(containerId, isCoinEffect) {
             const container = document.getElementById(containerId);
+                        container.addEventListener('change', (e) => {
+                if (e.target.classList.contains('eff-type')) {
+                    const row = e.target.closest('.effect-row');
+                    const isScale = e.target.value === 'scale_power';
+                    const isDmg = e.target.value === 'raw_damage' || e.target.value === 'percentage_damage';
+                    row.querySelector('.eff-scale-target').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-scale-condition').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-maxcap-label').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-maxcap').style.display = isScale ? 'inline-block' : 'none';
+
+                    const statusSelector = row.querySelector('.status-grid-selector');
+                    const cntLabel = row.querySelector('.eff-count-label');
+                    const cntInput = row.querySelector('.eff-count');
+                    const potLabel = row.querySelector('.eff-potency-label');
+
+                    if (isScale) {
+                         cntLabel.style.display = 'none';
+                         cntInput.style.display = 'none';
+                         potLabel.innerText = 'Val';
+                         if(row.querySelector('.eff-scale-condition').value === 'negative_types') {
+                              statusSelector.style.display = 'none';
+                         } else {
+                              statusSelector.style.display = 'inline-block';
+                         }
+                    } else if (isDmg) {
+                         cntLabel.style.display = 'none';
+                         cntInput.style.display = 'none';
+                         potLabel.innerText = 'Dmg';
+                         statusSelector.style.display = 'none';
+                    } else {
+                         cntLabel.style.display = 'inline-block';
+                         cntInput.style.display = 'inline-block';
+                         potLabel.innerText = 'Pot.';
+                         statusSelector.style.display = 'inline-block';
+                    }
+                } else if (e.target.classList.contains('eff-scale-condition')) {
+                    const row = e.target.closest('.effect-row');
+                    const statusSelector = row.querySelector('.status-grid-selector');
+                    if(e.target.value === 'negative_types') {
+                         statusSelector.style.display = 'none';
+                    } else {
+                         statusSelector.style.display = 'inline-block';
+                    }
+                }
+            });
             container.addEventListener('click', (e) => {
+                if (e.target.closest('.stat-item') && e.target.closest('.cond-container')) {
+                    const statVal = e.target.closest('.stat-item').dataset.val;
+                    const row = e.target.closest('.effect-row');
+                    const mathGroup = row.querySelector('.math-op-group');
+                    const valInput = row.querySelector('.cond-value');
+                    if (statVal && statVal.includes('took_')) {
+                        if(mathGroup) mathGroup.style.display = 'none';
+                        if(valInput) valInput.style.display = 'none';
+                    } else {
+                        if(mathGroup) mathGroup.style.display = 'inline-flex';
+                        if(valInput) valInput.style.display = 'inline-block';
+                    }
+                }
+
                 if(e.target.classList.contains('eff-remove')) {
                     e.target.closest('.effect-row').remove();
                 }
@@ -1896,9 +2055,13 @@
                 const eff = {
                     trigger: row.querySelector('.eff-trigger').value,
                     target: row.querySelector('.eff-target').value,
+                    type: row.querySelector('.eff-type') ? row.querySelector('.eff-type').value : 'status',
+                    scaleTarget: row.querySelector('.eff-scale-target') ? row.querySelector('.eff-scale-target').value : null,
+                    scaleCondition: row.querySelector('.eff-scale-condition') ? row.querySelector('.eff-scale-condition').value : null,
                     status: row.querySelector('.eff-status').value,
                     potency: parseInt(row.querySelector('.eff-potency').value) || 0,
                     count: parseInt(row.querySelector('.eff-count').value) || 0,
+                    maxCap: parseInt(row.querySelector('.eff-maxcap') ? row.querySelector('.eff-maxcap').value : '0') || 0,
                     is_reuse: isReuse,
                     target_ally: targetAlly
                 };
@@ -2119,6 +2282,24 @@
             });
 
             function enforceUIValidation() {
+            const coinCount = parseInt(document.getElementById('sb-coins').value) || 1;
+            const globalEffects = document.querySelectorAll('#sb-global-effects-container .effect-row');
+            globalEffects.forEach(row => {
+                 const reuseCheckbox = row.querySelector('.eff-is-reuse');
+                 if (reuseCheckbox) {
+                      if (coinCount > 1) {
+                           reuseCheckbox.checked = false;
+                           reuseCheckbox.disabled = true;
+                           reuseCheckbox.parentElement.style.opacity = '0.5';
+                           reuseCheckbox.parentElement.title = 'Reuse Skill is strictly restricted to 1-Coin Skills.';
+                      } else {
+                           reuseCheckbox.disabled = false;
+                           reuseCheckbox.parentElement.style.opacity = '1';
+                           reuseCheckbox.parentElement.title = 'Reuse Modifier';
+                      }
+                 }
+            });
+
                 const isDefense = document.getElementById('sb-is-defense').checked;
                 const defenseSubtype = document.getElementById('sb-defense-subtype').value;
                 const isEvade = isDefense && defenseSubtype === 'Evade';

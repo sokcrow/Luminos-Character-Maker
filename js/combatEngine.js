@@ -418,7 +418,7 @@ const CombatEngine = {
                 // We'll leave it as false unless overridden, but the code structure handles it.
             }
 
-            let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, isCritical, clashCount);
+            let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, isCritical, clashCount, context);
 
             let hpBeforeHit = unitDefender.hp;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
@@ -507,13 +507,33 @@ const CombatEngine = {
         }
 
 
-        if (!unitDefender.isStaggered) {
+                if (!unitDefender.isStaggered) {
             result.pendingActions.push({
                 type: 'counter',
                 unit: unitDefender,
                 target: unitAttacker,
                 skill: counterSkill
             });
+        }
+
+        // Cortafuegos y Retargeting: Reuse Skill
+        let skillReused = options.skill_reused || false;
+        let hasReuseGlobalEffect = false;
+        if (attackSkill.effects) {
+             hasReuseGlobalEffect = attackSkill.effects.some(eff => eff.is_reuse);
+        }
+
+        if (hasReuseGlobalEffect && !skillReused && unitDefender.hp <= 0 && options.combatants) {
+             let aliveEnemies = options.combatants.filter(c => c.faccion !== unitAttacker.faccion && c.hp > 0);
+             if (aliveEnemies.length > 0) {
+                  let newTarget = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+                  let nextOptions = Object.assign({}, options, { skipUseHooks: true, skill_reused: true });
+                  let retargetResult = this.resolveUnilateralWithCounter(unitAttacker, attackSkill, newTarget, null, nextOptions);
+
+                  // Combinar resultados (o simplemente agregar logs)
+                  result.attackLogs = result.attackLogs.concat(retargetResult.attackLogs);
+                  result.damageTaken += retargetResult.damageTaken;
+             }
         }
 
         return result;
@@ -1071,6 +1091,14 @@ const CombatEngine = {
                             statVal = condTargetUnit.hp || 0;
                         } else if (effect.condition.stat === 'SP') {
                             statVal = condTargetUnit.sp || 0;
+                        } else if (effect.condition.stat === 'took_damage_this_turn') {
+                            statVal = condTargetUnit.took_damage_this_turn ? 1 : 0;
+                        } else if (effect.condition.stat === 'took_damage_last_turn') {
+                            statVal = condTargetUnit.took_damage_last_turn ? 1 : 0;
+                        } else if (effect.condition.stat === 'took_no_damage_this_turn') {
+                            statVal = condTargetUnit.took_damage_this_turn ? 0 : 1;
+                        } else if (effect.condition.stat === 'took_no_damage_last_turn') {
+                            statVal = condTargetUnit.took_damage_last_turn ? 0 : 1;
                         } else {
                             // Status effect check
                             let statusObj = condTargetUnit.statusEffects && condTargetUnit.statusEffects[effect.condition.stat];
@@ -1095,6 +1123,7 @@ const CombatEngine = {
                     continue; // Condition failed, skip this effect
                 }
 
+
                 // --- TIMING VALIDATION ---
                 if (effect.timing === 'next_turn') {
                     let delayTargetUnit = effect.target === 'self' ? context.attacker : context.currentTarget;
@@ -1102,8 +1131,6 @@ const CombatEngine = {
                         if (!delayTargetUnit.delayed_effects) {
                             delayTargetUnit.delayed_effects = [];
                         }
-                        // Package the effect and context for execution later
-                        // Clone necessary context to avoid reference mutations, but keep unit refs
                         delayTargetUnit.delayed_effects.push({
                             effect: effect,
                             attacker: context.attacker,
@@ -1115,8 +1142,48 @@ const CombatEngine = {
                     continue; // Skip immediate execution
                 }
 
+                if (effect.type === 'scale_power') {
+                    let scaleAmount = 0;
+                    let checkUnit = effect.target === 'self' ? context.attacker : context.currentTarget;
+                    if (checkUnit) {
+                        if (effect.scaleCondition === 'negative_types') {
+                            if (checkUnit.statusEffects) {
+                                let negTypes = 0;
+                                for (let sId in checkUnit.statusEffects) {
+                                    let sConf = (window.STATUS_REGISTRY && window.STATUS_REGISTRY[sId]) || (typeof STATUS_REGISTRY !== 'undefined' ? STATUS_REGISTRY[sId] : null);
+                                    if (sConf && sConf.type === 'negative') negTypes++;
+                                }
+                                scaleAmount = negTypes;
+                            }
+                        } else {
+                            let sId = effect.status;
+                            let statVal = 0;
+                            if (checkUnit.statusEffects && checkUnit.statusEffects[sId]) {
+                                let statusObj = checkUnit.statusEffects[sId];
+                                if (effect.scaleCondition === 'status_count') {
+                                    statVal = typeof statusObj === 'number' ? statusObj : (statusObj.count || 0);
+                                } else {
+                                    statVal = typeof statusObj === 'number' ? statusObj : (statusObj.potency || statusObj.count || 0);
+                                }
+                            }
+                            scaleAmount = Math.floor(statVal / (effect.potency || 1));
+                        }
+
+                        if (effect.maxCap && effect.maxCap > 0) {
+                            scaleAmount = Math.min(scaleAmount, effect.maxCap);
+                        }
+
+                        if (scaleAmount > 0) {
+                            if (!context.modifiers) context.modifiers = {};
+                            let targetAttr = effect.scaleTarget || 'base_power';
+                            if (!context.modifiers[targetAttr]) context.modifiers[targetAttr] = 0;
+                            context.modifiers[targetAttr] += scaleAmount;
+                        }
+                    }
+                }
 
                 if (typeof effect.execute === 'function') {
+
                     effect.execute(context);
                 }
 
@@ -1316,10 +1383,18 @@ const CombatEngine = {
     },
 
 
+
     triggerPhase: function(phaseTag, allUnits) {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
+            // Historial de combate y transicion de daño
+            if (phaseTag === '[Round End]') {
+                unit.took_damage_last_turn = unit.took_damage_this_turn || false;
+                unit.took_damage_this_turn = false;
+            }
+
+            // Restore idle sprite on certain phases if not dead
             // Restore idle sprite on certain phases if not dead
             if (unit.hp > 0 && unit.idle_sprite && (phaseTag === '[Phase Start]' || phaseTag === '[Round Start]')) {
                 unit.current_sprite = unit.idle_sprite;
@@ -1435,7 +1510,7 @@ const CombatEngine = {
 
 
     // Nueva función para calcular el daño por moneda con modificadores planos
-    calculateCoinDamage: function(attacker, defender, skill, coinFinalPower, isCritical, clashCount) {
+        calculateCoinDamage: function(attacker, defender, skill, coinFinalPower, isCritical, clashCount, context = null) {
         // Passive modifiers
         let attackerMods = this.applyPassiveModifiers(attacker);
         let defenderMods = this.applyPassiveModifiers(defender);
@@ -1476,8 +1551,21 @@ const CombatEngine = {
         // Paso 1: Cálculo de poder en bruto
         let rawDamage = coinFinalPower * (1 + totalStaticMod);
 
+
+        let localPctDmg = 0;
+        let localRawDmg = 0;
+        if (context && context.currentCoin && context.currentCoin.effects) {
+             context.currentCoin.effects.forEach(eff => {
+                  if (eff.type === 'percentage_damage') {
+                       localPctDmg += (eff.potency || 0);
+                  } else if (eff.type === 'raw_damage') {
+                       localRawDmg += (eff.potency || 0);
+                  }
+             });
+        }
+
         // Paso 3: Aplicación del modificador ofensivo (Damage Dealt Multiplier del atacante)
-        let offMult = Math.max(0, 1.0 + (dmgDealtMultiplierMod * 0.1));
+        let offMult = Math.max(0, 1.0 + (dmgDealtMultiplierMod * 0.1) + (localPctDmg / 100));
         let damageWithOffensive = rawDamage * offMult;
 
         // Paso 4: Paso Final: Aplicación del modificador defensivo (Damage Taken Multiplier del objetivo)
@@ -1487,9 +1575,10 @@ const CombatEngine = {
         let finalDamage = Math.max(Math.floor(damageWithDefensive), 0);
 
         // 6. Attack Adders (Daño Adicional Condicional)
-        let attackAdders = 0;
 
-        // Daño fijo desde skill.effects (ej. "Daño +3")
+        let attackAdders = localRawDmg;
+
+        // Daño fijo desde skill.effects (ej. "Daño +3") (ej. "Daño +3")
         if (skill.effects) {
             for (let effect of skill.effects) {
                 // Buscamos algo parecido a un tag que añada daño
@@ -1535,6 +1624,10 @@ const CombatEngine = {
         }
 
         unit.hp = Math.max(0, unit.hp - remainingDamage);
+
+        if (remainingDamage > 0) {
+             unit.took_damage_this_turn = true;
+        }
 
         // Chequeo de Stagger: Solo ocurre en impactos (daño directo),
         // incluso si el daño fue absorbido por escudo o es 0.
