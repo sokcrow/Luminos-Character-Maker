@@ -24,6 +24,15 @@ const CombatEngine = {
         unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
         unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
 
+        // Initialize Original Sequences Memory (Base State Reversion)
+        if (!unit.original_sequences) {
+            unit.original_sequences = {
+                tier_1: JSON.parse(JSON.stringify(unit.attack_tier_1_sequence)),
+                tier_2: JSON.parse(JSON.stringify(unit.attack_tier_2_sequence)),
+                tier_3: JSON.parse(JSON.stringify(unit.attack_tier_3_sequence))
+            };
+        }
+
         // At runtime, default current sprite to idle
         unit.current_sprite = unit.idle_sprite;
     },
@@ -1384,6 +1393,83 @@ const CombatEngine = {
 
 
 
+    // Skill Evolution Mutation Scanner
+    // Skill Evolution Mutation Scanner
+    scanSkillEvolutions: function(unit, allUnits) {
+        if (!unit.original_sequences) return;
+
+        const evaluateCondition = (evolution, targetUnit) => {
+            if (!targetUnit) return false;
+            let val = 0;
+            if (evolution.condition_type === 'hp_percent') {
+                val = (targetUnit.hp / (targetUnit.maxHp || 1)) * 100;
+            } else if (evolution.condition_type === 'status_potency') {
+                const status = (targetUnit.statuses || []).find(s => s.id === evolution.condition_status_id);
+                val = status ? status.potency : 0;
+            } else if (evolution.condition_type === 'status_count') {
+                const status = (targetUnit.statuses || []).find(s => s.id === evolution.condition_status_id);
+                val = status ? status.count : 0;
+            }
+
+            const targetVal = parseFloat(evolution.condition_value) || 0;
+            switch (evolution.condition_operator) {
+                case '<': return val < targetVal;
+                case '<=': return val <= targetVal;
+                case '=': return val === targetVal;
+                case '>=': return val >= targetVal;
+                case '>': return val > targetVal;
+                default: return false;
+            }
+        };
+
+        const processSequence = (activeSeq, originalSeq) => {
+            for (let i = 0; i < activeSeq.length; i++) {
+                // Siempre partimos desde la base (la habilidad original)
+                // A menos que hayamos mutado permanentemente y sobrescrito el original
+                let currentBaseId = originalSeq[i];
+                let skill = window.SKILL_REGISTRY ? window.SKILL_REGISTRY[currentBaseId] : null;
+
+                let nextEvolvedId = currentBaseId; // The ID we will end up with
+                let depth = 0;
+
+                while (skill && skill.evolution && depth < 10) {
+                    depth++; // Max depth to prevent infinite loops
+
+                    let conditionPassed = false;
+
+                    if (skill.evolution.condition_target === 'Self') {
+                        conditionPassed = evaluateCondition(skill.evolution, unit);
+                    } else if (skill.evolution.condition_target === 'Target') {
+                        // We check if ANY enemy meets the condition
+                        const enemies = allUnits.filter(u => u.hp > 0 && u.isPlayer !== unit.isPlayer);
+                        conditionPassed = enemies.some(enemy => evaluateCondition(skill.evolution, enemy));
+                    }
+
+                    if (conditionPassed) {
+                        nextEvolvedId = skill.evolution.target_skill_id;
+
+                        // Si la mutacion es permanente, actualizamos la memoria base para que no retroceda
+                        if (skill.evolution.is_permanent) {
+                            originalSeq[i] = nextEvolvedId;
+                        }
+
+                        // Para soporte de cadena (Tier 3), obtenemos la nueva habilidad inyectada y re-evaluamos en el while
+                        skill = window.SKILL_REGISTRY ? window.SKILL_REGISTRY[nextEvolvedId] : null;
+                    } else {
+                        break; // Condition failed, stop evolving this chain
+                    }
+                }
+
+                // Aplicamos la habilidad resultante a la secuencia activa
+                activeSeq[i] = nextEvolvedId;
+            }
+        };
+
+        processSequence(unit.attack_tier_1_sequence, unit.original_sequences.tier_1);
+        processSequence(unit.attack_tier_2_sequence, unit.original_sequences.tier_2);
+        processSequence(unit.attack_tier_3_sequence, unit.original_sequences.tier_3);
+    },
+
     triggerPhase: function(phaseTag, allUnits) {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
@@ -1421,6 +1507,11 @@ const CombatEngine = {
                     }
                 }
                 unit.delayed_effects = []; // Clear buffer
+            }
+
+            // Skill Evolution Dynamic Mutation (After delayed effects, before action generation)
+            if (phaseTag === '[Round Start]' && unit.hp > 0) {
+                this.scanSkillEvolutions(unit, allUnits);
             }
 
             // Unidades pueden tener efectos pasivos en root (skills pasivas, equipamiento)
