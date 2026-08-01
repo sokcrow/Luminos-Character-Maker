@@ -1470,11 +1470,29 @@ const CombatEngine = {
         processSequence(unit.attack_tier_3_sequence, unit.original_sequences.tier_3);
     },
 
+    canUseConsumable: function(unit) {
+        if (!unit) return false;
+        return !unit.consumable_used_this_turn;
+    },
+
+    useConsumable: function(unit) {
+        if (!unit) return false;
+        if (!this.canUseConsumable(unit)) {
+            console.warn(`[LIMITADOR DE COMBATE] La unidad ${unit.name || 'Unidad'} ya ha utilizado un consumible este turno.`);
+            return false;
+        }
+        unit.consumable_used_this_turn = true;
+        return true;
+    },
+
     triggerPhase: function(phaseTag, allUnits) {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
             // Historial de combate y transicion de daño
+            if (phaseTag === '[Round End]' || phaseTag === '[Round Start]') {
+                unit.consumable_used_this_turn = false; // Reset strict consumable limiter per turn!
+            }
             if (phaseTag === '[Round End]') {
                 unit.took_damage_last_turn = unit.took_damage_this_turn || false;
                 unit.took_damage_this_turn = false;

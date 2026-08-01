@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Ítems y Mercado - Luminous DM</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* --- LIMBUS UI PROTOCOL SYSTEM --- */
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1a1a1a;
+            --text-gray: #d1d1d1;
+            --accent-gold: #b8943b;
+            --accent-red: #8a1c1c;
+            --border-gray: #333333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-gray);
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 2px solid var(--accent-gold);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1, h2, h3, h4, h5, legend {
+            font-family: 'Cinzel', serif;
+            color: var(--text-gray);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 900;
+            border-bottom: 2px solid var(--accent-red);
+            padding-bottom: 5px;
+            text-shadow: 0 0 5px rgba(138, 28, 28, 0.5);
+        }
+
+        h2 {
+            font-size: 18px;
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--accent-gold);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 16px;
+            color: var(--accent-gold);
+            margin-bottom: 10px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .left-panel {
+            flex: 2;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--accent-gold);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .right-panel {
+            flex: 1.2;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-gray);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        /* --- FORMS & GENERAL INPUTS --- */
+        fieldset {
+            border: 1px solid var(--border-gray);
+            padding: 15px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        legend {
+            font-size: 14px;
+            color: var(--accent-gold);
+            padding: 0 10px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .form-group label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="url"],
+        select,
+        textarea {
+            background-color: rgba(0,0,0,0.5);
+            color: var(--text-gray);
+            border: none;
+            border-bottom: 2px solid var(--accent-gold);
+            padding: 8px;
+            font-family: sans-serif;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="url"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-bottom-color: var(--accent-red);
+            background-color: rgba(138, 28, 28, 0.05);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 50px;
+        }
+
+        /* Custom spinner removal for Limbus */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Checkbox & Radio - Brutalist Square Corners */
+        input[type="checkbox"], input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--accent-gold);
+            border-radius: 0;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="checkbox"]:checked, input[type="radio"]:checked {
+            border-color: var(--accent-red);
+            background-color: var(--accent-red);
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: "✓";
+            color: white;
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            top: -1px;
+            left: 2px;
+        }
+
+        /* Tab buttons */
+        .type-selector-tabs {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--accent-gold);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            background-color: #1a1a1a;
+            color: var(--text-gray);
+            border: 1px solid var(--border-gray);
+            padding: 8px 15px;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-red);
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        /* Core Limbus Buttons */
+        .btn-limbus {
+            background-color: transparent;
+            color: var(--accent-red);
+            border: 2px solid var(--accent-red);
+            padding: 10px 20px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .btn-limbus:hover {
+            background-color: var(--accent-red);
+            color: white;
+            box-shadow: 0 0 10px rgba(138, 28, 28, 0.6);
+        }
+
+        .btn-gold {
+            color: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+
+        .btn-gold:hover {
+            background-color: var(--accent-gold);
+            color: black;
+            box-shadow: 0 0 10px rgba(184, 148, 59, 0.6);
+        }
+
+        /* Category Modules visibility */
+        .category-module {
+            display: none;
+        }
+
+        .category-module.active {
+            display: block;
+        }
+
+        /* Recipe Ingredients Grid */
+        .ingredient-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        /* Multiple Rules Custom Layout */
+        .rules-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .rule-card {
+            background-color: rgba(0,0,0,0.3);
+            border: 1px dashed var(--accent-gold);
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Items Directory styles */
+        .dir-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-gray);
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            position: relative;
+        }
+
+        .dir-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border: 1px solid var(--accent-gold);
+        }
+
+        .dir-item-info {
+            flex: 1;
+        }
+
+        .dir-item-title {
+            font-family: 'Cinzel', serif;
+            color: var(--accent-gold);
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+
+        .dir-item-meta {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .dir-item-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .btn-sm {
+            padding: 3px 8px;
+            font-size: 10px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid;
+            color: var(--text-gray);
+        }
+
+        .btn-sm-edit {
+            color: #ffcc00;
+            border-color: #ffcc00;
+        }
+
+        .btn-sm-delete {
+            color: #ff4444;
+            border-color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <img src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927" alt="Luminous" style="height: 40px;">
+            <h1>Luminos Item & Market Forge</h1>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <button onclick="window.location.replace('pantalla_dm.html')" class="btn-limbus btn-gold">Volver Panel DM</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- SECCIÓN DE EDICIÓN / COMPILACIÓN -->
+        <div class="left-panel">
+            <h2>Forjar Ítem o Entidad Global</h2>
+
+            <!-- Selector de Tipo de Objeto -->
+            <div class="type-selector-tabs">
+                <button type="button" class="tab-btn active" onclick="switchCategory('consumable')">Consumibles</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('weapon')">Armas (Weapons)</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('armor')">Armaduras (Armors)</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('shield')">Escudos (Shields)</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('accessory')">Accesorios</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('upgrade')">Mejoras (Upgrades)</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('augmentation')">Alteraciones Corporales</button>
+                <button type="button" class="tab-btn" onclick="switchCategory('synthesis')">Síntesis (Recetas)</button>
+            </div>
+
+            <!-- PROPIEDADES GLOBALES MANDATORIAS (Se omiten para Síntesis/Recetas) -->
+            <div id="global-props-form">
+                <fieldset>
+                    <legend>Propiedades Fundamentales (Obligatorias)</legend>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>Nombre del Ítem</label>
+                            <input type="text" id="item-nombre" placeholder="Ej: Suero de Regeneración, Espada de C-Corp...">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Tier / Nivel</label>
+                            <select id="item-tier">
+                                <option value="I">Tier I</option>
+                                <option value="II">Tier II</option>
+                                <option value="III">Tier III</option>
+                                <option value="IV">Tier IV</option>
+                                <option value="V">Tier V</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price (Valor Comercial Ahn)</label>
+                            <input type="number" id="item-price" placeholder="100" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Stash (Límite Alijo)</label>
+                            <input type="number" id="item-max-stash" placeholder="99" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Inventory (Límite Inventario)</label>
+                            <input type="number" id="item-max-inventory" placeholder="5" min="1">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>URL Icono / Asset Visual</label>
+                            <input type="url" id="item-icono" placeholder="https://imgur.com/...">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Etiqueta / Tag Lógico</label>
+                            <input type="text" id="item-tag" placeholder="Consumible, Arma, etc.">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción General</label>
+                        <textarea id="item-descripcion" placeholder="Escribe el lore o los detalles narrativos aquí..."></textarea>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: CONSUMIBLES -->
+            <div id="module-consumable" class="category-module active">
+                <fieldset>
+                    <legend>Configuración de Consumible</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Recuperación HP (Directa)</label>
+                            <input type="number" id="cons-rec-hp" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Recuperación SP (Directa)</label>
+                            <input type="number" id="cons-rec-sp" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Stat a Incrementar (Aumento)</label>
+                            <select id="cons-stat-increase">
+                                <option value="">Ninguno</option>
+                                <option value="fuerza">Fuerza</option>
+                                <option value="destreza">Destreza</option>
+                                <option value="constitucion">Constitución</option>
+                                <option value="inteligencia">Inteligencia</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor de Aumento del Stat</label>
+                            <input type="number" id="cons-stat-val" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration Hours (Duración en Horas)</label>
+                            <input type="number" id="cons-duration-hours" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row" style="background: rgba(0,0,0,0.2); padding: 10px; align-items: center;">
+                        <div style="flex:1;">
+                            <label style="color:var(--accent-gold); font-family: 'Share Tech Mono'; display: flex; align-items:center; gap:10px;">
+                                <input type="checkbox" id="cons-throwable" onchange="toggleConsThrowable()"> ¿Es Arrojadizo? (Status Negativos al Objetivo)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label id="lbl-status-apply">Aplicar Status Effect</label>
+                            <select id="cons-status-id">
+                                <option value="">-- Selecciona Status --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status Potency</label>
+                            <input type="number" id="cons-status-pot" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Status Count</label>
+                            <input type="number" id="cons-status-count" value="1">
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: WEAPONS -->
+            <div id="module-weapon" class="category-module">
+                <fieldset>
+                    <legend>Configuración de Arma (Weapon)</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Habilidad Base Empaquetada (Obligatoria)</label>
+                            <select id="weap-skill-id">
+                                <option value="">-- Seleccionar de Firebase --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Offensive Level</label>
+                            <input type="number" id="weap-off-lvl" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Defensive Level</label>
+                            <input type="number" id="weap-def-lvl" value="0">
+                        </div>
+                    </div>
+
+                    <h3 style="border-bottom: 1px dashed var(--accent-gold); padding-bottom: 5px;">Sistema de Intent</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Forzar Conversión de Tipo de Daño</label>
+                            <select id="weap-intent-conversion">
+                                <option value="">Sin Conversión (Mantiene Original)</option>
+                                <option value="cortante">Cortante</option>
+                                <option value="perforante">Perforante</option>
+                                <option value="contundente">Contundente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Reducción de Poder (No Afín)</label>
+                            <input type="number" id="weap-intent-penalty" value="0" placeholder="Ej: 2 (Resta poder si no afín)">
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: ARMORS -->
+            <div id="module-armor" class="category-module">
+                <fieldset>
+                    <legend>Configuración de Armadura (Armor)</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Modificador Offensive Level</label>
+                            <input type="number" id="arm-off-lvl" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Defensive Level</label>
+                            <input type="number" id="arm-def-lvl" value="0">
+                        </div>
+                    </div>
+
+                    <h3>Resistencias Base a Tipos de Daño (Coeficiente)</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Cortante (Slash)</label>
+                            <input type="number" step="0.1" id="arm-res-cortante" value="1.0">
+                        </div>
+                        <div class="form-group">
+                            <label>Perforante (Pierce)</label>
+                            <input type="number" step="0.1" id="arm-res-perforante" value="1.0">
+                        </div>
+                        <div class="form-group">
+                            <label>Contundente (Blunt)</label>
+                            <input type="number" step="0.1" id="arm-res-contundente" value="1.0">
+                        </div>
+                    </div>
+
+                    <h3>Afinidades de Pecado / Resistencia (Sin Coeficientes)</h3>
+                    <div class="form-row" style="flex-wrap: wrap; gap:10px;">
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Wrath</label><input type="number" step="0.1" id="arm-sin-wrath" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Lust</label><input type="number" step="0.1" id="arm-sin-lust" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Sloth</label><input type="number" step="0.1" id="arm-sin-sloth" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Gluttony</label><input type="number" step="0.1" id="arm-sin-gluttony" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Gloom</label><input type="number" step="0.1" id="arm-sin-gloom" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Pride</label><input type="number" step="0.1" id="arm-sin-pride" value="1.0">
+                        </div>
+                        <div class="form-group" style="min-width: 80px;">
+                            <label>Envy</label><input type="number" step="0.1" id="arm-sin-envy" value="1.0">
+                        </div>
+                    </div>
+
+                    <!-- Slot de Pasivas (Multi-Rule) -->
+                    <div style="margin-top:15px; border-top:1px dashed var(--accent-gold); padding-top:15px;">
+                        <h3>Slot de Pasivas Activas</h3>
+                        <p style="font-size:11px; color:#888; margin-bottom:10px;">Estructura preparatoria anidada que corre en el motor de estados (Ej: Regenerar HP/SP al inicio de turno).</p>
+                        <div class="rules-list" id="armor-passives-list"></div>
+                        <button type="button" class="btn-limbus btn-gold btn-sm" onclick="addRuleRow('armor-passives-list')" style="margin-top:10px;">+ Añadir Regla Pasiva</button>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: SHIELDS -->
+            <div id="module-shield" class="category-module">
+                <fieldset>
+                    <legend>Configuración de Escudo (Shield)</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Escalado de Defense Power</label>
+                            <input type="number" id="sh-def-power" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Offensive Level</label>
+                            <input type="number" id="sh-off-lvl" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Defensive Level</label>
+                            <input type="number" id="sh-def-lvl" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Habilidad Defensiva (Tipo Clashable Guard)</label>
+                        <select id="sh-clashable-guard-id">
+                            <option value="">-- Seleccionar de Firebase --</option>
+                        </select>
+                        <small style="color: #888; margin-top:5px;">Debe ser una habilidad configurada como Clashable Guard en la base de datos global.</small>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: ACCESSORIES -->
+            <div id="module-accessory" class="category-module">
+                <fieldset>
+                    <legend>Configuración de Accesorio</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Modificador Offensive Level</label>
+                            <input type="number" id="acc-off-lvl" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Modificador Defensive Level</label>
+                            <input type="number" id="acc-def-lvl" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Sistema de Reglas de Accesorios -->
+                    <div style="border-top:1px dashed var(--accent-gold); padding-top:15px; margin-top:15px;">
+                        <h3>Vectores de Reacción Dinámica (Múltiples Reglas)</h3>
+                        <p style="font-size:11px; color:#888; margin-bottom:10px;">Configura condiciones dinámicas (Ej: HP/SP de usuario o de objetivo) para gatillar efectos en combate.</p>
+                        <div class="rules-list" id="acc-rules-list"></div>
+                        <button type="button" class="btn-limbus btn-gold btn-sm" onclick="addRuleRow('acc-rules-list')" style="margin-top:10px;">+ Añadir Regla Reaccionaria</button>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: UPGRADES -->
+            <div id="module-upgrade" class="category-module">
+                <fieldset>
+                    <legend>Configuración de Ítem de Mejora (Upgrade)</legend>
+                    <p style="font-size:12px; color:#888; margin-bottom:15px;">Las mejoras actúan como parches de software que ocupan slots (máx 3) en Weapons, Armors, Shields o Accessories.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>SP Inicial de Combate Modificado</label>
+                            <input type="number" id="up-sp-init" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>HP Inicial de Combate Modificado</label>
+                            <input type="number" id="up-hp-init" value="0">
+                        </div>
+                    </div>
+
+                    <h3>Alteraciones en Mecánicas Profundas</h3>
+                    <div class="rules-list" id="upgrade-alterations-list"></div>
+                    <button type="button" class="btn-limbus btn-gold btn-sm" onclick="addRuleRow('upgrade-alterations-list')" style="margin-top:10px;">+ Añadir Alteración Mecánica</button>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: AUGMENTATIONS -->
+            <div id="module-augmentation" class="category-module">
+                <fieldset>
+                    <legend>Alteraciones Físicas y Cibernéticas (Augmentations)</legend>
+                    <p style="font-size:12px; color:#888; margin-bottom:15px;">Afecta las propiedades corporales directas del combatiente de forma pasiva y permanente.</p>
+
+                    <div class="form-row" style="background: rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; align-items: center;">
+                        <div style="flex:1;">
+                            <label style="color:var(--accent-gold); font-family: 'Share Tech Mono'; display: flex; align-items:center; gap:10px; margin-bottom:0;">
+                                <input type="checkbox" id="aug-overwrite-punch" onchange="toggleAugOverwrite()"> Sobrescribir Daño Desarmado (Ataques de Puños a Blunt Damage)
+                            </label>
+                        </div>
+                    </div>
+
+                    <h3>Pros y Contras Fijos (Modificadores Pasivos)</h3>
+                    <div class="rules-list" id="aug-proscons-list"></div>
+                    <button type="button" class="btn-limbus btn-gold btn-sm" onclick="addRuleRow('aug-proscons-list')" style="margin-top:10px;">+ Añadir Modificador Pros/Cons</button>
+                </fieldset>
+            </div>
+
+            <!-- MÓDULO: SÍNTESIS (CRAFTING / RECETAS) -->
+            <div id="module-synthesis" class="category-module">
+                <fieldset>
+                    <legend>Fórmula de Síntesis (Recipe Matrix)</legend>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1;">
+                            <label>Tipo de Síntesis</label>
+                            <select id="synth-type" onchange="toggleSynthesisType()">
+                                <option value="crafting">Crafting Base (Combinar 2 a 5 materiales)</option>
+                                <option value="upgrade">Upgrade Crafting (Equipable absorbe materiales en Slot)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="synth-crafting-inputs">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label>Ítem Resultante (Result)</label>
+                                <select id="synth-result-id">
+                                    <option value="">-- Seleccionar de Firebase --</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>Cantidad Resultante</label>
+                                <input type="number" id="synth-result-qty" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="synth-upgrade-inputs" style="display:none; background:rgba(138,28,28,0.05); padding:15px; border: 1px solid var(--accent-red); margin-bottom:15px;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Equipable Principal (Contenedor Base)</label>
+                                <select id="synth-base-equipable-id">
+                                    <option value="">-- Seleccionar Equipable --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Mejora a Insertar (Software Patch/Upgrade)</label>
+                                <select id="synth-target-upgrade-id">
+                                    <option value="">-- Seleccionar Ítem Upgrade --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3>Ingredientes Requeridos (Matriz de 2 a 5 ítems)</h3>
+                    <div id="synth-ingredients-container">
+                        <!-- Rows dynamically populated -->
+                    </div>
+                    <button type="button" class="btn-limbus btn-gold btn-sm" onclick="addIngredientRow()">+ Agregar Ingrediente</button>
+                </fieldset>
+            </div>
+
+            <!-- BOTÓN DE GUARDADO PRINCIPAL -->
+            <button type="button" id="btn-save-primary" class="btn-limbus" style="width: 100%; font-size:16px;" onclick="saveItemToFirebase()">Forjar y Desplegar a la Base de Datos</button>
+        </div>
+
+        <!-- DIRECTORIO ACTIVO (VISUALIZACIÓN DE COMPILACIONES) -->
+        <div class="right-panel">
+            <h2>Archivo de Compilaciones</h2>
+            <div style="display:flex; gap:5px; margin-bottom: 10px;">
+                <input type="text" id="dir-search" placeholder="Buscador..." onkeyup="renderDirectory()" style="flex:1;">
+                <select id="dir-type-filter" onchange="renderDirectory()" style="width:120px;">
+                    <option value="all">Todos</option>
+                    <option value="consumable">Consumibles</option>
+                    <option value="weapon">Weapons</option>
+                    <option value="armor">Armors</option>
+                    <option value="shield">Shields</option>
+                    <option value="accessory">Accessories</option>
+                    <option value="upgrade">Upgrades</option>
+                    <option value="augmentation">Aumentos</option>
+                    <option value="recipe">Recetas</option>
+                </select>
+            </div>
+
+            <div id="directory-container" style="flex:1; display:flex; flex-direction:column; gap:10px;">
+                <!-- Dynamically Rendered Cards -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase App (núcleo) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Script de inicialización de Firebase -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+            authDomain: "luminous-system.firebaseapp.com",
+            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+            projectId: "luminous-system",
+            storageBucket: "luminous-system.firebasestorage.app",
+            messagingSenderId: "330473029689",
+            appId: "1:330473029689:web:44a05e870d493a3b294de8",
+            measurementId: "G-X775P4YS7W"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+        let currentCategory = 'consumable';
+        let dbSkills = {};
+        let dbStatuses = {};
+        let dbItems = {};
+        let dbAugmentations = {};
+        let dbRecipes = {};
+
+        // On Load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchFirebaseDropdowns();
+            listenToDatabase();
+            // Iniciar con 2 ingredientes por defecto en el panel de recetas
+            addIngredientRow();
+            addIngredientRow();
+        });
+
+        function fetchFirebaseDropdowns() {
+            // Fetch Skills
+            db.ref('campaña/base_datos_skills').once('value', snap => {
+                dbSkills = snap.val() || {};
+                const weapSelect = document.getElementById('weap-skill-id');
+                const shSelect = document.getElementById('sh-clashable-guard-id');
+
+                weapSelect.innerHTML = '<option value="">-- Seleccionar Habilidad --</option>';
+                shSelect.innerHTML = '<option value="">-- Seleccionar Habilidad --</option>';
+
+                Object.entries(dbSkills).forEach(([id, skill]) => {
+                    const opt = `<option value="${id}">${skill.name || id} (${id})</option>`;
+                    weapSelect.innerHTML += opt;
+                    if (skill.isDefense && skill.defenseSubtype === 'ClashableGuard') {
+                        shSelect.innerHTML += opt;
+                    }
+                });
+            });
+
+            // Fetch Statuses
+            db.ref('campaña/base_datos_status').once('value', snap => {
+                dbStatuses = snap.val() || {};
+                const consSelect = document.getElementById('cons-status-id');
+                consSelect.innerHTML = '<option value="">-- Selecciona Status --</option>';
+                Object.entries(dbStatuses).forEach(([id, status]) => {
+                    consSelect.innerHTML += `<option value="${id}">${status.name || id}</option>`;
+                });
+            });
+        }
+
+        function listenToDatabase() {
+            // Listen to Items
+            db.ref('campaña/base_datos_items').on('value', snap => {
+                dbItems = snap.val() || {};
+                updateSynthesisResultOptions();
+                renderDirectory();
+            });
+
+            // Listen to Augmentations
+            db.ref('campaña/base_datos_aumentos').on('value', snap => {
+                dbAugmentations = snap.val() || {};
+                renderDirectory();
+            });
+
+            // Listen to Recipes
+            db.ref('campaña/recetas').on('value', snap => {
+                dbRecipes = snap.val() || {};
+                renderDirectory();
+            });
+        }
+
+        function updateSynthesisResultOptions() {
+            const selectRes = document.getElementById('synth-result-id');
+            const selectBaseEquip = document.getElementById('synth-base-equipable-id');
+            const selectTargetUpgrade = document.getElementById('synth-target-upgrade-id');
+
+            selectRes.innerHTML = '<option value="">-- Selecciona Ítem Resultante --</option>';
+            selectBaseEquip.innerHTML = '<option value="">-- Selecciona Equipable Base --</option>';
+            selectTargetUpgrade.innerHTML = '<option value="">-- Selecciona Upgrade --</option>';
+
+            Object.entries(dbItems).forEach(([id, item]) => {
+                const opt = `<option value="${id}">${item.nombre || id}</option>`;
+                selectRes.innerHTML += opt;
+
+                const tags = item.tags || [];
+                const isEquipable = tags.some(t => ['Arma', 'Weapon', 'Armadura', 'Armor', 'Escudo', 'Shield', 'Accesorio', 'Accessory'].includes(t));
+                if (isEquipable) {
+                    selectBaseEquip.innerHTML += opt;
+                }
+
+                if (tags.includes('Upgrade') || tags.includes('Mejora')) {
+                    selectTargetUpgrade.innerHTML += opt;
+                }
+            });
+        }
+
+        function switchCategory(cat) {
+            currentCategory = cat;
+
+            // Toggle active tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.innerText.toLowerCase().includes(cat) ||
+                    (cat === 'weapon' && btn.innerText.includes('Weapons')) ||
+                    (cat === 'armor' && btn.innerText.includes('Armors')) ||
+                    (cat === 'shield' && btn.innerText.includes('Shields')) ||
+                    (cat === 'augmentation' && btn.innerText.includes('Corporales')) ||
+                    (cat === 'synthesis' && btn.innerText.includes('Recetas'))) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Toggle active modules
+            document.querySelectorAll('.category-module').forEach(mod => {
+                if (mod.id === `module-${cat}`) {
+                    mod.classList.add('active');
+                } else {
+                    mod.classList.remove('active');
+                }
+            });
+
+            // Toggle Global Props
+            const globalProps = document.getElementById('global-props-form');
+            if (cat === 'synthesis') {
+                globalProps.style.display = 'none';
+            } else {
+                globalProps.style.display = 'block';
+            }
+        }
+
+        // --- SUBMODULE HELPER ACTIONS ---
+        function toggleConsThrowable() {
+            const isThrow = document.getElementById('cons-throwable').checked;
+            const lbl = document.getElementById('lbl-status-apply');
+            if (isThrow) {
+                lbl.textContent = "Aplicar Status Negativo (Al Lanzar)";
+            } else {
+                lbl.textContent = "Aplicar Status Effect (Al Consumir)";
+            }
+        }
+
+        function toggleAugOverwrite() {
+            // Hook if needed for UI validation
+        }
+
+        function toggleSynthesisType() {
+            const type = document.getElementById('synth-type').value;
+            const craftingDiv = document.getElementById('synth-crafting-inputs');
+            const upgradeDiv = document.getElementById('synth-upgrade-inputs');
+
+            if (type === 'upgrade') {
+                craftingDiv.style.display = 'none';
+                upgradeDiv.style.display = 'block';
+            } else {
+                craftingDiv.style.display = 'block';
+                upgradeDiv.style.display = 'none';
+            }
+        }
+
+        // --- INGREDIENTS LIST BUILDER ---
+        function addIngredientRow(itemKey = '', qty = 1) {
+            const container = document.getElementById('synth-ingredients-container');
+            const rowCount = container.children.length;
+            if (rowCount >= 5) {
+                alert("El sistema de síntesis solo soporta un límite matemático de hasta 5 ingredientes combinados.");
+                return;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'ingredient-row';
+
+            let options = '<option value="">-- Selecciona Ingrediente --</option>';
+            Object.entries(dbItems).forEach(([id, item]) => {
+                options += `<option value="${id}" ${itemKey === id ? 'selected' : ''}>${item.nombre || id}</option>`;
+            });
+
+            row.innerHTML = `
+                <select class="ing-select" style="flex:2;">${options}</select>
+                <input type="number" class="ing-qty" value="${qty}" min="1" style="flex:1; max-width:100px;" placeholder="Cant.">
+                <button type="button" class="btn-limbus btn-sm btn-sm-delete" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(row);
+        }
+
+        // --- GENERIC MULTI-RULE LIST BUILDER ---
+        function addRuleRow(containerId, ruleData = {}) {
+            const container = document.getElementById(containerId);
+            const card = document.createElement('div');
+            card.className = 'rule-card';
+
+            card.innerHTML = `
+                <select class="rule-trigger" style="width: 150px;">
+                    <option value="passive" ${ruleData.trigger === 'passive' ? 'selected' : ''}>Pasiva (Static Stat)</option>
+                    <option value="on_turn_start" ${ruleData.trigger === 'on_turn_start' ? 'selected' : ''}>Turn Start</option>
+                    <option value="on_round_end" ${ruleData.trigger === 'on_round_end' ? 'selected' : ''}>Turn End</option>
+                    <option value="on_attack" ${ruleData.trigger === 'on_attack' ? 'selected' : ''}>On Attack</option>
+                    <option value="getting_hit" ${ruleData.trigger === 'getting_hit' ? 'selected' : ''}>Getting Hit</option>
+                </select>
+                <span style="font-size:12px; color:var(--accent-gold);">Condición HP %:</span>
+                <input type="number" class="rule-cond-val" value="${ruleData.condition_hp_threshold !== undefined ? ruleData.condition_hp_threshold : 100}" style="width: 50px;">
+                <select class="rule-operation" style="width: 90px;">
+                    <option value="add" ${ruleData.operation === 'add' ? 'selected' : ''}>Sumar</option>
+                    <option value="sub" ${ruleData.operation === 'sub' ? 'selected' : ''}>Restar</option>
+                    <option value="mult" ${ruleData.operation === 'mult' ? 'selected' : ''}>Multiplicar</option>
+                </select>
+                <input type="number" class="rule-val" value="${ruleData.value !== undefined ? ruleData.value : 0}" style="width: 50px;">
+                <span style="font-size:12px; color:var(--accent-gold);">Afectación:</span>
+                <select class="rule-affectation" style="width: 150px;">
+                    <option value="hp" ${ruleData.affectation === 'hp' ? 'selected' : ''}>HP Actual / Curación</option>
+                    <option value="sp" ${ruleData.affectation === 'sp' ? 'selected' : ''}>SP Actual / Cordura</option>
+                    <option value="defense_power" ${ruleData.affectation === 'defense_power' ? 'selected' : ''}>Defense Power</option>
+                    <option value="damage_dealt_multiplier" ${ruleData.affectation === 'damage_dealt_multiplier' ? 'selected' : ''}>Damage Dealt Multiplier</option>
+                    <option value="damage_taken_multiplier" ${ruleData.affectation === 'damage_taken_multiplier' ? 'selected' : ''}>Damage Taken Multiplier</option>
+                    <option value="fuerza" ${ruleData.affectation === 'fuerza' ? 'selected' : ''}>Stat Fuerza</option>
+                    <option value="destreza" ${ruleData.affectation === 'destreza' ? 'selected' : ''}>Stat Destreza</option>
+                </select>
+                <button type="button" class="btn-limbus btn-sm btn-sm-delete" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(card);
+        }
+
+        function gatherRules(containerId) {
+            const rules = [];
+            const container = document.getElementById(containerId);
+            if (!container) return rules;
+
+            container.querySelectorAll('.rule-card').forEach(card => {
+                rules.push({
+                    trigger: card.querySelector('.rule-trigger').value,
+                    condition_hp_threshold: parseFloat(card.querySelector('.rule-cond-val').value) || 100,
+                    operation: card.querySelector('.rule-operation').value,
+                    value: parseFloat(card.querySelector('.rule-val').value) || 0,
+                    affectation: card.querySelector('.rule-affectation').value
+                });
+            });
+            return rules;
+        }
+
+        // --- RESET FORM ---
+        function clearForm() {
+            document.getElementById('item-nombre').value = '';
+            document.getElementById('item-price').value = '';
+            document.getElementById('item-max-stash').value = '';
+            document.getElementById('item-max-inventory').value = '';
+            document.getElementById('item-icono').value = '';
+            document.getElementById('item-tag').value = '';
+            document.getElementById('item-descripcion').value = '';
+
+            // Consumables reset
+            document.getElementById('cons-rec-hp').value = 0;
+            document.getElementById('cons-rec-sp').value = 0;
+            document.getElementById('cons-stat-increase').value = '';
+            document.getElementById('cons-stat-val').value = 0;
+            document.getElementById('cons-duration-hours').value = 0;
+            document.getElementById('cons-throwable').checked = false;
+            document.getElementById('cons-status-id').value = '';
+            document.getElementById('cons-status-pot').value = 1;
+            document.getElementById('cons-status-count').value = 1;
+
+            // Weapons reset
+            document.getElementById('weap-skill-id').value = '';
+            document.getElementById('weap-off-lvl').value = 0;
+            document.getElementById('weap-def-lvl').value = 0;
+            document.getElementById('weap-intent-conversion').value = '';
+            document.getElementById('weap-intent-penalty').value = 0;
+
+            // Armors reset
+            document.getElementById('arm-off-lvl').value = 0;
+            document.getElementById('arm-def-lvl').value = 0;
+            document.getElementById('arm-res-cortante').value = 1.0;
+            document.getElementById('arm-res-perforante').value = 1.0;
+            document.getElementById('arm-res-contundente').value = 1.0;
+            document.getElementById('arm-sin-wrath').value = 1.0;
+            document.getElementById('arm-sin-lust').value = 1.0;
+            document.getElementById('arm-sin-sloth').value = 1.0;
+            document.getElementById('arm-sin-gluttony').value = 1.0;
+            document.getElementById('arm-sin-gloom').value = 1.0;
+            document.getElementById('arm-sin-pride').value = 1.0;
+            document.getElementById('arm-sin-envy').value = 1.0;
+            document.getElementById('armor-passives-list').innerHTML = '';
+
+            // Shields reset
+            document.getElementById('sh-def-power').value = 0;
+            document.getElementById('sh-off-lvl').value = 0;
+            document.getElementById('sh-def-lvl').value = 0;
+            document.getElementById('sh-clashable-guard-id').value = '';
+
+            // Accessories reset
+            document.getElementById('acc-off-lvl').value = 0;
+            document.getElementById('acc-def-lvl').value = 0;
+            document.getElementById('acc-rules-list').innerHTML = '';
+
+            // Upgrades reset
+            document.getElementById('up-sp-init').value = 0;
+            document.getElementById('up-hp-init').value = 0;
+            document.getElementById('upgrade-alterations-list').innerHTML = '';
+
+            // Augmentations reset
+            document.getElementById('aug-overwrite-punch').checked = false;
+            document.getElementById('aug-proscons-list').innerHTML = '';
+
+            // Synthesis reset
+            document.getElementById('synth-result-qty').value = 1;
+            document.getElementById('synth-ingredients-container').innerHTML = '';
+            addIngredientRow();
+            addIngredientRow();
+        }
+
+        // --- FORJAR Y GUARDAR ---
+        function saveItemToFirebase() {
+            if (currentCategory === 'synthesis') {
+                saveRecipeToFirebase();
+                return;
+            }
+
+            const nombre = document.getElementById('item-nombre').value.trim();
+            const tier = document.getElementById('item-tier').value;
+            const price = parseInt(document.getElementById('item-price').value);
+            const max_stash = parseInt(document.getElementById('item-max-stash').value);
+            const max_inventory = parseInt(document.getElementById('item-max-inventory').value);
+            const icono = document.getElementById('item-icono').value.trim();
+            const tag = document.getElementById('item-tag').value.trim();
+            const descripcion = document.getElementById('item-descripcion').value.trim();
+
+            if (!nombre || isNaN(price) || isNaN(max_stash) || isNaN(max_inventory)) {
+                alert("Completa todos los campos obligatorios del ítem base.");
+                return;
+            }
+
+            const cleanId = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+            // Form payload base
+            const itemPayload = {
+                nombre: nombre,
+                tier: tier,
+                price: price,
+                max_stash: max_stash,
+                max_inventory: max_inventory,
+                icono: icono,
+                tags: tag ? tag.split(',').map(t => t.trim()) : [],
+                descripcion: descripcion,
+                tipo_categoria: currentCategory
+            };
+
+            // Inyectar datos específicos de categoría
+            if (currentCategory === 'consumable') {
+                itemPayload.consumable_details = {
+                    curacion_hp: parseInt(document.getElementById('cons-rec-hp').value) || 0,
+                    curacion_sp: parseInt(document.getElementById('cons-rec-sp').value) || 0,
+                    stat_increase: document.getElementById('cons-stat-increase').value || null,
+                    stat_increase_value: parseInt(document.getElementById('cons-stat-val').value) || 0,
+                    duration_hours: parseInt(document.getElementById('cons-duration-hours').value) || 0,
+                    is_throwable: document.getElementById('cons-throwable').checked,
+                    status_id: document.getElementById('cons-status-id').value || null,
+                    status_potency: parseInt(document.getElementById('cons-status-pot').value) || 0,
+                    status_count: parseInt(document.getElementById('cons-status-count').value) || 0
+                };
+            } else if (currentCategory === 'weapon') {
+                const baseSkill = document.getElementById('weap-skill-id').value;
+                if (!baseSkill) {
+                    alert("Es mandatorio vincular una habilidad base al arma.");
+                    return;
+                }
+                itemPayload.weapon_details = {
+                    base_skill_id: baseSkill,
+                    off_lvl_mod: parseInt(document.getElementById('weap-off-lvl').value) || 0,
+                    def_lvl_mod: parseInt(document.getElementById('weap-def-lvl').value) || 0,
+                    damage_type_conversion: document.getElementById('weap-intent-conversion').value || null,
+                    power_reduction_penalty: parseInt(document.getElementById('weap-intent-penalty').value) || 0
+                };
+            } else if (currentCategory === 'armor') {
+                itemPayload.armor_details = {
+                    off_lvl_mod: parseInt(document.getElementById('arm-off-lvl').value) || 0,
+                    def_lvl_mod: parseInt(document.getElementById('arm-def-lvl').value) || 0,
+                    resistances: {
+                        cortante: parseFloat(document.getElementById('arm-res-cortante').value) || 1.0,
+                        perforante: parseFloat(document.getElementById('arm-res-perforante').value) || 1.0,
+                        contundente: parseFloat(document.getElementById('arm-res-contundente').value) || 1.0
+                    },
+                    affinities: {
+                        wrath: parseFloat(document.getElementById('arm-sin-wrath').value) || 1.0,
+                        lust: parseFloat(document.getElementById('arm-sin-lust').value) || 1.0,
+                        sloth: parseFloat(document.getElementById('arm-sin-sloth').value) || 1.0,
+                        gluttony: parseFloat(document.getElementById('arm-sin-gluttony').value) || 1.0,
+                        gloom: parseFloat(document.getElementById('arm-sin-gloom').value) || 1.0,
+                        pride: parseFloat(document.getElementById('arm-sin-pride').value) || 1.0,
+                        envy: parseFloat(document.getElementById('arm-sin-envy').value) || 1.0
+                    },
+                    passives: gatherRules('armor-passives-list')
+                };
+            } else if (currentCategory === 'shield') {
+                itemPayload.shield_details = {
+                    defense_power_scale: parseInt(document.getElementById('sh-def-power').value) || 0,
+                    off_lvl_mod: parseInt(document.getElementById('sh-off-lvl').value) || 0,
+                    def_lvl_mod: parseInt(document.getElementById('sh-def-lvl').value) || 0,
+                    clashable_guard_skill_id: document.getElementById('sh-clashable-guard-id').value || null
+                };
+            } else if (currentCategory === 'accessory') {
+                itemPayload.accessory_details = {
+                    off_lvl_mod: parseInt(document.getElementById('acc-off-lvl').value) || 0,
+                    def_lvl_mod: parseInt(document.getElementById('acc-def-lvl').value) || 0,
+                    rules: gatherRules('acc-rules-list')
+                };
+            } else if (currentCategory === 'upgrade') {
+                itemPayload.upgrade_details = {
+                    sp_initial_modifier: parseInt(document.getElementById('up-sp-init').value) || 0,
+                    hp_initial_modifier: parseInt(document.getElementById('up-hp-init').value) || 0,
+                    alterations: gatherRules('upgrade-alterations-list'),
+                    max_upgrade_slots_capacity: 3
+                };
+            } else if (currentCategory === 'augmentation') {
+                itemPayload.augmentation_details = {
+                    overwrite_unarmed_to_blunt: document.getElementById('aug-overwrite-punch').checked,
+                    pros_cons: gatherRules('aug-proscons-list')
+                };
+            }
+
+            // Guardar en el nodo correspondiente
+            const nodePath = currentCategory === 'augmentation' ? 'campaña/base_datos_aumentos' : 'campaña/base_datos_items';
+
+            db.ref(`${nodePath}/${cleanId}`).set(itemPayload)
+                .then(() => {
+                    alert("¡Forjado completado con éxito!");
+                    clearForm();
+                })
+                .catch(err => {
+                    alert("Error al guardar: " + err.message);
+                });
+        }
+
+        function saveRecipeToFirebase() {
+            const synthType = document.getElementById('synth-type').value;
+            const resQty = parseInt(document.getElementById('synth-result-qty').value) || 1;
+
+            let recipePayload = {
+                tipo_sintesis: synthType,
+                ingredientes: {}
+            };
+
+            // Gather ingredients
+            const ingRows = document.querySelectorAll('.ingredient-row');
+            let ingCount = 0;
+            ingRows.forEach(row => {
+                const itemKey = row.querySelector('.ing-select').value;
+                const qty = parseInt(row.querySelector('.ing-qty').value) || 1;
+                if (itemKey) {
+                    recipePayload.ingredientes[itemKey] = qty;
+                    ingCount++;
+                }
+            });
+
+            if (ingCount < 2 || ingCount > 5) {
+                alert("Las recetas requieren obligatoriamente una matriz de entre 2 y 5 ingredientes.");
+                return;
+            }
+
+            let recipeId = '';
+            if (synthType === 'upgrade') {
+                const baseEquip = document.getElementById('synth-base-equipable-id').value;
+                const targetUpgrade = document.getElementById('synth-target-upgrade-id').value;
+
+                if (!baseEquip || !targetUpgrade) {
+                    alert("Especifica el Equipable Base y la Mejora a integrar.");
+                    return;
+                }
+
+                recipePayload.base_equipable_id = baseEquip;
+                recipePayload.target_upgrade_id = targetUpgrade;
+                recipeId = `upgrade_${baseEquip}_with_${targetUpgrade}`;
+            } else {
+                const resId = document.getElementById('synth-result-id').value;
+                if (!resId) {
+                    alert("Selecciona el ítem resultante.");
+                    return;
+                }
+                recipePayload.item_resultado_id = resId;
+                recipePayload.cantidad_resultado = resQty;
+                recipeId = `craft_${resId}`;
+            }
+
+            db.ref(`campaña/recetas/${recipeId}`).set(recipePayload)
+                .then(() => {
+                    alert("¡Fórmula de Síntesis registrada con éxito!");
+                    clearForm();
+                })
+                .catch(err => {
+                    alert("Error al registrar receta: " + err.message);
+                });
+        }
+
+        // --- DIRECTORY RENDERING ---
+        function renderDirectory() {
+            const search = document.getElementById('dir-search').value.toLowerCase().trim();
+            const typeFilter = document.getElementById('dir-type-filter').value;
+            const container = document.getElementById('directory-container');
+            container.innerHTML = '';
+
+            let listToRender = [];
+
+            // Combine standard items & augmentations & recipes
+            if (typeFilter === 'all' || typeFilter !== 'recipe') {
+                Object.entries(dbItems).forEach(([id, item]) => {
+                    if (typeFilter === 'all' || item.tipo_categoria === typeFilter) {
+                        listToRender.push({ id, ...item, node: 'campaña/base_datos_items' });
+                    }
+                });
+
+                Object.entries(dbAugmentations).forEach(([id, item]) => {
+                    if (typeFilter === 'all' || typeFilter === 'augmentation') {
+                        listToRender.push({ id, ...item, node: 'campaña/base_datos_aumentos' });
+                    }
+                });
+            }
+
+            if (typeFilter === 'all' || typeFilter === 'recipe') {
+                Object.entries(dbRecipes).forEach(([id, recipe]) => {
+                    listToRender.push({ id, ...recipe, nombre: `Receta: ${id}`, node: 'campaña/recetas', isRecipe: true });
+                });
+            }
+
+            // Filter search
+            listToRender = listToRender.filter(item => {
+                const matchName = (item.nombre || '').toLowerCase().includes(search);
+                const matchDesc = (item.descripcion || '').toLowerCase().includes(search);
+                return matchName || matchDesc;
+            });
+
+            if (listToRender.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">Sin registros que coincidan.</div>';
+                return;
+            }
+
+            listToRender.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'dir-item';
+
+                let imgUrl = item.icono || 'https://via.placeholder.com/50/222222/b8943b?text=L';
+                if (item.isRecipe) {
+                    imgUrl = 'https://via.placeholder.com/50/111/8a1c1c?text=REC';
+                }
+
+                let metaStr = `Tier: ${item.tier || 'N/A'} | Price: ₳ ${item.price || 0}`;
+                if (item.isRecipe) {
+                    metaStr = `Tipo de Síntesis: ${item.tipo_sintesis}`;
+                }
+
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="${item.nombre}">
+                    <div class="dir-item-info">
+                        <div class="dir-item-title">${item.nombre}</div>
+                        <div class="dir-item-meta">${metaStr}</div>
+                        <div style="font-size:11px; color:#aaa; margin-top:4px;">${item.descripcion || ''}</div>
+                    </div>
+                    <div class="dir-item-actions">
+                        <button class="btn-sm btn-sm-edit" onclick="editItem('${item.id}', '${item.node}')">Editar</button>
+                        <button class="btn-sm btn-sm-delete" onclick="deleteItem('${item.id}', '${item.node}')">Purgar</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function deleteItem(id, node) {
+            if (confirm(`¿Purificar permanentemente de la base de datos?`)) {
+                db.ref(`${node}/${id}`).remove()
+                    .then(() => alert("Eliminado con éxito."))
+                    .catch(err => alert("Error: " + err.message));
+            }
+        }
+
+        function editItem(id, node) {
+            db.ref(`${node}/${id}`).once('value', snap => {
+                const data = snap.val();
+                if (!data) return;
+
+                if (node === 'campaña/recetas') {
+                    switchCategory('synthesis');
+                    document.getElementById('synth-type').value = data.tipo_sintesis;
+                    toggleSynthesisType();
+
+                    const container = document.getElementById('synth-ingredients-container');
+                    container.innerHTML = '';
+                    Object.entries(data.ingredientes || {}).forEach(([ingId, qty]) => {
+                        addIngredientRow(ingId, qty);
+                    });
+
+                    if (data.tipo_sintesis === 'upgrade') {
+                        document.getElementById('synth-base-equipable-id').value = data.base_equipable_id || '';
+                        document.getElementById('synth-target-upgrade-id').value = data.target_upgrade_id || '';
+                    } else {
+                        document.getElementById('synth-result-id').value = data.item_resultado_id || '';
+                        document.getElementById('synth-result-qty').value = data.cantidad_resultado || 1;
+                    }
+                    return;
+                }
+
+                // Standard global items or augmentations
+                const cat = data.tipo_categoria || 'consumable';
+                switchCategory(cat);
+
+                document.getElementById('item-nombre').value = data.nombre || '';
+                document.getElementById('item-tier').value = data.tier || 'I';
+                document.getElementById('item-price').value = data.price || '';
+                document.getElementById('item-max-stash').value = data.max_stash || '';
+                document.getElementById('item-max-inventory').value = data.max_inventory || '';
+                document.getElementById('item-icono').value = data.icono || '';
+                document.getElementById('item-tag').value = (data.tags || []).join(', ');
+                document.getElementById('item-descripcion').value = data.descripcion || '';
+
+                if (cat === 'consumable' && data.consumable_details) {
+                    const d = data.consumable_details;
+                    document.getElementById('cons-rec-hp').value = d.curacion_hp || 0;
+                    document.getElementById('cons-rec-sp').value = d.curacion_sp || 0;
+                    document.getElementById('cons-stat-increase').value = d.stat_increase || '';
+                    document.getElementById('cons-stat-val').value = d.stat_increase_value || 0;
+                    document.getElementById('cons-duration-hours').value = d.duration_hours || 0;
+                    document.getElementById('cons-throwable').checked = !!d.is_throwable;
+                    toggleConsThrowable();
+                    document.getElementById('cons-status-id').value = d.status_id || '';
+                    document.getElementById('cons-status-pot').value = d.status_potency || 1;
+                    document.getElementById('cons-status-count').value = d.status_count || 1;
+                } else if (cat === 'weapon' && data.weapon_details) {
+                    const d = data.weapon_details;
+                    document.getElementById('weap-skill-id').value = d.base_skill_id || '';
+                    document.getElementById('weap-off-lvl').value = d.off_lvl_mod || 0;
+                    document.getElementById('weap-def-lvl').value = d.def_lvl_mod || 0;
+                    document.getElementById('weap-intent-conversion').value = d.damage_type_conversion || '';
+                    document.getElementById('weap-intent-penalty').value = d.power_reduction_penalty || 0;
+                } else if (cat === 'armor' && data.armor_details) {
+                    const d = data.armor_details;
+                    document.getElementById('arm-off-lvl').value = d.off_lvl_mod || 0;
+                    document.getElementById('arm-def-lvl').value = d.def_lvl_mod || 0;
+                    document.getElementById('arm-res-cortante').value = d.resistances?.cortante || 1.0;
+                    document.getElementById('arm-res-perforante').value = d.resistances?.perforante || 1.0;
+                    document.getElementById('arm-res-contundente').value = d.resistances?.contundente || 1.0;
+                    document.getElementById('arm-sin-wrath').value = d.affinities?.wrath || 1.0;
+                    document.getElementById('arm-sin-lust').value = d.affinities?.lust || 1.0;
+                    document.getElementById('arm-sin-sloth').value = d.affinities?.sloth || 1.0;
+                    document.getElementById('arm-sin-gluttony').value = d.affinities?.gluttony || 1.0;
+                    document.getElementById('arm-sin-gloom').value = d.affinities?.gloom || 1.0;
+                    document.getElementById('arm-sin-pride').value = d.affinities?.pride || 1.0;
+                    document.getElementById('arm-sin-envy').value = d.affinities?.envy || 1.0;
+
+                    document.getElementById('armor-passives-list').innerHTML = '';
+                    (d.passives || []).forEach(p => addRuleRow('armor-passives-list', p));
+                } else if (cat === 'shield' && data.shield_details) {
+                    const d = data.shield_details;
+                    document.getElementById('sh-def-power').value = d.defense_power_scale || 0;
+                    document.getElementById('sh-off-lvl').value = d.off_lvl_mod || 0;
+                    document.getElementById('sh-def-lvl').value = d.def_lvl_mod || 0;
+                    document.getElementById('sh-clashable-guard-id').value = d.clashable_guard_skill_id || '';
+                } else if (cat === 'accessory' && data.accessory_details) {
+                    const d = data.accessory_details;
+                    document.getElementById('acc-off-lvl').value = d.off_lvl_mod || 0;
+                    document.getElementById('acc-def-lvl').value = d.def_lvl_mod || 0;
+                    document.getElementById('acc-rules-list').innerHTML = '';
+                    (d.rules || []).forEach(r => addRuleRow('acc-rules-list', r));
+                } else if (cat === 'upgrade' && data.upgrade_details) {
+                    const d = data.upgrade_details;
+                    document.getElementById('up-sp-init').value = d.sp_initial_modifier || 0;
+                    document.getElementById('up-hp-init').value = d.hp_initial_modifier || 0;
+                    document.getElementById('upgrade-alterations-list').innerHTML = '';
+                    (d.alterations || []).forEach(a => addRuleRow('upgrade-alterations-list', a));
+                } else if (cat === 'augmentation' && data.augmentation_details) {
+                    const d = data.augmentation_details;
+                    document.getElementById('aug-overwrite-punch').checked = !!d.overwrite_unarmed_to_blunt;
+                    document.getElementById('aug-proscons-list').innerHTML = '';
+                    (d.pros_cons || []).forEach(pc => addRuleRow('aug-proscons-list', pc));
+                }
+            });
+        }
+    </script>
+</body>
+</html>
