@@ -183,10 +183,14 @@ const generateElementalStatuses = () => {
     allTypes.forEach(type => {
         const idPrefix = type.toLowerCase();
 
+        const isSinType = SIN_TYPES.includes(type);
+        const tagKey = isSinType ? 'sin_affinity_tag' : 'damage_type_tag';
+
         STATUS_REGISTRY[`${idPrefix}_dmg_up`] = {
             name: `${type} DMG Up`,
             type: 'positive',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Deal 10% more damage with ${type} skills per Count for one turn. (Max 10)`
@@ -196,6 +200,7 @@ const generateElementalStatuses = () => {
             name: `${type} Power Up`,
             type: 'positive',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'final_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             description: `${type} skills gain final Power by the effect's Count for one turn.`
         };
@@ -213,6 +218,7 @@ const generateElementalStatuses = () => {
             name: `${type} DMG Down`,
             type: 'negative',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_dealt_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Deal 10% less damage with ${type} skills per Count for one turn. (Max 10)`
@@ -222,6 +228,7 @@ const generateElementalStatuses = () => {
             name: `${type} Power Down`,
             type: 'negative',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'final_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             description: `${type} skills lose final Power by the effect's Count for one turn.`
         };

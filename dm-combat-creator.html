@@ -1035,6 +1035,35 @@
                         </label>
                     </div>
 
+                    <div class="sb-row">
+                        <label class="sb-block-label">Damage Type Tag (Damage/Power Up):
+                            <select id="sb-status-damage-type">
+                                <option value="">(None)</option>
+                                <option value="Blunt">Blunt</option>
+                                <option value="Pierce">Pierce</option>
+                                <option value="Slash">Slash</option>
+                            </select>
+                        </label>
+                        <label class="sb-block-label">Sin Affinity Tag (Damage/Power Up):
+                            <select id="sb-status-sin-affinity">
+                                <option value="">(None)</option>
+                                <option value="Wrath">Wrath</option>
+                                <option value="Lust">Lust</option>
+                                <option value="Sloth">Sloth</option>
+                                <option value="Gluttony">Gluttony</option>
+                                <option value="Gloom">Gloom</option>
+                                <option value="Pride">Pride</option>
+                                <option value="Envy">Envy</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="sb-row">
+                        <label class="sb-block-label">Crit Vulnerability per Count:
+                            <input type="number" step="0.01" id="sb-status-crit-vuln" placeholder="0.0">
+                        </label>
+                    </div>
+
                     <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
 
                     <fieldset id="sb-rules-container" style="margin-top: 10px; border: 1px solid #b8943b;">
@@ -3054,6 +3083,10 @@
             document.getElementById('sb-status-mode').value = status.mode || 'single';
             document.getElementById('sb-status-tag').value = status.type || status.tag || 'neutral';
 
+            document.getElementById('sb-status-damage-type').value = status.damage_type_tag || '';
+            document.getElementById('sb-status-sin-affinity').value = status.sin_affinity_tag || '';
+            document.getElementById('sb-status-crit-vuln').value = status.crit_vulnerability_per_count !== undefined ? status.crit_vulnerability_per_count : '';
+
             const iconInput = document.getElementById('sb-status-icon');
             iconInput.value = status.icon || '';
 
@@ -3113,6 +3146,9 @@
                 icon: document.getElementById('sb-status-icon').value.trim(),
                 mode: document.getElementById('sb-status-mode').value,
                 type: document.getElementById('sb-status-tag').value,
+                damage_type_tag: document.getElementById('sb-status-damage-type').value || null,
+                sin_affinity_tag: document.getElementById('sb-status-sin-affinity').value || null,
+                crit_vulnerability_per_count: parseFloat(document.getElementById('sb-status-crit-vuln').value) || null,
                 rules: rules,
                 // Nullify legacy fields
                 trigger: null,
