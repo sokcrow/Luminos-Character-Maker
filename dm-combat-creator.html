@@ -104,25 +104,14 @@
   gap: 5px;
 }
 
-.speed-hexagon {
-    /* Basic hexagon using clip-path */
-    width: 40px;
-    height: 45px;
-    background: #1a1a1a;
-    border: 2px solid #ffe877; /* Limbus yellow */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    box-shadow: 0 0 5px #ff4400, inset 0 0 5px #000;
-}
-
 .speed-value {
     color: #ffe877;
-    font-size: 24px;
+    font-size: 30px;
     font-weight: bold;
     font-family: 'Bebas Neue', cursive;
-    text-shadow: 1px 1px 2px #000;
+    text-shadow: 0 0 5px #ff4400, 1px 1px 2px #000;
+    line-height: 0.9;
+    margin-right: 5px;
 }
 
 .sprite-showcase {
@@ -195,13 +184,19 @@
     font-size: 16px;
 }
 
-.platform-core {
+.platform-core-wrapper {
   width: 140px;
   height: 40px;
   margin: 0 auto;
+  filter: drop-shadow(0px 4px 0px #cc3300); /* Glow/Border in half-heptagon shape */
+}
+
+.platform-core {
+  width: 100%;
+  height: 100%;
   background: linear-gradient(180deg, #333 0%, #111 100%);
-  clip-path: polygon(10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
-  border-bottom: 4px solid #cc3300; /* Resplandor inferior */
+  /* Half-heptagon: flat top, angled sides down to a center point */
+  clip-path: polygon(0 0, 100% 0, 90% 70%, 50% 100%, 10% 70%);
 }
 
 .status-effects-row {
@@ -2047,12 +2042,12 @@
             previewContainer.innerHTML = `
                 <div class="unit-preview-wrapper">
                   <!-- Indicador de Velocidad (Superior Centro) -->
-                  <div class="top-speed-indicator">
-                    <div class="speed-hexagon">
+                  <div class="top-speed-indicator" style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                       <span class="speed-value">${currentState.mechanics.speed || 5}</span>
+                      <div style="display: flex; gap: 2px;">
+                        ${slotsHtml}
+                      </div>
                     </div>
-                    ${slotsHtml}
-                  </div>
 
                   <!-- Contenedor del Sprite y Sombra -->
                   <div class="sprite-showcase">
@@ -2065,8 +2060,11 @@
                   <!-- Plataforma y Vitales (Centro/Laterales) -->
                   <div class="base-platform-container">
                     <div class="vital-hp">${currentState.mechanics.hp || 100}</div>
-                    <div class="platform-core">
-                      <!-- Aquí va la textura interna/patrón -->
+                    <div class="platform-core-wrapper">
+                      <div class="platform-core">
+                        <!-- Aquí va la textura interna/patrón -->
+
+                      </div>
                     </div>
                     <div class="vital-sp">
                       <span class="sp-value">${currentState.mechanics.sp || 0}</span>
