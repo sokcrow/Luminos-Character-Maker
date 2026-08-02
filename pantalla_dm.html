@@ -1069,152 +1069,176 @@
 }
 
 /* --- NUEVA ESTRUCTURA PREVIEW --- */
+
+/* --- SISTEMA DE CAPAS (Z-INDEX) --- */
 .unit-preview-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   position: relative;
-  width: 200px;
-}
-
-.top-speed-indicator {
-  position: absolute;
-  top: -40px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.speed-value {
-    color: #ffe877;
-    font-size: 30px;
-    font-weight: bold;
-    font-family: 'Bebas Neue', cursive;
-    text-shadow: 0 0 5px #ff4400, 1px 1px 2px #000;
-    line-height: 0.9;
-    margin-right: 5px;
-}
-
-.sprite-showcase {
-  position: relative;
-  z-index: 5;
-  width: 100%;
+  width: 250px;
+  height: 350px; /* Altura fija para contener las capas absolutas */
   display: flex;
   justify-content: center;
-  height: 200px; /* Base height for standardizing the image bounds */
-  align-items: flex-end; /* Align sprite to bottom platform */
+  font-family: sans-serif;
+  margin: 0 auto;
 }
 
-.unit-sprite {
-    max-height: 100%;
-    object-fit: contain;
-    object-position: bottom;
-    /* Transformations are applied directly inline */
-}
+.z-1 { z-index: 1; }
+.z-2 { z-index: 2; }
+.z-3 { z-index: 3; }
+.z-4 { z-index: 4; }
+.z-5 { z-index: 5; pointer-events: none; } /* Permite hacer clic a través de la UI vacía */
 
-.sprite-shadow {
+/* CAPA 1: Plataforma */
+.layer-platform {
   position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
+  bottom: 40px; /* Espacio para los estados debajo */
+  width: 160px;
+  height: 40px;
+}
+.platform-core {
+  width: 100%;
+  height: 25px;
+  background: #111;
+  clip-path: polygon(15% 0, 85% 0, 100% 100%, 0% 100%);
+  border-bottom: 2px solid #333;
+}
+.platform-glow-edge {
+  width: 120%;
   height: 15px;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 50%;
-  filter: blur(4px);
-  z-index: 4;
+  margin-left: -10%;
+  background: linear-gradient(90deg, #ff1a1a, #ff4d4d, #ff1a1a);
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
+  box-shadow: 0 5px 15px rgba(255, 26, 26, 0.8);
 }
 
-.base-platform-container {
-  position: relative;
+/* CAPAS 2 & 4: FX (Trasero y Delantero) */
+.layer-fx-rear, .layer-fx-front {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+/* CAPA 3: Sprite */
+.layer-sprite {
+  position: absolute;
+  bottom: 50px; /* Anclado justo sobre la plataforma */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.unit-sprite {
+  /* El transform (scale, spriteX, spriteY) va estrictamente aquí */
+  max-height: 250px;
+  object-fit: contain;
+}
+
+/* CAPA 5: UI Global */
+.layer-ui {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* UI: Top Indicators */
+.top-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+.speed-value {
+  color: #ffdb58;
+  font-size: 40px;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 219, 88, 0.8), 2px 2px 0px #000;
+  font-family: 'Bebas Neue', cursive;
+  line-height: 0.9;
+}
+.action-slots { display: flex; gap: 5px; }
+.action-slot {
+  width: 45px; height: 45px;
+  background: #1a1a1a;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+  border: 2px solid #a37c35;
+  display: flex; justify-content: center; align-items: center;
+  box-shadow: 0 0 5px #000;
+}
+.slot-inner { width: 25px; height: 6px; background-color: #a37c35; }
+
+/* UI: Vitals (HP & SP) */
+.vitals-container {
+  position: absolute;
+  bottom: 60px; /* Alineado con la base del sprite */
   width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-top: -20px; /* Sube la plataforma para solapar con la sombra */
-  z-index: 6;
+  align-items: flex-end;
+  padding: 0 10px;
+  box-sizing: border-box;
 }
 
-.vital-hp {
-  color: #ff3333; /* Rojo HP */
-  font-size: 24px;
-  font-weight: bold;
-  position: absolute;
-  left: -20px;
-  text-shadow: 2px 2px 0px #000;
-  font-family: 'Bebas Neue', cursive;
-}
-
-.vital-sp {
-  background: #3377ff; /* Azul SP */
-  border: 2px solid #5599ff;
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
+.hp-wrapper {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  position: absolute;
-  right: -10px;
-  color: white;
-  font-weight: bold;
-  box-shadow: 0 0 8px rgba(51, 119, 255, 0.6);
+  flex-direction: column;
+  align-items: flex-start;
+}
+.vital-hp-number {
+  color: #ff3b30;
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 59, 48, 0.5);
+  margin-bottom: -5px;
   font-family: 'Bebas Neue', cursive;
 }
-.sp-value {
-    font-size: 16px;
+.hp-bar-container {
+  width: 80px;
+  height: 12px; /* Barra gruesa exigida */
+  background: #333;
+  border: 2px solid #000;
+  border-radius: 2px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.8);
 }
-
-.platform-core-wrapper {
-  width: 140px;
-  height: 40px;
-  margin: 0 auto;
-  filter: drop-shadow(0px 4px 0px #cc3300); /* Glow/Border in half-heptagon shape */
-}
-
-.platform-core {
-  width: 100%;
+.hp-bar-fill {
   height: 100%;
-  background: linear-gradient(180deg, #333 0%, #111 100%);
-  /* Half-heptagon: flat top, angled sides down to a center point */
-  clip-path: polygon(0 0, 100% 0, 90% 70%, 50% 100%, 10% 70%);
+  background: linear-gradient(90deg, #ff1a1a, #ff4d4d);
+  box-shadow: inset 0 0 5px rgba(255,255,255,0.3);
+  transition: width 0.3s;
 }
 
-.status-effects-row {
-  display: flex;
-  gap: 5px;
-  margin-top: 15px;
-  flex-wrap: wrap;
-  justify-content: center;
-  min-height: 35px; /* Ensures space is kept even if no effects */
+.vital-sp-container {
+  width: 45px; height: 45px;
+  background: #2a6cb5;
+  border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  border: 2px dashed #7eb4f5;
+  box-shadow: 0 0 15px rgba(42, 108, 181, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
 }
-
-.status-badge {
-  position: relative;
-  width: 25px;
-  height: 30px;
-  background: #111;
-  border: 1px solid #444;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.status-icon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-}
-
-.status-stack {
-  position: absolute;
-  bottom: -5px;
-  right: -5px;
-  color: #e5b85c;
+.vital-sp {
+  color: #ffffff;
+  font-size: 20px;
   font-weight: bold;
-  font-size: 14px;
   text-shadow: 1px 1px 2px #000;
+  font-family: 'Bebas Neue', cursive;
+}
+
+/* UI: Estados (Abajo del todo) */
+.status-effects-row {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto; /* Permite hover sobre iconos de estado */
+}
+.status-badge { position: relative; width: 30px; height: 35px; background: #111; border: 1px solid #444; display: flex; justify-content: center; align-items: center; }
+.status-icon { width: 20px; height: 20px; object-fit: contain; }
+.status-stack {
+  position: absolute; bottom: -5px; right: -5px;
+  color: #ebd197; font-size: 16px; font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
 </style>
@@ -4975,9 +4999,7 @@ window.processEntitiesData = function(entities) {
             // Get number of action slots
             const slotsCount = data.actionSlots || 1;
             const slotsHtml = Array.from({length: slotsCount}).map(() => `
-                <svg class="action-slot-svg" viewBox="0 0 100 100" style="width: 30px; height: 30px;">
-                    <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" fill="#1a1510" stroke="#4a3520" stroke-width="10"/>
-                </svg>
+                <div class="action-slot"><div class="slot-inner"></div></div>
             `).join('');
 
             // Build statuses
@@ -4994,44 +5016,71 @@ window.processEntitiesData = function(entities) {
                 }).join('');
             }
 
+            // HP Logic
+            const hpVal = data.hp || 100;
+            const maxHp = data.maxHp || hpVal || 100;
+            const hpPercent = Math.max(0, Math.min(100, (hpVal / maxHp) * 100));
+
             container.innerHTML = `
                 <div class="unit-preview-wrapper" style="transform: scale(0.6); transform-origin: bottom center;">
-                  <!-- Indicador de Velocidad (Superior Centro) -->
-                  ${isCombatant ? `
-                  <div class="top-speed-indicator" style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-                      <span class="speed-value">${data.speed || 5}</span>
-                      <div style="display: flex; gap: 2px;">
+
+                  <!-- CAPA 1: Plataforma Heptagonal (Fondo) -->
+                  <div class="layer-platform z-1">
+                    <div class="platform-core"></div>
+                    <div class="platform-glow-edge"></div>
+                  </div>
+
+                  <!-- CAPA 2: FX Trasero -->
+                  <div class="layer-fx-rear z-2" id="preview-fx-rear"></div>
+
+                  <!-- CAPA 3: Sprite -->
+                  <div class="layer-sprite z-3">
+                    ${data.img
+                        ? `<img class="unit-sprite" id="preview-sprite" src="${data.img}" alt="${data.name}" style="transform: ${spriteTransform};">`
+                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
+                  </div>
+
+                  <!-- CAPA 4: FX Delantero -->
+                  <div class="layer-fx-front z-4" id="preview-fx-front"></div>
+
+                  <!-- CAPA 5: Interfaz (UI) -->
+                  <div class="layer-ui z-5">
+
+                    ${isCombatant ? `
+                    <!-- UI: Velocidad y Acción (Arriba) -->
+                    <div class="top-indicators">
+                      <span class="speed-value" id="preview-speed">${data.speed || 5}</span>
+                      <div class="action-slots" id="preview-action-slots">
                         ${slotsHtml}
                       </div>
                     </div>
-                  ` : ''}
+                    ` : '<div></div>'}
 
-                  <!-- Contenedor del Sprite y Sombra -->
-                  <div class="sprite-showcase">
-                    ${data.img
-                        ? `<img class="unit-sprite" src="${data.img}" alt="${data.name}" style="transform: ${spriteTransform};">`
-                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
-                    <div class="sprite-shadow"></div>
-                  </div>
-
-                  <!-- Plataforma y Vitales (Centro/Laterales) -->
-                  <div class="base-platform-container">
-                    ${isCombatant ? `<div class="vital-hp">${data.hp || 100}</div>` : '<div></div>'}
-                    <div class="platform-core-wrapper">
-                      <div class="platform-core">
-                        <!-- Aquí va la textura interna/patrón -->
-                        <div style="text-align: center; color: white; font-family: sans-serif; font-size: 10px; margin-top: 5px;">${data.name}</div>
+                    <!-- UI: Vitales (Centro-Abajo) -->
+                    <div class="vitals-container">
+                      ${isCombatant ? `
+                      <!-- HP y Barra Gruesa -->
+                      <div class="hp-wrapper">
+                        <div class="vital-hp-number" id="preview-hp-text">${hpVal}</div>
+                        <div class="hp-bar-container">
+                          <div class="hp-bar-fill" id="preview-hp-bar" style="width: ${hpPercent}%;"></div>
+                        </div>
                       </div>
-                    </div>
-                    ${isCombatant ? `
-                    <div class="vital-sp">
-                      <span class="sp-value">${data.sp || 0}</span>
-                    </div>` : '<div></div>'}
-                  </div>
 
-                  <!-- Panel de Efectos de Estado (Inferior) -->
-                  <div class="status-effects-row">
-                    ${statusesHtml}
+                      <!-- SP -->
+                      <div class="vital-sp-container">
+                        <div class="vital-sp" id="preview-sp">${data.sp || 0}</div>
+                      </div>
+                      ` : `
+                      <div style="text-align: center; color: white; font-family: sans-serif; font-size: 14px; margin: 0 auto; background: #000; padding: 2px 5px; border-radius: 4px;">${data.name}</div>
+                      `}
+                    </div>
+
+                    <!-- UI: Estados (Fondo) -->
+                    <div class="status-effects-row" id="preview-status-effects">
+                      ${statusesHtml}
+                    </div>
+
                   </div>
                 </div>
             `;
