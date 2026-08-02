@@ -209,6 +209,7 @@ const generateElementalStatuses = () => {
             name: `${type} Protection`,
             type: 'positive',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Take 10% less damage from ${type} skills per Count for one turn. (Max 10)`
@@ -237,6 +238,7 @@ const generateElementalStatuses = () => {
             name: `${type} Fragility`,
             type: 'negative',
             mode: 'single',
+            [tagKey]: type,
             rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'damage_taken_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
             maxCount: 10,
             description: `Take 10% more damage from ${type} skills per Count for one turn. (Max 10)`
