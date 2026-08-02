@@ -337,8 +337,8 @@
         unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
         unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
 
-        if (window.CombatEngine && window.CombatEngine.initializeUnitAnimations) {
-            window.CombatEngine.initializeUnitAnimations(unit);
+        if (window.CombatEngine && window.CombatEngine.initializeUnitData) {
+            window.CombatEngine.initializeUnitData(unit);
         }
 
         // Inicializar actionSlots de forma explicita con array si no lo tiene
