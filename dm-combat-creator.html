@@ -90,6 +90,7 @@
 
 
 
+
 /* --- SISTEMA DE CAPAS (Z-INDEX) --- */
 .unit-preview-wrapper {
   position: relative;
@@ -132,13 +133,13 @@
 .hp-track {
   fill: none;
   stroke: #220000;
-  stroke-width: 6;
+  stroke-width: 10;
   stroke-linecap: square;
 }
 .hp-fill-line {
   fill: none;
   stroke: #ff1a1a;
-  stroke-width: 6;
+  stroke-width: 10;
   stroke-linecap: square;
   transition: stroke-dashoffset 0.3s ease;
   filter: drop-shadow(0 0 6px #ff4d4d);
@@ -193,13 +194,16 @@
 .action-slots { display: flex; gap: 5px; }
 .action-slot {
   width: 45px; height: 45px;
-  background: #1a1a1a;
-  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
-  border: 2px solid #a37c35;
   display: flex; justify-content: center; align-items: center;
-  box-shadow: 0 0 5px #000;
 }
-.slot-inner { width: 25px; height: 6px; background-color: #a37c35; }
+.action-slot-svg-container {
+  width: 100%; height: 100%;
+}
+.action-slot-poly {
+  fill: #1a1a1a;
+  stroke: #a37c35;
+  stroke-width: 4;
+}
 
 /* UI: Vitals (HP & SP) */
 .vitals-container {
@@ -229,11 +233,12 @@
 
 .vital-sp-container {
   width: 45px; height: 45px;
-  background: #2a6cb5;
+  background: #2a6cb5; /* SP es cian palido, actualizando color a base cian palido */
+  background: linear-gradient(135deg, #4dc6cc, #248b99);
   border-radius: 50%;
   display: flex; justify-content: center; align-items: center;
-  border: 2px dashed #7eb4f5;
-  box-shadow: 0 0 15px rgba(42, 108, 181, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
+  border: 2px solid #a37c35; /* Borde del mismo color dorado de accion */
+  box-shadow: 0 0 15px rgba(36, 139, 153, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
 }
 .vital-sp {
   color: #ffffff;
@@ -2046,7 +2051,12 @@
             // Get number of action slots
             const slotsCount = currentState.mechanics.actionSlots || 1;
             const slotsHtml = Array.from({length: slotsCount}).map(() => `
-                <div class="action-slot"><div class="slot-inner"></div></div>
+                <div class="action-slot">
+                    <svg class="action-slot-svg-container" viewBox="0 0 100 100">
+                        <polygon class="action-slot-poly" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
+                        <rect x="35" y="47" width="30" height="6" fill="#a37c35" />
+                    </svg>
+                </div>
             `).join('');
 
             // Build statuses
@@ -2076,11 +2086,8 @@
                   <!-- CAPA 1: Plataforma Heptagonal SVG (HP Bar en el contorno inferior) -->
                   <div class="layer-platform z-1">
                     <svg class="diegetic-floor-svg" viewBox="0 0 160 60">
-                        <!-- Poligono de fondo superior (flat) a inferior (puntido) -->
                         <polygon class="floor-bg-poly" points="10,15 150,15 160,15 130,45 80,55 30,45 0,15" />
-                        <!-- Pista oscura para la HP (solo los bordes de abajo) -->
                         <polyline class="hp-track" points="0,15 30,45 80,55 130,45 160,15" />
-                        <!-- Linea roja de llenado -->
                         <polyline class="hp-fill-line" points="0,15 30,45 80,55 130,45 160,15" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${strokeOffset};" />
                     </svg>
                   </div>
