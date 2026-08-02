@@ -88,6 +88,8 @@
 
 /* --- NUEVA ESTRUCTURA PREVIEW --- */
 
+
+
 /* --- SISTEMA DE CAPAS (Z-INDEX) --- */
 .unit-preview-wrapper {
   position: relative;
@@ -105,27 +107,41 @@
 .z-4 { z-index: 4; }
 .z-5 { z-index: 5; pointer-events: none; } /* Permite hacer clic a través de la UI vacía */
 
-/* CAPA 1: Plataforma */
+/* CAPA 1: Plataforma SVG */
 .layer-platform {
   position: absolute;
-  bottom: 40px; /* Espacio para los estados debajo */
+  bottom: 25px; /* Ajuste para el SVG centrado */
   width: 160px;
-  height: 40px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.platform-core {
+
+.diegetic-floor-svg {
   width: 100%;
-  height: 25px;
-  background: #111;
-  clip-path: polygon(15% 0, 85% 0, 100% 100%, 0% 100%);
-  border-bottom: 2px solid #333;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0px 8px 4px rgba(0,0,0,0.8));
 }
-.platform-glow-edge {
-  width: 120%;
-  height: 15px;
-  margin-left: -10%;
-  background: linear-gradient(90deg, #ff1a1a, #ff4d4d, #ff1a1a);
-  clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
-  box-shadow: 0 5px 15px rgba(255, 26, 26, 0.8);
+.floor-bg-poly {
+  fill: #111;
+  stroke: #333;
+  stroke-width: 2;
+}
+.hp-track {
+  fill: none;
+  stroke: #220000;
+  stroke-width: 6;
+  stroke-linecap: square;
+}
+.hp-fill-line {
+  fill: none;
+  stroke: #ff1a1a;
+  stroke-width: 6;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 6px #ff4d4d);
 }
 
 /* CAPAS 2 & 4: FX (Trasero y Delantero) */
@@ -209,20 +225,6 @@
   text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 59, 48, 0.5);
   margin-bottom: -5px;
   font-family: 'Bebas Neue', cursive;
-}
-.hp-bar-container {
-  width: 80px;
-  height: 12px; /* Barra gruesa exigida */
-  background: #333;
-  border: 2px solid #000;
-  border-radius: 2px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.8);
-}
-.hp-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ff1a1a, #ff4d4d);
-  box-shadow: inset 0 0 5px rgba(255,255,255,0.3);
-  transition: width 0.3s;
 }
 
 .vital-sp-container {
@@ -2063,17 +2065,24 @@
 
             // HP Logic
             const hpVal = currentState.mechanics.hp || 100;
-            // Assuming maxHp might not be directly edited in the visual editor in the same way, falling back to 100 or itself
             const maxHp = currentState.mechanics.maxHp || hpVal || 100;
             const hpPercent = Math.max(0, Math.min(100, (hpVal / maxHp) * 100));
+            // 100 stroke-dashoffset means empty. 0 means full.
+            const strokeOffset = 100 - hpPercent;
 
             previewContainer.innerHTML = `
                 <div class="unit-preview-wrapper">
 
-                  <!-- CAPA 1: Plataforma Heptagonal (Fondo) -->
+                  <!-- CAPA 1: Plataforma Heptagonal SVG (HP Bar en el contorno inferior) -->
                   <div class="layer-platform z-1">
-                    <div class="platform-core"></div>
-                    <div class="platform-glow-edge"></div>
+                    <svg class="diegetic-floor-svg" viewBox="0 0 160 50">
+                        <!-- Poligono de fondo superior (flat) a inferior (puntido) -->
+                        <polygon class="floor-bg-poly" points="10,0 150,0 160,20 80,45 0,20" />
+                        <!-- Pista oscura para la HP (solo los bordes de abajo) -->
+                        <polyline class="hp-track" points="0,20 80,45 160,20" />
+                        <!-- Linea roja de llenado -->
+                        <polyline class="hp-fill-line" points="0,20 80,45 160,20" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${strokeOffset};" />
+                    </svg>
                   </div>
 
                   <!-- CAPA 2: FX Trasero -->
@@ -2102,12 +2111,9 @@
 
                     <!-- UI: Vitales (Centro-Abajo) -->
                     <div class="vitals-container">
-                      <!-- HP y Barra Gruesa -->
+                      <!-- HP Numérico (La barra está en la plataforma SVG ahora) -->
                       <div class="hp-wrapper">
                         <div class="vital-hp-number" id="preview-hp-text">${hpVal}</div>
-                        <div class="hp-bar-container">
-                          <div class="hp-bar-fill" id="preview-hp-bar" style="width: ${hpPercent}%;"></div>
-                        </div>
                       </div>
 
                       <!-- SP -->
