@@ -916,6 +916,24 @@
 
 
     <script>
+
+        // FALLBACK FUNCTIONS TO PREVENT DATA BLINDNESS
+        window.applySkillFallbacks = function(skill) {
+            if (!skill || typeof skill !== 'object') return skill;
+            if (!('evolution_chain' in skill)) skill.evolution_chain = null;
+            if (!skill.effects) skill.effects = [];
+            // Any other fallback for skill maxCap or global modifiers
+            return skill;
+        };
+
+        window.processSkillsData = function(skills) {
+            if (!skills) return skills;
+            for (let key in skills) {
+                skills[key] = window.applySkillFallbacks(skills[key]);
+            }
+            return skills;
+        };
+
         const firebaseConfig = {
             apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
             authDomain: "luminous-system.firebaseapp.com",
@@ -1027,7 +1045,7 @@
 
         function loadSkillsIntoModal() {
             db.ref('campaña/base_datos_skills/').once('value').then(snap => {
-                allGlobalSkills = snap.val() || {};
+                allGlobalSkills = window.processSkillsData(snap.val()) || {};
                 renderSkillModalList('');
                 updateEvolutionDropdown();
             });
@@ -1737,7 +1755,7 @@
             });
 
                         db.ref('campaña/base_datos_skills/').on('value', (snap) => {
-                allGlobalSkills = snap.val() || {};
+                allGlobalSkills = window.processSkillsData(snap.val()) || {};
                 filterSkillDirectory();
                 updateEvolutionDropdown();
             });

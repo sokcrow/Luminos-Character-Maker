@@ -1549,6 +1549,44 @@
       </style>
 
       <script>
+
+// FALLBACK FUNCTIONS TO PREVENT DATA BLINDNESS
+window.applyItemFallbacks = function(item) {
+    if (!item || typeof item !== 'object') return item;
+    item.price = item.price !== undefined ? item.price : 0;
+    item.max_stash = item.max_stash !== undefined ? item.max_stash : 99;
+    item.max_inventory = item.max_inventory !== undefined ? item.max_inventory : 99;
+    if (!('evolution_chain' in item)) item.evolution_chain = null;
+    return item;
+};
+
+window.applyEntityFallbacks = function(entity) {
+    if (!entity || typeof entity !== 'object') return entity;
+    if (entity.took_damage_this_turn === undefined) entity.took_damage_this_turn = false;
+    if (entity.took_damage_last_turn === undefined) entity.took_damage_last_turn = false;
+    if (!entity.delayed_effects) entity.delayed_effects = [];
+    if (!entity.next_turn_buffer) entity.next_turn_buffer = [];
+    if (entity.damage_dealt_multiplier === undefined) entity.damage_dealt_multiplier = 1.0;
+    if (entity.damage_taken_multiplier === undefined) entity.damage_taken_multiplier = 1.0;
+    return entity;
+};
+
+window.processItemsData = function(items) {
+    if (!items) return items;
+    for (let key in items) {
+        items[key] = window.applyItemFallbacks(items[key]);
+    }
+    return items;
+};
+
+window.processEntitiesData = function(entities) {
+    if (!entities) return entities;
+    for (let key in entities) {
+        entities[key] = window.applyEntityFallbacks(entities[key]);
+    }
+    return entities;
+};
+
         function toggleWeatherManager() {
             const container = document.getElementById('weather-manager-container');
             const icon = document.getElementById('wm-toggle-icon');
@@ -4554,7 +4592,7 @@
 
         // Asegurarse de renderizar cuando la DB de jugadores cambie también
         const originalJugadoresListener = db.ref("campaña/jugadores").on("value", (snapshot) => {
-          dbJugadoresCache = snapshot.val() || {};
+          dbJugadoresCache = window.processEntitiesData(snapshot.val()) || {};
           renderActorAsignacion();
           renderRolTurns();
         });
@@ -5716,7 +5754,7 @@
 
         // Poblar checkboxes y select cuando jugadores cambian
         db.ref("campaña/jugadores/").on("value", (snapshot) => {
-            const jugadores = snapshot.val();
+          const jugadores = window.processEntitiesData(snapshot.val());
             if (contratoJugadoresCheckboxes) {
                 const checked = Array.from(contratoJugadoresCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value);
                 contratoJugadoresCheckboxes.innerHTML = '';
@@ -5986,7 +6024,7 @@
 
         db.ref("campaña/jugadores/").on("value", (snapshot) => {
           bancoContainer.innerHTML = "";
-          const jugadores = snapshot.val();
+          const jugadores = window.processEntitiesData(snapshot.val());
           window.jugadoresData = jugadores; // Guarda para el modal
 
           const pendingContainer = document.getElementById(
@@ -6577,7 +6615,7 @@
 
             const stashRef = db.ref("campaña/jugadores/" + jugador + "/inventario_stash");
             stashRef.once("value", snap => {
-                const stash = snap.val() || {};
+                const stash = window.processItemsData(snap.val()) || {};
                 let foundKey = null;
                 for (const [k, v] of Object.entries(stash)) {
                     if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
@@ -6618,7 +6656,7 @@
 
             const activoRef = db.ref("campaña/jugadores/" + jugador + "/inventario_activo");
             activoRef.once("value", snap => {
-                const activo = snap.val() || {};
+                const activo = window.processItemsData(snap.val()) || {};
                 let foundKey = null;
                 for (const [k, v] of Object.entries(activo)) {
                     if (v.nombre === selectedItemToOtorgar.nombre && (v.tier || 'I') === (selectedItemToOtorgar.tier || 'I')) {
@@ -6645,7 +6683,7 @@
 
         // Sincronizar cambios de jugadores en el select
         db.ref("campaña/jugadores").on("value", (snap) => {
-            dbJugadoresCache = snap.val() || {};
+          dbJugadoresCache = window.processEntitiesData(snap.val()) || {};
             window.dbJugadoresCache = dbJugadoresCache;
             updateOtorgarJugadoresSelect();
         });
@@ -6773,7 +6811,7 @@
 
         // Escuchar base_datos_items
         db.ref("campaña/base_datos_items").on("value", (snapshot) => {
-            const items = snapshot.val();
+            const items = window.processItemsData(snapshot.val());
             window.dbItemsCache = items || {};
             dbItemsCache = window.dbItemsCache; // Fallback sync
             renderGlobalItemsAndAugments();
@@ -6796,7 +6834,7 @@
 
         // Escuchar base_datos_aumentos
         db.ref("campaña/base_datos_aumentos").on("value", (snapshot) => {
-            window.dbAugmentationsCache = snapshot.val() || {};
+            window.dbAugmentationsCache = window.processItemsData(snapshot.val()) || {};
             renderGlobalItemsAndAugments();
         });
 
@@ -7020,6 +7058,13 @@
         db.ref("campaña/tiendas").on("value", (snapshot) => {
           gridTiendas.innerHTML = "";
           const tiendas = snapshot.val();
+          if (tiendas) {
+              for (let tId in tiendas) {
+                  if (tiendas[tId].items) {
+                      tiendas[tId].items = window.processItemsData(tiendas[tId].items);
+                  }
+              }
+          }
 
           const fragmentTiendas = document.createDocumentFragment();
 
@@ -8138,7 +8183,7 @@
 
         // Escuchar actores para la lista y el select
         db.ref("campaña/actores").on("value", (snapshot) => {
-          dbActoresCache = snapshot.val() || {};
+          dbActoresCache = window.processEntitiesData(snapshot.val()) || {};
           renderListaActores();
           renderActorAsignacion();
         });

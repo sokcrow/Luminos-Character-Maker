@@ -823,6 +823,24 @@
 
         // On Load
         document.addEventListener('DOMContentLoaded', () => {
+        // FALLBACK FUNCTIONS TO PREVENT DATA BLINDNESS
+        window.applyItemFallbacks = function(item) {
+            if (!item || typeof item !== 'object') return item;
+            item.price = item.price !== undefined ? item.price : 0;
+            item.max_stash = item.max_stash !== undefined ? item.max_stash : 99;
+            item.max_inventory = item.max_inventory !== undefined ? item.max_inventory : 99;
+            if (!('evolution_chain' in item)) item.evolution_chain = null;
+            return item;
+        };
+
+        window.processItemsData = function(items) {
+            if (!items) return items;
+            for (let key in items) {
+                items[key] = window.applyItemFallbacks(items[key]);
+            }
+            return items;
+        };
+
             fetchFirebaseDropdowns();
             listenToDatabase();
             // Iniciar con 2 ingredientes por defecto en el panel de recetas
@@ -863,14 +881,14 @@
         function listenToDatabase() {
             // Listen to Items
             db.ref('campaña/base_datos_items').on('value', snap => {
-                dbItems = snap.val() || {};
+                dbItems = window.processItemsData(snap.val()) || {};
                 updateSynthesisResultOptions();
                 renderDirectory();
             });
 
             // Listen to Augmentations
             db.ref('campaña/base_datos_aumentos').on('value', snap => {
-                dbAugmentations = snap.val() || {};
+                dbAugmentations = window.processItemsData(snap.val()) || {};
                 renderDirectory();
             });
 

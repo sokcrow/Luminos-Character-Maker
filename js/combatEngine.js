@@ -8,6 +8,16 @@ const CombatEngine = {
 // 0. Habilidades y Poder (Skills)
     // 0.5 Helper D&D
     // 0.4 Initialization Helpers
+        initializeUnitData: function(unit) {
+        if (!unit) return;
+        if (unit.took_damage_this_turn === undefined) unit.took_damage_this_turn = false;
+        if (unit.took_damage_last_turn === undefined) unit.took_damage_last_turn = false;
+        if (!unit.delayed_effects) unit.delayed_effects = [];
+        if (!unit.next_turn_buffer) unit.next_turn_buffer = [];
+        if (unit.damage_dealt_multiplier === undefined) unit.damage_dealt_multiplier = 1.0;
+        if (unit.damage_taken_multiplier === undefined) unit.damage_taken_multiplier = 1.0;
+        this.initializeUnitAnimations(unit);
+    },
     initializeUnitAnimations: function(unit) {
         if (!unit) return;
 
