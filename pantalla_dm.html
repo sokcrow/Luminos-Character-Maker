@@ -1067,6 +1067,161 @@
 .hud-right-container > *:last-child, .theatre-controls > *:last-child {
     margin-bottom: 0 !important;
 }
+
+/* --- NUEVA ESTRUCTURA PREVIEW --- */
+.unit-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  width: 200px;
+}
+
+.top-speed-indicator {
+  position: absolute;
+  top: -40px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.speed-hexagon {
+    /* Basic hexagon using clip-path */
+    width: 40px;
+    height: 45px;
+    background: #1a1a1a;
+    border: 2px solid #ffe877; /* Limbus yellow */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    box-shadow: 0 0 5px #ff4400, inset 0 0 5px #000;
+}
+
+.speed-value {
+    color: #ffe877;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Bebas Neue', cursive;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.sprite-showcase {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  height: 200px; /* Base height for standardizing the image bounds */
+  align-items: flex-end; /* Align sprite to bottom platform */
+}
+
+.unit-sprite {
+    max-height: 100%;
+    object-fit: contain;
+    object-position: bottom;
+    /* Transformations are applied directly inline */
+}
+
+.sprite-shadow {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 15px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  filter: blur(4px);
+  z-index: 4;
+}
+
+.base-platform-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -20px; /* Sube la plataforma para solapar con la sombra */
+  z-index: 6;
+}
+
+.vital-hp {
+  color: #ff3333; /* Rojo HP */
+  font-size: 24px;
+  font-weight: bold;
+  position: absolute;
+  left: -20px;
+  text-shadow: 2px 2px 0px #000;
+  font-family: 'Bebas Neue', cursive;
+}
+
+.vital-sp {
+  background: #3377ff; /* Azul SP */
+  border: 2px solid #5599ff;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  right: -10px;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 0 8px rgba(51, 119, 255, 0.6);
+  font-family: 'Bebas Neue', cursive;
+}
+.sp-value {
+    font-size: 16px;
+}
+
+.platform-core {
+  width: 140px;
+  height: 40px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #333 0%, #111 100%);
+  clip-path: polygon(10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+  border-bottom: 4px solid #cc3300; /* Resplandor inferior */
+}
+
+.status-effects-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 35px; /* Ensures space is kept even if no effects */
+}
+
+.status-badge {
+  position: relative;
+  width: 25px;
+  height: 30px;
+  background: #111;
+  border: 1px solid #444;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.status-stack {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  color: #e5b85c;
+  font-weight: bold;
+  font-size: 14px;
+  text-shadow: 1px 1px 2px #000;
+}
+
 </style>
 
     <style>
@@ -4818,36 +4973,69 @@ window.processEntitiesData = function(entities) {
 
             const data = currentPreviewData;
             const isCombatant = data.isCombatant !== false;
-            const isBoss = data.type === 'boss';
-
-            let uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); transform: translateX(-50%); z-index:10; pointer-events:none; display: flex; flex-direction: column; align-items: center;`;
-            if(!isBoss) {
-                 uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); margin-left: 20px; z-index:10; pointer-events:none; display: flex; align-items: flex-start;`;
-            }
 
             const scaleX = data.flipX ? -data.scale : data.scale;
+            const spriteTransform = `translate(${data.spriteX || 0}px, ${data.spriteY || 0}px) scaleX(${scaleX}) scaleY(${data.scale || 1})`;
 
-            // Construimos un mockup visual simplificado del sprite y su UI
+            // Get number of action slots
+            const slotsCount = data.actionSlots || 1;
+            const slotsHtml = Array.from({length: slotsCount}).map(() => `
+                <svg class="action-slot-svg" viewBox="0 0 100 100" style="width: 30px; height: 30px;">
+                    <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" fill="#1a1510" stroke="#4a3520" stroke-width="10"/>
+                </svg>
+            `).join('');
+
+            // Build statuses
+            let statusesHtml = '';
+            if (data.statuses && Object.keys(data.statuses).length > 0) {
+                statusesHtml = Object.values(data.statuses).map(s => {
+                    const iconUrl = s.icon || 'placeholder_status.png';
+                    const stack = s.count ? s.count : (s.intensity ? s.intensity : '');
+                    return `
+                    <div class="status-badge">
+                      <img src="${iconUrl}" class="status-icon" alt="${s.name || ''}">
+                      ${stack ? `<span class="status-stack">${stack}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
             container.innerHTML = `
-                <div style="position: relative; width: 260px; height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transform: scale(0.6); transform-origin: bottom center;">
+                <div class="unit-preview-wrapper" style="transform: scale(0.6); transform-origin: bottom center;">
+                  <!-- Indicador de Velocidad (Superior Centro) -->
+                  ${isCombatant ? `
+                  <div class="top-speed-indicator">
+                    <div class="speed-hexagon">
+                      <span class="speed-value">${data.speed || 5}</span>
+                    </div>
+                    ${slotsHtml}
+                  </div>
+                  ` : ''}
 
+                  <!-- Contenedor del Sprite y Sombra -->
+                  <div class="sprite-showcase">
+                    ${data.img
+                        ? `<img class="unit-sprite" src="${data.img}" alt="${data.name}" style="transform: ${spriteTransform};">`
+                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
+                    <div class="sprite-shadow"></div>
+                  </div>
+
+                  <!-- Plataforma y Vitales (Centro/Laterales) -->
+                  <div class="base-platform-container">
+                    ${isCombatant ? `<div class="vital-hp">${data.hp || 100}</div>` : '<div></div>'}
+                    <div class="platform-core">
+                      <!-- Aquí va la textura interna/patrón -->
+                      <div style="text-align: center; color: white; font-family: sans-serif; font-size: 10px; margin-top: 5px;">${data.name}</div>
+                    </div>
                     ${isCombatant ? `
-                    <div style="${uiStyle}">
-                        <div style="color: #ffe877; font-size: 30px; font-weight:bold; font-family:'BebasKai', sans-serif; text-shadow: 0 0 5px #ff4400, 1px 1px 2px #000; line-height: 0.8;">${data.speed || 5}</div>
-                        <div style="display:flex; gap:2px; margin-top:5px;">
-                            ${Array.from({length: data.actionSlots || 1}).map(() => `<div style="width: 30px; height: 30px; background: #1a1510; border: 2px solid #4a3520; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
+                    <div class="vital-sp">
+                      <span class="sp-value">${data.sp || 0}</span>
+                    </div>` : '<div></div>'}
+                  </div>
 
-                    <div style="position: absolute; bottom: ${data.spriteY || 0}px; margin-left: ${data.spriteX || 0}px; transform: scaleX(${scaleX}) scaleY(${data.scale || 1}); transform-origin: bottom center; z-index:3;">
-                        <img src="${data.img}" style="height: 200px; object-fit: contain; object-position: bottom; filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));">
-                    </div>
-
-                    <div style="position: absolute; bottom: 0; left: 0; z-index: 10; display: flex; flex-direction: column; align-items: flex-start;">
-                        <div style="background: #050505; color: #ddd; font-size: 14px; font-family: 'BebasKai', sans-serif; padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase;">${data.name}</div>
-                        ${isCombatant ? `<div style="font-size: 40px; color: #ff4a22; font-family: 'BebasKai', sans-serif; line-height: 0.85; text-shadow: 2px 2px 4px #000;">${data.hp || 100}</div>` : ''}
-                    </div>
+                  <!-- Panel de Efectos de Estado (Inferior) -->
+                  <div class="status-effects-row">
+                    ${statusesHtml}
+                  </div>
                 </div>
             `;
         }
