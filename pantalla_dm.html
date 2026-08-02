@@ -1067,6 +1067,187 @@
 .hud-right-container > *:last-child, .theatre-controls > *:last-child {
     margin-bottom: 0 !important;
 }
+
+/* --- NUEVA ESTRUCTURA PREVIEW --- */
+
+
+
+
+/* --- SISTEMA DE CAPAS (Z-INDEX) --- */
+.unit-preview-wrapper {
+  position: relative;
+  width: 250px;
+  height: 350px; /* Altura fija para contener las capas absolutas */
+  display: flex;
+  justify-content: center;
+  font-family: sans-serif;
+  margin: 0 auto;
+}
+
+.z-1 { z-index: 1; }
+.z-2 { z-index: 2; }
+.z-3 { z-index: 3; }
+.z-4 { z-index: 4; }
+.z-5 { z-index: 5; pointer-events: none; } /* Permite hacer clic a través de la UI vacía */
+
+/* CAPA 1: Plataforma SVG */
+.layer-platform {
+  position: absolute;
+  bottom: 25px; /* Ajuste para el SVG centrado */
+  width: 160px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.diegetic-floor-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0px 8px 4px rgba(0,0,0,0.8));
+}
+.floor-bg-poly {
+  fill: #111;
+  stroke: #333;
+  stroke-width: 2;
+}
+.hp-track {
+  fill: none;
+  stroke: #220000;
+  stroke-width: 10;
+  stroke-linecap: square;
+}
+.hp-fill-line {
+  fill: none;
+  stroke: #ff1a1a;
+  stroke-width: 10;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 6px #ff4d4d);
+}
+
+/* CAPAS 2 & 4: FX (Trasero y Delantero) */
+.layer-fx-rear, .layer-fx-front {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+/* CAPA 3: Sprite */
+.layer-sprite {
+  position: absolute;
+  bottom: 50px; /* Anclado justo sobre la plataforma */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.unit-sprite {
+  /* El transform (scale, spriteX, spriteY) va estrictamente aquí */
+  max-height: 250px;
+  object-fit: contain;
+}
+
+/* CAPA 5: UI Global */
+.layer-ui {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* UI: Top Indicators */
+.top-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+.speed-value {
+  color: #ffdb58;
+  font-size: 40px;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 219, 88, 0.8), 2px 2px 0px #000;
+  font-family: 'Bebas Neue', cursive;
+  line-height: 0.9;
+}
+.action-slots { display: flex; gap: 5px; }
+.action-slot {
+  width: 45px; height: 45px;
+  display: flex; justify-content: center; align-items: center;
+}
+.action-slot-svg-container {
+  width: 100%; height: 100%;
+}
+.action-slot-poly {
+  fill: #1a1a1a;
+  stroke: #a37c35;
+  stroke-width: 8;
+}
+
+/* UI: Vitals (HP & SP) */
+.vitals-container {
+  position: absolute;
+  bottom: 60px; /* Alineado con la base del sprite */
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.hp-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.vital-hp-number {
+  color: #ff3b30;
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 59, 48, 0.5);
+  margin-bottom: -5px;
+  font-family: 'Bebas Neue', cursive;
+}
+
+.vital-sp-container {
+  width: 45px; height: 45px;
+  background: #2a6cb5; /* SP es cian palido, actualizando color a base cian palido */
+  background: linear-gradient(135deg, #4dc6cc, #248b99);
+  border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  border: 4px solid #a37c35; /* Borde del mismo color dorado de accion */
+  box-shadow: 0 0 15px rgba(36, 139, 153, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
+}
+.vital-sp {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px #000;
+  font-family: 'Bebas Neue', cursive;
+}
+
+/* UI: Estados (Abajo del todo) */
+.status-effects-row {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto; /* Permite hover sobre iconos de estado */
+}
+.status-badge { position: relative; width: 30px; height: 35px; background: #111; border: 1px solid #444; display: flex; justify-content: center; align-items: center; }
+.status-icon { width: 20px; height: 20px; object-fit: contain; }
+.status-stack {
+  position: absolute; bottom: -5px; right: -5px;
+  color: #ebd197; font-size: 16px; font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
 </style>
 
     <style>
@@ -4818,36 +4999,102 @@ window.processEntitiesData = function(entities) {
 
             const data = currentPreviewData;
             const isCombatant = data.isCombatant !== false;
-            const isBoss = data.type === 'boss';
-
-            let uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); transform: translateX(-50%); z-index:10; pointer-events:none; display: flex; flex-direction: column; align-items: center;`;
-            if(!isBoss) {
-                 uiStyle = `position: absolute; top: calc(-60px + ${data.uiY || 0}px); left: calc(50% + ${data.uiX || 0}px); margin-left: 20px; z-index:10; pointer-events:none; display: flex; align-items: flex-start;`;
-            }
 
             const scaleX = data.flipX ? -data.scale : data.scale;
+            const spriteTransform = `translate(${data.spriteX || 0}px, ${data.spriteY || 0}px) scaleX(${scaleX}) scaleY(${data.scale || 1})`;
 
-            // Construimos un mockup visual simplificado del sprite y su UI
+            // Get number of action slots
+            const slotsCount = data.actionSlots || 1;
+            const slotsHtml = Array.from({length: slotsCount}).map(() => `
+                <div class="action-slot">
+                    <svg class="action-slot-svg-container" viewBox="0 0 100 100">
+                        <polygon class="action-slot-poly" points="50.0,95.0 14.8,78.1 6.1,40.0 30.5,9.5 69.5,9.5 93.9,40.0 85.2,78.1" />
+                        <rect x="35" y="47" width="30" height="6" fill="#a37c35" />
+                    </svg>
+                </div>
+            `).join('');
+
+            // Build statuses
+            let statusesHtml = '';
+            if (data.statuses && Object.keys(data.statuses).length > 0) {
+                statusesHtml = Object.values(data.statuses).map(s => {
+                    const iconUrl = s.icon || 'placeholder_status.png';
+                    const stack = s.count ? s.count : (s.intensity ? s.intensity : '');
+                    return `
+                    <div class="status-badge">
+                      <img src="${iconUrl}" class="status-icon" alt="${s.name || ''}">
+                      ${stack ? `<span class="status-stack">${stack}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // HP Logic
+            const hpVal = data.hp || 100;
+            const maxHp = data.maxHp || hpVal || 100;
+            const hpPercent = Math.max(0, Math.min(100, (hpVal / maxHp) * 100));
+            const strokeOffset = 100 - hpPercent;
+
             container.innerHTML = `
-                <div style="position: relative; width: 260px; height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transform: scale(0.6); transform-origin: bottom center;">
+                <div class="unit-preview-wrapper" style="transform: scale(0.6); transform-origin: bottom center;">
+
+                  <!-- CAPA 1: Plataforma Heptagonal SVG (HP Bar en el contorno inferior) -->
+                  <div class="layer-platform z-1">
+                    <svg class="diegetic-floor-svg" viewBox="0 0 160 60">
+                        <polygon class="floor-bg-poly" points="10,15 150,15 160,15 130,45 80,55 30,45 0,15" />
+                        <polyline class="hp-track" points="0,15 30,45 80,55 130,45 160,15" />
+                        <polyline class="hp-fill-line" points="0,15 30,45 80,55 130,45 160,15" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${strokeOffset};" />
+                    </svg>
+                  </div>
+
+                  <!-- CAPA 2: FX Trasero -->
+                  <div class="layer-fx-rear z-2" id="preview-fx-rear"></div>
+
+                  <!-- CAPA 3: Sprite -->
+                  <div class="layer-sprite z-3">
+                    ${data.img
+                        ? `<img class="unit-sprite" id="preview-sprite" src="${data.img}" alt="${data.name}" style="transform: ${spriteTransform};">`
+                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
+                  </div>
+
+                  <!-- CAPA 4: FX Delantero -->
+                  <div class="layer-fx-front z-4" id="preview-fx-front"></div>
+
+                  <!-- CAPA 5: Interfaz (UI) -->
+                  <div class="layer-ui z-5">
 
                     ${isCombatant ? `
-                    <div style="${uiStyle}">
-                        <div style="color: #ffe877; font-size: 30px; font-weight:bold; font-family:'BebasKai', sans-serif; text-shadow: 0 0 5px #ff4400, 1px 1px 2px #000; line-height: 0.8;">${data.speed || 5}</div>
-                        <div style="display:flex; gap:2px; margin-top:5px;">
-                            ${Array.from({length: data.actionSlots || 1}).map(() => `<div style="width: 30px; height: 30px; background: #1a1510; border: 2px solid #4a3520; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>`).join('')}
-                        </div>
+                    <!-- UI: Velocidad y Acción (Arriba) -->
+                    <div class="top-indicators">
+                      <span class="speed-value" id="preview-speed">${data.speed || 5}</span>
+                      <div class="action-slots" id="preview-action-slots">
+                        ${slotsHtml}
+                      </div>
                     </div>
-                    ` : ''}
+                    ` : '<div></div>'}
 
-                    <div style="position: absolute; bottom: ${data.spriteY || 0}px; margin-left: ${data.spriteX || 0}px; transform: scaleX(${scaleX}) scaleY(${data.scale || 1}); transform-origin: bottom center; z-index:3;">
-                        <img src="${data.img}" style="height: 200px; object-fit: contain; object-position: bottom; filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));">
+                    <!-- UI: Vitales (Centro-Abajo) -->
+                    <div class="vitals-container">
+                      ${isCombatant ? `
+                      <!-- HP Numérico (La barra está en la plataforma SVG ahora) -->
+                      <div class="hp-wrapper">
+                        <div class="vital-hp-number" id="preview-hp-text">${hpVal}</div>
+                      </div>
+
+                      <!-- SP -->
+                      <div class="vital-sp-container">
+                        <div class="vital-sp" id="preview-sp">${data.sp || 0}</div>
+                      </div>
+                      ` : `
+                      <div style="text-align: center; color: white; font-family: sans-serif; font-size: 14px; margin: 0 auto; background: #000; padding: 2px 5px; border-radius: 4px;">${data.name}</div>
+                      `}
                     </div>
 
-                    <div style="position: absolute; bottom: 0; left: 0; z-index: 10; display: flex; flex-direction: column; align-items: flex-start;">
-                        <div style="background: #050505; color: #ddd; font-size: 14px; font-family: 'BebasKai', sans-serif; padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase;">${data.name}</div>
-                        ${isCombatant ? `<div style="font-size: 40px; color: #ff4a22; font-family: 'BebasKai', sans-serif; line-height: 0.85; text-shadow: 2px 2px 4px #000;">${data.hp || 100}</div>` : ''}
+                    <!-- UI: Estados (Fondo) -->
+                    <div class="status-effects-row" id="preview-status-effects">
+                      ${statusesHtml}
                     </div>
+
+                  </div>
                 </div>
             `;
         }

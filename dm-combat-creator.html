@@ -85,7 +85,188 @@
         .focused-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
         .focused-hp-fill-rect { height: 100%; background: var(--limbus-hp-focused); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-focused)); }
 
-    </style>
+
+/* --- NUEVA ESTRUCTURA PREVIEW --- */
+
+
+
+
+/* --- SISTEMA DE CAPAS (Z-INDEX) --- */
+.unit-preview-wrapper {
+  position: relative;
+  width: 250px;
+  height: 350px; /* Altura fija para contener las capas absolutas */
+  display: flex;
+  justify-content: center;
+  font-family: sans-serif;
+  margin: 0 auto;
+}
+
+.z-1 { z-index: 1; }
+.z-2 { z-index: 2; }
+.z-3 { z-index: 3; }
+.z-4 { z-index: 4; }
+.z-5 { z-index: 5; pointer-events: none; } /* Permite hacer clic a través de la UI vacía */
+
+/* CAPA 1: Plataforma SVG */
+.layer-platform {
+  position: absolute;
+  bottom: 25px; /* Ajuste para el SVG centrado */
+  width: 160px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.diegetic-floor-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0px 8px 4px rgba(0,0,0,0.8));
+}
+.floor-bg-poly {
+  fill: #111;
+  stroke: #333;
+  stroke-width: 2;
+}
+.hp-track {
+  fill: none;
+  stroke: #220000;
+  stroke-width: 10;
+  stroke-linecap: square;
+}
+.hp-fill-line {
+  fill: none;
+  stroke: #ff1a1a;
+  stroke-width: 10;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 6px #ff4d4d);
+}
+
+/* CAPAS 2 & 4: FX (Trasero y Delantero) */
+.layer-fx-rear, .layer-fx-front {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+/* CAPA 3: Sprite */
+.layer-sprite {
+  position: absolute;
+  bottom: 50px; /* Anclado justo sobre la plataforma */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.unit-sprite {
+  /* El transform (scale, spriteX, spriteY) va estrictamente aquí */
+  max-height: 250px;
+  object-fit: contain;
+}
+
+/* CAPA 5: UI Global */
+.layer-ui {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* UI: Top Indicators */
+.top-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+.speed-value {
+  color: #ffdb58;
+  font-size: 40px;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 219, 88, 0.8), 2px 2px 0px #000;
+  font-family: 'Bebas Neue', cursive;
+  line-height: 0.9;
+}
+.action-slots { display: flex; gap: 5px; }
+.action-slot {
+  width: 45px; height: 45px;
+  display: flex; justify-content: center; align-items: center;
+}
+.action-slot-svg-container {
+  width: 100%; height: 100%;
+}
+.action-slot-poly {
+  fill: #1a1a1a;
+  stroke: #a37c35;
+  stroke-width: 8;
+}
+
+/* UI: Vitals (HP & SP) */
+.vitals-container {
+  position: absolute;
+  bottom: 60px; /* Alineado con la base del sprite */
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.hp-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.vital-hp-number {
+  color: #ff3b30;
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 59, 48, 0.5);
+  margin-bottom: -5px;
+  font-family: 'Bebas Neue', cursive;
+}
+
+.vital-sp-container {
+  width: 45px; height: 45px;
+  background: #2a6cb5; /* SP es cian palido, actualizando color a base cian palido */
+  background: linear-gradient(135deg, #4dc6cc, #248b99);
+  border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  border: 4px solid #a37c35; /* Borde del mismo color dorado de accion */
+  box-shadow: 0 0 15px rgba(36, 139, 153, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
+}
+.vital-sp {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px #000;
+  font-family: 'Bebas Neue', cursive;
+}
+
+/* UI: Estados (Abajo del todo) */
+.status-effects-row {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto; /* Permite hover sobre iconos de estado */
+}
+.status-badge { position: relative; width: 30px; height: 35px; background: #111; border: 1px solid #444; display: flex; justify-content: center; align-items: center; }
+.status-icon { width: 20px; height: 20px; object-fit: contain; }
+.status-stack {
+  position: absolute; bottom: -5px; right: -5px;
+  color: #ebd197; font-size: 16px; font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+</style>
     <style>
         /* Heptagon styles */
         .sin-selector {
@@ -1862,49 +2043,98 @@
 
         function renderPreview() {
             const previewContainer = document.getElementById("editor-preview");
+            if (!previewContainer) return;
 
-            // Layout offsets
+            // Apply transform ONLY to the sprite
             const spriteTransform = `translate(${currentState.visual.spriteX}px, ${currentState.visual.spriteY}px) scale(${currentState.visual.scale})`;
-            const uiTransform = `translate(${currentState.visual.uiX}px, ${currentState.visual.uiY}px)`;
 
-            let bottomUI = '';
-            if (currentState.visual.isFocused) {
-                bottomUI = `
-                    <div class="focused-ui-rect" style="transform: ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
-                        <div class="focused-hp-bar-container">
-                            <div class="focused-hp-fill-rect" style="width: 100%;"></div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                bottomUI = `
-                    <svg class="diegetic-floor" viewBox="-100 -100 200 200" style="transform: rotateX(65deg) ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
-                        <polygon class="floor-bg-poly" points="${heptagonBase.full}" />
-                        <polyline class="hp-track" points="${heptagonBase.front}" />
-                        <polyline class="hp-fill-line" points="${heptagonBase.front}" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: 0;" />
+            // Get number of action slots
+            const slotsCount = currentState.mechanics.actionSlots || 1;
+            const slotsHtml = Array.from({length: slotsCount}).map(() => `
+                <div class="action-slot">
+                    <svg class="action-slot-svg-container" viewBox="0 0 100 100">
+                        <polygon class="action-slot-poly" points="50.0,95.0 14.8,78.1 6.1,40.0 30.5,9.5 69.5,9.5 93.9,40.0 85.2,78.1" />
+                        <rect x="35" y="47" width="30" height="6" fill="#a37c35" />
                     </svg>
-                `;
-            }
-
-            // Always render 3 slots for visual reference
-            const slotsHtml = [1, 2, 3].map(() => `
-                <svg class="action-slot-svg" viewBox="0 0 100 100">
-                    <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
-                </svg>
+                </div>
             `).join('');
 
+            // Build statuses
+            let statusesHtml = '';
+            if (currentState.mechanics.statuses) {
+                statusesHtml = currentState.mechanics.statuses.map(s => {
+                    const iconUrl = s.icon || 'placeholder_status.png';
+                    const stack = s.count ? s.count : (s.intensity ? s.intensity : '');
+                    return `
+                    <div class="status-badge">
+                      <img src="${iconUrl}" class="status-icon" alt="${s.name || ''}">
+                      ${stack ? `<span class="status-stack">${stack}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // HP Logic
+            const hpVal = currentState.mechanics.hp || 100;
+            const maxHp = currentState.mechanics.maxHp || hpVal || 100;
+            const hpPercent = Math.max(0, Math.min(100, (hpVal / maxHp) * 100));
+            // 100 stroke-dashoffset means empty. 0 means full.
+            const strokeOffset = 100 - hpPercent;
+
             previewContainer.innerHTML = `
-                <div class="combatant">
-                    <div class="top-ui-panel" style="transform: ${uiTransform}; cursor: pointer;" onclick="document.getElementById('uiXSlider').focus();">
-                        <div class="speed-number">${currentState.mechanics.speed}</div>
+                <div class="unit-preview-wrapper">
+
+                  <!-- CAPA 1: Plataforma Heptagonal SVG (HP Bar en el contorno inferior) -->
+                  <div class="layer-platform z-1">
+                    <svg class="diegetic-floor-svg" viewBox="0 0 160 60">
+                        <polygon class="floor-bg-poly" points="10,15 150,15 160,15 130,45 80,55 30,45 0,15" />
+                        <polyline class="hp-track" points="0,15 30,45 80,55 130,45 160,15" />
+                        <polyline class="hp-fill-line" points="0,15 30,45 80,55 130,45 160,15" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${strokeOffset};" />
+                    </svg>
+                  </div>
+
+                  <!-- CAPA 2: FX Trasero -->
+                  <div class="layer-fx-rear z-2" id="preview-fx-rear"></div>
+
+                  <!-- CAPA 3: Sprite -->
+                  <div class="layer-sprite z-3">
+                    ${currentState.visual.spriteUrl
+                        ? `<img class="unit-sprite" id="preview-sprite" src="${currentState.visual.spriteUrl}" alt="Unit" style="transform: ${spriteTransform};">`
+                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
+                  </div>
+
+                  <!-- CAPA 4: FX Delantero -->
+                  <div class="layer-fx-front z-4" id="preview-fx-front"></div>
+
+                  <!-- CAPA 5: Interfaz (UI) -->
+                  <div class="layer-ui z-5">
+
+                    <!-- UI: Velocidad y Acción (Arriba) -->
+                    <div class="top-indicators">
+                      <span class="speed-value" id="preview-speed">${currentState.mechanics.speed || 5}</span>
+                      <div class="action-slots" id="preview-action-slots">
                         ${slotsHtml}
+                      </div>
                     </div>
 
-                    <div class="sprite-anchor" style="transform: ${spriteTransform}; cursor: pointer;" onclick="document.getElementById('spriteXSlider').focus();">
-                        ${currentState.visual.spriteUrl ? `<img src="${currentState.visual.spriteUrl}" class="sprite-img">` : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888;"></div>`}
+                    <!-- UI: Vitales (Centro-Abajo) -->
+                    <div class="vitals-container">
+                      <!-- HP Numérico (La barra está en la plataforma SVG ahora) -->
+                      <div class="hp-wrapper">
+                        <div class="vital-hp-number" id="preview-hp-text">${hpVal}</div>
+                      </div>
+
+                      <!-- SP -->
+                      <div class="vital-sp-container">
+                        <div class="vital-sp" id="preview-sp">${currentState.mechanics.sp || 0}</div>
+                      </div>
                     </div>
 
-                    ${bottomUI}
+                    <!-- UI: Estados (Fondo) -->
+                    <div class="status-effects-row" id="preview-status-effects">
+                      ${statusesHtml}
+                    </div>
+
+                  </div>
                 </div>
             `;
         }
