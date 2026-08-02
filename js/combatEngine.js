@@ -430,12 +430,35 @@ const CombatEngine = {
             // Apply damage physically to process HP and Stagger states
             let clashCount = options.clashCount || 0; // options.clashCount could be passed if from a clash, else 0
 
-            let isCritical = false;
-            if (unitAttacker.statusEffects && unitAttacker.statusEffects['poise'] > 0) {
-                // Future poise integration can override this logic.
-                // Assuming it's calculated elsewhere or we hook into it.
-                // We'll leave it as false unless overridden, but the code structure handles it.
+            // 1. Modulo de Tasa Critica (Crit Rate & Poise)
+            let baseCritRate = 0.05;
+            let poiseBonus = 0;
+
+            // Poise del atacante
+            if (unitAttacker.statusEffects && unitAttacker.statusEffects['poise']) {
+                let p_count = typeof unitAttacker.statusEffects['poise'] === 'object' ? (unitAttacker.statusEffects['poise'].count || 1) : unitAttacker.statusEffects['poise'];
+                poiseBonus = p_count * 0.05;
             }
+
+            // Vulnerabilidad Critica del Defensor
+            let critVulnerabilityBonus = 0;
+            if (unitDefender.statusEffects) {
+                let activeStatuses = Object.keys(unitDefender.statusEffects);
+                for (let statusId of activeStatuses) {
+                    let statusConfig = null;
+                    if (typeof window !== 'undefined' && window.STATUS_REGISTRY) statusConfig = window.STATUS_REGISTRY[statusId];
+                    if (!statusConfig && typeof STATUS_REGISTRY !== 'undefined') statusConfig = STATUS_REGISTRY[statusId];
+
+                    if (statusConfig && statusConfig.crit_vulnerability_per_count) {
+                        let statusInstance = unitDefender.statusEffects[statusId];
+                        let count = typeof statusInstance === 'object' ? (statusInstance.count || 1) : (typeof statusInstance === 'number' ? statusInstance : 1);
+                        critVulnerabilityBonus += (statusConfig.crit_vulnerability_per_count * count);
+                    }
+                }
+            }
+
+            let finalCritRate = baseCritRate + poiseBonus + critVulnerabilityBonus;
+            let isCritical = Math.random() < finalCritRate;
 
             let finalDamage = this.calculateCoinDamage(unitAttacker, unitDefender, attackSkill, attackPower, isCritical, clashCount, context);
 
@@ -726,8 +749,8 @@ const CombatEngine = {
             let powerA = this.calculateFinalPower(skillA, tossesA, unitA);
             let powerB = this.calculateFinalPower(skillB, tossesB, unitB);
 
-            if (!skillA.isDefense) powerA += (this.applyPassiveModifiers(unitA).clash_power || 0);
-            if (!skillB.isDefense) powerB += (this.applyPassiveModifiers(unitB).clash_power || 0);
+            if (!skillA.isDefense) powerA += (this.applyPassiveModifiers(unitA, { skill: skillA }).clash_power || 0);
+            if (!skillB.isDefense) powerB += (this.applyPassiveModifiers(unitB, { skill: skillB }).clash_power || 0);
 
             let roundWinner = powerA > powerB ? 'A' : (powerB > powerA ? 'B' : 'Tie');
 
@@ -919,7 +942,7 @@ const CombatEngine = {
             }
         }
 
-        let passiveMods = unit ? this.applyPassiveModifiers(unit) : {};
+        let passiveMods = unit ? this.applyPassiveModifiers(unit, { skill: skill }) : {};
         let finalActualBasePower = basePowerOverride !== null ? basePowerOverride : skill.basePower;
         let finalActualCoinPower = coinPowerOverride !== null ? coinPowerOverride : skill.coinPower;
         let finalPowerBonus = 0;
@@ -1220,7 +1243,7 @@ const CombatEngine = {
 
 
 
-    applyPassiveModifiers: function(unit) {
+    applyPassiveModifiers: function(unit, contextOptions = null) {
         if (!unit || !unit.statusEffects) return {};
 
         let modifiers = {
@@ -1256,6 +1279,24 @@ const CombatEngine = {
 
             for (let rule of statusConfig.rules) {
                 if (rule.trigger !== 'passive') continue;
+
+                // 2 & 3. Segregacion de etiquetas de Damage y Power Up
+                if (contextOptions && contextOptions.skill) {
+                    let skill = contextOptions.skill;
+
+                    if (statusConfig.damage_type_tag) {
+                        let skillDamageType = skill.damageType || skill.type;
+                        if (skillDamageType !== statusConfig.damage_type_tag) {
+                            continue; // Validacion falla, ignorar regla
+                        }
+                    }
+                    if (statusConfig.sin_affinity_tag) {
+                        let skillAffinity = skill.affinity;
+                        if (skillAffinity !== statusConfig.sin_affinity_tag) {
+                            continue; // Validacion falla, ignorar regla
+                        }
+                    }
+                }
 
                 let potency = typeof statusInstance === 'object' ? (statusInstance.potency || 1) : 1;
                 let count = typeof statusInstance === 'object' ? (statusInstance.count || 1) : (typeof statusInstance === 'number' ? statusInstance : 1);
@@ -1631,8 +1672,8 @@ const CombatEngine = {
     // Nueva función para calcular el daño por moneda con modificadores planos
         calculateCoinDamage: function(attacker, defender, skill, coinFinalPower, isCritical, clashCount, context = null) {
         // Passive modifiers
-        let attackerMods = this.applyPassiveModifiers(attacker);
-        let defenderMods = this.applyPassiveModifiers(defender);
+        let attackerMods = this.applyPassiveModifiers(attacker, { skill: skill });
+        let defenderMods = this.applyPassiveModifiers(defender, { skill: skill });
         let dmgDealtMultiplierMod = attackerMods.damage_dealt_multiplier || 0;
         let dmgTakenMultiplierMod = defenderMods.damage_taken_multiplier || 0;
 
