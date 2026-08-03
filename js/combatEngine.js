@@ -1541,6 +1541,11 @@ const CombatEngine = {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
+            // Evaluacion de inmovilizacion (al inicio del round)
+            if (phaseTag === '[Round Start]') {
+                unit.isImmobilized = unit.statusEffects && unit.statusEffects['immobilized'] && unit.statusEffects['immobilized'].count > 0;
+            }
+
             // Historial de combate y transicion de daño
             if (phaseTag === '[Round End]' || phaseTag === '[Round Start]') {
                 unit.consumable_used_this_turn = false; // Reset strict consumable limiter per turn!

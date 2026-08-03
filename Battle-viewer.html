@@ -569,6 +569,9 @@
         const allySlots = document.querySelectorAll('.action-slot-wrapper[data-faction="ally"]');
         if (allySlots.length === 0) return;
         enemySlots.forEach(eSlot => {
+            const baseId = eSlot.id.split('_slot_')[0];
+            if (combatData[baseId] && combatData[baseId].isImmobilized) return;
+
             const randomAlly = allySlots[Math.floor(Math.random() * allySlots.length)];
             slotTargets[eSlot.id] = randomAlly.id;
         });
@@ -583,6 +586,9 @@
         let availableEnemies = [...enemySlotsNodes];
 
         allySlotsNodes.forEach(ally => {
+            const baseId = ally.id.split('_slot_')[0];
+            if (combatData[baseId] && combatData[baseId].isImmobilized) return;
+
             let allyId = ally.id; let targetId = null;
             let directAttacker = enemySlotsNodes.find(e => slotTargets[e.id] === allyId);
             if (directAttacker) { targetId = directAttacker.id; } 
@@ -682,6 +688,11 @@
         function handleDragStart(e) {
             const slot = e.target.closest('.action-slot-wrapper');
             if (slot && slot.dataset.faction === 'ally') {
+                const baseId = slot.id.split('_slot_')[0];
+                if (combatData[baseId] && combatData[baseId].isImmobilized) {
+                    addLogEntry(`[ INMOVILIZADO ] - ${combatData[baseId].name} no puede asignar objetivos.`, 'interrupt');
+                    return;
+                }
                 isDragging = true; dragStartSlotId = slot.id;
                 const coords = getPointerCoords(e); dragCurrentX = coords.x; dragCurrentY = coords.y;
             }
@@ -794,6 +805,11 @@
 
             const attackerUnit = combatData[attackerBaseId];
             const targetUnit = combatData[targetBaseId];
+
+            if (attackerUnit.isImmobilized) {
+                addLogEntry(`[ INMOVILIZADO ] - ${attackerUnit.name} no puede actuar este turno.`, 'interrupt');
+                continue;
+            }
 
             addLogEntry(`${attackerUnit.name} se mueve hacia ${targetUnit.name}...`);
 
