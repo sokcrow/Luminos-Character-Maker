@@ -28,6 +28,11 @@ const STATUS_REGISTRY = {
         rules: [{trigger: 'on_crit', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'sub_count_1'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'sub_count_1'}],
         description: "All skills gain Final Power by the effect's Count for one turn."
     },
+    'crit_dmg_up': {
+        name: 'Crit DMG Up', type: 'positive', mode: 'single', icon: 'https://limbuscompany.wiki.gg/images/Crit_DMG_Up.png?fd7a3d=&format=original',
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'crit_damage_multiplier', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        description: "Critical attacks deal 10% more damage per Count for one turn."
+    },
     'attack_power_up': {
         name: 'Attack Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/JbDs4X0.png',
         trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'final_power', decay: 'total_loss'}],

@@ -1258,7 +1258,8 @@ const CombatEngine = {
             defensive_level: 0,
             speed: 0,
             resource: 0,
-            coin_power: 0
+            coin_power: 0,
+            crit_damage_multiplier: 0
         };
 
         const activeStatuses = Object.keys(unit.statusEffects);
@@ -1698,7 +1699,8 @@ const CombatEngine = {
         let levelMod = (offLevel - defLevel) / (Math.abs(offLevel - defLevel) + 25);
 
         // 3. Modificadores por Crítico y Choque
-        let critMod = isCritical ? 0.2 : 0;
+        let critDmgUpMod = attackerMods.crit_damage_multiplier || 0;
+        let critMod = isCritical ? 0.2 + (critDmgUpMod * 0.1) : 0;
         let cCount = clashCount || 0;
         let clashMod = 0;
         if (cCount >= 1) {
