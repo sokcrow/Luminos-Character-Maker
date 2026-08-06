@@ -5,6 +5,84 @@ const RESONANCE_BONUS = {
 };
 
 const CombatEngine = {
+    // Game State
+    currentState: 'COMBAT_ACTIVE',
+    FLANKING_DAMAGE_MULTIPLIER: 1.20,
+    FLANKING_POWER_BONUS: 2,
+
+ // 'PRE_COMBAT_PLANNING', 'COMBAT_ACTIVE'
+
+
+    analyzeEnemyRole: function(unit) {
+        // AI Profiling based on stats, skills, and spells
+        let hpScore = (unit.maxHp || 100) / 100;
+        let defScore = ((unit.defensive_level || 0) + (unit.staggerThresholds ? unit.staggerThresholds.length : 0)) * 0.5;
+        let aoeCount = 0;
+        let supportCount = 0;
+
+        // Scan skills
+        let allSkills = [];
+        if (unit.attack_tier_1_sequence) allSkills = allSkills.concat(unit.attack_tier_1_sequence);
+        if (unit.attack_tier_2_sequence) allSkills = allSkills.concat(unit.attack_tier_2_sequence);
+        if (unit.attack_tier_3_sequence) allSkills = allSkills.concat(unit.attack_tier_3_sequence);
+
+        allSkills.forEach(skill => {
+            if (skill.targeting_type === 'AoE' || skill.targeting_type === 'Unfocused Volley') aoeCount++;
+            if (skill.type === 'Guard' || skill.type === 'Counter') defScore++;
+        });
+
+        // Very basic categorization logic based on the user's rules:
+        if (hpScore + defScore > 3 && aoeCount === 0) return 'Front';
+        if (aoeCount > 0 || hpScore < 1.5) return 'Back';
+        return 'Mid';
+    },
+
+    autoDeployEnemies: function(enemies, totalEnemyColumns) {
+        if (!enemies || enemies.length === 0 || totalEnemyColumns <= 0) return;
+
+        // Subdivide grid
+        let colsPerZone = Math.floor(totalEnemyColumns / 3);
+        let frontCols = totalEnemyColumns - (colsPerZone * 2); // Remainder to front
+
+        let frontXStart = 0;
+        let midXStart = frontXStart + frontCols;
+        let backXStart = midXStart + colsPerZone;
+
+        let frontAvailable = [];
+        let midAvailable = [];
+        let backAvailable = [];
+
+        // Generate possible positions (Assuming y goes from 0 to grid_height-1, let's say 5 for now, or just line them up)
+        let gridHeight = 5;
+        for (let y = 0; y < gridHeight; y++) {
+            for (let x = 0; x < frontCols; x++) frontAvailable.push({x: frontXStart + x, y: y});
+            for (let x = 0; x < colsPerZone; x++) midAvailable.push({x: midXStart + x, y: y});
+            for (let x = 0; x < colsPerZone; x++) backAvailable.push({x: backXStart + x, y: y});
+        }
+
+        enemies.forEach(enemy => {
+            let role = this.analyzeEnemyRole(enemy);
+            let targetZone = frontAvailable;
+            if (role === 'Mid') targetZone = midAvailable;
+            if (role === 'Back') targetZone = backAvailable;
+
+            // Fallback if zone is full
+            if (targetZone.length === 0) targetZone = frontAvailable.length > 0 ? frontAvailable : (midAvailable.length > 0 ? midAvailable : backAvailable);
+
+            if (targetZone.length > 0) {
+                // Pick random available spot in zone
+                let idx = Math.floor(Math.random() * targetZone.length);
+                let pos = targetZone.splice(idx, 1)[0];
+                enemy.grid_pos = pos;
+            }
+        });
+    },
+
+    triggerEncounterStart: function() {
+        this.currentState = 'COMBAT_ACTIVE';
+        // Add additional logic if needed when planning ends
+    },
+
 // 0. Habilidades y Poder (Skills)
     // 0.5 Helper D&D
     // 0.4 Initialization Helpers
@@ -16,6 +94,7 @@ const CombatEngine = {
         if (!unit.next_turn_buffer) unit.next_turn_buffer = [];
         if (unit.damage_dealt_multiplier === undefined) unit.damage_dealt_multiplier = 1.0;
         if (unit.damage_taken_multiplier === undefined) unit.damage_taken_multiplier = 1.0;
+        if (!unit.grid_pos) unit.grid_pos = {x: 0, y: 0};
         this.initializeUnitAnimations(unit);
     },
     initializeUnitAnimations: function(unit) {
@@ -45,6 +124,34 @@ const CombatEngine = {
 
         // At runtime, default current sprite to idle
         unit.current_sprite = unit.idle_sprite;
+    },
+
+
+    getAllAliveUnits: function() {
+        // Needs a reference to all units in the battle. Assuming they are accessible via some global or engine state,
+        // but typically CombatEngine processes them via context. Let's assume window.combatData exists in UI, but Engine should be decoupled.
+        // We will need a registry in CombatEngine if it doesn't exist.
+        if (typeof window !== 'undefined' && window.combatData) {
+             return Object.values(window.combatData).filter(u => u.hp > 0);
+        }
+        return [];
+    },
+
+    findClosestHostile: function(unit) {
+        let hostiles = this.getAllAliveUnits().filter(u => u.faction !== unit.faction);
+        if (hostiles.length === 0) return null;
+
+        // Find closest based on grid_pos distance
+        if (unit.grid_pos && hostiles[0].grid_pos) {
+            hostiles.sort((a, b) => {
+                let distA = Math.abs(unit.grid_pos.x - a.grid_pos.x) + Math.abs(unit.grid_pos.y - a.grid_pos.y);
+                let distB = Math.abs(unit.grid_pos.x - b.grid_pos.x) + Math.abs(unit.grid_pos.y - b.grid_pos.y);
+                if (distA !== distB) return distA - distB;
+                // Tiebreaker: Aggro / maxHp
+                return (b.maxHp || 1) - (a.maxHp || 1);
+            });
+        }
+        return hostiles[0];
     },
 
     calculateResonance: function(actionQueue) {
@@ -330,6 +437,7 @@ const CombatEngine = {
     },
 
     resolveUnilateralWithCounter: function(unitAttacker, attackSkill, unitDefender, counterSkill, options = { skipUseHooks: false, clashResult: null }) {
+        if (this.currentState === 'PRE_COMBAT_PLANNING') return { attackLogs: [{ message: 'Action blocked during Planning Phase.', class: 'error' }], damageTaken: 0 };
         let result = {
             attackLogs: [],
             pendingActions: [], // cracked coins and counter attacks
@@ -342,6 +450,10 @@ const CombatEngine = {
             attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active', effects: [] }));
         }
 
+        // Move attacker dynamically to the target before executing
+        if (unitAttacker.grid_pos && unitDefender.grid_pos) {
+            this.moveAttackerToTarget(unitAttacker, unitDefender);
+        }
         let context = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: attackSkill, targetsHit: [unitDefender] };
 
         // [Before Use] and [On Use] might have been triggered if it was originally an Unclashable attack,
@@ -367,8 +479,67 @@ const CombatEngine = {
 
 
 
+        // ---------------- TARGETING TYPES INJECTION ----------------
+        // Identify the base targeting type
+        let targetingType = attackSkill.targeting_type || 'Focused Attack';
+        let originalDefender = unitDefender;
+
         for (let i = 0; i < activeAttackCoins.length; i++) {
             let currentCoin = activeAttackCoins[i];
+
+            // Check Target Alive Status
+            if (unitDefender.hp <= 0) {
+                if (targetingType === 'Focused Attack') {
+                    // Cancel remaining coins instantly
+                    result.attackLogs.push({ message: `Target dead. Action cancelled ([Focused Attack]).`, class: 'clash-info' });
+                    break;
+                }
+
+                if (targetingType === 'Focused Volley') {
+                    if (unitAttacker.faction === 'enemy') {
+                        // AI Auto-Retargeting
+                        let newTarget = this.findClosestHostile(unitAttacker); // Needs helper
+                        if (newTarget) {
+                            unitDefender = newTarget;
+                            context.defender = unitDefender;
+                            context.targetsHit = [unitDefender];
+                            result.attackLogs.push({ message: `AI Auto-retargeting to ${unitDefender.name} ([Focused Volley]).`, class: 'clash-info' });
+                        } else {
+                            break; // No targets left
+                        }
+                    } else {
+                        // For players, we pause and wait for UI event (we just break for now, assuming UI handles the pause via queue management)
+                        // This would emit a custom event to the DOM.
+                        if (typeof document !== 'undefined') {
+                            document.dispatchEvent(new CustomEvent('CombatEngine:PlayerRetargetNeeded', { detail: { attacker: unitAttacker, skill: attackSkill, remainingCoins: activeAttackCoins.slice(i) }}));
+                        }
+                        result.attackLogs.push({ message: `Waiting for player retarget... ([Focused Volley]).`, class: 'clash-info' });
+                        break;
+                    }
+                }
+            }
+
+            if (targetingType === 'Unfocused Volley') {
+                // Randomize target per coin
+                let possibleTargets = this.getAllAliveUnits().filter(u => u.faction !== unitAttacker.faction);
+                if (possibleTargets.length > 0) {
+                    let randomTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+                    unitDefender = randomTarget;
+                    context.defender = unitDefender;
+                    context.targetsHit = [unitDefender];
+                    // Always treat as unopposed if retargeted (or if it was already unopposed). Even if it hits the clash target, we enforce unopposed resolution rules here for damage
+                    options.clashResult = null; // Forces unopposed damage logic
+                    if (possibleTargets.length === 1 && unitDefender === originalDefender) {
+                        result.attackLogs.push({ message: `Only one target remaining, unloading remaining coins on ${unitDefender.name} ([Unfocused Volley - Unopposed]).`, class: 'clash-info' });
+                    } else {
+                        result.attackLogs.push({ message: `Retargeting coin to ${unitDefender.name} ([Unfocused Volley - Unopposed]).`, class: 'clash-info' });
+                    }
+                }
+            }
+
+            // AoE logic is handled outside the coin loop (during target selection / calculateAoETargets)
+            // Indiscriminate logic is handled during round start / target caching.
+
             if (i > 0 && options.clashResult === null && attackSkill.coins && attackSkill.coins.length === 1) {
                 // If this is a unilateral attack with a single-coin skill looping multiple times (like a recycled coin)
                 // However, our loop is over activeAttackCoins which is just the coins array.
@@ -665,6 +836,7 @@ const CombatEngine = {
     },
 
     resolveStandardClash: function(unitA, skillA, unitB, skillB) {
+        if (this.currentState === 'PRE_COMBAT_PLANNING') return { logs: [{ message: 'Clash blocked during Planning Phase.', class: 'error' }], clashWinner: null, damageResult: null };
         // [Unclashable bypass fallback]
         // The driver should theoretically not call resolveStandardClash if either skill is isUnclashable.
         // But if it does, we can return a flag telling it to bypass, or handle it as Unilateral.
@@ -1026,42 +1198,70 @@ const CombatEngine = {
     },
 
     calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
+        if (!primaryTarget || !skill) return [];
+
+        if (skill.targeting_type === 'Indiscriminate' && skill._cachedIndiscriminateTargets) {
+            let hits = [primaryTarget];
+            skill._cachedIndiscriminateTargets.forEach(t => {
+                if (t.hp > 0) hits.push(t);
+            });
+            return hits;
+        }
+
+        let remainingWeight = (skill.atkWeight || 1) - (primaryTarget.slotWeight || 1);
         let targetsHit = [primaryTarget];
-        let remainingWeight = skill.attackWeight - (primaryTarget.slotWeight || 1);
 
         if (remainingWeight <= 0) return targetsHit;
 
-        // Filter out the primary target from the possible targets
-        let remainingTargets = allPossibleTargets.filter(t => t !== primaryTarget);
+        // Remove primary target from pool
+        let possibleTargets = allPossibleTargets.filter(t => t !== primaryTarget && t.hp > 0);
 
-        // Sort targets based on priority:
-        // 1. Untargeted in current round (assuming a property 'isTargetedThisRound' exists, false if undefined)
-        // 2. Lowest HP percentage
-        remainingTargets.sort((a, b) => {
-            let aTargeted = a.isTargetedThisRound ? 1 : 0;
-            let bTargeted = b.isTargetedThisRound ? 1 : 0;
-            if (aTargeted !== bTargeted) {
-                return aTargeted - bTargeted; // 0 comes before 1
-            }
+        // Ensure everyone has grid_pos
+        possibleTargets = possibleTargets.filter(t => t.grid_pos);
+        if (!primaryTarget.grid_pos) return targetsHit;
 
-            let aHpPct = (a.hp / (a.maxHp || 1));
-            let bHpPct = (b.hp / (b.maxHp || 1));
-            return aHpPct - bHpPct; // Lower HP% comes first
+        let cx = primaryTarget.grid_pos.x;
+        let cy = primaryTarget.grid_pos.y;
+
+        // Calculate exact distance to epicenter
+        possibleTargets.forEach(t => {
+            t._distToEpicenter = Math.sqrt(Math.pow(t.grid_pos.x - cx, 2) + Math.pow(t.grid_pos.y - cy, 2));
         });
 
-        for (let target of remainingTargets) {
-            if (remainingWeight > 0) {
-                targetsHit.push(target);
-                remainingWeight -= (target.slotWeight || 1);
+        // Group by distance
+        let grouped = {};
+        possibleTargets.forEach(t => {
+            let d = t._distToEpicenter.toFixed(4); // Use fixed precision for float ties
+            if (!grouped[d]) grouped[d] = [];
+            grouped[d].push(t);
+        });
+
+        // Sort distances ascending
+        let sortedDistances = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+
+        for (let d of sortedDistances) {
+            if (remainingWeight <= 0) break;
+
+            let group = grouped[d.toFixed(4)];
+            if (group.length <= remainingWeight) {
+                // Everyone in this distance group gets hit
+                group.forEach(t => {
+                    targetsHit.push(t);
+                    remainingWeight -= (t.slotWeight || 1);
+                });
             } else {
-                break;
+                // RNG tiebreaker for remaining weight
+                let shuffled = group.sort(() => 0.5 - Math.random());
+                for (let i = 0; i < remainingWeight && i < shuffled.length; i++) {
+                    targetsHit.push(shuffled[i]);
+                }
+                remainingWeight = 0; // Depleted
             }
         }
 
         return targetsHit;
     },
 
-// 0.8 Event-Driven System (Hooks)
     triggerEvent: function(tag, context, targetsHit = []) {
         if (context && context.unitAttacker && context.unitAttacker.moving_sprite && (tag === '[On Attack]' || tag === '[Clash Start]')) {
             context.unitAttacker.current_sprite = context.unitAttacker.moving_sprite;
@@ -1544,6 +1744,23 @@ const CombatEngine = {
             // Evaluacion de inmovilizacion (al inicio del round)
             if (phaseTag === '[Round Start]') {
                 unit.isImmobilized = unit.statusEffects && unit.statusEffects['immobilized'] && unit.statusEffects['immobilized'].count > 0;
+
+                // Cache indiscriminate targets
+                if (!unit.isImmobilized) {
+                    let allSkills = [].concat(unit.attack_tier_1_sequence || [], unit.attack_tier_2_sequence || [], unit.attack_tier_3_sequence || []);
+                    allSkills.forEach(skill => {
+                        if (skill && skill.targeting_type === 'Indiscriminate') {
+                            let weight = skill.atkWeight || 1;
+                            if (weight > 1) {
+                                let allAlive = this.getAllAliveUnits().filter(u => u !== unit); // Exclude self
+                                // Shuffle
+                                allAlive.sort(() => 0.5 - Math.random());
+                                skill._cachedIndiscriminateTargets = allAlive.slice(0, weight - 1);
+                            }
+                        }
+                    });
+                }
+
             }
 
             // Historial de combate y transicion de daño
@@ -1681,6 +1898,22 @@ const CombatEngine = {
         let attackerMods = this.applyPassiveModifiers(attacker, { skill: skill });
         let defenderMods = this.applyPassiveModifiers(defender, { skill: skill });
         let dmgDealtMultiplierMod = attackerMods.damage_dealt_multiplier || 0;
+
+        // Inject Flanking Damage Multiplier
+        let flankingMultiplier = 1.0;
+        if (attacker.grid_pos && defender.grid_pos) {
+            let isFlanking = false;
+            let allies = this.getAllAliveUnits().filter(u => u.faction === attacker.faction && u !== attacker);
+            for (let ally of allies) {
+                if (ally.grid_pos && this.evaluateFlanking(attacker.grid_pos, ally.grid_pos, defender.grid_pos)) {
+                    isFlanking = true;
+                    break;
+                }
+            }
+            if (isFlanking) {
+                flankingMultiplier = this.FLANKING_DAMAGE_MULTIPLIER || 1.20;
+            }
+        }
         let dmgTakenMultiplierMod = defenderMods.damage_taken_multiplier || 0;
 
         let staggerLevel = defender.staggerLevel || 0;
@@ -1733,7 +1966,7 @@ const CombatEngine = {
 
         // Paso 3: Aplicación del modificador ofensivo (Damage Dealt Multiplier del atacante)
         let offMult = Math.max(0, 1.0 + (dmgDealtMultiplierMod * 0.1) + (localPctDmg / 100));
-        let damageWithOffensive = rawDamage * offMult;
+        let damageWithOffensive = rawDamage * offMult * flankingMultiplier;
 
         // Paso 4: Paso Final: Aplicación del modificador defensivo (Damage Taken Multiplier del objetivo)
         let defMult = Math.max(0, 1.0 - (dmgTakenMultiplierMod * 0.1));
@@ -2028,21 +2261,78 @@ const CombatEngine = {
 
     // 6. Matriz de Flanqueo (Flanking Matrix)
     evaluateFlanking: function(attackerCoords, allyCoords, targetCoords) {
-        // Un flanqueo ocurre si las coordenadas del atacante y el aliado están
-        // diametralmente opuestas alrededor del objetivo.
-        // Vector desde el objetivo al aliado
+        // Flanking check with direct adjacent opposite. We just check if they are diametrically opposite in a 1-cell radius (or straight line)
         let vecAllyX = allyCoords.x - targetCoords.x;
         let vecAllyY = allyCoords.y - targetCoords.y;
 
-        // Vector desde el objetivo al atacante
         let vecAtkX = attackerCoords.x - targetCoords.x;
         let vecAtkY = attackerCoords.y - targetCoords.y;
 
-        // Deben ser vectores no nulos
         if ((vecAllyX === 0 && vecAllyY === 0) || (vecAtkX === 0 && vecAtkY === 0)) return false;
 
-        // Son diametralmente opuestos si vecAtk == -vecAlly
-        return (vecAtkX === -vecAllyX && vecAtkY === -vecAllyY);
+        // Normalize vectors for direction comparison in case they are further away
+        let normAllyX = vecAllyX === 0 ? 0 : vecAllyX / Math.abs(vecAllyX);
+        let normAllyY = vecAllyY === 0 ? 0 : vecAllyY / Math.abs(vecAllyY);
+
+        let normAtkX = vecAtkX === 0 ? 0 : vecAtkX / Math.abs(vecAtkX);
+        let normAtkY = vecAtkY === 0 ? 0 : vecAtkY / Math.abs(vecAtkY);
+
+        return (normAtkX === -normAllyX && normAtkY === -normAllyY);
+    },
+
+    moveAttackerToTarget: function(attacker, target) {
+        if (!attacker.grid_pos || !target.grid_pos) return;
+
+        let vecX = target.grid_pos.x - attacker.grid_pos.x;
+        let vecY = target.grid_pos.y - attacker.grid_pos.y;
+
+        // Normalize to find target adjacent cell in the direction of the vector
+        let dirX = vecX === 0 ? 0 : (vecX > 0 ? 1 : -1);
+        let dirY = vecY === 0 ? 0 : (vecY > 0 ? 1 : -1);
+
+        let targetX = target.grid_pos.x - dirX;
+        let targetY = target.grid_pos.y - dirY;
+
+        // Ensure cell is free. If occupied, orbit the target.
+        let allAlive = this.getAllAliveUnits();
+
+        const isOccupied = (x, y) => {
+            if (x === target.grid_pos.x && y === target.grid_pos.y) return true; // Can't stand ON the target
+            return allAlive.some(u => u !== attacker && u.grid_pos && u.grid_pos.x === x && u.grid_pos.y === y);
+        };
+
+        if (isOccupied(targetX, targetY)) {
+            // Orbit: check 8 adjacent cells
+            let found = false;
+            let offsets = [
+                {x: 0, y: -1}, {x: 1, y: -1}, {x: 1, y: 0}, {x: 1, y: 1},
+                {x: 0, y: 1}, {x: -1, y: 1}, {x: -1, y: 0}, {x: -1, y: -1}
+            ];
+            // Sort offsets by distance to preferred targetX, targetY
+            offsets.sort((a, b) => {
+                let cellA_x = target.grid_pos.x + a.x;
+                let cellA_y = target.grid_pos.y + a.y;
+                let cellB_x = target.grid_pos.x + b.x;
+                let cellB_y = target.grid_pos.y + b.y;
+                let distA = Math.abs(cellA_x - targetX) + Math.abs(cellA_y - targetY);
+                let distB = Math.abs(cellB_x - targetX) + Math.abs(cellB_y - targetY);
+                return distA - distB;
+            });
+
+            for (let offset of offsets) {
+                let checkX = target.grid_pos.x + offset.x;
+                let checkY = target.grid_pos.y + offset.y;
+                if (!isOccupied(checkX, checkY)) {
+                    targetX = checkX;
+                    targetY = checkY;
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        attacker.grid_pos.x = targetX;
+        attacker.grid_pos.y = targetY;
     }
 };
 
