@@ -113,6 +113,12 @@ const CombatEngine = {
         unit.attack_tier_2_sequence = unit.attack_tier_2_sequence || [];
         unit.attack_tier_3_sequence = unit.attack_tier_3_sequence || [];
 
+        // Migrate skillRange
+        let allSkills = [].concat(unit.attack_tier_1_sequence, unit.attack_tier_2_sequence, unit.attack_tier_3_sequence);
+        allSkills.forEach(s => {
+            if (s && s.skillRange === undefined) s.skillRange = 1;
+        });
+
         // Initialize Original Sequences Memory (Base State Reversion)
         if (!unit.original_sequences) {
             unit.original_sequences = {
@@ -548,6 +554,14 @@ const CombatEngine = {
                 if (attackSkill.coinAmount === 1) currentCoin.isReused = true;
             }
             context.currentCoin = currentCoin;
+
+            // Handle AoE and Indiscriminate properly inside Unilateral / Unopposed
+            if (targetingType === 'AoE' || targetingType === 'Indiscriminate') {
+                let allAlive = this.getAllAliveUnits();
+                context.targetsHit = this.calculateAoETargets(attackSkill, unitDefender, allAlive, unitAttacker);
+            } else {
+                context.targetsHit = [unitDefender];
+            }
 
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
             this.processStatusEffects(unitAttacker, 'on_coin_flip', context);
@@ -1197,7 +1211,7 @@ const CombatEngine = {
         return actualBasePower + finalPowerBonus;
     },
 
-    calculateAoETargets: function(skill, primaryTarget, allPossibleTargets) {
+    calculateAoETargets: function(skill, primaryTarget, allPossibleTargets, unitAttacker) {
         if (!primaryTarget || !skill) return [];
 
         if (skill.targeting_type === 'Indiscriminate' && skill._cachedIndiscriminateTargets) {
@@ -1208,7 +1222,7 @@ const CombatEngine = {
             return hits;
         }
 
-        let remainingWeight = (skill.atkWeight || 1) - (primaryTarget.slotWeight || 1);
+        let remainingWeight = (skill.atkWeight || skill.weight || 1) - (primaryTarget.slotWeight || 1);
         let targetsHit = [primaryTarget];
 
         if (remainingWeight <= 0) return targetsHit;
@@ -1216,17 +1230,81 @@ const CombatEngine = {
         // Remove primary target from pool
         let possibleTargets = allPossibleTargets.filter(t => t !== primaryTarget && t.hp > 0);
 
+        // Remove faction filter if any was present, but in calculateAoETargets we just get allPossibleTargets which should be allAliveUnits. No faction filtering here means friendly fire is active!
+
         // Ensure everyone has grid_pos
         possibleTargets = possibleTargets.filter(t => t.grid_pos);
-        if (!primaryTarget.grid_pos) return targetsHit;
+        if (!primaryTarget.grid_pos || (skill.targeting_type === 'AoE' && !unitAttacker.grid_pos)) return targetsHit;
 
-        let cx = primaryTarget.grid_pos.x;
-        let cy = primaryTarget.grid_pos.y;
+        let skillRange = skill.skillRange !== undefined ? skill.skillRange : 1;
 
-        // Calculate exact distance to epicenter
-        possibleTargets.forEach(t => {
-            t._distToEpicenter = Math.sqrt(Math.pow(t.grid_pos.x - cx, 2) + Math.pow(t.grid_pos.y - cy, 2));
-        });
+        if (skill.targeting_type === 'AoE') {
+            let pattern = skill.aoe_pattern || 'Radius';
+
+            if (pattern === 'Self') {
+                let cx = unitAttacker.grid_pos.x;
+                let cy = unitAttacker.grid_pos.y;
+                possibleTargets.forEach(t => {
+                    t._distToEpicenter = Math.sqrt(Math.pow(t.grid_pos.x - cx, 2) + Math.pow(t.grid_pos.y - cy, 2));
+                });
+                // Filter by range
+                possibleTargets = possibleTargets.filter(t => t._distToEpicenter <= skillRange);
+            } else if (pattern === 'Radius') {
+                let cx = primaryTarget.grid_pos.x;
+                let cy = primaryTarget.grid_pos.y;
+                possibleTargets.forEach(t => {
+                    t._distToEpicenter = Math.sqrt(Math.pow(t.grid_pos.x - cx, 2) + Math.pow(t.grid_pos.y - cy, 2));
+                });
+                // Filter by range
+                possibleTargets = possibleTargets.filter(t => t._distToEpicenter <= skillRange);
+            } else if (pattern === 'Cone') {
+                let ax = unitAttacker.grid_pos.x;
+                let ay = unitAttacker.grid_pos.y;
+                let px = primaryTarget.grid_pos.x;
+                let py = primaryTarget.grid_pos.y;
+
+                // Attack Vector V
+                let vx = px - ax;
+                let vy = py - ay;
+                let magV = Math.sqrt(vx * vx + vy * vy);
+
+                possibleTargets.forEach(t => {
+                    let tx = t.grid_pos.x;
+                    let ty = t.grid_pos.y;
+
+                    // Vector W (Attacker -> Target)
+                    let wx = tx - ax;
+                    let wy = ty - ay;
+                    let magW = Math.sqrt(wx * wx + wy * wy);
+
+                    t._distToEpicenter = magW; // Distance to attacker for sorting
+
+                    if (magV === 0 || magW === 0) {
+                        t._inCone = false;
+                    } else {
+                        // Dot product for angle
+                        let dot = (vx * wx + vy * wy);
+                        let cosTheta = dot / (magV * magW);
+                        // cos(22.5 degrees) ~ 0.9238795
+                        if (magW <= skillRange && cosTheta >= 0.9238795) {
+                            t._inCone = true;
+                        } else {
+                            t._inCone = false;
+                        }
+                    }
+                });
+
+                // Filter by cone and range
+                possibleTargets = possibleTargets.filter(t => t._inCone);
+            }
+        } else {
+            // Default Radius around primary target logic (for legacy AoE logic if targeting type isn't properly AoE but passed here somehow)
+            let cx = primaryTarget.grid_pos.x;
+            let cy = primaryTarget.grid_pos.y;
+            possibleTargets.forEach(t => {
+                t._distToEpicenter = Math.sqrt(Math.pow(t.grid_pos.x - cx, 2) + Math.pow(t.grid_pos.y - cy, 2));
+            });
+        }
 
         // Group by distance
         let grouped = {};
