@@ -266,6 +266,115 @@
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
+
+/* --- REGLAS ESTILO DEL TERMINAL (CSS) --- */
+.trigger-builder-card {
+  background: #111;
+  border: 1px solid #444;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #1a1a1a;
+  padding: 10px;
+  border-left: 3px solid #8a1c1c;
+}
+
+.node-label {
+  color: #b8943b;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.strict-dropdown {
+  background: #222;
+  color: #d1d1d1;
+  border: 1px solid #555;
+  padding: 5px;
+  font-family: monospace;
+}
+
+.condition-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.math-terminal {
+  background: #0a0a0a;
+  border: 1px solid #333;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.terminal-display-wrapper {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.formula-display, .cond-val {
+  flex-grow: 1;
+  background: #121212 !important;
+  color: #e5b85c !important; /* Texto dorado para la fórmula validada */
+  font-family: monospace;
+  font-size: 16px;
+  border: 1px solid #a37c35 !important; /* Borde dorado */
+  pointer-events: auto; /* Permite hacer click para focusear */
+  cursor: text;
+}
+.cond-val {
+    width: 150px;
+    flex-grow: 0;
+}
+
+.math-focus {
+    border: 1px solid #00FFFF !important; /* Cyan glow para focus */
+    box-shadow: 0 0 5px rgba(0,255,255,0.5);
+}
+
+.btn-clear-formula {
+  background: #8a1c1c;
+  color: white;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.math-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.keypad-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.math-btn {
+  background: #1a1a1a;
+  color: #d1d1d1;
+  border: 1px solid #444;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.math-btn:hover { background: #333; border-color: #a37c35; }
+.var-btn { color: #7eb4f5; border-color: #2a6cb5; } /* Azul para variables */
+.func-btn { color: #ebd197; } /* Dorado para funciones */
 </style>
     <style>
         /* Heptagon styles */
@@ -1091,10 +1200,10 @@
 
                     <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
 
-                    <fieldset id="sb-rules-container" style="margin-top: 10px; border: 1px solid #b8943b;">
-                        <legend style="color: #b8943b;">Reglas del Motor (Multi-Rule System)</legend>
-                        <div id="sb-rules-list"></div>
-                        <button type="button" onclick="addStatusRule()" style="background: #8a1c1c; color: white; border: none; padding: 5px; margin-top: 5px; cursor: pointer;">[ + AÑADIR REGLA ]</button>
+                    <fieldset id="sb-rules-container" style="margin-top: 10px; border: 1px solid #b8943b; background: #0a0a0a; padding: 10px;">
+                        <legend style="color: #b8943b; font-family: 'Cinzel', serif; font-size: 16px;">Reglas del Motor (Multi-Rule System) & Terminal Matemático</legend>
+                        <div id="sb-rules-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                        <button type="button" onclick="addStatusRule()" style="width: 100%; background: #8a1c1c; color: white; border: none; padding: 10px; margin-top: 10px; cursor: pointer; font-family: 'Bebas Neue', cursive; font-size: 16px;">[ + ENSAMBLAR NUEVA REGLA (TERMINAL) ]</button>
                     </fieldset>
 
                     <button id="btnSaveStatus" onclick="saveStatusToFirebase()" style="margin-top: 15px;">[ GUARDAR ESTADO GLOBAL ]</button>
@@ -3042,78 +3151,278 @@
 
 
 
+
+
+        const MATH_DICT = {
+            '[Level]': 'unit.level',
+            '[Offensive_Level]': 'unit.offensive_level',
+            '[Count]': 'this.count',
+            '[Potency]': 'this.potency',
+            '[CHA_Mod]': 'unit.cha_mod',
+            '[Max_HP]': 'unit.maxHp',
+            '[Current_HP]': 'unit.hp',
+            '[Max_SP]': 'unit.maxSp',
+            '[Current_SP]': 'unit.sp',
+            '[Speed]': 'unit.speed',
+            '[Defense_Power]': 'unit.defense_power',
+            '[Clash_Power]': 'unit.clash_power',
+            '[Stat_Mod]': 'unit.stat_mod'
+        };
+
+        function parseToCode(visualString) {
+            if (!visualString) return '';
+            let codeString = visualString;
+            for (const [visualTag, codeTag] of Object.entries(MATH_DICT)) {
+                // escape brackets for regex
+                const escapedTag = visualTag.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+                const regex = new RegExp(escapedTag, 'g');
+                codeString = codeString.replace(regex, codeTag);
+            }
+            return codeString;
+        }
+
+        function parseToVisual(codeString) {
+            if (!codeString) return '';
+            let visualString = codeString;
+            // reverse mapping
+            for (const [visualTag, codeTag] of Object.entries(MATH_DICT)) {
+                const regex = new RegExp(codeTag.replace(/\./g, '\\.'), 'g');
+                visualString = visualString.replace(regex, visualTag);
+            }
+            return visualString;
+        }
+
         function addStatusRule(ruleData = {}) {
             const list = document.getElementById('sb-rules-list');
+            const index = list.children.length;
             const block = document.createElement('div');
-            block.className = 'sb-rule-block';
-            block.style.cssText = 'border: 1px dashed #555; padding: 8px; margin-bottom: 5px; background: #111; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: space-between;';
+            block.className = 'trigger-builder-card';
+            block.id = `trigger-card-${index}`;
 
             block.innerHTML = `
-                <select class="rule-trigger">
-                    <option value="passive">Pasiva (Stats Estáticos)</option>
-                    <option value="on_turn_start">Turn Start</option>
-                    <option value="on_round_end">Turn End</option>
-                    <option value="on_attack">On Attack</option>
-                    <option value="getting_hit">Getting Hit</option>
-                    <option value="on_crit">On Crit</option>
-                    <option value="on_coin_flip">On Coin Flip</option>
-                    <option value="on_heads">On Heads</option>
-                    <option value="on_tails">On Tails</option>
-                    <option value="on_tremor_burst">On Tremor Burst</option>
-                    <option value="instant">Instant (Solo Single Mode)</option>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #555; padding-bottom:5px;">
+                  <span style="color:#d1d1d1; font-weight:bold;">Ensamblaje de Regla</span>
+                  <button type="button" onclick="this.closest('.trigger-builder-card').remove()" style="background: #333; color: white; border: 1px solid #555; cursor: pointer;">X</button>
+              </div>
+
+              <!-- NODO 1: Detonador -->
+              <div class="node-section node-event">
+                <span class="node-label">1. CUÁNDO (Trigger):</span>
+                <select class="rule-trigger strict-dropdown">
+                  <option value="passive">Pasiva (Stats Estáticos)</option>
+                  <option value="on_turn_start">Al Iniciar el Turno</option>
+                  <option value="on_round_end">Al Terminar el Turno</option>
+                  <option value="on_attack">Al Atacar</option>
+                  <option value="getting_hit">Al Recibir Daño</option>
+                  <option value="on_crit">Al Asestar Crítico</option>
+                  <option value="on_coin_flip">Al Lanzar Moneda</option>
+                  <option value="on_heads">Al Sacar Cara</option>
+                  <option value="on_tails">Al Sacar Cruz</option>
+                  <option value="on_tremor_burst">Al Detonar Temblor</option>
+                  <option value="instant">Instantáneo (Solo Single Mode)</option>
                 </select>
-                <span style="color: #d1d1d1;">[Por cada]</span>
-                <input type="number" class="rule-cond-input" value="${ruleData.cond_input !== undefined ? ruleData.cond_input : 1}" style="width: 40px; background: #222; color: white; border: 1px solid #555;">
-                <select class="rule-cond-type">
-                    <option value="potency">Potency</option>
-                    <option value="count">Count</option>
-                </select>
-                <select class="rule-operation">
-                    <option value="add">Sumar</option>
-                    <option value="sub">Restar</option>
-                    <option value="mult">Multiplicar</option>
-                    <option value="div">Dividir</option>
-                    <option value="set">Igualar a</option>
-                </select>
-                <input type="number" class="rule-aff-input" value="${ruleData.aff_input !== undefined ? ruleData.aff_input : 1}" style="width: 40px; background: #222; color: white; border: 1px solid #555;">
-                <span style="color: #d1d1d1;">a</span>
-                <select class="rule-affectation">
-                    <option value="hp">HP</option>
-                    <option value="sp">SP</option>
-                    <option value="stagger_threshold">Stagger Threshold</option>
-                    <option value="defensive_level">Defense Level</option>
-                    <option value="defense_power">Defense Power</option>
-                    <option value="offensive_level">Offensive Level</option>
-                    <option value="clash_power">Clash Power</option>
-                    <option value="coin_power">Coin Power</option>
-                    <option value="base_power">Base Power</option>
-                    <option value="final_power">Final Power</option>
-                    <option value="damage_dealt_multiplier">Damage Dealt Multiplier (x0.1)</option>
-                    <option value="damage_taken_multiplier">Damage Taken Multiplier (x0.1)</option>
-                    <option value="crit_damage_multiplier">Crit Damage Multiplier (x0.1)</option>
-                    <option value="healing_multiplier">Healing Multiplier</option>
-                    <option value="speed">Speed</option>
-                    <option value="resource">Resource</option>
-                </select>
-                <select class="rule-decay" style="margin-left: auto;">
-                    <option value="none">Sin Decaimiento</option>
-                    <option value="sub_count_1">Reducir Count en 1</option>
-                    <option value="sub_potency_1">Reducir Potency en 1</option>
-                    <option value="half_count">Reducir Count a la mitad</option>
-                    <option value="half_potency">Reducir Potency a la mitad</option>
-                    <option value="total_loss">Pérdida Total</option>
-                </select>
-                <button type="button" onclick="this.parentElement.remove()" style="background: #333; color: white; border: 1px solid #555; cursor: pointer;">X</button>
+              </div>
+
+              <!-- NODO 2: Validadores -->
+              <div class="node-section node-conditions">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="node-label">2. SI (Condiciones):</span>
+                    <label style="color:#d1d1d1; font-size:11px; cursor:pointer;"><input type="checkbox" class="rule-has-condition" onchange="this.closest('.node-conditions').querySelector('.condition-row').style.display = this.checked ? 'flex' : 'none'"> Habilitar</label>
+                </div>
+                <div class="condition-row" style="display:none; margin-top:5px; flex-wrap:wrap;">
+                  <select class="cond-property strict-dropdown">
+                    <option value="skill.range_type">Tipo de Rango</option>
+                    <option value="attack.is_unopposed">Es Ataque Sin Oposición</option>
+                    <option value="target.hp">HP del Objetivo</option>
+                    <option value="self.hp">HP Propio</option>
+                    <option value="count">Stacks (Count)</option>
+                    <option value="potency">Intensidad (Potency)</option>
+                  </select>
+                  <select class="cond-operator strict-dropdown">
+                    <option value="==">== (Igual)</option>
+                    <option value=">=">>= (Mayor o Igual)</option>
+                    <option value="<="><= (Menor o Igual)</option>
+                    <option value=">">> (Mayor)</option>
+                    <option value="<">< (Menor)</option>
+                  </select>
+                  <!-- Se usa el Terminal Matemático para el valor -->
+                  <input type="text" class="cond-val" readonly placeholder="Valor..." onfocus="setTerminalFocus(this)">
+                </div>
+              </div>
+
+              <!-- NODO 3 & TERMINAL: Resolución y Fórmulas -->
+              <div class="node-section node-effect">
+                <span class="node-label">3. ENTONCES (Efecto y Fórmula):</span>
+
+                <div style="display:flex; gap:5px; margin-bottom:5px; align-items:center;">
+                    <select class="rule-operation strict-dropdown">
+                      <option value="add">Sumar (+)</option>
+                      <option value="sub">Restar (-)</option>
+                      <option value="mult">Multiplicar (x)</option>
+                      <option value="div">Dividir (/)</option>
+                      <option value="set">Igualar a (=)</option>
+                    </select>
+
+                    <span style="color:#888;">a</span>
+
+                    <select class="rule-affectation strict-dropdown">
+                      <option value="hp">HP</option>
+                      <option value="sp">SP</option>
+                      <option value="stagger_threshold">Stagger Threshold</option>
+                      <option value="defensive_level">Defense Level</option>
+                      <option value="defense_power">Defense Power</option>
+                      <option value="offensive_level">Offensive Level</option>
+                      <option value="clash_power">Clash Power</option>
+                      <option value="coin_power">Coin Power</option>
+                      <option value="base_power">Base Power</option>
+                      <option value="final_power">Final Power</option>
+                      <option value="damage_dealt_multiplier">Damage Dealt Multiplier (x0.1)</option>
+                      <option value="damage_taken_multiplier">Damage Taken Multiplier (x0.1)</option>
+                      <option value="crit_damage_multiplier">Crit Damage Multiplier (x0.1)</option>
+                      <option value="healing_multiplier">Healing Multiplier</option>
+                      <option value="speed">Speed</option>
+                      <option value="resource">Resource</option>
+                    </select>
+                </div>
+
+                <!-- Terminal Matemático Universal -->
+                <div class="math-terminal">
+                  <!-- Display de Solo Lectura -->
+                  <div class="terminal-display-wrapper">
+                    <input type="text" class="formula-display" readonly placeholder="Ensambla la fórmula aquí..." onfocus="setTerminalFocus(this)">
+                    <button type="button" class="btn-clear-formula" onclick="clearTerminalFocus(this)">CLEAR</button>
+                  </div>
+
+                  <!-- Teclado de Variables y Operadores -->
+                  <div class="math-keypad">
+                    <div class="keypad-group variables-group">
+                      <button type="button" class="math-btn var-btn" data-val="[Level]" onclick="injectMath(this)">[Nivel]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Offensive_Level]" onclick="injectMath(this)">[Nivel Ofensivo]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Count]" onclick="injectMath(this)">[Count]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Potency]" onclick="injectMath(this)">[Potency]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[CHA_Mod]" onclick="injectMath(this)">[Mod. Carisma]</button>
+
+                      <!-- Expanded tactical variables -->
+                      <button type="button" class="math-btn var-btn" data-val="[Max_HP]" onclick="injectMath(this)">[Max_HP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Current_HP]" onclick="injectMath(this)">[Current_HP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Max_SP]" onclick="injectMath(this)">[Max_SP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Current_SP]" onclick="injectMath(this)">[Current_SP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Speed]" onclick="injectMath(this)">[Speed]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Defense_Power]" onclick="injectMath(this)">[Defense_Power]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Clash_Power]" onclick="injectMath(this)">[Clash_Power]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Stat_Mod]" onclick="injectMath(this)">[Stat_Mod]</button>
+
+                    </div>
+                    <div class="keypad-group numbers-group">
+                      <button type="button" class="math-btn num-btn" data-val="0" onclick="injectMath(this)">0</button>
+                      <button type="button" class="math-btn num-btn" data-val="1" onclick="injectMath(this)">1</button>
+                      <button type="button" class="math-btn num-btn" data-val="2" onclick="injectMath(this)">2</button>
+                      <button type="button" class="math-btn num-btn" data-val="3" onclick="injectMath(this)">3</button>
+                      <button type="button" class="math-btn num-btn" data-val="4" onclick="injectMath(this)">4</button>
+                      <button type="button" class="math-btn num-btn" data-val="5" onclick="injectMath(this)">5</button>
+                      <button type="button" class="math-btn num-btn" data-val="6" onclick="injectMath(this)">6</button>
+                      <button type="button" class="math-btn num-btn" data-val="7" onclick="injectMath(this)">7</button>
+                      <button type="button" class="math-btn num-btn" data-val="8" onclick="injectMath(this)">8</button>
+                      <button type="button" class="math-btn num-btn" data-val="9" onclick="injectMath(this)">9</button>
+                      <button type="button" class="math-btn num-btn" data-val="10" onclick="injectMath(this)">10</button>
+                      <button type="button" class="math-btn num-btn" data-val="20" onclick="injectMath(this)">20</button>
+                      <button type="button" class="math-btn num-btn" data-val="." onclick="injectMath(this)">.</button>
+                    </div>
+                    <div class="keypad-group operators-group">
+                      <button type="button" class="math-btn op-btn" data-val="+" onclick="injectMath(this)">+</button>
+                      <button type="button" class="math-btn op-btn" data-val="-" onclick="injectMath(this)">-</button>
+                      <button type="button" class="math-btn op-btn" data-val="*" onclick="injectMath(this)">*</button>
+                      <button type="button" class="math-btn op-btn" data-val="/" onclick="injectMath(this)">/</button>
+                      <button type="button" class="math-btn func-btn" data-val="floor(" onclick="injectMath(this)">Floor()</button>
+                      <button type="button" class="math-btn func-btn" data-val="ceil(" onclick="injectMath(this)">Ceil()</button>
+                      <button type="button" class="math-btn func-btn" data-val=")" onclick="injectMath(this)">)</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top:5px; border-top:1px dashed #555; padding-top:5px; text-align:right;">
+                    <span style="color: #888; font-size:12px;">Decaimiento (Decay): </span>
+                    <select class="rule-decay strict-dropdown">
+                        <option value="none">Sin Decaimiento</option>
+                        <option value="sub_count_1">Reducir Count en 1</option>
+                        <option value="sub_potency_1">Reducir Potency en 1</option>
+                        <option value="half_count">Reducir Count a la mitad</option>
+                        <option value="half_potency">Reducir Potency a la mitad</option>
+                        <option value="total_loss">Pérdida Total</option>
+                    </select>
+                </div>
+              </div>
             `;
 
             if (ruleData.trigger) block.querySelector('.rule-trigger').value = ruleData.trigger;
-            if (ruleData.cond_type) block.querySelector('.rule-cond-type').value = ruleData.cond_type;
             if (ruleData.operation) block.querySelector('.rule-operation').value = ruleData.operation;
             if (ruleData.affectation) block.querySelector('.rule-affectation').value = ruleData.affectation;
             if (ruleData.decay) block.querySelector('.rule-decay').value = ruleData.decay;
 
+            // Re-populate Condition (Node 2)
+            if(ruleData.condition) {
+                block.querySelector('.rule-has-condition').checked = true;
+                block.querySelector('.condition-row').style.display = 'flex';
+                block.querySelector('.cond-property').value = ruleData.condition.property || 'count';
+                block.querySelector('.cond-operator').value = ruleData.condition.operator || '==';
+                block.querySelector('.cond-val').value = ruleData.condition.value || '';
+            }
+
+            // Re-populate Effect Formula (Node 3)
+            if(ruleData.formula) {
+                block.querySelector('.formula-display').value = ruleData.formula;
+            } else if (ruleData.aff_input !== undefined) {
+                // Legacy migration
+                block.querySelector('.formula-display').value = ruleData.aff_input.toString();
+            }
+
             list.appendChild(block);
         }
+
+        // Logic for Math Terminal Focussing and Injecting
+        let currentMathFocus = null;
+
+        function setTerminalFocus(inputElement) {
+            if(currentMathFocus) {
+                currentMathFocus.classList.remove('math-focus');
+            }
+            currentMathFocus = inputElement;
+            currentMathFocus.classList.add('math-focus');
+        }
+
+        function clearTerminalFocus(btnElement) {
+            // Find the closest terminal block
+            const terminalWrapper = btnElement.closest('.terminal-display-wrapper');
+            const formulaInput = terminalWrapper.querySelector('.formula-display');
+
+            // We only clear the formula display of this block (we don't clear conditions, they have no clear btn)
+            formulaInput.value = '';
+
+            // Set focus explicitly to it just in case
+            setTerminalFocus(formulaInput);
+        }
+
+        function injectMath(btnElement) {
+            const val = btnElement.getAttribute('data-val');
+
+            // If we have a globally focussed element that belongs to the same card as this button
+            const card = btnElement.closest('.trigger-builder-card');
+
+            if (currentMathFocus && card.contains(currentMathFocus)) {
+                // Ignore actual text input typing in readonly, just append
+                const currentVal = currentMathFocus.value || '';
+
+                // Smart append: if we append variable/number and the last char was variable/number/), add space?
+                // For simplicity, just direct append
+                currentMathFocus.value = currentVal + val;
+            } else {
+                // Fallback: If nothing is focussed on this card, default focus to formula display
+                const formulaDisplay = card.querySelector('.formula-display');
+                setTerminalFocus(formulaDisplay);
+                formulaDisplay.value = (formulaDisplay.value || '') + val;
+            }
+        }
+
 
         function loadStatusIntoBuilder(id, status) {
             document.getElementById('status-builder-container').style.display = 'block';
@@ -3136,15 +3445,22 @@
             rulesList.innerHTML = '';
 
             if (status.rules && Array.isArray(status.rules)) {
-                status.rules.forEach(rule => addStatusRule(rule));
+                status.rules.forEach(rule => {
+                    // Traducción bidireccional al cargar
+                    if(rule.condition && rule.condition.value) {
+                        rule.condition.value = parseToVisual(rule.condition.value.toString());
+                    }
+                    if(rule.formula) {
+                        rule.formula = parseToVisual(rule.formula.toString());
+                    }
+                    addStatusRule(rule);
+                });
             } else if (status.trigger && status.affectation_vector) {
                 // Legacy migration
                 const legacyRule = {
                     trigger: status.trigger,
-                    cond_input: 1,
-                    cond_type: 'count', // Potency vs count default
                     operation: 'add',
-                    aff_input: 1,
+                    formula: (status.aff_input !== undefined) ? status.aff_input.toString() : '1',
                     affectation: status.affectation_vector,
                     decay: status.decay_rule || 'none'
                 };
@@ -3167,19 +3483,33 @@
                 return;
             }
 
-            // Gather rules
+            // Gather rules using new Node Architecture and parseToCode
             const rules = [];
-            const ruleBlocks = document.querySelectorAll('.sb-rule-block');
+            const ruleBlocks = document.querySelectorAll('.trigger-builder-card');
             ruleBlocks.forEach(block => {
-                rules.push({
+                const rule = {
                     trigger: block.querySelector('.rule-trigger').value,
-                    cond_input: (() => { const val = parseFloat(block.querySelector('.rule-cond-input').value); return isNaN(val) ? 0 : val; })(),
-                    cond_type: block.querySelector('.rule-cond-type').value,
                     operation: block.querySelector('.rule-operation').value,
-                    aff_input: (() => { const val = parseFloat(block.querySelector('.rule-aff-input').value); return isNaN(val) ? 0 : val; })(),
                     affectation: block.querySelector('.rule-affectation').value,
                     decay: block.querySelector('.rule-decay').value
-                });
+                };
+
+                // NODO 2: Validadores
+                const hasCondition = block.querySelector('.rule-has-condition').checked;
+                if(hasCondition) {
+                    const condValVisual = block.querySelector('.cond-val').value;
+                    rule.condition = {
+                        property: block.querySelector('.cond-property').value,
+                        operator: block.querySelector('.cond-operator').value,
+                        value: parseToCode(condValVisual)
+                    };
+                }
+
+                // NODO 3: Fórmula (Terminal)
+                const formulaVisual = block.querySelector('.formula-display').value;
+                rule.formula = parseToCode(formulaVisual);
+
+                rules.push(rule);
             });
 
             const updates = {
