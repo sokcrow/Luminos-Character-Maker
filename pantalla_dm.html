@@ -1477,6 +1477,35 @@
         background: #00bfff;
         box-shadow: 0 0 25px rgba(0, 221, 255, 1);
       }
+      .btn-modo-director {
+        position: relative;
+      }
+      .theatre-live-badge {
+        display: none;
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 6px;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        border-radius: 999px;
+        background: #d40000;
+        color: #fff;
+        font-size: 12px;
+        line-height: 1;
+        box-shadow: 0 0 12px rgba(255, 0, 0, 0.9);
+      }
+      .theatre-live-badge.visible {
+        display: inline-flex;
+      }
+      .theatre-live-badge.offline {
+        display: inline-flex;
+        background: #5b5b5b;
+        font-size: 9px;
+      }
 
       .dm-tab-pane {
         display: none;
@@ -1623,6 +1652,7 @@
       </button>
       <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
         VISUALIZADOR DE JUEGO
+        <span id="dm-theatre-live-badge" class="theatre-live-badge" aria-live="polite"></span>
       </button>
     </div>
 
@@ -8986,6 +9016,25 @@ window.processEntitiesData = function(entities) {
 
         let queueItems = [];
         window.queueItems = queueItems;
+        const theatreLiveBadge = document.getElementById("dm-theatre-live-badge");
+
+        function updateTheatreLiveBadge(count, connected = true) {
+          if (!theatreLiveBadge) return;
+
+          theatreLiveBadge.classList.toggle("offline", !connected);
+          theatreLiveBadge.classList.toggle("visible", !connected || count > 0);
+          theatreLiveBadge.textContent = connected ? (count > 99 ? "99+" : String(count || "")) : "OFF";
+          theatreLiveBadge.title = connected
+            ? `${count} actuación${count === 1 ? "" : "es"} pendiente${count === 1 ? "" : "s"} en el Teatro`
+            : "Sin conexión en tiempo real con el Teatro";
+        }
+
+        // Firebase puede recuperar la conexión sin recargar la página. El DM siempre
+        // debe saber si la ausencia de actividad significa una cola vacía o una caída.
+        db.ref(".info/connected").on("value", (snap) => {
+          updateTheatreLiveBadge(queueItems.length, snap.val() === true);
+        });
+
         // Listen to Queue
         db.ref("campaña/teatro/cola").on("value", (snap) => {
           const queueContainer = document.getElementById("dm-theatre-queue");
@@ -8995,6 +9044,7 @@ window.processEntitiesData = function(entities) {
           window.queueItems = queueItems;
           const cola = snap.val();
           if (!cola) {
+            updateTheatreLiveBadge(0);
             queueContainer.innerHTML =
               '<span style="color: #666; text-align: center;">La cola está vacía.</span>';
             return;
@@ -9063,6 +9113,10 @@ window.processEntitiesData = function(entities) {
             queueContainer.appendChild(itemDiv);
           }
 
+          // El aviso permanece visible en cualquier pestaña del panel DM, no solo
+          // cuando el visualizador del Teatro está abierto.
+          updateTheatreLiveBadge(queueItems.length);
+
           // Reactivar ciclo de avance continuo si estamos en dicho modo y la cola se llena
           const textBox = document.getElementById("theatre-dialogue-text");
           const isTypingText = textBox && textBox.typewriterInterval;
@@ -9075,6 +9129,9 @@ window.processEntitiesData = function(entities) {
           ) {
             iniciarAvanceContinuo(5000);
           }
+        }, (error) => {
+          console.error("No se pudo escuchar la cola del Teatro en tiempo real:", error);
+          updateTheatreLiveBadge(queueItems.length, false);
         });
 
         // Si el DM borra su texto, el modo continuo debería reactivarse (verificar la cola)
