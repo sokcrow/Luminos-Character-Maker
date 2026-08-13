@@ -1465,21 +1465,6 @@
         border-color: #c49a00;
         box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
       }
-      .btn-modo-director {
-        background: #0df;
-        color: #000;
-        border: 1px solid #fff;
-        font-weight: bold;
-        text-shadow: none;
-        box-shadow: 0 0 15px rgba(0, 221, 255, 0.8);
-      }
-      .btn-modo-director:hover {
-        background: #00bfff;
-        box-shadow: 0 0 25px rgba(0, 221, 255, 1);
-      }
-      .btn-modo-director {
-        position: relative;
-      }
       .theatre-live-badge {
         display: none;
         position: absolute;
@@ -1650,7 +1635,6 @@
       <button class="dm-tab-btn" data-tab="tab-acceso">
         Control de Acceso
       </button>
-      <span id="dm-theatre-live-badge" class="theatre-live-badge" aria-live="polite"></span>
     </div>
 
     <div
@@ -3370,6 +3354,7 @@ window.processEntitiesData = function(entities) {
         "
       >
         SALIR DEL TEATRO
+        <span id="dm-theatre-live-badge" class="theatre-live-badge" aria-live="polite"></span>
       </button>
 
       <!-- Stage Area -->
@@ -4256,6 +4241,7 @@ window.processEntitiesData = function(entities) {
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/combatEngine.js"></script>
+    <script src="js/instance-control.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -8536,57 +8522,8 @@ window.processEntitiesData = function(entities) {
           }
         }
 
-        // Toggle Exit
-        document
-          .getElementById("btn-exit-theatre")
-          .addEventListener("click", () => {
-            applyDmInstance("ninguno");
-            db.ref("campaña/estado_mundo/instancia_activa").set("ninguno");
-          });
-
-
-
-
         // --- CONTROL DE INSTANCIAS (GLOBAL) ---
-        const instanceRadios = document.querySelectorAll('.instance-radio');
-
-        function applyDmInstance(instance) {
-          const activeInstance = instance || "ninguno";
-          const theatreActive = activeInstance === "teatro";
-          const tabsNav = document.querySelector(".dm-tabs-nav");
-          const tabsContent = document.querySelector(".dm-tabs-content");
-          const theatreView = document.getElementById("theatre-view-dm");
-
-          if (tabsNav) tabsNav.style.display = theatreActive ? "none" : "flex";
-          if (tabsContent) tabsContent.style.display = theatreActive ? "none" : "flex";
-          if (theatreView) {
-            theatreView.style.display = theatreActive ? "flex" : "none";
-            theatreView.classList.toggle("theatre-active", theatreActive);
-          }
-        }
-
-        instanceRadios.forEach(radio => {
-          radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-              const selectedInstance = e.target.value;
-              // The local transition never waits for the network round trip.
-              applyDmInstance(selectedInstance);
-              db.ref("campaña/estado_mundo/instancia_activa").set(selectedInstance);
-            }
-          });
-        });
-
-        // Sincronizar UI del DM con el estado global de instancias
-        db.ref("campaña/estado_mundo/instancia_activa").on("value", (snap) => {
-          const val = snap.val() || "ninguno";
-          const targetRadio = document.querySelector(`.instance-radio[value="${val}"]`);
-          if (targetRadio) {
-            targetRadio.checked = true;
-          }
-          // This listener is also the strict initializer: the first Firebase
-          // value overrides the default HTML state as soon as it arrives.
-          applyDmInstance(val);
-        });
+        window.LuminousInstanceControl.bindDm({ db });
 
         // (Original code below)
         // Lock Toggle
