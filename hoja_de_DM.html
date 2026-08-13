@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centro de Mando - ON GAME</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/on-game-dashboard.css">
+</head>
+<body class="on-game-dashboard">
+  <nav class="master-control-bar" aria-label="Control de instancia">
+    <div class="instance-toggles">
+      <label><input type="radio" name="instancia" value="ninguno"> PANTALLA NEGRA</label>
+      <label><input type="radio" name="instancia" value="teatro"> TEATRO / LORE</label>
+      <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
+    </div>
+    <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+  </nav>
+
+  <main>
+    <section id="modulo-standby" class="game-module active-module" aria-hidden="false">
+      <h1 class="standby-text">SISTEMA EN ESPERA</h1>
+    </section>
+    <section id="modulo-teatro" class="game-module hidden" aria-hidden="true">
+      <header class="dialogue-panel"><strong id="theatre-location">LOCALIZACIÓN DESCONOCIDA</strong></header>
+      <div id="theatre-stage" aria-label="Escenario del teatro"></div>
+      <div class="dialogue-panel">
+        <span id="dialogue-name" class="dialogue-name">NARRADOR</span> <small id="dialogue-title"></small>
+        <p id="dialogue-text">…</p>
+      </div>
+      <div class="theatre-controls">
+        <input id="theatre-background-input" type="url" placeholder="URL del fondo">
+        <input id="theatre-location-input" type="text" placeholder="Localización">
+        <button id="btn-update-scene" type="button">ACTUALIZAR ESCENA</button>
+        <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo"></textarea>
+        <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
+      </div>
+    </section>
+    <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
+      <div id="combat-grid"><iframe src="Battle-viewer.html" title="Cuadrícula de combate táctica"></iframe></div>
+      <div id="combat-log-and-controls">
+        <span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span>
+        <button id="btn-trigger-combat" type="button">INICIAR COMBATE (Fin de Planeación)</button>
+      </div>
+    </section>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script>
+    firebase.initializeApp({apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"});
+  </script>
+  <script src="js/instance-control.js"></script>
+  <script src="js/on-game-dashboard.js"></script>
+</body>
+</html>
