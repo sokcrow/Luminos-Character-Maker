@@ -1,7 +1,12 @@
 (function () {
   "use strict";
   document.addEventListener('DOMContentLoaded', () => {
-    const db = window.firebase.database();
+    window.firebase.auth().onAuthStateChanged((user) => {
+      if (!user) {
+        console.error("CRÍTICO: Usuario no detectado. on-game-dashboard no arrancará.");
+        return;
+      }
+      const db = window.firebase.database();
     const SCENE_ROOT = "campaña/estado_mundo/escena_actual";
     const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
@@ -56,5 +61,6 @@
         db.ref("campaña/combate").update({ estado: "COMBAT_ACTIVE", startedAt: window.firebase.database.ServerValue.TIMESTAMP });
       });
     }
+    });
   });
 })();

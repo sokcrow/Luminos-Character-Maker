@@ -20,7 +20,7 @@ const workshopPage = fs.readFileSync(
 );
 
 test("el centro de mando mantiene una suscripción a la escena del Teatro", () => {
-  expect(dashboardScript).toContain('child("estado_actual").on("value"');
+  expect(dashboardScript).toContain('const SCENE_ROOT = "campaña/estado_mundo/escena_actual";');
   expect(dmPage).toContain('id="theatre-stage"');
 });
 
