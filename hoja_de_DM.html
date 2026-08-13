@@ -10,38 +10,59 @@
 </head>
 <body class="on-game-dashboard">
   <nav class="master-control-bar" aria-label="Control de instancia">
-    <div class="instance-toggles">
-      <label><input type="radio" name="instancia" value="ninguno"> PANTALLA NEGRA</label>
-      <label><input type="radio" name="instancia" value="teatro"> TEATRO / LORE</label>
-      <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
+    <div class="brand-lockup" aria-label="Luminous director console">
+      <span class="brand-mark" aria-hidden="true">L</span>
+      <div>
+        <strong>LUMINOUS</strong>
+        <small>DIRECTOR CONTROL // 01</small>
+      </div>
     </div>
-    <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+    <div class="instance-toggles">
+      <label><input type="radio" name="instancia" value="ninguno"><span class="mode-index">00</span> APAGADO</label>
+      <label><input type="radio" name="instancia" value="teatro"><span class="mode-index">01</span> TEATRO / LORE</label>
+      <label><input type="radio" name="instancia" value="combate"><span class="mode-index">02</span> COMBATE</label>
+    </div>
+    <div class="system-readout">
+      <small>NETWORK STATUS</small>
+      <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+    </div>
   </nav>
 
   <main>
     <section id="modulo-standby" class="game-module active-module" aria-hidden="false">
-      <h1 class="standby-text">SISTEMA EN ESPERA</h1>
+      <div class="standby-emblem" aria-hidden="true"><span>01</span></div>
+      <p class="eyebrow">DIRECTOR AUTHORITY // IDLE</p>
+      <h1 class="standby-text">SISTEMA<br><span>EN ESPERA</span></h1>
+      <p class="standby-hint">SELECCIONA UNA INSTANCIA PARA INICIAR LA TRANSMISIÓN</p>
+      <div class="standby-code">LUM-OS&nbsp;&nbsp;|&nbsp;&nbsp;SECTOR 12&nbsp;&nbsp;|&nbsp;&nbsp;LINK READY</div>
     </section>
     <section id="modulo-teatro" class="game-module hidden" aria-hidden="true">
-      <header class="dialogue-panel"><strong id="theatre-location">LOCALIZACIÓN DESCONOCIDA</strong></header>
+      <header class="scene-header">
+        <div><small>ESCENA ACTIVA</small><strong id="theatre-location">LOCALIZACIÓN DESCONOCIDA</strong></div>
+        <span>LIVE // 01</span>
+      </header>
       <div id="theatre-stage" aria-label="Escenario del teatro"></div>
-      <div class="dialogue-panel">
-        <span id="dialogue-name" class="dialogue-name">NARRADOR</span> <small id="dialogue-title"></small>
-        <p id="dialogue-text">…</p>
-      </div>
-      <div class="theatre-controls">
-        <input id="theatre-background-input" type="url" placeholder="URL del fondo">
-        <input id="theatre-location-input" type="text" placeholder="Localización">
-        <button id="btn-update-scene" type="button">ACTUALIZAR ESCENA</button>
-        <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo"></textarea>
-        <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
+      <div class="theatre-bottom">
+        <div class="dialogue-panel">
+          <div class="speaker-line"><span id="dialogue-name" class="dialogue-name">NARRADOR</span><small id="dialogue-title"></small></div>
+          <p id="dialogue-text">…</p>
+        </div>
+        <div class="theatre-controls">
+          <div class="control-heading"><span>SCENE COMMAND</span><small>EDIT CHANNEL</small></div>
+          <input id="theatre-background-input" type="url" placeholder="URL // FONDO DE ESCENA">
+          <input id="theatre-location-input" type="text" placeholder="DESIGNACIÓN // LOCALIZACIÓN">
+          <button id="btn-update-scene" type="button">APLICAR ESCENA <span>↗</span></button>
+          <textarea id="theatre-dialogue-input" placeholder="INTRODUCIR DIÁLOGO EN VIVO..."></textarea>
+          <button id="btn-send-dialogue" type="button">TRANSMITIR <span>▶</span></button>
+        </div>
       </div>
     </section>
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
+      <div class="combat-header"><span>ENCOUNTER CONTROL</span><small>TACTICAL FEED // LIVE</small></div>
       <div id="combat-grid"><iframe src="Battle-viewer.html" title="Cuadrícula de combate táctica"></iframe></div>
       <div id="combat-log-and-controls">
-        <span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span>
-        <button id="btn-trigger-combat" type="button">INICIAR COMBATE (Fin de Planeación)</button>
+        <div><small>ESTADO DE OPERACIÓN</small><span>FASE INICIAL: 60 s · PRE_COMBAT_PLANNING</span></div>
+        <button id="btn-trigger-combat" type="button">INICIAR COMBATE <span>▶</span></button>
       </div>
     </section>
   </main>
