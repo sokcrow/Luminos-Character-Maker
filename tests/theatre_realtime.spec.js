@@ -18,3 +18,12 @@ test("el panel DM distingue una cola vacía de una desconexión", () => {
   expect(dmPage).toContain('updateTheatreLiveBadge(queueItems.length, false)');
   expect(dmPage).toContain("Sin conexión en tiempo real con el Teatro");
 });
+
+test("un control opcional de recetas no interrumpe la inicialización del Teatro", () => {
+  expect(dmPage).toContain(
+    'document.getElementById("btn-crear-receta")?.addEventListener',
+  );
+  expect(dmPage).not.toContain(
+    'document.getElementById("btn-crear-receta").addEventListener',
+  );
+});
