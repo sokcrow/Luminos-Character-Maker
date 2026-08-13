@@ -6773,7 +6773,10 @@ window.processEntitiesData = function(entities) {
             db.ref("campaña/estado_mundo/mesa_crafteo_activa").set(e.target.checked);
         });
 
-        document.getElementById("btn-crear-receta").addEventListener("click", () => {
+        // El editor de recetas ahora vive en la herramienta standalone. En esta
+        // pantalla el botón puede no existir; no debemos abortar el inicializador
+        // completo del DM (incluido el Teatro) por ese control opcional.
+        document.getElementById("btn-crear-receta")?.addEventListener("click", () => {
             const itemResultado = document.getElementById("receta-item-resultado").value.trim();
             const ingredientesStr = document.getElementById("receta-ingredientes").value.trim();
             const dificultad = parseInt(document.getElementById("receta-dificultad").value) || 0;
