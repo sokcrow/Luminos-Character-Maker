@@ -66,7 +66,15 @@
             let transformStr = "";
             if (data.escala) transformStr += `scale(${data.escala}) `;
             if (data.orientacion === 'flip') transformStr += `scaleX(-1) `;
-            if (data.x || data.y) transformStr += `translate(${data.x || '0px'}, ${data.y || '0px'}) `;
+
+            // Fix parsing raw numbers to px if necessary
+            let xPos = data.x !== undefined ? data.x : 0;
+            let yPos = data.y !== undefined ? data.y : 0;
+            if (xPos !== 0 || yPos !== 0) {
+                let xStr = typeof xPos === 'number' ? `${xPos}px` : xPos;
+                let yStr = typeof yPos === 'number' ? `${yPos}px` : yPos;
+                transformStr += `translate(${xStr}, ${yStr}) `;
+            }
 
             if (transformStr) {
                 img.style.transform = transformStr.trim();
