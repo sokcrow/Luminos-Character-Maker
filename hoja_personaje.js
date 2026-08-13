@@ -3949,9 +3949,13 @@ function initializeCharacterSheet() {
     document.addEventListener("click", (e) => {
       const btnMenu = e.target.closest("#btn-toggle-hud-menu");
       if (btnMenu) {
+        const sidebar = btnMenu.closest(".hud-sidebar-right");
         const dropdown = document.getElementById("hud-menu-dropdown");
-        if (dropdown) {
-          dropdown.style.display = dropdown.style.display === "none" || dropdown.style.display === "" ? "flex" : "none";
+        if (dropdown && sidebar) {
+          const isOpen = sidebar.classList.toggle("is-open");
+          btnMenu.setAttribute("aria-expanded", String(isOpen));
+          btnMenu.setAttribute("aria-label", isOpen ? "Ocultar menú de personaje" : "Mostrar menú de personaje");
+          btnMenu.title = isOpen ? "Ocultar menú" : "Mostrar menú";
         }
       }
     });
