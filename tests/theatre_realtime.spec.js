@@ -27,3 +27,31 @@ test("un control opcional de recetas no interrumpe la inicialización del Teatro
     'document.getElementById("btn-crear-receta").addEventListener',
   );
 });
+
+test("la instancia del DM aplica la vista reactiva sin botón intermedio", () => {
+  expect(dmPage).toContain("function applyDmInstance(instance)");
+  expect(dmPage).toContain("applyDmInstance(selectedInstance)");
+  expect(dmPage).toContain("applyDmInstance(val)");
+  expect(dmPage).not.toContain('id="btn-modo-director"');
+});
+
+test("el teatro del DM conserva un listener persistente para la escena activa", () => {
+  expect(dmPage).toContain(
+    'db.ref("campaña/teatro/estado_actual").on("value"',
+  );
+  expect(dmPage).toContain('id="theatre-stage-container"');
+});
+
+test("los jugadores reciben un apagón reactivo desde Firebase", () => {
+  const playerPage = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.html"),
+    "utf8",
+  );
+  expect(playerPage).toContain('id="player-instance-blackout"');
+  expect(playerPage).toContain(
+    'document.body.classList.toggle("instance-blackout", blackoutActive)',
+  );
+  expect(playerPage).toContain(
+    'theatreView.style.display = theatreActive ? "flex" : "none"',
+  );
+});

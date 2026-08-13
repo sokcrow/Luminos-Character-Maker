@@ -6894,6 +6894,20 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 
 
 /* --- THEATRE VIEW (PLAYER) --- */
+#player-instance-blackout {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    background: #000;
+    pointer-events: all;
+}
+
+#player-instance-blackout.active,
+body.instance-blackout #player-instance-blackout {
+    display: block !important;
+}
+
 #theatre-view-player {
     position: fixed;
     top: 0; left: 0;
