@@ -23,18 +23,41 @@
       <h1 class="standby-text">SISTEMA EN ESPERA</h1>
     </section>
     <section id="modulo-teatro" class="game-module hidden" aria-hidden="true">
-      <header class="dialogue-panel"><strong id="theatre-location">LOCALIZACIÓN DESCONOCIDA</strong></header>
-      <div id="theatre-stage" aria-label="Escenario del teatro"></div>
-      <div class="dialogue-panel">
-        <span id="dialogue-name" class="dialogue-name">NARRADOR</span> <small id="dialogue-title"></small>
-        <p id="dialogue-text">…</p>
+      <div class="stage-view-wrapper">
+        <header class="dialogue-panel"><strong id="theatre-location">LOCALIZACIÓN DESCONOCIDA</strong></header>
+        <div id="theatre-stage" class="stage-view" aria-label="Escenario del teatro">
+          <!-- Aquí el motor inyecta los fondos y sprites reactivos -->
+        </div>
+        <div class="dialogue-panel">
+          <span id="dialogue-name" class="dialogue-name">NARRADOR</span> <small id="dialogue-title"></small>
+          <p id="dialogue-text">…</p>
+        </div>
+        <div class="theatre-controls">
+          <input id="theatre-background-input" type="url" placeholder="URL del fondo">
+          <input id="theatre-location-input" type="text" placeholder="Localización">
+          <button id="btn-update-scene" type="button">ACTUALIZAR ESCENA</button>
+          <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo"></textarea>
+          <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
+        </div>
       </div>
-      <div class="theatre-controls">
-        <input id="theatre-background-input" type="url" placeholder="URL del fondo">
-        <input id="theatre-location-input" type="text" placeholder="Localización">
-        <button id="btn-update-scene" type="button">ACTUALIZAR ESCENA</button>
-        <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo"></textarea>
-        <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
+
+      <!-- El Panel de Control (Solo para el DM) -->
+      <div id="theatre-director-panel" class="director-controls">
+          <h3 class="panel-title">CONTROL DE CASTING</h3>
+
+          <!-- Buscador e Inyector de NPCs desde la Base de Datos -->
+          <div class="npc-spawner-section">
+              <select id="select-npc-roster" class="strict-dropdown">
+                  <option value="">Cargando NPCs disponibles...</option>
+                  <!-- JS poblará esto leyendo de base_datos_npcs -->
+              </select>
+              <button id="btn-spawn-npc" class="btn-action">INYECTAR A ESCENA</button>
+          </div>
+
+          <!-- Lista de Actores Actualmente en el Escenario -->
+          <div class="active-actors-list" id="live-actors-list">
+              <!-- Tarjetas de control dinámicas por cada actor en escena -->
+          </div>
       </div>
     </section>
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
@@ -51,6 +74,8 @@
     firebase.initializeApp({apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"});
   </script>
   <script src="js/instance-control.js"></script>
+  <script src="js/theatre-engine.js"></script>
+  <script src="js/theatre-controls.js"></script>
   <script src="js/on-game-dashboard.js"></script>
 </body>
 </html>
