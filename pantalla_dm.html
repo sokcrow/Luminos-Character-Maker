@@ -1650,10 +1650,7 @@
       <button class="dm-tab-btn" data-tab="tab-acceso">
         Control de Acceso
       </button>
-      <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
-        VISUALIZADOR DE JUEGO
-        <span id="dm-theatre-live-badge" class="theatre-live-badge" aria-live="polite"></span>
-      </button>
+      <span id="dm-theatre-live-badge" class="theatre-live-badge" aria-live="polite"></span>
     </div>
 
     <div
@@ -5176,8 +5173,6 @@ window.processEntitiesData = function(entities) {
         // --- LÓGICA DE TABS VISUALIZADOR DE JUEGO ---
         document.querySelectorAll(".dm-tab-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
-            if (btn.id === "btn-modo-director") return;
-
             // Remove active class from all buttons and panes
             document
               .querySelectorAll(".dm-tab-btn")
@@ -5204,29 +5199,6 @@ window.processEntitiesData = function(entities) {
 
           });
         });
-
-        document
-          .getElementById("btn-modo-director")
-          .addEventListener("click", () => {
-            // Evaluamos la instancia global activa antes de abrir
-            db.ref("campaña/estado_mundo/instancia_activa").once("value").then((snap) => {
-              const activeInstance = snap.val() || "ninguno";
-
-              if (activeInstance === "teatro") {
-                document.querySelector(".dm-tabs-nav").style.display = "none";
-                document.querySelector(".dm-tabs-content").style.display = "none";
-                const theatreView = document.getElementById("theatre-view-dm");
-                if (theatreView) {
-                  theatreView.style.display = "flex";
-                }
-              } else if (activeInstance === "ninguno") {
-                alert("No hay ninguna instancia en transmisión (PANTALLA NEGRA).");
-              } else {
-                alert("La instancia activa ('" + activeInstance + "') no tiene un visualizador disponible localmente todavía.");
-              }
-            });
-          });
-
 
         // --- COMUNICACIONES DM ---
         let currentDmChatId = null;
@@ -8568,10 +8540,8 @@ window.processEntitiesData = function(entities) {
         document
           .getElementById("btn-exit-theatre")
           .addEventListener("click", () => {
-            document.getElementById("theatre-view-dm").style.display = "none";
-            document.querySelector(".dm-tabs-nav").style.display = "flex";
-            document.querySelector(".dm-tabs-content").style.display = "flex";
-            // db.ref("campaña/teatro").update({ activo: false }); // Desacoplado localmente
+            applyDmInstance("ninguno");
+            db.ref("campaña/estado_mundo/instancia_activa").set("ninguno");
           });
 
 
@@ -8579,10 +8549,28 @@ window.processEntitiesData = function(entities) {
 
         // --- CONTROL DE INSTANCIAS (GLOBAL) ---
         const instanceRadios = document.querySelectorAll('.instance-radio');
+
+        function applyDmInstance(instance) {
+          const activeInstance = instance || "ninguno";
+          const theatreActive = activeInstance === "teatro";
+          const tabsNav = document.querySelector(".dm-tabs-nav");
+          const tabsContent = document.querySelector(".dm-tabs-content");
+          const theatreView = document.getElementById("theatre-view-dm");
+
+          if (tabsNav) tabsNav.style.display = theatreActive ? "none" : "flex";
+          if (tabsContent) tabsContent.style.display = theatreActive ? "none" : "flex";
+          if (theatreView) {
+            theatreView.style.display = theatreActive ? "flex" : "none";
+            theatreView.classList.toggle("theatre-active", theatreActive);
+          }
+        }
+
         instanceRadios.forEach(radio => {
           radio.addEventListener('change', (e) => {
             if (e.target.checked) {
               const selectedInstance = e.target.value;
+              // The local transition never waits for the network round trip.
+              applyDmInstance(selectedInstance);
               db.ref("campaña/estado_mundo/instancia_activa").set(selectedInstance);
             }
           });
@@ -8595,6 +8583,9 @@ window.processEntitiesData = function(entities) {
           if (targetRadio) {
             targetRadio.checked = true;
           }
+          // This listener is also the strict initializer: the first Firebase
+          // value overrides the default HTML state as soon as it arrives.
+          applyDmInstance(val);
         });
 
         // (Original code below)

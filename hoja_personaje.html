@@ -297,6 +297,7 @@
     </style>
   </head>
   <body>
+    <div id="player-instance-blackout" aria-hidden="true"></div>
     <div id="system-loading-overlay">
       <img
         src="https://limbuscompany.wiki.gg/images/thumb/DanteStar.png/1024px-DanteStar.png?e52927"
@@ -13105,15 +13106,22 @@
       // Listen to global instance state (Teatro, Mapa, Combate)
       db.ref("campaña/estado_mundo/instancia_activa").on("value", (snap) => {
         const activeInstance = snap.val() || "ninguno";
+        const theatreActive = activeInstance === "teatro";
+        const blackoutActive = activeInstance === "ninguno";
 
-        // Vista local del Teatro
+        // Apply the Firebase event directly to the root DOM in the same tick.
+        document.body.classList.toggle("instance-theatre", theatreActive);
+        document.body.classList.toggle("instance-blackout", blackoutActive);
+        const blackout = document.getElementById("player-instance-blackout");
+        if (blackout) {
+          blackout.classList.toggle("active", blackoutActive);
+          blackout.setAttribute("aria-hidden", String(!blackoutActive));
+        }
+
         const theatreView = document.getElementById("theatre-view-player");
         if (theatreView) {
-          if (activeInstance === "teatro") {
-            theatreView.classList.add("theatre-active");
-          } else {
-            theatreView.classList.remove("theatre-active");
-          }
+          theatreView.classList.toggle("theatre-active", theatreActive);
+          theatreView.style.display = theatreActive ? "flex" : "none";
         }
 
         // Futuro: Agregar aquí la lógica para mostrar Mapas o Combates cuando existan
