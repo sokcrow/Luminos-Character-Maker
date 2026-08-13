@@ -6898,14 +6898,33 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: none;
     position: fixed;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
     z-index: 2147483647;
     background: #000;
     pointer-events: all;
+    user-select: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
 }
 
-#player-instance-blackout.active,
-body.instance-blackout #player-instance-blackout {
-    display: block !important;
+#player-instance-blackout.active {
+    display: flex !important;
+}
+
+.player-blackout-status {
+    color: #777;
+    font: 14px "Share Tech Mono", monospace;
+    letter-spacing: 0.35em;
+    margin-bottom: 16px;
+}
+
+.player-blackout-label {
+    color: #d4a63a;
+    font: 42px "BebasKai", sans-serif;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 18px rgba(212, 166, 58, 0.35);
 }
 
 #theatre-view-player {

@@ -1343,11 +1343,12 @@
         gap: 15px;
         background: #050505;
         padding: 5px 15px;
-        border: 1px solid #444;
+        border: 1px solid rgba(212, 166, 58, 0.65);
+        box-shadow: inset 0 0 18px rgba(196, 154, 0, 0.08);
       }
       .instance-control-panel h4 {
         margin: 0;
-        color: #fff;
+        color: #d4a63a;
         font-family: "BebasKai", sans-serif;
         font-size: 18px;
         letter-spacing: 1px;
@@ -1465,6 +1466,11 @@
         border-color: #c49a00;
         box-shadow: 0 0 10px rgba(196, 154, 0, 0.5);
       }
+      .btn-modo-director {
+        position: relative;
+        border-color: #777;
+        color: #d4a63a;
+      }
       .theatre-live-badge {
         display: none;
         position: absolute;
@@ -1521,11 +1527,12 @@
         gap: 15px;
         background: #050505;
         padding: 5px 15px;
-        border: 1px solid #444;
+        border: 1px solid rgba(212, 166, 58, 0.65);
+        box-shadow: inset 0 0 18px rgba(196, 154, 0, 0.08);
       }
       .instance-control-panel h4 {
         margin: 0;
-        color: #fff;
+        color: #d4a63a;
         font-family: "BebasKai", sans-serif;
         font-size: 18px;
         letter-spacing: 1px;
@@ -1634,6 +1641,9 @@
       <button class="dm-tab-btn" data-tab="tab-keywords">Keywords</button>
       <button class="dm-tab-btn" data-tab="tab-acceso">
         Control de Acceso
+      </button>
+      <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
+        VISUALIZADOR DE JUEGO
       </button>
     </div>
 
@@ -3302,6 +3312,7 @@ window.processEntitiesData = function(entities) {
 
     <div
       id="theatre-view-dm"
+      aria-hidden="true"
       style="
         display: none;
         position: fixed;
