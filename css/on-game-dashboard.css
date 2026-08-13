@@ -7,9 +7,20 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
 .instance-toggles label:has(input:checked) { color: #050505; background: #c49a00; border-color: #ffe084; }
 .connection-status { color: #7aff9b; font-size: .8rem; }
 .connection-status.offline { color: #ff6575; }
-.game-module { position: fixed; inset: 64px 0 0; background: #050608; }
-.game-module.hidden { display: none; }
-.game-module.active-module { display: flex; }
+.game-module {
+    display: none; /* Oculto por defecto */
+    position: fixed;
+    inset: 64px 0 0;
+    background: #050608;
+    width: 100%;
+    height: calc(100vh - 64px);
+}
+.game-module.active-module {
+    display: flex; /* flex, para maquetar dentro (ya estaba) */
+}
+.hidden {
+    display: none !important;
+}
 #modulo-standby { align-items: center; justify-content: center; background: #000; }
 .standby-text { color: #24272a; letter-spacing: .45em; font-size: clamp(1.5rem, 4vw, 4rem); }
 #modulo-teatro { flex-direction: column; background-position: center; background-size: cover; }

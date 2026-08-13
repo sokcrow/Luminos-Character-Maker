@@ -38,23 +38,33 @@
 
   function applyDashboardInstance(instance, doc) {
     const documentRef = doc || global.document;
-    const activeInstance = normalizeInstance(instance);
-    const moduleIds = {
-      ninguno: "modulo-standby",
-      teatro: "modulo-teatro",
-      combate: "modulo-combate",
-    };
-    const targetId = moduleIds[activeInstance] || moduleIds.ninguno;
+    const activeInstance = instance || 'ninguno'; // Fallback a pantalla negra
 
-    documentRef.querySelectorAll(".game-module").forEach((module) => {
-      const active = module.id === targetId;
-      module.classList.toggle("active-module", active);
-      module.classList.toggle("hidden", !active);
-      module.setAttribute("aria-hidden", active ? "false" : "true");
+    // A. Sincronizar la UI de Control (Radio Buttons)
+    const radioBtn = documentRef.querySelector(`input[name="instancia"][value="${activeInstance}"]`);
+    if (radioBtn) radioBtn.checked = true;
+
+    // B. Purga Visual (Ocultar todos los módulos)
+    documentRef.querySelectorAll('.game-module').forEach((modulo) => {
+      modulo.classList.remove('active-module');
+      modulo.classList.add('hidden');
     });
-    documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
-      radio.checked = radio.value === activeInstance;
-    });
+
+    // C. Despliegue Dinámico del Módulo Activo
+    let activeModuleId = 'modulo-standby'; // Default
+
+    if (activeInstance === 'teatro') {
+        activeModuleId = 'modulo-teatro';
+    } else if (activeInstance === 'combate') {
+        activeModuleId = 'modulo-combate';
+    }
+
+    const activeModule = documentRef.getElementById(activeModuleId);
+    if (activeModule) {
+        activeModule.classList.remove('hidden');
+        activeModule.classList.add('active-module');
+    }
+
     return activeInstance;
   }
 
@@ -138,21 +148,29 @@
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
 
-    documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
-      radio.addEventListener("change", () => {
-        if (!radio.checked) return;
-        const next = normalizeInstance(radio.value);
-        const updates = { [INSTANCE_PATH]: next };
-        if (next === "combate") {
-          updates["campaña/combate/estado"] = "PRE_COMBAT_PLANNING";
-          updates["campaña/combate/planningStartedAt"] = global.firebase.database.ServerValue.TIMESTAMP;
-          updates["campaña/combate/planningDuration"] = 60;
-        }
-        db.ref().update(updates);
-      });
+    // 2. EMISOR DE ESTADO (Control del DM)
+    documentRef.querySelectorAll('input[name="instancia"]').forEach(radio => {
+        radio.addEventListener('change', (evento) => {
+            const nuevaInstancia = evento.target.value;
+            // Sobrescribe el nodo maestro en Firebase
+            instanceRef.set(nuevaInstancia).catch(error => {
+                console.error("Error al transicionar instancia de juego:", error);
+            });
+
+            // Logica adicional que había (opcional mantener, pero user pidió snippet específico para instancia)
+            if (nuevaInstancia === "combate") {
+                const updates = {};
+                updates["campaña/combate/estado"] = "PRE_COMBAT_PLANNING";
+                updates["campaña/combate/planningStartedAt"] = global.firebase.database.ServerValue.TIMESTAMP;
+                updates["campaña/combate/planningDuration"] = 60;
+                db.ref().update(updates);
+            }
+        });
     });
-    instanceRef.on("value", (snapshot) => {
-      applyDashboardInstance(snapshot.val(), documentRef);
+
+    // 1. LISTENER DE RECEPCIÓN
+    instanceRef.on('value', (snapshot) => {
+        applyDashboardInstance(snapshot.val(), documentRef);
     });
   }
 
