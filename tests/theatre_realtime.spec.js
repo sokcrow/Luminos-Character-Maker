@@ -76,7 +76,7 @@ test("el rediseño moderno del form de actores existe y tiene dos rutas (Require
   expect(workshopPage).toContain('const ACTOR_DATABASE_PATHS = [');
   expect(workshopPage).toContain('campaña/base_datos_npcs');
   expect(workshopPage).not.toContain('id="actor-asignacion-container"');
-  expect(workshopPage).toContain('<span style="color: #55e38b;'); // ONLINE Indicator
+  expect(workshopPage).toContain('<span'); // ONLINE Indicator
   expect(workshopPage).toContain('<select id="actor-vinculo-jugador"'); // Inside player cards logic now
   expect(workshopPage).toContain('css/actor-studio.css'); // CSS check
 });

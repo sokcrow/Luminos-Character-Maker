@@ -7555,16 +7555,16 @@ window.processEntitiesData = function(entities) {
           actorSourcePathById = {};
           dbActoresCache = {};
 
-          // Priority 1: base_datos_npcs
-          for (const [id, data] of Object.entries(dbNpcsCache)) {
-            dbActoresCache[id] = data;
-            actorSourcePathById[id] = ACTOR_DATABASE_PATHS[0];
-          }
-
-          // Priority 2: actores (overwrites if collision)
+          // Load legacy path first
           for (const [id, data] of Object.entries(dbActoresRawCache)) {
             dbActoresCache[id] = data;
             actorSourcePathById[id] = ACTOR_DATABASE_PATHS[1];
+          }
+
+          // Load modern path second (overwrites if collision)
+          for (const [id, data] of Object.entries(dbNpcsCache)) {
+            dbActoresCache[id] = data;
+            actorSourcePathById[id] = ACTOR_DATABASE_PATHS[0];
           }
         }
 
@@ -7883,11 +7883,21 @@ window.processEntitiesData = function(entities) {
             title.style.alignItems = "center";
 
             const isOnline = playerData.online === true;
-            const onlineIndicator = isOnline
-              ? '<span style="color: #55e38b; font-size: 0.8em; text-shadow: 0 0 5px #55e38b;">● ONLINE</span>'
-              : '<span style="color: #71808a; font-size: 0.8em;">● OFFLINE</span>';
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = nombre;
 
-            title.innerHTML = `<span>${nombre}</span> ${onlineIndicator}`;
+            const onlineIndicator = document.createElement("span");
+            if (isOnline) {
+                onlineIndicator.style.cssText = "color: #55e38b; font-size: 0.8em; text-shadow: 0 0 5px #55e38b;";
+                onlineIndicator.textContent = "● ONLINE";
+            } else {
+                onlineIndicator.style.cssText = "color: #71808a; font-size: 0.8em;";
+                onlineIndicator.textContent = "● OFFLINE";
+            }
+
+            title.appendChild(nameSpan);
+            title.appendChild(document.createTextNode(" "));
+            title.appendChild(onlineIndicator);
             div.appendChild(title);
 
             let hasProfile = playerData.actorId && dbActoresCache[playerData.actorId];
@@ -7904,76 +7914,80 @@ window.processEntitiesData = function(entities) {
             const profileStatusContainer = document.createElement("div");
             profileStatusContainer.style.marginBottom = "10px";
 
-            if (hasProfile) {
-                const label = document.createElement("div");
-                label.style.fontSize = "0.8em";
-                label.style.color = "#c49a00";
-                label.style.marginBottom = "5px";
-                label.textContent = "VÍNCULO DE ALMAS";
-                profileStatusContainer.appendChild(label);
+            if (!hasProfile) {
+                const noProfileMsg = document.createElement("div");
+                noProfileMsg.style.fontSize = "0.8em";
+                noProfileMsg.style.color = "#ff5964";
+                noProfileMsg.style.marginBottom = "5px";
+                noProfileMsg.textContent = "Perfil de escena: No encontrado";
+                profileStatusContainer.appendChild(noProfileMsg);
+            }
 
-                const selectSoulLink = document.createElement("select");
-                selectSoulLink.style.cssText = "width: 100%; padding: 5px; background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px;";
+            // Always render Soul Link Selector
+            const label = document.createElement("div");
+            label.style.fontSize = "0.8em";
+            label.style.color = "#c49a00";
+            label.style.marginBottom = "5px";
+            label.textContent = "VÍNCULO DE ALMAS";
+            profileStatusContainer.appendChild(label);
 
-                const optionNinguno = document.createElement("option");
-                optionNinguno.value = "ninguno";
-                optionNinguno.textContent = "Sin vínculo";
-                selectSoulLink.appendChild(optionNinguno);
+            const selectSoulLink = document.createElement("select");
+            selectSoulLink.style.cssText = "width: 100%; padding: 5px; background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px;";
 
-                // Populate with actual actors of type "Jugador"
-                const actorIdActual = playerData.actorId || Object.keys(dbActoresCache).find(k =>
-                    (dbActoresCache[k].vinculo_jugador === playerId ||
-                     dbActoresCache[k].vinculo_jugador === playerData.id ||
-                     dbActoresCache[k].vinculo_jugador === nombre)
-                );
-                for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
-                    if (actorData.tipo === "Jugador") {
-                        const opt = document.createElement("option");
-                        opt.value = actorId;
-                        opt.textContent = actorData.nombre;
-                        if (actorIdActual === actorId) {
-                            opt.selected = true;
+            const optionNinguno = document.createElement("option");
+            optionNinguno.value = "ninguno";
+            optionNinguno.textContent = "Sin vínculo";
+            selectSoulLink.appendChild(optionNinguno);
+
+            // Populate with actual actors of type "Jugador"
+            const actorIdActual = playerData.actorId || Object.keys(dbActoresCache).find(k =>
+                (dbActoresCache[k].vinculo_jugador === playerId ||
+                 dbActoresCache[k].vinculo_jugador === playerData.id ||
+                 dbActoresCache[k].vinculo_jugador === nombre)
+            );
+            for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+                if (actorData.tipo === "Jugador") {
+                    const opt = document.createElement("option");
+                    opt.value = actorId;
+                    opt.textContent = actorData.nombre;
+                    if (actorIdActual === actorId) {
+                        opt.selected = true;
+                    }
+                    selectSoulLink.appendChild(opt);
+                }
+            }
+
+            selectSoulLink.addEventListener("change", (e) => {
+                const newActorId = e.target.value;
+                const updates = {};
+
+                if (actorIdActual) {
+                    const originalActorPath = getActorDatabasePath(actorIdActual);
+                    updates[`${originalActorPath}/${actorIdActual}/vinculo_jugador`] = null;
+                }
+
+                // Always check if we need to remove actorId from old player to prevent duplicates
+                if (newActorId !== "ninguno") {
+                    for (const [pId, pData] of Object.entries(dbJugadoresCache)) {
+                        if (pData.actorId === newActorId && pId !== playerId) {
+                            updates[`campaña/jugadores/${pId}/actorId`] = null;
                         }
-                        selectSoulLink.appendChild(opt);
                     }
                 }
 
-                selectSoulLink.addEventListener("change", (e) => {
-                    const newActorId = e.target.value;
-                    const updates = {};
+                if (newActorId !== "ninguno") {
+                    const originalNewActorPath = getActorDatabasePath(newActorId);
+                    updates[`${originalNewActorPath}/${newActorId}/vinculo_jugador`] = playerId;
+                    updates[`campaña/jugadores/${playerId}/actorId`] = newActorId;
+                } else {
+                    updates[`campaña/jugadores/${playerId}/actorId`] = null;
+                }
 
-                    if (actorIdActual) {
-                        const originalActorPath = getActorDatabasePath(actorIdActual);
-                        updates[`${originalActorPath}/${actorIdActual}/vinculo_jugador`] = null;
-                    }
-
-                    // Always check if we need to remove actorId from old player to prevent duplicates
-                    if (newActorId !== "ninguno") {
-                        for (const [pId, pData] of Object.entries(dbJugadoresCache)) {
-                            if (pData.actorId === newActorId && pId !== playerId) {
-                                updates[`campaña/jugadores/${pId}/actorId`] = null;
-                            }
-                        }
-                    }
-
-                    if (newActorId !== "ninguno") {
-                        const originalNewActorPath = getActorDatabasePath(newActorId);
-                        updates[`${originalNewActorPath}/${newActorId}/vinculo_jugador`] = playerId;
-                        updates[`campaña/jugadores/${playerId}/actorId`] = newActorId;
-                    } else {
-                        updates[`campaña/jugadores/${playerId}/actorId`] = null;
-                    }
-
-                    db.ref().update(updates)
-                        .then(() => console.log(`Vínculo de Almas actualizado para ${playerId}`))
-                        .catch(err => alert("Error al actualizar Vínculo de Almas: " + err));
-                });
-                profileStatusContainer.appendChild(selectSoulLink);
-            } else {
-                profileStatusContainer.style.fontSize = "0.8em";
-                profileStatusContainer.style.color = "#ff5964";
-                profileStatusContainer.textContent = "Perfil de escena: No encontrado";
-            }
+                db.ref().update(updates)
+                    .then(() => console.log(`Vínculo de Almas actualizado para ${playerId}`))
+                    .catch(err => alert("Error al actualizar Vínculo de Almas: " + err));
+            });
+            profileStatusContainer.appendChild(selectSoulLink);
             div.appendChild(profileStatusContainer);
 
             const btnAction = document.createElement("button");

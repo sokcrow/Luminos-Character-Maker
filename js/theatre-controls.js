@@ -16,12 +16,12 @@
 
         function refreshNpcDatabase() {
             npcDatabase = {};
-            // base_datos_npcs takes precedence 1
-            for (const [id, data] of Object.entries(npcDatabaseBase)) {
+            // Load legacy path first
+            for (const [id, data] of Object.entries(npcDatabaseRaw)) {
                 npcDatabase[id] = data;
             }
-            // actores takes precedence 2
-            for (const [id, data] of Object.entries(npcDatabaseRaw)) {
+            // Load modern path second (overwrites if collision)
+            for (const [id, data] of Object.entries(npcDatabaseBase)) {
                 npcDatabase[id] = data;
             }
             updateRosterSelect();
