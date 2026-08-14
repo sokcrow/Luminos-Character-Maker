@@ -128,7 +128,7 @@
                             durationMs: durationMs
                         };
 
-                        db.ref(DIALOGUE_ROOT).set(activePayload).then(() => {
+                                                db.ref(DIALOGUE_ROOT).set(activePayload).then(() => {
                             // Wait exact duration
                             setTimeout(() => {
                                 // Archive to Log
@@ -138,8 +138,21 @@
                                         isProcessingQueue = false;
                                         processQueue(); // Check for next
                                     });
+                                }).catch(err => {
+                                    console.error("Error archivando en log:", err);
+                                    isProcessingQueue = false;
+                                    processQueue();
                                 });
                             }, (textLength * speedMs) + 3000); // We simulate the wait client-side for the sequencer
+                        }).catch(err => {
+                            console.error("Error publicando diálogo activo:", err);
+                            // Desmarcar para que no se quede atascado o ignorarlo si hay un problema de permisos
+                            // If we can't publish, we might want to just skip or log.
+                            // Let's remove from queue so it's not a permanent blocker
+                            db.ref(`${QUEUE_ROOT}/${msgKey}`).remove().finally(() => {
+                                isProcessingQueue = false;
+                                processQueue();
+                            });
                         });
                     });
                 });

@@ -64,7 +64,7 @@
     const theatreActive = activeInstance === "teatro";
     const blackoutActive = activeInstance === "ninguno";
 
-    const theatreView = documentRef.getElementById("modulo-teatro");
+    const theatreView = documentRef.getElementById("theatre-view-player");
     const blackout = documentRef.getElementById("player-instance-blackout");
     let combatView = documentRef.getElementById("player-instance-combat");
 

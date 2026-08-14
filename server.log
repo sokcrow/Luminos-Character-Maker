@@ -30,3 +30,15 @@
 127.0.0.1 - - [14/Aug/2026 14:32:07] "GET /js/theatre-controls.js HTTP/1.1" 200 -
 127.0.0.1 - - [14/Aug/2026 14:32:08] "GET /js/on-game-dashboard.js HTTP/1.1" 200 -
 127.0.0.1 - - [14/Aug/2026 14:32:08] "GET /js/combatEngine.js HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /hoja_personaje.html HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /hoja_personaje.css HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /Assets/Images/Buttons/Log.svg HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /js/utils.js HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /js/instance-control.js HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /js/theatre-engine.js HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /hoja_personaje.js HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /Assets/Images/Buttons/Shop.svg HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:15] "GET /Assets/Images/Buttons/Base.svg HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:16] "GET /Fonts/BebasKai.otf HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:16] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [14/Aug/2026 14:59:16] "GET /js/auth.js HTTP/1.1" 200 -

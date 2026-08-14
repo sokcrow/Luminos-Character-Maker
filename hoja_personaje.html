@@ -12641,7 +12641,7 @@
     </div>
 
     <!-- VISTA DEL TEATRO (MODO JUGADOR) -->
-    <div id="modulo-teatro" style="display: none">
+    <div id="theatre-view-player" style="display: none">
       <!-- Location Sign -->
       <div class="theatre-location">
         <span id="theatre-location">Unknown Location</span>
@@ -12713,8 +12713,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <!-- Firebase Realtime Database -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="js/instance-control.js"></script>
-    <script src="js/theatre-engine.js"></script>
 
     <script>
       const firebaseConfig = {
@@ -12730,6 +12728,10 @@
 
       // Inicializar Firebase
       firebase.initializeApp(firebaseConfig);
+    </script>
+    <script src="js/instance-control.js"></script>
+    <script src="js/theatre-engine.js"></script>
+    <script>
       const db = firebase.database();
 
       // LÓGICA DE CALENDARIO Y CLIMA AUTOMÁTICO

@@ -6,22 +6,14 @@
     const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
     const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
-    // 1. Reactividad de Escenografía (Fondo)
+        // 1. Reactividad de Escenografía (Fondo)
     db.ref(`${THEATRE_ROOT}/fondo`).on("value", (snapshot) => {
         const fondoUrl = snapshot.val();
-        const moduleTeatro = document.getElementById("modulo-teatro");
+        const moduleTeatro = document.getElementById("modulo-teatro") || document.getElementById("theatre-view-player");
         if (moduleTeatro) {
             moduleTeatro.style.backgroundImage = fondoUrl
                 ? `linear-gradient(rgba(0,0,0,.15), rgba(0,0,0,.35)), url("${fondoUrl}")`
                 : "none";
-        }
-    });
-
-    db.ref(`${THEATRE_ROOT}/locacion`).on("value", (snapshot) => {
-        const locacion = snapshot.val();
-        const locationEl = document.getElementById("theatre-location");
-        if (locationEl) {
-            locationEl.textContent = locacion || "LOCALIZACIÓN DESCONOCIDA";
         }
     });
 
