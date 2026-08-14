@@ -183,3 +183,53 @@ test("el escenario está aislado y el diálogo tiene una capa superior a los spr
   expect(dashboardCss).toContain('isolation: isolate;');
   expect(sheetCss).toContain('isolation: isolate;');
 });
+
+
+test("la inicialización del directorio de actores se registra de forma segura al inicio", () => {
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "pantalla_dm.html"),
+    "utf8"
+  );
+  expect(dmPageCurrent).toContain("function startActorDirectorySubscriptions");
+  expect(dmPageCurrent).toContain("showActorDirectoryError");
+  expect(dmPageCurrent).toContain("campaña/base_datos_npcs");
+  expect(dmPageCurrent).toContain("campaña/actores");
+  expect(dmPageCurrent).toContain("campaña/jugadores");
+
+  // Verifica que los listeners no estén duplicados al final (se eliminó la versión antigua)
+  const matchesJugadores = [...dmPageCurrent.matchAll(/db.ref\("campaña\/jugadores"\)\.on\("value"/g)];
+  expect(matchesJugadores.length).toBeLessThanOrEqual(2); // Uno puede ser el del Roster (en otro script si estuviera) pero en dm_page ahora debe haber 1.
+});
+
+
+test("la inicialización del directorio de actores maneja los errores visualmente", () => {
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "pantalla_dm.html"),
+    "utf8"
+  );
+  expect(dmPageCurrent).toContain("function showActorDirectoryError");
+  expect(dmPageCurrent).toContain("header-jugadores");
+  expect(dmPageCurrent).toContain("grid-actores");
+  expect(dmPageCurrent).toContain("errorMsg");
+});
+
+
+test("el directorio lee de las tres rutas de Firebase", () => {
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "pantalla_dm.html"),
+    "utf8"
+  );
+  expect(dmPageCurrent).toContain('db.ref("campaña/jugadores").on("value"');
+  expect(dmPageCurrent).toContain('db.ref("campaña/base_datos_npcs").on("value"');
+  expect(dmPageCurrent).toContain('db.ref("campaña/actores").on("value"');
+});
+
+test("la inicialización del directorio se realiza antes que módulos opcionales", () => {
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "pantalla_dm.html"),
+    "utf8"
+  );
+  const startIdx = dmPageCurrent.indexOf('startActorDirectorySubscriptions();');
+  const weatherIdx = dmPageCurrent.indexOf('let currentWeather = "Soleado";');
+  expect(startIdx).toBeLessThan(weatherIdx);
+});

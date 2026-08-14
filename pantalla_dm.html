@@ -3792,7 +3792,57 @@ window.processEntitiesData = function(entities) {
       function initializeDMApp() {
 
 
-        // --- INICIALIZADOR DE TELEFONOS ---
+        const ACTOR_DATABASE_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
+        let dbJugadoresCache = {};
+        let dbNpcsCache = {};
+
+        let dbActoresRawCache = {};
+        let dbActoresCache = {};
+        let actorSourcePathById = {};
+
+        function showActorDirectoryError(path, error) {
+            console.error(`Error al cargar el directorio de actores desde la ruta: ${path}`, error);
+            const errorMsg = document.createElement("div");
+            errorMsg.style.cssText = "color: #ff4444; font-size: 14px; text-align: center; margin: 10px; background: #331111; padding: 10px; border: 1px solid #ff4444;";
+            errorMsg.innerText = `Error de conexión con Firebase (${path}). Revisa la consola.`;
+
+            const header = document.getElementById("header-jugadores");
+            if (header) {
+                header.insertAdjacentElement('afterend', errorMsg.cloneNode(true));
+            }
+            const grid = document.getElementById("grid-actores");
+            if (grid) {
+                grid.parentElement.insertBefore(errorMsg.cloneNode(true), grid);
+            }
+        }
+
+        function startActorDirectorySubscriptions() {
+            db.ref("campaña/jugadores").on("value", (snapshot) => {
+                const data = snapshot.val() || {};
+                dbJugadoresCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
+                window.dbJugadoresCache = dbJugadoresCache;
+                renderListaActores();
+                if (typeof updateOtorgarJugadoresSelect === "function") updateOtorgarJugadoresSelect();
+                if (typeof renderActorAsignacion === "function") renderActorAsignacion();
+            }, (error) => showActorDirectoryError("campaña/jugadores", error));
+
+            db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
+                const data = snapshot.val() || {};
+                dbNpcsCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
+                refreshActorCache();
+                renderListaActores();
+            }, (error) => showActorDirectoryError("campaña/base_datos_npcs", error));
+
+            db.ref("campaña/actores").on("value", (snapshot) => {
+                const data = snapshot.val() || {};
+                dbActoresRawCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
+                refreshActorCache();
+                renderListaActores();
+            }, (error) => showActorDirectoryError("campaña/actores", error));
+        }
+
+        startActorDirectorySubscriptions();
+// --- INICIALIZADOR DE TELEFONOS ---
         function initPhoneNumbers() {
           function generatePhoneNumber() {
             const prefix = Math.floor(100 + Math.random() * 900); // 3 digits
@@ -3833,7 +3883,6 @@ window.processEntitiesData = function(entities) {
             "Lluvia": ["Nublado"]
         };
 
-        let dbJugadoresCache = {};
         let currentWeather = "Soleado";
         let previousWeather = null;
 
@@ -6420,11 +6469,7 @@ window.processEntitiesData = function(entities) {
         });
 
         // Sincronizar cambios de jugadores en el select
-        db.ref("campaña/jugadores").on("value", (snap) => {
-          dbJugadoresCache = window.processEntitiesData(snap.val()) || {};
-            window.dbJugadoresCache = dbJugadoresCache;
-            updateOtorgarJugadoresSelect();
-        });
+
 
         const gridItemsGlobales = document.getElementById("grid-items-globales");
 
@@ -7541,16 +7586,6 @@ window.processEntitiesData = function(entities) {
           });
 
         // --- LÓGICA GESTIÓN DE ACTORES ---
-        const ACTOR_DATABASE_PATHS = [
-          "campaña/base_datos_npcs",
-          "campaña/actores",
-        ];
-
-        let dbNpcsCache = {};
-        let dbActoresRawCache = {};
-        let dbActoresCache = {};
-        let actorSourcePathById = {};
-
         function refreshActorCache() {
           actorSourcePathById = {};
           dbActoresCache = {};
@@ -8170,24 +8205,7 @@ window.processEntitiesData = function(entities) {
         });
       }
 
-        // Escuchar actores y jugadores para separar NPCs y Personajes Jugadores
 
-        db.ref("campaña/jugadores").on("value", (snapshot) => {
-            dbJugadoresCache = snapshot.val() || {};
-            renderListaActores();
-        });
-
-        db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
-          dbNpcsCache = window.processEntitiesData(snapshot.val()) || {};
-          refreshActorCache();
-          renderListaActores();
-        });
-
-        db.ref("campaña/actores").on("value", (snapshot) => {
-          dbActoresRawCache = window.processEntitiesData(snapshot.val()) || {};
-          refreshActorCache();
-          renderListaActores();
-        });
 
         // Escuchar jugadores para la lista (reusando el que ya existe o creando nuevo listener local aquí)
         // Ya está siendo escuchado en la línea 4347 aprox
