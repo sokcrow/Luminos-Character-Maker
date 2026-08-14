@@ -1,7 +1,7 @@
 :root { color-scheme: dark; font-family: "Share Tech Mono", monospace; }
 * { box-sizing: border-box; }
 body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
-.master-control-bar { position: fixed; inset: 0 0 auto; z-index: 50; min-height: 64px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; background: rgba(5, 8, 12, .96); border-bottom: 1px solid #c49a00; box-shadow: 0 4px 20px #000; }
+.master-control-bar { position: fixed; inset: 0 0 auto; z-index: 9999; min-height: 64px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; background: rgba(5, 8, 12, .96); border-bottom: 1px solid #c49a00; box-shadow: 0 4px 20px #000; }
 .instance-toggles { display: flex; gap: 12px; }
 .instance-toggles label { padding: 9px 14px; border: 1px solid #46505a; cursor: pointer; letter-spacing: .05em; }
 .instance-toggles label:has(input:checked) { color: #050505; background: #c49a00; border-color: #ffe084; }
@@ -53,3 +53,8 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
 #combat-log-and-controls { padding: 8px 18px; display: flex; justify-content: space-between; background: #090c10; border-top: 1px solid #c49a00; }
 #btn-trigger-combat { padding: 10px 18px; background: #8b111d; color: #fff; border: 1px solid #ff6575; }
 @media (max-width: 850px) { .master-control-bar { align-items: flex-start; } .instance-toggles { flex-wrap: wrap; } .instance-toggles label { font-size: .7rem; } .theatre-controls { grid-template-columns: 1fr; } .theatre-controls textarea { grid-column: auto; } }
+
+.theatre-controls {
+    position: relative;
+    z-index: 100;
+}
