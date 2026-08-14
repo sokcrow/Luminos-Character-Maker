@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel de DM - Luminous</title>
+    <link rel="stylesheet" href="css/actor-studio.css" />
     <style>
       body {
         background-color: #050505;
@@ -1627,10 +1628,8 @@
         Control de Acceso
       </button>
       <button class="dm-tab-btn btn-modo-director" id="btn-modo-director">
-        VISUALIZADOR DE JUEGO
+        ENTRAR A SESIÓN EN VIVO
       </button>
-
-        <a href="hoja_de_DM.html" target="_blank" class="nav-btn" style="background: #8b111d; color: #fff; text-decoration: none; border-color: #ff6575; border-radius: 4px;">ENTRAR A SESIÓN EN VIVO</a>
       </div>
 
     <div
@@ -2669,191 +2668,129 @@ window.processEntitiesData = function(entities) {
               <input type="text" id="dir-filter-tags" placeholder="Filtrar por etiqueta..." onkeyup="renderListaActores()" style="flex: 1; min-width: 150px; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
           </div>
 
-          <div class="form-cyber-container">
-            <div class="form-cyber">
-              <h4 style="color: #0df">Crear Nuevo Actor</h4>
-              <input
-                type="text"
-                id="actor-nombre"
-                placeholder="Nombre del Personaje (Ej. Charon)"
-              />
-              <input
-                type="text"
-                id="actor-titulo"
-                placeholder="Título o Profesión (Ej. Bus Driver)"
-              />
+          <div class="actor-studio-wrapper">
+            <div class="actor-studio-form form-cyber" style="border: none; padding: 0;">
+              <h4 style="color: #0df; margin-bottom: 5px;">Actor Studio</h4>
+              <div id="actor-studio-state" class="actor-studio-state state-draft">BORRADOR</div>
 
-              <div style="display: flex; gap: 10px; align-items: center">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa"
-                  >Color Nombre:</label
-                >
-                <input
-                  type="color"
-                  id="actor-color-nombre"
-                  value="#ffffff"
-                  style="flex: 1; padding: 0; height: 30px; cursor: pointer"
-                />
+              <div class="actor-studio-section">
+                <h5>Identidad Básica</h5>
+                <div class="actor-studio-row">
+                    <div>
+                        <label>Nombre</label>
+                        <input type="text" id="actor-nombre" class="actor-studio-input" placeholder="Nombre del Personaje" />
+                    </div>
+                    <div>
+                        <label>Título</label>
+                        <input type="text" id="actor-titulo" class="actor-studio-input" placeholder="Título o Profesión" />
+                    </div>
+                </div>
+
+                <div class="actor-studio-row">
+                    <div>
+                        <label>Color Nombre</label>
+                        <input type="color" id="actor-color-nombre" class="actor-studio-color-picker" value="#ffffff" />
+                    </div>
+                    <div>
+                        <label>Color Título</label>
+                        <input type="color" id="actor-color-titulo" class="actor-studio-color-picker" value="#c49a00" />
+                    </div>
+                </div>
+
+                <div class="actor-studio-row">
+                    <div>
+                        <label>Tipo / Alineamiento</label>
+                        <select id="actor-tipo" class="actor-studio-select" onchange="togglePlayerLink()">
+                            <option value="Neutral">Neutral</option>
+                            <option value="Jugador">Jugador</option>
+                            <option value="Aliado">Aliado</option>
+                            <option value="Enemigo">Enemigo</option>
+                            <option value="NPC">NPC</option>
+                            <option value="Sistema">Sistema</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Facción</label>
+                        <input type="text" id="actor-faccion" class="actor-studio-input" list="faction-list" placeholder="Ej. L-Corp" />
+                        <datalist id="faction-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="actor-studio-row">
+                    <div>
+                        <label>Escala visual (1.0 = Normal)</label>
+                        <input type="number" id="actor-escala" class="actor-studio-input" value="1.0" step="0.1" min="0.1" max="5.0" />
+                    </div>
+                    <div>
+                        <label>Etiquetas</label>
+                        <input type="text" id="actor-etiquetas" class="actor-studio-input" placeholder="Ej. jefe, mecha" />
+                    </div>
+                </div>
+
+                <div id="player-link-container" class="actor-studio-row" style="display: none;">
+                    <div>
+                        <label>Vínculo Jugador</label>
+                        <select id="actor-vinculo-jugador" class="actor-studio-select">
+                            <option value="">Ninguno</option>
+                        </select>
+                    </div>
+                </div>
               </div>
 
-              <div style="display: flex; gap: 10px; align-items: center">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa"
-                  >Color Título:</label
-                >
-                <input
-                  type="color"
-                  id="actor-color-titulo"
-                  value="#c49a00"
-                  style="flex: 1; padding: 0; height: 30px; cursor: pointer"
-                />
-              </div>
-
-              <div
-                style="
-                  display: flex;
-                  gap: 10px;
-                  align-items: center;
-                  margin-top: 5px;
-                "
-              >
-                <label style="flex: 1; font-size: 0.85em; color: #aaa"
-                  >Escala / Tamaño:</label
-                >
-                <input
-                  type="number"
-                  id="actor-escala"
-                  value="1.0"
-                  step="0.1"
-                  min="0.1"
-                  max="5.0"
-                  style="
-                    flex: 1;
-                    padding: 5px;
-                    background: #222;
-                    color: #fff;
-                    border: 1px solid #444;
-                    border-radius: 4px;
-                  "
-                  title="Escala visual (1.0 = Normal)"
-                />
-              </div>
-
-              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa">Tipo / Alineamiento:</label>
-                <select id="actor-tipo" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;" onchange="togglePlayerLink()">
-                  <option value="Neutral">Neutral</option>
-                  <option value="Jugador">Jugador</option>
-                  <option value="Aliado">Aliado</option>
-                  <option value="Enemigo">Enemigo</option>
-                  <option value="NPC">NPC</option>
-                  <option value="Sistema">Sistema</option>
-                </select>
-              </div>
-
-              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa">Facción:</label>
-                <input type="text" id="actor-faccion" list="faction-list" placeholder="Ej. L-Corp" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
-                <datalist id="faction-list"></datalist>
-              </div>
-
-              <div id="player-link-container" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa">Vínculo Jugador:</label>
-                <select id="actor-vinculo-jugador" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;">
-                  <option value="">Ninguno</option>
-                </select>
-              </div>
-
-              <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
-                <label style="flex: 1; font-size: 0.85em; color: #aaa">Etiquetas:</label>
-                <input type="text" id="actor-etiquetas" placeholder="Ej. jefe, mecha (separadas por comas)" style="flex: 2; padding: 5px; background: #222; color: #fff; border: 1px solid #444;" />
-              </div>
-
-              <div class="panel-cyber" style="margin-top: 15px; border-color: #555; padding: 10px;">
-                <h4 style="color: #ff4444; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 5px;">Propiedades de Combate</h4>
-                <label style="display: flex; align-items: center; gap: 10px; color: #fff; margin-bottom: 10px;">
-                  <input type="checkbox" id="actor-combatiente" onchange="toggleCombatProperties()"/> Es Combatiente (Requiere Sprite)
+              <div class="actor-studio-section combat-props-wrapper">
+                <h5>Propiedades de Combate</h5>
+                <label style="display: flex; align-items: center; gap: 10px; color: #fff; margin-bottom: 10px; font-size: 0.85em;">
+                  <input type="checkbox" id="actor-combatiente" class="actor-studio-combat-checkbox" onchange="toggleCombatProperties()"/> Es Combatiente (Requiere Sprite)
                 </label>
-                <div id="combat-props" style="display: none; flex-direction: column; gap: 10px;">
+
+                <div id="combat-props" style="display: none; flex-direction: column; gap: 15px;">
                   <div id="combat-stats-warning" style="display: none; color: #c49a00; font-size: 0.8em; margin-bottom: 5px; font-weight: bold;">
                     ⚠️ ATRIBUTOS HEREDADOS DEL VÍNCULO DE ALMA
                   </div>
-                  <input type="url" id="actor-sprite-combate" placeholder="URL del Sprite de Combate" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/>
-
-                  <div style="display: flex; gap: 10px;">
-                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">HP Max:</label><input type="number" id="actor-hp" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
-                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">SP Max:</label><input type="number" id="actor-sp" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                  <div>
+                      <label>Sprite de Combate</label>
+                      <input type="url" id="actor-sprite-combate" class="actor-studio-input" placeholder="URL del Sprite de Combate" style="width: 100%; box-sizing: border-box;"/>
                   </div>
-                  <div style="display: flex; gap: 10px;">
-                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">Velocidad:</label><input type="number" id="actor-vel" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
-                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">Nivel Ofensivo:</label><input type="number" id="actor-atk" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
-                    <div style="flex: 1;"><label style="font-size: 0.85em; color: #aaa">AC:</label><input type="number" id="actor-ac" class="combat-stat" style="width: 100%; padding: 5px; background: #222; color: #fff; border: 1px solid #444;"/></div>
+                  <div class="actor-studio-row">
+                    <div><label>HP Max</label><input type="number" id="actor-hp" class="actor-studio-input combat-stat"/></div>
+                    <div><label>SP Max</label><input type="number" id="actor-sp" class="actor-studio-input combat-stat"/></div>
+                  </div>
+                  <div class="actor-studio-row">
+                    <div><label>Velocidad</label><input type="number" id="actor-vel" class="actor-studio-input combat-stat"/></div>
+                    <div><label>Nivel Ofensivo</label><input type="number" id="actor-atk" class="actor-studio-input combat-stat"/></div>
+                    <div><label>AC</label><input type="number" id="actor-ac" class="actor-studio-input combat-stat"/></div>
                   </div>
                 </div>
               </div>
 
-              <h5 style="color: #aaa; margin: 10px 0 5px 0">
-                Gráficos (URLs):
-              </h5>
-              <input
-                type="url"
-                id="actor-icono"
-                placeholder="URL Icono Cuadrado (Opcional, usa Sprite si vacío)"
-                style="width: 100%; margin-bottom: 5px"
-              />
-              <input
-                type="url"
-                id="actor-sprite"
-                placeholder="Sprite Base/Neutral (Requerido)"
-                style="width: 100%"
-              />
+              <div class="actor-studio-section">
+                <h5>Gráficos y Expresiones</h5>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <label>URL Icono Cuadrado (Opcional)</label>
+                        <input type="url" id="actor-icono" class="actor-studio-input" placeholder="URL Icono Cuadrado" style="width: 100%; box-sizing: border-box;" />
+                    </div>
+                    <div>
+                        <label>Sprite Base/Neutral (Requerido)</label>
+                        <input type="url" id="actor-sprite" class="actor-studio-input" placeholder="URL Sprite Neutral" style="width: 100%; box-sizing: border-box;" onchange="updateActorPreview()"/>
+                    </div>
+                </div>
 
-              <div
-                id="actor-expresiones-container"
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  gap: 5px;
-                  margin-top: 5px;
-                "
-              >
-                <!-- Dynamic expressions will be added here -->
+                <div id="actor-expresiones-container" style="display: flex; flex-direction: column; gap: 5px; margin-top: 15px;">
+                  <!-- Dynamic expressions will be added here -->
+                </div>
+                <button id="btn-add-expresion" class="actor-studio-btn-add" style="margin-top: 10px;">+ Añadir Expresión</button>
               </div>
-              <button
-                id="btn-add-expresion"
-                class="btn-cyber"
-                style="
-                  background: #222;
-                  color: #fff;
-                  border-color: #555;
-                  font-size: 12px;
-                  padding: 5px;
-                  margin-bottom: 10px;
-                "
-              >
-                + Añadir Expresión
-              </button>
 
-              <div style="display: flex; gap: 10px">
-                <button
-                  id="btn-crear-actor"
-                  class="btn-cyber btn-green"
-                  style="flex: 1"
-                >
-                  Crear Actor
-                </button>
-                <button
-                  id="btn-cancelar-actor"
-                  class="btn-cyber"
-                  style="
-                    display: none;
-                    flex: 1;
-                    background: #333;
-                    color: #fff;
-                    border-color: #555;
-                  "
-                >
-                  Cancelar
-                </button>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="btn-crear-actor" class="actor-studio-btn-primary" style="flex: 2;">Crear Actor</button>
+                <button id="btn-cancelar-actor" class="actor-studio-btn-secondary" style="display: none; flex: 1;">Cancelar</button>
               </div>
+            </div>
+
+            <div class="actor-studio-preview">
+                <img id="actor-studio-sprite-preview" src="" alt="Vista Previa de Sprite" style="display: none;"/>
+                <span id="actor-studio-preview-placeholder" style="color: #444; font-size: 0.9em;">SIN SPRITE</span>
             </div>
           </div>
 
@@ -2865,7 +2802,9 @@ window.processEntitiesData = function(entities) {
               padding-top: 20px;
             "
           >
-            <h4 style="color: #c49a00; margin-bottom: 15px; text-align: center">Personajes Jugadores</h4>
+            <h4 id="header-jugadores" style="color: #c49a00; margin-bottom: 15px; text-align: center">
+              Jugadores y Vínculo de Almas (0 resultados)
+            </h4>
             <div id="grid-personajes-jugadores" class="grid-container" style="margin-bottom: 30px;">
               <!-- Player cards injected via JS -->
             </div>
@@ -2875,30 +2814,6 @@ window.processEntitiesData = function(entities) {
             </h4>
             <div id="grid-actores" class="grid-container">
               <!-- Actor cards injected via JS -->
-            </div>
-          </div>
-
-          <div
-            id="actor-asignacion-container"
-            style="
-              margin-top: 20px;
-              border-top: 1px solid #444;
-              padding-top: 20px;
-            "
-          >
-            <h4 style="color: #c49a00; margin-bottom: 15px; text-align: center">
-              Vínculo de Almas (Jugadores Conectados)
-            </h4>
-            <div
-              id="actor-asignacion-lista"
-              style="
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                align-items: center;
-              "
-            >
-              <!-- Player list injected via JS -->
             </div>
           </div>
         </div>
@@ -3886,21 +3801,25 @@ window.processEntitiesData = function(entities) {
           }
 
           // Actores (NPCs)
-          db.ref("campaña/actores").once("value", snap => {
-            const actors = snap.val();
-            if (actors) {
-              const updates = {};
-              for (const [actorId, data] of Object.entries(actors)) {
-                // Generar telefono para todos los actores o solo los "sociales"
-                if (!data.phoneNumber) {
-                  updates[`campaña/actores/${actorId}/phoneNumber`] = generatePhoneNumber();
+          function generatePhoneNumbersForPath(path) {
+            db.ref(path).once("value", snap => {
+              const actors = snap.val();
+              if (actors) {
+                const updates = {};
+                for (const [actorId, data] of Object.entries(actors)) {
+                  // Generar telefono para todos los actores o solo los "sociales"
+                  if (!data.phoneNumber) {
+                    updates[`${path}/${actorId}/phoneNumber`] = generatePhoneNumber();
+                  }
+                }
+                if (Object.keys(updates).length > 0) {
+                  db.ref().update(updates);
                 }
               }
-              if (Object.keys(updates).length > 0) {
-                db.ref().update(updates);
-              }
-            }
-          });
+            });
+          }
+          generatePhoneNumbersForPath("campaña/base_datos_npcs");
+          generatePhoneNumbersForPath("campaña/actores");
         }
         initPhoneNumbers();
 
@@ -7622,8 +7541,56 @@ window.processEntitiesData = function(entities) {
           });
 
         // --- LÓGICA GESTIÓN DE ACTORES ---
+        const ACTOR_DATABASE_PATHS = [
+          "campaña/base_datos_npcs",
+          "campaña/actores",
+        ];
+
+        let dbNpcsCache = {};
+        let dbActoresRawCache = {};
         let dbActoresCache = {};
+        let actorSourcePathById = {};
+
+        function refreshActorCache() {
+          actorSourcePathById = {};
+          dbActoresCache = {};
+
+          // Load legacy path first
+          for (const [id, data] of Object.entries(dbActoresRawCache)) {
+            dbActoresCache[id] = data;
+            actorSourcePathById[id] = ACTOR_DATABASE_PATHS[1];
+          }
+
+          // Load modern path second (overwrites if collision)
+          for (const [id, data] of Object.entries(dbNpcsCache)) {
+            dbActoresCache[id] = data;
+            actorSourcePathById[id] = ACTOR_DATABASE_PATHS[0];
+          }
+        }
+
+        function getActorDatabasePath(actorId) {
+          return actorSourcePathById[actorId] || ACTOR_DATABASE_PATHS[0];
+        }
+
         let editModeActorKey = null;
+
+        function updateActorPreview() {
+            const spriteInput = document.getElementById('actor-sprite');
+            const previewImg = document.getElementById('actor-studio-sprite-preview');
+            const placeholder = document.getElementById('actor-studio-preview-placeholder');
+
+            if (spriteInput.value) {
+                previewImg.src = spriteInput.value;
+                previewImg.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                previewImg.src = '';
+                previewImg.style.display = 'none';
+                placeholder.style.display = 'block';
+            }
+        }
+
+        window.updateActorPreview = updateActorPreview;
 
         function createExpresionRow(name = "", url = "") {
           const container = document.getElementById(
@@ -7697,6 +7664,13 @@ window.processEntitiesData = function(entities) {
           document.getElementById("btn-crear-actor").innerText = "Crear Actor";
           document.getElementById("btn-cancelar-actor").style.display = "none";
           editModeActorKey = null;
+
+          const stateBanner = document.getElementById('actor-studio-state');
+          if (stateBanner) {
+              stateBanner.className = 'actor-studio-state state-draft';
+              stateBanner.textContent = 'BORRADOR';
+          }
+          if (typeof updateActorPreview === "function") updateActorPreview();
         }
 
         document
@@ -7708,7 +7682,8 @@ window.processEntitiesData = function(entities) {
           .addEventListener("input", (e) => {
             if (editModeActorKey !== null) {
               const nuevaEscala = parseFloat(e.target.value) || 1.0;
-              db.ref(`campaña/actores/${editModeActorKey}`).update({
+              const originalPath = getActorDatabasePath(editModeActorKey);
+              db.ref(`${originalPath}/${editModeActorKey}`).update({
                 escala: nuevaEscala,
               });
 
@@ -7729,7 +7704,7 @@ window.processEntitiesData = function(entities) {
             }
           });
 
-        function togglePlayerLink() {
+        window.togglePlayerLink = function() {
         const align = document.getElementById('actor-tipo')?.value;
         const linkContainer = document.getElementById('player-link-container');
         const combatStats = document.querySelectorAll('.combat-stat');
@@ -7754,7 +7729,7 @@ window.processEntitiesData = function(entities) {
         }
       }
 
-      function toggleCombatProperties() {
+      window.toggleCombatProperties = function() {
         const isCombatant = document.getElementById('actor-combatiente')?.checked;
         const props = document.getElementById('combat-props');
         if(props) props.style.display = isCombatant ? 'flex' : 'none';
@@ -7811,6 +7786,13 @@ window.processEntitiesData = function(entities) {
               }
               if(document.getElementById("actor-sprite")) {
                   document.getElementById("actor-sprite").value = actorData.sprite || "";
+                  if (typeof updateActorPreview === "function") updateActorPreview();
+              }
+
+              const stateBanner = document.getElementById('actor-studio-state');
+              if (stateBanner) {
+                  stateBanner.className = 'actor-studio-state state-editing';
+                  stateBanner.textContent = 'EDITANDO';
               }
 
               const tSel = document.getElementById("actor-tipo");
@@ -7868,6 +7850,18 @@ window.processEntitiesData = function(entities) {
         const facFilter = document.getElementById('dir-filter-faction')?.value || '';
         const tagsFilter = (document.getElementById('dir-filter-tags')?.value || '').toLowerCase();
 
+        // Count for header
+        let numJugadores = 0;
+        for (const [playerId, playerData] of Object.entries(dbJugadoresCache)) {
+            const nombre = playerData.characterName || playerData.character_name || playerData.nombre || playerId;
+            if (searchTerm && !nombre.toLowerCase().includes(searchTerm)) continue;
+            numJugadores++;
+        }
+        const headerJugadores = document.getElementById("header-jugadores");
+        if (headerJugadores) {
+            headerJugadores.textContent = `Jugadores y Vínculo de Almas (${numJugadores} resultados)`;
+        }
+
         // Render Personajes Jugadores
         let hasJugadores = false;
         for (const [playerId, playerData] of Object.entries(dbJugadoresCache)) {
@@ -7884,32 +7878,131 @@ window.processEntitiesData = function(entities) {
             const title = document.createElement("h5");
             title.style.margin = "0 0 10px 0";
             title.style.color = "#c49a00";
-            title.textContent = nombre;
+            title.style.display = "flex";
+            title.style.justifyContent = "space-between";
+            title.style.alignItems = "center";
+
+            const isOnline = playerData.online === true;
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = nombre;
+
+            const onlineIndicator = document.createElement("span");
+            if (isOnline) {
+                onlineIndicator.style.cssText = "color: #55e38b; font-size: 0.8em; text-shadow: 0 0 5px #55e38b;";
+                onlineIndicator.textContent = "● ONLINE";
+            } else {
+                onlineIndicator.style.cssText = "color: #71808a; font-size: 0.8em;";
+                onlineIndicator.textContent = "● OFFLINE";
+            }
+
+            title.appendChild(nameSpan);
+            title.appendChild(document.createTextNode(" "));
+            title.appendChild(onlineIndicator);
             div.appendChild(title);
 
             let hasProfile = playerData.actorId && dbActoresCache[playerData.actorId];
             if (!hasProfile) {
-                // Also check if any actor has this playerId as vinculo_jugador
-                const linkedActor = Object.values(dbActoresCache).find(a => a.vinculo_jugador === playerId);
+                // Also check if any actor has this playerId (or name matching in fallback) as vinculo_jugador
+                const linkedActor = Object.values(dbActoresCache).find(a =>
+                    (a.vinculo_jugador === playerId ||
+                     a.vinculo_jugador === playerData.id ||
+                     a.vinculo_jugador === nombre) && a.tipo === "Jugador"
+                );
                 if (linkedActor) hasProfile = true;
             }
 
-            const profileStatus = document.createElement("div");
-            profileStatus.style.fontSize = "0.8em";
-            profileStatus.style.color = hasProfile ? "#7aff9b" : "#ff6575";
-            profileStatus.style.marginBottom = "10px";
-            profileStatus.textContent = hasProfile ? "Perfil de escena: Vinculado" : "Perfil de escena: No encontrado";
-            div.appendChild(profileStatus);
+            const profileStatusContainer = document.createElement("div");
+            profileStatusContainer.style.marginBottom = "10px";
+
+            if (!hasProfile) {
+                const noProfileMsg = document.createElement("div");
+                noProfileMsg.style.fontSize = "0.8em";
+                noProfileMsg.style.color = "#ff5964";
+                noProfileMsg.style.marginBottom = "5px";
+                noProfileMsg.textContent = "Perfil de escena: No encontrado";
+                profileStatusContainer.appendChild(noProfileMsg);
+            }
+
+            // Always render Soul Link Selector
+            const label = document.createElement("div");
+            label.style.fontSize = "0.8em";
+            label.style.color = "#c49a00";
+            label.style.marginBottom = "5px";
+            label.textContent = "VÍNCULO DE ALMAS";
+            profileStatusContainer.appendChild(label);
+
+            const selectSoulLink = document.createElement("select");
+            selectSoulLink.style.cssText = "width: 100%; padding: 5px; background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px;";
+
+            const optionNinguno = document.createElement("option");
+            optionNinguno.value = "ninguno";
+            optionNinguno.textContent = "Sin vínculo";
+            selectSoulLink.appendChild(optionNinguno);
+
+            // Populate with actual actors of type "Jugador"
+            const actorIdActual = playerData.actorId || Object.keys(dbActoresCache).find(k =>
+                (dbActoresCache[k].vinculo_jugador === playerId ||
+                 dbActoresCache[k].vinculo_jugador === playerData.id ||
+                 dbActoresCache[k].vinculo_jugador === nombre)
+            );
+            for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
+                if (actorData.tipo === "Jugador") {
+                    const opt = document.createElement("option");
+                    opt.value = actorId;
+                    opt.textContent = actorData.nombre;
+                    if (actorIdActual === actorId) {
+                        opt.selected = true;
+                    }
+                    selectSoulLink.appendChild(opt);
+                }
+            }
+
+            selectSoulLink.addEventListener("change", (e) => {
+                const newActorId = e.target.value;
+                const updates = {};
+
+                if (actorIdActual) {
+                    const originalActorPath = getActorDatabasePath(actorIdActual);
+                    updates[`${originalActorPath}/${actorIdActual}/vinculo_jugador`] = null;
+                }
+
+                // Always check if we need to remove actorId from old player to prevent duplicates
+                if (newActorId !== "ninguno") {
+                    for (const [pId, pData] of Object.entries(dbJugadoresCache)) {
+                        if (pData.actorId === newActorId && pId !== playerId) {
+                            updates[`campaña/jugadores/${pId}/actorId`] = null;
+                        }
+                    }
+                }
+
+                if (newActorId !== "ninguno") {
+                    const originalNewActorPath = getActorDatabasePath(newActorId);
+                    updates[`${originalNewActorPath}/${newActorId}/vinculo_jugador`] = playerId;
+                    updates[`campaña/jugadores/${playerId}/actorId`] = newActorId;
+                } else {
+                    updates[`campaña/jugadores/${playerId}/actorId`] = null;
+                }
+
+                db.ref().update(updates)
+                    .then(() => console.log(`Vínculo de Almas actualizado para ${playerId}`))
+                    .catch(err => alert("Error al actualizar Vínculo de Almas: " + err));
+            });
+            profileStatusContainer.appendChild(selectSoulLink);
+            div.appendChild(profileStatusContainer);
 
             const btnAction = document.createElement("button");
             btnAction.className = "btn-action";
             btnAction.style.width = "100%";
             btnAction.style.padding = "5px";
             btnAction.style.fontSize = "0.8em";
-            btnAction.textContent = hasProfile ? "Editar sprites" : "Crear perfil de escena";
+            btnAction.textContent = hasProfile ? "Editar sprites" : "CREAR PERFIL DE ESCENA";
             btnAction.onclick = () => {
                 if (hasProfile) {
-                    const actorId = playerData.actorId || Object.keys(dbActoresCache).find(k => dbActoresCache[k].vinculo_jugador === playerId);
+                    const actorId = playerData.actorId || Object.keys(dbActoresCache).find(k =>
+                        (dbActoresCache[k].vinculo_jugador === playerId ||
+                         dbActoresCache[k].vinculo_jugador === playerData.id ||
+                         dbActoresCache[k].vinculo_jugador === nombre)
+                    );
                     if (actorId) loadActorIntoFormInternal(actorId, dbActoresCache[actorId]);
                 } else {
                     document.getElementById('actor-nombre').value = nombre;
@@ -7945,7 +8038,7 @@ window.processEntitiesData = function(entities) {
         const tree = {};
 
         for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
-          if (actorData.tipo === "Jugador" || actorData.vinculo_jugador) continue; // Exclude players from NPCs list
+          if (actorData.tipo === "Jugador") continue; // Exclude players from NPCs list
 
           if (searchTerm && !(actorData.nombre || '').toLowerCase().includes(searchTerm) && !actorId.toLowerCase().includes(searchTerm)) continue;
           if (alignFilter && (actorData.tipo || 'Sin Clasificar') !== alignFilter) continue;
@@ -8049,7 +8142,8 @@ window.processEntitiesData = function(entities) {
               btnDelete.textContent = "Borrar";
               btnDelete.onclick = () => {
                 if (confirm(`¿Estás seguro de eliminar permanentemente al actor "${actor.nombre}"?`)) {
-                    db.ref(`campaña/actores/${actor.id}`)
+                    const originalPath = getActorDatabasePath(actor.id);
+                    db.ref(`${originalPath}/${actor.id}`)
                       .remove()
                       .then(() => alert("Actor eliminado."))
                       .catch((err) => alert("Error al eliminar: " + err));
@@ -8083,82 +8177,22 @@ window.processEntitiesData = function(entities) {
             renderListaActores();
         });
 
-        db.ref("campaña/actores").on("value", (snapshot) => {
-          dbActoresCache = window.processEntitiesData(snapshot.val()) || {};
+        db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
+          dbNpcsCache = window.processEntitiesData(snapshot.val()) || {};
+          refreshActorCache();
           renderListaActores();
-          renderActorAsignacion();
+        });
+
+        db.ref("campaña/actores").on("value", (snapshot) => {
+          dbActoresRawCache = window.processEntitiesData(snapshot.val()) || {};
+          refreshActorCache();
+          renderListaActores();
         });
 
         // Escuchar jugadores para la lista (reusando el que ya existe o creando nuevo listener local aquí)
         // Ya está siendo escuchado en la línea 4347 aprox
         function renderActorAsignacion() {
-          const container = document.getElementById("actor-asignacion-lista");
-          if (!container) return;
-
-          container.innerHTML = "";
-
-          if (Object.keys(dbJugadoresCache).length === 0) {
-            container.innerHTML =
-              '<span style="color: #888;">No hay jugadores conectados/registrados.</span>';
-            return;
-          }
-
-          for (const [playerName, playerData] of Object.entries(
-            dbJugadoresCache,
-          )) {
-            const row = document.createElement("div");
-            row.style.cssText =
-              "display: flex; gap: 15px; align-items: center; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #444; width: 100%; max-width: 400px; justify-content: space-between;";
-
-            const nameLabel = document.createElement("span");
-            nameLabel.style.color = "#fff";
-            nameLabel.style.fontWeight = "bold";
-
-            const isOnline = playerData.online === true;
-            const onlineIndicator = isOnline
-              ? '<span style="color: #00ff00; text-shadow: 0 0 5px #00ff00; font-size: 0.8em; margin-left: 5px;">● Online</span>'
-              : '<span style="color: #555; font-size: 0.8em; margin-left: 5px;">● Offline</span>';
-
-            nameLabel.innerHTML = `${playerName} ${onlineIndicator}`;
-
-            const select = document.createElement("select");
-            select.style.cssText =
-              "padding: 5px; background: #222; color: #0df; border: 1px solid #0df; border-radius: 3px; max-width: 200px;";
-
-            const defaultOpt = document.createElement("option");
-            defaultOpt.value = "";
-            defaultOpt.innerText = "Ninguno / Default";
-            select.appendChild(defaultOpt);
-
-            for (const [actorId, actorData] of Object.entries(dbActoresCache)) {
-              const opt = document.createElement("option");
-              opt.value = actorId;
-              const tag = actorData.tipo ? `[${actorData.tipo}] ` : "[NPC] ";
-              opt.innerText = tag + actorData.nombre;
-              if (playerData.actorId === actorId) {
-                opt.selected = true;
-              }
-              select.appendChild(opt);
-            }
-
-            select.addEventListener("change", (e) => {
-              const selectedActorId = e.target.value;
-              db.ref(`campaña/jugadores/${playerName}`)
-                .update({
-                  actorId: selectedActorId,
-                })
-                .then(() => {
-                  console.log(
-                    `Actor asignado a ${playerName}: ${selectedActorId}`,
-                  );
-                })
-                .catch((err) => alert("Error al asignar actor: " + err));
-            });
-
-            row.appendChild(nameLabel);
-            row.appendChild(select);
-            container.appendChild(row);
-          }
+            // Function functionality moved to Player Cards rendering. Left empty to prevent errors if called.
         }
 
         // La ejecución reactiva del teatro vive en js/on-game-dashboard.js.
@@ -8258,7 +8292,8 @@ window.processEntitiesData = function(entities) {
             }
 
             if (isEditing) {
-              db.ref(`campaña/actores/${editModeActorKey}`)
+              const originalPath = getActorDatabasePath(editModeActorKey);
+              db.ref(`${originalPath}/${editModeActorKey}`)
                 .update(actorData)
                 .then(() => {
                   alert(`Actor '${nombre}' actualizado exitosamente.`);
@@ -8266,7 +8301,8 @@ window.processEntitiesData = function(entities) {
                 })
                 .catch((e) => alert("Error actualizando actor: " + e));
             } else {
-              db.ref(`campaña/actores/${idActor}`)
+              const newPath = ACTOR_DATABASE_PATHS[0]; // campaña/base_datos_npcs
+              db.ref(`${newPath}/${idActor}`)
                 .set(actorData)
                 .then(() => {
                   if (window._pendingPlayerProfileLink) {

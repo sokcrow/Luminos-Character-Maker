@@ -18,6 +18,11 @@
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
+      "base_datos_npcs": {
+        // Solo el DM toca NPCs (ruta moderna)
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
       "escenarios": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },

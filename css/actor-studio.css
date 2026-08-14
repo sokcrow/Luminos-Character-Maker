@@ -1,0 +1,267 @@
+/* css/actor-studio.css */
+
+/*
+  Limbus UI Protocol Adherence:
+  - Backgrounds: #050505, #0a0a0a, #121212
+  - Text: #ffffff, #d1d1d1, secondary #82919c
+  - Accents: Gold/Amber (#a37c35), Red (#8a1c1c, #ff5964), Tech Cyan (#00ddff)
+*/
+
+.actor-studio-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.actor-studio-form {
+    flex: 2;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.actor-studio-preview {
+    flex: 1;
+    min-width: 250px;
+    background: #050505;
+    border: 1px solid #222;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.actor-studio-preview::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to top, rgba(163, 124, 53, 0.1), transparent);
+    pointer-events: none;
+}
+
+.actor-studio-preview img {
+    max-width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
+}
+
+.actor-studio-state {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    align-self: flex-start;
+    font-weight: bold;
+}
+
+.state-draft {
+    background: rgba(0, 221, 255, 0.1);
+    color: #00ddff;
+    border: 1px solid #00ddff;
+}
+
+.state-editing {
+    background: rgba(163, 124, 53, 0.1);
+    color: #a37c35;
+    border: 1px solid #a37c35;
+    animation: pulse-editing 2s infinite;
+}
+
+@keyframes pulse-editing {
+    0% { box-shadow: 0 0 0 0 rgba(163, 124, 53, 0.4); }
+    70% { box-shadow: 0 0 0 5px rgba(163, 124, 53, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(163, 124, 53, 0); }
+}
+
+.actor-studio-section {
+    background: #121212;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 15px;
+    position: relative;
+}
+
+.actor-studio-section h5 {
+    margin: 0 0 15px 0;
+    color: #a37c35;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+.actor-studio-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.actor-studio-row > div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.actor-studio-row label {
+    font-size: 0.75rem;
+    color: #82919c;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.actor-studio-input {
+    background: #050505;
+    border: 1px solid #333;
+    color: #d1d1d1;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.actor-studio-input:focus {
+    outline: none;
+    border-color: #a37c35;
+    box-shadow: 0 0 5px rgba(163, 124, 53, 0.3);
+}
+
+.actor-studio-select {
+    background: #050505;
+    border: 1px solid #333;
+    color: #d1d1d1;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.actor-studio-select:focus {
+    outline: none;
+    border-color: #a37c35;
+}
+
+.actor-studio-color-picker {
+    height: 35px;
+    width: 100%;
+    padding: 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #050505;
+}
+
+.actor-studio-btn-primary {
+    background: linear-gradient(135deg, #8a1c1c, #6b1515);
+    color: #fff;
+    border: 1px solid #ff5964;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 10px rgba(138, 28, 28, 0.4);
+}
+
+.actor-studio-btn-primary:hover {
+    background: linear-gradient(135deg, #a82222, #8a1c1c);
+    box-shadow: 0 0 15px rgba(255, 89, 100, 0.6);
+}
+
+.actor-studio-btn-secondary {
+    background: #121212;
+    color: #d1d1d1;
+    border: 1px solid #444;
+    padding: 10px 15px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actor-studio-btn-secondary:hover {
+    background: #222;
+    border-color: #666;
+}
+
+.actor-studio-btn-add {
+    background: rgba(0, 221, 255, 0.1);
+    color: #00ddff;
+    border: 1px dashed #00ddff;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.actor-studio-btn-add:hover {
+    background: rgba(0, 221, 255, 0.2);
+}
+
+.combat-props-wrapper {
+    background: rgba(138, 28, 28, 0.05);
+    border: 1px solid rgba(138, 28, 28, 0.3);
+}
+
+.combat-props-wrapper h5 {
+    color: #ff5964;
+    border-bottom-color: rgba(138, 28, 28, 0.5);
+}
+
+.actor-studio-combat-checkbox {
+    accent-color: #ff5964;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Specific adjustments for existing elements */
+#actor-expresiones-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+#actor-expresiones-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#actor-expresiones-container::-webkit-scrollbar-track {
+    background: #050505;
+}
+
+#actor-expresiones-container::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .actor-studio-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .actor-studio-preview {
+        min-height: 300px;
+    }
+}

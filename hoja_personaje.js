@@ -1141,53 +1141,82 @@ function initializeCharacterSheet() {
   if (typeof db !== "undefined") {
     if (!actorListenerActive) {
       actorListenerActive = true;
-      db.ref("campaña/actores").on("value", (snap) => {
-        window.actoresJugador = snap.val() || {};
-        window.allActoresCache = snap.val() || {}; // Usado para pintar iconos en el chat
 
-        // Disparar un evento para que el log se re-renderice si ya estaba cargado
-        const event = new CustomEvent("actoresCacheUpdated");
-        window.dispatchEvent(event);
+      let rawActorsCache = {};
+      let npcsCache = {};
 
-        const assignedActorId = window.datosJugador?.actorId;
-        const exprSelect = document.getElementById("player-expression-select");
-
-        if (assignedActorId && window.actoresJugador[assignedActorId]) {
-          const actorData = window.actoresJugador[assignedActorId];
-
-          // Sincronizar el phoneNumber del Actor con el nodo del Jugador
-          if (actorData.phoneNumber && window.datosJugador && window.datosJugador.phoneNumber !== actorData.phoneNumber) {
-             db.ref(`campaña/jugadores/${playerId}`).update({
-                 phoneNumber: actorData.phoneNumber
-             });
-             window.datosJugador.phoneNumber = actorData.phoneNumber; // Update local cache instantly
+      function refreshAllActoresCache() {
+          window.actoresJugador = {};
+          // Load legacy path first
+          for (const [id, data] of Object.entries(rawActorsCache)) {
+              window.actoresJugador[id] = data;
           }
-
-          // Actualizar UI del teléfono
-          const deviceNumberUI = document.getElementById("player-device-number");
-          if (deviceNumberUI) {
-              deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
+          // Load modern path second (overwrites if collision)
+          for (const [id, data] of Object.entries(npcsCache)) {
+              window.actoresJugador[id] = data;
           }
+          window.allActoresCache = window.actoresJugador; // Usado para pintar iconos en el chat
 
-          if (exprSelect && actorData.expresiones) {
-            exprSelect.innerHTML = "";
-            const expKeys = Object.keys(actorData.expresiones);
-            if (expKeys.length > 1) {
-              exprSelect.style.display = "block";
-              for (const [name, url] of Object.entries(actorData.expresiones)) {
-                const opt = document.createElement("option");
-                opt.value = url;
-                opt.innerText = name;
-                exprSelect.appendChild(opt);
+          // Disparar un evento para que el log se re-renderice si ya estaba cargado
+          const event = new CustomEvent("actoresCacheUpdated");
+          window.dispatchEvent(event);
+
+          const assignedActorId = window.datosJugador?.actorId;
+          const exprSelect = document.getElementById("player-expression-select");
+
+          if (assignedActorId && window.actoresJugador[assignedActorId]) {
+            const actorData = window.actoresJugador[assignedActorId];
+
+            // Sincronizar el phoneNumber del Actor con el nodo del Jugador
+            if (actorData.phoneNumber && window.datosJugador && window.datosJugador.phoneNumber !== actorData.phoneNumber) {
+               db.ref(`campaña/jugadores/${playerId}`).update({
+                   phoneNumber: actorData.phoneNumber
+               });
+            }
+
+            if (exprSelect) {
+              const currentExp = exprSelect.value;
+              exprSelect.innerHTML = "";
+              let hasExpressions = false;
+
+              if (actorData.expresiones) {
+                for (const expName in actorData.expresiones) {
+                  hasExpressions = true;
+                  const opt = document.createElement("option");
+                  opt.value = expName;
+                  opt.textContent = expName;
+                  if (expName === currentExp) opt.selected = true;
+                  exprSelect.appendChild(opt);
+                }
               }
-            } else {
-              exprSelect.style.display = "none";
+
+              if (!hasExpressions) {
+                exprSelect.innerHTML =
+                  '<option value="Neutral">Neutral</option>';
+              }
             }
           }
-        }
+      }
+
+      db.ref("campaña/actores").on("value", (snap) => {
+        rawActorsCache = snap.val() || {};
+        refreshAllActoresCache();
+      });
+
+      db.ref("campaña/base_datos_npcs").on("value", (snap) => {
+        npcsCache = snap.val() || {};
+        refreshAllActoresCache();
       });
     }
   }
+
+  // Fallback to update UI
+  setInterval(() => {
+        const deviceNumberUI = document.getElementById("player-device-number");
+        if (deviceNumberUI) {
+            deviceNumberUI.innerText = window.datosJugador?.phoneNumber ? `Mi Dispositivo: [${window.datosJugador.phoneNumber}]` : "Mi Dispositivo: Sin Red";
+        }
+  }, 1000);
 
   // --- REPARACIÓN: LÓGICA DE ENVÍO Y LECTURA DEL TEATRO DE LA MENTE ---
   {
@@ -1649,10 +1678,27 @@ function initializeCharacterSheet() {
 
             if (!targetPlayerId) {
                 // Check actors
-                db.ref('campaña/actores').once('value', (actSnap) => {
-                    const actors = actSnap.val() || {};
+                Promise.all([
+                    db.ref('campaña/actores').once('value'),
+                    db.ref('campaña/base_datos_npcs').once('value')
+                ]).then(([actSnap, npcsSnap]) => {
+                    const legacyActors = actSnap.val() || {};
+                    const modernActors = npcsSnap.val() || {};
+
+                    let mergedActors = {};
+                    let actorSourcePathById = {};
+
+                    for (const [id, data] of Object.entries(legacyActors)) {
+                        mergedActors[id] = data;
+                        actorSourcePathById[id] = 'campaña/actores';
+                    }
+                    for (const [id, data] of Object.entries(modernActors)) {
+                        mergedActors[id] = data;
+                        actorSourcePathById[id] = 'campaña/base_datos_npcs';
+                    }
+
                     let targetActorId = null;
-                    for (const [aId, aData] of Object.entries(actors)) {
+                    for (const [aId, aData] of Object.entries(mergedActors)) {
                         if (aData.phoneNumber === contactInput || aId.toLowerCase() === contactInput.toLowerCase() || (aData.nombre && aData.nombre.toLowerCase() === contactInput.toLowerCase())) {
                             targetActorId = aId;
                             break;
@@ -1663,7 +1709,8 @@ function initializeCharacterSheet() {
                         alert("Destinatario no encontrado. Verifica el número.");
                     } else {
                         // Transfer to NPC
-                        processTransfer(playerId, 'campaña/actores/'+targetActorId, amount, concept, actors[targetActorId].nombre || targetActorId);
+                        const path = actorSourcePathById[targetActorId];
+                        processTransfer(playerId, path + '/' + targetActorId, amount, concept, mergedActors[targetActorId].nombre || targetActorId);
                     }
                 });
             } else {
