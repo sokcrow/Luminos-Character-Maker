@@ -119,3 +119,56 @@ test("las reglas de base de datos restringen el acceso a los escenarios", () => 
   expect(dbRules).toContain('"escenarios": {');
   expect(dbRules).toContain('auth.uid === \'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1\'');
 });
+
+test("jugador y DM comparten el mismo componente de diálogo sin estilos genéricos", () => {
+  const playerPage = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.html"),
+    "utf8",
+  );
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_de_DM.html"),
+    "utf8",
+  );
+
+  // Ambos cargan el CSS compartido
+  expect(playerPage).toContain('css/theatre-dialogue.css');
+  expect(dmPageCurrent).toContain('css/theatre-dialogue.css');
+
+  // Ambos usan las clases estructurales compartidas
+  expect(dmPageCurrent).toContain('class="theatre-dialogue-wrapper"');
+  expect(dmPageCurrent).toContain('class="theatre-plates-container"');
+
+  // El DM ya no usa la clase genérica
+  expect(dmPageCurrent).not.toContain('class="dialogue-panel"');
+});
+
+test("el escenario está aislado y el diálogo tiene una capa superior a los sprites", () => {
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_de_DM.html"),
+    "utf8",
+  );
+  const playerPage = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.html"),
+    "utf8",
+  );
+  const sharedCss = fs.readFileSync(
+    path.join(__dirname, "..", "css", "theatre-dialogue.css"),
+    "utf8",
+  );
+  const dashboardCss = fs.readFileSync(
+    path.join(__dirname, "..", "css", "on-game-dashboard.css"),
+    "utf8",
+  );
+  const sheetCss = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.css"),
+    "utf8",
+  );
+
+  // Comprobar variables de capa en CSS
+  expect(sharedCss).toContain('--theatre-layer-stage: 10;');
+  expect(sharedCss).toContain('--theatre-layer-dialogue: 8500;');
+
+  // Comprobar isolation isolate
+  expect(dashboardCss).toContain('isolation: isolate;');
+  expect(sheetCss).toContain('isolation: isolate;');
+});

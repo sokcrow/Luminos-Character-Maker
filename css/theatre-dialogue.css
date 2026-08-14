@@ -1,0 +1,255 @@
+:root {
+  --theatre-layer-stage: 10;
+  --theatre-layer-dialogue: 8500;
+}
+
+@font-face {
+  font-family: "BebasKai";
+  src: url("../Fonts/BebasKai.otf") format("opentype");
+}
+
+/* --- THEATRE OF THE MIND STYLES --- */
+      .theatre-location {
+        position: absolute;
+        top: 50px;
+        left: 40px;
+        background: linear-gradient(to bottom, #111, #050505);
+        border: none;
+        border-top: 3px solid #d4af37;
+        border-bottom: 3px solid #d4af37;
+        border-radius: 0;
+        padding: 12px 30px;
+        color: #f5f5dc;
+        font-size: 24px;
+        font-family: "BebasKai", impact, sans-serif;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: bold;
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.8);
+        z-index: 2010;
+        letter-spacing: 1px;
+        -webkit-text-stroke: 2px black;
+        paint-order: stroke fill;
+        text-shadow: 1px 1px 2px black;
+        transform: rotate(-15deg);
+        transform-origin: top left;
+      }
+
+      .theatre-location::before {
+        content: "";
+        position: absolute;
+        top: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 8px;
+        height: 50px;
+        background: #d4af37;
+        box-shadow:
+          inset 2px 0 0 rgba(255, 255, 255, 0.4),
+          inset -2px 0 0 rgba(0, 0, 0, 0.4);
+        z-index: -1;
+      }
+
+      .theatre-location::after {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 14px;
+        height: 14px;
+        background: #555;
+        border: 2px solid #d4af37;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        z-index: 2;
+      }
+
+      .theatre-location span {
+        display: inline-block;
+        transform: none;
+      }
+
+      .theatre-dialogue-wrapper {
+        width: 95%;
+        max-width: 1400px;
+        filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, 0.8));
+        pointer-events: none; /* Let clicks pass through empty areas */
+      }
+
+      .theatre-dialogue-wrapper > * {
+        pointer-events: auto; /* Enable clicks on actual content like plates and text */
+      }
+
+      .theatre-plates-container {
+        position: absolute;
+        top: -65px; /* LOWERED: from -100px to -65px to sink it more into the dialogue box */
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0px;
+        filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, 0.8));
+        padding-left: 20px;
+        z-index: 15;
+        transform: rotate(-15deg); /* strictly 15 degrees */
+        transform-origin: bottom left;
+      }
+
+      .theatre-plates-container::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 5px;
+        bottom: -15px;
+        width: 14px;
+        background: linear-gradient(to right, #444, #222);
+        border: 2px solid #111;
+        border-radius: 4px;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.8);
+        z-index: 3;
+      }
+
+      .theatre-plates-container::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 15px;
+        width: 8px;
+        height: 8px;
+        background: #d4af37;
+        border-radius: 50%;
+        box-shadow:
+          0 40px 0 #d4af37,
+          0 70px 0 #d4af37;
+        z-index: 4;
+      }
+
+      .theatre-plate-title {
+        background: linear-gradient(90deg, #5c3a21 0%, #3a2210 100%);
+        color: #d69c52;
+        border: none;
+        border-left: 4px solid #d4af37;
+        padding: 2px 40px 2px 20px;
+        font-family: "BebasKai", impact, sans-serif;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 16px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+        margin-left: 5px;
+        text-transform: uppercase;
+        letter-spacing: -0.5px;
+        position: relative;
+        border-radius: 0;
+        z-index: 1;
+      }
+
+      .theatre-plate-title span {
+        display: inline-block;
+      }
+
+      .theatre-plate-name {
+        background: #416268;
+        color: #ffffff;
+        border: none;
+        border-left: 6px solid #1a1a1a;
+        padding: 4px 60px 4px 30px;
+        font-family: "BebasKai", impact, sans-serif;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: 900;
+        font-size: 32px;
+        -webkit-text-stroke: 2px black;
+        paint-order: stroke fill;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+        position: relative;
+        z-index: 2;
+        margin-top: -3px;
+        border-radius: 0;
+      }
+
+      .theatre-plate-name span {
+        display: inline-block;
+      }
+
+      .theatre-dialogue-text {
+        position: relative;
+        border: none;
+        border-radius: 0;
+        padding: 50px 70px 40px 70px;
+        min-height: 180px;
+        color: #fffacd; /* Amarillo pálido (LemonChiffon) */
+        font-size: 1.1rem;
+        line-height: 1.6;
+        font-family: "Roboto", sans-serif;
+        box-shadow: none;
+        text-shadow: none;
+        z-index: 10;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      .theatre-dialogue-text::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.8),
+          rgba(0, 0, 0, 0.8) 2px,
+          rgba(0, 0, 0, 0.9) 2px,
+          rgba(0, 0, 0, 0.9) 4px
+        );
+        backdrop-filter: blur(2px);
+        -webkit-mask-image: linear-gradient(
+          to right,
+          transparent 0%,
+          black 20%,
+          black 80%,
+          transparent 100%
+        );
+        mask-image: linear-gradient(
+          to right,
+          transparent 0%,
+          black 20%,
+          black 80%,
+          transparent 100%
+        );
+        z-index: -1;
+      }
+
+.on-game-dashboard .theatre-dialogue-wrapper {
+  width: calc(100vw - 350px) !important;
+}
+
+/* Limitar el wrapper para que no invada toda la pantalla baja */
+.theatre-dialogue-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    z-index: var(--theatre-layer-dialogue) !important;
+}
+
+/* Aislar la zona donde se escribe para que SIEMPRE esté por encima y clickeable */
+.theatre-controls {
+    position: relative !important;
+    z-index: 9999 !important; /* Máxima prioridad sobre cualquier imagen o wrapper */
+    background-color: #050505 !important; /* Fondo negro sólido para no mezclarse con el fondo */
+    padding: 15px !important;
+    border-top: 2px solid var(--border-accent, #c49a00) !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    gap: 10px !important;
+}
+
+/* Asegurar que el input específico tome el espacio y sea clickeable */
+.theatre-controls input[type="text"] {
+    flex-grow: 1 !important;
+    pointer-events: auto !important;
+}
