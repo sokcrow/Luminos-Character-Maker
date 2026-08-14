@@ -41,10 +41,47 @@
           <span id="dialogue-name" class="dialogue-name">NARRADOR</span> <small id="dialogue-title"></small>
           <p id="dialogue-text">…</p>
         </div>
+        <!-- CONTROLES DE ESCENARIOS Y BIBLIOTECA -->
+        <div style="padding: 12px; background: #05080c; border-bottom: 1px solid #1a222c; border-top: 1px solid #c49a00;">
+          <h4 style="color: #a37c35; margin: 0 0 10px 0; font-family: 'Cinzel', serif;">Biblioteca de Escenarios</h4>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+              <select id="theatre-scenario-location-filter" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+                  <option value="">Todas las localizaciones</option>
+              </select>
+              <input type="text" id="theatre-scenario-tag-filter" placeholder="Filtrar por etiqueta..." style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 1;">
+              <select id="theatre-scenario-select" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 2;">
+                  <option value="">Selecciona un escenario guardado...</option>
+              </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+              <input id="theatre-scenario-name" type="text" placeholder="Nombre del escenario" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+              <input id="theatre-background-input" type="url" placeholder="URL del fondo" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+              <input id="theatre-location-input" type="text" placeholder="Localización" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+              <input id="theatre-scenario-tags" type="text" placeholder="Sub-etiquetas (separadas por coma)" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+          </div>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="btn-save-scenario" type="button" style="padding: 8px; background: #1a222c; color: #a37c35; border: 1px solid #a37c35; cursor: pointer;">GUARDAR ESCENARIO</button>
+              <button id="btn-use-scenario" type="button" style="padding: 8px; background: #8a1c1c; color: white; border: 1px solid #ff6575; cursor: pointer; flex: 1;">USAR EN TEATRO</button>
+              <button id="btn-delete-scenario" type="button" style="padding: 8px; background: #3a0c0c; color: #ff6575; border: 1px solid #ff6575; cursor: pointer;">BORRAR</button>
+              <button id="btn-update-scene" type="button" style="padding: 8px; background: #222; color: white; border: 1px solid #555; cursor: pointer;">APLICAR MANUAL</button>
+          </div>
+        </div>
+
         <div class="theatre-controls">
-          <input id="theatre-background-input" type="url" placeholder="URL del fondo">
-          <input id="theatre-location-input" type="text" placeholder="Localización">
-          <button id="btn-update-scene" type="button">ACTUALIZAR ESCENA</button>
+
+          <!-- Nuevos selectores de hablante y expresión -->
+          <div style="grid-column: 1 / 4; display: flex; gap: 8px;">
+            <select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+                <option value="narrador">Narrador</option>
+            </select>
+            <select id="theatre-expression-select" style="padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+                <option value="Neutral">Neutral</option>
+            </select>
+          </div>
+
           <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo"></textarea>
           <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
         </div>

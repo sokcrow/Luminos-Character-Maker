@@ -20,7 +20,7 @@ const workshopPage = fs.readFileSync(
 );
 
 test("el centro de mando mantiene una suscripción a la escena del Teatro", () => {
-  expect(dashboardScript).toContain('child("estado_actual").on("value"');
+  expect(dashboardScript).toContain('SCENE_ROOT + "/actores").on("value"');
   expect(dmPage).toContain('id="theatre-stage"');
 });
 
@@ -57,4 +57,65 @@ test("los jugadores reciben un apagón reactivo desde Firebase", () => {
   expect(playerPage).toContain('id="player-instance-blackout"');
   expect(instanceControl).toContain('combatView.src = "Battle-viewer.html"');
   expect(instanceControl).toContain('combatView.style.display = combatActive ? "block" : "none"');
+});
+
+test("el grid de personajes jugadores existe y se separa de los NPCs", () => {
+  expect(workshopPage).toContain('id="grid-personajes-jugadores"');
+  expect(workshopPage).toContain('actorData.tipo === "Jugador" || actorData.vinculo_jugador');
+  expect(workshopPage).toContain('db.ref("campaña/jugadores").on("value"');
+});
+
+test("se pueden crear perfiles de escena para personajes", () => {
+  expect(workshopPage).toContain('window._pendingPlayerProfileLink = playerId');
+  expect(workshopPage).toContain('campaña/jugadores/${window._pendingPlayerProfileLink}/actorId');
+});
+
+test("la biblioteca de escenarios contiene los controles y utiliza update", () => {
+  expect(dmPage).toContain('id="theatre-scenario-select"');
+  expect(dmPage).toContain('id="theatre-scenario-location-filter"');
+  expect(dmPage).toContain('id="theatre-scenario-tag-filter"');
+  expect(dashboardScript).toContain('db.ref(SCENARIOS_ROOT).on("value"');
+  expect(dashboardScript).toContain('db.ref(SCENE_ROOT).update({');
+});
+
+test("el guardado de escenarios procesa sub-etiquetas", () => {
+  expect(dashboardScript).toContain('sub_etiquetas: subEtiquetas');
+});
+
+test("el teatro permite selectores de hablante y expresiones", () => {
+  expect(dmPage).toContain('id="theatre-speaker-select"');
+  expect(dmPage).toContain('id="theatre-expression-select"');
+  expect(dashboardScript).toContain('speakerData.actorId = speakerSelect.value');
+});
+
+test("el mensaje enviado a la cola contiene datos de actor y colores", () => {
+  expect(dashboardScript).toContain('actorId: speakerData.actorId');
+  expect(dashboardScript).toContain('expression: speakerData.expression');
+  expect(dashboardScript).toContain('color_nombre: speakerData.color_nombre');
+});
+
+test("el motor del teatro utiliza el actorId para iluminar y colorea el diálogo", () => {
+  const engineScript = fs.readFileSync(
+    path.join(__dirname, "..", "js", "theatre-engine.js"),
+    "utf8",
+  );
+  expect(engineScript).toContain('const activeActorId = dialogData.actorId');
+  expect(engineScript).toContain('nameEl.style.color = dialogData.color_nombre');
+});
+
+test("el centro de mando reacciona a los cambios de locación", () => {
+  const engineScript = fs.readFileSync(
+    path.join(__dirname, "..", "js", "theatre-engine.js"),
+    "utf8",
+  );
+  expect(engineScript).toContain('db.ref(`${THEATRE_ROOT}/locacion`).on("value"');
+});
+
+test("las reglas de base de datos restringen el acceso a los escenarios", () => {
+  const dbRules = fs.readFileSync(
+    path.join(__dirname, "..", "database.rules.json"),
+    "utf8",
+  );
+  expect(dbRules).toContain('"escenarios": {');
+  expect(dbRules).toContain('auth.uid === \'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1\'');
 });

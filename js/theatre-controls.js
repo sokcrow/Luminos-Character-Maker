@@ -10,34 +10,77 @@
 
         let npcDatabase = {};
         let liveActors = {};
+        let playerDatabase = {};
 
         const selectNpcRoster = document.getElementById("select-npc-roster");
         const liveActorsList = document.getElementById("live-actors-list");
         const btnSpawnNpc = document.getElementById("btn-spawn-npc");
 
-        function cargarRosterNPCs() {
-            const npcRef = db.ref(NPC_ROSTER_PATH);
+        function updateRosterSelect() {
+            if (!selectNpcRoster) return;
+            selectNpcRoster.innerHTML = '<option value="">Selecciona un Personaje...</option>';
 
+            // Personajes Jugadores
+            const optgroupPlayers = document.createElement('optgroup');
+            optgroupPlayers.label = "PERSONAJES JUGADORES";
+
+            const processedPlayerActors = new Set();
+
+            for (const [playerId, player] of Object.entries(playerDatabase)) {
+                let actorData = null;
+                let actorId = null;
+
+                if (player.actorId && npcDatabase[player.actorId]) {
+                    actorId = player.actorId;
+                    actorData = npcDatabase[actorId];
+                } else {
+                    actorId = Object.keys(npcDatabase).find(k => npcDatabase[k].vinculo_jugador === playerId);
+                    if (actorId) actorData = npcDatabase[actorId];
+                }
+
+                if (actorData) {
+                    const opt = document.createElement('option');
+                    opt.value = actorId;
+                    opt.textContent = actorData.nombre || player.characterName || player.character_name || player.nombre || playerId;
+                    opt.dataset.sourceType = 'player-profile';
+                    opt.dataset.sourceId = playerId;
+                    optgroupPlayers.appendChild(opt);
+                    processedPlayerActors.add(actorId);
+                }
+            }
+            selectNpcRoster.appendChild(optgroupPlayers);
+
+            // NPCs / Personajes del DM
+            const optgroupNpcs = document.createElement('optgroup');
+            optgroupNpcs.label = "NPCs / PERSONAJES DEL DM";
+
+            for (const [actorId, actorData] of Object.entries(npcDatabase)) {
+                if (processedPlayerActors.has(actorId) || actorData.tipo === 'Jugador' || actorData.vinculo_jugador) continue;
+
+                const opt = document.createElement('option');
+                opt.value = actorId;
+                opt.textContent = actorData.nombre || 'Sin Nombre';
+                opt.dataset.sourceType = 'npc';
+                opt.dataset.sourceId = actorId;
+                optgroupNpcs.appendChild(opt);
+            }
+            selectNpcRoster.appendChild(optgroupNpcs);
+        }
+
+        function cargarRosterNPCs() {
             if (!selectNpcRoster) {
                 console.error("CRÍTICO: No se encontró el #select-npc-roster en el DOM.");
                 return;
             }
 
-            npcRef.on('value', (snapshot) => {
-                selectNpcRoster.innerHTML = '<option value="">Selecciona un Actor...</option>'; // Limpiar
-                if (!snapshot.exists()) {
-                    console.warn("ADVERTENCIA: La base de datos de NPCs está vacía o la ruta es incorrecta.");
-                    return;
-                }
-
+            db.ref(NPC_ROSTER_PATH).on('value', (snapshot) => {
                 npcDatabase = snapshot.val() || {};
+                updateRosterSelect();
+            });
 
-                snapshot.forEach((hijo) => {
-                    const npc = hijo.val();
-                    const npcId = hijo.key;
-                    selectNpcRoster.innerHTML += `<option value="${npcId}">${npc.nombre || 'Sin Nombre'}</option>`;
-                });
-                console.log("Roster de NPCs cargado con éxito.");
+            db.ref("campaña/jugadores").on('value', (snapshot) => {
+                playerDatabase = snapshot.val() || {};
+                updateRosterSelect();
             });
         }
 
@@ -75,9 +118,30 @@
                     // Añadir el nuevo
                     const now = window.firebase.database.ServerValue.TIMESTAMP;
                     const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                    const selectedOption = selectNpcRoster.options[selectNpcRoster.selectedIndex];
+                    const sourceType = selectedOption.dataset.sourceType || 'npc';
+                    const sourceId = selectedOption.dataset.sourceId || selectedId;
+
+                    let expresionesObj = npcData.expresiones || {};
+                    let expActiva = "Neutral";
+                    if (Object.keys(expresionesObj).length === 0) {
+                        expresionesObj = {
+                            "Neutral": npcData.sprite || npcData.icono_jugador || npcData.icono || ""
+                        };
+                    } else if (!expresionesObj["Neutral"]) {
+                        expActiva = Object.keys(expresionesObj)[0];
+                    }
+
                     actors[actorInstanceId] = {
                         nombre: npcData.nombre || selectedId,
+                        titulo: npcData.titulo || "",
+                        color_nombre: npcData.color_nombre || "#ffffff",
+                        color_titulo: npcData.color_titulo || "#aaaaaa",
+                        sourceId: sourceId,
+                        sourceType: sourceType,
                         sprite: npcData.sprite || npcData.url || "",
+                        expresiones: expresionesObj,
+                        expresionActiva: expActiva,
                         x: 0,
                         y: 0,
                         escala: npcData.escala || 1,
@@ -115,8 +179,21 @@
 
                     const card = document.createElement("div");
                     card.className = "actor-control-card";
+                    let expresionesHTML = '';
+                    if (actorData.expresiones && Object.keys(actorData.expresiones).length > 0) {
+                        expresionesHTML = '<select class="actor-expression-select" style="background:#222; color:#fff; border:1px solid #444; padding:2px; font-size:0.8rem; font-family:\'Share Tech Mono\', monospace;">';
+                        for (const exp in actorData.expresiones) {
+                            const isSelected = actorData.expresionActiva === exp ? 'selected' : '';
+                            expresionesHTML += `<option value="${exp}" ${isSelected}>${exp}</option>`;
+                        }
+                        expresionesHTML += '</select>';
+                    }
+
                     card.innerHTML = `
-                        <span class="actor-name">${actorData.nombre} (ID: ${actorId.split('_')[1]})</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="actor-name">${actorData.nombre} (ID: ${actorId.split('_')[1]})</span>
+                            ${expresionesHTML}
+                        </div>
                         <div class="actor-buttons">
                             <button class="btn-move" data-dir="left"><</button>
                             <button class="btn-move" data-dir="right">></button>
@@ -124,6 +201,19 @@
                             <button class="btn-remove">X</button>
                         </div>
                     `;
+
+                    // Expression change
+                    const expSelect = card.querySelector('.actor-expression-select');
+                    if (expSelect) {
+                        expSelect.addEventListener('change', (e) => {
+                            const newExp = e.target.value;
+                            const newSprite = actorData.expresiones[newExp] || actorData.sprite;
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({
+                                expresionActiva: newExp,
+                                sprite: newSprite
+                            });
+                        });
+                    }
 
                     // Move Left
                     const btnLeft = card.querySelector('.btn-move[data-dir="left"]');
