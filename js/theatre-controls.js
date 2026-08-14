@@ -4,13 +4,28 @@
     document.addEventListener('DOMContentLoaded', () => {
         const db = global.firebase.database();
 
-        const NPC_ROSTER_PATH = "campaña/actores";
+        const NPC_ROSTER_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
         const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
         const MAX_ACTORS = 5;
 
+        let npcDatabaseRaw = {};
+        let npcDatabaseBase = {};
         let npcDatabase = {};
         let liveActors = {};
         let playerDatabase = {};
+
+        function refreshNpcDatabase() {
+            npcDatabase = {};
+            // base_datos_npcs takes precedence 1
+            for (const [id, data] of Object.entries(npcDatabaseBase)) {
+                npcDatabase[id] = data;
+            }
+            // actores takes precedence 2
+            for (const [id, data] of Object.entries(npcDatabaseRaw)) {
+                npcDatabase[id] = data;
+            }
+            updateRosterSelect();
+        }
 
         const selectNpcRoster = document.getElementById("select-npc-roster");
         const liveActorsList = document.getElementById("live-actors-list");
@@ -34,7 +49,7 @@
                     actorId = player.actorId;
                     actorData = npcDatabase[actorId];
                 } else {
-                    actorId = Object.keys(npcDatabase).find(k => npcDatabase[k].vinculo_jugador === playerId);
+                    actorId = Object.keys(npcDatabase).find(k => npcDatabase[k].vinculo_jugador === playerId && npcDatabase[k].tipo === 'Jugador');
                     if (actorId) actorData = npcDatabase[actorId];
                 }
 
@@ -55,7 +70,7 @@
             optgroupNpcs.label = "NPCs / PERSONAJES DEL DM";
 
             for (const [actorId, actorData] of Object.entries(npcDatabase)) {
-                if (processedPlayerActors.has(actorId) || actorData.tipo === 'Jugador' || actorData.vinculo_jugador) continue;
+                if (actorData.tipo === 'Jugador') continue;
 
                 const opt = document.createElement('option');
                 opt.value = actorId;
@@ -73,9 +88,14 @@
                 return;
             }
 
-            db.ref(NPC_ROSTER_PATH).on('value', (snapshot) => {
-                npcDatabase = snapshot.val() || {};
-                updateRosterSelect();
+            db.ref(NPC_ROSTER_PATHS[0]).on('value', (snapshot) => {
+                npcDatabaseBase = snapshot.val() || {};
+                refreshNpcDatabase();
+            });
+
+            db.ref(NPC_ROSTER_PATHS[1]).on('value', (snapshot) => {
+                npcDatabaseRaw = snapshot.val() || {};
+                refreshNpcDatabase();
             });
 
             db.ref("campaña/jugadores").on('value', (snapshot) => {

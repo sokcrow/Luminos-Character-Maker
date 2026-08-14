@@ -61,13 +61,24 @@ test("los jugadores reciben un apagón reactivo desde Firebase", () => {
 
 test("el grid de personajes jugadores existe y se separa de los NPCs", () => {
   expect(workshopPage).toContain('id="grid-personajes-jugadores"');
-  expect(workshopPage).toContain('actorData.tipo === "Jugador" || actorData.vinculo_jugador');
+  expect(workshopPage).toContain('actorData.tipo === "Jugador"');
   expect(workshopPage).toContain('db.ref("campaña/jugadores").on("value"');
 });
 
 test("se pueden crear perfiles de escena para personajes", () => {
   expect(workshopPage).toContain('window._pendingPlayerProfileLink = playerId');
   expect(workshopPage).toContain('campaña/jugadores/${window._pendingPlayerProfileLink}/actorId');
+});
+
+test("el rediseño moderno del form de actores existe y tiene dos rutas (Requirement 49)", () => {
+  expect(workshopPage).toContain('ENTRAR A SESIÓN EN VIVO');
+  expect(workshopPage).not.toContain('<a href="hoja_de_DM.html" target="_blank"');
+  expect(workshopPage).toContain('const ACTOR_DATABASE_PATHS = [');
+  expect(workshopPage).toContain('campaña/base_datos_npcs');
+  expect(workshopPage).not.toContain('id="actor-asignacion-container"');
+  expect(workshopPage).toContain('<span style="color: #55e38b;'); // ONLINE Indicator
+  expect(workshopPage).toContain('<select id="actor-vinculo-jugador"'); // Inside player cards logic now
+  expect(workshopPage).toContain('css/actor-studio.css'); // CSS check
 });
 
 test("la biblioteca de escenarios contiene los controles y utiliza update", () => {
