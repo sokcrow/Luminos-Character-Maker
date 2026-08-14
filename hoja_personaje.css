@@ -6937,6 +6937,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    isolation: isolate;
 }
 
 #theatre-view-player.theatre-active {
