@@ -7667,8 +7667,7 @@ window.processEntitiesData = function(entities) {
           });
 
         function resetActorForm() {
-          isEditing = false;
-          editModeActorKey = null;
+                    editModeActorKey = null;
           window._pendingPlayerProfileLink = null;
           document.getElementById("actor-nombre").value = "";
           document.getElementById("actor-titulo").value = "";
@@ -7796,8 +7795,7 @@ window.processEntitiesData = function(entities) {
       }
 
       function loadActorIntoFormInternal(actorId, actorData) {
-              isEditing = true;
-              editModeActorKey = actorId;
+                            editModeActorKey = actorId;
               window._pendingPlayerProfileLink = null;
 
               document.getElementById("actor-nombre").value = actorData.nombre || "";
@@ -7915,14 +7913,13 @@ window.processEntitiesData = function(entities) {
                     if (actorId) loadActorIntoFormInternal(actorId, dbActoresCache[actorId]);
                 } else {
                     document.getElementById('actor-nombre').value = nombre;
-                    document.getElementById('actor-icono').value = playerData.icon || "";
+                    document.getElementById('actor-icono').value = playerData.icono_jugador || playerData.icon || "";
                     document.getElementById('actor-sprite').value = playerData.sprite || "";
                     document.getElementById('actor-tipo').value = "Jugador";
 
                     // We need a way to store the link. We'll set a custom attribute or just inject it on save
                     window._pendingPlayerProfileLink = playerId;
-                    isEditing = false;
-                    editModeActorKey = null;
+                                        editModeActorKey = null;
                     document.querySelector('.form-cyber h4').textContent = "Crear Perfil de Escena para " + nombre;
                     document.getElementById('actor-nombre').scrollIntoView({ behavior: "smooth" });
                 }

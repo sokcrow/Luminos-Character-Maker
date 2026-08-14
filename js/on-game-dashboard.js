@@ -380,6 +380,14 @@
                 }
             }
 
+            // Also persist the expression to the actor instance so it doesn't revert
+            if (speakerData.actorId) {
+                db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
+                    expresionActiva: speakerData.expression,
+                    sprite: speakerData.sprite
+                });
+            }
+
             const msgKey = db.ref(QUEUE_ROOT).push().key;
             db.ref(`${QUEUE_ROOT}/${msgKey}`).set({
               mensaje: texto,
