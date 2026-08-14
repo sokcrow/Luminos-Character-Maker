@@ -17,6 +17,14 @@
         }
     });
 
+    // 1.5 Reactividad de Localización
+    db.ref(`${THEATRE_ROOT}/locacion`).on("value", (snapshot) => {
+        const locacionEl = document.getElementById("theatre-location");
+        if (locacionEl) {
+            locacionEl.textContent = snapshot.val() || "LOCALIZACIÓN DESCONOCIDA";
+        }
+    });
+
     // 2. Motor de Sprites (Actores en Escena)
     db.ref(`${THEATRE_ROOT}/actores`).on("value", (snapshot) => {
         const stage = document.getElementById("theatre-stage");
@@ -108,8 +116,14 @@
             }
         }
 
-        if (nameEl) nameEl.textContent = dialogData.nombre || "";
-        if (titleEl) titleEl.textContent = dialogData.titulo || "";
+        if (nameEl) {
+            nameEl.textContent = dialogData.nombre || "";
+            nameEl.style.color = dialogData.color_nombre || "#c49a00";
+        }
+        if (titleEl) {
+            titleEl.textContent = dialogData.titulo || "";
+            titleEl.style.color = dialogData.color_titulo || "#aaaaaa";
+        }
 
         if (textEl) {
             clearInterval(typewriterInterval);
@@ -164,9 +178,19 @@
 
         const stage = document.getElementById("theatre-stage");
         if (stage) {
+            const activeActorId = dialogData.actorId;
             const activeSpriteUrl = dialogData.sprite;
+
             Array.from(stage.children).forEach((img) => {
-                if (activeSpriteUrl && img.src === activeSpriteUrl) {
+                let isActive = false;
+                if (activeActorId && img.dataset.id === activeActorId) {
+                    isActive = true;
+                } else if (!activeActorId && activeSpriteUrl && img.src === activeSpriteUrl) {
+                    // Fallback to old behavior for backwards compatibility if actorId is not set
+                    isActive = true;
+                }
+
+                if (isActive) {
                     img.style.filter = "brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))";
                     img.style.zIndex = "10";
                 } else {
