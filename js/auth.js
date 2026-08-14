@@ -108,10 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnLogin.disabled = true;
         btnLogin.textContent = "AUTENTICANDO...";
 
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-            .then(() => {
-                return auth.signInWithEmailAndPassword(email, password);
-            })
+        auth.signInWithEmailAndPassword(email, password)
             .then((userCredential) => {
                 redirectUser(userCredential.user);
             })
@@ -158,10 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRegisterSubmit.disabled = true;
         btnRegisterSubmit.textContent = "REGISTRANDO...";
 
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-            .then(() => {
-                return auth.createUserWithEmailAndPassword(email, password);
-            })
+        auth.createUserWithEmailAndPassword(email, password)
             .then((userCredential) => {
                 const user = userCredential.user;
 
