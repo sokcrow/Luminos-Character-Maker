@@ -2,12 +2,7 @@
     "use strict";
 
     document.addEventListener('DOMContentLoaded', () => {
-        global.firebase.auth().onAuthStateChanged((user) => {
-            if (!user) {
-                console.error("CRÍTICO: Usuario no detectado. theatre-controls no arrancará.");
-                return;
-            }
-            const db = global.firebase.database();
+        const db = global.firebase.database();
 
         const NPC_ROSTER_PATH = "campaña/actores";
         const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
@@ -137,7 +132,6 @@
                 });
             });
         }
-        });
     });
 
 })(window);

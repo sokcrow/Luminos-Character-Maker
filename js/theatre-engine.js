@@ -1,17 +1,10 @@
 (function (global) {
     "use strict";
 
-    document.addEventListener('DOMContentLoaded', () => {
-        global.firebase.auth().onAuthStateChanged((user) => {
-            if (!user) {
-                console.error("CRÍTICO: Usuario no detectado. theatre-engine no arrancará.");
-                return;
-            }
+    const db = global.firebase.database();
 
-            const db = global.firebase.database();
-            const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
-            const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
-
+    const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
+    const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
     // 1. Reactividad de Escenografía (Fondo)
     db.ref(`${THEATRE_ROOT}/fondo`).on("value", (snapshot) => {
@@ -104,6 +97,4 @@
         if (textEl) textEl.textContent = dialogData.mensaje || "…";
     });
 
-        });
-    });
 })(window);

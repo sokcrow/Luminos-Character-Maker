@@ -114,11 +114,6 @@
   function bindDm({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
-    global.firebase.auth().onAuthStateChanged((user) => {
-      if (!user) {
-        console.error("CRÍTICO: Usuario no detectado. bindDm no arrancará.");
-        return;
-      }
     const instanceRef = db.ref(INSTANCE_PATH);
 
     documentRef.querySelectorAll(".instance-radio").forEach((radio) => {
@@ -146,17 +141,11 @@
         global.alert?.("El Teatro no es la instancia activa. Selecciona [ SISTEMA DE LORE / TEATRO ].");
       }
     });
-    });
   }
 
   function bindDashboard({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
-    global.firebase.auth().onAuthStateChanged((user) => {
-      if (!user) {
-        console.error("CRÍTICO: Usuario no detectado. bindDashboard no arrancará.");
-        return;
-      }
     const instanceRef = db.ref(INSTANCE_PATH);
 
     // 2. EMISOR DE ESTADO (Control del DM)
@@ -183,20 +172,13 @@
     instanceRef.on('value', (snapshot) => {
         applyDashboardInstance(snapshot.val(), documentRef);
     });
-    });
   }
 
   function bindPlayer({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
-    global.firebase.auth().onAuthStateChanged((user) => {
-      if (!user) {
-        console.error("CRÍTICO: Usuario no detectado. bindPlayer no arrancará.");
-        return;
-      }
     db.ref(INSTANCE_PATH).on("value", (snapshot) => {
       applyPlayerInstance(snapshot.val(), documentRef);
-    });
     });
   }
 
