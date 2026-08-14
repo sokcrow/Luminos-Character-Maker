@@ -196,9 +196,15 @@ test("la inicialización del directorio de actores se registra de forma segura a
   expect(dmPageCurrent).toContain("campaña/actores");
   expect(dmPageCurrent).toContain("campaña/jugadores");
 
-  // Verifica que los listeners no estén duplicados al final (se eliminó la versión antigua)
-  const matchesJugadores = [...dmPageCurrent.matchAll(/db.ref\("campaña\/jugadores"\)\.on\("value"/g)];
-  expect(matchesJugadores.length).toBeLessThanOrEqual(2); // Uno puede ser el del Roster (en otro script si estuviera) pero en dm_page ahora debe haber 1.
+  // Verifica que cada listener del directorio aparezca exactamente una vez (con la firma exacta del directorio)
+  const matchesJugadores = [...dmPageCurrent.matchAll(/db\.ref\("campaña\/jugadores"\)\.on\("value", \(snapshot\) => \{\s*clearActorDirectoryError/g)];
+  expect(matchesJugadores.length).toBe(1);
+
+  const matchesNpcs = [...dmPageCurrent.matchAll(/db\.ref\("campaña\/base_datos_npcs"\)\.on\("value", \(snapshot\) => \{\s*clearActorDirectoryError/g)];
+  expect(matchesNpcs.length).toBe(1);
+
+  const matchesActores = [...dmPageCurrent.matchAll(/db\.ref\("campaña\/actores"\)\.on\("value", \(snapshot\) => \{\s*clearActorDirectoryError/g)];
+  expect(matchesActores.length).toBe(1);
 });
 
 

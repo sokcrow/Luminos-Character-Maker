@@ -3802,22 +3802,31 @@ window.processEntitiesData = function(entities) {
 
         function showActorDirectoryError(path, error) {
             console.error(`Error al cargar el directorio de actores desde la ruta: ${path}`, error);
+            const errId = "err-" + path.replace(/[^a-zA-Z0-9]/g, '-');
+
+            // Si ya existe, no duplicarlo
+            if (document.getElementById(errId)) return;
+
             const errorMsg = document.createElement("div");
+            errorMsg.id = errId;
             errorMsg.style.cssText = "color: #ff4444; font-size: 14px; text-align: center; margin: 10px; background: #331111; padding: 10px; border: 1px solid #ff4444;";
             errorMsg.innerText = `Error de conexión con Firebase (${path}). Revisa la consola.`;
 
-            const header = document.getElementById("header-jugadores");
-            if (header) {
-                header.insertAdjacentElement('afterend', errorMsg.cloneNode(true));
-            }
             const grid = document.getElementById("grid-actores");
             if (grid) {
-                grid.parentElement.insertBefore(errorMsg.cloneNode(true), grid);
+                grid.parentElement.insertBefore(errorMsg, grid);
             }
+        }
+
+        function clearActorDirectoryError(path) {
+            const errId = "err-" + path.replace(/[^a-zA-Z0-9]/g, '-');
+            const el = document.getElementById(errId);
+            if (el) el.remove();
         }
 
         function startActorDirectorySubscriptions() {
             db.ref("campaña/jugadores").on("value", (snapshot) => {
+                clearActorDirectoryError("campaña/jugadores");
                 const data = snapshot.val() || {};
                 dbJugadoresCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
                 window.dbJugadoresCache = dbJugadoresCache;
@@ -3827,6 +3836,7 @@ window.processEntitiesData = function(entities) {
             }, (error) => showActorDirectoryError("campaña/jugadores", error));
 
             db.ref("campaña/base_datos_npcs").on("value", (snapshot) => {
+                clearActorDirectoryError("campaña/base_datos_npcs");
                 const data = snapshot.val() || {};
                 dbNpcsCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
                 refreshActorCache();
@@ -3834,6 +3844,7 @@ window.processEntitiesData = function(entities) {
             }, (error) => showActorDirectoryError("campaña/base_datos_npcs", error));
 
             db.ref("campaña/actores").on("value", (snapshot) => {
+                clearActorDirectoryError("campaña/actores");
                 const data = snapshot.val() || {};
                 dbActoresRawCache = window.processEntitiesData ? window.processEntitiesData(data) : data;
                 refreshActorCache();
