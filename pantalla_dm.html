@@ -7667,6 +7667,9 @@ window.processEntitiesData = function(entities) {
           });
 
         function resetActorForm() {
+          isEditing = false;
+          editModeActorKey = null;
+          window._pendingPlayerProfileLink = null;
           document.getElementById("actor-nombre").value = "";
           document.getElementById("actor-titulo").value = "";
           document.getElementById("actor-color-nombre").value = "#ffffff";
@@ -7793,7 +7796,9 @@ window.processEntitiesData = function(entities) {
       }
 
       function loadActorIntoFormInternal(actorId, actorData) {
+              isEditing = true;
               editModeActorKey = actorId;
+              window._pendingPlayerProfileLink = null;
 
               document.getElementById("actor-nombre").value = actorData.nombre || "";
               document.getElementById("actor-titulo").value = actorData.titulo || "";
@@ -7907,7 +7912,7 @@ window.processEntitiesData = function(entities) {
             btnAction.onclick = () => {
                 if (hasProfile) {
                     const actorId = playerData.actorId || Object.keys(dbActoresCache).find(k => dbActoresCache[k].vinculo_jugador === playerId);
-                    if (actorId) editActor(actorId);
+                    if (actorId) loadActorIntoFormInternal(actorId, dbActoresCache[actorId]);
                 } else {
                     document.getElementById('actor-nombre').value = nombre;
                     document.getElementById('actor-icono').value = playerData.icon || "";
@@ -8075,7 +8080,7 @@ window.processEntitiesData = function(entities) {
       }
 
         // Escuchar actores y jugadores para separar NPCs y Personajes Jugadores
-        let dbJugadoresCache = {};
+
         db.ref("campaña/jugadores").on("value", (snapshot) => {
             dbJugadoresCache = snapshot.val() || {};
             renderListaActores();

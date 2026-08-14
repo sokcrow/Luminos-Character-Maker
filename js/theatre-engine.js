@@ -193,6 +193,9 @@
                 if (isActive) {
                     img.style.filter = "brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))";
                     img.style.zIndex = "10";
+                    if (activeSpriteUrl) {
+                        img.src = activeSpriteUrl;
+                    }
                 } else {
                     img.style.filter = "brightness(0.5)";
                     img.style.zIndex = "1";
