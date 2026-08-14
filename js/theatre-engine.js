@@ -84,7 +84,22 @@
         });
     });
 
-    // 3. Sincronización de Diálogos y Logs (Caja Visual Novel)
+            // 3. Sincronización de Diálogos (Motor Typewriter Deterministico)
+    let typewriterInterval = null;
+    let resizeObserver = null;
+    let cachedFullTextLength = 0;
+
+    function resizeFontToFit(textEl) {
+        textEl.style.fontSize = ''; // Reset to default
+        let size = parseFloat(window.getComputedStyle(textEl).fontSize) || 24;
+        let iters = 0;
+        while (textEl.scrollHeight > textEl.clientHeight && size > 10 && iters < 15) {
+            size -= 1;
+            textEl.style.fontSize = size + 'px';
+            iters++;
+        }
+    }
+
     db.ref(DIALOGUE_ROOT).on("value", (snapshot) => {
         const dialogData = snapshot.val() || {};
 
@@ -92,9 +107,82 @@
         const titleEl = document.getElementById("dialogue-title");
         const textEl = document.getElementById("dialogue-text");
 
-        if (nameEl) nameEl.textContent = dialogData.nombre || "NARRADOR";
+        const platesContainer = document.querySelector(".theatre-plates-container");
+        if (platesContainer) {
+            if (!dialogData.nombre || dialogData.nombre.trim() === "") {
+                platesContainer.style.display = "none";
+            } else {
+                platesContainer.style.display = "flex";
+            }
+        }
+
+        if (nameEl) nameEl.textContent = dialogData.nombre || "";
         if (titleEl) titleEl.textContent = dialogData.titulo || "";
-        if (textEl) textEl.textContent = dialogData.mensaje || "…";
+
+        if (textEl) {
+            clearInterval(typewriterInterval);
+            if (!dialogData.mensaje) {
+                textEl.textContent = "…";
+                textEl.style.fontSize = '';
+                return;
+            }
+
+            const fullText = dialogData.mensaje;
+            const startedAt = dialogData.startedAt || Date.now();
+            const speed = dialogData.speedMs || 30; // 30ms per char
+
+            if (resizeObserver) resizeObserver.disconnect();
+
+            // Re-eval resize only once using a hidden clone to pre-calculate font size!
+            // This prevents layout thrashing during the typewriter effect.
+            const clone = textEl.cloneNode(true);
+            clone.style.visibility = 'hidden';
+            clone.style.position = 'absolute';
+            clone.style.width = textEl.clientWidth + 'px';
+            clone.style.height = textEl.clientHeight + 'px';
+            clone.textContent = fullText;
+            textEl.parentNode.appendChild(clone);
+
+            resizeFontToFit(clone);
+            const finalSize = clone.style.fontSize;
+            clone.remove();
+
+            if(finalSize) {
+                textEl.style.fontSize = finalSize;
+            } else {
+                textEl.style.fontSize = '';
+            }
+
+            // Animation loop
+            typewriterInterval = setInterval(() => {
+                const now = Date.now();
+                const elapsed = now - startedAt;
+                let charsToShow = Math.floor(elapsed / speed);
+
+                if (charsToShow >= fullText.length) {
+                    charsToShow = fullText.length;
+                    clearInterval(typewriterInterval);
+                }
+
+                if (charsToShow < 0) charsToShow = 0;
+
+                textEl.textContent = fullText.substring(0, charsToShow);
+            }, 30);
+        }
+
+        const stage = document.getElementById("theatre-stage");
+        if (stage) {
+            const activeSpriteUrl = dialogData.sprite;
+            Array.from(stage.children).forEach((img) => {
+                if (activeSpriteUrl && img.src === activeSpriteUrl) {
+                    img.style.filter = "brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))";
+                    img.style.zIndex = "10";
+                } else {
+                    img.style.filter = "brightness(0.5)";
+                    img.style.zIndex = "1";
+                }
+            });
+        }
     });
 
 })(window);

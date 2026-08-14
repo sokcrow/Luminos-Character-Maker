@@ -6,6 +6,7 @@
 
         const NPC_ROSTER_PATH = "campaña/actores";
         const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
+        const MAX_ACTORS = 5;
 
         let npcDatabase = {};
         let liveActors = {};
@@ -34,7 +35,6 @@
                 snapshot.forEach((hijo) => {
                     const npc = hijo.val();
                     const npcId = hijo.key;
-                    // Ajusta 'npc.nombre' a como tengas guardado el nombre en tu JSON
                     selectNpcRoster.innerHTML += `<option value="${npcId}">${npc.nombre || 'Sin Nombre'}</option>`;
                 });
                 console.log("Roster de NPCs cargado con éxito.");
@@ -44,7 +44,7 @@
         // 1. Carga del Roster (Pre-Game NPCs)
         cargarRosterNPCs();
 
-        // 2. El Disparo (Spawn)
+        // 2. El Disparo (Spawn) con límite de sprites
         if (btnSpawnNpc) {
             btnSpawnNpc.addEventListener("click", () => {
                 if (!selectNpcRoster) return;
@@ -55,20 +55,46 @@
                 const npcData = npcDatabase[selectedId];
                 if (!npcData) return;
 
-                // Generate a unique ID for this instance on stage
-                const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                // Transacción para garantizar el límite de 5 actores
+                const actorsRef = db.ref(THEATRE_ACTORS_PATH);
+                actorsRef.transaction((currentData) => {
+                    let actors = currentData || {};
+                    let actorKeys = Object.keys(actors);
 
-                const spawnPayload = {
-                    nombre: npcData.nombre || selectedId,
-                    sprite: npcData.sprite || npcData.url || "",
-                    x: 0,
-                    y: 0,
-                    escala: npcData.escala || 1,
-                    orientacion: 'normal'
-                };
+                    // Si ya hay 5, eliminar el más antiguo basado en spawnedAt
+                    if (actorKeys.length >= MAX_ACTORS) {
+                        actorKeys.sort((a, b) => (actors[a].spawnedAt || 0) - (actors[b].spawnedAt || 0));
+                        // Calculamos cuántos hay que borrar para que quede espacio para 1 nuevo
+                        const toRemoveCount = (actorKeys.length - MAX_ACTORS) + 1;
+                        for(let i=0; i < toRemoveCount; i++) {
+                            const oldestKey = actorKeys[i];
+                            delete actors[oldestKey];
+                        }
+                    }
 
-                db.ref(`${THEATRE_ACTORS_PATH}/${actorInstanceId}`).set(spawnPayload)
-                  .catch(err => console.error("Error inyectando NPC al teatro:", err));
+                    // Añadir el nuevo
+                    const now = window.firebase.database.ServerValue.TIMESTAMP;
+                    const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                    actors[actorInstanceId] = {
+                        nombre: npcData.nombre || selectedId,
+                        sprite: npcData.sprite || npcData.url || "",
+                        x: 0,
+                        y: 0,
+                        escala: npcData.escala || 1,
+                        orientacion: 'normal',
+                        spawnedAt: now
+                    };
+
+                    return actors;
+                }, (error, committed, snapshot) => {
+                    if (error) {
+                        console.error("Transacción falló de forma anormal", error);
+                    } else if (!committed) {
+                        console.log("Transacción abortada");
+                    } else {
+                        console.log("Actor añadido exitosamente.");
+                    }
+                });
             });
         }
 
@@ -77,6 +103,12 @@
             db.ref(THEATRE_ACTORS_PATH).on("value", snapshot => {
                 liveActors = snapshot.val() || {};
                 liveActorsList.innerHTML = '';
+
+                // Actualizar contador en la UI si existe (opcional)
+                const panelTitle = document.querySelector(".panel-title");
+                if (panelTitle) {
+                    panelTitle.textContent = `CONTROL DE CASTING (${Object.keys(liveActors).length}/${MAX_ACTORS})`;
+                }
 
                 Object.keys(liveActors).forEach(actorId => {
                     const actorData = liveActors[actorId];

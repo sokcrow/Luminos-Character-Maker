@@ -9,14 +9,23 @@
   <link rel="stylesheet" href="css/on-game-dashboard.css">
 </head>
 <body class="on-game-dashboard">
-  <nav class="master-control-bar" aria-label="Control de instancia">
+    <nav class="master-control-bar" aria-label="Control de instancia">
     <div class="instance-toggles">
       <label><input type="radio" name="instancia" value="ninguno"> PANTALLA NEGRA</label>
       <label><input type="radio" name="instancia" value="teatro"> TEATRO / LORE</label>
       <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
     </div>
-    <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+    <div class="status-container" style="display: flex; gap: 20px; align-items: center;">
+      <span id="current-output-status" style="color: #c49a00; font-weight: bold; letter-spacing: 1px;">SALIDA ACTUAL: PANTALLA NEGRA</span>
+      <span id="connection-status" class="connection-status offline">● CONECTANDO</span>
+    </div>
   </nav>
+
+  <div id="auth-blocker" style="display: none; position: fixed; inset: 0; background: #000; z-index: 99999; color: #ff0000; flex-direction: column; align-items: center; justify-content: center; font-family: 'Share Tech Mono', monospace; font-size: 2rem;">
+      <h2>ACCESO DENEGADO</h2>
+      <p>NO TIENES PERMISOS DE DIRECTOR PARA ESTA SESIÓN.</p>
+      <a href="index.html" style="color: #fff; text-decoration: underline; margin-top: 20px; font-size: 1rem;">VOLVER AL INICIO</a>
+  </div>
 
   <main>
     <section id="modulo-standby" class="game-module active-module" aria-hidden="false">
@@ -69,6 +78,7 @@
     </section>
   </main>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script>
     firebase.initializeApp({apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"});
