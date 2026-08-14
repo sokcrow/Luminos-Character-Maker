@@ -5518,7 +5518,6 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    isolation: isolate;
 }
 
 .shop-modal-body {

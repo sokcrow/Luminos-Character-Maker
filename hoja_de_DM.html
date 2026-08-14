@@ -82,20 +82,20 @@
             <h4 style="color: #a37c35; margin: 0 0 10px 0; font-family: 'Cinzel', serif;">Biblioteca de Escenarios</h4>
 
             <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
-                <select id="theatre-scenario-location-filter" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+                <select id="theatre-scenario-location-filter" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 1; max-width: 100%; box-sizing: border-box;">
                     <option value="">Todas las localizaciones</option>
                 </select>
-                <input type="text" id="theatre-scenario-tag-filter" placeholder="Filtrar por etiqueta..." style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 1;">
-                <select id="theatre-scenario-select" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 2;">
+                <input type="text" id="theatre-scenario-tag-filter" placeholder="Filtrar por etiqueta..." style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 1; max-width: 100%; box-sizing: border-box;">
+                <select id="theatre-scenario-select" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; flex: 1 1 100%; max-width: 100%; box-sizing: border-box;">
                     <option value="">Selecciona un escenario guardado...</option>
                 </select>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-                <input id="theatre-scenario-name" type="text" placeholder="Nombre del escenario" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
-                <input id="theatre-background-input" type="url" placeholder="URL del fondo" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
-                <input id="theatre-location-input" type="text" placeholder="Localización" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
-                <input id="theatre-scenario-tags" type="text" placeholder="Sub-etiquetas (separadas por coma)" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d;">
+            <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px;">
+                <input id="theatre-scenario-name" type="text" placeholder="Nombre del escenario" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
+                <input id="theatre-background-input" type="url" placeholder="URL del fondo" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
+                <input id="theatre-location-input" type="text" placeholder="Localización" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
+                <input id="theatre-scenario-tags" type="text" placeholder="Sub-etiquetas (separadas por coma)" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
