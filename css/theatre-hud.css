@@ -177,7 +177,6 @@
 .on-game-dashboard #modulo-teatro .theatre-dialogue-text {
   position: absolute !important;
   inset: 0 !important;
-  z-index: 1;
   isolation: isolate;
   box-sizing: border-box;
   display: flex !important;
