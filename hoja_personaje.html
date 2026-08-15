@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="hoja_personaje.css" />
     <link rel="stylesheet" href="css/theatre-dialogue.css" />
+    <link rel="stylesheet" href="css/theatre-hud.css" />
 
     <style>
       #system-loading-overlay {
@@ -7239,8 +7240,8 @@
 
 
       <!-- Tactical HUD Right -->
-      <nav class="hud-sidebar-right is-open" aria-label="Accesos de la hoja de personaje">
-        <button id="btn-toggle-hud-menu" type="button" class="hud-menu-toggle" title="Ocultar menú" aria-label="Ocultar menú de personaje" aria-expanded="true" aria-controls="hud-menu-dropdown">
+      <nav class="hud-sidebar-right" aria-label="Accesos de la hoja de personaje">
+        <button id="btn-toggle-hud-menu" type="button" class="hud-menu-toggle" title="Mostrar menú" aria-label="Mostrar menú de personaje" aria-expanded="false" aria-controls="hud-menu-dropdown">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -7315,6 +7316,14 @@
             <img id="tienda-fisica-badge" src="" alt="" style="display: none" />
           </button>
 
+
+<button id="btn-abrir-escritura" class="hud-menu-item hud-menu-item--theatre" title="Actuar en el Teatro">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Actuar</span>
+        </button>
+<button id="btn-toggle-theatre-log-player" class="hud-menu-item hud-menu-item--theatre" type="button" aria-controls="theatre-log-container" aria-expanded="false" title="Ver Historial" aria-label="Ver Historial del Teatro"><img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" /><span>Historial</span></button>
         </div>
       </nav>
 
@@ -11968,17 +11977,7 @@
       </div>
     </div>
     <!-- End Limbus Main -->
-
-    <!-- Contextual theatre action (inventory lives in the compact command rail) -->
-    <div class="hud-right-container" style="position: fixed; right: 20px; bottom: 20px; z-index: 9999; flex-direction: column-reverse; align-items: flex-end;">
-        <button id="btn-abrir-escritura" class="control-btn" title="Actuar en el Teatro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </button>
-    </div>
-
-    <!-- Shop Modal (Limbus Dispensary Style) -->
+<!-- Shop Modal (Limbus Dispensary Style) -->
     <div id="shop-modal" class="inventory-modal">
       <div class="shop-modal-content">
         <button id="shop-modal-close" class="inventory-modal-close">×</button>
@@ -12431,11 +12430,7 @@
       <!-- Location Sign -->
       <div class="theatre-location">
         <span id="theatre-location">Unknown Location</span>
-      </div>
-
-      <button id="btn-toggle-theatre-log-player" class="btn-icon-base size-36" title="Ver Historial" aria-label="Ver Historial del Teatro"><img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" /></button>
-
-      <!-- Theatre Log Container -->
+      </div><!-- Theatre Log Container -->
       <div id="theatre-log-container" style="display: none">
         <!-- Log items injected here -->
       </div>
