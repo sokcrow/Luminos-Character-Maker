@@ -195,7 +195,7 @@
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  font-size: clamp(17px, 1.4vw, 24px) !important;
+  font-size: clamp(17px, 1.4vw, 24px);
   font-weight: 400;
   line-height: 1.45 !important;
   letter-spacing: 0.01em;
@@ -643,7 +643,7 @@ body.player-instance-theatre
   #theatre-view-player .theatre-dialogue-text,
   .on-game-dashboard #modulo-teatro .theatre-dialogue-text {
     padding: 37px 28px 18px !important;
-    font-size: 15px !important;
+    font-size: 15px;
   }
 
   #theatre-view-player .theatre-plates-container,
