@@ -189,6 +189,11 @@
     42px
     clamp(42px, 8vw, 115px)
     24px !important;
+  max-width: none !important;
+  margin: 0 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  z-index: 1 !important;
   overflow: hidden !important;
   color: #eee7d4 !important;
   background: transparent !important;
