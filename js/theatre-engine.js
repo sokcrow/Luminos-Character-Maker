@@ -4,6 +4,46 @@
     const db = global.firebase.database();
 
     const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
+
+    function getSafeCssColor(value, fallback) {
+        const candidate = typeof value === "string" ? value.trim() : "";
+
+        if (!candidate) {
+            return fallback;
+        }
+
+        if (global.CSS && typeof global.CSS.supports === "function") {
+            return global.CSS.supports("color", candidate)
+                ? candidate
+                : fallback;
+        }
+
+        return /^#[0-9a-f]{3,8}$/i.test(candidate)
+            ? candidate
+            : fallback;
+    }
+
+    function paintTitlePlate(titleEl, colorValue) {
+        const titleColor = getSafeCssColor(colorValue, "#3b2918");
+
+        titleEl.style.setProperty(
+            "color",
+            "#ffffff",
+            "important"
+        );
+
+        titleEl.style.setProperty(
+            "background",
+            `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`,
+            "important"
+        );
+
+        titleEl.style.setProperty(
+            "border-left-color",
+            titleColor,
+            "important"
+        );
+    }
     const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
         // 1. Reactividad de Escenografía (Fondo)
@@ -122,7 +162,7 @@
         }
         if (titleEl) {
             titleEl.textContent = dialogData.titulo || "";
-            titleEl.style.color = dialogData.color_titulo || "#aaaaaa";
+            paintTitlePlate(titleEl, dialogData.color_titulo);
         }
 
         if (textEl) {

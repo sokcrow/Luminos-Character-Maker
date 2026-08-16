@@ -114,6 +114,37 @@ test("el motor del teatro utiliza el actorId para iluminar y colorea el diálogo
   expect(engineScript).toContain('nameEl.style.color = dialogData.color_nombre');
 });
 
+test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de teatro)", () => {
+  const engineScript = fs.readFileSync(
+    path.join(__dirname, "..", "js", "theatre-engine.js"),
+    "utf8"
+  );
+  const dmPageCurrent = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_de_DM.html"),
+    "utf8"
+  );
+  const playerPage = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.html"),
+    "utf8"
+  );
+
+  // 1. Validar que el motor incluye la funcion paintTitlePlate
+  expect(engineScript).toContain("function paintTitlePlate");
+  expect(engineScript).toContain('titleEl.style.setProperty(\n            "color",\n            "#ffffff",\n            "important"\n        )');
+
+  // 2. No debe haber asignaciones de style.color para el titulo (ni en JS ni en HTML)
+  expect(engineScript).not.toContain("titleEl.style.color = dialogData.color_titulo");
+  expect(playerPage).not.toContain("titlePlate.style.color = state.color_titulo");
+
+  // 3. Jugador y DM cargan el motor compartido y tienen lógica unificada
+  expect(dmPageCurrent).toContain('src="js/theatre-engine.js"');
+  expect(playerPage).toContain('src="js/theatre-engine.js"');
+
+  // 4. Fallback de color vacío debe existir en ambos lados
+  expect(engineScript).toContain('getSafeCssColor(colorValue, "#3b2918")');
+  expect(playerPage).toContain('let titleColor = state.color_titulo || "#3b2918";');
+});
+
 test("el centro de mando reacciona a los cambios de locación", () => {
   const engineScript = fs.readFileSync(
     path.join(__dirname, "..", "js", "theatre-engine.js"),
