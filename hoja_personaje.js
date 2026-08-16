@@ -1200,10 +1200,24 @@ function initializeCharacterSheet() {
             }
 
             // Render modal read-only fields
-            const modalTitleEl = document.getElementById("theatre-modal-readonly-title");
-            if (modalTitleEl) {
-                modalTitleEl.innerHTML = `<span style="color: ${actorData.color_nombre || '#ffffff'}">${actorData.nombre || 'Jugador'}</span>${actorData.titulo ? ` <span style="font-size: 0.8em; color: ${actorData.color_titulo || '#3b2918'}">(${actorData.titulo})</span>` : ''}`;
+
+            const modalNameEl = document.getElementById(theatre-modal-readonly-name);
+            const modalTitleEl = document.getElementById(theatre-modal-readonly-title);
+            if (modalNameEl) {
+                modalNameEl.textContent = actorData.nombre || 'Jugador';
+                modalNameEl.style.color = actorData.color_nombre || '#ffffff';
             }
+            if (modalTitleEl) {
+                if (actorData.titulo) {
+                    modalTitleEl.textContent = '(' + actorData.titulo + ')';
+                    modalTitleEl.style.color = actorData.color_titulo || '#3b2918';
+                    modalTitleEl.style.display = 'inline';
+                } else {
+                    modalTitleEl.textContent = '';
+                    modalTitleEl.style.display = 'none';
+                }
+            }
+
             const modalIconEl = document.getElementById("theatre-modal-readonly-icon");
             if (modalIconEl) {
                 modalIconEl.src = actorData.icono || "https://via.placeholder.com/80/000000/ffffff?text=J";
@@ -1534,12 +1548,112 @@ function initializeCharacterSheet() {
     }
   }
 
+
+  window.getAssignedTheatreActor = function() {
+    const actorId = window.datosJugador?.actorId || null;
+    if (!actorId) return null;
+    const actor = window.actoresJugador && window.actoresJugador[actorId];
+    if (!actor) return null;
+    return { actorId, ...actor };
+  };
+
+  window.syncPlayerTheatreComposer = function() {
+      const assignedActor = window.getAssignedTheatreActor();
+      const exprSelect = document.getElementById("player-expression-select");
+      const btnSend = document.getElementById("btn-enviar-teatro-modal");
+      const inputEl = document.getElementById("input-teatro-modal");
+      const modalNameEl = document.getElementById("theatre-modal-readonly-name");
+      const modalTitleEl = document.getElementById("theatre-modal-readonly-title");
+      const modalIconEl = document.getElementById("theatre-modal-readonly-icon");
+
+      if (assignedActor) {
+          if (exprSelect) {
+              const currentExp = exprSelect.value;
+              exprSelect.innerHTML = "";
+              let hasExpressions = false;
+              if (assignedActor.expresiones) {
+                  for (const expName in assignedActor.expresiones) {
+                      hasExpressions = true;
+                      const opt = document.createElement("option");
+                      opt.value = expName;
+                      opt.textContent = expName;
+
+                      const expressionData = assignedActor.expresiones[expName];
+                      const spriteUrl = typeof expressionData === "string" ? expressionData : (expressionData?.sprite || "");
+                      opt.dataset.sprite = spriteUrl;
+
+                      if (expName === currentExp) opt.selected = true;
+                      exprSelect.appendChild(opt);
+                  }
+              }
+              if (!hasExpressions) {
+                  exprSelect.innerHTML = '<option value="Neutral">Neutral</option>';
+              }
+              exprSelect.style.display = "block";
+              exprSelect.disabled = false;
+          }
+          if (modalNameEl) {
+              modalNameEl.textContent = assignedActor.nombre || 'Jugador';
+              modalNameEl.style.color = assignedActor.color_nombre || '#ffffff';
+          }
+          if (modalTitleEl) {
+              if (assignedActor.titulo) {
+                  modalTitleEl.textContent = '(' + assignedActor.titulo + ')';
+                  modalTitleEl.style.color = assignedActor.color_titulo || '#3b2918';
+                  modalTitleEl.style.display = 'inline';
+              } else {
+                  modalTitleEl.textContent = '';
+                  modalTitleEl.style.display = 'none';
+              }
+          }
+          if (modalIconEl) {
+              const actorIcon = assignedActor.icono || assignedActor.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
+              if (actorIcon) {
+                  modalIconEl.src = actorIcon;
+                  modalIconEl.style.display = "block";
+              } else {
+                  const charHexColor = assignedActor.color_nombre || "#ffffff";
+                  const initial = assignedActor.nombre ? assignedActor.nombre.charAt(0) : "J";
+                  modalIconEl.src = 'https://via.placeholder.com/80/000000/' + charHexColor.replace('#', '') + '?text=' + initial;
+                  modalIconEl.style.display = "block";
+              }
+          }
+          if (btnSend) {
+              btnSend.disabled = false;
+              btnSend.style.opacity = "1";
+          }
+          if (inputEl) {
+              inputEl.placeholder = "Escribe tu acción o diálogo...";
+          }
+      } else {
+          if (exprSelect) {
+              exprSelect.innerHTML = "";
+              exprSelect.disabled = true;
+              exprSelect.style.display = "none";
+          }
+          if (modalNameEl) modalNameEl.textContent = "";
+          if (modalTitleEl) modalTitleEl.textContent = "";
+          if (modalIconEl) {
+              modalIconEl.src = "";
+              modalIconEl.style.display = "none";
+          }
+          if (btnSend) {
+              btnSend.disabled = true;
+              btnSend.style.opacity = "0.5";
+          }
+          if (inputEl) {
+              inputEl.placeholder = "Esperando asignación de actor...";
+          }
+      }
+  };
+
   const btnAbrirModal = document.getElementById('btn-abrir-escritura');
   if (btnAbrirModal) {
       btnAbrirModal.addEventListener('click', () => {
           const modal = document.getElementById('modal-escritura-teatro');
           if (modal) {
               modal.style.display = 'flex';
+              if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
               const input = document.getElementById('input-teatro-modal');
               if (input) input.focus();
           }

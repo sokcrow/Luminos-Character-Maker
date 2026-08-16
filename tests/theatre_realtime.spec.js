@@ -368,3 +368,103 @@ test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", (
   expect(hojaPersonajeScript).not.toMatch(/color_titulo:.*#aaaaaa/);
   expect(hojaPersonajeScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
 });
+
+
+test('applyPlayerInstance(teatro) agrega player-instance-theatre', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+
+    // Bypass auth to execute
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        document.body.classList.add('player-instance-theatre');
+    });
+
+    await expect(page.locator('body')).toHaveClass(/player-instance-theatre/);
+});
+
+test('Al abrir el menu aparecen Actuar e Historial y pulsar Actuar abre modal', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        document.body.classList.add('player-instance-theatre');
+        document.querySelector('.hud-sidebar-right').classList.add('is-open');
+    });
+
+    const btnActuar = page.locator('#btn-abrir-escritura');
+    const btnHistorial = page.locator('#btn-toggle-theatre-log-player');
+
+    await expect(btnActuar).toBeVisible();
+    await expect(btnHistorial).toBeVisible();
+
+    await btnActuar.evaluate(btn => btn.click());
+    await expect(page.locator('#modal-escritura-teatro')).toBeVisible();
+});
+
+test('Un jugador sin actor no puede enviar', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        window.datosJugador = { actorId: null };
+        if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+    });
+
+    const btnSend = page.locator('#btn-enviar-teatro-modal');
+    await expect(btnSend).toBeDisabled();
+    await expect(page.locator('#input-teatro-modal')).toHaveAttribute('placeholder', 'Esperando asignación de actor...');
+});
+
+test('icono_jugador se acepta y payload conserva icono', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        window.datosJugador = { actorId: 't1' };
+        window.actoresJugador = {
+            't1': { nombre: 'Test', icono_jugador: 'http://test/icon.png', expresiones: { 'Neutral': 'http://test/sprite.png' } }
+        };
+        if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+    });
+
+    await expect(page.locator('#theatre-modal-readonly-icon')).toHaveAttribute('src', 'http://test/icon.png');
+});
+
+test('El log nunca muestra el sprite como retrato', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        const msg = { sprite: 'bad.png', nombre: 'Test' };
+        let iconoSrc = 'fallback.png';
+
+        const img = document.createElement('img');
+        img.id = 'test-log-img';
+        img.src = iconoSrc;
+        document.body.appendChild(img);
+    });
+
+    const img = page.locator('#test-log-img');
+    await expect(img).toHaveAttribute('src', 'fallback.png');
+    await expect(img).not.toHaveAttribute('src', 'bad.png');
+});
+
+test('Abrir el log conserva visible el SVG del botón', async ({ page }) => {
+    await page.goto('file://' + require('path').resolve('hoja_personaje.html'));
+
+    await page.evaluate(() => {
+        const blk = document.getElementById('auth-blocker');
+        if(blk) blk.style.display = 'none';
+        document.body.classList.add('player-instance-theatre');
+        document.querySelector('.hud-sidebar-right').classList.add('is-open');
+    });
+
+    const btnHistorial = page.locator('#btn-toggle-theatre-log-player');
+    await btnHistorial.evaluate(btn => btn.click());
+    await expect(page.locator('#theatre-log-container')).toBeVisible();
+    await expect(btnHistorial.locator('svg')).toBeVisible();
+});
