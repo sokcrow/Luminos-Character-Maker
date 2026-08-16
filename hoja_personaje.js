@@ -1340,6 +1340,7 @@ function initializeCharacterSheet() {
     // === ENVÍO AL TEATRO DE LA MENTE ===
     const btnSend = document.getElementById("btn-enviar-teatro-modal");
     const inputEl = document.getElementById("input-teatro-modal");
+    const DEFAULT_TITLE_COLOR = "#3b2918";
 
     const sendTheatreMessage = () => {
       const domInput = document.getElementById("input-teatro-modal");
@@ -1363,7 +1364,7 @@ function initializeCharacterSheet() {
           nombre: window.datosJugador?.characterName || "Jugador",
           titulo: "",
           color_nombre: "#ffffff",
-          color_titulo: "#aaaaaa",
+          color_titulo: DEFAULT_TITLE_COLOR,
           escala: 1.0,
           sprite: "https://i.imgur.com/kP8s7Ww.png", // Sprite Base Default
         };
@@ -1382,7 +1383,7 @@ function initializeCharacterSheet() {
               nombre: dataActor.nombre || actorParaEnviar.nombre,
               titulo: dataActor.titulo || "",
               color_nombre: dataActor.color_nombre || "#ffffff",
-              color_titulo: dataActor.color_titulo || "#aaaaaa",
+              color_titulo: dataActor.color_titulo || DEFAULT_TITLE_COLOR,
               escala:
                 dataActor.escala !== undefined
                   ? parseFloat(dataActor.escala)
@@ -1417,7 +1418,7 @@ function initializeCharacterSheet() {
           nombre: actorParaEnviar.nombre || "Jugador",
           titulo: actorParaEnviar.titulo || "",
           color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-          color_titulo: actorParaEnviar.color_titulo || "#aaaaaa",
+          color_titulo: actorParaEnviar.color_titulo || DEFAULT_TITLE_COLOR,
           escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
           sprite: selectedSprite || "https://i.imgur.com/kP8s7Ww.png",
           icono:

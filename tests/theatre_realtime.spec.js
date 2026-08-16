@@ -114,94 +114,103 @@ test("el motor del teatro utiliza el actorId para iluminar y colorea el diálogo
   expect(engineScript).toContain('nameEl.style.color = dialogData.color_nombre');
 });
 
-test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de teatro)", async ({ page }) => {
-  // Intecept Firebase so we can load the page offline
-  await page.route('**/*firebase*.js', route => route.fulfill({ body: '' }));
+test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de teatro)", () => {
+  const vm = require("node:vm");
 
-  // Inject mock firebase and CSS supports
-  await page.addInitScript(() => {
-    window.firebase = {
-      database: () => ({
-        ref: () => ({
-          on: () => {},
-          update: () => {},
-          set: () => {}
-        })
-      }),
-      auth: () => ({
-        onAuthStateChanged: (cb) => cb({ uid: 'mock-uid' }),
-        setPersistence: () => Promise.resolve()
-      })
-    };
-    window.firebase.auth.Auth = { Persistence: { LOCAL: 'local' } };
-  });
+  // 1. Read the production engine file
+  const engineScriptCode = fs.readFileSync(
+    path.join(__dirname, "..", "js", "theatre-engine.js"),
+    "utf8"
+  );
 
-  await page.goto(`file://${path.join(__dirname, '..', 'hoja_personaje.html')}`);
-
-  // Evaluate the shared engine logic directly to test behavior
-  const engineResult = await page.evaluate(() => {
-    const titleEl = document.createElement('div');
-    titleEl.id = 'player-theatre-plate-title';
-    document.body.appendChild(titleEl);
-
-    // Mock the engine's functions since we can't easily wait for the script to load offline
-    function getSafeCssColor(value, fallback) {
-        const candidate = typeof value === "string" ? value.trim() : "";
-        if (!candidate) return fallback;
-        if (window.CSS && typeof window.CSS.supports === "function") {
-            return window.CSS.supports("color", candidate) ? candidate : fallback;
+  // 2. Setup mock environment
+  const domState = {
+    titleEl: {
+      textContent: "",
+      style: {
+        setProperty: function(prop, value, priority) {
+          this[prop] = value;
+          this[`${prop}_priority`] = priority;
         }
-        return /^#[0-9a-f]{3,8}$/i.test(candidate) ? candidate : fallback;
-    }
+      }
+    },
+    // Used by the engine's initialization
+    moduleTeatro: { style: {} },
+    locacionEl: { textContent: "" },
+    stage: { querySelectorAll: () => [], querySelector: () => null, children: [] }
+  };
 
-    function paintTitlePlate(titleEl, colorValue) {
-        const titleColor = getSafeCssColor(colorValue, "#3b2918");
-        titleEl.style.setProperty("color", "#ffffff", "important");
-        titleEl.style.setProperty("background", `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`, "important");
-        titleEl.style.setProperty("border-left-color", titleColor, "important");
-    }
+  const getElementById = (id) => {
+    if (id === "theatre-plate-title" || id === "dialogue-title") return domState.titleEl;
+    if (id === "modulo-teatro" || id === "theatre-view-player") return domState.moduleTeatro;
+    if (id === "theatre-location") return domState.locacionEl;
+    if (id === "theatre-stage") return domState.stage;
+    return null;
+  };
 
-    // 1. Valid Color Test
-    paintTitlePlate(titleEl, "#6252a3");
-    const validColor = titleEl.style.color;
-    const validBackground = titleEl.style.background;
-    const validBorderLeft = titleEl.style.borderLeftColor;
+  const querySelector = (sel) => {
+    if (sel === ".theatre-plates-container") return { style: {} };
+    return null;
+  };
 
-    // 2. Invalid/Empty Color Test (Fallback)
-    paintTitlePlate(titleEl, "");
-    const fallbackBackground = titleEl.style.background;
-    const fallbackBorderLeft = titleEl.style.borderLeftColor;
+  // Mock Firebase to intercept the database `.on` calls and manually trigger the dialogue handler
+  let dialogueCallback = null;
+  const mockFirebase = {
+    database: () => ({
+      ref: (path) => ({
+        on: (event, callback) => {
+          if (path.includes("dialogo_activo")) {
+            dialogueCallback = callback;
+          }
+        }
+      })
+    })
+  };
 
-    return {
-      validColor,
-      validBackground,
-      validBorderLeft,
-      fallbackBackground,
-      fallbackBorderLeft
-    };
+  const mockGlobal = {
+    firebase: mockFirebase,
+    document: { getElementById, querySelector },
+    CSS: { supports: () => true }, // allow CSS.supports check to pass
+    window: { CSS: { supports: () => true } } // provide window for compatibility
+  };
+  mockGlobal.window = mockGlobal; // Make window self-referential
+
+  // 3. Execute script in VM context
+  const context = vm.createContext(mockGlobal);
+  vm.runInContext(engineScriptCode, context);
+
+  // Assert callback registered
+  expect(typeof dialogueCallback).toBe("function");
+
+  // Helper to extract background color out of gradient logic
+  const parseGradientColor = (bg) => {
+    const match = bg.match(/linear-gradient\(90deg, (#[0-9a-fA-F]+)/);
+    return match ? match[1].toLowerCase() : null;
+  };
+
+  // 4. Test Valid Color Payload
+  dialogueCallback({
+    val: () => ({ titulo: "Liberación Tecnológica", color_titulo: "#6252a3" })
   });
 
-  // 1. Text color should always be #ffffff
-  expect(engineResult.validColor).toBe('rgb(255, 255, 255)'); // Computed hex to rgb
+  expect(domState.titleEl.style.color).toBe("#ffffff");
+  expect(parseGradientColor(domState.titleEl.style.background)).toBe("#6252a3");
+  expect(domState.titleEl.style["border-left-color"]).toBe("#6252a3");
 
-  // 2. Background and border should use #6252a3 when valid
-  expect(engineResult.validBackground).toContain('rgb(98, 82, 163)'); // #6252a3
-  expect(engineResult.validBorderLeft).toBe('rgb(98, 82, 163)');
+  // 5. Test Invalid/Empty Color Payload
+  dialogueCallback({
+    val: () => ({ titulo: "Narrador Sin Color", color_titulo: "" })
+  });
 
-  // 3. Fallback should use #3b2918
-  expect(engineResult.fallbackBackground).toContain('rgb(59, 41, 24)'); // #3b2918
-  expect(engineResult.fallbackBorderLeft).toBe('rgb(59, 41, 24)');
+  expect(domState.titleEl.style.color).toBe("#ffffff");
+  expect(parseGradientColor(domState.titleEl.style.background)).toBe("#3b2918");
+  expect(domState.titleEl.style["border-left-color"]).toBe("#3b2918");
 
-  // 4. Check for shared engine inclusion
+  // 6. Check for shared engine inclusion
   const dmPageCurrent = fs.readFileSync(path.join(__dirname, "..", "hoja_de_DM.html"), "utf8");
   const playerPage = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.html"), "utf8");
   expect(dmPageCurrent).toContain('src="js/theatre-engine.js"');
   expect(playerPage).toContain('src="js/theatre-engine.js"');
-
-  // 5. Ensure no illegal text assignments
-  const engineScript = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-engine.js"), "utf8");
-  expect(engineScript).not.toContain("titleEl.style.color = dialogData.color_titulo");
-  expect(playerPage).not.toContain("titlePlate.style.color = state.color_titulo");
 });
 
 test("el centro de mando reacciona a los cambios de locación", () => {
@@ -330,10 +339,7 @@ test("la inicialización del directorio se realiza antes que módulos opcionales
   expect(startIdx).toBeLessThan(weatherIdx);
 });
 
-test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", async ({ page }) => {
-  // We're just asserting the absence of the explicit color_titulo fallback statically
-  // since playwright does not directly evaluate the non-exported functions,
-  // but we can evaluate the files manually.
+test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", () => {
   const dashboardScript = fs.readFileSync(
     path.join(__dirname, "..", "js", "on-game-dashboard.js"),
     "utf8"
@@ -342,14 +348,23 @@ test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", a
     path.join(__dirname, "..", "js", "theatre-controls.js"),
     "utf8"
   );
+  const hojaPersonajeScript = fs.readFileSync(
+    path.join(__dirname, "..", "hoja_personaje.js"),
+    "utf8"
+  );
 
   // Assert default constants exist
   expect(dashboardScript).toContain('const DEFAULT_TITLE_COLOR = "#3b2918";');
   expect(controlsScript).toContain('const DEFAULT_TITLE_COLOR = "#3b2918";');
+  expect(hojaPersonajeScript).toContain('const DEFAULT_TITLE_COLOR = "#3b2918";');
 
   // Assert no '#aaaaaa' remains linked to color_titulo
   expect(dashboardScript).not.toMatch(/color_titulo:.*#aaaaaa/);
   expect(dashboardScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
+
   expect(controlsScript).not.toMatch(/color_titulo:.*#aaaaaa/);
   expect(controlsScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
+
+  expect(hojaPersonajeScript).not.toMatch(/color_titulo:.*#aaaaaa/);
+  expect(hojaPersonajeScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
 });
