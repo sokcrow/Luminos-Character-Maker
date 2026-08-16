@@ -1173,6 +1173,7 @@ function initializeCharacterSheet() {
             }
           }
           if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
+      }
 
       db.ref("campaña/actores").on("value", (snap) => {
         rawActorsCache = snap.val() || {};
