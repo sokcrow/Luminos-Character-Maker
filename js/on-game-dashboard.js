@@ -293,6 +293,7 @@
                             actorId: actualData.actorId || null,
                             expression: actualData.expression || "Neutral",
                             sprite: actualData.sprite || null,
+                            icono: actualData.icono || null,
                             color_nombre: actualData.color_nombre || "#ffffff",
                             color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
                             startedAt: startedAt,
@@ -362,6 +363,7 @@
                 actorId: null,
                 expression: "Neutral",
                 sprite: null,
+                icono: null,
                 color_nombre: "#ffffff",
                 color_titulo: DEFAULT_TITLE_COLOR
             };
@@ -371,6 +373,7 @@
                 speakerData.nombre = selectedOption.dataset.nombre || "";
                 speakerData.titulo = selectedOption.dataset.titulo || "";
                 speakerData.actorId = speakerSelect.value;
+                speakerData.icono = selectedOption.dataset.icono || null;
                 speakerData.color_nombre = selectedOption.dataset.colorNombre || "#ffffff";
                 speakerData.color_titulo = selectedOption.dataset.colorTitulo || DEFAULT_TITLE_COLOR;
 
@@ -397,6 +400,7 @@
               actorId: speakerData.actorId,
               expression: speakerData.expression,
               sprite: speakerData.sprite,
+              icono: speakerData.icono,
               color_nombre: speakerData.color_nombre,
               color_titulo: speakerData.color_titulo,
               createdAt: window.firebase.database.ServerValue.TIMESTAMP
@@ -421,6 +425,7 @@
                 opt.textContent = actorData.nombre;
                 opt.dataset.nombre = actorData.nombre;
                 opt.dataset.titulo = actorData.titulo || "";
+                opt.dataset.icono = actorData.icono || "";
                 opt.dataset.colorNombre = actorData.color_nombre || "#ffffff";
                 opt.dataset.colorTitulo = actorData.color_titulo || DEFAULT_TITLE_COLOR;
 

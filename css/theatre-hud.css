@@ -557,6 +557,29 @@ body.player-instance-theatre
   margin: 0 !important;
 }
 
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item--theatre {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 1fr !important;
+  place-items: center !important;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item--theatre > svg {
+  grid-area: 1 / 1;
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item--theatre.is-active {
+  color: #ffe17b !important;
+}
+
 /* ==================================================
    MENÚ NATIVO DEL DM
    ================================================== */

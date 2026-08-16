@@ -161,6 +161,7 @@
                         sourceId: sourceId,
                         sourceType: sourceType,
                         sprite: npcData.sprite || npcData.url || "",
+                        icono: npcData.icono || npcData.icono_jugador || "",
                         expresiones: expresionesObj,
                         expresionActiva: expActiva,
                         x: 0,

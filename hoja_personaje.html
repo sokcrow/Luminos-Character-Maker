@@ -7321,13 +7321,21 @@
 
 
           <button id="btn-abrir-escritura" class="hud-menu-item hud-menu-item--theatre" type="button" title="Actuar en el Teatro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 60%; height: 60%; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8));">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                <path d="M11 11l-2 2"></path>
+                <path d="M15 7l-2 2"></path>
             </svg>
             <span>Actuar</span>
           </button>
           <button id="btn-toggle-theatre-log-player" class="hud-menu-item hud-menu-item--theatre" type="button" aria-controls="theatre-log-container" aria-expanded="false" title="Ver Historial" aria-label="Ver Historial del Teatro">
-            <img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
             <span>Historial</span>
           </button>
         </div>
@@ -12933,83 +12941,16 @@
               "theatre-log-container",
             );
             if (logContainer) {
-              logContainer.classList.toggle("open");
-              if (logContainer.classList.contains("open")) {
-                this.innerHTML = '<span style="color: #ff0000; font-size: 20px;">❌</span>';
-                this.setAttribute("aria-expanded", "true");
-                logContainer.style.display = "flex";
-              } else {
-                this.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
-                this.setAttribute("aria-expanded", "false");
-                logContainer.style.display = "none";
-              }
+              const isOpen = logContainer.classList.toggle("open");
+
+              logToggleBtnPlayer.classList.toggle("is-active", isOpen);
+              logToggleBtnPlayer.setAttribute("aria-expanded", String(isOpen));
+              logToggleBtnPlayer.title = isOpen ? "Cerrar historial" : "Ver historial";
+              logContainer.style.display = isOpen ? "flex" : "none";
             }
           });
         }
       });
-
-      // Listen to block state
-            // Listen to block state (Queue insertion state)
-      db.ref("campaña/teatro/bloqueado").on("value", (snap) => {
-        isTheatreBlocked = snap.val();
-        const input = document.getElementById("player-theatre-input");
-        const btn = document.getElementById("btn-player-theatre-send");
-        if (input && btn) {
-          if (isTheatreBlocked) {
-            input.disabled = true;
-            btn.disabled = true;
-            input.placeholder =
-              "El Director ha bloqueado las interacciones (Modo Lore)...";
-          } else {
-            input.disabled = false;
-            btn.disabled = false;
-            input.placeholder = "¿Qué quieres decir o hacer? (Escribe aquí...)";
-          }
-        }
-      });
-
-            // Modificamos el envio de diálogo del jugador para que vaya a la cola FIFO
-      const btnSendTheatre = document.getElementById("btn-player-theatre-send");
-      if (btnSendTheatre) {
-        // En lugar de cloneNode, removemos y agregamos o simplemente reasignamos
-        // Ya que btnSendTheatre podría tener listeners del HTML base que queramos mantener (si los hubiera).
-        // Pero en la base estaba así, lo más limpio es reemplazar el botón para limpiar eventos.
-        // Dado que esto fue observado en el code review, usemos un flag global o reescribamos onclick
-
-        btnSendTheatre.onclick = (e) => {
-          e.preventDefault();
-          const input = document.getElementById("player-theatre-input");
-          if (!input || !input.value.trim() || isTheatreBlocked) return;
-          const texto = input.value.trim();
-
-          const activeSlot = document.querySelector(".item-slot.active");
-          let actorNombre = "Desconocido";
-          let actorSprite = "";
-          let actorId = null;
-
-          if (activeSlot && currentAssignedActor) {
-            actorId = currentAssignedActor.id;
-            actorNombre = currentAssignedActor.nombre || "Jugador";
-            actorSprite = activeSlot.querySelector("img") ? activeSlot.querySelector("img").src : "";
-          }
-
-          const QUEUE_ROOT = "campaña/teatro/cola";
-          const msgKey = db.ref(QUEUE_ROOT).push().key;
-          db.ref(`${QUEUE_ROOT}/${msgKey}`).set({
-            mensaje: texto,
-            nombre: actorNombre,
-            actorId: actorId,
-            sprite: actorSprite,
-            createdAt: firebase.database.ServerValue.TIMESTAMP
-          });
-          input.value = "";
-
-          input.placeholder = "Mensaje en cola...";
-          setTimeout(() => {
-              if(!isTheatreBlocked) input.placeholder = "¿Qué quieres decir o hacer? (Escribe aquí...)";
-          }, 3000);
-        };
-      }
 
       // Listen to location
       db.ref("campaña/teatro/locacion").on("value", (snap) => {
@@ -13024,100 +12965,6 @@
         const view = document.getElementById("modulo-teatro");
         if (view && bg) view.style.backgroundImage = `url('${bg}')`;
       });
-
-            // Listen to log (now reads from "campaña/teatro/log" specifically for completed messages)
-      db.ref("campaña/teatro/log")
-        .orderByChild("startedAt")
-        .limitToLast(50)
-        .on("value", (snap) => {
-          const logContainer = document.getElementById("theatre-log-container");
-          if (!logContainer) return;
-
-          // Remove old entries, except the header/footer if any
-          Array.from(logContainer.children).forEach((child) => {
-            if (
-              child.className !== "dialogue-footer" &&
-              child.className !== "dialogue-scroll-area"
-            ) {
-              child.remove();
-            }
-          });
-
-          let scrollArea = logContainer.querySelector(".dialogue-scroll-area");
-          if (!scrollArea) {
-            scrollArea = document.createElement("div");
-            scrollArea.className = "dialogue-scroll-area";
-            logContainer.prepend(scrollArea);
-          } else {
-            scrollArea.innerHTML = "";
-          }
-
-          if (snap.exists()) {
-            snap.forEach((childSnap) => {
-              const entry = childSnap.val();
-              const row = document.createElement("div");
-              row.className = "dialogue-row";
-
-              const actorName = entry.nombre || "Desconocido";
-              const actorSprite = entry.sprite || "";
-              const msgText = entry.mensaje || "";
-              const timestamp = entry.startedAt || Date.now();
-              const dateObj = new Date(timestamp);
-              const timeString = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
-
-              let charHtml = `
-                <div class="character-col">
-                  <div class="hex-border">
-                    <div class="hex-portrait">
-                      ${actorSprite ? `<img src="${actorSprite}" alt="Portrait">` : ""}
-                    </div>
-                  </div>
-                  <span class="character-name">${actorName}</span>
-                  <span style="font-size: 0.65rem; color: #777; font-family: 'Share Tech Mono', monospace; margin-top: 2px;">${timeString}</span>
-                </div>
-              `;
-
-              row.innerHTML = `
-                ${charHtml}
-                <div class="text-col">
-                  <p>${msgText}</p>
-                </div>
-              `;
-              scrollArea.appendChild(row);
-
-              const divider = document.createElement("div");
-              divider.className = "dialogue-divider";
-              scrollArea.appendChild(divider);
-            });
-
-            if (!logContainer.querySelector(".dialogue-footer")) {
-              const footer = document.createElement("div");
-              footer.className = "dialogue-footer";
-              footer.innerHTML = `
-                <button class="confirm-btn">
-                  CONFIRMAR LECTURA <span class="blink">_</span>
-                </button>
-              `;
-              logContainer.appendChild(footer);
-
-              footer
-                .querySelector(".confirm-btn")
-                .addEventListener("click", () => {
-                  logContainer.classList.remove("open");
-                  logContainer.style.display = "none";
-                  const logToggleBtn = document.getElementById(
-                    "btn-toggle-theatre-log-player",
-                  );
-                  if (logToggleBtn) {
-                    logToggleBtn.innerHTML = '<img src="Assets/Images/Buttons/Log.svg" class="svg-icon" alt="Theatre Log" />';
-                    logToggleBtn.setAttribute("aria-expanded", "false");
-                  }
-                });
-            }
-
-            scrollArea.scrollTop = scrollArea.scrollHeight;
-          }
-        });
 
       // Listen to current state (the actual dialogue and sprites)
       db.ref("campaña/teatro/estado_actual").on("value", (snap) => {
@@ -13665,21 +13512,15 @@
         <div style="background: #0b0a0a; border: 1px solid #c49a00; padding: 20px; width: 90%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;">
             <h3 style="margin: 0; color: #c49a00;">Modo Actuación</h3>
 
+            <div style="display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                <img id="theatre-modal-readonly-icon" src="" alt="Icono" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; display: none; border: 2px solid #c49a00;">
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                    <span id="theatre-modal-readonly-name" style="font-family: 'BebasKai', sans-serif; font-weight: bold; font-size: 24px; color: #ffffff; letter-spacing: 0.05em;">Jugador</span>
+                    <span id="theatre-modal-readonly-title" style="font-family: 'BebasKai', sans-serif; font-size: 16px; color: #ffffff; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; display: none;"></span>
+                </div>
+            </div>
+
             <div id="contenedor-selectores-emocion" style="display: flex; gap: 10px;">
-                <select
-                    id="player-actor-select"
-                    style="
-                    background: #111;
-                    color: #c49a00;
-                    border: 1px solid #c49a00;
-                    padding: 5px;
-                    font-family: 'Share Tech Mono';
-                    outline: none;
-                    flex: 1;
-                    "
-                >
-                    <option value="base">Mi Personaje</option>
-                </select>
                 <select
                     id="player-expression-select"
                     style="
@@ -13695,7 +13536,7 @@
                 ></select>
             </div>
 
-            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Share Tech Mono'; resize: none; padding: 10px;"></textarea>
+            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Roboto', sans-serif; resize: none; padding: 10px;"></textarea>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
                 <button id="btn-cerrar-escritura" style="background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer;">Cancelar</button>
