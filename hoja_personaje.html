@@ -7321,7 +7321,7 @@
 
 
           <button id="btn-abrir-escritura" class="hud-menu-item hud-menu-item--theatre" type="button" title="Actuar en el Teatro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 <path d="M11 11l-2 2"></path>
                 <path d="M15 7l-2 2"></path>
@@ -7329,7 +7329,7 @@
             <span>Actuar</span>
           </button>
           <button id="btn-toggle-theatre-log-player" class="hud-menu-item hud-menu-item--theatre" type="button" aria-controls="theatre-log-container" aria-expanded="false" title="Ver Historial" aria-label="Ver Historial del Teatro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -12941,16 +12941,12 @@
               "theatre-log-container",
             );
             if (logContainer) {
-              logContainer.classList.toggle("open");
-              if (logContainer.classList.contains("open")) {
-                this.innerHTML = '<span style="color: #ff0000; font-size: 20px;">❌</span><span>Cerrar</span>';
-                this.setAttribute("aria-expanded", "true");
-                logContainer.style.display = "flex";
-              } else {
-                this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(255, 157, 0, 0.8)); margin: 0 auto;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg><span>Historial</span>';
-                this.setAttribute("aria-expanded", "false");
-                logContainer.style.display = "none";
-              }
+              const isOpen = logContainer.classList.toggle("open");
+
+              logToggleBtnPlayer.classList.toggle("is-active", isOpen);
+              logToggleBtnPlayer.setAttribute("aria-expanded", String(isOpen));
+              logToggleBtnPlayer.title = isOpen ? "Cerrar historial" : "Ver historial";
+              logContainer.style.display = isOpen ? "flex" : "none";
             }
           });
         }
@@ -13518,9 +13514,9 @@
 
             <div style="display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">
                 <img id="theatre-modal-readonly-icon" src="" alt="Icono" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; display: none; border: 2px solid #c49a00;">
-                <div style="font-family: 'Share Tech Mono'; font-size: 18px; display: flex; align-items: baseline; gap: 5px;">
-                    <span id="theatre-modal-readonly-name" style="font-weight: bold; color: #ffffff;">Jugador</span>
-                    <span id="theatre-modal-readonly-title" style="font-size: 0.8em; color: #3b2918;"></span>
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                    <span id="theatre-modal-readonly-name" style="font-family: 'BebasKai', sans-serif; font-weight: bold; font-size: 24px; color: #ffffff; letter-spacing: 0.05em;">Jugador</span>
+                    <span id="theatre-modal-readonly-title" style="font-family: 'BebasKai', sans-serif; font-size: 16px; color: #ffffff; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; display: none;"></span>
                 </div>
             </div>
 
@@ -13540,7 +13536,7 @@
                 ></select>
             </div>
 
-            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Share Tech Mono'; resize: none; padding: 10px;"></textarea>
+            <textarea id="input-teatro-modal" rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Roboto', sans-serif; resize: none; padding: 10px;"></textarea>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
                 <button id="btn-cerrar-escritura" style="background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer;">Cancelar</button>
