@@ -24,10 +24,47 @@ test('el jugador solo utiliza su actor asignado y envía payload correcto', asyn
     expect(renderBlock).not.toMatch(illegalLogSprite);
 });
 
-
 test('applyPlayerInstance(teatro) agrega player-instance-theatre sin UI tracker real', async () => {
     const js = fs.readFileSync(pt.join(__dirname, '..', 'js', 'instance-control.js'), 'utf-8');
-    expect(js).toContain('documentRef.body.classList.toggle("player-instance-theatre", theatreActive);');
+
+    // Configurar JSDOM / context para ejecutar applyPlayerInstance
+    const context = vm.createContext({
+      window: {
+        location: { pathname: '/hoja_personaje.html' },
+        addEventListener: () => {}
+      },
+      document: {
+        body: {
+          classList: {
+            classes: new Set(),
+            toggle: function(cls, force) {
+              if (force) this.classes.add(cls);
+              else this.classes.delete(cls);
+            },
+            add: function(cls) { this.classes.add(cls); },
+            remove: function(cls) { this.classes.delete(cls); },
+            contains: function(cls) { return this.classes.has(cls); }
+          }
+        },
+        getElementById: () => ({ classList: { toggle: () => {}, add: () => {}, remove: () => {} }, style: {}, setAttribute: () => {} }),
+        querySelectorAll: () => []
+      },
+      console: console,
+      db: { ref: () => ({ once: () => Promise.resolve({ val: () => null }) }) },
+      campanaId: 'test-camp'
+    });
+
+    context.globalThis = context;
+    context.window = context;
+
+    vm.runInContext(js, context);
+
+    // Execute explicitly
+    vm.runInContext("LuminousInstanceControl.applyPlayerInstance('teatro', document);", context);
+    expect(context.document.body.classList.contains('player-instance-theatre')).toBe(true);
+
+    vm.runInContext("LuminousInstanceControl.applyPlayerInstance('ninguno', document);", context);
+    expect(context.document.body.classList.contains('player-instance-theatre')).toBe(false);
 });
 
 test('el modal de jugador incluye readonly nodes', async () => {

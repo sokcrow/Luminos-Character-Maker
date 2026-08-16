@@ -1162,8 +1162,6 @@ function initializeCharacterSheet() {
           window.dispatchEvent(event);
 
           const assignedActorId = window.datosJugador?.actorId;
-          const exprSelect = document.getElementById("player-expression-select");
-
           if (assignedActorId && window.actoresJugador[assignedActorId]) {
             const actorData = window.actoresJugador[assignedActorId];
 
@@ -1173,10 +1171,8 @@ function initializeCharacterSheet() {
                    phoneNumber: actorData.phoneNumber
                });
             }
-
-            if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
           }
-      }
+          if (window.syncPlayerTheatreComposer) window.syncPlayerTheatreComposer();
 
       db.ref("campaña/actores").on("value", (snap) => {
         rawActorsCache = snap.val() || {};
