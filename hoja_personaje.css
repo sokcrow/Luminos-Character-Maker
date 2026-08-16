@@ -8224,7 +8224,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     border-top: 2px solid #c49a00 !important;
     padding: 20px 40px !important;
     color: #fffacd !important;
-    font-size: 1.1rem !important;
+    font-size: 1.1rem;
     line-height: 1.6 !important;
     font-family: 'Roboto', sans-serif !important; /* REGLA ESTRICTA: USAR ROBOTO */
     position: relative !important;
@@ -8316,7 +8316,7 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     #theatre-view-player .theatre-dialogue-text {
         width: min(78vw, 980px) !important;
         padding: 14px 32px !important;
-        font-size: clamp(.9rem, 1vw, 1rem) !important;
+        font-size: clamp(.9rem, 1vw, 1rem);
         line-height: 1.45 !important;
     }
 

@@ -1,0 +1,730 @@
+@font-face {
+  font-family: "BebasKai";
+  src: url("../Fonts/BebasKai.otf") format("opentype");
+  font-display: swap;
+}
+
+:root {
+  --theatre-layer-stage: 10;
+  --theatre-layer-location: 2010;
+  --theatre-layer-dialogue: 8500;
+  --theatre-layer-director: 9050;
+  --theatre-layer-menu: 9100;
+  --theatre-brass: #b98a32;
+  --theatre-brass-light: #e3bd63;
+  --theatre-ink: #090807;
+  --theatre-wine: #5b0d11;
+  --theatre-panel: rgba(9, 9, 8, 0.96);
+}
+
+/* Tipografías del teatro. No afecta el log universal. */
+#theatre-view-player .theatre-location,
+#theatre-view-player .theatre-plate-name,
+#theatre-view-player .theatre-plate-title,
+.on-game-dashboard #modulo-teatro .theatre-location,
+.on-game-dashboard #modulo-teatro .theatre-plate-name,
+.on-game-dashboard #modulo-teatro .theatre-plate-title,
+.on-game-dashboard #theatre-director-panel .panel-title,
+.on-game-dashboard #theatre-director-panel h3,
+.on-game-dashboard #theatre-director-panel h4 {
+  font-family: "BebasKai", Impact, "Arial Narrow", sans-serif !important;
+}
+
+#theatre-view-player .theatre-dialogue-text,
+.on-game-dashboard #modulo-teatro .theatre-dialogue-text,
+.on-game-dashboard #theatre-director-panel input,
+.on-game-dashboard #theatre-director-panel select,
+.on-game-dashboard #theatre-director-panel textarea,
+.on-game-dashboard #theatre-director-panel button {
+  font-family: "Roboto", Arial, sans-serif !important;
+}
+
+/* ==================================================
+   ESCENARIO REAL Y SPRITES FIREBASE
+   ================================================== */
+
+#theatre-view-player,
+.on-game-dashboard .stage-view-wrapper {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+#theatre-view-player > #theatre-stage,
+.on-game-dashboard .stage-view-wrapper > #theatre-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  aspect-ratio: auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  z-index: var(--theatre-layer-stage) !important;
+  pointer-events: none !important;
+}
+
+#theatre-view-player > #theatre-stage > .theatre-sprite,
+.on-game-dashboard .stage-view-wrapper > #theatre-stage > .theatre-sprite {
+  align-self: flex-end;
+  max-height: 82vh !important;
+  object-fit: contain;
+  object-position: center bottom;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* Compatibilidad con el renderizador anterior del jugador. */
+#theatre-view-player > #theatre-stage > .sprite-wrapper {
+  align-self: stretch;
+  height: 100%;
+}
+
+#theatre-view-player > #theatre-stage > .sprite-wrapper > img {
+  bottom: 0 !important;
+  object-fit: contain;
+  object-position: center bottom;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* ==================================================
+   CARTEL DE LOCALIZACIÓN
+   ================================================== */
+
+#theatre-view-player .theatre-location,
+.on-game-dashboard #modulo-teatro .theatre-location {
+  position: absolute !important;
+  top: 30px !important;
+  left: 28px !important;
+  z-index: var(--theatre-layer-location) !important;
+  max-width: min(480px, 64vw);
+  padding: 10px 34px !important;
+  color: #eee2c4 !important;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #17130f,
+      #17130f 2px,
+      #0d0b09 2px,
+      #0d0b09 4px
+    ) !important;
+  border: 1px solid #9b7230 !important;
+  border-top-width: 3px !important;
+  border-bottom-width: 3px !important;
+  border-radius: 0 !important;
+  box-shadow: 5px 7px 18px rgba(0, 0, 0, 0.82);
+  font-size: clamp(18px, 2.2vw, 30px) !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transform: rotate(-5deg) !important;
+  transform-origin: top left;
+}
+
+#theatre-view-player .theatre-location::before,
+.on-game-dashboard #modulo-teatro .theatre-location::before {
+  content: "";
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  width: 5px;
+  height: 38px;
+  background: #9b7230;
+  transform: translateX(-50%);
+}
+
+#theatre-view-player .theatre-location::after,
+.on-game-dashboard #modulo-teatro .theatre-location::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #211b13;
+  border: 2px solid #b98a32;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+/* ==================================================
+   CUADRO DE DIÁLOGO FIJO ABAJO
+   ================================================== */
+
+#theatre-view-player .theatre-dialogue-wrapper,
+.on-game-dashboard .stage-view-wrapper .theatre-dialogue-wrapper {
+  position: absolute !important;
+  left: 4vw !important;
+  right: 4vw !important;
+  bottom: 24px !important;
+  z-index: var(--theatre-layer-dialogue) !important;
+  display: block !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  height: clamp(150px, 21vh, 205px) !important;
+  pointer-events: none;
+  filter: drop-shadow(0 7px 9px rgba(0, 0, 0, 0.86));
+}
+
+#theatre-view-player .theatre-dialogue-text,
+.on-game-dashboard #modulo-teatro .theatre-dialogue-text {
+  position: absolute !important;
+  inset: 0 !important;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding:
+    42px
+    clamp(42px, 8vw, 115px)
+    24px !important;
+  max-width: none !important;
+  margin: 0 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  z-index: 1 !important;
+  overflow: hidden !important;
+  color: #eee7d4 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: clamp(17px, 1.4vw, 24px);
+  font-weight: 400;
+  line-height: 1.45 !important;
+  letter-spacing: 0.01em;
+  text-shadow: none !important;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+#theatre-view-player .theatre-dialogue-text::before,
+.on-game-dashboard #modulo-teatro .theatre-dialogue-text::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block !important;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(8, 9, 8, 0.89),
+      rgba(8, 9, 8, 0.89) 2px,
+      rgba(2, 3, 2, 0.94) 2px,
+      rgba(2, 3, 2, 0.94) 4px
+    ) !important;
+  backdrop-filter: blur(2px);
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      transparent 0,
+      #000 11%,
+      #000 87%,
+      transparent 100%
+    ) !important;
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent 0,
+      #000 11%,
+      #000 87%,
+      transparent 100%
+    ) !important;
+}
+
+/* ==================================================
+   PLACAS DE TÍTULO Y NOMBRE
+   ================================================== */
+
+#theatre-view-player .theatre-plates-container,
+.on-game-dashboard #modulo-teatro .theatre-plates-container {
+  position: absolute !important;
+  top: -47px !important;
+  left: 8px !important;
+  z-index: 4 !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding-left: 20px;
+  transform: rotate(-6deg) !important;
+  transform-origin: bottom left;
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.8));
+  pointer-events: none;
+}
+
+#theatre-view-player .theatre-plates-container::before,
+.on-game-dashboard #modulo-teatro .theatre-plates-container::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: -15px;
+  left: 0;
+  width: 12px;
+  z-index: 3;
+  background: linear-gradient(to right, #4a4032, #191510);
+  border: 2px solid #100e0b;
+}
+
+#theatre-view-player .theatre-plates-container::after,
+.on-game-dashboard #modulo-teatro .theatre-plates-container::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 3px;
+  width: 7px;
+  height: 7px;
+  z-index: 4;
+  border-radius: 50%;
+  background: #d4af37;
+  box-shadow:
+    0 38px 0 #d4af37,
+    0 68px 0 #d4af37;
+}
+
+#theatre-view-player .theatre-plate-title,
+.on-game-dashboard #modulo-teatro .theatre-plate-title {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  min-width: 170px;
+  margin-left: 5px;
+  padding: 3px 38px 3px 18px !important;
+  background:
+    linear-gradient(90deg, #3b2918, #17110b) !important;
+  border: 0 !important;
+  border-left: 4px solid #b98a32 !important;
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+  font-size: 16px !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#theatre-view-player .theatre-plate-name,
+.on-game-dashboard #modulo-teatro .theatre-plate-name {
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  min-width: 225px;
+  margin-top: -3px;
+  padding: 5px 58px 5px 28px !important;
+  background:
+    linear-gradient(90deg, #4e1261, #26072e) !important;
+  border: 0 !important;
+  border-left: 6px solid #17110d !important;
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+  font-size: 32px !important;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 1px #0b0907;
+  paint-order: stroke fill;
+}
+
+/* ==================================================
+   MENÚ EXISTENTE DEL JUGADOR
+   ================================================== */
+
+.hud-menu-item--theatre {
+  display: none !important;
+}
+
+body.player-instance-theatre .hud-sidebar-right {
+  position: fixed !important;
+  top: 22px !important;
+  right: 24px !important;
+  z-index: var(--theatre-layer-menu) !important;
+  box-sizing: border-box;
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: auto !important;
+  padding: 0 !important;
+  pointer-events: auto;
+}
+
+body.player-instance-theatre #hud-menu-dropdown {
+  box-sizing: border-box;
+  display: flex !important;
+  flex: 0 1 auto;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: auto !important;
+  max-width: 0;
+  height: 66px;
+  margin: 0;
+  padding: 5px 0 !important;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(78, 9, 13, 0.72),
+      var(--theatre-wine)
+    ) !important;
+  border: 0 !important;
+  border-right: 3px solid var(--theatre-brass) !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.72),
+    inset 0 0 16px rgba(0, 0, 0, 0.55);
+  transform: translateX(18px);
+  transition:
+    max-width 220ms ease,
+    opacity 150ms ease,
+    transform 220ms ease,
+    visibility 220ms;
+}
+
+body.player-instance-theatre
+  .hud-sidebar-right.is-open
+  #hud-menu-dropdown {
+  max-width: min(76vw, 760px);
+  padding: 5px 8px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+  scrollbar-width: none;
+}
+
+body.player-instance-theatre
+  .hud-sidebar-right.is-open
+  #hud-menu-dropdown::-webkit-scrollbar {
+  display: none;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item--theatre {
+  display: grid !important;
+}
+
+/* Heptágonos invertidos: vértice principal hacia abajo. */
+body.player-instance-theatre .hud-menu-toggle,
+body.player-instance-theatre #hud-menu-dropdown .hud-menu-item,
+.on-game-dashboard .theatre-dm-menu-toggle {
+  position: relative !important;
+  inset: auto !important;
+  flex: 0 0 auto !important;
+  box-sizing: border-box;
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  color: #caa04f !important;
+  background:
+    linear-gradient(145deg, #8c6a34, #3b2b18) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  clip-path:
+    polygon(
+      28% 0,
+      72% 0,
+      100% 38%,
+      91% 80%,
+      50% 100%,
+      9% 80%,
+      0 38%
+    ) !important;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 5px 7px rgba(0, 0, 0, 0.75));
+  transition:
+    filter 160ms ease,
+    transform 160ms ease,
+    color 160ms ease !important;
+}
+
+body.player-instance-theatre .hud-menu-toggle::before,
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item::before,
+.on-game-dashboard .theatre-dm-menu-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: 0;
+  clip-path: inherit;
+  background:
+    radial-gradient(
+      circle at 45% 35%,
+      #30251c,
+      #120f0c 68%
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(227, 189, 99, 0.34);
+  pointer-events: none;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item::after {
+  display: none !important;
+}
+
+body.player-instance-theatre .hud-menu-toggle:hover,
+body.player-instance-theatre .hud-menu-toggle:focus-visible,
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item:hover,
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item:focus-visible,
+.on-game-dashboard .theatre-dm-menu-toggle:hover,
+.on-game-dashboard .theatre-dm-menu-toggle:focus-visible {
+  color: #ffe17b !important;
+  filter:
+    drop-shadow(0 0 7px rgba(227, 189, 99, 0.7));
+  transform: translateY(-2px) !important;
+  outline: none;
+}
+
+body.player-instance-theatre .hud-menu-toggle > svg,
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item
+  > svg,
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item
+  > img:not(#tienda-fisica-badge),
+.on-game-dashboard .theatre-dm-menu-toggle > img {
+  position: relative;
+  z-index: 1;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  color: currentColor;
+  filter: sepia(1) saturate(0.8) brightness(1.35);
+  pointer-events: none;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  .hud-menu-item
+  > span {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  #btn-toggle-theatre-log-player {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+}
+
+body.player-instance-theatre
+  #hud-menu-dropdown
+  #btn-abrir-escritura {
+  margin: 0 !important;
+}
+
+/* ==================================================
+   MENÚ NATIVO DEL DM
+   ================================================== */
+
+.on-game-dashboard #modulo-teatro > .theatre-dm-menu {
+  position: absolute;
+  inset: 0;
+  z-index: var(--theatre-layer-director);
+  pointer-events: none;
+}
+
+.on-game-dashboard .theatre-dm-menu-toggle {
+  position: absolute !important;
+  top: 22px !important;
+  right: 24px !important;
+  z-index: 2;
+  list-style: none;
+  pointer-events: auto;
+}
+
+.on-game-dashboard
+  .theatre-dm-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.on-game-dashboard
+  .theatre-dm-menu-toggle::marker {
+  content: "";
+}
+
+.on-game-dashboard
+  .theatre-dm-menu[open]
+  .theatre-dm-menu-toggle
+  > img {
+  transform: rotate(90deg);
+}
+
+.on-game-dashboard #theatre-director-panel {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(410px, 94vw) !important;
+  height: 100% !important;
+  padding: 92px 16px 18px !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  pointer-events: auto;
+  color: #ddd;
+  background: var(--theatre-panel) !important;
+  border: 0 !important;
+  border-left: 2px solid #a37c35 !important;
+  box-shadow: -22px 0 50px rgba(0, 0, 0, 0.82);
+}
+
+.on-game-dashboard #theatre-director-panel .panel-title {
+  margin: 0 0 15px;
+  padding-bottom: 10px;
+  color: #d2a447;
+  border-bottom: 1px solid #4a3c29;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+}
+
+/* ==================================================
+   RESPONSIVE
+   ================================================== */
+
+@media (max-width: 700px) {
+  #theatre-view-player .theatre-location,
+  .on-game-dashboard #modulo-teatro .theatre-location {
+    top: 66px !important;
+    left: 14px !important;
+    max-width: 70vw;
+    padding: 6px 18px !important;
+    font-size: 15px !important;
+  }
+
+  #theatre-view-player .theatre-dialogue-wrapper,
+  .on-game-dashboard .stage-view-wrapper .theatre-dialogue-wrapper {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 12px !important;
+    height: 145px !important;
+  }
+
+  #theatre-view-player .theatre-dialogue-text,
+  .on-game-dashboard #modulo-teatro .theatre-dialogue-text {
+    padding: 37px 28px 18px !important;
+    font-size: 15px;
+  }
+
+  #theatre-view-player .theatre-plates-container,
+  .on-game-dashboard #modulo-teatro .theatre-plates-container {
+    top: -38px !important;
+    left: 12px !important;
+  }
+
+  #theatre-view-player .theatre-plate-title,
+  .on-game-dashboard #modulo-teatro .theatre-plate-title {
+    min-width: 130px;
+    font-size: 10px !important;
+  }
+
+  #theatre-view-player .theatre-plate-name,
+  .on-game-dashboard #modulo-teatro .theatre-plate-name {
+    min-width: 170px;
+    padding: 3px 30px 3px 15px !important;
+    font-size: 23px !important;
+  }
+
+  body.player-instance-theatre .hud-sidebar-right {
+    top: 10px !important;
+    right: 10px !important;
+    gap: 3px !important;
+  }
+
+  body.player-instance-theatre #hud-menu-dropdown {
+    height: 52px;
+    gap: 3px !important;
+  }
+
+  body.player-instance-theatre
+    .hud-sidebar-right.is-open
+    #hud-menu-dropdown {
+    max-width: calc(100vw - 68px);
+    padding: 3px 5px !important;
+  }
+
+  body.player-instance-theatre .hud-menu-toggle,
+  body.player-instance-theatre
+    #hud-menu-dropdown
+    .hud-menu-item,
+  .on-game-dashboard .theatre-dm-menu-toggle {
+    width: 43px !important;
+    height: 43px !important;
+    min-width: 43px !important;
+    min-height: 43px !important;
+    padding: 9px !important;
+  }
+
+  .on-game-dashboard .theatre-dm-menu-toggle {
+    top: 10px !important;
+    right: 10px !important;
+  }
+
+  .on-game-dashboard #theatre-director-panel {
+    width: 94vw !important;
+    padding-top: 68px !important;
+  }
+
+  #theatre-view-player > #theatre-stage > .theatre-sprite,
+  .on-game-dashboard
+    .stage-view-wrapper
+    > #theatre-stage
+    > .theatre-sprite {
+    max-height: 78vh !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.player-instance-theatre #hud-menu-dropdown,
+  body.player-instance-theatre .hud-menu-toggle,
+  body.player-instance-theatre
+    #hud-menu-dropdown
+    .hud-menu-item,
+  .on-game-dashboard .theatre-dm-menu-toggle {
+    transition: none !important;
+  }
+}
