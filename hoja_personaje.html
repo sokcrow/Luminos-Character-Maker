@@ -13146,10 +13146,18 @@
           if (spanElement) {
             spanElement.innerText = state.titulo || "";
           }
-          /* The title plate color requirement was: background dark brown, text gold.
-           If the user wants the custom color to apply to text: */
-          titlePlate.style.color = state.color_titulo || "#d69c52";
-          titlePlate.style.borderColor = state.color_titulo || "#c49a00";
+
+          let titleColor = state.color_titulo || "#3b2918";
+          if (typeof titleColor === "string") {
+            titleColor = titleColor.trim();
+          }
+          if (!/^#[0-9a-f]{3,8}$/i.test(titleColor) && (!window.CSS || !window.CSS.supports || !window.CSS.supports("color", titleColor))) {
+            titleColor = "#3b2918";
+          }
+
+          titlePlate.style.setProperty("color", "#ffffff", "important");
+          titlePlate.style.setProperty("background", `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`, "important");
+          titlePlate.style.setProperty("border-left-color", titleColor, "important");
         }
 
         if (namePlate) {
