@@ -114,11 +114,16 @@
           <div class="theatre-controls" style="display: flex; flex-direction: column; gap: 10px;">
             <h4 style="color: #a37c35; margin: 0; font-family: 'Cinzel', serif;">Compositor de Diálogo</h4>
             <!-- Nuevos selectores de hablante y expresión -->
-            <div style="display: flex; gap: 8px;">
-              <select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <select id="theatre-dialogue-type" style="flex: 1; min-width: 30%; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+                  <option value="dialogo">Diálogo</option>
+                  <option value="narracion">Narración</option>
+                  <option value="pensamiento">Pensamiento</option>
+              </select>
+              <select id="theatre-speaker-select" style="flex: 1; min-width: 30%; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
                   <option value="narrador">Narrador</option>
               </select>
-              <select id="theatre-expression-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+              <select id="theatre-expression-select" style="flex: 1; min-width: 30%; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
                   <option value="Neutral">Neutral</option>
               </select>
             </div>

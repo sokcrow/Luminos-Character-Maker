@@ -7821,8 +7821,8 @@ window.processEntitiesData = function(entities) {
 
               document.getElementById("actor-nombre").value = actorData.nombre || "";
               document.getElementById("actor-titulo").value = actorData.titulo || "";
-              document.getElementById("actor-color-nombre").value = actorData.color_nombre || "#ffffff";
-              document.getElementById("actor-color-titulo").value = actorData.color_titulo || "#c49a00";
+              document.getElementById("actor-color-nombre").value = actorData.color_nombre || "#4a4a4a";
+              document.getElementById("actor-color-titulo").value = actorData.color_titulo || "#4a4a4a";
 
               if(document.getElementById("actor-escala")) {
                 document.getElementById("actor-escala").value = actorData.escala !== undefined ? actorData.escala : "1.0";
@@ -8150,7 +8150,7 @@ window.processEntitiesData = function(entities) {
               img.src = imgUrl;
 
               const info = document.createElement('div');
-              info.innerHTML = `<strong style="color: ${actor.color_nombre || '#fff'}">${actor.nombre}</strong><br/><span style="color: ${actor.color_titulo || '#888'}; font-size: 0.8em">${actor.titulo || actor.id}</span>`;
+              info.innerHTML = `<strong style="color: ${actor.color_nombre || '#4a4a4a'}">${actor.nombre}</strong><br/><span style="color: ${actor.color_titulo || '#4a4a4a'}; font-size: 0.8em">${actor.titulo || actor.id}</span>`;
 
               header.appendChild(img);
               header.appendChild(info);

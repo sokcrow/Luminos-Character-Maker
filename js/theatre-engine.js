@@ -23,24 +23,24 @@
             : fallback;
     }
 
-    function paintTitlePlate(titleEl, colorValue) {
-        const titleColor = getSafeCssColor(colorValue, "#3b2918");
+    function paintIdentityPlate(element, colorValue) {
+        const color = getSafeCssColor(colorValue, "#4a4a4a");
 
-        titleEl.style.setProperty(
+        element.style.setProperty(
             "color",
             "#ffffff",
             "important"
         );
 
-        titleEl.style.setProperty(
+        element.style.setProperty(
             "background",
-            `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`,
+            `linear-gradient(90deg, ${color} 0%, ${color} 68%, #17110b 100%)`,
             "important"
         );
 
-        titleEl.style.setProperty(
+        element.style.setProperty(
             "border-left-color",
-            titleColor,
+            color,
             "important"
         );
     }
@@ -66,7 +66,7 @@
     });
 
     // 2. Motor de Sprites (Actores en Escena)
-    db.ref(`${THEATRE_ROOT}/actores`).on("value", (snapshot) => {
+    db.ref("campaña/teatro/actores_visibles").on("value", (snapshot) => {
         const stage = document.getElementById("theatre-stage");
         if (!stage) return;
 
@@ -94,11 +94,23 @@
                 img = document.createElement("img");
                 img.className = "theatre-sprite";
                 img.dataset.id = actorId;
+
+                // Fallback graceful failure for broken images
+                img.onerror = function() {
+                    this.style.display = 'none';
+                };
+                img.onload = function() {
+                    this.style.display = '';
+                };
+
                 stage.appendChild(img);
             }
 
             // Actualizar propiedades
-            img.src = data.url || data.sprite || "";
+            const newSrc = data.url || data.sprite || "";
+            if (img.src !== newSrc && newSrc) {
+                img.src = newSrc;
+            }
             img.alt = data.nombre || "Actor en escena";
 
             // Si hay transformaciones, escala u orientación, aplicarlas.
@@ -149,7 +161,7 @@
 
         const platesContainer = document.querySelector(".theatre-plates-container");
         if (platesContainer) {
-            if (!dialogData.nombre || dialogData.nombre.trim() === "") {
+            if (dialogData.mostrar_identidad === false || !dialogData.nombre || dialogData.nombre.trim() === "") {
                 platesContainer.style.display = "none";
             } else {
                 platesContainer.style.display = "flex";
@@ -158,11 +170,11 @@
 
         if (nameEl) {
             nameEl.textContent = dialogData.nombre || "";
-            nameEl.style.color = dialogData.color_nombre || "#c49a00";
+            paintIdentityPlate(nameEl, dialogData.color_nombre);
         }
         if (titleEl) {
             titleEl.textContent = dialogData.titulo || "";
-            paintTitlePlate(titleEl, dialogData.color_titulo);
+            paintIdentityPlate(titleEl, dialogData.color_titulo);
         }
 
         if (textEl) {

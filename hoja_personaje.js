@@ -1284,7 +1284,7 @@ function initializeCharacterSheet() {
             const row = document.createElement("div");
             row.className = "dialogue-row";
 
-            const charHexColor = msg.color_nombre || "#ffffff";
+            const charHexColor = msg.color_nombre || "#4a4a4a";
             // Generate a default icon just in case one is missing
             const defaultFallbackIcon = `https://via.placeholder.com/80/000000/${charHexColor.replace("#", "")}?text=${msg.nombre ? msg.nombre.charAt(0) : "?"}`;
 
@@ -1347,24 +1347,30 @@ function initializeCharacterSheet() {
       try {
         const msgText = domInput.value.trim();
         const selectExp = document.getElementById("player-expression-select");
+        const actorSelect = document.getElementById("player-actor-select");
 
-        const assignedActorId = window.datosJugador?.actorId || null;
-        if (!assignedActorId) {
-          console.warn("No hay actor asignado al jugador. No se puede enviar el mensaje.");
+        const assignedActors = window.getAssignedTheatreActors ? window.getAssignedTheatreActors() : [];
+        if (assignedActors.length === 0) {
+          console.warn("No hay actores asignados al jugador. No se puede enviar el mensaje.");
           return;
         }
 
-        const actorAssigned = window.getAssignedTheatreActor ? window.getAssignedTheatreActor() : null;
+        let activeActorId = actorSelect ? actorSelect.value : null;
+        if (!activeActorId) activeActorId = assignedActors[0].actorId;
+
+        // Server-side match verification: Ensure submitted actorId is truly assigned to the player
+        const actorAssigned = assignedActors.find(a => a.actorId === activeActorId);
+
         if (!actorAssigned) {
-          console.warn("No hay actor asignado al jugador válido en el pool. No se puede enviar el mensaje.");
+          console.warn("El actor seleccionado no pertenece al jugador. Abortando envío.");
           return;
         }
 
         let actorParaEnviar = {
             nombre: actorAssigned.nombre || window.datosJugador?.characterName || "Jugador",
             titulo: actorAssigned.titulo || "",
-            color_nombre: actorAssigned.color_nombre || "#ffffff",
-            color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
+            color_nombre: actorAssigned.color_nombre || "#4a4a4a",
+            color_titulo: actorAssigned.color_titulo || "#4a4a4a",
             escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,
             sprite: actorAssigned.sprite || null,
             icono: actorAssigned.icono || null,
@@ -1402,17 +1408,23 @@ function initializeCharacterSheet() {
             finalIcon = actorParaEnviar.icono || actorParaEnviar.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
         }
 
+        const typeSelect = document.getElementById("player-theatre-dialogue-type");
+        const tipoDialogo = typeSelect?.value === "pensamiento" ? "pensamiento" : "dialogo";
+        const mostrarIdentidad = tipoDialogo === "dialogo";
+
         const payload = {
-          actorId: assignedActorId,
-          nombre: actorParaEnviar.nombre || "Jugador",
-          titulo: actorParaEnviar.titulo || "",
-          color_nombre: actorParaEnviar.color_nombre || "#ffffff",
-          color_titulo: actorParaEnviar.color_titulo || DEFAULT_TITLE_COLOR,
+          actorId: activeActorId,
+          nombre: mostrarIdentidad ? (actorParaEnviar.nombre || "Jugador") : "",
+          titulo: mostrarIdentidad ? (actorParaEnviar.titulo || "") : "",
+          color_nombre: actorParaEnviar.color_nombre || "#4a4a4a",
+          color_titulo: actorParaEnviar.color_titulo || "#4a4a4a",
           escala: isNaN(actorParaEnviar.escala) ? 1.0 : actorParaEnviar.escala,
           expression: selectedExpression,
           sprite: selectedSprite || null,
           icono: finalIcon,
           mensaje: msgText,
+          tipo_dialogo: tipoDialogo,
+          mostrar_identidad: mostrarIdentidad,
           createdAt: firebase.database.ServerValue.TIMESTAMP,
         };
 
@@ -1466,25 +1478,108 @@ function initializeCharacterSheet() {
   }
 
 
+  window.getAssignedTheatreActors = function() {
+      let ids = [];
+      if (window.datosJugador?.actorIds && Array.isArray(window.datosJugador.actorIds)) {
+          ids = window.datosJugador.actorIds;
+      } else if (window.datosJugador?.actorId) {
+          ids = [window.datosJugador.actorId];
+      }
+
+      // Eliminar duplicados
+      ids = [...new Set(ids)];
+
+      const actors = [];
+      for (const id of ids) {
+          if (window.actoresJugador && window.actoresJugador[id]) {
+              actors.push({ actorId: id, ...window.actoresJugador[id] });
+          }
+      }
+      return actors;
+  };
+
+  // Backwards compat if any legacy calls remain
   window.getAssignedTheatreActor = function() {
-    const actorId = window.datosJugador?.actorId || null;
-    if (!actorId) return null;
-    const actor = window.actoresJugador && window.actoresJugador[actorId];
-    if (!actor) return null;
-    return { actorId, ...actor };
+      const actors = window.getAssignedTheatreActors();
+      return actors.length > 0 ? actors[0] : null;
   };
 
   window.syncPlayerTheatreComposer = function() {
-      const assignedActor = window.getAssignedTheatreActor();
+      const assignedActors = window.getAssignedTheatreActors();
       const exprSelect = document.getElementById("player-expression-select");
       const btnSend = document.getElementById("btn-enviar-teatro-modal");
       const inputEl = document.getElementById("input-teatro-modal");
       const modalNameEl = document.getElementById("theatre-modal-readonly-name");
       const modalTitleEl = document.getElementById("theatre-modal-readonly-title");
       const modalIconEl = document.getElementById("theatre-modal-readonly-icon");
+      const actorSelectWrap = document.getElementById("player-actor-select-wrap");
+      const actorSelect = document.getElementById("player-actor-select");
+
+      if (assignedActors.length === 0) {
+          if (actorSelectWrap) actorSelectWrap.hidden = true;
+          if (actorSelect) actorSelect.innerHTML = "";
+          if (exprSelect) {
+              exprSelect.innerHTML = "";
+              exprSelect.disabled = true;
+          }
+          if (modalNameEl) modalNameEl.textContent = "Sin personajes asignados";
+          if (modalTitleEl) modalTitleEl.textContent = "";
+          if (modalIconEl) modalIconEl.style.display = 'none';
+
+          if (btnSend) {
+              btnSend.disabled = true;
+              btnSend.style.opacity = "0.5";
+          }
+          if (inputEl) {
+              inputEl.disabled = true;
+              inputEl.placeholder = "No tienes personajes asignados...";
+          }
+          return;
+      }
+
+      // Populate actor selector if there are multiple characters
+      if (actorSelect && actorSelectWrap) {
+          if (assignedActors.length > 1) {
+              actorSelectWrap.hidden = false;
+              const currentVal = actorSelect.value;
+              actorSelect.innerHTML = "";
+              assignedActors.forEach(actor => {
+                  const opt = document.createElement("option");
+                  opt.value = actor.actorId;
+                  opt.textContent = actor.nombre || "Jugador";
+                  actorSelect.appendChild(opt);
+              });
+
+              if (currentVal && assignedActors.some(a => a.actorId === currentVal)) {
+                  actorSelect.value = currentVal;
+              } else {
+                  actorSelect.value = assignedActors[0].actorId;
+              }
+
+              // Only attach listener once
+              if (!actorSelect.dataset.listenerAttached) {
+                  actorSelect.addEventListener("change", window.syncPlayerTheatreComposer);
+                  actorSelect.dataset.listenerAttached = "true";
+              }
+          } else {
+              actorSelectWrap.hidden = true;
+              actorSelect.innerHTML = "";
+              const opt = document.createElement("option");
+              opt.value = assignedActors[0].actorId;
+              actorSelect.appendChild(opt);
+              actorSelect.value = assignedActors[0].actorId;
+          }
+      }
+
+      // Active character logic
+      let activeActorId = actorSelect ? actorSelect.value : null;
+      if (!activeActorId && assignedActors.length > 0) activeActorId = assignedActors[0].actorId;
+
+      const assignedActor = assignedActors.find(a => a.actorId === activeActorId) || assignedActors[0];
 
       if (assignedActor) {
           if (exprSelect) {
+              exprSelect.disabled = false;
               const currentExp = exprSelect.value;
               exprSelect.innerHTML = "";
               let hasExpressions = false;
@@ -1503,23 +1598,43 @@ function initializeCharacterSheet() {
                       exprSelect.appendChild(opt);
                   }
               }
+
               if (!hasExpressions) {
-                  exprSelect.innerHTML = '<option value="Neutral">Neutral</option>';
+                  const opt = document.createElement("option");
+                  opt.value = "Neutral";
+                  opt.textContent = "Neutral";
+                  const defaultSprite = assignedActor.sprite || assignedActor.url || "";
+                  opt.dataset.sprite = defaultSprite;
+                  exprSelect.appendChild(opt);
               }
               exprSelect.style.display = "block";
-              exprSelect.disabled = false;
+
+              // Try to maintain selection
+              if (currentExp && Array.from(exprSelect.options).some(o => o.value === currentExp)) {
+                  exprSelect.value = currentExp;
+              } else {
+                  exprSelect.value = exprSelect.options[0].value;
+              }
           }
+
           if (modalNameEl) {
-              modalNameEl.textContent = assignedActor.nombre || 'Jugador';
-              modalNameEl.style.color = assignedActor.color_nombre || '#ffffff';
+              modalNameEl.textContent = assignedActor.nombre || window.datosJugador?.characterName || "Desconocido";
+              modalNameEl.style.color = '#ffffff';
+              // Set background directly since the legacy inline renderer is removed, we only have this read-only viewer in the modal now
+              modalNameEl.style.backgroundColor = assignedActor.color_nombre || '#4a4a4a';
+              modalNameEl.style.padding = '0px 4px';
+              modalNameEl.style.borderRadius = '2px';
           }
           if (modalTitleEl) {
               if (assignedActor.titulo) {
                   modalTitleEl.textContent = assignedActor.titulo;
-                  modalTitleEl.style.backgroundColor = assignedActor.color_titulo || '#3b2918';
+                  modalTitleEl.style.backgroundColor = assignedActor.color_titulo || '#4a4a4a';
+                  modalTitleEl.style.color = '#ffffff';
                   modalTitleEl.style.display = 'inline';
+                  modalTitleEl.style.padding = '0px 4px';
+                  modalTitleEl.style.borderRadius = '2px';
               } else {
-                  modalTitleEl.textContent = '';
+                  modalTitleEl.textContent = "";
                   modalTitleEl.style.display = 'none';
               }
           }
@@ -1529,12 +1644,13 @@ function initializeCharacterSheet() {
                   modalIconEl.src = actorIcon;
                   modalIconEl.style.display = "block";
               } else {
-                  const charHexColor = assignedActor.color_nombre || "#ffffff";
+                  const charHexColor = assignedActor.color_nombre || "#4a4a4a";
                   const initial = assignedActor.nombre ? assignedActor.nombre.charAt(0) : "J";
                   modalIconEl.src = 'https://via.placeholder.com/80/000000/' + charHexColor.replace('#', '') + '?text=' + initial;
                   modalIconEl.style.display = "block";
               }
           }
+
           if (btnSend) {
               btnSend.disabled = window.isTheatreBlocked ? true : false;
               btnSend.style.opacity = window.isTheatreBlocked ? "0.5" : "1";

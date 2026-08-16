@@ -31,7 +31,7 @@
     function initializeDashboard(db) {
         const SCENE_ROOT = "campaña/estado_mundo/escena_actual";
         const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
-        const DEFAULT_TITLE_COLOR = "#3b2918";
+        const DEFAULT_TITLE_COLOR = "#4a4a4a";
 
         window.LuminousInstanceControl.bindDashboard({ db });
 
@@ -284,6 +284,54 @@
                         const durationMs = (textLength * speedMs) + 3000; // Text duration + 3 sec pause
                         const startedAt = window.firebase.database.ServerValue.TIMESTAMP;
 
+                        // Valid URL check function
+                        function isValidImageUrl(url) {
+                            if (typeof url !== 'string') return false;
+                            const t = url.trim();
+                            if (!t || t === "null" || t === "undefined" || t.indexOf(' ') !== -1) return false;
+                            return true;
+                        }
+
+                        const hasValidSprite = isValidImageUrl(actualData.sprite);
+                        const isNormalDialogue = (actualData.tipo_dialogo === "dialogo" || !actualData.tipo_dialogo);
+
+                        // If normal dialogue and valid sprite, update scene visible actors (LRU with max 5)
+                        if (isNormalDialogue && actualData.actorId && hasValidSprite) {
+                            const visiblesRef = db.ref("campaña/teatro/actores_visibles");
+                            visiblesRef.transaction((currentVisibles) => {
+                                let visibles = currentVisibles || {};
+                                let actorKeys = Object.keys(visibles);
+
+                                // If it already exists, update and we are done.
+                                if (visibles[actualData.actorId]) {
+                                    visibles[actualData.actorId].sprite = actualData.sprite;
+                                    visibles[actualData.actorId].expression = actualData.expression;
+                                    visibles[actualData.actorId].lastSpokeAt = startedAt;
+                                    return visibles;
+                                }
+
+                                // It's new. If already 5, remove the oldest by lastSpokeAt
+                                if (actorKeys.length >= 5) {
+                                    actorKeys.sort((a, b) => (visibles[a].lastSpokeAt || 0) - (visibles[b].lastSpokeAt || 0));
+                                    const toRemoveCount = (actorKeys.length - 5) + 1;
+                                    for(let i = 0; i < toRemoveCount; i++) {
+                                        delete visibles[actorKeys[i]];
+                                    }
+                                }
+
+                                // Add the new actor
+                                visibles[actualData.actorId] = {
+                                    actorId: actualData.actorId,
+                                    nombre: actualData.nombre || "",
+                                    sprite: actualData.sprite,
+                                    expression: actualData.expression || "Neutral",
+                                    lastSpokeAt: startedAt
+                                };
+
+                                return visibles;
+                            });
+                        }
+
                         // Broadcast to active dialogue
                         const activePayload = {
                             messageId: msgKey,
@@ -294,8 +342,10 @@
                             expression: actualData.expression || "Neutral",
                             sprite: actualData.sprite || null,
                             icono: actualData.icono || null,
-                            color_nombre: actualData.color_nombre || "#ffffff",
+                            color_nombre: actualData.color_nombre || "#4a4a4a",
                             color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
+                            tipo_dialogo: actualData.tipo_dialogo || "dialogo",
+                            mostrar_identidad: actualData.mostrar_identidad !== undefined ? actualData.mostrar_identidad : true,
                             startedAt: startedAt,
                             speedMs: speedMs,
                             durationMs: durationMs
@@ -356,6 +406,16 @@
 
             const speakerSelect = document.getElementById("theatre-speaker-select");
             const expressionSelect = document.getElementById("theatre-expression-select");
+            const typeSelect = document.getElementById("theatre-dialogue-type");
+
+            let tipoDialogo = "dialogo";
+            let mostrarIdentidad = true;
+            if (typeSelect) {
+                tipoDialogo = typeSelect.value;
+                if (tipoDialogo === "narracion" || tipoDialogo === "pensamiento") {
+                    mostrarIdentidad = false;
+                }
+            }
 
             let speakerData = {
                 nombre: "NARRADOR",
@@ -364,7 +424,7 @@
                 expression: "Neutral",
                 sprite: null,
                 icono: null,
-                color_nombre: "#ffffff",
+                color_nombre: "#4a4a4a",
                 color_titulo: DEFAULT_TITLE_COLOR
             };
 
@@ -374,7 +434,7 @@
                 speakerData.titulo = selectedOption.dataset.titulo || "";
                 speakerData.actorId = speakerSelect.value;
                 speakerData.icono = selectedOption.dataset.icono || null;
-                speakerData.color_nombre = selectedOption.dataset.colorNombre || "#ffffff";
+                speakerData.color_nombre = selectedOption.dataset.colorNombre || "#4a4a4a";
                 speakerData.color_titulo = selectedOption.dataset.colorTitulo || DEFAULT_TITLE_COLOR;
 
                 if (expressionSelect) {
@@ -384,8 +444,15 @@
                 }
             }
 
-            // Also persist the expression to the actor instance so it doesn't revert
-            if (speakerData.actorId) {
+            if (!mostrarIdentidad) {
+                speakerData.nombre = "";
+                speakerData.titulo = "";
+                // Note: We don't remove sprite from the payload because we might want the server to know who the thought comes from,
+                // BUT we shouldn't trigger a sprite UPDATE in the UI, that's handled in the queue processor/engine.
+            }
+
+            // Also persist the expression to the actor instance so it doesn't revert, only if it's a normal dialogue
+            if (speakerData.actorId && mostrarIdentidad) {
                 db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
                     expresionActiva: speakerData.expression,
                     sprite: speakerData.sprite
@@ -403,6 +470,8 @@
               icono: speakerData.icono,
               color_nombre: speakerData.color_nombre,
               color_titulo: speakerData.color_titulo,
+              tipo_dialogo: tipoDialogo,
+              mostrar_identidad: mostrarIdentidad,
               createdAt: window.firebase.database.ServerValue.TIMESTAMP
             });
             dialogueInput.value = "";
@@ -426,7 +495,7 @@
                 opt.dataset.nombre = actorData.nombre;
                 opt.dataset.titulo = actorData.titulo || "";
                 opt.dataset.icono = actorData.icono || "";
-                opt.dataset.colorNombre = actorData.color_nombre || "#ffffff";
+                opt.dataset.colorNombre = actorData.color_nombre || "#4a4a4a";
                 opt.dataset.colorTitulo = actorData.color_titulo || DEFAULT_TITLE_COLOR;
 
                 // Store expressions as a JSON string for easy retrieval
