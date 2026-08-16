@@ -329,3 +329,27 @@ test("la inicialización del directorio se realiza antes que módulos opcionales
   const weatherIdx = dmPageCurrent.indexOf('let currentWeather = "Soleado";');
   expect(startIdx).toBeLessThan(weatherIdx);
 });
+
+test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", async ({ page }) => {
+  // We're just asserting the absence of the explicit color_titulo fallback statically
+  // since playwright does not directly evaluate the non-exported functions,
+  // but we can evaluate the files manually.
+  const dashboardScript = fs.readFileSync(
+    path.join(__dirname, "..", "js", "on-game-dashboard.js"),
+    "utf8"
+  );
+  const controlsScript = fs.readFileSync(
+    path.join(__dirname, "..", "js", "theatre-controls.js"),
+    "utf8"
+  );
+
+  // Assert default constants exist
+  expect(dashboardScript).toContain('const DEFAULT_TITLE_COLOR = "#3b2918";');
+  expect(controlsScript).toContain('const DEFAULT_TITLE_COLOR = "#3b2918";');
+
+  // Assert no '#aaaaaa' remains linked to color_titulo
+  expect(dashboardScript).not.toMatch(/color_titulo:.*#aaaaaa/);
+  expect(dashboardScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
+  expect(controlsScript).not.toMatch(/color_titulo:.*#aaaaaa/);
+  expect(controlsScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
+});

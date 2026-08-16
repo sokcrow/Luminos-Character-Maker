@@ -7,6 +7,7 @@
         const NPC_ROSTER_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
         const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
         const MAX_ACTORS = 5;
+        const DEFAULT_TITLE_COLOR = "#3b2918";
 
         let npcDatabaseRaw = {};
         let npcDatabaseBase = {};
@@ -156,7 +157,7 @@
                         nombre: npcData.nombre || selectedId,
                         titulo: npcData.titulo || "",
                         color_nombre: npcData.color_nombre || "#ffffff",
-                        color_titulo: npcData.color_titulo || "#aaaaaa",
+                        color_titulo: npcData.color_titulo || DEFAULT_TITLE_COLOR,
                         sourceId: sourceId,
                         sourceType: sourceType,
                         sprite: npcData.sprite || npcData.url || "",

@@ -31,6 +31,7 @@
     function initializeDashboard(db) {
         const SCENE_ROOT = "campaña/estado_mundo/escena_actual";
         const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
+        const DEFAULT_TITLE_COLOR = "#3b2918";
 
         window.LuminousInstanceControl.bindDashboard({ db });
 
@@ -293,7 +294,7 @@
                             expression: actualData.expression || "Neutral",
                             sprite: actualData.sprite || null,
                             color_nombre: actualData.color_nombre || "#ffffff",
-                            color_titulo: actualData.color_titulo || "#aaaaaa",
+                            color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
                             startedAt: startedAt,
                             speedMs: speedMs,
                             durationMs: durationMs
@@ -362,7 +363,7 @@
                 expression: "Neutral",
                 sprite: null,
                 color_nombre: "#ffffff",
-                color_titulo: "#aaaaaa"
+                color_titulo: DEFAULT_TITLE_COLOR
             };
 
             if (speakerSelect && speakerSelect.value !== "narrador") {
@@ -371,7 +372,7 @@
                 speakerData.titulo = selectedOption.dataset.titulo || "";
                 speakerData.actorId = speakerSelect.value;
                 speakerData.color_nombre = selectedOption.dataset.colorNombre || "#ffffff";
-                speakerData.color_titulo = selectedOption.dataset.colorTitulo || "#aaaaaa";
+                speakerData.color_titulo = selectedOption.dataset.colorTitulo || DEFAULT_TITLE_COLOR;
 
                 if (expressionSelect) {
                     speakerData.expression = expressionSelect.value;
@@ -421,7 +422,7 @@
                 opt.dataset.nombre = actorData.nombre;
                 opt.dataset.titulo = actorData.titulo || "";
                 opt.dataset.colorNombre = actorData.color_nombre || "#ffffff";
-                opt.dataset.colorTitulo = actorData.color_titulo || "#aaaaaa";
+                opt.dataset.colorTitulo = actorData.color_titulo || DEFAULT_TITLE_COLOR;
 
                 // Store expressions as a JSON string for easy retrieval
                 opt.dataset.expresiones = JSON.stringify(actorData.expresiones || {});
