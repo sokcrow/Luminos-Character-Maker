@@ -126,14 +126,12 @@
                 const sourceId = selectedOption.dataset.sourceId || selectedId;
 
                 let expresionesObj = npcData.expresiones || {};
-                let expActiva = "Neutral";
+
                 if (Object.keys(expresionesObj).length === 0) {
                     expresionesObj = {
                         "Neutral": npcData.sprite || npcData.icono_jugador || npcData.icono || ""
                     };
-                } else if (!expresionesObj["Neutral"]) {
-                    expActiva = Object.keys(expresionesObj)[0];
-                }
+
 
                 // Push to the scene's background actors list (not immediately visible)
                 db.ref(THEATRE_ACTORS_PATH + "/" + actorInstanceId).set({
@@ -146,7 +144,7 @@
                     sprite: npcData.sprite || npcData.url || "",
                     icono: npcData.icono || npcData.icono_jugador || "",
                     expresiones: expresionesObj,
-                    expresionActiva: expActiva,
+
                     x: 0,
                     y: 0,
                     escala: npcData.escala || 1,

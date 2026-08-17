@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Harness Visual - Teatro de la Mente (1600x900)</title>
+    <!-- Incluir CSS reales -->
+    <link href="../css/theatre-hud.css" rel="stylesheet">
+    <link href="../css/theatre-dialogue.css" rel="stylesheet">
+    <link href="../hoja_personaje.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Inline font BebasKai fallback si no se carga de web -->
+    <style>
+        @font-face {
+            font-family: 'BebasKai';
+            src: local('BebasKai');
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 1600px;
+            height: 900px;
+            background-color: #050505;
+            color: #fff;
+            overflow: hidden;
+            font-family: 'Roboto', sans-serif;
+            position: relative;
+        }
+
+        /* Contenedores de prueba ocultos/visibles */
+        .state-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .state-container.active {
+            display: block;
+        }
+
+        /* Mock de escenario (16:9) */
+        .mock-stage {
+            width: 100%;
+            height: 100%;
+            background: #111 url('https://via.placeholder.com/1600x900/111/333?text=Stage+Background') center/cover;
+            position: relative;
+        }
+
+        /* Controles para cambiar estado en modo interactivo */
+        #harness-controls {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100000;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border: 1px solid #4a4a4a;
+            display: flex;
+            gap: 10px;
+        }
+        #harness-controls button {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #harness-controls button.active {
+            background: #8b0000;
+            border-color: #ff5964;
+        }
+
+        /* Helper para imprimir (WeasyPrint) */
+        @media print {
+            @page {
+                size: 1600px 900px;
+                margin: 0;
+            }
+            #harness-controls {
+                display: none !important;
+            }
+            .state-container {
+                display: block !important;
+                page-break-after: always;
+                position: relative !important;
+                height: 900px !important;
+                width: 1600px !important;
+            }
+        }
+    </style>
+</head>
+<body class="player-instance-theatre">
+
+    <!-- CONTROLES -->
+    <div id="harness-controls">
+        <button onclick="setState('state-jugador')" class="active">Jugador</button>
+        <button onclick="setState('state-compositor')">Compositor</button>
+        <button onclick="setState('state-narrador')">Narrador</button>
+        <button onclick="setState('state-director')">Director</button>
+    </div>
+
+    <!-- ESTADO 1: JUGADOR -->
+    <div id="state-jugador" class="state-container active">
+        <div class="mock-stage">
+            <img src="" onerror="this.style.display='none'" class="theatre-sprite" style="transform: translateX(400px) translateY(100px) scale(1);" alt="Sprite Test" />
+        </div>
+
+        <!-- HUD Superior Izquierdo -->
+        <div class="theatre-location" style="position:absolute; top:20px; left:20px; z-index:9000;">
+            UBICACIÓN DE PRUEBA
+        </div>
+
+        <!-- HUD Superior Derecho (Menú jugador) -->
+        <div style="position:absolute; top:20px; right:20px; z-index:9000;">
+            <button class="btn-icon-base size-50" style="background: #222; border: 1px solid #444; color: white;">MENÚ</button>
+        </div>
+
+        <!-- Diálogo Inferior -->
+        <div class="theatre-dialogue-wrapper">
+            <div class="theatre-plates-container">
+                <div class="theatre-name-plate" style="color: white !important; background: linear-gradient(90deg, #5b176d 0%, #5b176d 68%, #17110b 100%) !important; border-left-color: #5b176d !important;">
+                    PERSONAJE DE PRUEBA
+                </div>
+                <div class="theatre-title-plate" style="color: white !important; background: linear-gradient(90deg, #c49a00 0%, #c49a00 68%, #17110b 100%) !important; border-left-color: #c49a00 !important;">
+                    TÍTULO DE PRUEBA
+                </div>
+            </div>
+            <div class="theatre-dialogue-box">
+                <div class="theatre-dialogue-text">
+                    Este es un texto de diálogo de prueba renderizado desde el harness. El color del nombre es morado y el del título es amarillo, aplicando exclusivamente al fondo de la placa. Las letras son estrictamente blancas.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESTADO 2: COMPOSITOR -->
+    <div id="state-compositor" class="state-container">
+        <div class="mock-stage"></div>
+        <div class="theatre-dialogue-wrapper">
+            <!-- Background HUD -->
+        </div>
+
+        <!-- Modal Compositor -->
+        <div id="modal-escritura-teatro" style="display: flex; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
+            <div style="background: #0b0a0a; border: 1px solid #c49a00; padding: 20px; width: 90%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;">
+                <h3 style="margin: 0; color: #c49a00; font-family: 'BebasKai', sans-serif;">Modo Actuación</h3>
+
+                <div style="display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                    <div id="theatre-modal-readonly-initials" style="width: 50px; height: 50px; border-radius: 50%; background: #333; border: 2px solid #c49a00; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold;">
+                        PJ
+                    </div>
+                    <div style="display: flex; align-items: baseline; gap: 5px;">
+                        <span id="theatre-modal-readonly-name" style="font-family: 'BebasKai', sans-serif; font-weight: bold; font-size: 24px; color: #ffffff; letter-spacing: 0.05em;">PERSONAJE</span>
+                        <span id="theatre-modal-readonly-title" style="font-family: 'BebasKai', sans-serif; font-size: 16px; color: #ffffff; padding: 2px 6px; border-radius: 4px; display: inline-block;">TÍTULO</span>
+                    </div>
+                </div>
+
+                <div id="player-actor-select-wrap" style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="color: #aaa; font-size: 12px; font-family: 'BebasKai', sans-serif;">Seleccionar Personaje</label>
+                    <select id="player-actor-select" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; font-family: 'Roboto', sans-serif;">
+                        <option>Personaje 1</option>
+                        <option>Personaje 2</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <select id="player-theatre-dialogue-type" style="padding: 5px; background: #222; color: #fff; border: 1px solid #444; flex: 1; font-family: 'Roboto', sans-serif;">
+                        <option>Diálogo</option>
+                        <option>Pensamiento</option>
+                    </select>
+                    <select id="player-expression-select" style="padding: 5px; background: #222; color: #0df; border: 1px solid #444; flex: 1; font-family: 'Roboto', sans-serif;">
+                        <option>Neutral</option>
+                        <option>Feliz</option>
+                    </select>
+                </div>
+
+                <textarea rows="4" placeholder="Escribe tu acción o diálogo..." style="width: 100%; box-sizing: border-box; background: #050505; color: #fff; border: 1px solid #444; font-family: 'Roboto', sans-serif; resize: none; padding: 10px;"></textarea>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button style="background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer;">Cancelar</button>
+                    <button style="background: #8b0000; color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold;">Enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESTADO 3: NARRADOR -->
+    <div id="state-narrador" class="state-container">
+        <div class="mock-stage"></div>
+
+        <div class="theatre-dialogue-wrapper">
+            <div class="theatre-plates-container" style="display: none;">
+                <!-- Oculto para narrador -->
+            </div>
+            <div class="theatre-dialogue-box">
+                <div class="theatre-dialogue-text" style="font-style: italic; color: #ddd;">
+                    Una densa niebla desciende sobre el valle. Los aventureros sienten un escalofrío recorrer sus espinas. (Este es un mensaje de narrador anónimo, las placas de identidad están completamente ocultas).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESTADO 4: DIRECTOR -->
+    <div id="state-director" class="state-container" style="display: flex;">
+        <div class="mock-stage" style="flex: 1; position: relative;">
+            <div class="theatre-dialogue-wrapper" style="position: absolute;">
+                <div class="theatre-plates-container">
+                    <div class="theatre-name-plate" style="color: white !important; background: linear-gradient(90deg, #4a4a4a 0%, #4a4a4a 68%, #17110b 100%) !important; border-left-color: #4a4a4a !important;">
+                        NPC
+                    </div>
+                </div>
+                <div class="theatre-dialogue-box">
+                    <div class="theatre-dialogue-text">
+                        Este es el HUD visto por el DM. El panel lateral empuja el escenario sin romper la caja de diálogo.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Lateral DM -->
+        <div style="width: 350px; background: #0b0a0a; border-left: 2px solid #333; display: flex; flex-direction: column; color: white;">
+            <div style="padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; font-family: 'BebasKai', sans-serif;">
+                <h3 style="margin: 0; color: #a37c35;">DIRECTOR DE TEATRO</h3>
+            </div>
+            <div style="padding: 15px; flex: 1;">
+                <div style="background: #111; padding: 10px; border: 1px solid #444; margin-bottom: 10px;">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 5px;">CONTROL DE CASTING (2/5)</div>
+                    <div style="padding: 5px; background: #222; border: 1px solid #333; display: flex; justify-content: space-between;">
+                        <span>NPC 1</span>
+                        <button>X</button>
+                    </div>
+                </div>
+
+                <div style="background: #111; padding: 10px; border: 1px solid #444;">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 5px;">COMPOSITOR</div>
+                    <select style="width: 100%; padding: 5px; margin-bottom: 10px; background: #222; color: white; border: 1px solid #444;">
+                        <option>Narrador</option>
+                        <option>NPC 1</option>
+                    </select>
+                    <textarea rows="3" style="width: 100%; box-sizing: border-box; background: #000; color: white; border: 1px solid #333; margin-bottom: 10px;"></textarea>
+                    <button style="width: 100%; padding: 8px; background: #8b0000; color: white; border: none;">ENVIAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setState(stateId) {
+            document.querySelectorAll('.state-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(stateId).classList.add('active');
+
+            document.querySelectorAll('#harness-controls button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
