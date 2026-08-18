@@ -1,46 +1,50 @@
 (function(global) {
     "use strict";
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener("DOMContentLoaded", () => {
         const db = global.firebase.database();
-
         const NPC_ROSTER_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
-        const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
-        const MAX_ACTORS = 5;
+        const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
+        const THEATRE_ACTORS_PATH = `${THEATRE_ROOT}/actores`;
+        const VISIBLE_ACTORS_PATH = `${THEATRE_ROOT}/actores_visibles`;
         const DEFAULT_TITLE_COLOR = "#3b2918";
 
         let npcDatabaseRaw = {};
         let npcDatabaseBase = {};
         let npcDatabase = {};
         let liveActors = {};
+        let visibleActors = [];
         let playerDatabase = {};
-
-        function refreshNpcDatabase() {
-            npcDatabase = {};
-            // Load legacy path first
-            for (const [id, data] of Object.entries(npcDatabaseRaw)) {
-                npcDatabase[id] = data;
-            }
-            // Load modern path second (overwrites if collision)
-            for (const [id, data] of Object.entries(npcDatabaseBase)) {
-                npcDatabase[id] = data;
-            }
-            updateRosterSelect();
-        }
+        let maxVisibleActors = 5;
 
         const selectNpcRoster = document.getElementById("select-npc-roster");
         const liveActorsList = document.getElementById("live-actors-list");
         const btnSpawnNpc = document.getElementById("btn-spawn-npc");
+        const directorPanel = document.getElementById("theatre-director-panel");
+
+        function normalizeIdList(value) {
+            if (global.LuminousTheatreState?.normalizeAssignedActorIds) {
+                return global.LuminousTheatreState.normalizeAssignedActorIds(value);
+            }
+            if (!value) return [];
+            if (Array.isArray(value)) return value.filter(Boolean);
+            if (typeof value === "object") return Object.keys(value).sort().map(key => value[key]).filter(Boolean);
+            return [value];
+        }
+
+        function refreshNpcDatabase() {
+            npcDatabase = {};
+            for (const [id, data] of Object.entries(npcDatabaseRaw)) npcDatabase[id] = data;
+            for (const [id, data] of Object.entries(npcDatabaseBase)) npcDatabase[id] = data;
+            updateRosterSelect();
+        }
 
         function updateRosterSelect() {
             if (!selectNpcRoster) return;
             selectNpcRoster.innerHTML = '<option value="">Selecciona un Personaje...</option>';
 
-            // Personajes Jugadores
-            const optgroupPlayers = document.createElement('optgroup');
+            const optgroupPlayers = document.createElement("optgroup");
             optgroupPlayers.label = "PERSONAJES JUGADORES";
-
-            const processedPlayerActors = new Set();
 
             for (const [playerId, player] of Object.entries(playerDatabase)) {
                 let actorData = null;
@@ -50,230 +54,258 @@
                     actorId = player.actorId;
                     actorData = npcDatabase[actorId];
                 } else {
-                    actorId = Object.keys(npcDatabase).find(k => npcDatabase[k].vinculo_jugador === playerId && npcDatabase[k].tipo === 'Jugador');
+                    actorId = Object.keys(npcDatabase).find(k =>
+                        npcDatabase[k].vinculo_jugador === playerId && npcDatabase[k].tipo === "Jugador"
+                    );
                     if (actorId) actorData = npcDatabase[actorId];
                 }
 
                 if (actorData) {
-                    const opt = document.createElement('option');
+                    const opt = document.createElement("option");
                     opt.value = actorId;
                     opt.textContent = actorData.nombre || player.characterName || player.character_name || player.nombre || playerId;
-                    opt.dataset.sourceType = 'player-profile';
+                    opt.dataset.sourceType = "player-profile";
                     opt.dataset.sourceId = playerId;
                     optgroupPlayers.appendChild(opt);
-                    processedPlayerActors.add(actorId);
                 }
             }
             selectNpcRoster.appendChild(optgroupPlayers);
 
-            // NPCs / Personajes del DM
-            const optgroupNpcs = document.createElement('optgroup');
+            const optgroupNpcs = document.createElement("optgroup");
             optgroupNpcs.label = "NPCs / PERSONAJES DEL DM";
-
             for (const [actorId, actorData] of Object.entries(npcDatabase)) {
-                if (actorData.tipo === 'Jugador') continue;
-
-                const opt = document.createElement('option');
+                if (actorData.tipo === "Jugador") continue;
+                const opt = document.createElement("option");
                 opt.value = actorId;
-                opt.textContent = actorData.nombre || 'Sin Nombre';
-                opt.dataset.sourceType = 'npc';
+                opt.textContent = actorData.nombre || "Sin Nombre";
+                opt.dataset.sourceType = "npc";
                 opt.dataset.sourceId = actorId;
                 optgroupNpcs.appendChild(opt);
             }
             selectNpcRoster.appendChild(optgroupNpcs);
         }
 
-        function cargarRosterNPCs() {
-            if (!selectNpcRoster) {
-                console.error("CRÍTICO: No se encontró el #select-npc-roster en el DOM.");
-                return;
-            }
-
-            db.ref(NPC_ROSTER_PATHS[0]).on('value', (snapshot) => {
+        function loadRoster() {
+            if (!selectNpcRoster) return;
+            db.ref(NPC_ROSTER_PATHS[0]).on("value", snapshot => {
                 npcDatabaseBase = snapshot.val() || {};
                 refreshNpcDatabase();
             });
-
-            db.ref(NPC_ROSTER_PATHS[1]).on('value', (snapshot) => {
+            db.ref(NPC_ROSTER_PATHS[1]).on("value", snapshot => {
                 npcDatabaseRaw = snapshot.val() || {};
                 refreshNpcDatabase();
             });
-
-            db.ref("campaña/jugadores").on('value', (snapshot) => {
+            db.ref("campaña/jugadores").on("value", snapshot => {
                 playerDatabase = snapshot.val() || {};
                 updateRosterSelect();
             });
         }
 
-        // 1. Carga del Roster (Pre-Game NPCs)
-        cargarRosterNPCs();
+        function buildDirectorPolicyControls() {
+            if (!directorPanel || document.getElementById("theatre-render-policy")) return;
 
-        // 2. El Disparo (Spawn) con límite de sprites
-        if (btnSpawnNpc) {
-            btnSpawnNpc.addEventListener("click", () => {
-                if (!selectNpcRoster) return;
+            const wrapper = document.createElement("div");
+            wrapper.id = "theatre-render-policy";
+            wrapper.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0 12px;border-bottom:1px solid #333;margin-bottom:12px";
+            wrapper.innerHTML = `
+                <label style="display:flex;gap:6px;align-items:center;">
+                    Máximo visible
+                    <select id="theatre-max-visible" aria-label="Máximo de sprites visibles">
+                        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                        <option value="4">4</option><option value="5">5</option>
+                    </select>
+                </label>
+                <label style="display:flex;gap:6px;align-items:center;">
+                    <input id="theatre-no-actors" type="checkbox"> No Actors
+                </label>
+                <button id="btn-clear-theatre-scene" type="button">LIMPIAR ESCENA</button>
+            `;
 
-                const selectedId = selectNpcRoster.value;
-                if (!selectedId) return;
+            const title = directorPanel.querySelector(".panel-title");
+            if (title?.nextSibling) directorPanel.insertBefore(wrapper, title.nextSibling);
+            else directorPanel.prepend(wrapper);
 
-                const npcData = npcDatabase[selectedId];
-                if (!npcData) return;
+            const maxSelect = wrapper.querySelector("#theatre-max-visible");
+            const noActors = wrapper.querySelector("#theatre-no-actors");
+            const clearBtn = wrapper.querySelector("#btn-clear-theatre-scene");
 
-                const actorsRef = db.ref(THEATRE_ACTORS_PATH);
-                actorsRef.once("value").then(snapshot => {
-                    let actors = snapshot.val() || {};
-                    let actorKeys = Object.keys(actors);
-                    let removalPromises = [];
+            maxSelect.value = String(maxVisibleActors);
+            maxSelect.addEventListener("change", async () => {
+                if (global.LuminousTheatreState?.setMaxVisibleActors) {
+                    maxVisibleActors = await global.LuminousTheatreState.setMaxVisibleActors(maxSelect.value);
+                }
+            });
 
-                    // Si ya hay 5, eliminar el más antiguo basado en spawnedAt
-                    if (actorKeys.length >= MAX_ACTORS) {
-                        actorKeys.sort((a, b) => (actors[a].spawnedAt || 0) - (actors[b].spawnedAt || 0));
-                        // Calculamos cuántos hay que borrar para que quede espacio para 1 nuevo
-                        const toRemoveCount = (actorKeys.length - MAX_ACTORS) + 1;
-                        for(let i=0; i < toRemoveCount; i++) {
-                            const oldestKey = actorKeys[i];
-                            delete actors[oldestKey];
-                        }
-                    }
+            noActors.addEventListener("change", () => {
+                db.ref(`${THEATRE_ROOT}/modo_presentacion`).set(noActors.checked ? "no-actors" : "actors");
+            });
 
-                    // Añadir el nuevo
-                    const now = window.firebase.database.ServerValue.TIMESTAMP;
-                    const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-                    const selectedOption = selectNpcRoster.options[selectNpcRoster.selectedIndex];
-                    const sourceType = selectedOption.dataset.sourceType || 'npc';
-                    const sourceId = selectedOption.dataset.sourceId || selectedId;
+            clearBtn.addEventListener("click", () => {
+                if (global.LuminousTheatreState?.clearScene) {
+                    global.LuminousTheatreState.clearScene();
+                }
+            });
 
-                    let expresionesObj = npcData.expresiones || {};
-                    let expActiva = "Neutral";
-                    if (Object.keys(expresionesObj).length === 0) {
-                        expresionesObj = {
-                            "Neutral": npcData.sprite || npcData.icono_jugador || npcData.icono || ""
-                        };
-                    } else if (!expresionesObj["Neutral"]) {
-                        expActiva = Object.keys(expresionesObj)[0];
-                    }
-
-                    actors[actorInstanceId] = {
-                        nombre: npcData.nombre || selectedId,
-                        titulo: npcData.titulo || "",
-                        color_nombre: npcData.color_nombre || "#ffffff",
-                        color_titulo: npcData.color_titulo || DEFAULT_TITLE_COLOR,
-                        sourceId: sourceId,
-                        sourceType: sourceType,
-                        sprite: npcData.sprite || npcData.url || "",
-                        icono: npcData.icono || npcData.icono_jugador || "",
-                        expresiones: expresionesObj,
-                        expresionActiva: expActiva,
-                        x: 0,
-                        y: 0,
-                        escala: npcData.escala || 1,
-                        orientacion: 'normal',
-                        spawnedAt: now
-                    };
-
-                    return actors;
-                }, (error, committed, snapshot) => {
-                    if (error) {
-                        console.error("Transacción falló de forma anormal", error);
-                    } else if (!committed) {
-                        console.log("Transacción abortada");
-                    } else {
-                        console.log("Actor añadido exitosamente.");
-                    }
-                });
+            db.ref(`${THEATRE_ROOT}/modo_presentacion`).on("value", snap => {
+                noActors.checked = snap.val() === "no-actors";
             });
         }
 
-        // 3. Manipulación en Vivo (Live Control Cards)
+        loadRoster();
+        buildDirectorPolicyControls();
+
+        db.ref(`${THEATRE_ROOT}/max_actores_visibles`).on("value", snap => {
+            maxVisibleActors = global.LuminousTheatreState?.clampVisibleLimit
+                ? global.LuminousTheatreState.clampVisibleLimit(snap.val())
+                : Math.max(1, Math.min(5, Number.parseInt(snap.val(), 10) || 5));
+            const maxSelect = document.getElementById("theatre-max-visible");
+            if (maxSelect) maxSelect.value = String(maxVisibleActors);
+            renderLiveActors();
+        });
+
+        db.ref(VISIBLE_ACTORS_PATH).on("value", snap => {
+            visibleActors = normalizeIdList(snap.val());
+            renderLiveActors();
+        });
+
+        if (btnSpawnNpc) {
+            btnSpawnNpc.addEventListener("click", () => {
+                if (!selectNpcRoster) return;
+                const selectedId = selectNpcRoster.value;
+                if (!selectedId) return;
+                const npcData = npcDatabase[selectedId];
+                if (!npcData) return;
+
+                const selectedOption = selectNpcRoster.options[selectNpcRoster.selectedIndex];
+                const sourceType = selectedOption.dataset.sourceType || "npc";
+                const sourceId = selectedOption.dataset.sourceId || selectedId;
+                const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                const now = global.firebase.database.ServerValue.TIMESTAMP;
+
+                let expressions = npcData.expresiones || {};
+                let activeExpression = "Neutral";
+                if (Object.keys(expressions).length === 0) {
+                    expressions = { Neutral: npcData.sprite || npcData.icono_jugador || npcData.icono || "" };
+                } else if (!expressions.Neutral) {
+                    activeExpression = Object.keys(expressions)[0];
+                }
+
+                const activeSprite = expressions[activeExpression] || npcData.sprite || npcData.url || "";
+                const actorPayload = {
+                    nombre: npcData.nombre || selectedId,
+                    titulo: npcData.titulo || "",
+                    color_nombre: npcData.color_nombre || "#ffffff",
+                    color_titulo: npcData.color_titulo || DEFAULT_TITLE_COLOR,
+                    sourceId,
+                    sourceType,
+                    sprite: activeSprite,
+                    icono: npcData.icono || npcData.icono_jugador || "",
+                    expresiones: expressions,
+                    expresionActiva: activeExpression,
+                    expresionPreparada: activeExpression,
+                    x: 0,
+                    y: 0,
+                    escala: npcData.escala || 1,
+                    orientacion: "normal",
+                    spawnedAt: now
+                };
+
+                // The actor pool is not the HUD. Never delete available actors to enforce the visible limit.
+                db.ref(`${THEATRE_ACTORS_PATH}/${actorInstanceId}`).set(actorPayload).then(() => {
+                    if (global.LuminousTheatreState?.updateVisibleActors) {
+                        return global.LuminousTheatreState.updateVisibleActors(actorInstanceId, actorPayload);
+                    }
+                }).catch(error => console.error("No se pudo añadir el actor al Teatro:", error));
+            });
+        }
+
+        function renderLiveActors() {
+            if (!liveActorsList) return;
+            liveActorsList.innerHTML = "";
+
+            const panelTitle = document.querySelector(".panel-title");
+            if (panelTitle) {
+                panelTitle.textContent = `CONTROL DE CASTING (${Object.keys(liveActors).length} disponibles · ${visibleActors.length}/${maxVisibleActors} visibles)`;
+            }
+
+            Object.keys(liveActors).forEach(actorId => {
+                const actorData = liveActors[actorId];
+                const card = document.createElement("div");
+                card.className = "actor-control-card";
+                card.dataset.visible = visibleActors.includes(actorId) ? "true" : "false";
+
+                let expressionsHTML = "";
+                if (actorData.expresiones && Object.keys(actorData.expresiones).length > 0) {
+                    const prepared = actorData.expresionPreparada || actorData.expresionActiva;
+                    expressionsHTML = '<select class="actor-expression-select" style="background:#222;color:#fff;border:1px solid #444;padding:2px;font-size:.8rem;font-family:\'Share Tech Mono\',monospace">';
+                    for (const exp of Object.keys(actorData.expresiones)) {
+                        expressionsHTML += `<option value="${exp}" ${prepared === exp ? "selected" : ""}>${exp}</option>`;
+                    }
+                    expressionsHTML += "</select>";
+                }
+
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span class="actor-name">${actorData.nombre || "Actor"}</span>
+                        <span style="font-size:.7rem;opacity:.7;">${visibleActors.includes(actorId) ? "VISIBLE" : "DISPONIBLE"}</span>
+                        ${expressionsHTML}
+                    </div>
+                    <div class="actor-buttons">
+                        <button class="btn-show" type="button">MOSTRAR</button>
+                        <button class="btn-move" data-dir="left" type="button">&lt;</button>
+                        <button class="btn-move" data-dir="right" type="button">&gt;</button>
+                        <button class="btn-flip" type="button">ESPEJO</button>
+                        <button class="btn-remove" type="button">X</button>
+                    </div>
+                `;
+
+                const expSelect = card.querySelector(".actor-expression-select");
+                if (expSelect) {
+                    expSelect.addEventListener("change", event => {
+                        const newExpression = event.target.value;
+                        // Selecting prepares an expression. It must not reveal/change the visible sprite yet.
+                        if (global.LuminousTheatreState?.prepareExpression) {
+                            global.LuminousTheatreState.prepareExpression(actorId, newExpression);
+                        } else {
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}/expresionPreparada`).set(newExpression);
+                        }
+                    });
+                }
+
+                card.querySelector(".btn-show")?.addEventListener("click", () => {
+                    global.LuminousTheatreState?.updateVisibleActors(actorId, actorData);
+                });
+
+                card.querySelector('.btn-move[data-dir="left"]')?.addEventListener("click", () => {
+                    const currentX = Number.parseInt(actorData.x, 10) || 0;
+                    db.ref(`${THEATRE_ACTORS_PATH}/${actorId}/x`).set(currentX - 50);
+                });
+
+                card.querySelector('.btn-move[data-dir="right"]')?.addEventListener("click", () => {
+                    const currentX = Number.parseInt(actorData.x, 10) || 0;
+                    db.ref(`${THEATRE_ACTORS_PATH}/${actorId}/x`).set(currentX + 50);
+                });
+
+                card.querySelector(".btn-flip")?.addEventListener("click", () => {
+                    const orientation = actorData.orientacion === "flip" ? "normal" : "flip";
+                    db.ref(`${THEATRE_ACTORS_PATH}/${actorId}/orientacion`).set(orientation);
+                });
+
+                card.querySelector(".btn-remove")?.addEventListener("click", async () => {
+                    if (global.LuminousTheatreState?.removeVisibleActor) {
+                        await global.LuminousTheatreState.removeVisibleActor(actorId);
+                    }
+                    await db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).remove();
+                });
+
+                liveActorsList.appendChild(card);
+            });
+        }
+
         if (liveActorsList) {
             db.ref(THEATRE_ACTORS_PATH).on("value", snapshot => {
                 liveActors = snapshot.val() || {};
-                liveActorsList.innerHTML = '';
-
-                // Actualizar contador en la UI si existe (opcional)
-                const panelTitle = document.querySelector(".panel-title");
-                if (panelTitle) {
-                    panelTitle.textContent = `CONTROL DE CASTING (${Object.keys(liveActors).length}/${MAX_ACTORS})`;
-                }
-
-                Object.keys(liveActors).forEach(actorId => {
-                    const actorData = liveActors[actorId];
-
-                    const card = document.createElement("div");
-                    card.className = "actor-control-card";
-                    let expresionesHTML = '';
-                    if (actorData.expresiones && Object.keys(actorData.expresiones).length > 0) {
-                        expresionesHTML = '<select class="actor-expression-select" style="background:#222; color:#fff; border:1px solid #444; padding:2px; font-size:0.8rem; font-family:\'Share Tech Mono\', monospace;">';
-                        for (const exp in actorData.expresiones) {
-                            const isSelected = actorData.expresionActiva === exp ? 'selected' : '';
-                            expresionesHTML += `<option value="${exp}" ${isSelected}>${exp}</option>`;
-                        }
-                        expresionesHTML += '</select>';
-                    }
-
-                    card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="actor-name">${actorData.nombre} (ID: ${actorId.split('_')[1]})</span>
-                            ${expresionesHTML}
-                        </div>
-                        <div class="actor-buttons">
-                            <button class="btn-move" data-dir="left"><</button>
-                            <button class="btn-move" data-dir="right">></button>
-                            <button class="btn-flip">ESPEJO</button>
-                            <button class="btn-remove">X</button>
-                        </div>
-                    `;
-
-                    // Expression change
-                    const expSelect = card.querySelector('.actor-expression-select');
-                    if (expSelect) {
-                        expSelect.addEventListener('change', (e) => {
-                            const newExp = e.target.value;
-                            const newSprite = actorData.expresiones[newExp] || actorData.sprite;
-                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({
-                                expresionActiva: newExp,
-                                sprite: newSprite
-                            });
-                        });
-                    }
-
-                    // Move Left
-                    const btnLeft = card.querySelector('.btn-move[data-dir="left"]');
-                    if (btnLeft) {
-                        btnLeft.addEventListener("click", () => {
-                            const currentX = parseInt(actorData.x) || 0;
-                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ x: currentX - 50 });
-                        });
-                    }
-
-                    // Move Right
-                    const btnRight = card.querySelector('.btn-move[data-dir="right"]');
-                    if (btnRight) {
-                        btnRight.addEventListener("click", () => {
-                            const currentX = parseInt(actorData.x) || 0;
-                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ x: currentX + 50 });
-                        });
-                    }
-
-                    // Flip (Espejo)
-                    const btnFlip = card.querySelector('.btn-flip');
-                    if (btnFlip) {
-                        btnFlip.addEventListener("click", () => {
-                            const currentOrientation = actorData.orientacion === 'flip' ? 'normal' : 'flip';
-                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ orientacion: currentOrientation });
-                        });
-                    }
-
-                    // Remove
-                    const btnRemove = card.querySelector('.btn-remove');
-                    if (btnRemove) {
-                        btnRemove.addEventListener("click", () => {
-                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).remove();
-                        });
-                    }
-
-                    liveActorsList.appendChild(card);
-                });
+                renderLiveActors();
             });
         }
     });
