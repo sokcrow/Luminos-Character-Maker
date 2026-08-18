@@ -1402,8 +1402,13 @@ function initializeCharacterSheet() {
             finalIcon = actorParaEnviar.icono || actorParaEnviar.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
         }
 
+
+        const tipoDialogoEl = document.getElementById("player-tipo-dialogo-select");
+        const tipoDialogo = tipoDialogoEl ? tipoDialogoEl.value : "dialogo";
+        const mostrarIdentidad = tipoDialogo !== "pensamiento";
+
         const payload = {
-          actorId: assignedActorId,
+          actorId: actorAssigned.actorId || assignedActorId,
           nombre: actorParaEnviar.nombre || "Jugador",
           titulo: actorParaEnviar.titulo || "",
           color_nombre: actorParaEnviar.color_nombre || "#ffffff",
@@ -1413,6 +1418,8 @@ function initializeCharacterSheet() {
           sprite: selectedSprite || null,
           icono: finalIcon,
           mensaje: msgText,
+          tipo_dialogo: tipoDialogo,
+          mostrar_identidad: mostrarIdentidad,
           createdAt: firebase.database.ServerValue.TIMESTAMP,
         };
 
@@ -1467,15 +1474,72 @@ function initializeCharacterSheet() {
 
 
   window.getAssignedTheatreActor = function() {
-    const actorId = window.datosJugador?.actorId || null;
-    if (!actorId) return null;
-    const actor = window.actoresJugador && window.actoresJugador[actorId];
-    if (!actor) return null;
-    return { actorId, ...actor };
+    // 1. Return the one explicitly selected by the user in the selector (if visible and valid)
+    const selectActor = document.getElementById("player-actor-select");
+    if (selectActor && selectActor.value) {
+        const selId = selectActor.value;
+        const selActor = window.actoresJugador && window.actoresJugador[selId];
+        if (selActor) {
+            return { actorId: selId, ...selActor };
+        }
+    }
+
+    // 2. Fallback to the assigned ones
+    const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
+        ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
+        : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+
+    if (!assignedIds || assignedIds.length === 0) return null;
+
+    const firstValidId = assignedIds.find(id => window.actoresJugador && window.actoresJugador[id]);
+    if (firstValidId) {
+        return { actorId: firstValidId, ...window.actoresJugador[firstValidId] };
+    }
+
+    return null;
   };
 
-  window.syncPlayerTheatreComposer = function() {
+  window.syncPlayerTheatreComposer = function(forceActorChange = false) {
+      const assignedIds = (window.LuminousTheatreState && window.LuminousTheatreState.normalizeAssignedActorIds)
+          ? window.LuminousTheatreState.normalizeAssignedActorIds(window.datosJugador?.actorId || window.datosJugador?.vinculo_jugador)
+          : (window.datosJugador?.actorId ? [window.datosJugador.actorId] : []);
+
+      const selectActor = document.getElementById("player-actor-select");
+
+      if (selectActor && !forceActorChange) {
+          const currentVal = selectActor.value;
+          selectActor.innerHTML = "";
+
+          let validCount = 0;
+          assignedIds.forEach(id => {
+              const ac = window.actoresJugador && window.actoresJugador[id];
+              if (ac) {
+                  validCount++;
+                  const opt = document.createElement("option");
+                  opt.value = id;
+                  opt.textContent = ac.nombre || "Personaje";
+                  if (id === currentVal) opt.selected = true;
+                  selectActor.appendChild(opt);
+              }
+          });
+
+          if (validCount <= 1) {
+              selectActor.style.display = "none";
+          } else {
+              selectActor.style.display = "block";
+          }
+
+          // Add event listener only once (prevent duplicates)
+          if (!selectActor.dataset.listenerAttached) {
+              selectActor.addEventListener("change", () => {
+                  window.syncPlayerTheatreComposer(true); // force UI refresh for newly selected actor
+              });
+              selectActor.dataset.listenerAttached = "true";
+          }
+      }
+
       const assignedActor = window.getAssignedTheatreActor();
+
       const exprSelect = document.getElementById("player-expression-select");
       const btnSend = document.getElementById("btn-enviar-teatro-modal");
       const inputEl = document.getElementById("input-teatro-modal");
@@ -1506,63 +1570,76 @@ function initializeCharacterSheet() {
               if (!hasExpressions) {
                   exprSelect.innerHTML = '<option value="Neutral">Neutral</option>';
               }
-              exprSelect.style.display = "block";
-              exprSelect.disabled = false;
           }
+
           if (modalNameEl) {
               modalNameEl.textContent = assignedActor.nombre || 'Jugador';
-              modalNameEl.style.color = assignedActor.color_nombre || '#ffffff';
+
+              const colorNombre = assignedActor.color_nombre || "#4a4a4a";
+              modalNameEl.style.setProperty("color", "#ffffff", "important");
+              modalNameEl.style.setProperty("background", `linear-gradient(90deg, ${colorNombre} 0%, ${colorNombre} 68%, #17110b 100%)`, "important");
+              modalNameEl.style.setProperty("border-left", `4px solid ${colorNombre}`, "important");
+              modalNameEl.style.padding = "2px 20px";
           }
+
           if (modalTitleEl) {
               if (assignedActor.titulo) {
                   modalTitleEl.textContent = assignedActor.titulo;
-                  modalTitleEl.style.backgroundColor = assignedActor.color_titulo || '#3b2918';
                   modalTitleEl.style.display = 'inline';
+
+                  const colorTitulo = assignedActor.color_titulo || "#4a4a4a";
+                  modalTitleEl.style.setProperty("color", "#ffffff", "important");
+                  modalTitleEl.style.setProperty("background", `linear-gradient(90deg, ${colorTitulo} 0%, ${colorTitulo} 68%, #17110b 100%)`, "important");
+                  modalTitleEl.style.setProperty("border-left", `4px solid ${colorTitulo}`, "important");
+                  modalTitleEl.style.padding = "2px 20px";
               } else {
-                  modalTitleEl.textContent = '';
                   modalTitleEl.style.display = 'none';
               }
           }
+
           if (modalIconEl) {
-              const actorIcon = assignedActor.icono || assignedActor.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono || null;
-              if (actorIcon) {
-                  modalIconEl.src = actorIcon;
-                  modalIconEl.style.display = "block";
+              const iconUrl = assignedActor.icono || assignedActor.icono_jugador || window.datosJugador?.icono_jugador || window.datosJugador?.icono;
+              if (iconUrl) {
+                  modalIconEl.src = iconUrl;
+                  modalIconEl.style.display = 'block';
               } else {
-                  const charHexColor = assignedActor.color_nombre || "#ffffff";
-                  const initial = assignedActor.nombre ? assignedActor.nombre.charAt(0) : "J";
-                  modalIconEl.src = 'https://via.placeholder.com/80/000000/' + charHexColor.replace('#', '') + '?text=' + initial;
-                  modalIconEl.style.display = "block";
+                  modalIconEl.style.display = 'none';
               }
           }
+
           if (btnSend) {
-              btnSend.disabled = window.isTheatreBlocked ? true : false;
-              btnSend.style.opacity = window.isTheatreBlocked ? "0.5" : "1";
-          }
-          if (inputEl) {
-              inputEl.disabled = window.isTheatreBlocked ? true : false;
-              inputEl.placeholder = window.isTheatreBlocked ? "El Director ha bloqueado las interacciones (Modo Lore)..." : "Escribe tu acción o diálogo...";
+              if (window.isTheatreBlocked) {
+                  btnSend.disabled = true;
+                  btnSend.style.opacity = '0.5';
+                  btnSend.title = "El Teatro está bloqueado por el Director.";
+                  if(inputEl) {
+                      inputEl.disabled = true;
+                      inputEl.placeholder = "Escritura bloqueada en Modo Narrativo...";
+                  }
+              } else {
+                  btnSend.disabled = false;
+                  btnSend.style.opacity = '1';
+                  btnSend.title = "Enviar Actuación";
+                  if(inputEl) {
+                      inputEl.disabled = false;
+                      inputEl.placeholder = "Describe tu acción o diálogo...";
+                  }
+              }
           }
       } else {
-          if (exprSelect) {
-              exprSelect.innerHTML = "";
-              exprSelect.disabled = true;
-              exprSelect.style.display = "none";
-          }
-          if (modalNameEl) modalNameEl.textContent = "";
-          if (modalTitleEl) modalTitleEl.textContent = "";
-          if (modalIconEl) {
-              modalIconEl.src = "";
-              modalIconEl.style.display = "none";
-          }
+          // Bloquear si no hay actor
           if (btnSend) {
               btnSend.disabled = true;
-              btnSend.style.opacity = "0.5";
+              btnSend.style.opacity = '0.5';
+              btnSend.title = "No tienes personajes asignados.";
           }
           if (inputEl) {
               inputEl.disabled = true;
-              inputEl.placeholder = "Esperando asignación de actor...";
+              inputEl.placeholder = "Requiere asignar un actor...";
           }
+          if (modalNameEl) modalNameEl.textContent = "Sin Asignar";
+          if (modalTitleEl) modalTitleEl.style.display = "none";
+          if (modalIconEl) modalIconEl.style.display = "none";
       }
   };
 

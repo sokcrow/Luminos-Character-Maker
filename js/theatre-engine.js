@@ -23,24 +23,20 @@
             : fallback;
     }
 
-    function paintTitlePlate(titleEl, colorValue) {
-        const titleColor = getSafeCssColor(colorValue, "#3b2918");
+    function paintIdentityPlate(element, value) {
+        if (!element) return;
 
-        titleEl.style.setProperty(
-            "color",
-            "#ffffff",
-            "important"
-        );
+        const plateColor = getSafeCssColor(value, "#4a4a4a");
 
-        titleEl.style.setProperty(
+        element.style.setProperty("color", "#ffffff", "important");
+        element.style.setProperty(
             "background",
-            `linear-gradient(90deg, ${titleColor} 0%, ${titleColor} 68%, #17110b 100%)`,
+            `linear-gradient(90deg, ${plateColor} 0%, ${plateColor} 68%, #17110b 100%)`,
             "important"
         );
-
-        titleEl.style.setProperty(
+        element.style.setProperty(
             "border-left-color",
-            titleColor,
+            plateColor,
             "important"
         );
     }
@@ -72,55 +68,76 @@
 
         const actoresData = snapshot.val() || {};
 
-        // Track current actors in DOM by data-id
-        const currentActors = Array.from(stage.querySelectorAll('.theatre-sprite'));
-        const currentActorIds = currentActors.map(img => img.dataset.id);
-        const newActorIds = Object.keys(actoresData);
+        // Enforce max 5 sprites rule
+        db.ref("campaña/estado_mundo/escena_actual/actores_visibles").once("value").then(visSnap => {
+            const visiblesList = visSnap.val() || [];
 
-        // Destrucción: Remove actors that are no longer in the JSON
-        currentActors.forEach(img => {
-            if (!newActorIds.includes(img.dataset.id)) {
-                img.remove();
-            }
-        });
+            const currentActors = Array.from(stage.querySelectorAll('.theatre-sprite'));
 
-        // Construcción y Actualización Posicional
-        newActorIds.forEach(actorId => {
-            const data = actoresData[actorId];
-            let img = stage.querySelector(`.theatre-sprite[data-id="${actorId}"]`);
+            // Collect actors that have a valid sprite URL
+            let renderIds = [];
 
-            if (!img) {
-                // Inyectar nuevo actor al DOM
-                img = document.createElement("img");
-                img.className = "theatre-sprite";
-                img.dataset.id = actorId;
-                stage.appendChild(img);
-            }
-
-            // Actualizar propiedades
-            img.src = data.url || data.sprite || "";
-            img.alt = data.nombre || "Actor en escena";
-
-            // Si hay transformaciones, escala u orientación, aplicarlas.
-            // Ejemplo: transform: scaleX(-1) translateX(50px)
-            let transformStr = "";
-            if (data.escala) transformStr += `scale(${data.escala}) `;
-            if (data.orientacion === 'flip') transformStr += `scaleX(-1) `;
-
-            // Fix parsing raw numbers to px if necessary
-            let xPos = data.x !== undefined ? data.x : 0;
-            let yPos = data.y !== undefined ? data.y : 0;
-            if (xPos !== 0 || yPos !== 0) {
-                let xStr = typeof xPos === 'number' ? `${xPos}px` : xPos;
-                let yStr = typeof yPos === 'number' ? `${yPos}px` : yPos;
-                transformStr += `translate(${xStr}, ${yStr}) `;
-            }
-
-            if (transformStr) {
-                img.style.transform = transformStr.trim();
+            // First respect the explicit visibles list if it exists and actors have URLs
+            if (visiblesList.length > 0) {
+                renderIds = visiblesList.filter(id => actoresData[id] && (actoresData[id].url || actoresData[id].sprite));
             } else {
-                img.style.transform = "none";
+                // Fallback locally to 5 most recently updated/spoke (but we don't have lastSpokeAt here natively unless updated)
+                let validActors = [];
+                Object.keys(actoresData).forEach(id => {
+                    if (actoresData[id].url || actoresData[id].sprite) {
+                        validActors.push({ id, data: actoresData[id] });
+                    }
+                });
+                renderIds = validActors.slice(0, 5).map(a => a.id);
             }
+
+            // Destrucción: Remove actors that are no longer in the renderIds
+            currentActors.forEach(img => {
+                if (!renderIds.includes(img.dataset.id)) {
+                    img.remove();
+                }
+            });
+
+            // Construcción y Actualización Posicional
+            renderIds.forEach(actorId => {
+                const data = actoresData[actorId];
+                if (!data.url && !data.sprite) return; // double check
+
+                let img = stage.querySelector(`.theatre-sprite[data-id="${actorId}"]`);
+
+                if (!img) {
+                    // Inyectar nuevo actor al DOM
+                    img = document.createElement("img");
+                    img.className = "theatre-sprite";
+                    img.dataset.id = actorId;
+                    stage.appendChild(img);
+                }
+
+                // Actualizar propiedades
+                img.src = data.url || data.sprite || "";
+                img.alt = data.nombre || "Actor en escena";
+
+                // Si hay transformaciones, escala u orientación, aplicarlas.
+                // Ejemplo: transform: scaleX(-1) translateX(50px)
+                let transformStr = "";
+                if (data.escala) transformStr += `scale(${data.escala}) `;
+                if (data.orientacion === 'flip') transformStr += `scaleX(-1) `;
+
+                // Fix parsing raw numbers to px if necessary
+                let xPos = data.x !== undefined ? data.x : 0;
+                let yPos = data.y !== undefined ? data.y : 0;
+                if (xPos !== 0 || yPos !== 0) {
+                    let xStr = typeof xPos === 'number' ? `${xPos}px` : xPos;
+                    let yStr = typeof yPos === 'number' ? `${yPos}px` : yPos;
+                    transformStr += `translate(${xStr}, ${yStr}) `;
+                }
+
+                if (transformStr) {
+                    img.style.transform = transformStr.trim();
+                } else {
+                    img.style.transform = "none";
+                }
+            });
         });
     });
 
@@ -133,9 +150,11 @@
         textEl.style.fontSize = ''; // Reset to default
         let size = parseFloat(window.getComputedStyle(textEl).fontSize) || 24;
         let iters = 0;
+        // Also check if textEl is actually rendered. If it's cloned, make sure clientHeight/scrollHeight are accurate.
+        // It relies on the element being in the DOM, which it is.
         while (textEl.scrollHeight > textEl.clientHeight && size > 10 && iters < 15) {
             size -= 1;
-            textEl.style.fontSize = size + 'px';
+            textEl.style.fontSize = `${size}px`;
             iters++;
         }
     }
@@ -149,7 +168,7 @@
 
         const platesContainer = document.querySelector(".theatre-plates-container");
         if (platesContainer) {
-            if (!dialogData.nombre || dialogData.nombre.trim() === "") {
+            if (dialogData.mostrar_identidad === false || !dialogData.nombre || dialogData.nombre.trim() === "") {
                 platesContainer.style.display = "none";
             } else {
                 platesContainer.style.display = "flex";
@@ -158,11 +177,11 @@
 
         if (nameEl) {
             nameEl.textContent = dialogData.nombre || "";
-            nameEl.style.color = dialogData.color_nombre || "#c49a00";
+            paintIdentityPlate(nameEl, dialogData.color_nombre);
         }
         if (titleEl) {
             titleEl.textContent = dialogData.titulo || "";
-            paintTitlePlate(titleEl, dialogData.color_titulo);
+            paintIdentityPlate(titleEl, dialogData.color_titulo);
         }
 
         if (textEl) {
@@ -218,30 +237,80 @@
 
         const stage = document.getElementById("theatre-stage");
         if (stage) {
+            const isThought = dialogData.tipo_dialogo === "pensamiento";
+            const isNarrator = dialogData.tipo_dialogo === "narracion";
             const activeActorId = dialogData.actorId;
             const activeSpriteUrl = dialogData.sprite;
 
             Array.from(stage.children).forEach((img) => {
                 let isActive = false;
-                if (activeActorId && img.dataset.id === activeActorId) {
-                    isActive = true;
-                } else if (!activeActorId && activeSpriteUrl && img.src === activeSpriteUrl) {
-                    // Fallback to old behavior for backwards compatibility if actorId is not set
-                    isActive = true;
+
+                // Thoughts and narrator don't change the active speaker highlight
+                if (!isThought && !isNarrator) {
+                    if (activeActorId && img.dataset.id === activeActorId) {
+                        isActive = true;
+                    } else if (!activeActorId && activeSpriteUrl && img.src === activeSpriteUrl) {
+                        // Fallback to old behavior for backwards compatibility if actorId is not set
+                        isActive = true;
+                    }
                 }
 
                 if (isActive) {
                     img.style.filter = "brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))";
                     img.style.zIndex = "10";
-                    if (activeSpriteUrl) {
+                    if (activeSpriteUrl && !isThought && !isNarrator) {
                         img.src = activeSpriteUrl;
                     }
                 } else {
-                    img.style.filter = "brightness(0.5)";
-                    img.style.zIndex = "1";
+                    if (!isThought && !isNarrator) {
+                        img.style.filter = "brightness(0.5)";
+                        img.style.zIndex = "1";
+                    }
                 }
             });
         }
     });
+
+
+    // --- LuminousTheatreState ---
+    global.LuminousTheatreState = {
+        normalizeAssignedActorIds: function(assignedIds) {
+            if (!assignedIds) return [];
+            if (Array.isArray(assignedIds)) return assignedIds;
+            if (typeof assignedIds === 'object') return Object.keys(assignedIds);
+            return [assignedIds];
+        },
+
+        updateVisibleActors: async function(actorId, actorData) {
+            if (!actorId) return;
+
+            const visRef = db.ref(`${THEATRE_ROOT}/actores_visibles`);
+            const snapshot = await visRef.once('value');
+            let visibles = snapshot.val() || [];
+
+            // If narrator or thoughts (no sprite), don't add to visible
+            if (actorData && (!actorData.sprite && !actorData.url)) {
+                return;
+            }
+
+            // Also check if we just need to reorder
+            const index = visibles.indexOf(actorId);
+            if (index !== -1) {
+                // Remove from current position
+                visibles.splice(index, 1);
+            }
+
+            // Add to end (most recent)
+            visibles.push(actorId);
+
+            // Keep only last 5
+            if (visibles.length > 5) {
+                // Ensure we only have the most recent 5
+                visibles = visibles.slice(visibles.length - 5);
+            }
+
+            await visRef.set(visibles);
+        }
+    };
 
 })(window);

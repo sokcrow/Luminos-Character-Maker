@@ -126,7 +126,7 @@ test("el motor del teatro utiliza el actorId para iluminar y colorea el diálogo
   );
   expect(engineScript).toContain("const activeActorId = dialogData.actorId");
   expect(engineScript).toContain(
-    "nameEl.style.color = dialogData.color_nombre"
+    "paintIdentityPlate(nameEl, dialogData.color_nombre)"
   );
 });
 
@@ -174,8 +174,8 @@ test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de
       return /^#[0-9a-f]{3,8}$/i.test(candidate) ? candidate : fallback;
     }
 
-    function paintTitlePlate(titleEl, colorValue) {
-      const titleColor = getSafeCssColor(colorValue, "#3b2918");
+    function paintIdentityPlate(titleEl, colorValue) {
+      const titleColor = getSafeCssColor(colorValue, "#4a4a4a");
       titleEl.style.setProperty("color", "#ffffff", "important");
       titleEl.style.setProperty(
         "background",
@@ -186,13 +186,13 @@ test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de
     }
 
     // 1. Valid Color Test
-    paintTitlePlate(titleEl, "#6252a3");
+    paintIdentityPlate(titleEl, "#6252a3");
     const validColor = titleEl.style.color;
     const validBackground = titleEl.style.background;
     const validBorderLeft = titleEl.style.borderLeftColor;
 
     // 2. Invalid/Empty Color Test (Fallback)
-    paintTitlePlate(titleEl, "");
+    paintIdentityPlate(titleEl, "");
     const fallbackBackground = titleEl.style.background;
     const fallbackBorderLeft = titleEl.style.borderLeftColor;
 
@@ -213,8 +213,8 @@ test("el color de titulo aplica a la placa de titulo y no al texto (Requisito de
   expect(engineResult.validBorderLeft).toBe("rgb(98, 82, 163)");
 
   // 3. Fallback should use #3b2918
-  expect(engineResult.fallbackBackground).toContain("rgb(59, 41, 24)"); // #3b2918
-  expect(engineResult.fallbackBorderLeft).toBe("rgb(59, 41, 24)");
+  expect(engineResult.fallbackBackground).toContain("rgb(74, 74, 74)"); // #4a4a4a
+  expect(engineResult.fallbackBorderLeft).toBe("rgb(74, 74, 74)");
 
   // 4. Check for shared engine inclusion
   const dmPageCurrent = fs.readFileSync(
@@ -404,4 +404,40 @@ test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", a
   expect(dashboardScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
   expect(controlsScript).not.toMatch(/color_titulo:.*#aaaaaa/);
   expect(controlsScript).not.toMatch(/colorTitulo:.*#aaaaaa/);
+});
+
+test("el fallback de color para las identidades es gris y el texto siempre es blanco", async ({ page }) => {
+  const engineScript = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-engine.js"), "utf8");
+  expect(engineScript).toContain('const plateColor = getSafeCssColor(value, "#4a4a4a");');
+  expect(engineScript).toContain('element.style.setProperty("color", "#ffffff", "important");');
+});
+
+test("el narrador y pensamientos no envían identidad ni modifican sprites", async ({ page }) => {
+  const dashboardScript = fs.readFileSync(path.join(__dirname, "..", "js", "on-game-dashboard.js"), "utf8");
+  expect(dashboardScript).toContain('tipoDialogo = "narracion"');
+  expect(dashboardScript).toContain('mostrarIdentidad = false');
+});
+
+test("el composer del jugador muestra selector solo cuando hay mas de un personaje", async ({ page }) => {
+  const playerScript = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.js"), "utf8");
+  expect(playerScript).toContain('selectActor.style.display = "none"');
+  expect(playerScript).toContain('selectActor.style.display = "block"');
+});
+
+test("resizeFontToFit modifica el tamaño directamente reduciendo px", async ({ page }) => {
+  const engineScript = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-engine.js"), "utf8");
+  expect(engineScript).toContain('textEl.style.fontSize = `${size}px`;');
+});
+
+test("el log usa icono universal y no sprite", async ({ page }) => {
+  const playerScript = fs.readFileSync(path.join(__dirname, "..", "hoja_personaje.js"), "utf8");
+  expect(playerScript).toContain('msg.icono || cachedIcon || fallbackIcon;');
+  expect(playerScript).not.toMatch(/finalIcon\s*=\s*.*msg\.sprite/);
+});
+
+test("sprites en escenario respetan max 5 visibles", async ({ page }) => {
+  const engineScript = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-engine.js"), "utf8");
+  expect(engineScript).toContain('db.ref("campaña/estado_mundo/escena_actual/actores_visibles")');
+  expect(engineScript).toContain('renderIds = validActors.slice(0, 5).map(a => a.id);');
+  expect(engineScript).toContain('if (!renderIds.includes(img.dataset.id)) {');
 });

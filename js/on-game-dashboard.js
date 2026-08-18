@@ -285,6 +285,13 @@
                         const startedAt = window.firebase.database.ServerValue.TIMESTAMP;
 
                         // Broadcast to active dialogue
+                        // Notify visibility rule (LuminousTheatreState) if valid actor speaking actual dialogue
+                        if (actualData.actorId && window.LuminousTheatreState && window.LuminousTheatreState.updateVisibleActors) {
+                            if (actualData.tipo_dialogo !== "pensamiento" && actualData.tipo_dialogo !== "narracion") {
+                                window.LuminousTheatreState.updateVisibleActors(actualData.actorId, actualData);
+                            }
+                        }
+
                         const activePayload = {
                             messageId: msgKey,
                             nombre: actualData.nombre || "",
@@ -296,6 +303,8 @@
                             icono: actualData.icono || null,
                             color_nombre: actualData.color_nombre || "#ffffff",
                             color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
+                            tipo_dialogo: actualData.tipo_dialogo || "dialogo",
+                            mostrar_identidad: actualData.mostrar_identidad !== false,
                             startedAt: startedAt,
                             speedMs: speedMs,
                             durationMs: durationMs
@@ -356,9 +365,13 @@
 
             const speakerSelect = document.getElementById("theatre-speaker-select");
             const expressionSelect = document.getElementById("theatre-expression-select");
+            const dmTipoDialogoEl = document.getElementById("dm-tipo-dialogo-select");
+
+            let tipoDialogo = dmTipoDialogoEl ? dmTipoDialogoEl.value : "dialogo";
+            let mostrarIdentidad = tipoDialogo !== "pensamiento";
 
             let speakerData = {
-                nombre: "NARRADOR",
+                nombre: "",
                 titulo: "",
                 actorId: null,
                 expression: "Neutral",
@@ -368,7 +381,10 @@
                 color_titulo: DEFAULT_TITLE_COLOR
             };
 
-            if (speakerSelect && speakerSelect.value !== "narrador") {
+            if (speakerSelect && speakerSelect.value === "narrador") {
+                tipoDialogo = "narracion";
+                mostrarIdentidad = false;
+            } else if (speakerSelect) {
                 const selectedOption = speakerSelect.options[speakerSelect.selectedIndex];
                 speakerData.nombre = selectedOption.dataset.nombre || "";
                 speakerData.titulo = selectedOption.dataset.titulo || "";
@@ -384,8 +400,8 @@
                 }
             }
 
-            // Also persist the expression to the actor instance so it doesn't revert
-            if (speakerData.actorId) {
+            // Also persist the expression to the actor instance so it doesn't revert, EXCEPT for pensamientos
+            if (speakerData.actorId && tipoDialogo !== "pensamiento" && tipoDialogo !== "narracion") {
                 db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
                     expresionActiva: speakerData.expression,
                     sprite: speakerData.sprite
@@ -403,6 +419,8 @@
               icono: speakerData.icono,
               color_nombre: speakerData.color_nombre,
               color_titulo: speakerData.color_titulo,
+              tipo_dialogo: tipoDialogo,
+              mostrar_identidad: mostrarIdentidad,
               createdAt: window.firebase.database.ServerValue.TIMESTAMP
             });
             dialogueInput.value = "";

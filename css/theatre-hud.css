@@ -60,7 +60,7 @@
   max-height: none !important;
   margin: 0 !important;
   padding: 0 !important;
-  aspect-ratio: auto !important;
+  aspect-ratio: 16 / 9 !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: flex-end !important;
@@ -78,6 +78,7 @@
   object-position: center bottom;
   transform-origin: 50% 100%;
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 /* Compatibilidad con el renderizador anterior del jugador. */
@@ -92,6 +93,7 @@
   object-position: center bottom;
   transform-origin: 50% 100%;
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 /* ==================================================
@@ -120,7 +122,7 @@
   border-bottom-width: 3px !important;
   border-radius: 0 !important;
   box-shadow: 5px 7px 18px rgba(0, 0, 0, 0.82);
-  font-size: clamp(18px, 2.2vw, 30px) !important;
+  font-size: clamp(18px, 2.2vw, 30px) ;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   transform: rotate(-5deg) !important;
@@ -261,6 +263,7 @@
   transform-origin: bottom left;
   filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.8));
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 #theatre-view-player .theatre-plates-container::before,
@@ -307,7 +310,7 @@
   border-left: 4px solid #b98a32 !important;
   border-radius: 0 !important;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
-  font-size: 16px !important;
+  font-size: 16px ;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -326,7 +329,7 @@
   border-left: 6px solid #17110d !important;
   border-radius: 0 !important;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
-  font-size: 32px !important;
+  font-size: 32px ;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -480,6 +483,7 @@ body.player-instance-theatre
   box-shadow:
     inset 0 0 0 1px rgba(227, 189, 99, 0.34);
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 body.player-instance-theatre
@@ -523,6 +527,7 @@ body.player-instance-theatre
   color: currentColor;
   filter: sepia(1) saturate(0.8) brightness(1.35);
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 body.player-instance-theatre
@@ -589,6 +594,7 @@ body.player-instance-theatre
   inset: 0;
   z-index: var(--theatre-layer-director);
   pointer-events: none;
+  aspect-ratio: 16 / 9;
 }
 
 .on-game-dashboard .theatre-dm-menu-toggle {
@@ -657,7 +663,7 @@ body.player-instance-theatre
     left: 14px !important;
     max-width: 70vw;
     padding: 6px 18px !important;
-    font-size: 15px !important;
+    font-size: 15px ;
   }
 
   #theatre-view-player .theatre-dialogue-wrapper,
@@ -683,14 +689,14 @@ body.player-instance-theatre
   #theatre-view-player .theatre-plate-title,
   .on-game-dashboard #modulo-teatro .theatre-plate-title {
     min-width: 130px;
-    font-size: 10px !important;
+    font-size: 10px ;
   }
 
   #theatre-view-player .theatre-plate-name,
   .on-game-dashboard #modulo-teatro .theatre-plate-name {
     min-width: 170px;
     padding: 3px 30px 3px 15px !important;
-    font-size: 23px !important;
+    font-size: 23px ;
   }
 
   body.player-instance-theatre .hud-sidebar-right {
