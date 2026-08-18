@@ -2,328 +2,448 @@
     "use strict";
 
     const db = global.firebase.database();
-
     const THEATRE_ROOT = "campaña/estado_mundo/escena_actual";
+    const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
+    const DEFAULT_MAX_VISIBLE = 5;
+    const LOCAL_SHOW_SELF_KEY = "luminous.theatre.showOwnActor";
+
+    let currentScene = {};
+    let currentDialogue = {};
+    let typewriterInterval = null;
+    let resizeObserver = null;
+
+    function clampVisibleLimit(value) {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed)) return DEFAULT_MAX_VISIBLE;
+        return Math.max(1, Math.min(DEFAULT_MAX_VISIBLE, parsed));
+    }
+
+    function getVisibleLimit(scene) {
+        return clampVisibleLimit(
+            scene && (scene.max_actores_visibles ?? scene.maxVisibleActors ?? scene.config?.maxVisibleActors)
+        );
+    }
 
     function getSafeCssColor(value, fallback) {
         const candidate = typeof value === "string" ? value.trim() : "";
-
-        if (!candidate) {
-            return fallback;
-        }
-
+        if (!candidate) return fallback;
         if (global.CSS && typeof global.CSS.supports === "function") {
-            return global.CSS.supports("color", candidate)
-                ? candidate
-                : fallback;
+            return global.CSS.supports("color", candidate) ? candidate : fallback;
         }
-
-        return /^#[0-9a-f]{3,8}$/i.test(candidate)
-            ? candidate
-            : fallback;
+        return /^#[0-9a-f]{3,8}$/i.test(candidate) ? candidate : fallback;
     }
 
     function paintIdentityPlate(element, value) {
         if (!element) return;
-
         const plateColor = getSafeCssColor(value, "#4a4a4a");
-
-        element.style.setProperty("color", "", ""); // Remove hardcoded white, keep default styles for text
-        element.style.setProperty(
-            "background-color",
-            plateColor,
-            "important"
-        );
-        element.style.removeProperty("background"); // Ensure gradient is removed so background-color works
-        element.style.setProperty(
-            "border-left-color",
-            plateColor,
-            "important"
-        );
+        element.style.setProperty("color", "", "");
+        element.style.setProperty("background-color", plateColor, "important");
+        element.style.removeProperty("background");
+        element.style.setProperty("border-left-color", plateColor, "important");
     }
-    const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
-        // 1. Reactividad de Escenografía (Fondo)
-    db.ref(`${THEATRE_ROOT}/fondo`).on("value", (snapshot) => {
-        const fondoUrl = snapshot.val();
+    function normalizeIdList(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (typeof value === "object") {
+            return Object.keys(value)
+                .sort((a, b) => Number(a) - Number(b))
+                .map((key) => value[key])
+                .filter(Boolean);
+        }
+        return [value].filter(Boolean);
+    }
+
+    function getAssignedActorId() {
+        try {
+            const actor = typeof global.getAssignedTheatreActor === "function"
+                ? global.getAssignedTheatreActor()
+                : null;
+            return actor?.actorId || actor?.id || global.assignedActorId || null;
+        } catch (error) {
+            return global.assignedActorId || null;
+        }
+    }
+
+    function shouldShowOwnActor() {
+        try {
+            return global.localStorage?.getItem(LOCAL_SHOW_SELF_KEY) === "true";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function isDmView() {
+        return Boolean(document.body?.classList.contains("on-game-dashboard"));
+    }
+
+    function isNoActorsMode(scene) {
+        return scene?.modo_presentacion === "no-actors" ||
+            scene?.presentationMode === "no-actors" ||
+            scene?.mostrar_actores === false;
+    }
+
+    function getRenderIds(scene) {
+        if (isNoActorsMode(scene)) return [];
+
+        const actors = scene?.actores || {};
+        const maxVisible = getVisibleLimit(scene);
+        const explicitVisible = normalizeIdList(scene?.actores_visibles).slice(-maxVisible);
+
+        // Firebase is authoritative. Missing/empty actores_visibles means no visible sprites;
+        // never fabricate a local fallback from the actor pool.
+        let ids = explicitVisible.filter((id) => {
+            const actor = actors[id];
+            return actor && (actor.url || actor.sprite);
+        });
+
+        if (!isDmView() && !shouldShowOwnActor()) {
+            const ownId = getAssignedActorId();
+            if (ownId) ids = ids.filter((id) => id !== ownId);
+        }
+
+        return ids;
+    }
+
+    function applyStageFocus(stage, dialogData) {
+        if (!stage) return;
+
+        const type = dialogData?.tipo_dialogo || "dialogo";
+        const isThought = type === "pensamiento";
+        const isNarrator = type === "narracion";
+        const hasMessage = Boolean(dialogData?.mensaje);
+        const activeActorId = dialogData?.actorId || null;
+        const activeSpriteUrl = dialogData?.sprite || null;
+
+        Array.from(stage.querySelectorAll(".theatre-sprite")).forEach((img) => {
+            const isActive = !isThought && !isNarrator && hasMessage && (
+                (activeActorId && img.dataset.id === activeActorId) ||
+                (!activeActorId && activeSpriteUrl && img.src === activeSpriteUrl)
+            );
+
+            if (isThought || isNarrator) {
+                img.classList.remove("is-speaking");
+                img.classList.add("is-dimmed");
+                img.style.filter = "brightness(0.4)";
+                img.style.zIndex = "1";
+            } else if (!hasMessage) {
+                img.classList.remove("is-speaking", "is-dimmed");
+                img.style.filter = "brightness(1)";
+                img.style.zIndex = "5";
+            } else if (isActive) {
+                img.classList.add("is-speaking");
+                img.classList.remove("is-dimmed");
+                img.style.filter = "brightness(1)";
+                img.style.zIndex = "10";
+                if (activeSpriteUrl) img.src = activeSpriteUrl;
+            } else {
+                img.classList.add("is-dimmed");
+                img.classList.remove("is-speaking");
+                img.style.filter = "brightness(0.4)";
+                img.style.zIndex = "1";
+            }
+            img.style.transition = "0.3s";
+        });
+    }
+
+    function renderScene(scene) {
+        currentScene = scene || {};
+
         const moduleTeatro = document.getElementById("modulo-teatro") || document.getElementById("theatre-view-player");
         if (moduleTeatro) {
+            const fondoUrl = currentScene.fondo || "";
             moduleTeatro.style.backgroundImage = fondoUrl
                 ? `linear-gradient(rgba(0,0,0,.15), rgba(0,0,0,.35)), url("${fondoUrl}")`
                 : "none";
+            moduleTeatro.dataset.theatreTransition = currentScene.transitioning ? "true" : "false";
         }
-    });
 
-    // 1.5 Reactividad de Localización
-    db.ref(`${THEATRE_ROOT}/locacion`).on("value", (snapshot) => {
         const locacionEl = document.getElementById("theatre-location");
         if (locacionEl) {
-            locacionEl.textContent = snapshot.val() || "LOCALIZACIÓN DESCONOCIDA";
+            locacionEl.textContent = currentScene.locacion || "LOCALIZACIÓN DESCONOCIDA";
         }
-    });
 
-    // 2. Motor de Sprites (Actores en Escena)
-    db.ref(`${THEATRE_ROOT}/actores`).on("value", (snapshot) => {
         const stage = document.getElementById("theatre-stage");
         if (!stage) return;
 
-        const actoresData = snapshot.val() || {};
+        if (currentScene.transitioning) {
+            stage.style.opacity = "0";
+        } else {
+            stage.style.opacity = "1";
+        }
+        stage.style.transition = "opacity .35s ease";
 
-        // Enforce max 5 sprites rule
-        db.ref("campaña/estado_mundo/escena_actual/actores_visibles").once("value").then(visSnap => {
-            const visiblesList = visSnap.val() || [];
+        const actors = currentScene.actores || {};
+        const renderIds = currentScene.transitioning ? [] : getRenderIds(currentScene);
+        const currentActors = Array.from(stage.querySelectorAll(".theatre-sprite"));
 
-            const currentActors = Array.from(stage.querySelectorAll('.theatre-sprite'));
+        currentActors.forEach((img) => {
+            if (!renderIds.includes(img.dataset.id)) img.remove();
+        });
 
-            // Collect actors that have a valid sprite URL
-            let renderIds = [];
+        renderIds.forEach((actorId) => {
+            const data = actors[actorId];
+            if (!data || (!data.url && !data.sprite)) return;
 
-            // First respect the explicit visibles list if it exists and actors have URLs
-            if (visiblesList.length > 0) {
-                renderIds = visiblesList.filter(id => actoresData[id] && (actoresData[id].url || actoresData[id].sprite));
-            } else {
-                // Fallback locally to 5 most recently updated/spoke (but we don't have lastSpokeAt here natively unless updated)
-                let validActors = [];
-                Object.keys(actoresData).forEach(id => {
-                    if (actoresData[id].url || actoresData[id].sprite) {
-                        validActors.push({ id, data: actoresData[id] });
-                    }
-                });
-                renderIds = validActors.slice(0, 5).map(a => a.id);
+            let img = stage.querySelector(`.theatre-sprite[data-id="${actorId}"]`);
+            if (!img) {
+                img = document.createElement("img");
+                img.className = "theatre-sprite";
+                img.dataset.id = actorId;
+                stage.appendChild(img);
             }
 
-            // Destrucción: Remove actors that are no longer in the renderIds
-            currentActors.forEach(img => {
-                if (!renderIds.includes(img.dataset.id)) {
-                    img.remove();
-                }
-            });
+            // expresionActiva/sprite are the revealed state. expresionPreparada never renders here.
+            img.src = data.url || data.sprite || "";
+            img.alt = data.nombre || "Actor en escena";
 
-            // Construcción y Actualización Posicional
-            renderIds.forEach(actorId => {
-                const data = actoresData[actorId];
-                if (!data.url && !data.sprite) return; // double check
+            let transformStr = "";
+            if (data.escala) transformStr += `scale(${data.escala}) `;
+            if (data.orientacion === "flip") transformStr += "scaleX(-1) ";
 
-                let img = stage.querySelector(`.theatre-sprite[data-id="${actorId}"]`);
+            const xPos = data.x !== undefined ? data.x : 0;
+            const yPos = data.y !== undefined ? data.y : 0;
+            if (xPos !== 0 || yPos !== 0) {
+                const xStr = typeof xPos === "number" ? `${xPos}px` : xPos;
+                const yStr = typeof yPos === "number" ? `${yPos}px` : yPos;
+                transformStr += `translate(${xStr}, ${yStr}) `;
+            }
 
-                if (!img) {
-                    // Inyectar nuevo actor al DOM
-                    img = document.createElement("img");
-                    img.className = "theatre-sprite";
-                    img.dataset.id = actorId;
-                    stage.appendChild(img);
-                }
-
-                // Actualizar propiedades
-                img.src = data.url || data.sprite || "";
-                img.alt = data.nombre || "Actor en escena";
-
-                // Si hay transformaciones, escala u orientación, aplicarlas.
-                // Ejemplo: transform: scaleX(-1) translateX(50px)
-                let transformStr = "";
-                if (data.escala) transformStr += `scale(${data.escala}) `;
-                if (data.orientacion === 'flip') transformStr += `scaleX(-1) `;
-
-                // Fix parsing raw numbers to px if necessary
-                let xPos = data.x !== undefined ? data.x : 0;
-                let yPos = data.y !== undefined ? data.y : 0;
-                if (xPos !== 0 || yPos !== 0) {
-                    let xStr = typeof xPos === 'number' ? `${xPos}px` : xPos;
-                    let yStr = typeof yPos === 'number' ? `${yPos}px` : yPos;
-                    transformStr += `translate(${xStr}, ${yStr}) `;
-                }
-
-                if (transformStr) {
-                    img.style.transform = transformStr.trim();
-                } else {
-                    img.style.transform = "none";
-                }
-            });
+            img.style.transform = transformStr ? transformStr.trim() : "none";
         });
-    });
 
-            // 3. Sincronización de Diálogos (Motor Typewriter Deterministico)
-    let typewriterInterval = null;
-    let resizeObserver = null;
-    let cachedFullTextLength = 0;
+        applyStageFocus(stage, currentDialogue);
+    }
 
     function resizeFontToFit(textEl) {
-        textEl.style.fontSize = ''; // Reset to default
-        let size = parseFloat(window.getComputedStyle(textEl).fontSize) || 24;
+        textEl.style.fontSize = "";
+        let size = parseFloat(global.getComputedStyle(textEl).fontSize) || 24;
         let iters = 0;
-        // Also check if textEl is actually rendered. If it's cloned, make sure clientHeight/scrollHeight are accurate.
-        // It relies on the element being in the DOM, which it is.
         while (textEl.scrollHeight > textEl.clientHeight && size > 10 && iters < 15) {
             size -= 1;
             textEl.style.fontSize = `${size}px`;
-            iters++;
+            iters += 1;
         }
     }
 
-    db.ref(DIALOGUE_ROOT).on("value", (snapshot) => {
-        const dialogData = snapshot.val() || {};
+    function formatDialogueMessage(dialogData) {
+        const raw = String(dialogData?.mensaje || "");
+        if (/^\/em\s+/i.test(raw)) {
+            const action = raw.replace(/^\/em\s+/i, "").trim();
+            const name = dialogData?.nombre || "Actor";
+            return `(${name} ${action})`;
+        }
+        return raw;
+    }
+
+    function resolvePlateIdentity(dialogData) {
+        const hasActor = Boolean(dialogData?.actorId);
+        if (!hasActor || dialogData?.tipo_dialogo === "narracion") {
+            return { visible: false, name: "", title: "" };
+        }
+
+        if (dialogData?.identidad_conocida === false || dialogData?.identityKnown === false) {
+            return { visible: true, name: "???", title: "???" };
+        }
+
+        if (dialogData?.mostrar_identidad === false && dialogData?.tipo_dialogo !== "pensamiento") {
+            return { visible: false, name: "", title: "" };
+        }
+
+        return {
+            visible: true,
+            name: dialogData?.nombre || "???",
+            title: dialogData?.titulo || "???"
+        };
+    }
+
+    function renderDialogue(dialogData) {
+        currentDialogue = dialogData || {};
 
         const nameEl = document.getElementById("dialogue-name");
         const titleEl = document.getElementById("dialogue-title");
         const textEl = document.getElementById("dialogue-text");
-
         const platesContainer = document.querySelector(".theatre-plates-container");
-        if (platesContainer) {
-            if (dialogData.mostrar_identidad === false || !dialogData.actorId || !dialogData.nombre || dialogData.nombre.trim() === "") {
-                platesContainer.style.display = "none";
-            } else {
-                platesContainer.style.display = "flex";
-            }
-        }
+        const identity = resolvePlateIdentity(currentDialogue);
 
+        if (platesContainer) platesContainer.style.display = identity.visible ? "flex" : "none";
         if (nameEl) {
-            nameEl.textContent = dialogData.nombre || "";
-            paintIdentityPlate(nameEl, dialogData.color_nombre);
+            nameEl.textContent = identity.name;
+            paintIdentityPlate(nameEl, currentDialogue.color_nombre);
         }
         if (titleEl) {
-            titleEl.textContent = dialogData.titulo || "";
-            paintIdentityPlate(titleEl, dialogData.color_titulo);
+            titleEl.textContent = identity.title;
+            paintIdentityPlate(titleEl, currentDialogue.color_titulo);
         }
 
         if (textEl) {
             clearInterval(typewriterInterval);
-            if (!dialogData.mensaje) {
+            const fullText = formatDialogueMessage(currentDialogue);
+            if (!fullText) {
                 textEl.textContent = "…";
-                textEl.style.fontSize = '';
-                return;
-            }
-
-            const fullText = dialogData.mensaje;
-            const startedAt = dialogData.startedAt || Date.now();
-            const speed = dialogData.speedMs || 30; // 30ms per char
-
-            if (resizeObserver) resizeObserver.disconnect();
-
-            // Re-eval resize only once using a hidden clone to pre-calculate font size!
-            // This prevents layout thrashing during the typewriter effect.
-            const clone = textEl.cloneNode(true);
-            clone.style.visibility = 'hidden';
-            clone.style.position = 'absolute';
-            clone.style.width = textEl.clientWidth + 'px';
-            clone.style.height = textEl.clientHeight + 'px';
-            clone.textContent = fullText;
-            textEl.parentNode.appendChild(clone);
-
-            resizeFontToFit(clone);
-            const finalSize = clone.style.fontSize;
-            clone.remove();
-
-            if(finalSize) {
-                textEl.style.fontSize = finalSize;
+                textEl.style.fontSize = "";
             } else {
-                textEl.style.fontSize = '';
+                const startedAt = Number(currentDialogue.startedAt) || Date.now();
+                const speed = Math.max(1, Number(currentDialogue.speedMs) || 30);
+
+                if (resizeObserver) resizeObserver.disconnect();
+                const clone = textEl.cloneNode(true);
+                clone.style.visibility = "hidden";
+                clone.style.position = "absolute";
+                clone.style.width = `${textEl.clientWidth}px`;
+                clone.style.height = `${textEl.clientHeight}px`;
+                clone.textContent = fullText;
+                textEl.parentNode.appendChild(clone);
+                resizeFontToFit(clone);
+                const finalSize = clone.style.fontSize;
+                clone.remove();
+                textEl.style.fontSize = finalSize || "";
+
+                const renderFrame = () => {
+                    const elapsed = Date.now() - startedAt;
+                    let charsToShow = Math.floor(elapsed / speed);
+                    charsToShow = Math.max(0, Math.min(fullText.length, charsToShow));
+                    textEl.textContent = fullText.substring(0, charsToShow);
+                    if (charsToShow >= fullText.length) {
+                        clearInterval(typewriterInterval);
+                        // Intentionally keep the completed dialogue visible until the next valid event.
+                    }
+                };
+
+                renderFrame();
+                if (textEl.textContent.length < fullText.length) {
+                    typewriterInterval = setInterval(renderFrame, 30);
+                }
             }
-
-            // Animation loop
-            typewriterInterval = setInterval(() => {
-                const now = Date.now();
-                const elapsed = now - startedAt;
-                let charsToShow = Math.floor(elapsed / speed);
-
-                if (charsToShow >= fullText.length) {
-                    charsToShow = fullText.length;
-                    clearInterval(typewriterInterval);
-                }
-
-                if (charsToShow < 0) charsToShow = 0;
-
-                textEl.textContent = fullText.substring(0, charsToShow);
-            }, 30);
         }
 
-        const stage = document.getElementById("theatre-stage");
-        if (stage) {
-            const isThought = dialogData.tipo_dialogo === "pensamiento";
-            const isNarrator = dialogData.tipo_dialogo === "narracion";
-            const activeActorId = dialogData.actorId;
-            const activeSpriteUrl = dialogData.sprite;
+        applyStageFocus(document.getElementById("theatre-stage"), currentDialogue);
+    }
 
-            Array.from(stage.children).forEach((img) => {
-                let isActive = false;
-
-                // Thoughts and narrator don't change the active speaker highlight
-                if (!isThought && !isNarrator) {
-                    if (activeActorId && img.dataset.id === activeActorId) {
-                        isActive = true;
-                    } else if (!activeActorId && activeSpriteUrl && img.src === activeSpriteUrl) {
-                        // Fallback to old behavior for backwards compatibility if actorId is not set
-                        isActive = true;
-                    }
-                }
-
-                // If it is a thought or narrator, OR there is no active message (dialogData.mensaje is empty)
-                // then all sprites should return to normal brightness.
-                if (isThought || isNarrator || !dialogData.mensaje) {
-                    img.classList.remove("is-speaking", "is-dimmed");
-                    img.style.filter = "brightness(1)";
-                    img.style.transition = "0.3s";
-                    img.style.zIndex = "5"; // Default z-index
-                } else {
-                    if (isActive) {
-                        img.classList.add("is-speaking");
-                        img.classList.remove("is-dimmed");
-                        img.style.filter = "brightness(1)";
-                        img.style.transition = "0.3s";
-                        img.style.zIndex = "10";
-                        if (activeSpriteUrl) {
-                            img.src = activeSpriteUrl;
-                        }
-                    } else {
-                        img.classList.add("is-dimmed");
-                        img.classList.remove("is-speaking");
-                        img.style.filter = "brightness(0.4)";
-                        img.style.transition = "0.3s";
-                        img.style.zIndex = "1";
-                    }
-                }
-            });
-        }
+    db.ref(THEATRE_ROOT).on("value", (snapshot) => {
+        renderScene(snapshot.val() || {});
     });
 
+    db.ref(DIALOGUE_ROOT).on("value", (snapshot) => {
+        renderDialogue(snapshot.val() || {});
+    });
 
-    // --- LuminousTheatreState ---
-    global.LuminousTheatreState = {
-        normalizeAssignedActorIds: function(assignedIds) {
-            if (!assignedIds) return [];
-            if (Array.isArray(assignedIds)) return assignedIds;
-            if (typeof assignedIds === 'object') return Object.keys(assignedIds);
-            return [assignedIds];
-        },
+    async function updateVisibleActors(actorId, actorData) {
+        if (!actorId) return;
+        if (actorData && !actorData.sprite && !actorData.url) return;
 
-        updateVisibleActors: async function(actorId, actorData) {
-            if (!actorId) return;
+        const sceneSnap = await db.ref(THEATRE_ROOT).once("value");
+        const scene = sceneSnap.val() || {};
+        if (scene.transitioning) return;
 
-            const visRef = db.ref(`${THEATRE_ROOT}/actores_visibles`);
-            const snapshot = await visRef.once('value');
-            let visibles = snapshot.val() || [];
+        const maxVisible = getVisibleLimit(scene);
+        const visRef = db.ref(`${THEATRE_ROOT}/actores_visibles`);
 
-            // If narrator or thoughts (no sprite), don't add to visible
-            if (actorData && (!actorData.sprite && !actorData.url)) {
-                return;
-            }
+        await visRef.transaction((current) => {
+            const visibles = normalizeIdList(current);
 
-            // Also check if we just need to reorder
-            const index = visibles.indexOf(actorId);
-            if (index !== -1) {
-                // Remove from current position
-                visibles.splice(index, 1);
-            }
+            // A visible actor speaking again keeps the exact same slot.
+            if (visibles.includes(actorId)) return visibles;
 
-            // Add to end (most recent)
             visibles.push(actorId);
+            while (visibles.length > maxVisible) visibles.shift();
+            return visibles;
+        });
+    }
 
-            // Keep only last 5
-            if (visibles.length > 5) {
-                // Ensure we only have the most recent 5
-                visibles = visibles.slice(visibles.length - 5);
-            }
+    async function removeVisibleActor(actorId) {
+        if (!actorId) return;
+        const visRef = db.ref(`${THEATRE_ROOT}/actores_visibles`);
+        await visRef.transaction((current) => normalizeIdList(current).filter((id) => id !== actorId));
+    }
 
-            await visRef.set(visibles);
+    async function setMaxVisibleActors(value) {
+        const maxVisible = clampVisibleLimit(value);
+        await db.ref(`${THEATRE_ROOT}/max_actores_visibles`).set(maxVisible);
+        await db.ref(`${THEATRE_ROOT}/actores_visibles`).transaction((current) => {
+            const visibles = normalizeIdList(current);
+            return visibles.slice(-maxVisible);
+        });
+        return maxVisible;
+    }
+
+    async function prepareExpression(actorId, expression) {
+        if (!actorId || !expression) return;
+        await db.ref(`${THEATRE_ROOT}/actores/${actorId}/expresionPreparada`).set(expression);
+    }
+
+    async function revealPreparedExpression(actorId, expression, sprite) {
+        if (!actorId) return;
+        const updates = {};
+        if (expression) updates.expresionActiva = expression;
+        if (sprite) updates.sprite = sprite;
+        if (expression) updates.expresionPreparada = expression;
+        if (Object.keys(updates).length) {
+            await db.ref(`${THEATRE_ROOT}/actores/${actorId}`).update(updates);
+        }
+    }
+
+    async function clearScene() {
+        await db.ref().update({
+            [`${THEATRE_ROOT}/actores_visibles`]: null,
+            [DIALOGUE_ROOT]: null
+        });
+    }
+
+    async function changeScene(nextScene) {
+        const payload = nextScene || {};
+        await db.ref(`${THEATRE_ROOT}/transitioning`).set(true);
+        await db.ref().update({
+            [`${THEATRE_ROOT}/actores_visibles`]: null,
+            [DIALOGUE_ROOT]: null
+        });
+        await db.ref(THEATRE_ROOT).update({
+            fondo: payload.fondo || "",
+            locacion: payload.locacion || "",
+            escenarioId: payload.escenarioId || null,
+            sub_etiquetas: payload.sub_etiquetas || null
+        });
+        await db.ref(`${THEATRE_ROOT}/transitioning`).set(false);
+    }
+
+    function deterministicVocabularyKnown(characterId, languageId, word, percent) {
+        const knowledge = Math.max(0, Math.min(100, Number(percent) || 0));
+        if (knowledge >= 100) return true;
+        if (knowledge <= 0) return false;
+
+        const key = `${characterId || ""}|${languageId || ""}|${String(word || "").toLocaleLowerCase()}`;
+        let hash = 2166136261;
+        for (let i = 0; i < key.length; i += 1) {
+            hash ^= key.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        const bucket = (hash >>> 0) % 10000;
+        return bucket < Math.round(knowledge * 100);
+    }
+
+    global.LuminousTheatreState = {
+        normalizeAssignedActorIds: normalizeIdList,
+        clampVisibleLimit,
+        getVisibleLimit,
+        updateVisibleActors,
+        removeVisibleActor,
+        setMaxVisibleActors,
+        prepareExpression,
+        revealPreparedExpression,
+        clearScene,
+        changeScene,
+        deterministicVocabularyKnown,
+        setShowOwnActor: function (show) {
+            try {
+                global.localStorage?.setItem(LOCAL_SHOW_SELF_KEY, show ? "true" : "false");
+            } catch (error) {}
+            renderScene(currentScene);
+        },
+        getShowOwnActor: shouldShowOwnActor,
+        resolveRoomRoot: function (roomId) {
+            return roomId
+                ? `campaña/teatro/salas/${roomId}/escena`
+                : THEATRE_ROOT;
         }
     };
 
