@@ -28,12 +28,13 @@
 
         const plateColor = getSafeCssColor(value, "#4a4a4a");
 
-        element.style.setProperty("color", "#ffffff", "important");
+        element.style.setProperty("color", "", ""); // Remove hardcoded white, keep default styles for text
         element.style.setProperty(
-            "background",
-            `linear-gradient(90deg, ${plateColor} 0%, ${plateColor} 68%, #17110b 100%)`,
+            "background-color",
+            plateColor,
             "important"
         );
+        element.style.removeProperty("background"); // Ensure gradient is removed so background-color works
         element.style.setProperty(
             "border-left-color",
             plateColor,
@@ -168,7 +169,7 @@
 
         const platesContainer = document.querySelector(".theatre-plates-container");
         if (platesContainer) {
-            if (dialogData.mostrar_identidad === false || !dialogData.nombre || dialogData.nombre.trim() === "") {
+            if (dialogData.mostrar_identidad === false || !dialogData.actorId || !dialogData.nombre || dialogData.nombre.trim() === "") {
                 platesContainer.style.display = "none";
             } else {
                 platesContainer.style.display = "flex";
@@ -255,15 +256,28 @@
                     }
                 }
 
-                if (isActive) {
-                    img.style.filter = "brightness(1.1) drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))";
-                    img.style.zIndex = "10";
-                    if (activeSpriteUrl && !isThought && !isNarrator) {
-                        img.src = activeSpriteUrl;
-                    }
+                // If it is a thought or narrator, OR there is no active message (dialogData.mensaje is empty)
+                // then all sprites should return to normal brightness.
+                if (isThought || isNarrator || !dialogData.mensaje) {
+                    img.classList.remove("is-speaking", "is-dimmed");
+                    img.style.filter = "brightness(1)";
+                    img.style.transition = "0.3s";
+                    img.style.zIndex = "5"; // Default z-index
                 } else {
-                    if (!isThought && !isNarrator) {
-                        img.style.filter = "brightness(0.5)";
+                    if (isActive) {
+                        img.classList.add("is-speaking");
+                        img.classList.remove("is-dimmed");
+                        img.style.filter = "brightness(1)";
+                        img.style.transition = "0.3s";
+                        img.style.zIndex = "10";
+                        if (activeSpriteUrl) {
+                            img.src = activeSpriteUrl;
+                        }
+                    } else {
+                        img.classList.add("is-dimmed");
+                        img.classList.remove("is-speaking");
+                        img.style.filter = "brightness(0.4)";
+                        img.style.transition = "0.3s";
                         img.style.zIndex = "1";
                     }
                 }

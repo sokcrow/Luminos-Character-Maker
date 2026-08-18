@@ -409,7 +409,7 @@ test("los fallbacks de color de titulo en dashboard y controles usan #3b2918", a
 test("el fallback de color para las identidades es gris y el texto siempre es blanco", async ({ page }) => {
   const engineScript = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-engine.js"), "utf8");
   expect(engineScript).toContain('const plateColor = getSafeCssColor(value, "#4a4a4a");');
-  expect(engineScript).toContain('element.style.setProperty("color", "#ffffff", "important");');
+  expect(engineScript).toContain('element.style.setProperty("color", "", ""); // Remove hardcoded white, keep default styles for text');
 });
 
 test("el narrador y pensamientos no envían identidad ni modifican sprites", async ({ page }) => {

@@ -1225,8 +1225,12 @@ function initializeCharacterSheet() {
           : null;
 
       const cachedIcon =
+        actorById?.icon_url ||
+        actorById?.avatar ||
         actorById?.icono ||
         actorById?.icono_jugador ||
+        actorByName?.icon_url ||
+        actorByName?.avatar ||
         actorByName?.icono ||
         actorByName?.icono_jugador ||
         "";
@@ -1346,7 +1350,7 @@ function initializeCharacterSheet() {
 
       try {
         const msgText = domInput.value.trim();
-        const selectExp = document.getElementById("player-expression-select");
+        const selectExp = document.getElementById("player-expression");
 
         const assignedActorId = window.datosJugador?.actorId || null;
         if (!assignedActorId) {
@@ -1540,7 +1544,7 @@ function initializeCharacterSheet() {
 
       const assignedActor = window.getAssignedTheatreActor();
 
-      const exprSelect = document.getElementById("player-expression-select");
+      const exprSelect = document.getElementById("player-expression");
       const btnSend = document.getElementById("btn-enviar-teatro-modal");
       const inputEl = document.getElementById("input-teatro-modal");
       const modalNameEl = document.getElementById("theatre-modal-readonly-name");
