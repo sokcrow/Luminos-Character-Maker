@@ -1,16 +1,16 @@
-
 const LuminousTheatreState = {
     DEFAULT_PLATE_COLOR: "#4a4a4a",
     MAX_VISIBLE_ACTORS: 5,
 
-    isValidImageUrl(url) {
-        if (!url || typeof url !== 'string') return false;
-        return url.trim().length > 0;
+    isValidImageUrl(value) {
+        if (!value || typeof value !== "string") return false;
+        const val = value.trim();
+        return val.startsWith("http") || val.startsWith("data:image/") || (val.includes("/") && val.length > 2);
     },
 
     normalizeDialogueType(value) {
-        if (value === 'narracion' || value === 'pensamiento') return value;
-        return 'dialogo';
+        if (value === "narracion" || value === "pensamiento") return value;
+        return "dialogo";
     },
 
     resolveDmDialogueMode(speakerId, requestedType) {
@@ -21,14 +21,9 @@ const LuminousTheatreState = {
             };
         }
 
-        if (requestedType === 'narracion') {
-            return {
-                tipo_dialogo: "narracion",
-                mostrar_identidad: false
-            };
-        } else if (requestedType === 'pensamiento') {
-            return {
-                tipo_dialogo: "pensamiento",
+        if (requestedType === "narracion" || requestedType === "pensamiento") {
+             return {
+                tipo_dialogo: requestedType,
                 mostrar_identidad: false
             };
         }
@@ -40,43 +35,50 @@ const LuminousTheatreState = {
     },
 
     normalizeAssignedActorIds(value, legacyActorId) {
-        let rawIds = [];
+        let result = [];
+
         if (Array.isArray(value)) {
-            rawIds = value;
+            result = value;
         } else if (value && typeof value === 'object') {
-            rawIds = Object.keys(value).filter(k => value[k] === true);
+            result = Object.keys(value).map(k => value[k] === true ? k : value[k]);
         } else if (typeof value === 'string') {
-            rawIds = [value];
-        } else if (legacyActorId) {
-            rawIds = [legacyActorId];
+            result = [value];
+        } else if (typeof value === 'number') {
+             result = [String(value)];
         }
-        return [...new Set(rawIds.filter(id => id && typeof id === 'string'))];
+
+        if (result.length === 0 && legacyActorId && typeof legacyActorId === 'string') {
+            result = [legacyActorId];
+        }
+
+        return [...new Set(result.filter(id => id && typeof id === 'string' && id.trim().length > 0))];
     },
 
     updateVisibleActors(currentVisible, dialogue, spokenAt, maximum = 5) {
         const nextVisible = { ...currentVisible };
 
-        if (!dialogue || dialogue.mostrar_identidad === false || dialogue.tipo_dialogo === 'narracion' || dialogue.tipo_dialogo === 'pensamiento') {
+        if (!dialogue || !dialogue.actorId || dialogue.mostrar_identidad === false || dialogue.tipo_dialogo === "narracion" || dialogue.tipo_dialogo === "pensamiento") {
             return nextVisible;
         }
 
-        if (!dialogue.actorId || (!LuminousTheatreState.isValidImageUrl(dialogue.sprite) && !dialogue.expression)) {
-            return nextVisible;
+        if (!LuminousTheatreState.isValidImageUrl(dialogue.sprite)) {
+             return nextVisible;
         }
 
-        const id = dialogue.actorId;
-        const existingData = nextVisible[id] || {};
+        const actorId = dialogue.actorId;
+        const currentData = nextVisible[actorId] || {};
 
-        nextVisible[id] = {
-            ...existingData,
+        nextVisible[actorId] = {
+            ...currentData,
+            actorId: actorId,
             sprite: dialogue.sprite,
-            expression: dialogue.expression || existingData.expression || '',
-            lastSpokeAt: spokenAt || Date.now()
+            expression: dialogue.expression || currentData.expression || "",
+            lastSpokenAt: spokenAt || Date.now()
         };
 
         const keys = Object.keys(nextVisible);
         if (keys.length > maximum) {
-            keys.sort((a, b) => (nextVisible[a].lastSpokeAt || 0) - (nextVisible[b].lastSpokeAt || 0));
+            keys.sort((a, b) => (nextVisible[a].lastSpokenAt || 0) - (nextVisible[b].lastSpokenAt || 0));
             const diff = keys.length - maximum;
             for (let i = 0; i < diff; i++) {
                 delete nextVisible[keys[i]];

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/on-game-dashboard.css">
   <link rel="stylesheet" href="css/theatre-dialogue.css">
   <link rel="stylesheet" href="css/theatre-hud.css">
+<script src="js/theatre-state.js"></script>
 </head>
 <body class="on-game-dashboard">
     <nav class="master-control-bar" aria-label="Control de instancia">
@@ -115,7 +116,14 @@
             <h4 style="color: #a37c35; margin: 0; font-family: 'Cinzel', serif;">Compositor de Diálogo</h4>
             <!-- Nuevos selectores de hablante y expresión -->
             <div style="display: flex; gap: 8px;">
-              <select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+
+            <select id="theatre-dialogue-type" class="theatre-select">
+                <option value="dialogo">🗣 Diálogo</option>
+                <option value="pensamiento">💭 Pensamiento</option>
+                <option value="narracion">📜 Narración</option>
+            </select>
+
+<select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
                   <option value="narrador">Narrador</option>
               </select>
               <select id="theatre-expression-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">

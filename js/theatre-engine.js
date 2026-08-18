@@ -24,25 +24,10 @@
     }
 
     function paintIdentityPlate(element, colorValue) {
-        const color = getSafeCssColor(colorValue, "#4a4a4a");
-
-        element.style.setProperty(
-            "color",
-            "#ffffff",
-            "important"
-        );
-
-        element.style.setProperty(
-            "background",
-            `linear-gradient(90deg, ${color} 0%, ${color} 68%, #17110b 100%)`,
-            "important"
-        );
-
-        element.style.setProperty(
-            "border-left-color",
-            color,
-            "important"
-        );
+        const color = getSafeCssColor(colorValue, LuminousTheatreState.DEFAULT_PLATE_COLOR);
+        element.style.setProperty("color", "#ffffff", "important");
+        element.style.setProperty("background", `linear-gradient(90deg, ${color} 0%, ${color} 68%, #17110b 100%)`, "important");
+        element.style.setProperty("border-left-color", color, "important");
     }
     const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
 
@@ -94,22 +79,16 @@
                 img = document.createElement("img");
                 img.className = "theatre-sprite";
                 img.dataset.id = actorId;
-
-                // Fallback graceful failure for broken images
-                img.onerror = function() {
-                    this.style.display = 'none';
-                };
-                img.onload = function() {
-                    this.style.display = '';
-                };
-
+                img.onerror = function() { this.remove(); };
                 stage.appendChild(img);
             }
 
             // Actualizar propiedades
-            const newSrc = data.url || data.sprite || "";
-            if (img.src !== newSrc && newSrc) {
-                img.src = newSrc;
+            const targetUrl = data.url || data.sprite || "";
+            if (LuminousTheatreState.isValidImageUrl(targetUrl)) {
+                 if (img.src !== targetUrl) img.src = targetUrl;
+            } else {
+                 img.remove();
             }
             img.alt = data.nombre || "Actor en escena";
 
@@ -174,6 +153,8 @@
         }
         if (titleEl) {
             titleEl.textContent = dialogData.titulo || "";
+            if(!dialogData.titulo || dialogData.titulo.trim() === "") titleEl.style.display = "none";
+            else titleEl.style.display = "block";
             paintIdentityPlate(titleEl, dialogData.color_titulo);
         }
 

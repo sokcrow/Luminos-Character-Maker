@@ -31,7 +31,8 @@
     function initializeDashboard(db) {
         const SCENE_ROOT = "campaña/estado_mundo/escena_actual";
         const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
-        const DEFAULT_TITLE_COLOR = "#4a4a4a";
+        const LuminousTheatreState = typeof window !== "undefined" ? window.LuminousTheatreState : require("./theatre-state.js");
+const DEFAULT_TITLE_COLOR = LuminousTheatreState.DEFAULT_PLATE_COLOR;
 
         window.LuminousInstanceControl.bindDashboard({ db });
 
@@ -284,74 +285,57 @@
                         const durationMs = (textLength * speedMs) + 3000; // Text duration + 3 sec pause
                         const startedAt = window.firebase.database.ServerValue.TIMESTAMP;
 
-                        // Valid URL check function
-                        function isValidImageUrl(url) {
-                            if (typeof url !== 'string') return false;
-                            const t = url.trim();
-                            if (!t || t === "null" || t === "undefined" || t.indexOf(' ') !== -1) return false;
-                            return true;
-                        }
 
-                        const hasValidSprite = isValidImageUrl(actualData.sprite);
-                        const isNormalDialogue = (actualData.tipo_dialogo === "dialogo" || !actualData.tipo_dialogo);
+                        // ACTUALIZAR ACTORES VISIBLES (Límite LRU = 5)
+                        const LuminousTheatreState = typeof window !== "undefined" ? window.LuminousTheatreState : require("./theatre-state.js");
 
-                        // If normal dialogue and valid sprite, update scene visible actors (LRU with max 5)
-                        if (isNormalDialogue && actualData.actorId && hasValidSprite) {
-                            const visiblesRef = db.ref("campaña/teatro/actores_visibles");
-                            visiblesRef.transaction((currentVisibles) => {
-                                let visibles = currentVisibles || {};
-                                let actorKeys = Object.keys(visibles);
+                        const color_nombre = actualData.color_nombre && actualData.color_nombre.trim() !== "" ? actualData.color_nombre : LuminousTheatreState.DEFAULT_PLATE_COLOR;
+                        const color_titulo = actualData.color_titulo && actualData.color_titulo.trim() !== "" ? actualData.color_titulo : LuminousTheatreState.DEFAULT_PLATE_COLOR;
+                        const tipoDialogoReq = actualData.tipo_dialogo || 'dialogo';
 
-                                // If it already exists, update and we are done.
-                                if (visibles[actualData.actorId]) {
-                                    visibles[actualData.actorId].sprite = actualData.sprite;
-                                    visibles[actualData.actorId].expression = actualData.expression;
-                                    visibles[actualData.actorId].lastSpokeAt = startedAt;
-                                    return visibles;
-                                }
+                        let baseActorId = actualData.actorId;
+                        // DM Dashboard payload hack:
+                        if (actualData.nombre === 'NARRADOR' || !actualData.nombre) baseActorId = 'narrador';
 
-                                // It's new. If already 5, remove the oldest by lastSpokeAt
-                                if (actorKeys.length >= 5) {
-                                    actorKeys.sort((a, b) => (visibles[a].lastSpokeAt || 0) - (visibles[b].lastSpokeAt || 0));
-                                    const toRemoveCount = (actorKeys.length - 5) + 1;
-                                    for(let i = 0; i < toRemoveCount; i++) {
-                                        delete visibles[actorKeys[i]];
-                                    }
-                                }
+                        const resolvedMode = LuminousTheatreState.resolveDmDialogueMode(baseActorId, tipoDialogoReq);
 
-                                // Add the new actor
-                                visibles[actualData.actorId] = {
-                                    actorId: actualData.actorId,
-                                    nombre: actualData.nombre || "",
-                                    sprite: actualData.sprite,
-                                    expression: actualData.expression || "Neutral",
-                                    lastSpokeAt: startedAt
-                                };
-
-                                return visibles;
-                            });
-                        }
+                        const finalNombre = resolvedMode.mostrar_identidad ? (actualData.nombre || "") : "";
+                        const finalTitulo = resolvedMode.mostrar_identidad ? (actualData.titulo || "") : "";
+                        const finalSprite = resolvedMode.mostrar_identidad ? (actualData.sprite || null) : null;
+                        const finalActorId = resolvedMode.mostrar_identidad ? (actualData.actorId || null) : null;
 
                         // Broadcast to active dialogue
                         const activePayload = {
                             messageId: msgKey,
-                            nombre: actualData.nombre || "",
-                            titulo: actualData.titulo || "",
+                            nombre: finalNombre,
+                            titulo: finalTitulo,
                             mensaje: actualData.mensaje || "",
-                            actorId: actualData.actorId || null,
+                            actorId: finalActorId,
                             expression: actualData.expression || "Neutral",
-                            sprite: actualData.sprite || null,
+                            sprite: finalSprite,
                             icono: actualData.icono || null,
-                            color_nombre: actualData.color_nombre || "#4a4a4a",
-                            color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
-                            tipo_dialogo: actualData.tipo_dialogo || "dialogo",
-                            mostrar_identidad: actualData.mostrar_identidad !== undefined ? actualData.mostrar_identidad : true,
+                            color_nombre: color_nombre,
+                            color_titulo: color_titulo,
                             startedAt: startedAt,
                             speedMs: speedMs,
-                            durationMs: durationMs
+                            durationMs: durationMs,
+                            tipo_dialogo: resolvedMode.tipo_dialogo,
+                            mostrar_identidad: resolvedMode.mostrar_identidad
                         };
 
-                                                db.ref(DIALOGUE_ROOT).set(activePayload).then(() => {
+                        db.ref("campaña/teatro/actores_visibles").once("value").then(visSnap => {
+                            const currentState = visSnap.val() || {};
+                            const nextState = LuminousTheatreState.updateVisibleActors(
+                                currentState,
+                                activePayload,
+                                startedAt
+                            );
+
+                            return db.ref("campaña/teatro/actores_visibles").set(nextState);
+                        }).then(() => {
+                            return db.ref(DIALOGUE_ROOT).set(activePayload);
+                        }).then(() => {
+
                             // Wait exact duration
                             setTimeout(() => {
                                 // Archive to Log
@@ -406,16 +390,6 @@
 
             const speakerSelect = document.getElementById("theatre-speaker-select");
             const expressionSelect = document.getElementById("theatre-expression-select");
-            const typeSelect = document.getElementById("theatre-dialogue-type");
-
-            let tipoDialogo = "dialogo";
-            let mostrarIdentidad = true;
-            if (typeSelect) {
-                tipoDialogo = typeSelect.value;
-                if (tipoDialogo === "narracion" || tipoDialogo === "pensamiento") {
-                    mostrarIdentidad = false;
-                }
-            }
 
             let speakerData = {
                 nombre: "NARRADOR",
@@ -424,7 +398,7 @@
                 expression: "Neutral",
                 sprite: null,
                 icono: null,
-                color_nombre: "#4a4a4a",
+                color_nombre: "#ffffff",
                 color_titulo: DEFAULT_TITLE_COLOR
             };
 
@@ -434,7 +408,7 @@
                 speakerData.titulo = selectedOption.dataset.titulo || "";
                 speakerData.actorId = speakerSelect.value;
                 speakerData.icono = selectedOption.dataset.icono || null;
-                speakerData.color_nombre = selectedOption.dataset.colorNombre || "#4a4a4a";
+                speakerData.color_nombre = selectedOption.dataset.colorNombre || "#ffffff";
                 speakerData.color_titulo = selectedOption.dataset.colorTitulo || DEFAULT_TITLE_COLOR;
 
                 if (expressionSelect) {
@@ -444,23 +418,21 @@
                 }
             }
 
-            if (!mostrarIdentidad) {
-                speakerData.nombre = "";
-                speakerData.titulo = "";
-                // Note: We don't remove sprite from the payload because we might want the server to know who the thought comes from,
-                // BUT we shouldn't trigger a sprite UPDATE in the UI, that's handled in the queue processor/engine.
-            }
-
-            // Also persist the expression to the actor instance so it doesn't revert, only if it's a normal dialogue
-            if (speakerData.actorId && mostrarIdentidad) {
+            // Also persist the expression to the actor instance so it doesn't revert
+            if (speakerData.actorId) {
                 db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
                     expresionActiva: speakerData.expression,
                     sprite: speakerData.sprite
                 });
             }
 
+
+            const typeSelect = document.getElementById("theatre-dialogue-type");
+            const tipo_dialogo = typeSelect ? typeSelect.value : "dialogo";
+
             const msgKey = db.ref(QUEUE_ROOT).push().key;
             db.ref(`${QUEUE_ROOT}/${msgKey}`).set({
+              tipo_dialogo: tipo_dialogo,
               mensaje: texto,
               nombre: speakerData.nombre,
               titulo: speakerData.titulo,
@@ -470,8 +442,6 @@
               icono: speakerData.icono,
               color_nombre: speakerData.color_nombre,
               color_titulo: speakerData.color_titulo,
-              tipo_dialogo: tipoDialogo,
-              mostrar_identidad: mostrarIdentidad,
               createdAt: window.firebase.database.ServerValue.TIMESTAMP
             });
             dialogueInput.value = "";
@@ -495,7 +465,7 @@
                 opt.dataset.nombre = actorData.nombre;
                 opt.dataset.titulo = actorData.titulo || "";
                 opt.dataset.icono = actorData.icono || "";
-                opt.dataset.colorNombre = actorData.color_nombre || "#4a4a4a";
+                opt.dataset.colorNombre = actorData.color_nombre || "#ffffff";
                 opt.dataset.colorTitulo = actorData.color_titulo || DEFAULT_TITLE_COLOR;
 
                 // Store expressions as a JSON string for easy retrieval

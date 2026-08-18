@@ -106,11 +106,11 @@ test('payload conserva icono y createdAt sin cruzar datos y rechaza envios sin a
 
 test('tienda, forja y teatro están preservados simultáneamente', async () => {
     const html = fs.readFileSync('hoja_personaje.html', 'utf-8');
-    // expect(html).toContain('id="tienda-overlay"');
-    // expect(html).toContain('id="btn-shop-notifier"');
-    // expect(html).toContain('id="forja-selection-modal"');
-    // expect(html).toContain('id="forja-selection-close"');
-    // expect(html).toContain('id="forja-roll-modal"');
+    expect(html).toContain('id="tienda-overlay"');
+    expect(html).toContain('id="btn-shop-notifier"');
+    expect(html).toContain('id="forja-selection-modal"');
+    expect(html).toContain('id="forja-selection-close"');
+    expect(html).toContain('id="forja-roll-modal"');
     expect(html).toContain('id="theatre-stage"');
 });
 
@@ -128,30 +128,26 @@ test('js/theatre-state.js existe y exporta métodos obligatorios', async () => {
 test('updateVisibleActors respeta el límite exacto de 5 y LRU (inmutabilidad y fallbacks)', async () => {
     const { updateVisibleActors } = require('../js/theatre-state.js');
     const current = {
-        'id1': { lastSpokeAt: 10, sprite: 'url1' },
-        'id2': { lastSpokeAt: 20, sprite: 'url2' },
-        'id3': { lastSpokeAt: 30, sprite: 'url3' },
-        'id4': { lastSpokeAt: 40, sprite: 'url4' },
-        'id5': { lastSpokeAt: 50, sprite: 'url5' }
+        'id1': { lastSpokenAt: 10, sprite: 'url1' },
+        'id2': { lastSpokenAt: 20, sprite: 'url2' },
+        'id3': { lastSpokenAt: 30, sprite: 'url3' },
+        'id4': { lastSpokenAt: 40, sprite: 'url4' },
+        'id5': { lastSpokenAt: 50, sprite: 'url5' }
     };
 
-    // Test 1: Narrator / thoughts shouldn't add
     let newVisible = updateVisibleActors(current, { actorId: 'id6', mostrar_identidad: false, tipo_dialogo: 'narracion' }, 60, 5);
-
+    expect(Object.keys(newVisible).length).toBe(5);
     expect(newVisible['id6']).toBeUndefined();
 
-    // Test 2: Valid insertion pushes out LRU
-    newVisible = updateVisibleActors(current, { actorId: 'id6', sprite: 'url6', expression: 'smile' }, 60, 5);
-
-    expect(newVisible['id1']).toBeUndefined(); // least recent expelled
+    newVisible = updateVisibleActors(current, { actorId: 'id6', sprite: 'http://url6', expression: 'smile' }, 60, 5);
+    expect(Object.keys(newVisible).length).toBe(5);
+    expect(newVisible['id1']).toBeUndefined();
     expect(newVisible['id6']).toBeDefined();
-    expect(newVisible['id6'].lastSpokeAt).toBe(60);
-    expect(current['id1']).toBeDefined(); // prove immutability
+    expect(newVisible['id6'].lastSpokenAt).toBe(60);
+    expect(current['id1']).toBeDefined();
 });
 
 test('el catalogo es ilimitado y no decide expresion ni sprite al inicio', async () => {
     const controls = fs.readFileSync('js/theatre-controls.js', 'utf8');
     expect(controls).not.toMatch(/currentMaxSprites = 4/);
-    // expect(controls).not.toMatch(/expresionActiva/);
-    // expect(controls).not.toMatch(/actores_visibles/); // ensure logic separated
 });

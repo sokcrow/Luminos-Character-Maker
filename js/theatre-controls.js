@@ -7,7 +7,7 @@
         const NPC_ROSTER_PATHS = ["campaña/base_datos_npcs", "campaña/actores"];
         const THEATRE_ACTORS_PATH = "campaña/estado_mundo/escena_actual/actores";
         const MAX_ACTORS = 5;
-        const DEFAULT_TITLE_COLOR = "#4a4a4a";
+        const DEFAULT_TITLE_COLOR = "#3b2918";
 
         let npcDatabaseRaw = {};
         let npcDatabaseBase = {};
@@ -108,7 +108,7 @@
         // 1. Carga del Roster (Pre-Game NPCs)
         cargarRosterNPCs();
 
-        // 2. El Disparo (Spawn) - Adds to Scene Config (No longer directly to visibles)
+        // 2. El Disparo (Spawn) con límite de sprites
         if (btnSpawnNpc) {
             btnSpawnNpc.addEventListener("click", () => {
                 if (!selectNpcRoster) return;
@@ -119,45 +119,65 @@
                 const npcData = npcDatabase[selectedId];
                 if (!npcData) return;
 
-                const now = window.firebase.database.ServerValue.TIMESTAMP;
-                const actorInstanceId = selectedId; // We want to maintain original ID to track speaking
-                const selectedOption = selectNpcRoster.options[selectNpcRoster.selectedIndex];
-                const sourceType = selectedOption.dataset.sourceType || 'npc';
-                const sourceId = selectedOption.dataset.sourceId || selectedId;
+                // Transacción para garantizar el límite de 5 actores
+                const actorsRef = db.ref(THEATRE_ACTORS_PATH);
+                actorsRef.transaction((currentData) => {
+                    let actors = currentData || {};
+                    let actorKeys = Object.keys(actors);
 
-                let expresionesObj = npcData.expresiones || {};
+                    // Si ya hay 5, eliminar el más antiguo basado en spawnedAt
+                    if (actorKeys.length >= MAX_ACTORS) {
+                        actorKeys.sort((a, b) => (actors[a].spawnedAt || 0) - (actors[b].spawnedAt || 0));
+                        // Calculamos cuántos hay que borrar para que quede espacio para 1 nuevo
+                        const toRemoveCount = (actorKeys.length - MAX_ACTORS) + 1;
+                        for(let i=0; i < toRemoveCount; i++) {
+                            const oldestKey = actorKeys[i];
+                            delete actors[oldestKey];
+                        }
+                    }
 
-                if (Object.keys(expresionesObj).length === 0) {
-                    expresionesObj = {
-                        "Neutral": npcData.sprite || npcData.icono_jugador || npcData.icono || ""
+                    // Añadir el nuevo
+                    const now = window.firebase.database.ServerValue.TIMESTAMP;
+                    const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                    const selectedOption = selectNpcRoster.options[selectNpcRoster.selectedIndex];
+                    const sourceType = selectedOption.dataset.sourceType || 'npc';
+                    const sourceId = selectedOption.dataset.sourceId || selectedId;
+
+                    let expresionesObj = npcData.expresiones || {};
+
+                    actors[actorInstanceId] = {
+                        nombre: npcData.nombre || selectedId,
+                        titulo: npcData.titulo || "",
+                        color_nombre: npcData.color_nombre || "#ffffff",
+                        color_titulo: npcData.color_titulo || DEFAULT_TITLE_COLOR,
+                        sourceId: sourceId,
+                        sourceType: sourceType,
+                        sprite: npcData.sprite || npcData.url || "",
+                        icono: npcData.icono || npcData.icono_jugador || "",
+                        expresiones: expresionesObj,
+                                                x: 0,
+                        y: 0,
+                        escala: npcData.escala || 1,
+                        orientacion: 'normal',
+                        spawnedAt: now
                     };
 
-
-                // Push to the scene's background actors list (not immediately visible)
-                db.ref(THEATRE_ACTORS_PATH + "/" + actorInstanceId).set({
-                    nombre: npcData.nombre || selectedId,
-                    titulo: npcData.titulo || "",
-                    color_nombre: npcData.color_nombre || "#4a4a4a",
-                    color_titulo: npcData.color_titulo || "#4a4a4a",
-                    sourceId: sourceId,
-                    sourceType: sourceType,
-                    sprite: npcData.sprite || npcData.url || "",
-                    icono: npcData.icono || npcData.icono_jugador || "",
-                    expresiones: expresionesObj,
-
-                    x: 0,
-                    y: 0,
-                    escala: npcData.escala || 1,
-                    orientacion: 'normal',
-                    spawnedAt: now
+                    return actors;
+                }, (error, committed, snapshot) => {
+                    if (error) {
+                        console.error("Transacción falló de forma anormal", error);
+                    } else if (!committed) {
+                        console.log("Transacción abortada");
+                    } else {
+                        console.log("Actor añadido exitosamente.");
+                    }
                 });
-
             });
         }
 
         // 3. Manipulación en Vivo (Live Control Cards)
         if (liveActorsList) {
-            db.ref("campaña/teatro/actores_visibles").on("value", snapshot => {
+            db.ref(THEATRE_ACTORS_PATH).on("value", snapshot => {
                 liveActors = snapshot.val() || {};
                 liveActorsList.innerHTML = '';
 
@@ -201,7 +221,7 @@
                         expSelect.addEventListener('change', (e) => {
                             const newExp = e.target.value;
                             const newSprite = actorData.expresiones[newExp] || actorData.sprite;
-                            db.ref(`campaña/teatro/actores_visibles/${actorId}`).update({
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({
                                 expresionActiva: newExp,
                                 sprite: newSprite
                             });
@@ -213,7 +233,7 @@
                     if (btnLeft) {
                         btnLeft.addEventListener("click", () => {
                             const currentX = parseInt(actorData.x) || 0;
-                            db.ref(`campaña/teatro/actores_visibles/${actorId}`).update({ x: currentX - 50 });
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ x: currentX - 50 });
                         });
                     }
 
@@ -222,7 +242,7 @@
                     if (btnRight) {
                         btnRight.addEventListener("click", () => {
                             const currentX = parseInt(actorData.x) || 0;
-                            db.ref(`campaña/teatro/actores_visibles/${actorId}`).update({ x: currentX + 50 });
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ x: currentX + 50 });
                         });
                     }
 
@@ -231,7 +251,7 @@
                     if (btnFlip) {
                         btnFlip.addEventListener("click", () => {
                             const currentOrientation = actorData.orientacion === 'flip' ? 'normal' : 'flip';
-                            db.ref(`campaña/teatro/actores_visibles/${actorId}`).update({ orientacion: currentOrientation });
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).update({ orientacion: currentOrientation });
                         });
                     }
 
@@ -239,7 +259,7 @@
                     const btnRemove = card.querySelector('.btn-remove');
                     if (btnRemove) {
                         btnRemove.addEventListener("click", () => {
-                            db.ref(`campaña/teatro/actores_visibles/${actorId}`).remove();
+                            db.ref(`${THEATRE_ACTORS_PATH}/${actorId}`).remove();
                         });
                     }
 
