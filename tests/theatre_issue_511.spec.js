@@ -63,7 +63,7 @@ test("#511: No Actors and own-sprite hiding are render-only preferences", () => 
   expect(controls).toContain('id="theatre-no-actors"');
   expect(engine).toContain('const LOCAL_SHOW_SELF_KEY = "luminous.theatre.showOwnActor"');
   expect(engine).toContain("global.localStorage?.setItem");
-  expect(engine).toContain('id="theatre-self-visibility-control"');
+  expect(engine).toContain('label.id = "theatre-self-visibility-control"');
   expect(engine).toContain("if (!isDmView() && !shouldShowOwnActor())");
 });
 
