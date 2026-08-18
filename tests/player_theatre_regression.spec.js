@@ -66,12 +66,13 @@ test('applyPlayerInstance(teatro) agrega player-instance-theatre sin UI tracker 
 
 test('el modal de jugador incluye readonly nodes', async () => {
     const html = fs.readFileSync(pt.join(__dirname, '..', 'hoja_personaje.html'), 'utf-8');
+    const css = fs.readFileSync(pt.join(__dirname, '..', 'css', 'theatre-hud.css'), 'utf-8');
 
     expect(html).toContain('id="theatre-modal-readonly-icon"');
     expect(html).toContain('id="theatre-modal-readonly-name"');
     expect(html).toContain('id="theatre-modal-readonly-title"');
     expect(html).toContain('BebasKai');
-    expect(html).toContain('font-family: \'Roboto\', sans-serif;');
+    expect(css).toContain('font-family: "Roboto", Arial, sans-serif !important;');
 });
 
 test('los SVG de Actuar e Historial usan currentColor y las clases mantienen is-active', async () => {

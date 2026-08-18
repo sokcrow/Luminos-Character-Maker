@@ -39,6 +39,19 @@
   font-family: "Roboto", Arial, sans-serif !important;
 }
 
+#modal-escritura-teatro h3,
+#modal-escritura-teatro #theatre-modal-readonly-name,
+#modal-escritura-teatro #theatre-modal-readonly-title {
+  font-family: "BebasKai", Impact, "Arial Narrow", sans-serif !important;
+}
+
+#modal-escritura-teatro textarea,
+#modal-escritura-teatro select,
+#modal-escritura-teatro input,
+#modal-escritura-teatro button {
+  font-family: "Roboto", Arial, sans-serif !important;
+}
+
 /* ==================================================
    ESCENARIO REAL Y SPRITES FIREBASE
    ================================================== */
@@ -72,13 +85,17 @@
 
 #theatre-view-player > #theatre-stage > .theatre-sprite,
 .on-game-dashboard .stage-view-wrapper > #theatre-stage > .theatre-sprite {
+  flex: 0 1 20%;
+  min-width: 0;
+  max-width: 20%;
+  width: auto;
+  height: auto;
   align-self: flex-end;
   max-height: 82vh !important;
   object-fit: contain;
   object-position: center bottom;
   transform-origin: 50% 100%;
   pointer-events: none;
-  aspect-ratio: 16 / 9;
 }
 
 /* Compatibilidad con el renderizador anterior del jugador. */
@@ -89,11 +106,11 @@
 
 #theatre-view-player > #theatre-stage > .sprite-wrapper > img {
   bottom: 0 !important;
+  max-width: 100%;
   object-fit: contain;
   object-position: center bottom;
   transform-origin: 50% 100%;
   pointer-events: none;
-  aspect-ratio: 16 / 9;
 }
 
 /* ==================================================
@@ -749,4 +766,16 @@ body.player-instance-theatre
   .on-game-dashboard .theatre-dm-menu-toggle {
     transition: none !important;
   }
+}
+
+/* Controles integrados en el compositor existente del jugador. */
+#modal-escritura-teatro .theatre-player-composer-select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #222;
+  color: #fff;
+  font: 16px "Roboto", Arial, sans-serif;
 }
