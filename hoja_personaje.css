@@ -922,7 +922,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 
 .sheet-limbus-main .sheet-xp-small {
     width: 60px !important;
-    font-size: 0.9em !important;
+    font-size: 0.9em ;
     padding: 2px !important;
     background: #000;
     border: none;
@@ -993,7 +993,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 
 .sheet-limbus-main .sheet-ahn-total {
     width: 80px !important;
-    font-size: 0.9em !important;
+    font-size: 0.9em ;
     padding: 2px !important;
     background: #000;
     border: 1px solid #444;
@@ -1010,7 +1010,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
 
 .sheet-limbus-main .sheet-ahn-mod {
     width: 60px !important;
-    font-size: 0.9em !important;
+    font-size: 0.9em ;
     padding: 2px !important;
     background: #222;
     border: 1px solid #444;
@@ -2743,7 +2743,7 @@ button[type="action"].sheet-ahn-edit-btn:hover,
     width: 100%;
     text-align: center;
     padding: 0 !important; /* Force override */
-    font-size: 0.8em !important;
+    font-size: 0.8em ;
     border: 1px solid #444;
     background: #111;
     color: #fff;
@@ -3456,7 +3456,7 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-part-hp-t
     color: #fff !important;
     text-align: right !important;
     font-weight: bold !important;
-    font-size: 1em !important;
+    font-size: 1em ;
     padding: 0 !important;
 }
 .sheet-part-hp-input:focus {
@@ -3469,7 +3469,7 @@ input.sheet-part-link-state[value~="12"] ~ .sheet-part-view-bar .sheet-part-hp-t
     border: 1px solid #FFAE00 !important;
     color: #FFAE00 !important;
     text-align: center !important;
-    font-size: 0.9em !important;
+    font-size: 0.9em ;
     border-radius: 50% !important;
     padding: 2px !important;
 }
@@ -5471,7 +5471,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     border-radius: 0;
     width: 36px !important;
     height: 36px !important;
-    font-size: 16px !important;
+    font-size: 16px ;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -6162,7 +6162,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     .btn-global-inventory {
         width: 36px !important;
         height: 36px !important;
-        font-size: 16px !important;
+        font-size: 16px ;
         bottom: 50px !important; /* Positioned just above the phone toggle */
         right: 10px !important;
         border-radius: 0 !important;
@@ -6176,7 +6176,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         top: 10px !important;
         left: 10px !important;
         padding: 4px 15px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
         border-top: 1px solid #d4af37 !important;
         border-bottom: 1px solid #d4af37 !important;
     }
@@ -6201,7 +6201,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     #btn-toggle-player-theatre-tools {
         display: block !important;
         padding: 5px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
         margin: 5px !important;
         width: calc(100% - 10px) !important;
         z-index: 2050 !important;
@@ -6236,21 +6236,21 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     #player-actor-select,
     #player-expression-select {
         padding: 4px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
         width: auto !important;
         min-width: 0 !important;
     }
 
     #player-theatre-input {
         padding: 4px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
         flex: 1 !important;
         height: 25px !important;
     }
 
     #btn-player-theatre-send {
         padding: 4px 10px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
         width: auto !important;
     }
 
@@ -6279,12 +6279,12 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
     #theatre-view-player .theatre-plate-name {
         padding: 1px 15px 1px 5px !important;
-        font-size: 14px !important;
+        font-size: 14px ;
     }
 
     #theatre-view-player .theatre-plate-title {
         padding: 1px 15px 1px 5px !important;
-        font-size: 10px !important;
+        font-size: 10px ;
     }
 }
 
@@ -6311,21 +6311,21 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
     .sheet-phone-screen { flex: 1 !important; width: 100% !important; overflow-y: hidden !important; overflow-x: hidden !important; padding-top: 10px !important; padding-bottom: 20px !important; display: flex !important; flex-direction: column !important; }
 
     .sheet-phone-back-btn { display: none !important; }
-    .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; font-size: 12px !important; padding: 4px 8px !important; }
+    .btn-back { position: relative !important; margin: 10px !important; display: block !important; width: max-content !important; z-index: 1001 !important; font-size: 12px ; padding: 4px 8px !important; }
 
     /* Navigation Tabs Adjustments */
     .sheet-limbus-main .sheet-tabs { gap: 5px !important; padding-bottom: 5px !important; }
-    .sheet-limbus-main button[type="action"].sheet-nav-btn { padding: 5px 10px !important; font-size: 11px !important; flex: 1 1 auto !important; min-width: auto !important; }
+    .sheet-limbus-main button[type="action"].sheet-nav-btn { padding: 5px 10px !important; font-size: 11px ; flex: 1 1 auto !important; min-width: auto !important; }
 
     /* Stats Grid Adjustments */
     .sheet-limbus-main .sheet-attributes-grid { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important; width: 100% !important; padding: 0 10px !important; }
     .sheet-limbus-main .sheet-attr-group { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
     .sheet-limbus-main .sheet-skill-row { flex-wrap: nowrap !important; width: 100% !important; gap: 5px !important; padding: 5px 10px !important; }
     .sheet-limbus-main .sheet-skill-inputs { flex-shrink: 0 !important; gap: 2px !important; }
-    .sheet-limbus-main .sheet-skill-inputs input[type="number"] { width: 25px !important; font-size: 0.8em !important; padding: 1px !important; }
-    .sheet-limbus-main .sheet-skill-total { width: 20px !important; font-size: 0.9em !important; }
-    .sheet-limbus-main button.sheet-roll-skill { text-overflow: ellipsis !important; white-space: nowrap !important; overflow: hidden !important; font-size: 0.85em !important; }
-    .sheet-limbus-main .sheet-skill-list-header { font-size: 0.65em !important; gap: 10px !important; }
+    .sheet-limbus-main .sheet-skill-inputs input[type="number"] { width: 25px !important; font-size: 0.8em ; padding: 1px !important; }
+    .sheet-limbus-main .sheet-skill-total { width: 20px !important; font-size: 0.9em ; }
+    .sheet-limbus-main button.sheet-roll-skill { text-overflow: ellipsis !important; white-space: nowrap !important; overflow: hidden !important; font-size: 0.85em ; }
+    .sheet-limbus-main .sheet-skill-list-header { font-size: 0.65em ; gap: 10px !important; }
     .sheet-limbus-main .sheet-header-col { width: 25px !important; }
 
     .sheet-app-body-scroll, .sheet-app-body { padding: 10px !important; width: 100% !important; overflow-x: hidden !important; }
@@ -7798,7 +7798,7 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
     background: #0f0f0f !important;
     border: 1px solid #FFD700 !important;
     color: #F5F5DC !important;
-    font-size: 16px !important;
+    font-size: 16px ;
     cursor: pointer !important;
     z-index: 2015 !important;
     padding: 0 !important;

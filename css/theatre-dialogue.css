@@ -71,8 +71,11 @@
       }
 
       .theatre-dialogue-wrapper {
-        width: 95%;
-        max-width: 1400px;
+        position: absolute;
+        left: 4vw;
+        right: 4vw;
+        bottom: 24px;
+        height: clamp(150px, 21vh, 205px);
         filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, 0.8));
         pointer-events: none; /* Let clicks pass through empty areas */
       }

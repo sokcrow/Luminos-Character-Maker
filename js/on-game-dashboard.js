@@ -356,9 +356,13 @@
 
             const speakerSelect = document.getElementById("theatre-speaker-select");
             const expressionSelect = document.getElementById("theatre-expression-select");
+            const dmTipoDialogoEl = document.getElementById("dm-tipo-dialogo-select");
+
+            let tipoDialogo = dmTipoDialogoEl ? dmTipoDialogoEl.value : "dialogo";
+            let mostrarIdentidad = tipoDialogo !== "pensamiento";
 
             let speakerData = {
-                nombre: "NARRADOR",
+                nombre: "",
                 titulo: "",
                 actorId: null,
                 expression: "Neutral",
@@ -368,7 +372,10 @@
                 color_titulo: DEFAULT_TITLE_COLOR
             };
 
-            if (speakerSelect && speakerSelect.value !== "narrador") {
+            if (speakerSelect && speakerSelect.value === "narrador") {
+                tipoDialogo = "narracion";
+                mostrarIdentidad = false;
+            } else if (speakerSelect) {
                 const selectedOption = speakerSelect.options[speakerSelect.selectedIndex];
                 speakerData.nombre = selectedOption.dataset.nombre || "";
                 speakerData.titulo = selectedOption.dataset.titulo || "";
@@ -384,8 +391,8 @@
                 }
             }
 
-            // Also persist the expression to the actor instance so it doesn't revert
-            if (speakerData.actorId) {
+            // Also persist the expression to the actor instance so it doesn't revert, EXCEPT for pensamientos
+            if (speakerData.actorId && tipoDialogo !== "pensamiento" && tipoDialogo !== "narracion") {
                 db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
                     expresionActiva: speakerData.expression,
                     sprite: speakerData.sprite
@@ -403,6 +410,8 @@
               icono: speakerData.icono,
               color_nombre: speakerData.color_nombre,
               color_titulo: speakerData.color_titulo,
+              tipo_dialogo: tipoDialogo,
+              mostrar_identidad: mostrarIdentidad,
               createdAt: window.firebase.database.ServerValue.TIMESTAMP
             });
             dialogueInput.value = "";
