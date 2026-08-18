@@ -1,0 +1,41 @@
+name: "Theatre Engine #511"
+
+on:
+  pull_request:
+    paths:
+      - "js/theatre-engine.js"
+      - "js/theatre-controls.js"
+      - "js/on-game-dashboard.js"
+      - "tests/theatre_issue_511.spec.js"
+      - ".github/workflows/theatre-issue-511.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  theatre-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check Theatre JavaScript
+        run: |
+          node --check js/theatre-engine.js
+          node --check js/theatre-controls.js
+          node --check js/on-game-dashboard.js
+          node --check tests/theatre_issue_511.spec.js
+
+      - name: "Verify Issue #511 contract regressions"
+        run: npx playwright test tests/theatre_issue_511.spec.js --workers=1

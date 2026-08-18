@@ -1,515 +1,444 @@
 (function () {
   "use strict";
-  document.addEventListener('DOMContentLoaded', () => {
-    // 6 & 7. Autenticación y bloqueo
+
+  document.addEventListener("DOMContentLoaded", () => {
     const auth = window.firebase.auth();
     const db = window.firebase.database();
 
-        // Auth Guard
     auth.onAuthStateChanged((user) => {
       const authBlocker = document.getElementById("auth-blocker");
       if (!user) {
-          if (authBlocker) authBlocker.style.display = 'flex';
-          return;
+        if (authBlocker) authBlocker.style.display = "flex";
+        return;
       }
 
-      db.ref("campaña/config/dm_uid").once("value").then(snap => {
-          const expectedUid = snap.val() || 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
-          if (user.uid !== expectedUid) {
-              if (authBlocker) authBlocker.style.display = 'flex';
-              return;
-          }
-
-          if (authBlocker) authBlocker.style.display = 'none';
-          initializeDashboard(db);
-      }).catch(err => {
-          console.error("Error verificando UID:", err);
-          if (authBlocker) authBlocker.style.display = 'flex';
+      db.ref("campaña/config/dm_uid").once("value").then((snapshot) => {
+        const expectedUid = snapshot.val() || "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+        if (user.uid !== expectedUid) {
+          if (authBlocker) authBlocker.style.display = "flex";
+          return;
+        }
+        if (authBlocker) authBlocker.style.display = "none";
+        initializeDashboard(db);
+      }).catch((error) => {
+        console.error("Error verificando UID:", error);
+        if (authBlocker) authBlocker.style.display = "flex";
       });
     });
 
-    function initializeDashboard(db) {
-        const SCENE_ROOT = "campaña/estado_mundo/escena_actual";
-        const DIALOGUE_ROOT = "campaña/estado_mundo/dialogo_activo";
-        const DEFAULT_TITLE_COLOR = "#3b2918";
+    function initializeDashboard(database) {
+      const theatre = window.LuminousTheatreState;
+      if (!theatre) throw new Error("LuminousTheatreState debe cargarse antes del dashboard del DM.");
 
-        window.LuminousInstanceControl.bindDashboard({ db });
+      const paths = () => theatre.getPaths();
+      const DEFAULT_TITLE_COLOR = "#3b2918";
+      const SCENARIOS_ROOT = "campaña/escenarios";
+      let scenariosDatabase = {};
+      let isProcessingQueue = false;
+      let processorGeneration = 0;
 
-        const status = document.getElementById("connection-status");
-        if (status) {
-          db.ref(".info/connected").on("value", (snapshot) => {
-            const online = snapshot.val() === true;
-            status.textContent = online ? "● SINCRONIZADO" : "● SIN CONEXIÓN";
-            status.classList.toggle("offline", !online);
+      window.LuminousInstanceControl.bindDashboard({ db: database });
+
+      const status = document.getElementById("connection-status");
+      if (status) {
+        database.ref(".info/connected").on("value", (snapshot) => {
+          const online = snapshot.val() === true;
+          status.textContent = online ? "● SINCRONIZADO" : "● SIN CONEXIÓN";
+          status.classList.toggle("offline", !online);
+        });
+      }
+
+      // --- BIBLIOTECA DE LUGARES / ESCENARIOS ---
+      const scenarioSelect = document.getElementById("theatre-scenario-select");
+      const locationFilter = document.getElementById("theatre-scenario-location-filter");
+      const tagFilter = document.getElementById("theatre-scenario-tag-filter");
+      const scenarioNameInput = document.getElementById("theatre-scenario-name");
+      const bgInput = document.getElementById("theatre-background-input");
+      const locInput = document.getElementById("theatre-location-input");
+      const tagsInput = document.getElementById("theatre-scenario-tags");
+      const btnSaveScenario = document.getElementById("btn-save-scenario");
+      const btnUseScenario = document.getElementById("btn-use-scenario");
+      const btnDeleteScenario = document.getElementById("btn-delete-scenario");
+      const btnUpdateScene = document.getElementById("btn-update-scene");
+
+      function ensureScenarioMetadataInputs() {
+        if (!tagsInput || document.getElementById("theatre-scenario-region")) return;
+        const region = document.createElement("input");
+        region.id = "theatre-scenario-region";
+        region.type = "text";
+        region.placeholder = "Región / sección / capítulo";
+        region.style.cssText = tagsInput.style.cssText;
+
+        const category = document.createElement("input");
+        category.id = "theatre-scenario-category";
+        category.type = "text";
+        category.placeholder = "Categoría / área";
+        category.style.cssText = tagsInput.style.cssText;
+
+        tagsInput.parentElement?.insertBefore(region, tagsInput);
+        tagsInput.parentElement?.insertBefore(category, tagsInput);
+      }
+
+      ensureScenarioMetadataInputs();
+      const regionInput = () => document.getElementById("theatre-scenario-region");
+      const categoryInput = () => document.getElementById("theatre-scenario-category");
+
+      function normalizedTags() {
+        return [...new Set((tagsInput?.value || "").split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))];
+      }
+
+      function scenarioPayload() {
+        return {
+          nombre: scenarioNameInput?.value.trim() || "",
+          fondo: bgInput?.value.trim() || "",
+          locacion: locInput?.value.trim() || "",
+          region: regionInput()?.value.trim() || "",
+          categoria: categoryInput()?.value.trim() || "",
+          sub_etiquetas: normalizedTags()
+        };
+      }
+
+      function renderScenarioSelect() {
+        if (!scenarioSelect) return;
+        const previous = scenarioSelect.value;
+        scenarioSelect.innerHTML = '<option value="">Selecciona un escenario guardado...</option>';
+        const locValue = locationFilter?.value || "";
+        const tagValue = tagFilter?.value.toLowerCase().trim() || "";
+        const locations = new Set();
+        const grouped = new Map();
+
+        for (const [scenarioId, data] of Object.entries(scenariosDatabase)) {
+          if (data.locacion) locations.add(data.locacion);
+          if (locValue && data.locacion !== locValue) continue;
+          const searchableTags = [data.region, data.categoria, ...(data.sub_etiquetas || [])].filter(Boolean).map(String);
+          if (tagValue && !searchableTags.some((tag) => tag.toLowerCase().includes(tagValue))) continue;
+          const group = data.region || data.seccion || data.capitulo || data.locacion || "Sin sección";
+          if (!grouped.has(group)) grouped.set(group, []);
+          grouped.get(group).push([scenarioId, data]);
+        }
+
+        for (const groupName of [...grouped.keys()].sort((a, b) => a.localeCompare(b))) {
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = groupName;
+          for (const [scenarioId, data] of grouped.get(groupName).sort((a, b) => String(a[1].nombre || "").localeCompare(String(b[1].nombre || "")))) {
+            const option = document.createElement("option");
+            option.value = scenarioId;
+            const category = data.categoria ? ` · ${data.categoria}` : "";
+            option.textContent = `${data.locacion || "Sin loc"} · ${data.nombre || "Sin nombre"}${category}`;
+            optgroup.appendChild(option);
+          }
+          scenarioSelect.appendChild(optgroup);
+        }
+
+        if (locationFilter) {
+          const currentLocation = locationFilter.value;
+          locationFilter.innerHTML = '<option value="">Todas las localizaciones</option>';
+          for (const location of [...locations].sort((a, b) => a.localeCompare(b))) {
+            const option = document.createElement("option");
+            option.value = location;
+            option.textContent = location;
+            locationFilter.appendChild(option);
+          }
+          locationFilter.value = currentLocation;
+        }
+        if (scenariosDatabase[previous]) scenarioSelect.value = previous;
+      }
+
+      database.ref(SCENARIOS_ROOT).on("value", (snapshot) => {
+        scenariosDatabase = snapshot.val() || {};
+        renderScenarioSelect();
+      });
+      locationFilter?.addEventListener("change", renderScenarioSelect);
+      tagFilter?.addEventListener("input", renderScenarioSelect);
+
+      scenarioSelect?.addEventListener("change", (event) => {
+        const data = scenariosDatabase[event.target.value];
+        if (!data) {
+          if (scenarioNameInput) scenarioNameInput.value = "";
+          if (bgInput) bgInput.value = "";
+          if (locInput) locInput.value = "";
+          if (tagsInput) tagsInput.value = "";
+          if (regionInput()) regionInput().value = "";
+          if (categoryInput()) categoryInput().value = "";
+          return;
+        }
+        if (scenarioNameInput) scenarioNameInput.value = data.nombre || "";
+        if (bgInput) bgInput.value = data.fondo || "";
+        if (locInput) locInput.value = data.locacion || "";
+        if (tagsInput) tagsInput.value = (data.sub_etiquetas || []).join(", ");
+        if (regionInput()) regionInput().value = data.region || data.seccion || data.capitulo || "";
+        if (categoryInput()) categoryInput().value = data.categoria || "";
+      });
+
+      btnSaveScenario?.addEventListener("click", () => {
+        const data = scenarioPayload();
+        if (!data.nombre || !data.fondo || !data.locacion) {
+          alert("Nombre, fondo y localización son obligatorios.");
+          return;
+        }
+        const scenarioId = scenarioSelect?.value || database.ref(SCENARIOS_ROOT).push().key;
+        const now = window.firebase.database.ServerValue.TIMESTAMP;
+        const write = Object.assign({}, data, { updatedAt: now });
+        if (!scenarioSelect?.value) write.createdAt = now;
+        database.ref(`${SCENARIOS_ROOT}/${scenarioId}`).update(write).then(() => {
+          if (scenarioSelect) scenarioSelect.value = scenarioId;
+        }).catch((error) => alert("Error al guardar: " + error));
+      });
+
+      async function useScenarioFromInputs() {
+        const data = scenarioPayload();
+        if (!data.fondo || !data.locacion) {
+          alert("Fondo y localización son obligatorios para usar el escenario.");
+          return;
+        }
+        await theatre.changeScene(Object.assign({}, data, { escenarioId: scenarioSelect?.value || null }));
+      }
+
+      btnUseScenario?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
+      btnUpdateScene?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
+
+      btnDeleteScenario?.addEventListener("click", () => {
+        const scenarioId = scenarioSelect?.value;
+        if (!scenarioId || !confirm("¿Estás seguro de que quieres borrar este escenario?")) return;
+        database.ref(`${SCENARIOS_ROOT}/${scenarioId}`).remove().then(() => {
+          if (scenarioSelect) scenarioSelect.value = "";
+          scenarioSelect?.dispatchEvent(new Event("change"));
+        }).catch((error) => alert("Error al borrar: " + error));
+      });
+
+      // --- COLA FIFO: SOLO EL DM PUBLICA EL ESTADO DE ESCENA ---
+      function nextQueueItem() {
+        return database.ref(paths().queue).orderByChild("createdAt").limitToFirst(1).once("value");
+      }
+
+      async function dropQueueForTransition() {
+        processorGeneration += 1;
+        isProcessingQueue = false;
+        await database.ref(paths().queue).remove();
+      }
+
+      async function processQueue() {
+        if (isProcessingQueue) return;
+        const generation = processorGeneration;
+
+        const [instanceSnap, sceneSnap] = await Promise.all([
+          database.ref("campaña/estado_mundo/instancia_activa").once("value"),
+          database.ref(paths().scene).once("value")
+        ]);
+        if (generation !== processorGeneration || instanceSnap.val() !== "teatro") return;
+        const scene = sceneSnap.val() || {};
+        if (scene.transitioning) {
+          await dropQueueForTransition();
+          return;
+        }
+
+        const queueSnap = await nextQueueItem();
+        if (generation !== processorGeneration || !queueSnap.exists()) return;
+        const msgKey = Object.keys(queueSnap.val())[0];
+        const queueRef = database.ref(`${paths().queue}/${msgKey}`);
+        isProcessingQueue = true;
+
+        const claimed = await new Promise((resolve, reject) => {
+          queueRef.transaction((current) => {
+            if (!current) return current;
+            const now = Date.now();
+            const stuck = current.processing && current.processingStartedAt && (now - Number(current.processingStartedAt) > 120000);
+            if (current.processing && !stuck) return;
+            current.processing = true;
+            current.processingStartedAt = window.firebase.database.ServerValue.TIMESTAMP;
+            return current;
+          }, (error, committed, snapshot) => {
+            if (error) reject(error);
+            else resolve(committed ? snapshot.val() : null);
           });
+        }).catch((error) => {
+          console.error("No se pudo reclamar el mensaje de Theatre:", error);
+          return null;
+        });
+
+        if (!claimed || generation !== processorGeneration) {
+          isProcessingQueue = false;
+          if (generation === processorGeneration) setTimeout(processQueue, 250);
+          return;
+        }
+
+        const freshScene = (await database.ref(paths().scene).once("value")).val() || {};
+        if (generation !== processorGeneration || freshScene.transitioning || theatre.messageIsStaleForScene(claimed, freshScene)) {
+          await queueRef.remove();
+          isProcessingQueue = false;
+          if (generation === processorGeneration) processQueue();
+          return;
+        }
+
+        const textLength = String(claimed.mensaje || "").length;
+        claimed.speedMs = 30;
+        claimed.durationMs = (textLength * claimed.speedMs) + 3000;
+        const result = await theatre.publishIntervention(msgKey, claimed).catch((error) => {
+          console.error("Error publicando intervención del Theatre Engine:", error);
+          return { published: false, reason: "error" };
+        });
+
+        if (!result?.published) {
+          await queueRef.remove();
+          isProcessingQueue = false;
+          if (generation === processorGeneration) processQueue();
+          return;
+        }
+
+        setTimeout(async () => {
+          if (generation !== processorGeneration) return;
+          try {
+            await database.ref(`${paths().log}/${msgKey}`).set(result.payload);
+            await queueRef.remove();
+          } catch (error) {
+            console.error("Error archivando la intervención del Theatre:", error);
+          } finally {
+            if (generation === processorGeneration) {
+              isProcessingQueue = false;
+              processQueue();
+            }
+          }
+        }, claimed.durationMs);
+      }
+
+      database.ref(paths().queue).on("child_added", () => processQueue());
+      database.ref("campaña/estado_mundo/instancia_activa").on("value", (snapshot) => {
+        if (snapshot.val() === "teatro") processQueue();
+      });
+      database.ref(paths().scene).on("value", (snapshot) => {
+        const scene = snapshot.val() || {};
+        if (scene.transitioning) {
+          dropQueueForTransition().catch((error) => console.error("No se pudo cortar la cola durante transición:", error));
         } else {
-            console.warn("ADVERTENCIA: No se encontró #connection-status");
+          processQueue();
+        }
+      });
+
+      // --- COMPOSITOR DE DIÁLOGO DEL DM ---
+      const btnSendDialogue = document.getElementById("btn-send-dialogue");
+      const speakerSelect = document.getElementById("theatre-speaker-select");
+      const expressionSelect = document.getElementById("theatre-expression-select");
+
+      btnSendDialogue?.addEventListener("click", async () => {
+        const dialogueInput = document.getElementById("theatre-dialogue-input");
+        const typeSelect = document.getElementById("dm-tipo-dialogo-select");
+        const languageSelect = document.getElementById("theatre-language-select");
+        const text = dialogueInput?.value.trim() || "";
+        if (!text) return;
+
+        let type = typeSelect?.value || "dialogo";
+        let speaker = {
+          nombre: "",
+          titulo: "",
+          actorId: null,
+          expression: "Neutral",
+          sprite: null,
+          icono: null,
+          color_nombre: "#ffffff",
+          color_titulo: DEFAULT_TITLE_COLOR
+        };
+
+        if (!speakerSelect || speakerSelect.value === "narrador") {
+          type = "narracion";
+        } else {
+          const option = speakerSelect.options[speakerSelect.selectedIndex];
+          const expressionOption = expressionSelect?.options[expressionSelect.selectedIndex];
+          speaker = {
+            nombre: option.dataset.nombre || "",
+            titulo: option.dataset.titulo || "",
+            actorId: speakerSelect.value,
+            expression: expressionSelect?.value || "Neutral",
+            sprite: expressionOption?.dataset.sprite || null,
+            icono: option.dataset.icono || null,
+            color_nombre: option.dataset.colorNombre || "#ffffff",
+            color_titulo: option.dataset.colorTitulo || DEFAULT_TITLE_COLOR
+          };
         }
 
-        const btnUpdateScene = document.getElementById("btn-update-scene");
-        if (btnUpdateScene) {
-          btnUpdateScene.addEventListener("click", () => {
-            const bgInput = document.getElementById("theatre-background-input");
-            const locInput = document.getElementById("theatre-location-input");
-
-            if (bgInput && locInput) {
-                db.ref(SCENE_ROOT).update({
-                  fondo: bgInput.value.trim(),
-                  locacion: locInput.value.trim(),
-                  escenarioId: null
-                });
-            }
-          });
-        }
-
-        // --- BIBLIOTECA DE ESCENARIOS ---
-        const SCENARIOS_ROOT = "campaña/escenarios";
-        let scenariosDatabase = {};
-
-        const scenarioSelect = document.getElementById("theatre-scenario-select");
-        const locationFilter = document.getElementById("theatre-scenario-location-filter");
-        const tagFilter = document.getElementById("theatre-scenario-tag-filter");
-
-        const scenarioNameInput = document.getElementById("theatre-scenario-name");
-        const bgInput = document.getElementById("theatre-background-input");
-        const locInput = document.getElementById("theatre-location-input");
-        const tagsInput = document.getElementById("theatre-scenario-tags");
-
-        const btnSaveScenario = document.getElementById("btn-save-scenario");
-        const btnUseScenario = document.getElementById("btn-use-scenario");
-        const btnDeleteScenario = document.getElementById("btn-delete-scenario");
-
-        function renderScenarioSelect() {
-            if (!scenarioSelect) return;
-
-            const currentVal = scenarioSelect.value;
-            scenarioSelect.innerHTML = '<option value="">Selecciona un escenario guardado...</option>';
-
-            const locVal = locationFilter ? locationFilter.value : "";
-            const tagVal = tagFilter ? tagFilter.value.toLowerCase().trim() : "";
-
-            const locations = new Set();
-
-            for (const [scenarioId, data] of Object.entries(scenariosDatabase)) {
-                if (data.locacion) locations.add(data.locacion);
-
-                if (locVal && data.locacion !== locVal) continue;
-                if (tagVal) {
-                    const match = data.sub_etiquetas && data.sub_etiquetas.some(t => t.toLowerCase().includes(tagVal));
-                    if (!match) continue;
-                }
-
-                const opt = document.createElement("option");
-                opt.value = scenarioId;
-
-                const tagStr = data.sub_etiquetas ? `[${data.sub_etiquetas.join(', ')}]` : "[]";
-                opt.textContent = `${data.locacion || 'Sin loc'} · ${data.nombre || 'Sin nombre'} ${tagStr}`;
-                scenarioSelect.appendChild(opt);
-            }
-
-            if (locationFilter) {
-                const curLoc = locationFilter.value;
-                locationFilter.innerHTML = '<option value="">Todas las localizaciones</option>';
-                const sortedLocs = Array.from(locations).sort();
-                for (const loc of sortedLocs) {
-                    const opt = document.createElement("option");
-                    opt.value = loc;
-                    opt.textContent = loc;
-                    locationFilter.appendChild(opt);
-                }
-                locationFilter.value = curLoc;
-            }
-
-            if (scenariosDatabase[currentVal]) {
-                scenarioSelect.value = currentVal;
-            }
-        }
-
-        db.ref(SCENARIOS_ROOT).on("value", snapshot => {
-            scenariosDatabase = snapshot.val() || {};
-            renderScenarioSelect();
+        const queued = await theatre.enqueueIntervention({
+          mensaje: text,
+          nombre: speaker.nombre,
+          titulo: speaker.titulo,
+          actorId: speaker.actorId,
+          expression: speaker.expression,
+          sprite: speaker.sprite,
+          icono: speaker.icono,
+          color_nombre: speaker.color_nombre,
+          color_titulo: speaker.color_titulo,
+          tipo_dialogo: type,
+          mostrar_identidad: type !== "narracion",
+          idiomaId: languageSelect?.value || null
         });
 
-        if (locationFilter) locationFilter.addEventListener("change", renderScenarioSelect);
-        if (tagFilter) tagFilter.addEventListener("keyup", renderScenarioSelect);
+        if (!queued.queued) {
+          if (queued.reason === "transition") alert("La escena está en transición. El mensaje no fue enviado.");
+          return;
+        }
+        if (dialogueInput) dialogueInput.value = "";
+      });
 
-        if (scenarioSelect) {
-            scenarioSelect.addEventListener("change", (e) => {
-                const scenarioId = e.target.value;
-                if (!scenarioId || !scenariosDatabase[scenarioId]) {
-                    scenarioNameInput.value = "";
-                    bgInput.value = "";
-                    locInput.value = "";
-                    tagsInput.value = "";
-                    return;
-                }
-                const data = scenariosDatabase[scenarioId];
-                scenarioNameInput.value = data.nombre || "";
-                bgInput.value = data.fondo || "";
-                locInput.value = data.locacion || "";
-                tagsInput.value = data.sub_etiquetas ? data.sub_etiquetas.join(", ") : "";
-            });
+      database.ref(`${paths().scene}/actores`).on("value", (snapshot) => {
+        if (!speakerSelect) return;
+        const currentSelection = speakerSelect.value;
+        const actors = snapshot.val() || {};
+        speakerSelect.innerHTML = '<option value="narrador">Narrador</option>';
+        for (const [actorId, actor] of Object.entries(actors)) {
+          const option = document.createElement("option");
+          option.value = actorId;
+          option.textContent = actor.nombre || actorId;
+          option.dataset.nombre = actor.nombre || "";
+          option.dataset.titulo = actor.titulo || "";
+          option.dataset.icono = actor.icono || "";
+          option.dataset.colorNombre = actor.color_nombre || "#ffffff";
+          option.dataset.colorTitulo = actor.color_titulo || DEFAULT_TITLE_COLOR;
+          option.dataset.expresiones = JSON.stringify(actor.expresiones || {});
+          option.dataset.preparedExpression = actor.expresionPreparada || actor.expresionActiva || "Neutral";
+          speakerSelect.appendChild(option);
+        }
+        speakerSelect.value = currentSelection && actors[currentSelection] ? currentSelection : "narrador";
+        speakerSelect.dispatchEvent(new Event("change"));
+      });
+
+      speakerSelect?.addEventListener("change", (event) => {
+        if (!expressionSelect) return;
+        expressionSelect.innerHTML = "";
+        if (event.target.value === "narrador") {
+          const option = document.createElement("option");
+          option.value = "Neutral";
+          option.textContent = "Neutral";
+          expressionSelect.appendChild(option);
+          return;
         }
 
-        if (btnSaveScenario) {
-            btnSaveScenario.addEventListener("click", () => {
-                const name = scenarioNameInput.value.trim();
-                const fondo = bgInput.value.trim();
-                const loc = locInput.value.trim();
-
-                if (!name || !fondo || !loc) {
-                    alert("Nombre, fondo y localización son obligatorios.");
-                    return;
-                }
-
-                const tagsRaw = tagsInput.value.split(",");
-                const subEtiquetas = [...new Set(tagsRaw.map(t => t.trim().toLowerCase()).filter(t => t !== ""))];
-
-                const scenarioId = scenarioSelect.value || db.ref(SCENARIOS_ROOT).push().key;
-
-                const now = window.firebase.database.ServerValue.TIMESTAMP;
-                const data = {
-                    nombre: name,
-                    fondo: fondo,
-                    locacion: loc,
-                    sub_etiquetas: subEtiquetas,
-                    updatedAt: now
-                };
-
-                if (!scenarioSelect.value) {
-                    data.createdAt = now;
-                }
-
-                db.ref(`${SCENARIOS_ROOT}/${scenarioId}`).update(data).then(() => {
-                    alert("Escenario guardado correctamente.");
-                    scenarioSelect.value = scenarioId;
-                }).catch(err => alert("Error al guardar: " + err));
-            });
+        const speakerOption = event.target.options[event.target.selectedIndex];
+        let expressions = {};
+        try { expressions = JSON.parse(speakerOption.dataset.expresiones || "{}"); } catch (error) {}
+        if (!Object.keys(expressions).length) expressions = { Neutral: "" };
+        for (const [expression, spriteUrl] of Object.entries(expressions)) {
+          const option = document.createElement("option");
+          option.value = expression;
+          option.textContent = expression;
+          option.dataset.sprite = spriteUrl;
+          expressionSelect.appendChild(option);
         }
+        const prepared = speakerOption.dataset.preparedExpression;
+        if (prepared && expressions[prepared] !== undefined) expressionSelect.value = prepared;
+      });
 
-        if (btnUseScenario) {
-            btnUseScenario.addEventListener("click", () => {
-                const scenarioId = scenarioSelect.value;
-                const fondo = bgInput.value.trim();
-                const loc = locInput.value.trim();
-                const tagsRaw = tagsInput.value.split(",");
-                const subEtiquetas = [...new Set(tagsRaw.map(t => t.trim().toLowerCase()).filter(t => t !== ""))];
+      expressionSelect?.addEventListener("change", () => {
+        if (!speakerSelect || speakerSelect.value === "narrador") return;
+        // Selection only prepares; reveal happens when the queue publishes the intervention.
+        theatre.prepareExpression(speakerSelect.value, expressionSelect.value);
+      });
 
-                if (!fondo || !loc) {
-                    alert("Fondo y localización son obligatorios para usar.");
-                    return;
-                }
-
-                db.ref(SCENE_ROOT).update({
-                    escenarioId: scenarioId || null,
-                    fondo: fondo,
-                    locacion: loc,
-                    sub_etiquetas: subEtiquetas
-                }).then(() => {
-                    console.log("Escenario aplicado exitosamente");
-                }).catch(err => alert("Error aplicando escenario: " + err));
-            });
-        }
-
-        if (btnDeleteScenario) {
-            btnDeleteScenario.addEventListener("click", () => {
-                const scenarioId = scenarioSelect.value;
-                if (!scenarioId) return;
-
-                if (confirm("¿Estás seguro de que quieres borrar este escenario?")) {
-                    db.ref(`${SCENARIOS_ROOT}/${scenarioId}`).remove().then(() => {
-                        scenarioSelect.value = "";
-                        scenarioNameInput.value = "";
-                        bgInput.value = "";
-                        locInput.value = "";
-                        tagsInput.value = "";
-                        alert("Escenario borrado.");
-                    }).catch(err => alert("Error al borrar: " + err));
-                }
-            });
-        }
-
-
-        // --- 4. Sistema de Cola FIFO y Secuenciador ---
-        const QUEUE_ROOT = "campaña/teatro/cola";
-        const LOG_ROOT = "campaña/teatro/log";
-
-        let isProcessingQueue = false;
-
-                function processQueue() {
-            if (isProcessingQueue) return;
-
-            // Check if theatre is active instance
-            db.ref("campaña/estado_mundo/instancia_activa").once('value').then(snap => {
-                if (snap.val() !== 'teatro') return; // Pause queue if not in theatre
-
-                isProcessingQueue = true;
-
-                // Get oldest message
-                db.ref(QUEUE_ROOT).orderByChild("createdAt").limitToFirst(1).once("value").then(queueSnap => {
-                    if (!queueSnap.exists()) {
-                        isProcessingQueue = false;
-                        return; // Empty queue
-                    }
-
-                    const msgKey = Object.keys(queueSnap.val())[0];
-                    const msgData = queueSnap.val()[msgKey];
-
-                    // Deadlock prevention: If it has been processing for more than 2 minutes, assume the previous DM crashed and claim it anyway.
-                    const now = Date.now();
-                    const isStuck = msgData.processing && msgData.processingStartedAt && (now - msgData.processingStartedAt > 120000);
-
-                    // Transaction to claim it safely
-                    db.ref(`${QUEUE_ROOT}/${msgKey}`).transaction(currentData => {
-                        if (currentData && (!currentData.processing || isStuck)) {
-                            currentData.processing = true;
-                            currentData.processingStartedAt = window.firebase.database.ServerValue.TIMESTAMP;
-                            return currentData;
-                        }
-                        return; // Abort if already processing and not stuck
-                    }, (error, committed, snapshot) => {
-                        if (!committed) {
-                            isProcessingQueue = false;
-
-                            // If it's stuck but transaction failed, wait and retry. Or if someone else took it.
-                            setTimeout(processQueue, 1000);
-                            return;
-                        }
-
-                        const actualData = snapshot.val();
-
-                        // Calculate duration
-                        const speedMs = 30; // 30 ms per char
-                        const textLength = (actualData.mensaje || "").length;
-                        const durationMs = (textLength * speedMs) + 3000; // Text duration + 3 sec pause
-                        const startedAt = window.firebase.database.ServerValue.TIMESTAMP;
-
-                        // Broadcast to active dialogue
-                        // Notify visibility rule (LuminousTheatreState) if valid actor speaking actual dialogue
-                        if (actualData.actorId && window.LuminousTheatreState && window.LuminousTheatreState.updateVisibleActors) {
-                            if (actualData.tipo_dialogo !== "pensamiento" && actualData.tipo_dialogo !== "narracion") {
-                                window.LuminousTheatreState.updateVisibleActors(actualData.actorId, actualData);
-                            }
-                        }
-
-                        const activePayload = {
-                            messageId: msgKey,
-                            nombre: actualData.nombre || "",
-                            titulo: actualData.titulo || "",
-                            mensaje: actualData.mensaje || "",
-                            actorId: actualData.actorId || null,
-                            expression: actualData.expression || "Neutral",
-                            sprite: actualData.sprite || null,
-                            icono: actualData.icono || null,
-                            color_nombre: actualData.color_nombre || "#ffffff",
-                            color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
-                            tipo_dialogo: actualData.tipo_dialogo || "dialogo",
-                            mostrar_identidad: actualData.mostrar_identidad !== false,
-                            startedAt: startedAt,
-                            speedMs: speedMs,
-                            durationMs: durationMs
-                        };
-
-                                                db.ref(DIALOGUE_ROOT).set(activePayload).then(() => {
-                            // Wait exact duration
-                            setTimeout(() => {
-                                // Archive to Log
-                                db.ref(`${LOG_ROOT}/${msgKey}`).set(activePayload).then(() => {
-                                    // Remove from queue
-                                    db.ref(`${QUEUE_ROOT}/${msgKey}`).remove().then(() => {
-                                        isProcessingQueue = false;
-                                        processQueue(); // Check for next
-                                    });
-                                }).catch(err => {
-                                    console.error("Error archivando en log:", err);
-                                    isProcessingQueue = false;
-                                    processQueue();
-                                });
-                            }, (textLength * speedMs) + 3000); // We simulate the wait client-side for the sequencer
-                        }).catch(err => {
-                            console.error("Error publicando diálogo activo:", err);
-                            // Desmarcar para que no se quede atascado o ignorarlo si hay un problema de permisos
-                            // If we can't publish, we might want to just skip or log.
-                            // Let's remove from queue so it's not a permanent blocker
-                            db.ref(`${QUEUE_ROOT}/${msgKey}`).remove().finally(() => {
-                                isProcessingQueue = false;
-                                processQueue();
-                            });
-                        });
-                    });
-                });
-            });
-        }
-
-        // Listen to queue changes to trigger processor
-        db.ref(QUEUE_ROOT).on("child_added", () => {
-            processQueue();
+      const btnTriggerCombat = document.getElementById("btn-trigger-combat");
+      btnTriggerCombat?.addEventListener("click", () => {
+        database.ref("campaña/estado_mundo/instancia_activa").set("combate");
+        database.ref("campaña/combate").update({
+          estado: "COMBAT_ACTIVE",
+          startedAt: window.firebase.database.ServerValue.TIMESTAMP
         });
-
-        // Listen to instance changes to resume queue
-        db.ref("campaña/estado_mundo/instancia_activa").on("value", (snap) => {
-            if (snap.val() === 'teatro') {
-                processQueue();
-            }
-        });
-
-        // Modificamos el envio de diálogo del DM para que vaya a la cola
-        const btnSendDialogue = document.getElementById("btn-send-dialogue");
-        if (btnSendDialogue) {
-          btnSendDialogue.addEventListener("click", () => {
-            const dialogueInput = document.getElementById("theatre-dialogue-input");
-            if (!dialogueInput) return;
-
-            const texto = dialogueInput.value.trim();
-            if (!texto) return;
-
-            const speakerSelect = document.getElementById("theatre-speaker-select");
-            const expressionSelect = document.getElementById("theatre-expression-select");
-            const dmTipoDialogoEl = document.getElementById("dm-tipo-dialogo-select");
-
-            let tipoDialogo = dmTipoDialogoEl ? dmTipoDialogoEl.value : "dialogo";
-            let mostrarIdentidad = tipoDialogo !== "pensamiento";
-
-            let speakerData = {
-                nombre: "",
-                titulo: "",
-                actorId: null,
-                expression: "Neutral",
-                sprite: null,
-                icono: null,
-                color_nombre: "#ffffff",
-                color_titulo: DEFAULT_TITLE_COLOR
-            };
-
-            if (speakerSelect && speakerSelect.value === "narrador") {
-                tipoDialogo = "narracion";
-                mostrarIdentidad = false;
-            } else if (speakerSelect) {
-                const selectedOption = speakerSelect.options[speakerSelect.selectedIndex];
-                speakerData.nombre = selectedOption.dataset.nombre || "";
-                speakerData.titulo = selectedOption.dataset.titulo || "";
-                speakerData.actorId = speakerSelect.value;
-                speakerData.icono = selectedOption.dataset.icono || null;
-                speakerData.color_nombre = selectedOption.dataset.colorNombre || "#ffffff";
-                speakerData.color_titulo = selectedOption.dataset.colorTitulo || DEFAULT_TITLE_COLOR;
-
-                if (expressionSelect) {
-                    speakerData.expression = expressionSelect.value;
-                    const expOpt = expressionSelect.options[expressionSelect.selectedIndex];
-                    speakerData.sprite = expOpt ? expOpt.dataset.sprite : null;
-                }
-            }
-
-            // Also persist the expression to the actor instance so it doesn't revert, EXCEPT for pensamientos
-            if (speakerData.actorId && tipoDialogo !== "pensamiento" && tipoDialogo !== "narracion") {
-                db.ref(`${SCENE_ROOT}/actores/${speakerData.actorId}`).update({
-                    expresionActiva: speakerData.expression,
-                    sprite: speakerData.sprite
-                });
-            }
-
-            const msgKey = db.ref(QUEUE_ROOT).push().key;
-            db.ref(`${QUEUE_ROOT}/${msgKey}`).set({
-              mensaje: texto,
-              nombre: speakerData.nombre,
-              titulo: speakerData.titulo,
-              actorId: speakerData.actorId,
-              expression: speakerData.expression,
-              sprite: speakerData.sprite,
-              icono: speakerData.icono,
-              color_nombre: speakerData.color_nombre,
-              color_titulo: speakerData.color_titulo,
-              tipo_dialogo: tipoDialogo,
-              mostrar_identidad: mostrarIdentidad,
-              createdAt: window.firebase.database.ServerValue.TIMESTAMP
-            });
-            dialogueInput.value = "";
-          });
-        }
-
-        // Listen to live actors to update speaker select
-        db.ref(SCENE_ROOT + "/actores").on("value", (snapshot) => {
-            const speakerSelect = document.getElementById("theatre-speaker-select");
-            const expressionSelect = document.getElementById("theatre-expression-select");
-            if (!speakerSelect) return;
-
-            const currentSelection = speakerSelect.value;
-            speakerSelect.innerHTML = '<option value="narrador">Narrador</option>';
-
-            const actors = snapshot.val() || {};
-            for (const [actorId, actorData] of Object.entries(actors)) {
-                const opt = document.createElement("option");
-                opt.value = actorId;
-                opt.textContent = actorData.nombre;
-                opt.dataset.nombre = actorData.nombre;
-                opt.dataset.titulo = actorData.titulo || "";
-                opt.dataset.icono = actorData.icono || "";
-                opt.dataset.colorNombre = actorData.color_nombre || "#ffffff";
-                opt.dataset.colorTitulo = actorData.color_titulo || DEFAULT_TITLE_COLOR;
-
-                // Store expressions as a JSON string for easy retrieval
-                opt.dataset.expresiones = JSON.stringify(actorData.expresiones || {});
-
-                speakerSelect.appendChild(opt);
-            }
-
-            // Try to restore previous selection
-            if (currentSelection && currentSelection !== "narrador" && actors[currentSelection]) {
-                speakerSelect.value = currentSelection;
-            } else {
-                speakerSelect.value = "narrador";
-            }
-
-            // Manually trigger change to update expression select
-            speakerSelect.dispatchEvent(new Event('change'));
-        });
-
-        // Update expression select when speaker changes
-        const speakerSelect = document.getElementById("theatre-speaker-select");
-        if (speakerSelect) {
-            speakerSelect.addEventListener("change", (e) => {
-                const expressionSelect = document.getElementById("theatre-expression-select");
-                if (!expressionSelect) return;
-
-                expressionSelect.innerHTML = "";
-
-                if (e.target.value === "narrador") {
-                    const opt = document.createElement("option");
-                    opt.value = "Neutral";
-                    opt.textContent = "Neutral";
-                    expressionSelect.appendChild(opt);
-                    return;
-                }
-
-                const selectedOption = e.target.options[e.target.selectedIndex];
-                let expresiones = {};
-                try {
-                    expresiones = JSON.parse(selectedOption.dataset.expresiones || "{}");
-                } catch (err) {}
-
-                if (Object.keys(expresiones).length === 0) {
-                    const opt = document.createElement("option");
-                    opt.value = "Neutral";
-                    opt.textContent = "Neutral";
-                    expressionSelect.appendChild(opt);
-                } else {
-                    for (const [exp, spriteUrl] of Object.entries(expresiones)) {
-                        const opt = document.createElement("option");
-                        opt.value = exp;
-                        opt.textContent = exp;
-                        opt.dataset.sprite = spriteUrl;
-                        expressionSelect.appendChild(opt);
-                    }
-                }
-            });
-        }
-const btnTriggerCombat = document.getElementById("btn-trigger-combat");
-        if (btnTriggerCombat) {
-          btnTriggerCombat.addEventListener("click", () => {
-            db.ref("campaña/estado_mundo/instancia_activa").set("combate");
-            db.ref("campaña/combate").update({ estado: "COMBAT_ACTIVE", startedAt: window.firebase.database.ServerValue.TIMESTAMP });
-          });
-        }
+      });
     }
   });
 })();
