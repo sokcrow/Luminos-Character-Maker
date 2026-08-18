@@ -1,4 +1,4 @@
-name: Theatre Engine #511
+name: "Theatre Engine #511"
 
 on:
   pull_request:
@@ -37,5 +37,5 @@ jobs:
           node --check js/on-game-dashboard.js
           node --check tests/theatre_issue_511.spec.js
 
-      - name: Verify Issue #511 contract regressions
+      - name: "Verify Issue #511 contract regressions"
         run: npx playwright test tests/theatre_issue_511.spec.js --workers=1
