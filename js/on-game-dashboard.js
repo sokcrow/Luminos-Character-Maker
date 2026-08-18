@@ -285,6 +285,13 @@
                         const startedAt = window.firebase.database.ServerValue.TIMESTAMP;
 
                         // Broadcast to active dialogue
+                        // Notify visibility rule (LuminousTheatreState) if valid actor speaking actual dialogue
+                        if (actualData.actorId && window.LuminousTheatreState && window.LuminousTheatreState.updateVisibleActors) {
+                            if (actualData.tipo_dialogo !== "pensamiento" && actualData.tipo_dialogo !== "narracion") {
+                                window.LuminousTheatreState.updateVisibleActors(actualData.actorId, actualData);
+                            }
+                        }
+
                         const activePayload = {
                             messageId: msgKey,
                             nombre: actualData.nombre || "",
@@ -296,6 +303,8 @@
                             icono: actualData.icono || null,
                             color_nombre: actualData.color_nombre || "#ffffff",
                             color_titulo: actualData.color_titulo || DEFAULT_TITLE_COLOR,
+                            tipo_dialogo: actualData.tipo_dialogo || "dialogo",
+                            mostrar_identidad: actualData.mostrar_identidad !== false,
                             startedAt: startedAt,
                             speedMs: speedMs,
                             durationMs: durationMs
