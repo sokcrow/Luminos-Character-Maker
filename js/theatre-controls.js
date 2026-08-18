@@ -119,11 +119,11 @@
                 const npcData = npcDatabase[selectedId];
                 if (!npcData) return;
 
-                // Transacción para garantizar el límite de 5 actores
                 const actorsRef = db.ref(THEATRE_ACTORS_PATH);
-                actorsRef.transaction((currentData) => {
-                    let actors = currentData || {};
+                actorsRef.once("value").then(snapshot => {
+                    let actors = snapshot.val() || {};
                     let actorKeys = Object.keys(actors);
+                    let removalPromises = [];
 
                     // Si ya hay 5, eliminar el más antiguo basado en spawnedAt
                     if (actorKeys.length >= MAX_ACTORS) {

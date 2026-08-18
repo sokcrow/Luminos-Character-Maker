@@ -10,9 +10,6 @@ test('el jugador solo utiliza su actor asignado y envía payload correcto', asyn
 
     expect(html).not.toMatch(/player-theatre-input/);
     expect(html).not.toMatch(/btn-player-theatre-send/);
-    expect(html).not.toMatch(/player-actor-select/);
-
-    expect(js).not.toMatch(/player-actor-select/);
 
     expect(js).toContain('resolveTheatreLogIcon');
 

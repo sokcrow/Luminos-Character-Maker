@@ -6234,7 +6234,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 
     /* Make inputs and buttons ultra compact */
     #player-actor-select,
-    #player-expression-select {
+    #player-expression {
         padding: 4px !important;
         font-size: 10px ;
         width: auto !important;
@@ -6408,9 +6408,9 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
         height: 40px !important;
         min-width: 40px;
         min-height: 40px;
-        display: grid;
-        grid-template-columns: 1fr;
-        place-items: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         padding: 0;
         border: 0;
         border-left: 2px solid #635b47;
@@ -6489,11 +6489,11 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 .hud-menu-item {
     position: relative;
     min-height: 44px;
-    display: grid;
-    grid-template-columns: 30px 1fr;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 9px;
-    padding: 5px 12px 5px 9px;
+    padding: 0 12px 0 9px;
     color: #cfc8b4;
     background: linear-gradient(90deg, #292824 0%, #171715 75%);
     border: 0;
@@ -6517,7 +6517,7 @@ input[name="attr_tab"][value="shop"] ~ .sheet-phone-screen .sheet-tab-shop {
 }
 
 .hud-menu-item svg { width: 22px; height: 22px; color: #af9a61; }
-.hud-menu-item span { font-size: 16px; line-height: 1; }
+.hud-menu-item span { font-size: 16px; margin: 0; }
 .hud-menu-item:hover,
 .hud-menu-item:focus-visible {
     color: #fff5d1;
@@ -7706,20 +7706,21 @@ input.sheet-state-hud-modal[value="apego"] ~ .modal-apego {
 }
 
 #theatre-view-player #theatre-log-container .hex-border {
-    width: 86px;
-    height: 98px;
+    width: 44px;
+    height: 44px;
     background-color: var(--border-dark);
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
 #theatre-view-player #theatre-log-container .hex-portrait {
-    width: 80px;
-    height: 90px;
+    width: 40px;
+    height: 40px;
     background-color: #ecc9da;
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 #theatre-view-player #theatre-log-container .hex-portrait img {
