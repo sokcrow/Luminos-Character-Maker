@@ -1,0 +1,289 @@
+/* ==================================================
+   PLAYER UX POLISH
+   Vínculos, directorio, log heptagonal y ajustes reales.
+   ================================================== */
+
+:root {
+  --player-ux-brass: #b98a32;
+  --player-ux-brass-light: #d8b65d;
+  --player-ux-panel: #10120f;
+  --player-ux-panel-2: #171a15;
+  --player-ux-line: #3c4037;
+  --player-ux-muted: #8d9084;
+  --player-ux-text: #e3decf;
+  --player-ux-red: #7b2025;
+}
+
+/* ---------- Personal Terminal: texto que siempre cabe ---------- */
+body:not(.on-game-dashboard) .sheet-app-grid {
+  min-width: 0 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn > span {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  text-overflow: clip !important;
+  font-size: clamp(11px, 1.35vw, 15px) !important;
+  line-height: 1.12 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn::before {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  body:not(.on-game-dashboard) .sheet-app-btn {
+    min-height: 82px !important;
+    padding: 10px 9px 10px 46px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-icon {
+    left: 11px !important;
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn > span {
+    font-size: 12px !important;
+    letter-spacing: .035em !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn::before {
+    font-size: 7px !important;
+    letter-spacing: .06em !important;
+  }
+}
+
+/* ---------- Vínculos vs Directorio de Red ---------- */
+body:not(.on-game-dashboard) #subtab-contacts .player-network-directory-note {
+  margin: 0;
+  padding: 8px 10px;
+  color: #b7b9ad;
+  background: #0d100d;
+  border-bottom: 1px dashed #3b4036;
+  font: 10px/1.4 "Share Tech Mono", monospace;
+  letter-spacing: .035em;
+}
+
+body:not(.on-game-dashboard) #subtab-contacts .player-network-directory-note strong {
+  color: var(--player-ux-brass-light);
+  font-weight: 700;
+}
+
+/* ---------- Theatre log: retrato heptagonal ---------- */
+#theatre-view-player #theatre-log-container .character-col {
+  width: 92px !important;
+}
+
+#theatre-view-player #theatre-log-container .hex-border {
+  width: 58px !important;
+  height: 58px !important;
+  padding: 3px !important;
+  border-radius: 0 !important;
+  background: linear-gradient(145deg, #d4af55 0%, #6c4f21 48%, #271b10 100%) !important;
+  clip-path: polygon(50% 0%, 88% 17%, 100% 55%, 78% 100%, 22% 100%, 0 55%, 12% 17%) !important;
+  box-shadow: 0 5px 12px rgba(0,0,0,.35) !important;
+}
+
+#theatre-view-player #theatre-log-container .hex-portrait {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 0 !important;
+  background: #15120e !important;
+  clip-path: polygon(50% 0%, 88% 17%, 100% 55%, 78% 100%, 22% 100%, 0 55%, 12% 17%) !important;
+}
+
+#theatre-view-player #theatre-log-container .hex-portrait img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  border-radius: 0 !important;
+}
+
+#theatre-view-player #theatre-log-container .character-name {
+  max-width: 90px;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.05;
+}
+
+/* ---------- Ajustes del Personal Terminal ---------- */
+body:not(.on-game-dashboard) .player-settings-console {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  font-family: "Share Tech Mono", monospace;
+}
+
+body:not(.on-game-dashboard) .player-settings-section {
+  min-width: 0;
+  padding: 13px;
+  background: linear-gradient(145deg, #131611, #0b0d0b);
+  border: 1px solid #34382f;
+  border-left: 3px solid #765c2e;
+  box-shadow: inset 0 0 18px rgba(0,0,0,.38);
+}
+
+body:not(.on-game-dashboard) .player-settings-section h3 {
+  margin: 0 0 5px !important;
+  color: var(--player-ux-brass-light) !important;
+  font-size: 13px !important;
+  letter-spacing: .09em !important;
+}
+
+body:not(.on-game-dashboard) .player-settings-section > p {
+  margin: 0 0 12px;
+  color: var(--player-ux-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+body:not(.on-game-dashboard) .player-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 0;
+  border-top: 1px dashed #30342c;
+}
+
+body:not(.on-game-dashboard) .player-setting-row:first-of-type {
+  border-top: 0;
+}
+
+body:not(.on-game-dashboard) .player-setting-copy {
+  min-width: 0;
+}
+
+body:not(.on-game-dashboard) .player-setting-label {
+  display: block;
+  color: var(--player-ux-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .035em;
+}
+
+body:not(.on-game-dashboard) .player-setting-help {
+  display: block;
+  margin-top: 3px;
+  color: var(--player-ux-muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+body:not(.on-game-dashboard) .player-setting-toggle {
+  appearance: none;
+  width: 42px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative;
+  background: #222720 !important;
+  border: 1px solid #4b5145 !important;
+  border-radius: 0 !important;
+  cursor: pointer;
+}
+
+body:not(.on-game-dashboard) .player-setting-toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: #74786c;
+  transition: transform 140ms ease, background 140ms ease;
+}
+
+body:not(.on-game-dashboard) .player-setting-toggle:checked {
+  border-color: #9c7a39 !important;
+  background: #322a18 !important;
+}
+
+body:not(.on-game-dashboard) .player-setting-toggle:checked::after {
+  transform: translateX(19px);
+  background: var(--player-ux-brass-light);
+}
+
+body:not(.on-game-dashboard) .player-setting-volume-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body:not(.on-game-dashboard) #player-setting-volume {
+  width: min(170px, 24vw) !important;
+  accent-color: var(--player-ux-brass);
+}
+
+body:not(.on-game-dashboard) #player-setting-volume-value {
+  min-width: 34px;
+  color: var(--player-ux-brass-light);
+  text-align: right;
+  font-size: 10px;
+}
+
+body:not(.on-game-dashboard) .player-settings-action {
+  min-height: 34px;
+  padding: 7px 10px !important;
+  color: var(--player-ux-text) !important;
+  background: #151814 !important;
+  border: 1px solid #474b41 !important;
+  cursor: pointer;
+  font: 700 10px/1.1 "Share Tech Mono", monospace !important;
+}
+
+body:not(.on-game-dashboard) .player-settings-action:hover {
+  border-color: var(--player-ux-brass) !important;
+  color: #fff4d4 !important;
+}
+
+body.player-terminal-large-text .sheet-phone-screen {
+  font-size: 1.09em !important;
+}
+
+body.player-terminal-compact .sheet-app-btn {
+  min-height: 68px !important;
+}
+
+body.player-terminal-compact .sheet-weather-widget {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+body.player-reduce-motion *,
+body.player-reduce-motion *::before,
+body.player-reduce-motion *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (max-width: 700px) {
+  body:not(.on-game-dashboard) .player-settings-console {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 9px;
+  }
+
+  body:not(.on-game-dashboard) #player-setting-volume {
+    width: 110px !important;
+  }
+}
