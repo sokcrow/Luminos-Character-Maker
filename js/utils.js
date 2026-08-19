@@ -7,7 +7,7 @@ function obtenerEstacion(mes) {
     if (mes >= 3 && mes <= 5) return "Primavera";
     if (mes >= 6 && mes <= 8) return "Verano";
     if (mes >= 9 && mes <= 11) return "Otoño";
-    return "Invierno"; // 12, 1, 2
+    return "Invierno";
 }
 
 /**
@@ -80,6 +80,14 @@ function ensurePlayerTerminalStyles(doc) {
     return ensureStyleAsset(documentRef, 'player-terminal-stylesheet', 'css/player-terminal.css', { ui: 'personal-terminal' });
 }
 
+function ensurePlayerTerminalVisibility(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+    const link = ensureStyleAsset(documentRef, 'player-terminal-overlay-stylesheet', 'css/player-terminal-overlay.css', { ui: 'player-terminal-overlay' });
+    const script = ensureScriptAsset(documentRef, 'player-terminal-visibility-script', 'js/player-terminal-visibility.js', { ui: 'player-terminal-visibility' });
+    return { link, script };
+}
+
 function ensurePlayerUxPolishAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -100,15 +108,21 @@ function ensureDmCharacterManagerAssets(doc) {
 
     const link = ensureStyleAsset(documentRef, 'character-manager-studio-stylesheet', 'css/character-manager-studio.css', { ui: 'character-manager-studio' });
     ensureStyleAsset(documentRef, 'character-manager-social-stylesheet', 'css/character-manager-social.css', { ui: 'character-manager-social' });
+    ensureStyleAsset(documentRef, 'character-manager-domain-ux-stylesheet', 'css/character-manager-domain-ux.css', { ui: 'character-manager-domain-ux' });
 
     const ensureTakeover = () => ensureScriptAsset(documentRef, 'dm-character-manager-takeover-script', 'js/dm-character-manager-takeover.js', { ui: 'character-manager-takeover' });
 
     const ensureExtensions = () => {
-        ensureScriptAsset(documentRef, 'language-catalog-engine-script', 'js/language-catalog-engine.js', { engine: 'language-catalog' });
+        const catalog = ensureScriptAsset(documentRef, 'language-catalog-engine-script', 'js/language-catalog-engine.js', { engine: 'language-catalog' });
         const bond = ensureScriptAsset(documentRef, 'bond-engine-script', 'js/bond-engine.js', { engine: 'bond-manager' });
         const ensureSocial = () => ensureScriptAsset(documentRef, 'character-manager-social-script', 'js/character-manager-social-studio.js', { ui: 'character-manager-social' });
+        const ensureLanguageUx = () => ensureScriptAsset(documentRef, 'character-manager-language-ux-script', 'js/character-manager-language-ux.js', { ui: 'character-manager-language-ux' });
+
         if (typeof window !== 'undefined' && window.LuminousBondManager) ensureSocial();
         else bond.addEventListener('load', ensureSocial, { once: true });
+
+        if (typeof window !== 'undefined' && window.LuminousLanguageCatalog) ensureLanguageUx();
+        else catalog.addEventListener('load', ensureLanguageUx, { once: true });
     };
 
     const ensureStudio = () => {
@@ -155,6 +169,7 @@ function ensureDmCharacterManagerAssets(doc) {
 
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
+    ensurePlayerTerminalVisibility(document);
     ensurePlayerUxPolishAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
@@ -165,6 +180,7 @@ if (typeof module !== 'undefined' && module.exports) {
         obtenerEstacion,
         calculateLevelData,
         ensurePlayerTerminalStyles,
+        ensurePlayerTerminalVisibility,
         ensurePlayerUxPolishAssets,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets

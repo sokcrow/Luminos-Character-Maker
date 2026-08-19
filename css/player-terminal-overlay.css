@@ -1,0 +1,51 @@
+/* Personal Terminal: secondary floating tool, never the primary screen. */
+body:not(.on-game-dashboard):not(.player-terminal-visibility-ready) .sheet-phone-wrapper {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: min(390px, calc(100vw - 28px)) !important;
+  height: min(76dvh, 760px) !important;
+  min-width: 0 !important;
+  min-height: 420px !important;
+  max-width: 390px !important;
+  max-height: calc(100dvh - 110px) !important;
+  margin: 0 !important;
+  transform: translate(-50%, -50%) !important;
+  transform-origin: 50% 50% !important;
+  z-index: 2200 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: opacity .16s ease, transform .16s ease, visibility .16s linear !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper.phone-hidden {
+  transform: translate(-50%, calc(-50% + 24px)) scale(.96) !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body:not(.on-game-dashboard) #btn-toggle-phone[aria-expanded="false"] {
+  opacity: .78;
+}
+
+body:not(.on-game-dashboard) #btn-toggle-phone[aria-expanded="true"] {
+  color: #d8b65d !important;
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  body:not(.on-game-dashboard) .sheet-phone-wrapper {
+    width: min(360px, calc(100vw - 18px)) !important;
+    height: min(72dvh, 680px) !important;
+    min-height: 380px !important;
+    max-height: calc(100dvh - 94px) !important;
+  }
+}
