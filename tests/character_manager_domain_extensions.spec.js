@@ -51,7 +51,7 @@ test("etiquetas se persisten mediante Character Manager y no Firebase directo", 
 });
 
 test("Vínculos almacena conocimiento y nivel y alimenta conocimiento de identidad de Theatre", () => {
-  expect(bondEngine).toContain('campaña/teatro/vinculos');
+  expect(bondEngine).toContain('campaña/estado_mundo/vinculos');
   expect(bondEngine).toContain('campaña/teatro/conocimiento_identidad');
   expect(bondEngine).toContain("conocido");
   expect(bondEngine).toContain("nivel");
