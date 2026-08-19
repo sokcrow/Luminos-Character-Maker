@@ -1,0 +1,220 @@
+/* ==================================================
+   THEATRE ACTOR STUDIO / DM UX
+   Distingue catálogo persistente de cast temporal.
+   ================================================== */
+
+.on-game-dashboard .npc-spawner-section {
+  padding: 10px;
+  background: #0b0e11;
+  border: 1px solid #29313a;
+  border-left: 3px solid #a37c35;
+}
+
+.on-game-dashboard .theatre-actor-source-note {
+  margin: 0;
+  color: #9ba2a8;
+  font: 10px/1.4 "Share Tech Mono", monospace;
+}
+
+.on-game-dashboard .theatre-actor-source-note strong {
+  color: #d1a84e;
+}
+
+.on-game-dashboard .theatre-actor-source-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.on-game-dashboard .theatre-actor-source-actions button {
+  min-height: 34px;
+  padding: 7px 8px;
+  color: #e5e7e8;
+  background: #151a1f;
+  border: 1px solid #59616a;
+  cursor: pointer;
+  font: 700 10px/1.15 "Share Tech Mono", monospace;
+}
+
+.on-game-dashboard .theatre-actor-source-actions button:hover {
+  color: #f0c761;
+  border-color: #a37c35;
+}
+
+.on-game-dashboard #btn-spawn-npc[data-unlinked-player="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.on-game-dashboard .actor-control-card .btn-edit-source {
+  flex-basis: 100%;
+  color: #d1a84e !important;
+  border-color: #806328 !important;
+  background: #17140d !important;
+}
+
+/* ---------- Modal de edición persistente ---------- */
+.theatre-actor-studio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,.82);
+  backdrop-filter: blur(5px);
+}
+
+.theatre-actor-studio-overlay.open {
+  display: flex;
+}
+
+.theatre-actor-studio {
+  width: min(720px, 96vw);
+  max-height: min(760px, 92vh);
+  overflow: auto;
+  color: #e4e6e7;
+  background: linear-gradient(145deg, #11161b, #080b0e);
+  border: 1px solid #5c6268;
+  border-top: 3px solid #a37c35;
+  box-shadow: 0 24px 65px rgba(0,0,0,.76), inset 0 0 28px rgba(0,0,0,.46);
+  font-family: "Share Tech Mono", monospace;
+}
+
+.theatre-actor-studio__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px 12px;
+  background: rgba(12,15,18,.97);
+  border-bottom: 1px solid #303840;
+}
+
+.theatre-actor-studio__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #8c9399;
+  font-size: 9px;
+  letter-spacing: .13em;
+}
+
+.theatre-actor-studio__title {
+  margin: 0;
+  color: #d0a94e;
+  font-size: 18px;
+  letter-spacing: .06em;
+}
+
+.theatre-actor-studio__close {
+  width: 34px;
+  height: 34px;
+  color: #ddd;
+  background: #171b1f;
+  border: 1px solid #4a5056;
+  cursor: pointer;
+}
+
+.theatre-actor-studio__body {
+  padding: 15px 16px;
+}
+
+.theatre-actor-studio__source {
+  margin: 0 0 13px;
+  padding: 9px 10px;
+  color: #b5bbc0;
+  background: #0b0e11;
+  border-left: 3px solid #76602f;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.theatre-actor-studio__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.theatre-actor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.theatre-actor-field--wide {
+  grid-column: 1 / -1;
+}
+
+.theatre-actor-field label {
+  color: #9fa6ac;
+  font-size: 9px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.theatre-actor-field input,
+.theatre-actor-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 8px;
+  color: #fff;
+  background: #0c1014;
+  border: 1px solid #404850;
+  border-radius: 0;
+  font: 12px/1.2 "Share Tech Mono", monospace;
+}
+
+.theatre-actor-field input:focus,
+.theatre-actor-field select:focus {
+  outline: 1px solid rgba(163,124,53,.48);
+  border-color: #a37c35;
+}
+
+.theatre-actor-studio__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 13px 16px 16px;
+  border-top: 1px solid #303840;
+}
+
+.theatre-actor-studio__footer button {
+  min-height: 36px;
+  padding: 8px 13px;
+  cursor: pointer;
+  font: 700 11px/1 "Share Tech Mono", monospace;
+}
+
+.theatre-actor-studio__cancel {
+  color: #d0d4d7;
+  background: #171b1f;
+  border: 1px solid #4b5259;
+}
+
+.theatre-actor-studio__save {
+  color: #120f08;
+  background: #c19a45;
+  border: 1px solid #e2bd67;
+}
+
+.theatre-actor-studio__save:disabled {
+  opacity: .5;
+  cursor: progress;
+}
+
+@media (max-width: 620px) {
+  .on-game-dashboard .theatre-actor-source-actions,
+  .theatre-actor-studio__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .theatre-actor-field--wide {
+    grid-column: auto;
+  }
+}
