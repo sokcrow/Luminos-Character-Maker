@@ -56,7 +56,6 @@ function calculateLevelData(xp) {
     const xpRequiredForNextLevel = nextLevelXP - currentLevelXP;
 
     let xpPercent = Math.floor((xpIntoLevel / xpRequiredForNextLevel) * 100);
-    // Limit to 0-100 just in case
     xpPercent = Math.max(0, Math.min(100, xpPercent));
 
     return {
@@ -66,12 +65,6 @@ function calculateLevelData(xp) {
     };
 }
 
-/**
- * Carga la capa visual del Personal Terminal solo cuando existe la hoja del jugador.
- * Se mantiene aquí porque utils.js ya forma parte del bootstrap síncrono de hoja_personaje.html.
- * @param {Document} doc
- * @returns {HTMLLinkElement|null}
- */
 function ensurePlayerTerminalStyles(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -88,11 +81,6 @@ function ensurePlayerTerminalStyles(doc) {
     return link;
 }
 
-/**
- * Carga los retoques funcionales/visuales del jugador sin tocar el HTML gigante.
- * @param {Document} doc
- * @returns {{link: HTMLLinkElement|null, script: HTMLScriptElement|null}|null}
- */
 function ensurePlayerUxPolishAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -120,12 +108,6 @@ function ensurePlayerUxPolishAssets(doc) {
     return { link, script };
 }
 
-/**
- * Carga la corrección de UX del editor de Gestión de Personajes del DM.
- * pantalla_dm.html ya carga utils.js, así que evitamos modificar el HTML monolítico.
- * @param {Document} doc
- * @returns {{link: HTMLLinkElement|null, script: HTMLScriptElement|null}|null}
- */
 function ensureDmCharacterEditorAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
@@ -150,7 +132,17 @@ function ensureDmCharacterEditorAssets(doc) {
         documentRef.head?.appendChild(script);
     }
 
-    return { link, script };
+    let playerResolver = documentRef.getElementById('dm-character-player-resolver-script');
+    if (!playerResolver) {
+        playerResolver = documentRef.createElement('script');
+        playerResolver.id = 'dm-character-player-resolver-script';
+        playerResolver.src = 'js/dm-character-player-resolver.js';
+        playerResolver.async = false;
+        playerResolver.dataset.ui = 'dm-character-editor-ux';
+        documentRef.head?.appendChild(playerResolver);
+    }
+
+    return { link, script, playerResolver };
 }
 
 if (typeof document !== 'undefined') {
@@ -159,7 +151,6 @@ if (typeof document !== 'undefined') {
     ensureDmCharacterEditorAssets(document);
 }
 
-// Compatibilidad para entornos de prueba (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         obtenerEstacion,
