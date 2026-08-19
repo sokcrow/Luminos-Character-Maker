@@ -78,6 +78,37 @@
     global.setInterval(polishLogRows, 1500);
   }
 
+  function normalizePhoneLauncher() {
+    doc.querySelectorAll(".sheet-app-grid .sheet-app-btn").forEach((button) => {
+      const visibleLabel = button.querySelector(":scope > span");
+      const label = String(visibleLabel?.textContent || button.getAttribute("aria-label") || button.title || "Módulo").trim();
+      if (visibleLabel) visibleLabel.setAttribute("aria-hidden", "true");
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      button.dataset.launcherLabel = label;
+    });
+
+    const home = doc.querySelector(".sheet-phone-navbar .sheet-home-btn");
+    if (home) {
+      home.setAttribute("aria-label", "Inicio");
+      home.title = "Inicio";
+    }
+  }
+
+  function suppressLegacyProfileRolls() {
+    const profile = doc.querySelector(".sheet-tab-profile");
+    const currentStats = doc.querySelector('#stats-modal #stats-container [name="act_roll_cuerpo"]');
+    if (!profile || !currentStats) return false;
+
+    const legacyGrid = profile.querySelector(".sheet-dnd-stats-grid");
+    if (!legacyGrid) return false;
+
+    legacyGrid.hidden = true;
+    legacyGrid.setAttribute("aria-hidden", "true");
+    legacyGrid.dataset.legacyAttributes = "disabled";
+    return true;
+  }
+
   function renameRelationshipUx() {
     const apegoButton = doc.querySelector('[name="act_hud_apego"]');
     if (apegoButton) {
@@ -209,6 +240,8 @@
   }
 
   function boot() {
+    normalizePhoneLauncher();
+    suppressLegacyProfileRolls();
     renameRelationshipUx();
     buildSettingsPanel();
     bindMediaVolume();
@@ -218,5 +251,13 @@
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
 
-  global.LuminousPlayerUxPolish = Object.freeze({ initialsIcon, actorAssignedIcon, polishLogRows, renameRelationshipUx, buildSettingsPanel });
+  global.LuminousPlayerUxPolish = Object.freeze({
+    initialsIcon,
+    actorAssignedIcon,
+    polishLogRows,
+    normalizePhoneLauncher,
+    suppressLegacyProfileRolls,
+    renameRelationshipUx,
+    buildSettingsPanel,
+  });
 })(window);
