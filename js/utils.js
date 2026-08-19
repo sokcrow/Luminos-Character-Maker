@@ -100,6 +100,50 @@ function ensurePlayerUxPolishAssets(doc) {
     return { link, script };
 }
 
+function ensureDmCharacterManagerAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
+
+    let link = documentRef.getElementById('character-manager-studio-stylesheet');
+    if (!link) {
+        link = documentRef.createElement('link');
+        link.id = 'character-manager-studio-stylesheet';
+        link.rel = 'stylesheet';
+        link.href = 'css/character-manager-studio.css';
+        link.dataset.ui = 'character-manager-studio';
+        documentRef.head?.appendChild(link);
+    }
+
+    let engine = documentRef.getElementById('character-manager-engine-script');
+    const ensureStudio = () => {
+        let studio = documentRef.getElementById('character-manager-studio-script');
+        if (studio) return studio;
+        studio = documentRef.createElement('script');
+        studio.id = 'character-manager-studio-script';
+        studio.src = 'js/character-manager-studio.js';
+        studio.async = false;
+        studio.dataset.ui = 'character-manager-studio';
+        documentRef.head?.appendChild(studio);
+        return studio;
+    };
+
+    if (!engine) {
+        engine = documentRef.createElement('script');
+        engine.id = 'character-manager-engine-script';
+        engine.src = 'js/character-manager-engine.js';
+        engine.async = false;
+        engine.dataset.engine = 'character-manager';
+        engine.addEventListener('load', ensureStudio, { once: true });
+        documentRef.head?.appendChild(engine);
+    } else if (typeof window !== 'undefined' && window.LuminousCharacterManager) {
+        ensureStudio();
+    } else {
+        engine.addEventListener('load', ensureStudio, { once: true });
+    }
+
+    return { link, engine };
+}
+
 function ensureDmCharacterPlayerResolver(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
@@ -119,6 +163,7 @@ function ensureDmCharacterPlayerResolver(doc) {
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerUxPolishAssets(document);
+    ensureDmCharacterManagerAssets(document);
     ensureDmCharacterPlayerResolver(document);
 }
 
@@ -128,6 +173,7 @@ if (typeof module !== 'undefined' && module.exports) {
         calculateLevelData,
         ensurePlayerTerminalStyles,
         ensurePlayerUxPolishAssets,
+        ensureDmCharacterManagerAssets,
         ensureDmCharacterPlayerResolver
     };
 }
