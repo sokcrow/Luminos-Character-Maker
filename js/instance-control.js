@@ -167,6 +167,35 @@
     return button;
   }
 
+  function ensureDashboardCharacterManager({ db, doc } = {}) {
+    const documentRef = doc || global.document;
+    if (!db || !documentRef?.body?.classList.contains("on-game-dashboard")) return null;
+
+    const initialize = () => {
+      try {
+        global.LuminousCharacterManager?.init?.({ db });
+      } catch (error) {
+        console.error("No se pudo inicializar Character Manager en ON GAME:", error);
+      }
+    };
+
+    let script = documentRef.getElementById("character-manager-engine-script");
+    if (script) {
+      if (global.LuminousCharacterManager) initialize();
+      else script.addEventListener("load", initialize, { once: true });
+      return script;
+    }
+
+    script = documentRef.createElement("script");
+    script.id = "character-manager-engine-script";
+    script.src = "js/character-manager-engine.js";
+    script.async = false;
+    script.dataset.engine = "character-manager";
+    script.addEventListener("load", initialize, { once: true });
+    documentRef.head?.appendChild(script);
+    return script;
+  }
+
   function ensureDashboardActorStudioAssets(doc) {
     const documentRef = doc || global.document;
     if (!documentRef?.body?.classList.contains("on-game-dashboard")) return null;
@@ -199,6 +228,7 @@
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
 
+    ensureDashboardCharacterManager({ db, doc: documentRef });
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
 
@@ -238,6 +268,7 @@
     applyPlayerInstance,
     applyDashboardInstance,
     ensureDmLocationControl,
+    ensureDashboardCharacterManager,
     ensureDashboardActorStudioAssets,
     bindDm,
     bindDashboard,
