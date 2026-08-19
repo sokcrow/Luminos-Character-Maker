@@ -331,11 +331,11 @@
           nombre: "",
           titulo: "",
           actorId: null,
-          expression: "Neutral",
+          expression: null,
           sprite: null,
           icono: null,
-          color_nombre: "#ffffff",
-          color_titulo: DEFAULT_TITLE_COLOR
+          color_nombre: "",
+          color_titulo: ""
         };
 
         if (!speakerSelect || speakerSelect.value === "narrador") {
@@ -350,23 +350,25 @@
             expression: expressionSelect?.value || "Neutral",
             sprite: expressionOption?.dataset.sprite || null,
             icono: option.dataset.icono || null,
-            color_nombre: option.dataset.colorNombre || "#ffffff",
-            color_titulo: option.dataset.colorTitulo || DEFAULT_TITLE_COLOR
+            color_nombre: option.dataset.colorNombre || "",
+            color_titulo: option.dataset.colorTitulo || ""
           };
         }
+
+        const actorDialogue = Boolean(speaker.actorId && type === "dialogo");
 
         const queued = await theatre.enqueueIntervention({
           mensaje: text,
           nombre: speaker.nombre,
           titulo: speaker.titulo,
           actorId: speaker.actorId,
-          expression: speaker.expression,
-          sprite: speaker.sprite,
+          expression: actorDialogue ? speaker.expression : null,
+          sprite: actorDialogue ? speaker.sprite : null,
           icono: speaker.icono,
           color_nombre: speaker.color_nombre,
           color_titulo: speaker.color_titulo,
           tipo_dialogo: type,
-          mostrar_identidad: type !== "narracion",
+          mostrar_identidad: actorDialogue,
           idiomaId: languageSelect?.value || null
         });
 
@@ -389,8 +391,8 @@
           option.dataset.nombre = actor.nombre || "";
           option.dataset.titulo = actor.titulo || "";
           option.dataset.icono = actor.icono || "";
-          option.dataset.colorNombre = actor.color_nombre || "#ffffff";
-          option.dataset.colorTitulo = actor.color_titulo || DEFAULT_TITLE_COLOR;
+          option.dataset.colorNombre = actor.color_nombre || "";
+          option.dataset.colorTitulo = actor.color_titulo || "";
           option.dataset.expresiones = JSON.stringify(actor.expresiones || {});
           option.dataset.preparedExpression = actor.expresionPreparada || actor.expresionActiva || "Neutral";
           speakerSelect.appendChild(option);

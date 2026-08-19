@@ -212,38 +212,26 @@
             const actorInstanceId = `actor_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
             const now = global.firebase.database.ServerValue.TIMESTAMP;
 
-            let expressions = npcData.expresiones || {};
-            let activeExpression = "Neutral";
-            if (!Object.keys(expressions).length) {
-                expressions = { Neutral: npcData.sprite || npcData.icono_jugador || npcData.icono || "" };
-            } else if (!expressions.Neutral) {
-                activeExpression = Object.keys(expressions)[0];
-            }
-
-            const activeSprite = expressions[activeExpression] || npcData.sprite || npcData.url || "";
+            const expressions = npcData.expresiones || {};
             const actorPayload = {
                 nombre: npcData.nombre || selectedId,
                 titulo: npcData.titulo || "",
-                color_nombre: npcData.color_nombre || "#ffffff",
-                color_titulo: npcData.color_titulo || DEFAULT_TITLE_COLOR,
+                color_nombre: npcData.color_nombre || "",
+                color_titulo: npcData.color_titulo || "",
                 identityId: npcData.identityId || npcData.identidadId || selectedId,
                 sourceId,
                 sourceType,
-                sprite: activeSprite,
+                sprite: npcData.sprite || npcData.url || "",
                 icono: npcData.icono || npcData.icono_jugador || "",
                 expresiones: expressions,
-                expresionActiva: activeExpression,
-                expresionPreparada: activeExpression,
                 x: 0,
                 y: 0,
                 escala: npcData.escala || 1,
                 orientacion: "normal",
                 spawnedAt: now
             };
-
-            // Pool and HUD are separate. Spawning never evicts/deletes another available actor.
+            // Pool and HUD are separate. Cataloging never reveals a sprite or selects an expression.
             db.ref(`${paths().scene}/actores/${actorInstanceId}`).set(actorPayload)
-                .then(() => global.LuminousTheatreState.updateVisibleActors(actorInstanceId, actorPayload))
                 .catch((error) => console.error("No se pudo añadir el actor al Teatro:", error));
         }
 

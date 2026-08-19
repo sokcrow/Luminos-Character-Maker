@@ -98,12 +98,28 @@
         return /^#[0-9a-f]{3,8}$/i.test(candidate) ? candidate : fallback;
     }
 
+    function getValidSpriteUrl(value) {
+        const candidate = typeof value === "string" ? value.trim() : "";
+        if (!candidate || /^(?:javascript|vbscript):/i.test(candidate)) return "";
+        try {
+            const resolved = new URL(candidate, document.baseURI || global.location?.href || "https://local.invalid/");
+            if (!["http:", "https:", "data:", "blob:", "file:"].includes(resolved.protocol)) return "";
+            if (resolved.protocol === "data:" && !/^data:image\//i.test(candidate)) return "";
+            return candidate;
+        } catch (error) {
+            return "";
+        }
+    }
+
     function paintIdentityPlate(element, value) {
         if (!element) return;
         const plateColor = getSafeCssColor(value, "#4a4a4a");
-        element.style.setProperty("color", "", "");
-        element.style.setProperty("background-color", plateColor, "important");
-        element.style.removeProperty("background");
+        element.style.setProperty("color", "#ffffff", "important");
+        element.style.setProperty(
+            "background",
+            `linear-gradient(90deg, ${plateColor} 0%, ${plateColor} 68%, #17110b 100%)`,
+            "important"
+        );
         element.style.setProperty("border-left-color", plateColor, "important");
     }
 
@@ -151,7 +167,7 @@
         // Firebase is authoritative: an empty/missing visible list means an empty stage.
         let ids = explicitVisible.filter((id) => {
             const actor = actors[id];
-            return actor && (actor.url || actor.sprite);
+            return actor && getValidSpriteUrl(actor.url || actor.sprite);
         });
 
         if (!isDmView() && !shouldShowOwnActor()) {
@@ -281,7 +297,7 @@
             return { visible: false, known: false, name: "", title: "" };
         }
 
-        if (dialogData?.mostrar_identidad === false && type !== "pensamiento") {
+        if (type === "pensamiento" || dialogData?.mostrar_identidad === false) {
             return { visible: false, known: false, name: "", title: "" };
         }
 
@@ -529,7 +545,8 @@
 
         renderIds.forEach((actorId) => {
             const data = actors[actorId];
-            if (!data || (!data.url && !data.sprite)) return;
+            const spriteUrl = getValidSpriteUrl(data?.url || data?.sprite);
+            if (!data || !spriteUrl) return;
 
             let img = stage.querySelector(`.theatre-sprite[data-id="${actorId}"]`);
             if (!img) {
@@ -540,7 +557,7 @@
             }
 
             // Only the revealed expression/sprite renders. expresionPreparada is never read by the renderer.
-            img.src = data.url || data.sprite || "";
+            img.src = spriteUrl;
             img.alt = isDmView() || isIdentityKnown(actorId) ? (data.nombre || "Actor en escena") : "Actor desconocido";
 
             let transform = "";
@@ -661,7 +678,7 @@
 
     async function updateVisibleActors(actorId, actorData) {
         if (!actorId) return false;
-        if (actorData && !actorData.sprite && !actorData.url) return false;
+        if (!getValidSpriteUrl(actorData?.sprite || actorData?.url)) return false;
         const scene = await getFreshScene();
         if (scene.transitioning) return false;
 
@@ -702,9 +719,12 @@
         const scene = await getFreshScene();
         if (scene.transitioning) return false;
 
+        const validSprite = getValidSpriteUrl(sprite);
+        if (!validSprite) return false;
+
         const updates = {};
         if (expression) updates.expresionActiva = expression;
-        if (sprite) updates.sprite = sprite;
+        updates.sprite = validSprite;
         if (Object.keys(updates).length) {
             await db.ref(`${getPaths().scene}/actores/${actorId}`).update(updates);
         }
@@ -732,7 +752,7 @@
             mensaje: message?.mensaje || "",
             actorId: message?.actorId || null,
             expression: message?.expression || "Neutral",
-            sprite: message?.sprite || null,
+            sprite: getValidSpriteUrl(message?.sprite) || null,
             icono: message?.icono || null,
             color_nombre: message?.color_nombre || "#ffffff",
             color_titulo: message?.color_titulo || "#3b2918",
@@ -876,6 +896,133 @@
         bindRoom(roomId || DEFAULT_ROOM_ID);
     }
 
+    function buildTheatreInitialsIcon(name) {
+        const initials = String(name || "?")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part.charAt(0))
+            .join("")
+            .toUpperCase() || "?";
+        const escaped = initials.replace(/[&<>"']/g, (char) => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[char]);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" fill="#111111"/><text x="40" y="48" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff">${escaped}</text></svg>`;
+        return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+    }
+
+    function ensurePlayerComposerControls() {
+        if (isDmView()) return;
+        const container = document.getElementById("contenedor-selectores-emocion");
+        const expression = document.getElementById("player-expression");
+        if (!container || !expression) return;
+
+        if (!document.getElementById("player-actor-select")) {
+            const actorSelect = document.createElement("select");
+            actorSelect.id = "player-actor-select";
+            actorSelect.className = "theatre-player-composer-select";
+            actorSelect.setAttribute("aria-label", "Personaje");
+            actorSelect.style.display = "none";
+            container.insertBefore(actorSelect, expression);
+        }
+
+        if (!document.getElementById("player-tipo-dialogo-select")) {
+            const typeSelect = document.createElement("select");
+            typeSelect.id = "player-tipo-dialogo-select";
+            typeSelect.className = "theatre-player-composer-select";
+            typeSelect.setAttribute("aria-label", "Tipo de intervención");
+            typeSelect.innerHTML = '<option value="dialogo">Diálogo</option><option value="pensamiento">Pensamiento</option>';
+            container.insertBefore(typeSelect, expression);
+        }
+
+        expression.classList.add("theatre-player-composer-select");
+    }
+
+    function installPlayerComposerCompatibility() {
+        if (isDmView() || global.__luminousTheatreComposerCompatibilityInstalled) return false;
+        const originalGetAssigned = global.getAssignedTheatreActor;
+        const originalSync = global.syncPlayerTheatreComposer;
+        if (typeof originalGetAssigned !== "function" || typeof originalSync !== "function") return false;
+
+        global.getAssignedTheatreActor = function () {
+            const actor = originalGetAssigned.apply(this, arguments);
+            if (!actor) return null;
+            return Object.assign({}, actor, {
+                color_nombre: getSafeCssColor(actor.color_nombre, "#4a4a4a"),
+                color_titulo: getSafeCssColor(actor.color_titulo, "#4a4a4a")
+            });
+        };
+
+        global.syncPlayerTheatreComposer = function () {
+            if (global.datosJugador && !global.datosJugador.actorId && global.datosJugador.vinculo_jugador) {
+                global.datosJugador.actorId = global.datosJugador.vinculo_jugador;
+            }
+
+            ensurePlayerComposerControls();
+            const result = originalSync.apply(this, arguments);
+            const actor = global.getAssignedTheatreActor?.();
+            const actorSelect = document.getElementById("player-actor-select");
+            const expressionSelect = document.getElementById("player-expression");
+            const sendButton = document.getElementById("btn-enviar-teatro-modal");
+            const nameEl = document.getElementById("theatre-modal-readonly-name");
+            const titleEl = document.getElementById("theatre-modal-readonly-title");
+
+            if (!actor) {
+                if (actorSelect) actorSelect.style.display = "none";
+                if (expressionSelect) {
+                    expressionSelect.innerHTML = "";
+                    expressionSelect.style.display = "none";
+                }
+                if (sendButton) sendButton.disabled = true;
+                return result;
+            }
+
+            if (expressionSelect) expressionSelect.style.display = "block";
+            paintIdentityPlate(nameEl, actor.color_nombre);
+            if (titleEl && actor.titulo) paintIdentityPlate(titleEl, actor.color_titulo);
+            return result;
+        };
+
+        global.__luminousTheatreComposerCompatibilityInstalled = true;
+        return true;
+    }
+
+    function patchTheatreLogPortrait(img) {
+        if (!img?.matches?.("#theatre-log-container .hex-portrait img")) return;
+        const fallback = () => {
+            img.src = buildTheatreInitialsIcon(img.alt || "?");
+        };
+        const src = img.getAttribute("src") || "";
+        if (!src || src.includes("via.placeholder.com")) fallback();
+        img.addEventListener("error", fallback, { once: true });
+    }
+
+    function observePlayerTheatreLog() {
+        if (isDmView() || global.__luminousTheatreLogObserver) return;
+        document
+            .querySelectorAll("#theatre-log-container .hex-portrait img")
+            .forEach(patchTheatreLogPortrait);
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (!(node instanceof Element)) return;
+                    if (node.matches("#theatre-log-container .hex-portrait img")) patchTheatreLogPortrait(node);
+                    node
+                        .querySelectorAll?.("#theatre-log-container .hex-portrait img")
+                        .forEach(patchTheatreLogPortrait);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        global.__luminousTheatreLogObserver = observer;
+    }
+
     db.ref("campaña/jugadores").on("value", (snapshot) => {
         playerDatabase = snapshot.val() || {};
         bindIdentityKnowledge();
@@ -897,8 +1044,16 @@
     document.addEventListener("DOMContentLoaded", () => {
         removeLegacyPrototypePanels();
         ensureSelfVisibilityControl();
+        ensurePlayerComposerControls();
+        installPlayerComposerCompatibility();
+        observePlayerTheatreLog();
         bindIdentityKnowledge();
     });
+
+    global.addEventListener("actoresCacheUpdated", installPlayerComposerCompatibility);
+    document.addEventListener("click", (event) => {
+        if (event.target?.closest?.("#btn-abrir-escritura")) installPlayerComposerCompatibility();
+    }, true);
 
     bindRoom(activeRoomId);
 

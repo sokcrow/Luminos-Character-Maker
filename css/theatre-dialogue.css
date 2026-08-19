@@ -21,7 +21,7 @@
         padding: 12px 30px;
         color: #f5f5dc;
         font-size: 24px;
-        font-family: "BebasKai", impact, sans-serif;
+        font-family: "BebasKai", Impact, "Arial Narrow", sans-serif;
         letter-spacing: 1px;
         text-transform: uppercase;
         font-weight: bold;
@@ -129,12 +129,12 @@
       }
 
       .theatre-plate-title {
-        background: linear-gradient(90deg, #5c3a21 0%, #3a2210 100%);
+        background: linear-gradient(90deg, #4a4a4a 0%, #4a4a4a 68%, #17110b 100%);
         color: #ffffff;
         border: none;
         border-left: 4px solid #d4af37;
         padding: 2px 40px 2px 20px;
-        font-family: "BebasKai", impact, sans-serif;
+        font-family: "BebasKai", Impact, "Arial Narrow", sans-serif;
         letter-spacing: 1px;
         text-transform: uppercase;
         font-weight: bold;
@@ -153,12 +153,12 @@
       }
 
       .theatre-plate-name {
-        background: #416268;
+        background: linear-gradient(90deg, #4a4a4a 0%, #4a4a4a 68%, #17110b 100%);
         color: #ffffff;
         border: none;
         border-left: 6px solid #1a1a1a;
         padding: 4px 60px 4px 30px;
-        font-family: "BebasKai", impact, sans-serif;
+        font-family: "BebasKai", Impact, "Arial Narrow", sans-serif;
         letter-spacing: 1px;
         text-transform: uppercase;
         font-weight: 900;
@@ -186,7 +186,7 @@
         color: #fffacd; /* Amarillo pálido (LemonChiffon) */
         font-size: 1.1rem;
         line-height: 1.6;
-        font-family: "Roboto", sans-serif;
+        font-family: "Roboto", Arial, sans-serif;
         box-shadow: none;
         text-shadow: none;
         z-index: 10;
