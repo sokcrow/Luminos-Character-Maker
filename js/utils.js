@@ -114,19 +114,37 @@ function ensureDmCharacterManagerAssets(doc) {
         documentRef.head?.appendChild(link);
     }
 
-    let engine = documentRef.getElementById('character-manager-engine-script');
+    const ensureTakeover = () => {
+        let takeover = documentRef.getElementById('dm-character-manager-takeover-script');
+        if (takeover) return takeover;
+        takeover = documentRef.createElement('script');
+        takeover.id = 'dm-character-manager-takeover-script';
+        takeover.src = 'js/dm-character-manager-takeover.js';
+        takeover.async = false;
+        takeover.dataset.ui = 'character-manager-takeover';
+        documentRef.head?.appendChild(takeover);
+        return takeover;
+    };
+
     const ensureStudio = () => {
         let studio = documentRef.getElementById('character-manager-studio-script');
-        if (studio) return studio;
+        if (studio) {
+            if (documentRef.getElementById('character-manager-studio')) ensureTakeover();
+            else studio.addEventListener('load', ensureTakeover, { once: true });
+            return studio;
+        }
+
         studio = documentRef.createElement('script');
         studio.id = 'character-manager-studio-script';
         studio.src = 'js/character-manager-studio.js';
         studio.async = false;
         studio.dataset.ui = 'character-manager-studio';
+        studio.addEventListener('load', ensureTakeover, { once: true });
         documentRef.head?.appendChild(studio);
         return studio;
     };
 
+    let engine = documentRef.getElementById('character-manager-engine-script');
     if (!engine) {
         engine = documentRef.createElement('script');
         engine.id = 'character-manager-engine-script';
@@ -144,27 +162,10 @@ function ensureDmCharacterManagerAssets(doc) {
     return { link, engine };
 }
 
-function ensureDmCharacterPlayerResolver(doc) {
-    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
-    if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
-
-    let script = documentRef.getElementById('dm-character-player-resolver-script');
-    if (script) return script;
-
-    script = documentRef.createElement('script');
-    script.id = 'dm-character-player-resolver-script';
-    script.src = 'js/dm-character-player-resolver.js';
-    script.async = false;
-    script.dataset.ui = 'dm-character-player-resolver';
-    documentRef.head?.appendChild(script);
-    return script;
-}
-
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerUxPolishAssets(document);
     ensureDmCharacterManagerAssets(document);
-    ensureDmCharacterPlayerResolver(document);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -173,7 +174,6 @@ if (typeof module !== 'undefined' && module.exports) {
         calculateLevelData,
         ensurePlayerTerminalStyles,
         ensurePlayerUxPolishAssets,
-        ensureDmCharacterManagerAssets,
-        ensureDmCharacterPlayerResolver
+        ensureDmCharacterManagerAssets
     };
 }
