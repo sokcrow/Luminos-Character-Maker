@@ -1,13 +1,14 @@
 (function (global) {
   "use strict";
 
+  const doc = global.document;
   const manager = global.LuminousCharacterManager;
   const bonds = global.LuminousBondManager;
-  if (!manager || !bonds) return;
+  const isDmContext = Boolean(doc?.getElementById("dashboard-actores"));
+  if (!doc || !manager || !bonds || !isDmContext) return;
   if (global.__luminousCharacterSocialStudioInstalled) return;
   global.__luminousCharacterSocialStudioInstalled = true;
 
-  const doc = global.document;
   const state = { groupMode: "type", grouping: false, groupTimer: null };
 
   function $(id) { return doc.getElementById(id); }
@@ -127,8 +128,62 @@
     });
   }
 
-  function relationIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M13.5 19c.3-3 1.5-4.5 3.8-4.5 2.2 0 3.6 1.5 4.2 4.5"/></svg>';
+  function icon(name) {
+    const icons = {
+      relation: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M13.5 19c.3-3 1.5-4.5 3.8-4.5 2.2 0 3.6 1.5 4.2 4.5"/></svg>',
+      plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>',
+    };
+    return icons[name] || icons.relation;
+  }
+
+  function activeBonds(actorId) {
+    return actorId ? bonds.listForActor(actorId) : {};
+  }
+
+  function populateBondPlayerOptions() {
+    const select = $("character-manager-bond-player");
+    if (!select) return;
+    const actorId = currentActorId();
+    const existing = activeBonds(actorId);
+    const previous = select.value;
+    select.innerHTML = '<option value="">SELECCIONAR JUGADOR</option>';
+    manager.listPlayers()
+      .filter(({ playerId }) => !Object.prototype.hasOwnProperty.call(existing, playerId))
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .forEach(({ playerId, label }) => {
+        const option = doc.createElement("option");
+        option.value = playerId;
+        option.textContent = label;
+        select.appendChild(option);
+      });
+    if (previous && Array.from(select.options).some((option) => option.value === previous)) select.value = previous;
+  }
+
+  async function addRelation() {
+    const actorId = currentActorId();
+    const playerId = $("character-manager-bond-player")?.value || "";
+    if (!actorId || !playerId) return;
+    try {
+      await bonds.setBond(playerId, actorId, { conocido: false, nivel: 0, estado: "neutral" });
+      renderRelations();
+    } catch (error) {
+      console.error("No se pudo crear el vínculo social:", error);
+    }
+  }
+
+  async function removeRelation(row) {
+    const actorId = currentActorId();
+    const playerId = row?.dataset?.playerId;
+    if (!actorId || !playerId) return;
+    row.dataset.saving = "true";
+    try {
+      await bonds.clearBond(playerId, actorId);
+      renderRelations();
+    } catch (error) {
+      console.error("No se pudo eliminar el vínculo social:", error);
+      row.dataset.saving = "false";
+    }
   }
 
   async function saveRelation(row) {
@@ -153,6 +208,7 @@
     if (!host) return;
     host.innerHTML = "";
     const actorId = currentActorId();
+    populateBondPlayerOptions();
     if (!actorId) {
       const empty = doc.createElement("div");
       empty.className = "cm-social-empty";
@@ -161,18 +217,32 @@
       return;
     }
 
-    manager.listPlayers().sort((a, b) => a.label.localeCompare(b.label)).forEach(({ playerId, label }) => {
-      const bond = bonds.getBond(playerId, actorId);
+    const existing = activeBonds(actorId);
+    const rows = Object.entries(existing)
+      .map(([playerId, bond]) => ({ playerId, bond, player: manager.getPlayer(playerId) }))
+      .filter((entry) => entry.player)
+      .sort((a, b) => a.player.label.localeCompare(b.player.label));
+
+    if (!rows.length) {
+      const empty = doc.createElement("div");
+      empty.className = "cm-social-empty";
+      empty.textContent = "SIN VÍNCULOS REGISTRADOS";
+      host.appendChild(empty);
+      return;
+    }
+
+    rows.forEach(({ playerId, player, bond }) => {
       const row = doc.createElement("div");
       row.className = "cm-bond-row";
       row.dataset.playerId = playerId;
       row.innerHTML = `
         <div class="cm-bond-player"><strong></strong><code></code></div>
         <label class="cm-bond-known-wrap"><input class="cm-bond-known" type="checkbox"><span>CONOCE</span></label>
-        <div class="cm-bond-meter"><input class="cm-bond-level" type="range" min="0" max="5" step="1"><output></output></div>
+        <div class="cm-bond-meter"><input class="cm-bond-level" type="range" min="0" max="5" step="1" aria-label="Nivel del vínculo"><output></output></div>
         <select class="cm-bond-state" aria-label="Estado del vínculo"><option value="neutral">NEUTRAL</option><option value="confianza">CONFIANZA</option><option value="aliado">ALIADO</option><option value="rival">RIVAL</option><option value="hostil">HOSTIL</option></select>
+        <button class="cm-bond-remove" type="button" aria-label="Eliminar vínculo" title="Eliminar vínculo">${icon("trash")}</button>
       `;
-      row.querySelector("strong").textContent = label;
+      row.querySelector("strong").textContent = player.label;
       row.querySelector("code").textContent = playerId;
       const known = row.querySelector(".cm-bond-known");
       const level = row.querySelector(".cm-bond-level");
@@ -186,6 +256,7 @@
       level.addEventListener("input", () => { output.textContent = `LV ${level.value}`; });
       [known, status].forEach((control) => control.addEventListener("change", () => saveRelation(row)));
       level.addEventListener("change", () => saveRelation(row));
+      row.querySelector(".cm-bond-remove")?.addEventListener("click", () => removeRelation(row));
       host.appendChild(row);
     });
   }
@@ -222,10 +293,15 @@
       relations.id = "character-manager-relations";
       relations.className = "cm-social-relations";
       relations.innerHTML = `
-        <header><span class="cm-social-title">${relationIcon()}<b>RELACIONES</b></span><small>PLAYER / ACTOR</small></header>
+        <header><span class="cm-social-title">${icon("relation")}<b>VÍNCULOS</b></span><small>SOLO DM</small></header>
+        <div class="cm-bond-admin-bar">
+          <select id="character-manager-bond-player" aria-label="Jugador para nuevo vínculo"><option value="">SELECCIONAR JUGADOR</option></select>
+          <button id="character-manager-add-bond" type="button" aria-label="Agregar vínculo" title="Agregar vínculo">${icon("plus")}<span>AGREGAR</span></button>
+        </div>
         <div id="character-manager-relations-list" class="cm-relations-list"></div>
       `;
       assignment.appendChild(relations);
+      $("character-manager-add-bond")?.addEventListener("click", addRelation);
     }
 
     const roster = $("character-manager-roster");
