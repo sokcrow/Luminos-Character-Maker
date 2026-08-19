@@ -256,3 +256,111 @@
     flex-grow: 1 !important;
     pointer-events: auto !important;
 }
+
+/* ==================================================
+   CORRECCIONES COMPARTIDAS DE UI DEL TEATRO
+   ================================================== */
+
+/*
+ * theatre-hud.css fuerza display:flex !important en las placas. El motor usa
+ * display:none inline para narración/pensamiento, así que esta regla respeta
+ * explícitamente ese estado y elimina por completo name + title plates.
+ */
+html body #theatre-view-player .theatre-plates-container[style*="display: none"],
+html body.on-game-dashboard #modulo-teatro .theatre-plates-container[style*="display: none"] {
+  display: none !important;
+}
+
+/*
+ * Mantener el heptágono como contenedor y centrar el glyph real. Esto evita
+ * que Menu.svg y los iconos del HUD se estiren a 100% con aspect-ratio 16/9.
+ */
+html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle,
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item,
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle {
+  padding: 0 !important;
+  line-height: 0 !important;
+}
+
+html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle::before,
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item::before,
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle::before {
+  aspect-ratio: auto !important;
+}
+
+html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle > svg,
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > svg,
+html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > img:not(#tienda-fisica-badge),
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+  flex: 0 0 26px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  aspect-ratio: 1 / 1 !important;
+  margin: 0 !important;
+}
+
+/* El SVG de DM ya trae un heptágono dibujado; el botón CSS también. Ocultamos
+ * ese wrapper duplicado y usamos el mismo glyph de tres barras del jugador. */
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
+  display: none !important;
+}
+
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 24px;
+  height: 16px;
+  background: linear-gradient(
+    to bottom,
+    currentColor 0 2px,
+    transparent 2px 7px,
+    currentColor 7px 9px,
+    transparent 9px 14px,
+    currentColor 14px 16px
+  );
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  transition: transform 160ms ease;
+  pointer-events: none;
+}
+
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu[open] .theatre-dm-menu-toggle::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+@media (max-width: 700px) {
+  html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle > svg,
+  html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > svg,
+  html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > img:not(#tienda-fisica-badge),
+  html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
+    width: 21px !important;
+    height: 21px !important;
+    min-width: 21px !important;
+    min-height: 21px !important;
+    max-width: 21px !important;
+    max-height: 21px !important;
+    flex-basis: 21px !important;
+  }
+
+  html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle::after {
+    width: 20px;
+    height: 14px;
+    background: linear-gradient(
+      to bottom,
+      currentColor 0 2px,
+      transparent 2px 6px,
+      currentColor 6px 8px,
+      transparent 8px 12px,
+      currentColor 12px 14px
+    );
+  }
+}

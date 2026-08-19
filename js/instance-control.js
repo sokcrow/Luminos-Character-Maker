@@ -2,6 +2,7 @@
   "use strict";
 
   const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
+  const DEFAULT_THEATRE_SCENE_PATH = "campaña/estado_mundo/escena_actual";
 
   function normalizeInstance(instance) {
     return typeof instance === "string" && instance.trim()
@@ -107,10 +108,71 @@
     console.warn("LuminousInstanceControl.bindDm is deprecated. Use bindDashboard.");
   }
 
+  function getTheatreScenePath() {
+    return global.LuminousTheatreState?.getPaths?.().scene || DEFAULT_THEATRE_SCENE_PATH;
+  }
+
+  function ensureDmLocationControl({ db, doc } = {}) {
+    const documentRef = doc || global.document;
+    if (!db || !documentRef?.body?.classList.contains("on-game-dashboard")) return null;
+
+    const locationInput = documentRef.getElementById("theatre-location-input");
+    if (!locationInput) return null;
+
+    let button = documentRef.getElementById("btn-update-theatre-location");
+    if (button) return button;
+
+    button = documentRef.createElement("button");
+    button.id = "btn-update-theatre-location";
+    button.type = "button";
+    button.className = "btn-action theatre-location-only-btn";
+    button.textContent = "ACTUALIZAR LOCALIZACIÓN";
+    button.title = "Cambia solo el cartel de localización sin hacer transición ni modificar el fondo";
+    button.style.cssText = "padding:8px;background:#1a222c;color:#a37c35;border:1px solid #a37c35;cursor:pointer;width:100%;box-sizing:border-box;";
+    locationInput.insertAdjacentElement("afterend", button);
+
+    const updateLocation = async () => {
+      const locationName = String(locationInput.value || "").trim();
+      if (!locationName) {
+        global.alert?.("Escribe una localización antes de actualizarla.");
+        return;
+      }
+
+      const previousText = button.textContent;
+      button.disabled = true;
+      button.textContent = "ACTUALIZANDO...";
+      try {
+        await db.ref(`${getTheatreScenePath()}/locacion`).set(locationName);
+        button.textContent = "LOCALIZACIÓN ACTUALIZADA";
+        global.setTimeout(() => {
+          if (button.isConnected) button.textContent = previousText;
+        }, 1200);
+      } catch (error) {
+        console.error("No se pudo actualizar la localización del Theatre:", error);
+        button.textContent = previousText;
+        global.alert?.("No se pudo actualizar la localización.");
+      } finally {
+        button.disabled = false;
+      }
+    };
+
+    button.addEventListener("click", updateLocation);
+    locationInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        updateLocation();
+      }
+    });
+
+    return button;
+  }
+
   function bindDashboard({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
+
+    ensureDmLocationControl({ db, doc: documentRef });
 
     documentRef.querySelectorAll('input[name="instancia"]').forEach(radio => {
         radio.addEventListener('change', (evento) => {
@@ -147,6 +209,7 @@
     applyDmInstance,
     applyPlayerInstance,
     applyDashboardInstance,
+    ensureDmLocationControl,
     bindDm,
     bindDashboard,
     bindPlayer,
