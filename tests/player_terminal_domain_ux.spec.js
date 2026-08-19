@@ -58,3 +58,11 @@ test("el control especial solo explica decodificaciÃ³n para idiomas de distorsiÃ
   expect(languageUx).toContain('HABLA controla si puede usar el idioma');
   expect(languageUx).toContain('DECODIFICA controla si puede entender su forma especial');
 });
+
+test("editar NPC o PJ no entra en un bucle del observer de Idiomas", () => {
+  expect(languageUx).toContain('if (decorating) return false');
+  expect(languageUx).toContain('function scheduleDecorate()');
+  expect(languageUx).toContain('observer.observe(host, { childList: true });');
+  expect(languageUx).not.toContain('observer.observe(host, { childList: true, subtree: true })');
+  expect(languageUx).toContain('node.textContent !== text');
+});

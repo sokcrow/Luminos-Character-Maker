@@ -8,6 +8,8 @@
   let manager = null;
   let observer = null;
   let retryTimer = null;
+  let decorateTimer = null;
+  let decorating = false;
 
   function getManager() {
     manager = manager || global.LuminousCharacterManager || null;
@@ -37,6 +39,10 @@
     nameHost.appendChild(badge);
   }
 
+  function setText(node, text) {
+    if (node && node.textContent !== text) node.textContent = text;
+  }
+
   function decorateRow(row, languageMap) {
     const languageId = row?.dataset?.languageId;
     if (!languageId) return;
@@ -55,14 +61,13 @@
     row.classList.toggle("cm-language-row--common", common);
     row.dataset.languageMeaning = common ? "default" : distortion ? "special" : "standard";
 
-    if (meter && !meter.querySelector(".cm-language-domain-label")) {
-      const caption = doc.createElement("span");
+    let caption = meter?.querySelector(".cm-language-domain-label") || null;
+    if (meter && !caption) {
+      caption = doc.createElement("span");
       caption.className = "cm-language-domain-label";
-      caption.textContent = distortion ? "HABLA" : "DOMINIO";
       meter.prepend(caption);
-    } else if (meter?.querySelector(".cm-language-domain-label")) {
-      meter.querySelector(".cm-language-domain-label").textContent = distortion ? "HABLA" : "DOMINIO";
     }
+    setText(caption, distortion ? "HABLA" : "DOMINIO");
 
     if (range) range.setAttribute("aria-label", distortion ? `Capacidad para hablar ${label}` : `Dominio de ${label}`);
     if (percent) percent.setAttribute("aria-label", distortion ? `Porcentaje para hablar ${label}` : `Porcentaje de dominio de ${label}`);
@@ -83,6 +88,9 @@
       return;
     }
 
+    if (range) range.disabled = false;
+    if (percent) percent.disabled = false;
+
     if (!distortion) {
       if (toggle) toggle.hidden = true;
       if (checkbox) checkbox.checked = false;
@@ -93,23 +101,39 @@
     if (toggle) {
       toggle.hidden = false;
       toggle.title = "DECODIFICA: entiende este idioma especial aunque su capacidad para hablarlo sea 0.";
-      if (!toggle.querySelector(".cm-distortion-copy")) {
-        const copy = doc.createElement("b");
+      let copy = toggle.querySelector(".cm-distortion-copy");
+      if (!copy) {
+        copy = doc.createElement("b");
         copy.className = "cm-distortion-copy";
-        copy.textContent = "DECODIFICA";
         toggle.appendChild(copy);
       }
+      setText(copy, "DECODIFICA");
     }
     if (checkbox) checkbox.setAttribute("aria-label", `Decodifica ${label}`);
     row.title = "HABLA controla si puede usar el idioma. DECODIFICA controla si puede entender su forma especial.";
   }
 
   function decorate() {
+    if (decorating) return false;
     const host = doc.getElementById("character-manager-languages");
     if (!host || !getManager()) return false;
-    const languageMap = definitions();
-    host.querySelectorAll(".cm-language-row").forEach((row) => decorateRow(row, languageMap));
-    return true;
+
+    decorating = true;
+    try {
+      const languageMap = definitions();
+      host.querySelectorAll(".cm-language-row").forEach((row) => decorateRow(row, languageMap));
+      return true;
+    } finally {
+      decorating = false;
+    }
+  }
+
+  function scheduleDecorate() {
+    global.clearTimeout(decorateTimer);
+    decorateTimer = global.setTimeout(() => {
+      decorateTimer = null;
+      decorate();
+    }, 0);
   }
 
   function install() {
@@ -118,10 +142,12 @@
     if (!host) return false;
     decorate();
     if (!observer) {
-      observer = new MutationObserver(() => decorate());
-      observer.observe(host, { childList: true, subtree: true });
+      observer = new MutationObserver(scheduleDecorate);
+      // Solo observamos altas/bajas de filas. Observar subtree haría que la
+      // propia decoración de labels dispare recursivamente el observer.
+      observer.observe(host, { childList: true });
     }
-    manager.subscribeLanguages?.(() => global.setTimeout(decorate, 0));
+    manager.subscribeLanguages?.(scheduleDecorate);
     return true;
   }
 
