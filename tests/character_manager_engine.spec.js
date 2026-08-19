@@ -3,8 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+const exists = (file) => fs.existsSync(path.join(__dirname, "..", file));
 const engine = read("js/character-manager-engine.js");
 const studio = read("js/character-manager-studio.js");
+const takeover = read("js/dm-character-manager-takeover.js");
 const utils = read("js/utils.js");
 const instanceControl = read("js/instance-control.js");
 const theatreEngine = read("js/theatre-engine.js");
@@ -62,12 +64,24 @@ test("Studio consume el motor y no accede Firebase directamente", () => {
   expect(studio).not.toContain("db.ref(");
 });
 
-test("Pantalla DM carga motor y Studio sin quitar el resolver existente", () => {
+test("Pantalla DM entrega Gestión de Personajes al nuevo motor y retira el resolver legacy", () => {
   expect(utils).toContain("function ensureDmCharacterManagerAssets");
   expect(utils).toContain("#dashboard-actores");
   expect(utils).toContain("js/character-manager-engine.js");
   expect(utils).toContain("js/character-manager-studio.js");
-  expect(utils).toContain("ensureDmCharacterPlayerResolver(document)");
+  expect(utils).toContain("js/dm-character-manager-takeover.js");
+  expect(utils).not.toContain("dm-character-player-resolver");
+  expect(takeover).toContain('typeof global.dbJugadoresCache !== "undefined"');
+  expect(takeover).toContain("host.replaceChildren(panel)");
+  expect(takeover).toContain('host.dataset.characterManagerAuthority = "engine"');
+  expect(exists("js/dm-character-player-resolver.js")).toBe(false);
+});
+
+test("el takeover espera a que el DM legacy termine de registrar sus handlers", () => {
+  expect(takeover).toContain("legacyDmInitializationCompleted");
+  expect(takeover).toContain("READY_POLL_MS");
+  expect(takeover).toContain("MAX_POLLS");
+  expect(takeover).toContain("luminous:character-manager-takeover");
 });
 
 test("ON GAME inicializa solo el motor para que Theatre pueda consumirlo", () => {
