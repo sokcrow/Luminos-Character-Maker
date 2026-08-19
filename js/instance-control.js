@@ -167,11 +167,39 @@
     return button;
   }
 
+  function ensureDashboardActorStudioAssets(doc) {
+    const documentRef = doc || global.document;
+    if (!documentRef?.body?.classList.contains("on-game-dashboard")) return null;
+
+    let link = documentRef.getElementById("theatre-actor-studio-stylesheet");
+    if (!link) {
+      link = documentRef.createElement("link");
+      link.id = "theatre-actor-studio-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/theatre-actor-studio.css";
+      link.dataset.ui = "theatre-actor-studio";
+      documentRef.head?.appendChild(link);
+    }
+
+    let script = documentRef.getElementById("theatre-actor-studio-script");
+    if (!script) {
+      script = documentRef.createElement("script");
+      script.id = "theatre-actor-studio-script";
+      script.src = "js/theatre-actor-studio.js";
+      script.async = false;
+      script.dataset.ui = "theatre-actor-studio";
+      documentRef.head?.appendChild(script);
+    }
+
+    return { link, script };
+  }
+
   function bindDashboard({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
 
+    ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
 
     documentRef.querySelectorAll('input[name="instancia"]').forEach(radio => {
@@ -210,6 +238,7 @@
     applyPlayerInstance,
     applyDashboardInstance,
     ensureDmLocationControl,
+    ensureDashboardActorStudioAssets,
     bindDm,
     bindDashboard,
     bindPlayer,
