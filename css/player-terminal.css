@@ -1,0 +1,698 @@
+/* ==================================================
+   PLAYER PERSONAL TERMINAL / CITY NETWORK
+   Capa visual aislada para la hoja del jugador.
+   ================================================== */
+
+:root {
+  --terminal-void: #050706;
+  --terminal-black: #090b09;
+  --terminal-panel: #111410;
+  --terminal-panel-2: #171a16;
+  --terminal-metal: #242620;
+  --terminal-line: #3f4038;
+  --terminal-text: #ddd8c8;
+  --terminal-muted: #85867c;
+  --terminal-amber: #c29a45;
+  --terminal-amber-soft: #8f7135;
+  --terminal-red: #862126;
+  --terminal-alert: #df4a46;
+  --terminal-phosphor: #a8b58a;
+  --terminal-screen-shadow: rgba(0, 0, 0, 0.72);
+}
+
+html,
+body {
+  min-width: 0 !important;
+  background: #030403 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-limbus-main {
+  width: min(1180px, 100vw) !important;
+  min-width: 0 !important;
+  max-width: 1180px !important;
+  max-height: 100dvh !important;
+  margin: 0 auto !important;
+  padding: clamp(8px, 1.6vw, 18px) !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(90deg, rgba(194, 154, 69, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(194, 154, 69, 0.025) 1px, transparent 1px),
+    #050605 !important;
+  background-size: 38px 38px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+body:not(.on-game-dashboard) .sheet-limbus-main::before {
+  display: none !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper {
+  position: relative !important;
+  width: 100% !important;
+  height: calc(100dvh - clamp(16px, 3.2vw, 36px)) !important;
+  min-height: 560px;
+  max-height: 920px;
+  margin: 0 auto !important;
+  padding: 15px 15px 18px !important;
+  overflow: hidden !important;
+  isolation: isolate;
+  color: var(--terminal-text) !important;
+  background:
+    linear-gradient(115deg, transparent 0 22px, rgba(194,154,69,.16) 22px 23px, transparent 23px),
+    linear-gradient(245deg, transparent 0 28px, rgba(134,33,38,.34) 28px 30px, transparent 30px),
+    linear-gradient(145deg, #20221d 0%, #11130f 28%, #090b09 73%, #1a1c17 100%) !important;
+  border: 1px solid #47483f !important;
+  border-top: 3px solid #6d5930 !important;
+  border-bottom: 5px solid #090a08 !important;
+  border-radius: 4px !important;
+  clip-path: polygon(20px 0, calc(100% - 9px) 0, 100% 10px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 12px 100%, 0 calc(100% - 12px), 0 20px);
+  box-shadow:
+    0 20px 55px rgba(0,0,0,.72),
+    inset 0 0 0 1px rgba(255,255,255,.035),
+    inset 0 0 42px rgba(0,0,0,.72) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper::before {
+  content: "PERSONAL TERMINAL // CITY NETWORK // AUTHORIZED NODE" !important;
+  position: absolute !important;
+  top: 4px !important;
+  left: 29px !important;
+  right: 48px !important;
+  height: 14px !important;
+  display: flex !important;
+  align-items: center;
+  padding-left: 7px;
+  color: #897548 !important;
+  background: transparent !important;
+  font: 700 9px/1 "Share Tech Mono", monospace !important;
+  letter-spacing: .16em;
+  opacity: .9 !important;
+  z-index: 4 !important;
+  pointer-events: none !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 15px !important;
+  display: block !important;
+  z-index: 90 !important;
+  pointer-events: none !important;
+  opacity: .13 !important;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(214,218,191,.2) 3px 4px),
+    radial-gradient(circle at 50% 45%, transparent 0 58%, rgba(0,0,0,.42) 100%) !important;
+  mix-blend-mode: screen;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-statusbar,
+body:not(.on-game-dashboard) .sheet-phone-screen {
+  position: relative;
+  z-index: 2;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-statusbar {
+  min-height: 48px !important;
+  padding: 18px 16px 8px !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 12px;
+  overflow: hidden;
+  color: var(--terminal-phosphor) !important;
+  background:
+    linear-gradient(90deg, rgba(168,181,138,.08), transparent 48%),
+    #090b09 !important;
+  border: 1px solid #373a32 !important;
+  border-bottom: 2px solid var(--terminal-amber-soft) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 -8px 20px rgba(0,0,0,.38) !important;
+  font-family: "Share Tech Mono", monospace !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-statusbar::before {
+  content: "LUM-NET / LOCAL LINK";
+  position: absolute;
+  top: 5px;
+  left: 16px;
+  color: var(--terminal-amber);
+  font-size: 8px;
+  letter-spacing: .18em;
+}
+
+body:not(.on-game-dashboard) .sheet-statusbar-left {
+  min-width: 0;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 8px !important;
+}
+
+body:not(.on-game-dashboard) .sheet-time-display {
+  flex: 0 0 auto;
+  color: var(--terminal-text) !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em;
+}
+
+body:not(.on-game-dashboard) .sheet-date-display {
+  min-width: 0;
+  margin: 0 !important;
+  overflow: hidden;
+  color: var(--terminal-muted) !important;
+  font-size: 10px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-statusbar-right {
+  flex: 0 0 auto;
+  gap: 8px !important;
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-statusbar-right::after {
+  content: "LINK ▮▮▮  PWR 100";
+  color: var(--terminal-phosphor);
+  font: 700 10px/1 "Share Tech Mono", monospace;
+  letter-spacing: .08em;
+}
+
+body:not(.on-game-dashboard) #btn-toggle-mute {
+  position: relative;
+  width: 28px;
+  height: 24px;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  background: #11140f !important;
+  border: 1px solid #41443a !important;
+  border-radius: 0 !important;
+  color: var(--terminal-amber) !important;
+}
+
+body:not(.on-game-dashboard) #btn-toggle-mute::before {
+  content: "";
+  position: absolute;
+  inset: 5px 7px;
+  background: currentColor;
+  clip-path: polygon(0 36%, 28% 36%, 58% 8%, 58% 92%, 28% 64%, 0 64%);
+}
+
+body:not(.on-game-dashboard) #btn-toggle-mute::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 4px;
+  width: 5px;
+  height: 12px;
+  border-right: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-screen {
+  height: calc(100% - 48px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(rgba(168,181,138,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,181,138,.012) 1px, transparent 1px),
+    radial-gradient(circle at 45% 30%, #11150f 0%, #080a08 70%) !important;
+  background-size: 24px 24px, 24px 24px, auto !important;
+  border: 1px solid #2d3029 !important;
+  border-top: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 38px rgba(0,0,0,.64) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content {
+  height: 100% !important;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-color: var(--terminal-amber-soft) #090b09;
+  scrollbar-width: thin;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content::-webkit-scrollbar-track {
+  background: #090b09;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content::-webkit-scrollbar-thumb {
+  background: #66542d;
+  border: 2px solid #090b09;
+}
+
+/* HOME / NETWORK DASHBOARD */
+body:not(.on-game-dashboard) .sheet-tab-home {
+  position: relative;
+  padding: clamp(14px, 2.4vw, 26px) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-home::before {
+  content: "NODE DASHBOARD / AVAILABLE MODULES";
+  display: block;
+  margin: 0 0 12px;
+  padding: 5px 8px;
+  color: var(--terminal-muted);
+  background: rgba(0,0,0,.28);
+  border-left: 2px solid var(--terminal-red);
+  font: 700 10px/1.2 "Share Tech Mono", monospace;
+  letter-spacing: .14em;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-widget {
+  position: relative;
+  margin: 0 0 18px !important;
+  padding: 16px !important;
+  overflow: hidden;
+  color: var(--terminal-text) !important;
+  background:
+    linear-gradient(135deg, rgba(168,181,138,.07), transparent 45%),
+    #0c0f0b !important;
+  border: 1px solid #34372f !important;
+  border-left: 3px solid var(--terminal-amber-soft) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  box-shadow: inset 0 0 20px rgba(0,0,0,.55) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-widget::before {
+  content: "DISTRICT ENVIRONMENT / PUBLIC WEATHER RELAY";
+  display: block;
+  margin-bottom: 10px;
+  color: var(--terminal-amber);
+  font: 700 9px/1 "Share Tech Mono", monospace;
+  letter-spacing: .13em;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end !important;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-time,
+body:not(.on-game-dashboard) .sheet-weather-current {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-current {
+  align-items: flex-end;
+}
+
+body:not(.on-game-dashboard) .sheet-widget-time {
+  color: var(--terminal-text) !important;
+  font-size: clamp(28px, 4vw, 46px) !important;
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+
+body:not(.on-game-dashboard) .sheet-widget-date,
+body:not(.on-game-dashboard) .sheet-widget-weather-text,
+body:not(.on-game-dashboard) .sheet-forecast-title {
+  color: var(--terminal-muted) !important;
+  font-family: "Share Tech Mono", monospace !important;
+  letter-spacing: .06em;
+}
+
+body:not(.on-game-dashboard) .sheet-widget-weather-icon {
+  filter: grayscale(1) sepia(.45) brightness(.9);
+  opacity: .82;
+}
+
+body:not(.on-game-dashboard) .sheet-weather-forecast {
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px dashed #373a32 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn {
+  --module-accent: var(--terminal-amber-soft);
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 92px !important;
+  padding: 12px 13px 11px 54px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  overflow: hidden;
+  color: var(--terminal-text) !important;
+  text-align: left !important;
+  background:
+    linear-gradient(100deg, rgba(194,154,69,.07), transparent 48%),
+    #10130f !important;
+  border: 1px solid #34372f !important;
+  border-left: 3px solid var(--module-accent) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  box-shadow: inset 0 0 18px rgba(0,0,0,.38) !important;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn::before {
+  content: "MODULE / READY";
+  color: var(--terminal-muted);
+  font: 700 8px/1 "Share Tech Mono", monospace;
+  letter-spacing: .12em;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  background: var(--terminal-amber);
+  transition: width 150ms ease;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn:hover,
+body:not(.on-game-dashboard) .sheet-app-btn:focus-visible {
+  color: #fff8df !important;
+  background: #171a15 !important;
+  border-color: #5f604f !important;
+  transform: translateY(-2px);
+  outline: none !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn:hover::after,
+body:not(.on-game-dashboard) .sheet-app-btn:focus-visible::after {
+  width: 100%;
+}
+
+body:not(.on-game-dashboard) .sheet-app-btn > span {
+  font: 700 clamp(13px, 1.55vw, 18px)/1.05 "Share Tech Mono", monospace !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+body:not(.on-game-dashboard) .sheet-app-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 !important;
+  transform: translateY(-50%);
+  color: var(--terminal-amber) !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-app-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: var(--terminal-icon) center / contain no-repeat;
+  mask: var(--terminal-icon) center / contain no-repeat;
+  filter: drop-shadow(0 0 3px rgba(194,154,69,.22));
+}
+
+/* Iconografía geométrica propia. */
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_profile"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3h16v18H4zM7 6h5v5H7zm7 1h3v1h-3zm0 3h3v1h-3zM7 14h10v1H7zm0 3h7v1H7z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_mail"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 5h18v14H3zm2 2v1l7 5 7-5V7l-7 5z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_banco"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 3 6v2h18V6zM5 10h2v7H5zm4 0h2v7H9zm4 0h2v7h-2zm4 0h2v7h-2zM3 19h18v3H3z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_contratos"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 2h11l3 3v17H5zm2 4h8V4H7zm0 4h10v2H7zm0 4h10v2H7zm0 4h7v2H7z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_codex"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h8v16H3zm10 0h8v16h-8zM5 7h4v1H5zm10 0h4v1h-4zM5 10h4v1H5zm10 0h4v1h-4z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_mapa"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m3 5 6-3 6 3 6-3v17l-6 3-6-3-6 3zm6-1v13l6 3V7zm8 2v13l2-1V5z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_notas"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 3h16v18H4zm3 4h10V6H7zm0 4h10v-1H7zm0 4h10v-1H7zm0 4h7v-1H7z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_parts"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 2h6l1 3 3 1 3-1 2 5-2 2 1 3 2 2-4 4-3-1-2 2H8l-1-3-3-1-3 1-1-5 2-2-1-3-2-2 4-4 3 1zm3 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E"); }
+body:not(.on-game-dashboard) .sheet-app-btn[name="act_tab_settings"] { --terminal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 5h10v2H4zm12 0h4v2h-4zM4 11h4v2H4zm6 0h10v2H10zM4 17h9v2H4zm11 0h5v2h-5zM14 3h2v6h-2zM8 9h2v6H8zm5 6h2v6h-2z'/%3E%3C/svg%3E"); }
+
+/* APP INTERIOR / SHARED OS LANGUAGE */
+body:not(.on-game-dashboard) .sheet-app-header {
+  position: sticky !important;
+  top: 0;
+  z-index: 25;
+  min-height: 58px;
+  padding: 13px 18px 10px !important;
+  color: var(--terminal-text) !important;
+  background: rgba(10,12,9,.96) !important;
+  border-bottom: 2px solid var(--terminal-amber-soft) !important;
+  backdrop-filter: blur(5px);
+}
+
+body:not(.on-game-dashboard) .sheet-app-header::before {
+  content: "SYSTEM MODULE / AUTHORIZED SESSION";
+  display: block;
+  margin-bottom: 3px;
+  color: var(--terminal-muted);
+  font: 700 8px/1 "Share Tech Mono", monospace;
+  letter-spacing: .13em;
+}
+
+body:not(.on-game-dashboard) .sheet-app-header h2,
+body:not(.on-game-dashboard) .sheet-tab-content h2,
+body:not(.on-game-dashboard) .sheet-tab-content h3 {
+  color: var(--terminal-text) !important;
+  font-family: "Share Tech Mono", monospace !important;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  text-shadow: none !important;
+}
+
+body:not(.on-game-dashboard) #player-device-number {
+  margin: 0 !important;
+  color: var(--terminal-phosphor) !important;
+  font: 700 9px/1.2 "Share Tech Mono", monospace !important;
+  letter-spacing: .08em;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content input,
+body:not(.on-game-dashboard) .sheet-tab-content select,
+body:not(.on-game-dashboard) .sheet-tab-content textarea {
+  color: var(--terminal-text) !important;
+  background: #0b0e0a !important;
+  border: 1px solid #3a3d34 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,.35) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content input:focus,
+body:not(.on-game-dashboard) .sheet-tab-content select:focus,
+body:not(.on-game-dashboard) .sheet-tab-content textarea:focus {
+  border-color: var(--terminal-amber-soft) !important;
+  outline: 1px solid rgba(194,154,69,.22) !important;
+  box-shadow: 0 0 0 2px rgba(194,154,69,.08) !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content button:not(.sheet-app-btn):not(#btn-toggle-mute) {
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+body:not(.on-game-dashboard) .sheet-no-signal-overlay {
+  color: var(--terminal-alert) !important;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0,0,0,.96) 0 3px, rgba(40,7,7,.96) 3px 4px) !important;
+  border: 2px solid var(--terminal-red);
+}
+
+body:not(.on-game-dashboard) .sheet-no-signal-overlay::before {
+  content: "LINK FAILURE // LOCAL DEVICE UNAVAILABLE";
+  margin-bottom: 14px;
+  color: var(--terminal-muted);
+  font: 700 10px/1 "Share Tech Mono", monospace;
+  letter-spacing: .12em;
+}
+
+/* MOBILE: el terminal se convierte en dispositivo de pantalla completa. */
+@media (max-width: 700px) {
+  html,
+  body {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-limbus-main {
+    width: 100dvw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #030403 !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-wrapper {
+    width: 100dvw !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(7px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(7px, env(safe-area-inset-left)) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    clip-path: none !important;
+    box-shadow: none !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-wrapper::before {
+    display: none !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-wrapper::after {
+    inset:
+      max(8px, env(safe-area-inset-top))
+      max(7px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(7px, env(safe-area-inset-left)) !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-statusbar {
+    min-height: 44px !important;
+    padding: 15px 9px 6px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-statusbar::before {
+    top: 4px;
+    left: 9px;
+    font-size: 7px;
+  }
+
+  body:not(.on-game-dashboard) .sheet-date-display {
+    display: none !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-statusbar-right::after {
+    content: "LINK ▮▮  PWR";
+    font-size: 8px;
+  }
+
+  body:not(.on-game-dashboard) #btn-toggle-mute {
+    width: 30px;
+    height: 28px;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-screen {
+    height: calc(100% - 44px) !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-tab-home {
+    padding: 10px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-weather-widget {
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-weather-widget::before {
+    font-size: 7px;
+    letter-spacing: .08em;
+  }
+
+  body:not(.on-game-dashboard) .sheet-widget-time {
+    font-size: 29px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-widget-date,
+  body:not(.on-game-dashboard) .sheet-widget-weather-text {
+    font-size: 10px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn {
+    min-height: 78px !important;
+    padding: 10px 8px 9px 46px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn::before {
+    font-size: 7px;
+    letter-spacing: .06em;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn > span {
+    font-size: 12px !important;
+    letter-spacing: .04em;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-icon {
+    left: 11px !important;
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-header {
+    min-height: 52px;
+    padding: 10px 12px 8px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  body:not(.on-game-dashboard) .sheet-app-btn {
+    min-height: 72px !important;
+    padding-left: 42px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-icon {
+    left: 9px !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn > span {
+    font-size: 11px !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  body:not(.on-game-dashboard) .sheet-phone-statusbar {
+    min-height: 38px !important;
+    padding-top: 12px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-screen {
+    height: calc(100% - 38px) !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-weather-widget {
+    padding: 8px 12px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn {
+    min-height: 62px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.on-game-dashboard) .sheet-app-btn,
+  body:not(.on-game-dashboard) .sheet-app-btn::after {
+    transition: none !important;
+  }
+}
