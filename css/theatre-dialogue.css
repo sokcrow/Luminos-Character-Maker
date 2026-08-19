@@ -305,6 +305,38 @@ html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
   margin: 0 !important;
 }
 
+/* El SVG de DM ya trae un heptágono dibujado; el botón CSS también. Ocultamos
+ * ese wrapper duplicado y usamos el mismo glyph de tres barras del jugador. */
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
+  display: none !important;
+}
+
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 24px;
+  height: 16px;
+  background: linear-gradient(
+    to bottom,
+    currentColor 0 2px,
+    transparent 2px 7px,
+    currentColor 7px 9px,
+    transparent 9px 14px,
+    currentColor 14px 16px
+  );
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  transition: transform 160ms ease;
+  pointer-events: none;
+}
+
+html body.on-game-dashboard #modulo-teatro .theatre-dm-menu[open] .theatre-dm-menu-toggle::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
 @media (max-width: 700px) {
   html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle > svg,
   html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > svg,
@@ -317,5 +349,18 @@ html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle > img {
     max-width: 21px !important;
     max-height: 21px !important;
     flex-basis: 21px !important;
+  }
+
+  html body.on-game-dashboard #modulo-teatro .theatre-dm-menu-toggle::after {
+    width: 20px;
+    height: 14px;
+    background: linear-gradient(
+      to bottom,
+      currentColor 0 2px,
+      transparent 2px 6px,
+      currentColor 6px 8px,
+      transparent 8px 12px,
+      currentColor 12px 14px
+    );
   }
 }
