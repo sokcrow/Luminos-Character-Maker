@@ -52,11 +52,47 @@ test("el retrato del log es un heptágono y no un círculo", () => {
   expect(border).not.toContain("border-radius: 50%");
 });
 
-test("los textos de módulos del celular pueden envolver sin salirse", () => {
-  expect(playerUxCss).toContain("overflow-wrap: anywhere !important");
-  expect(playerUxCss).toContain("white-space: normal !important");
-  expect(playerUxCss).toContain("min-width: 0 !important");
-  expect(playerUxCss).toContain("@media (max-width: 700px)");
+test("launcher del celular muestra solo iconos, sin labels ni MODULE READY", () => {
+  expect(playerUx).toContain("function normalizePhoneLauncher");
+  expect(playerUx).toContain('button.setAttribute("aria-label", label)');
+  expect(playerUx).toContain("button.title = label");
+
+  const launcher = block(playerUxCss, "LAUNCHER: ICONOS SOLAMENTE", "El sistema actual de atributos");
+  expect(launcher).toContain(".sheet-app-btn > span");
+  expect(launcher).toContain(".sheet-app-btn::before");
+  expect(launcher).toContain("display: none !important;");
+  expect(launcher).toContain("content: none !important;");
+  expect(launcher).toContain("width: 38px !important;");
+  expect(launcher).toContain("grid-template-columns: repeat(3, minmax(0, 1fr)) !important;");
+});
+
+test("la carcasa del celular contiene statusbar pantalla navbar y contenido", () => {
+  const frame = block(playerUxCss, "CONTRATO FÍSICO DEL CELULAR", "LAUNCHER: ICONOS SOLAMENTE");
+  expect(frame).toContain(".sheet-phone-wrapper *");
+  expect(frame).toContain("box-sizing: border-box;");
+  expect(frame).toContain("display: flex !important;");
+  expect(frame).toContain("flex-direction: column !important;");
+  expect(frame).toContain(".sheet-phone-screen");
+  expect(frame).toContain("flex: 1 1 0 !important;");
+  expect(frame).toContain("height: auto !important;");
+  expect(frame).toContain(".sheet-phone-navbar");
+  expect(frame).toContain("position: relative !important;");
+  expect(frame).toContain("overflow: hidden !important;");
+  expect(frame).toContain("max-width: 100% !important;");
+});
+
+test("Perfil oculta tiradas D&D legacy y Stats conserva el motor actual", () => {
+  expect(playerHtml).toContain('class="sheet-dnd-stats-grid"');
+  expect(playerHtml).toContain('id="stats-container"');
+  expect(playerHtml).toContain('name="act_roll_cuerpo"');
+  expect(playerHtml).toContain('name="attr_cuerpo_base"');
+
+  const suppression = block(playerUx, "function suppressLegacyProfileRolls", "function renameRelationshipUx");
+  expect(suppression).toContain('doc.querySelector(".sheet-tab-profile")');
+  expect(suppression).toContain('#stats-modal #stats-container [name="act_roll_cuerpo"]');
+  expect(suppression).toContain('profile.querySelector(".sheet-dnd-stats-grid")');
+  expect(suppression).toContain('legacyGrid.dataset.legacyAttributes = "disabled"');
+  expect(playerUxCss).toContain(".sheet-tab-profile .sheet-dnd-stats-grid");
 });
 
 test("Ajustes ofrece controles útiles y locales", () => {
