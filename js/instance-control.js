@@ -3,7 +3,6 @@
 
   const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
   const DEFAULT_THEATRE_SCENE_PATH = "campaña/estado_mundo/escena_actual";
-  const PLAYER_TERMINAL_STYLESHEET = "css/player-terminal.css";
 
   function normalizeInstance(instance) {
     return typeof instance === "string" && instance.trim()
@@ -113,22 +112,6 @@
     return global.LuminousTheatreState?.getPaths?.().scene || DEFAULT_THEATRE_SCENE_PATH;
   }
 
-  function ensurePlayerTerminalStyles({ doc } = {}) {
-    const documentRef = doc || global.document;
-    if (!documentRef?.querySelector?.(".sheet-phone-wrapper")) return null;
-
-    let link = documentRef.getElementById("player-terminal-stylesheet");
-    if (link) return link;
-
-    link = documentRef.createElement("link");
-    link.id = "player-terminal-stylesheet";
-    link.rel = "stylesheet";
-    link.href = PLAYER_TERMINAL_STYLESHEET;
-    link.dataset.ui = "personal-terminal";
-    documentRef.head?.appendChild(link);
-    return link;
-  }
-
   function ensureDmLocationControl({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef?.body?.classList.contains("on-game-dashboard")) return null;
@@ -216,7 +199,6 @@
   function bindPlayer({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
-    ensurePlayerTerminalStyles({ doc: documentRef });
     db.ref(INSTANCE_PATH).on("value", (snapshot) => {
       applyPlayerInstance(snapshot.val(), documentRef);
     });
@@ -227,14 +209,9 @@
     applyDmInstance,
     applyPlayerInstance,
     applyDashboardInstance,
-    ensurePlayerTerminalStyles,
     ensureDmLocationControl,
     bindDm,
     bindDashboard,
     bindPlayer,
   });
-
-  // hoja_personaje.html carga este módulo al final del documento; inyectar aquí
-  // evita un cambio masivo en el HTML y mantiene la capa visual desacoplada.
-  ensurePlayerTerminalStyles({ doc: global.document });
 })(window);
