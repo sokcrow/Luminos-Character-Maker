@@ -88,11 +88,49 @@ function ensurePlayerTerminalStyles(doc) {
     return link;
 }
 
+/**
+ * Carga los retoques funcionales/visuales del jugador sin tocar el HTML gigante.
+ * @param {Document} doc
+ * @returns {{link: HTMLLinkElement|null, script: HTMLScriptElement|null}|null}
+ */
+function ensurePlayerUxPolishAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+
+    let link = documentRef.getElementById('player-ux-polish-stylesheet');
+    if (!link) {
+        link = documentRef.createElement('link');
+        link.id = 'player-ux-polish-stylesheet';
+        link.rel = 'stylesheet';
+        link.href = 'css/player-ux-polish.css';
+        link.dataset.ui = 'player-ux-polish';
+        documentRef.head?.appendChild(link);
+    }
+
+    let script = documentRef.getElementById('player-ux-polish-script');
+    if (!script) {
+        script = documentRef.createElement('script');
+        script.id = 'player-ux-polish-script';
+        script.src = 'js/player-ux-polish.js';
+        script.async = false;
+        script.dataset.ui = 'player-ux-polish';
+        documentRef.head?.appendChild(script);
+    }
+
+    return { link, script };
+}
+
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
+    ensurePlayerUxPolishAssets(document);
 }
 
 // Compatibilidad para entornos de prueba (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { obtenerEstacion, calculateLevelData, ensurePlayerTerminalStyles };
+    module.exports = {
+        obtenerEstacion,
+        calculateLevelData,
+        ensurePlayerTerminalStyles,
+        ensurePlayerUxPolishAssets
+    };
 }
