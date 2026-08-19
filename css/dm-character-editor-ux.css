@@ -1,0 +1,62 @@
+/* ==================================================
+   DM CHARACTER EDITOR UX
+   Gestión de Personajes: feedback visible y foco de edición.
+   ================================================== */
+
+#dashboard-actores .actor-studio-wrapper {
+  scroll-margin-top: 18px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active {
+  border-color: #c49a00;
+  background: #0d0b08;
+  box-shadow:
+    0 0 0 1px rgba(196, 154, 0, 0.28),
+    0 0 24px rgba(196, 154, 0, 0.16),
+    inset 0 0 28px rgba(196, 154, 0, 0.035);
+}
+
+#dashboard-actores .dm-character-edit-context {
+  width: 100%;
+  box-sizing: border-box;
+  margin: -4px 0 12px;
+  padding: 9px 11px;
+  overflow-wrap: anywhere;
+  color: #f2d47b;
+  background: #171109;
+  border: 1px solid #5c4925;
+  border-left: 4px solid #c49a00;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active .actor-studio-form > h4 {
+  color: #f2d47b !important;
+}
+
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active #btn-crear-actor {
+  background: linear-gradient(135deg, #7b5a17, #4a360d);
+  border-color: #e0b84c;
+  color: #fff6d4;
+  box-shadow: 0 0 12px rgba(196, 154, 0, 0.32);
+}
+
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active #btn-cancelar-actor {
+  border-color: #7d6a42;
+}
+
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active .actor-studio-input:focus,
+#dashboard-actores .actor-studio-wrapper.dm-character-editor-active .actor-studio-select:focus {
+  border-color: #e0b84c;
+  box-shadow: 0 0 0 2px rgba(196, 154, 0, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dashboard-actores .actor-studio-wrapper {
+    transition: none;
+  }
+}
