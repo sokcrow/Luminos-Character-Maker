@@ -1,0 +1,90 @@
+/* PLAYER STATS / D&D */
+body:not(.on-game-dashboard) #stats-modal #stats-container{display:flex;flex-direction:column;gap:14px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-console{width:100%;min-width:0;color:var(--player-ux-text,#e3decf);background:linear-gradient(180deg,rgba(185,138,50,.06),transparent 34%),#0d100d;border:1px solid #3b4036;border-top:2px solid var(--player-ux-brass,#b98a32);box-shadow:inset 0 0 28px rgba(0,0,0,.45);font-family:"Share Tech Mono",monospace}
+body:not(.on-game-dashboard) #stats-modal .player-ability-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;padding:12px 14px 9px;border-bottom:1px solid #34382f}
+body:not(.on-game-dashboard) #stats-modal .player-ability-heading h3{margin:2px 0 0!important;padding:0!important;color:#f1e3c5!important;border:0!important;font-size:17px!important;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-kicker,body:not(.on-game-dashboard) #stats-modal .player-ability-engine{color:#9b927f;font-size:9px;letter-spacing:.13em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-engine{color:var(--player-ux-brass-light,#d8b65d);text-align:right}
+
+body:not(.on-game-dashboard) #stats-modal .player-combat-level-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid #3b4036;background:#090b09}
+body:not(.on-game-dashboard) #stats-modal .player-level-card{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;gap:2px 8px;align-items:center;min-height:58px;padding:9px 12px;border-right:1px solid #2c3029}
+body:not(.on-game-dashboard) #stats-modal .player-level-card:last-child{border-right:0}
+body:not(.on-game-dashboard) #stats-modal .player-level-card>span:not(.player-level-icon){color:#777c70;font-size:8px;letter-spacing:.09em}
+body:not(.on-game-dashboard) #stats-modal .player-level-card>strong{grid-row:1/3;grid-column:2;justify-self:end;color:#ead9b8;font-size:21px}
+body:not(.on-game-dashboard) #stats-modal .player-level-card>small{color:#6f7369;font-size:7px}
+body:not(.on-game-dashboard) #stats-modal .player-level-card--proficiency>strong{color:var(--player-ux-brass-light,#d8b65d)}
+body:not(.on-game-dashboard) #stats-modal .player-level-icon{grid-row:1/3;width:23px;height:23px;color:#b98a32}
+body:not(.on-game-dashboard) #stats-modal .player-level-icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability-bar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));min-width:0;border-bottom:1px solid #3b4036}
+body:not(.on-game-dashboard) #stats-modal .player-ability{position:relative;display:grid;grid-template-rows:auto auto auto;place-items:center;min-width:0;min-height:88px;margin:0;padding:10px 5px 8px;color:#aaa99e;background:#111410;border:0;border-right:1px solid #2c3029;border-radius:0;cursor:pointer;font:inherit}
+body:not(.on-game-dashboard) #stats-modal .player-ability:last-child{border-right:0}
+body:not(.on-game-dashboard) #stats-modal .player-ability::after{content:"";position:absolute;right:14%;bottom:0;left:14%;height:2px;background:transparent}
+body:not(.on-game-dashboard) #stats-modal .player-ability:hover,body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible{color:#eee3cc;background:#171a15;outline:none}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active{color:#fff2cf;background:linear-gradient(180deg,rgba(185,138,50,.13),rgba(123,32,37,.06)),#171a15;box-shadow:inset 0 0 18px rgba(185,138,50,.08)}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active::after{background:var(--player-ux-brass-light,#d8b65d);box-shadow:0 0 8px rgba(216,182,93,.45)}
+body:not(.on-game-dashboard) #stats-modal .player-ability-name{font-size:18px;font-weight:800;line-height:1;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-score{color:var(--player-ux-brass-light,#d8b65d);font-size:20px;font-weight:800;line-height:1.05}
+body:not(.on-game-dashboard) #stats-modal .player-ability-subtitle{max-width:100%;overflow:hidden;color:#777c70;font-size:8px;line-height:1.1;text-overflow:ellipsis;white-space:nowrap}
+
+/* proficiency: vacío / medio / lleno / expertise con doble anillo */
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator{position:absolute;top:7px;right:7px;width:10px;height:10px;border:1px solid #787d71;border-radius:50%;background:transparent;box-sizing:border-box}
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="none"]{background:transparent}
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="half"]{border-color:#bfa155;background:linear-gradient(90deg,#d8b65d 0 50%,transparent 50% 100%)}
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="proficient"]{border-color:#d8b65d;background:#d8b65d;box-shadow:0 0 5px rgba(216,182,93,.28)}
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="expertise"]{border-color:#f0d98d;background:#d8b65d;box-shadow:0 0 0 2px #111410,0 0 0 3px #d8b65d,0 0 7px rgba(216,182,93,.35)}
+body:not(.on-game-dashboard) #stats-modal .player-prof-indicator--large{position:relative;inset:auto;display:inline-block;flex:0 0 auto;width:14px;height:14px}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability-detail{display:grid;grid-template-columns:minmax(280px,1fr) minmax(230px,.72fr);min-width:0}
+body:not(.on-game-dashboard) #stats-modal .player-ability-primary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:18px;border-right:1px solid #34382f}
+body:not(.on-game-dashboard) #stats-modal .player-ability-detail-code{display:block;color:#f2dec0;font-size:34px;font-weight:900;line-height:.95;letter-spacing:.07em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-detail-name{display:block;margin-top:5px;color:#858a7e;font-size:11px;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-prof-detail{display:flex;align-items:center;gap:8px;margin-top:13px;color:#aaa58f;font-size:9px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-prof-detail strong{color:#d8b65d}
+body:not(.on-game-dashboard) #stats-modal .player-ability-numbers{display:grid;grid-template-columns:repeat(3,auto);gap:7px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-numbers>div{display:grid;place-items:center;min-width:58px;min-height:60px;padding:6px;background:#0a0c0a;border:1px solid #3a3f36}
+body:not(.on-game-dashboard) #stats-modal .player-ability-number-label{color:#777c70;font-size:7px;letter-spacing:.1em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-numbers strong{color:var(--player-ux-brass-light,#d8b65d);font-size:20px}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability-art{position:relative;min-height:160px;overflow:hidden;background:radial-gradient(circle at center,rgba(185,138,50,.09),transparent 64%),#090b09}
+body:not(.on-game-dashboard) #stats-modal .player-ability-art img{width:100%;height:100%;min-height:160px;max-height:235px;object-fit:contain;object-position:center;display:block}
+body:not(.on-game-dashboard) #stats-modal .player-ability-art img[hidden]{display:none!important}
+body:not(.on-game-dashboard) #stats-modal .player-ability-art-empty{position:absolute;inset:0;display:grid;place-content:center;gap:5px;text-align:center;color:#756f62;border-left:1px solid #34382f}
+body:not(.on-game-dashboard) #stats-modal .player-ability-art-empty span{font-size:12px;letter-spacing:.14em;color:#95886f}
+body:not(.on-game-dashboard) #stats-modal .player-ability-art-empty small{max-width:180px;font-size:8px;line-height:1.35}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 18px;border-top:1px solid #34382f;background:#0c0e0c}
+body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics>div{display:flex;flex-direction:column;justify-content:center;min-height:52px;padding:7px 9px;background:#111410;border-left:2px solid #373b33}
+body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics span{color:#7e8377;font-size:8px;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics strong{margin-top:4px;color:#e8dcc5;font-size:14px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics small{margin-top:3px;color:#8b7b5d;font-size:7px}
+body:not(.on-game-dashboard) #stats-modal .player-proficiency-legend{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 20px;padding:8px 18px;border-top:1px dashed #30342c;color:#777c70;font-size:8px}
+body:not(.on-game-dashboard) #stats-modal .player-proficiency-legend>span{display:flex;align-items:center;gap:7px}
+body:not(.on-game-dashboard) #stats-modal .player-proficiency-legend .player-prof-indicator{position:relative;inset:auto;display:inline-block}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll-row{grid-column:1/-1;display:grid;grid-template-columns:minmax(90px,.55fr) minmax(170px,1.2fr) auto;gap:12px;align-items:center;padding:12px 18px;background:#090b09;border-top:1px solid #34382f}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll-row .sheet-skill-name{color:#d9c8a9;font-size:11px;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll-copy{display:flex;flex-direction:column;min-width:0}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll-copy strong{color:var(--player-ux-brass-light,#d8b65d);font-size:11px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll-copy small{margin-top:2px;color:#777c70;font-size:8px}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll{min-width:150px;min-height:36px;padding:7px 12px!important;color:#f3e4c6!important;background:#201b12!important;border:1px solid #7e6432!important;border-radius:0!important;cursor:pointer;font:800 10px/1 "Share Tech Mono",monospace!important;letter-spacing:.08em}
+body:not(.on-game-dashboard) #stats-modal .player-ability-roll:hover{background:#302718!important;border-color:var(--player-ux-brass-light,#d8b65d)!important}
+
+@media (max-width:800px){
+ body:not(.on-game-dashboard) #stats-modal .player-combat-level-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body:not(.on-game-dashboard) #stats-modal .player-level-card:nth-child(2){border-right:0}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-bar{grid-template-columns:repeat(3,minmax(0,1fr))}
+ body:not(.on-game-dashboard) #stats-modal .player-ability:nth-child(3){border-right:0}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-detail{grid-template-columns:1fr}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-primary{border-right:0;border-bottom:1px solid #34382f}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-art{min-height:135px;border-top:0}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-art-empty{border-left:0}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-mechanics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-roll-row{grid-template-columns:1fr}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-roll{width:100%;min-width:0}
+}
+@media (max-width:440px){
+ body:not(.on-game-dashboard) #stats-modal .player-ability-heading{align-items:start;flex-direction:column}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-primary{grid-template-columns:1fr}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-numbers{justify-content:start;grid-template-columns:repeat(3,minmax(58px,1fr))}
+}
