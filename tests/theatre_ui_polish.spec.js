@@ -41,3 +41,28 @@ test("hamburguesa del DM evita el heptágono SVG duplicado", () => {
   expect(dialogueCss).toContain("currentColor 7px 9px");
   expect(dialogueCss).toContain("rotate(90deg)");
 });
+
+test("viewport del teatro conserva 16:9 y nunca repite el fondo", () => {
+  const playerViewport = block(
+    dialogueCss,
+    "html body.player-instance-theatre #theatre-view-player {",
+    "/* En DM reservamos los 64px"
+  );
+  expect(playerViewport).toContain("width: min(100vw, 177.7778vh) !important;");
+  expect(playerViewport).toContain("height: min(100vh, 56.25vw) !important;");
+  expect(playerViewport).toContain("aspect-ratio: 16 / 9 !important;");
+  expect(playerViewport).toContain("background-size: cover !important;");
+  expect(playerViewport).toContain("background-repeat: no-repeat !important;");
+
+  const dmViewport = block(
+    dialogueCss,
+    "html body.on-game-dashboard #modulo-teatro.game-module {",
+    "@media (max-width: 700px)"
+  );
+  expect(dmViewport).toContain("width: min(100vw, calc(177.7778vh - 113.7778px)) !important;");
+  expect(dmViewport).toContain("height: min(calc(100vh - 64px), 56.25vw) !important;");
+  expect(dmViewport).toContain("aspect-ratio: 16 / 9 !important;");
+  expect(dmViewport).toContain("inset: 64px 0 0 !important;");
+  expect(dmViewport).toContain("background-size: cover !important;");
+  expect(dmViewport).toContain("background-repeat: no-repeat !important;");
+});
