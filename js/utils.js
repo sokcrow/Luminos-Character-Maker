@@ -38,99 +38,89 @@ function calculateLevelData(xp) {
         else break;
     }
 
-    if (currentLevel >= 100) {
-        return { level: 100, xpPercent: 100, xpMissing: 0 };
-    }
+    if (currentLevel >= 100) return { level: 100, xpPercent: 100, xpMissing: 0 };
 
     const currentLevelXP = xpTable[currentLevel];
     const nextLevelXP = xpTable[currentLevel + 1];
     const xpIntoLevel = numericXp - currentLevelXP;
     const xpRequiredForNextLevel = nextLevelXP - currentLevelXP;
-
     let xpPercent = Math.floor((xpIntoLevel / xpRequiredForNextLevel) * 100);
     xpPercent = Math.max(0, Math.min(100, xpPercent));
 
-    return {
-        level: currentLevel,
-        xpPercent: xpPercent,
-        xpMissing: nextLevelXP - numericXp
-    };
+    return { level: currentLevel, xpPercent, xpMissing: nextLevelXP - numericXp };
+}
+
+function ensureStyleAsset(documentRef, id, href, dataset) {
+    let link = documentRef.getElementById(id);
+    if (link) return link;
+    link = documentRef.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = href;
+    if (dataset) Object.assign(link.dataset, dataset);
+    documentRef.head?.appendChild(link);
+    return link;
+}
+
+function ensureScriptAsset(documentRef, id, src, dataset) {
+    let script = documentRef.getElementById(id);
+    if (script) return script;
+    script = documentRef.createElement('script');
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    if (dataset) Object.assign(script.dataset, dataset);
+    documentRef.head?.appendChild(script);
+    return script;
 }
 
 function ensurePlayerTerminalStyles(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
-
-    let link = documentRef.getElementById('player-terminal-stylesheet');
-    if (link) return link;
-
-    link = documentRef.createElement('link');
-    link.id = 'player-terminal-stylesheet';
-    link.rel = 'stylesheet';
-    link.href = 'css/player-terminal.css';
-    link.dataset.ui = 'personal-terminal';
-    documentRef.head?.appendChild(link);
-    return link;
+    return ensureStyleAsset(documentRef, 'player-terminal-stylesheet', 'css/player-terminal.css', { ui: 'personal-terminal' });
 }
 
 function ensurePlayerUxPolishAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
-
-    let link = documentRef.getElementById('player-ux-polish-stylesheet');
-    if (!link) {
-        link = documentRef.createElement('link');
-        link.id = 'player-ux-polish-stylesheet';
-        link.rel = 'stylesheet';
-        link.href = 'css/player-ux-polish.css';
-        link.dataset.ui = 'player-ux-polish';
-        documentRef.head?.appendChild(link);
-    }
-
-    let script = documentRef.getElementById('player-ux-polish-script');
-    if (!script) {
-        script = documentRef.createElement('script');
-        script.id = 'player-ux-polish-script';
-        script.src = 'js/player-ux-polish.js';
-        script.async = false;
-        script.dataset.ui = 'player-ux-polish';
-        documentRef.head?.appendChild(script);
-    }
-
+    const link = ensureStyleAsset(documentRef, 'player-ux-polish-stylesheet', 'css/player-ux-polish.css', { ui: 'player-ux-polish' });
+    const script = ensureScriptAsset(documentRef, 'player-ux-polish-script', 'js/player-ux-polish.js', { ui: 'player-ux-polish' });
     return { link, script };
+}
+
+function ensurePlayerTheatreLanguagePolicy(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+    return ensureScriptAsset(documentRef, 'theatre-language-policy-script', 'js/theatre-language-policy.js', { engine: 'theatre-language-policy' });
 }
 
 function ensureDmCharacterManagerAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
 
-    let link = documentRef.getElementById('character-manager-studio-stylesheet');
-    if (!link) {
-        link = documentRef.createElement('link');
-        link.id = 'character-manager-studio-stylesheet';
-        link.rel = 'stylesheet';
-        link.href = 'css/character-manager-studio.css';
-        link.dataset.ui = 'character-manager-studio';
-        documentRef.head?.appendChild(link);
-    }
+    const link = ensureStyleAsset(documentRef, 'character-manager-studio-stylesheet', 'css/character-manager-studio.css', { ui: 'character-manager-studio' });
+    ensureStyleAsset(documentRef, 'character-manager-social-stylesheet', 'css/character-manager-social.css', { ui: 'character-manager-social' });
 
-    const ensureTakeover = () => {
-        let takeover = documentRef.getElementById('dm-character-manager-takeover-script');
-        if (takeover) return takeover;
-        takeover = documentRef.createElement('script');
-        takeover.id = 'dm-character-manager-takeover-script';
-        takeover.src = 'js/dm-character-manager-takeover.js';
-        takeover.async = false;
-        takeover.dataset.ui = 'character-manager-takeover';
-        documentRef.head?.appendChild(takeover);
-        return takeover;
+    const ensureTakeover = () => ensureScriptAsset(documentRef, 'dm-character-manager-takeover-script', 'js/dm-character-manager-takeover.js', { ui: 'character-manager-takeover' });
+
+    const ensureExtensions = () => {
+        ensureScriptAsset(documentRef, 'language-catalog-engine-script', 'js/language-catalog-engine.js', { engine: 'language-catalog' });
+        const bond = ensureScriptAsset(documentRef, 'bond-engine-script', 'js/bond-engine.js', { engine: 'bond-manager' });
+        const ensureSocial = () => ensureScriptAsset(documentRef, 'character-manager-social-script', 'js/character-manager-social-studio.js', { ui: 'character-manager-social' });
+        if (typeof window !== 'undefined' && window.LuminousBondManager) ensureSocial();
+        else bond.addEventListener('load', ensureSocial, { once: true });
     };
 
     const ensureStudio = () => {
         let studio = documentRef.getElementById('character-manager-studio-script');
         if (studio) {
-            if (documentRef.getElementById('character-manager-studio')) ensureTakeover();
-            else studio.addEventListener('load', ensureTakeover, { once: true });
+            if (documentRef.getElementById('character-manager-studio')) {
+                ensureTakeover();
+                ensureExtensions();
+            } else {
+                studio.addEventListener('load', ensureTakeover, { once: true });
+                studio.addEventListener('load', ensureExtensions, { once: true });
+            }
             return studio;
         }
 
@@ -140,6 +130,7 @@ function ensureDmCharacterManagerAssets(doc) {
         studio.async = false;
         studio.dataset.ui = 'character-manager-studio';
         studio.addEventListener('load', ensureTakeover, { once: true });
+        studio.addEventListener('load', ensureExtensions, { once: true });
         documentRef.head?.appendChild(studio);
         return studio;
     };
@@ -165,6 +156,7 @@ function ensureDmCharacterManagerAssets(doc) {
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerUxPolishAssets(document);
+    ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
 }
 
@@ -174,6 +166,7 @@ if (typeof module !== 'undefined' && module.exports) {
         calculateLevelData,
         ensurePlayerTerminalStyles,
         ensurePlayerUxPolishAssets,
+        ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets
     };
 }
