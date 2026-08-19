@@ -3,7 +3,8 @@
 
   if (global.LuminousLanguageCatalog) return;
 
-  const ROOT = "campaña/idiomas";
+  const ROOT = "campaña/teatro/idiomas";
+  const READ_ROOTS = ["campaña/idiomas", ROOT];
   const DND_DEFAULTS = Object.freeze({
     common: { nombre: "Común", universal: true, sistema: "dnd", tipo: "standard", estilo_ofuscacion: "ellipsis" },
     dwarvish: { nombre: "Enano", sistema: "dnd", tipo: "standard", estilo_ofuscacion: "runes" },
@@ -32,8 +33,8 @@
   });
 
   let db = null;
+  const sourceCache = {};
   let definitions = {};
-  let listener = null;
   let seedRequested = false;
   const subscribers = new Set();
   let retryTimer = null;
@@ -51,7 +52,8 @@
     }
   }
 
-  function emit() {
+  function rebuild() {
+    definitions = Object.assign({}, ...READ_ROOTS.map((root) => sourceCache[root] || {}));
     const snapshot = clone(definitions);
     subscribers.forEach((callback) => {
       try { callback(snapshot); } catch (error) { console.error("Language catalog subscriber failed:", error); }
@@ -60,11 +62,11 @@
 
   async function ensureDefaults() {
     if (!db) return false;
-    const snapshot = await db.ref(ROOT).once("value");
-    const current = snapshot.val() || {};
+    const snapshots = await Promise.all(READ_ROOTS.map((root) => db.ref(root).once("value")));
+    const merged = Object.assign({}, ...snapshots.map((snapshot) => snapshot.val() || {}));
     const updates = {};
     Object.entries(DND_DEFAULTS).forEach(([languageId, definition]) => {
-      if (!Object.prototype.hasOwnProperty.call(current, languageId)) updates[languageId] = definition;
+      if (!Object.prototype.hasOwnProperty.call(merged, languageId)) updates[languageId] = definition;
     });
     if (Object.keys(updates).length) await db.ref(ROOT).update(updates);
     return true;
@@ -88,11 +90,12 @@
       return api;
     }
 
-    listener = (snapshot) => {
-      definitions = snapshot.val() || {};
-      emit();
-    };
-    db.ref(ROOT).on("value", listener);
+    READ_ROOTS.forEach((root) => {
+      db.ref(root).on("value", (snapshot) => {
+        sourceCache[root] = snapshot.val() || {};
+        rebuild();
+      });
+    });
     if (seedRequested) ensureDefaults().catch((error) => console.error("Language catalog seed failed:", error));
     return api;
   }
@@ -112,7 +115,7 @@
     return () => subscribers.delete(callback);
   }
 
-  const api = Object.freeze({ ROOT, DND_DEFAULTS, init, ensureDefaults, list, get, subscribe });
+  const api = Object.freeze({ ROOT, READ_ROOTS, DND_DEFAULTS, init, ensureDefaults, list, get, subscribe });
   global.LuminousLanguageCatalog = api;
 
   const isDm = Boolean(document.body?.classList.contains("on-game-dashboard") || document.getElementById("dashboard-actores"));
