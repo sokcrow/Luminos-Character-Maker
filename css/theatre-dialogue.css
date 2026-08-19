@@ -337,6 +337,44 @@ html body.on-game-dashboard #modulo-teatro .theatre-dm-menu[open] .theatre-dm-me
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
+/*
+ * El teatro es una superficie 16:9, no un fondo infinito. Se calculan ancho y
+ * alto máximos que caben en la ventana; si una dimensión es menor, ambas se
+ * reducen proporcionalmente y el resto queda como letterbox fuera del teatro.
+ */
+html body.player-instance-theatre #theatre-view-player {
+  box-sizing: border-box !important;
+  width: min(100vw, 177.7778vh) !important;
+  height: min(100vh, 56.25vw) !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  aspect-ratio: 16 / 9 !important;
+  inset: 0 !important;
+  margin: auto !important;
+  background-color: #000 !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* En DM reservamos los 64px de la barra maestra y centramos el viewport 16:9
+ * dentro del área restante. El panel de director sigue viviendo dentro de esa
+ * misma superficie, así que escenario, diálogo y controles comparten límites. */
+html body.on-game-dashboard #modulo-teatro.game-module {
+  box-sizing: border-box !important;
+  width: min(100vw, calc(177.7778vh - 113.7778px)) !important;
+  height: min(calc(100vh - 64px), 56.25vw) !important;
+  max-width: 100vw !important;
+  max-height: calc(100vh - 64px) !important;
+  aspect-ratio: 16 / 9 !important;
+  inset: 64px 0 0 !important;
+  margin: auto !important;
+  background-color: #000 !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
 @media (max-width: 700px) {
   html body.player-instance-theatre .hud-sidebar-right .hud-menu-toggle > svg,
   html body.player-instance-theatre .hud-sidebar-right #hud-menu-dropdown .hud-menu-item > svg,
