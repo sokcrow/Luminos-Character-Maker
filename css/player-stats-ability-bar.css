@@ -16,16 +16,127 @@ body:not(.on-game-dashboard) #stats-modal .player-level-card--proficiency>strong
 body:not(.on-game-dashboard) #stats-modal .player-level-icon{grid-row:1/3;width:23px;height:23px;color:#b98a32}
 body:not(.on-game-dashboard) #stats-modal .player-level-icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-body:not(.on-game-dashboard) #stats-modal .player-ability-bar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));min-width:0;border-bottom:1px solid #3b4036}
-body:not(.on-game-dashboard) #stats-modal .player-ability{position:relative;display:grid;grid-template-rows:auto auto auto;place-items:center;min-width:0;min-height:88px;margin:0;padding:10px 5px 8px;color:#aaa99e;background:#111410;border:0;border-right:1px solid #2c3029;border-radius:0;cursor:pointer;font:inherit}
-body:not(.on-game-dashboard) #stats-modal .player-ability:last-child{border-right:0}
-body:not(.on-game-dashboard) #stats-modal .player-ability::after{content:"";position:absolute;right:14%;bottom:0;left:14%;height:2px;background:transparent}
-body:not(.on-game-dashboard) #stats-modal .player-ability:hover,body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible{color:#eee3cc;background:#171a15;outline:none}
-body:not(.on-game-dashboard) #stats-modal .player-ability.active{color:#fff2cf;background:linear-gradient(180deg,rgba(185,138,50,.13),rgba(123,32,37,.06)),#171a15;box-shadow:inset 0 0 18px rgba(185,138,50,.08)}
-body:not(.on-game-dashboard) #stats-modal .player-ability.active::after{background:var(--player-ux-brass-light,#d8b65d);box-shadow:0 0 8px rgba(216,182,93,.45)}
-body:not(.on-game-dashboard) #stats-modal .player-ability-name{font-size:18px;font-weight:800;line-height:1;letter-spacing:.08em}
-body:not(.on-game-dashboard) #stats-modal .player-ability-score{color:var(--player-ux-brass-light,#d8b65d);font-size:20px;font-weight:800;line-height:1.05}
-body:not(.on-game-dashboard) #stats-modal .player-ability-subtitle{max-width:100%;overflow:hidden;color:#777c70;font-size:8px;line-height:1.1;text-overflow:ellipsis;white-space:nowrap}
+/* =========================================================
+   ATRIBUTOS D&D
+   Adaptado del diseño proporcionado al markup actual.
+========================================================= */
+body:not(.on-game-dashboard) #stats-modal .player-ability-bar{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  min-width:0;
+  min-height:118px;
+  border-bottom:1px solid #3b4036;
+}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability{
+  position:relative;
+  height:100%;
+  min-width:0;
+  min-height:118px;
+  margin:0;
+  padding:12px 6px 10px;
+  border:none;
+  border-right:2px solid #493927;
+  border-radius:0;
+  background:linear-gradient(180deg,#11100e 0%,#0b0a09 55%,#080807 100%);
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  color:#c9bda9;
+  font:inherit;
+  transition:background .15s,box-shadow .15s,color .15s;
+}
+
+body:not(.on-game-dashboard) #stats-modal .player-ability:last-child{border-right:none}
+
+/* STR / DEX / CON... */
+body:not(.on-game-dashboard) #stats-modal .player-ability-name{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:31px;
+  line-height:31px;
+  font-weight:bold;
+  letter-spacing:3px;
+  color:#c9bda9;
+  text-shadow:2px 2px 4px #000;
+  transition:color .15s,text-shadow .15s;
+}
+
+/* Score añadido al diseño sin competir con la abreviatura. */
+body:not(.on-game-dashboard) #stats-modal .player-ability-score{
+  color:#a98b5c;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:18px;
+  font-weight:bold;
+  line-height:18px;
+  letter-spacing:1px;
+  text-shadow:1px 1px 3px #000;
+  transition:color .15s,text-shadow .15s;
+}
+
+/* Strength / Dexterity / Constitution... */
+body:not(.on-game-dashboard) #stats-modal .player-ability-subtitle{
+  max-width:100%;
+  overflow:hidden;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:11px;
+  font-weight:bold;
+  letter-spacing:2px;
+  line-height:1.1;
+  text-transform:uppercase;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#70675b;
+  transition:color .15s;
+}
+
+/* Hover / teclado */
+body:not(.on-game-dashboard) #stats-modal .player-ability:hover,
+body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible{
+  background:radial-gradient(ellipse at center,rgba(124,84,24,.23),transparent 70%),linear-gradient(180deg,#19150f,#0b0a09);
+  outline:none;
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible{box-shadow:inset 0 0 0 1px rgba(241,169,29,.48)}
+body:not(.on-game-dashboard) #stats-modal .player-ability:hover .player-ability-name,
+body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible .player-ability-name{color:#e2d0b1}
+body:not(.on-game-dashboard) #stats-modal .player-ability:hover .player-ability-score,
+body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible .player-ability-score{color:#c6a56d}
+body:not(.on-game-dashboard) #stats-modal .player-ability:hover .player-ability-subtitle,
+body:not(.on-game-dashboard) #stats-modal .player-ability:focus-visible .player-ability-subtitle{color:#9a8c78}
+
+/* Atributo seleccionado */
+body:not(.on-game-dashboard) #stats-modal .player-ability.active{
+  background:radial-gradient(ellipse at center,rgba(255,172,0,.38) 0%,rgba(151,91,0,.22) 45%,rgba(30,23,10,.15) 70%,#0c0a07 100%);
+  box-shadow:inset 0 0 30px rgba(255,159,0,.35),inset 0 -5px 15px rgba(255,155,0,.18);
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active .player-ability-name{
+  color:#ffb51d;
+  text-shadow:0 0 7px rgba(255,159,0,.75),2px 2px 4px #000;
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active .player-ability-score{
+  color:#f4c15b;
+  text-shadow:0 0 6px rgba(255,159,0,.45),1px 1px 3px #000;
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active .player-ability-subtitle{color:#d99725}
+
+/* Indicador inferior */
+body:not(.on-game-dashboard) #stats-modal .player-ability::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  width:60%;
+  height:3px;
+  background:transparent;
+  box-shadow:none;
+}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active::after{
+  background:#f1a91d;
+  box-shadow:0 0 8px rgba(255,160,0,.8);
+}
 
 /* proficiency: vacío / medio / lleno / expertise con doble anillo */
 body:not(.on-game-dashboard) #stats-modal .player-prof-indicator{position:absolute;top:7px;right:7px;width:10px;height:10px;border:1px solid #787d71;border-radius:50%;background:transparent;box-sizing:border-box}
@@ -33,6 +144,7 @@ body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state
 body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="half"]{border-color:#bfa155;background:linear-gradient(90deg,#d8b65d 0 50%,transparent 50% 100%)}
 body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="proficient"]{border-color:#d8b65d;background:#d8b65d;box-shadow:0 0 5px rgba(216,182,93,.28)}
 body:not(.on-game-dashboard) #stats-modal .player-prof-indicator[data-prof-state="expertise"]{border-color:#f0d98d;background:#d8b65d;box-shadow:0 0 0 2px #111410,0 0 0 3px #d8b65d,0 0 7px rgba(216,182,93,.35)}
+body:not(.on-game-dashboard) #stats-modal .player-ability.active .player-prof-indicator[data-prof-state="expertise"]{box-shadow:0 0 0 2px #261b09,0 0 0 3px #f1a91d,0 0 9px rgba(255,160,0,.62)}
 body:not(.on-game-dashboard) #stats-modal .player-prof-indicator--large{position:relative;inset:auto;display:inline-block;flex:0 0 auto;width:14px;height:14px}
 
 body:not(.on-game-dashboard) #stats-modal .player-ability-detail{display:grid;grid-template-columns:minmax(280px,1fr) minmax(230px,.72fr);min-width:0}
@@ -74,7 +186,9 @@ body:not(.on-game-dashboard) #stats-modal .player-ability-roll:hover{background:
  body:not(.on-game-dashboard) #stats-modal .player-combat-level-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
  body:not(.on-game-dashboard) #stats-modal .player-level-card:nth-child(2){border-right:0}
  body:not(.on-game-dashboard) #stats-modal .player-ability-bar{grid-template-columns:repeat(3,minmax(0,1fr))}
+ body:not(.on-game-dashboard) #stats-modal .player-ability{min-height:108px}
  body:not(.on-game-dashboard) #stats-modal .player-ability:nth-child(3){border-right:0}
+ body:not(.on-game-dashboard) #stats-modal .player-ability:nth-child(-n+3){border-bottom:2px solid #493927}
  body:not(.on-game-dashboard) #stats-modal .player-ability-detail{grid-template-columns:1fr}
  body:not(.on-game-dashboard) #stats-modal .player-ability-primary{border-right:0;border-bottom:1px solid #34382f}
  body:not(.on-game-dashboard) #stats-modal .player-ability-art{min-height:135px;border-top:0}
@@ -85,6 +199,8 @@ body:not(.on-game-dashboard) #stats-modal .player-ability-roll:hover{background:
 }
 @media (max-width:440px){
  body:not(.on-game-dashboard) #stats-modal .player-ability-heading{align-items:start;flex-direction:column}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-name{font-size:27px;line-height:28px;letter-spacing:2px}
+ body:not(.on-game-dashboard) #stats-modal .player-ability-subtitle{font-size:9px;letter-spacing:1px}
  body:not(.on-game-dashboard) #stats-modal .player-ability-primary{grid-template-columns:1fr}
  body:not(.on-game-dashboard) #stats-modal .player-ability-numbers{justify-content:start;grid-template-columns:repeat(3,minmax(58px,1fr))}
 }
