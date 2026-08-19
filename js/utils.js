@@ -66,7 +66,33 @@ function calculateLevelData(xp) {
     };
 }
 
+/**
+ * Carga la capa visual del Personal Terminal solo cuando existe la hoja del jugador.
+ * Se mantiene aquí porque utils.js ya forma parte del bootstrap síncrono de hoja_personaje.html.
+ * @param {Document} doc
+ * @returns {HTMLLinkElement|null}
+ */
+function ensurePlayerTerminalStyles(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+
+    let link = documentRef.getElementById('player-terminal-stylesheet');
+    if (link) return link;
+
+    link = documentRef.createElement('link');
+    link.id = 'player-terminal-stylesheet';
+    link.rel = 'stylesheet';
+    link.href = 'css/player-terminal.css';
+    link.dataset.ui = 'personal-terminal';
+    documentRef.head?.appendChild(link);
+    return link;
+}
+
+if (typeof document !== 'undefined') {
+    ensurePlayerTerminalStyles(document);
+}
+
 // Compatibilidad para entornos de prueba (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { obtenerEstacion, calculateLevelData };
+    module.exports = { obtenerEstacion, calculateLevelData, ensurePlayerTerminalStyles };
 }
