@@ -3,7 +3,7 @@
 
   if (global.LuminousBondManager) return;
 
-  const ROOT = "campaña/vinculos";
+  const ROOT = "campaña/teatro/vinculos";
   const IDENTITY_ROOT = "campaña/teatro/conocimiento_identidad";
   const subscribers = new Set();
   let db = null;
