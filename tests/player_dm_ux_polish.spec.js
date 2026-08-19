@@ -85,54 +85,100 @@ test("utils carga los retoques del jugador de forma idempotente", () => {
   expect(utils).toContain("js/player-ux-polish.js");
 });
 
-test("el DM diferencia cast temporal de actor persistente", () => {
-  const existingSpawn = block(theatreControls, "function spawnSelectedActor", "function renderLiveActors");
-  expect(existingSpawn).toContain('db.ref(`${paths().scene}/actores/${actorInstanceId}`).set(actorPayload)');
+test("la Pantalla de DM monta un Control Maestro visible y no un modal auxiliar", () => {
+  expect(actorStudio).toContain('panel.id = "theatre-actor-master-panel"');
+  expect(actorStudio).toContain("CONTROL MAESTRO DE ACTORES");
+  expect(actorStudio).toContain("MASTER DATABASE / DM AUTHORITY");
+  expect(actorStudio).toContain('director.insertBefore(panel, quickCast)');
+  expect(actorStudio).not.toContain("theatre-actor-studio-overlay");
+  expect(actorStudioCss).toContain("THEATRE ACTOR MASTER CONTROL / DM UX");
+  expect(actorStudioCss).toContain("#theatre-actor-master-panel");
+});
 
-  expect(actorStudio).toContain('spawn.textContent = "AÑADIR AL CAST (TEMPORAL)"');
-  expect(actorStudio).toContain("EDITAR / REPARAR FUENTE");
-  expect(actorStudio).toContain("NUEVO ACTOR PERSISTENTE");
+test("el DM lista siempre jugadores y fuentes persistentes aunque no estén en escena", () => {
+  expect(actorStudio).toContain('playerGroup.label = "JUGADORES"');
+  expect(actorStudio).toContain("SIN ACTOR THEATRE");
+  expect(actorStudio).toContain('actorGroup.label = "NPCs / ACTORES SIN JUGADOR"');
   expect(actorStudio).toContain('base: "campaña/base_datos_npcs"');
   expect(actorStudio).toContain('legacy: "campaña/actores"');
+  expect(actorStudio).toContain('players: "campaña/jugadores"');
 });
 
-test("jugadores sin actor pueden repararse y quedan enlazados", () => {
-  expect(actorStudio).toContain("JUGADORES SIN ACTOR THEATRE");
-  expect(actorStudio).toContain('option.value = `__player__:${playerId}`');
-  expect(actorStudio).toContain('await db.ref(`${ROOTS.players}/${context.playerId}/actorId`).set(actorId)');
-  expect(actorStudio).toContain('await db.ref(`${root}/${actorId}`).set(Object.assign({ identityId: actorId }, payload))');
+test("el formulario maestro edita identidad visual, vínculo y expresiones", () => {
+  for (const id of [
+    "theatre-master-name",
+    "theatre-master-title",
+    "theatre-master-type",
+    "theatre-master-player-link",
+    "theatre-master-scale",
+    "theatre-master-name-color",
+    "theatre-master-title-color",
+    "theatre-master-icon",
+    "theatre-master-sprite",
+    "theatre-master-expressions",
+  ]) {
+    expect(actorStudio).toContain(id);
+  }
+  expect(actorStudio).toContain("Icono · log / HUD");
+  expect(actorStudio).toContain("Sprite base · escena");
+  expect(actorStudio).toContain("EXPRESIONES / AVANZADO");
 });
 
-test("editar una fuente actualiza instancias del cast sin crear copias nuevas", () => {
-  const propagate = block(actorStudio, "async function propagateActorSource", "async function saveEditor");
+test("crear o reparar jugador escribe fuente persistente y actorId del jugador", () => {
+  const save = block(actorStudio, "async function saveCurrentActor", "function selectContextInBrowser");
+  expect(save).toContain('db.ref(ROOTS.base).push()');
+  expect(save).toContain('context.mode === "repair-player"');
+  expect(save).toContain("identityId: actorId");
+  expect(actorStudio).toContain('updates[`${ROOTS.players}/${newPlayerId}/actorId`] = actorId');
+});
+
+test("guardar actor existente modifica su fuente y propaga al cast sin duplicarlo", () => {
+  const save = block(actorStudio, "async function saveCurrentActor", "function selectContextInBrowser");
+  expect(save).toContain('db.ref(`${root}/${actorId}`).update(payload)');
+  expect(save).toContain("propagateActorSource");
+
+  const propagate = block(actorStudio, "async function propagateActorSource", "async function saveCurrentActor");
   expect(propagate).toContain('db.ref(`${scenePath()}/actores`).once("value")');
   expect(propagate).toContain("db.ref().update(updates)");
   expect(propagate).not.toContain("push()");
-
-  const save = block(actorStudio, "async function saveEditor", "function findUniqueActorIdByName");
-  expect(save).toContain('db.ref(`${root}/${actorId}`).update(payload)');
-  expect(save).toContain("propagateActorSource");
 });
 
-test("Actor Studio separa icono de sprite", () => {
-  expect(actorStudio).toContain("Icono · log/HUD");
-  expect(actorStudio).toContain("Sprite · escena");
-  const payload = block(actorStudio, "function editorPayload", "async function propagateActorSource");
+test("el DM diferencia de forma explícita base maestra y cast temporal", () => {
+  const existingSpawn = block(theatreControls, "function spawnSelectedActor", "function renderLiveActors");
+  expect(existingSpawn).toContain('db.ref(`${paths().scene}/actores/${actorInstanceId}`).set(actorPayload)');
+  expect(actorStudio).toContain("AÑADIR AL CAST (TEMPORAL)");
+  expect(actorStudio).toContain("CAST RÁPIDO DE ESCENA");
+  expect(actorStudio).toContain("Instancias temporales; no modifica la base maestra.");
+  expect(actorStudio).toContain("async function addCurrentActorToCast");
+  expect(actorStudio).toContain('db.ref(`${scenePath()}/actores/${instanceId}`).set(payload)');
+});
+
+test("el Control Maestro puede eliminar una fuente sin borrar al jugador", () => {
+  const deletion = block(actorStudio, "async function deleteCurrentActor", "function decorateQuickCast");
+  expect(deletion).toContain('db.ref(`${context.root}/${context.actorId}`).remove()');
+  expect(deletion).toContain('db.ref(`${ROOTS.players}/${linkedPlayer}/actorId`).remove()');
+  expect(deletion).toContain('db.ref(`${scenePath()}/actores/${instanceId}`).remove()');
+  expect(deletion).toContain("El jugador, si existe, NO se elimina");
+});
+
+test("Actor Master separa icono de sprite en datos y cast", () => {
+  const payload = block(actorStudio, "function buildPayload", "async function syncPlayerLink");
   expect(payload).toContain("icono:");
   expect(payload).toContain("sprite:");
-  expect(actorStudioCss).toContain("THEATRE ACTOR STUDIO / DM UX");
+  const cast = block(actorStudio, "async function addCurrentActorToCast", "async function deleteCurrentActor");
+  expect(cast).toContain("icono: actor.icono");
+  expect(cast).toContain("sprite: baseSprite");
 });
 
-test("instance-control carga Actor Studio solo en dashboard DM", () => {
+test("instance-control carga Master Control solo en dashboard DM", () => {
   expect(instanceControl).toContain("function ensureDashboardActorStudioAssets");
   expect(instanceControl).toContain("css/theatre-actor-studio.css");
   expect(instanceControl).toContain("js/theatre-actor-studio.js");
   expect(instanceControl).toContain('body?.classList.contains("on-game-dashboard")');
 });
 
-test("los observers quedan acotados y no vigilan todo el body del Actor Studio", () => {
+test("los observers quedan acotados", () => {
   expect(actorStudio).not.toContain("observer.observe(doc.body");
-  expect(actorStudio).toContain("observe(select, { childList: true, subtree: true })");
   expect(actorStudio).toContain("observe(liveList, { childList: true, subtree: true })");
   expect(playerUx).not.toContain("observe(doc.body");
 });
