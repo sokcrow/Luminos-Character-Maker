@@ -1,28 +1,30 @@
 (function (global) {
   "use strict";
 
-  const manager = global.LuminousCharacterManager;
   const firebase = global.firebase;
-  if (!manager || !firebase?.database) return;
+  if (!firebase?.database) return;
+  if (global.LuminousCharacterLiveSync) return;
 
   const db = firebase.database();
   const DEFAULT_SCENE = "campaña/estado_mundo/escena_actual";
+  let manager = null;
   let scenePath = null;
   let sceneRef = null;
   let sceneListener = null;
   let currentScene = {};
   let syncing = false;
+  let installed = false;
 
   function paths() {
     return global.LuminousTheatreState?.getPaths?.() || { scene: DEFAULT_SCENE };
   }
 
   function masterIdFor(instanceId, actor) {
-    return actor?.identityId || actor?.identidadId || actor?.sourceActorId || (manager.getActor(instanceId) ? instanceId : null);
+    return actor?.identityId || actor?.identidadId || actor?.sourceActorId || (manager?.getActor?.(instanceId) ? instanceId : null);
   }
 
   async function syncMasterScaleToScene() {
-    if (syncing || !sceneRef) return;
+    if (syncing || !sceneRef || !manager) return;
     const actors = currentScene?.actores || {};
     const updates = {};
 
@@ -62,17 +64,31 @@
     sceneRef.on("value", sceneListener);
   }
 
-  manager.init({ db });
-  manager.subscribeActors(() => {
+  function install() {
+    if (installed) return true;
+    manager = global.LuminousCharacterManager;
+    if (!manager) return false;
+    installed = true;
+    manager.init({ db });
+    manager.subscribeActors(() => {
+      bindScene();
+      syncMasterScaleToScene();
+    });
     bindScene();
-    syncMasterScaleToScene();
-  });
+    return true;
+  }
 
-  bindScene();
-  global.setInterval(bindScene, 1000);
+  const bootstrapTimer = global.setInterval(() => {
+    if (install()) global.clearInterval(bootstrapTimer);
+  }, 100);
+  install();
+  global.setInterval(() => {
+    if (installed) bindScene();
+  }, 1000);
 
   global.LuminousCharacterLiveSync = Object.freeze({
     sync: syncMasterScaleToScene,
     getScenePath: () => scenePath,
+    isInstalled: () => installed,
   });
 })(window);
