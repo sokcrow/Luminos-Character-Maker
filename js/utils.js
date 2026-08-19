@@ -96,6 +96,22 @@ function ensurePlayerUxPolishAssets(doc) {
     return { link, script };
 }
 
+function ensurePlayerStatsAbilityBarAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+    const link = ensureStyleAsset(documentRef, 'player-stats-ability-bar-stylesheet', 'css/player-stats-ability-bar.css', { ui: 'player-stats-ability-bar' });
+    const script = ensureScriptAsset(documentRef, 'player-stats-ability-bar-script', 'js/player-stats-ability-bar.js', { ui: 'player-stats-ability-bar' });
+    return { link, script };
+}
+
+function ensureDmPlayerDndStudioAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#dashboard-jugadores')) return null;
+    const link = ensureStyleAsset(documentRef, 'dm-player-dnd-studio-stylesheet', 'css/dm-player-dnd-studio.css', { ui: 'dm-player-dnd-studio' });
+    const script = ensureScriptAsset(documentRef, 'dm-player-dnd-studio-script', 'js/dm-player-dnd-studio.js', { ui: 'dm-player-dnd-studio' });
+    return { link, script };
+}
+
 function ensurePlayerTheatreLanguagePolicy(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -171,6 +187,8 @@ if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerTerminalVisibility(document);
     ensurePlayerUxPolishAssets(document);
+    ensurePlayerStatsAbilityBarAssets(document);
+    ensureDmPlayerDndStudioAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
 }
@@ -182,6 +200,8 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerTerminalStyles,
         ensurePlayerTerminalVisibility,
         ensurePlayerUxPolishAssets,
+        ensurePlayerStatsAbilityBarAssets,
+        ensureDmPlayerDndStudioAssets,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets
     };
