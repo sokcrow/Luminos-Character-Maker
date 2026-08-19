@@ -10,7 +10,6 @@ function obtenerEstacion(mes) {
     return "Invierno"; // 12, 1, 2
 }
 
-
 /**
  * Helper: Calcular datos de nivel (Nivel, Porcentaje de XP, XP Faltante) a partir del total de XP
  * @param {number|string} xp
@@ -35,19 +34,12 @@ function calculateLevelData(xp) {
 
     let currentLevel = 1;
     for (let i = 1; i <= 100; i++) {
-        if (numericXp >= xpTable[i]) {
-            currentLevel = i;
-        } else {
-            break;
-        }
+        if (numericXp >= xpTable[i]) currentLevel = i;
+        else break;
     }
 
     if (currentLevel >= 100) {
-        return {
-            level: 100,
-            xpPercent: 100,
-            xpMissing: 0
-        };
+        return { level: 100, xpPercent: 100, xpMissing: 0 };
     }
 
     const currentLevelXP = xpTable[currentLevel];
@@ -56,7 +48,6 @@ function calculateLevelData(xp) {
     const xpRequiredForNextLevel = nextLevelXP - currentLevelXP;
 
     let xpPercent = Math.floor((xpIntoLevel / xpRequiredForNextLevel) * 100);
-    // Limit to 0-100 just in case
     xpPercent = Math.max(0, Math.min(100, xpPercent));
 
     return {
@@ -66,12 +57,6 @@ function calculateLevelData(xp) {
     };
 }
 
-/**
- * Carga la capa visual del Personal Terminal solo cuando existe la hoja del jugador.
- * Se mantiene aquí porque utils.js ya forma parte del bootstrap síncrono de hoja_personaje.html.
- * @param {Document} doc
- * @returns {HTMLLinkElement|null}
- */
 function ensurePlayerTerminalStyles(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -88,11 +73,6 @@ function ensurePlayerTerminalStyles(doc) {
     return link;
 }
 
-/**
- * Carga los retoques funcionales/visuales del jugador sin tocar el HTML gigante.
- * @param {Document} doc
- * @returns {{link: HTMLLinkElement|null, script: HTMLScriptElement|null}|null}
- */
 function ensurePlayerUxPolishAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -120,17 +100,34 @@ function ensurePlayerUxPolishAssets(doc) {
     return { link, script };
 }
 
+function ensureDmCharacterPlayerResolver(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
+
+    let script = documentRef.getElementById('dm-character-player-resolver-script');
+    if (script) return script;
+
+    script = documentRef.createElement('script');
+    script.id = 'dm-character-player-resolver-script';
+    script.src = 'js/dm-character-player-resolver.js';
+    script.async = false;
+    script.dataset.ui = 'dm-character-player-resolver';
+    documentRef.head?.appendChild(script);
+    return script;
+}
+
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerUxPolishAssets(document);
+    ensureDmCharacterPlayerResolver(document);
 }
 
-// Compatibilidad para entornos de prueba (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         obtenerEstacion,
         calculateLevelData,
         ensurePlayerTerminalStyles,
-        ensurePlayerUxPolishAssets
+        ensurePlayerUxPolishAssets,
+        ensureDmCharacterPlayerResolver
     };
 }
