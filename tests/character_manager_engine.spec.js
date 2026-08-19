@@ -72,8 +72,10 @@ test("Studio usa una interfaz SVG propia sin emojis", () => {
   expect(studio).toContain("aria-label=");
   expect(studio).toContain("title=");
   expect(studio).toContain("cm-icon-button");
+  expect(studio).toContain("const idAttribute = id ?");
   expect(studio).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
   expect(studio).not.toContain("GUARDAR EN FIREBASE");
+  expect(studio).not.toContain('id=""');
 });
 
 test("Studio reduce saturación con roster visual y módulos especializados", () => {
