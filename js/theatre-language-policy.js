@@ -6,7 +6,6 @@
   if (!firebase?.database) return;
 
   const db = firebase.database();
-  const manager = global.LuminousCharacterManager || null;
   const theatre = global.LuminousTheatreState || null;
   const LANGUAGE_ROOTS = ["campaña/idiomas", "campaña/teatro/idiomas"];
   const QUEUE_PATH = "campaña/teatro/cola";
@@ -15,9 +14,20 @@
   let currentScene = {};
   let sceneRef = null;
   let scenePath = null;
+  let manager = global.LuminousCharacterManager || null;
+  let managerSubscribed = false;
 
   function isDmView() {
     return Boolean(document.body?.classList.contains("on-game-dashboard"));
+  }
+
+  function getManager() {
+    if (!manager) manager = global.LuminousCharacterManager || null;
+    if (manager && isDmView() && !managerSubscribed) {
+      managerSubscribed = true;
+      manager.subscribeActors?.(refreshDmSelector);
+    }
+    return manager;
   }
 
   function label(languageId, definition) {
@@ -89,12 +99,14 @@
     if (!speakerId || speakerId === "narrador") return { all: true, knowledge: {} };
     const liveActor = currentScene?.actores?.[speakerId] || {};
     const masterId = liveActor.identityId || liveActor.identidadId || liveActor.sourceActorId || speakerId;
-    if (manager?.getActor?.(masterId)) return { all: false, knowledge: manager.languageKnowledgeForActor(masterId) };
+    const characterManager = getManager();
+    if (characterManager?.getActor?.(masterId)) return { all: false, knowledge: characterManager.languageKnowledgeForActor(masterId) };
     return { all: false, knowledge: mergeKnowledge(liveActor.idiomas, liveActor.languages) };
   }
 
   function refreshDmSelector() {
     if (!isDmView()) return;
+    getManager();
     bindScene();
     const select = document.getElementById("theatre-language-select");
     if (!select) return;
@@ -174,7 +186,10 @@
 
   if (isDmView()) {
     bindScene();
-    manager?.subscribeActors?.(refreshDmSelector);
+    getManager();
+    const managerTimer = global.setInterval(() => {
+      if (getManager()) global.clearInterval(managerTimer);
+    }, 100);
     document.addEventListener("change", (event) => {
       if (event.target?.id === "theatre-speaker-select") refreshDmSelector();
     });
