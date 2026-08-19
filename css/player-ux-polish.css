@@ -1,6 +1,6 @@
 /* ==================================================
    PLAYER UX POLISH
-   Vínculos, directorio, log heptagonal y ajustes reales.
+   Vínculos, directorio, log heptagonal, terminal contenido y ajustes reales.
    ================================================== */
 
 :root {
@@ -14,57 +14,174 @@
   --player-ux-red: #7b2025;
 }
 
-/* ---------- Personal Terminal: texto que siempre cabe ---------- */
+/* ==================================================
+   CONTRATO FÍSICO DEL CELULAR
+   Nada dentro del dispositivo puede aumentar el tamaño de la carcasa.
+   ================================================== */
+body:not(.on-game-dashboard) .sheet-phone-wrapper,
+body:not(.on-game-dashboard) .sheet-phone-wrapper * {
+  box-sizing: border-box;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-statusbar {
+  flex: 0 0 48px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  max-height: 48px !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-screen {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-navbar {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  flex: 0 0 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  max-height: 44px !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  overflow: hidden !important;
+  background: #090b09 !important;
+  border: 1px solid #2d3029 !important;
+  border-top: 1px solid #4e4228 !important;
+  border-radius: 0 !important;
+  z-index: 3 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-navbar .sheet-home-btn {
+  position: relative !important;
+  width: 38px !important;
+  height: 30px !important;
+  min-width: 38px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  color: var(--player-ux-brass-light) !important;
+  background: #10130f !important;
+  border: 1px solid #4a4b40 !important;
+  border-radius: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-phone-navbar .sheet-home-btn::before {
+  content: "";
+  position: absolute;
+  inset: 7px 10px;
+  border: 1px solid currentColor;
+  box-shadow: inset 0 0 0 2px #10130f;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content > *,
+body:not(.on-game-dashboard) .sheet-app-body,
+body:not(.on-game-dashboard) .sheet-app-body-mail,
+body:not(.on-game-dashboard) .sheet-app-body-scroll,
+body:not(.on-game-dashboard) .sheet-row,
+body:not(.on-game-dashboard) .sheet-col,
+body:not(.on-game-dashboard) #subtab-mail,
+body:not(.on-game-dashboard) #subtab-chat,
+body:not(.on-game-dashboard) #subtab-contacts {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content img,
+body:not(.on-game-dashboard) .sheet-tab-content video,
+body:not(.on-game-dashboard) .sheet-tab-content canvas,
+body:not(.on-game-dashboard) .sheet-tab-content iframe {
+  max-width: 100% !important;
+}
+
+body:not(.on-game-dashboard) .sheet-tab-content input,
+body:not(.on-game-dashboard) .sheet-tab-content select,
+body:not(.on-game-dashboard) .sheet-tab-content textarea,
+body:not(.on-game-dashboard) .sheet-tab-content button {
+  max-width: 100%;
+}
+
+/* ==================================================
+   LAUNCHER: ICONOS SOLAMENTE
+   Los nombres sobreviven como title/aria-label, no como texto visible.
+   ================================================== */
 body:not(.on-game-dashboard) .sheet-app-grid {
   min-width: 0 !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 9px !important;
 }
 
 body:not(.on-game-dashboard) .sheet-app-btn {
   min-width: 0 !important;
+  min-height: 0 !important;
+  aspect-ratio: 1.18 / 1 !important;
+  padding: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
   overflow: hidden !important;
+  text-align: center !important;
 }
 
-body:not(.on-game-dashboard) .sheet-app-btn > span {
-  display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: normal !important;
-  text-overflow: clip !important;
-  font-size: clamp(11px, 1.35vw, 15px) !important;
-  line-height: 1.12 !important;
-}
-
+body:not(.on-game-dashboard) .sheet-app-btn > span,
 body:not(.on-game-dashboard) .sheet-app-btn::before {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none !important;
+  content: none !important;
 }
 
-@media (max-width: 700px) {
-  body:not(.on-game-dashboard) .sheet-app-btn {
-    min-height: 82px !important;
-    padding: 10px 9px 10px 46px !important;
-  }
+body:not(.on-game-dashboard) .sheet-app-icon {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  width: 38px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  transform: none !important;
+}
 
-  body:not(.on-game-dashboard) .sheet-app-icon {
-    left: 11px !important;
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  body:not(.on-game-dashboard) .sheet-app-btn > span {
-    font-size: 12px !important;
-    letter-spacing: .035em !important;
-  }
-
-  body:not(.on-game-dashboard) .sheet-app-btn::before {
-    font-size: 7px !important;
-    letter-spacing: .06em !important;
-  }
+/* El sistema actual de atributos ya vive en Stats. Perfil no muestra el bloque
+   D&D legado para evitar dos motores de tiradas simultáneos. */
+body:not(.on-game-dashboard) .sheet-tab-profile .sheet-dnd-stats-grid,
+body:not(.on-game-dashboard) .sheet-tab-profile [data-legacy-attributes="disabled"] {
+  display: none !important;
 }
 
 /* ---------- Vínculos vs Directorio de Red ---------- */
@@ -126,13 +243,17 @@ body:not(.on-game-dashboard) .player-settings-console {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
   padding: 14px;
   font-family: "Share Tech Mono", monospace;
 }
 
 body:not(.on-game-dashboard) .player-settings-section {
   min-width: 0;
+  max-width: 100%;
   padding: 13px;
+  overflow: hidden;
   background: linear-gradient(145deg, #131611, #0b0d0b);
   border: 1px solid #34382f;
   border-left: 3px solid #765c2e;
@@ -158,8 +279,11 @@ body:not(.on-game-dashboard) .player-setting-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   min-height: 40px;
   padding: 8px 0;
+  overflow: hidden;
   border-top: 1px dashed #30342c;
 }
 
@@ -177,6 +301,7 @@ body:not(.on-game-dashboard) .player-setting-label {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .035em;
+  overflow-wrap: anywhere;
 }
 
 body:not(.on-game-dashboard) .player-setting-help {
@@ -185,6 +310,7 @@ body:not(.on-game-dashboard) .player-setting-help {
   color: var(--player-ux-muted);
   font-size: 9px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 body:not(.on-game-dashboard) .player-setting-toggle {
@@ -223,12 +349,15 @@ body:not(.on-game-dashboard) .player-setting-toggle:checked::after {
 
 body:not(.on-game-dashboard) .player-setting-volume-wrap {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
 }
 
 body:not(.on-game-dashboard) #player-setting-volume {
   width: min(170px, 24vw) !important;
+  max-width: 100% !important;
   accent-color: var(--player-ux-brass);
 }
 
@@ -258,10 +387,6 @@ body.player-terminal-large-text .sheet-phone-screen {
   font-size: 1.09em !important;
 }
 
-body.player-terminal-compact .sheet-app-btn {
-  min-height: 68px !important;
-}
-
 body.player-terminal-compact .sheet-weather-widget {
   padding-top: 8px !important;
   padding-bottom: 8px !important;
@@ -277,13 +402,73 @@ body.player-reduce-motion *::after {
 }
 
 @media (max-width: 700px) {
+  body:not(.on-game-dashboard) .sheet-phone-statusbar {
+    flex-basis: 44px !important;
+    height: 44px !important;
+    max-height: 44px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-screen {
+    flex: 1 1 0 !important;
+    height: auto !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-phone-navbar {
+    flex-basis: 40px !important;
+    height: 40px !important;
+    max-height: 40px !important;
+    padding: 5px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-btn {
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    padding: 0 !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-icon {
+    left: auto !important;
+    width: 31px !important;
+    height: 31px !important;
+  }
+
   body:not(.on-game-dashboard) .player-settings-console {
     grid-template-columns: 1fr;
     gap: 9px;
     padding: 9px;
   }
 
+  body:not(.on-game-dashboard) .player-setting-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   body:not(.on-game-dashboard) #player-setting-volume {
-    width: 110px !important;
+    width: min(110px, 32vw) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  body:not(.on-game-dashboard) .sheet-app-grid {
+    gap: 6px !important;
+  }
+
+  body:not(.on-game-dashboard) .sheet-app-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  body:not(.on-game-dashboard) .player-setting-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  body:not(.on-game-dashboard) .player-setting-toggle,
+  body:not(.on-game-dashboard) .player-setting-volume-wrap {
+    justify-self: start;
   }
 }
