@@ -6,6 +6,7 @@ const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8")
 const exists = (file) => fs.existsSync(path.join(__dirname, "..", file));
 const engine = read("js/character-manager-engine.js");
 const studio = read("js/character-manager-studio.js");
+const studioCss = read("css/character-manager-studio.css");
 const takeover = read("js/dm-character-manager-takeover.js");
 const utils = read("js/utils.js");
 const instanceControl = read("js/instance-control.js");
@@ -54,6 +55,7 @@ test("expresiones pueden crecer dinámicamente y se normalizan antes de persisti
   expect(studio).toContain("character-manager-add-expression");
   expect(studio).toContain("expressionRow");
   expect(studio).toContain("collectExpressions");
+  expect(studio).toContain("cm-expression-preview");
 });
 
 test("Studio consume el motor y no accede Firebase directamente", () => {
@@ -62,6 +64,38 @@ test("Studio consume el motor y no accede Firebase directamente", () => {
   expect(studio).toContain("manager.subscribeAll");
   expect(studio).not.toContain("firebase.database");
   expect(studio).not.toContain("db.ref(");
+});
+
+test("Studio usa una interfaz SVG propia sin emojis", () => {
+  expect(studio).toContain("const ICONS = Object.freeze");
+  expect(studio).toContain('<svg viewBox="0 0 24 24" aria-hidden="true">');
+  expect(studio).toContain("aria-label=");
+  expect(studio).toContain("title=");
+  expect(studio).toContain("cm-icon-button");
+  expect(studio).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+  expect(studio).not.toContain("GUARDAR EN FIREBASE");
+});
+
+test("Studio reduce saturación con roster visual y módulos especializados", () => {
+  expect(studio).toContain('id="character-manager-roster"');
+  expect(studio).toContain("cm-roster-entry");
+  expect(studio).toContain('data-section="identity"');
+  expect(studio).toContain('data-section="assignment"');
+  expect(studio).toContain('data-section="expressions"');
+  expect(studio).toContain('data-section="languages"');
+  expect(studio).toContain('data-section="advanced"');
+  expect(studio).toContain("cm-distortion-toggle");
+  expect(studio).not.toContain('id="character-manager-actor-select"');
+});
+
+test("lenguaje visual mantiene jerarquía industrial y estados accesibles", () => {
+  expect(studioCss).toContain("--cm-gold");
+  expect(studioCss).toContain("--cm-bone");
+  expect(studioCss).toContain(".cm-module-nav");
+  expect(studioCss).toContain(".cm-roster-entry.is-selected");
+  expect(studioCss).toContain(".cm-icon-button:focus-visible");
+  expect(studioCss).toContain("clip-path");
+  expect(studioCss).toContain("currentColor");
 });
 
 test("Pantalla DM entrega Gestión de Personajes al nuevo motor y retira el resolver legacy", () => {
