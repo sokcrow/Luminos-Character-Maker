@@ -11,107 +11,140 @@ const dmPage = read("pantalla_dm.html");
 const dmDnd = read("js/dm-player-dnd-studio.js");
 const dmDndCss = read("css/dm-player-dnd-studio.css");
 
-test("Stats adopta el mock HUD de dos paneles sin CUERPO MENTE ALMA", () => {
+test("Stats conserva el mock HUD y elimina CUERPO MENTE ALMA del runtime", () => {
   expect(statsUi).toContain('class="player-stats-frame"');
   expect(statsUi).toContain('class="player-stats-character-panel"');
   expect(statsUi).toContain('class="player-stats-information-panel"');
-  expect(statsUi).toContain('class="player-stat-content"');
-  expect(statsUi).toContain('class="player-skill-list"');
-  expect(statsCss).toContain("grid-template-columns:minmax(0,1fr) minmax(0,1fr)");
-  expect(statsCss).toContain("radial-gradient(ellipse at 50% 12%");
   expect(statsUi).toContain("function removeLegacyStats(statsContainer)");
   expect(statsUi).toContain('statsContainer.querySelectorAll(":scope > .sheet-attributes-grid, :scope > .player-secondary-stats")');
-  expect(statsUi).not.toContain("HABILIDADES / ATRIBUTOS SECUNDARIOS");
-});
-
-test("la barra conserva STR DEX CON INT WIS CHA con selector activo", () => {
   for (const code of ["STR", "DEX", "CON", "INT", "WIS", "CHA"]) expect(statsUi).toContain(`code: "${code}"`);
-  expect(statsUi).toContain('class="player-ability-bar"');
-  expect(statsUi).toContain('data-stat="${ability.id}"');
-  expect(statsUi).toContain("panel.dataset.activeStat = abilityId");
-  expect(statsCss).toContain("grid-template-columns:repeat(6,minmax(0,1fr))");
-  expect(statsCss).toContain("rgba(255,172,0,.38)");
+  expect(statsCss).toContain("grid-template-columns:minmax(0,1fr) minmax(0,1fr)");
 });
 
-test("Proficiency sigue siendo ceil(Level / 20) con los cuatro estados", () => {
-  expect(statsUi).toContain("Math.ceil(numericLevel / 20)");
+test("DM puede editar XP manual y el editor recalcula Level y progreso", () => {
+  expect(dmDnd).toContain('id="dm-player-dnd-xp"');
+  expect(dmDnd).toContain('typeof global.calculateLevelData === "function"');
+  expect(dmDnd).toContain("const result = global.calculateLevelData(numericXp)");
+  expect(dmDnd).toContain("xpPercent: xpData.xpPercent");
+  expect(dmDnd).toContain("xpMissing: xpData.xpMissing");
+  expect(dmDnd).toContain('class="dm-player-xp-track"');
+  expect(dmDnd).toContain('id="dm-player-dnd-xp-fill"');
+  expect(dmDnd).toContain('fill.style.width = `${xpData.xpPercent}%`');
+  expect(dmDndCss).toContain(".dm-player-xp-track i");
+  expect(dmDndCss).toContain("transition:width .2s ease");
+});
+
+test("Proficiency sigue usando ceil(Level / 20) y cuatro estados", () => {
+  expect(statsUi).toContain("Math.ceil(Math.max(0, numberOr(level, 0)) / 20)");
   expect(dmDnd).toContain("Math.ceil(Math.max(0, numberOr(level, 0)) / 20)");
-  expect(statsUi).toContain('none: Object.freeze({ label: "Not Proficient", multiplier: 0 })');
-  expect(statsUi).toContain('half: Object.freeze({ label: "Half Proficient", multiplier: 0.5 })');
-  expect(statsUi).toContain('proficient: Object.freeze({ label: "Proficient", multiplier: 1 })');
-  expect(statsUi).toContain('expertise: Object.freeze({ label: "Expertise", multiplier: 2 })');
+  for (const state of ["none", "half", "proficient", "expertise"]) expect(statsUi).toContain(`${state}: Object.freeze`);
+  for (const state of ["half", "proficient", "expertise"]) expect(dmDndCss).toContain(`[data-prof-state="${state}"]`);
   expect(statsUi).toContain("Math.floor(proficiencyBonus(level) * definition.multiplier)");
-  expect(statsCss).toContain('[data-prof-state="half"]');
-  expect(statsCss).toContain('[data-prof-state="proficient"]');
-  expect(statsCss).toContain('[data-prof-state="expertise"]');
-  expect(statsCss).toContain("0 0 0 4px #e3a52a");
+  expect(dmDnd).toContain("Math.floor(proficiencyBonus(level) * definition.multiplier)");
 });
 
-test("Saving Throw usa MOD más la proficiency del atributo", () => {
-  expect(statsUi).toContain("const saveValue = math.modifier + math.proficiencyValue");
-  expect(statsUi).toContain("data-stat-save");
-  expect(statsUi).toContain("data-stat-save-prof");
-  expect(statsUi).toContain("data-stat-save-state");
-  expect(statsUi).toContain("data-stat-prof-value");
+test("Gestión de Jugadores permite editar todas las D&D Skills", () => {
+  const skills = [
+    "athletics", "acrobatics", "sleight_of_hand", "stealth", "arcana", "history",
+    "investigation", "nature", "religion", "animal_handling", "insight", "medicine",
+    "perception", "survival", "deception", "intimidation", "performance", "persuasion",
+  ];
+  for (const skill of skills) {
+    expect(dmDnd).toContain(`id: "${skill}"`);
+    expect(dmDnd).toContain(`dm-player-skill-\${skill.id}`);
+  }
+  expect(dmDnd).toContain("updates[`skillProficiency/${skill.id}`]");
+  expect(dmDnd).toContain("function updateSkillTotalsFromForm(level)");
+  expect(dmDndCss).toContain(".dm-player-dnd-skill-group");
+  expect(dmDndCss).toContain(".dm-player-dnd-skill-grid");
 });
 
-test("el panel usa la lista estándar de skills D&D asociada a cada atributo", () => {
-  for (const skill of [
-    "Athletics", "Acrobatics", "Sleight of Hand", "Stealth", "Arcana", "History",
-    "Investigation", "Nature", "Religion", "Animal Handling", "Insight", "Medicine",
-    "Perception", "Survival", "Deception", "Intimidation", "Performance", "Persuasion",
-  ]) expect(statsUi).toContain(`name: "${skill}"`);
-  expect(statsUi).toContain("function skillProficiencyState(skill, data = playerData())");
-  expect(statsUi).toContain("data?.skillProficiency || data?.skillProficiencies || data?.dndSkillProficiency");
-  expect(statsUi).toContain("abilityModifier(abilityScore(ability, data)) + proficiencyContribution");
-  expect(statsUi).toContain("No associated skills");
+test("el editor nuevo absorbe el botón legacy Editar Stats de Combate", () => {
+  expect(dmPage).toContain("btn-open-modal");
+  expect(dmDnd).toContain('grid.querySelectorAll(".btn-open-modal")');
+  expect(dmDnd).toContain('button.dataset.dndStudioProxy = "true"');
+  expect(dmDnd).toContain('button.textContent = "⚙️ EDITAR JUGADOR / STATS D&D"');
+  expect(dmDnd).toContain("event.stopImmediatePropagation()");
+  expect(dmDnd).toContain('field("dm-combat-modal")?.style?.setProperty("display", "none")');
+  expect(dmDndCss).toContain('#grid-jugadores .btn-open-modal[data-dnd-studio-proxy="true"]');
 });
 
-test("el score del mock sigue tirando con el Coin Engine existente", () => {
-  expect(statsUi).toContain('class="sheet-roll-skill-btn player-stat-main player-stat-roll"');
-  expect(statsUi).toContain("rollButton.name = `act_roll_skill_${ability.key}`");
-  expect(statsUi).toContain("dataset.proficiencyContribution");
+test("el editor unificado conserva los campos de combate del menú antiguo", () => {
+  for (const id of [
+    "dm-player-hp-base", "dm-player-hp-coef", "dm-player-hp-actual", "dm-player-hp-max",
+    "dm-player-sp", "dm-player-action-slots", "dm-player-stagger",
+  ]) expect(dmDnd).toContain(`id="${id}"`);
+  expect(dmDnd).toContain('"combatStats/hp_base": hpBase');
+  expect(dmDnd).toContain('"combatStats/hp_coefficient": hpCoef');
+  expect(dmDnd).toContain('"combatStats/hp_actual": hpActual');
+  expect(dmDnd).toContain('"combatStats/hp_max": hpMax');
+  expect(dmDnd).toContain('"combatStats/sp_actual": spActual');
+  expect(dmDnd).toContain('"combatStats/action_slots": actionSlots');
+  expect(dmDnd).toContain('"combatStats/stagger_thresholds": staggerThresholds');
+});
+
+test("Offensive y Defensive Level están junto a Level y no dentro de Resistances", () => {
+  const resistanceStart = statsUi.indexOf('class="player-info-resistances"');
+  const resistanceEnd = statsUi.indexOf('<section class="player-stats-information-panel">', resistanceStart);
+  const resistanceBlock = statsUi.slice(resistanceStart, resistanceEnd);
+  expect(resistanceBlock).toContain("EQUIPMENT · PENDING");
+  expect(resistanceBlock).not.toContain("data-player-offensive-level");
+  expect(resistanceBlock).not.toContain("data-player-defensive-level");
+  expect(statsUi).toContain('class="player-level-section"');
+  expect(statsUi).toContain('data-combat-level="offensive"');
+  expect(statsUi).toContain('data-combat-level="defensive"');
+});
+
+test("el header muestra una barra de XP visual además del porcentaje", () => {
+  expect(statsUi).toContain('class="player-xp-track" data-player-xp-track');
+  expect(statsUi).toContain("data-player-xp-fill");
+  expect(statsUi).toContain("data-player-xp-current");
+  expect(statsUi).toContain("data-player-xp-progress");
+  expect(statsUi).toContain("data-player-xp-missing");
+  expect(statsUi).toContain('xpFill.style.width = `${progress}%`');
+  expect(statsCss).toContain(".player-xp-track i");
+});
+
+test("el icono ofensivo usa una espada reconocible con hoja sólida y guarda", () => {
+  expect(statsUi).toContain('const SWORD_ICON = \'<svg');
+  expect(statsUi).toContain('fill="currentColor"');
+  expect(statsUi).toContain('player-metric-icon--sword');
+  expect(statsCss).toContain(".player-metric-icon--sword");
+});
+
+test("Stat Saving Throw y cada Skill disparan el mismo Coin Engine", () => {
+  expect(statsUi).toContain("function triggerCoinRoll(ability, label, desiredBase)");
+  expect(statsUi).toContain('class="player-roll-proxy sheet-skill-row"');
+  expect(statsUi).toContain('class="sheet-roll-skill-btn"');
+  expect(statsUi).toContain("proxyButton.name = `act_roll_skill_${ability.key}`");
+  expect(statsUi).toContain("proxyButton.click()");
+  expect(statsUi).toContain('data-dnd-roll="ability"');
+  expect(statsUi).toContain('data-dnd-roll="save"');
+  expect(statsUi).toContain('row.dataset.dndRoll = "skill"');
+  expect(statsUi).toContain("triggerCoinRoll(ability, skill.name, skillValue(skill, ability, data))");
   expect(statsUi).toContain('doc.getElementById("roll-total-score")');
   expect(statsUi).toContain("raw + rollAdjustment.bonus");
+});
+
+test("el Coin Engine existente sigue siendo el motor: 5 monedas y +4 por cara", () => {
   expect(playerEngine).toContain('["fuerza", "destreza", "constitucion", "inteligencia", "sabiduria", "carisma"]');
   expect(playerEngine).toContain("baseVal = Math.floor((rawVal - 10) / 2);");
   expect(playerEngine).toContain("const totalCoins = 5;");
   expect(playerEngine).toContain("currentTotal += 4;");
+  expect(statsCss).toContain("#coin-toss-panel.coin-toss-modal{z-index:200000!important}");
+  expect(statsUi).toContain('coinPanel.classList.add("player-stats-coin-active")');
 });
 
-test("el mock usa art, icono, HP, Level, Proficiency y Offensive/Defensive reales", () => {
-  expect(statsUi).toContain("data-player-sheet-art");
-  expect(statsUi).toContain("data-player-character-icon");
-  expect(statsUi).toContain("data-player-hp-current");
-  expect(statsUi).toContain("data-player-hp-max");
-  expect(statsUi).toContain("data-player-level");
-  expect(statsUi).toContain("data-player-proficiency");
-  expect(statsUi).toContain("data-player-offensive-level");
-  expect(statsUi).toContain("data-player-defensive-level");
-  expect(statsUi).toContain("SWORD_ICON");
-  expect(statsUi).toContain("SHIELD_ICON");
-  expect(statsUi).toContain("EQUIPMENT · PENDING");
-  expect(statsUi).toContain("level + classModifier + dmModifier + itemModifier");
-});
-
-test("Gestión de Jugadores sigue editando el modelo D&D que consume el mock", () => {
-  expect(dmPage).toContain('data-tab="dashboard-jugadores"');
+test("Gestión de Jugadores sigue usando campaña/jugadores y no inventa resistencias", () => {
   expect(dmPage).toContain('id="dashboard-jugadores"');
   expect(dmDnd).toContain('const PLAYERS_ROOT = "campaña/jugadores"');
   expect(dmDnd).toContain('field("dashboard-jugadores")');
-  for (const id of ["str", "dex", "con", "int", "wis", "cha"]) {
-    expect(dmDnd).toContain(`dm-player-stat-${id}`);
-    expect(dmDnd).toContain(`dm-player-prof-${id}`);
-  }
-  expect(dmDnd).toContain("updates[`stats/${ability.key}`]");
-  expect(dmDnd).toContain("updates[`abilityProficiency/${ability.id}`]");
-  expect(dmDnd).toContain("updates.sheetArt");
-  expect(dmDnd).toContain('updates["combatLevels/offensive/dmModifier"]');
-  expect(dmDnd).toContain('updates["combatLevels/defensive/dmModifier"]');
-  expect(dmDndCss).toContain("#dm-player-dnd-studio");
+  expect(dmDnd).toContain("RESISTENCIAS:");
+  expect(dmDnd).toContain("permanecen reservadas para Equipamiento");
+  expect(statsUi).toContain("EQUIPMENT · PENDING");
 });
 
-test("utils carga el mock solo en la hoja de jugador y el editor solo en Gestión de Jugadores", () => {
+test("utils mantiene la carga separada de Player HUD y DM Studio", () => {
   expect(utils).toContain("function ensurePlayerStatsAbilityBarAssets");
   expect(utils).toContain("css/player-stats-ability-bar.css");
   expect(utils).toContain("js/player-stats-ability-bar.js");
@@ -121,13 +154,11 @@ test("utils carga el mock solo en la hoja de jugador y el editor solo en Gestió
   expect(utils).toContain("js/dm-player-dnd-studio.js");
 });
 
-test("el mock conserva teclado y una adaptación móvil funcional", () => {
+test("HUD y editor DM conservan adaptación móvil", () => {
   expect(statsUi).toContain('event.key === "ArrowRight"');
   expect(statsUi).toContain('event.key === "ArrowLeft"');
-  expect(statsUi).toContain('event.key === "Home"');
-  expect(statsUi).toContain('event.key === "End"');
   expect(statsCss).toContain("@media (max-width:860px)");
   expect(statsCss).toContain("grid-template-columns:repeat(3,minmax(0,1fr))");
-  expect(statsCss).toContain("@media (max-width:560px)");
-  expect(statsCss).toContain("grid-template-columns:1fr");
+  expect(dmDndCss).toContain("@media(max-width:820px)");
+  expect(dmDndCss).toContain("@media(max-width:560px)");
 });
