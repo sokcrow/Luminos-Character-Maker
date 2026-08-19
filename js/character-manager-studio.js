@@ -37,7 +37,8 @@
   }
 
   function iconButton(id, iconName, label, className = "", text = "") {
-    return `<button id="${id}" class="cm-icon-button ${className}" type="button" aria-label="${label}" title="${label}">${icon(iconName)}${text ? `<span>${text}</span>` : ""}</button>`;
+    const idAttribute = id ? ` id="${id}"` : "";
+    return `<button${idAttribute} class="cm-icon-button ${className}" type="button" aria-label="${label}" title="${label}">${icon(iconName)}${text ? `<span>${text}</span>` : ""}</button>`;
   }
 
   function mountPoint() {
