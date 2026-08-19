@@ -108,8 +108,9 @@ function ensureDmPlayerDndStudioAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-jugadores')) return null;
     const link = ensureStyleAsset(documentRef, 'dm-player-dnd-studio-stylesheet', 'css/dm-player-dnd-studio.css', { ui: 'dm-player-dnd-studio' });
+    const guard = ensureScriptAsset(documentRef, 'dm-player-dnd-studio-hotfix-script', 'js/dm-player-dnd-studio-hotfix.js', { ui: 'dm-player-dnd-hotfix' });
     const script = ensureScriptAsset(documentRef, 'dm-player-dnd-studio-script', 'js/dm-player-dnd-studio.js', { ui: 'dm-player-dnd-studio' });
-    return { link, script };
+    return { link, guard, script };
 }
 
 function ensurePlayerTheatreLanguagePolicy(doc) {
