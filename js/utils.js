@@ -120,9 +120,43 @@ function ensurePlayerUxPolishAssets(doc) {
     return { link, script };
 }
 
+/**
+ * Carga la corrección de UX del editor de Gestión de Personajes del DM.
+ * pantalla_dm.html ya carga utils.js, así que evitamos modificar el HTML monolítico.
+ * @param {Document} doc
+ * @returns {{link: HTMLLinkElement|null, script: HTMLScriptElement|null}|null}
+ */
+function ensureDmCharacterEditorAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
+
+    let link = documentRef.getElementById('dm-character-editor-ux-stylesheet');
+    if (!link) {
+        link = documentRef.createElement('link');
+        link.id = 'dm-character-editor-ux-stylesheet';
+        link.rel = 'stylesheet';
+        link.href = 'css/dm-character-editor-ux.css';
+        link.dataset.ui = 'dm-character-editor-ux';
+        documentRef.head?.appendChild(link);
+    }
+
+    let script = documentRef.getElementById('dm-character-editor-ux-script');
+    if (!script) {
+        script = documentRef.createElement('script');
+        script.id = 'dm-character-editor-ux-script';
+        script.src = 'js/dm-character-editor-ux.js';
+        script.async = false;
+        script.dataset.ui = 'dm-character-editor-ux';
+        documentRef.head?.appendChild(script);
+    }
+
+    return { link, script };
+}
+
 if (typeof document !== 'undefined') {
     ensurePlayerTerminalStyles(document);
     ensurePlayerUxPolishAssets(document);
+    ensureDmCharacterEditorAssets(document);
 }
 
 // Compatibilidad para entornos de prueba (Node.js)
@@ -131,6 +165,7 @@ if (typeof module !== 'undefined' && module.exports) {
         obtenerEstacion,
         calculateLevelData,
         ensurePlayerTerminalStyles,
-        ensurePlayerUxPolishAssets
+        ensurePlayerUxPolishAssets,
+        ensureDmCharacterEditorAssets
     };
 }
