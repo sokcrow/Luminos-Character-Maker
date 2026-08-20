@@ -113,13 +113,20 @@
   const isDm = Boolean(document.body?.classList.contains("on-game-dashboard") || document.getElementById("dashboard-actores"));
   init({ seedDefaults: isDm });
 
-  // Los idiomas especiales no forman parte de los defaults: se crean bajo demanda
-  // desde Character Manager. Este módulo añade HABLA/ENTIENDE y reparación del Log.
-  if (!document.querySelector('script[data-luminous-special-languages]')) {
+  function ensureScript(id, src, datasetKey) {
+    if (document.getElementById(id) || document.querySelector(`script[data-${datasetKey}]`)) return;
     const script = document.createElement("script");
-    script.src = "js/theatre-special-language-access.js";
+    script.id = id;
+    script.src = src;
     script.async = false;
-    script.dataset.luminousSpecialLanguages = "true";
+    script.dataset[datasetKey.replace(/-([a-z])/g, (_, char) => char.toUpperCase())] = "true";
     document.head.appendChild(script);
   }
+
+  // Los idiomas especiales no forman parte de los defaults: se crean bajo demanda.
+  ensureScript("luminous-special-language-access-script", "js/theatre-special-language-access.js", "luminous-special-languages");
+  // Hotfix: ENTIENDE canónico, selección automática del idioma especial del hablante
+  // y protección del diálogo activo + Log del jugador.
+  ensureScript("luminous-special-language-enforcement-script", "js/theatre-special-language-enforcement-hotfix.js", "luminous-special-language-enforcement");
+  ensureScript("luminous-special-language-log-script", "js/theatre-special-language-log-hotfix.js", "luminous-special-language-log");
 })(window);
