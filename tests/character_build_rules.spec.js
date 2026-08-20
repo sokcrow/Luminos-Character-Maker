@@ -7,6 +7,7 @@ const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8")
 const rules = require("../js/character-build-rules.js");
 const studio = read("js/dm-player-dnd-studio.js");
 const playerStatsSource = read("js/player-stats-ability-bar.js");
+const utils = read("js/utils.js");
 
 function closeTo(actual, expected, precision = 6) {
   expect(Math.abs(actual - expected)).toBeLessThan(10 ** -precision);
@@ -176,4 +177,13 @@ test("Jugador mantiene fallback legacy para DEF racial y HP almacenado", () => {
   expect(defensive.raceModifier).toBe(1);
   expect(defensive.total).toBe(34);
   expect(playerStatsSource).toContain('data?.combatStats?.hp_max ?? data?.hp_max');
+});
+
+test("el editor DM no se inyecta en la hoja del Jugador", () => {
+  const start = utils.indexOf("function ensureDmPlayerDndStudioAssets");
+  const end = utils.indexOf("function ensurePlayerSplashFramingAssets", start);
+  const block = utils.slice(start, end);
+  expect(block).toContain("#dashboard-jugadores");
+  expect(block).toContain("js/dm-player-dnd-studio.js");
+  expect(block).not.toContain(".sheet-phone-wrapper");
 });
