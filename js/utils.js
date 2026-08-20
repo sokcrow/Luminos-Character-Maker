@@ -123,6 +123,14 @@ function ensurePlayerSplashFramingAssets(doc) {
     return { link, script };
 }
 
+function ensureTheatreModernIdentityHotfix(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    const isPlayer = documentRef?.querySelector?.('.sheet-phone-wrapper, #theatre-view-player');
+    const isDm = documentRef?.body?.classList?.contains('on-game-dashboard') || documentRef?.querySelector?.('#modulo-teatro');
+    if (!isPlayer && !isDm) return null;
+    return ensureScriptAsset(documentRef, 'theatre-modern-identity-hotfix-script', 'js/theatre-modern-identity-hotfix.js', { engine: 'theatre-modern-identity-hotfix' });
+}
+
 function ensurePlayerTheatreLanguagePolicy(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -201,6 +209,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerStatsAbilityBarAssets(document);
     ensureDmPlayerDndStudioAssets(document);
     ensurePlayerSplashFramingAssets(document);
+    ensureTheatreModernIdentityHotfix(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
 }
@@ -215,6 +224,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerStatsAbilityBarAssets,
         ensureDmPlayerDndStudioAssets,
         ensurePlayerSplashFramingAssets,
+        ensureTheatreModernIdentityHotfix,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets
     };
