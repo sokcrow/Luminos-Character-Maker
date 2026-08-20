@@ -1,13 +1,29 @@
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 const rules = require("../js/character-build-rules.js");
 const studio = read("js/dm-player-dnd-studio.js");
+const playerStatsSource = read("js/player-stats-ability-bar.js");
 
 function closeTo(actual, expected, precision = 6) {
   expect(Math.abs(actual - expected)).toBeLessThan(10 ** -precision);
+}
+
+function loadPlayerStatsApi() {
+  const document = {
+    readyState: "loading",
+    addEventListener() {},
+  };
+  const window = {
+    document,
+    setInterval() { return 0; },
+  };
+  window.window = window;
+  vm.runInNewContext(playerStatsSource, { window, console });
+  return window.LuminousPlayerStats;
 }
 
 test("catálogos contienen las 13 clases, 15 razas y trasfondos Project Moon", () => {
@@ -124,4 +140,40 @@ test("DM Studio persiste build derivado sin romper las rutas legacy", () => {
   expect(studio).toContain('"combatStats/hp_coefficient": hpCoef');
   expect(studio).toContain('if (buildCalculation && !buildCalculation.valid)');
   expect(studio).toContain('"LEGACY / MANUAL"');
+});
+
+test("Jugador consume DEF racial sin contaminar OFF", () => {
+  const playerStats = loadPlayerStatsApi();
+  expect(playerStats).toBeTruthy();
+
+  const player = {
+    level: 35,
+    combatLevels: {
+      offensive: { classModifier: 2, raceModifier: 9, dmModifier: 0, itemModifier: 0 },
+      defensive: { classModifier: -2, raceModifier: 1, dmModifier: 0, itemModifier: 0 },
+    },
+  };
+
+  const offensive = playerStats.combatLevelBreakdown("offensive", player);
+  const defensive = playerStats.combatLevelBreakdown("defensive", player);
+
+  expect(offensive.raceModifier).toBe(0);
+  expect(offensive.total).toBe(37);
+  expect(defensive.raceModifier).toBe(1);
+  expect(defensive.total).toBe(34);
+});
+
+test("Jugador mantiene fallback legacy para DEF racial y HP almacenado", () => {
+  const playerStats = loadPlayerStatsApi();
+  const defensive = playerStats.combatLevelBreakdown("defensive", {
+    level: 35,
+    classModifiers: { defensiveLevel: -2 },
+    raceModifiers: { defensiveLevel: 1 },
+    combatStats: { def_lvl_mod: 0, hp_max: 161 },
+  });
+
+  expect(defensive.classModifier).toBe(-2);
+  expect(defensive.raceModifier).toBe(1);
+  expect(defensive.total).toBe(34);
+  expect(playerStatsSource).toContain('data?.combatStats?.hp_max ?? data?.hp_max');
 });
