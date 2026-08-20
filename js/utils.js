@@ -113,6 +113,16 @@ function ensureDmPlayerDndStudioAssets(doc) {
     return { link, guard, script };
 }
 
+function ensurePlayerSplashFramingAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    const isPlayer = documentRef?.querySelector?.('.sheet-phone-wrapper');
+    const isDm = documentRef?.querySelector?.('#dashboard-jugadores');
+    if (!isPlayer && !isDm) return null;
+    const link = ensureStyleAsset(documentRef, 'player-splash-framing-stylesheet', 'css/player-splash-framing.css', { ui: 'player-splash-framing' });
+    const script = ensureScriptAsset(documentRef, 'player-splash-framing-script', 'js/player-splash-framing.js', { ui: 'player-splash-framing' });
+    return { link, script };
+}
+
 function ensurePlayerTheatreLanguagePolicy(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -190,6 +200,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerUxPolishAssets(document);
     ensurePlayerStatsAbilityBarAssets(document);
     ensureDmPlayerDndStudioAssets(document);
+    ensurePlayerSplashFramingAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
 }
@@ -203,6 +214,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerUxPolishAssets,
         ensurePlayerStatsAbilityBarAssets,
         ensureDmPlayerDndStudioAssets,
+        ensurePlayerSplashFramingAssets,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets
     };
