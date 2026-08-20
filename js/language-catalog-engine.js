@@ -21,15 +21,7 @@
     infernal: { nombre: "Infernal", sistema: "dnd", tipo: "exotic", estilo_ofuscacion: "runes" },
     primordial: { nombre: "Primordial", sistema: "dnd", tipo: "exotic", estilo_ofuscacion: "runes" },
     sylvan: { nombre: "Silvano", sistema: "dnd", tipo: "exotic", estilo_ofuscacion: "ellipsis" },
-    undercommon: { nombre: "Infracomún", sistema: "dnd", tipo: "exotic", estilo_ofuscacion: "ellipsis" },
-    dante_clock: {
-      nombre: "Reloj de Dante",
-      sistema: "special",
-      tipo: "distortion",
-      distortion: true,
-      texto_desconocido: "Tik... Tok...",
-      estilo_ofuscacion: "ellipsis"
-    }
+    undercommon: { nombre: "Infracomún", sistema: "dnd", tipo: "exotic", estilo_ofuscacion: "ellipsis" }
   });
 
   let db = null;
@@ -120,4 +112,14 @@
 
   const isDm = Boolean(document.body?.classList.contains("on-game-dashboard") || document.getElementById("dashboard-actores"));
   init({ seedDefaults: isDm });
+
+  // Los idiomas especiales no forman parte de los defaults: se crean bajo demanda
+  // desde Character Manager. Este módulo añade HABLA/ENTIENDE y reparación del Log.
+  if (!document.querySelector('script[data-luminous-special-languages]')) {
+    const script = document.createElement("script");
+    script.src = "js/theatre-special-language-access.js";
+    script.async = false;
+    script.dataset.luminousSpecialLanguages = "true";
+    document.head.appendChild(script);
+  }
 })(window);

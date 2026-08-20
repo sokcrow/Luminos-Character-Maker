@@ -1,0 +1,37 @@
+name: Theatre Special Languages
+
+on:
+  pull_request:
+    paths:
+      - "js/language-catalog-engine.js"
+      - "js/theatre-special-language-access.js"
+      - "tests/theatre_special_languages.spec.js"
+      - ".github/workflows/theatre-special-languages.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  special-language-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check js/language-catalog-engine.js
+          node --check js/theatre-special-language-access.js
+          node --check tests/theatre_special_languages.spec.js
+
+      - name: Run special language regressions
+        run: npx playwright test tests/theatre_special_languages.spec.js
