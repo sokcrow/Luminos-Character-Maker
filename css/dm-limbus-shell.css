@@ -1,0 +1,415 @@
+/* DM Limbus-inspired shell: visual-only layer for pantalla_dm.html. */
+
+:root {
+  --dm-ink: #070705;
+  --dm-panel: #11100d;
+  --dm-panel-soft: #171510;
+  --dm-ivory: #d8d1bd;
+  --dm-muted: #8c887d;
+  --dm-gold: #a98a4f;
+  --dm-gold-dim: #66573a;
+  --dm-red: #7d1e19;
+  --dm-red-hot: #aa2a22;
+  --dm-line: #3f3a30;
+  --dm-cyan: #69a7aa;
+}
+
+body:has(.dm-tabs-nav) {
+  background-color: var(--dm-ink) !important;
+  background-image:
+    linear-gradient(rgba(7, 7, 5, 0.92), rgba(7, 7, 5, 0.96)),
+    repeating-linear-gradient(90deg, transparent 0 47px, rgba(169, 138, 79, 0.035) 47px 48px),
+    repeating-linear-gradient(0deg, transparent 0 47px, rgba(169, 138, 79, 0.025) 47px 48px) !important;
+  color: var(--dm-ivory) !important;
+}
+
+body:has(.dm-tabs-nav) .dm-global-header {
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 9px clamp(14px, 3vw, 34px) !important;
+  background:
+    linear-gradient(90deg, rgba(125, 30, 25, 0.2), transparent 26%),
+    #090906 !important;
+  border-bottom: 1px solid var(--dm-gold-dim) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  position: relative;
+  z-index: 20;
+}
+
+body:has(.dm-tabs-nav) .dm-global-header::before {
+  content: "LUMINOUS // DIRECTOR TERMINAL";
+  align-self: center;
+  color: var(--dm-muted);
+  font-family: "BebasKai", "Share Tech Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+
+body:has(.dm-tabs-nav) #btn-cerrar-sesion {
+  margin-left: auto;
+  min-height: 30px;
+  padding: 4px 14px !important;
+  color: #c56d65 !important;
+  background: #0a0907 !important;
+  border: 1px solid #6d2d28 !important;
+  border-radius: 0 !important;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  font-size: 11px !important;
+  letter-spacing: 0.08em;
+  box-shadow: none !important;
+}
+
+body:has(.dm-tabs-nav) #btn-cerrar-sesion:hover {
+  color: #f0b2aa !important;
+  border-color: #a9483e !important;
+  background: rgba(125, 30, 25, 0.18) !important;
+}
+
+/* Main DM navigation deck */
+body:has(.dm-tabs-nav) .dm-tabs-nav {
+  width: min(1240px, calc(100% - 28px)) !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 7px !important;
+  margin: 18px auto 12px !important;
+  padding: 38px 12px 12px !important;
+  justify-content: initial !important;
+  background:
+    linear-gradient(135deg, rgba(169, 138, 79, 0.06), transparent 24%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)),
+    #0e0d0a !important;
+  border: 1px solid #494337 !important;
+  border-left: 3px solid var(--dm-red) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 1px rgba(216, 209, 189, 0.025) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav::before {
+  content: "DIRECTOR CONTROL DECK  /  MODULE SELECT";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  box-sizing: border-box;
+  color: #b7ae95;
+  background: linear-gradient(90deg, #22130f 0, #12100c 45%, #0d0c09 100%);
+  border-bottom: 1px solid #453a2c;
+  font-family: "BebasKai", "Share Tech Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav::after {
+  content: "SYS // ONLINE";
+  position: absolute;
+  top: 7px;
+  right: 12px;
+  color: #7fa4a0;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn {
+  --dm-code: "--";
+  --dm-section: "MODULE";
+  grid-column: span 2;
+  min-width: 0;
+  min-height: 58px;
+  margin: 0 !important;
+  padding: 16px 9px 15px 42px !important;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  color: #bdb7a8 !important;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.015), transparent 46%),
+    #12110e !important;
+  border: 1px solid #403c34 !important;
+  border-radius: 0 !important;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  box-shadow: inset 3px 0 0 #2b2923 !important;
+  font-family: "BebasKai", "Share Tech Mono", monospace !important;
+  font-size: clamp(12px, 1.05vw, 15px) !important;
+  line-height: 1.05;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    transform 120ms ease !important;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn::before {
+  content: var(--dm-code);
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  min-width: 23px;
+  color: #8f7a4d;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn::after {
+  content: var(--dm-section);
+  position: absolute;
+  left: 42px;
+  bottom: 7px;
+  color: #69655c;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.15em;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn:hover {
+  color: #eee5cd !important;
+  background: #191712 !important;
+  border-color: #75694f !important;
+  transform: translateY(-1px);
+  box-shadow: inset 3px 0 0 var(--dm-gold) !important;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn.active {
+  color: #f0e7d0 !important;
+  background:
+    linear-gradient(90deg, rgba(125, 30, 25, 0.95), rgba(72, 24, 20, 0.92) 68%, #19110e 100%) !important;
+  border-color: #aa8c53 !important;
+  box-shadow:
+    inset 4px 0 0 #d0b06e,
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(125, 30, 25, 0.18) !important;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn.active::before {
+  color: #e3c47c;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn.active::after {
+  color: #d4b98a;
+}
+
+/* Codes and subtle section taxonomy. */
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-tiempo"] { --dm-code: "01"; --dm-section: "WORLD / CLOCK"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-clima"] { --dm-code: "02"; --dm-section: "WORLD / WEATHER"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-turnos"] { --dm-code: "03"; --dm-section: "SESSION / FLOW"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-combate"] { --dm-code: "04"; --dm-section: "SESSION / COMBAT"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="dashboard-actores"] { --dm-code: "05"; --dm-section: "PERSONNEL / ACTORS"; grid-column: span 3; }
+.dm-tabs-nav .dm-tab-btn[data-tab="dashboard-jugadores"] { --dm-code: "06"; --dm-section: "PERSONNEL / PLAYERS"; grid-column: span 3; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-comms"] { --dm-code: "07"; --dm-section: "NETWORK / COMMS"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-banco"] { --dm-code: "08"; --dm-section: "RESOURCES / BANK"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-forja"] { --dm-code: "09"; --dm-section: "RESOURCES / MARKET"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-loot"] { --dm-code: "10"; --dm-section: "RESOURCES / LOOT"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-keywords"] { --dm-code: "11"; --dm-section: "SYSTEM / FLAGS"; }
+.dm-tabs-nav .dm-tab-btn[data-tab="tab-acceso"] { --dm-code: "12"; --dm-section: "SYSTEM / ACCESS"; }
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director {
+  --dm-code: "LIVE";
+  --dm-section: "DIRECTOR / DEPLOY";
+  grid-column: span 4;
+  min-height: 64px;
+  color: #f1dfb2 !important;
+  background:
+    linear-gradient(90deg, #3c1712 0, #6f2119 58%, #20110e 100%) !important;
+  border: 1px solid #b28c49 !important;
+  box-shadow:
+    inset 4px 0 0 #bc3130,
+    inset 0 0 0 1px rgba(255, 222, 151, 0.045) !important;
+  letter-spacing: 0.08em;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director:hover {
+  color: #fff1cd !important;
+  background:
+    linear-gradient(90deg, #4a1914 0, #8b2a20 58%, #27130f 100%) !important;
+  border-color: #d0a85d !important;
+}
+
+/* Content frame: retain module logic, replace the generic neon box language. */
+body:has(.dm-tabs-nav) .dm-tabs-content {
+  width: min(1320px, 100%) !important;
+  box-sizing: border-box;
+  padding: 0 12px 34px;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane {
+  animation: dm-shell-in 130ms ease-out;
+}
+
+@keyframes dm-shell-in {
+  from { opacity: 0.65; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber {
+  width: min(1180px, 94%) !important;
+  max-width: 1180px !important;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(18px, 2.5vw, 28px) !important;
+  background:
+    linear-gradient(135deg, rgba(169, 138, 79, 0.035), transparent 32%),
+    #0e0e0b !important;
+  border: 1px solid #4a4438 !important;
+  border-left: 3px solid #70211b !important;
+  border-radius: 0 !important;
+  box-shadow:
+    0 15px 30px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(216, 209, 189, 0.018) !important;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber::before {
+  content: "DIRECTOR MODULE";
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  color: #5e5a50;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  pointer-events: none;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber > h3 {
+  color: #d3c8aa !important;
+  text-shadow: none !important;
+  border-bottom: 1px solid #4b4435 !important;
+  padding: 0 72px 10px 10px !important;
+  text-align: left !important;
+  letter-spacing: 0.11em !important;
+  position: relative;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber > h3::before {
+  content: "//";
+  color: #8c2b24;
+  margin-right: 9px;
+}
+
+body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber > p:first-of-type {
+  color: #8d897f !important;
+}
+
+/* Tame generic cyan glow without touching semantic state colors inside modules. */
+body:has(.dm-tabs-nav) .panel-cyber .form-cyber,
+body:has(.dm-tabs-nav) .panel-cyber .card-cyber,
+body:has(.dm-tabs-nav) .panel-cyber .dm-toolbar {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body:has(.dm-tabs-nav) input:focus,
+body:has(.dm-tabs-nav) select:focus,
+body:has(.dm-tabs-nav) textarea:focus {
+  box-shadow: 0 0 0 1px rgba(169, 138, 79, 0.28) !important;
+}
+
+/* Tablet */
+@media (max-width: 980px) {
+  body:has(.dm-tabs-nav) .dm-tabs-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn,
+  .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-actores"],
+  .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-jugadores"] {
+    grid-column: span 2;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director {
+    grid-column: span 6;
+  }
+}
+
+/* Mobile: compact command rail instead of a three-row button cloud. */
+@media (max-width: 640px) {
+  body:has(.dm-tabs-nav) .dm-global-header {
+    min-height: 44px;
+    padding: 6px 10px !important;
+  }
+
+  body:has(.dm-tabs-nav) .dm-global-header::before {
+    content: "DM // TERMINAL";
+    font-size: 10px;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav {
+    width: calc(100% - 12px) !important;
+    display: flex !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px !important;
+    padding: 34px 8px 9px !important;
+    margin-top: 10px !important;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav::before {
+    font-size: 10px;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav::after {
+    display: none;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn,
+  .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-actores"],
+  .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-jugadores"],
+  body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director {
+    flex: 0 0 150px !important;
+    min-height: 54px;
+    scroll-snap-align: start;
+    font-size: 12px !important;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director {
+    flex-basis: 205px !important;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-content {
+    padding-inline: 6px;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber {
+    width: 98% !important;
+    padding: 15px !important;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber > h3 {
+    padding-right: 10px !important;
+    font-size: 15px !important;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane > .panel-cyber::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:has(.dm-tabs-nav) .dm-tabs-content > .dm-tab-pane {
+    animation: none;
+  }
+
+  body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,35 @@
+/* Follow-up fixes for the DM Limbus shell review. */
+
+/*
+ * Grid and flex auto-placement use the order-modified document order.
+ * Keep the visible deck aligned with the 01-12 module taxonomy even though
+ * pantalla_dm.html retains its legacy DOM order for compatibility.
+ */
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-tiempo"] { order: 1; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-clima"] { order: 2; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-turnos"] { order: 3; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-combate"] { order: 4; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-actores"] { order: 5; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="dashboard-jugadores"] { order: 6; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-comms"] { order: 7; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-banco"] { order: 8; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-forja"] { order: 9; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-loot"] { order: 10; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-keywords"] { order: 11; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .dm-tab-btn[data-tab="tab-acceso"] { order: 12; }
+body:has(.dm-tabs-nav) .dm-tabs-nav .btn-modo-director { order: 13; }
+
+/*
+ * pantalla_dm.html gives .form-cyber min-width: 100% !important on mobile.
+ * With content-box sizing, its padding/borders extend beyond the panel and the
+ * shell's clipped industrial frame cuts off the right edge. Force the mobile
+ * forms into the panel's border box instead of removing the frame clipping.
+ */
+@media (max-width: 768px) {
+  body:has(.dm-tabs-nav) .panel-cyber .form-cyber {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
