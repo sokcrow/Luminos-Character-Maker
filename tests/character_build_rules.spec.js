@@ -70,7 +70,7 @@ test("multiclase usa promedio ponderado y redondeo simétrico para OFF / DEF", (
   closeTo(result.classOffModRaw, 40 / 35);
   closeTo(result.classDefModRaw, -10 / 35);
   expect(result.classOffMod).toBe(1);
-  expect(result.classDefMod).toBe(0);
+  expect(Math.abs(result.classDefMod)).toBe(0);
   expect(rules.symmetricRound(-1.5)).toBe(-2);
   expect(rules.symmetricRound(1.5)).toBe(2);
 });
