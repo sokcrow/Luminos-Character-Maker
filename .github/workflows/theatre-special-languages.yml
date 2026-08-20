@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "js/language-catalog-engine.js"
+      - "js/theatre-language-policy.js"
       - "js/theatre-special-language-access.js"
       - "js/theatre-special-language-enforcement-hotfix.js"
       - "js/theatre-special-language-log-hotfix.js"
@@ -33,6 +34,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check js/language-catalog-engine.js
+          node --check js/theatre-language-policy.js
           node --check js/theatre-special-language-access.js
           node --check js/theatre-special-language-enforcement-hotfix.js
           node --check js/theatre-special-language-log-hotfix.js
