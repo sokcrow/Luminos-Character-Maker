@@ -1,0 +1,36 @@
+name: DM Limbus Shell
+
+on:
+  pull_request:
+    paths:
+      - "css/actor-studio.css"
+      - "css/dm-limbus-shell.css"
+      - "css/dm-limbus-shell-fixes.css"
+      - "pantalla_dm.html"
+      - "tests/dm_limbus_shell.spec.js"
+      - ".github/workflows/dm-limbus-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shell-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check test syntax
+        run: node --check tests/dm_limbus_shell.spec.js
+
+      - name: Run DM shell regressions
+        run: npx playwright test tests/dm_limbus_shell.spec.js --workers=1
