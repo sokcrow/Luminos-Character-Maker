@@ -25,14 +25,32 @@ test("roster search includes faction, type, tags and linked player label", () =>
   }
 });
 
-test("faction UX is dynamic, collapsible, sticky and persists local UI state", () => {
-  expect(uxSource).toContain("character-manager-faction-filter");
-  expect(uxSource).toContain("allFactions()");
+test("all roster grouping modes are collapsible with independent persisted keys", () => {
+  expect(rosterUx.collapseKey("type", "Aliado")).toBe("type:ALIADO");
+  expect(rosterUx.collapseKey("faction", "LCB")).toBe("faction:LCB");
+  expect(rosterUx.collapseKey("tag", "Contacto")).toBe("tag:CONTACTO");
+  expect(uxSource).toContain("collapseKey(state.groupMode, label)");
+  expect(uxSource).not.toContain('if (state.groupMode !== "faction") return;');
+  expect(uxSource).toContain('entry.includes(":") ? entry : collapseKey("faction", entry)');
   expect(uxSource).toContain('setAttribute("aria-expanded"');
   expect(uxSource).toContain("state.collapsed");
   expect(uxSource).toContain("localStorage");
   expect(cssSource).toContain("position: sticky");
   expect(cssSource).toContain('data-collapsed="true"');
+});
+
+test("faction comparison follows renderer casing instead of browser locale casing", () => {
+  expect("fixer".toLocaleUpperCase("tr")).toBe("FİXER");
+  expect(rosterUx.rendererUpper("fixer")).toBe("FIXER");
+  expect(rosterUx.rendererUpper("fixer")).not.toBe("fixer".toLocaleUpperCase("tr"));
+  expect(uxSource).toContain("rendererUpper(label) === rendererUpper(state.faction)");
+  expect(uxSource).not.toContain("label.toLocaleUpperCase()");
+});
+
+test("faction filter stays faction-only while collapse works for type faction and tag", () => {
+  expect(uxSource).toContain('select.hidden = state.groupMode !== "faction"');
+  expect(uxSource).toContain('state.groupMode !== "faction"');
+  expect(uxSource).toContain('GROUP_MODES = ["type", "faction", "tag"]');
 });
 
 test("search input is decoupled so the original renderer keeps all 100+ actors available", () => {
