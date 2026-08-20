@@ -11,14 +11,19 @@
   const state = {
     initialized: false,
     modernActorsLoaded: false,
+    legacyActorsLoaded: false,
     modernActors: {},
+    legacyActors: {},
     modernActorIds: new Set(),
     location: "",
     rosterObserver: null,
     originalGetAssignedActor: null,
+    originalSyncComposer: null,
     originalChangeScene: null,
     identityPatched: false,
+    composerPatched: false,
     sceneRefreshQueued: false,
+    playerRepairQueued: false,
   };
 
   function getDb() {
@@ -33,15 +38,42 @@
     return Boolean(global.document?.body?.classList?.contains("on-game-dashboard"));
   }
 
-  function normalizeIds(value) {
-    const theatre = global.LuminousTheatreState;
-    if (theatre?.normalizeAssignedActorIds) {
-      return theatre.normalizeAssignedActorIds(value).map(String).filter(Boolean);
+  function addId(result, value) {
+    if (value === undefined || value === null || value === false) return;
+    const id = String(value).trim();
+    if (!id || id === "true" || id === "false" || result.includes(id)) return;
+    result.push(id);
+  }
+
+  function walkAssignedValue(value, result) {
+    if (value === undefined || value === null || value === false) return;
+    if (Array.isArray(value)) {
+      value.forEach((entry) => walkAssignedValue(entry, result));
+      return;
     }
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map(String).filter(Boolean);
-    if (typeof value === "object") return Object.values(value).map(String).filter(Boolean);
-    return [String(value)].filter(Boolean);
+    if (typeof value === "object") {
+      if (value.actorId !== undefined) addId(result, value.actorId);
+      if (value.id !== undefined) addId(result, value.id);
+      Object.entries(value).forEach(([key, entry]) => {
+        if (entry === true || entry === 1) addId(result, key);
+        else if (typeof entry === "string" || typeof entry === "number") addId(result, entry);
+        else if (entry && typeof entry === "object") walkAssignedValue(entry, result);
+      });
+      return;
+    }
+    addId(result, value);
+  }
+
+  function normalizeIds(value) {
+    const result = [];
+    const theatre = global.LuminousTheatreState;
+    try {
+      theatre?.normalizeAssignedActorIds?.(value)?.forEach?.((entry) => addId(result, entry));
+    } catch (error) {
+      // Fallback below handles older assignment shapes.
+    }
+    walkAssignedValue(value, result);
+    return result;
   }
 
   function playerProfile() {
@@ -50,9 +82,10 @@
       : {};
   }
 
-  function playerKey() {
+  function playerKeys() {
     const data = playerProfile();
     const candidates = [
+      global.firebase?.auth?.().currentUser?.uid,
       global.playerId,
       global.localStorage?.getItem?.("playerId"),
       data.playerId,
@@ -62,16 +95,57 @@
       data.nombre,
       data.name,
     ];
-    return String(candidates.find((value) => value !== undefined && value !== null && String(value).trim()) || "").trim();
+    return new Set(candidates
+      .filter((value) => value !== undefined && value !== null && String(value).trim())
+      .map((value) => String(value).trim()));
+  }
+
+  function playerKey() {
+    return [...playerKeys()][0] || "";
+  }
+
+  function actorRecord(actorId) {
+    const id = String(actorId || "");
+    if (!id) return null;
+    if (state.modernActors[id]) return { actorId: id, source: "modern", data: state.modernActors[id] };
+    if (state.legacyActors[id]) return { actorId: id, source: "legacy-assigned", data: state.legacyActors[id] };
+    return null;
+  }
+
+  function linkedActorIds() {
+    const keys = playerKeys();
+    if (!keys.size) return [];
+    const result = [];
+    const inspect = (pool) => {
+      Object.entries(pool || {}).forEach(([actorId, actor]) => {
+        if (!actor || typeof actor !== "object") return;
+        const links = [actor.vinculo_jugador, actor.sourceId, actor.playerId]
+          .filter((value) => value !== undefined && value !== null)
+          .map(String);
+        if (links.some((value) => keys.has(value)) && (actor.tipo === "Jugador" || actor.sourceType === "player-profile")) {
+          addId(result, actorId);
+        }
+      });
+    };
+    inspect(state.modernActors);
+    inspect(state.legacyActors);
+    return result;
   }
 
   function assignedIds() {
     const data = playerProfile();
-    const values = [data.actorIds, data.actores, data.actorId, data.vinculo_jugador];
     const result = [];
-    values.forEach((value) => normalizeIds(value).forEach((id) => {
-      if (!result.includes(id)) result.push(id);
-    }));
+    [data.actorIds, data.actores, data.actorId].forEach((value) => {
+      normalizeIds(value).forEach((id) => addId(result, id));
+    });
+
+    // Some older profiles stored the actor id in vinculo_jugador. Keep it only
+    // when that value actually resolves to an actor record.
+    normalizeIds(data.vinculo_jugador).forEach((id) => {
+      if (actorRecord(id)) addId(result, id);
+    });
+
+    linkedActorIds().forEach((id) => addId(result, id));
     return result;
   }
 
@@ -80,16 +154,32 @@
     return selected ? String(selected) : "";
   }
 
-  function buildOwnActor() {
-    const data = playerProfile();
+  function preferredAssignedActorId() {
     const ids = assignedIds();
     const selected = selectedActorId();
-    const modernSelected = selected && state.modernActorIds.has(selected) ? selected : "";
-    const modernAssigned = ids.find((id) => state.modernActorIds.has(id)) || "";
-    const actorId = modernSelected || modernAssigned || selected || ids[0] || "";
+    if (selected && ids.includes(selected) && actorRecord(selected)) return selected;
+    return ids.find((id) => actorRecord(id)) || ids[0] || "";
+  }
+
+  function ensureScalarActorAssignment() {
+    const data = playerProfile();
+    const actorId = preferredAssignedActorId();
+    if (!actorId) return "";
+
+    // hoja_personaje.js still uses actorId as a boolean preflight before it
+    // delegates to getAssignedTheatreActor(). Keep this compatibility value in
+    // memory only; the actual selected actor continues to come from the resolver.
+    if (!data.actorId) data.actorId = actorId;
+    return actorId;
+  }
+
+  function buildOwnActor() {
+    const data = playerProfile();
+    const actorId = preferredAssignedActorId();
     if (!actorId && !playerKey()) return null;
 
-    const actor = state.modernActors[actorId] || {};
+    const record = actorRecord(actorId);
+    const actor = record?.data || {};
     const sourceId = actor.sourceId || actor.vinculo_jugador || playerKey() || actorId;
     const identityId = actor.identityId || actor.identidadId || actorId || sourceId;
 
@@ -98,7 +188,7 @@
       actorId: actorId || identityId,
       id: actor.id || actorId || identityId,
       sourceId,
-      sourceType: actor.sourceType || "player-profile",
+      sourceType: actor.sourceType || (record?.source === "legacy-assigned" ? "player-profile" : "player-profile"),
       identityId,
       nombre:
         actor.nombre ||
@@ -111,6 +201,7 @@
       icono: actor.icono || actor.icono_jugador || data.icono || data.icono_jugador || "",
       icono_jugador: actor.icono_jugador || data.icono_jugador || data.icono || "",
       sprite: actor.sprite || actor.url || "",
+      expresiones: actor.expresiones && typeof actor.expresiones === "object" ? actor.expresiones : {},
       color_nombre: actor.color_nombre || data.color_nombre || "#4a4a4a",
       color_titulo: actor.color_titulo || data.color_titulo || "#4a4a4a",
     };
@@ -130,17 +221,110 @@
         existing = null;
       }
 
+      const own = buildOwnActor();
+      if (!own) return existing;
+      const ownId = String(own.actorId || own.id || "");
       const existingId = String(existing?.actorId || existing?.id || "");
-      if (existing && existingId && state.modernActorIds.has(existingId)) {
-        return { ...buildOwnActor(), ...existing, actorId: existingId };
+
+      if (existing && existingId === ownId) {
+        return {
+          ...own,
+          ...existing,
+          actorId: ownId,
+          expresiones: Object.keys(own.expresiones || {}).length ? own.expresiones : (existing.expresiones || {}),
+        };
       }
 
-      // Self knowledge must not depend on the sprite cache or the local
-      // "Mostrar mi personaje" preference. The player's profile is enough.
-      return buildOwnActor();
+      // Self knowledge and assigned expressions must not depend on whether the
+      // actor survived the general-purpose sprite cache pruning.
+      return own;
     };
 
+    global.getAssignedTheatreActor.__luminousAssignedExpressionsPatched = true;
     state.identityPatched = true;
+  }
+
+  function expressionSprite(value) {
+    if (typeof value === "string") return value;
+    return value?.sprite || value?.url || value?.imagen || "";
+  }
+
+  function syncAssignedActorSelector() {
+    const select = global.document?.getElementById?.("player-actor-select");
+    if (!select) return;
+
+    const ids = assignedIds().filter((id) => actorRecord(id));
+    if (!ids.length) return;
+
+    const previous = select.value;
+    select.innerHTML = "";
+    ids.forEach((actorId) => {
+      const record = actorRecord(actorId);
+      const option = global.document.createElement("option");
+      option.value = actorId;
+      option.textContent = record?.data?.nombre || actorId;
+      select.appendChild(option);
+    });
+
+    if (previous && ids.includes(previous)) select.value = previous;
+    else select.value = ids[0];
+  }
+
+  function syncAssignedExpressions() {
+    const select = global.document?.getElementById?.("player-expression");
+    if (!select) return;
+    const actor = global.getAssignedTheatreActor?.() || buildOwnActor();
+    if (!actor) return;
+
+    const expressions = actor.expresiones && typeof actor.expresiones === "object"
+      ? actor.expresiones
+      : {};
+    const names = Object.keys(expressions);
+    const previous = select.value;
+    select.innerHTML = "";
+
+    if (!names.length) {
+      const option = global.document.createElement("option");
+      option.value = "Neutral";
+      option.textContent = "Neutral";
+      const baseSprite = actor.sprite || actor.url || "";
+      if (baseSprite) option.dataset.sprite = baseSprite;
+      select.appendChild(option);
+      return;
+    }
+
+    names.forEach((name) => {
+      const option = global.document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      const sprite = expressionSprite(expressions[name]);
+      if (sprite) option.dataset.sprite = sprite;
+      select.appendChild(option);
+    });
+
+    if (previous && names.includes(previous)) select.value = previous;
+  }
+
+  function repairPlayerComposer() {
+    if (isDmView()) return;
+    ensureScalarActorAssignment();
+    syncAssignedActorSelector();
+    syncAssignedExpressions();
+  }
+
+  function patchPlayerComposer() {
+    if (isDmView() || state.composerPatched) return;
+    const current = global.syncPlayerTheatreComposer;
+    if (typeof current !== "function") return;
+
+    state.originalSyncComposer = current;
+    global.syncPlayerTheatreComposer = function () {
+      const result = state.originalSyncComposer?.apply(this, arguments);
+      repairPlayerComposer();
+      return result;
+    };
+    global.syncPlayerTheatreComposer.__luminousAssignedExpressionsPatched = true;
+    state.composerPatched = true;
   }
 
   function forceTheatreIdentityRefresh() {
@@ -164,18 +348,52 @@
   function pruneLegacyPlayerActorCache() {
     if (!state.modernActorsLoaded || !global.actoresJugador || typeof global.actoresJugador !== "object") return;
 
+    const assigned = new Set(assignedIds());
     Object.keys(global.actoresJugador).forEach((actorId) => {
-      if (!state.modernActorIds.has(actorId)) delete global.actoresJugador[actorId];
+      const isModern = state.modernActorIds.has(actorId);
+      const isAssignedLegacy = assigned.has(actorId) && Boolean(state.legacyActors[actorId]);
+      if (!isModern && !isAssignedLegacy) delete global.actoresJugador[actorId];
     });
-    global.allActoresCache = global.actoresJugador;
 
+    // Rehydrate the modern pool and only the legacy records that are explicitly
+    // assigned to this player. This preserves expressions without resurrecting
+    // the obsolete global legacy roster.
+    Object.entries(state.modernActors).forEach(([actorId, actor]) => {
+      global.actoresJugador[actorId] = actor;
+    });
+    assigned.forEach((actorId) => {
+      if (!state.modernActorIds.has(actorId) && state.legacyActors[actorId]) {
+        global.actoresJugador[actorId] = state.legacyActors[actorId];
+      }
+    });
+
+    global.allActoresCache = global.actoresJugador;
     patchOwnIdentityResolver();
-    try {
-      global.syncPlayerTheatreComposer?.();
-    } catch (error) {
-      console.warn("No se pudo resincronizar el compositor del jugador:", error);
-    }
+    patchPlayerComposer();
+    repairPlayerComposer();
     forceTheatreIdentityRefresh();
+  }
+
+  function queuePlayerRepair() {
+    if (isDmView() || state.playerRepairQueued) return;
+    state.playerRepairQueued = true;
+    global.setTimeout(() => {
+      state.playerRepairQueued = false;
+      patchOwnIdentityResolver();
+      patchPlayerComposer();
+      pruneLegacyPlayerActorCache();
+      repairPlayerComposer();
+    }, 0);
+  }
+
+  function bindSendPreflight() {
+    if (isDmView() || global.__luminousAssignedExpressionsSendPreflight) return;
+    global.__luminousAssignedExpressionsSendPreflight = true;
+    global.document?.addEventListener?.("click", (event) => {
+      if (!event.target?.closest?.("#btn-enviar-teatro-modal")) return;
+      ensureScalarActorAssignment();
+      repairPlayerComposer();
+    }, true);
   }
 
   function pruneDmRoster() {
@@ -330,7 +548,18 @@
       state.modernActorsLoaded = true;
 
       if (isDmView()) pruneDmRoster();
-      else pruneLegacyPlayerActorCache();
+      else queuePlayerRepair();
+    });
+  }
+
+  function subscribeAssignedLegacyActors() {
+    if (isDmView()) return;
+    const db = getDb();
+    if (!db) return;
+    db.ref(LEGACY_ACTOR_ROOT).on("value", (snapshot) => {
+      state.legacyActors = snapshot.val() || {};
+      state.legacyActorsLoaded = true;
+      queuePlayerRepair();
     });
   }
 
@@ -340,8 +569,14 @@
       legacyActorRoot: LEGACY_ACTOR_ROOT,
       modernLocationPath: MODERN_LOCATION_PATH,
       getModernActorIds: () => [...state.modernActorIds],
+      getAssignedActorIds: () => assignedIds(),
+      getAssignedLegacyActorIds: () => assignedIds().filter((id) => !state.modernActorIds.has(id) && Boolean(state.legacyActors[id])),
       getLocation: () => state.location,
       refreshIdentity: forceTheatreIdentityRefresh,
+      refreshAssignedExpressions: () => {
+        queuePlayerRepair();
+        return assignedIds();
+      },
       pruneLegacyActors: () => isDmView() ? pruneDmRoster() : pruneLegacyPlayerActorCache(),
     });
   }
@@ -355,19 +590,24 @@
     state.initialized = true;
     exposeDiagnostics();
     patchOwnIdentityResolver();
+    patchPlayerComposer();
     patchSceneChangeLocationSync();
     bindLocationButtonTakeover();
+    bindSendPreflight();
     bindRosterGuard();
     subscribeModernActors();
+    subscribeAssignedLegacyActors();
     subscribeModernLocation();
     seedModernLocation();
 
     global.addEventListener?.("actoresCacheUpdated", () => {
-      if (!isDmView()) pruneLegacyPlayerActorCache();
+      if (!isDmView()) queuePlayerRepair();
     });
 
     global.firebase?.auth?.().onAuthStateChanged?.(() => {
       patchOwnIdentityResolver();
+      patchPlayerComposer();
+      if (!isDmView()) queuePlayerRepair();
       forceTheatreIdentityRefresh();
     });
 
