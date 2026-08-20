@@ -131,6 +131,35 @@ function ensureTheatreModernIdentityHotfix(doc) {
     return ensureScriptAsset(documentRef, 'theatre-modern-identity-hotfix-script', 'js/theatre-modern-identity-hotfix.js', { engine: 'theatre-modern-identity-hotfix' });
 }
 
+function ensureWeatherSystemAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    const isDirector = documentRef?.querySelector?.('#tab-clima');
+    const isPlayer = documentRef?.querySelector?.('.sheet-weather-widget');
+    const hasTheatre = documentRef?.querySelector?.('#theatre-stage, #theatre-view-player, #modulo-teatro');
+    if (!isDirector && !isPlayer && !hasTheatre) return null;
+
+    const engineSrc = isDirector ? 'js/weather-engine.js' : 'js/weather-readonly-engine.js';
+    const engine = ensureScriptAsset(documentRef, 'weather-engine-script', engineSrc, { engine: isDirector ? 'weather-director-engine' : 'weather-readonly' });
+    const assets = { engine };
+
+    if (isDirector) {
+        assets.directorStyle = ensureStyleAsset(documentRef, 'weather-director-stylesheet', 'css/weather-director.css', { ui: 'weather-director' });
+        assets.director = ensureScriptAsset(documentRef, 'weather-director-script', 'js/weather-director-ui.js', { ui: 'weather-director' });
+    }
+
+    if (isPlayer) {
+        assets.playerStyle = ensureStyleAsset(documentRef, 'weather-player-stylesheet', 'css/weather-player.css', { ui: 'weather-player' });
+        assets.player = ensureScriptAsset(documentRef, 'weather-player-script', 'js/weather-player-widget.js', { ui: 'weather-player' });
+    }
+
+    if (hasTheatre || isPlayer) {
+        assets.fxStyle = ensureStyleAsset(documentRef, 'weather-fx-stylesheet', 'css/weather-fx.css', { ui: 'weather-fx' });
+        assets.fx = ensureScriptAsset(documentRef, 'weather-fx-script', 'js/weather-fx.js', { ui: 'weather-fx' });
+    }
+
+    return assets;
+}
+
 function ensurePlayerTheatreLanguagePolicy(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -210,6 +239,7 @@ if (typeof document !== 'undefined') {
     ensureDmPlayerDndStudioAssets(document);
     ensurePlayerSplashFramingAssets(document);
     ensureTheatreModernIdentityHotfix(document);
+    ensureWeatherSystemAssets(document);
     ensurePlayerTheatreLanguagePolicy(document);
     ensureDmCharacterManagerAssets(document);
 }
@@ -225,6 +255,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensureDmPlayerDndStudioAssets,
         ensurePlayerSplashFramingAssets,
         ensureTheatreModernIdentityHotfix,
+        ensureWeatherSystemAssets,
         ensurePlayerTheatreLanguagePolicy,
         ensureDmCharacterManagerAssets
     };

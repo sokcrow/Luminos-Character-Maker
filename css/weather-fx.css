@@ -1,0 +1,94 @@
+#theatre-stage { position: relative; overflow: hidden; }
+.weather-fx-layer {
+  --weather-intensity: .5;
+  --weather-wind: .1;
+  --weather-visibility: 1;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+.weather-fx-layer > div { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.weather-fx-darken { background: rgba(3,7,9, calc((1 - var(--weather-visibility)) * .38)); transition: opacity .5s ease; }
+.weather-fx-layer[data-weather="nublado"] .weather-fx-darken,
+.weather-fx-layer[data-weather="llovizna"] .weather-fx-darken,
+.weather-fx-layer[data-weather="lluvia"] .weather-fx-darken,
+.weather-fx-layer[data-weather="tormenta"] .weather-fx-darken,
+.weather-fx-layer[data-weather="niebla"] .weather-fx-darken,
+.weather-fx-layer[data-weather="nieve"] .weather-fx-darken,
+.weather-fx-layer[data-weather="nevada"] .weather-fx-darken { opacity: .8; }
+
+.weather-fx-rain {
+  background-image:
+    repeating-linear-gradient(calc(103deg + (var(--weather-wind) * 12deg)), transparent 0 11px, rgba(191,231,244,.42) 12px 13px, transparent 14px 22px),
+    repeating-linear-gradient(calc(101deg + (var(--weather-wind) * 10deg)), transparent 0 27px, rgba(162,213,231,.22) 28px 29px, transparent 30px 42px);
+  background-size: 90px 150px, 150px 220px;
+  transform: translateY(-35%);
+  animation: luminous-weather-rain .58s linear infinite;
+  filter: blur(.2px);
+}
+.weather-fx-layer[data-precipitation="rain"] .weather-fx-rain { opacity: calc(.18 + (var(--weather-intensity) * .70)); }
+.weather-fx-layer[data-weather="llovizna"] .weather-fx-rain { animation-duration: .95s; }
+.weather-fx-layer[data-weather="tormenta"] .weather-fx-rain { animation-duration: .42s; }
+@keyframes luminous-weather-rain { to { transform: translate(calc(-8% * var(--weather-wind)), 35%); background-position: 0 160px, 20px 230px; } }
+
+.weather-fx-fog {
+  inset: -20% !important;
+  background:
+    radial-gradient(ellipse at 20% 45%, rgba(202,220,220,.22), transparent 38%),
+    radial-gradient(ellipse at 70% 58%, rgba(196,213,216,.18), transparent 42%),
+    linear-gradient(90deg, transparent, rgba(190,209,211,.12), transparent);
+  filter: blur(18px);
+  animation: luminous-weather-fog 13s ease-in-out infinite alternate;
+}
+.weather-fx-layer[data-fog="true"] .weather-fx-fog { opacity: calc(.28 + (var(--weather-intensity) * .42)); }
+@keyframes luminous-weather-fog { from { transform: translateX(-5%) scale(1.03); } to { transform: translateX(7%) scale(1.1); } }
+
+.weather-fx-snow { overflow: hidden; }
+.weather-fx-snow i {
+  position: absolute;
+  top: -8%;
+  left: calc(var(--x) * 1%);
+  width: calc(var(--s) * 1px);
+  height: calc(var(--s) * 1px);
+  border-radius: 50%;
+  background: rgba(242,250,255,.9);
+  box-shadow: 0 0 4px rgba(255,255,255,.35);
+  animation: luminous-weather-snow calc(var(--d) * 1s) linear infinite;
+  animation-delay: calc(var(--i) * -.31s);
+}
+.weather-fx-layer[data-precipitation="snow"] .weather-fx-snow { opacity: calc(.25 + (var(--weather-intensity) * .72)); }
+@keyframes luminous-weather-snow { to { transform: translate(calc((12px + 34px * var(--weather-wind))), 118vh) rotate(240deg); } }
+
+.weather-fx-hail {
+  background-image: radial-gradient(circle, rgba(245,252,255,.72) 0 1.5px, transparent 2px);
+  background-size: 34px 52px;
+  animation: luminous-weather-hail .38s linear infinite;
+}
+.weather-fx-layer[data-hail="true"] .weather-fx-hail { opacity: calc(.2 + var(--weather-intensity) * .6); }
+@keyframes luminous-weather-hail { to { background-position: 8px 54px; } }
+
+.weather-fx-lightning { background: rgba(224,244,255,.85); mix-blend-mode: screen; }
+.weather-fx-layer[data-storm="true"] .weather-fx-lightning { animation: luminous-weather-lightning 6.7s steps(1,end) infinite; }
+@keyframes luminous-weather-lightning {
+  0%, 70%, 74%, 100% { opacity: 0; }
+  71% { opacity: .42; }
+  72% { opacity: .06; }
+  73% { opacity: .72; }
+}
+
+.weather-fx-heat {
+  inset: -3% !important;
+  background: repeating-linear-gradient(0deg, transparent 0 8px, rgba(255,210,130,.028) 9px 11px, transparent 12px 18px);
+  backdrop-filter: blur(.45px);
+  animation: luminous-weather-heat 2.8s ease-in-out infinite alternate;
+}
+.weather-fx-layer[data-heat="true"] .weather-fx-heat { opacity: calc(.16 + (var(--weather-intensity) * .28)); }
+@keyframes luminous-weather-heat { from { transform: translateY(-2px) skewX(-.4deg); } to { transform: translateY(3px) skewX(.5deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .weather-fx-layer * { animation: none !important; }
+  .weather-fx-layer[data-storm="true"] .weather-fx-lightning { opacity: 0 !important; }
+}
