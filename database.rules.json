@@ -4,11 +4,29 @@
       // 1. CUALQUIERA CON CUENTA puede leer todo el juego (Calendario, Items, etc.)
       ".read": "auth != null",
 
-
       "estado_mundo": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-"config": {
+
+      "clima": {
+        // Weather Director: todos los jugadores autenticados heredan lectura,
+        // pero solo el DM puede dirigir o alterar el estado meteorológico.
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
+      "worldData": {
+        "weatherForecast": {
+          // Compatibilidad con el widget/pronóstico legacy durante la migración.
+          ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+        }
+      },
+
+      "hora_actual": {
+        // El reloj legacy todavía sincroniza este valor junto con calendario.
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      },
+
+      "config": {
         // Solo el DM genera códigos
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
