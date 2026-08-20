@@ -36,6 +36,14 @@
     return script;
   }
 
+  function ensureInterventionUxRuntime() {
+    return ensureRuntimeScript(
+      "theatre-intervention-ux-runtime-script",
+      "js/theatre-intervention-ux.js",
+      "luminousTheatreInterventionUxRuntime",
+    );
+  }
+
   function ensurePlayerSpecialLanguageRuntime() {
     if (isDmView()) return;
     const ensureLog = () => ensureRuntimeScript(
@@ -281,9 +289,12 @@
   }
 
   function refresh() {
+    ensureInterventionUxRuntime();
     if (isDmView()) refreshDmSelector();
     else ensurePlayerSelector();
   }
+
+  ensureInterventionUxRuntime();
 
   LANGUAGE_ROOTS.forEach((root) => {
     db.ref(root).on("value", (snapshot) => {

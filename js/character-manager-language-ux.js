@@ -136,11 +136,31 @@
     }, 0);
   }
 
+  function ensureRosterUxAssets() {
+    if (!doc.getElementById("character-manager-roster-ux-stylesheet")) {
+      const link = doc.createElement("link");
+      link.id = "character-manager-roster-ux-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/character-manager-roster-ux.css";
+      link.dataset.ui = "character-manager-roster-ux";
+      doc.head?.appendChild(link);
+    }
+    if (!doc.getElementById("character-manager-roster-ux-script")) {
+      const script = doc.createElement("script");
+      script.id = "character-manager-roster-ux-script";
+      script.src = "js/character-manager-roster-ux.js";
+      script.async = false;
+      script.dataset.ui = "character-manager-roster-ux";
+      doc.head?.appendChild(script);
+    }
+  }
+
   function install() {
     if (!getManager()) return false;
     const host = doc.getElementById("character-manager-languages");
     if (!host) return false;
     decorate();
+    ensureRosterUxAssets();
     if (!observer) {
       observer = new MutationObserver(scheduleDecorate);
       // Solo observamos altas/bajas de filas. Observar subtree haría que la
@@ -152,6 +172,7 @@
   }
 
   function boot() {
+    ensureRosterUxAssets();
     if (install()) return;
     if (retryTimer) return;
     retryTimer = global.setInterval(() => {
