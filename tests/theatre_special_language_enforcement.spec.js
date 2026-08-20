@@ -1,4 +1,6 @@
 const { test, expect } = require("@playwright/test");
+const fs = require("fs");
+const path = require("path");
 const rules = require("../js/theatre-special-language-enforcement-hotfix.js");
 const logRules = require("../js/theatre-special-language-log-hotfix.js");
 
@@ -35,5 +37,13 @@ test.describe("special language hotfix", () => {
     const so = { idiomas: { dante_clock: { porcentaje: 0, comprendido: false } } };
     const message = { nombre: "Dante", mensaje: "Debemos irnos.", idiomaId: "dante_clock" };
     expect(logRules.resolveLogMessageText(message, defs, [so], rules)).toBe("Tik... Tok...");
+  });
+
+  test("the player language policy actually loads enforcement and log privacy", () => {
+    const source = fs.readFileSync(path.join(__dirname, "..", "js", "theatre-language-policy.js"), "utf8");
+    expect(source).toContain("ensurePlayerSpecialLanguageRuntime();");
+    expect(source).toContain("js/theatre-special-language-enforcement-hotfix.js");
+    expect(source).toContain("js/theatre-special-language-log-hotfix.js");
+    expect(source).toContain("ref.__luminousLanguagePushPatched = true");
   });
 });
