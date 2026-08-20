@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const { test, expect } = require("@playwright/test");
 const {
   repairedPreviousState,
@@ -60,5 +62,19 @@ test.describe("Weather post-merge hotfix", () => {
 
     expect(forecastsEqual(modernMirror, modernMirror)).toBe(true);
     expect(forecastsEqual(staleLegacy, modernMirror)).toBe(false);
+  });
+
+  test("keeps Home compact and opens the detailed weather app from the widget", () => {
+    const widgetSource = fs.readFileSync(path.join(__dirname, "../js/weather-player-widget.js"), "utf8");
+    const playerCss = fs.readFileSync(path.join(__dirname, "../css/weather-player.css"), "utf8");
+
+    expect(widgetSource).toContain("data-weather-open");
+    expect(widgetSource).toContain('appPanel.id = "player-weather-app"');
+    expect(widgetSource).toContain("function openApp()");
+    expect(widgetSource).toContain("function closeApp()");
+    expect(playerCss).toContain(".player-weather-glance");
+    expect(playerCss).toContain(".player-weather-app.is-open");
+    expect(playerCss).toMatch(/\.sheet-tab-home\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/);
+    expect(playerCss).not.toMatch(/\.sheet-tab-home\s*\{[\s\S]*?overflow-y:\s*auto\s*!important;/);
   });
 });
