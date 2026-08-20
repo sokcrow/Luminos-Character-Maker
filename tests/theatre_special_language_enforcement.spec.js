@@ -13,6 +13,7 @@ test.describe("special language hotfix", () => {
       especial: true,
       binario: true,
       tipo: "distortion",
+      distortion: true,
       texto_desconocido: "Tik... Tok...",
     },
   };
@@ -153,5 +154,218 @@ test.describe("special language hotfix", () => {
     expect(textEl.dataset.specialLanguage).toBe("dante_clock");
     expect(textEl.dataset.specialLanguageBlocked).toBe("true");
     expect(textEl.attrs["aria-label"]).toBe("Tik... Tok...");
+  });
+
+  test("DM recupera HABLA de Dante desde el actor maestro antes de construir el payload", () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, "..", "js", "theatre-language-policy.js"),
+      "utf8",
+    );
+
+    const firebaseListeners = new Map();
+    const domListeners = new Map();
+    const snapshot = (value) => ({ val: () => value });
+
+    function optionNode() {
+      return { value: "", textContent: "", dataset: {} };
+    }
+
+    const speakerSelect = { id: "theatre-speaker-select", value: "dante_live" };
+    const languageSelect = {
+      id: "theatre-language-select",
+      value: "",
+      options: [],
+      dataset: {},
+      title: "",
+      replaceChildren(fragment) {
+        this.options = [...fragment.children];
+        this.value = "";
+      },
+      appendChild(option) {
+        this.options.push(option);
+      },
+    };
+
+    const document = {
+      body: { classList: { contains: (name) => name === "on-game-dashboard" } },
+      readyState: "complete",
+      head: { appendChild() {} },
+      getElementById(id) {
+        if (id === "theatre-speaker-select") return speakerSelect;
+        if (id === "theatre-language-select") return languageSelect;
+        return null;
+      },
+      createElement(tag) {
+        if (tag === "option") return optionNode();
+        return { dataset: {}, addEventListener() {} };
+      },
+      createDocumentFragment() {
+        return {
+          children: [],
+          appendChild(node) { this.children.push(node); },
+        };
+      },
+      addEventListener(type, callback, options) {
+        if (!domListeners.has(type)) domListeners.set(type, []);
+        domListeners.get(type).push({ callback, capture: options === true || options?.capture === true });
+      },
+    };
+
+    const db = {
+      ref(firebasePath) {
+        return {
+          on(eventName, callback) {
+            if (eventName === "value") firebaseListeners.set(firebasePath, callback);
+          },
+          off() {},
+        };
+      },
+    };
+
+    const database = () => db;
+    const context = {
+      console,
+      document,
+      firebase: { database },
+      LuminousTheatreState: {
+        getPaths: () => ({ scene: "runtime/scene", queue: "runtime/queue" }),
+      },
+      setTimeout() { return 1; },
+      setInterval() { return 1; },
+      clearInterval() {},
+      addEventListener() {},
+    };
+    context.window = context;
+    context.globalThis = context;
+
+    vm.createContext(context);
+    vm.runInContext(source, context);
+
+    firebaseListeners.get("campaña/idiomas")(snapshot({ common: { nombre: "Común", universal: true } }));
+    firebaseListeners.get("campaña/teatro/idiomas")(snapshot(defs));
+    firebaseListeners.get("campaña/base_datos_npcs")(snapshot({
+      dante: {
+        nombre: "Dante",
+        idiomas: { dante_clock: { porcentaje: 100, comprendido: true } },
+      },
+    }));
+    firebaseListeners.get("campaña/actores")(snapshot({}));
+    firebaseListeners.get("runtime/scene")(snapshot({
+      actores: {
+        dante_live: {
+          nombre: "Dante",
+          identityId: "dante",
+          // El actor vivo reproduce el bug real: no carga idiomas al spawn.
+        },
+      },
+    }));
+
+    let languageSeenByDashboard = null;
+    document.addEventListener("click", () => {
+      languageSeenByDashboard = languageSelect.value || null;
+    });
+
+    const event = {
+      target: {
+        closest(selector) {
+          return selector === "#btn-send-dialogue" ? this : null;
+        },
+      },
+    };
+    const clickListeners = domListeners.get("click") || [];
+    clickListeners.filter((entry) => entry.capture).forEach((entry) => entry.callback(event));
+    clickListeners.filter((entry) => !entry.capture).forEach((entry) => entry.callback(event));
+
+    expect(languageSelect.value).toBe("dante_clock");
+    expect(languageSeenByDashboard).toBe("dante_clock");
+    expect(languageSelect.dataset.autoSpecialLanguage).toBe("dante_clock");
+  });
+
+  test("el Theatre Engine bloquea a So cuando el payload sí lleva idiomaId", () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, "..", "js", "theatre-engine.js"),
+      "utf8",
+    );
+
+    const firebaseListeners = new Map();
+    const snapshot = (value) => ({ val: () => value });
+
+    const db = {
+      ref(firebasePath) {
+        return {
+          key: "test-key",
+          on(eventName, callback) {
+            if (eventName === "value") firebaseListeners.set(firebasePath, callback);
+          },
+          off() {},
+          once() { return Promise.resolve(snapshot(null)); },
+          set() { return Promise.resolve(); },
+          update() { return Promise.resolve(); },
+          remove() { return Promise.resolve(); },
+          transaction() { return Promise.resolve(); },
+          push() { return this; },
+        };
+      },
+    };
+    const database = () => db;
+    database.ServerValue = { TIMESTAMP: 123456 };
+
+    const document = {
+      body: { dataset: {}, classList: { contains: () => false } },
+      baseURI: "https://local.invalid/",
+      readyState: "complete",
+      getElementById() { return null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      createElement() { return { style: {}, dataset: {}, addEventListener() {}, appendChild() {}, querySelector() { return null; } }; },
+      addEventListener() {},
+    };
+
+    class MutationObserverMock {
+      observe() {}
+      disconnect() {}
+    }
+
+    const context = {
+      console,
+      document,
+      firebase: {
+        database,
+        auth: () => ({ currentUser: { uid: "so" }, onAuthStateChanged() {} }),
+      },
+      MutationObserver: MutationObserverMock,
+      Element: function Element() {},
+      URL,
+      CSS: { supports: () => true },
+      localStorage: { getItem: () => null, setItem() {} },
+      location: { href: "https://local.invalid/hoja_personaje.html" },
+      getAssignedTheatreActor: () => ({ actorId: "so_actor", id: "so_actor" }),
+      getComputedStyle: () => ({ fontSize: "24px" }),
+      addEventListener() {},
+      setTimeout() { return 1; },
+      setInterval() { return 1; },
+      clearInterval() {},
+      Promise,
+      Date,
+    };
+    context.window = context;
+    context.globalThis = context;
+
+    vm.createContext(context);
+    vm.runInContext(source, context);
+
+    firebaseListeners.get("campaña/idiomas")(snapshot(defs));
+    firebaseListeners.get("campaña/teatro/idiomas")(snapshot({}));
+    firebaseListeners.get("campaña/jugadores")(snapshot({
+      so: {
+        uid: "so",
+        actorId: "so_actor",
+        idiomas: { dante_clock: { porcentaje: 0, comprendido: false } },
+      },
+    }));
+
+    const engine = context.LuminousTheatreState;
+    expect(engine.resolveLanguageText("Debemos irnos.", { idiomaId: null })).toBe("Debemos irnos.");
+    expect(engine.resolveLanguageText("Debemos irnos.", { idiomaId: "dante_clock" })).toBe("Tik... Tok...");
   });
 });

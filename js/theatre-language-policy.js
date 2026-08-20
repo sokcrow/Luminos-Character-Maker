@@ -8,14 +8,17 @@
   const db = firebase.database();
   const theatre = global.LuminousTheatreState || null;
   const LANGUAGE_ROOTS = ["campaña/idiomas", "campaña/teatro/idiomas"];
+  const ACTOR_ROOTS = ["campaña/base_datos_npcs", "campaña/actores"];
   const QUEUE_PATH = "campaña/teatro/cola";
   const sources = {};
+  const actorSources = {};
   let definitions = {};
   let currentScene = {};
   let sceneRef = null;
   let scenePath = null;
   let manager = global.LuminousCharacterManager || null;
   let managerSubscribed = false;
+  let manualLanguageOverrideSpeaker = null;
 
   function isDmView() {
     return Boolean(document.body?.classList.contains("on-game-dashboard"));
@@ -69,8 +72,8 @@
     if (typeof value === "number" || typeof value === "string") return { porcentaje: Math.max(0, Math.min(100, Number(value) || 0)), comprendido: false };
     if (!value || typeof value !== "object") return { porcentaje: 0, comprendido: false };
     return {
-      porcentaje: Math.max(0, Math.min(100, Number(value.porcentaje ?? value.percent ?? value.conocimiento ?? value.knowledge ?? 0) || 0)),
-      comprendido: Boolean(value.comprendido ?? value.understood ?? value.distortionUnderstood ?? false),
+      porcentaje: Math.max(0, Math.min(100, Number(value.porcentaje ?? value.percent ?? value.conocimiento ?? value.knowledge ?? (value.habla === true ? 100 : 0)) || 0)),
+      comprendido: Boolean(value.entiende ?? value.understands ?? value.comprendido ?? value.understood ?? value.distortionUnderstood ?? false),
     };
   }
 
@@ -81,6 +84,34 @@
       Object.entries(container).forEach(([languageId, entry]) => { merged[languageId] = normalizeKnowledge(entry); });
     });
     return merged;
+  }
+
+  function mergedActorCatalog() {
+    return Object.assign(
+      {},
+      actorSources["campaña/actores"] || {},
+      actorSources["campaña/base_datos_npcs"] || {},
+    );
+  }
+
+  function isSpecialDefinition(definition) {
+    const system = String(definition?.sistema || definition?.system || "").toLowerCase();
+    const type = String(definition?.tipo || definition?.type || "").toLowerCase();
+    return definition?.especial === true
+      || definition?.special === true
+      || definition?.binario === true
+      || definition?.binary === true
+      || definition?.distortion === true
+      || system === "special"
+      || ["distortion", "distorsion", "singularity", "singularidad", "special"].includes(type);
+  }
+
+  function preferredSpecialLanguage(knowledge) {
+    const candidates = Object.entries(definitions)
+      .filter(([languageId, definition]) => languageId !== "common" && isSpecialDefinition(definition))
+      .filter(([languageId]) => normalizeKnowledge(knowledge?.[languageId]).porcentaje > 0)
+      .map(([languageId]) => languageId);
+    return candidates.length === 1 ? candidates[0] : null;
   }
 
   function commonOption() {
@@ -105,6 +136,7 @@
         const option = document.createElement("option");
         option.value = languageId;
         option.textContent = label(languageId, definition);
+        option.dataset.specialLanguage = isSpecialDefinition(definition) ? "true" : "false";
         fragment.appendChild(option);
       });
     select.replaceChildren(fragment);
@@ -127,12 +159,31 @@
 
   function speakerKnowledge() {
     const speakerId = document.getElementById("theatre-speaker-select")?.value;
-    if (!speakerId || speakerId === "narrador") return { all: true, knowledge: {} };
+    if (!speakerId || speakerId === "narrador") return { speakerId: speakerId || "narrador", all: true, knowledge: {} };
+
     const liveActor = currentScene?.actores?.[speakerId] || {};
-    const masterId = liveActor.identityId || liveActor.identidadId || liveActor.sourceActorId || speakerId;
+    const masterId = liveActor.identityId || liveActor.identidadId || liveActor.sourceActorId || liveActor.sourceId || speakerId;
     const characterManager = getManager();
-    if (characterManager?.getActor?.(masterId)) return { all: false, knowledge: characterManager.languageKnowledgeForActor(masterId) };
-    return { all: false, knowledge: mergeKnowledge(liveActor.idiomas, liveActor.languages) };
+    const managerRecord = characterManager?.getActor?.(masterId);
+    if (managerRecord?.actor) {
+      return {
+        speakerId,
+        all: false,
+        knowledge: mergeKnowledge(managerRecord.actor.idiomas, managerRecord.actor.languages, liveActor.idiomas, liveActor.languages),
+      };
+    }
+
+    const catalog = mergedActorCatalog();
+    const masterActor = catalog[masterId]
+      || catalog[liveActor.sourceActorId]
+      || catalog[liveActor.sourceId]
+      || catalog[speakerId]
+      || {};
+    return {
+      speakerId,
+      all: false,
+      knowledge: mergeKnowledge(masterActor.idiomas, masterActor.languages, liveActor.idiomas, liveActor.languages),
+    };
   }
 
   function refreshDmSelector() {
@@ -143,6 +194,33 @@
     if (!select) return;
     const source = speakerKnowledge();
     fillSelector(select, source.knowledge, source.all);
+  }
+
+  function ensureDmOutgoingLanguage() {
+    if (!isDmView()) return null;
+    const speakerSelect = document.getElementById("theatre-speaker-select");
+    const languageSelect = document.getElementById("theatre-language-select");
+    const speakerId = speakerSelect?.value || "narrador";
+    if (!languageSelect || speakerId === "narrador") return languageSelect?.value || null;
+    if (languageSelect.value) return languageSelect.value;
+    if (manualLanguageOverrideSpeaker === speakerId) return null;
+
+    const source = speakerKnowledge();
+    const preferred = preferredSpecialLanguage(source.knowledge);
+    if (!preferred) return null;
+
+    let option = Array.from(languageSelect.options || []).find((entry) => entry.value === preferred);
+    if (!option) {
+      option = document.createElement("option");
+      option.value = preferred;
+      option.textContent = label(preferred, definitions[preferred] || {});
+      option.dataset.specialLanguage = "true";
+      languageSelect.appendChild(option);
+    }
+    languageSelect.value = preferred;
+    languageSelect.dataset.autoSpecialLanguage = preferred;
+    languageSelect.title = `AUTO · ${label(preferred, definitions[preferred] || {})}`;
+    return preferred;
   }
 
   function playerKnowledge() {
@@ -216,14 +294,34 @@
   });
 
   if (isDmView()) {
+    ACTOR_ROOTS.forEach((root) => {
+      db.ref(root).on("value", (snapshot) => {
+        actorSources[root] = snapshot.val() || {};
+        refreshDmSelector();
+      });
+    });
     bindScene();
     getManager();
     const managerTimer = global.setInterval(() => {
       if (getManager()) global.clearInterval(managerTimer);
     }, 100);
     document.addEventListener("change", (event) => {
-      if (event.target?.id === "theatre-speaker-select") refreshDmSelector();
+      if (event.target?.id === "theatre-speaker-select") {
+        manualLanguageOverrideSpeaker = null;
+        refreshDmSelector();
+      }
+      if (event.target?.id === "theatre-language-select") {
+        manualLanguageOverrideSpeaker = document.getElementById("theatre-speaker-select")?.value || null;
+        delete event.target.dataset.autoSpecialLanguage;
+      }
     });
+    document.addEventListener("click", (event) => {
+      if (!event.target?.closest?.("#btn-send-dialogue")) return;
+      // Captura antes del handler de on-game-dashboard: el payload debe salir con
+      // idiomaId aunque la UI no haya terminado una autoselección asíncrona.
+      refreshDmSelector();
+      ensureDmOutgoingLanguage();
+    }, true);
   } else {
     ensurePlayerSpecialLanguageRuntime();
     patchPlayerQueueWrites();
@@ -241,5 +339,7 @@
     refresh,
     getDefinitions: () => ({ ...definitions }),
     getPlayerKnowledge: playerKnowledge,
+    getDmSpeakerKnowledge: () => ({ ...speakerKnowledge().knowledge }),
+    ensureDmOutgoingLanguage,
   });
 })(window);
