@@ -196,9 +196,11 @@
   function raceOptions() {
     const api = rules();
     if (!api) return '<option value="">— Motor no disponible —</option>';
-    return ['<option value="">— Selecciona raza —</option>']
-      .concat(api.RACES.map((entry) => `<option value="${entry.id}">${entry.name} · Coef +${entry.hpCoefBonus.toFixed(2)}${entry.defMod ? ` · DEF ${formatSigned(entry.defMod)}` : ""}</option>`))
-      .join("");
+    const defaultRaceId = api.SETTINGS.defaultRaceId;
+    return api.RACES.map((entry) => {
+      const isDefault = entry.id === defaultRaceId;
+      return `<option value="${entry.id}"${isDefault ? " selected" : ""}>${entry.name}${isDefault ? " · DEFAULT" : ""} · Coef +${entry.hpCoefBonus.toFixed(2)}${entry.defMod ? ` · DEF ${formatSigned(entry.defMod)}` : ""}</option>`;
+    }).join("");
   }
 
   function backgroundOptions() {
@@ -248,7 +250,7 @@
           <div class="dm-player-dnd-summary-card"><span>NIVELES CLASE</span><strong id="dm-player-build-class-total">0/1</strong></div>
           <div class="dm-player-dnd-summary-card"><span>CLASS COEF</span><strong id="dm-player-build-class-coef">—</strong></div>
           <div class="dm-player-dnd-summary-card"><span>TRASFONDO</span><strong id="dm-player-build-background-coef">—</strong></div>
-          <div class="dm-player-dnd-summary-card"><span>RAZA</span><strong id="dm-player-build-race-coef">—</strong></div>
+          <div class="dm-player-dnd-summary-card"><span>RAZA + SUBRAZA</span><strong id="dm-player-build-race-coef">—</strong></div>
           <p id="dm-player-build-feedback" class="dm-player-dnd-resistance-note" aria-live="polite">Sin build asignado: HP / Coef / Clase continúan en modo manual.</p>
         </section>
 
@@ -402,19 +404,21 @@
   }
 
   function buildHasAnySelection() {
+    const api = rules();
     if (collectClassChoices().length) return true;
-    if (String(field("dm-player-build-race")?.value || "").trim()) return true;
     if (String(field("dm-player-build-background")?.value || "").trim()) return true;
-    return false;
+    const raceId = String(field("dm-player-build-race")?.value || "").trim();
+    return Boolean(raceId && raceId !== api?.SETTINGS?.defaultRaceId);
   }
 
   function buildInput(level) {
+    const api = rules();
     return {
       level,
       constitution: integerOr(field("dm-player-stat-con")?.value, 10),
       classes: collectClassChoices(),
       backgroundId: String(field("dm-player-build-background")?.value || "").trim(),
-      raceId: String(field("dm-player-build-race")?.value || "").trim(),
+      raceId: String(field("dm-player-build-race")?.value || api?.SETTINGS?.defaultRaceId || "").trim(),
       raceSubtypeId: String(field("dm-player-build-subrace")?.value || "").trim() || null,
       baseOffLevel: level,
       baseDefLevel: level,
@@ -429,7 +433,7 @@
 
   function renderRaceSubtypeOptions(selectedId) {
     const api = rules();
-    const raceId = String(field("dm-player-build-race")?.value || "");
+    const raceId = String(field("dm-player-build-race")?.value || api?.SETTINGS?.defaultRaceId || "");
     const select = field("dm-player-build-subrace");
     const wrapper = field("dm-player-build-subrace-field");
     if (!api || !select) return;
@@ -457,10 +461,10 @@
 
     if (!calculation) {
       if (mode) mode.value = "LEGACY / MANUAL";
-      if (feedback) feedback.textContent = "Sin build asignado: HP / Coef / Clase continúan en modo manual.";
+      if (feedback) feedback.textContent = "Sin build asignado: Humano es el default visual; HP / Coef / Clase continúan en modo manual hasta asignar el build.";
       if (classCoef) classCoef.textContent = "—";
       if (backgroundCoef) backgroundCoef.textContent = "—";
-      if (raceCoef) raceCoef.textContent = "—";
+      if (raceCoef) raceCoef.textContent = "+0";
       return;
     }
 
@@ -565,7 +569,7 @@
       const input = field(`dm-player-class-${definition.id}`);
       if (input) input.value = "0";
     });
-    if (field("dm-player-build-race")) field("dm-player-build-race").value = "";
+    if (field("dm-player-build-race")) field("dm-player-build-race").value = api?.SETTINGS?.defaultRaceId || "";
     if (field("dm-player-build-background")) field("dm-player-build-background").value = "";
     renderRaceSubtypeOptions();
   }
@@ -582,7 +586,7 @@
     });
 
     if (field("dm-player-build-background")) field("dm-player-build-background").value = String(build.backgroundId || "");
-    if (field("dm-player-build-race")) field("dm-player-build-race").value = String(build.raceId || "");
+    if (field("dm-player-build-race")) field("dm-player-build-race").value = String(build.raceId || api.SETTINGS.defaultRaceId || "");
     renderRaceSubtypeOptions(String(build.raceSubtypeId || ""));
   }
 
