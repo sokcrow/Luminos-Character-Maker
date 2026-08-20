@@ -145,6 +145,7 @@ function ensureWeatherSystemAssets(doc) {
     if (isDirector) {
         assets.directorStyle = ensureStyleAsset(documentRef, 'weather-director-stylesheet', 'css/weather-director.css', { ui: 'weather-director' });
         assets.director = ensureScriptAsset(documentRef, 'weather-director-script', 'js/weather-director-ui.js', { ui: 'weather-director' });
+        assets.hotfix = ensureScriptAsset(documentRef, 'weather-post-merge-hotfix-script', 'js/weather-post-merge-hotfix.js', { engine: 'weather-post-merge-hotfix' });
     }
 
     if (isPlayer) {
