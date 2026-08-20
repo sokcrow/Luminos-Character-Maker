@@ -5,9 +5,14 @@
   "use strict";
 
   const STORAGE_KEY = "luminous.characterManager.rosterUx";
+  const GROUP_MODES = ["type", "faction", "tag"];
 
   function clean(value) {
     return typeof value === "string" ? value.trim() : "";
+  }
+
+  function rendererUpper(value) {
+    return clean(value).toUpperCase();
   }
 
   function normalizeTags(value) {
@@ -39,7 +44,12 @@
       .toLocaleLowerCase();
   }
 
-  const api = Object.freeze({ normalizeTags, factionLabel, actorSearchText });
+  function collapseKey(mode, label) {
+    const safeMode = GROUP_MODES.includes(mode) ? mode : "type";
+    return `${safeMode}:${rendererUpper(label)}`;
+  }
+
+  const api = Object.freeze({ normalizeTags, factionLabel, actorSearchText, collapseKey, rendererUpper });
   const doc = global?.document;
   const manager = global?.LuminousCharacterManager;
   if (!doc || !manager) return api;
@@ -63,8 +73,12 @@
     try {
       const parsed = JSON.parse(global.localStorage?.getItem(STORAGE_KEY) || "{}");
       state.faction = clean(parsed.faction);
-      state.groupMode = ["type", "faction", "tag"].includes(parsed.groupMode) ? parsed.groupMode : "type";
-      state.collapsed = new Set(Array.isArray(parsed.collapsed) ? parsed.collapsed.map(String) : []);
+      state.groupMode = GROUP_MODES.includes(parsed.groupMode) ? parsed.groupMode : "type";
+      state.collapsed = new Set(
+        (Array.isArray(parsed.collapsed) ? parsed.collapsed : [])
+          .map(String)
+          .map((entry) => entry.includes(":") ? entry : collapseKey("faction", entry))
+      );
     } catch (_) {}
   }
 
@@ -121,7 +135,7 @@
     allFactions().forEach((faction) => {
       const option = doc.createElement("option");
       option.value = faction;
-      option.textContent = faction.toUpperCase();
+      option.textContent = rendererUpper(faction);
       select.appendChild(option);
     });
     select.value = Array.from(select.options).some((option) => option.value === previous) ? previous : "";
@@ -164,11 +178,11 @@
     heading.setAttribute("tabindex", "0");
 
     const toggle = () => {
-      if (state.groupMode !== "faction") return;
       const label = groupName(section);
       if (!label) return;
-      if (state.collapsed.has(label)) state.collapsed.delete(label);
-      else state.collapsed.add(label);
+      const key = collapseKey(state.groupMode, label);
+      if (state.collapsed.has(key)) state.collapsed.delete(key);
+      else state.collapsed.add(key);
       persistState();
       apply();
     };
@@ -197,14 +211,18 @@
         ? String(entries.length).padStart(2, "0")
         : `${String(visible.length).padStart(2, "0")}/${String(entries.length).padStart(2, "0")}`;
 
-      const factionAllowed = state.groupMode !== "faction" || !state.faction || label === state.faction.toUpperCase() || factionLabel(manager.getActor(entries[0]?.dataset.actorId)).toUpperCase() === state.faction.toUpperCase();
-      const hasMatches = visible.length > 0;
-      section.hidden = !factionAllowed || !hasMatches;
-      const collapsed = state.groupMode === "faction" && state.collapsed.has(label);
+      const factionAllowed = state.groupMode !== "faction"
+        || !state.faction
+        || rendererUpper(label) === rendererUpper(state.faction);
+      section.hidden = !factionAllowed || visible.length === 0;
+
+      const key = collapseKey(state.groupMode, label);
+      const collapsed = state.collapsed.has(key);
       section.dataset.collapsed = collapsed ? "true" : "false";
       if (heading) {
         heading.setAttribute("aria-expanded", collapsed ? "false" : "true");
         heading.classList.toggle("is-collapsed", collapsed);
+        heading.title = collapsed ? `Expandir ${label}` : `Ocultar ${label}`;
       }
     });
   }
@@ -225,7 +243,7 @@
     state.applying = true;
     try {
       const mode = $("character-manager-group-mode")?.value;
-      if (["type", "faction", "tag"].includes(mode)) state.groupMode = mode;
+      if (GROUP_MODES.includes(mode)) state.groupMode = mode;
       bindGroupMode();
       ensureFactionFilter();
       applyEntryFilter();
@@ -262,12 +280,12 @@
     const select = $("character-manager-group-mode");
     if (!select || select.dataset.rosterUxBound === "true") return;
     select.dataset.rosterUxBound = "true";
-    if (["type", "faction", "tag"].includes(state.groupMode) && select.value !== state.groupMode) {
+    if (GROUP_MODES.includes(state.groupMode) && select.value !== state.groupMode) {
       select.value = state.groupMode;
       select.dispatchEvent(new global.Event("change", { bubbles: true }));
     }
     select.addEventListener("change", () => {
-      state.groupMode = select.value;
+      state.groupMode = GROUP_MODES.includes(select.value) ? select.value : "type";
       persistState();
       global.setTimeout(apply, 0);
     });
