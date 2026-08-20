@@ -106,10 +106,11 @@
     const source = data?.combatLevels?.[kind] || {};
     const isOffense = kind === "offensive";
     const classModifier = numberOr(source.classModifier ?? data?.classModifiers?.[isOffense ? "offensiveLevel" : "defensiveLevel"], 0);
+    const raceModifier = isOffense ? 0 : numberOr(source.raceModifier ?? data?.raceModifiers?.defensiveLevel, 0);
     const itemModifier = numberOr(source.itemModifier ?? data?.equipmentModifiers?.[isOffense ? "offensiveLevel" : "defensiveLevel"], 0);
     const legacyDm = data?.combatStats?.[isOffense ? "off_lvl_mod" : "def_lvl_mod"];
     const dmModifier = numberOr(source.dmModifier ?? legacyDm, 0);
-    return { level, classModifier, dmModifier, itemModifier, total: level + classModifier + dmModifier + itemModifier };
+    return { level, classModifier, raceModifier, dmModifier, itemModifier, total: level + classModifier + raceModifier + dmModifier + itemModifier };
   }
   const playerSheetArt = (data = playerData()) => String(data?.sheetArt || data?.playerSheetArt || "").trim();
   const playerIcon = (data = playerData()) => String(data?.icono_jugador || data?.icono || data?.perfil?.icono || "").trim();
@@ -197,7 +198,7 @@
     const offensiveNode = panel.querySelector("[data-combat-level='offensive']");
     const defensiveNode = panel.querySelector("[data-combat-level='defensive']");
     if (offensiveNode) offensiveNode.title = `Nivel ${level} + Clase ${formatModifier(offensive.classModifier)} + DM ${formatModifier(offensive.dmModifier)} + Items ${formatModifier(offensive.itemModifier)}`;
-    if (defensiveNode) defensiveNode.title = `Nivel ${level} + Clase ${formatModifier(defensive.classModifier)} + DM ${formatModifier(defensive.dmModifier)} + Items ${formatModifier(defensive.itemModifier)}`;
+    if (defensiveNode) defensiveNode.title = `Nivel ${level} + Clase ${formatModifier(defensive.classModifier)} + Raza ${formatModifier(defensive.raceModifier)} + DM ${formatModifier(defensive.dmModifier)} + Items ${formatModifier(defensive.itemModifier)}`;
   }
   function renderSkills(panel, ability, data) {
     const list = panel.querySelector("[data-player-skill-list]");
