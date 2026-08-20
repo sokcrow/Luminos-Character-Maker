@@ -1,0 +1,39 @@
+name: Character Build Rules
+
+on:
+  pull_request:
+    paths:
+      - "js/character-build-rules.js"
+      - "js/dm-player-dnd-studio.js"
+      - "js/player-stats-ability-bar.js"
+      - "tests/character_build_rules.spec.js"
+      - ".github/workflows/character-build-rules.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  character-build-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check js/character-build-rules.js
+          node --check js/dm-player-dnd-studio.js
+          node --check js/player-stats-ability-bar.js
+          node --check tests/character_build_rules.spec.js
+
+      - name: Run character build and player compatibility regressions
+        run: npx playwright test tests/character_build_rules.spec.js --workers=1
