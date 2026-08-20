@@ -8,18 +8,31 @@
     return typeof value === "string" ? value.trim() : "";
   }
 
+  function formatActionText(message, text) {
+    const type = clean(message?.tipo_dialogo || message?.dialogueType).toLowerCase();
+    const raw = String(text || "");
+    if (type !== "actuar" && !/^\/em(?:\s+|$)/i.test(raw)) return raw;
+    const action = raw.replace(/^\/em\s*/i, "").trim();
+    const name = clean(message?.nombre) || "???";
+    return action ? `(${name} ${action})` : `(${name})`;
+  }
+
   function resolveLogMessageText(message, definitions, profiles, rules) {
     const raw = String(message?.mensaje || message?.message || "");
     const languageId = clean(message?.idiomaId || message?.languageId || message?.idioma);
-    if (!languageId || !rules) return raw;
-    const definition = definitions?.[languageId] || {};
-    if (!rules.isSpecialLanguage?.(languageId, definition)) return raw;
-    return rules.resolveSpecialUnderstanding?.(profiles, languageId)
-      ? raw
-      : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+    let resolved = raw;
+    if (languageId && rules) {
+      const definition = definitions?.[languageId] || {};
+      if (rules.isSpecialLanguage?.(languageId, definition)) {
+        resolved = rules.resolveSpecialUnderstanding?.(profiles, languageId)
+          ? raw
+          : rules.unknownTextForDefinition?.(definition) || "[No comprendes este lenguaje especial.]";
+      }
+    }
+    return formatActionText(message, resolved);
   }
 
-  const api = Object.freeze({ resolveLogMessageText });
+  const api = Object.freeze({ resolveLogMessageText, formatActionText });
   if (!global?.document || !global?.firebase?.database) return api;
   if (global.LuminousSpecialLanguageLogEnforcement) return global.LuminousSpecialLanguageLogEnforcement;
   global.LuminousSpecialLanguageLogEnforcement = api;
@@ -128,7 +141,7 @@
     if (isDmView()) return;
     const activeRules = rules();
     const container = ensureObserver();
-    if (!activeRules || !container || !logEntries.length) return;
+    if (!container || !logEntries.length) return;
     const rows = Array.from(container.querySelectorAll(".dialogue-scroll-area .dialogue-row"));
     if (!rows.length) return;
     const profiles = viewerProfiles();
@@ -147,8 +160,8 @@
         const definition = definitions[languageId] || {};
         const blocked = Boolean(
           languageId
-          && activeRules.isSpecialLanguage?.(languageId, definition)
-          && !activeRules.resolveSpecialUnderstanding?.(profiles, languageId)
+          && activeRules?.isSpecialLanguage?.(languageId, definition)
+          && !activeRules?.resolveSpecialUnderstanding?.(profiles, languageId)
         );
         row.dataset.specialLanguageBlocked = blocked ? "true" : "false";
       });
