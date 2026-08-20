@@ -21,6 +21,37 @@
     return Boolean(document.body?.classList.contains("on-game-dashboard"));
   }
 
+  function ensureRuntimeScript(id, src, datasetKey) {
+    let script = document.getElementById(id);
+    if (script) return script;
+    script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    if (datasetKey) script.dataset[datasetKey] = "true";
+    document.head?.appendChild(script);
+    return script;
+  }
+
+  function ensurePlayerSpecialLanguageRuntime() {
+    if (isDmView()) return;
+    const ensureLog = () => ensureRuntimeScript(
+      "theatre-special-language-log-runtime-script",
+      "js/theatre-special-language-log-hotfix.js",
+      "luminousSpecialLanguageLogRuntime",
+    );
+    if (global.LuminousSpecialLanguageEnforcement) {
+      ensureLog();
+      return;
+    }
+    const enforcement = ensureRuntimeScript(
+      "theatre-special-language-enforcement-runtime-script",
+      "js/theatre-special-language-enforcement-hotfix.js",
+      "luminousSpecialLanguageEnforcementRuntime",
+    );
+    enforcement.addEventListener("load", ensureLog, { once: true });
+  }
+
   function getManager() {
     if (!manager) manager = global.LuminousCharacterManager || null;
     if (manager && isDmView() && !managerSubscribed) {
@@ -165,7 +196,7 @@
         }
         return originalPush.apply(ref, [next].concat(Array.prototype.slice.call(arguments, 1)));
       };
-      ref.__luminousLanguagePushPatched = true;
+      ref.__luminousLanguageRefPatched = true;
       return ref;
     };
     database.__luminousLanguageRefPatched = true;
@@ -194,6 +225,7 @@
       if (event.target?.id === "theatre-speaker-select") refreshDmSelector();
     });
   } else {
+    ensurePlayerSpecialLanguageRuntime();
     patchPlayerQueueWrites();
     document.addEventListener("click", (event) => {
       if (event.target?.closest?.("#btn-abrir-escritura")) global.setTimeout(ensurePlayerSelector, 0);
