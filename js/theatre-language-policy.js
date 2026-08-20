@@ -196,7 +196,7 @@
         }
         return originalPush.apply(ref, [next].concat(Array.prototype.slice.call(arguments, 1)));
       };
-      ref.__luminousLanguageRefPatched = true;
+      ref.__luminousLanguagePushPatched = true;
       return ref;
     };
     database.__luminousLanguageRefPatched = true;
