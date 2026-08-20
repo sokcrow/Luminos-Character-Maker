@@ -6,6 +6,7 @@
     maxCharacterLevel: 100,
     naturalHpCoefCap: 3.40,
     raceOffModifier: 0,
+    defaultRaceId: "human",
   });
 
   const CLASSES = Object.freeze([
@@ -25,6 +26,7 @@
   ]);
 
   const RACES = Object.freeze([
+    { id: "human", name: "Humano", hpCoefBonus: 0.00, defMod: 0, isDefault: true, tags: ["organic", "humanoid", "human"] },
     { id: "lizalin", name: "Lizalin", hpCoefBonus: 0.07, defMod: 0, tags: ["organic", "humanoid", "reptilian"] },
     { id: "kobold", name: "Kobold", hpCoefBonus: 0.00, defMod: 0, tags: ["organic", "humanoid", "reptilian", "small"] },
     { id: "kenku", name: "Kenku", hpCoefBonus: 0.00, defMod: 0, tags: ["organic", "humanoid", "avian"] },
