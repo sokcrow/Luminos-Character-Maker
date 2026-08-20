@@ -27,10 +27,13 @@ function loadPlayerStatsApi() {
   return window.LuminousPlayerStats;
 }
 
-test("catálogos contienen las 13 clases, 15 razas y trasfondos Project Moon", () => {
+test("catálogos contienen las 13 clases, 16 razas y trasfondos Project Moon", () => {
   expect(rules.CLASSES).toHaveLength(13);
-  expect(rules.RACES).toHaveLength(15);
+  expect(rules.RACES).toHaveLength(16);
   expect(rules.BACKGROUNDS.length).toBeGreaterThanOrEqual(140);
+  expect(rules.SETTINGS.defaultRaceId).toBe("human");
+  expect(rules.RACES[0].id).toBe("human");
+  expect(rules.getRace("human")).toMatchObject({ name: "Humano", hpCoefBonus: 0, defMod: 0, isDefault: true });
   expect(rules.getClass("rogue")?.hpCoefBase).toBe(2.78);
   expect(rules.getClass("sorcerer")?.offMod).toBe(2);
   expect(rules.getRace("yuan_ti_pureblood")?.hpCoefBonus).toBe(0.03);
@@ -40,9 +43,61 @@ test("catálogos contienen las 13 clases, 15 razas y trasfondos Project Moon", (
 test("las razas no aportan OFF permanente y DEF racial queda excepcional", () => {
   expect(rules.SETTINGS.raceOffModifier).toBe(0);
   for (const race of rules.RACES) expect(race.offMod).toBeUndefined();
+  expect(rules.getRace("human")?.defMod).toBe(0);
   expect(rules.getRace("goliath")?.defMod).toBe(1);
   expect(rules.getRace("warforged")?.defMod).toBe(1);
   expect(rules.getRace("yuan_ti_pureblood")?.defMod).toBe(0);
+});
+
+test("Humano es el baseline neutral y no altera HP Coef, OFF ni DEF", () => {
+  const result = rules.calculateBuild({
+    level: 10,
+    constitution: 10,
+    classes: [{ classId: "fighter", levels: 10 }],
+    backgroundId: "chef",
+    raceId: "human",
+  });
+
+  expect(result.valid).toBe(true);
+  expect(result.raceId).toBe("human");
+  expect(result.raceSubtypeId).toBeNull();
+  expect(result.raceHpCoefBonus).toBe(0);
+  expect(result.raceDefMod).toBe(0);
+  closeTo(result.intrinsicHpCoef, 2.99);
+  expect(result.offLevel).toBe(11);
+  expect(result.defLevel).toBe(11);
+  expect(result.hpBase).toBe(20);
+  expect(result.hp).toBe(53);
+});
+
+test("subrazas se suman dentro de la capa racial sin aportar OFF", () => {
+  const warforged = rules.calculateBuild({
+    level: 10,
+    constitution: 10,
+    classes: [{ classId: "fighter", levels: 10 }],
+    backgroundId: "chef",
+    raceId: "warforged",
+    raceSubtypeId: "juggernaut",
+  });
+  const felinae = rules.calculateBuild({
+    level: 10,
+    constitution: 10,
+    classes: [{ classId: "fighter", levels: 10 }],
+    backgroundId: "chef",
+    raceId: "felinae",
+    raceSubtypeId: "large",
+  });
+
+  expect(warforged.valid).toBe(true);
+  closeTo(warforged.raceHpCoefBonus, 0.16);
+  expect(warforged.raceDefMod).toBe(1);
+  expect(warforged.classOffMod).toBe(1);
+  expect(warforged.offLevel).toBe(11);
+
+  expect(felinae.valid).toBe(true);
+  closeTo(felinae.raceHpCoefBonus, 0.06);
+  expect(felinae.raceDefMod).toBe(0);
+  expect(felinae.offLevel).toBe(11);
 });
 
 test("Pícaro 15 / Hechicero 20 + Chef + Yuan-ti calcula el ejemplo acordado", () => {
@@ -121,6 +176,15 @@ test("un build parcial no reemplaza silenciosamente el modo legacy", () => {
   expect(result.errors.join(" ")).toContain("subraza");
 });
 
+test("DM Studio usa Humano como default visual sin auto-migrar legacy", () => {
+  expect(studio).toContain('const defaultRaceId = api.SETTINGS.defaultRaceId');
+  expect(studio).toContain('" · DEFAULT"');
+  expect(studio).toContain('raceId !== api?.SETTINGS?.defaultRaceId');
+  expect(studio).toContain('field("dm-player-build-race").value = api?.SETTINGS?.defaultRaceId || ""');
+  expect(studio).toContain('build.raceId || api.SETTINGS.defaultRaceId || ""');
+  expect(studio).toContain('Humano es el default visual');
+});
+
 test("DM Studio persiste build derivado sin romper las rutas legacy", () => {
   for (const id of [
     "dm-player-build-race",
@@ -134,6 +198,7 @@ test("DM Studio persiste build derivado sin romper las rutas legacy", () => {
   expect(studio).toContain('"characterBuild/classes": buildCalculation.classes');
   expect(studio).toContain('"characterBuild/backgroundId": buildCalculation.backgroundId');
   expect(studio).toContain('"characterBuild/raceId": buildCalculation.raceId');
+  expect(studio).toContain('"characterBuild/raceSubtypeId": buildCalculation.raceSubtypeId');
   expect(studio).toContain('"classModifiers/offensiveLevel": offensive.classModifier');
   expect(studio).toContain('"classModifiers/defensiveLevel": defensive.classModifier');
   expect(studio).toContain('"raceModifiers/defensiveLevel": defensive.raceModifier');
@@ -141,6 +206,7 @@ test("DM Studio persiste build derivado sin romper las rutas legacy", () => {
   expect(studio).toContain('"combatStats/hp_coefficient": hpCoef');
   expect(studio).toContain('if (buildCalculation && !buildCalculation.valid)');
   expect(studio).toContain('"LEGACY / MANUAL"');
+  expect(studio).toContain('RAZA + SUBRAZA');
 });
 
 test("Jugador consume DEF racial sin contaminar OFF", () => {
