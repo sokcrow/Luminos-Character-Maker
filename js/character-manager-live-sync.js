@@ -19,6 +19,43 @@
     return global.LuminousTheatreState?.getPaths?.() || { scene: DEFAULT_SCENE };
   }
 
+  function ensureStyle(id, href) {
+    const doc = global.document;
+    if (!doc?.head) return null;
+    let link = doc.getElementById(id);
+    if (link) return link;
+    link = doc.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset.ui = "dm-npc-rolls";
+    doc.head.appendChild(link);
+    return link;
+  }
+
+  function ensureScript(id, src) {
+    const doc = global.document;
+    if (!doc?.head) return null;
+    let script = doc.getElementById(id);
+    if (script) return script;
+    script = doc.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    script.dataset.ui = "dm-npc-rolls";
+    doc.head.appendChild(script);
+    return script;
+  }
+
+  function ensureDmNpcRollAssets() {
+    if (!global.document?.body?.classList?.contains("on-game-dashboard")) return;
+    ensureStyle("dm-npc-rolls-stylesheet", "css/dm-npc-rolls.css");
+    ensureScript("luminous-coin-engine-core-script", "js/coin-engine-core.js");
+    ensureScript("npc-stats-engine-script", "js/npc-stats-engine.js");
+    ensureScript("dm-npc-rolls-script", "js/dm-npc-rolls.js");
+    ensureScript("theatre-check-dm-alert-script", "js/theatre-check-dm-alert.js");
+  }
+
   function masterIdFor(instanceId, actor) {
     return actor?.identityId || actor?.identidadId || actor?.sourceActorId || (manager?.getActor?.(instanceId) ? instanceId : null);
   }
@@ -75,6 +112,7 @@
       syncMasterScaleToScene();
     });
     bindScene();
+    ensureDmNpcRollAssets();
     return true;
   }
 

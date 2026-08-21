@@ -1,7 +1,6 @@
 {
   "rules": {
     "campaña": {
-      // 1. CUALQUIERA CON CUENTA puede leer todo el juego (Calendario, Items, etc.)
       ".read": "auth != null",
 
       "estado_mundo": {
@@ -9,35 +8,28 @@
       },
 
       "clima": {
-        // Weather Director: todos los jugadores autenticados heredan lectura,
-        // pero solo el DM puede dirigir o alterar el estado meteorológico.
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
       "worldData": {
         "weatherForecast": {
-          // Compatibilidad con el widget/pronóstico legacy durante la migración.
           ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
         }
       },
 
       "hora_actual": {
-        // El reloj legacy todavía sincroniza este valor junto con calendario.
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
       "config": {
-        // Solo el DM genera códigos
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
       "actores": {
-        // Solo el DM toca NPCs
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
       "base_datos_npcs": {
-        // Solo el DM toca NPCs (ruta moderna)
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
@@ -46,36 +38,73 @@
       },
 
       "calendario": {
-        // Solo el DM edita el tiempo
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
 
       "jugadores": {
         "$nombre_personaje": {
-          // REGLA DE VÍNCULO:
-          // Puedes escribir si eres el DM, o si la carpeta está libre, o si ya es tuya.
           ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
         }
       },
 
       "teatro": {
-        // Log y stream público/redactado de tiradas para todos los reclutas con cuenta.
         ".write": "auth != null"
       }
     },
 
-    // Los detalles reales de tiradas ocultas/TOTAL y thresholds ocultos viven fuera de
-    // `campaña`, porque `campaña/.read` ya concede lectura a todo usuario autenticado.
     "dm_private": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "theatre_rolls": {
         "$room": {
           "$rollId": {
-            // El DM puede escribir cualquier detalle. Un jugador solo puede crear una vez
-            // su propio registro privado y nunca leerlo desde Firebase.
             ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('rollerUid').val() === auth.uid && newData.child('privateRoomKey').val() === $room))"
           }
         }
+      }
+    },
+
+    "theatre_check_requests": {
+      ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+      "$requestId": {
+        ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('requesterUid').val() === auth.uid))"
+      }
+    },
+
+    "theatre_check_commands": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      }
+    },
+
+    "theatre_check_live": {
+      ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",
+        "$commandId": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)"
+        }
+      }
+    },
+
+    "theatre_opposed_checks": {
+      ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+      "$sessionId": {
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        "thresholdResult": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && root.child('theatre_opposed_checks').child($sessionId).child('rivalUid').val() === auth.uid && newData.child('uid').val() === auth.uid))"
+        },
+        "resolverResult": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && root.child('theatre_opposed_checks').child($sessionId).child('initiatorUid').val() === auth.uid && newData.child('uid').val() === auth.uid))"
+        }
+      }
+    },
+
+    "theatre_opposed_results": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       }
     }
   }

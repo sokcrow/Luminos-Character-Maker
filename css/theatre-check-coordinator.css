@@ -1,0 +1,117 @@
+.theatre-check-front-layer{
+  position:absolute;
+  inset:0;
+  z-index:8900;
+  pointer-events:none;
+  overflow:visible;
+}
+
+.theatre-check-front-layer .theatre-check-hud,
+.theatre-check-front-layer .theatre-roll-result-card,
+.theatre-check-front-layer .dm-npc-roll-hud{
+  z-index:1;
+}
+
+.theatre-check-front-layer .theatre-check-hud{
+  top:clamp(24px,4vh,44px)!important;
+  width:min(390px,64vw)!important;
+  filter:drop-shadow(0 10px 18px rgba(0,0,0,.58))!important;
+}
+.theatre-check-front-layer .theatre-check-tip{
+  width:min(300px,80%)!important;
+  margin:0 auto 8px!important;
+  padding:9px 16px 10px!important;
+  border-width:3px!important;
+  border-radius:7px!important;
+  outline-width:2px!important;
+}
+.theatre-check-front-layer .theatre-check-tip::before{
+  top:-20px!important;
+  width:6px!important;
+  height:17px!important;
+  box-shadow:0 0 0 2px #2e1c10!important;
+}
+.theatre-check-front-layer .theatre-check-tip-title{margin-bottom:4px!important;font-size:1rem!important}
+.theatre-check-front-layer .theatre-check-tip-copy{font-size:.72rem!important;line-height:1.25!important}
+.theatre-check-front-layer .theatre-check-body{border-width:3px!important;border-radius:6px!important;outline-width:2px!important}
+.theatre-check-front-layer .theatre-check-coins{min-height:58px!important;gap:7px!important;padding:9px 14px 7px!important}
+.theatre-check-front-layer .theatre-check-coin-image{width:38px!important;height:38px!important;flex-basis:38px!important}
+.theatre-check-front-layer .theatre-check-coin-image.is-pending{opacity:.28;filter:grayscale(.55)}
+.theatre-check-front-layer .theatre-check-comparison{min-height:116px!important;grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr)!important;border-top-width:4px!important;border-bottom-width:4px!important}
+.theatre-check-front-layer .theatre-check-comparison.is-roll-only{grid-template-columns:1fr!important}
+.theatre-check-front-layer .theatre-check-block{height:82px!important;margin:0 8px!important;border-width:1px!important;gap:2px!important}
+.theatre-check-front-layer .theatre-check-block-label{font-size:.72rem!important}
+.theatre-check-front-layer .theatre-check-block-value{font-size:2.7rem!important;line-height:.86!important}
+.theatre-check-front-layer .theatre-check-block-sub{min-height:12px!important;font-size:.58rem!important}
+.theatre-check-front-layer .theatre-check-operator{font-size:3.1rem!important;text-shadow:0 3px 0 rgba(0,0,0,.32)!important}
+.theatre-check-front-layer .theatre-check-status{min-height:32px!important;margin:7px 8px 9px!important;border-width:2px!important;font-size:1.15rem!important}
+.theatre-check-dm-mirror-caption{margin:0 auto 5px;width:max-content;max-width:94%;padding:3px 8px;border:1px solid rgba(164,130,72,.45);background:rgba(8,8,7,.86);color:#9c8d75;font:8px "Share Tech Mono",monospace;letter-spacing:.75px;text-transform:uppercase}
+
+body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+
+.theatre-check-player-notice,.theatre-check-command-prompt{position:absolute;top:22px;right:24px;width:min(270px,36vw);box-sizing:border-box;border:1px solid #876a39;border-left:4px solid #7c1f1d;background:linear-gradient(135deg,rgba(13,12,10,.97),rgba(29,24,19,.96));box-shadow:0 10px 22px rgba(0,0,0,.5);color:#e2d7c4;pointer-events:auto;font-family:"Roboto",sans-serif}
+.theatre-check-player-notice{padding:9px 11px;display:grid;gap:3px}
+.theatre-check-player-notice strong,.theatre-check-command-prompt strong{font:15px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.8px}
+.theatre-check-player-notice span,.theatre-check-command-prompt small{color:#9c9282;font-size:10px;line-height:1.3}
+.theatre-check-player-notice[data-mode="approved"]{border-left-color:#b58d3d}
+.theatre-check-player-notice[data-mode="denied"]{border-left-color:#a72d28}
+.theatre-check-command-prompt{padding:10px 11px;display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center}
+.theatre-check-command-prompt>span{grid-column:1/-1;color:#b59963;font:8px "Share Tech Mono",monospace;letter-spacing:.8px}
+.theatre-check-command-prompt strong{grid-column:1}
+.theatre-check-command-prompt small{grid-column:1}
+.theatre-check-command-prompt button{grid-column:2;grid-row:2/4;min-width:72px;height:42px;border:1px solid #b08b45;background:#4b201b;color:#f0dfbf;font:13px "BebasKai","Arial Narrow",sans-serif;letter-spacing:1px;cursor:pointer}
+.theatre-check-command-prompt button:disabled{opacity:.5}
+
+.theatre-check-director{margin-bottom:16px;border-top:1px solid #9c7838;border-bottom:1px solid #29251f;background:#090a0b;padding:10px;color:#d8d0c0;font-family:"Share Tech Mono",monospace}
+.theatre-check-director-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.theatre-check-director-header>div{display:grid;gap:1px}
+.theatre-check-director-header strong{color:#c1a05f;font:16px "BebasKai","Arial Narrow",sans-serif;letter-spacing:1px}
+.theatre-check-director-header span{color:#625b50;font-size:7px;letter-spacing:.9px}
+.theatre-check-director-header b{min-width:24px;height:24px;display:grid;place-items:center;border:1px solid #6e3027;background:#2d1110;color:#d5b76f;font:13px "BebasKai","Arial Narrow",sans-serif}
+.theatre-check-request-list{display:grid;gap:5px;margin-bottom:8px;max-height:150px;overflow:auto}
+.theatre-check-empty{padding:8px;border:1px dashed #2f2b25;color:#5d574d;text-align:center;font-size:8px;letter-spacing:.8px}
+.theatre-check-request-card{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:7px 8px;border:1px solid #34302a;background:#0e0f10}
+.theatre-check-request-card>div{display:grid;gap:2px;min-width:0}
+.theatre-check-request-card strong{color:#d6cbb8;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theatre-check-request-card span{color:#7f776a;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theatre-check-request-card button,.theatre-check-compose-title button{height:27px;border:1px solid #5f533f;background:#171718;color:#bda777;font:8px "Share Tech Mono",monospace;cursor:pointer}
+.theatre-check-compose{border:1px solid #332f28;background:#0c0d0e;padding:8px}
+.theatre-check-compose-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;color:#a58a58;font:10px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.8px}
+.theatre-check-compose-title button{height:23px;padding:0 7px}
+.theatre-check-compose-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.theatre-check-compose-grid label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#756e62;font-size:7px;letter-spacing:.7px}
+.theatre-check-compose-grid .wide{grid-column:1/-1}
+.theatre-check-compose-grid select,.theatre-check-compose-grid input{box-sizing:border-box;width:100%;height:29px;border:1px solid #3d4246;background:#101417;color:#ddd5c7;padding:0 6px;font:8px "Share Tech Mono",monospace;outline:0}
+.theatre-check-compose-grid select:focus,.theatre-check-compose-grid input:focus{border-color:#a57c38}
+.theatre-check-hidden{flex-direction:row!important;align-items:center!important;justify-content:center;border:1px solid #34312b;background:#10100f;padding:0 6px;min-height:29px}
+.theatre-check-hidden input{width:auto!important;height:auto!important}
+.theatre-check-compose-preview{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-top:7px;padding:7px 8px;border:1px solid #2e2a24;background:#090a0a}
+.theatre-check-compose-preview span{min-width:0;color:#a99f8e;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theatre-check-compose-preview b{color:#d1b36e;font:17px "BebasKai","Arial Narrow",sans-serif}
+.theatre-check-compose-preview small{color:#70685c;font-size:7px}
+.theatre-check-compose-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+.theatre-check-compose-actions button{min-width:0;height:33px;padding:0 6px;border:1px solid #725a32;background:#3b1b17;color:#e7d6b8;font:10px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.55px;white-space:nowrap;cursor:pointer}
+#theatre-check-deny{background:#211111;border-color:#6b302d;color:#ca7169}
+#theatre-check-deny[hidden]{display:none!important}
+#theatre-check-deny[hidden]+#theatre-check-send{grid-column:1/-1}
+.theatre-check-sent-feedback{margin-top:6px;color:#bca76f;font-size:8px;letter-spacing:.7px}
+
+.theatre-check-request-badge{display:none;position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;align-items:center;justify-content:center;border:1px solid #f0d08a;background:#8a1717;color:#fff;font:10px "BebasKai","Arial Narrow",sans-serif;box-shadow:0 0 10px rgba(153,25,25,.75)}
+.theatre-check-request-badge.is-visible{display:flex}
+.theatre-check-dm-toast{position:absolute;top:22px;right:24px;width:min(260px,30vw);padding:9px 11px;border:1px solid #8b6b35;border-left:4px solid #9b2421;background:rgba(12,11,10,.96);box-shadow:0 10px 22px rgba(0,0,0,.48);display:grid;gap:2px;color:#e5dac8;font-family:"Roboto",sans-serif}
+.theatre-check-dm-toast strong{font:14px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.8px}.theatre-check-dm-toast span{color:#a69b89;font-size:9px}
+
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud{top:clamp(24px,4vh,44px)!important;width:min(390px,64vw)!important;border-width:3px!important;outline-width:2px!important;box-shadow:0 10px 18px rgba(0,0,0,.58)!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-kicker{padding:5px 9px 0!important;font-size:7px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-label{padding:0 9px 5px!important;font-size:13px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-coins{min-height:58px!important;gap:7px!important;padding:9px 14px 7px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-coins .coin-toss-item{width:38px!important;height:38px!important;flex:0 0 38px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-metrics{border-top-width:4px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-metrics>div{min-width:116px!important;min-height:78px!important;margin:8px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-metrics span{font-size:11px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-metrics strong{font-size:38px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-vs{font-size:34px!important}
+.on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-status{min-height:30px!important;margin:0 8px 9px!important;font-size:14px!important}
+
+@media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}.theatre-check-compose-actions{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.theatre-check-front-layer .theatre-check-hud,.theatre-check-dm-toast,.theatre-check-player-notice,.theatre-check-command-prompt{animation:none!important}}
