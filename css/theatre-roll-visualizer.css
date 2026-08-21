@@ -1,0 +1,248 @@
+.theatre-roll-layer{
+  position:absolute;
+  top:clamp(48px,7vh,86px);
+  right:clamp(18px,2.4vw,38px);
+  z-index:7000;
+  width:min(360px,32vw);
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:10px;
+  pointer-events:none;
+}
+.theatre-roll-card{
+  position:relative;
+  box-sizing:border-box;
+  min-width:0;
+  padding:12px 14px 14px;
+  overflow:hidden;
+  border:1px solid rgba(214,181,119,.72);
+  border-left:4px solid #8a1c1c;
+  background:linear-gradient(135deg,rgba(18,17,16,.96),rgba(34,29,24,.94));
+  box-shadow:0 12px 28px rgba(0,0,0,.42);
+  color:#f4ead6;
+  font-family:"Roboto",sans-serif;
+  animation:theatre-roll-enter .24s ease-out both;
+}
+.theatre-roll-card::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:2px;
+  background:linear-gradient(90deg,#8a1c1c,#c6a56d,transparent);
+}
+.theatre-roll-card-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:2px;
+}
+.theatre-roll-roller{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.05rem;
+  letter-spacing:.08em;
+}
+.theatre-roll-mode{
+  flex:0 0 auto;
+  padding:2px 6px;
+  border:1px solid rgba(214,181,119,.45);
+  color:#d8bc88;
+  font-size:.62rem;
+  letter-spacing:.12em;
+}
+.theatre-roll-label{
+  margin-top:3px;
+  color:#b7aa95;
+  font-size:.72rem;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.theatre-roll-coins{
+  display:flex;
+  gap:7px;
+  margin:11px 0 8px;
+}
+.theatre-roll-coin{
+  width:20px;
+  height:20px;
+  box-sizing:border-box;
+  border-radius:50%;
+  border:2px solid #c7a56d;
+  background:#2b2721;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.28);
+}
+.theatre-roll-coin[data-side="head"]{
+  background:radial-gradient(circle at 35% 30%,#f2db9f 0 18%,#c29a53 20% 62%,#76552d 64% 100%);
+}
+.theatre-roll-coin[data-side="tail"]{
+  background:radial-gradient(circle at 35% 30%,#7d7568 0 18%,#423d36 20% 62%,#1d1b19 64% 100%);
+  border-color:#8e8373;
+}
+.theatre-roll-coin[data-side="unknown"]{
+  border-style:dashed;
+  opacity:.65;
+}
+.theatre-roll-detail{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  color:#d5c6ad;
+  font-family:"Share Tech Mono","Roboto",monospace;
+  font-size:.68rem;
+  letter-spacing:.04em;
+}
+.theatre-roll-total{
+  margin-top:8px;
+  color:#f2d694;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:2.35rem;
+  line-height:.9;
+  letter-spacing:.04em;
+}
+.theatre-roll-total::after{
+  content:" TOTAL";
+  margin-left:6px;
+  color:#8f8372;
+  font-family:"Roboto",sans-serif;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.12em;
+}
+.theatre-roll-director-note{
+  margin-top:8px;
+  border-top:1px solid rgba(255,255,255,.08);
+  padding-top:6px;
+  color:#b88a7c;
+  font-size:.62rem;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+.theatre-roll-card.is-hidden-result{
+  padding:14px 16px;
+  text-align:center;
+}
+.theatre-roll-hidden-result{
+  margin-top:10px;
+  color:#f0d38d;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.65rem;
+  letter-spacing:.08em;
+}
+.theatre-roll-card.is-leaving{
+  animation:theatre-roll-leave .24s ease-in both;
+}
+.theatre-roll-director{
+  margin-bottom:18px;
+  padding:12px;
+  border-top:1px solid #a37c35;
+  border-bottom:1px solid #28231d;
+  background:#090b0e;
+}
+.theatre-roll-director-title{
+  margin-bottom:9px;
+  color:#a37c35;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:.92rem;
+  letter-spacing:.09em;
+}
+.theatre-roll-visibility-buttons{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+}
+.theatre-roll-visibility-buttons button{
+  min-width:0;
+  padding:7px 6px;
+  border:1px solid #4c4f52;
+  background:#15191d;
+  color:#d6d2c8;
+  cursor:pointer;
+  font-size:.7rem;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.theatre-roll-visibility-buttons button.is-active{
+  border-color:#c49a00;
+  background:#5b1717;
+  color:#fff4d2;
+}
+.theatre-roll-hidden-options{
+  display:none;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin-top:8px;
+}
+.theatre-roll-director[data-visibility="hidden"] .theatre-roll-hidden-options{
+  display:grid;
+}
+.theatre-roll-hidden-options label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+  color:#928b7f;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+.theatre-roll-hidden-options select,
+.theatre-roll-hidden-options input{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  padding:6px 7px;
+  border:1px solid #4e5358;
+  background:#11161a;
+  color:#f4efe5;
+  font:inherit;
+  letter-spacing:0;
+}
+.theatre-roll-hidden-text-label{
+  grid-column:1/-1;
+}
+.theatre-roll-director[data-hidden-output="none"] [data-roll-hidden-outcome],
+.theatre-roll-director[data-hidden-output="none"] [data-roll-hidden-text],
+.theatre-roll-director[data-hidden-output="outcome"] [data-roll-hidden-text],
+.theatre-roll-director[data-hidden-output="custom"] [data-roll-hidden-outcome]{
+  opacity:.38;
+  pointer-events:none;
+}
+@keyframes theatre-roll-enter{
+  from{opacity:0;transform:translateX(18px) scale(.98)}
+  to{opacity:1;transform:translateX(0) scale(1)}
+}
+@keyframes theatre-roll-leave{
+  to{opacity:0;transform:translateX(18px) scale(.98)}
+}
+@media (max-width:900px){
+  .theatre-roll-layer{
+    width:min(310px,44vw);
+    right:14px;
+  }
+}
+@media (max-width:620px){
+  .theatre-roll-layer{
+    top:50px;
+    left:12px;
+    right:12px;
+    width:auto;
+  }
+  .theatre-roll-card{
+    padding:10px 12px 12px;
+  }
+  .theatre-roll-total{
+    font-size:1.9rem;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .theatre-roll-card,
+  .theatre-roll-card.is-leaving{
+    animation:none;
+  }
+}
