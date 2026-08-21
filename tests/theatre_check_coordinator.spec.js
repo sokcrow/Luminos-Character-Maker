@@ -93,3 +93,25 @@ test('DM gets a visible alert when pending requests transition from zero to one'
   expect(alert).toContain('abre CHECK DIRECTOR');
   expect(liveSync).toContain('js/theatre-check-dm-alert.js');
 });
+
+test('DM-only listeners wait for Firebase Auth and failed listeners can be rebound', () => {
+  const src = read('js/theatre-check-coordinator.js');
+  expect(src).toContain('function bindAuthLifecycle()');
+  expect(src).toContain('auth.onAuthStateChanged');
+  expect(src).toContain('function bindAuthorizedData()');
+  expect(src).toContain('currentUid() !== DM_UID');
+  expect(src).toContain('state.dmPlayersBound = false');
+  expect(src).toContain('state.dmRequestsBound = false');
+  expect(src).toContain('state.dmLiveBound = false');
+  expect(src).toContain('state.playerCommandsBound = false');
+});
+
+test('Firebase failures are reported as Firebase/auth errors, never fake Director availability', () => {
+  const src = read('js/theatre-check-coordinator.js');
+  expect(src).toContain('function firebaseErrorCopy');
+  expect(src).toContain('PERMISSION_DENIED');
+  expect(src).toContain('Firebase Auth todavía no está listo');
+  expect(src).toContain('ERROR AL ENVIAR');
+  expect(src).toContain('ERROR DE COORDINACIÓN');
+  expect(src).not.toContain('No se pudo contactar al Director');
+});
