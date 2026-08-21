@@ -12,7 +12,9 @@
     "short_rest", "long_rest", "day_start",
   ];
   const CONDITION_OPERATORS = ["eq", "ne", "gt", "gte", "lt", "lte", "truthy", "falsy", "contains", "not_contains", "in", "not_in", "between"];
-  const OPERATION_TYPES = ["modify", "resource", "apply_status", "remove_status", "heal_hp", "heal_sp", "gain_shield", "set_flag", "clear_flag", "log"];
+  const OPERATION_TYPES = Array.isArray(engine.OPERATION_TYPES)
+    ? engine.OPERATION_TYPES
+    : ["modify", "resource", "apply_status", "remove_status", "heal_hp", "heal_sp", "gain_shield", "set_flag", "clear_flag", "log"];
   const MODIFY_MODES = ["add", "multiply", "set", "override", "min", "max"];
   const RESOURCE_MODES = ["gain", "spend", "set", "consume_all"];
 
@@ -32,21 +34,21 @@
     return text;
   }
 
-  function selectOptions(select, values) {
+  function selectOptions(selectNode, values) {
     values.forEach((entry) => {
       const option = doc.createElement("option");
       option.value = entry;
       option.textContent = entry.replaceAll("_", " ").toUpperCase();
-      select.appendChild(option);
+      selectNode.appendChild(option);
     });
   }
 
-  function field(label, input) {
+  function field(label, control) {
     const wrapper = doc.createElement("label");
     wrapper.className = "trait-builder-field";
     const span = doc.createElement("span");
     span.textContent = label;
-    wrapper.append(span, input);
+    wrapper.append(span, control);
     return wrapper;
   }
 
@@ -77,6 +79,7 @@
     const conditionPath = input("conditionPath", "check.abilityId / skill.coinCount");
     const conditionOperator = select("conditionOperator", CONDITION_OPERATORS);
     const conditionValue = input("conditionValue", "dex / 5 / [\"insight\",\"perception\"]");
+    const conditionMax = input("conditionMax", "10 (required for BETWEEN)");
     const operationType = select("operationType", OPERATION_TYPES);
     const operationPath = input("operationPath", "check.finalPower / self.damagePercent");
     const operationMode = select("operationMode", MODIFY_MODES);
@@ -90,7 +93,8 @@
 
     [
       field("Context", context), field("Trigger", trigger),
-      field("Condition path / formula", conditionPath), field("Condition operator", conditionOperator), field("Condition value", conditionValue),
+      field("Condition path / formula", conditionPath), field("Condition operator", conditionOperator),
+      field("Condition value / min", conditionValue), field("Condition max (BETWEEN)", conditionMax),
       field("Operation", operationType), field("Target path", operationPath), field("Modify mode", operationMode), field("Value / formula", operationFormula),
       field("Resource id", resourceId), field("Resource mode", resourceMode), field("Store result as", storeAs),
       field("Status id", statusId), field("Duration", duration), field("Flag id", flagId),
@@ -106,6 +110,7 @@
     set("conditionPath", seed.conditionPath || "");
     set("conditionOperator", seed.conditionOperator || "eq");
     set("conditionValue", seed.conditionValue || "");
+    set("conditionMax", seed.conditionMax || "");
     set("operationType", seed.operationType || "modify");
     set("operationPath", seed.operationPath || "");
     set("operationMode", seed.operationMode || "add");
@@ -131,6 +136,7 @@
     const conditionPath = read("conditionPath");
     const conditionOperator = read("conditionOperator") || "eq";
     const conditionValue = parseLiteral(read("conditionValue"));
+    const conditionMax = parseLiteral(read("conditionMax"));
     const operationType = read("operationType");
     const operationFormula = read("operationFormula");
     const operation = { type: operationType };
@@ -162,8 +168,11 @@
 
     const conditions = [];
     if (conditionPath) {
-      if (conditionPath.startsWith("=")) conditions.push({ formula: conditionPath.slice(1), operator: conditionOperator, value: conditionValue });
-      else conditions.push({ path: conditionPath, operator: conditionOperator, value: conditionValue });
+      const condition = conditionPath.startsWith("=")
+        ? { formula: conditionPath.slice(1), operator: conditionOperator, value: conditionValue }
+        : { path: conditionPath, operator: conditionOperator, value: conditionValue };
+      if (conditionOperator === "between") condition.max = conditionMax;
+      conditions.push(condition);
     }
 
     return {
