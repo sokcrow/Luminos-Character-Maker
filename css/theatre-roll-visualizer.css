@@ -1,0 +1,307 @@
+.theatre-roll-layer{
+  position:absolute;
+  inset:0;
+  z-index:7000;
+  pointer-events:none;
+  overflow:hidden;
+}
+
+/* Full HUD: only rendered locally by the client that is rolling. */
+.theatre-check-hud{
+  --frame:#8a6137;
+  --frame-dark:#52331d;
+  --neutral:#e1ddd5;
+  --advantage:#e7c34d;
+  --disadvantage:#d74a40;
+  --pass:#d7b54e;
+  --fail:#c03228;
+  position:absolute;
+  top:clamp(40px,7vh,78px);
+  left:50%;
+  width:min(720px,72vw);
+  transform:translateX(-50%);
+  color:#eee4d4;
+  font-family:"Roboto",sans-serif;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.55));
+  animation:theatre-check-enter .22s ease-out both;
+}
+
+.theatre-check-tip{
+  position:relative;
+  width:min(590px,84%);
+  margin:0 auto 12px;
+  padding:18px 30px 20px;
+  border:5px solid var(--frame-dark);
+  border-radius:14px;
+  outline:4px solid var(--frame);
+  background:linear-gradient(180deg,#dac9b7,#cbb49d);
+  text-align:center;
+  color:#2a2018;
+}
+.theatre-check-tip::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:-37px;
+  width:10px;
+  height:32px;
+  transform:translateX(-50%);
+  border-radius:6px;
+  background:#89633a;
+  box-shadow:0 0 0 4px #2e1c10;
+}
+.theatre-check-tip-title{
+  margin-bottom:10px;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.55rem;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+.theatre-check-hud[data-modifier="advantage"] .theatre-check-tip-title{color:#9d7610}
+.theatre-check-hud[data-modifier="disadvantage"] .theatre-check-tip-title{color:#a72e27}
+.theatre-check-tip-copy{
+  font-size:1.05rem;
+  line-height:1.35;
+}
+
+.theatre-check-body{
+  border:5px solid var(--frame-dark);
+  border-radius:11px;
+  outline:4px solid var(--frame);
+  background:linear-gradient(180deg,#33271f,#17110e);
+  overflow:hidden;
+}
+
+/* Exact Coin Engine images: no replacement circles or synthetic coin graphics. */
+.theatre-check-coins{
+  min-height:108px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:15px;
+  padding:18px 24px 14px;
+  background:linear-gradient(180deg,#342920,#211914);
+}
+.theatre-check-coin-image{
+  display:block;
+  width:60px;
+  height:60px;
+  flex:0 0 60px;
+  object-fit:cover;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+
+.theatre-check-comparison{
+  min-height:238px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 105px minmax(0,1fr);
+  align-items:center;
+  border-top:9px solid rgba(0,0,0,.24);
+  border-bottom:9px solid rgba(0,0,0,.24);
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.07));
+}
+.theatre-check-block{
+  height:166px;
+  margin:0 24px;
+  border:3px solid #5e5548;
+  background:linear-gradient(180deg,#5a5046,#493f38);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  text-align:center;
+}
+.theatre-check-block-label{
+  color:#ead9bc;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.35rem;
+  letter-spacing:.03em;
+}
+.theatre-check-block-value{
+  color:var(--neutral);
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:4.8rem;
+  font-weight:900;
+  line-height:.82;
+}
+.theatre-check-threshold.advantage .theatre-check-block-value{color:var(--advantage)}
+.theatre-check-threshold.disadvantage .theatre-check-block-value{color:var(--disadvantage)}
+.theatre-check-block-sub{
+  min-height:24px;
+  color:#dfcfb7;
+  font-size:.92rem;
+  font-weight:700;
+}
+.theatre-check-operator{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#b81713;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:5.5rem;
+  font-weight:900;
+  text-shadow:0 5px 0 rgba(0,0,0,.32);
+}
+.theatre-check-status{
+  min-height:62px;
+  margin:15px 22px 18px;
+  border:4px solid #49331f;
+  background:linear-gradient(180deg,#171410,#0f0c09);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#b9aa92;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:2rem;
+  font-weight:900;
+  letter-spacing:.05em;
+}
+.theatre-check-status.is-pass{color:var(--pass)}
+.theatre-check-status.is-fail{color:var(--fail)}
+.theatre-check-hud.is-leaving{animation:theatre-check-leave .24s ease-in both}
+
+/* Remote viewers never receive the full HUD; only this compact final result. */
+.theatre-roll-result-card{
+  position:absolute;
+  top:clamp(58px,8vh,92px);
+  right:clamp(18px,2.4vw,38px);
+  width:min(315px,29vw);
+  padding:12px 15px 14px;
+  border:1px solid rgba(190,157,99,.7);
+  border-left:4px solid #7f2320;
+  background:linear-gradient(135deg,rgba(18,17,16,.96),rgba(34,29,24,.94));
+  box-shadow:0 12px 28px rgba(0,0,0,.42);
+  animation:theatre-result-enter .22s ease-out both;
+}
+.theatre-roll-result-card:nth-of-type(2){top:calc(clamp(58px,8vh,92px) + 120px)}
+.theatre-roll-result-card:nth-of-type(3){top:calc(clamp(58px,8vh,92px) + 240px)}
+.theatre-roll-result-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#e9dfcf;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1rem;
+  letter-spacing:.08em;
+}
+.theatre-roll-result-total{
+  margin-top:4px;
+  color:#eee7dc;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:2.7rem;
+  line-height:.95;
+}
+.theatre-roll-result-total::after{
+  content:" TOTAL";
+  margin-left:5px;
+  color:#8f8372;
+  font-family:"Roboto",sans-serif;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.1em;
+}
+.theatre-roll-result-outcome{
+  margin-top:7px;
+  border-top:1px solid rgba(255,255,255,.08);
+  padding-top:7px;
+  color:#c7b89d;
+  font-size:.72rem;
+  font-weight:800;
+  letter-spacing:.08em;
+}
+.theatre-roll-result-outcome.is-pass{color:#d7b54e}
+.theatre-roll-result-outcome.is-fail{color:#c94439}
+.theatre-roll-result-card.is-leaving{animation:theatre-result-leave .24s ease-in both}
+
+.theatre-roll-director{
+  margin-bottom:18px;
+  padding:12px;
+  border-top:1px solid #a37c35;
+  border-bottom:1px solid #28231d;
+  background:#090b0e;
+}
+.theatre-roll-director-title{
+  margin-bottom:9px;
+  color:#a37c35;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:.92rem;
+  letter-spacing:.09em;
+}
+.theatre-roll-visibility-buttons{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+}
+.theatre-roll-visibility-buttons button{
+  min-width:0;
+  padding:7px 6px;
+  border:1px solid #4c4f52;
+  background:#15191d;
+  color:#d6d2c8;
+  cursor:pointer;
+  font-size:.7rem;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.theatre-roll-visibility-buttons button.is-active{
+  border-color:#c49a00;
+  background:#5b1717;
+  color:#fff4d2;
+}
+.theatre-roll-hidden-options{
+  display:none;
+  grid-template-columns:1fr;
+  gap:7px;
+  margin-top:8px;
+}
+.theatre-roll-director[data-visibility="hidden"] .theatre-roll-hidden-options{display:grid}
+.theatre-roll-hidden-options label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+  color:#928b7f;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+.theatre-roll-hidden-options select,
+.theatre-roll-hidden-options input{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  padding:6px 7px;
+  border:1px solid #4e5358;
+  background:#11161a;
+  color:#f4efe5;
+  font:inherit;
+  letter-spacing:0;
+}
+
+@keyframes theatre-check-enter{from{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+@keyframes theatre-check-leave{to{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.985)}}
+@keyframes theatre-result-enter{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes theatre-result-leave{to{opacity:0;transform:translateX(16px)}}
+
+@media (max-width:900px){
+  .theatre-check-hud{width:min(680px,86vw)}
+  .theatre-check-block{margin:0 14px}
+  .theatre-roll-result-card{width:min(290px,39vw);right:14px}
+}
+@media (max-width:620px){
+  .theatre-check-hud{width:94vw;top:48px}
+  .theatre-check-coins{gap:9px}
+  .theatre-check-coin-image{width:48px;height:48px;flex-basis:48px}
+  .theatre-check-comparison{grid-template-columns:1fr 72px 1fr;min-height:205px}
+  .theatre-check-block{height:145px;margin:0 8px}
+  .theatre-check-block-value{font-size:3.6rem}
+  .theatre-check-operator{font-size:4rem}
+  .theatre-roll-result-card{left:12px;right:12px;width:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .theatre-check-hud,.theatre-check-hud.is-leaving,.theatre-roll-result-card,.theatre-roll-result-card.is-leaving{animation:none}
+}

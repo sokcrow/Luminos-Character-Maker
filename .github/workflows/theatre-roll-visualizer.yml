@@ -1,0 +1,33 @@
+name: Theatre Roll Visualizer
+
+on:
+  pull_request:
+    paths:
+      - "js/theatre-roll-visualizer.js"
+      - "css/theatre-roll-visualizer.css"
+      - "js/instance-control.js"
+      - "tests/theatre_roll_visualizer.spec.js"
+      - "database.rules.json"
+      - ".github/workflows/theatre-roll-visualizer.yml"
+  push:
+    paths:
+      - "js/theatre-roll-visualizer.js"
+      - "css/theatre-roll-visualizer.css"
+      - "js/instance-control.js"
+      - "tests/theatre_roll_visualizer.spec.js"
+      - "database.rules.json"
+      - ".github/workflows/theatre-roll-visualizer.yml"
+
+jobs:
+  theatre-roll-visualizer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --check js/theatre-roll-visualizer.js
+      - run: node --check js/instance-control.js
+      - run: npx playwright test tests/theatre_roll_visualizer.spec.js

@@ -112,6 +112,35 @@
     return global.LuminousTheatreState?.getPaths?.().scene || DEFAULT_THEATRE_SCENE_PATH;
   }
 
+  function ensureTheatreRollVisualizerAssets(doc) {
+    const documentRef = doc || global.document;
+    if (!documentRef?.head) return null;
+    const hasTheatre = documentRef.getElementById("theatre-view-player") || documentRef.getElementById("modulo-teatro");
+    if (!hasTheatre) return null;
+
+    let link = documentRef.getElementById("theatre-roll-visualizer-stylesheet");
+    if (!link) {
+      link = documentRef.createElement("link");
+      link.id = "theatre-roll-visualizer-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/theatre-roll-visualizer.css";
+      link.dataset.ui = "theatre-roll-visualizer";
+      documentRef.head.appendChild(link);
+    }
+
+    let script = documentRef.getElementById("theatre-roll-visualizer-script");
+    if (!script) {
+      script = documentRef.createElement("script");
+      script.id = "theatre-roll-visualizer-script";
+      script.src = "js/theatre-roll-visualizer.js";
+      script.async = false;
+      script.dataset.ui = "theatre-roll-visualizer";
+      documentRef.head.appendChild(script);
+    }
+
+    return { link, script };
+  }
+
   function ensureDmLocationControl({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef?.body?.classList.contains("on-game-dashboard")) return null;
@@ -228,6 +257,7 @@
     if (!db || !documentRef) return;
     const instanceRef = db.ref(INSTANCE_PATH);
 
+    ensureTheatreRollVisualizerAssets(documentRef);
     ensureDashboardCharacterManager({ db, doc: documentRef });
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
@@ -257,6 +287,7 @@
   function bindPlayer({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
+    ensureTheatreRollVisualizerAssets(documentRef);
     db.ref(INSTANCE_PATH).on("value", (snapshot) => {
       applyPlayerInstance(snapshot.val(), documentRef);
     });
@@ -268,6 +299,7 @@
     applyPlayerInstance,
     applyDashboardInstance,
     ensureDmLocationControl,
+    ensureTheatreRollVisualizerAssets,
     ensureDashboardCharacterManager,
     ensureDashboardActorStudioAssets,
     bindDm,
