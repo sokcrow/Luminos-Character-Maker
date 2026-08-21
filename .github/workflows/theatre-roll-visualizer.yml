@@ -7,6 +7,7 @@ on:
       - "css/theatre-roll-visualizer.css"
       - "js/instance-control.js"
       - "tests/theatre_roll_visualizer.spec.js"
+      - "database.rules.json"
       - ".github/workflows/theatre-roll-visualizer.yml"
   push:
     paths:
@@ -14,6 +15,7 @@ on:
       - "css/theatre-roll-visualizer.css"
       - "js/instance-control.js"
       - "tests/theatre_roll_visualizer.spec.js"
+      - "database.rules.json"
       - ".github/workflows/theatre-roll-visualizer.yml"
 
 jobs:

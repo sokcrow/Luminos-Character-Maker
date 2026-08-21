@@ -8,6 +8,7 @@
   const db = firebase.database();
   const DEFAULT_ROOM_ID = "default";
   const CONFIG_PATH = "campaña/config/theatre_rolls";
+  const PRIVATE_ROLL_ROOT = "dm_private/theatre_rolls";
   const MAX_RECENT_AGE_MS = 20000;
   const DEFAULT_DURATION_MS = 7000;
   const COIN_COUNT = 5;
@@ -48,6 +49,8 @@
   let coinObserver = null;
   let localHud = null;
   let localHudTimer = null;
+  let rollStartPending = false;
+  let rollStartTimer = null;
   const renderedKeys = new Set();
   const removalTimers = new Map();
 
@@ -67,6 +70,15 @@
     const normalized = roomId && roomId !== DEFAULT_ROOM_ID ? String(roomId) : DEFAULT_ROOM_ID;
     if (normalized === DEFAULT_ROOM_ID) return "campaña/teatro/tiradas";
     return `campaña/teatro/salas/${normalized}/tiradas`;
+  }
+
+  function privateRoomKey(roomId) {
+    const normalized = roomId && roomId !== DEFAULT_ROOM_ID ? String(roomId) : DEFAULT_ROOM_ID;
+    return normalized.replace(/[.#$\[\]\/]/g, "_") || DEFAULT_ROOM_ID;
+  }
+
+  function resolvePrivateRollPath(roomId) {
+    return `${PRIVATE_ROLL_ROOT}/${privateRoomKey(roomId)}`;
   }
 
   function normalizeVisibility(value) {
@@ -315,28 +327,131 @@
   }
 
   function captureLocalRollStart() {
+    if (rollStartPending || pendingLocalRoll) return false;
     const panel = doc.getElementById("coin-toss-panel");
     const result = doc.getElementById("roll-total-score");
-    if (!panel || panel.style.display === "none") return;
+    if (!panel || panel.style.display === "none") return false;
 
-    global.setTimeout(() => {
-      const check = normalizeCheckContext(nextCheckContext);
-      nextCheckContext = null;
-      pendingLocalRoll = {
-        base: numberFromText(result),
-        startedAt: Date.now(),
-        check,
-      };
-      createLocalHud(check);
-      syncLocalCoinsFromEngine();
+    const armedCheck = nextCheckContext;
+    nextCheckContext = null;
+    rollStartPending = true;
+    rollStartTimer = global.setTimeout(() => {
+      try {
+        if (pendingLocalRoll) return;
+        const check = normalizeCheckContext(armedCheck);
+        pendingLocalRoll = {
+          base: numberFromText(result),
+          startedAt: Date.now(),
+          check,
+        };
+        createLocalHud(check);
+        syncLocalCoinsFromEngine();
 
-      coinObserver?.disconnect();
-      const coinContainer = doc.getElementById("coin-toss-coins-container");
-      if (coinContainer) {
-        coinObserver = new MutationObserver(syncLocalCoinsFromEngine);
-        coinObserver.observe(coinContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+        coinObserver?.disconnect();
+        const coinContainer = doc.getElementById("coin-toss-coins-container");
+        if (coinContainer) {
+          coinObserver = new MutationObserver(syncLocalCoinsFromEngine);
+          coinObserver.observe(coinContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+        }
+      } finally {
+        rollStartTimer = null;
+        rollStartPending = false;
       }
     }, 40);
+    return true;
+  }
+
+  function buildFullRollRecord({ source, total, effectiveConfig, roller, check, coins, heads, roomId, privateAvailable }) {
+    const outcome = checkOutcome(total, check);
+    return {
+      schemaVersion: 3,
+      kind: Number.isFinite(check.thresholdRaw) ? "check-result" : "coin-roll-result",
+      presentation: "result-only",
+      roller: {
+        uid: roller.uid || null,
+        actorId: roller.actorId || null,
+        name: String(roller.name || "PLAYER").slice(0, 80),
+      },
+      rollerUid: roller.uid || null,
+      rollerClientId: CLIENT_ID,
+      base: Number.isFinite(Number(source.base)) ? Number(source.base) : null,
+      total: Math.trunc(total),
+      heads,
+      coinCount: coins.length || COIN_COUNT,
+      coinHeadBonus: COIN_HEAD_BONUS,
+      check: {
+        thresholdRaw: check.thresholdRaw,
+        hiddenThreshold: check.hiddenThreshold,
+        modifierType: check.modifierType,
+        modifierValue: check.modifierValue,
+        outcome,
+      },
+      visibility: effectiveConfig.visibility,
+      hiddenOutput: effectiveConfig.hiddenOutput,
+      hiddenOutcome: effectiveConfig.hiddenOutcome,
+      hiddenText: effectiveConfig.hiddenText,
+      durationMs: effectiveConfig.durationMs,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      clientCreatedAt: Date.now(),
+      roomId,
+      privateRoomKey: privateRoomKey(roomId),
+      privateAvailable: Boolean(privateAvailable),
+    };
+  }
+
+  function buildPublicRollRecord(full) {
+    const visibility = normalizeVisibility(full?.visibility);
+    const hiddenOutput = normalizeHiddenOutput(full?.hiddenOutput);
+    const publicRecord = {
+      schemaVersion: Number(full?.schemaVersion) || 3,
+      kind: full?.kind || "coin-roll-result",
+      presentation: "result-only",
+      rollerClientId: full?.rollerClientId || null,
+      visibility,
+      hiddenOutput,
+      durationMs: Number(full?.durationMs) || DEFAULT_DURATION_MS,
+      createdAt: full?.createdAt ?? firebase.database.ServerValue.TIMESTAMP,
+      clientCreatedAt: Number(full?.clientCreatedAt) || Date.now(),
+      roomId: full?.roomId || DEFAULT_ROOM_ID,
+      privateAvailable: Boolean(full?.privateAvailable),
+    };
+
+    if (visibility === VISIBILITY.HIDDEN) {
+      if (hiddenOutput === HIDDEN_OUTPUT.NONE) return publicRecord;
+      publicRecord.roller = full?.roller || null;
+      if (hiddenOutput === HIDDEN_OUTPUT.OUTCOME) {
+        publicRecord.publicOutcome = full?.check?.outcome || full?.hiddenOutcome || null;
+      } else if (hiddenOutput === HIDDEN_OUTPUT.CUSTOM) {
+        publicRecord.hiddenText = String(full?.hiddenText || "").trim().slice(0, 80);
+      }
+      return publicRecord;
+    }
+
+    publicRecord.roller = full?.roller || null;
+    publicRecord.total = Number.isFinite(Number(full?.total)) ? Math.trunc(Number(full.total)) : null;
+
+    // TOTAL means exactly that for player-readable data: no outcome, threshold, heads or base.
+    if (visibility === VISIBILITY.TOTAL) return publicRecord;
+
+    publicRecord.base = Number.isFinite(Number(full?.base)) ? Number(full.base) : null;
+    publicRecord.heads = Math.max(0, Math.trunc(Number(full?.heads) || 0));
+    publicRecord.coinCount = Math.max(0, Math.trunc(Number(full?.coinCount) || COIN_COUNT));
+    publicRecord.coinHeadBonus = COIN_HEAD_BONUS;
+
+    const check = full?.check || {};
+    if (check.outcome || Number.isFinite(Number(check.thresholdRaw))) {
+      publicRecord.check = {
+        hiddenThreshold: Boolean(check.hiddenThreshold),
+        outcome: check.outcome || null,
+      };
+      // A hidden threshold is never placed in the authenticated-player-readable tree.
+      if (!check.hiddenThreshold) {
+        publicRecord.check.thresholdRaw = Number.isFinite(Number(check.thresholdRaw)) ? Math.trunc(Number(check.thresholdRaw)) : null;
+        publicRecord.check.modifierType = normalizeModifier(check.modifierType);
+        publicRecord.check.modifierValue = Math.max(0, Math.trunc(Number(check.modifierValue) || 0));
+      }
+    }
+    return publicRecord;
   }
 
   async function publishRoll(payload) {
@@ -349,49 +464,46 @@
     const check = normalizeCheckContext(source.check);
     const coins = Array.isArray(source.coins) ? source.coins.slice(0, COIN_COUNT) : [];
     const heads = countHeadsFromCoins(coins);
-    const ref = db.ref(resolveRollPath(getRoomId())).push();
-
-    await ref.set({
-      schemaVersion: 2,
-      kind: Number.isFinite(check.thresholdRaw) ? "check-result" : "coin-roll-result",
-      presentation: "result-only",
-      roller: {
-        uid: roller.uid || null,
-        actorId: roller.actorId || null,
-        name: String(roller.name || "PLAYER").slice(0, 80),
-      },
-      rollerClientId: CLIENT_ID,
-      base: Number.isFinite(Number(source.base)) ? Number(source.base) : null,
-      total: Math.trunc(total),
+    const roomId = getRoomId();
+    const publicRef = db.ref(resolveRollPath(roomId)).push();
+    const needsPrivateRecord = effectiveConfig.visibility !== VISIBILITY.PUBLIC || check.hiddenThreshold;
+    const fullRecord = buildFullRollRecord({
+      source,
+      total,
+      effectiveConfig,
+      roller,
+      check,
+      coins,
       heads,
-      coinCount: coins.length || COIN_COUNT,
-      coinHeadBonus: COIN_HEAD_BONUS,
-      check: {
-        thresholdRaw: check.thresholdRaw,
-        hiddenThreshold: check.hiddenThreshold,
-        modifierType: check.modifierType,
-        modifierValue: check.modifierValue,
-        outcome: checkOutcome(total, check),
-      },
-      visibility: effectiveConfig.visibility,
-      hiddenOutput: effectiveConfig.hiddenOutput,
-      hiddenOutcome: effectiveConfig.hiddenOutcome,
-      hiddenText: effectiveConfig.hiddenText,
-      durationMs: effectiveConfig.durationMs,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      clientCreatedAt: Date.now(),
-      roomId: getRoomId(),
+      roomId,
+      privateAvailable: needsPrivateRecord,
     });
+    const publicRecord = buildPublicRollRecord(fullRecord);
+    const updates = {
+      [`${resolveRollPath(roomId)}/${publicRef.key}`]: publicRecord,
+    };
 
-    return { published: true, key: ref.key };
+    if (needsPrivateRecord) {
+      updates[`${resolvePrivateRollPath(roomId)}/${publicRef.key}`] = fullRecord;
+    }
+
+    // Multi-location update keeps the public redaction and DM-private copy atomic.
+    await db.ref().update(updates);
+    return { published: true, key: publicRef.key };
   }
 
   function finalizeLocalRoll() {
-    if (!pendingLocalRoll) return;
+    if (!pendingLocalRoll) {
+      if (rollStartTimer) global.clearTimeout(rollStartTimer);
+      rollStartTimer = null;
+      rollStartPending = false;
+      return;
+    }
     coinObserver?.disconnect();
     const total = numberFromText(doc.getElementById("roll-total-score"));
     const pending = pendingLocalRoll;
     pendingLocalRoll = null;
+    rollStartPending = false;
     if (!Number.isFinite(total)) return;
 
     syncLocalCoinsFromEngine();
@@ -426,7 +538,8 @@
   }
 
   function shouldSuppressRemoteForLocalRoller(roll) {
-    if (roll?.rollerClientId && roll.rollerClientId === CLIENT_ID) return true;
+    // Modern records are session-scoped. Another tab/device with the same UID must still see the remote result.
+    if (roll?.rollerClientId) return roll.rollerClientId === CLIENT_ID;
     const uid = currentUid();
     return Boolean(uid && roll?.roller?.uid && uid === roll.roller.uid && !isDmView());
   }
@@ -434,10 +547,10 @@
   function hiddenRemoteMessage(roll) {
     const output = normalizeHiddenOutput(roll?.hiddenOutput);
     if (output === HIDDEN_OUTPUT.OUTCOME) {
-      const actual = roll?.check?.outcome;
+      const actual = roll?.publicOutcome || roll?.check?.outcome || roll?.hiddenOutcome;
       if (actual === "passed") return "CHECK PASSED";
       if (actual === "failed") return "CHECK FAILED";
-      return String(roll?.hiddenOutcome || "").toLowerCase() === "failure" ? "FALLO" : "ÉXITO";
+      return String(actual || "success").toLowerCase() === "failure" ? "FALLO" : "ÉXITO";
     }
     if (output === HIDDEN_OUTPUT.CUSTOM) return String(roll?.hiddenText || "").trim() || "RESULTADO OCULTO";
     return "";
@@ -461,6 +574,10 @@
 
     const total = textNode("theatre-roll-result-total", roll?.total ?? "—");
     card.appendChild(total);
+
+    // TOTAL is intentionally distinct from PUBLIC for non-DM viewers.
+    if (!isDmView() && visibility === VISIBILITY.TOTAL) return card;
+
     const outcome = roll?.check?.outcome;
     if (outcome === "passed" || outcome === "failed") {
       const result = textNode("theatre-roll-result-outcome", outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED");
@@ -477,7 +594,18 @@
     return Number.isFinite(client) ? client : 0;
   }
 
-  function renderIncomingRoll(snapshot) {
+  async function hydrateDmRoll(key, roll) {
+    if (!isDmView() || !roll?.privateAvailable) return roll;
+    try {
+      const snapshot = await db.ref(`${resolvePrivateRollPath(roll.roomId || getRoomId())}/${key}`).once("value");
+      return snapshot.val() || roll;
+    } catch (error) {
+      console.warn("No se pudo leer el detalle privado de la tirada:", error);
+      return roll;
+    }
+  }
+
+  async function renderIncomingRoll(snapshot) {
     const key = snapshot?.key;
     const roll = snapshot?.val?.() || {};
     if (!key || renderedKeys.has(key)) return;
@@ -488,14 +616,15 @@
     if (timestamp && Date.now() - timestamp > MAX_RECENT_AGE_MS) return;
     const layer = ensureLayer();
     if (!layer) return;
-    const card = buildRemoteResultCard(key, roll);
+    const displayRoll = await hydrateDmRoll(key, roll);
+    const card = buildRemoteResultCard(key, displayRoll);
     if (!card) return;
 
     layer.appendChild(card);
     while (layer.querySelectorAll(".theatre-roll-result-card").length > 3) {
       layer.querySelector(".theatre-roll-result-card")?.remove();
     }
-    const duration = normalizeConfig({ durationMs: roll.durationMs }).durationMs;
+    const duration = normalizeConfig({ durationMs: displayRoll.durationMs }).durationMs;
     removalTimers.set(key, global.setTimeout(() => {
       card.classList.add("is-leaving");
       global.setTimeout(() => card.remove(), 260);
@@ -506,7 +635,9 @@
   function bindRollStream() {
     rollQuery?.off();
     rollQuery = db.ref(resolveRollPath(getRoomId())).limitToLast(8);
-    rollQuery.on("child_added", renderIncomingRoll);
+    rollQuery.on("child_added", (snapshot) => {
+      renderIncomingRoll(snapshot).catch((error) => console.warn("No se pudo renderizar la tirada remota:", error));
+    });
   }
 
   function setControlState(root) {
@@ -621,15 +752,19 @@
     HEAD_SRC,
     TAIL_SRC,
     resolveRollPath,
+    resolvePrivateRollPath,
     normalizeConfig,
     normalizeCheckContext,
     effectiveThreshold,
     checkOutcome,
     captureCoinImages,
+    buildPublicRollRecord,
+    shouldSuppressRemoteForLocalRoller,
     armCheck,
     clearArmedCheck,
     publishRoll,
     renderIncomingRoll,
+    getClientId: () => CLIENT_ID,
     getConfig: () => Object.assign({}, config),
   });
 })(window);

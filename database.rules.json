@@ -59,8 +59,23 @@
       },
 
       "teatro": {
-        // Log abierto para todos los reclutas con cuenta
+        // Log y stream público/redactado de tiradas para todos los reclutas con cuenta.
         ".write": "auth != null"
+      }
+    },
+
+    // Los detalles reales de tiradas ocultas/TOTAL y thresholds ocultos viven fuera de
+    // `campaña`, porque `campaña/.read` ya concede lectura a todo usuario autenticado.
+    "dm_private": {
+      ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+      "theatre_rolls": {
+        "$room": {
+          "$rollId": {
+            // El DM puede escribir cualquier detalle. Un jugador solo puede crear una vez
+            // su propio registro privado y nunca leerlo desde Firebase.
+            ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('rollerUid').val() === auth.uid && newData.child('privateRoomKey').val() === $room))"
+          }
+        }
       }
     }
   }
