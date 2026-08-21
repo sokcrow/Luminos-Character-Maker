@@ -86,6 +86,26 @@
           ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)"
         }
       }
+    },
+
+    "theatre_opposed_checks": {
+      ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+      "$sessionId": {
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        "thresholdResult": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && root.child('theatre_opposed_checks').child($sessionId).child('rivalUid').val() === auth.uid && newData.child('uid').val() === auth.uid))"
+        },
+        "resolverResult": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && root.child('theatre_opposed_checks').child($sessionId).child('initiatorUid').val() === auth.uid && newData.child('uid').val() === auth.uid))"
+        }
+      }
+    },
+
+    "theatre_opposed_results": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      }
     }
   }
 }
