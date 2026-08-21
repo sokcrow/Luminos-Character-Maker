@@ -89,9 +89,11 @@ body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden
 .theatre-check-compose-preview span{min-width:0;color:#a99f8e;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .theatre-check-compose-preview b{color:#d1b36e;font:17px "BebasKai","Arial Narrow",sans-serif}
 .theatre-check-compose-preview small{color:#70685c;font-size:7px}
-.theatre-check-compose-actions{display:grid;grid-template-columns:auto 1fr;gap:6px;margin-top:7px}
-.theatre-check-compose-actions button{height:33px;border:1px solid #725a32;background:#3b1b17;color:#e7d6b8;font:11px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.8px;cursor:pointer}
+.theatre-check-compose-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+.theatre-check-compose-actions button{min-width:0;height:33px;padding:0 6px;border:1px solid #725a32;background:#3b1b17;color:#e7d6b8;font:10px "BebasKai","Arial Narrow",sans-serif;letter-spacing:.55px;white-space:nowrap;cursor:pointer}
 #theatre-check-deny{background:#211111;border-color:#6b302d;color:#ca7169}
+#theatre-check-deny[hidden]{display:none!important}
+#theatre-check-deny[hidden]+#theatre-check-send{grid-column:1/-1}
 .theatre-check-sent-feedback{margin-top:6px;color:#bca76f;font-size:8px;letter-spacing:.7px}
 
 .theatre-check-request-badge{display:none;position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;align-items:center;justify-content:center;border:1px solid #f0d08a;background:#8a1717;color:#fff;font:10px "BebasKai","Arial Narrow",sans-serif;box-shadow:0 0 10px rgba(153,25,25,.75)}
@@ -111,5 +113,5 @@ body.theatre-check-active #coin-toss-panel{opacity:0!important;visibility:hidden
 .on-game-dashboard #theatre-check-front-layer .dm-npc-roll-vs{font-size:34px!important}
 .on-game-dashboard #theatre-check-front-layer .dm-npc-roll-hud-status{min-height:30px!important;margin:0 8px 9px!important;font-size:14px!important}
 
-@media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}}
+@media(max-width:700px){.theatre-check-front-layer .theatre-check-hud{width:min(370px,90vw)!important}.theatre-check-player-notice,.theatre-check-command-prompt{right:10px;width:min(270px,74vw)}.theatre-check-compose-grid{grid-template-columns:1fr}.theatre-check-compose-grid .wide{grid-column:auto}.theatre-check-compose-actions{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.theatre-check-front-layer .theatre-check-hud,.theatre-check-dm-toast,.theatre-check-player-notice,.theatre-check-command-prompt{animation:none!important}}
