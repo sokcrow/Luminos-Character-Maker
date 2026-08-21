@@ -1,4 +1,5 @@
 #character-manager-studio .cm-module-nav.cm-module-nav--npc-stats{grid-template-columns:repeat(6,1fr)}
+#character-manager-studio .cm-module-nav.cm-module-nav--npc-stats:has(.cm-npc-stats-tab[hidden]){grid-template-columns:repeat(5,1fr)}
 #character-manager-studio .cm-npc-stats-tab[hidden]{display:none!important}
 .cm-npc-stats-module{--npc-line:#3f392f;--npc-gold:#c4a15d;--npc-muted:#827a6e;--npc-panel:#11100e}
 .cm-npc-stats-note{margin-bottom:14px;padding:9px 11px;border-left:3px solid #6d5631;background:#0c0b09;color:#8d8577;font-size:9px;letter-spacing:.65px;line-height:1.45}
