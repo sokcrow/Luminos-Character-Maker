@@ -32,6 +32,7 @@
     { id: "kenku", name: "Kenku", hpCoefBonus: 0.00, defMod: 0, tags: ["organic", "humanoid", "avian"] },
     { id: "centaur", name: "Centauro", hpCoefBonus: 0.07, defMod: 0, tags: ["organic", "humanoid", "equine", "large_build"] },
     { id: "goliath", name: "Goliat", hpCoefBonus: 0.10, defMod: 1, tags: ["organic", "humanoid", "large_build", "mountain_adapted"] },
+    { id: "lanae", name: "Lanae", hpCoefBonus: 0.06, defMod: 0, tags: ["organic", "humanoid", "lanae", "mountain_adapted"] },
     { id: "goblin", name: "Goblin", hpCoefBonus: 0.02, defMod: 0, tags: ["organic", "humanoid", "goblinoid", "small"] },
     { id: "fairy", name: "Hada", hpCoefBonus: 0.00, defMod: 0, tags: ["organic", "humanoid", "fae", "arcane_core"], subtypes: [
       { id: "fire", name: "Fuego", hpCoefBonus: 0.00, defMod: 0 },
