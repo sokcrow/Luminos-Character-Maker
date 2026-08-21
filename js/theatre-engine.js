@@ -83,6 +83,92 @@
         return [value].filter(Boolean);
     }
 
+    function normalizeAssignedActorIds(value) {
+        const result = [];
+        const add = (candidate) => {
+            if (candidate === undefined || candidate === null || candidate === false) return;
+            const normalized = String(candidate).trim();
+            if (!normalized || normalized === "true" || normalized === "false" || result.includes(normalized)) return;
+            result.push(normalized);
+        };
+        const visit = (candidate) => {
+            if (candidate === undefined || candidate === null || candidate === false) return;
+            if (Array.isArray(candidate)) {
+                candidate.forEach(visit);
+                return;
+            }
+            if (typeof candidate !== "object") {
+                add(candidate);
+                return;
+            }
+
+            if (candidate.actorId !== undefined) add(candidate.actorId);
+            if (candidate.id !== undefined) add(candidate.id);
+            Object.entries(candidate).forEach(([key, entry]) => {
+                if (key === "actorId" || key === "id") return;
+                if (entry === true || entry === 1) add(key);
+                else if (typeof entry === "string" || typeof entry === "number") add(entry);
+                else if (entry && typeof entry === "object") visit(entry);
+            });
+        };
+        visit(value);
+        return result;
+    }
+
+    function cleanIdentityText(value) {
+        const candidate = typeof value === "string" ? value.trim() : "";
+        return candidate && !/^\?{3,}$/.test(candidate) ? candidate : "";
+    }
+
+    function resolveCanonicalIdentityText(...values) {
+        for (const value of values) {
+            const candidate = cleanIdentityText(value);
+            if (candidate) return candidate;
+        }
+        return "";
+    }
+
+    function resolveIdentityPresentation(options) {
+        const input = options || {};
+        const dialogData = input.dialogData || {};
+        const actor = input.actor || {};
+        const ownActor = input.ownActor || {};
+        const override = input.override || {};
+        const actorId = dialogData.actorId || null;
+        const type = dialogData.tipo_dialogo || "dialogo";
+
+        if (!actorId || type === "narracion" || type === "pensamiento" || dialogData.mostrar_identidad === false) {
+            return { visible: false, known: false, name: "", title: "" };
+        }
+
+        const privileged = input.isDm === true || input.isOwnActor === true;
+        const known = privileged || input.known === true;
+        const realName = resolveCanonicalIdentityText(
+            input.isOwnActor ? ownActor.nombre || ownActor.name : "",
+            actor.nombre || actor.name,
+            dialogData.nombre || dialogData.name
+        ) || "???";
+        const realTitle = resolveCanonicalIdentityText(
+            input.isOwnActor ? ownActor.titulo || ownActor.title : "",
+            actor.titulo || actor.title,
+            dialogData.titulo || dialogData.title
+        ) || "???";
+
+        // The DM and the player controlling the actor always keep canonical self-knowledge.
+        // Temporary nameplate overrides are presentation for other viewers, never censorship
+        // of the director or of the actor's owner.
+        if (privileged) {
+            return { visible: true, known: true, name: realName, title: realTitle };
+        }
+
+        return {
+            visible: true,
+            known,
+            name: override.nombre ?? override.name ?? (known ? realName : "???"),
+            title: override.titulo ?? override.title ?? (known ? realTitle : "???")
+        };
+    }
+
     function getVisibleLimit(scene) {
         return clampVisibleLimit(
             scene && (scene.max_actores_visibles ?? scene.maxVisibleActors ?? scene.config?.maxVisibleActors)
@@ -143,9 +229,72 @@
         return actor?.actorId || actor?.id || global.assignedActorId || null;
     }
 
-    function shouldShowOwnActor() {
+    function comparableId(value) {
+        if (value === undefined || value === null) return "";
+        return String(value).trim();
+    }
+
+    function stableActorId(actor, fallback) {
+        return comparableId(actor?.identityId || actor?.identidadId || actor?.sourceActorId || actor?.sourceId || actor?.actorId || actor?.id || fallback);
+    }
+
+    function actorsMatch(leftActor, leftFallback, rightActor, rightFallback) {
+        const leftIds = [
+            stableActorId(leftActor, leftFallback),
+            comparableId(leftActor?.actorId),
+            comparableId(leftActor?.id),
+            comparableId(leftFallback)
+        ].filter(Boolean);
+        const rightIds = new Set([
+            stableActorId(rightActor, rightFallback),
+            comparableId(rightActor?.actorId),
+            comparableId(rightActor?.id),
+            comparableId(rightFallback)
+        ].filter(Boolean));
+        return leftIds.some((id) => rightIds.has(id));
+    }
+
+    function getAssignedActorIds() {
+        const ids = [];
+        const addAll = (value) => {
+            normalizeAssignedActorIds(value).forEach((id) => {
+                if (!ids.includes(id)) ids.push(id);
+            });
+        };
+        const assignedActor = getAssignedTheatreActor();
+        addAll([assignedActor?.actorId, assignedActor?.id, assignedActor?.identityId, assignedActor?.identidadId]);
+        [currentViewerProfile?.actorIds, currentViewerProfile?.actores, currentViewerProfile?.actorId]
+            .forEach(addAll);
+        [global.datosJugador?.actorIds, global.datosJugador?.actores, global.datosJugador?.actorId, global.datosJugador?.vinculo_jugador]
+            .forEach(addAll);
+        addAll(global.assignedActorId);
+        return ids;
+    }
+
+    function getSelfVisibilityViewerKey(viewerKey) {
+        if (viewerKey) return comparableId(viewerKey);
+        const authUser = getCurrentAuthUser();
+        return comparableId(
+            currentViewerKey ||
+            authUser?.uid ||
+            global.playerId ||
+            global.datosJugador?.playerId ||
+            global.datosJugador?.id ||
+            global.datosJugador?.nombre ||
+            "local"
+        );
+    }
+
+    function getSelfVisibilityStorageKey(viewerKey, actorId) {
+        const viewer = getSelfVisibilityViewerKey(viewerKey) || "local";
+        const sceneActor = currentScene?.actores?.[actorId] || {};
+        const actor = stableActorId(sceneActor, actorId || getAssignedActorId()) || "unassigned";
+        return `${LOCAL_SHOW_SELF_KEY}.${encodeURIComponent(viewer)}.${encodeURIComponent(actor)}`;
+    }
+
+    function shouldShowOwnActor(actorId, viewerKey) {
         try {
-            return global.localStorage?.getItem(LOCAL_SHOW_SELF_KEY) === "true";
+            return global.localStorage?.getItem(getSelfVisibilityStorageKey(viewerKey, actorId)) === "true";
         } catch (error) {
             return false;
         }
@@ -170,9 +319,8 @@
             return actor && getValidSpriteUrl(actor.url || actor.sprite);
         });
 
-        if (!isDmView() && !shouldShowOwnActor()) {
-            const ownId = getAssignedActorId();
-            if (ownId) ids = ids.filter((id) => id !== ownId);
+        if (!isDmView()) {
+            ids = ids.filter((actorId) => !isOwnActorIdentity(actorId) || shouldShowOwnActor(actorId));
         }
 
         return ids;
@@ -212,8 +360,8 @@
 
         if (assignedActorId) {
             for (const [playerId, player] of Object.entries(playerDatabase)) {
-                const actorIds = normalizeIdList(player.actorIds || player.actores || player.actorId);
-                if (actorIds.includes(assignedActorId)) {
+                const actorIds = normalizeAssignedActorIds([player.actorIds, player.actores, player.actorId]);
+                if (actorIds.includes(comparableId(assignedActorId))) {
                     return { key: playerId, profile: player };
                 }
             }
@@ -240,7 +388,7 @@
         currentIdentityKnowledge = {};
 
         if (!currentViewerKey || currentViewerKey === "__dm__") {
-            renderDialogue(currentDialogue);
+            renderScene(currentScene);
             return;
         }
 
@@ -250,24 +398,42 @@
             renderDialogue(currentDialogue);
         };
         currentKnowledgeRef.on("value", currentKnowledgeListener);
+        renderScene(currentScene);
     }
 
     function actorIdentityKey(actorId) {
         if (!actorId) return null;
         const actor = currentScene?.actores?.[actorId] || {};
-        return actor.identityId || actor.identidadId || actor.sourceId || actorId;
+        return stableActorId(actor, actorId) || null;
     }
 
     function isOwnActorIdentity(actorId) {
         if (!actorId) return false;
-        const ownId = getAssignedActorId();
-        if (ownId && ownId === actorId) return true;
-
         const actor = currentScene?.actores?.[actorId] || {};
         const ownActor = getAssignedTheatreActor() || {};
-        const ownStableId = ownActor.identityId || ownActor.identidadId || ownActor.sourceId || ownActor.actorId || ownActor.id;
-        const stableId = actor.identityId || actor.identidadId || actor.sourceId || actorId;
-        return Boolean(ownStableId && stableId === ownStableId);
+        const ownId = getAssignedActorId();
+        if (actorsMatch(actor, actorId, ownActor, ownId)) return true;
+
+        const sceneIds = new Set([
+            comparableId(actorId),
+            stableActorId(actor, actorId),
+            comparableId(actor.actorId),
+            comparableId(actor.id)
+        ].filter(Boolean));
+        return getAssignedActorIds().some((id) => sceneIds.has(comparableId(id)));
+    }
+
+    function getOwnActorForIdentity(actorId) {
+        const sceneActor = currentScene?.actores?.[actorId] || {};
+        const selected = getAssignedTheatreActor() || {};
+        if (actorsMatch(sceneActor, actorId, selected, getAssignedActorId())) return selected;
+
+        const actorPool = global.actoresJugador || global.allActoresCache || {};
+        for (const assignedId of getAssignedActorIds()) {
+            const candidate = actorPool[assignedId];
+            if (candidate && actorsMatch(sceneActor, actorId, candidate, assignedId)) return candidate;
+        }
+        return {};
     }
 
     function isIdentityKnown(actorId) {
@@ -292,27 +458,17 @@
 
     function resolvePlateIdentity(dialogData) {
         const actorId = dialogData?.actorId || null;
-        const type = dialogData?.tipo_dialogo || "dialogo";
-        if (!actorId || type === "narracion") {
-            return { visible: false, known: false, name: "", title: "" };
-        }
-
-        if (type === "pensamiento" || dialogData?.mostrar_identidad === false) {
-            return { visible: false, known: false, name: "", title: "" };
-        }
-
         const actor = currentScene?.actores?.[actorId] || {};
-        const known = isIdentityKnown(actorId);
-        const override = getNameplateOverride(actorId) || {};
-        const realName = dialogData?.nombre || actor.nombre || "???";
-        const realTitle = dialogData?.titulo || actor.titulo || "???";
-
-        return {
-            visible: true,
-            known,
-            name: override.nombre ?? override.name ?? (known ? realName : "???"),
-            title: override.titulo ?? override.title ?? (known ? realTitle : "???")
-        };
+        const own = isOwnActorIdentity(actorId);
+        return resolveIdentityPresentation({
+            dialogData,
+            actor,
+            ownActor: own ? getOwnActorForIdentity(actorId) : {},
+            known: isIdentityKnown(actorId),
+            isDm: isDmView(),
+            isOwnActor: own,
+            override: getNameplateOverride(actorId) || {}
+        });
     }
 
     function extractLanguageKnowledge(profile, languageId) {
@@ -473,8 +629,21 @@
         });
     }
 
+    function syncSelfVisibilityControl() {
+        const checkbox = document.getElementById("theatre-show-own-actor");
+        if (!checkbox) return;
+        const actorId = getAssignedActorId();
+        checkbox.dataset.actorId = comparableId(actorId);
+        checkbox.disabled = !actorId;
+        checkbox.checked = actorId ? shouldShowOwnActor(actorId) : false;
+    }
+
     function ensureSelfVisibilityControl() {
-        if (isDmView() || document.getElementById("theatre-self-visibility-control")) return;
+        if (isDmView()) return;
+        if (document.getElementById("theatre-self-visibility-control")) {
+            syncSelfVisibilityControl();
+            return;
+        }
         const theatre = document.getElementById("theatre-view-player");
         if (!theatre) return;
 
@@ -485,8 +654,10 @@
         theatre.appendChild(label);
 
         const checkbox = label.querySelector("#theatre-show-own-actor");
-        checkbox.checked = shouldShowOwnActor();
-        checkbox.addEventListener("change", () => setShowOwnActor(checkbox.checked));
+        syncSelfVisibilityControl();
+        checkbox.addEventListener("change", () => {
+            setShowOwnActor(checkbox.checked, checkbox.dataset.actorId || getAssignedActorId());
+        });
     }
 
     function removeLegacyPrototypePanels() {
@@ -740,6 +911,13 @@
 
         const type = message?.tipo_dialogo || "dialogo";
         const active = Boolean(message?.actorId && type !== "pensamiento" && type !== "narracion");
+        const sceneActor = message?.actorId ? (scene?.actores?.[message.actorId] || {}) : {};
+        const canonicalName = type === "narracion"
+            ? ""
+            : resolveCanonicalIdentityText(sceneActor.nombre, message?.nombre);
+        const canonicalTitle = type === "narracion"
+            ? ""
+            : resolveCanonicalIdentityText(sceneActor.titulo, message?.titulo);
         if (active) {
             await updateVisibleActors(message.actorId, message);
             await revealPreparedExpression(message.actorId, message.expression, message.sprite);
@@ -747,8 +925,8 @@
 
         const activePayload = {
             messageId: messageId || null,
-            nombre: message?.nombre || "",
-            titulo: message?.titulo || "",
+            nombre: canonicalName,
+            titulo: canonicalTitle,
             mensaje: message?.mensaje || "",
             actorId: message?.actorId || null,
             expression: message?.expression || "Neutral",
@@ -885,9 +1063,12 @@
         return true;
     }
 
-    function setShowOwnActor(show) {
+    function setShowOwnActor(show, actorId, viewerKey) {
         try {
-            global.localStorage?.setItem(LOCAL_SHOW_SELF_KEY, show ? "true" : "false");
+            global.localStorage?.setItem(
+                getSelfVisibilityStorageKey(viewerKey, actorId || getAssignedActorId()),
+                show ? "true" : "false"
+            );
         } catch (error) {}
         renderScene(currentScene);
     }
@@ -1050,7 +1231,16 @@
         bindIdentityKnowledge();
     });
 
-    global.addEventListener("actoresCacheUpdated", installPlayerComposerCompatibility);
+    global.addEventListener("actoresCacheUpdated", () => {
+        installPlayerComposerCompatibility();
+        syncSelfVisibilityControl();
+        renderScene(currentScene);
+    });
+    document.addEventListener("change", (event) => {
+        if (event.target?.id !== "player-actor-select") return;
+        syncSelfVisibilityControl();
+        renderScene(currentScene);
+    });
     document.addEventListener("click", (event) => {
         if (event.target?.closest?.("#btn-abrir-escritura")) installPlayerComposerCompatibility();
     }, true);
@@ -1058,11 +1248,13 @@
     bindRoom(activeRoomId);
 
     global.LuminousTheatreState = {
-        normalizeAssignedActorIds: normalizeIdList,
+        normalizeAssignedActorIds,
         clampVisibleLimit,
         clampPercentage,
         getVisibleLimit,
         getRenderIds,
+        resolveCanonicalIdentityText,
+        resolveIdentityPresentation,
         getPaths,
         resolveRoomPaths,
         setRoom,
@@ -1083,6 +1275,7 @@
         messageIsStaleForScene,
         setShowOwnActor,
         getShowOwnActor: shouldShowOwnActor,
+        getSelfVisibilityStorageKey,
         getViewerKey: () => currentViewerKey,
         getViewerProfile: () => currentViewerProfile,
         getLanguageDefinitions: () => Object.assign({}, languageDatabase)

@@ -1364,9 +1364,27 @@ function initializeCharacterSheet() {
           return;
         }
 
+        const resolveCanonicalIdentityText = window.LuminousTheatreState?.resolveCanonicalIdentityText || ((...values) => {
+          for (const value of values) {
+            const candidate = typeof value === "string" ? value.trim() : "";
+            if (candidate && !/^\?{3,}$/.test(candidate)) return candidate;
+          }
+          return "";
+        });
+
         let actorParaEnviar = {
-            nombre: actorAssigned.nombre || window.datosJugador?.characterName || "Jugador",
-            titulo: actorAssigned.titulo || "",
+            nombre: resolveCanonicalIdentityText(
+              actorAssigned.nombre,
+              window.datosJugador?.characterName,
+              window.datosJugador?.character_name,
+              window.datosJugador?.nombre,
+              window.datosJugador?.name
+            ) || "Jugador",
+            titulo: resolveCanonicalIdentityText(
+              actorAssigned.titulo,
+              window.datosJugador?.titulo,
+              window.datosJugador?.title
+            ),
             color_nombre: actorAssigned.color_nombre || "#ffffff",
             color_titulo: actorAssigned.color_titulo || DEFAULT_TITLE_COLOR,
             escala: actorAssigned.escala !== undefined ? parseFloat(actorAssigned.escala) : 1.0,

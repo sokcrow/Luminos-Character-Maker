@@ -312,7 +312,7 @@ test("el narrador y pensamientos no envían identidad ni modifican sprites", () 
   expect(dashboardScript).toContain('expression: actorDialogue ? speaker.expression : null');
   expect(dashboardScript).toContain('sprite: actorDialogue ? speaker.sprite : null');
   expect(dashboardScript).toContain('mostrar_identidad: actorDialogue');
-  expect(engineScript).toContain('if (type === "pensamiento" || dialogData?.mostrar_identidad === false)');
+  expect(engineScript).toContain('if (!actorId || type === "narracion" || type === "pensamiento" || dialogData.mostrar_identidad === false)');
 });
 
 test("el composer del jugador muestra selector solo cuando hay mas de un personaje", () => {

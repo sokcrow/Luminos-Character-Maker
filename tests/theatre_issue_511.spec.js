@@ -64,7 +64,8 @@ test("#511: No Actors and own-sprite hiding are render-only preferences", () => 
   expect(engine).toContain('const LOCAL_SHOW_SELF_KEY = "luminous.theatre.showOwnActor"');
   expect(engine).toContain("global.localStorage?.setItem");
   expect(engine).toContain('label.id = "theatre-self-visibility-control"');
-  expect(engine).toContain("if (!isDmView() && !shouldShowOwnActor())");
+  expect(engine).toContain("getSelfVisibilityStorageKey(viewerKey, actorId)");
+  expect(engine).toContain("!isOwnActorIdentity(actorId) || shouldShowOwnActor(actorId)");
 });
 
 test("#511: identity knowledge is per viewer and temporary nameplate presentation is separate", () => {

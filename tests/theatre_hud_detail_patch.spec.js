@@ -37,13 +37,13 @@ test("patch: color personalizado se aplica al fondo y borde, no al texto", () =>
 });
 
 test("patch: narrador nunca muestra identidad", () => {
-  expect(engine).toContain('if (!actorId || type === "narracion")');
+  expect(engine).toContain('if (!actorId || type === "narracion" || type === "pensamiento" || dialogData.mostrar_identidad === false)');
   expect(dashboard).toContain('type = "narracion";');
   expect(dashboard).toContain('mostrar_identidad: actorDialogue');
 });
 
 test("patch: pensamiento nunca muestra identidad", () => {
-  expect(engine).toContain('if (type === "pensamiento" || dialogData?.mostrar_identidad === false)');
+  expect(engine).toContain('if (!actorId || type === "narracion" || type === "pensamiento" || dialogData.mostrar_identidad === false)');
   expect(dashboard).toContain('mostrar_identidad: actorDialogue');
   expect(playerJs).toContain('const mostrarIdentidad = tipoDialogo !== "pensamiento";');
 });

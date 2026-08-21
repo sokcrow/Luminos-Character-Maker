@@ -76,6 +76,16 @@
     return result;
   }
 
+  function resolveCanonicalIdentityText(...values) {
+    const resolver = global.LuminousTheatreState?.resolveCanonicalIdentityText;
+    if (typeof resolver === "function") return resolver(...values);
+    for (const value of values) {
+      const candidate = typeof value === "string" ? value.trim() : "";
+      if (candidate && !/^\?{3,}$/.test(candidate)) return candidate;
+    }
+    return "";
+  }
+
   function playerProfile() {
     return global.datosJugador && typeof global.datosJugador === "object"
       ? global.datosJugador
@@ -190,14 +200,14 @@
       sourceId,
       sourceType: actor.sourceType || (record?.source === "legacy-assigned" ? "player-profile" : "player-profile"),
       identityId,
-      nombre:
-        actor.nombre ||
-        data.characterName ||
-        data.character_name ||
-        data.nombre ||
-        data.name ||
-        "Jugador",
-      titulo: actor.titulo || data.titulo || data.title || "",
+      nombre: resolveCanonicalIdentityText(
+        actor.nombre,
+        data.characterName,
+        data.character_name,
+        data.nombre,
+        data.name
+      ) || "Jugador",
+      titulo: resolveCanonicalIdentityText(actor.titulo, data.titulo, data.title),
       icono: actor.icono || actor.icono_jugador || data.icono || data.icono_jugador || "",
       icono_jugador: actor.icono_jugador || data.icono_jugador || data.icono || "",
       sprite: actor.sprite || actor.url || "",
