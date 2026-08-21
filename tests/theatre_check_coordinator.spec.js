@@ -61,6 +61,7 @@ test('check HUD is moved above dialogue and the legacy coin modal is visually su
   expect(css).toContain('visibility:hidden!important');
   expect(css).toContain('width:min(390px,64vw)!important');
   expect(css).toContain('width:38px!important');
+  expect(css).toContain('grid-template-columns:1fr 1fr');
 });
 
 test('request and live paths are outside campaign public read and rules scope them to DM/target', () => {
@@ -81,4 +82,14 @@ test('instance control loads coordinator on both player and dashboard Theatre vi
   expect(instance).toContain('css/theatre-check-coordinator.css');
   expect(instance).toContain('js/theatre-check-coordinator.js');
   expect((instance.match(/ensureTheatreCheckCoordinatorAssets\(documentRef\)/g) || []).length).toBeGreaterThanOrEqual(2);
+});
+
+test('DM gets a visible alert when pending requests transition from zero to one', () => {
+  const alert = read('js/theatre-check-dm-alert.js');
+  const liveSync = read('js/character-manager-live-sync.js');
+  expect(alert).toContain('theatre-check-request-badge');
+  expect(alert).toContain('hasPending && !hadPending');
+  expect(alert).toContain('SOLICITUD DE CHECK');
+  expect(alert).toContain('abre CHECK DIRECTOR');
+  expect(liveSync).toContain('js/theatre-check-dm-alert.js');
 });
