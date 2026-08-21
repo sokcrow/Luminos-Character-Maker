@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luminous · Trait Builder V1</title>
+  <style>
+    :root { color-scheme: dark; --bg:#090909; --panel:#151515; --line:#48413a; --accent:#d39a49; --bad:#d75a5a; --good:#78bd78; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#eee; font-family:Arial,sans-serif; }
+    #trait-builder-root { display:grid; grid-template-columns:minmax(520px,1.2fr) minmax(380px,.8fr); min-height:100vh; }
+    .builder-main,.builder-preview { padding:24px; }
+    .builder-preview { border-left:1px solid var(--line); background:#0d0d0d; position:sticky; top:0; height:100vh; overflow:auto; }
+    h1,h2 { margin:0 0 16px; text-transform:uppercase; letter-spacing:.08em; }
+    h1 { color:var(--accent); }
+    .trait-builder-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .trait-builder-field { display:flex; flex-direction:column; gap:5px; font-size:12px; text-transform:uppercase; color:#aaa; }
+    input,select,textarea,button { font:inherit; }
+    input,select,textarea { width:100%; background:#090909; color:#fff; border:1px solid var(--line); padding:9px; }
+    textarea { min-height:80px; resize:vertical; }
+    button { background:#1b1b1b; color:#eee; border:1px solid var(--accent); padding:9px 13px; cursor:pointer; text-transform:uppercase; font-weight:700; }
+    button:hover { background:#292119; }
+    .trait-builder-effect { margin-top:14px; padding:14px; border:1px solid var(--line); background:var(--panel); }
+    .trait-builder-effect header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:var(--accent); }
+    .builder-section { border:1px solid var(--line); background:var(--panel); padding:16px; margin-bottom:16px; }
+    .context-row,.action-row { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    .context-row label { display:flex; gap:6px; align-items:center; }
+    .context-row input { width:auto; }
+    .trait-validation { padding:10px; border:1px solid var(--line); margin-bottom:12px; font-size:12px; }
+    .trait-validation.is-valid { border-color:var(--good); color:var(--good); }
+    .trait-validation.is-invalid { border-color:var(--bad); color:var(--bad); }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.45 monospace; }
+    .note { color:#999; font-size:13px; line-height:1.5; }
+    @media (max-width:1000px) { #trait-builder-root { grid-template-columns:1fr; } .builder-preview { position:static; height:auto; border-left:0; border-top:1px solid var(--line); } .trait-builder-grid { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+<div id="trait-builder-root">
+  <main class="builder-main">
+    <h1>Trait Builder V1</h1>
+    <p class="note">Construye reglas declarativas. No acepta JavaScript arbitrario: las fórmulas pasan por el Formula Engine seguro.</p>
+
+    <section class="builder-section">
+      <h2>Definition</h2>
+      <div class="trait-builder-grid">
+        <label class="trait-builder-field"><span>Name</span><input id="trait-name" value="Danger Senses"></label>
+        <label class="trait-builder-field"><span>ID</span><input id="trait-id" value="danger_senses"></label>
+        <label class="trait-builder-field"><span>Source Type</span><select id="trait-source-type"><option>class</option><option>race</option><option>background</option><option>lineage</option><option>item</option><option>special</option></select></label>
+        <label class="trait-builder-field"><span>Source ID</span><input id="trait-source-id" value="barbarian"></label>
+        <label class="trait-builder-field" style="grid-column:span 2"><span>Description</span><textarea id="trait-description">Lower Dexterity Check difficulty by 4.</textarea></label>
+      </div>
+      <div class="context-row" style="margin-top:12px"><strong>Contexts</strong><label><input type="checkbox" id="trait-context-theatre" checked>Theatre / Role</label><label><input type="checkbox" id="trait-context-combat">Combat</label></div>
+    </section>
+
+    <section class="builder-section">
+      <h2>Activation</h2>
+      <div class="trait-builder-grid">
+        <label class="trait-builder-field"><span>Type</span><select id="trait-activation"><option>passive</option><option>automatic</option><option>manual</option><option>prompt</option><option>choice</option></select></label>
+        <label class="trait-builder-field"><span>Action Cost</span><select id="trait-action-cost"><option>none</option><option>action</option><option>quick_action</option><option>reaction</option><option>special</option></select></label>
+        <label class="trait-builder-field"><span>Uses Formula</span><input id="trait-uses-formula" placeholder="floor(ClassLevel / 7)"></label>
+        <label class="trait-builder-field"><span>Reset</span><select id="trait-reset"><option>never</option><option>turn</option><option>encounter</option><option>short_rest</option><option>long_rest</option><option>day</option></select></label>
+      </div>
+    </section>
+
+    <section class="builder-section">
+      <div class="action-row" style="justify-content:space-between"><h2 style="margin:0">Effects</h2><button id="trait-add-effect" type="button">+ Add Effect</button></div>
+      <div id="trait-effects"></div>
+    </section>
+  </main>
+
+  <aside class="builder-preview">
+    <h2>Validated JSON</h2>
+    <div id="trait-validation" class="trait-validation"></div>
+    <div class="action-row"><button id="trait-copy-json" type="button">Copy JSON</button><button id="trait-save-local" type="button">Save Local Draft</button></div>
+    <pre id="trait-json-output"></pre>
+  </aside>
+</div>
+<script src="js/trait-engine.js"></script>
+<script src="js/trait-builder.js"></script>
+</body>
+</html>
