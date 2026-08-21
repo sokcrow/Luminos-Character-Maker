@@ -1,142 +1,222 @@
 .theatre-roll-layer{
   position:absolute;
-  top:clamp(48px,7vh,86px);
-  right:clamp(18px,2.4vw,38px);
+  inset:0;
   z-index:7000;
-  width:min(360px,32vw);
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  gap:10px;
   pointer-events:none;
-}
-.theatre-roll-card{
-  position:relative;
-  box-sizing:border-box;
-  min-width:0;
-  padding:12px 14px 14px;
   overflow:hidden;
-  border:1px solid rgba(214,181,119,.72);
-  border-left:4px solid #8a1c1c;
-  background:linear-gradient(135deg,rgba(18,17,16,.96),rgba(34,29,24,.94));
-  box-shadow:0 12px 28px rgba(0,0,0,.42);
-  color:#f4ead6;
-  font-family:"Roboto",sans-serif;
-  animation:theatre-roll-enter .24s ease-out both;
 }
-.theatre-roll-card::before{
+
+/* Full HUD: only rendered locally by the client that is rolling. */
+.theatre-check-hud{
+  --frame:#8a6137;
+  --frame-dark:#52331d;
+  --neutral:#e1ddd5;
+  --advantage:#e7c34d;
+  --disadvantage:#d74a40;
+  --pass:#d7b54e;
+  --fail:#c03228;
+  position:absolute;
+  top:clamp(40px,7vh,78px);
+  left:50%;
+  width:min(720px,72vw);
+  transform:translateX(-50%);
+  color:#eee4d4;
+  font-family:"Roboto",sans-serif;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.55));
+  animation:theatre-check-enter .22s ease-out both;
+}
+
+.theatre-check-tip{
+  position:relative;
+  width:min(590px,84%);
+  margin:0 auto 12px;
+  padding:18px 30px 20px;
+  border:5px solid var(--frame-dark);
+  border-radius:14px;
+  outline:4px solid var(--frame);
+  background:linear-gradient(180deg,#dac9b7,#cbb49d);
+  text-align:center;
+  color:#2a2018;
+}
+.theatre-check-tip::before{
   content:"";
   position:absolute;
-  inset:0 0 auto 0;
-  height:2px;
-  background:linear-gradient(90deg,#8a1c1c,#c6a56d,transparent);
+  left:50%;
+  top:-37px;
+  width:10px;
+  height:32px;
+  transform:translateX(-50%);
+  border-radius:6px;
+  background:#89633a;
+  box-shadow:0 0 0 4px #2e1c10;
 }
-.theatre-roll-card-header{
+.theatre-check-tip-title{
+  margin-bottom:10px;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.55rem;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+.theatre-check-hud[data-modifier="advantage"] .theatre-check-tip-title{color:#9d7610}
+.theatre-check-hud[data-modifier="disadvantage"] .theatre-check-tip-title{color:#a72e27}
+.theatre-check-tip-copy{
+  font-size:1.05rem;
+  line-height:1.35;
+}
+
+.theatre-check-body{
+  border:5px solid var(--frame-dark);
+  border-radius:11px;
+  outline:4px solid var(--frame);
+  background:linear-gradient(180deg,#33271f,#17110e);
+  overflow:hidden;
+}
+
+/* Exact Coin Engine images: no replacement circles or synthetic coin graphics. */
+.theatre-check-coins{
+  min-height:108px;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:2px;
+  justify-content:center;
+  gap:15px;
+  padding:18px 24px 14px;
+  background:linear-gradient(180deg,#342920,#211914);
 }
-.theatre-roll-roller{
-  min-width:0;
+.theatre-check-coin-image{
+  display:block;
+  width:60px;
+  height:60px;
+  flex:0 0 60px;
+  object-fit:cover;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+
+.theatre-check-comparison{
+  min-height:238px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 105px minmax(0,1fr);
+  align-items:center;
+  border-top:9px solid rgba(0,0,0,.24);
+  border-bottom:9px solid rgba(0,0,0,.24);
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.07));
+}
+.theatre-check-block{
+  height:166px;
+  margin:0 24px;
+  border:3px solid #5e5548;
+  background:linear-gradient(180deg,#5a5046,#493f38);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  text-align:center;
+}
+.theatre-check-block-label{
+  color:#ead9bc;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:1.35rem;
+  letter-spacing:.03em;
+}
+.theatre-check-block-value{
+  color:var(--neutral);
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:4.8rem;
+  font-weight:900;
+  line-height:.82;
+}
+.theatre-check-threshold.advantage .theatre-check-block-value{color:var(--advantage)}
+.theatre-check-threshold.disadvantage .theatre-check-block-value{color:var(--disadvantage)}
+.theatre-check-block-sub{
+  min-height:24px;
+  color:#dfcfb7;
+  font-size:.92rem;
+  font-weight:700;
+}
+.theatre-check-operator{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#b81713;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:5.5rem;
+  font-weight:900;
+  text-shadow:0 5px 0 rgba(0,0,0,.32);
+}
+.theatre-check-status{
+  min-height:62px;
+  margin:15px 22px 18px;
+  border:4px solid #49331f;
+  background:linear-gradient(180deg,#171410,#0f0c09);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#b9aa92;
+  font-family:"BebasKai","Roboto",sans-serif;
+  font-size:2rem;
+  font-weight:900;
+  letter-spacing:.05em;
+}
+.theatre-check-status.is-pass{color:var(--pass)}
+.theatre-check-status.is-fail{color:var(--fail)}
+.theatre-check-hud.is-leaving{animation:theatre-check-leave .24s ease-in both}
+
+/* Remote viewers never receive the full HUD; only this compact final result. */
+.theatre-roll-result-card{
+  position:absolute;
+  top:clamp(58px,8vh,92px);
+  right:clamp(18px,2.4vw,38px);
+  width:min(315px,29vw);
+  padding:12px 15px 14px;
+  border:1px solid rgba(190,157,99,.7);
+  border-left:4px solid #7f2320;
+  background:linear-gradient(135deg,rgba(18,17,16,.96),rgba(34,29,24,.94));
+  box-shadow:0 12px 28px rgba(0,0,0,.42);
+  animation:theatre-result-enter .22s ease-out both;
+}
+.theatre-roll-result-card:nth-of-type(2){top:calc(clamp(58px,8vh,92px) + 120px)}
+.theatre-roll-result-card:nth-of-type(3){top:calc(clamp(58px,8vh,92px) + 240px)}
+.theatre-roll-result-name{
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
+  color:#e9dfcf;
   font-family:"BebasKai","Roboto",sans-serif;
-  font-size:1.05rem;
+  font-size:1rem;
   letter-spacing:.08em;
 }
-.theatre-roll-mode{
-  flex:0 0 auto;
-  padding:2px 6px;
-  border:1px solid rgba(214,181,119,.45);
-  color:#d8bc88;
-  font-size:.62rem;
-  letter-spacing:.12em;
-}
-.theatre-roll-label{
-  margin-top:3px;
-  color:#b7aa95;
-  font-size:.72rem;
-  font-weight:700;
-  letter-spacing:.1em;
-  text-transform:uppercase;
-}
-.theatre-roll-coins{
-  display:flex;
-  gap:7px;
-  margin:11px 0 8px;
-}
-.theatre-roll-coin{
-  width:20px;
-  height:20px;
-  box-sizing:border-box;
-  border-radius:50%;
-  border:2px solid #c7a56d;
-  background:#2b2721;
-  box-shadow:inset 0 0 0 2px rgba(0,0,0,.28);
-}
-.theatre-roll-coin[data-side="head"]{
-  background:radial-gradient(circle at 35% 30%,#f2db9f 0 18%,#c29a53 20% 62%,#76552d 64% 100%);
-}
-.theatre-roll-coin[data-side="tail"]{
-  background:radial-gradient(circle at 35% 30%,#7d7568 0 18%,#423d36 20% 62%,#1d1b19 64% 100%);
-  border-color:#8e8373;
-}
-.theatre-roll-coin[data-side="unknown"]{
-  border-style:dashed;
-  opacity:.65;
-}
-.theatre-roll-detail{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px 12px;
-  color:#d5c6ad;
-  font-family:"Share Tech Mono","Roboto",monospace;
-  font-size:.68rem;
-  letter-spacing:.04em;
-}
-.theatre-roll-total{
-  margin-top:8px;
-  color:#f2d694;
+.theatre-roll-result-total{
+  margin-top:4px;
+  color:#eee7dc;
   font-family:"BebasKai","Roboto",sans-serif;
-  font-size:2.35rem;
-  line-height:.9;
-  letter-spacing:.04em;
+  font-size:2.7rem;
+  line-height:.95;
 }
-.theatre-roll-total::after{
+.theatre-roll-result-total::after{
   content:" TOTAL";
-  margin-left:6px;
+  margin-left:5px;
   color:#8f8372;
   font-family:"Roboto",sans-serif;
   font-size:.58rem;
   font-weight:700;
-  letter-spacing:.12em;
+  letter-spacing:.1em;
 }
-.theatre-roll-director-note{
-  margin-top:8px;
+.theatre-roll-result-outcome{
+  margin-top:7px;
   border-top:1px solid rgba(255,255,255,.08);
-  padding-top:6px;
-  color:#b88a7c;
-  font-size:.62rem;
-  font-weight:700;
+  padding-top:7px;
+  color:#c7b89d;
+  font-size:.72rem;
+  font-weight:800;
   letter-spacing:.08em;
 }
-.theatre-roll-card.is-hidden-result{
-  padding:14px 16px;
-  text-align:center;
-}
-.theatre-roll-hidden-result{
-  margin-top:10px;
-  color:#f0d38d;
-  font-family:"BebasKai","Roboto",sans-serif;
-  font-size:1.65rem;
-  letter-spacing:.08em;
-}
-.theatre-roll-card.is-leaving{
-  animation:theatre-roll-leave .24s ease-in both;
-}
+.theatre-roll-result-outcome.is-pass{color:#d7b54e}
+.theatre-roll-result-outcome.is-fail{color:#c94439}
+.theatre-roll-result-card.is-leaving{animation:theatre-result-leave .24s ease-in both}
+
 .theatre-roll-director{
   margin-bottom:18px;
   padding:12px;
@@ -174,13 +254,11 @@
 }
 .theatre-roll-hidden-options{
   display:none;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:1fr;
   gap:7px;
   margin-top:8px;
 }
-.theatre-roll-director[data-visibility="hidden"] .theatre-roll-hidden-options{
-  display:grid;
-}
+.theatre-roll-director[data-visibility="hidden"] .theatre-roll-hidden-options{display:grid}
 .theatre-roll-hidden-options label{
   display:flex;
   flex-direction:column;
@@ -203,46 +281,27 @@
   font:inherit;
   letter-spacing:0;
 }
-.theatre-roll-hidden-text-label{
-  grid-column:1/-1;
-}
-.theatre-roll-director[data-hidden-output="none"] [data-roll-hidden-outcome],
-.theatre-roll-director[data-hidden-output="none"] [data-roll-hidden-text],
-.theatre-roll-director[data-hidden-output="outcome"] [data-roll-hidden-text],
-.theatre-roll-director[data-hidden-output="custom"] [data-roll-hidden-outcome]{
-  opacity:.38;
-  pointer-events:none;
-}
-@keyframes theatre-roll-enter{
-  from{opacity:0;transform:translateX(18px) scale(.98)}
-  to{opacity:1;transform:translateX(0) scale(1)}
-}
-@keyframes theatre-roll-leave{
-  to{opacity:0;transform:translateX(18px) scale(.98)}
-}
+
+@keyframes theatre-check-enter{from{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+@keyframes theatre-check-leave{to{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.985)}}
+@keyframes theatre-result-enter{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes theatre-result-leave{to{opacity:0;transform:translateX(16px)}}
+
 @media (max-width:900px){
-  .theatre-roll-layer{
-    width:min(310px,44vw);
-    right:14px;
-  }
+  .theatre-check-hud{width:min(680px,86vw)}
+  .theatre-check-block{margin:0 14px}
+  .theatre-roll-result-card{width:min(290px,39vw);right:14px}
 }
 @media (max-width:620px){
-  .theatre-roll-layer{
-    top:50px;
-    left:12px;
-    right:12px;
-    width:auto;
-  }
-  .theatre-roll-card{
-    padding:10px 12px 12px;
-  }
-  .theatre-roll-total{
-    font-size:1.9rem;
-  }
+  .theatre-check-hud{width:94vw;top:48px}
+  .theatre-check-coins{gap:9px}
+  .theatre-check-coin-image{width:48px;height:48px;flex-basis:48px}
+  .theatre-check-comparison{grid-template-columns:1fr 72px 1fr;min-height:205px}
+  .theatre-check-block{height:145px;margin:0 8px}
+  .theatre-check-block-value{font-size:3.6rem}
+  .theatre-check-operator{font-size:4rem}
+  .theatre-roll-result-card{left:12px;right:12px;width:auto}
 }
 @media (prefers-reduced-motion:reduce){
-  .theatre-roll-card,
-  .theatre-roll-card.is-leaving{
-    animation:none;
-  }
+  .theatre-check-hud,.theatre-check-hud.is-leaving,.theatre-roll-result-card,.theatre-roll-result-card.is-leaving{animation:none}
 }
