@@ -9,6 +9,36 @@
   const READY_POLL_MS = 200;
   const MAX_POLLS = 100;
 
+  function ensureStyle(id, href) {
+    let link = doc.getElementById(id);
+    if (link) return link;
+    link = doc.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset.ui = "npc-stats";
+    doc.head?.appendChild(link);
+    return link;
+  }
+
+  function ensureScript(id, src) {
+    let script = doc.getElementById(id);
+    if (script) return script;
+    script = doc.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    script.dataset.ui = "npc-stats";
+    doc.head?.appendChild(script);
+    return script;
+  }
+
+  function ensureNpcStatsAssets() {
+    ensureStyle("character-manager-npc-stats-stylesheet", "css/character-manager-npc-stats.css");
+    ensureScript("npc-stats-engine-script", "js/npc-stats-engine.js");
+    ensureScript("character-manager-npc-stats-script", "js/character-manager-npc-stats.js");
+  }
+
   function legacyDmInitializationCompleted() {
     // pantalla_dm.html publica esta caché desde su primer snapshot de jugadores.
     // Ese callback solo puede ejecutarse después de que initializeDMApp haya
@@ -26,6 +56,7 @@
       host.replaceChildren(panel);
     }
 
+    ensureNpcStatsAssets();
     host.dataset.characterManagerAuthority = "engine";
     if (doc.documentElement) {
       doc.documentElement.dataset.characterManagerAuthority = "engine";

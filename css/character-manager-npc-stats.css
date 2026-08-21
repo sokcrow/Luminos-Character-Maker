@@ -1,0 +1,39 @@
+#character-manager-studio .cm-module-nav.cm-module-nav--npc-stats{grid-template-columns:repeat(6,1fr)}
+#character-manager-studio .cm-npc-stats-tab[hidden]{display:none!important}
+.cm-npc-stats-module{--npc-line:#3f392f;--npc-gold:#c4a15d;--npc-muted:#827a6e;--npc-panel:#11100e}
+.cm-npc-stats-note{margin-bottom:14px;padding:9px 11px;border-left:3px solid #6d5631;background:#0c0b09;color:#8d8577;font-size:9px;letter-spacing:.65px;line-height:1.45}
+.cm-npc-stats-core{display:grid;grid-template-columns:180px 180px minmax(180px,1fr);gap:10px;align-items:end;margin-bottom:14px}
+.cm-npc-heads-preview{height:58px;border:1px solid var(--npc-line);background:#0c0b09;display:grid;grid-template-columns:auto 1fr;grid-template-rows:1fr 1fr;align-items:center;padding:7px 11px;column-gap:12px}
+.cm-npc-heads-preview span{color:var(--npc-muted);font-size:8px;letter-spacing:1.2px}
+.cm-npc-heads-preview strong{grid-row:1/3;grid-column:2;font-family:"BebasKai","Arial Narrow",sans-serif;font-size:28px;color:var(--npc-gold);justify-self:end}
+.cm-npc-heads-preview small{color:#625b50;font-size:8px;letter-spacing:.6px}
+.cm-npc-ability-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cm-npc-ability-card{border:1px solid #302c26;background:var(--npc-panel);min-width:0}
+.cm-npc-ability-card>header{height:39px;margin:0;padding:0 10px;border-bottom:1px solid #302c26;display:flex;align-items:center;gap:9px;background:linear-gradient(90deg,#1b1711,#11100e)}
+.cm-npc-ability-card>header strong{font-family:"BebasKai","Arial Narrow",sans-serif;font-size:19px;color:var(--npc-gold);letter-spacing:1px}
+.cm-npc-ability-card>header span{color:#777064;font-size:8px;letter-spacing:1.1px}
+.cm-npc-ability-score{display:grid;grid-template-columns:1fr 82px;gap:1px;background:#302c26;border-bottom:1px solid #302c26}
+.cm-npc-ability-score>label,.cm-npc-ability-score>div{min-height:66px;background:#0d0d0c;display:flex;align-items:center;justify-content:center;gap:10px;padding:7px 10px}
+.cm-npc-ability-score span,.cm-npc-save-prof>span{color:#777064;font-size:8px;letter-spacing:1px}
+.cm-npc-score{width:68px;height:39px;border:1px solid #494137;background:#080807;color:#e2dacb;text-align:center;font:22px "BebasKai","Arial Narrow",sans-serif;outline:0}
+.cm-npc-score:focus{border-color:var(--npc-gold)}
+.cm-npc-ability-score>div{flex-direction:column;gap:1px}
+.cm-npc-ability-score>div strong{font-family:"BebasKai","Arial Narrow",sans-serif;font-size:24px;color:#d7d0c4}
+.cm-npc-save-prof{display:grid;grid-template-columns:minmax(0,1fr) 165px;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #29251f}
+.cm-npc-save-prof select,.cm-npc-skill-row select{height:30px;border:1px solid #39342d;background:#0b0b0a;color:#cfc7b8;padding:0 7px;font-size:9px;outline:0}
+.cm-npc-save-prof select:focus,.cm-npc-skill-row select:focus{border-color:var(--npc-gold)}
+.cm-npc-skill-stack{display:grid}
+.cm-npc-skill-row{display:grid;grid-template-columns:minmax(0,1fr) 42px 140px;gap:7px;align-items:center;min-height:43px;padding:6px 10px;border-bottom:1px solid #211e1a}
+.cm-npc-skill-row:last-child{border-bottom:0}
+.cm-npc-skill-row>span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cm-npc-skill-row strong{color:#cfc7b8;font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-npc-skill-row small{color:#696258;font-size:8px}
+.cm-npc-skill-row b{font-family:"BebasKai","Arial Narrow",sans-serif;font-size:17px;color:#d8c18e;text-align:center}
+.cm-npc-no-skills{padding:13px 10px;color:#5f594f;font-size:8px;letter-spacing:1px;text-align:center}
+.cm-npc-stats-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #2d2923}
+.cm-npc-stats-feedback{color:#70695e;font-size:9px;letter-spacing:.8px}
+.cm-npc-stats-feedback[data-mode="ok"]{color:#bda56f}.cm-npc-stats-feedback[data-mode="error"]{color:#c65a54}.cm-npc-stats-feedback[data-mode="busy"]{color:#958a78}
+.cm-npc-stats-save{min-width:145px;height:38px;border:1px solid #725b34;background:#211a10;color:#d5bd86;font:11px "Share Tech Mono",monospace;letter-spacing:1px;cursor:pointer}
+.cm-npc-stats-save:hover{border-color:#c4a15d;background:#2b2113}.cm-npc-stats-save:disabled{opacity:.45;cursor:default}
+@media(max-width:900px){#character-manager-studio .cm-module-nav.cm-module-nav--npc-stats{grid-template-columns:repeat(3,1fr)}.cm-npc-stats-core{grid-template-columns:1fr 1fr}.cm-npc-heads-preview{grid-column:1/-1}.cm-npc-ability-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.cm-npc-stats-core{grid-template-columns:1fr}.cm-npc-heads-preview{grid-column:auto}.cm-npc-skill-row{grid-template-columns:minmax(0,1fr) 36px}.cm-npc-skill-row select{grid-column:1/-1}.cm-npc-save-prof{grid-template-columns:1fr}}
