@@ -14,10 +14,13 @@ on:
       - "js/theatre-check-coordinator.js"
       - "js/theatre-check-dm-alert.js"
       - "css/theatre-check-coordinator.css"
+      - "js/theatre-opposed-checks.js"
+      - "css/theatre-opposed-checks.css"
       - "js/instance-control.js"
       - "database.rules.json"
       - "tests/npc_theatre_rolls.spec.js"
       - "tests/theatre_check_coordinator.spec.js"
+      - "tests/theatre_opposed_checks.spec.js"
       - ".github/workflows/npc-theatre-rolls.yml"
   push:
     paths:
@@ -32,10 +35,13 @@ on:
       - "js/theatre-check-coordinator.js"
       - "js/theatre-check-dm-alert.js"
       - "css/theatre-check-coordinator.css"
+      - "js/theatre-opposed-checks.js"
+      - "css/theatre-opposed-checks.css"
       - "js/instance-control.js"
       - "database.rules.json"
       - "tests/npc_theatre_rolls.spec.js"
       - "tests/theatre_check_coordinator.spec.js"
+      - "tests/theatre_opposed_checks.spec.js"
       - ".github/workflows/npc-theatre-rolls.yml"
 
 jobs:
@@ -56,5 +62,6 @@ jobs:
       - run: node --check js/character-manager-live-sync.js
       - run: node --check js/theatre-check-coordinator.js
       - run: node --check js/theatre-check-dm-alert.js
+      - run: node --check js/theatre-opposed-checks.js
       - run: node --check js/instance-control.js
-      - run: npx playwright test tests/npc_theatre_rolls.spec.js tests/theatre_check_coordinator.spec.js
+      - run: npx playwright test tests/npc_theatre_rolls.spec.js tests/theatre_check_coordinator.spec.js tests/theatre_opposed_checks.spec.js
