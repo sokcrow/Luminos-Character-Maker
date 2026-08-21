@@ -53,6 +53,7 @@
     ensureScript("luminous-coin-engine-core-script", "js/coin-engine-core.js");
     ensureScript("npc-stats-engine-script", "js/npc-stats-engine.js");
     ensureScript("dm-npc-rolls-script", "js/dm-npc-rolls.js");
+    ensureScript("theatre-check-dm-alert-script", "js/theatre-check-dm-alert.js");
   }
 
   function masterIdFor(instanceId, actor) {
