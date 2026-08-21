@@ -12,16 +12,26 @@
   const DEFAULT_DURATION_MS = 7000;
   const COIN_COUNT = 5;
   const COIN_HEAD_BONUS = 4;
-  const VISIBILITY = Object.freeze({
-    PUBLIC: "public",
-    TOTAL: "total",
-    HIDDEN: "hidden",
-  });
-  const HIDDEN_OUTPUT = Object.freeze({
-    NONE: "none",
-    OUTCOME: "outcome",
-    CUSTOM: "custom",
-  });
+  const HEAD_SRC_MARKER = "yshLPnQ";
+  const TAIL_SRC_MARKER = "XDx0ICt";
+  const HEAD_SRC = "https://imgur.com/yshLPnQ.png";
+  const TAIL_SRC = "https://imgur.com/XDx0ICt.png";
+
+  const VISIBILITY = Object.freeze({ PUBLIC: "public", TOTAL: "total", HIDDEN: "hidden" });
+  const HIDDEN_OUTPUT = Object.freeze({ NONE: "none", OUTCOME: "outcome", CUSTOM: "custom" });
+  const MODIFIER = Object.freeze({ NEUTRAL: "neutral", ADVANTAGE: "advantage", DISADVANTAGE: "disadvantage" });
+
+  const CLIENT_ID = (() => {
+    try {
+      const existing = global.sessionStorage?.getItem("luminousTheatreRollClientId");
+      if (existing) return existing;
+      const value = `roll_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      global.sessionStorage?.setItem("luminousTheatreRollClientId", value);
+      return value;
+    } catch (_) {
+      return `roll_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    }
+  })();
 
   let config = {
     visibility: VISIBILITY.PUBLIC,
@@ -31,14 +41,22 @@
     durationMs: DEFAULT_DURATION_MS,
   };
   let pendingLocalRoll = null;
+  let nextCheckContext = null;
   let rollQuery = null;
   let configRef = null;
   let closeButtonObserver = null;
+  let coinObserver = null;
+  let localHud = null;
+  let localHudTimer = null;
   const renderedKeys = new Set();
   const removalTimers = new Map();
 
   function isDmView() {
     return Boolean(doc.body?.classList?.contains("on-game-dashboard"));
+  }
+
+  function currentUid() {
+    return firebase.auth?.().currentUser?.uid || null;
   }
 
   function getRoomId() {
@@ -61,6 +79,11 @@
     return Object.values(HIDDEN_OUTPUT).includes(normalized) ? normalized : HIDDEN_OUTPUT.NONE;
   }
 
+  function normalizeModifier(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return Object.values(MODIFIER).includes(normalized) ? normalized : MODIFIER.NEUTRAL;
+  }
+
   function normalizeConfig(value) {
     const source = value || {};
     const duration = Number(source.durationMs);
@@ -73,15 +96,45 @@
     };
   }
 
+  function normalizeCheckContext(value) {
+    const source = value || {};
+    const raw = Number(source.thresholdRaw ?? source.threshold);
+    const modifierValue = Math.max(0, Math.trunc(Number(source.modifierValue ?? source.x) || 0));
+    const modifierType = modifierValue > 0 ? normalizeModifier(source.modifierType) : MODIFIER.NEUTRAL;
+    return {
+      thresholdRaw: Number.isFinite(raw) ? Math.trunc(raw) : null,
+      hiddenThreshold: Boolean(source.hiddenThreshold),
+      modifierType,
+      modifierValue,
+      tipText: modifierValue > 0 ? String(source.tipText || source.tip || "").trim().slice(0, 180) : "",
+    };
+  }
+
+  function effectiveThreshold(check) {
+    const normalized = normalizeCheckContext(check);
+    if (!Number.isFinite(normalized.thresholdRaw)) return null;
+    if (normalized.modifierType === MODIFIER.ADVANTAGE) {
+      return Math.max(0, normalized.thresholdRaw - normalized.modifierValue);
+    }
+    if (normalized.modifierType === MODIFIER.DISADVANTAGE) {
+      return normalized.thresholdRaw + normalized.modifierValue;
+    }
+    return normalized.thresholdRaw;
+  }
+
+  function checkOutcome(total, check) {
+    const threshold = effectiveThreshold(check);
+    if (!Number.isFinite(threshold) || !Number.isFinite(Number(total))) return null;
+    return Number(total) >= threshold ? "passed" : "failed";
+  }
+
   function playerData() {
     return global.datosJugador || {};
   }
 
   function assignedActor() {
     try {
-      return typeof global.getAssignedTheatreActor === "function"
-        ? (global.getAssignedTheatreActor() || {})
-        : {};
+      return typeof global.getAssignedTheatreActor === "function" ? (global.getAssignedTheatreActor() || {}) : {};
     } catch (_) {
       return {};
     }
@@ -90,22 +143,11 @@
   function getRollerIdentity() {
     const data = playerData();
     const actor = assignedActor();
-    const user = firebase.auth?.().currentUser || null;
     const name = String(
-      actor.nombre ||
-      actor.name ||
-      data.characterName ||
-      data.character_name ||
-      data.nombre ||
-      data.name ||
-      "PLAYER"
+      actor.nombre || actor.name || data.characterName || data.character_name || data.nombre || data.name || "PLAYER"
     ).trim() || "PLAYER";
     const actorId = actor.actorId || actor.id || data.actorId || data.vinculo_jugador || null;
-    return {
-      uid: user?.uid || null,
-      actorId: actorId ? String(actorId) : null,
-      name,
-    };
+    return { uid: currentUid(), actorId: actorId ? String(actorId) : null, name };
   }
 
   function numberFromText(node) {
@@ -114,102 +156,27 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  function captureLocalRollStart() {
-    const panel = doc.getElementById("coin-toss-panel");
-    const label = doc.getElementById("coin-toss-skill-name");
-    const result = doc.getElementById("roll-total-score");
-    if (!panel || panel.style.display === "none") return;
+  function sideFromSrc(src) {
+    const value = String(src || "");
+    if (value.includes(HEAD_SRC_MARKER)) return "head";
+    if (value.includes(TAIL_SRC_MARKER)) return "tail";
+    return "unknown";
+  }
 
-    global.setTimeout(() => {
-      const base = numberFromText(result);
-      pendingLocalRoll = {
-        label: String(label?.textContent || "TIRADA").trim() || "TIRADA",
-        base,
-        startedAt: Date.now(),
+  function captureCoinImages() {
+    const images = Array.from(doc.querySelectorAll("#coin-toss-coins-container img"));
+    return images.slice(0, COIN_COUNT).map((image) => {
+      const src = String(image.currentSrc || image.src || "");
+      const side = sideFromSrc(src);
+      return {
+        side,
+        src: side === "head" ? HEAD_SRC : side === "tail" ? TAIL_SRC : src,
       };
-    }, 40);
-  }
-
-  function countHeads(base, total) {
-    if (!Number.isFinite(base) || !Number.isFinite(total)) return null;
-    const delta = total - base;
-    if (delta < 0 || delta % COIN_HEAD_BONUS !== 0) return null;
-    const heads = delta / COIN_HEAD_BONUS;
-    return Math.max(0, Math.min(COIN_COUNT, heads));
-  }
-
-  async function publishRoll(payload) {
-    const source = payload || {};
-    const total = Number(source.total);
-    if (!Number.isFinite(total)) return { published: false, reason: "invalid-total" };
-
-    const base = Number(source.base);
-    const normalizedBase = Number.isFinite(base) ? base : null;
-    const heads = source.heads == null ? countHeads(normalizedBase, total) : Number(source.heads);
-    const safeHeads = Number.isFinite(heads) ? Math.max(0, Math.min(COIN_COUNT, Math.trunc(heads))) : null;
-    const effectiveConfig = normalizeConfig(config);
-    const roller = source.roller || getRollerIdentity();
-    const ref = db.ref(resolveRollPath(getRoomId())).push();
-
-    await ref.set({
-      schemaVersion: 1,
-      kind: String(source.kind || "coin-roll"),
-      roller: {
-        uid: roller.uid || null,
-        actorId: roller.actorId || null,
-        name: String(roller.name || "PLAYER").slice(0, 80),
-      },
-      label: String(source.label || "TIRADA").slice(0, 100),
-      base: normalizedBase,
-      total: Math.trunc(total),
-      heads: safeHeads,
-      coinCount: COIN_COUNT,
-      coinHeadBonus: COIN_HEAD_BONUS,
-      visibility: effectiveConfig.visibility,
-      hiddenOutput: effectiveConfig.hiddenOutput,
-      hiddenOutcome: effectiveConfig.hiddenOutcome,
-      hiddenText: effectiveConfig.hiddenText,
-      durationMs: effectiveConfig.durationMs,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      clientCreatedAt: Date.now(),
-      roomId: getRoomId(),
     });
-
-    return { published: true, key: ref.key };
   }
 
-  function finalizeLocalRoll() {
-    if (!pendingLocalRoll) return;
-    const result = doc.getElementById("roll-total-score");
-    const total = numberFromText(result);
-    const pending = pendingLocalRoll;
-    pendingLocalRoll = null;
-    if (!Number.isFinite(total)) return;
-
-    publishRoll({
-      label: pending.label,
-      base: pending.base,
-      total,
-      heads: countHeads(pending.base, total),
-    }).catch((error) => console.warn("No se pudo publicar la tirada en Theatre:", error));
-  }
-
-  function installCoinCapture() {
-    const closeButton = doc.getElementById("coin-toss-close-btn");
-    if (!closeButton || closeButtonObserver) return false;
-
-    closeButtonObserver = new MutationObserver(() => {
-      if (closeButton.disabled) captureLocalRollStart();
-      else finalizeLocalRoll();
-    });
-    closeButtonObserver.observe(closeButton, { attributes: true, attributeFilter: ["disabled"] });
-
-    doc.addEventListener("click", (event) => {
-      if (!event.target?.closest?.(".sheet-roll-skill-btn, [data-dnd-roll]")) return;
-      global.setTimeout(captureLocalRollStart, 0);
-    }, true);
-
-    return true;
+  function countHeadsFromCoins(coins) {
+    return (coins || []).filter((coin) => coin?.side === "head").length;
   }
 
   function ensureLayer() {
@@ -234,96 +201,272 @@
     return node;
   }
 
-  function visibilityLabel(value) {
-    if (value === VISIBILITY.TOTAL) return "TOTAL";
-    if (value === VISIBILITY.HIDDEN) return "OCULTA";
-    return "PÚBLICA";
+  function buildCoinImage(coin) {
+    const img = doc.createElement("img");
+    img.className = "theatre-check-coin-image";
+    img.alt = coin?.side === "head" ? "Head" : coin?.side === "tail" ? "Tail" : "Coin";
+    img.src = coin?.src || (coin?.side === "head" ? HEAD_SRC : TAIL_SRC);
+    img.dataset.side = coin?.side || "unknown";
+    return img;
   }
 
-  function shouldHideFromPlayer(roll) {
-    return !isDmView() &&
-      normalizeVisibility(roll?.visibility) === VISIBILITY.HIDDEN &&
-      normalizeHiddenOutput(roll?.hiddenOutput) === HIDDEN_OUTPUT.NONE;
+  function createLocalHud(check) {
+    const layer = ensureLayer();
+    if (!layer) return null;
+    localHud?.remove();
+    if (localHudTimer) global.clearTimeout(localHudTimer);
+
+    const normalized = normalizeCheckContext(check);
+    const hud = doc.createElement("article");
+    hud.className = "theatre-check-hud is-rolling";
+    hud.dataset.modifier = normalized.modifierType;
+
+    if (normalized.modifierValue > 0 && normalized.tipText) {
+      const tip = doc.createElement("section");
+      tip.className = "theatre-check-tip";
+      const sign = normalized.modifierType === MODIFIER.ADVANTAGE ? "-" : "+";
+      const label = normalized.modifierType === MODIFIER.ADVANTAGE ? "ADVANTAGE" : "DISADVANTAGE";
+      tip.appendChild(textNode("theatre-check-tip-title", `${label} ${sign}${normalized.modifierValue}`));
+      tip.appendChild(textNode("theatre-check-tip-copy", normalized.tipText));
+      hud.appendChild(tip);
+    }
+
+    const body = doc.createElement("section");
+    body.className = "theatre-check-body";
+
+    const coins = doc.createElement("div");
+    coins.className = "theatre-check-coins";
+    coins.dataset.localCoins = "true";
+    body.appendChild(coins);
+
+    const comparison = doc.createElement("div");
+    comparison.className = "theatre-check-comparison";
+
+    const thresholdBlock = doc.createElement("div");
+    thresholdBlock.className = `theatre-check-block theatre-check-threshold ${normalized.modifierType}`;
+    thresholdBlock.appendChild(textNode("theatre-check-block-label", "Threshold"));
+    const thresholdValue = textNode("theatre-check-block-value", normalized.hiddenThreshold ? "??" : (effectiveThreshold(normalized) ?? "—"));
+    thresholdValue.dataset.localThreshold = "true";
+    thresholdBlock.appendChild(thresholdValue);
+    const thresholdSub = textNode("theatre-check-block-sub", "");
+    thresholdSub.dataset.localThresholdSub = "true";
+    thresholdBlock.appendChild(thresholdSub);
+
+    const operator = textNode("theatre-check-operator", "VS");
+    operator.dataset.localOperator = "true";
+
+    const resultBlock = doc.createElement("div");
+    resultBlock.className = "theatre-check-block theatre-check-result";
+    resultBlock.appendChild(textNode("theatre-check-block-label", "Outcome"));
+    const resultValue = textNode("theatre-check-block-value", "—");
+    resultValue.dataset.localResult = "true";
+    resultBlock.appendChild(resultValue);
+    resultBlock.appendChild(textNode("theatre-check-block-sub", ""));
+
+    comparison.append(thresholdBlock, operator, resultBlock);
+    body.appendChild(comparison);
+
+    const status = textNode("theatre-check-status", "ROLLING...");
+    status.dataset.localStatus = "true";
+    body.appendChild(status);
+    hud.appendChild(body);
+    layer.appendChild(hud);
+    localHud = hud;
+    return hud;
   }
 
-  function hiddenPlayerMessage(roll) {
+  function syncLocalCoinsFromEngine() {
+    if (!localHud) return;
+    const row = localHud.querySelector("[data-local-coins]");
+    if (!row) return;
+    const coins = captureCoinImages();
+    row.replaceChildren(...coins.map(buildCoinImage));
+  }
+
+  function syncLocalResult(total, check) {
+    if (!localHud) return;
+    const normalized = normalizeCheckContext(check);
+    const threshold = effectiveThreshold(normalized);
+    const outcome = checkOutcome(total, normalized);
+    const resultNode = localHud.querySelector("[data-local-result]");
+    const operatorNode = localHud.querySelector("[data-local-operator]");
+    const statusNode = localHud.querySelector("[data-local-status]");
+    const thresholdSub = localHud.querySelector("[data-local-threshold-sub]");
+    if (resultNode) resultNode.textContent = String(total);
+    if (operatorNode) operatorNode.textContent = outcome === "passed" ? "≤" : outcome === "failed" ? ">" : "VS";
+    if (thresholdSub && Number.isFinite(threshold) && normalized.modifierValue > 0) {
+      if (normalized.hiddenThreshold) {
+        thresholdSub.textContent = normalized.modifierType === MODIFIER.ADVANTAGE
+          ? `-${normalized.modifierValue}`
+          : `+${normalized.modifierValue}`;
+      } else {
+        thresholdSub.textContent = normalized.modifierType === MODIFIER.ADVANTAGE
+          ? `${normalized.thresholdRaw} - ${normalized.modifierValue}`
+          : `${normalized.thresholdRaw} + ${normalized.modifierValue}`;
+      }
+    }
+    if (statusNode) {
+      statusNode.textContent = outcome === "passed" ? "CHECK PASSED" : outcome === "failed" ? "CHECK FAILED" : "ROLL COMPLETE";
+      statusNode.classList.toggle("is-pass", outcome === "passed");
+      statusNode.classList.toggle("is-fail", outcome === "failed");
+    }
+    localHud.classList.remove("is-rolling");
+    localHud.classList.add("is-resolved");
+  }
+
+  function captureLocalRollStart() {
+    const panel = doc.getElementById("coin-toss-panel");
+    const result = doc.getElementById("roll-total-score");
+    if (!panel || panel.style.display === "none") return;
+
+    global.setTimeout(() => {
+      const check = normalizeCheckContext(nextCheckContext);
+      nextCheckContext = null;
+      pendingLocalRoll = {
+        base: numberFromText(result),
+        startedAt: Date.now(),
+        check,
+      };
+      createLocalHud(check);
+      syncLocalCoinsFromEngine();
+
+      coinObserver?.disconnect();
+      const coinContainer = doc.getElementById("coin-toss-coins-container");
+      if (coinContainer) {
+        coinObserver = new MutationObserver(syncLocalCoinsFromEngine);
+        coinObserver.observe(coinContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+      }
+    }, 40);
+  }
+
+  async function publishRoll(payload) {
+    const source = payload || {};
+    const total = Number(source.total);
+    if (!Number.isFinite(total)) return { published: false, reason: "invalid-total" };
+
+    const effectiveConfig = normalizeConfig(config);
+    const roller = source.roller || getRollerIdentity();
+    const check = normalizeCheckContext(source.check);
+    const coins = Array.isArray(source.coins) ? source.coins.slice(0, COIN_COUNT) : [];
+    const heads = countHeadsFromCoins(coins);
+    const ref = db.ref(resolveRollPath(getRoomId())).push();
+
+    await ref.set({
+      schemaVersion: 2,
+      kind: Number.isFinite(check.thresholdRaw) ? "check-result" : "coin-roll-result",
+      presentation: "result-only",
+      roller: {
+        uid: roller.uid || null,
+        actorId: roller.actorId || null,
+        name: String(roller.name || "PLAYER").slice(0, 80),
+      },
+      rollerClientId: CLIENT_ID,
+      base: Number.isFinite(Number(source.base)) ? Number(source.base) : null,
+      total: Math.trunc(total),
+      heads,
+      coinCount: coins.length || COIN_COUNT,
+      coinHeadBonus: COIN_HEAD_BONUS,
+      check: {
+        thresholdRaw: check.thresholdRaw,
+        hiddenThreshold: check.hiddenThreshold,
+        modifierType: check.modifierType,
+        modifierValue: check.modifierValue,
+        outcome: checkOutcome(total, check),
+      },
+      visibility: effectiveConfig.visibility,
+      hiddenOutput: effectiveConfig.hiddenOutput,
+      hiddenOutcome: effectiveConfig.hiddenOutcome,
+      hiddenText: effectiveConfig.hiddenText,
+      durationMs: effectiveConfig.durationMs,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      clientCreatedAt: Date.now(),
+      roomId: getRoomId(),
+    });
+
+    return { published: true, key: ref.key };
+  }
+
+  function finalizeLocalRoll() {
+    if (!pendingLocalRoll) return;
+    coinObserver?.disconnect();
+    const total = numberFromText(doc.getElementById("roll-total-score"));
+    const pending = pendingLocalRoll;
+    pendingLocalRoll = null;
+    if (!Number.isFinite(total)) return;
+
+    syncLocalCoinsFromEngine();
+    const coins = captureCoinImages();
+    syncLocalResult(total, pending.check);
+
+    publishRoll({ base: pending.base, total, coins, check: pending.check })
+      .catch((error) => console.warn("No se pudo publicar el resultado en Theatre:", error));
+
+    localHudTimer = global.setTimeout(() => {
+      localHud?.classList.add("is-leaving");
+      global.setTimeout(() => {
+        localHud?.remove();
+        localHud = null;
+      }, 260);
+    }, config.durationMs);
+  }
+
+  function installCoinCapture() {
+    const closeButton = doc.getElementById("coin-toss-close-btn");
+    if (!closeButton || closeButtonObserver) return false;
+    closeButtonObserver = new MutationObserver(() => {
+      if (closeButton.disabled) captureLocalRollStart();
+      else finalizeLocalRoll();
+    });
+    closeButtonObserver.observe(closeButton, { attributes: true, attributeFilter: ["disabled"] });
+    doc.addEventListener("click", (event) => {
+      if (!event.target?.closest?.(".sheet-roll-skill-btn, [data-dnd-roll]")) return;
+      global.setTimeout(captureLocalRollStart, 0);
+    }, true);
+    return true;
+  }
+
+  function shouldSuppressRemoteForLocalRoller(roll) {
+    if (roll?.rollerClientId && roll.rollerClientId === CLIENT_ID) return true;
+    const uid = currentUid();
+    return Boolean(uid && roll?.roller?.uid && uid === roll.roller.uid && !isDmView());
+  }
+
+  function hiddenRemoteMessage(roll) {
     const output = normalizeHiddenOutput(roll?.hiddenOutput);
     if (output === HIDDEN_OUTPUT.OUTCOME) {
+      const actual = roll?.check?.outcome;
+      if (actual === "passed") return "CHECK PASSED";
+      if (actual === "failed") return "CHECK FAILED";
       return String(roll?.hiddenOutcome || "").toLowerCase() === "failure" ? "FALLO" : "ÉXITO";
     }
-    if (output === HIDDEN_OUTPUT.CUSTOM) {
-      return String(roll?.hiddenText || "").trim() || "RESULTADO OCULTO";
-    }
+    if (output === HIDDEN_OUTPUT.CUSTOM) return String(roll?.hiddenText || "").trim() || "RESULTADO OCULTO";
     return "";
   }
 
-  function buildCoinRow(roll) {
-    const row = doc.createElement("div");
-    row.className = "theatre-roll-coins";
-    const count = Number.isFinite(Number(roll?.coinCount)) ? Math.max(1, Math.min(10, Number(roll.coinCount))) : COIN_COUNT;
-    const heads = Number.isFinite(Number(roll?.heads)) ? Math.max(0, Math.min(count, Number(roll.heads))) : null;
-    for (let index = 0; index < count; index += 1) {
-      const coin = doc.createElement("i");
-      coin.className = "theatre-roll-coin";
-      if (heads == null) coin.dataset.side = "unknown";
-      else coin.dataset.side = index < heads ? "head" : "tail";
-      coin.setAttribute("aria-hidden", "true");
-      row.appendChild(coin);
-    }
-    if (heads != null) row.setAttribute("aria-label", `${heads} caras de ${count}`);
-    return row;
-  }
-
-  function buildFullCard(card, roll) {
-    const base = Number(roll?.base);
-    const heads = Number(roll?.heads);
-    const headBonus = Number(roll?.coinHeadBonus) || COIN_HEAD_BONUS;
-    card.appendChild(buildCoinRow(roll));
-
-    const detail = doc.createElement("div");
-    detail.className = "theatre-roll-detail";
-    if (Number.isFinite(base)) detail.appendChild(textNode("theatre-roll-detail-item", `BASE ${base >= 0 ? "+" : ""}${base}`));
-    if (Number.isFinite(heads)) detail.appendChild(textNode("theatre-roll-detail-item", `HEADS ${heads} × ${headBonus}`));
-    card.appendChild(detail);
-  }
-
-  function buildRollCard(key, roll) {
+  function buildRemoteResultCard(key, roll) {
     const visibility = normalizeVisibility(roll?.visibility);
-    if (shouldHideFromPlayer(roll)) return null;
+    if (!isDmView() && visibility === VISIBILITY.HIDDEN && normalizeHiddenOutput(roll?.hiddenOutput) === HIDDEN_OUTPUT.NONE) return null;
 
     const card = doc.createElement("article");
-    card.className = "theatre-roll-card";
+    card.className = "theatre-roll-result-card";
     card.dataset.rollKey = key;
-    card.dataset.visibility = visibility;
 
-    const head = doc.createElement("header");
-    head.className = "theatre-roll-card-header";
-    head.appendChild(textNode("theatre-roll-roller", roll?.roller?.name || "PLAYER"));
-    head.appendChild(textNode("theatre-roll-mode", visibilityLabel(visibility)));
-    card.appendChild(head);
-
-    card.appendChild(textNode("theatre-roll-label", roll?.label || "TIRADA"));
+    const name = textNode("theatre-roll-result-name", roll?.roller?.name || "PLAYER");
+    card.appendChild(name);
 
     if (!isDmView() && visibility === VISIBILITY.HIDDEN) {
-      card.classList.add("is-hidden-result");
-      card.appendChild(textNode("theatre-roll-hidden-result", hiddenPlayerMessage(roll)));
+      card.appendChild(textNode("theatre-roll-result-outcome", hiddenRemoteMessage(roll)));
       return card;
     }
 
-    if (visibility === VISIBILITY.PUBLIC || isDmView()) buildFullCard(card, roll);
-    if (visibility === VISIBILITY.TOTAL && !isDmView()) card.classList.add("is-total-only");
-
-    const total = textNode("theatre-roll-total", roll?.total ?? "—");
-    total.setAttribute("aria-label", `Total ${roll?.total ?? "desconocido"}`);
+    const total = textNode("theatre-roll-result-total", roll?.total ?? "—");
     card.appendChild(total);
-
-    if (isDmView() && visibility !== VISIBILITY.PUBLIC) {
-      card.appendChild(textNode(
-        "theatre-roll-director-note",
-        visibility === VISIBILITY.HIDDEN ? "OCULTA PARA JUGADORES" : "JUGADORES VEN SOLO EL TOTAL"
-      ));
+    const outcome = roll?.check?.outcome;
+    if (outcome === "passed" || outcome === "failed") {
+      const result = textNode("theatre-roll-result-outcome", outcome === "passed" ? "CHECK PASSED" : "CHECK FAILED");
+      result.classList.add(outcome === "passed" ? "is-pass" : "is-fail");
+      card.appendChild(result);
     }
-
     return card;
   }
 
@@ -338,22 +481,20 @@
     const key = snapshot?.key;
     const roll = snapshot?.val?.() || {};
     if (!key || renderedKeys.has(key)) return;
+    renderedKeys.add(key);
+    if (shouldSuppressRemoteForLocalRoller(roll)) return;
 
     const timestamp = eventTimestamp(roll);
-    if (timestamp && Date.now() - timestamp > MAX_RECENT_AGE_MS) {
-      renderedKeys.add(key);
-      return;
-    }
-
+    if (timestamp && Date.now() - timestamp > MAX_RECENT_AGE_MS) return;
     const layer = ensureLayer();
     if (!layer) return;
-    const card = buildRollCard(key, roll);
-    renderedKeys.add(key);
+    const card = buildRemoteResultCard(key, roll);
     if (!card) return;
 
     layer.appendChild(card);
-    while (layer.children.length > 3) layer.firstElementChild?.remove();
-
+    while (layer.querySelectorAll(".theatre-roll-result-card").length > 3) {
+      layer.querySelector(".theatre-roll-result-card")?.remove();
+    }
     const duration = normalizeConfig({ durationMs: roll.durationMs }).durationMs;
     removalTimers.set(key, global.setTimeout(() => {
       card.classList.add("is-leaving");
@@ -363,7 +504,7 @@
   }
 
   function bindRollStream() {
-    if (rollQuery) rollQuery.off();
+    rollQuery?.off();
     rollQuery = db.ref(resolveRollPath(getRoomId())).limitToLast(8);
     rollQuery.on("child_added", renderIncomingRoll);
   }
@@ -376,10 +517,8 @@
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
     const output = root.querySelector("[data-roll-hidden-output]");
-    const outcome = root.querySelector("[data-roll-hidden-outcome]");
     const custom = root.querySelector("[data-roll-hidden-text]");
     if (output) output.value = config.hiddenOutput;
-    if (outcome) outcome.value = config.hiddenOutcome;
     if (custom && doc.activeElement !== custom) custom.value = config.hiddenText;
     root.dataset.visibility = config.visibility;
     root.dataset.hiddenOutput = config.hiddenOutput;
@@ -403,8 +542,8 @@
     root = doc.createElement("section");
     root.className = "theatre-roll-director";
     root.innerHTML = `
-      <div class="theatre-roll-director-title">VISIBILIDAD DE TIRADAS</div>
-      <div class="theatre-roll-visibility-buttons" role="group" aria-label="Visibilidad de tiradas">
+      <div class="theatre-roll-director-title">RESULTADO DE TIRADAS</div>
+      <div class="theatre-roll-visibility-buttons" role="group" aria-label="Visibilidad del resultado">
         <button type="button" data-roll-visibility="public" aria-pressed="false">PÚBLICA</button>
         <button type="button" data-roll-visibility="total" aria-pressed="false">TOTAL</button>
         <button type="button" data-roll-visibility="hidden" aria-pressed="false">OCULTA</button>
@@ -415,12 +554,6 @@
             <option value="none">NADA</option>
             <option value="outcome">ÉXITO / FALLO</option>
             <option value="custom">TEXTO DM</option>
-          </select>
-        </label>
-        <label>RESULTADO
-          <select data-roll-hidden-outcome>
-            <option value="success">ÉXITO</option>
-            <option value="failure">FALLO</option>
           </select>
         </label>
         <label class="theatre-roll-hidden-text-label">TEXTO
@@ -435,19 +568,14 @@
     root.addEventListener("click", (event) => {
       const button = event.target?.closest?.("[data-roll-visibility]");
       if (!button) return;
-      writeConfig({ visibility: button.dataset.rollVisibility }).catch((error) => console.warn("No se pudo cambiar visibilidad de tiradas:", error));
+      writeConfig({ visibility: button.dataset.rollVisibility }).catch((error) => console.warn("No se pudo cambiar visibilidad:", error));
     });
-
     root.querySelector("[data-roll-hidden-output]")?.addEventListener("change", (event) => {
       writeConfig({ hiddenOutput: event.target.value }).catch((error) => console.warn("No se pudo cambiar salida oculta:", error));
-    });
-    root.querySelector("[data-roll-hidden-outcome]")?.addEventListener("change", (event) => {
-      writeConfig({ hiddenOutcome: event.target.value }).catch((error) => console.warn("No se pudo cambiar resultado oculto:", error));
     });
     root.querySelector("[data-roll-hidden-text]")?.addEventListener("change", (event) => {
       writeConfig({ hiddenText: String(event.target.value || "").trim().slice(0, 80) }).catch((error) => console.warn("No se pudo cambiar texto oculto:", error));
     });
-
     setControlState(root);
     return root;
   }
@@ -460,13 +588,21 @@
     });
   }
 
+  function armCheck(options) {
+    nextCheckContext = normalizeCheckContext(options);
+    return Object.assign({}, nextCheckContext);
+  }
+
+  function clearArmedCheck() {
+    nextCheckContext = null;
+  }
+
   function boot() {
     ensureLayer();
     installCoinCapture();
     bindConfig();
     bindRollStream();
     mountDirectorControls();
-
     const observer = new MutationObserver(() => {
       ensureLayer();
       installCoinCapture();
@@ -481,8 +617,17 @@
   global.LuminousTheatreRolls = Object.freeze({
     VISIBILITY,
     HIDDEN_OUTPUT,
+    MODIFIER,
+    HEAD_SRC,
+    TAIL_SRC,
     resolveRollPath,
     normalizeConfig,
+    normalizeCheckContext,
+    effectiveThreshold,
+    checkOutcome,
+    captureCoinImages,
+    armCheck,
+    clearArmedCheck,
     publishRoll,
     renderIncomingRoll,
     getConfig: () => Object.assign({}, config),
