@@ -10,7 +10,6 @@
       : "ninguno";
   }
 
-  // Obsoleted - Do not use logic from the old screen
   function applyDmInstance(instance, doc) {
     console.warn("LuminousInstanceControl.applyDmInstance is deprecated. Use applyDashboardInstance.");
     return normalizeInstance(instance);
@@ -23,7 +22,6 @@
     const radioBtn = documentRef.querySelector(`input[name="instancia"][value="${activeInstance}"]`);
     if (radioBtn) radioBtn.checked = true;
 
-    // Update Output Indicator text
     const statusText = documentRef.getElementById("current-output-status");
     if (statusText) {
         if (activeInstance === "ninguno") {
@@ -135,6 +133,35 @@
       script.src = "js/theatre-roll-visualizer.js";
       script.async = false;
       script.dataset.ui = "theatre-roll-visualizer";
+      documentRef.head.appendChild(script);
+    }
+
+    return { link, script };
+  }
+
+  function ensureTheatreCheckCoordinatorAssets(doc) {
+    const documentRef = doc || global.document;
+    if (!documentRef?.head) return null;
+    const hasTheatre = documentRef.getElementById("theatre-view-player") || documentRef.getElementById("modulo-teatro");
+    if (!hasTheatre) return null;
+
+    let link = documentRef.getElementById("theatre-check-coordinator-stylesheet");
+    if (!link) {
+      link = documentRef.createElement("link");
+      link.id = "theatre-check-coordinator-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/theatre-check-coordinator.css";
+      link.dataset.ui = "theatre-check-coordinator";
+      documentRef.head.appendChild(link);
+    }
+
+    let script = documentRef.getElementById("theatre-check-coordinator-script");
+    if (!script) {
+      script = documentRef.createElement("script");
+      script.id = "theatre-check-coordinator-script";
+      script.src = "js/theatre-check-coordinator.js";
+      script.async = false;
+      script.dataset.ui = "theatre-check-coordinator";
       documentRef.head.appendChild(script);
     }
 
@@ -258,6 +285,7 @@
     const instanceRef = db.ref(INSTANCE_PATH);
 
     ensureTheatreRollVisualizerAssets(documentRef);
+    ensureTheatreCheckCoordinatorAssets(documentRef);
     ensureDashboardCharacterManager({ db, doc: documentRef });
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
@@ -280,7 +308,7 @@
     });
 
     instanceRef.on('value', (snapshot) => {
-        applyDashboardInstance(snapshot.val(), documentRef);
+      applyDashboardInstance(snapshot.val(), documentRef);
     });
   }
 
@@ -288,6 +316,7 @@
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
     ensureTheatreRollVisualizerAssets(documentRef);
+    ensureTheatreCheckCoordinatorAssets(documentRef);
     db.ref(INSTANCE_PATH).on("value", (snapshot) => {
       applyPlayerInstance(snapshot.val(), documentRef);
     });
@@ -300,6 +329,7 @@
     applyDashboardInstance,
     ensureDmLocationControl,
     ensureTheatreRollVisualizerAssets,
+    ensureTheatreCheckCoordinatorAssets,
     ensureDashboardCharacterManager,
     ensureDashboardActorStudioAssets,
     bindDm,
