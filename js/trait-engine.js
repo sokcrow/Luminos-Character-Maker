@@ -15,6 +15,9 @@
   });
   const RESET_SCOPES = Object.freeze({ TURN: "turn", ENCOUNTER: "encounter", SHORT_REST: "short_rest", LONG_REST: "long_rest", DAY: "day", NEVER: "never" });
   const DURATION_TYPES = Object.freeze({ IMMEDIATE: "immediate", THIS_SKILL: "this_skill", THIS_TURN: "this_turn", NEXT_TURN: "next_turn", NEXT_SKILL: "next_skill", ENCOUNTER: "encounter", UNTIL_REMOVED: "until_removed", PERMANENT: "permanent" });
+  const OPERATION_TYPES = Object.freeze(["modify", "resource", "apply_status", "remove_status", "heal_hp", "heal_sp", "gain_shield", "set_flag", "clear_flag", "log"]);
+  const CONDITION_OPERATORS = Object.freeze(["eq", "equals", "ne", "not_equals", "gt", "gte", "lt", "lte", "truthy", "falsy", "contains", "not_contains", "in", "not_in", "between"]);
+  const FORBIDDEN_PATH_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
   const ALLOWED_FUNCTIONS = Object.freeze({ floor: Math.floor, ceil: Math.ceil, round: Math.round, abs: Math.abs, min: Math.min, max: Math.max, clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)) });
 
   const num = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -22,9 +25,23 @@
   const normalizeId = (v) => String(v ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   const clone = (v) => v == null ? v : JSON.parse(JSON.stringify(v));
 
+  function assertSafeKey(value, label = "Trait key") {
+    const key = normalizeId(value);
+    if (FORBIDDEN_PATH_SEGMENTS.has(key)) throw new Error(`${label} uses unsafe key: ${key}`);
+    return key;
+  }
+
+  function pathParts(path, required = false) {
+    const parts = String(path || "").split(".").filter(Boolean);
+    if (required && !parts.length) throw new Error("Trait operation requires a target path.");
+    const forbidden = parts.find((part) => FORBIDDEN_PATH_SEGMENTS.has(part));
+    if (forbidden) throw new Error(`Unsafe trait path segment: ${forbidden}`);
+    return parts;
+  }
+
   function getPath(root, path, fallback) {
     let cur = root;
-    for (const key of String(path || "").split(".").filter(Boolean)) {
+    for (const key of pathParts(path)) {
       if (cur == null || !Object.prototype.hasOwnProperty.call(Object(cur), key)) return fallback;
       cur = cur[key];
     }
@@ -32,11 +49,10 @@
   }
 
   function setPath(root, path, value) {
-    const parts = String(path || "").split(".").filter(Boolean);
-    if (!parts.length) throw new Error("Trait operation requires a target path.");
+    const parts = pathParts(path, true);
     let cur = root;
     for (const key of parts.slice(0, -1)) {
-      if (!cur[key] || typeof cur[key] !== "object") cur[key] = {};
+      if (!Object.prototype.hasOwnProperty.call(Object(cur), key) || !cur[key] || typeof cur[key] !== "object") cur[key] = {};
       cur = cur[key];
     }
     cur[parts.at(-1)] = value;
@@ -145,22 +161,42 @@
     return t;
   }
 
+  function validatePath(path, label, errors, required = false) {
+    try { pathParts(path, required); } catch (error) { errors.push(`${label}: ${error.message}`); }
+  }
+
   function validateTrait(input = {}) {
     const trait = normalizeTrait(input), errors = [], warnings = [];
     if (!trait.id) errors.push("Trait requires an id or name.");
+    else try { assertSafeKey(trait.id, "Trait id"); } catch (error) { errors.push(error.message); }
     if (!Object.values(ACTIVATION_TYPES).includes(trait.activation.type)) errors.push(`Unknown activation type: ${trait.activation.type}`);
     if (!Object.values(ACTION_COSTS).includes(trait.activation.actionCost)) errors.push(`Unknown action cost: ${trait.activation.actionCost}`);
     const formula = (f, label) => { if (f == null || f === "") return; try { evaluateFormula(f, {}); } catch (e) { errors.push(`${label}: ${e.message}`); } };
     formula(trait.activation?.uses?.formula, `${trait.id} uses formula`);
     trait.effects.forEach((effect) => {
       if (!effect.operations.length) warnings.push(`${effect.id} has no operations.`);
-      effect.conditions.forEach((c, idx) => { formula(c?.formula, `${effect.id} condition ${idx + 1}`); formula(c?.valueFormula, `${effect.id} condition value ${idx + 1}`); });
+      effect.conditions.forEach((c, idx) => {
+        const label = `${effect.id} condition ${idx + 1}`;
+        formula(c?.formula, label); formula(c?.valueFormula, `${label} value`);
+        if (c?.path) validatePath(c.path, `${label} path`, errors);
+        const op = normalizeId(c?.operator || "eq");
+        if (!CONDITION_OPERATORS.includes(op)) errors.push(`${label} has unsupported operator: ${c?.operator}`);
+        if (op === "between" && c?.max == null) errors.push(`${label} between operator requires max.`);
+      });
       effect.operations.forEach((op, idx) => {
-        const type = normalizeId(op?.type); if (!type) errors.push(`${effect.id} contains an operation without type.`);
-        if (type === "modify" && !op.path) errors.push(`${effect.id} modify operation requires path.`);
+        const type = normalizeId(op?.type), label = `${effect.id} operation ${idx + 1}`;
+        if (!type) errors.push(`${effect.id} contains an operation without type.`);
+        else if (!OPERATION_TYPES.includes(type)) errors.push(`${effect.id} contains unsupported operation type: ${op?.type}`);
+        if (type === "modify") validatePath(op.path, `${effect.id} modify operation path`, errors, true);
         if (type === "resource" && !op.resourceId) errors.push(`${effect.id} resource operation requires resourceId.`);
+        if (type === "resource" && op.resourceId) try { assertSafeKey(op.resourceId, `${label} resourceId`); } catch (error) { errors.push(error.message); }
+        if (type === "resource" && op.storeAs) try { assertSafeKey(op.storeAs, `${label} storeAs`); } catch (error) { errors.push(error.message); }
         if (["apply_status", "remove_status"].includes(type) && !op.statusId) errors.push(`${effect.id} ${type} requires statusId.`);
-        formula(op?.formula, `${effect.id} operation ${idx + 1}`); formula(op?.value?.formula, `${effect.id} operation value ${idx + 1}`);
+        if (["apply_status", "remove_status"].includes(type) && op.statusId) try { assertSafeKey(op.statusId, `${label} statusId`); } catch (error) { errors.push(error.message); }
+        if (["set_flag", "clear_flag"].includes(type) && (op.flagId || op.path)) try { assertSafeKey(op.flagId || op.path, `${label} flagId`); } catch (error) { errors.push(error.message); }
+        if (["heal_hp", "heal_sp", "gain_shield"].includes(type) && op.path) validatePath(op.path, `${label} path`, errors);
+        if (["heal_hp", "heal_sp", "gain_shield"].includes(type) && op.maxPath) validatePath(op.maxPath, `${label} maxPath`, errors);
+        formula(op?.formula, label); formula(op?.value?.formula, `${label} value`);
       });
     });
     return { valid: !errors.length, errors, warnings, trait };
@@ -173,7 +209,7 @@
   function conditionMatches(c, env) {
     if (!c || typeof c !== "object") return Boolean(c);
     if (Array.isArray(c.all)) return c.all.every((x) => conditionMatches(x, env)); if (Array.isArray(c.any)) return c.any.some((x) => conditionMatches(x, env)); if (c.not) return !conditionMatches(c.not, env);
-    let left = c.formula != null ? evaluateFormula(c.formula, env.variables) : c.resourceId ? num(env.state.resources[normalizeId(c.resourceId)]?.value) : c.statusId ? Boolean(env.state.statuses[normalizeId(c.statusId)]) : c.variable ? env.variables[c.variable] : c.path ? getPath(env.runtime, c.path) : c.left;
+    const left = c.formula != null ? evaluateFormula(c.formula, env.variables) : c.resourceId ? num(env.state.resources[normalizeId(c.resourceId)]?.value) : c.statusId ? Boolean(env.state.statuses[normalizeId(c.statusId)]) : c.variable ? env.variables[c.variable] : c.path ? getPath(env.runtime, c.path) : c.left;
     const right = c.valueFormula != null ? evaluateFormula(c.valueFormula, env.variables) : c.value, op = normalizeId(c.operator || "eq");
     if (["eq", "equals"].includes(op)) return left === right; if (["ne", "not_equals"].includes(op)) return left !== right;
     if (op === "gt") return Number(left) > Number(right); if (op === "gte") return Number(left) >= Number(right); if (op === "lt") return Number(left) < Number(right); if (op === "lte") return Number(left) <= Number(right);
@@ -193,31 +229,35 @@
     const op = clone(operation) || {}, type = normalizeId(op.type), amount = op.formula != null ? evaluateFormula(op.formula, env.variables) : valueOf(op.value, env), base = { type, traitId: env.trait.id, effectId: effect.id }; let out;
     if (type === "modify") out = Object.assign(base, { path: op.path, mode: normalizeId(op.mode || "add"), amount }, mutate(env.runtime, op.path, op.mode, amount));
     else if (type === "resource") {
-      const id = normalizeId(op.resourceId); if (!env.state.resources[id]) env.state.resources[id] = { value: valueOf(op.definition?.initial, env), min: num(op.definition?.min), max: op.definition?.max == null ? null : Math.max(0, valueOf(op.definition.max, env)) };
+      const id = assertSafeKey(op.resourceId, "Resource id"); if (!env.state.resources[id]) env.state.resources[id] = { value: valueOf(op.definition?.initial, env), min: num(op.definition?.min), max: op.definition?.max == null ? null : Math.max(0, valueOf(op.definition.max, env)) };
       const r = env.state.resources[id], before = num(r.value), mode = normalizeId(op.mode || "gain"); let after = mode === "consume_all" ? 0 : mode === "set" ? amount : mode === "spend" || mode === "subtract" ? before - amount : before + amount;
-      if (r.max != null) after = Math.min(num(r.max), after); after = Math.max(num(r.min), after); r.value = after; if (op.storeAs) env.variables[op.storeAs] = mode === "consume_all" ? before : Math.abs(after - before); out = Object.assign(base, { resourceId: id, mode, before, after, amount: mode === "consume_all" ? before : amount });
+      if (r.max != null) after = Math.min(num(r.max), after); after = Math.max(num(r.min), after); r.value = after; if (op.storeAs) env.variables[assertSafeKey(op.storeAs, "Resource storeAs")] = mode === "consume_all" ? before : Math.abs(after - before); out = Object.assign(base, { resourceId: id, mode, before, after, amount: mode === "consume_all" ? before : amount });
     } else if (type === "apply_status") {
-      const id = normalizeId(op.statusId); env.state.statuses[id] = { id, name: op.name || id, potency: valueOf(op.potency ?? op.value, env), count: valueOf(op.count ?? 1, env, 1), duration: normalizeId(op.duration || "until_removed"), sourceTraitId: env.trait.id, sourceUnitId: env.runtime.sourceUnitId || env.runtime.character?.id || null, data: clone(op.data || {}) }; out = Object.assign(base, { statusId: id, status: clone(env.state.statuses[id]) });
-    } else if (type === "remove_status") { const id = normalizeId(op.statusId), removed = Boolean(env.state.statuses[id]); delete env.state.statuses[id]; out = Object.assign(base, { statusId: id, removed }); }
+      const id = assertSafeKey(op.statusId, "Status id"); env.state.statuses[id] = { id, name: op.name || id, potency: valueOf(op.potency ?? op.value, env), count: valueOf(op.count ?? 1, env, 1), duration: normalizeId(op.duration || "until_removed"), sourceTraitId: env.trait.id, sourceUnitId: env.runtime.sourceUnitId || env.runtime.character?.id || null, data: clone(op.data || {}) }; out = Object.assign(base, { statusId: id, status: clone(env.state.statuses[id]) });
+    } else if (type === "remove_status") { const id = assertSafeKey(op.statusId, "Status id"), removed = Boolean(env.state.statuses[id]); delete env.state.statuses[id]; out = Object.assign(base, { statusId: id, removed }); }
     else if (["heal_hp", "heal_sp", "gain_shield"].includes(type)) { const path = op.path || (type === "heal_hp" ? "self.currentHp" : type === "heal_sp" ? "self.currentSp" : "self.shield"), m = mutate(env.runtime, path, "add", amount); if (op.maxPath) setPath(env.runtime, path, Math.min(num(getPath(env.runtime, op.maxPath), m.after), m.after)); out = Object.assign(base, { path, amount, before: m.before, after: num(getPath(env.runtime, path), m.after) }); }
-    else if (type === "set_flag") { const id = normalizeId(op.flagId || op.path); env.state.flags[id] = op.value == null ? true : op.value; out = Object.assign(base, { flagId: id, value: env.state.flags[id] }); }
-    else if (type === "clear_flag") { const id = normalizeId(op.flagId || op.path); delete env.state.flags[id]; out = Object.assign(base, { flagId: id, cleared: true }); }
+    else if (type === "set_flag") { const id = assertSafeKey(op.flagId || op.path, "Flag id"); env.state.flags[id] = op.value == null ? true : op.value; out = Object.assign(base, { flagId: id, value: env.state.flags[id] }); }
+    else if (type === "clear_flag") { const id = assertSafeKey(op.flagId || op.path, "Flag id"); delete env.state.flags[id]; out = Object.assign(base, { flagId: id, cleared: true }); }
     else if (type === "log") out = Object.assign(base, { message: String(op.message || "") }); else throw new Error(`Unsupported trait operation type: ${op.type}`);
     env.state.history.push(Object.assign({ at: Date.now() }, clone(out))); return out;
   }
 
   function dispatchTrait(input, trigger, runtime = {}, stateInput) {
-    const trait = normalizeTrait(input), state = stateInput || createState(), env = environment(trait, runtime, state), outcomes = [];
+    const validation = validateTrait(input);
+    if (!validation.valid) throw new Error(`Invalid Trait ${validation.trait.id || "<unknown>"}: ${validation.errors.join(" | ")}`);
+    const trait = validation.trait, state = stateInput || createState(), env = environment(trait, runtime, state), outcomes = [];
     trait.effects.forEach((effect) => { if (effect.trigger === normalizeId(trigger) && contextMatches(effect.contexts, env.context) && conditionsMatch(effect.conditions, env)) effect.operations.forEach((op) => outcomes.push(executeOperation(op, env, effect))); });
     return { trait, state, runtime, variables: env.variables, outcomes };
   }
   function dispatchTraits(traits, trigger, runtime = {}, stateInput) { const state = stateInput || createState(), outcomes = []; (traits || []).forEach((t) => outcomes.push(...dispatchTrait(t, trigger, runtime, state).outcomes)); return { state, runtime, outcomes }; }
-  function usageRecord(state, trait) { const id = trait.id; if (!state.usages[id]) state.usages[id] = { used: 0, reset: normalizeId(trait.activation?.uses?.reset || "never") }; return state.usages[id]; }
+  function usageRecord(state, trait) { const id = assertSafeKey(trait.id, "Trait id"); if (!state.usages[id]) state.usages[id] = { used: 0, reset: normalizeId(trait.activation?.uses?.reset || "never") }; return state.usages[id]; }
   function maxUses(trait, runtime) { const uses = trait.activation?.uses; if (!uses) return null; const env = environment(trait, runtime, createState()), v = uses.formula != null ? evaluateFormula(uses.formula, env.variables) : valueOf(uses.max ?? uses.value, env); return Math.max(0, Math.floor(v)); }
   function actionAvailable(runtime, cost) { const c = normalizeId(cost || "none"); if (["none", "special"].includes(c) || !runtime.actionEconomy) return true; return num(runtime.actionEconomy[c] ?? getPath(runtime.actionEconomy, `available.${c}`)) > 0; }
 
   function canActivateTrait(input, runtime = {}, stateInput) {
-    const trait = normalizeTrait(input), state = stateInput || createState(), activation = trait.activation, env = environment(trait, runtime, state), reasons = [];
+    const validation = validateTrait(input), state = stateInput || createState();
+    if (!validation.valid) return { available: false, reasons: validation.errors.slice(), maximum: null, remaining: null, actionCost: validation.trait.activation.actionCost, trait: validation.trait, state };
+    const trait = validation.trait, activation = trait.activation, env = environment(trait, runtime, state), reasons = [];
     if (!["manual", "prompt", "choice"].includes(activation.type)) reasons.push("Trait is not player-activated."); if (!contextMatches(trait.contexts, runtime.context)) reasons.push(`Trait is not available in ${runtime.context || "any"}.`); if (!conditionsMatch(activation.conditions || [], env)) reasons.push("Activation conditions are not met."); if (!actionAvailable(runtime, activation.actionCost)) reasons.push(`No ${activation.actionCost} remaining.`);
     const maximum = maxUses(trait, runtime), record = usageRecord(state, trait), remaining = maximum == null ? null : Math.max(0, maximum - record.used); if (maximum != null && remaining <= 0) reasons.push(`No uses remaining until ${record.reset}.`);
     return { available: !reasons.length, reasons, maximum, remaining, actionCost: activation.actionCost, trait, state };
@@ -226,7 +266,7 @@
   function activateTrait(input, runtime = {}, stateInput) {
     const state = stateInput || createState(), check = canActivateTrait(input, runtime, state); if (!check.available) return Object.assign(check, { outcomes: [] }); const trait = check.trait, cost = trait.activation.actionCost;
     if (!["none", "special"].includes(cost) && runtime.actionEconomy) { if (Object.prototype.hasOwnProperty.call(runtime.actionEconomy, cost)) runtime.actionEconomy[cost] = Math.max(0, num(runtime.actionEconomy[cost]) - 1); else if (runtime.actionEconomy.available) runtime.actionEconomy.available[cost] = Math.max(0, num(runtime.actionEconomy.available[cost]) - 1); }
-    const record = usageRecord(state, trait); if (check.maximum != null) record.used += 1; if (trait.activation.type === "choice" && runtime.choice != null) state.choices[trait.id] = clone(runtime.choice);
+    const record = usageRecord(state, trait); if (check.maximum != null) record.used += 1; if (trait.activation.type === "choice" && runtime.choice != null) state.choices[assertSafeKey(trait.id, "Trait id")] = clone(runtime.choice);
     const result = dispatchTrait(trait, "on_use", runtime, state); return { available: true, reasons: [], maximum: check.maximum, remaining: check.maximum == null ? null : Math.max(0, check.maximum - record.used), actionCost: cost, trait, state, runtime, outcomes: result.outcomes };
   }
 
@@ -242,7 +282,7 @@
     }).filter(Boolean);
   }
 
-  const api = Object.freeze({ SCHEMA_VERSION, CONTEXTS, ACTIVATION_TYPES, ACTION_COSTS, TRIGGERS, RESET_SCOPES, DURATION_TYPES, normalizeId, getPath, setPath, getClassLevel, buildVariables, evaluateFormula, normalizeTrait, validateTrait, createState, conditionMatches, conditionsMatch, dispatchTrait, dispatchTraits, canActivateTrait, activateTrait, listAvailableTraitActions, resetUsage, resolveTheatreCheck, dispatchCombatEvent, resolveTraitGrants });
+  const api = Object.freeze({ SCHEMA_VERSION, CONTEXTS, ACTIVATION_TYPES, ACTION_COSTS, TRIGGERS, RESET_SCOPES, DURATION_TYPES, OPERATION_TYPES, normalizeId, getPath, setPath, getClassLevel, buildVariables, evaluateFormula, normalizeTrait, validateTrait, createState, conditionMatches, conditionsMatch, dispatchTrait, dispatchTraits, canActivateTrait, activateTrait, listAvailableTraitActions, resetUsage, resolveTheatreCheck, dispatchCombatEvent, resolveTraitGrants });
   global.LuminousTraitEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
