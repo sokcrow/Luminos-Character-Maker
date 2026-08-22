@@ -14,6 +14,14 @@
       doc.head?.appendChild(link);
     }
 
+    if (!doc.getElementById("class-milestone-trait-integration-script")) {
+      const integration = doc.createElement("script");
+      integration.id = "class-milestone-trait-integration-script";
+      integration.src = "js/class-milestone-trait-integration.js";
+      integration.async = false;
+      doc.head?.appendChild(integration);
+    }
+
     const loadUi = () => {
       if (global.LuminousDmPlayerClassMilestones || doc.getElementById("dm-player-class-milestones-script")) return;
       const script = doc.createElement("script");
@@ -41,7 +49,37 @@
     }
   }
 
+  function installPlayerSelectValueSync() {
+    const Select = global.HTMLSelectElement;
+    const EventCtor = global.Event;
+    if (!Select?.prototype || typeof EventCtor !== "function") return;
+    if (Select.prototype.__luminousMilestoneValueSync) return;
+
+    const descriptor = Object.getOwnPropertyDescriptor(Select.prototype, "value");
+    if (!descriptor?.get || !descriptor?.set || descriptor.configurable === false) return;
+
+    Object.defineProperty(Select.prototype, "value", {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set(value) {
+        const before = descriptor.get.call(this);
+        descriptor.set.call(this, value);
+        const after = descriptor.get.call(this);
+        if (this?.id === "dm-player-dnd-select" && before !== after) {
+          this.dispatchEvent(new EventCtor("change", { bubbles: true }));
+        }
+      },
+    });
+
+    Object.defineProperty(Select.prototype, "__luminousMilestoneValueSync", {
+      configurable: true,
+      value: true,
+    });
+  }
+
   ensureClassMilestoneAssets();
+  installPlayerSelectValueSync();
 
   if (!global?.Node || global.LuminousDmPlayerDndObserverHotfix) return;
 
