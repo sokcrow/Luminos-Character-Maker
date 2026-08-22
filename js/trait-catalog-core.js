@@ -47,6 +47,7 @@
           path: "defensiveLevel",
           mode: "add",
           formula: "ConstitutionMod",
+          scope: "permanent",
           conditions: [{ path: "self.hasArmor", operator: "falsy" }],
         },
         {
@@ -59,7 +60,7 @@
           duration: "encounter",
           conditions: [{ path: "self.hasArmor", operator: "falsy" }],
         },
-        { type: "stagger_threshold", trigger: "passive", target: "self", action: "remove", count: 1 },
+        { type: "stagger_threshold", trigger: "passive", target: "self", action: "remove", count: 1, scope: "permanent" },
       ],
     },
 
@@ -84,7 +85,6 @@
         operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
       }],
       rules: [
-        { type: "status", trigger: "on_use", action: "gain", target: "self", statusId: "rage", duration: "until_removed" },
         { type: "modifier", trigger: "damage_taken", target: "self", path: "damageTakenPercent", mode: "multiply", value: 0.5, damageTypes: ["Slash", "Pierce", "Blunt"], whileStatus: "rage" },
         { type: "restriction", trigger: "passive", target: "self", restriction: "spell_skills", whileStatus: "rage" },
         { type: "resource", trigger: "turn_end", target: "self", resourceId: "sp", mode: "lose", value: 5, whileStatus: "rage" },
@@ -135,7 +135,7 @@
         conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }],
         operations: [{ type: "modify", path: "check.difficulty", mode: "add", value: -4 }],
       }],
-      rules: [{ type: "modifier", trigger: "before_check", target: "self", path: "check.difficulty", mode: "add", value: -4, conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }] }],
+      rules: [],
     },
 
     additional_attack: {
@@ -189,7 +189,6 @@
         operations: [{ type: "apply_status", statusId: "haste", potency: { formula: "StrengthMod" }, duration: "encounter" }],
       }],
       rules: [
-        { type: "status", trigger: "encounter_start", action: "gain", target: "self", statusId: "haste", formula: "StrengthMod", duration: "encounter" },
         { type: "speed_override", trigger: "passive", target: "self", action: "ignore_halving", whileStatus: "surprised" },
       ],
     },
