@@ -61,17 +61,18 @@ test("core Grant ids are Firebase-safe and deterministic", () => {
   expect(new Set(catalog.GRANTS.map((grant) => grant.id)).size).toBe(catalog.GRANTS.length);
 });
 
-test("DM loader orders Trait Engine before catalog, studio and importer", () => {
+test("DM loader gates the catalog stack on Trait Engine load and orders catalog before studio/importer", () => {
   const utils = read("js/utils.js");
-  const engine = utils.indexOf("js/trait-engine.js");
-  const catalogIndex = utils.indexOf("js/trait-catalog-core.js");
-  const studioIndex = utils.indexOf("js/dm-trait-library-studio.js");
-  const importerIndex = utils.indexOf("js/dm-trait-catalog-importer.js");
+  expect(utils).toContain("engine.addEventListener('load', ensureTraitStack, { once: true })");
+  expect(utils).toContain("window.LuminousTraitEngine");
 
-  expect(engine).toBeGreaterThan(-1);
-  expect(catalogIndex).toBeGreaterThan(-1);
-  expect(studioIndex).toBeGreaterThan(-1);
-  expect(importerIndex).toBeGreaterThan(-1);
-  expect(catalogIndex).toBeLessThan(studioIndex);
-  expect(studioIndex).toBeLessThan(importerIndex);
+  const stackStart = utils.indexOf("const ensureTraitStack = () =>");
+  const catalogIndex = utils.indexOf("js/trait-catalog-core.js", stackStart);
+  const studioIndex = utils.indexOf("js/dm-trait-library-studio.js", stackStart);
+  const importerIndex = utils.indexOf("js/dm-trait-catalog-importer.js", stackStart);
+
+  expect(stackStart).toBeGreaterThan(-1);
+  expect(catalogIndex).toBeGreaterThan(stackStart);
+  expect(studioIndex).toBeGreaterThan(catalogIndex);
+  expect(importerIndex).toBeGreaterThan(studioIndex);
 });
