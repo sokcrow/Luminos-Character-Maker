@@ -1,0 +1,57 @@
+name: Trait Engine
+
+on:
+  pull_request:
+    paths:
+      - "js/trait-engine.js"
+      - "js/trait-catalog-core.js"
+      - "js/dm-trait-catalog-importer.js"
+      - "js/trait-builder.js"
+      - "dm-trait-creator.html"
+      - "tests/trait_engine.spec.js"
+      - "tests/trait_engine_codex_regressions.spec.js"
+      - "tests/trait_catalog_core.spec.js"
+      - "tests/dm_trait_catalog_importer.spec.js"
+      - "tests/barbarian_trait_rules_runtime.spec.js"
+      - ".github/workflows/trait-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  trait-engine-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check js/trait-engine.js
+          node --check js/trait-catalog-core.js
+          node --check js/dm-trait-catalog-importer.js
+          node --check js/trait-builder.js
+          node --check tests/trait_engine.spec.js
+          node --check tests/trait_engine_codex_regressions.spec.js
+          node --check tests/trait_catalog_core.spec.js
+          node --check tests/dm_trait_catalog_importer.spec.js
+          node --check tests/barbarian_trait_rules_runtime.spec.js
+
+      - name: Run Trait regressions
+        run: >-
+          npx playwright test
+          tests/trait_engine.spec.js
+          tests/trait_engine_codex_regressions.spec.js
+          tests/trait_catalog_core.spec.js
+          tests/dm_trait_catalog_importer.spec.js
+          tests/barbarian_trait_rules_runtime.spec.js
+          --workers=1
