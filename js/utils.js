@@ -115,7 +115,29 @@ function ensureDmPlayerDndStudioAssets(doc) {
 
 function ensureDmTraitLibraryAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
-    if (!documentRef?.querySelector?.('#dashboard-jugadores') || !documentRef?.querySelector?.('.dm-tabs-nav')) return null;
+    const nav = documentRef?.querySelector?.('.dm-tabs-nav');
+    if (!documentRef?.querySelector?.('#dashboard-jugadores') || !nav) return null;
+
+    // Traits replaces the legacy Keywords entry in the DM menu. We intentionally
+    // keep the old #tab-keywords pane in the DOM for now because legacy inline
+    // setup code may still query its controls during page initialization.
+    let traitTab = documentRef.getElementById('dm-tab-traits');
+    if (!traitTab) {
+        traitTab = nav.querySelector('[data-tab="tab-keywords"]');
+        if (traitTab) {
+            traitTab.id = 'dm-tab-traits';
+            traitTab.dataset.tab = 'dashboard-traits';
+            traitTab.textContent = 'Traits';
+        }
+    }
+    if (traitTab && !traitTab.dataset.traitMenuBound) {
+        traitTab.dataset.traitMenuBound = 'true';
+        traitTab.addEventListener('click', () => {
+            if (typeof window !== 'undefined' && window.LuminousDmTraitLibrary?.open) {
+                window.LuminousDmTraitLibrary.open();
+            }
+        });
+    }
 
     const link = ensureStyleAsset(documentRef, 'dm-trait-library-stylesheet', 'css/dm-trait-library-studio.css', { ui: 'dm-trait-library' });
     const ensureStudio = () => ensureScriptAsset(documentRef, 'dm-trait-library-script', 'js/dm-trait-library-studio.js', { ui: 'dm-trait-library' });
@@ -130,7 +152,7 @@ function ensureDmTraitLibraryAssets(doc) {
         engine.addEventListener('load', ensureStudio, { once: true });
     }
 
-    return { link, engine };
+    return { link, engine, traitTab };
 }
 
 function ensurePlayerSplashFramingAssets(doc) {
