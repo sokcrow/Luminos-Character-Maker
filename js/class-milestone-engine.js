@@ -127,6 +127,11 @@
     return output;
   }
 
+  function rawStatValue(stats, stat) {
+    const entry = Object.entries(stats || {}).find(([key]) => canonicalStatKey(key) === stat);
+    return entry ? entry[1] : undefined;
+  }
+
   function validateStatAllocation(stats, allocation) {
     const current = normalizeStats(stats);
     const normalized = normalizeAllocation(allocation);
@@ -140,6 +145,13 @@
 
     if (total !== 2 || !validPattern) errors.push("La mejora debe ser +2 a un Stat o +1 a dos Stats diferentes.");
     entries.forEach(([stat, amount]) => {
+      const rawValue = rawStatValue(stats, stat);
+      const numericValue = Number(rawValue);
+      const validSubmittedValue = rawValue != null && String(rawValue).trim() !== "" && Number.isFinite(numericValue) && Number.isInteger(numericValue);
+      if (!validSubmittedValue) {
+        errors.push(`${stat} debe tener un valor entero válido antes de aplicar el milestone.`);
+        return;
+      }
       if (current[stat] + amount > MAX_STAT) errors.push(`${stat} no puede superar ${MAX_STAT}.`);
     });
 
