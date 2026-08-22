@@ -7,10 +7,35 @@
   const DEFINITIONS_ROOT = `${TRAITS_ROOT}/definitions`;
   const GRANTS_ROOT = `${TRAITS_ROOT}/grants`;
   const SOURCE_TYPES = Object.freeze(["class", "race", "background", "lineage"]);
+  const FIREBASE_INVALID_KEY_CHARS = /[.#$\[\]\/\u0000-\u001F\u007F]/;
 
   const normalizeId = (value) => engine?.normalizeId
     ? engine.normalizeId(value)
     : String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+
+  function validateFirebaseKey(value) {
+    const key = String(value ?? "");
+    const errors = [];
+    if (!key) errors.push("Firebase key cannot be empty.");
+    if (FIREBASE_INVALID_KEY_CHARS.test(key)) {
+      errors.push("Firebase key cannot contain '.', '#', '$', '[', ']', '/', or control characters.");
+    }
+    return { valid: !errors.length, errors, key };
+  }
+
+  function validateDefinitionForPersistence(input = {}) {
+    if (!engine?.validateTrait) {
+      return { valid: false, errors: ["Trait Engine is not available."], trait: input };
+    }
+    const validation = engine.validateTrait(input);
+    const trait = validation.trait;
+    const errors = [...(validation.errors || [])];
+    const keyValidation = validateFirebaseKey(trait?.id);
+    if (!keyValidation.valid) {
+      errors.push(...keyValidation.errors.map((message) => `Trait ID '${trait?.id || ""}' is not Firebase-safe. ${message}`));
+    }
+    return { valid: !errors.length, errors, trait };
+  }
 
   function normalizeGrant(input = {}) {
     const sourceType = normalizeId(input.sourceType || input.source?.type);
@@ -49,6 +74,8 @@
     DEFINITIONS_ROOT,
     GRANTS_ROOT,
     SOURCE_TYPES,
+    validateFirebaseKey,
+    validateDefinitionForPersistence,
     normalizeGrant,
     validateGrant,
     grantIdentity,
@@ -274,7 +301,7 @@
     }
 
     entries.forEach(([key, definition]) => {
-      const validation = engine.validateTrait(definition);
+      const validation = validateDefinitionForPersistence(definition);
       const trait = validation.trait;
       const card = doc.createElement("article");
       card.className = "dm-trait-card";
@@ -307,6 +334,7 @@
       const assign = doc.createElement("button");
       assign.type = "button";
       assign.textContent = "ASIGNAR";
+      assign.disabled = !validation.valid;
       assign.addEventListener("click", () => {
         setView("grants");
         if ($("dm-trait-grant-trait")) $("dm-trait-grant-trait").value = trait.id;
@@ -358,7 +386,7 @@
 
   async function saveDefinition(input) {
     if (!state.db) throw new Error("Trait Library no está conectada a Firebase.");
-    const validation = engine.validateTrait(input);
+    const validation = validateDefinitionForPersistence(input);
     if (!validation.valid) throw new Error(validation.errors.join(" · "));
     const trait = validation.trait;
     const previous = state.definitions[trait.id];
@@ -371,6 +399,11 @@
 
   async function deleteTrait(traitId, name) {
     if (!state.db || !traitId) return;
+    const keyValidation = validateFirebaseKey(traitId);
+    if (!keyValidation.valid) {
+      setFeedback(`No se puede construir una ruta Firebase segura para el Trait '${traitId}'.`, "error");
+      return;
+    }
     const related = Object.entries(state.grants).filter(([, grant]) => normalizeId(grant?.traitId) === traitId);
     if (!global.confirm?.(`¿Eliminar ${name || traitId}?${related.length ? ` También se quitarán ${related.length} grants.` : ""}`)) return;
     const updates = { [`definitions/${traitId}`]: null };
