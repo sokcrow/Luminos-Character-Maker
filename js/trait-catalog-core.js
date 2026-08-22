@@ -2,7 +2,7 @@
   "use strict";
 
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const CATALOG_VERSION = 2;
+  const CATALOG_VERSION = 3;
 
   const RULE_TYPES = Object.freeze([
     "modifier",
@@ -19,6 +19,23 @@
   ]);
   const RULE_TARGETS = Object.freeze(["self", "target"]);
   const RULE_SCOPES = Object.freeze(["immediate", "once_per_turn", "once_per_skill", "next_skill", "encounter", "long_rest", "permanent"]);
+  const MODIFIER_CHANNELS = Object.freeze([
+    "damage_dealt_multiplier",
+    "damage_taken_multiplier",
+    "healing_multiplier",
+    "final_power",
+    "base_power",
+    "defense_power",
+    "clash_power",
+    "offensive_level",
+    "defensive_level",
+    "speed",
+    "min_speed",
+    "max_speed",
+    "resource",
+    "coin_power",
+    "crit_damage_multiplier",
+  ]);
 
   function deepFreeze(value, seen = new WeakSet()) {
     if (!value || typeof value !== "object" || seen.has(value)) return value;
@@ -44,11 +61,10 @@
           type: "modifier",
           trigger: "passive",
           target: "self",
-          path: "defensiveLevel",
+          channel: "defensive_level",
           mode: "add",
           formula: "ConstitutionMod",
-          scope: "permanent",
-          conditions: [{ path: "self.hasArmor", operator: "falsy" }],
+          conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
         {
           type: "modifier",
@@ -58,9 +74,17 @@
           mode: "add",
           formula: "Level",
           duration: "encounter",
-          conditions: [{ path: "self.hasArmor", operator: "falsy" }],
+          conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
-        { type: "stagger_threshold", trigger: "passive", target: "self", action: "remove", count: 1, scope: "permanent" },
+        {
+          type: "stagger_threshold",
+          trigger: "passive",
+          target: "self",
+          action: "remove",
+          count: 1,
+          scope: "permanent",
+          conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
+        },
       ],
     },
 
@@ -68,13 +92,13 @@
       schemaVersion: 1,
       id: "rage",
       name: "Rage",
-      description: "Spend a Quick Action to gain Rage. Uses scale with Barbarian ClassLevel and reset on Long Rest.",
+      description: "Spend a Quick Action to gain Rage. Uses scale with Barbarian ClassLevel, are always at least 1, and reset on Long Rest.",
       source: classSource,
       contexts: ["combat"],
       activation: {
         type: "manual",
         actionCost: "quick_action",
-        uses: { formula: "floor(ClassLevel / 7)", reset: "long_rest" },
+        uses: { formula: "max(1, floor(ClassLevel / 7))", reset: "long_rest" },
         conditions: [{ statusId: "rage", operator: "falsy" }],
       },
       effects: [{
@@ -85,12 +109,49 @@
         operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
       }],
       rules: [
-        { type: "modifier", trigger: "damage_taken", target: "self", path: "damageTakenPercent", mode: "multiply", value: 0.5, damageTypes: ["Slash", "Pierce", "Blunt"], whileStatus: "rage" },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "damage_taken_multiplier",
+          mode: "add",
+          value: 50,
+          unit: "percent_reduction",
+          whileStatus: "rage",
+          conditions: [{ any: [
+            { path: "skill.attackType", operator: "in", value: ["Slash", "Pierce", "Blunt"] },
+            { path: "skill.damageType", operator: "in", value: ["Slash", "Pierce", "Blunt"] },
+          ] }],
+        },
         { type: "restriction", trigger: "passive", target: "self", restriction: "spell_skills", whileStatus: "rage" },
         { type: "resource", trigger: "turn_end", target: "self", resourceId: "sp", mode: "lose", value: 5, whileStatus: "rage" },
-        { type: "modifier", trigger: "damage_dealt", target: "self", path: "damagePercent", mode: "add", formula: "OffensiveLevel", whileStatus: "rage" },
-        { type: "resource", trigger: "skill_resource_gain", target: "self", resourceId: "wrath", mode: "gain", value: 1, whileStatus: "rage", conditions: [{ path: "skill.affinity", operator: "eq", value: "Wrath" }] },
-        { type: "modifier", trigger: "before_skill", target: "self", path: "skill.finalPower", mode: "add", formula: "floor(OffensiveLevel / 30)", whileStatus: "rage", conditions: [{ path: "skill.affinity", operator: "eq", value: "Wrath" }] },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "damage_dealt_multiplier",
+          mode: "add",
+          formula: "OffensiveLevel",
+          unit: "percent",
+          whileStatus: "rage",
+        },
+        { type: "resource", trigger: "skill_resource_gain", target: "self", resourceId: "wrath", mode: "gain", value: 1, whileStatus: "rage", conditions: [{ any: [
+          { path: "skill.affinity", operator: "eq", value: "Wrath" },
+          { path: "skill.sinAffinity", operator: "eq", value: "Wrath" },
+        ] }] },
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          channel: "final_power",
+          mode: "add",
+          formula: "floor(OffensiveLevel / 30)",
+          whileStatus: "rage",
+          conditions: [{ any: [
+            { path: "skill.affinity", operator: "eq", value: "Wrath" },
+            { path: "skill.sinAffinity", operator: "eq", value: "Wrath" },
+          ] }],
+        },
       ],
     },
 
@@ -142,7 +203,7 @@
       schemaVersion: 1,
       id: "additional_attack",
       name: "Additional Attack",
-      description: "Melee Skills with 2 or 3 Coins reuse the Skill's last Coin once per Skill.",
+      description: "Melee Attack Skills with 2 or 3 Coins reuse the Skill's last Coin once per Skill.",
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
@@ -155,7 +216,13 @@
         count: 1,
         scope: "once_per_skill",
         conditions: [
-          { path: "skill.isMelee", operator: "truthy" },
+          { any: [
+            { all: [
+              { path: "skill.skillFamily", operator: "eq", value: "attack" },
+              { path: "skill.attackMode", operator: "eq", value: "melee" },
+            ] },
+            { path: "skill.isMelee", operator: "truthy" },
+          ] },
           { path: "skill.coinAmount", operator: "between", value: 2, max: 3 },
         ],
       }],
@@ -170,7 +237,7 @@
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
       effects: [],
-      rules: [{ type: "modifier", trigger: "passive", target: "self", path: "minSpeed", mode: "add", value: 1, scope: "permanent" }],
+      rules: [{ type: "modifier", trigger: "passive", target: "self", channel: "min_speed", mode: "add", value: 1 }],
     },
 
     wild_instincts: {
@@ -186,7 +253,7 @@
         contexts: ["combat"],
         trigger: "encounter_start",
         conditions: [],
-        operations: [{ type: "apply_status", statusId: "haste", potency: { formula: "StrengthMod" }, duration: "encounter" }],
+        operations: [{ type: "apply_status", statusId: "haste", count: { formula: "StrengthMod" }, duration: "encounter" }],
       }],
       rules: [
         { type: "speed_override", trigger: "passive", target: "self", action: "ignore_halving", whileStatus: "surprised" },
@@ -202,7 +269,15 @@
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
       effects: [],
-      rules: [{ type: "modifier", trigger: "on_crit", target: "self", path: "critDamagePercent", mode: "add", formula: "floor(OffensiveLevel / 2)" }],
+      rules: [{
+        type: "modifier",
+        trigger: "passive",
+        target: "self",
+        channel: "crit_damage_multiplier",
+        mode: "add",
+        formula: "floor(OffensiveLevel / 2)",
+        unit: "percent",
+      }],
     },
 
     unstoppable_rage: {
@@ -253,12 +328,25 @@
       schemaVersion: 1,
       id: "unstoppable_strength",
       name: "Unstoppable Strength",
-      description: "On a failed Coin in a Strength Check, re-toss the last Coin floor(STR Mod / 2) times.",
+      description: "On a failed Coin in a Strength or Athletics Check, re-toss the last failed Coin floor(STR Mod / 2) times.",
       source: classSource,
       contexts: ["theatre"],
       activation: { type: "passive", actionCost: "none" },
       effects: [],
-      rules: [{ type: "coin", trigger: "check_coin_fail", action: "retoss_last", target: "self", formula: "floor(StrengthMod / 2)", conditions: [{ path: "check.abilityId", operator: "eq", value: "str" }] }],
+      rules: [{
+        type: "coin",
+        trigger: "check_coin_fail",
+        action: "retoss_last",
+        target: "self",
+        formula: "floor(StrengthMod / 2)",
+        conditions: [
+          { path: "check.abilityId", operator: "eq", value: "str" },
+          { any: [
+            { path: "check.kind", operator: "in", value: ["ability", "skill"] },
+            { path: "check.kind", operator: "falsy" },
+          ] },
+        ],
+      }],
     },
 
     primordial_champion: {
@@ -353,6 +441,8 @@
     sourceId: "barbarian",
     atLevel: level,
     traitId,
+    grantType: "trait",
+    multiclassPolicy: "allowed",
   });
 
   const GRANTS = deepFreeze([
@@ -388,6 +478,7 @@
       if (!RULE_TYPES.includes(rule?.type)) errors.push(`${label}: unsupported rule type ${rule?.type || "<missing>"}.`);
       if (rule?.target && !RULE_TARGETS.includes(rule.target)) errors.push(`${label}: unsupported target ${rule.target}.`);
       if (rule?.scope && !RULE_SCOPES.includes(rule.scope)) errors.push(`${label}: unsupported scope ${rule.scope}.`);
+      if (rule?.type === "modifier" && rule.channel && !MODIFIER_CHANNELS.includes(rule.channel)) errors.push(`${label}: unsupported modifier channel ${rule.channel}.`);
       if (rule?.type === "status" && !rule.statusId) errors.push(`${label}: status rule requires statusId.`);
       if (rule?.type === "status" && rule.action === "gain" && rule.target !== "self") errors.push(`${label}: Gain must target self.`);
       if (rule?.type === "status" && rule.action === "inflict" && rule.target !== "target") errors.push(`${label}: Inflict must target target.`);
@@ -435,6 +526,7 @@
       const identity = `${grant.sourceType}:${grant.sourceId}:${grant.traitId}:${grant.sourceType === "class" ? grant.atLevel : 0}`;
       if (seenIdentities.has(identity)) errors.push(`Duplicate core grant identity: ${identity}`);
       seenIdentities.add(identity);
+      if (grant.sourceType === "class" && !["allowed", "starting_class_only"].includes(grant.multiclassPolicy || "allowed")) errors.push(`${grant.id}: invalid multiclassPolicy.`);
     });
 
     return { valid: !errors.length, errors, warnings };
@@ -445,6 +537,7 @@
     RULE_TYPES,
     RULE_TARGETS,
     RULE_SCOPES,
+    MODIFIER_CHANNELS,
     DEFINITIONS,
     GRANTS,
     allDefinitions,
@@ -456,4 +549,12 @@
 
   global.LuminousTraitCatalogCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
+
+  if (typeof document !== "undefined" && !global.LuminousTraitStandardizationRuntime && !document.getElementById("trait-standardization-runtime-script")) {
+    const script = document.createElement("script");
+    script.id = "trait-standardization-runtime-script";
+    script.src = "js/trait-standardization-runtime.js";
+    script.async = false;
+    document.head?.appendChild(script);
+  }
 })(typeof window !== "undefined" ? window : globalThis);
