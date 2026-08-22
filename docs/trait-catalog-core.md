@@ -10,6 +10,8 @@ Every entry is declarative and follows the same rule shape:
 
 Definitions and progression Grants are separate. No Trait is implemented with `if (traitId === ...)` inside Theatre or Combat.
 
+The exported canonical `DEFINITIONS` and `GRANTS` graphs are recursively frozen. Consumers that need editable values must use `getDefinition()`, `allDefinitions()` or `allGrants()`, which return copies.
+
 ## Programmed definitions
 
 ### Danger Senses
@@ -71,15 +73,17 @@ The DM can assign those Definitions through the normal Grant UI after their inte
 
 `js/dm-trait-catalog-importer.js` imports the catalog into `campaña/config/traits`.
 
-Before planning writes it reads fresh Firebase snapshots for both `definitions` and `grants`. It does not depend on the Trait Library UI having received its asynchronous initial listeners, preventing an early click from treating an existing library as empty.
+Import uses one Firebase Realtime Database transaction at `campaña/config/traits`. The transaction callback rebuilds the import plan from the current transaction state every time Firebase invokes or retries it. This makes the absence check and write atomic: if another DM creates or edits a Trait/Grant during import, Firebase retries against that newer state before the catalog can commit.
 
 The importer:
 
-- does not overwrite an existing Definition with the same ID;
-- deduplicates Grants by semantic identity;
+- never replaces an existing Definition with the same ID;
+- preserves unrelated data under the Traits root;
+- deduplicates Grants by semantic identity, including Grants stored under arbitrary push IDs;
 - uses deterministic IDs for catalog Grants;
-- writes through one multi-path update;
-- is idempotent.
+- adds missing Definitions and Grants inside the same root transaction;
+- is idempotent;
+- aborts cleanly when there is nothing to add.
 
 ## Tests
 
@@ -92,14 +96,17 @@ The importer:
 - Devil Trigger resource consumption and threshold behavior;
 - confirmed Lineage Grant resolution;
 - absence of guessed Class acquisition Grants;
-- immutable access through catalog copy helpers.
+- copy-based mutable accessors;
+- recursive immutability of exported canonical Definitions and Grants.
 
 `tests/dm_trait_catalog_importer.spec.js` covers:
 
 - import planning for an empty library;
 - no overwrite of DM-custom Definitions;
 - semantic Grant deduplication;
-- fresh Firebase snapshot reads before planning;
+- atomic mutation preserving custom concurrent state;
+- simulated Firebase transaction retry after a concurrent DM write;
+- preservation of unrelated data under the Traits root;
 - Firebase-safe deterministic Grant IDs;
 - DM loader ordering contract.
 
