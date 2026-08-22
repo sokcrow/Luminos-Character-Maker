@@ -5,6 +5,8 @@
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
   const catalog = global.LuminousTraitCatalogCore || (typeof require === "function" ? require("./trait-catalog-core.js") : null);
   const TRAITS_ROOT = "campaña/config/traits";
+  const DEFINITIONS_ROOT = `${TRAITS_ROOT}/definitions`;
+  const GRANTS_ROOT = `${TRAITS_ROOT}/grants`;
 
   function grantIdentity(grant = {}) {
     const type = engine?.normalizeId ? engine.normalizeId(grant.sourceType || grant.source?.type) : String(grant.sourceType || "").trim().toLowerCase();
@@ -63,8 +65,27 @@
     };
   }
 
+  async function readPersistedTraitState(database) {
+    if (!database?.ref) throw new Error("Firebase database is not available.");
+    const [definitionsSnapshot, grantsSnapshot] = await Promise.all([
+      database.ref(DEFINITIONS_ROOT).once("value"),
+      database.ref(GRANTS_ROOT).once("value"),
+    ]);
+    const definitions = definitionsSnapshot?.val?.() || {};
+    const rawGrants = grantsSnapshot?.val?.() || {};
+    const grants = Object.entries(rawGrants).map(([id, grant]) => ({ id, ...(grant || {}) }));
+    return { definitions, grants };
+  }
+
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { TRAITS_ROOT, grantIdentity, buildImportPlan };
+    module.exports = {
+      TRAITS_ROOT,
+      DEFINITIONS_ROOT,
+      GRANTS_ROOT,
+      grantIdentity,
+      buildImportPlan,
+      readPersistedTraitState,
+    };
   }
 
   if (!doc || !engine || !catalog || global.LuminousTraitCatalogImporter) return;
@@ -92,9 +113,14 @@
     const catalogValidation = catalog.validateAll(engine);
     if (!catalogValidation.valid) throw new Error(catalogValidation.errors.join(" · "));
 
+    // Read Firebase directly at click time. The Trait Library UI listeners are
+    // asynchronous and may not have delivered their initial snapshots yet.
+    // Import planning must never assume an empty library from stale UI state.
+    const database = global.firebase.database();
+    const persisted = await readPersistedTraitState(database);
     const plan = buildImportPlan(
-      lib.getDefinitions?.() || {},
-      lib.getGrants?.() || [],
+      persisted.definitions,
+      persisted.grants,
       {
         validateDefinitionForPersistence: lib.validateDefinitionForPersistence,
         validateGrant: lib.validateGrant,
@@ -117,7 +143,7 @@
       updates[`grants/${id}`] = { ...grant, createdAt: stamp, updatedAt: stamp, catalogVersion: catalog.CATALOG_VERSION };
     });
 
-    await global.firebase.database().ref(TRAITS_ROOT).update(updates);
+    await database.ref(TRAITS_ROOT).update(updates);
     feedback(`Catálogo base importado: ${plan.definitionWrites.length} Traits · ${plan.grantWrites.length} Grants.`, "success");
     return plan;
   }
@@ -161,8 +187,11 @@
 
   global.LuminousTraitCatalogImporter = Object.freeze({
     TRAITS_ROOT,
+    DEFINITIONS_ROOT,
+    GRANTS_ROOT,
     grantIdentity,
     buildImportPlan,
+    readPersistedTraitState,
     importCatalog,
     mountButton,
   });
