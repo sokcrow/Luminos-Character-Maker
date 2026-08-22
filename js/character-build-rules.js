@@ -56,6 +56,7 @@
       { id: "mephistopheles", name: "Mefistófeles", hpCoefBonus: 0.00, defMod: 0 },
       { id: "zariel", name: "Zariel", hpCoefBonus: 0.00, defMod: 0 },
     ] },
+    { id: "half_demon", name: "Half-Demon", hpCoefBonus: 0.06, defMod: 0, tags: ["organic", "humanoid", "demonic"] },
     { id: "warforged", name: "Warforged", hpCoefBonus: 0.12, defMod: 1, tags: ["construct", "sapient", "mechanical"], subtypes: [
       { id: "envoy", name: "Envoy", hpCoefBonus: 0.00, defMod: 0 },
       { id: "juggernaut", name: "Juggernaut", hpCoefBonus: 0.04, defMod: 0 },
