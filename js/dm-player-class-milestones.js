@@ -65,10 +65,11 @@
   function generalTraitDefinitions() {
     const api = engine();
     if (!api) return [];
+    const selected = new Set(api.selectedGeneralTraitIds(state.player || {}));
     return Object.entries(state.definitions || {})
       .filter(([, definition]) => api.isGeneralTraitDefinition(definition))
       .map(([id, definition]) => ({ id: normalizeId(definition?.id || id), name: definition?.name || definition?.id || id, definition }))
-      .filter((entry) => entry.id)
+      .filter((entry) => entry.id && !selected.has(entry.id))
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "es"));
   }
 
@@ -140,7 +141,7 @@
     const select = element("select", "dm-player-milestone-trait");
     const traits = generalTraitDefinitions();
     if (!traits.length) {
-      const option = element("option", "", "— No hay Traits Generales definidos —");
+      const option = element("option", "", "— No hay Traits Generales disponibles —");
       option.value = "";
       select.appendChild(option);
       select.disabled = true;
@@ -227,21 +228,27 @@
   async function applyMilestone(row, button) {
     const api = engine();
     if (!api || !state.db || !state.playerId) return;
+    const submittedPlayerId = state.playerId;
     const classId = normalizeId(row.dataset.classId);
     const milestoneLevel = Number.parseInt(row.dataset.milestoneLevel, 10);
     const proposed = rowChoice(row);
 
     if (proposed.type === "trait") {
-      const definition = state.definitions?.[normalizeId(proposed.traitId)];
+      const traitId = normalizeId(proposed.traitId);
+      const definition = state.definitions?.[traitId];
       if (!definition || !api.isGeneralTraitDefinition(definition)) {
         setFeedback("Ese Trait no pertenece a la categoría General.", "error");
+        return;
+      }
+      if (api.selectedGeneralTraitIds(state.player || {}).includes(traitId)) {
+        setFeedback("Ese Trait General ya fue elegido en otro milestone.", "error");
         return;
       }
     }
 
     button.disabled = true;
     setFeedback("APLICANDO MILESTONE...", "pending");
-    const playerRef = state.db.ref(`${PLAYER_ROOT}/${state.playerId}`);
+    const playerRef = state.db.ref(`${PLAYER_ROOT}/${submittedPlayerId}`);
     let abortReason = "No se pudo aplicar el milestone.";
     let resultingStats = null;
 
@@ -274,6 +281,14 @@
           return;
         }
 
+        if (validation.choice.type === "trait") {
+          const traitId = normalizeId(validation.choice.traitId);
+          if (api.selectedGeneralTraitIds(current).includes(traitId)) {
+            abortReason = "Ese Trait General ya fue elegido en otro milestone.";
+            return;
+          }
+        }
+
         if (validation.choice.type === "stats") {
           const applied = api.applyStatAllocation(current.stats || {}, validation.choice.allocation);
           if (!applied.valid) {
@@ -297,23 +312,26 @@
         return current;
       });
 
+      const samePlayer = state.playerId === submittedPlayerId;
       if (!result.committed) {
-        setFeedback(abortReason, "error");
-        render();
+        if (samePlayer) {
+          setFeedback(abortReason, "error");
+          render();
+        }
         return;
       }
 
-      if (resultingStats) {
+      if (resultingStats && samePlayer) {
         STAT_OPTIONS.forEach((stat) => {
           const input = $(`dm-player-stat-${stat.code.toLowerCase()}`);
           if (input && Number.isFinite(Number(resultingStats[stat.key]))) input.value = String(resultingStats[stat.key]);
         });
         global.LuminousDmPlayerDndStudio?.updatePreviewFromForm?.();
       }
-      setFeedback("MILESTONE APLICADO Y GUARDADO.", "success");
+      if (samePlayer) setFeedback("MILESTONE APLICADO Y GUARDADO.", "success");
     } catch (error) {
       console.error("No se pudo aplicar Class Milestone:", error);
-      setFeedback("ERROR AL GUARDAR EL MILESTONE.", "error");
+      if (state.playerId === submittedPlayerId) setFeedback("ERROR AL GUARDAR EL MILESTONE.", "error");
     } finally {
       button.disabled = false;
     }
