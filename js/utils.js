@@ -113,6 +113,26 @@ function ensureDmPlayerDndStudioAssets(doc) {
     return { link, guard, script };
 }
 
+function ensureDmTraitLibraryAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('#dashboard-jugadores') || !documentRef?.querySelector?.('.dm-tabs-nav')) return null;
+
+    const link = ensureStyleAsset(documentRef, 'dm-trait-library-stylesheet', 'css/dm-trait-library-studio.css', { ui: 'dm-trait-library' });
+    const ensureStudio = () => ensureScriptAsset(documentRef, 'dm-trait-library-script', 'js/dm-trait-library-studio.js', { ui: 'dm-trait-library' });
+    let engine = documentRef.getElementById('trait-engine-script');
+
+    if (!engine) {
+        engine = ensureScriptAsset(documentRef, 'trait-engine-script', 'js/trait-engine.js', { engine: 'trait-engine' });
+        engine.addEventListener('load', ensureStudio, { once: true });
+    } else if (typeof window !== 'undefined' && window.LuminousTraitEngine) {
+        ensureStudio();
+    } else {
+        engine.addEventListener('load', ensureStudio, { once: true });
+    }
+
+    return { link, engine };
+}
+
 function ensurePlayerSplashFramingAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     const isPlayer = documentRef?.querySelector?.('.sheet-phone-wrapper');
@@ -238,6 +258,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerUxPolishAssets(document);
     ensurePlayerStatsAbilityBarAssets(document);
     ensureDmPlayerDndStudioAssets(document);
+    ensureDmTraitLibraryAssets(document);
     ensurePlayerSplashFramingAssets(document);
     ensureTheatreModernIdentityHotfix(document);
     ensureWeatherSystemAssets(document);
@@ -254,6 +275,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerUxPolishAssets,
         ensurePlayerStatsAbilityBarAssets,
         ensureDmPlayerDndStudioAssets,
+        ensureDmTraitLibraryAssets,
         ensurePlayerSplashFramingAssets,
         ensureTheatreModernIdentityHotfix,
         ensureWeatherSystemAssets,

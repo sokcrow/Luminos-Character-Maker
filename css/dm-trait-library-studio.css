@@ -1,0 +1,289 @@
+.dm-trait-studio-panel {
+  border-color: #c49a00;
+  box-shadow: 0 0 18px rgba(196, 154, 0, 0.2);
+}
+
+.dm-trait-studio-header,
+.dm-trait-toolbar,
+.dm-trait-subnav,
+.dm-trait-card header,
+.dm-trait-card footer,
+.dm-trait-grant-row,
+.dm-trait-builder-shell > header,
+.dm-trait-builder-shell > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dm-trait-studio-header > div:first-child span,
+.dm-trait-builder-shell > header span {
+  display: block;
+  color: #888;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dm-trait-studio-header h3 {
+  margin: 2px 0 0;
+  color: #c49a00;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.dm-trait-subnav {
+  justify-content: flex-start;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+
+.dm-trait-subnav button,
+.dm-trait-card button,
+.dm-trait-grant-row button,
+.dm-trait-builder-shell button {
+  background: #111;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+
+.dm-trait-subnav button.active,
+.dm-trait-card button:hover,
+.dm-trait-grant-row button:hover,
+.dm-trait-builder-shell button:hover {
+  border-color: #c49a00;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(196, 154, 0, 0.3);
+}
+
+.dm-trait-card button.danger {
+  border-color: #6e2424;
+  color: #ff8585;
+}
+
+.dm-trait-feedback {
+  min-height: 22px;
+  padding: 6px 0;
+  color: #aaa;
+}
+
+.dm-trait-feedback[data-kind="success"] { color: #75d28a; }
+.dm-trait-feedback[data-kind="error"] { color: #ff7777; }
+
+.dm-trait-toolbar {
+  margin-bottom: 14px;
+}
+
+.dm-trait-toolbar input {
+  flex: 1;
+  min-width: 260px;
+  padding: 10px;
+  background: #080808;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+.dm-trait-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.dm-trait-card,
+.dm-trait-grant-editor,
+.dm-trait-grants-column {
+  background: #0b0b0b;
+  border: 1px solid #3b3b3b;
+  padding: 14px;
+}
+
+.dm-trait-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 210px;
+}
+
+.dm-trait-card header > div {
+  min-width: 0;
+}
+
+.dm-trait-card header strong,
+.dm-trait-card header small {
+  display: block;
+}
+
+.dm-trait-card header strong {
+  color: #fff;
+  font-size: 17px;
+}
+
+.dm-trait-card header small {
+  color: #777;
+  margin-top: 3px;
+}
+
+.dm-trait-card p {
+  color: #bbb;
+  line-height: 1.45;
+  margin: 0;
+  flex: 1;
+}
+
+.dm-trait-card-meta {
+  display: grid;
+  gap: 4px;
+  color: #9b9b9b;
+  font-size: 12px;
+}
+
+.dm-trait-validity {
+  border: 1px solid #555;
+  padding: 4px 7px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.dm-trait-validity.is-valid { color: #79ce8c; border-color: #356443; }
+.dm-trait-validity.is-invalid { color: #ff7777; border-color: #6e2424; }
+
+#dm-trait-grants-view {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.7fr) minmax(380px, 1.3fr);
+  gap: 16px;
+}
+
+#dm-trait-grants-view[hidden] { display: none !important; }
+
+.dm-trait-grant-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: start;
+}
+
+.dm-trait-grant-editor h4 {
+  margin: 0 0 4px;
+  color: #c49a00;
+}
+
+.dm-trait-grant-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #999;
+  font-size: 12px;
+}
+
+.dm-trait-grant-editor select,
+.dm-trait-grant-editor input {
+  background: #080808;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 9px;
+}
+
+.dm-trait-grant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dm-trait-grant-row {
+  background: #111;
+  border-left: 3px solid #c49a00;
+  padding: 10px 12px;
+}
+
+.dm-trait-grant-row strong,
+.dm-trait-grant-row span {
+  display: block;
+}
+
+.dm-trait-grant-row span {
+  color: #888;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.dm-trait-empty {
+  color: #777;
+  border: 1px dashed #444;
+  padding: 18px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.dm-trait-builder-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(0, 0, 0, 0.88);
+  padding: 3vh 3vw;
+}
+
+.dm-trait-builder-modal[hidden] { display: none !important; }
+
+.dm-trait-builder-shell {
+  width: min(1500px, 94vw);
+  height: 94vh;
+  margin: 0 auto;
+  background: #090909;
+  border: 1px solid #c49a00;
+  box-shadow: 0 0 25px rgba(196, 154, 0, 0.25);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.dm-trait-builder-shell > header,
+.dm-trait-builder-shell > footer {
+  padding: 10px 14px;
+  background: #101010;
+}
+
+.dm-trait-builder-shell > header {
+  border-bottom: 1px solid #333;
+}
+
+.dm-trait-builder-shell > footer {
+  border-top: 1px solid #333;
+}
+
+.dm-trait-builder-shell > header strong {
+  color: #c49a00;
+}
+
+#dm-trait-builder-close {
+  font-size: 22px;
+  padding: 4px 10px;
+  color: #ff7777;
+}
+
+#dm-trait-builder-save {
+  border-color: #c49a00;
+  color: #c49a00;
+}
+
+#dm-trait-builder-feedback {
+  color: #aaa;
+  font-size: 12px;
+}
+
+#dm-trait-builder-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #080808;
+}
+
+@media (max-width: 850px) {
+  #dm-trait-grants-view { grid-template-columns: 1fr; }
+  .dm-trait-studio-header,
+  .dm-trait-toolbar { align-items: stretch; flex-direction: column; }
+}
