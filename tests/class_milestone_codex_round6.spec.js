@@ -29,6 +29,7 @@ test("Theatre overrides are merged before before_check traits dispatch", () => {
   expect(source).toContain("const merged = { ...(check || {}), ...(runtimeInput?.check || {}) };");
   expect(source).toContain("const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);");
   expect(source).toContain("check: preparedCheck");
+  expect(source).toContain("result.check.thresholdRaw = Number(result.check.difficulty);");
   expect(source).not.toContain("Object.assign(result.check, runtimeInput?.check || {})");
 });
 
@@ -41,6 +42,7 @@ test("Theatre lifecycle bridge applies passive traits on the real player roll pa
   expect(source).toContain("skillId: target.dataset?.skillId || null");
   expect(source).toContain("const resolved = resolveTheatreCheck(enrichedCheck);");
   expect(source).toContain("originalArmCheck(resolved.check);");
+  expect(source).toContain("state.theatreArmedCheck = null;");
 });
 
 test("combat lifecycle dispatches automatic Trait triggers", () => {
