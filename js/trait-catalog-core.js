@@ -115,21 +115,10 @@
     }),
   });
 
+  // Grants are progression data, not mechanical definitions. Only keep a Grant
+  // when its source requires no guessed class level. Class acquisition levels
+  // remain DM-authored until the original progression is explicitly confirmed.
   const GRANTS = Object.freeze([
-    Object.freeze({
-      id: "core_class_barbarian_2_danger_senses",
-      sourceType: "class",
-      sourceId: "barbarian",
-      atLevel: 2,
-      traitId: "danger_senses",
-    }),
-    Object.freeze({
-      id: "core_class_barbarian_2_rage",
-      sourceType: "class",
-      sourceId: "barbarian",
-      atLevel: 2,
-      traitId: "rage",
-    }),
     Object.freeze({
       id: "core_lineage_devil_lineage_devil_body",
       sourceType: "lineage",
