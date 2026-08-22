@@ -16,13 +16,16 @@ test("stat milestones preserve unsaved form values instead of replacing all six 
   expect(source).not.toContain("STAT_OPTIONS.forEach((stat) => {\n          const input = $(`dm-player-stat-${stat.code.toLowerCase()}`);\n          if (input && Number.isFinite(Number(resultingStats[stat.key]))) input.value = String(resultingStats[stat.key]);");
 });
 
-test("allocated stat reflection merges unsaved edits and keeps the stat cap", () => {
+test("allocated stat reflection reconciles local edits without double-applying Firebase results", () => {
   const source = read("js/dm-player-class-milestones.js");
 
   expect(source).toContain("const changedBeforeSubmit = Number.isFinite(submittedValue) && submittedValue !== savedValue;");
   expect(source).toContain("const changedDuringApply = String(input.value) !== submittedRawStats[statKey];");
-  expect(source).toContain("if (changedBeforeSubmit || changedDuringApply)");
-  expect(source).toContain("const mergedValue = currentValue + Number(amount);");
+  expect(source).toContain("const alreadyReflectedByFirebase = !changedBeforeSubmit && Number.isFinite(committedValue) && currentValue === committedValue;");
+  expect(source).toContain("if (alreadyReflectedByFirebase) return;");
+  expect(source).toContain("if (changedBeforeSubmit)");
+  expect(source).toContain("const mergedValue = submittedValue + Number(amount);");
   expect(source).toContain("mergedValue > api.MAX_STAT");
-  expect(source).toContain("no se sobrescribió; revisa el valor antes de guardar el formulario");
+  expect(source).toContain("if (changedDuringApply)");
+  expect(source).toContain("se conservó tu edición actual");
 });
