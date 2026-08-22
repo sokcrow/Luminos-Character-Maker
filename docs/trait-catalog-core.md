@@ -19,7 +19,8 @@ Definitions and progression Grants are separate. No Trait is implemented with `i
 - Trigger: `before_check`
 - Condition: `check.abilityId === "dex"`
 - Operation: `check.difficulty += -4`
-- Core Grant: Barbarian level 2
+- Source metadata: Barbarian
+- No acquisition level is hardcoded until the original class progression is explicitly confirmed.
 
 ### Green Eyed Heir
 
@@ -39,7 +40,8 @@ Definitions and progression Grants are separate. No Trait is implemented with `i
 - Reset: Long Rest
 - Activation condition: Rage Status is absent
 - On Use: apply `rage` Status until removed
-- Core Grant: Barbarian level 2
+- Source metadata: Barbarian
+- No acquisition level is hardcoded until the original class progression is explicitly confirmed.
 
 ### Devil Body
 
@@ -47,7 +49,8 @@ Definitions and progression Grants are separate. No Trait is implemented with `i
 - Activation: Automatic
 - Trigger: `turn_start`
 - Operation: heal HP by `floor(DefensiveLevel / 2)` capped by Max HP
-- Core Grant: `devil_lineage`
+- Confirmed source: `devil_lineage`
+- Core Grant: `devil_lineage -> devil_body`
 
 ### Devil Trigger
 
@@ -58,9 +61,25 @@ Definitions and progression Grants are separate. No Trait is implemented with `i
 - Known threshold: if `ConsumedGauge >= 7`, add `OffensiveLevel` to `self.damagePercent`
 - No progression Grant is hardcoded because its exact source/progression was not fixed in the recovered rules.
 
-## Why some Grants are absent
+## Progression rule
 
-The catalog only persists progression that is known. A missing Grant does not mean the Trait is unfinished mechanically; it means Class/Race/Background/Lineage ownership must be assigned through the DM Grant system instead of guessed in source code.
+A Definition can be mechanically complete without a Grant. Grants are only included in the code catalog when ownership/progression is known without guessing. Class acquisition levels that appeared only as examples are deliberately not converted into canonical progression.
+
+The DM can assign those Definitions through the normal Grant UI after their intended Class/Race/Background/Lineage and level are confirmed.
+
+## Safe DM import
+
+`js/dm-trait-catalog-importer.js` imports the catalog into `campaña/config/traits`.
+
+Before planning writes it reads fresh Firebase snapshots for both `definitions` and `grants`. It does not depend on the Trait Library UI having received its asynchronous initial listeners, preventing an early click from treating an existing library as empty.
+
+The importer:
+
+- does not overwrite an existing Definition with the same ID;
+- deduplicates Grants by semantic identity;
+- uses deterministic IDs for catalog Grants;
+- writes through one multi-path update;
+- is idempotent.
 
 ## Tests
 
@@ -71,9 +90,18 @@ The catalog only persists progression that is known. A missing Grant does not me
 - Rage action economy, ClassLevel scaling, Status and reactivation guard;
 - Devil Body healing and HP cap;
 - Devil Trigger resource consumption and threshold behavior;
-- Class and Lineage Grant resolution;
-- level-gated Grants;
+- confirmed Lineage Grant resolution;
+- absence of guessed Class acquisition Grants;
 - immutable access through catalog copy helpers.
+
+`tests/dm_trait_catalog_importer.spec.js` covers:
+
+- import planning for an empty library;
+- no overwrite of DM-custom Definitions;
+- semantic Grant deduplication;
+- fresh Firebase snapshot reads before planning;
+- Firebase-safe deterministic Grant IDs;
+- DM loader ordering contract.
 
 ## Adding another Trait
 
