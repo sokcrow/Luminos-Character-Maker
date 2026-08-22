@@ -8,6 +8,18 @@
   const GRANTS_ROOT = "campaña/config/traits/grants";
   const PLAYER_ROOT = "campaña/jugadores";
   const PLAYER_ID_STORAGE_KEY = "playerId";
+  const COMBAT_EVENT_MAP = Object.freeze({
+    "[Before Use]": { trigger: "before_skill", timing: "before" },
+    "[Before Attack]": { trigger: "before_attack", timing: "before" },
+    "[Before Clash]": { trigger: "before_clash", timing: "before" },
+    "[On Hit]": { trigger: "on_hit", timing: "after" },
+    "[On Crit]": { trigger: "on_crit", timing: "after" },
+    "[On Kill]": { trigger: "on_kill", timing: "after" },
+    "[On Clash Win]": { trigger: "clash_win", timing: "after" },
+    "[On Clash Lose]": { trigger: "clash_lose", timing: "after" },
+    "[On Evade]": { trigger: "on_evade", timing: "after" },
+    "[Attack End]": { trigger: "attack_end", timing: "after" },
+  });
 
   const state = {
     db: null,
@@ -23,9 +35,14 @@
     tray: null,
     host: null,
     dependencyPromise: null,
+    theatreBridgeBound: false,
+    theatreRollsSource: null,
+    theatreArmedCheck: null,
+    combatEngineSource: null,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  const finiteNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 
   function ensureScript(id, src, ready) {
     if (ready?.()) return Promise.resolve();
@@ -234,18 +251,29 @@
     return traitEngine.dispatchTraits(resolveTraits(), trigger, getRuntime(runtimeInput), state.traitState);
   }
 
+  function normalizeTheatreCheckInput(check = {}, runtimeInput = {}) {
+    const merged = { ...(check || {}), ...(runtimeInput?.check || {}) };
+    const threshold = finiteNumber(merged.thresholdRaw ?? merged.threshold);
+    if (merged.difficulty == null && threshold != null) merged.difficulty = threshold;
+    return merged;
+  }
+
   function resolveTheatreCheck(check = {}, runtimeInput = {}) {
     const traitEngine = global.LuminousTraitEngine;
     if (!traitEngine?.resolveTheatreCheck) return null;
     if (!state.traitState) state.traitState = traitEngine.createState();
     const character = getCharacter();
+    const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);
+    const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,
       traits: resolveTraits(),
-      check,
+      check: preparedCheck,
       state: state.traitState,
     });
-    Object.assign(result.check, runtimeInput?.check || {});
+    if (hadThreshold && finiteNumber(result?.check?.difficulty) != null) {
+      result.check.thresholdRaw = Number(result.check.difficulty);
+    }
     return result;
   }
 
@@ -261,14 +289,166 @@
     });
   }
 
+  function identityValues(entity = {}) {
+    return [
+      entity?.id,
+      entity?.playerId,
+      entity?.player_id,
+      entity?.ownerPlayerId,
+      entity?.owner_player_id,
+      entity?.actorId,
+      entity?.actor_id,
+      entity?.characterId,
+      entity?.character_id,
+      entity?.uid,
+      entity?.vinculo_jugador,
+    ].filter((value) => value != null && String(value).trim() !== "").map((value) => String(value).trim());
+  }
+
+  function entityName(entity = {}) {
+    return normalizeId(entity?.characterName || entity?.character_name || entity?.nombre || entity?.name || "");
+  }
+
+  function currentPlayerUnit(units = []) {
+    const list = Array.isArray(units) ? units.filter(Boolean) : [];
+    const character = getCharacter();
+    const byReference = list.find((unit) => unit === character);
+    if (byReference) return byReference;
+
+    const characterIds = new Set([state.playerId, ...identityValues(character)].filter(Boolean).map(String));
+    const byId = list.find((unit) => identityValues(unit).some((value) => characterIds.has(value)));
+    if (byId) return byId;
+
+    const name = entityName(character);
+    if (name) {
+      const matches = list.filter((unit) => entityName(unit) === name);
+      if (matches.length === 1) return matches[0];
+    }
+    return null;
+  }
+
+  function currentCombatUnit() {
+    const source = global.combatData && typeof global.combatData === "object" ? Object.values(global.combatData) : [];
+    return currentPlayerUnit(source) || getCharacter();
+  }
+
+  function combatRuntimeInput(context = {}, targetsHit = []) {
+    const attacker = context?.attacker || context?.unitAttacker || currentCombatUnit();
+    return {
+      context: "combat",
+      self: attacker,
+      attacker,
+      target: context?.defender || context?.unitDefender || targetsHit?.[0] || null,
+      defender: context?.defender || context?.unitDefender || targetsHit?.[0] || null,
+      skill: context?.skill || null,
+      targetsHit: targetsHit || context?.targetsHit || [],
+      currentCoin: context?.currentCoin || null,
+      damageDealt: context?.damageDealt,
+    };
+  }
+
+  function installTheatreBridge() {
+    const rolls = global.LuminousTheatreRolls;
+    if (!rolls?.armCheck) return false;
+    if (state.theatreRollsSource === rolls || rolls.__playerTraitRuntimeIntegrated) return true;
+
+    const originalArmCheck = rolls.armCheck.bind(rolls);
+    const wrapped = Object.freeze({
+      ...rolls,
+      __playerTraitRuntimeIntegrated: true,
+      armCheck(check = {}) {
+        state.theatreArmedCheck = { ...(check || {}) };
+        return originalArmCheck(check);
+      },
+    });
+    global.LuminousTheatreRolls = wrapped;
+    state.theatreRollsSource = wrapped;
+
+    if (!state.theatreBridgeBound) {
+      state.theatreBridgeBound = true;
+      doc.addEventListener("click", (event) => {
+        const target = event.target?.closest?.(".player-dnd-roll");
+        if (!target || !state.theatreArmedCheck) return;
+        const panel = target.closest?.(".player-ability-console") || doc.querySelector("#stats-modal .player-ability-console");
+        const enrichedCheck = {
+          ...state.theatreArmedCheck,
+          kind: target.dataset?.dndRoll || null,
+          abilityId: panel?.dataset?.activeStat || null,
+          skillId: target.dataset?.skillId || null,
+        };
+        const resolved = resolveTheatreCheck(enrichedCheck);
+        if (!resolved?.check) return;
+        state.theatreArmedCheck = { ...resolved.check };
+        originalArmCheck(resolved.check);
+        emit("luminous:theatre-traits-applied", resolved);
+      }, true);
+    }
+    return true;
+  }
+
+  function installCombatBridge() {
+    const engine = global.CombatEngine;
+    if (!engine || engine.__playerTraitRuntimeIntegrated) return Boolean(engine);
+    if (state.combatEngineSource === engine) return true;
+
+    const originalEncounterStart = typeof engine.triggerEncounterStart === "function" ? engine.triggerEncounterStart : null;
+    const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
+    const originalTriggerEvent = typeof engine.triggerEvent === "function" ? engine.triggerEvent : null;
+
+    if (originalEncounterStart) {
+      engine.triggerEncounterStart = function (...args) {
+        const result = originalEncounterStart.apply(this, args);
+        dispatchCombatEvent("encounter_start", { context: "combat", self: currentCombatUnit() });
+        return result;
+      };
+    }
+
+    if (originalTriggerPhase) {
+      engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
+        const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
+        const unit = currentPlayerUnit(allUnits || []);
+        if (unit && phaseTag === "[Round Start]") {
+          dispatchCombatEvent("turn_start", { context: "combat", self: unit, units: allUnits });
+        } else if (unit && phaseTag === "[Round End]") {
+          dispatchCombatEvent("turn_end", { context: "combat", self: unit, units: allUnits });
+        }
+        return result;
+      };
+    }
+
+    if (originalTriggerEvent) {
+      engine.triggerEvent = function (tag, context, targetsHit = []) {
+        const mapping = COMBAT_EVENT_MAP[tag];
+        const attacker = context?.attacker || context?.unitAttacker || null;
+        const activeUnit = currentPlayerUnit(attacker ? [attacker] : []);
+        const traitInput = activeUnit ? combatRuntimeInput(context, targetsHit) : null;
+        if (mapping?.timing === "before" && traitInput) dispatchCombatEvent(mapping.trigger, traitInput);
+        const result = originalTriggerEvent.call(this, tag, context, targetsHit);
+        if (mapping?.timing === "after" && traitInput) dispatchCombatEvent(mapping.trigger, traitInput);
+        return result;
+      };
+    }
+
+    Object.defineProperty(engine, "__playerTraitRuntimeIntegrated", { value: true, configurable: true });
+    state.combatEngineSource = engine;
+    return true;
+  }
+
+  function installLifecycleBridges() {
+    installTheatreBridge();
+    installCombatBridge();
+  }
+
   function bootRuntime() {
     connectFirebase();
     bindPlayer();
     refresh();
+    installLifecycleBridges();
     global.setInterval(() => {
       if (!state.db) connectFirebase();
       bindPlayer();
       mountTray();
+      installLifecycleBridges();
     }, 1000);
   }
 
@@ -279,6 +459,8 @@
     dispatch,
     resolveTheatreCheck,
     dispatchCombatEvent,
+    installTheatreBridge,
+    installCombatBridge,
     refresh,
   });
 
