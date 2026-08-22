@@ -35,7 +35,7 @@ test("core Trait catalog validates every declarative definition and rule contrac
   const validation = catalog.validateAll(engine);
   expect(validation.valid).toBe(true);
   expect(validation.errors).toEqual([]);
-  expect(catalog.CATALOG_VERSION).toBe(2);
+  expect(catalog.CATALOG_VERSION).toBe(3);
   expect(Object.keys(catalog.DEFINITIONS).sort()).toEqual([
     "additional_attack",
     "armorless_defense",
@@ -124,6 +124,21 @@ test("Rage consumes Quick Action, scales uses by Barbarian ClassLevel and blocks
   expect(blocked.reasons.join(" ")).toContain("conditions");
 });
 
+test("Rage is usable at Barbarian level 1 but still has only one use there", () => {
+  const trait = catalog.getDefinition("rage");
+  const levelOne = {
+    ...character,
+    level: 1,
+    classes: [{ classId: "barbarian", levels: 1 }],
+  };
+  const state = engine.createState();
+  const runtime = { context: "combat", character: levelOne, self: {}, actionEconomy: { quick_action: 1 } };
+  const result = engine.activateTrait(trait, runtime, state);
+  expect(result.available).toBe(true);
+  expect(result.maximum).toBe(1);
+  expect(result.remaining).toBe(0);
+});
+
 test("Devil Body heals at Turn Start using DefensiveLevel and respects Max HP", () => {
   const trait = catalog.getDefinition("devil_body");
   const self = { currentHp: 90, maxHp: 100 };
@@ -184,6 +199,7 @@ test("Devil Trigger below threshold consumes gauge without applying threshold bo
 test("Barbarian automatic Grants match the confirmed class progression", () => {
   const grants = catalog.allGrants().filter((grant) => grant.sourceType === "class" && grant.sourceId === "barbarian");
   expect(grants.map((grant) => [grant.atLevel, grant.traitId])).toEqual(BARBARIAN_PROGRESS);
+  expect(grants.every((grant) => grant.multiclassPolicy === "allowed")).toBe(true);
 });
 
 test("Barbarian class Traits resolve automatically by Barbarian ClassLevel", () => {
@@ -251,12 +267,12 @@ test("catalog accessors return copies instead of mutable canonical objects", () 
   const first = catalog.getDefinition("rage");
   first.name = "MUTATED";
   first.effects[0].operations[0].statusId = "other";
-  first.rules[0].path = "other";
+  first.rules[0].channel = "other";
 
   const second = catalog.getDefinition("rage");
   expect(second.name).toBe("Rage");
   expect(second.effects[0].operations[0].statusId).toBe("rage");
-  expect(second.rules[0].path).toBe("damageTakenPercent");
+  expect(second.rules[0].channel).toBe("damage_taken_multiplier");
 });
 
 test("exported canonical definitions and Grants are deeply frozen", () => {
