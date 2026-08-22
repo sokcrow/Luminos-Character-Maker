@@ -93,3 +93,26 @@ test('DM gets a visible alert when pending requests transition from zero to one'
   expect(alert).toContain('abre CHECK DIRECTOR');
   expect(liveSync).toContain('js/theatre-check-dm-alert.js');
 });
+
+test('Firebase Auth lifecycle gates private listeners and exposes actionable errors', () => {
+  const src = read('js/theatre-check-coordinator.js');
+  expect(src).toContain('onAuthStateChanged');
+  expect(src).toContain('bindAuthorizedData');
+  expect(src).toContain('currentUid() !== DM_UID');
+  expect(src).toContain('PERMISSION_DENIED');
+  expect(src).toContain('state.dmRequestsBound = false');
+  expect(src).toContain('state.dmLiveBound = false');
+  expect(src).toContain('state.playerCommandsBound = false');
+  expect(src).not.toContain('No se pudo contactar al Director');
+});
+
+test('listener cancellation stays recoverable after the bootstrap timer has stopped', () => {
+  const instance = read('js/instance-control.js');
+  const watchdog = read('js/theatre-check-retry-watchdog.js');
+  expect(instance).toContain('js/theatre-check-retry-watchdog.js');
+  expect(instance).toContain('theatre-check-retry-watchdog-script');
+  expect(watchdog).toContain('const RETRY_MS = 5000');
+  expect(watchdog).toContain('global.setInterval(retryAuthorizedBindings, RETRY_MS)');
+  expect(watchdog).toContain('coordinator.bindAuthorizedData()');
+  expect(watchdog).toContain('onAuthStateChanged');
+});

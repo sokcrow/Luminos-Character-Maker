@@ -144,7 +144,8 @@
     if (!documentRef?.head || !hasTheatre(documentRef)) return null;
     const link = ensureStyle(documentRef, "theatre-check-coordinator-stylesheet", "css/theatre-check-coordinator.css", "theatre-check-coordinator");
     const script = ensureScript(documentRef, "theatre-check-coordinator-script", "js/theatre-check-coordinator.js", "theatre-check-coordinator");
-    return { link, script };
+    const retry = ensureScript(documentRef, "theatre-check-retry-watchdog-script", "js/theatre-check-retry-watchdog.js", "theatre-check-coordinator");
+    return { link, script, retry };
   }
 
   function ensureTheatreOpposedAssets(doc) {

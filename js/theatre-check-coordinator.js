@@ -48,11 +48,16 @@
     frontObserver: null,
     dmLiveHud: null,
     playerCommandsBound: false,
+    dmPlayersBound: false,
+    dmRequestsBound: false,
+    dmLiveBound: false,
+    authBound: false,
   };
 
   const $ = (id) => doc.getElementById(id);
   const currentUid = () => firebase.auth?.().currentUser?.uid || null;
-  const isDm = () => currentUid() === DM_UID || doc.body?.classList?.contains("on-game-dashboard");
+  const isDmSurface = () => doc.body?.classList?.contains("on-game-dashboard");
+  const isDm = () => currentUid() === DM_UID || isDmSurface();
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const parseSigned = (value) => {
     const match = String(value ?? "").replace(/,/g, "").match(/[+-]?\d+(?:\.\d+)?/);
@@ -62,12 +67,28 @@
   const abilityById = (id) => ABILITIES.find((ability) => ability.id === id) || ABILITIES[0];
   const skillById = (ability, id) => ability?.skills?.find((skill) => skill.id === id) || null;
 
+  function firebaseErrorCode(error) {
+    return String(error?.code || error?.name || "").toLowerCase();
+  }
+
+  function firebaseErrorCopy(error, action = "Operación") {
+    const code = firebaseErrorCode(error);
+    const message = String(error?.message || "").trim();
+    if (code.includes("permission_denied") || code.includes("permission-denied") || message.toLowerCase().includes("permission denied")) {
+      return `${action}: PERMISSION_DENIED · revisa Database Rules y la cuenta autenticada.`;
+    }
+    if (code.includes("network") || message.toLowerCase().includes("network") || message.toLowerCase().includes("offline")) {
+      return `${action}: sin conexión con Firebase.`;
+    }
+    return `${action}: ${message || code || "error desconocido de Firebase"}`;
+  }
+
   function roomKey() {
     return String(doc.body?.dataset?.theatreRoomId || "default").replace(/[.#$\[\]\/]/g, "_") || "default";
   }
 
   function theatreRoot() {
-    if (doc.body?.classList?.contains("on-game-dashboard")) {
+    if (isDmSurface()) {
       return doc.querySelector("#modulo-teatro .stage-view-wrapper") || doc.getElementById("modulo-teatro");
     }
     return doc.getElementById("theatre-view-player");
@@ -169,10 +190,23 @@
     return notice;
   }
 
+  function dmFeedback(title, copy, mode = "error") {
+    const host = $("theatre-check-director") || ensureFrontLayer();
+    if (!host) return null;
+    const feedback = doc.createElement("div");
+    feedback.className = "theatre-check-sent-feedback";
+    feedback.dataset.mode = mode;
+    feedback.textContent = `${title} · ${copy}`;
+    host.appendChild(feedback);
+    global.setTimeout(() => feedback.remove(), mode === "error" ? 6500 : 2600);
+    return feedback;
+  }
+
   async function requestPlayerRoll(target) {
     const identity = playerIdentity();
     const rollSpec = rollSpecFromTarget(target);
-    if (!identity.uid || !rollSpec) return false;
+    if (!identity.uid) throw new Error("AUTH_NOT_READY");
+    if (!rollSpec) throw new Error("ROLL_SPEC_NOT_AVAILABLE");
 
     const requestRef = db.ref(REQUEST_ROOT).push();
     await requestRef.set({
@@ -200,12 +234,15 @@
         requestRef.off("value", listener);
       }
     };
-    requestRef.on("value", listener);
+    requestRef.on("value", listener, (error) => {
+      console.error("Se perdió el listener de la solicitud de Check:", error);
+      playerNotice("ERROR DE COORDINACIÓN", firebaseErrorCopy(error, "Solicitud"), "denied");
+    });
     return true;
   }
 
   function installPlayerRollGate() {
-    if (isDm()) return;
+    if (isDmSurface()) return;
     doc.addEventListener("click", (event) => {
       const target = event.target?.closest?.(".player-dnd-roll");
       if (!target || !playerTheatreActive()) return;
@@ -218,7 +255,11 @@
       event.stopImmediatePropagation();
       requestPlayerRoll(target).catch((error) => {
         console.error("No se pudo solicitar la tirada al DM:", error);
-        playerNotice("ERROR DE SOLICITUD", "No se pudo contactar al Director", "denied");
+        const code = String(error?.message || "");
+        const copy = code === "AUTH_NOT_READY"
+          ? "Firebase Auth todavía no está listo. Espera un momento y vuelve a intentar."
+          : firebaseErrorCopy(error, "Solicitud");
+        playerNotice("ERROR DE SOLICITUD", copy, "denied");
       });
     }, true);
   }
@@ -260,7 +301,7 @@
   }
 
   function mountDmConsole() {
-    if (!isDm()) return false;
+    if (!isDmSurface()) return false;
     const director = $("theatre-director-panel");
     if (!director) return false;
     if ($("theatre-check-director")) return true;
@@ -270,7 +311,7 @@
     panel.className = "theatre-check-director";
     panel.innerHTML = `
       <header class="theatre-check-director-header"><div><strong>CHECK DIRECTOR</strong><span>PLAYER REQUEST / CONTROL</span></div><b id="theatre-check-pending-count">0</b></header>
-      <div id="theatre-check-request-list" class="theatre-check-request-list"><div class="theatre-check-empty">SIN SOLICITUDES PENDIENTES</div></div>
+      <div id="theatre-check-request-list" class="theatre-check-request-list"><div class="theatre-check-empty">ESPERANDO FIREBASE AUTH…</div></div>
       <div class="theatre-check-compose">
         <div class="theatre-check-compose-title"><span id="theatre-check-compose-mode">NUEVO CHECK</span><button id="theatre-check-compose-reset" type="button">LIMPIAR</button></div>
         <div class="theatre-check-compose-grid">
@@ -309,18 +350,23 @@
       });
     });
     $("theatre-check-compose-reset")?.addEventListener("click", resetDmComposer);
-    $("theatre-check-send")?.addEventListener("click", () => issueDmCommand().catch((error) => console.error("No se pudo enviar el Check:", error)));
-    $("theatre-check-deny")?.addEventListener("click", () => denyEditingRequest().catch((error) => console.error("No se pudo rechazar la solicitud:", error)));
+    $("theatre-check-send")?.addEventListener("click", () => issueDmCommand().catch((error) => {
+      console.error("No se pudo enviar el Check:", error);
+      dmFeedback("ERROR AL ENVIAR", firebaseErrorCopy(error, "Check"), "error");
+    }));
+    $("theatre-check-deny")?.addEventListener("click", () => denyEditingRequest().catch((error) => {
+      console.error("No se pudo rechazar la solicitud:", error);
+      dmFeedback("ERROR AL RECHAZAR", firebaseErrorCopy(error, "Solicitud"), "error");
+    }));
 
     syncDmSkillField();
-    bindDmPlayers();
-    bindDmRequests();
-    bindDmLive();
     installDmBadge();
     return true;
   }
 
   function bindDmPlayers() {
+    if (state.dmPlayersBound || currentUid() !== DM_UID) return false;
+    state.dmPlayersBound = true;
     db.ref("campaña/jugadores").on("value", (snapshot) => {
       state.players = snapshot.val() || {};
       const select = $("theatre-check-target-player");
@@ -346,7 +392,12 @@
         select.value = previous;
       }
       refreshDmPreview();
+    }, (error) => {
+      state.dmPlayersBound = false;
+      console.error("No se pudo leer la lista de jugadores:", error);
+      dmFeedback("ERROR FIREBASE", firebaseErrorCopy(error, "Jugadores"), "error");
     });
+    return true;
   }
 
   function installDmBadge() {
@@ -384,6 +435,8 @@
   }
 
   function bindDmRequests() {
+    if (state.dmRequestsBound || currentUid() !== DM_UID) return false;
+    state.dmRequestsBound = true;
     db.ref(REQUEST_ROOT).on("value", (snapshot) => {
       const all = snapshot.val() || {};
       const pending = {};
@@ -391,14 +444,21 @@
         if (request?.status !== "pending" || String(request.roomKey || "default") !== roomKey()) return;
         pending[key] = request;
         if (!state.knownRequestKeys.has(key)) {
-          if (state.knownRequestKeys.size) notifyDm(request);
+          notifyDm(request);
           state.knownRequestKeys.add(key);
         }
       });
       state.pendingRequests = pending;
       renderDmRequests();
       updateDmBadge(Object.keys(pending).length);
+    }, (error) => {
+      state.dmRequestsBound = false;
+      console.error("No se pudieron escuchar solicitudes de Check:", error);
+      dmFeedback("ERROR FIREBASE", firebaseErrorCopy(error, "Solicitudes"), "error");
+      const host = $("theatre-check-request-list");
+      if (host) host.innerHTML = '<div class="theatre-check-empty">ERROR DE PERMISOS / CONEXIÓN</div>';
     });
+    return true;
   }
 
   function renderDmRequests() {
@@ -527,6 +587,7 @@
   }
 
   async function denyEditingRequest() {
+    if (currentUid() !== DM_UID) throw new Error("AUTH_DM_REQUIRED");
     const requestId = state.editingRequestId;
     if (!requestId) return;
     await db.ref(`${REQUEST_ROOT}/${requestId}`).update({ status: "denied", decidedAt: firebase.database.ServerValue.TIMESTAMP });
@@ -534,6 +595,7 @@
   }
 
   async function issueDmCommand() {
+    if (currentUid() !== DM_UID) throw new Error("AUTH_DM_REQUIRED");
     const selected = selectedDmPlayer();
     if (!selected) throw new Error("Selecciona un jugador.");
     const spec = dmRollSpec();
@@ -563,15 +625,11 @@
       });
     }
     resetDmComposer();
-    const feedback = doc.createElement("div");
-    feedback.className = "theatre-check-sent-feedback";
-    feedback.textContent = `${command.targetName} · ${spec.label} · ENVIADO`;
-    $("theatre-check-director")?.appendChild(feedback);
-    global.setTimeout(() => feedback.remove(), 2200);
+    dmFeedback("CHECK ENVIADO", `${command.targetName} · ${spec.label}`, "success");
   }
 
   function bindPlayerCommands() {
-    if (isDm() || state.playerCommandsBound) return false;
+    if (isDmSurface() || state.playerCommandsBound) return false;
     const uid = currentUid();
     if (!uid) return false;
     state.playerCommandsBound = true;
@@ -584,6 +642,10 @@
       if (global.sessionStorage?.getItem(seenKey) === "done") return;
       state.commandQueue.push({ key: snapshot.key, command, seenKey });
       showNextPlayerCommand();
+    }, (error) => {
+      state.playerCommandsBound = false;
+      console.error("No se pudieron escuchar Checks enviados por el DM:", error);
+      playerNotice("ERROR DE COORDINACIÓN", firebaseErrorCopy(error, "Checks del DM"), "denied");
     });
     return true;
   }
@@ -712,7 +774,10 @@
           payload.outcome = global.LuminousTheatreRolls.checkOutcome(total, command.check || {});
           payload.completedAt = firebase.database.ServerValue.TIMESTAMP;
         }
-        liveRef.update(payload).catch((error) => console.warn("No se pudo sincronizar el HUD del Check con el DM:", error));
+        liveRef.update(payload).catch((error) => {
+          console.warn("No se pudo sincronizar el HUD del Check con el DM:", error);
+          if (complete) playerNotice("ERROR DE SINCRONIZACIÓN", firebaseErrorCopy(error, "HUD del DM"), "denied");
+        });
         if (complete) {
           state.liveObserver?.disconnect();
           state.liveObserver = null;
@@ -811,6 +876,8 @@
   }
 
   function bindDmLive() {
+    if (state.dmLiveBound || currentUid() !== DM_UID) return false;
+    state.dmLiveBound = true;
     db.ref(LIVE_ROOT).on("value", (snapshot) => {
       const root = snapshot.val() || {};
       const entries = [];
@@ -830,6 +897,46 @@
       if (!front) return;
       state.dmLiveHud = buildDmMirrorHud(latest);
       front.appendChild(state.dmLiveHud);
+    }, (error) => {
+      state.dmLiveBound = false;
+      console.error("No se pudo escuchar el HUD en vivo:", error);
+      dmFeedback("ERROR FIREBASE", firebaseErrorCopy(error, "HUD en vivo"), "error");
+    });
+    return true;
+  }
+
+  function bindAuthorizedData() {
+    const uid = currentUid();
+    if (!uid) return false;
+    if (isDmSurface()) {
+      mountDmConsole();
+      if (uid !== DM_UID) {
+        dmFeedback("CUENTA DM NO AUTORIZADA", `UID ${uid} no coincide con el Director configurado.`, "error");
+        return false;
+      }
+      bindDmPlayers();
+      bindDmRequests();
+      bindDmLive();
+      return true;
+    }
+    return bindPlayerCommands();
+  }
+
+  function bindAuthLifecycle() {
+    if (state.authBound) return;
+    state.authBound = true;
+    const auth = firebase.auth?.();
+    if (!auth?.onAuthStateChanged) {
+      bindAuthorizedData();
+      return;
+    }
+    auth.onAuthStateChanged((user) => {
+      if (!user) return;
+      bindAuthorizedData();
+    }, (error) => {
+      console.error("Firebase Auth falló para Theatre Checks:", error);
+      if (isDmSurface()) dmFeedback("ERROR FIREBASE AUTH", firebaseErrorCopy(error, "Auth"), "error");
+      else playerNotice("ERROR FIREBASE AUTH", firebaseErrorCopy(error, "Auth"), "denied");
     });
   }
 
@@ -838,15 +945,15 @@
     state.mounted = true;
     installFrontLayerBridge();
     installPlayerRollGate();
-    bindPlayerCommands();
+    if (isDmSurface()) mountDmConsole();
+    bindAuthLifecycle();
     let attempts = 0;
     const timer = global.setInterval(() => {
       attempts += 1;
       installFrontLayerBridge();
-      if (!isDm()) bindPlayerCommands();
-      if (isDm() && mountDmConsole()) {
-        global.clearInterval(timer);
-      } else if (!isDm() && attempts > 150) {
+      if (isDmSurface()) mountDmConsole();
+      bindAuthorizedData();
+      if (attempts > 150 || (currentUid() && (!isDmSurface() || $("theatre-check-director")))) {
         global.clearInterval(timer);
       }
     }, 100);
@@ -865,5 +972,7 @@
     effectiveThreshold,
     requestPlayerRoll,
     ensureFrontLayer,
+    firebaseErrorCopy,
+    bindAuthorizedData,
   });
 })(window);

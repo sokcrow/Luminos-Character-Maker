@@ -12,6 +12,7 @@ on:
       - "js/dm-character-manager-takeover.js"
       - "js/character-manager-live-sync.js"
       - "js/theatre-check-coordinator.js"
+      - "js/theatre-check-retry-watchdog.js"
       - "js/theatre-check-dm-alert.js"
       - "css/theatre-check-coordinator.css"
       - "js/theatre-opposed-checks.js"
@@ -33,6 +34,7 @@ on:
       - "js/dm-character-manager-takeover.js"
       - "js/character-manager-live-sync.js"
       - "js/theatre-check-coordinator.js"
+      - "js/theatre-check-retry-watchdog.js"
       - "js/theatre-check-dm-alert.js"
       - "css/theatre-check-coordinator.css"
       - "js/theatre-opposed-checks.js"
@@ -61,6 +63,7 @@ jobs:
       - run: node --check js/dm-character-manager-takeover.js
       - run: node --check js/character-manager-live-sync.js
       - run: node --check js/theatre-check-coordinator.js
+      - run: node --check js/theatre-check-retry-watchdog.js
       - run: node --check js/theatre-check-dm-alert.js
       - run: node --check js/theatre-opposed-checks.js
       - run: node --check js/instance-control.js
