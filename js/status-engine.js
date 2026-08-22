@@ -156,4 +156,12 @@
 
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
+
+  if (global.document && !global.LuminousUniversalSpeedRuntime && !global.document.getElementById("universal-speed-runtime-script")) {
+    const script = global.document.createElement("script");
+    script.id = "universal-speed-runtime-script";
+    script.src = "js/universal-speed-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
 })(typeof window !== "undefined" ? window : globalThis);
