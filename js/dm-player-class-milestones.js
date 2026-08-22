@@ -356,13 +356,21 @@
           const submittedValue = Number(submittedRawStats[statKey]);
           const savedValue = Number(submittedSavedStats[statKey]);
           const currentValue = Number(input.value);
+          const committedValue = Number(resultingStats[statKey]);
           const changedBeforeSubmit = Number.isFinite(submittedValue) && submittedValue !== savedValue;
           const changedDuringApply = String(input.value) !== submittedRawStats[statKey];
+          const alreadyReflectedByFirebase = !changedBeforeSubmit && Number.isFinite(committedValue) && currentValue === committedValue;
 
-          if (changedBeforeSubmit || changedDuringApply) {
-            const mergedValue = currentValue + Number(amount);
+          if (alreadyReflectedByFirebase) return;
+
+          if (changedBeforeSubmit) {
+            if (changedDuringApply && currentValue !== submittedValue) {
+              reflectionWarning = `MILESTONE GUARDADO. ${stat.code} cambió mientras se aplicaba y se conservó tu edición actual; revisa el valor antes de guardar el formulario.`;
+              return;
+            }
+            const mergedValue = submittedValue + Number(amount);
             if (!Number.isFinite(mergedValue) || mergedValue > api.MAX_STAT) {
-              reflectionWarning = `MILESTONE GUARDADO. ${stat.code} cambió durante la aplicación y no se sobrescribió; revisa el valor antes de guardar el formulario.`;
+              reflectionWarning = `MILESTONE GUARDADO. ${stat.code} no se sobrescribió porque la edición local más el milestone supera ${api.MAX_STAT}; revisa el valor antes de guardar el formulario.`;
               return;
             }
             input.value = String(mergedValue);
@@ -370,8 +378,13 @@
             return;
           }
 
-          if (Number.isFinite(Number(resultingStats[statKey]))) {
-            input.value = String(resultingStats[statKey]);
+          if (changedDuringApply) {
+            reflectionWarning = `MILESTONE GUARDADO. ${stat.code} cambió mientras se aplicaba y se conservó tu edición actual; revisa el valor antes de guardar el formulario.`;
+            return;
+          }
+
+          if (Number.isFinite(committedValue)) {
+            input.value = String(committedValue);
             changedPreview = true;
           }
         });
