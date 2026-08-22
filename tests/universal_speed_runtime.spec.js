@@ -1,5 +1,17 @@
 const { test, expect } = require("@playwright/test");
+
+global.STATUS_REGISTRY = {
+  haste: {
+    name: "Haste",
+    type: "positive",
+    mode: "single",
+    icon: null,
+    rules: [{ trigger: "passive", cond_input: 1, cond_type: "count", operation: "add", aff_input: 1, affectation: "speed", decay: "none" }],
+  },
+};
+
 const modifiers = require("../js/universal-modifier-engine.js");
+const statusEngine = require("../js/status-engine.js");
 const speedRuntime = require("../js/universal-speed-runtime.js");
 const catalog = require("../js/trait-catalog-core.js");
 
@@ -22,6 +34,18 @@ test("Fast Movement raises the effective combat speed floor without mutating the
     traits: [catalog.getDefinition("fast_movement")],
   });
   expect(resolved).toBe(3);
+  expect(character.speed).toBe(2);
+});
+
+test("Haste and Fast Movement share the same resolved combat speed path", () => {
+  const character = unit(2);
+  statusEngine.applyStatus(character, "haste", { count: 5 });
+  const resolved = speedRuntime.effectiveSpeed(character, {
+    modifierEngine: modifiers,
+    character,
+    traits: [catalog.getDefinition("fast_movement")],
+  });
+  expect(resolved).toBe(8);
   expect(character.speed).toBe(2);
 });
 
