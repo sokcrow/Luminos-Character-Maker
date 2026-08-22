@@ -183,3 +183,26 @@ test("catalog accessors return copies instead of mutable canonical objects", () 
   expect(second.name).toBe("Rage");
   expect(second.effects[0].operations[0].statusId).toBe("rage");
 });
+
+test("exported canonical definitions and Grants are deeply frozen", () => {
+  const operation = catalog.DEFINITIONS.rage.effects[0].operations[0];
+  expect(Object.isFrozen(catalog.DEFINITIONS)).toBe(true);
+  expect(Object.isFrozen(catalog.DEFINITIONS.rage)).toBe(true);
+  expect(Object.isFrozen(catalog.DEFINITIONS.rage.effects)).toBe(true);
+  expect(Object.isFrozen(catalog.DEFINITIONS.rage.effects[0])).toBe(true);
+  expect(Object.isFrozen(operation)).toBe(true);
+  expect(Object.isFrozen(catalog.GRANTS)).toBe(true);
+  expect(Object.isFrozen(catalog.GRANTS[0])).toBe(true);
+
+  const before = operation.statusId;
+  try {
+    operation.statusId = "corrupted";
+    catalog.DEFINITIONS.rage.effects.push({ id: "corrupted" });
+  } catch (_) {
+    // Strict-mode consumers may throw; non-strict consumers silently fail.
+  }
+
+  expect(catalog.DEFINITIONS.rage.effects[0].operations[0].statusId).toBe(before);
+  expect(catalog.DEFINITIONS.rage.effects).toHaveLength(1);
+  expect(catalog.getDefinition("rage").effects[0].operations[0].statusId).toBe("rage");
+});
