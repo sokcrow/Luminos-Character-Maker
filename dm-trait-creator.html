@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Luminous · Trait Builder V1</title>
+  <title>Luminous · Trait Builder V2</title>
   <style>
     :root { color-scheme: dark; --bg:#090909; --panel:#151515; --line:#48413a; --accent:#d39a49; --bad:#d75a5a; --good:#78bd78; }
     * { box-sizing:border-box; }
@@ -18,6 +18,7 @@
     input,select,textarea,button { font:inherit; }
     input,select,textarea { width:100%; background:#090909; color:#fff; border:1px solid var(--line); padding:9px; }
     textarea { min-height:80px; resize:vertical; }
+    #trait-rules-json { min-height:220px; font:12px/1.45 monospace; }
     button { background:#1b1b1b; color:#eee; border:1px solid var(--accent); padding:9px 13px; cursor:pointer; text-transform:uppercase; font-weight:700; }
     button:hover { background:#292119; }
     .trait-builder-effect { margin-top:14px; padding:14px; border:1px solid var(--line); background:var(--panel); }
@@ -31,13 +32,14 @@
     .trait-validation.is-invalid { border-color:var(--bad); color:var(--bad); }
     pre { white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.45 monospace; }
     .note { color:#999; font-size:13px; line-height:1.5; }
+    code { color:#e7ba79; }
     @media (max-width:1000px) { #trait-builder-root { grid-template-columns:1fr; } .builder-preview { position:static; height:auto; border-left:0; border-top:1px solid var(--line); } .trait-builder-grid { grid-template-columns:1fr 1fr; } }
   </style>
 </head>
 <body>
 <div id="trait-builder-root">
   <main class="builder-main">
-    <h1>Trait Builder V1</h1>
+    <h1>Trait Builder V2</h1>
     <p class="note">Construye reglas declarativas. No acepta JavaScript arbitrario: las fórmulas pasan por el Formula Engine seguro.</p>
 
     <section class="builder-section">
@@ -65,6 +67,12 @@
     <section class="builder-section">
       <div class="action-row" style="justify-content:space-between"><h2 style="margin:0">Effects</h2><button id="trait-add-effect" type="button">+ Add Effect</button></div>
       <div id="trait-effects"></div>
+    </section>
+
+    <section class="builder-section">
+      <h2>Advanced Rules</h2>
+      <p class="note">Reglas reutilizables para mecánicas que no caben en una operación simple: Coins, checks con Threshold persistente, protección de Status, stat caps y scopes. Convención: <code>Gain → target: "self"</code>; <code>Inflict → target: "target"</code>. Los scopes disponibles incluyen <code>once_per_turn</code>, <code>once_per_skill</code>, <code>next_skill</code>, <code>encounter</code> y <code>permanent</code>.</p>
+      <label class="trait-builder-field"><span>Rules JSON Array</span><textarea id="trait-rules-json" spellcheck="false">[]</textarea></label>
     </section>
   </main>
 
