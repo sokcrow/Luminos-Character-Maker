@@ -104,6 +104,12 @@ function ensurePlayerStatsAbilityBarAssets(doc) {
     return { link, script };
 }
 
+function ensurePlayerTraitRuntimeAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+    return ensureScriptAsset(documentRef, 'player-trait-runtime-script', 'js/player-trait-runtime.js', { ui: 'player-trait-runtime' });
+}
+
 function ensureDmPlayerDndStudioAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-jugadores')) return null;
@@ -289,6 +295,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerTerminalVisibility(document);
     ensurePlayerUxPolishAssets(document);
     ensurePlayerStatsAbilityBarAssets(document);
+    ensurePlayerTraitRuntimeAssets(document);
     ensureDmPlayerDndStudioAssets(document);
     ensureDmTraitLibraryAssets(document);
     ensurePlayerSplashFramingAssets(document);
@@ -306,6 +313,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerTerminalVisibility,
         ensurePlayerUxPolishAssets,
         ensurePlayerStatsAbilityBarAssets,
+        ensurePlayerTraitRuntimeAssets,
         ensureDmPlayerDndStudioAssets,
         ensureDmTraitLibraryAssets,
         ensurePlayerSplashFramingAssets,
