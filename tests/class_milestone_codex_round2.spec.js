@@ -10,8 +10,9 @@ test("milestone submission keeps DOM updates scoped to the submitted player", ()
   expect(source).toContain("const submittedPlayerId = state.playerId;");
   expect(source).toContain("state.db.ref(`${PLAYER_ROOT}/${submittedPlayerId}`)");
   expect(source).toContain("const samePlayer = state.playerId === submittedPlayerId;");
-  expect(source).toContain("if (resultingStats && samePlayer)");
-  expect(source).toContain('if (samePlayer) setFeedback("MILESTONE APLICADO Y GUARDADO.", "success")');
+  expect(source).toContain("if (resultingStats && committedAllocation && samePlayer)");
+  expect(source).toContain("if (samePlayer) {");
+  expect(source).toContain('else setFeedback("MILESTONE APLICADO Y GUARDADO.", "success");');
   expect(source).toContain('if (state.playerId === submittedPlayerId) setFeedback("ERROR AL GUARDAR EL MILESTONE.", "error")');
 });
 
