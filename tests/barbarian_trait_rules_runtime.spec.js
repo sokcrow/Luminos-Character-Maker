@@ -24,6 +24,34 @@ function barbarian(level = 100) {
   };
 }
 
+test("Armorless Defense applies its permanent bonuses only once", () => {
+  const character = barbarian(100);
+  const trait = catalog.getDefinition("armorless_defense");
+  const state = engine.createState();
+  const self = {
+    hasArmor: false,
+    defensiveLevel: 10,
+    staggerThresholds: [70, 40],
+  };
+
+  engine.dispatchCombatEvent("turn_start", { character, self, traits: [trait], state });
+  expect(self.defensiveLevel).toBe(14);
+  expect(self.staggerThresholds).toEqual([70]);
+
+  engine.dispatchCombatEvent("turn_start", { character, self, traits: [trait], state });
+  expect(self.defensiveLevel).toBe(14);
+  expect(self.staggerThresholds).toEqual([70]);
+});
+
+test("Wild Instincts grants STR Mod Haste once at Encounter Start", () => {
+  const character = barbarian(100);
+  const trait = catalog.getDefinition("wild_instincts");
+  const state = engine.createState();
+
+  engine.dispatchCombatEvent("encounter_start", { character, self: character, traits: [trait], state });
+  expect(state.statuses.haste).toMatchObject({ id: "haste", potency: 5, count: 1 });
+});
+
 test("Reckless Attack is once per Turn, turns the next Skill Red and Gain applies Fragile to Self", () => {
   const character = barbarian(100);
   const trait = catalog.getDefinition("reckless_attack");
