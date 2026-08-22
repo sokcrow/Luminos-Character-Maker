@@ -155,28 +155,23 @@ test("Devil Trigger below threshold consumes gauge without applying threshold bo
   ]);
 });
 
-test("core Grants resolve ClassLevel and Lineage without duplicating definitions", () => {
+test("core catalog only auto-grants progression that is not guessed", () => {
+  expect(catalog.allGrants()).toEqual([{
+    id: "core_lineage_devil_lineage_devil_body",
+    sourceType: "lineage",
+    sourceId: "devil_lineage",
+    traitId: "devil_body",
+  }]);
+
   const granted = engine.resolveTraitGrants(character, catalog.allGrants(), catalog.allDefinitions());
-  expect(granted.map((trait) => trait.id)).toEqual([
-    "danger_senses",
-    "rage",
-    "devil_body",
-  ]);
-  expect(granted.find((trait) => trait.id === "danger_senses").source).toMatchObject({
-    type: "class",
-    id: "barbarian",
-    classId: "barbarian",
-  });
+  expect(granted.map((trait) => trait.id)).toEqual(["devil_body"]);
+  expect(granted[0].source).toMatchObject({ type: "lineage", id: "devil_lineage" });
 });
 
-test("core Grants do not unlock Barbarian Traits below their configured level", () => {
-  const lowLevel = {
-    level: 1,
-    classes: [{ classId: "barbarian", levels: 1 }],
-    lineageId: "none",
-  };
-  const granted = engine.resolveTraitGrants(lowLevel, catalog.allGrants(), catalog.allDefinitions());
-  expect(granted).toEqual([]);
+test("class Trait mechanics remain defined without inventing acquisition levels", () => {
+  expect(catalog.getDefinition("danger_senses").source).toMatchObject({ type: "class", id: "barbarian" });
+  expect(catalog.getDefinition("rage").source).toMatchObject({ type: "class", id: "barbarian" });
+  expect(catalog.allGrants().some((grant) => grant.sourceType === "class")).toBe(false);
 });
 
 test("catalog accessors return copies instead of mutable canonical objects", () => {
