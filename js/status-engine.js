@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  // Canonical runtime Status store for Traits, Skills, Items, environments and combat effects.
+  // Status icons are presentation-only: unregistered statuses remain mechanically valid with icon=null.
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
