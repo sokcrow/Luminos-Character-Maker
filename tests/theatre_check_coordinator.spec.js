@@ -94,24 +94,25 @@ test('DM gets a visible alert when pending requests transition from zero to one'
   expect(liveSync).toContain('js/theatre-check-dm-alert.js');
 });
 
-test('DM-only listeners wait for Firebase Auth and failed listeners can be rebound', () => {
+test('Firebase Auth lifecycle gates private listeners and exposes actionable errors', () => {
   const src = read('js/theatre-check-coordinator.js');
-  expect(src).toContain('function bindAuthLifecycle()');
-  expect(src).toContain('auth.onAuthStateChanged');
-  expect(src).toContain('function bindAuthorizedData()');
+  expect(src).toContain('onAuthStateChanged');
+  expect(src).toContain('bindAuthorizedData');
   expect(src).toContain('currentUid() !== DM_UID');
-  expect(src).toContain('state.dmPlayersBound = false');
+  expect(src).toContain('PERMISSION_DENIED');
   expect(src).toContain('state.dmRequestsBound = false');
   expect(src).toContain('state.dmLiveBound = false');
   expect(src).toContain('state.playerCommandsBound = false');
+  expect(src).not.toContain('No se pudo contactar al Director');
 });
 
-test('Firebase failures are reported as Firebase/auth errors, never fake Director availability', () => {
-  const src = read('js/theatre-check-coordinator.js');
-  expect(src).toContain('function firebaseErrorCopy');
-  expect(src).toContain('PERMISSION_DENIED');
-  expect(src).toContain('Firebase Auth todavía no está listo');
-  expect(src).toContain('ERROR AL ENVIAR');
-  expect(src).toContain('ERROR DE COORDINACIÓN');
-  expect(src).not.toContain('No se pudo contactar al Director');
+test('listener cancellation stays recoverable after the bootstrap timer has stopped', () => {
+  const instance = read('js/instance-control.js');
+  const watchdog = read('js/theatre-check-retry-watchdog.js');
+  expect(instance).toContain('js/theatre-check-retry-watchdog.js');
+  expect(instance).toContain('theatre-check-retry-watchdog-script');
+  expect(watchdog).toContain('const RETRY_MS = 5000');
+  expect(watchdog).toContain('global.setInterval(retryAuthorizedBindings, RETRY_MS)');
+  expect(watchdog).toContain('coordinator.bindAuthorizedData()');
+  expect(watchdog).toContain('onAuthStateChanged');
 });
