@@ -53,6 +53,44 @@ test("core import deduplicates Grants by semantic identity even with another Fir
   expect(plan.grantWrites).toHaveLength(2);
 });
 
+test("import reads persisted Firebase state directly before building its plan", async () => {
+  const reads = [];
+  const persistedDefinitions = {
+    rage: { id: "rage", name: "Rage - Existing DM Version" },
+  };
+  const persistedGrants = {
+    custom_push_id: {
+      sourceType: "class",
+      sourceId: "barbarian",
+      atLevel: 2,
+      traitId: "rage",
+    },
+  };
+  const database = {
+    ref(refPath) {
+      return {
+        async once(eventName) {
+          reads.push([refPath, eventName]);
+          const value = refPath === importer.DEFINITIONS_ROOT ? persistedDefinitions : persistedGrants;
+          return { val: () => value };
+        },
+      };
+    },
+  };
+
+  const persisted = await importer.readPersistedTraitState(database);
+  expect(reads).toEqual([
+    ["campaña/config/traits/definitions", "value"],
+    ["campaña/config/traits/grants", "value"],
+  ]);
+  expect(persisted.definitions.rage.name).toBe("Rage - Existing DM Version");
+  expect(persisted.grants).toEqual([{ id: "custom_push_id", ...persistedGrants.custom_push_id }]);
+
+  const plan = importer.buildImportPlan(persisted.definitions, persisted.grants, helpers);
+  expect(plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
+  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "rage")).toBe(false);
+});
+
 test("core Grant ids are Firebase-safe and deterministic", () => {
   catalog.GRANTS.forEach((grant) => {
     expect(studio.validateFirebaseKey(grant.id).valid).toBe(true);
