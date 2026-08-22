@@ -8,6 +8,10 @@
   const DEFINITIONS_ROOT = `${TRAITS_ROOT}/definitions`;
   const GRANTS_ROOT = `${TRAITS_ROOT}/grants`;
 
+  function asRecord(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
   function grantIdentity(grant = {}) {
     const type = engine?.normalizeId ? engine.normalizeId(grant.sourceType || grant.source?.type) : String(grant.sourceType || "").trim().toLowerCase();
     const sourceId = engine?.normalizeId ? engine.normalizeId(grant.sourceId || grant.source?.id || grant.source?.classId) : String(grant.sourceId || "").trim().toLowerCase();
@@ -65,16 +69,80 @@
     };
   }
 
-  async function readPersistedTraitState(database) {
+  function buildAtomicImportMutation(currentTree = {}, helpers = {}, stamp = Date.now()) {
+    const root = asRecord(currentTree);
+    const definitions = asRecord(root.definitions);
+    const grantMap = asRecord(root.grants);
+    const existingGrants = Object.entries(grantMap).map(([id, grant]) => ({ id, ...(grant || {}) }));
+    const plan = buildImportPlan(definitions, existingGrants, helpers);
+
+    if (!plan.valid) {
+      return { valid: false, changed: false, errors: plan.errors, plan, next: root };
+    }
+
+    const changed = Boolean(plan.definitionWrites.length || plan.grantWrites.length);
+    if (!changed) return { valid: true, changed: false, errors: [], plan, next: root };
+
+    const nextDefinitions = { ...definitions };
+    const nextGrants = { ...grantMap };
+
+    plan.definitionWrites.forEach(({ id, definition }) => {
+      nextDefinitions[id] = {
+        ...definition,
+        createdAt: stamp,
+        updatedAt: stamp,
+        catalogVersion: catalog.CATALOG_VERSION,
+      };
+    });
+    plan.grantWrites.forEach(({ id, grant }) => {
+      nextGrants[id] = {
+        ...grant,
+        createdAt: stamp,
+        updatedAt: stamp,
+        catalogVersion: catalog.CATALOG_VERSION,
+      };
+    });
+
+    return {
+      valid: true,
+      changed: true,
+      errors: [],
+      plan,
+      next: { ...root, definitions: nextDefinitions, grants: nextGrants },
+    };
+  }
+
+  async function runAtomicImport(database, helpers = {}, stamp = Date.now()) {
     if (!database?.ref) throw new Error("Firebase database is not available.");
-    const [definitionsSnapshot, grantsSnapshot] = await Promise.all([
-      database.ref(DEFINITIONS_ROOT).once("value"),
-      database.ref(GRANTS_ROOT).once("value"),
-    ]);
-    const definitions = definitionsSnapshot?.val?.() || {};
-    const rawGrants = grantsSnapshot?.val?.() || {};
-    const grants = Object.entries(rawGrants).map(([id, grant]) => ({ id, ...(grant || {}) }));
-    return { definitions, grants };
+    const rootRef = database.ref(TRAITS_ROOT);
+    if (!rootRef?.transaction) throw new Error("Firebase transaction API is not available.");
+
+    let lastMutation = null;
+    let planningErrors = null;
+
+    const result = await rootRef.transaction((currentTree) => {
+      const mutation = buildAtomicImportMutation(currentTree, helpers, stamp);
+      lastMutation = mutation;
+
+      if (!mutation.valid) {
+        planningErrors = mutation.errors;
+        return undefined;
+      }
+
+      // Returning undefined aborts a no-op transaction. If another editor writes
+      // while this transaction is in flight, Firebase retries this callback with
+      // the newest server state before any catalog data can be committed.
+      if (!mutation.changed) return undefined;
+      return mutation.next;
+    });
+
+    if (planningErrors?.length) throw new Error(planningErrors.join(" · "));
+    if (!lastMutation) throw new Error("Firebase transaction did not evaluate the Trait catalog.");
+    if (lastMutation.changed && !result?.committed) {
+      throw new Error("Trait catalog transaction was not committed.");
+    }
+
+    return { ...lastMutation.plan, committed: Boolean(result?.committed) };
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -84,7 +152,8 @@
       GRANTS_ROOT,
       grantIdentity,
       buildImportPlan,
-      readPersistedTraitState,
+      buildAtomicImportMutation,
+      runAtomicImport,
     };
   }
 
@@ -113,37 +182,21 @@
     const catalogValidation = catalog.validateAll(engine);
     if (!catalogValidation.valid) throw new Error(catalogValidation.errors.join(" · "));
 
-    // Read Firebase directly at click time. The Trait Library UI listeners are
-    // asynchronous and may not have delivered their initial snapshots yet.
-    // Import planning must never assume an empty library from stale UI state.
-    const database = global.firebase.database();
-    const persisted = await readPersistedTraitState(database);
-    const plan = buildImportPlan(
-      persisted.definitions,
-      persisted.grants,
+    const plan = await runAtomicImport(
+      global.firebase.database(),
       {
         validateDefinitionForPersistence: lib.validateDefinitionForPersistence,
         validateGrant: lib.validateGrant,
         validateFirebaseKey: lib.validateFirebaseKey,
       },
+      timestamp(),
     );
-    if (!plan.valid) throw new Error(plan.errors.join(" · "));
 
     if (!plan.definitionWrites.length && !plan.grantWrites.length) {
       feedback("El catálogo base ya está importado. No hay cambios.", "success");
       return plan;
     }
 
-    const stamp = timestamp();
-    const updates = {};
-    plan.definitionWrites.forEach(({ id, definition }) => {
-      updates[`definitions/${id}`] = { ...definition, createdAt: stamp, updatedAt: stamp, catalogVersion: catalog.CATALOG_VERSION };
-    });
-    plan.grantWrites.forEach(({ id, grant }) => {
-      updates[`grants/${id}`] = { ...grant, createdAt: stamp, updatedAt: stamp, catalogVersion: catalog.CATALOG_VERSION };
-    });
-
-    await database.ref(TRAITS_ROOT).update(updates);
     feedback(`Catálogo base importado: ${plan.definitionWrites.length} Traits · ${plan.grantWrites.length} Grants.`, "success");
     return plan;
   }
@@ -191,7 +244,8 @@
     GRANTS_ROOT,
     grantIdentity,
     buildImportPlan,
-    readPersistedTraitState,
+    buildAtomicImportMutation,
+    runAtomicImport,
     importCatalog,
     mountButton,
   });
