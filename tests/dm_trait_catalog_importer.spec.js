@@ -127,6 +127,42 @@ test("Firebase transaction retry replans against a concurrent DM write before co
   ]));
 });
 
+test("no-op cache is server-confirmed and retries when the server lost a catalog definition", async () => {
+  const completeTree = {
+    definitions: catalog.allDefinitions(),
+    grants: Object.fromEntries(catalog.allGrants().map(({ id, ...grant }) => [id, grant])),
+  };
+  const serverTree = JSON.parse(JSON.stringify(completeTree));
+  delete serverTree.definitions.rage;
+
+  let attempts = 0;
+  let committedTree = null;
+  const database = {
+    ref(refPath) {
+      expect(refPath).toBe(importer.TRAITS_ROOT);
+      return {
+        async transaction(update) {
+          attempts += 1;
+          const cachedCandidate = update(completeTree);
+          expect(cachedCandidate).toEqual(completeTree);
+
+          attempts += 1;
+          committedTree = update(serverTree);
+          return { committed: true, snapshot: { val: () => committedTree } };
+        },
+      };
+    },
+  };
+
+  const result = await importer.runAtomicImport(database, helpers, 9012);
+  expect(attempts).toBe(2);
+  expect(result.committed).toBe(true);
+  expect(result.definitionWrites.map((entry) => entry.id)).toEqual(["rage"]);
+  expect(result.grantWrites).toHaveLength(0);
+  expect(committedTree.definitions.rage.name).toBe("Rage");
+  expect(committedTree.definitions.rage.createdAt).toBe(9012);
+});
+
 test("core Grant ids are Firebase-safe and deterministic", () => {
   catalog.GRANTS.forEach((grant) => {
     expect(studio.validateFirebaseKey(grant.id).valid).toBe(true);
