@@ -5,6 +5,10 @@ on:
     paths:
       - "js/trait-engine.js"
       - "js/trait-catalog-core.js"
+      - "js/status-engine.js"
+      - "js/universal-modifier-engine.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/player-trait-runtime.js"
       - "js/dm-trait-catalog-importer.js"
       - "js/trait-builder.js"
       - "dm-trait-creator.html"
@@ -13,6 +17,7 @@ on:
       - "tests/trait_catalog_core.spec.js"
       - "tests/dm_trait_catalog_importer.spec.js"
       - "tests/barbarian_trait_rules_runtime.spec.js"
+      - "tests/universal_modifier_engine.spec.js"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
@@ -38,6 +43,10 @@ jobs:
         run: |
           node --check js/trait-engine.js
           node --check js/trait-catalog-core.js
+          node --check js/status-engine.js
+          node --check js/universal-modifier-engine.js
+          node --check js/trait-standardization-runtime.js
+          node --check js/player-trait-runtime.js
           node --check js/dm-trait-catalog-importer.js
           node --check js/trait-builder.js
           node --check tests/trait_engine.spec.js
@@ -45,6 +54,7 @@ jobs:
           node --check tests/trait_catalog_core.spec.js
           node --check tests/dm_trait_catalog_importer.spec.js
           node --check tests/barbarian_trait_rules_runtime.spec.js
+          node --check tests/universal_modifier_engine.spec.js
 
       - name: Run Trait regressions
         run: >-
@@ -54,4 +64,5 @@ jobs:
           tests/trait_catalog_core.spec.js
           tests/dm_trait_catalog_importer.spec.js
           tests/barbarian_trait_rules_runtime.spec.js
+          tests/universal_modifier_engine.spec.js
           --workers=1
