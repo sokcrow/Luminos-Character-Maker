@@ -58,6 +58,19 @@
     })).filter((entry) => entry.levels > 0);
   }
 
+  function currentFormStats() {
+    const stats = {};
+    STAT_OPTIONS.forEach((stat) => {
+      const value = Number.parseInt($(`dm-player-stat-${stat.code.toLowerCase()}`)?.value, 10);
+      if (Number.isFinite(value)) stats[stat.key] = value;
+    });
+    return stats;
+  }
+
+  function currentFormStatRawValues() {
+    return Object.fromEntries(STAT_OPTIONS.map((stat) => [stat.key, String($(`dm-player-stat-${stat.code.toLowerCase()}`)?.value ?? "")]));
+  }
+
   function savedClasses(player = state.player) {
     return player?.characterBuild?.classes || player?.classes || player?.classLevels || [];
   }
@@ -232,6 +245,9 @@
     const classId = normalizeId(row.dataset.classId);
     const milestoneLevel = Number.parseInt(row.dataset.milestoneLevel, 10);
     const proposed = rowChoice(row);
+    const submittedFormStats = currentFormStats();
+    const submittedRawStats = currentFormStatRawValues();
+    const submittedSavedStats = api.normalizeStats(state.player?.stats || {});
 
     if (proposed.type === "trait") {
       const traitId = normalizeId(proposed.traitId);
@@ -244,6 +260,12 @@
         setFeedback("Ese Trait General ya fue elegido en otro milestone.", "error");
         return;
       }
+    } else if (proposed.type === "stats") {
+      const formValidation = api.validateChoice(proposed, submittedFormStats);
+      if (!formValidation.valid) {
+        setFeedback(formValidation.errors.join(" "), "error");
+        return;
+      }
     }
 
     button.disabled = true;
@@ -251,6 +273,7 @@
     const playerRef = state.db.ref(`${PLAYER_ROOT}/${submittedPlayerId}`);
     let abortReason = "No se pudo aplicar el milestone.";
     let resultingStats = null;
+    let committedAllocation = null;
 
     try {
       const result = await playerRef.transaction((current) => {
@@ -298,6 +321,7 @@
           current.stats = current.stats && typeof current.stats === "object" ? current.stats : {};
           Object.entries(applied.allocation).forEach(([stat]) => { current.stats[stat] = applied.stats[stat]; });
           resultingStats = applied.stats;
+          committedAllocation = applied.allocation;
         }
 
         if (!current.characterBuild.classMilestones[classId] || typeof current.characterBuild.classMilestones[classId] !== "object") {
@@ -321,14 +345,42 @@
         return;
       }
 
-      if (resultingStats && samePlayer) {
-        STAT_OPTIONS.forEach((stat) => {
-          const input = $(`dm-player-stat-${stat.code.toLowerCase()}`);
-          if (input && Number.isFinite(Number(resultingStats[stat.key]))) input.value = String(resultingStats[stat.key]);
+      let reflectionWarning = "";
+      if (resultingStats && committedAllocation && samePlayer) {
+        let changedPreview = false;
+        Object.entries(committedAllocation).forEach(([statKey, amount]) => {
+          const stat = STAT_OPTIONS.find((entry) => entry.key === statKey);
+          const input = stat ? $(`dm-player-stat-${stat.code.toLowerCase()}`) : null;
+          if (!input) return;
+
+          const submittedValue = Number(submittedRawStats[statKey]);
+          const savedValue = Number(submittedSavedStats[statKey]);
+          const currentValue = Number(input.value);
+          const changedBeforeSubmit = Number.isFinite(submittedValue) && submittedValue !== savedValue;
+          const changedDuringApply = String(input.value) !== submittedRawStats[statKey];
+
+          if (changedBeforeSubmit || changedDuringApply) {
+            const mergedValue = currentValue + Number(amount);
+            if (!Number.isFinite(mergedValue) || mergedValue > api.MAX_STAT) {
+              reflectionWarning = `MILESTONE GUARDADO. ${stat.code} cambió durante la aplicación y no se sobrescribió; revisa el valor antes de guardar el formulario.`;
+              return;
+            }
+            input.value = String(mergedValue);
+            changedPreview = true;
+            return;
+          }
+
+          if (Number.isFinite(Number(resultingStats[statKey]))) {
+            input.value = String(resultingStats[statKey]);
+            changedPreview = true;
+          }
         });
-        global.LuminousDmPlayerDndStudio?.updatePreviewFromForm?.();
+        if (changedPreview) global.LuminousDmPlayerDndStudio?.updatePreviewFromForm?.();
       }
-      if (samePlayer) setFeedback("MILESTONE APLICADO Y GUARDADO.", "success");
+      if (samePlayer) {
+        if (reflectionWarning) setFeedback(reflectionWarning, "warning");
+        else setFeedback("MILESTONE APLICADO Y GUARDADO.", "success");
+      }
     } catch (error) {
       console.error("No se pudo aplicar Class Milestone:", error);
       if (state.playerId === submittedPlayerId) setFeedback("ERROR AL GUARDAR EL MILESTONE.", "error");
