@@ -13,14 +13,14 @@ const helpers = {
   validateFirebaseKey: studio.validateFirebaseKey,
 };
 
-test("empty Trait Library imports all known core definitions and Grants", () => {
+test("empty Trait Library imports all known core definitions and confirmed Grants", () => {
   const plan = importer.buildImportPlan({}, [], helpers);
   expect(plan.valid).toBe(true);
   expect(plan.errors).toEqual([]);
   expect(plan.definitionWrites.map((entry) => entry.id).sort()).toEqual(Object.keys(catalog.DEFINITIONS).sort());
   expect(plan.grantWrites.map((entry) => entry.id).sort()).toEqual(catalog.GRANTS.map((entry) => entry.id).sort());
   expect(plan.definitionWrites).toHaveLength(5);
-  expect(plan.grantWrites).toHaveLength(3);
+  expect(plan.grantWrites).toHaveLength(1);
 });
 
 test("core import never overwrites an existing DM Trait definition", () => {
@@ -39,18 +39,17 @@ test("core import never overwrites an existing DM Trait definition", () => {
   expect(plan.skippedDefinitions).toBe(1);
 });
 
-test("core import deduplicates Grants by semantic identity even with another Firebase push id", () => {
+test("core import deduplicates confirmed Grants by semantic identity even with another Firebase push id", () => {
   const existingGrants = [{
     id: "firebase_random_key",
-    sourceType: "class",
-    sourceId: "barbarian",
-    atLevel: 2,
-    traitId: "rage",
+    sourceType: "lineage",
+    sourceId: "devil_lineage",
+    traitId: "devil_body",
   }];
   const plan = importer.buildImportPlan({}, existingGrants, helpers);
   expect(plan.valid).toBe(true);
-  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "rage")).toBe(false);
-  expect(plan.grantWrites).toHaveLength(2);
+  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "devil_body")).toBe(false);
+  expect(plan.grantWrites).toHaveLength(0);
 });
 
 test("import reads persisted Firebase state directly before building its plan", async () => {
@@ -60,10 +59,9 @@ test("import reads persisted Firebase state directly before building its plan", 
   };
   const persistedGrants = {
     custom_push_id: {
-      sourceType: "class",
-      sourceId: "barbarian",
-      atLevel: 2,
-      traitId: "rage",
+      sourceType: "lineage",
+      sourceId: "devil_lineage",
+      traitId: "devil_body",
     },
   };
   const database = {
@@ -88,7 +86,7 @@ test("import reads persisted Firebase state directly before building its plan", 
 
   const plan = importer.buildImportPlan(persisted.definitions, persisted.grants, helpers);
   expect(plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "rage")).toBe(false);
+  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "devil_body")).toBe(false);
 });
 
 test("core Grant ids are Firebase-safe and deterministic", () => {
