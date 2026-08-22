@@ -230,7 +230,7 @@ test("Class/Race/Background grants se resuelven sin duplicar definiciones de Tra
 test("validator rechaza operaciones incompletas y mantiene el schema declarativo", () => {
   const invalid = traits.validateTrait({ name: "Broken", effects: [{ trigger: "on_hit", operations: [{ type: "modify" }] }] });
   expect(invalid.valid).toBe(false);
-  expect(invalid.errors.join(" ")).toContain("requires path");
+  expect(invalid.errors.join(" ")).toContain("requires a target path");
 
   const valid = traits.validateTrait(rage);
   expect(valid.valid).toBe(true);
