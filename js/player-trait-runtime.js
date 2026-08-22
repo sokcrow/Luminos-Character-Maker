@@ -378,8 +378,8 @@
         };
         const resolved = resolveTheatreCheck(enrichedCheck);
         if (!resolved?.check) return;
-        state.theatreArmedCheck = { ...resolved.check };
         originalArmCheck(resolved.check);
+        state.theatreArmedCheck = null;
         emit("luminous:theatre-traits-applied", resolved);
       }, true);
     }
