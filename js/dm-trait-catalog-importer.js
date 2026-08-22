@@ -129,20 +129,21 @@
         return undefined;
       }
 
-      // Returning undefined aborts a no-op transaction. If another editor writes
-      // while this transaction is in flight, Firebase retries this callback with
-      // the newest server state before any catalog data can be committed.
-      if (!mutation.changed) return undefined;
+      // A no-op still returns the unchanged tree. In Firebase 8, returning
+      // undefined aborts locally and can accept a stale cache as authoritative.
+      // Returning the tree forces the transaction to confirm against the server;
+      // if another DM deleted or changed catalog data, Firebase retries this
+      // callback with the newest server state before declaring the import done.
       return mutation.next;
     });
 
     if (planningErrors?.length) throw new Error(planningErrors.join(" · "));
     if (!lastMutation) throw new Error("Firebase transaction did not evaluate the Trait catalog.");
-    if (lastMutation.changed && !result?.committed) {
-      throw new Error("Trait catalog transaction was not committed.");
+    if (!result?.committed) {
+      throw new Error("Trait catalog transaction was not committed or server-confirmed.");
     }
 
-    return { ...lastMutation.plan, committed: Boolean(result?.committed) };
+    return { ...lastMutation.plan, committed: true };
   }
 
   if (typeof module !== "undefined" && module.exports) {
