@@ -4,8 +4,15 @@
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
   const CATALOG_VERSION = 1;
 
-  const DEFINITIONS = Object.freeze({
-    danger_senses: Object.freeze({
+  function deepFreeze(value, seen = new WeakSet()) {
+    if (!value || typeof value !== "object" || seen.has(value)) return value;
+    seen.add(value);
+    Reflect.ownKeys(value).forEach((key) => deepFreeze(value[key], seen));
+    return Object.freeze(value);
+  }
+
+  const DEFINITIONS = deepFreeze({
+    danger_senses: {
       schemaVersion: 1,
       id: "danger_senses",
       name: "Danger Senses",
@@ -20,9 +27,9 @@
         conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }],
         operations: [{ type: "modify", path: "check.difficulty", mode: "add", value: -4 }],
       }],
-    }),
+    },
 
-    green_eyed_heir: Object.freeze({
+    green_eyed_heir: {
       schemaVersion: 1,
       id: "green_eyed_heir",
       name: "Green Eyed Heir",
@@ -37,9 +44,9 @@
         conditions: [{ path: "check.skillId", operator: "in", value: ["insight", "perception"] }],
         operations: [{ type: "modify", path: "check.finalPower", mode: "add", value: 2 }],
       }],
-    }),
+    },
 
-    rage: Object.freeze({
+    rage: {
       schemaVersion: 1,
       id: "rage",
       name: "Rage",
@@ -59,9 +66,9 @@
         conditions: [],
         operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
       }],
-    }),
+    },
 
-    devil_body: Object.freeze({
+    devil_body: {
       schemaVersion: 1,
       id: "devil_body",
       name: "Devil Body",
@@ -81,9 +88,9 @@
           formula: "floor(DefensiveLevel / 2)",
         }],
       }],
-    }),
+    },
 
-    devil_trigger: Object.freeze({
+    devil_trigger: {
       schemaVersion: 1,
       id: "devil_trigger",
       name: "Devil Trigger",
@@ -112,19 +119,19 @@
           operations: [{ type: "modify", path: "self.damagePercent", mode: "add", formula: "OffensiveLevel" }],
         },
       ],
-    }),
+    },
   });
 
   // Grants are progression data, not mechanical definitions. Only keep a Grant
   // when its source requires no guessed class level. Class acquisition levels
   // remain DM-authored until the original progression is explicitly confirmed.
-  const GRANTS = Object.freeze([
-    Object.freeze({
+  const GRANTS = deepFreeze([
+    {
       id: "core_lineage_devil_lineage_devil_body",
       sourceType: "lineage",
       sourceId: "devil_lineage",
       traitId: "devil_body",
-    }),
+    },
   ]);
 
   function clone(value) {
