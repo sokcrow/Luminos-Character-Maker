@@ -27,15 +27,17 @@ function loadPlayerStatsApi() {
   return window.LuminousPlayerStats;
 }
 
-test("catálogos contienen las 13 clases, 17 razas y trasfondos Project Moon", () => {
+test("catálogos contienen las 13 clases, 18 razas y trasfondos Project Moon", () => {
   expect(rules.CLASSES).toHaveLength(13);
-  expect(rules.RACES).toHaveLength(17);
+  expect(rules.RACES).toHaveLength(18);
   expect(rules.BACKGROUNDS.length).toBeGreaterThanOrEqual(140);
   expect(rules.SETTINGS.defaultRaceId).toBe("human");
   expect(rules.RACES[0].id).toBe("human");
   expect(rules.getRace("human")).toMatchObject({ name: "Humano", hpCoefBonus: 0, defMod: 0, isDefault: true });
   expect(rules.getRace("lanae")).toMatchObject({ name: "Lanae", hpCoefBonus: 0.06, defMod: 0 });
   expect(rules.getRace("lanae")?.tags).toContain("mountain_adapted");
+  expect(rules.getRace("half_demon")).toMatchObject({ name: "Half-Demon", hpCoefBonus: 0.06, defMod: 0 });
+  expect(rules.getRace("half_demon")?.tags).toContain("demonic");
   expect(rules.getClass("rogue")?.hpCoefBase).toBe(2.78);
   expect(rules.getClass("sorcerer")?.offMod).toBe(2);
   expect(rules.getRace("yuan_ti_pureblood")?.hpCoefBonus).toBe(0.03);
@@ -47,6 +49,7 @@ test("las razas no aportan OFF permanente y DEF racial queda excepcional", () =>
   for (const race of rules.RACES) expect(race.offMod).toBeUndefined();
   expect(rules.getRace("human")?.defMod).toBe(0);
   expect(rules.getRace("lanae")?.defMod).toBe(0);
+  expect(rules.getRace("half_demon")?.defMod).toBe(0);
   expect(rules.getRace("goliath")?.defMod).toBe(1);
   expect(rules.getRace("warforged")?.defMod).toBe(1);
   expect(rules.getRace("yuan_ti_pureblood")?.defMod).toBe(0);
@@ -71,6 +74,27 @@ test("Humano es el baseline neutral y no altera HP Coef, OFF ni DEF", () => {
   expect(result.defLevel).toBe(11);
   expect(result.hpBase).toBe(20);
   expect(result.hp).toBe(53);
+});
+
+test("Half-Demon aporta +0.06 HP Coef sin DEF racial permanente", () => {
+  const result = rules.calculateBuild({
+    level: 10,
+    constitution: 10,
+    classes: [{ classId: "fighter", levels: 10 }],
+    backgroundId: "chef",
+    raceId: "half_demon",
+  });
+
+  expect(result.valid).toBe(true);
+  expect(result.raceId).toBe("half_demon");
+  expect(result.raceSubtypeId).toBeNull();
+  closeTo(result.raceHpCoefBonus, 0.06);
+  expect(result.raceDefMod).toBe(0);
+  closeTo(result.intrinsicHpCoef, 3.05);
+  expect(result.offLevel).toBe(11);
+  expect(result.defLevel).toBe(11);
+  expect(result.hpBase).toBe(20);
+  expect(result.hp).toBe(54);
 });
 
 test("Lanae aporta resistencia natural moderada sin OFF ni DEF permanente", () => {
