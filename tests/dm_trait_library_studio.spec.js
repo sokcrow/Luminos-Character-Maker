@@ -47,18 +47,21 @@ test("Grants persistidos siguen siendo consumibles por Trait Engine", () => {
   expect(engine.resolveTraitGrants(character, grants, catalog).map((trait) => trait.id)).toEqual(["rage", "infernal_touch", "chef_passion"]);
 });
 
+test("Trait Library reutiliza campaña/config, que ya es DM-only, sin ampliar reglas Firebase", () => {
+  expect(studio.TRAITS_ROOT).toBe("campaña/config/traits");
+  expect(studio.DEFINITIONS_ROOT).toBe("campaña/config/traits/definitions");
+  expect(studio.GRANTS_ROOT).toBe("campaña/config/traits/grants");
+  const rules = JSON.parse(read("database.rules.json"));
+  expect(rules.rules["campaña"].config[".write"]).toContain("auth.uid");
+});
+
 test("panel DM carga Trait Studio desde utils sin editar pantalla_dm.html", () => {
   const utils = read("js/utils.js");
   expect(utils).toContain("ensureDmTraitLibraryAssets");
   expect(utils).toContain("css/dm-trait-library-studio.css");
   expect(utils).toContain("js/dm-trait-library-studio.js");
   expect(utils).toContain("js/trait-engine.js");
-});
 
-test("Firebase reserva campaña/traits para escritura del DM", () => {
-  const rules = JSON.parse(read("database.rules.json"));
-  const traitRules = rules.rules["campaña"].traits;
-  expect(traitRules).toBeTruthy();
-  expect(traitRules[".write"]).toContain("auth.uid");
-  expect(traitRules[".write"]).toContain("e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1");
+  const dashboard = read("pantalla_dm.html");
+  expect(dashboard).not.toContain("dm-trait-library-studio.js");
 });
