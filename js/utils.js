@@ -140,16 +140,26 @@ function ensureDmTraitLibraryAssets(doc) {
     }
 
     const link = ensureStyleAsset(documentRef, 'dm-trait-library-stylesheet', 'css/dm-trait-library-studio.css', { ui: 'dm-trait-library' });
-    const ensureStudio = () => ensureScriptAsset(documentRef, 'dm-trait-library-script', 'js/dm-trait-library-studio.js', { ui: 'dm-trait-library' });
-    let engine = documentRef.getElementById('trait-engine-script');
+    const ensureTraitStack = () => {
+        const catalog = ensureScriptAsset(documentRef, 'trait-catalog-core-script', 'js/trait-catalog-core.js', { engine: 'trait-catalog-core' });
+        const studio = ensureScriptAsset(documentRef, 'dm-trait-library-script', 'js/dm-trait-library-studio.js', { ui: 'dm-trait-library' });
+        const importer = ensureScriptAsset(documentRef, 'dm-trait-catalog-importer-script', 'js/dm-trait-catalog-importer.js', { ui: 'dm-trait-catalog-importer' });
+        return { catalog, studio, importer };
+    };
 
+    let engine = documentRef.getElementById('trait-engine-script');
     if (!engine) {
-        engine = ensureScriptAsset(documentRef, 'trait-engine-script', 'js/trait-engine.js', { engine: 'trait-engine' });
-        engine.addEventListener('load', ensureStudio, { once: true });
+        engine = documentRef.createElement('script');
+        engine.id = 'trait-engine-script';
+        engine.src = 'js/trait-engine.js';
+        engine.async = false;
+        engine.dataset.engine = 'trait-engine';
+        engine.addEventListener('load', ensureTraitStack, { once: true });
+        documentRef.head?.appendChild(engine);
     } else if (typeof window !== 'undefined' && window.LuminousTraitEngine) {
-        ensureStudio();
+        ensureTraitStack();
     } else {
-        engine.addEventListener('load', ensureStudio, { once: true });
+        engine.addEventListener('load', ensureTraitStack, { once: true });
     }
 
     return { link, engine, traitTab };
