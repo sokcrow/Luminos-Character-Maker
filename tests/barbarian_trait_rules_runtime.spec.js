@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const engine = require("../js/trait-engine.js");
 const catalog = require("../js/trait-catalog-core.js");
+const modifiers = require("../js/universal-modifier-engine.js");
 
 function barbarian(level = 100) {
   return {
@@ -24,32 +25,52 @@ function barbarian(level = 100) {
   };
 }
 
-test("Armorless Defense applies its permanent bonuses only once", () => {
+test("Armorless Defense resolves Defensive Level universally and removes its Stagger Threshold only once", () => {
   const character = barbarian(100);
+  character.staggerThresholds = [70, 40];
   const trait = catalog.getDefinition("armorless_defense");
   const state = engine.createState();
-  const self = {
-    hasArmor: false,
-    defensiveLevel: 10,
-    staggerThresholds: [70, 40],
-  };
 
-  engine.dispatchCombatEvent("turn_start", { character, self, traits: [trait], state });
-  expect(self.defensiveLevel).toBe(14);
-  expect(self.staggerThresholds).toEqual([70]);
+  const firstSnapshot = modifiers.resolveCharacterSnapshot({
+    unit: character,
+    character,
+    traits: [trait],
+    context: "combat",
+  });
+  const secondSnapshot = modifiers.resolveCharacterSnapshot({
+    unit: character,
+    character,
+    traits: [trait],
+    context: "combat",
+  });
+  expect(firstSnapshot.defensiveLevel).toBe(64);
+  expect(secondSnapshot.defensiveLevel).toBe(64);
+  expect(character.combatStats.defensiveLevel).toBe(60);
 
-  engine.dispatchCombatEvent("turn_start", { character, self, traits: [trait], state });
-  expect(self.defensiveLevel).toBe(14);
-  expect(self.staggerThresholds).toEqual([70]);
+  engine.dispatchTrait(trait, "passive", {
+    context: "combat",
+    character,
+    self: character,
+    equipment: { armorEquipped: false },
+  }, state);
+  expect(character.staggerThresholds).toEqual([70]);
+
+  engine.dispatchTrait(trait, "passive", {
+    context: "combat",
+    character,
+    self: character,
+    equipment: { armorEquipped: false },
+  }, state);
+  expect(character.staggerThresholds).toEqual([70]);
 });
 
-test("Wild Instincts grants STR Mod Haste once at Encounter Start", () => {
+test("Wild Instincts grants STR Mod Haste Count once at Encounter Start", () => {
   const character = barbarian(100);
   const trait = catalog.getDefinition("wild_instincts");
   const state = engine.createState();
 
   engine.dispatchCombatEvent("encounter_start", { character, self: character, traits: [trait], state });
-  expect(state.statuses.haste).toMatchObject({ id: "haste", potency: 5, count: 1 });
+  expect(state.statuses.haste).toMatchObject({ id: "haste", potency: 0, count: 5 });
 });
 
 test("Reckless Attack is once per Turn, turns the next Skill Red and Gain applies Fragile to Self", () => {
