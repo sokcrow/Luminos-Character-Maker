@@ -49,37 +49,28 @@
     }
   }
 
-  function installPlayerSelectValueSync() {
-    const Select = global.HTMLSelectElement;
+  function installPlayerProxyMilestoneSync() {
     const EventCtor = global.Event;
-    if (!Select?.prototype || typeof EventCtor !== "function") return;
-    if (Select.prototype.__luminousMilestoneValueSync) return;
+    if (!doc || typeof doc.addEventListener !== "function" || typeof EventCtor !== "function") return;
+    if (global.LuminousDmPlayerProxyMilestoneSync) return;
 
-    const descriptor = Object.getOwnPropertyDescriptor(Select.prototype, "value");
-    if (!descriptor?.get || !descriptor?.set || descriptor.configurable === false) return;
+    doc.addEventListener("click", (event) => {
+      const button = event.target?.closest?.("#grid-jugadores .btn-open-modal");
+      if (!button) return;
 
-    Object.defineProperty(Select.prototype, "value", {
-      configurable: descriptor.configurable,
-      enumerable: descriptor.enumerable,
-      get: descriptor.get,
-      set(value) {
-        const before = descriptor.get.call(this);
-        descriptor.set.call(this, value);
-        const after = descriptor.get.call(this);
-        if (this?.id === "dm-player-dnd-select" && before !== after) {
-          this.dispatchEvent(new EventCtor("change", { bubbles: true }));
-        }
-      },
-    });
+      const playerId = String(button.getAttribute?.("data-id") || "").trim();
+      const select = doc.getElementById("dm-player-dnd-select");
+      if (!playerId || !select || select.value === playerId) return;
 
-    Object.defineProperty(Select.prototype, "__luminousMilestoneValueSync", {
-      configurable: true,
-      value: true,
-    });
+      select.value = playerId;
+      select.dispatchEvent(new EventCtor("change", { bubbles: true }));
+    }, true);
+
+    global.LuminousDmPlayerProxyMilestoneSync = true;
   }
 
   ensureClassMilestoneAssets();
-  installPlayerSelectValueSync();
+  installPlayerProxyMilestoneSync();
 
   if (!global?.Node || global.LuminousDmPlayerDndObserverHotfix) return;
 
