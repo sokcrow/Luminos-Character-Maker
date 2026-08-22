@@ -112,7 +112,7 @@ test("Rage consumes Quick Action, scales uses by Barbarian ClassLevel and blocks
   expect(result.maximum).toBe(2);
   expect(result.remaining).toBe(1);
   expect(runtime.actionEconomy.quick_action).toBe(0);
-  expect(state.statuses.rage).toMatchObject({ id: "rage", sourceTraitId: "rage" });
+  expect(state.statuses.rage).toMatchObject({ id: "rage", sourceTraitId: "rage", count: 1 });
 
   const blocked = engine.canActivateTrait(trait, {
     context: "combat",
@@ -251,12 +251,12 @@ test("catalog accessors return copies instead of mutable canonical objects", () 
   const first = catalog.getDefinition("rage");
   first.name = "MUTATED";
   first.effects[0].operations[0].statusId = "other";
-  first.rules[0].statusId = "other";
+  first.rules[0].path = "other";
 
   const second = catalog.getDefinition("rage");
   expect(second.name).toBe("Rage");
   expect(second.effects[0].operations[0].statusId).toBe("rage");
-  expect(second.rules[0].statusId).toBe("rage");
+  expect(second.rules[0].path).toBe("damageTakenPercent");
 });
 
 test("exported canonical definitions and Grants are deeply frozen", () => {
