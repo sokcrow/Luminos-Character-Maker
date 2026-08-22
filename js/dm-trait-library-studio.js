@@ -43,7 +43,9 @@
     const traitId = normalizeId(input.traitId || input.id);
     const grant = { sourceType, sourceId, traitId };
     if (sourceType === "class") {
-      grant.atLevel = Math.max(1, Math.min(100, Number.parseInt(input.atLevel ?? input.level ?? 1, 10) || 1));
+      const rawLevel = input.atLevel ?? input.level;
+      const missingLevel = rawLevel == null || (typeof rawLevel === "string" && !rawLevel.trim());
+      grant.atLevel = missingLevel ? 1 : Number(rawLevel);
     }
     return grant;
   }
@@ -69,6 +71,32 @@
     return Object.entries(value || {}).map(([id, grant]) => ({ id, ...normalizeGrant(grant) }));
   }
 
+  function normalizeCharacterForGrantResolution(character = {}) {
+    const build = character?.characterBuild && typeof character.characterBuild === "object"
+      ? character.characterBuild
+      : {};
+    const resolved = { ...(character || {}) };
+
+    if (Array.isArray(build.classes)) resolved.classes = build.classes;
+    if (Object.prototype.hasOwnProperty.call(build, "raceId")) resolved.raceId = build.raceId;
+    if (Object.prototype.hasOwnProperty.call(build, "raceSubtypeId")) resolved.raceSubtypeId = build.raceSubtypeId;
+    if (Object.prototype.hasOwnProperty.call(build, "backgroundId")) resolved.backgroundId = build.backgroundId;
+    if (Object.prototype.hasOwnProperty.call(build, "calculatedAtLevel")) resolved.level = build.calculatedAtLevel;
+    if (Array.isArray(build.lineages)) resolved.lineages = build.lineages;
+    if (Object.prototype.hasOwnProperty.call(build, "lineageId")) resolved.lineageId = build.lineageId;
+
+    return resolved;
+  }
+
+  function buildDefinitionPayload(trait = {}, previous, timestamp) {
+    const stamp = timestamp ?? Date.now();
+    return {
+      ...trait,
+      createdAt: previous?.createdAt ?? stamp,
+      updatedAt: stamp,
+    };
+  }
+
   const portableApi = Object.freeze({
     TRAITS_ROOT,
     DEFINITIONS_ROOT,
@@ -80,6 +108,8 @@
     validateGrant,
     grantIdentity,
     grantsArray,
+    normalizeCharacterForGrantResolution,
+    buildDefinitionPayload,
   });
 
   if (typeof module !== "undefined" && module.exports) module.exports = portableApi;
@@ -390,8 +420,7 @@
     if (!validation.valid) throw new Error(validation.errors.join(" · "));
     const trait = validation.trait;
     const previous = state.definitions[trait.id];
-    const payload = { ...trait, updatedAt: now() };
-    if (!previous) payload.createdAt = now();
+    const payload = buildDefinitionPayload(trait, previous, now());
     await state.db.ref(`${DEFINITIONS_ROOT}/${trait.id}`).set(payload);
     setFeedback(`${trait.name} guardado en la biblioteca.`, "success");
     return trait;
@@ -414,12 +443,12 @@
 
   function readGrantForm() {
     const sourceType = normalizeId($("dm-trait-grant-source-type")?.value || "class");
-    return normalizeGrant({
+    return {
       traitId: $("dm-trait-grant-trait")?.value,
       sourceType,
       sourceId: sourceType === "lineage" ? $("dm-trait-grant-lineage-id")?.value : $("dm-trait-grant-source-id")?.value,
       atLevel: $("dm-trait-grant-level")?.value,
-    });
+    };
   }
 
   async function saveGrantForm() {
@@ -494,7 +523,8 @@
   }
 
   function resolveForCharacter(character) {
-    return engine.resolveTraitGrants(character || {}, Object.values(state.grants), state.definitions);
+    const resolvedCharacter = normalizeCharacterForGrantResolution(character || {});
+    return engine.resolveTraitGrants(resolvedCharacter, Object.values(state.grants), state.definitions);
   }
 
   function start() {
