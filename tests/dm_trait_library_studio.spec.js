@@ -13,6 +13,16 @@ test("Grant de clase normaliza nivel y conserva identidad determinista", () => {
   expect(studio.validateGrant(grant).valid).toBe(true);
 });
 
+test("Grant de clase rechaza niveles inválidos en lugar de corregirlos silenciosamente", () => {
+  for (const atLevel of [0, 101, "abc", 1.5]) {
+    const validation = studio.validateGrant({ sourceType: "class", sourceId: "barbarian", traitId: "rage", atLevel });
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.join(" ")).toContain("atLevel");
+  }
+
+  expect(studio.normalizeGrant({ sourceType: "class", sourceId: "barbarian", traitId: "rage", atLevel: 101 }).atLevel).toBe(101);
+});
+
 test("Grant racial no hereda atLevel porque el nivel solo pertenece a clases", () => {
   const grant = studio.normalizeGrant({ sourceType: "race", sourceId: "tiefling", traitId: "infernal_touch", atLevel: 99 });
   expect(grant).toEqual({ sourceType: "race", sourceId: "tiefling", traitId: "infernal_touch" });
@@ -27,12 +37,17 @@ test("validator de Grants rechaza fuente, trait o source vacíos", () => {
   expect(invalid.errors.join(" ")).toContain("traitId");
 });
 
-test("Grants persistidos siguen siendo consumibles por Trait Engine", () => {
-  const character = {
+test("Grants resuelven desde characterBuild tal como se persiste el jugador real", () => {
+  const player = {
     level: 10,
-    classes: [{ classId: "barbarian", levels: 5 }, { classId: "fighter", levels: 5 }],
-    raceId: "tiefling",
-    backgroundId: "chef",
+    raceId: "legacy_race",
+    backgroundId: "legacy_background",
+    characterBuild: {
+      calculatedAtLevel: 10,
+      classes: [{ classId: "barbarian", levels: 5 }, { classId: "fighter", levels: 5 }],
+      raceId: "tiefling",
+      backgroundId: "chef",
+    },
   };
   const catalog = {
     rage: { id: "rage", name: "Rage", source: { type: "class", id: "barbarian" } },
@@ -44,7 +59,30 @@ test("Grants persistidos siguen siendo consumibles por Trait Engine", () => {
     studio.normalizeGrant({ sourceType: "race", sourceId: "tiefling", traitId: "infernal_touch" }),
     studio.normalizeGrant({ sourceType: "background", sourceId: "chef", traitId: "chef_passion" }),
   ];
+  const character = studio.normalizeCharacterForGrantResolution(player);
+
+  expect(character.classes).toEqual(player.characterBuild.classes);
+  expect(character.raceId).toBe("tiefling");
+  expect(character.backgroundId).toBe("chef");
   expect(engine.resolveTraitGrants(character, grants, catalog).map((trait) => trait.id)).toEqual(["rage", "infernal_touch", "chef_passion"]);
+});
+
+test("editar una definición conserva createdAt y solo actualiza updatedAt", () => {
+  const trait = { id: "rage", name: "Rage" };
+  const existing = { ...trait, createdAt: 111, updatedAt: 222 };
+  expect(studio.buildDefinitionPayload(trait, existing, 333)).toEqual({
+    id: "rage",
+    name: "Rage",
+    createdAt: 111,
+    updatedAt: 333,
+  });
+
+  expect(studio.buildDefinitionPayload(trait, null, 444)).toEqual({
+    id: "rage",
+    name: "Rage",
+    createdAt: 444,
+    updatedAt: 444,
+  });
 });
 
 test("Trait Library reutiliza campaña/config, que ya es DM-only, sin ampliar reglas Firebase", () => {
