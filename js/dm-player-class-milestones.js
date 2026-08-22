@@ -245,7 +245,6 @@
     const classId = normalizeId(row.dataset.classId);
     const milestoneLevel = Number.parseInt(row.dataset.milestoneLevel, 10);
     const proposed = rowChoice(row);
-    const submittedFormStats = currentFormStats();
     const submittedRawStats = currentFormStatRawValues();
     const submittedSavedStats = api.normalizeStats(state.player?.stats || {});
 
@@ -261,7 +260,7 @@
         return;
       }
     } else if (proposed.type === "stats") {
-      const formValidation = api.validateChoice(proposed, submittedFormStats);
+      const formValidation = api.validateChoice(proposed, submittedRawStats);
       if (!formValidation.valid) {
         setFeedback(formValidation.errors.join(" "), "error");
         return;
