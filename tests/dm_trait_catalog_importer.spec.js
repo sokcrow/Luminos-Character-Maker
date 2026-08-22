@@ -52,41 +52,79 @@ test("core import deduplicates confirmed Grants by semantic identity even with a
   expect(plan.grantWrites).toHaveLength(0);
 });
 
-test("import reads persisted Firebase state directly before building its plan", async () => {
-  const reads = [];
-  const persistedDefinitions = {
-    rage: { id: "rage", name: "Rage - Existing DM Version" },
+test("atomic mutation preserves concurrent custom definitions and semantic Grants", () => {
+  const currentTree = {
+    definitions: {
+      rage: { id: "rage", name: "Rage - Concurrent DM Version" },
+    },
+    grants: {
+      custom_push_id: {
+        sourceType: "lineage",
+        sourceId: "devil_lineage",
+        traitId: "devil_body",
+      },
+    },
+    unrelated: { keep: true },
   };
-  const persistedGrants = {
-    custom_push_id: {
-      sourceType: "lineage",
-      sourceId: "devil_lineage",
-      traitId: "devil_body",
+
+  const mutation = importer.buildAtomicImportMutation(currentTree, helpers, 1234);
+  expect(mutation.valid).toBe(true);
+  expect(mutation.changed).toBe(true);
+  expect(mutation.plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
+  expect(mutation.plan.grantWrites).toHaveLength(0);
+  expect(mutation.next.definitions.rage.name).toBe("Rage - Concurrent DM Version");
+  expect(mutation.next.grants.custom_push_id.traitId).toBe("devil_body");
+  expect(mutation.next.unrelated).toEqual({ keep: true });
+  expect(mutation.next.definitions.danger_senses.createdAt).toBe(1234);
+});
+
+test("Firebase transaction retry replans against a concurrent DM write before commit", async () => {
+  const concurrentTree = {
+    definitions: {
+      rage: { id: "rage", name: "Rage - Saved During Import" },
+    },
+    grants: {
+      another_dm_grant: {
+        sourceType: "lineage",
+        sourceId: "devil_lineage",
+        traitId: "devil_body",
+      },
     },
   };
+
+  let attempts = 0;
+  let committedTree = null;
   const database = {
     ref(refPath) {
+      expect(refPath).toBe(importer.TRAITS_ROOT);
       return {
-        async once(eventName) {
-          reads.push([refPath, eventName]);
-          const value = refPath === importer.DEFINITIONS_ROOT ? persistedDefinitions : persistedGrants;
-          return { val: () => value };
+        async transaction(update) {
+          attempts += 1;
+          const staleCandidate = update({ definitions: {}, grants: {} });
+          expect(staleCandidate.definitions.rage.name).toBe("Rage");
+
+          attempts += 1;
+          committedTree = update(concurrentTree);
+          return { committed: true, snapshot: { val: () => committedTree } };
         },
       };
     },
   };
 
-  const persisted = await importer.readPersistedTraitState(database);
-  expect(reads).toEqual([
-    ["campaña/config/traits/definitions", "value"],
-    ["campaña/config/traits/grants", "value"],
-  ]);
-  expect(persisted.definitions.rage.name).toBe("Rage - Existing DM Version");
-  expect(persisted.grants).toEqual([{ id: "custom_push_id", ...persistedGrants.custom_push_id }]);
-
-  const plan = importer.buildImportPlan(persisted.definitions, persisted.grants, helpers);
-  expect(plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "devil_body")).toBe(false);
+  const result = await importer.runAtomicImport(database, helpers, 5678);
+  expect(attempts).toBe(2);
+  expect(result.committed).toBe(true);
+  expect(result.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
+  expect(result.grantWrites).toHaveLength(0);
+  expect(committedTree.definitions.rage.name).toBe("Rage - Saved During Import");
+  expect(committedTree.grants.another_dm_grant.traitId).toBe("devil_body");
+  expect(Object.keys(committedTree.definitions)).toEqual(expect.arrayContaining([
+    "danger_senses",
+    "devil_body",
+    "devil_trigger",
+    "green_eyed_heir",
+    "rage",
+  ]));
 });
 
 test("core Grant ids are Firebase-safe and deterministic", () => {
