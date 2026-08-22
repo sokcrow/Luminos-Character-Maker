@@ -2,7 +2,23 @@
   "use strict";
 
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const CATALOG_VERSION = 1;
+  const CATALOG_VERSION = 2;
+
+  const RULE_TYPES = Object.freeze([
+    "modifier",
+    "status",
+    "restriction",
+    "resource",
+    "coin",
+    "check",
+    "counter",
+    "stagger_threshold",
+    "status_protection",
+    "stat",
+    "speed_override",
+  ]);
+  const RULE_TARGETS = Object.freeze(["self", "target"]);
+  const RULE_SCOPES = Object.freeze(["immediate", "once_per_turn", "once_per_skill", "next_skill", "encounter", "long_rest", "permanent"]);
 
   function deepFreeze(value, seen = new WeakSet()) {
     if (!value || typeof value !== "object" || seen.has(value)) return value;
@@ -11,13 +27,105 @@
     return Object.freeze(value);
   }
 
+  const classSource = Object.freeze({ type: "class", id: "barbarian", classId: "barbarian" });
+
   const DEFINITIONS = deepFreeze({
+    armorless_defense: {
+      schemaVersion: 1,
+      id: "armorless_defense",
+      name: "Armorless Defense",
+      description: "Without Armor, gain Constitution Mod Defensive Level; at Encounter Start Guard gains Level% Shield for the encounter; remove 1 Stagger Threshold.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [
+        {
+          type: "modifier",
+          trigger: "passive",
+          target: "self",
+          path: "defensiveLevel",
+          mode: "add",
+          formula: "ConstitutionMod",
+          conditions: [{ path: "self.hasArmor", operator: "falsy" }],
+        },
+        {
+          type: "modifier",
+          trigger: "encounter_start",
+          target: "self",
+          path: "guard.shieldPercent",
+          mode: "add",
+          formula: "Level",
+          duration: "encounter",
+          conditions: [{ path: "self.hasArmor", operator: "falsy" }],
+        },
+        { type: "stagger_threshold", trigger: "passive", target: "self", action: "remove", count: 1 },
+      ],
+    },
+
+    rage: {
+      schemaVersion: 1,
+      id: "rage",
+      name: "Rage",
+      description: "Spend a Quick Action to gain Rage. Uses scale with Barbarian ClassLevel and reset on Long Rest.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: {
+        type: "manual",
+        actionCost: "quick_action",
+        uses: { formula: "floor(ClassLevel / 7)", reset: "long_rest" },
+        conditions: [{ statusId: "rage", operator: "falsy" }],
+      },
+      effects: [{
+        id: "rage_activate",
+        contexts: ["combat"],
+        trigger: "on_use",
+        conditions: [],
+        operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
+      }],
+      rules: [
+        { type: "status", trigger: "on_use", action: "gain", target: "self", statusId: "rage", duration: "until_removed" },
+        { type: "modifier", trigger: "damage_taken", target: "self", path: "damageTakenPercent", mode: "multiply", value: 0.5, damageTypes: ["Slash", "Pierce", "Blunt"], whileStatus: "rage" },
+        { type: "restriction", trigger: "passive", target: "self", restriction: "spell_skills", whileStatus: "rage" },
+        { type: "resource", trigger: "turn_end", target: "self", resourceId: "sp", mode: "lose", value: 5, whileStatus: "rage" },
+        { type: "modifier", trigger: "damage_dealt", target: "self", path: "damagePercent", mode: "add", formula: "OffensiveLevel", whileStatus: "rage" },
+        { type: "resource", trigger: "skill_resource_gain", target: "self", resourceId: "wrath", mode: "gain", value: 1, whileStatus: "rage", conditions: [{ path: "skill.affinity", operator: "eq", value: "Wrath" }] },
+        { type: "modifier", trigger: "before_skill", target: "self", path: "skill.finalPower", mode: "add", formula: "floor(OffensiveLevel / 30)", whileStatus: "rage", conditions: [{ path: "skill.affinity", operator: "eq", value: "Wrath" }] },
+      ],
+    },
+
+    reckless_attack: {
+      schemaVersion: 1,
+      id: "reckless_attack",
+      name: "Reckless Attack",
+      description: "Quick Action, once per Turn. The next Skill makes all Coins Red; Coins already Red gain +1 Coin Power. On Hit with that Skill, gain 1 Fragile.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: {
+        type: "manual",
+        actionCost: "quick_action",
+        uses: { formula: "1", reset: "turn" },
+      },
+      effects: [{
+        id: "reckless_attack_arm",
+        contexts: ["combat"],
+        trigger: "on_use",
+        conditions: [],
+        operations: [{ type: "apply_status", statusId: "reckless_attack_armed", duration: "next_skill" }],
+      }],
+      rules: [
+        { type: "coin", trigger: "before_skill", action: "set_type", target: "self", coinType: "unbreakable", displayType: "red", scope: "next_skill", whileStatus: "reckless_attack_armed", alreadyTypePowerBonus: 1 },
+        { type: "status", trigger: "on_hit", action: "gain", target: "self", statusId: "fragile", count: 1, scope: "next_skill", whileStatus: "reckless_attack_armed" },
+        { type: "status", trigger: "attack_end", action: "remove", target: "self", statusId: "reckless_attack_armed" },
+      ],
+    },
+
     danger_senses: {
       schemaVersion: 1,
       id: "danger_senses",
       name: "Danger Senses",
       description: "Reduce Dexterity check Difficulty by 4 before the roll resolves.",
-      source: { type: "class", id: "barbarian", classId: "barbarian" },
+      source: classSource,
       contexts: ["theatre"],
       activation: { type: "passive", actionCost: "none" },
       effects: [{
@@ -27,6 +135,146 @@
         conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }],
         operations: [{ type: "modify", path: "check.difficulty", mode: "add", value: -4 }],
       }],
+      rules: [{ type: "modifier", trigger: "before_check", target: "self", path: "check.difficulty", mode: "add", value: -4, conditions: [{ path: "check.abilityId", operator: "eq", value: "dex" }] }],
+    },
+
+    additional_attack: {
+      schemaVersion: 1,
+      id: "additional_attack",
+      name: "Additional Attack",
+      description: "Melee Skills with 2 or 3 Coins reuse the Skill's last Coin once per Skill.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [{
+        type: "coin",
+        trigger: "before_skill",
+        action: "reuse_last",
+        target: "self",
+        count: 1,
+        scope: "once_per_skill",
+        conditions: [
+          { path: "skill.isMelee", operator: "truthy" },
+          { path: "skill.coinAmount", operator: "between", value: 2, max: 3 },
+        ],
+      }],
+    },
+
+    fast_movement: {
+      schemaVersion: 1,
+      id: "fast_movement",
+      name: "Fast Movement",
+      description: "Gain +1 Min Speed.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [{ type: "modifier", trigger: "passive", target: "self", path: "minSpeed", mode: "add", value: 1, scope: "permanent" }],
+    },
+
+    wild_instincts: {
+      schemaVersion: 1,
+      id: "wild_instincts",
+      name: "Wild Instincts",
+      description: "At Encounter Start gain STR Mod Haste. While Surprised, Speed is not Halved.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "automatic", actionCost: "none" },
+      effects: [{
+        id: "wild_instincts_haste",
+        contexts: ["combat"],
+        trigger: "encounter_start",
+        conditions: [],
+        operations: [{ type: "apply_status", statusId: "haste", potency: { formula: "StrengthMod" }, duration: "encounter" }],
+      }],
+      rules: [
+        { type: "status", trigger: "encounter_start", action: "gain", target: "self", statusId: "haste", formula: "StrengthMod", duration: "encounter" },
+        { type: "speed_override", trigger: "passive", target: "self", action: "ignore_halving", whileStatus: "surprised" },
+      ],
+    },
+
+    brutal_critical: {
+      schemaVersion: 1,
+      id: "brutal_critical",
+      name: "Brutal Critical",
+      description: "Deal floor(Offensive Level / 2)% additional Crit Damage.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [{ type: "modifier", trigger: "on_crit", target: "self", path: "critDamagePercent", mode: "add", formula: "floor(OffensiveLevel / 2)" }],
+    },
+
+    unstoppable_rage: {
+      schemaVersion: 1,
+      id: "unstoppable_rage",
+      name: "Unstoppable Rage",
+      description: "While Raging, at 0 HP make a CON Check starting at Threshold 10. On a pass regain floor(Defensive Level / 3)% HP. Every trigger raises this Trait Threshold by 5; only Long Rest resets it to 10.",
+      source: classSource,
+      contexts: ["combat", "theatre"],
+      activation: { type: "automatic", actionCost: "none" },
+      effects: [],
+      rules: [
+        {
+          type: "check",
+          trigger: "hp_zero",
+          target: "self",
+          abilityId: "con",
+          threshold: { stateKey: "unstoppable_rage_threshold", initial: 10 },
+          whileStatus: "rage",
+          onPass: [{ type: "modifier", target: "self", path: "hpPercent", mode: "regain", formula: "floor(DefensiveLevel / 3)" }],
+        },
+        {
+          type: "counter",
+          trigger: "after_trigger",
+          target: "self",
+          stateKey: "unstoppable_rage_threshold",
+          initial: 10,
+          mode: "add",
+          value: 5,
+          reset: "long_rest",
+        },
+      ],
+    },
+
+    persistent_rage: {
+      schemaVersion: 1,
+      id: "persistent_rage",
+      name: "Persistent Rage",
+      description: "Rage cannot be lost by effects.",
+      source: classSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [{ type: "status_protection", trigger: "passive", target: "self", statusId: "rage", from: "effects" }],
+    },
+
+    unstoppable_strength: {
+      schemaVersion: 1,
+      id: "unstoppable_strength",
+      name: "Unstoppable Strength",
+      description: "On a failed Coin in a Strength Check, re-toss the last Coin floor(STR Mod / 2) times.",
+      source: classSource,
+      contexts: ["theatre"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [{ type: "coin", trigger: "check_coin_fail", action: "retoss_last", target: "self", formula: "floor(StrengthMod / 2)", conditions: [{ path: "check.abilityId", operator: "eq", value: "str" }] }],
+    },
+
+    primordial_champion: {
+      schemaVersion: 1,
+      id: "primordial_champion",
+      name: "Primordial Champion",
+      description: "Strength and Constitution gain +4 and their maximum becomes 24.",
+      source: classSource,
+      contexts: ["any"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [
+        { type: "stat", trigger: "passive", target: "self", statId: "strength", value: 4, max: 24, scope: "permanent" },
+        { type: "stat", trigger: "passive", target: "self", statId: "constitution", value: 4, max: 24, scope: "permanent" },
+      ],
     },
 
     green_eyed_heir: {
@@ -43,28 +291,6 @@
         trigger: "before_check",
         conditions: [{ path: "check.skillId", operator: "in", value: ["insight", "perception"] }],
         operations: [{ type: "modify", path: "check.finalPower", mode: "add", value: 2 }],
-      }],
-    },
-
-    rage: {
-      schemaVersion: 1,
-      id: "rage",
-      name: "Rage",
-      description: "Spend a Quick Action to enter Rage. Uses scale with Barbarian ClassLevel and reset on Long Rest.",
-      source: { type: "class", id: "barbarian", classId: "barbarian" },
-      contexts: ["combat"],
-      activation: {
-        type: "manual",
-        actionCost: "quick_action",
-        uses: { formula: "floor(ClassLevel / 7)", reset: "long_rest" },
-        conditions: [{ statusId: "rage", operator: "falsy" }],
-      },
-      effects: [{
-        id: "rage_activate",
-        contexts: ["combat"],
-        trigger: "on_use",
-        conditions: [],
-        operations: [{ type: "apply_status", statusId: "rage", duration: "until_removed" }],
       }],
     },
 
@@ -122,10 +348,27 @@
     },
   });
 
-  // Grants are progression data, not mechanical definitions. Only keep a Grant
-  // when its source requires no guessed class level. Class acquisition levels
-  // remain DM-authored until the original progression is explicitly confirmed.
+  const barbarianGrant = (level, traitId) => ({
+    id: `core_class_barbarian_l${level}_${traitId}`,
+    sourceType: "class",
+    sourceId: "barbarian",
+    atLevel: level,
+    traitId,
+  });
+
   const GRANTS = deepFreeze([
+    barbarianGrant(1, "armorless_defense"),
+    barbarianGrant(1, "rage"),
+    barbarianGrant(10, "reckless_attack"),
+    barbarianGrant(10, "danger_senses"),
+    barbarianGrant(25, "additional_attack"),
+    barbarianGrant(25, "fast_movement"),
+    barbarianGrant(35, "wild_instincts"),
+    barbarianGrant(45, "brutal_critical"),
+    barbarianGrant(55, "unstoppable_rage"),
+    barbarianGrant(75, "persistent_rage"),
+    barbarianGrant(90, "unstoppable_strength"),
+    barbarianGrant(100, "primordial_champion"),
     {
       id: "core_lineage_devil_lineage_devil_body",
       sourceType: "lineage",
@@ -136,6 +379,25 @@
 
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function validateRules(definition = {}) {
+    const errors = [];
+    const rules = Array.isArray(definition.rules) ? definition.rules : [];
+    rules.forEach((rule, index) => {
+      const label = `${definition.id || definition.name || "trait"} rule ${index + 1}`;
+      if (!RULE_TYPES.includes(rule?.type)) errors.push(`${label}: unsupported rule type ${rule?.type || "<missing>"}.`);
+      if (rule?.target && !RULE_TARGETS.includes(rule.target)) errors.push(`${label}: unsupported target ${rule.target}.`);
+      if (rule?.scope && !RULE_SCOPES.includes(rule.scope)) errors.push(`${label}: unsupported scope ${rule.scope}.`);
+      if (rule?.type === "status" && !rule.statusId) errors.push(`${label}: status rule requires statusId.`);
+      if (rule?.type === "status" && rule.action === "gain" && rule.target !== "self") errors.push(`${label}: Gain must target self.`);
+      if (rule?.type === "status" && rule.action === "inflict" && rule.target !== "target") errors.push(`${label}: Inflict must target target.`);
+      if (rule?.type === "counter" && rule.reset !== "long_rest" && rule.stateKey === "unstoppable_rage_threshold") errors.push(`${label}: Unstoppable Rage Threshold may only reset on long_rest.`);
+      if (rule?.type === "coin" && !rule.action) errors.push(`${label}: coin rule requires action.`);
+      if (rule?.type === "check" && !rule.abilityId) errors.push(`${label}: check rule requires abilityId.`);
+      if (rule?.type === "stat" && (!rule.statId || rule.max == null)) errors.push(`${label}: stat rule requires statId and max.`);
+    });
+    return { valid: !errors.length, errors };
   }
 
   function allDefinitions() {
@@ -161,6 +423,7 @@
       if (result.trait.id !== key) errors.push(`${key}: normalized id became ${result.trait.id}.`);
       result.errors.forEach((message) => errors.push(`${key}: ${message}`));
       result.warnings.forEach((message) => warnings.push(`${key}: ${message}`));
+      validateRules(definition).errors.forEach((message) => errors.push(message));
     });
 
     const seenGrantIds = new Set();
@@ -180,11 +443,15 @@
 
   const api = Object.freeze({
     CATALOG_VERSION,
+    RULE_TYPES,
+    RULE_TARGETS,
+    RULE_SCOPES,
     DEFINITIONS,
     GRANTS,
     allDefinitions,
     allGrants,
     getDefinition,
+    validateRules,
     validateAll,
   });
 
