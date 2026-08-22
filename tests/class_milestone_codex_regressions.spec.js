@@ -8,25 +8,7 @@ const traitEngine = require("../js/trait-engine.js");
 const integration = require("../js/class-milestone-trait-integration.js");
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
-test("programmatic player select changes emit change so milestones rebind", () => {
-  class FakeSelect {
-    constructor() {
-      this.id = "dm-player-dnd-select";
-      this._value = "player-a";
-      this.events = [];
-    }
-    dispatchEvent(event) {
-      this.events.push(event.type);
-      return true;
-    }
-  }
-  Object.defineProperty(FakeSelect.prototype, "value", {
-    configurable: true,
-    enumerable: true,
-    get() { return this._value; },
-    set(value) { this._value = String(value); },
-  });
-
+test("proxy player switches emit change without patching general select assignments", () => {
   class FakeEvent {
     constructor(type, options = {}) {
       this.type = type;
@@ -34,27 +16,55 @@ test("programmatic player select changes emit change so milestones rebind", () =
     }
   }
 
+  const listeners = {};
+  const select = {
+    value: "player-a",
+    events: [],
+    dispatchEvent(event) {
+      this.events.push(event.type);
+      return true;
+    },
+  };
+  const button = {
+    getAttribute(name) {
+      return name === "data-id" ? "player-b" : null;
+    },
+  };
   const document = {
-    getElementById() { return null; },
+    getElementById(id) {
+      return id === "dm-player-dnd-select" ? select : null;
+    },
     createElement() {
       return {
         addEventListener() {},
         dataset: {},
       };
     },
+    addEventListener(type, handler) {
+      listeners[type] = handler;
+    },
     head: { appendChild() {} },
   };
-  const window = { document, HTMLSelectElement: FakeSelect, Event: FakeEvent };
+  const window = { document, Event: FakeEvent };
   window.window = window;
 
   vm.runInNewContext(read("js/dm-player-dnd-studio-hotfix.js"), { window, console });
 
-  const select = new FakeSelect();
-  select.value = "player-b";
+  select.value = "player-a";
+  expect(select.events).toEqual([]);
+
+  listeners.click({
+    target: {
+      closest(selector) {
+        return selector === "#grid-jugadores .btn-open-modal" ? button : null;
+      },
+    },
+  });
+
   expect(select.value).toBe("player-b");
   expect(select.events).toEqual(["change"]);
 
-  select.value = "player-b";
+  select.value = "player-a";
   expect(select.events).toEqual(["change"]);
 });
 
@@ -120,10 +130,12 @@ test("milestone trait integration deduplicates a trait already resolved by Grant
   expect(wrapped.resolveForCharacter(character).map((trait) => trait.id)).toEqual(["iron_will"]);
 });
 
-test("hotfix loads the milestone trait runtime integration asset", () => {
+test("hotfix loads runtime integration and limits change dispatch to proxy clicks", () => {
   const source = read("js/dm-player-dnd-studio-hotfix.js");
   expect(source).toContain("class-milestone-trait-integration-script");
   expect(source).toContain("js/class-milestone-trait-integration.js");
-  expect(source).toContain("dm-player-dnd-select");
+  expect(source).toContain("installPlayerProxyMilestoneSync");
+  expect(source).toContain('doc.addEventListener("click"');
   expect(source).toContain('new EventCtor("change", { bubbles: true })');
+  expect(source).not.toContain('Object.defineProperty(Select.prototype, "value"');
 });
