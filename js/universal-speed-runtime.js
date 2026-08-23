@@ -114,6 +114,25 @@
     return unit;
   }
 
+  function viewerCombatData() {
+    if (global.combatData && typeof global.combatData === "object") return global.combatData;
+    try {
+      if (typeof global.eval === "function") {
+        const value = global.eval("typeof combatData !== 'undefined' ? combatData : null");
+        if (value && typeof value === "object") return value;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function decorateKnownCombatants() {
+    const data = viewerCombatData();
+    if (!data) return 0;
+    const units = Object.values(data).filter(Boolean);
+    units.forEach(decorateSpeed);
+    return units.length;
+  }
+
   function withResolvedSpeeds(units, callback) {
     const list = (units || []).filter(Boolean);
     const temporary = list.filter((unit) => !decoratedUnits?.has(unit)).map((unit) => ({ unit, speed: unit.speed }));
@@ -132,7 +151,10 @@
     const engine = global.CombatEngine;
     const modifiers = global.LuminousUniversalModifiers;
     if (!engine || !modifiers) return false;
-    if (engine.__universalSpeedBridge) return true;
+    if (engine.__universalSpeedBridge) {
+      decorateKnownCombatants();
+      return true;
+    }
 
     const originalInitialize = typeof engine.initializeUnitData === "function" ? engine.initializeUnitData : null;
     const originalSlots = typeof engine.calculateActionSlots === "function" ? engine.calculateActionSlots : null;
@@ -161,10 +183,11 @@
     }
 
     Object.defineProperty(engine, "__universalSpeedBridge", { value: true, configurable: true });
+    decorateKnownCombatants();
     return true;
   }
 
-  const api = Object.freeze({ effectiveSpeed, decorateSpeed, rawSpeed, withResolvedSpeeds, install });
+  const api = Object.freeze({ effectiveSpeed, decorateSpeed, decorateKnownCombatants, rawSpeed, withResolvedSpeeds, install });
   global.LuminousUniversalSpeedRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
