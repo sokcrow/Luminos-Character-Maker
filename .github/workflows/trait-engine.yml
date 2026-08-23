@@ -6,6 +6,7 @@ on:
       - "js/trait-engine.js"
       - "js/trait-catalog-core.js"
       - "js/racial-trait-catalog.js"
+      - "js/racial-trait-runtime-bridge.js"
       - "js/status-engine.js"
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
@@ -52,6 +53,7 @@ jobs:
           node --check js/trait-engine.js
           node --check js/trait-catalog-core.js
           node --check js/racial-trait-catalog.js
+          node --check js/racial-trait-runtime-bridge.js
           node --check js/status-engine.js
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
