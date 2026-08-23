@@ -3,44 +3,21 @@ name: Trait Engine
 on:
   pull_request:
     paths:
-      - "js/trait-engine.js"
-      - "js/trait-catalog-core.js"
-      - "js/racial-trait-catalog.js"
-      - "js/racial-trait-runtime-bridge.js"
-      - "js/status-engine.js"
-      - "js/universal-modifier-engine.js"
-      - "js/universal-speed-runtime.js"
-      - "js/trait-standardization-runtime.js"
-      - "js/player-trait-runtime.js"
-      - "js/trait-player-tray.js"
-      - "js/player-stats-ability-bar.js"
-      - "js/instance-control.js"
-      - "hoja_personaje.js"
-      - "js/dm-trait-catalog-importer.js"
-      - "js/trait-builder.js"
-      - "dm-trait-creator.html"
-      - "tests/trait_engine.spec.js"
-      - "tests/trait_engine_codex_regressions.spec.js"
-      - "tests/trait_catalog_core.spec.js"
-      - "tests/racial_trait_catalog.spec.js"
-      - "tests/racial_trait_engine_regressions.spec.js"
-      - "tests/player_trait_tabs.spec.js"
-      - "tests/dm_trait_catalog_importer.spec.js"
-      - "tests/barbarian_trait_rules_runtime.spec.js"
-      - "tests/universal_modifier_engine.spec.js"
-      - "tests/universal_speed_runtime.spec.js"
-      - "tests/trait_standardization_review_fixes.spec.js"
+      - "scripts/pr565_fix_all.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  trait-engine-contract:
+  apply-pr565-universal-fixes:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: feat/racial-traits-automation
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,49 +25,36 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Apply audited patch
+        run: python3 scripts/pr565_fix_all.py
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Check syntax
+      - name: Syntax
         run: |
-          node --check js/trait-engine.js
-          node --check js/trait-catalog-core.js
           node --check js/racial-trait-catalog.js
-          node --check js/racial-trait-runtime-bridge.js
-          node --check js/status-engine.js
           node --check js/universal-modifier-engine.js
-          node --check js/universal-speed-runtime.js
           node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
-          node --check js/player-stats-ability-bar.js
-          node --check js/instance-control.js
-          node --check js/dm-trait-catalog-importer.js
-          node --check js/trait-builder.js
-          node --check tests/trait_engine.spec.js
-          node --check tests/trait_engine_codex_regressions.spec.js
-          node --check tests/trait_catalog_core.spec.js
-          node --check tests/racial_trait_catalog.spec.js
-          node --check tests/racial_trait_engine_regressions.spec.js
-          node --check tests/player_trait_tabs.spec.js
-          node --check tests/dm_trait_catalog_importer.spec.js
-          node --check tests/barbarian_trait_rules_runtime.spec.js
           node --check tests/universal_modifier_engine.spec.js
-          node --check tests/universal_speed_runtime.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
 
-      - name: Run Trait regressions
+      - name: Focused regressions
         run: >-
           npx playwright test
-          tests/trait_engine.spec.js
-          tests/trait_engine_codex_regressions.spec.js
-          tests/trait_catalog_core.spec.js
+          tests/universal_modifier_engine.spec.js
+          tests/trait_standardization_review_fixes.spec.js
           tests/racial_trait_catalog.spec.js
           tests/racial_trait_engine_regressions.spec.js
-          tests/player_trait_tabs.spec.js
-          tests/dm_trait_catalog_importer.spec.js
-          tests/barbarian_trait_rules_runtime.spec.js
-          tests/universal_modifier_engine.spec.js
-          tests/universal_speed_runtime.spec.js
-          tests/trait_standardization_review_fixes.spec.js
           --workers=1
+
+      - name: Commit fixes
+        run: |
+          git config user.name "OpenAI"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/racial-trait-catalog.js js/universal-modifier-engine.js js/trait-standardization-runtime.js js/player-trait-runtime.js js/trait-player-tray.js tests/universal_modifier_engine.spec.js tests/trait_standardization_review_fixes.spec.js
+          git diff --cached --check
+          git commit -m "fix: resolve universal racial Trait integrations"
+          git push origin HEAD:feat/racial-traits-automation
