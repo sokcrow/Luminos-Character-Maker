@@ -5,6 +5,7 @@ on:
     paths:
       - "js/trait-engine.js"
       - "js/trait-catalog-core.js"
+      - "js/racial-trait-catalog.js"
       - "js/status-engine.js"
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
@@ -19,6 +20,7 @@ on:
       - "tests/trait_engine.spec.js"
       - "tests/trait_engine_codex_regressions.spec.js"
       - "tests/trait_catalog_core.spec.js"
+      - "tests/racial_trait_catalog.spec.js"
       - "tests/dm_trait_catalog_importer.spec.js"
       - "tests/barbarian_trait_rules_runtime.spec.js"
       - "tests/universal_modifier_engine.spec.js"
@@ -49,6 +51,7 @@ jobs:
         run: |
           node --check js/trait-engine.js
           node --check js/trait-catalog-core.js
+          node --check js/racial-trait-catalog.js
           node --check js/status-engine.js
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
@@ -61,6 +64,7 @@ jobs:
           node --check tests/trait_engine.spec.js
           node --check tests/trait_engine_codex_regressions.spec.js
           node --check tests/trait_catalog_core.spec.js
+          node --check tests/racial_trait_catalog.spec.js
           node --check tests/dm_trait_catalog_importer.spec.js
           node --check tests/barbarian_trait_rules_runtime.spec.js
           node --check tests/universal_modifier_engine.spec.js
@@ -73,6 +77,7 @@ jobs:
           tests/trait_engine.spec.js
           tests/trait_engine_codex_regressions.spec.js
           tests/trait_catalog_core.spec.js
+          tests/racial_trait_catalog.spec.js
           tests/dm_trait_catalog_importer.spec.js
           tests/barbarian_trait_rules_runtime.spec.js
           tests/universal_modifier_engine.spec.js
