@@ -63,6 +63,19 @@
   }
 
   function resolveEquipment(unit = {}) {
+    const equipmentDisabled = hasStatus(unit, "moonfae_rabbit_form");
+    if (equipmentDisabled) {
+      return {
+        armor: { itemId: null, category: "none" },
+        armorEquipped: false,
+        armorCategory: "none",
+        shield: null,
+        mainHand: null,
+        offHand: null,
+        equipmentInactive: true,
+        disabledByStatus: "moonfae_rabbit_form",
+      };
+    }
     const equipment = unit.equipment && typeof unit.equipment === "object" ? unit.equipment : {};
     const armor = equipment.armor && typeof equipment.armor === "object" ? equipment.armor : {};
     const legacyType = normalizeId(unit.armorType || unit.armor_type || "none");
@@ -315,7 +328,11 @@
 
   function canUseSkill(unit, skillInput) {
     const skill = normalizeSkill(skillInput);
-    if (!skill || skill.skillFamily !== "attack" || skill.attackMode !== "ranged") return { usable: true, reason: null };
+    if (!skill) return { usable: true, reason: null };
+    if (hasStatus(unit, "moonfae_rabbit_form") && (skill.isItemSkill || skill.requiresEquipment || skill.equipmentId || skill.equipment_id)) {
+      return { usable: false, reason: "equipment_inactive", restriction: "equipment" };
+    }
+    if (skill.skillFamily !== "attack" || skill.attackMode !== "ranged") return { usable: true, reason: null };
     const ammo = skill.ammo || { resourceId: "ammo", cost: 1 };
     const resources = unit?.resources || unit?.combatResources || unit?.ammo || {};
     const available = typeof resources === "number" ? resources : numberOr(resources?.[ammo.resourceId]?.value ?? resources?.[ammo.resourceId], 0);

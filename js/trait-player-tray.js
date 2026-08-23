@@ -240,6 +240,7 @@
       this.onBlocked = typeof options.onBlocked === "function" ? options.onBlocked : () => {};
       this.resolveChoice = typeof options.resolveChoice === "function" ? options.resolveChoice : null;
       this.resolveInputs = typeof options.resolveInputs === "function" ? options.resolveInputs : null;
+      this.prepareRuntime = typeof options.prepareRuntime === "function" ? options.prepareRuntime : null;
       this.title = options.title || "TRAITS";
       this.expanded = options.expanded !== false;
       this.filter = "all";
@@ -293,7 +294,17 @@
         return { available: false, reasons: action.reasons || [] };
       }
 
-      const runtime = Object.assign({}, this.getRuntime() || {});
+      let runtime = Object.assign({}, this.getRuntime() || {});
+      if (this.prepareRuntime) {
+        const prepared = await this.prepareRuntime({ action, trait, runtime, state: this.state });
+        if (prepared?.available === false || prepared?.blocked) {
+          const blocked = { available: false, reasons: prepared.reasons || [prepared.reason || "Trait target is unavailable."] };
+          this.onBlocked(blocked);
+          this.render();
+          return blocked;
+        }
+        runtime = Object.assign(runtime, prepared?.runtime || prepared || {});
+      }
       if (action.activationType === engine.ACTIVATION_TYPES.CHOICE && this.resolveChoice) {
         const choice = await this.resolveChoice({ action, trait, runtime, state: this.state });
         if (choice == null) return { available: false, cancelled: true, reasons: ["Choice cancelled."] };
@@ -308,7 +319,7 @@
       const result = engine.activateTrait(trait, runtime, this.state);
       if (result.available) {
         syncActivationStatuses(result, runtime);
-        this.onActivated(result);
+        this.onActivated(result, { action, trait, runtime });
       } else this.onBlocked(result);
       this.render();
       return result;

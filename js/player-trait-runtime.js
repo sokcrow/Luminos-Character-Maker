@@ -38,6 +38,8 @@
     theatreBridgeBound: false,
     theatreRollsSource: null,
     theatreArmedCheck: null,
+    lastCompletedCheck: null,
+    theatreTarget: null,
     combatEngineSource: null,
   };
 
@@ -155,7 +157,70 @@
       ? input.self
       : (context === "combat" ? currentCombatUnit() : character);
     const level = Number(input.Level ?? input.level ?? character?.level ?? character?.characterBuild?.calculatedAtLevel ?? 0) || 0;
-    return { context, character, self, level, ...input };
+    const completed = context === "theatre" ? state.lastCompletedCheck : null;
+    const check = Object.prototype.hasOwnProperty.call(input, "check") ? input.check : completed?.check;
+    const target = Object.prototype.hasOwnProperty.call(input, "target") ? input.target : (completed?.target || state.theatreTarget || null);
+    const standard = global.LuminousTraitStandardizationRuntime;
+    const allies = context === "combat" && standard?.liveCombatUnits ? standard.liveCombatUnits({ self }).filter((unit) => unit !== self && Number(unit?.hp ?? 1) > 0 && String(unit?.faction ?? "") === String(self?.faction ?? "")) : [];
+    return { context, character, self, level, check, target, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
+  }
+
+
+  function prepareTraitRuntime({ trait, runtime } = {}) {
+    const resolved = getRuntime(runtime || {});
+    const targetSpec = normalizeId(trait?.activation?.target || "");
+    if (resolved.context !== "combat" || !targetSpec) return { runtime: resolved };
+    const standard = global.LuminousTraitStandardizationRuntime;
+    if (!standard?.resolveTraitTargets) return { runtime: resolved };
+    const targets = standard.resolveTraitTargets(resolved.self, targetSpec, resolved);
+    if (targets.length) {
+      resolved.targets = targets;
+      resolved.target = targets[0];
+      resolved.defender = resolved.defender || resolved.target;
+      return { runtime: resolved };
+    }
+    if (["random_enemy", "enemy", "selected_enemy", "ally"].includes(targetSpec)) {
+      return { available: false, blocked: true, reason: `No live ${targetSpec.replaceAll("_", " ")} target is available.` };
+    }
+    return { runtime: resolved };
+  }
+
+  function recalculateCompletedCheck(result) {
+    const check = result?.runtime?.check;
+    if (!check?.recalculate || !state.lastCompletedCheck) return null;
+    const original = state.lastCompletedCheck.check || {};
+    const total = Number(original.total ?? original.result ?? 0) + Number(check.finalPower ?? 0);
+    const rolls = global.LuminousTheatreRolls;
+    const outcome = rolls?.checkOutcome ? rolls.checkOutcome(total, check) : (Number.isFinite(Number(check.difficulty ?? check.thresholdRaw ?? check.threshold)) ? (total >= Number(check.difficulty ?? check.thresholdRaw ?? check.threshold) ? "passed" : "failed") : null);
+    const nextCheck = { ...original, ...check, total, result: total, outcome, passed: outcome === "passed", failed: outcome === "failed", recalculate: 0 };
+    state.lastCompletedCheck = { ...state.lastCompletedCheck, check: nextCheck, total, outcome };
+    const totalNode = doc.getElementById("roll-total-score");
+    if (totalNode) {
+      const safe = global.LuminousPlayerStats?.setRollTotalWithoutAdjustment?.(total, totalNode);
+      if (!safe) totalNode.textContent = String(total);
+    }
+    emit("luminous:theatre-check-recalculated", state.lastCompletedCheck);
+    return state.lastCompletedCheck;
+  }
+
+  function handleTraitActivated(result, meta = {}) {
+    const runtime = result?.runtime || meta.runtime || getRuntime();
+    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.([meta.trait].filter(Boolean), "on_use", runtime, result);
+    recalculateCompletedCheck(result);
+    emit("luminous:trait-activated", result);
+  }
+
+  function recordCompletedTheatreCheck(detail = {}) {
+    const check = { ...(detail.check || {}), passed: detail.outcome === "passed" || detail.check?.passed === true, failed: detail.outcome === "failed" || detail.check?.failed === true };
+    state.lastCompletedCheck = { ...detail, check, target: detail.target || state.theatreTarget || null };
+    dispatch("after_check", { context: "theatre", check, target: state.lastCompletedCheck.target });
+    refresh();
+    return state.lastCompletedCheck;
+  }
+
+  function setTheatreTarget(target) {
+    state.theatreTarget = target || null;
+    return state.theatreTarget;
   }
 
   function emit(name, detail) {
@@ -193,7 +258,8 @@
         state: state.traitState,
         getTraits: resolveTraits,
         getRuntime: () => getRuntime(),
-        onActivated: (result) => emit("luminous:trait-activated", result),
+        prepareRuntime: prepareTraitRuntime,
+        onActivated: handleTraitActivated,
         onBlocked: (result) => emit("luminous:trait-blocked", result),
       });
     } else {
@@ -287,11 +353,14 @@
     if (!traitEngine?.dispatchCombatEvent) return null;
     if (!state.traitState) state.traitState = traitEngine.createState();
     const runtime = getRuntime({ context: "combat", ...(input || {}) });
-    return traitEngine.dispatchCombatEvent(trigger, {
+    const traits = resolveTraits();
+    const result = traitEngine.dispatchCombatEvent(trigger, {
       ...runtime,
-      traits: resolveTraits(),
+      traits,
       state: state.traitState,
     });
+    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, trigger, result?.runtime || runtime, result);
+    return result;
   }
 
   function identityValues(entity = {}) {
@@ -451,6 +520,8 @@
   }
 
   function bootRuntime() {
+    global.addEventListener?.("luminous:theatre-check-completed", (event) => recordCompletedTheatreCheck(event?.detail || {}));
+    global.addEventListener?.("luminous:theatre-target-selected", (event) => setTheatreTarget(event?.detail?.target || event?.detail || null));
     connectFirebase();
     bindPlayer();
     refresh();
@@ -470,6 +541,10 @@
     dispatch,
     resolveTheatreCheck,
     dispatchCombatEvent,
+    prepareTraitRuntime,
+    recordCompletedTheatreCheck,
+    setTheatreTarget,
+    getLastCompletedCheck: () => state.lastCompletedCheck,
     installTheatreBridge,
     installCombatBridge,
     refresh,

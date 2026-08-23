@@ -454,3 +454,53 @@ test("player Trait runtime resolves manual combat activations against the live C
   expect(liveUnit.hp).toBe(15);
   expect(snapshot.hp).toBe(2);
 });
+
+
+test("universal Trait target resolver selects a live random enemy rather than an ephemeral object", () => {
+  const actor = { id: "moonfae", faction: "player", hp: 20 };
+  const ally = { id: "ally", faction: "player", hp: 20 };
+  const enemy = { id: "enemy", faction: "enemy", hp: 20, sp: 10 };
+  const { api } = loadStandardizationRuntime({ combatData: { moonfae: actor, ally, enemy }, random: () => 0 });
+  expect(api.resolveTraitTarget(actor, "random_enemy", { units: [actor, ally, enemy] })).toBe(enemy);
+});
+
+test("Cower resolves enemy Checks and applies canonical Clash Power Down to failures", () => {
+  const actor = { id: "kobold", faction: "player", hp: 20, level: 20, stats: { carisma: 10 }, dndSkills: { deception: { value: 2 } } };
+  const enemy = { id: "enemy", faction: "enemy", hp: 20, sp: 0, stats: {} };
+  const { api } = loadStandardizationRuntime({ combatData: { kobold: actor, enemy }, random: () => 0.99 });
+  const outcomes = api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("kobold_cower_grovel_beg")], "on_use", { context: "combat", self: actor, units: [actor, enemy] });
+  expect(outcomes).toHaveLength(1);
+  expect(enemy.statusEffects.clash_power_down).toMatchObject({ count: 1, duration: "this_turn" });
+});
+
+test("Fallen Aasimar resolves nearby CHA checks and applies Frightened through Status Engine", () => {
+  const actor = { id: "aasimar", faction: "player", hp: 20, level: 40, proficiency: 2, stats: { carisma: 16 }, grid_pos: { x: 0, y: 0 } };
+  const near = { id: "near", faction: "enemy", hp: 20, sp: 0, stats: { carisma: 10 }, grid_pos: { x: 1, y: 0 } };
+  const far = { id: "far", faction: "enemy", hp: 20, sp: 0, stats: { carisma: 10 }, grid_pos: { x: 4, y: 0 } };
+  const { api } = loadStandardizationRuntime({ combatData: { aasimar: actor, near, far }, random: () => 0.99 });
+  api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("aasimar_fallen_transformation")], "on_use", { context: "combat", self: actor, units: [actor, near, far] });
+  expect(near.statusEffects.frightened).toBeTruthy();
+  expect(far.statusEffects).toBeUndefined();
+});
+
+test("Scourge aura uses CombatEngine.applyDamage only for self and creatures within 10 ft", () => {
+  const actor = { id: "aasimar", faction: "player", hp: 30, level: 40, grid_pos: { x: 0, y: 0 }, statusEffects: { aasimar_scourge_form: { id: "aasimar_scourge_form", count: 1 } } };
+  const near = { id: "near", faction: "enemy", hp: 30, grid_pos: { x: 2, y: 0 } };
+  const far = { id: "far", faction: "enemy", hp: 30, grid_pos: { x: 3, y: 0 } };
+  const combatEngine = { applyDamage(unit, amount) { unit.hp -= amount; }, initializeUnitData() {}, applyPassiveModifiers() { return {}; } };
+  const { api } = loadStandardizationRuntime({ combatEngine, combatData: { aasimar: actor, near, far } });
+  const outcomes = api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("aasimar_scourge_transformation")], "turn_end", { context: "combat", self: actor, units: [actor, near, far], level: 40 });
+  expect(outcomes[0].amount).toBe(4);
+  expect(actor.hp).toBe(26);
+  expect(near.hp).toBe(26);
+  expect(far.hp).toBe(30);
+});
+
+test("completed Check event preserves pass/fail data for after_check consumers", () => {
+  const { window, api } = loadStandardizationRuntime();
+  let detail = null;
+  window.addEventListener("luminous:theatre-check-completed", (event) => { detail = event.detail; });
+  api.emitCompletedCheck({ abilityId: "wis", skillId: "medicine", actionId: "stabilize", threshold: 10, target: { id: "downed" } }, { total: 12, coins: [] });
+  expect(detail.check).toMatchObject({ abilityId: "wis", skillId: "medicine", actionId: "stabilize", total: 12, passed: true, failed: false });
+  expect(detail.target.id).toBe("downed");
+});

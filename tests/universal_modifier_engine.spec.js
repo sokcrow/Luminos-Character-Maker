@@ -198,3 +198,18 @@ test("racial combat Traits use universal channels with normalized enums and curr
   unit.took_damage_last_turn = true;
   expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [lunge], skill: normal, target: slower, context: "combat" }).clash_power).toBe(0);
 });
+
+
+test("Rabbit Form virtualizes equipment and blocks item Skills without deleting stored gear", () => {
+  const unit = {
+    equipment: { armor: { itemId: "plate_1", category: "heavy" }, mainHand: { id: "sword_1" } },
+    statusEffects: { moonfae_rabbit_form: { id: "moonfae_rabbit_form", count: 1 } },
+  };
+  const hidden = modifiers.resolveEquipment(unit);
+  expect(hidden).toMatchObject({ armorEquipped: false, armorCategory: "none", mainHand: null, equipmentInactive: true, disabledByStatus: "moonfae_rabbit_form" });
+  expect(modifiers.canUseSkill(unit, { type: "Normal", isItemSkill: true })).toMatchObject({ usable: false, reason: "equipment_inactive" });
+  expect(unit.equipment.mainHand.id).toBe("sword_1");
+
+  delete unit.statusEffects.moonfae_rabbit_form;
+  expect(modifiers.resolveEquipment(unit)).toMatchObject({ armorEquipped: true, armorCategory: "heavy", mainHand: { id: "sword_1" } });
+});

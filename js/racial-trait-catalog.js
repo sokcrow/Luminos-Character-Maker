@@ -186,12 +186,17 @@
         contexts: ["combat", "theatre"],
         trigger: "on_use",
         conditions: [],
-        operations: [
-          { type: "set_flag", flagId: "kobold_cower_resolution_required", value: true },
-          { type: "log", message: "Resolve enemy Check at Threshold 8 + Deception; failures gain 1 Clash Power Down for one Turn." },
-        ],
+        operations: [{ type: "log", message: "Enemies make the configured Check against Threshold 8 + Deception; failures gain 1 Clash Power Down for one Turn." }],
       }],
       rules: [],
+      resolutions: [{
+        id: "kobold_cower_enemy_checks",
+        trigger: "on_use",
+        type: "check_status",
+        targets: "all_enemies",
+        check: { thresholdBase: 8, sourceSkillId: "deception" },
+        onFail: { statusId: "clash_power_down", count: 1, duration: "this_turn" },
+      }],
     },
 
     kenku_mimicry: {
@@ -338,13 +343,14 @@
       source: raceSource("aasimar"),
       contexts: ["combat"],
       activation: { type: "manual", actionCost: "action", uses: { max: 1, reset: "long_rest" } },
-      effects: [{ id: "aasimar_scourge_form_start", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "apply_status", statusId: "aasimar_scourge_form", count: 6, duration: "until_removed" }, { type: "set_flag", flagId: "aasimar_scourge_aura", value: true }] }],
+      effects: [{ id: "aasimar_scourge_form_start", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "apply_status", statusId: "aasimar_scourge_form", count: 6, duration: "until_removed" }] }],
       rules: [
         { id: "aasimar_scourge_duration_start", type: "counter", trigger: "on_use", stateKey: "aasimar_scourge_duration", mode: "set", value: 6, reset: "long_rest" },
         { id: "aasimar_scourge_duration_tick", type: "counter", trigger: "turn_end", stateKey: "aasimar_scourge_duration", mode: "add", value: -1, conditions: [{ statusId: "aasimar_scourge_form", operator: "truthy" }] },
         { id: "aasimar_scourge_duration_end", type: "status", trigger: "turn_end", action: "remove", target: "self", statusId: "aasimar_scourge_form", conditions: [{ counterKey: "aasimar_scourge_duration", operator: "lte", value: 0 }] },
         { id: "aasimar_scourge_damage", type: "modifier", trigger: "damage_dealt", target: "self", path: "damage.amount", mode: "add", formula: "max(1, floor(Level / 10))", scope: "once_per_turn", whileStatus: "aasimar_scourge_form" },
       ],
+      resolutions: [{ id: "aasimar_scourge_aura_damage", trigger: "turn_end", type: "area_damage", targets: "self_and_all_creatures", rangeFeet: 10, whileStatus: "aasimar_scourge_form", amountFormula: "max(1, ceil(Level / 10))" }],
     },
 
     aasimar_fallen_transformation: {
@@ -355,13 +361,23 @@
       source: raceSource("aasimar"),
       contexts: ["combat"],
       activation: { type: "manual", actionCost: "action", uses: { max: 1, reset: "long_rest" } },
-      effects: [{ id: "aasimar_fallen_form_start", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "apply_status", statusId: "aasimar_fallen_form", count: 6, duration: "until_removed" }, { type: "set_flag", flagId: "aasimar_fallen_fear_check", value: true }] }],
+      effects: [{ id: "aasimar_fallen_form_start", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "apply_status", statusId: "aasimar_fallen_form", count: 6, duration: "until_removed" }] }],
       rules: [
         { id: "aasimar_fallen_duration_start", type: "counter", trigger: "on_use", stateKey: "aasimar_fallen_duration", mode: "set", value: 6, reset: "long_rest" },
         { id: "aasimar_fallen_duration_tick", type: "counter", trigger: "turn_end", stateKey: "aasimar_fallen_duration", mode: "add", value: -1, conditions: [{ statusId: "aasimar_fallen_form", operator: "truthy" }] },
         { id: "aasimar_fallen_duration_end", type: "status", trigger: "turn_end", action: "remove", target: "self", statusId: "aasimar_fallen_form", conditions: [{ counterKey: "aasimar_fallen_duration", operator: "lte", value: 0 }] },
         { id: "aasimar_fallen_damage", type: "modifier", trigger: "damage_dealt", target: "self", path: "damage.amount", mode: "add", formula: "max(1, floor(Level / 10))", scope: "once_per_turn", whileStatus: "aasimar_fallen_form" },
       ],
+      resolutions: [{
+        id: "aasimar_fallen_frightened_check",
+        trigger: "on_use",
+        type: "check_status",
+        targets: "all_other_creatures",
+        rangeFeet: 10,
+        requireCanSeeSource: true,
+        check: { abilityId: "cha", thresholdFormula: "8 + Proficiency + CharismaMod" },
+        onFail: { statusId: "frightened", count: 1, duration: "next_turn_end" },
+      }],
     },
 
     warforged_sentry_rest: {
