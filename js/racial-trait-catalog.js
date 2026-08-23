@@ -34,7 +34,7 @@
         mode: "add",
         value: 1,
         scope: "once_per_turn",
-        conditions: [{ path: "target.targetedByAlly", operator: "truthy" }],
+        conditions: [{ path: "targetedByAlly", operator: "truthy" }],
       }],
     },
 
@@ -187,7 +187,7 @@
         contexts: ["combat"],
         trigger: "damage_taken",
         conditions: [],
-        operations: [{ type: "modify", path: "damage.amount", mode: "add", formula: "-ConstitutionMod" }],
+        operations: [{ type: "modify", path: "damage.amount", mode: "add", formula: "-max(0, ConstitutionMod)" }],
       }],
       rules: [],
     },
@@ -312,7 +312,11 @@
         trigger: "before_check",
         conditions: [
           { path: "check.skillId", operator: "eq", value: "stealth" },
-          { path: "check.environmentTags", operator: "in", value: ["sand", "loose_earth", "burrowable_ground"] },
+          { any: [
+            { path: "check.environmentTags", operator: "contains", value: "sand" },
+            { path: "check.environmentTags", operator: "contains", value: "loose_earth" },
+            { path: "check.environmentTags", operator: "contains", value: "burrowable_ground" },
+          ] },
         ],
         operations: [{ type: "modify", path: "check.difficulty", mode: "add", value: -4 }],
       }],
@@ -389,7 +393,7 @@
         path: "skill.clashPower",
         mode: "add",
         value: 2,
-        conditions: [{ path: "self.damageTakenPreviousTurn", operator: "lte", value: 0 }],
+        conditions: [{ path: "self.took_damage_last_turn", operator: "falsy" }],
       }],
     },
 
@@ -551,7 +555,7 @@
         conditions: [],
         operations: [{
           type: "heal_hp",
-          path: "self.currentHp",
+          path: "self.hp",
           maxPath: "self.maxHp",
           formula: "floor(MaxHP * (5 + CharismaMod) / 100)",
         }],
@@ -573,13 +577,12 @@
         trigger: "turn_start",
         conditions: [
           { formula: "CurrentHP", operator: "gt", value: 0 },
-          { path: "self.damageTakenPreviousTurnTypes", operator: "truthy" },
           { path: "self.damageTakenPreviousTurnTypes", operator: "not_contains", value: "Acid" },
           { path: "self.damageTakenPreviousTurnTypes", operator: "not_contains", value: "Fire" },
         ],
         operations: [{
           type: "heal_hp",
-          path: "self.currentHp",
+          path: "self.hp",
           maxPath: "self.maxHp",
           formula: "floor(MaxHP * (10 + ConstitutionMod) / 100)",
         }],
