@@ -4,16 +4,13 @@ on:
   pull_request:
     paths:
       - ".github/workflows/trait-engine.yml"
-      - ".github/workflows/pr565-universal-fix.yml"
-      - "scripts/pr565_fix.py"
-      - "js/**"
-      - "tests/**"
+      - "js/racial-trait-catalog.js"
 
 permissions:
   contents: write
 
 jobs:
-  apply-pr565-universal-fix:
+  finalize-pr565-wording:
     if: github.event.pull_request.number == 565
     runs-on: ubuntu-latest
     steps:
@@ -23,100 +20,38 @@ jobs:
           ref: feat/racial-traits-automation
           fetch-depth: 0
 
+      - name: Remove nonexistent Radiant damage wording
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('js/racial-trait-catalog.js')
+          text = p.read_text()
+          old = 'description: "Protector transformation for Count 6. Grants Flight and once per Turn adds Level/10 Radiant Fixed Damage.",'
+          new = 'description: "Protector transformation for Count 6. Grants Flight and once per Turn adds at least 1 Fixed Damage based on Level/10.",'
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one legacy Radiant damage description, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Normalize audited patch for both universal condition routes
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/pr565_fix.py')
-          text = p.read_text()
-          old = '''replace_once(
-              universal,
-              'if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;',
-              'if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;',
-              "Universal valueFormula context",
-          )'''
-          new = '''p_universal = Path(universal)
-          text_universal = p_universal.read_text()
-          old_condition = 'if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;'
-          count_condition = text_universal.count(old_condition)
-          if count_condition != 2:
-              raise SystemExit(f"Universal valueFormula context: expected 2 modifier/stat routes, found {count_condition}")
-          p_universal.write_text(text_universal.replace(old_condition, 'if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;'))'''
-          if text.count(old) != 1:
-              raise SystemExit('Could not normalize universal condition patch block')
-          p.write_text(text.replace(old, new, 1))
-          PY
-
-      - name: Apply audited universal combat patch
-        run: python3 scripts/pr565_fix.py
-
-      - name: Align legacy racial catalog regression with universal channels
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('tests/racial_trait_catalog.spec.js')
-          text = p.read_text()
-          pattern = re.compile(r'test\("Centaur Charge and White Semi Dragon compare target Speed against user Max Speed", \(\) => \{.*?\n\}\);', re.S)
-          replacement = '''test("Centaur Charge and White Semi Dragon compare target Speed against user Max Speed through universal channels", () => {
-            const centaur = catalog.getDefinition("centaur_charge");
-            const whiteDragon = catalog.getDefinition("half_dragon_skilled_hunter");
-            const character = { level: 30, combatStats: { maxSpeed: 6 } };
-            const target = { speed: 4 };
-            const skill = { type: "Normal", basePower: 4 };
-
-            const charge = modifiers.resolveTraitModifiers({ unit: character, character, target, skill, traits: [centaur], context: "combat" });
-            expect(charge.final_power).toBe(1);
-            expect(skill.finalPower).toBeUndefined();
-
-            const hunter = modifiers.resolveTraitModifiers({ unit: character, character, target, skill, traits: [whiteDragon], context: "combat" });
-            expect(hunter.clash_power).toBe(2);
-            expect(skill.clashPower).toBeUndefined();
-          });'''
-          text, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'Expected one legacy speed comparison test, found {count}')
-          p.write_text(text)
-          PY
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate changed JavaScript
+      - name: Validate catalog regressions
         run: |
           node --check js/racial-trait-catalog.js
-          node --check js/trait-engine.js
-          node --check js/universal-modifier-engine.js
-          node --check js/trait-standardization-runtime.js
-          node --check js/player-trait-runtime.js
-          node --check tests/universal_modifier_engine.spec.js
-          node --check tests/trait_standardization_review_fixes.spec.js
-          node --check tests/racial_trait_engine_regressions.spec.js
-          node --check tests/racial_trait_catalog.spec.js
+          npx playwright test tests/racial_trait_catalog.spec.js tests/racial_trait_engine_regressions.spec.js --workers=1
+          git diff --check
 
-      - name: Run focused regressions
-        run: >-
-          npx playwright test
-          tests/universal_modifier_engine.spec.js
-          tests/trait_standardization_review_fixes.spec.js
-          tests/racial_trait_engine_regressions.spec.js
-          tests/racial_trait_catalog.spec.js
-          tests/trait_engine.spec.js
-          --workers=1
-
-      - name: Check patch cleanliness
-        run: git diff --check
-
-      - name: Commit fixes to the PR branch
+      - name: Commit wording fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/racial-trait-catalog.js js/trait-engine.js js/universal-modifier-engine.js js/trait-standardization-runtime.js js/player-trait-runtime.js tests/universal_modifier_engine.spec.js tests/trait_standardization_review_fixes.spec.js tests/racial_trait_engine_regressions.spec.js tests/racial_trait_catalog.spec.js
-          git commit -m "fix: route racial Traits through universal combat channels"
+          git add js/racial-trait-catalog.js
+          git commit -m "fix: keep Aasimar fixed damage type-neutral"
           git push origin HEAD:feat/racial-traits-automation
