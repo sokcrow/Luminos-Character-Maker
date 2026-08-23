@@ -80,7 +80,13 @@
       { id: "silver", name: "Plata", hpCoefBonus: 0.00, defMod: 0 },
     ] },
     { id: "lupae", name: "Lupae", hpCoefBonus: 0.06, defMod: 0, tags: ["organic", "humanoid", "canine"] },
-    { id: "moonfae", name: "Moonfae", hpCoefBonus: 0.02, defMod: 0, tags: ["organic", "humanoid", "fae", "lunar"] },
+    { id: "moonfae", name: "Moonfae", hpCoefBonus: 0.02, defMod: 0, tags: ["organic", "humanoid", "fae", "lunar"], subtypes: [
+      { id: "full_moon", name: "Luna Llena", hpCoefBonus: 0.00, defMod: 0 },
+      { id: "crescent_moon", name: "Luna Creciente", hpCoefBonus: 0.00, defMod: 0 },
+      { id: "new_moon", name: "Luna Nueva", hpCoefBonus: 0.00, defMod: 0 },
+      { id: "crimson_moon", name: "Luna Carmesí", hpCoefBonus: 0.00, defMod: 0 },
+      { id: "blue_moon", name: "Luna Azul", hpCoefBonus: 0.00, defMod: 0 },
+    ] },
     { id: "yuan_ti_pureblood", name: "Yuan-ti Pura Sangre", hpCoefBonus: 0.03, defMod: 0, tags: ["organic", "humanoid", "reptilian", "yuan_ti"], subtypes: [
       { id: "red_eyes", name: "Ojos Rojos — Ira", hpCoefBonus: 0.00, defMod: 0 },
       { id: "purple_eyes", name: "Ojos Morados — Envidia", hpCoefBonus: 0.00, defMod: 0 },
