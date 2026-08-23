@@ -166,4 +166,12 @@
     script.async = false;
     global.document.head?.appendChild(script);
   }
+
+  if (global.document && !global.LuminousRacialTraitRuntimeBridge && !global.document.getElementById("racial-trait-runtime-bridge-script")) {
+    const script = global.document.createElement("script");
+    script.id = "racial-trait-runtime-bridge-script";
+    script.src = "js/racial-trait-runtime-bridge.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
 })(typeof window !== "undefined" ? window : globalThis);
