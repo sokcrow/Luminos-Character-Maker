@@ -26,6 +26,51 @@
     return (action.reasons || []).join(" ") || "Unavailable";
   }
 
+  function ensureStatusStore(unit) {
+    if (!unit || typeof unit !== "object") return null;
+    if (!unit.statusEffects || Array.isArray(unit.statusEffects) || typeof unit.statusEffects !== "object") unit.statusEffects = {};
+    return unit.statusEffects;
+  }
+
+  function applyOutcomeStatus(unit, outcome) {
+    if (!unit || !outcome) return;
+    const statusEngine = global.LuminousStatusEngine;
+    const statusId = engine.normalizeId(outcome.statusId || outcome.status?.id);
+    if (!statusId) return;
+
+    if (["apply_status", "rule_status"].includes(engine.normalizeId(outcome.type)) && ["", "gain", "apply", "inflict"].includes(engine.normalizeId(outcome.action || ""))) {
+      if (statusEngine?.applyStatus) statusEngine.applyStatus(unit, statusId, { ...(outcome.status || {}), mode: "set" });
+      else {
+        const store = ensureStatusStore(unit);
+        if (store) store[statusId] = { id: statusId, count: 1, potency: 0, ...(outcome.status || {}) };
+      }
+      return;
+    }
+
+    if (["remove_status", "rule_status"].includes(engine.normalizeId(outcome.type)) && (engine.normalizeId(outcome.action || "remove") === "remove") && outcome.protected !== true && outcome.removed !== false) {
+      if (statusEngine?.removeStatus) statusEngine.removeStatus(unit, statusId, { from: "self", ignoreProtection: true });
+      else {
+        const store = ensureStatusStore(unit);
+        if (store) delete store[statusId];
+      }
+    }
+  }
+
+  function syncActivationStatuses(result, runtime = {}) {
+    if (!result || typeof result !== "object") return result;
+    const self = runtime.self || runtime.character || result.runtime?.self || result.runtime?.character || null;
+    const target = runtime.target || runtime.defender || result.runtime?.target || result.runtime?.defender || null;
+
+    const visit = (outcome) => {
+      if (!outcome || typeof outcome !== "object") return;
+      const unit = engine.normalizeId(outcome.target) === "target" ? target : self;
+      applyOutcomeStatus(unit, outcome);
+      (outcome.outcomes || []).forEach(visit);
+    };
+    (result.outcomes || []).forEach(visit);
+    return result;
+  }
+
   class TraitPlayerTray {
     constructor(options = {}) {
       this.host = resolveHost(options.host);
@@ -76,8 +121,10 @@
       }
 
       const result = engine.activateTrait(trait, runtime, this.state);
-      if (result.available) this.onActivated(result);
-      else this.onBlocked(result);
+      if (result.available) {
+        syncActivationStatuses(result, runtime);
+        this.onActivated(result);
+      } else this.onBlocked(result);
       this.render();
       return result;
     }
@@ -134,7 +181,7 @@
     return new TraitPlayerTray(options);
   }
 
-  const api = Object.freeze({ TraitPlayerTray, mount });
+  const api = Object.freeze({ TraitPlayerTray, mount, syncActivationStatuses });
   global.LuminousTraitPlayerTray = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
