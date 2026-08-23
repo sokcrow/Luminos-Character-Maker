@@ -4,12 +4,17 @@
   const doc = global.document;
   if (!doc || global.LuminousTraitStandardizationRuntime) return;
 
+  const HEAD_COIN_SRC = "https://imgur.com/yshLPnQ.png";
+  const TAIL_COIN_SRC = "https://imgur.com/XDx0ICt.png";
   const state = {
     traitEngineSource: null,
     combatEngineSource: null,
     theatreRollsSource: null,
     coinEngineSource: null,
     activeCheck: null,
+    legacyCheckBridgeBound: false,
+    legacyCheckObserver: null,
+    legacyCheckToken: 0,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -190,6 +195,69 @@
     return found == null ? null : Number(found);
   }
 
+  function restrictionTraitsForUnit(unit) {
+    return traitsForUnit(unit).map((trait) => ({
+      ...trait,
+      effects: [],
+      rules: (trait.rules || []).filter((rule) => normalizeId(rule?.type) === "restriction"),
+    })).filter((trait) => trait.rules.length > 0);
+  }
+
+  function restrictionMatchesSkill(restriction, skillInput) {
+    const modifiers = global.LuminousUniversalModifiers;
+    const skill = modifiers?.normalizeSkill?.(skillInput) || skillInput || {};
+    const id = normalizeId(restriction);
+    if (id === "spell_skills") return normalizeId(skill.skillFamily) === "spell";
+    if (id === "attack_skills") return normalizeId(skill.skillFamily) === "attack";
+    if (id === "melee_skills") return normalizeId(skill.skillFamily) === "attack" && normalizeId(skill.attackMode) === "melee";
+    if (id === "ranged_skills") return normalizeId(skill.skillFamily) === "attack" && normalizeId(skill.attackMode) === "ranged";
+    if (id === "defense_skills") return normalizeId(skill.skillFamily) === "defense";
+    if (id === "roll_skills") return normalizeId(skill.skillFamily) === "roll";
+    return false;
+  }
+
+  function canUseSkillByTraits(unit, skillInput) {
+    const traitEngine = global.LuminousTraitEngine;
+    const modifiers = global.LuminousUniversalModifiers;
+    const skill = modifiers?.normalizeSkill?.(skillInput) || skillInput;
+    if (!unit || !skill) return { usable: true, reason: null, restriction: null };
+
+    const ammoResult = modifiers?.canUseSkill?.(unit, skill);
+    if (ammoResult && ammoResult.usable === false) return { ...ammoResult, restriction: null };
+
+    const traits = restrictionTraitsForUnit(unit);
+    if (!traits.length || !traitEngine?.dispatchTraits || !traitEngine?.createState) return { usable: true, reason: null, restriction: null };
+    const character = isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || unit : unit;
+    const result = traitEngine.dispatchTraits(traits, "passive", {
+      context: "combat",
+      character,
+      self: unit,
+      skill,
+      equipment: modifiers?.resolveEquipment?.(unit) || {},
+    }, traitEngine.createState());
+    const flags = result?.state?.flags || {};
+    const activeRestriction = Object.keys(flags)
+      .filter((key) => key.startsWith("restriction_") && flags[key])
+      .map((key) => key.slice("restriction_".length))
+      .find((restriction) => restrictionMatchesSkill(restriction, skill));
+    if (!activeRestriction) return { usable: true, reason: null, restriction: null };
+    return {
+      usable: false,
+      restriction: activeRestriction,
+      reason: `Skill blocked by active restriction: ${activeRestriction}.`,
+    };
+  }
+
+  function blockedSkillResult(check, extra = {}) {
+    return {
+      blocked: true,
+      pendingActions: [],
+      reason: check?.reason || "Skill is restricted.",
+      restriction: check?.restriction || null,
+      ...extra,
+    };
+  }
+
   function installCombatBridge() {
     const engine = global.CombatEngine;
     const modifiers = global.LuminousUniversalModifiers;
@@ -199,6 +267,10 @@
 
     const originalInitialize = typeof engine.initializeUnitData === "function" ? engine.initializeUnitData : null;
     const originalCreateSkill = typeof engine.createSkill === "function" ? engine.createSkill : null;
+    const originalCanUseSkill = typeof engine.canUseSkill === "function" ? engine.canUseSkill : null;
+    const originalUnilateral = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
+    const originalClash = typeof engine.resolveStandardClash === "function" ? engine.resolveStandardClash : null;
+    const originalSpell = typeof engine.resolveSpell === "function" ? engine.resolveSpell : null;
     const originalPassive = typeof engine.applyPassiveModifiers === "function" ? engine.applyPassiveModifiers : null;
     const originalOff = typeof engine.getOffensiveLevel === "function" ? engine.getOffensiveLevel : null;
     const originalDef = typeof engine.getDefensiveLevel === "function" ? engine.getDefensiveLevel : null;
@@ -216,12 +288,55 @@
       return result;
     };
 
-    if (originalCreateSkill) engine.createSkill = function (config, ...rest) {
+    if (originalCreateSkill) engine.createSkill = function (config = {}, ...rest) {
       const skill = originalCreateSkill.call(this, config, ...rest);
+      const legacyFields = ["skillRange", "skill_range", "rangeType", "isRanged", "isMelee", "targeting_type", "targetingType", "priority", "ammoType", "ammo_type", "ammoCost", "ammo_cost"];
+      legacyFields.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(config, field)) skill[field] = config[field];
+      });
       if (config?.skillFamily) skill.skillFamily = config.skillFamily;
       if (config?.attackMode) skill.attackMode = config.attackMode;
       if (config?.ammo) skill.ammo = { ...config.ammo };
+      if (config?.caster) skill.caster = config.caster;
+      if (skill.skillRange === undefined && config?.skill_range !== undefined) skill.skillRange = config.skill_range;
       return modifiers.normalizeSkill(skill);
+    };
+
+    engine.canUseSkill = function (unit, skill, ...rest) {
+      if (originalCanUseSkill) {
+        const legacy = originalCanUseSkill.call(this, unit, skill, ...rest);
+        if (legacy === false || legacy?.usable === false) return legacy;
+      }
+      return canUseSkillByTraits(unit, skill);
+    };
+
+    if (originalUnilateral) engine.resolveUnilateralWithCounter = function (unitAttacker, attackSkill, ...rest) {
+      const check = canUseSkillByTraits(unitAttacker, attackSkill);
+      if (!check.usable) return blockedSkillResult(check, { attackLogs: [{ message: check.reason, class: "error" }], damageTaken: 0 });
+      return originalUnilateral.call(this, unitAttacker, attackSkill, ...rest);
+    };
+
+    if (originalClash) engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
+      const checkA = canUseSkillByTraits(unitA, skillA);
+      const checkB = canUseSkillByTraits(unitB, skillB);
+      if (!checkA.usable || !checkB.usable) {
+        const winner = !checkA.usable && !checkB.usable ? "Tie" : (!checkA.usable ? "B" : "A");
+        return blockedSkillResult(!checkA.usable ? checkA : checkB, {
+          winner,
+          clashWinner: winner,
+          clashLogs: [{ winner, note: [!checkA.usable ? checkA.reason : null, !checkB.usable ? checkB.reason : null].filter(Boolean).join(" | ") }],
+        });
+      }
+      return originalClash.call(this, unitA, skillA, unitB, skillB, ...rest);
+    };
+
+    if (originalSpell) engine.resolveSpell = function (spellSkill, target, ...rest) {
+      const caster = spellSkill?.caster || spellSkill?.owner || null;
+      if (caster) {
+        const check = canUseSkillByTraits(caster, spellSkill);
+        if (!check.usable) return blockedSkillResult(check, { winner: "Target", isSuccess: true, dc: spellSkill?.saveDC ?? null, savePower: null });
+      }
+      return originalSpell.call(this, spellSkill, target, ...rest);
     };
 
     if (originalPassive) engine.applyPassiveModifiers = function (unit, contextOptions) {
@@ -355,13 +470,14 @@
       used += 1;
       const side = coinEngine?.rollSide ? coinEngine.rollSide(headsChance) : (Math.random() * 100 < headsChance ? "head" : "tail");
       coin.side = side;
-      if (coinEngine?.coinSrc) coin.src = coinEngine.coinSrc(side);
+      coin.src = coinEngine?.coinSrc ? coinEngine.coinSrc(side) : (side === "head" ? HEAD_COIN_SRC : TAIL_COIN_SRC);
       if (side === "head") next.total = numberOr(next.total, 0) + numberOr(next.headBonus, 4);
     }
     next.heads = next.coins.filter((entry) => entry.side === "head").length;
     next.reTosses = { coinIndex: failedIndex, attempted: used, maximum: attempts };
 
-    const node = options?.container?.querySelector?.(`[data-coin-index='${failedIndex}'] img`);
+    let node = options?.container?.querySelector?.(`[data-coin-index='${failedIndex}'] img`);
+    if (!node) node = options?.container?.querySelectorAll?.(".coin-toss-item")?.[failedIndex]?.querySelector?.("img") || null;
     if (node && coin.src) {
       node.src = coin.src;
       node.dataset.side = coin.side;
@@ -397,11 +513,116 @@
     return true;
   }
 
+  function abilityIdFromLegacyKey(value) {
+    const id = normalizeId(value);
+    const aliases = {
+      str: "str", strength: "str", fuerza: "str",
+      dex: "dex", dexterity: "dex", destreza: "dex",
+      con: "con", constitution: "con", constitucion: "con",
+      int: "int", intelligence: "int", inteligencia: "int",
+      wis: "wis", wisdom: "wis", sabiduria: "wis",
+      cha: "cha", charisma: "cha", carisma: "cha",
+    };
+    return aliases[id] || null;
+  }
+
+  function inferLegacyCheckFromButton(button) {
+    const actName = String(button?.getAttribute?.("name") || "");
+    if (!actName.startsWith("act_roll_skill_")) return null;
+    const raw = normalizeId(actName.slice("act_roll_skill_".length));
+    const row = button.closest?.(".sheet-skill-row");
+    const label = String(row?.querySelector?.(".sheet-skill-name")?.textContent || raw).trim();
+    const labelId = normalizeId(label);
+    const abilities = global.LuminousPlayerStats?.ABILITIES || [];
+    let ability = abilities.find((entry) => {
+      const keys = [entry?.id, entry?.key, entry?.code, entry?.name, entry?.spanish].map(normalizeId);
+      return keys.includes(raw) || keys.includes(labelId) || (entry?.skills || []).some((skill) => [normalizeId(skill?.id), normalizeId(skill?.name)].includes(raw));
+    });
+    if (!ability) {
+      ability = abilities.find((entry) => (entry?.skills || []).some((skill) => [normalizeId(skill?.id), normalizeId(skill?.name)].includes(labelId)));
+    }
+    const abilityId = normalizeId(ability?.id) || abilityIdFromLegacyKey(raw);
+    const savingThrow = /saving[\s_-]*throw|save|salvaci[oó]n/i.test(label);
+    const abilityLabels = [ability?.id, ability?.key, ability?.code, ability?.name, ability?.spanish, raw].filter(Boolean).map(normalizeId);
+    const matchedSkill = (ability?.skills || []).find((skill) => [normalizeId(skill?.id), normalizeId(skill?.name)].includes(labelId));
+    const kind = savingThrow ? "save" : matchedSkill ? "skill" : (abilityLabels.includes(labelId) ? "ability" : "skill");
+    return {
+      kind,
+      abilityId,
+      skillId: matchedSkill?.id || (kind === "skill" ? raw : null),
+      label,
+    };
+  }
+
+  function legacyCoinSnapshot(container) {
+    const items = Array.from(container?.querySelectorAll?.(".coin-toss-item") || []);
+    if (!items.length || items.some((item) => item.dataset?.stopped !== "true")) return null;
+    const coins = items.map((item, index) => {
+      const img = item.querySelector("img");
+      const side = String(img?.src || "").includes("yshLPnQ") ? "head" : "tail";
+      return { index, side, src: side === "head" ? HEAD_COIN_SRC : TAIL_COIN_SRC };
+    });
+    const statsText = String(doc.getElementById("coin-toss-stats")?.textContent || "");
+    const probability = Number(statsText.match(/([0-9]+(?:\.[0-9]+)?)\s*%/)?.[1]);
+    const totalNode = doc.getElementById("roll-total-score");
+    return {
+      coins,
+      heads: coins.filter((coin) => coin.side === "head").length,
+      headsChance: Number.isFinite(probability) ? probability : 50,
+      headBonus: 4,
+      total: numberOr(totalNode?.textContent, 0),
+      totalNode,
+    };
+  }
+
+  function watchLegacyCheckRoll(check) {
+    const container = doc.getElementById("coin-toss-coins-container");
+    if (!container || !check) return false;
+    state.legacyCheckObserver?.disconnect?.();
+    const token = String(++state.legacyCheckToken);
+    container.dataset.luminousCheckToken = token;
+    delete container.dataset.luminousRetossProcessed;
+
+    const tryResolve = () => {
+      if (container.dataset.luminousCheckToken !== token || container.dataset.luminousRetossProcessed === token) return;
+      const snapshot = legacyCoinSnapshot(container);
+      if (!snapshot) return;
+      container.dataset.luminousRetossProcessed = token;
+      applyCheckRetosses(snapshot, { container, totalNode: snapshot.totalNode }, check);
+      state.activeCheck = null;
+      state.legacyCheckObserver?.disconnect?.();
+      state.legacyCheckObserver = null;
+    };
+
+    state.legacyCheckObserver = new MutationObserver(tryResolve);
+    state.legacyCheckObserver.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-stopped", "src"] });
+    global.setTimeout?.(tryResolve, 0);
+    return true;
+  }
+
+  function installLegacyCheckBridge() {
+    if (state.legacyCheckBridgeBound) return true;
+    state.legacyCheckBridgeBound = true;
+    doc.addEventListener("click", (event) => {
+      const button = event.target?.closest?.(".sheet-roll-skill-btn");
+      if (!button) return;
+      const inferred = state.activeCheck ? { ...state.activeCheck } : inferLegacyCheckFromButton(button);
+      if (!inferred) return;
+      if (!inferred.abilityId) inferred.abilityId = inferLegacyCheckFromButton(button)?.abilityId || null;
+      state.activeCheck = inferred;
+      if (normalizeId(inferred.abilityId) === "str" && ["ability", "skill"].includes(normalizeId(inferred.kind))) {
+        watchLegacyCheckRoll(inferred);
+      }
+    });
+    return true;
+  }
+
   function installAll() {
     installTraitEngineBridge();
     installCombatBridge();
     installTheatreCheckBridge();
     installCoinCheckBridge();
+    installLegacyCheckBridge();
   }
 
   global.addEventListener?.("luminous:trait-activated", (event) => syncResult(event?.detail));
@@ -415,7 +636,12 @@
     installAll,
     syncResult,
     resolveCombatCheck,
+    canUseSkillByTraits,
+    restrictionMatchesSkill,
     applyCheckRetosses,
+    inferLegacyCheckFromButton,
+    legacyCoinSnapshot,
+    installLegacyCheckBridge,
   });
   global.LuminousTraitStandardizationRuntime = api;
 
