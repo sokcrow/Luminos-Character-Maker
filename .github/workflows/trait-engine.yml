@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/trait-engine.yml"
       - ".github/workflows/pr565-universal-fix.yml"
+      - "scripts/pr565_fix.py"
       - "js/**"
       - "tests/**"
 
@@ -28,23 +29,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Extract and run the audited patch script
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import subprocess
-          import textwrap
-
-          source = Path('.github/workflows/pr565-universal-fix.yml').read_text()
-          start_marker = "          python3 - <<'PY'\n"
-          end_marker = "\n          PY\n\n      - name: Install dependencies"
-          start = source.index(start_marker) + len(start_marker)
-          end = source.index(end_marker, start)
-          script = textwrap.dedent(source[start:end])
-          Path('/tmp/pr565-fix.py').write_text(script)
-          subprocess.check_call(['python3', '/tmp/pr565-fix.py'])
-          PY
+      - name: Apply audited universal combat patch
+        run: python3 scripts/pr565_fix.py
 
       - name: Install dependencies
         run: npm ci
