@@ -32,8 +32,6 @@ on:
       - "tests/universal_modifier_engine.spec.js"
       - "tests/universal_speed_runtime.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
-      - ".github/scripts/apply_universal_defense_review_fixes.py"
-      - ".github/scripts/update_defense_channel_expectations.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
