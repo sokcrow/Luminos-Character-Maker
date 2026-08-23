@@ -129,7 +129,12 @@
     const data = viewerCombatData();
     if (!data) return 0;
     const units = Object.values(data).filter(Boolean);
-    units.forEach(decorateSpeed);
+    const traitRuntime = global.LuminousTraitStandardizationRuntime;
+    units.forEach((unit) => {
+      decorateSpeed(unit);
+      traitRuntime?.registerCombatUnit?.(unit);
+    });
+    traitRuntime?.installViewerEncounterBridge?.();
     return units.length;
   }
 
