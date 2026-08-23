@@ -127,16 +127,22 @@
     return Boolean(traitState?.statuses?.[normalizeId(statusId)]);
   }
 
-  function conditionMatches(condition, runtime) {
+  function conditionMatches(condition, runtime, character = runtime?.character || {}, trait = {}) {
     if (!condition || typeof condition !== "object") return Boolean(condition);
-    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime));
-    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime));
-    if (condition.not) return !conditionMatches(condition.not, runtime);
+    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime, character, trait));
+    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime, character, trait));
+    if (condition.not) return !conditionMatches(condition.not, runtime, character, trait);
     const left = condition.path ? getPath(runtime, condition.path) : condition.left;
-    const right = condition.value;
+    const right = condition.valueFormula != null && traitEngine?.evaluateFormula && traitEngine?.buildVariables
+      ? traitEngine.evaluateFormula(condition.valueFormula, traitEngine.buildVariables(character || {}, runtime || {}, trait || {}))
+      : condition.value;
     const operator = normalizeId(condition.operator || "eq");
-    if (["eq", "equals"].includes(operator)) return left === right;
-    if (["ne", "not_equals"].includes(operator)) return left !== right;
+    const equal = (a, b) => typeof a === "string" && typeof b === "string" ? normalizeId(a) === normalizeId(b) : a === b;
+    const contains = (container, value) => Array.isArray(container)
+      ? container.some((entry) => equal(entry, value))
+      : (typeof container === "string" && typeof value === "string" ? normalizeId(container).includes(normalizeId(value)) : String(container ?? "").includes(String(value ?? "")));
+    if (["eq", "equals"].includes(operator)) return equal(left, right);
+    if (["ne", "not_equals"].includes(operator)) return !equal(left, right);
     if (operator === "truthy") return Boolean(left);
     if (operator === "falsy") return !left;
     if (operator === "gt") return Number(left) > Number(right);
@@ -144,8 +150,10 @@
     if (operator === "lt") return Number(left) < Number(right);
     if (operator === "lte") return Number(left) <= Number(right);
     if (operator === "between") return Number(left) >= Number(right) && Number(left) <= Number(condition.max);
-    if (operator === "in") return Array.isArray(right) && right.includes(left);
-    if (operator === "not_in") return Array.isArray(right) && !right.includes(left);
+    if (operator === "contains") return contains(left, right);
+    if (operator === "not_contains") return !contains(left, right);
+    if (operator === "in") return Array.isArray(right) && right.some((entry) => equal(left, entry));
+    if (operator === "not_in") return Array.isArray(right) && !right.some((entry) => equal(left, entry));
     return false;
   }
 
@@ -188,7 +196,7 @@
     const equipment = options.equipment || resolveEquipment(unit);
     const traitState = options.traitState || {};
     const context = normalizeId(options.context || "combat");
-    const runtime = { context, character, self: unit, skill, equipment };
+    const runtime = { context, character, self: unit, skill, equipment, target: options.target || null, targetedByAlly: Boolean(options.targetedByAlly), variables: options.variables || {} };
     const output = emptyModifiers();
 
     (options.traits || []).forEach((trait) => {
@@ -196,7 +204,7 @@
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "modifier" || normalizeId(rule.trigger || "passive") !== "passive") return;
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
-        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;
+        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
         const channel = channelForRule(rule);
         if (!channel) return;
         const amount = normalizeChannelAmount(channel, rule, valueForRule(rule, character, runtime, trait));
@@ -256,7 +264,7 @@
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "stat" || normalizeId(rule.trigger || "passive") !== "passive") return;
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
-        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;
+        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
         const id = normalizeId(rule.statId);
         const aliases = id === "strength" ? ["fuerza", "strength"] : id === "constitution" ? ["constitucion", "constitution"] : [id];
         const key = aliases.find((entry) => Object.prototype.hasOwnProperty.call(stats, entry)) || aliases[0];

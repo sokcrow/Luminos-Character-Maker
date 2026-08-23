@@ -231,18 +231,20 @@ test("racial damage bridge returns Trait-adjusted damage to the production Comba
   delete global.CombatEngine;
 });
 
-test("Centaur Charge and White Semi Dragon compare target Speed against user Max Speed", () => {
+test("Centaur Charge and White Semi Dragon compare target Speed against user Max Speed through universal channels", () => {
   const centaur = catalog.getDefinition("centaur_charge");
   const whiteDragon = catalog.getDefinition("half_dragon_skilled_hunter");
   const character = { level: 30, combatStats: { maxSpeed: 6 } };
+  const target = { speed: 4 };
+  const skill = { type: "Normal", basePower: 4 };
 
-  const chargeSkill = { finalPower: 4 };
-  engine.dispatchCombatEvent("before_attack", { character, self: character, target: { speed: 4 }, skill: chargeSkill, traits: [centaur] });
-  expect(chargeSkill.finalPower).toBe(5);
+  const charge = modifiers.resolveTraitModifiers({ unit: character, character, target, skill, traits: [centaur], context: "combat" });
+  expect(charge.final_power).toBe(1);
+  expect(skill.finalPower).toBeUndefined();
 
-  const hunterSkill = { clashPower: 2 };
-  engine.dispatchCombatEvent("before_attack", { character, self: character, target: { speed: 4 }, skill: hunterSkill, traits: [whiteDragon] });
-  expect(hunterSkill.clashPower).toBe(4);
+  const hunter = modifiers.resolveTraitModifiers({ unit: character, character, target, skill, traits: [whiteDragon], context: "combat" });
+  expect(hunter.clash_power).toBe(2);
+  expect(skill.clashPower).toBeUndefined();
 });
 
 test("Warforged Integrated Tool multiplies Threshold by 0.75", () => {

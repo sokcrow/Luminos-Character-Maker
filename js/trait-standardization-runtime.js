@@ -16,6 +16,7 @@
     legacyCheckObserver: null,
     legacyCheckToken: 0,
     combatUnits: new Map(),
+    modifierTargets: new Map(),
     viewerEncounterBound: false,
     viewerEncounterActive: false,
     viewerEncounterPending: false,
@@ -138,6 +139,48 @@
     return false;
   }
 
+  function currentAssignedTarget(attacker) {
+    if (!attacker) return null;
+    const slotTargets = viewerSlotTargets();
+    if (!slotTargets) return null;
+    const combatData = viewerCombatData() || {};
+    const attackerIds = new Set(identityValues(attacker));
+    for (const [attackerSlotId, targetSlotId] of Object.entries(slotTargets)) {
+      const attackerBaseId = String(attackerSlotId || "").split("_slot_")[0];
+      if (!attackerIds.has(attackerBaseId) && combatData?.[attackerBaseId] !== attacker) continue;
+      const targetBaseId = String(targetSlotId || "").split("_slot_")[0];
+      const direct = combatData?.[targetBaseId];
+      if (direct) return direct;
+      const registered = registeredCombatUnits().find((unit) => identityValues(unit).includes(targetBaseId));
+      if (registered) return registered;
+    }
+    return null;
+  }
+
+  function modifierTarget(unit) {
+    if (!unit) return null;
+    return state.modifierTargets.get(combatUnitKey(unit)) || currentAssignedTarget(unit) || null;
+  }
+
+  function withModifierTargets(pairs, callback) {
+    const previous = [];
+    (pairs || []).forEach(([unit, target]) => {
+      if (!unit) return;
+      const key = combatUnitKey(unit);
+      previous.push([key, state.modifierTargets.has(key), state.modifierTargets.get(key)]);
+      if (target) state.modifierTargets.set(key, target);
+      else state.modifierTargets.delete(key);
+    });
+    try {
+      return callback();
+    } finally {
+      previous.reverse().forEach(([key, hadValue, value]) => {
+        if (hadValue) state.modifierTargets.set(key, value);
+        else state.modifierTargets.delete(key);
+      });
+    }
+  }
+
   function ensureDamageHistory(unit) {
     if (!unit || typeof unit !== "object") return unit;
     if (!Array.isArray(unit.damageTakenThisTurnTypes)) unit.damageTakenThisTurnTypes = [];
@@ -228,6 +271,7 @@
         state.viewerEncounterActive = false;
         state.viewerEncounterPending = false;
         state.combatUnits.clear();
+        state.modifierTargets.clear();
         return;
       }
       if (state.viewerEncounterActive) return;
@@ -488,7 +532,10 @@
     if (originalUnilateral) engine.resolveUnilateralWithCounter = function (unitAttacker, attackSkill, ...rest) {
       const check = canUseSkillByTraits(unitAttacker, attackSkill);
       if (!check.usable) return blockedSkillResult(check, { attackLogs: [{ message: check.reason, class: "error" }], damageTaken: 0 });
-      return originalUnilateral.call(this, unitAttacker, attackSkill, ...rest);
+      const unitDefender = rest[0] || null;
+      return withModifierTargets([[unitAttacker, unitDefender], [unitDefender, unitAttacker]], () =>
+        originalUnilateral.call(this, unitAttacker, attackSkill, ...rest)
+      );
     };
 
     if (originalClash) engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
@@ -502,7 +549,7 @@
           clashLogs: [{ winner, note: [!checkA.usable ? checkA.reason : null, !checkB.usable ? checkB.reason : null].filter(Boolean).join(" | ") }],
         });
       }
-      return originalClash.call(this, unitA, skillA, unitB, skillB, ...rest);
+      return withModifierTargets([[unitA, unitB], [unitB, unitA]], () => originalClash.call(this, unitA, skillA, unitB, skillB, ...rest));
     };
 
     if (originalSpell) engine.resolveSpell = function (spellSkill, target, ...rest) {
@@ -517,11 +564,14 @@
     if (originalPassive) engine.applyPassiveModifiers = function (unit, contextOptions) {
       const statusMods = originalPassive.call(this, unit, contextOptions) || {};
       const traits = traitsForUnit(unit);
+      const target = contextOptions?.target || modifierTarget(unit);
       const traitMods = modifiers.resolveTraitModifiers({
         unit,
         character: isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || unit : unit,
         traits,
         skill: contextOptions?.skill || null,
+        target,
+        targetedByAlly: contextOptions?.targetedByAlly ?? isTargetedByAlly(unit, target),
         context: "combat",
       });
       return modifiers.mergeModifiers(statusMods, traitMods);

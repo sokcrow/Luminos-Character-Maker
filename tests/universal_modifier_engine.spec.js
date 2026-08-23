@@ -3,6 +3,7 @@ const traitEngine = require("../js/trait-engine.js");
 const statusEngine = require("../js/status-engine.js");
 const modifiers = require("../js/universal-modifier-engine.js");
 const catalog = require("../js/trait-catalog-core.js");
+const racialCatalog = require("../js/racial-trait-catalog.js");
 
 function barbarian(level = 100) {
   return {
@@ -170,4 +171,30 @@ test("Unstoppable Strength check_coin_fail is limited to Strength ability/skill 
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", athleticsRuntime, traitEngine.createState()).outcomes).toHaveLength(1);
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", saveRuntime, traitEngine.createState()).outcomes).toHaveLength(0);
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", combatRuntime, traitEngine.createState()).outcomes).toHaveLength(0);
+});
+
+test("racial combat Traits use universal channels with normalized enums and current target context", () => {
+  const unit = { id: "racial_universal", combatStats: { maxSpeed: 6 }, took_damage_last_turn: false };
+  const slower = { id: "slow", speed: 3 };
+  const faster = { id: "fast", speed: 7 };
+  const counter = { type: "Counter", basePower: 0 };
+  const normal = { type: "Normal", basePower: 10 };
+
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [racialCatalog.getDefinition("yuan_ti_cold_fury")], skill: counter, context: "combat" }).final_power).toBe(4);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [racialCatalog.getDefinition("yuan_ti_cold_fury")], skill: normal, context: "combat" }).final_power).toBe(0);
+
+  const pack = racialCatalog.getDefinition("pack_tactics");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [pack], skill: normal, target: slower, targetedByAlly: true, context: "combat" }).final_power).toBe(1);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [pack], skill: normal, target: faster, targetedByAlly: false, context: "combat" }).final_power).toBe(0);
+  expect(normal.finalPower).toBeUndefined();
+  expect(normal.final_power).toBeUndefined();
+
+  const hunter = racialCatalog.getDefinition("half_dragon_skilled_hunter");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [hunter], skill: normal, target: slower, context: "combat" }).clash_power).toBe(2);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [hunter], skill: normal, target: faster, context: "combat" }).clash_power).toBe(0);
+
+  const lunge = racialCatalog.getDefinition("moonfae_lunge");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [lunge], skill: normal, target: slower, context: "combat" }).clash_power).toBe(2);
+  unit.took_damage_last_turn = true;
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [lunge], skill: normal, target: slower, context: "combat" }).clash_power).toBe(0);
 });

@@ -301,34 +301,48 @@ test("damage history feeds Undae previous-Turn Fire and Acid conditions", () => 
   expect(unit.damageTakenPreviousTurnTypes).toEqual(["Acid"]);
 });
 
-test("Pack Tactics computes another ally targeting the same defender from production slotTargets", () => {
-  const attacker = { id: "kobold", faction: "player", level: 20 };
-  const ally = { id: "ally", faction: "player", level: 20 };
-  const target = { id: "enemy", faction: "enemy", level: 20 };
-  const combatData = { kobold: attacker, ally, enemy: target };
-  const slotTargets = {
-    kobold_slot_0: "enemy_slot_0",
-    ally_slot_0: "enemy_slot_0",
+test("Pack Tactics is scoped to the current target and never mutates a reusable Skill", () => {
+  const attacker = { id: "kobold", faction: "player", combatStats: { maxSpeed: 6 } };
+  const ally = { id: "ally", faction: "player" };
+  const targetA = { id: "enemy_a", faction: "enemy", speed: 3 };
+  const targetB = { id: "enemy_b", faction: "enemy", speed: 3 };
+  const combatData = { kobold: attacker, ally, enemy_a: targetA, enemy_b: targetB };
+  const slotTargets = { kobold_slot_0: "enemy_a_slot_0", ally_slot_0: "enemy_a_slot_0" };
+  const pack = racialCatalog.getDefinition("pack_tactics");
+  const playerRuntime = { getCharacter() { return attacker; }, getTraits() { return [pack]; } };
+  const combatEngine = {
+    applyPassiveModifiers() { return {}; },
+    resolveUnilateralWithCounter(unitAttacker, attackSkill) {
+      const passive = this.applyPassiveModifiers(unitAttacker, { skill: attackSkill });
+      return { finalPower: (attackSkill.basePower || 0) + (passive.final_power || 0) };
+    },
   };
-  const { window, api } = loadStandardizationRuntime({
-    combatData,
-    slotTargets,
-    datosJugador: attacker,
-  });
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, combatData, slotTargets, datosJugador: attacker });
   api.installAll();
+  const skill = { type: "Normal", basePower: 10 };
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetA, null).finalPower).toBe(11);
+  slotTargets.kobold_slot_0 = "enemy_b_slot_0";
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetB, null).finalPower).toBe(10);
+  slotTargets.kobold_slot_0 = "enemy_a_slot_0";
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetA, null).finalPower).toBe(11);
+  expect(skill.finalPower).toBeUndefined();
+  expect(skill.final_power).toBeUndefined();
+});
 
-  expect(api.isTargetedByAlly(attacker, target)).toBe(true);
-
-  const skill = { finalPower: 0 };
-  window.LuminousTraitEngine.dispatchCombatEvent("before_attack", {
-    character: attacker,
-    self: attacker,
-    target,
-    skill,
-    traits: [racialCatalog.getDefinition("pack_tactics")],
-    state: traitEngine.createState(),
-  });
-  expect(skill.finalPower).toBe(1);
+test("production clash resolution receives universal Clash Power from target-scoped racial Traits", () => {
+  const attacker = { id: "hunter", faction: "player", combatStats: { maxSpeed: 6 } };
+  const target = { id: "enemy", faction: "enemy", speed: 3 };
+  const skilled = racialCatalog.getDefinition("half_dragon_skilled_hunter");
+  const playerRuntime = { getCharacter() { return attacker; }, getTraits() { return [skilled]; } };
+  const combatEngine = {
+    applyPassiveModifiers() { return {}; },
+    resolveStandardClash(unitA, skillA) {
+      return { clashPower: this.applyPassiveModifiers(unitA, { skill: skillA }).clash_power || 0 };
+    },
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: attacker });
+  api.installAll();
+  expect(combatEngine.resolveStandardClash(attacker, { type: "Normal" }, target, { type: "Normal" }).clashPower).toBe(2);
 });
 
 test("legacy sheet Coin roller can re-toss the last failed Strength Check without LuminousCoinEngine", () => {
@@ -404,4 +418,39 @@ test("legacy Check bridge is wired to the actual sheet roll selector and exclude
   expect(source).toContain('["ability", "skill"].includes');
   expect(source).toContain('saving[\\s_-]*throw|save|salvaci[oó]n');
   expect(source).toContain('installLegacyCheckBridge();');
+});
+
+test("player Trait runtime resolves manual combat activations against the live CombatEngine Unit", () => {
+  const document = makeDocument();
+  const snapshot = { id: "aasimar_live", hp: 2, maxHp: 20, stats: { constitucion: 10 }, characterBuild: { raceId: "aasimar", calculatedAtLevel: 20 } };
+  const liveUnit = { id: "aasimar_live", hp: 5, maxHp: 20, stats: { constitucion: 10 } };
+  const fakeWindow = eventTarget({
+    document,
+    LuminousGameContext: "combat",
+    LuminousTraitEngine: traitEngine,
+    LuminousTraitCatalogCore: { allDefinitions: () => ({}), allGrants: () => [] },
+    LuminousRacialTraitCatalog: racialCatalog,
+    LuminousClassMilestones: { resolveSelectedGeneralTraits: () => [] },
+    LuminousTraitPlayerTray: { mount: () => null },
+    LuminousTheatreRolls: null,
+    CombatEngine: null,
+    datosJugador: snapshot,
+    combatData: { aasimar_live: liveUnit },
+    firebase: null,
+    localStorage: { getItem: () => null },
+    CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
+    setInterval() { return 1; },
+    setTimeout(handler) { handler(); return 1; },
+    console,
+  });
+  const context = vm.createContext({ window: fakeWindow, document, console, CustomEvent: fakeWindow.CustomEvent, setInterval: fakeWindow.setInterval, setTimeout: fakeWindow.setTimeout });
+  vm.runInContext(read("js/player-trait-runtime.js"), context, { filename: "player-trait-runtime.js" });
+  const runtime = fakeWindow.LuminousPlayerTraitRuntime.getRuntime();
+  expect(runtime.context).toBe("combat");
+  expect(runtime.self).toBe(liveUnit);
+  expect(runtime.character).toBe(snapshot);
+  expect(runtime.level).toBe(20);
+  traitEngine.activateTrait(racialCatalog.getDefinition("aasimar_healing_hands"), runtime, traitEngine.createState());
+  expect(liveUnit.hp).toBe(15);
+  expect(snapshot.hp).toBe(2);
 });

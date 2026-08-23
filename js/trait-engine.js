@@ -74,7 +74,7 @@
   function statMod(score) { return Math.floor((num(score, 10) - 10) / 2); }
 
   function buildVariables(character = {}, runtime = {}, trait = {}) {
-    const level = Math.max(0, int(runtime.Level ?? runtime.level ?? character.level));
+    const level = Math.max(0, int(runtime.Level ?? runtime.level ?? character.level ?? character.characterBuild?.calculatedAtLevel));
     const source = trait.source || {};
     const classId = normalizeId(source.type || trait.sourceType) === "class" ? normalizeId(source.classId || source.id || trait.sourceId) : normalizeId(runtime.sourceClassId);
     const stats = character.stats || {};
@@ -266,10 +266,14 @@
     if (Array.isArray(c.all)) return c.all.every((x) => conditionMatches(x, env)); if (Array.isArray(c.any)) return c.any.some((x) => conditionMatches(x, env)); if (c.not) return !conditionMatches(c.not, env);
     const left = c.formula != null ? evaluateFormula(c.formula, env.variables) : c.resourceId ? num(env.state.resources[normalizeId(c.resourceId)]?.value) : c.statusId ? hasStatus(env, c.statusId) : c.flagId ? env.state.flags[normalizeId(c.flagId)] : c.counterKey ? num(env.state.counters[normalizeId(c.counterKey)]?.value) : c.variable ? env.variables[c.variable] : c.path ? conditionPathValue(c.path, env) : c.left;
     const right = c.valueFormula != null ? evaluateFormula(c.valueFormula, env.variables) : c.value, op = normalizeId(c.operator || "eq");
-    if (["eq", "equals"].includes(op)) return left === right; if (["ne", "not_equals"].includes(op)) return left !== right;
+    const equal = (a, b) => typeof a === "string" && typeof b === "string" ? normalizeId(a) === normalizeId(b) : a === b;
+    const contains = (container, value) => Array.isArray(container)
+      ? container.some((entry) => equal(entry, value))
+      : (typeof container === "string" && typeof value === "string" ? normalizeId(container).includes(normalizeId(value)) : String(container ?? "").includes(String(value ?? "")));
+    if (["eq", "equals"].includes(op)) return equal(left, right); if (["ne", "not_equals"].includes(op)) return !equal(left, right);
     if (op === "gt") return Number(left) > Number(right); if (op === "gte") return Number(left) >= Number(right); if (op === "lt") return Number(left) < Number(right); if (op === "lte") return Number(left) <= Number(right);
-    if (op === "truthy") return Boolean(left); if (op === "falsy") return !left; if (op === "contains") return Array.isArray(left) ? left.includes(right) : String(left ?? "").includes(String(right ?? "")); if (op === "not_contains") return !(Array.isArray(left) ? left.includes(right) : String(left ?? "").includes(String(right ?? "")));
-    if (op === "in") return Array.isArray(right) && right.includes(left); if (op === "not_in") return Array.isArray(right) && !right.includes(left); if (op === "between") return Number(left) >= Number(right) && Number(left) <= Number(c.max);
+    if (op === "truthy") return Boolean(left); if (op === "falsy") return !left; if (op === "contains") return contains(left, right); if (op === "not_contains") return !contains(left, right);
+    if (op === "in") return Array.isArray(right) && right.some((entry) => equal(left, entry)); if (op === "not_in") return Array.isArray(right) && !right.some((entry) => equal(left, entry)); if (op === "between") return Number(left) >= Number(right) && Number(left) <= Number(c.max);
     throw new Error(`Unsupported trait condition operator: ${c.operator}`);
   }
   function conditionsMatch(list, env) { return (list || []).every((c) => conditionMatches(c, env)); }

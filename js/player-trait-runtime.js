@@ -149,13 +149,13 @@
 
   function getRuntime(overrides = {}) {
     const character = getCharacter();
-    return {
-      context: inferContext(),
-      character,
-      self: character,
-      level: Number(character?.level ?? character?.characterBuild?.calculatedAtLevel ?? 0) || 0,
-      ...(overrides || {}),
-    };
+    const input = overrides || {};
+    const context = normalizeId(input.context || inferContext()) || "any";
+    const self = Object.prototype.hasOwnProperty.call(input, "self")
+      ? input.self
+      : (context === "combat" ? currentCombatUnit() : character);
+    const level = Number(input.Level ?? input.level ?? character?.level ?? character?.characterBuild?.calculatedAtLevel ?? 0) || 0;
+    return { context, character, self, level, ...input };
   }
 
   function emit(name, detail) {
@@ -286,11 +286,11 @@
     const traitEngine = global.LuminousTraitEngine;
     if (!traitEngine?.dispatchCombatEvent) return null;
     if (!state.traitState) state.traitState = traitEngine.createState();
+    const runtime = getRuntime({ context: "combat", ...(input || {}) });
     return traitEngine.dispatchCombatEvent(trigger, {
-      character: getCharacter(),
+      ...runtime,
       traits: resolveTraits(),
       state: state.traitState,
-      ...(input || {}),
     });
   }
 
@@ -333,7 +333,13 @@
   }
 
   function currentCombatUnit() {
-    const source = global.combatData && typeof global.combatData === "object" ? Object.values(global.combatData) : [];
+    let data = global.combatData && typeof global.combatData === "object" ? global.combatData : null;
+    if (!data) {
+      try {
+        if (typeof global.eval === "function") data = global.eval("typeof combatData !== 'undefined' ? combatData : null");
+      } catch (_) {}
+    }
+    const source = data && typeof data === "object" ? Object.values(data) : [];
     return currentPlayerUnit(source) || getCharacter();
   }
 

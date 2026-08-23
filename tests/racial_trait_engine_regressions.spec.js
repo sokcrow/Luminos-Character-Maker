@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const engine = require("../js/trait-engine.js");
 const tray = require("../js/trait-player-tray.js");
+const racialCatalog = require("../js/racial-trait-catalog.js");
 
 test("modifier rules can target the top-level damage event object", () => {
   const trait = {
@@ -101,4 +102,29 @@ test("Trait tray mirrors toggle statuses to the production unit and removes them
   const disabled = engine.activateTrait(trait, runtime, state);
   tray.syncActivationStatuses(disabled, runtime);
   expect(unit.statusEffects.test_form).toBeUndefined();
+});
+
+test("stored characterBuild level powers positive racial damage with a minimum of 1", () => {
+  const character = { characterBuild: { calculatedAtLevel: 20 }, stats: { constitucion: 10 } };
+  const sacredDamage = { amount: 1 };
+  engine.dispatchCombatEvent("damage_dealt", {
+    character,
+    self: character,
+    target: { type: "Demon" },
+    skill: { id: "dragon_breath", tags: ["dragon_breath"] },
+    damage: sacredDamage,
+    traits: [racialCatalog.getDefinition("half_dragon_gold_breath_conversion")],
+  });
+  expect(sacredDamage.amount).toBe(2);
+
+  const protectorDamage = { amount: 1 };
+  const state = engine.createState({ statuses: { aasimar_protector_form: { id: "aasimar_protector_form", count: 1 } } });
+  engine.dispatchCombatEvent("damage_dealt", {
+    character,
+    self: character,
+    damage: protectorDamage,
+    traits: [racialCatalog.getDefinition("aasimar_protector_transformation")],
+    state,
+  });
+  expect(protectorDamage.amount).toBe(3);
 });
