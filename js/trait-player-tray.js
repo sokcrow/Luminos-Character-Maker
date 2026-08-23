@@ -1,8 +1,48 @@
 (function (global) {
   "use strict";
 
-  const engine = global.LuminousTraitEngine || (typeof require !== "undefined" ? require("./trait-engine.js") : null);
+  let engine = global.LuminousTraitEngine || (typeof require !== "undefined" ? require("./trait-engine.js") : null);
   if (!engine) return;
+
+  function preserveGrantMetadata(engineApi) {
+    if (!engineApi?.resolveTraitGrants || engineApi.__grantMetadataPreserved) return engineApi;
+    const originalResolveTraitGrants = engineApi.resolveTraitGrants.bind(engineApi);
+    return Object.freeze({
+      ...engineApi,
+      __grantMetadataPreserved: true,
+      resolveTraitGrants(character = {}, grants = [], catalog = {}) {
+        const grantList = Array.isArray(grants) ? grants : Object.values(grants || {});
+        return originalResolveTraitGrants(character, grants, catalog).map((trait) => {
+          const traitId = normalizeId(trait?.id || trait?.name);
+          const source = trait?.source || {};
+          const sourceType = normalizeId(source.type || trait?.sourceType);
+          const sourceId = normalizeId(source.id || source.classId || trait?.sourceId);
+          const grant = grantList.find((entry) => {
+            const grantTraitId = normalizeId(entry?.traitId || entry?.id);
+            const grantSourceType = normalizeId(entry?.sourceType || entry?.source?.type);
+            const grantSourceId = normalizeId(entry?.sourceId || entry?.source?.id || entry?.source?.classId);
+            return grantTraitId === traitId && grantSourceType === sourceType && grantSourceId === sourceId;
+          });
+          const atLevel = Number(grant?.atLevel ?? grant?.level);
+          if (!Number.isFinite(atLevel) || atLevel <= 0) return trait;
+
+          const next = {
+            ...trait,
+            source: {
+              ...source,
+              atLevel,
+            },
+          };
+          if (sourceType === "class") next.source.requiredClassLevel = atLevel;
+          else next.source.requiredLevel = atLevel;
+          return next;
+        });
+      },
+    });
+  }
+
+  engine = preserveGrantMetadata(engine);
+  global.LuminousTraitEngine = engine;
 
   const CATEGORY_ORDER = Object.freeze(["all", "racial", "class", "archetype", "background", "general", "other"]);
   const CATEGORY_LABELS = Object.freeze({
@@ -42,7 +82,14 @@
 
   function sourceCategory(trait = {}) {
     const source = trait?.source || {};
-    const type = normalizeId(source.type || trait.sourceType || trait.category || trait.traitCategory);
+    const sourceType = normalizeId(source.type);
+    const legacySourceType = normalizeId(trait.sourceType);
+    const categoryType = normalizeId(trait.category || trait.traitCategory);
+    const type = sourceType && sourceType !== "special"
+      ? sourceType
+      : legacySourceType && legacySourceType !== "special"
+        ? legacySourceType
+        : categoryType || sourceType || legacySourceType;
     if (["race", "racial", "subrace", "lineage", "ancestry"].includes(type)) return "racial";
     if (["class"].includes(type)) return "class";
     if (["archetype", "subclass", "class_archetype"].includes(type)) return "archetype";
@@ -79,8 +126,10 @@
       source.requiredClassLevel,
       source.unlockLevel,
       source.milestoneLevel,
+      source.atLevel,
       trait.requiredLevel,
       trait.requiredClassLevel,
+      trait.atLevel,
     ].map((value) => Number(value)).find((value) => Number.isFinite(value) && value > 0) || null;
 
     let detail = CATEGORY_LABELS[category].toUpperCase();
@@ -395,6 +444,7 @@
   const api = Object.freeze({
     TraitPlayerTray,
     mount,
+    preserveGrantMetadata,
     sourceCategory,
     sourceMeta,
     filterTraits,
