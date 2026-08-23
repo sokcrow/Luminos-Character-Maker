@@ -250,10 +250,21 @@
     return false;
   }
 
+  function conditionPathValue(path, env) {
+    const direct = getPath(env.runtime, path);
+    if (direct !== undefined) return direct;
+    const parts = pathParts(path);
+    if (parts.length >= 3 && parts[0] === "self" && ["statusEffects", "status_effects", "statuses"].includes(parts[1])) {
+      const statusId = normalizeId(parts[2]);
+      if (env.state.statuses[statusId]) return env.state.statuses[statusId];
+    }
+    return direct;
+  }
+
   function conditionMatches(c, env) {
     if (!c || typeof c !== "object") return Boolean(c);
     if (Array.isArray(c.all)) return c.all.every((x) => conditionMatches(x, env)); if (Array.isArray(c.any)) return c.any.some((x) => conditionMatches(x, env)); if (c.not) return !conditionMatches(c.not, env);
-    const left = c.formula != null ? evaluateFormula(c.formula, env.variables) : c.resourceId ? num(env.state.resources[normalizeId(c.resourceId)]?.value) : c.statusId ? hasStatus(env, c.statusId) : c.flagId ? env.state.flags[normalizeId(c.flagId)] : c.counterKey ? num(env.state.counters[normalizeId(c.counterKey)]?.value) : c.variable ? env.variables[c.variable] : c.path ? getPath(env.runtime, c.path) : c.left;
+    const left = c.formula != null ? evaluateFormula(c.formula, env.variables) : c.resourceId ? num(env.state.resources[normalizeId(c.resourceId)]?.value) : c.statusId ? hasStatus(env, c.statusId) : c.flagId ? env.state.flags[normalizeId(c.flagId)] : c.counterKey ? num(env.state.counters[normalizeId(c.counterKey)]?.value) : c.variable ? env.variables[c.variable] : c.path ? conditionPathValue(c.path, env) : c.left;
     const right = c.valueFormula != null ? evaluateFormula(c.valueFormula, env.variables) : c.value, op = normalizeId(c.operator || "eq");
     if (["eq", "equals"].includes(op)) return left === right; if (["ne", "not_equals"].includes(op)) return left !== right;
     if (op === "gt") return Number(left) > Number(right); if (op === "gte") return Number(left) >= Number(right); if (op === "lt") return Number(left) < Number(right); if (op === "lte") return Number(left) <= Number(right);
@@ -310,7 +321,7 @@
   function rulePath(rule) {
     const path = String(rule.path || "");
     if (!path) return "";
-    if (["self", "target", "check", "skill", "attacker", "defender"].includes(path.split(".")[0])) return path;
+    if (["self", "target", "check", "skill", "attacker", "defender", "damage"].includes(path.split(".")[0])) return path;
     return `${rule.target || "self"}.${path}`;
   }
 
@@ -536,7 +547,7 @@
     }).filter(Boolean);
   }
 
-  const RULE_TARGETS = Object.freeze(["self", "target"]);
+  const RULE_TARGETS = Object.freeze(["self", "target", "damage"]);
   const api = Object.freeze({ SCHEMA_VERSION, CONTEXTS, ACTIVATION_TYPES, ACTION_COSTS, TRIGGERS, RESET_SCOPES, DURATION_TYPES, OPERATION_TYPES, RULE_TYPES, RULE_TARGETS, normalizeId, getPath, setPath, getClassLevel, buildVariables, evaluateFormula, normalizeTrait, validateTrait, createState, conditionMatches, conditionsMatch, dispatchTrait, dispatchTraits, canActivateTrait, activateTrait, listAvailableTraitActions, resetUsage, resetCounters, resetStateScope, resolveTheatreCheck, dispatchCombatEvent, resolveTraitGrants });
   global.LuminousTraitEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
