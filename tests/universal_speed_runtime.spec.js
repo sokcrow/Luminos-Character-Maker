@@ -70,3 +70,45 @@ test("withResolvedSpeeds exposes resolved values only during the consumer calcul
   expect(slow.speed).toBe(2);
   expect(fast.speed).toBe(5);
 });
+
+test("decorated combat units resolve direct .speed reads used by the Battle viewer", () => {
+  const character = unit(2);
+  character.traitDefinitions = [catalog.getDefinition("fast_movement")];
+  speedRuntime.decorateSpeed(character);
+
+  expect(speedRuntime.rawSpeed(character)).toBe(2);
+  expect(character.speed).toBe(3);
+
+  statusEngine.applyStatus(character, "haste", { count: 2 });
+  expect(character.speed).toBe(5);
+  expect(speedRuntime.rawSpeed(character)).toBe(2);
+
+  character.speed = 4;
+  expect(speedRuntime.rawSpeed(character)).toBe(4);
+  expect(character.speed).toBe(6);
+});
+
+test("install decorates the exact unit object received by CombatEngine.initializeUnitData", () => {
+  const previousEngine = global.CombatEngine;
+  const previousModifiers = global.LuminousUniversalModifiers;
+  const engine = {
+    initializeUnitData(unit) { unit.initialized = true; },
+    calculateActionSlots() {},
+    autoTarget() {},
+  };
+  global.CombatEngine = engine;
+  global.LuminousUniversalModifiers = modifiers;
+
+  try {
+    expect(speedRuntime.install()).toBe(true);
+    const character = unit(2);
+    character.traitDefinitions = [catalog.getDefinition("fast_movement")];
+    engine.initializeUnitData(character);
+    expect(character.initialized).toBe(true);
+    expect(character.speed).toBe(3);
+    expect(speedRuntime.rawSpeed(character)).toBe(2);
+  } finally {
+    global.CombatEngine = previousEngine;
+    global.LuminousUniversalModifiers = previousModifiers;
+  }
+});
