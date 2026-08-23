@@ -12,6 +12,7 @@ on:
       - "js/universal-speed-runtime.js"
       - "js/trait-standardization-runtime.js"
       - "js/player-trait-runtime.js"
+      - "js/trait-player-tray.js"
       - "js/player-stats-ability-bar.js"
       - "js/instance-control.js"
       - "hoja_personaje.js"
@@ -60,6 +61,7 @@ jobs:
           node --check js/universal-speed-runtime.js
           node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
+          node --check js/trait-player-tray.js
           node --check js/player-stats-ability-bar.js
           node --check js/instance-control.js
           node --check js/dm-trait-catalog-importer.js
