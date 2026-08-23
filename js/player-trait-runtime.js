@@ -71,6 +71,7 @@
       .then(() => ensureScript("trait-engine-script", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine)))
       .then(() => Promise.all([
         ensureScript("trait-catalog-core-script", "js/trait-catalog-core.js", () => Boolean(global.LuminousTraitCatalogCore)),
+        ensureScript("racial-trait-catalog-script", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog)),
         ensureScript("class-milestone-engine-script", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones)),
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
       ]));
@@ -96,7 +97,8 @@
 
   function mergedDefinitions() {
     const core = global.LuminousTraitCatalogCore?.allDefinitions?.() || {};
-    return { ...core, ...(state.definitions || {}) };
+    const racial = global.LuminousRacialTraitCatalog?.allDefinitions?.() || {};
+    return { ...core, ...racial, ...(state.definitions || {}) };
   }
 
   function mergedGrants() {
@@ -119,17 +121,20 @@
 
   function resolveTraits() {
     const traitEngine = global.LuminousTraitEngine;
+    const racialCatalog = global.LuminousRacialTraitCatalog;
     const milestones = global.LuminousClassMilestones;
     if (!traitEngine?.resolveTraitGrants || !milestones?.resolveSelectedGeneralTraits) return [];
     const character = getCharacter();
+    const normalizedCharacter = normalizeCharacterForGrantResolution(character);
     const definitions = mergedDefinitions();
     const granted = traitEngine.resolveTraitGrants(
-      normalizeCharacterForGrantResolution(character),
+      normalizedCharacter,
       mergedGrants(),
       definitions,
     );
+    const racialGranted = racialCatalog?.resolveTraitGrants?.(normalizedCharacter, definitions) || [];
     const selected = milestones.resolveSelectedGeneralTraits(character, definitions);
-    return mergeTraitLists(granted, selected);
+    return mergeTraitLists([...granted, ...racialGranted], selected);
   }
 
   function inferContext() {
