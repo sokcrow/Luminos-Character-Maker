@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const traitEngine = require("../js/trait-engine.js");
 const statusEngine = require("../js/status-engine.js");
 const modifiers = require("../js/universal-modifier-engine.js");
+const racialCatalog = require("../js/racial-trait-catalog.js");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
@@ -75,6 +76,9 @@ function loadStandardizationRuntime(overrides = {}) {
     CombatEngine: overrides.combatEngine || null,
     datosJugador: overrides.datosJugador || null,
     firebase: overrides.firebase || null,
+    combatData: overrides.combatData || null,
+    slotTargets: overrides.slotTargets || null,
+    STATUS_REGISTRY: overrides.STATUS_REGISTRY || null,
     CustomEvent: class CustomEvent {
       constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
     },
@@ -227,6 +231,104 @@ test("production combatants Firebase lifecycle dispatches encounter_start once p
   combatantsListener({ val: () => ({ player_1: { id: "player_1" } }) });
   expect(dispatched).toHaveLength(2);
   expect(dispatched[1].input.self).toBe(nextPlayerUnit);
+});
+
+test("Stone's Endurance reduces production incoming damage before HP is deducted", () => {
+  const stone = racialCatalog.getDefinition("goliath_stone_endurance");
+  const playerCharacter = { id: "goliath_1", level: 20, stats: { constitucion: 16 } };
+  const traitState = traitEngine.createState();
+  const playerRuntime = {
+    getCharacter() { return playerCharacter; },
+    getTraits() { return [stone]; },
+    dispatchCombatEvent(trigger, input) {
+      return traitEngine.dispatchCombatEvent(trigger, {
+        character: playerCharacter,
+        traits: [stone],
+        state: traitState,
+        ...input,
+      });
+    },
+  };
+  const combatEngine = {
+    initializeUnitData() {},
+    applyPassiveModifiers() { return {}; },
+    applyDamage(unit, damage) {
+      unit.hp = Math.max(0, unit.hp - damage);
+      return { hp: unit.hp, shield: unit.shield || 0 };
+    },
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: playerCharacter });
+  api.installAll();
+
+  const unit = { id: "goliath_1", hp: 100, maxHp: 100, stats: { constitucion: 16 } };
+  combatEngine.initializeUnitData(unit);
+  combatEngine.applyDamage(unit, 10, "directo", false, { type: "Normal" });
+
+  expect(unit.hp).toBe(93);
+});
+
+test("damage history feeds Undae previous-Turn Fire and Acid conditions", () => {
+  const playerCharacter = { id: "undae_1", level: 20 };
+  const playerRuntime = {
+    getCharacter() { return playerCharacter; },
+    getTraits() { return []; },
+    dispatchCombatEvent(_trigger, input) {
+      return { runtime: input, state: traitEngine.createState(), outcomes: [] };
+    },
+  };
+  const combatEngine = {
+    initializeUnitData() {},
+    applyPassiveModifiers() { return {}; },
+    applyDamage(unit, damage) {
+      unit.hp = Math.max(0, unit.hp - damage);
+      return { hp: unit.hp };
+    },
+    triggerPhase() {},
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: playerCharacter });
+  api.installAll();
+
+  const unit = { id: "undae_1", hp: 100, maxHp: 100 };
+  combatEngine.initializeUnitData(unit);
+  combatEngine.applyDamage(unit, 5, "Fire", false, { damageType: "Fire" });
+  expect(unit.damageTakenThisTurnTypes).toEqual(["Fire"]);
+  combatEngine.triggerPhase("[Round End]", [unit]);
+  expect(unit.damageTakenPreviousTurnTypes).toEqual(["Fire"]);
+  expect(unit.damageTakenThisTurnTypes).toEqual([]);
+
+  api.recordDamageTypes(unit, ["Acid"]);
+  api.advanceDamageHistory(unit);
+  expect(unit.damageTakenPreviousTurnTypes).toEqual(["Acid"]);
+});
+
+test("Pack Tactics computes another ally targeting the same defender from production slotTargets", () => {
+  const attacker = { id: "kobold", faction: "player", level: 20 };
+  const ally = { id: "ally", faction: "player", level: 20 };
+  const target = { id: "enemy", faction: "enemy", level: 20 };
+  const combatData = { kobold: attacker, ally, enemy: target };
+  const slotTargets = {
+    kobold_slot_0: "enemy_slot_0",
+    ally_slot_0: "enemy_slot_0",
+  };
+  const { window, api } = loadStandardizationRuntime({
+    combatData,
+    slotTargets,
+    datosJugador: attacker,
+  });
+  api.installAll();
+
+  expect(api.isTargetedByAlly(attacker, target)).toBe(true);
+
+  const skill = { finalPower: 0 };
+  window.LuminousTraitEngine.dispatchCombatEvent("before_attack", {
+    character: attacker,
+    self: attacker,
+    target,
+    skill,
+    traits: [racialCatalog.getDefinition("pack_tactics")],
+    state: traitEngine.createState(),
+  });
+  expect(skill.finalPower).toBe(1);
 });
 
 test("legacy sheet Coin roller can re-toss the last failed Strength Check without LuminousCoinEngine", () => {
