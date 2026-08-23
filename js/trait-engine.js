@@ -496,8 +496,26 @@
     const validation = validateTrait(input);
     if (!validation.valid) throw new Error(`Invalid Trait ${validation.trait.id || "<unknown>"}: ${validation.errors.join(" | ")}`);
     const trait = validation.trait, state = stateInput || createState(), env = environment(trait, runtime, state), outcomes = [], normalizedTrigger = normalizeId(trigger);
-    const matchingEffects = trait.effects.filter((effect) => effect.trigger === normalizedTrigger && contextMatches(effect.contexts, env.context) && conditionsMatch(effect.conditions, env));
-    matchingEffects.forEach((effect) => effect.operations.forEach((op) => outcomes.push(executeOperation(op, env, effect))));
+    const candidateEffects = trait.effects.filter((effect) => effect.trigger === normalizedTrigger && contextMatches(effect.contexts, env.context));
+    const appliedStatuses = new Set();
+    const removedStatuses = new Set();
+    candidateEffects.forEach((effect) => effect.operations.forEach((op) => {
+      const type = normalizeId(op?.type), statusId = normalizeId(op?.statusId);
+      if (!statusId) return;
+      if (type === "apply_status") appliedStatuses.add(statusId);
+      if (type === "remove_status") removedStatuses.add(statusId);
+    }));
+    const toggleStatuses = new Set([...appliedStatuses].filter((statusId) => removedStatuses.has(statusId)));
+    const triggerStartMatches = new Map();
+    candidateEffects.forEach((effect) => {
+      const touchesToggle = effect.operations.some((op) => toggleStatuses.has(normalizeId(op?.statusId)) && ["apply_status", "remove_status"].includes(normalizeId(op?.type)));
+      if (touchesToggle) triggerStartMatches.set(effect.id, conditionsMatch(effect.conditions, env));
+    });
+    candidateEffects.forEach((effect) => {
+      const matches = triggerStartMatches.has(effect.id) ? triggerStartMatches.get(effect.id) : conditionsMatch(effect.conditions, env);
+      if (!matches) return;
+      effect.operations.forEach((op) => outcomes.push(executeOperation(op, env, effect)));
+    });
     if (contextMatches(trait.contexts, env.context)) {
       trait.rules.forEach((rule) => {
         if (rule.trigger !== normalizedTrigger) return;
