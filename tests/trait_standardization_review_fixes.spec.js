@@ -161,7 +161,8 @@ test("wrapped CombatEngine.createSkill preserves legacy skillRange before Attack
     applyPassiveModifiers() { return {}; },
     initializeUnitData() {},
   };
-  loadStandardizationRuntime({ combatEngine });
+  const { api } = loadStandardizationRuntime({ combatEngine });
+  api.installAll();
 
   const ranged = combatEngine.createSkill({ type: "Normal", skillRange: 5 });
   const melee = combatEngine.createSkill({ type: "Normal", skillRange: 1 });
