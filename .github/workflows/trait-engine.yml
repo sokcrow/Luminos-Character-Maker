@@ -25,6 +25,21 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Align patch with current dispatch runtime
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/pr565_fix_all.py')
+          text = p.read_text()
+          old = '''    '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    return traitEngine.dispatchCombatEvent(trigger, {\\n      character: getCharacter(),\\n      traits: resolveTraits(),\\n      state: state.traitState,\\n      ...(input || {}),\\n    });\\n  }\\n',
+              '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    const traits = resolveTraits();\\n    const result = traitEngine.dispatchCombatEvent(trigger, {\\n      character: getCharacter(),\\n      traits,\\n      state: state.traitState,\\n      ...runtime,\\n    });\\n    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, trigger, result?.runtime || runtime, result);\\n    return result;\\n  }\\n','''
+          new = '''    '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    return traitEngine.dispatchCombatEvent(trigger, {\\n      ...runtime,\\n      traits: resolveTraits(),\\n      state: state.traitState,\\n    });\\n  }\\n',
+              '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    const traits = resolveTraits();\\n    const result = traitEngine.dispatchCombatEvent(trigger, {\\n      ...runtime,\\n      traits,\\n      state: state.traitState,\\n    });\\n    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, trigger, result?.runtime || runtime, result);\\n    return result;\\n  }\\n','''
+          if text.count(old) != 1:
+              raise SystemExit(f'Could not align dispatch patch block: {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Apply audited patch
         run: python3 scripts/pr565_fix_all.py
 
