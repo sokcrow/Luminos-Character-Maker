@@ -307,7 +307,10 @@
       source: raceSource("aasimar"),
       contexts: ["combat", "theatre"],
       activation: { type: "manual", actionCost: "action", uses: { formula: "Proficiency", reset: "long_rest" }, target: "self_or_ally" },
-      effects: [{ id: "aasimar_healing_hands_heal", contexts: ["combat", "theatre"], trigger: "on_use", conditions: [], operations: [{ type: "heal_hp", path: "target.hp", maxPath: "target.maxHp", formula: "max(0, floor(Level / 2) + ConstitutionMod)" }] }],
+      effects: [
+        { id: "aasimar_healing_hands_target", contexts: ["combat", "theatre"], trigger: "on_use", conditions: [{ path: "target", operator: "truthy" }], operations: [{ type: "heal_hp", path: "target.hp", maxPath: "target.maxHp", formula: "max(0, floor(Level / 2) + ConstitutionMod)" }] },
+        { id: "aasimar_healing_hands_self_fallback", contexts: ["combat", "theatre"], trigger: "on_use", conditions: [{ path: "target", operator: "falsy" }], operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", formula: "max(0, floor(Level / 2) + ConstitutionMod)" }] },
+      ],
       rules: [],
     },
 
@@ -444,14 +447,28 @@
       schemaVersion: 1,
       id: "half_dragon_gold_breath_conversion",
       name: "Sacred Breath",
-      description: "Dragon Breath changes Fire damage to Radiant against Demon or Undead targets.",
+      description: "When Dragon Breath damages a Demon or Undead, deal +(Level / 4)% Damage. Dragon Breath keeps its normal Fire/Burn damage type.",
       source: raceSource("half_dragon"),
       contexts: ["combat"],
       activation: { type: "automatic", actionCost: "none" },
-      effects: [
-        { id: "half_dragon_gold_breath_radiant", contexts: ["combat"], trigger: "before_skill", conditions: [{ path: "skill.tags", operator: "contains", value: "dragon_breath" }, { path: "target.tags", operator: "contains", value: "demon" }], operations: [{ type: "modify", path: "skill.damageTypeOverrideRadiant", mode: "set", value: 1 }] },
-        { id: "half_dragon_gold_breath_radiant_undead", contexts: ["combat"], trigger: "before_skill", conditions: [{ path: "skill.tags", operator: "contains", value: "dragon_breath" }, { path: "target.tags", operator: "contains", value: "undead" }], operations: [{ type: "modify", path: "skill.damageTypeOverrideRadiant", mode: "set", value: 1 }] },
-      ],
+      effects: [{
+        id: "half_dragon_gold_sacred_breath_damage",
+        contexts: ["combat"],
+        trigger: "damage_dealt",
+        conditions: [
+          { any: [
+            { path: "skill.id", operator: "eq", value: "dragon_breath" },
+            { path: "skill.tags", operator: "contains", value: "dragon_breath" },
+          ] },
+          { any: [
+            { path: "target.creatureType", operator: "in", value: ["demon", "undead"] },
+            { path: "target.type", operator: "in", value: ["demon", "undead"] },
+            { path: "target.tags", operator: "contains", value: "demon" },
+            { path: "target.tags", operator: "contains", value: "undead" },
+          ] },
+        ],
+        operations: [{ type: "modify", path: "damage.amount", mode: "add", formula: "floor(DamageDealt * (Level / 4) / 100)" }],
+      }],
       rules: [],
     },
 
@@ -578,20 +595,10 @@
     yuan_ti_lust_affinity: sinAffinityTrait("yuan_ti_lust_affinity", "Lust", "Orange Eyes — Lust"),
     yuan_ti_sloth_affinity: sinAffinityTrait("yuan_ti_sloth_affinity", "Sloth", "Yellow Eyes — Sloth"),
 
-    yuan_ti_cold_fury: {
-      schemaVersion: 1,
-      id: "yuan_ti_cold_fury",
-      name: "Cold Fury",
-      description: "Reaction when attacked: queue a counterattack using one Tier 1 Skill. Once per Turn.",
-      source: raceSource("yuan_ti_pureblood"),
-      contexts: ["combat"],
-      activation: { type: "prompt", actionCost: "reaction", uses: { max: 1, reset: "turn" }, conditions: [{ path: "self.coldFuryAvailable", operator: "truthy" }] },
-      effects: [
-        { id: "yuan_ti_cold_fury_reset", contexts: ["combat"], trigger: "turn_start", conditions: [], operations: [{ type: "modify", path: "self.coldFuryAvailable", mode: "set", value: 0 }] },
-        { id: "yuan_ti_cold_fury_counter", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "set_flag", flagId: "tier1_counterattack_requested", value: true }, { type: "modify", path: "self.coldFuryAvailable", mode: "set", value: 0 }] },
-      ],
-      rules: [{ id: "yuan_ti_cold_fury_once_turn", type: "modifier", trigger: "damage_taken", target: "self", path: "coldFuryAvailable", mode: "set", value: 1, scope: "once_per_turn" }],
-    },
+    yuan_ti_cold_fury: passiveModifier("yuan_ti_cold_fury", "Cold Fury", "yuan_ti_pureblood", "final_power", 4, {
+      description: "Counter Skills gain +4 Final Power.",
+      conditions: [{ path: "skill.type", operator: "eq", value: "counter" }],
+    }),
 
     yuan_ti_subtle_influence: {
       schemaVersion: 1,
