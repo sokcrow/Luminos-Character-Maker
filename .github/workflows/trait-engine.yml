@@ -33,6 +33,7 @@ on:
       - "tests/universal_speed_runtime.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
       - ".github/scripts/apply_universal_defense_review_fixes.py"
+      - ".github/scripts/update_defense_channel_expectations.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
@@ -46,7 +47,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Apply universal defense review fixes
-        run: python .github/scripts/apply_universal_defense_review_fixes.py
+        run: |
+          python .github/scripts/apply_universal_defense_review_fixes.py
+          python .github/scripts/update_defense_channel_expectations.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
