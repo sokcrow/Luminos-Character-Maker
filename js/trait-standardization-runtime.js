@@ -15,6 +15,11 @@
     legacyCheckBridgeBound: false,
     legacyCheckObserver: null,
     legacyCheckToken: 0,
+    combatUnits: new Map(),
+    viewerEncounterBound: false,
+    viewerEncounterActive: false,
+    viewerEncounterPending: false,
+    viewerEncounterRef: null,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -67,6 +72,65 @@
     if (identityValues(unit).some((id) => ids.has(id))) return true;
     const name = entityName(character);
     return Boolean(name && name === entityName(unit));
+  }
+
+  function combatUnitKey(unit) {
+    return identityValues(unit)[0] || entityName(unit) || unit;
+  }
+
+  function registeredCombatUnits() {
+    return Array.from(state.combatUnits.values());
+  }
+
+  function currentRegisteredPlayerUnit() {
+    return registeredCombatUnits().find((unit) => isCurrentPlayerUnit(unit)) || null;
+  }
+
+  function dispatchPendingEncounterStart() {
+    if (!state.viewerEncounterPending) return false;
+    const runtime = global.LuminousPlayerTraitRuntime;
+    const unit = currentRegisteredPlayerUnit();
+    if (!runtime?.dispatchCombatEvent || !unit) return false;
+    state.viewerEncounterPending = false;
+    runtime.dispatchCombatEvent("encounter_start", {
+      context: "combat",
+      self: unit,
+      units: registeredCombatUnits(),
+    });
+    return true;
+  }
+
+  function registerCombatUnit(unit) {
+    if (!unit || typeof unit !== "object") return unit;
+    state.combatUnits.set(combatUnitKey(unit), unit);
+    dispatchPendingEncounterStart();
+    return unit;
+  }
+
+  function installViewerEncounterBridge() {
+    if (state.viewerEncounterBound) {
+      dispatchPendingEncounterStart();
+      return true;
+    }
+    if (!global.firebase?.database || !global.firebase?.apps?.length) return false;
+    const ref = global.firebase.database().ref("campaña/combate/combatants");
+    state.viewerEncounterBound = true;
+    state.viewerEncounterRef = ref;
+    ref.on("value", (snapshot) => {
+      const combatants = snapshot.val() || {};
+      const active = Object.keys(combatants).length > 0;
+      if (!active) {
+        state.viewerEncounterActive = false;
+        state.viewerEncounterPending = false;
+        state.combatUnits.clear();
+        return;
+      }
+      if (state.viewerEncounterActive) return;
+      state.viewerEncounterActive = true;
+      state.viewerEncounterPending = true;
+      dispatchPendingEncounterStart();
+    });
+    return true;
   }
 
   function traitsForUnit(unit) {
@@ -285,6 +349,7 @@
       const equipment = modifiers.resolveEquipment(unit);
       unit.equipmentState = equipment;
       [].concat(unit.attack_tier_1_sequence || [], unit.attack_tier_2_sequence || [], unit.attack_tier_3_sequence || []).forEach((skill) => modifiers.normalizeSkill(skill));
+      registerCombatUnit(unit);
       return result;
     };
 
@@ -483,7 +548,10 @@
       node.dataset.side = coin.side;
       node.alt = coin.side === "head" ? "Head" : "Tail";
     }
-    if (options?.totalNode) options.totalNode.textContent = String(next.total);
+    if (options?.totalNode) {
+      const wroteSafely = global.LuminousPlayerStats?.setRollTotalWithoutAdjustment?.(next.total, options.totalNode);
+      if (!wroteSafely) options.totalNode.textContent = String(next.total);
+    }
     if (typeof global.CustomEvent === "function") global.dispatchEvent(new global.CustomEvent("luminous:check-coin-retoss", { detail: next.reTosses }));
     return next;
   }
@@ -620,9 +688,11 @@
   function installAll() {
     installTraitEngineBridge();
     installCombatBridge();
+    installViewerEncounterBridge();
     installTheatreCheckBridge();
     installCoinCheckBridge();
     installLegacyCheckBridge();
+    dispatchPendingEncounterStart();
   }
 
   global.addEventListener?.("luminous:trait-activated", (event) => syncResult(event?.detail));
@@ -642,6 +712,10 @@
     inferLegacyCheckFromButton,
     legacyCoinSnapshot,
     installLegacyCheckBridge,
+    installViewerEncounterBridge,
+    registerCombatUnit,
+    registeredCombatUnits,
+    currentRegisteredPlayerUnit,
   });
   global.LuminousTraitStandardizationRuntime = api;
 
