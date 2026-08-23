@@ -36,8 +36,19 @@
         (validation?.errors || ["Invalid Trait definition."]).forEach((message) => errors.push(`${id}: ${message}`));
         return;
       }
-      if (!Object.prototype.hasOwnProperty.call(existingDefinitions || {}, id)) {
-        definitionWrites.push({ id, definition: validation.trait });
+
+      const existing = existingDefinitions?.[id];
+      const existingCatalogVersion = Number(existing?.catalogVersion || 0);
+      const isManagedCoreDefinition = existingCatalogVersion > 0;
+      const needsCatalogUpgrade = isManagedCoreDefinition && existingCatalogVersion < Number(catalog.CATALOG_VERSION || 0);
+
+      if (!existing || needsCatalogUpgrade) {
+        definitionWrites.push({
+          id,
+          definition: validation.trait,
+          replace: Boolean(existing),
+          previous: existing || null,
+        });
       }
     });
 
@@ -86,10 +97,10 @@
     const nextDefinitions = { ...definitions };
     const nextGrants = { ...grantMap };
 
-    plan.definitionWrites.forEach(({ id, definition }) => {
+    plan.definitionWrites.forEach(({ id, definition, previous }) => {
       nextDefinitions[id] = {
         ...definition,
-        createdAt: stamp,
+        createdAt: previous?.createdAt ?? stamp,
         updatedAt: stamp,
         catalogVersion: catalog.CATALOG_VERSION,
       };
@@ -198,7 +209,9 @@
       return plan;
     }
 
-    feedback(`Catálogo base importado: ${plan.definitionWrites.length} Traits · ${plan.grantWrites.length} Grants.`, "success");
+    const upgraded = plan.definitionWrites.filter((entry) => entry.replace).length;
+    const created = plan.definitionWrites.length - upgraded;
+    feedback(`Catálogo base importado: ${created} Traits nuevos · ${upgraded} actualizados · ${plan.grantWrites.length} Grants.`, "success");
     return plan;
   }
 

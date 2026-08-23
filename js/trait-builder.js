@@ -5,12 +5,14 @@
   const engine = global.LuminousTraitEngine;
   if (!doc || !engine || global.LuminousTraitBuilder) return;
 
-  const TRIGGER_OPTIONS = [
-    "passive", "on_use", "encounter_start", "encounter_end", "turn_start", "turn_end",
-    "before_check", "after_check", "before_skill", "after_skill", "before_clash", "clash_win",
-    "clash_lose", "before_attack", "on_hit", "on_crit", "on_kill", "on_evade", "attack_end",
-    "short_rest", "long_rest", "day_start",
-  ];
+  const TRIGGER_OPTIONS = engine.TRIGGERS
+    ? Object.values(engine.TRIGGERS)
+    : [
+      "passive", "on_use", "encounter_start", "encounter_end", "turn_start", "turn_end",
+      "before_check", "after_check", "before_skill", "after_skill", "before_clash", "clash_win",
+      "clash_lose", "before_attack", "on_hit", "on_crit", "on_kill", "on_evade", "attack_end",
+      "short_rest", "long_rest", "day_start",
+    ];
   const CONDITION_OPERATORS = ["eq", "ne", "gt", "gte", "lt", "lte", "truthy", "falsy", "contains", "not_contains", "in", "not_in", "between"];
   const OPERATION_TYPES = Array.isArray(engine.OPERATION_TYPES)
     ? engine.OPERATION_TYPES
@@ -184,6 +186,19 @@
     };
   }
 
+  function readRules() {
+    const raw = value("trait-rules-json");
+    if (!raw) return [];
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      throw new Error(`Advanced Rules JSON is invalid: ${error.message}`);
+    }
+    if (!Array.isArray(parsed)) throw new Error("Advanced Rules must be a JSON array.");
+    return parsed;
+  }
+
   function readTrait() {
     const contexts = [];
     if ($("trait-context-theatre")?.checked) contexts.push("theatre");
@@ -208,20 +223,35 @@
       contexts,
       activation,
       effects,
+      rules: readRules(),
     };
+  }
+
+  function renderBuilderError(error) {
+    const output = $("trait-json-output");
+    const validationNode = $("trait-validation");
+    if (output) output.textContent = "";
+    if (validationNode) {
+      validationNode.className = "trait-validation is-invalid";
+      validationNode.textContent = error?.message || String(error || "Invalid Trait");
+    }
   }
 
   function updatePreview() {
     const output = $("trait-json-output");
     const validationNode = $("trait-validation");
     if (!output || !validationNode) return;
-    const trait = readTrait();
-    const validation = engine.validateTrait(trait);
-    output.textContent = JSON.stringify(validation.trait, null, 2);
-    validationNode.className = `trait-validation ${validation.valid ? "is-valid" : "is-invalid"}`;
-    validationNode.textContent = validation.valid
-      ? (validation.warnings.length ? `VALID · ${validation.warnings.join(" · ")}` : "VALID TRAIT")
-      : validation.errors.join(" · ");
+    try {
+      const trait = readTrait();
+      const validation = engine.validateTrait(trait);
+      output.textContent = JSON.stringify(validation.trait, null, 2);
+      validationNode.className = `trait-validation ${validation.valid ? "is-valid" : "is-invalid"}`;
+      validationNode.textContent = validation.valid
+        ? (validation.warnings.length ? `VALID · ${validation.warnings.join(" · ")}` : "VALID TRAIT")
+        : validation.errors.join(" · ");
+    } catch (error) {
+      renderBuilderError(error);
+    }
   }
 
   function addEffect(seed) {
@@ -230,7 +260,8 @@
   }
 
   async function copyJson() {
-    const validation = engine.validateTrait(readTrait());
+    let validation;
+    try { validation = engine.validateTrait(readTrait()); } catch (error) { renderBuilderError(error); return false; }
     if (!validation.valid) return false;
     const text = JSON.stringify(validation.trait, null, 2);
     if (global.navigator?.clipboard?.writeText) await global.navigator.clipboard.writeText(text);
@@ -238,7 +269,8 @@
   }
 
   function saveLocal() {
-    const validation = engine.validateTrait(readTrait());
+    let validation;
+    try { validation = engine.validateTrait(readTrait()); } catch (error) { renderBuilderError(error); return false; }
     if (!validation.valid) return false;
     const key = `luminous_trait_${validation.trait.id}`;
     global.localStorage?.setItem(key, JSON.stringify(validation.trait));
@@ -266,7 +298,7 @@
     updatePreview();
   }
 
-  const api = Object.freeze({ readTrait, updatePreview, addEffect, copyJson, saveLocal, parseLiteral });
+  const api = Object.freeze({ readTrait, readRules, updatePreview, addEffect, copyJson, saveLocal, parseLiteral });
   global.LuminousTraitBuilder = api;
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();

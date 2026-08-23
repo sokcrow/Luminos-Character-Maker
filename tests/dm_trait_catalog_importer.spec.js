@@ -13,17 +13,20 @@ const helpers = {
   validateFirebaseKey: studio.validateFirebaseKey,
 };
 
+const barbarianGrantCount = () => catalog.GRANTS.filter((grant) => grant.sourceType === "class" && grant.sourceId === "barbarian").length;
+
 test("empty Trait Library imports all known core definitions and confirmed Grants", () => {
   const plan = importer.buildImportPlan({}, [], helpers);
   expect(plan.valid).toBe(true);
   expect(plan.errors).toEqual([]);
   expect(plan.definitionWrites.map((entry) => entry.id).sort()).toEqual(Object.keys(catalog.DEFINITIONS).sort());
   expect(plan.grantWrites.map((entry) => entry.id).sort()).toEqual(catalog.GRANTS.map((entry) => entry.id).sort());
-  expect(plan.definitionWrites).toHaveLength(5);
-  expect(plan.grantWrites).toHaveLength(1);
+  expect(plan.definitionWrites).toHaveLength(Object.keys(catalog.DEFINITIONS).length);
+  expect(plan.grantWrites).toHaveLength(catalog.GRANTS.length);
+  expect(barbarianGrantCount()).toBe(12);
 });
 
-test("core import never overwrites an existing DM Trait definition", () => {
+test("core import never overwrites an existing DM Trait definition without catalog ownership", () => {
   const existing = {
     rage: {
       id: "rage",
@@ -39,6 +42,26 @@ test("core import never overwrites an existing DM Trait definition", () => {
   expect(plan.skippedDefinitions).toBe(1);
 });
 
+test("managed core definitions upgrade when their catalogVersion is older", () => {
+  const oldManagedRage = {
+    ...catalog.getDefinition("rage"),
+    name: "Rage v1",
+    catalogVersion: 1,
+    createdAt: 111,
+    updatedAt: 111,
+  };
+  const plan = importer.buildImportPlan({ rage: oldManagedRage }, [], helpers);
+  const rageWrite = plan.definitionWrites.find((entry) => entry.id === "rage");
+  expect(plan.valid).toBe(true);
+  expect(rageWrite).toMatchObject({ id: "rage", replace: true });
+
+  const mutation = importer.buildAtomicImportMutation({ definitions: { rage: oldManagedRage }, grants: {} }, helpers, 222);
+  expect(mutation.next.definitions.rage.name).toBe("Rage");
+  expect(mutation.next.definitions.rage.catalogVersion).toBe(catalog.CATALOG_VERSION);
+  expect(mutation.next.definitions.rage.createdAt).toBe(111);
+  expect(mutation.next.definitions.rage.updatedAt).toBe(222);
+});
+
 test("core import deduplicates confirmed Grants by semantic identity even with another Firebase push id", () => {
   const existingGrants = [{
     id: "firebase_random_key",
@@ -49,7 +72,7 @@ test("core import deduplicates confirmed Grants by semantic identity even with a
   const plan = importer.buildImportPlan({}, existingGrants, helpers);
   expect(plan.valid).toBe(true);
   expect(plan.grantWrites.some((entry) => entry.grant.traitId === "devil_body")).toBe(false);
-  expect(plan.grantWrites).toHaveLength(0);
+  expect(plan.grantWrites).toHaveLength(barbarianGrantCount());
 });
 
 test("atomic mutation preserves concurrent custom definitions and semantic Grants", () => {
@@ -71,11 +94,12 @@ test("atomic mutation preserves concurrent custom definitions and semantic Grant
   expect(mutation.valid).toBe(true);
   expect(mutation.changed).toBe(true);
   expect(mutation.plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(mutation.plan.grantWrites).toHaveLength(0);
+  expect(mutation.plan.grantWrites).toHaveLength(barbarianGrantCount());
   expect(mutation.next.definitions.rage.name).toBe("Rage - Concurrent DM Version");
   expect(mutation.next.grants.custom_push_id.traitId).toBe("devil_body");
   expect(mutation.next.unrelated).toEqual({ keep: true });
   expect(mutation.next.definitions.danger_senses.createdAt).toBe(1234);
+  expect(mutation.next.grants.core_class_barbarian_l100_primordial_champion.atLevel).toBe(100);
 });
 
 test("Firebase transaction retry replans against a concurrent DM write before commit", async () => {
@@ -115,14 +139,15 @@ test("Firebase transaction retry replans against a concurrent DM write before co
   expect(attempts).toBe(2);
   expect(result.committed).toBe(true);
   expect(result.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(result.grantWrites).toHaveLength(0);
+  expect(result.grantWrites).toHaveLength(barbarianGrantCount());
   expect(committedTree.definitions.rage.name).toBe("Rage - Saved During Import");
   expect(committedTree.grants.another_dm_grant.traitId).toBe("devil_body");
   expect(Object.keys(committedTree.definitions)).toEqual(expect.arrayContaining([
+    "additional_attack",
+    "armorless_defense",
     "danger_senses",
     "devil_body",
     "devil_trigger",
-    "green_eyed_heir",
     "rage",
   ]));
 });

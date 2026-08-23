@@ -16,16 +16,42 @@ const character = {
   },
 };
 
-test("core Trait catalog validates every declarative definition", () => {
+const BARBARIAN_PROGRESS = [
+  [1, "armorless_defense"],
+  [1, "rage"],
+  [10, "reckless_attack"],
+  [10, "danger_senses"],
+  [25, "additional_attack"],
+  [25, "fast_movement"],
+  [35, "wild_instincts"],
+  [45, "brutal_critical"],
+  [55, "unstoppable_rage"],
+  [75, "persistent_rage"],
+  [90, "unstoppable_strength"],
+  [100, "primordial_champion"],
+];
+
+test("core Trait catalog validates every declarative definition and rule contract", () => {
   const validation = catalog.validateAll(engine);
   expect(validation.valid).toBe(true);
   expect(validation.errors).toEqual([]);
+  expect(catalog.CATALOG_VERSION).toBe(3);
   expect(Object.keys(catalog.DEFINITIONS).sort()).toEqual([
+    "additional_attack",
+    "armorless_defense",
+    "brutal_critical",
     "danger_senses",
     "devil_body",
     "devil_trigger",
+    "fast_movement",
     "green_eyed_heir",
+    "persistent_rage",
+    "primordial_champion",
     "rage",
+    "reckless_attack",
+    "unstoppable_rage",
+    "unstoppable_strength",
+    "wild_instincts",
   ]);
 });
 
@@ -86,7 +112,7 @@ test("Rage consumes Quick Action, scales uses by Barbarian ClassLevel and blocks
   expect(result.maximum).toBe(2);
   expect(result.remaining).toBe(1);
   expect(runtime.actionEconomy.quick_action).toBe(0);
-  expect(state.statuses.rage).toMatchObject({ id: "rage", sourceTraitId: "rage" });
+  expect(state.statuses.rage).toMatchObject({ id: "rage", sourceTraitId: "rage", count: 1 });
 
   const blocked = engine.canActivateTrait(trait, {
     context: "combat",
@@ -96,6 +122,21 @@ test("Rage consumes Quick Action, scales uses by Barbarian ClassLevel and blocks
   }, state);
   expect(blocked.available).toBe(false);
   expect(blocked.reasons.join(" ")).toContain("conditions");
+});
+
+test("Rage is usable at Barbarian level 1 but still has only one use there", () => {
+  const trait = catalog.getDefinition("rage");
+  const levelOne = {
+    ...character,
+    level: 1,
+    classes: [{ classId: "barbarian", levels: 1 }],
+  };
+  const state = engine.createState();
+  const runtime = { context: "combat", character: levelOne, self: {}, actionEconomy: { quick_action: 1 } };
+  const result = engine.activateTrait(trait, runtime, state);
+  expect(result.available).toBe(true);
+  expect(result.maximum).toBe(1);
+  expect(result.remaining).toBe(0);
 });
 
 test("Devil Body heals at Turn Start using DefensiveLevel and respects Max HP", () => {
@@ -155,33 +196,83 @@ test("Devil Trigger below threshold consumes gauge without applying threshold bo
   ]);
 });
 
-test("core catalog only auto-grants progression that is not guessed", () => {
-  expect(catalog.allGrants()).toEqual([{
-    id: "core_lineage_devil_lineage_devil_body",
-    sourceType: "lineage",
-    sourceId: "devil_lineage",
-    traitId: "devil_body",
-  }]);
-
-  const granted = engine.resolveTraitGrants(character, catalog.allGrants(), catalog.allDefinitions());
-  expect(granted.map((trait) => trait.id)).toEqual(["devil_body"]);
-  expect(granted[0].source).toMatchObject({ type: "lineage", id: "devil_lineage" });
+test("Barbarian automatic Grants match the confirmed class progression", () => {
+  const grants = catalog.allGrants().filter((grant) => grant.sourceType === "class" && grant.sourceId === "barbarian");
+  expect(grants.map((grant) => [grant.atLevel, grant.traitId])).toEqual(BARBARIAN_PROGRESS);
+  expect(grants.every((grant) => grant.multiclassPolicy === "allowed")).toBe(true);
 });
 
-test("class Trait mechanics remain defined without inventing acquisition levels", () => {
-  expect(catalog.getDefinition("danger_senses").source).toMatchObject({ type: "class", id: "barbarian" });
-  expect(catalog.getDefinition("rage").source).toMatchObject({ type: "class", id: "barbarian" });
-  expect(catalog.allGrants().some((grant) => grant.sourceType === "class")).toBe(false);
+test("Barbarian class Traits resolve automatically by Barbarian ClassLevel", () => {
+  const granted = engine.resolveTraitGrants(character, catalog.allGrants(), catalog.allDefinitions());
+  expect(granted.map((trait) => trait.id)).toEqual([
+    "armorless_defense",
+    "rage",
+    "reckless_attack",
+    "danger_senses",
+    "devil_body",
+  ]);
+
+  const level100 = {
+    ...character,
+    level: 100,
+    lineageId: null,
+    classes: [{ classId: "barbarian", levels: 100 }],
+  };
+  const capstoneTraits = engine.resolveTraitGrants(level100, catalog.allGrants(), catalog.allDefinitions());
+  expect(capstoneTraits.map((trait) => trait.id)).toEqual(BARBARIAN_PROGRESS.map(([, traitId]) => traitId));
+});
+
+test("new rule vocabulary preserves Gain=Self and class-specific scope contracts", () => {
+  expect(catalog.validateRules({
+    id: "bad_gain",
+    rules: [{ type: "status", action: "gain", target: "target", statusId: "fragile" }],
+  }).valid).toBe(false);
+
+  const reckless = catalog.getDefinition("reckless_attack");
+  expect(reckless.activation).toMatchObject({
+    type: "manual",
+    actionCost: "quick_action",
+    uses: { formula: "1", reset: "turn" },
+  });
+  expect(reckless.rules).toEqual(expect.arrayContaining([
+    expect.objectContaining({ type: "coin", action: "set_type", scope: "next_skill" }),
+    expect.objectContaining({ type: "status", action: "gain", target: "self", statusId: "fragile" }),
+  ]));
+
+  const additional = catalog.getDefinition("additional_attack");
+  expect(additional.rules[0]).toMatchObject({ type: "coin", action: "reuse_last", count: 1, scope: "once_per_skill" });
+});
+
+test("Unstoppable Rage escalation is persistent until Long Rest", () => {
+  const trait = catalog.getDefinition("unstoppable_rage");
+  const checkRule = trait.rules.find((rule) => rule.type === "check");
+  const counterRule = trait.rules.find((rule) => rule.type === "counter");
+
+  expect(checkRule).toMatchObject({
+    trigger: "hp_zero",
+    abilityId: "con",
+    threshold: { stateKey: "unstoppable_rage_threshold", initial: 10 },
+    whileStatus: "rage",
+  });
+  expect(counterRule).toMatchObject({
+    stateKey: "unstoppable_rage_threshold",
+    initial: 10,
+    mode: "add",
+    value: 5,
+    reset: "long_rest",
+  });
 });
 
 test("catalog accessors return copies instead of mutable canonical objects", () => {
   const first = catalog.getDefinition("rage");
   first.name = "MUTATED";
   first.effects[0].operations[0].statusId = "other";
+  first.rules[0].channel = "other";
 
   const second = catalog.getDefinition("rage");
   expect(second.name).toBe("Rage");
   expect(second.effects[0].operations[0].statusId).toBe("rage");
+  expect(second.rules[0].channel).toBe("damage_taken_multiplier");
 });
 
 test("exported canonical definitions and Grants are deeply frozen", () => {
@@ -189,6 +280,7 @@ test("exported canonical definitions and Grants are deeply frozen", () => {
   expect(Object.isFrozen(catalog.DEFINITIONS)).toBe(true);
   expect(Object.isFrozen(catalog.DEFINITIONS.rage)).toBe(true);
   expect(Object.isFrozen(catalog.DEFINITIONS.rage.effects)).toBe(true);
+  expect(Object.isFrozen(catalog.DEFINITIONS.rage.rules)).toBe(true);
   expect(Object.isFrozen(catalog.DEFINITIONS.rage.effects[0])).toBe(true);
   expect(Object.isFrozen(operation)).toBe(true);
   expect(Object.isFrozen(catalog.GRANTS)).toBe(true);
