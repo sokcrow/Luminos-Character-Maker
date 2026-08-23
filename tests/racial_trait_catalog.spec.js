@@ -104,6 +104,59 @@ test("Undae subtype Trait packages include war, rock, mystic and wild features",
   expect(catalog.resolveTraitGrants({ raceId: "undae", raceSubtypeId: "wild" }).map((t) => t.id)).toEqual(["undae_regeneration", "undae_silent_step", "undae_friend_of_life"]);
 });
 
+test("Healing Hands heals a real selected target and falls back to self when no target is supplied", () => {
+  const trait = catalog.getDefinition("aasimar_healing_hands");
+  const character = { level: 20, proficiency: 3, stats: { constitucion: 16 } };
+  const self = { hp: 50, maxHp: 100 };
+  const ally = { hp: 20, maxHp: 100 };
+
+  const targetResult = runtimeEngine.activateTrait(trait, { context: "combat", character, self, target: ally }, runtimeEngine.createState());
+  expect(targetResult.available).toBe(true);
+  expect(ally.hp).toBe(33);
+  expect(self.hp).toBe(50);
+
+  const fallbackSelf = { hp: 30, maxHp: 100 };
+  const fallbackResult = runtimeEngine.activateTrait(trait, { context: "combat", character, self: fallbackSelf }, runtimeEngine.createState());
+  expect(fallbackResult.available).toBe(true);
+  expect(fallbackSelf.hp).toBe(43);
+});
+
+test("Sacred Breath keeps Fire/Burn and adds Level/4 percent damage only to Dragon Breath vs Demon or Undead", () => {
+  const trait = catalog.getDefinition("half_dragon_gold_breath_conversion");
+  const character = { level: 40 };
+  const self = { level: 40 };
+  const breath = { id: "dragon_breath", tags: ["dragon_breath"], damageType: "Fire" };
+
+  for (const tag of ["demon", "undead"]) {
+    const damage = { amount: 100 };
+    runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target: { tags: [tag] }, skill: breath, traits: [trait], damage });
+    expect(damage.amount).toBe(110);
+    expect(breath.damageType).toBe("Fire");
+    expect(breath.damageTypeOverrideRadiant).toBeUndefined();
+  }
+
+  const normalTargetDamage = { amount: 100 };
+  runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target: { tags: ["human"] }, skill: breath, traits: [trait], damage: normalTargetDamage });
+  expect(normalTargetDamage.amount).toBe(100);
+
+  const nonBreathDamage = { amount: 100 };
+  runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target: { tags: ["demon"] }, skill: { id: "slash", tags: [] }, traits: [trait], damage: nonBreathDamage });
+  expect(nonBreathDamage.amount).toBe(100);
+});
+
+test("Cold Fury is passive and gives exactly +4 Final Power only to Counter Skills", () => {
+  const trait = catalog.getDefinition("yuan_ti_cold_fury");
+  expect(trait.activation.type).toBe("passive");
+  expect(trait.effects).toEqual([]);
+
+  const character = { level: 40, combatStats: { minSpeed: 3, maxSpeed: 6 } };
+  const counter = modifiers.resolveCharacterSnapshot({ character, unit: character, traits: [trait], skill: { type: "counter", isDefense: true }, context: "combat" });
+  const attack = modifiers.resolveCharacterSnapshot({ character, unit: character, traits: [trait], skill: { type: "attack" }, context: "combat" });
+
+  expect(counter.modifiers.final_power).toBe(4);
+  expect(attack.modifiers.final_power).toBe(0);
+});
+
 test("Voracious Impulse heals (5 + CHA Mod)% Max HP on kill", () => {
   const trait = catalog.getDefinition("yuan_ti_voracious_impulse");
   const character = { level: 40, stats: { carisma: 16 } };
