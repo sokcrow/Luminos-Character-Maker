@@ -496,7 +496,8 @@
     const validation = validateTrait(input);
     if (!validation.valid) throw new Error(`Invalid Trait ${validation.trait.id || "<unknown>"}: ${validation.errors.join(" | ")}`);
     const trait = validation.trait, state = stateInput || createState(), env = environment(trait, runtime, state), outcomes = [], normalizedTrigger = normalizeId(trigger);
-    trait.effects.forEach((effect) => { if (effect.trigger === normalizedTrigger && contextMatches(effect.contexts, env.context) && conditionsMatch(effect.conditions, env)) effect.operations.forEach((op) => outcomes.push(executeOperation(op, env, effect))); });
+    const matchingEffects = trait.effects.filter((effect) => effect.trigger === normalizedTrigger && contextMatches(effect.contexts, env.context) && conditionsMatch(effect.conditions, env));
+    matchingEffects.forEach((effect) => effect.operations.forEach((op) => outcomes.push(executeOperation(op, env, effect))));
     if (contextMatches(trait.contexts, env.context)) {
       trait.rules.forEach((rule) => {
         if (rule.trigger !== normalizedTrigger) return;
