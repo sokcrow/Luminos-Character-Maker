@@ -281,6 +281,16 @@
     rollAdjustment.label = String(label || "");
     rollAdjustment.ignoreNextMutation = false;
   }
+  function setRollTotalWithoutAdjustment(value, explicitNode) {
+    const resultNode = explicitNode || rollAdjustment.resultNode || doc.getElementById("roll-total-score");
+    if (!resultNode) return false;
+    const text = String(value);
+    if (resultNode.textContent === text) return true;
+    const suppress = Boolean(rollAdjustment.bonus && rollAdjustment.observer && rollAdjustment.resultNode === resultNode);
+    if (suppress) rollAdjustment.ignoreNextMutation = true;
+    resultNode.textContent = text;
+    return true;
+  }
   function triggerCoinRoll(ability, label, desiredBase) {
     const panel = doc.querySelector("#stats-modal .player-ability-console");
     const proxyRow = panel?.querySelector(".player-roll-proxy");
@@ -470,6 +480,7 @@
     headsChance,
     levelProgress,
     triggerCoinRoll,
+    setRollTotalWithoutAdjustment,
     buildPanel,
     syncPanel,
   });
