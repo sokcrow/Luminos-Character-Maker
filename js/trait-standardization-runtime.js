@@ -82,6 +82,110 @@
     return Array.from(state.combatUnits.values());
   }
 
+  function viewerCombatData() {
+    if (global.combatData && typeof global.combatData === "object") return global.combatData;
+    try {
+      if (typeof global.eval === "function") {
+        const value = global.eval("typeof combatData !== 'undefined' ? combatData : null");
+        if (value && typeof value === "object") return value;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function viewerSlotTargets() {
+    if (global.slotTargets && typeof global.slotTargets === "object") return global.slotTargets;
+    try {
+      if (typeof global.eval === "function") {
+        const value = global.eval("typeof slotTargets !== 'undefined' ? slotTargets : null");
+        if (value && typeof value === "object") return value;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function factionId(unit) {
+    if (!unit || typeof unit !== "object") return null;
+    const explicit = unit.faction ?? unit.faccion;
+    if (explicit != null && String(explicit).trim() !== "") return normalizeId(explicit);
+    if (unit.isPlayer != null) return unit.isPlayer ? "player" : "enemy";
+    return null;
+  }
+
+  function isTargetedByAlly(attacker, target) {
+    if (!attacker || !target) return false;
+    if (target.targetedByAlly === true) return true;
+    const slotTargets = viewerSlotTargets();
+    if (!slotTargets) return false;
+
+    const combatData = viewerCombatData() || {};
+    const units = [...registeredCombatUnits(), ...Object.values(combatData || {}).filter(Boolean)];
+    const attackerIds = new Set(identityValues(attacker));
+    const targetIds = new Set(identityValues(target));
+    const attackerFaction = factionId(attacker);
+
+    for (const [attackerSlotId, targetSlotId] of Object.entries(slotTargets)) {
+      const allyBaseId = String(attackerSlotId || "").split("_slot_")[0];
+      const targetBaseId = String(targetSlotId || "").split("_slot_")[0];
+      const targetsRequestedUnit = targetIds.has(targetBaseId) || combatData?.[targetBaseId] === target;
+      if (!targetsRequestedUnit || attackerIds.has(allyBaseId)) continue;
+
+      const ally = combatData?.[allyBaseId] || units.find((unit) => identityValues(unit).includes(allyBaseId));
+      if (!ally || ally === attacker) continue;
+      const allyFaction = factionId(ally);
+      if (attackerFaction && allyFaction && attackerFaction === allyFaction) return true;
+    }
+    return false;
+  }
+
+  function ensureDamageHistory(unit) {
+    if (!unit || typeof unit !== "object") return unit;
+    if (!Array.isArray(unit.damageTakenThisTurnTypes)) unit.damageTakenThisTurnTypes = [];
+    if (!Array.isArray(unit.damageTakenPreviousTurnTypes)) unit.damageTakenPreviousTurnTypes = [];
+    return unit;
+  }
+
+  function classifyDamageTypes(...values) {
+    const labels = new Set();
+    values.flat(Infinity).filter((value) => value != null).forEach((value) => {
+      const id = normalizeId(value);
+      if (id.includes("acid")) labels.add("Acid");
+      if (id.includes("fire") || id.includes("burn")) labels.add("Fire");
+    });
+    return [...labels];
+  }
+
+  function recordDamageTypes(unit, types = []) {
+    ensureDamageHistory(unit);
+    (types || []).forEach((type) => {
+      if (!unit.damageTakenThisTurnTypes.includes(type)) unit.damageTakenThisTurnTypes.push(type);
+    });
+    return unit.damageTakenThisTurnTypes;
+  }
+
+  function advanceDamageHistory(unit) {
+    ensureDamageHistory(unit);
+    unit.damageTakenPreviousTurnTypes = unit.damageTakenThisTurnTypes.slice();
+    unit.damageTakenThisTurnTypes = [];
+    return unit.damageTakenPreviousTurnTypes;
+  }
+
+  function activeStatusDamageTypes(unit, triggerKey) {
+    const registry = global.STATUS_REGISTRY || {};
+    const types = new Set();
+    Object.keys(unit?.statusEffects || {}).forEach((statusId) => {
+      const definition = registry[statusId] || global.LuminousStatusEngine?.getDefinition?.(statusId) || null;
+      const damagesHp = (definition?.rules || []).some((rule) =>
+        normalizeId(rule?.trigger) === normalizeId(triggerKey) &&
+        normalizeId(rule?.affectation) === "hp" &&
+        ["sub", "lose", "spend"].includes(normalizeId(rule?.operation))
+      );
+      if (!damagesHp) return;
+      classifyDamageTypes(statusId, definition?.name, definition?.damageType, definition?.damage_type_tag).forEach((type) => types.add(type));
+    });
+    return [...types];
+  }
+
   function currentRegisteredPlayerUnit() {
     return registeredCombatUnits().find((unit) => isCurrentPlayerUnit(unit)) || null;
   }
@@ -102,6 +206,7 @@
 
   function registerCombatUnit(unit) {
     if (!unit || typeof unit !== "object") return unit;
+    ensureDamageHistory(unit);
     state.combatUnits.set(combatUnitKey(unit), unit);
     dispatchPendingEncounterStart();
     return unit;
@@ -143,10 +248,12 @@
   function enrichRuntime(runtime = {}) {
     const modifiers = global.LuminousUniversalModifiers;
     const self = runtime.self || runtime.character || null;
+    const target = runtime.target || runtime.defender || null;
     const skill = runtime.skill ? modifiers?.normalizeSkill?.(runtime.skill) || runtime.skill : runtime.skill;
     return {
       ...(runtime || {}),
       skill,
+      targetedByAlly: runtime.targetedByAlly ?? isTargetedByAlly(self, target),
       equipment: runtime.equipment || modifiers?.resolveEquipment?.(self || {}) || {},
     };
   }
@@ -341,11 +448,14 @@
     const originalFinalPower = typeof engine.calculateFinalPower === "function" ? engine.calculateFinalPower : null;
     const originalApplyDamage = typeof engine.applyDamage === "function" ? engine.applyDamage : null;
     const originalCoinDamage = typeof engine.calculateCoinDamage === "function" ? engine.calculateCoinDamage : null;
+    const originalProcessStatusEffects = typeof engine.processStatusEffects === "function" ? engine.processStatusEffects : null;
+    const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
     const originalTriggerEvent = typeof engine.triggerEvent === "function" ? engine.triggerEvent : null;
 
     if (originalInitialize) engine.initializeUnitData = function (unit, ...rest) {
       const result = originalInitialize.call(this, unit, ...rest);
       statusEngine.ensureStore(unit);
+      ensureDamageHistory(unit);
       const equipment = modifiers.resolveEquipment(unit);
       unit.equipmentState = equipment;
       [].concat(unit.attack_tier_1_sequence || [], unit.attack_tier_2_sequence || [], unit.attack_tier_3_sequence || []).forEach((skill) => modifiers.normalizeSkill(skill));
@@ -454,24 +564,60 @@
       return result;
     };
 
+    if (originalProcessStatusEffects) engine.processStatusEffects = function (unit, triggerKey, context = {}) {
+      const hpBefore = numberOr(unit?.hp, 0);
+      const statusDamageTypes = activeStatusDamageTypes(unit, triggerKey);
+      const result = originalProcessStatusEffects.call(this, unit, triggerKey, context);
+      if (hpBefore > numberOr(unit?.hp, 0) && statusDamageTypes.length) recordDamageTypes(unit, statusDamageTypes);
+      return result;
+    };
+
     if (originalApplyDamage) engine.applyDamage = function (unit, damage, tipoDaño, isCritical, skillUsed) {
       const hpBefore = numberOr(unit?.hp, 0);
-      const result = originalApplyDamage.call(this, unit, damage, tipoDaño, isCritical, skillUsed);
+      let incomingDamage = Math.max(0, numberOr(damage, 0));
+
       if (isCurrentPlayerUnit(unit)) {
-        global.LuminousPlayerTraitRuntime?.dispatchCombatEvent?.("damage_taken", {
-          context: "combat", self: unit, defender: unit, skill: skillUsed || null, damageTaken: Math.max(0, hpBefore - numberOr(unit?.hp, 0)),
-        });
-        if (hpBefore > 0 && numberOr(unit?.hp, 0) <= 0) {
-          global.LuminousPlayerTraitRuntime?.dispatchCombatEvent?.("hp_zero", {
-            context: "combat",
-            self: unit,
-            defender: unit,
-            skill: skillUsed || null,
-            DefensiveLevel: this.getDefensiveLevel?.(unit, unit),
-            resolveCheck: (request) => resolveCombatCheck(unit, request),
-          });
-        }
+        const damageRuntime = {
+          context: "combat",
+          self: unit,
+          defender: unit,
+          skill: skillUsed || null,
+          damageType: tipoDaño || null,
+          damage: { amount: incomingDamage },
+        };
+        const traitResult = global.LuminousPlayerTraitRuntime?.dispatchCombatEvent?.("damage_taken", damageRuntime);
+        incomingDamage = Math.max(0, numberOr(traitResult?.runtime?.damage?.amount ?? damageRuntime.damage.amount, incomingDamage));
       }
+
+      const result = originalApplyDamage.call(this, unit, incomingDamage, tipoDaño, isCritical, skillUsed);
+      const actualDamage = Math.max(0, hpBefore - numberOr(unit?.hp, 0));
+      if (actualDamage > 0) {
+        recordDamageTypes(unit, classifyDamageTypes(
+          tipoDaño,
+          skillUsed?.damageType,
+          skillUsed?.damage_type,
+          skillUsed?.attackType,
+          skillUsed?.attack_type,
+          skillUsed?.name,
+        ));
+      }
+
+      if (isCurrentPlayerUnit(unit) && hpBefore > 0 && numberOr(unit?.hp, 0) <= 0) {
+        global.LuminousPlayerTraitRuntime?.dispatchCombatEvent?.("hp_zero", {
+          context: "combat",
+          self: unit,
+          defender: unit,
+          skill: skillUsed || null,
+          DefensiveLevel: this.getDefensiveLevel?.(unit, unit),
+          resolveCheck: (request) => resolveCombatCheck(unit, request),
+        });
+      }
+      return result;
+    };
+
+    if (originalTriggerPhase) engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
+      const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
+      if (phaseTag === "[Round End]") (allUnits || []).forEach(advanceDamageHistory);
       return result;
     };
 
@@ -716,6 +862,12 @@
     registerCombatUnit,
     registeredCombatUnits,
     currentRegisteredPlayerUnit,
+    viewerSlotTargets,
+    isTargetedByAlly,
+    ensureDamageHistory,
+    classifyDamageTypes,
+    recordDamageTypes,
+    advanceDamageHistory,
   });
   global.LuminousTraitStandardizationRuntime = api;
 
