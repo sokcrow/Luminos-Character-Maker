@@ -8,6 +8,8 @@ on:
       - "js/racial-trait-catalog.js"
       - "js/racial-trait-runtime-bridge.js"
       - "js/status-engine.js"
+      - "js/statusManager.js"
+      - "js/combatEngine.js"
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
       - "js/trait-standardization-runtime.js"
@@ -30,10 +32,11 @@ on:
       - "tests/universal_modifier_engine.spec.js"
       - "tests/universal_speed_runtime.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
+      - ".github/scripts/apply_universal_defense_review_fixes.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   trait-engine-contract:
@@ -41,6 +44,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply universal defense review fixes
+        run: python .github/scripts/apply_universal_defense_review_fixes.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,6 +64,8 @@ jobs:
           node --check js/racial-trait-catalog.js
           node --check js/racial-trait-runtime-bridge.js
           node --check js/status-engine.js
+          node --check js/statusManager.js
+          node --check js/combatEngine.js
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
           node --check js/trait-standardization-runtime.js
@@ -94,3 +102,14 @@ jobs:
           tests/universal_speed_runtime.spec.js
           tests/trait_standardization_review_fixes.spec.js
           --workers=1
+
+      - name: Commit verified review fixes
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/universal-modifier-engine.js js/combatEngine.js js/racial-trait-catalog.js js/statusManager.js js/status-engine.js js/trait-standardization-runtime.js js/player-trait-runtime.js tests/racial_trait_catalog.spec.js tests/universal_modifier_engine.spec.js tests/trait_standardization_review_fixes.spec.js
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: add universal defense power hierarchy"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
