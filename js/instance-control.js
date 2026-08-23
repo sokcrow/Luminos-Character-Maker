@@ -3,6 +3,11 @@
 
   const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
   const DEFAULT_THEATRE_SCENE_PATH = "campaña/estado_mundo/escena_actual";
+  const COMBAT_RUNTIME_SCRIPTS = Object.freeze([
+    ["combat-player-trait-runtime-script", "js/player-trait-runtime.js", "LuminousPlayerTraitRuntime"],
+    ["combat-trait-standardization-runtime-script", "js/trait-standardization-runtime.js", "LuminousTraitStandardizationRuntime"],
+    ["combat-universal-speed-runtime-script", "js/universal-speed-runtime.js", "LuminousUniversalSpeedRuntime"],
+  ]);
 
   function normalizeInstance(instance) {
     return typeof instance === "string" && instance.trim() ? instance.trim() : "ninguno";
@@ -50,6 +55,55 @@
     return activeInstance;
   }
 
+  function ensureCombatFrameScript(combatView, id, src, globalName) {
+    return new Promise((resolve, reject) => {
+      let frameWindow;
+      let frameDocument;
+      try {
+        frameWindow = combatView?.contentWindow;
+        frameDocument = combatView?.contentDocument || frameWindow?.document;
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      if (!frameWindow || !frameDocument?.head) {
+        reject(new Error("Combat iframe document is not ready."));
+        return;
+      }
+      if (globalName && frameWindow[globalName]) {
+        resolve(frameWindow[globalName]);
+        return;
+      }
+      let script = frameDocument.getElementById(id);
+      if (script) {
+        const complete = () => resolve(globalName ? frameWindow[globalName] : script);
+        if (globalName && frameWindow[globalName]) complete();
+        else {
+          script.addEventListener("load", complete, { once: true });
+          script.addEventListener("error", reject, { once: true });
+        }
+        return;
+      }
+      script = frameDocument.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      script.dataset.ui = "combat-trait-runtime";
+      script.addEventListener("load", () => resolve(globalName ? frameWindow[globalName] : script), { once: true });
+      script.addEventListener("error", reject, { once: true });
+      frameDocument.head.appendChild(script);
+    });
+  }
+
+  function ensureCombatTraitRuntime(combatView) {
+    if (!combatView) return Promise.resolve(false);
+    let chain = Promise.resolve();
+    COMBAT_RUNTIME_SCRIPTS.forEach(([id, src, globalName]) => {
+      chain = chain.then(() => ensureCombatFrameScript(combatView, id, src, globalName));
+    });
+    return chain.then(() => true);
+  }
+
   function applyPlayerInstance(instance, doc) {
     const documentRef = doc || global.document;
     const activeInstance = normalizeInstance(instance);
@@ -62,14 +116,25 @@
     if (!combatView && documentRef.body) {
       combatView = documentRef.createElement("iframe");
       combatView.id = "player-instance-combat";
-      combatView.src = "Battle-viewer.html";
       combatView.title = "Combate táctico";
       combatView.setAttribute("aria-hidden", "true");
       Object.assign(combatView.style, {
         display: "none", position: "fixed", inset: "0", width: "100vw",
         height: "100vh", border: "0", zIndex: "10000", background: "#000",
       });
+      combatView.addEventListener("load", () => {
+        ensureCombatTraitRuntime(combatView).catch((error) => {
+          console.error("No se pudo cargar el runtime universal de Traits en combate:", error);
+        });
+      });
+      combatView.src = "Battle-viewer.html";
       documentRef.body.appendChild(combatView);
+    }
+
+    if (combatView?.contentDocument?.readyState === "complete") {
+      ensureCombatTraitRuntime(combatView).catch((error) => {
+        console.error("No se pudo verificar el runtime universal de Traits en combate:", error);
+      });
     }
 
     if (theatreView) {
@@ -286,6 +351,7 @@
     applyDmInstance,
     applyPlayerInstance,
     applyDashboardInstance,
+    ensureCombatTraitRuntime,
     ensureDmLocationControl,
     ensureTheatreRollVisualizerAssets,
     ensureTheatreCheckCoordinatorAssets,
