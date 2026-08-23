@@ -504,3 +504,83 @@ test("completed Check event preserves pass/fail data for after_check consumers",
   expect(detail.check).toMatchObject({ abilityId: "wis", skillId: "medicine", actionId: "stabilize", total: 12, passed: true, failed: false });
   expect(detail.target.id).toBe("downed");
 });
+
+test("universal Defense Power hierarchy reaches production defensive rolls", () => {
+  const unit = { id: "defender", level: 40, statusEffects: {} };
+  const cold = racialCatalog.getDefinition("yuan_ti_cold_fury");
+  const nimble = racialCatalog.getDefinition("goblin_nimble_escape");
+  const playerRuntime = { getCharacter() { return unit; }, getTraits() { return [cold, nimble]; } };
+  const combatEngine = {
+    initializeUnitData() {},
+    applyPassiveModifiers() { return { defense_power: 2 }; },
+    calculateFinalPower(skill, _heads, currentUnit) {
+      const passive = this.applyPassiveModifiers(currentUnit, { skill });
+      const subtype = skill.defenseSubtype || skill.type;
+      let power = passive.defense_power || 0;
+      if (subtype === "Counter" || subtype === "ClashableCounter") power += passive.counter_power || 0;
+      else if (subtype === "Evade") power += passive.evade_power || 0;
+      else if (subtype === "Guard" || subtype === "ClashableGuard") power += passive.guard_power || 0;
+      return power;
+    },
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: unit });
+  api.installAll();
+
+  expect(combatEngine.calculateFinalPower({ type: "Counter", isDefense: true }, [], unit)).toBe(6);
+  expect(combatEngine.calculateFinalPower({ type: "Evade", isDefense: true }, [], unit)).toBe(3);
+  expect(combatEngine.calculateFinalPower({ type: "Guard", isDefense: true }, [], unit)).toBe(2);
+});
+
+test("before_check Final Power is added to the real Coin total exactly once", () => {
+  const { api } = loadStandardizationRuntime();
+  const adjusted = api.applyCheckFinalPower({ total: 10 }, {}, { difficulty: 13, finalPower: 4 });
+  expect(adjusted.total).toBe(14);
+  expect(adjusted.baseRollTotal).toBe(10);
+  expect(api.applyCheckFinalPower(adjusted, {}, { finalPower: 4 }).total).toBe(14);
+  expect(api.completedCheckDetail({ difficulty: 13, finalPower: 4 }, adjusted)).toMatchObject({ total: 14, baseRollTotal: 10, outcome: "passed" });
+});
+
+test("Rabbit Form removes baked equipment level contributions without deleting equipment", () => {
+  const unit = {
+    combatStats: { offensiveLevel: 50, defensiveLevel: 40 },
+    equipmentModifiers: { offensiveLevel: 3, defensiveLevel: 5 },
+    equipment: { armor: { itemId: "plate", category: "heavy" }, mainHand: { id: "blade" } },
+    statusEffects: { moonfae_rabbit_form: { id: "moonfae_rabbit_form", count: 1 } },
+  };
+  const { api } = loadStandardizationRuntime();
+  expect(api.precomputedLevel(unit, "offensive")).toBe(47);
+  expect(api.precomputedLevel(unit, "defensive")).toBe(35);
+  expect(unit.equipment.mainHand.id).toBe("blade");
+  delete unit.statusEffects.moonfae_rabbit_form;
+  expect(api.precomputedLevel(unit, "offensive")).toBe(50);
+  expect(api.precomputedLevel(unit, "defensive")).toBe(40);
+});
+
+test("Defense Power statuses and Frightened use canonical universal channels and duration", () => {
+  const sandbox = { window: {} };
+  vm.runInNewContext(read("js/statusManager.js"), sandbox, { filename: "statusManager.js" });
+  const registry = sandbox.window.STATUS_REGISTRY;
+  expect(registry.defense_power_up.rules[0].affectation).toBe("defense_power");
+  expect(registry.counter_power_up.rules[0].affectation).toBe("counter_power");
+  expect(registry.evade_power_up.rules[0].affectation).toBe("evade_power");
+  expect(registry.guard_power_up.rules[0].affectation).toBe("guard_power");
+
+  const previousRegistry = global.STATUS_REGISTRY;
+  global.STATUS_REGISTRY = registry;
+  try {
+    const unit = {};
+    statusEngine.applyStatus(unit, "frightened", { count: 1, duration: "next_turn_end", mode: "set" });
+    expect(modifiers.resolveStatusModifiers({ unit, skill: { type: "Normal" } }).final_power).toBe(-1);
+    expect(modifiers.resolveStatusModifiers({ unit, skill: { type: "Counter" } }).defense_power).toBe(-1);
+    expect(statusEngine.advanceDurations(unit, "turn_end")).toEqual(["frightened"]);
+    expect(statusEngine.hasStatus(unit, "frightened")).toBe(false);
+  } finally {
+    global.STATUS_REGISTRY = previousRegistry;
+  }
+});
+
+test("prompt Check modifiers recalculate from baseRollTotal instead of requiring a trait-specific flag", () => {
+  const source = read("js/player-trait-runtime.js");
+  expect(source).toContain("const baseRollTotal = Number.isFinite(Number(state.lastCompletedCheck.baseRollTotal))");
+  expect(source).not.toContain("if (!check?.recalculate || !state.lastCompletedCheck) return null;");
+});

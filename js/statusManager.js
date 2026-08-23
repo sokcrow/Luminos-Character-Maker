@@ -40,8 +40,23 @@ const STATUS_REGISTRY = {
     },
     'defense_power_up': {
         name: 'Defense Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/AkiiCza.png',
-        trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'base_power', decay: 'total_loss'}],
-        description: "Defense skills gain Final Power by the effect's Count for one turn."
+        trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'defense_power', decay: 'total_loss'}],
+        description: "Guard, Evade, and Counter Skills gain Defense Power by the effect's Count for one turn."
+    },
+    'counter_power_up': {
+        name: 'Counter Power Up', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'counter_power', decay: 'total_loss'}],
+        description: "Counter Skills gain Counter Power by the effect's Count for one turn."
+    },
+    'evade_power_up': {
+        name: 'Evade Power Up', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'evade_power', decay: 'total_loss'}],
+        description: "Evade Skills gain Evade Power by the effect's Count for one turn."
+    },
+    'guard_power_up': {
+        name: 'Guard Power Up', type: 'positive', mode: 'single',
+        trigger: 'on_round_end', rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 1, affectation: 'guard_power', decay: 'total_loss'}],
+        description: "Guard Skills gain Guard Power by the effect's Count for one turn."
     },
     'clash_power_up': {
         name: 'Clash Power Up', type: 'positive', mode: 'single', icon: 'https://imgur.com/Q49TCVN.png',
@@ -117,8 +132,23 @@ const STATUS_REGISTRY = {
     },
     'defense_power_down': {
         name: 'Defense Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/MGdXCaC.png',
-        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'base_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
-        description: "Defense skills lose Final Power by the effect's Count for one turn."
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'defense_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        description: "Guard, Evade, and Counter Skills lose Defense Power by the effect's Count for one turn."
+    },
+    'counter_power_down': {
+        name: 'Counter Power Down', type: 'negative', mode: 'single',
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'counter_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        description: "Counter Skills lose Counter Power by the effect's Count for one turn."
+    },
+    'evade_power_down': {
+        name: 'Evade Power Down', type: 'negative', mode: 'single',
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'evade_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        description: "Evade Skills lose Evade Power by the effect's Count for one turn."
+    },
+    'guard_power_down': {
+        name: 'Guard Power Down', type: 'negative', mode: 'single',
+        rules: [{trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'guard_power', decay: 'none'}, {trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'add', aff_input: 0, affectation: '', decay: 'total_loss'}],
+        description: "Guard Skills lose Guard Power by the effect's Count for one turn."
     },
     'clash_power_down': {
         name: 'Clash Power Down', type: 'negative', mode: 'single', icon: 'https://imgur.com/TppbWXb.png',
@@ -174,6 +204,14 @@ const STATUS_REGISTRY = {
         name: 'Poison', type: 'negative', mode: 'single',
         trigger: 'on_round_end', rules: [{trigger: 'on_round_end', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'hp', decay: 'sub_count_1'}],
         description: "At the end of the turn, take fixed damage by the Count, then halve the Count."
+    },
+    'frightened': {
+        name: 'Frightened', type: 'negative', mode: 'single',
+        rules: [
+            {trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'final_power', decay: 'none'},
+            {trigger: 'passive', cond_input: 1, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'defense_power', decay: 'none'}
+        ],
+        description: "While active, Attack Skills lose Final Power and Defense Skills lose Defense Power by the effect's Count. Source effects control its duration."
     },
     'immobilized': {
         name: 'Immobilized', type: 'negative', mode: 'zero',

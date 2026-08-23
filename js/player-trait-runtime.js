@@ -187,13 +187,18 @@
 
   function recalculateCompletedCheck(result) {
     const check = result?.runtime?.check;
-    if (!check?.recalculate || !state.lastCompletedCheck) return null;
+    if (!check || !state.lastCompletedCheck) return null;
     const original = state.lastCompletedCheck.check || {};
-    const total = Number(original.total ?? original.result ?? 0) + Number(check.finalPower ?? 0);
+    const previousFinalPower = Number(original.finalPower ?? 0) || 0;
+    const previousTotal = Number(original.total ?? original.result ?? state.lastCompletedCheck.total ?? 0) || 0;
+    const baseRollTotal = Number.isFinite(Number(state.lastCompletedCheck.baseRollTotal))
+      ? Number(state.lastCompletedCheck.baseRollTotal)
+      : previousTotal - previousFinalPower;
+    const total = baseRollTotal + (Number(check.finalPower ?? 0) || 0);
     const rolls = global.LuminousTheatreRolls;
     const outcome = rolls?.checkOutcome ? rolls.checkOutcome(total, check) : (Number.isFinite(Number(check.difficulty ?? check.thresholdRaw ?? check.threshold)) ? (total >= Number(check.difficulty ?? check.thresholdRaw ?? check.threshold) ? "passed" : "failed") : null);
     const nextCheck = { ...original, ...check, total, result: total, outcome, passed: outcome === "passed", failed: outcome === "failed", recalculate: 0 };
-    state.lastCompletedCheck = { ...state.lastCompletedCheck, check: nextCheck, total, outcome };
+    state.lastCompletedCheck = { ...state.lastCompletedCheck, check: nextCheck, total, baseRollTotal, outcome };
     const totalNode = doc.getElementById("roll-total-score");
     if (totalNode) {
       const safe = global.LuminousPlayerStats?.setRollTotalWithoutAdjustment?.(total, totalNode);

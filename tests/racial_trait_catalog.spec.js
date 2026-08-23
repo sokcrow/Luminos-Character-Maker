@@ -144,7 +144,7 @@ test("Sacred Breath keeps Fire/Burn and adds Level/4 percent damage only to Drag
   expect(nonBreathDamage.amount).toBe(100);
 });
 
-test("Cold Fury is passive and gives exactly +4 Final Power only to Counter Skills", () => {
+test("Cold Fury is passive and gives exactly +4 Counter Power only to Counter Skills", () => {
   const trait = catalog.getDefinition("yuan_ti_cold_fury");
   expect(trait.activation.type).toBe("passive");
   expect(trait.effects).toEqual([]);
@@ -153,8 +153,9 @@ test("Cold Fury is passive and gives exactly +4 Final Power only to Counter Skil
   const counter = modifiers.resolveCharacterSnapshot({ character, unit: character, traits: [trait], skill: { type: "counter", isDefense: true }, context: "combat" });
   const attack = modifiers.resolveCharacterSnapshot({ character, unit: character, traits: [trait], skill: { type: "attack" }, context: "combat" });
 
-  expect(counter.modifiers.final_power).toBe(4);
-  expect(attack.modifiers.final_power).toBe(0);
+  expect(counter.modifiers.counter_power).toBe(4);
+  expect(counter.modifiers.final_power).toBe(0);
+  expect(attack.modifiers.counter_power).toBe(0);
 });
 
 test("Voracious Impulse heals (5 + CHA Mod)% Max HP on kill", () => {
@@ -257,7 +258,7 @@ test("Warforged Integrated Tool multiplies Threshold by 0.75", () => {
   expect(result.check.difficulty).toBe(15);
 });
 
-test("Feline Reflexes resolves Max Speed and Evade Final Power from Proficiency", () => {
+test("Feline Reflexes resolves Max Speed and Evade Power from Proficiency", () => {
   const trait = catalog.getDefinition("feline_reflexes");
   const character = { level: 60, proficiency: 4, combatStats: { minSpeed: 3, maxSpeed: 6 } };
   const snapshot = modifiers.resolveCharacterSnapshot({
@@ -268,7 +269,8 @@ test("Feline Reflexes resolves Max Speed and Evade Final Power from Proficiency"
     context: "combat",
   });
   expect(snapshot.maxSpeed).toBe(8);
-  expect(snapshot.modifiers.final_power).toBe(4);
+  expect(snapshot.modifiers.evade_power).toBe(4);
+  expect(snapshot.modifiers.final_power).toBe(0);
 });
 
 test("Fairy Form contributes the confirmed speed, evasion and fragility modifiers while active", () => {
@@ -283,7 +285,8 @@ test("Fairy Form contributes the confirmed speed, evasion and fragility modifier
   });
   expect(snapshot.minSpeed).toBe(4);
   expect(snapshot.maxSpeed).toBe(7);
-  expect(snapshot.modifiers.final_power).toBe(2);
+  expect(snapshot.modifiers.evade_power).toBe(2);
+  expect(snapshot.modifiers.final_power).toBe(0);
   expect(snapshot.modifiers.damage_taken_multiplier).toBe(-5);
 });
 
@@ -331,4 +334,17 @@ test("non-Trait race features are explicitly classified instead of silently omit
   expect(catalog.NON_TRAIT_FEATURES.half_dragon).toContain("dragon_breath_dynamic_skill");
   expect(catalog.NON_TRAIT_FEATURES.elnae).toContain("flight_capability");
   expect(catalog.NON_TRAIT_FEATURES.undae).toContain("poison_immunity");
+});
+
+test("Friend of Life restores at least 1 HP when 5% would round to zero", () => {
+  const trait = catalog.getDefinition("undae_friend_of_life");
+  const target = { hp: 0, maxHp: 10 };
+  engine.dispatchCombatEvent("after_check", {
+    character: { level: 20 },
+    self: {},
+    target,
+    check: { actionId: "stabilize", passed: true },
+    traits: [trait],
+  });
+  expect(target.hp).toBe(1);
 });

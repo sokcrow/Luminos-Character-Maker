@@ -324,6 +324,7 @@ const CombatEngine = {
         const defenseTypes = ['Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'];
         if (defenseTypes.includes(skill.type)) {
             skill.isDefense = true;
+            skill.defenseSubtype = skill.type;
             skill.isClashable = (skill.type === 'ClashableGuard' || skill.type === 'ClashableCounter');
         } else {
             skill.isDefense = false;
@@ -1134,8 +1135,16 @@ const CombatEngine = {
         let finalPowerBonus = 0;
 
         if (skill.isDefense) {
+            const defenseSubtype = skill.defenseSubtype || skill.type || '';
             finalActualBasePower += (passiveMods.defense_power || 0);
-            if (skill.defenseSubtype === 'ClashableGuard' || skill.defenseSubtype === 'ClashableCounter') {
+            if (defenseSubtype === 'Counter' || defenseSubtype === 'ClashableCounter') {
+                finalActualBasePower += (passiveMods.counter_power || 0);
+            } else if (defenseSubtype === 'Evade') {
+                finalActualBasePower += (passiveMods.evade_power || 0);
+            } else if (defenseSubtype === 'Guard' || defenseSubtype === 'ClashableGuard') {
+                finalActualBasePower += (passiveMods.guard_power || 0);
+            }
+            if (defenseSubtype === 'ClashableGuard' || defenseSubtype === 'ClashableCounter') {
                  finalActualBasePower += (passiveMods.clash_power || 0);
             }
         } else {
@@ -1531,6 +1540,9 @@ const CombatEngine = {
             final_power: 0,
             base_power: 0,
             defense_power: 0,
+            counter_power: 0,
+            evade_power: 0,
+            guard_power: 0,
             clash_power: 0,
             offensive_level: 0,
             defensive_level: 0,
@@ -1660,7 +1672,7 @@ const CombatEngine = {
                          } else if (rule.operation === 'sub') {
                              this.modifyNextStaggerThreshold(unit, -effectValue);
                          }
-                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power' || actualAffectation === 'defense_power') {
+                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power' || actualAffectation === 'defense_power' || actualAffectation === 'counter_power' || actualAffectation === 'evade_power' || actualAffectation === 'guard_power') {
                         if (context && typeof context === 'object') {
                             if (!context.modifiers) context.modifiers = {};
                             if (!context.modifiers[actualAffectation]) context.modifiers[actualAffectation] = 0;

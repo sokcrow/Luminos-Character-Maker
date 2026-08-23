@@ -568,13 +568,29 @@
     return outcomes;
   }
 
+  function applyCheckFinalPower(result = {}, options = {}, check = {}) {
+    if (!result || typeof result !== "object") return result;
+    if (result.checkFinalPowerApplied === true) return result;
+    const baseRollTotal = numberOr(result.total, 0);
+    const bonus = numberOr(check.finalPower, 0);
+    const next = { ...(result || {}), baseRollTotal, total: baseRollTotal + bonus, checkFinalPower: bonus, checkFinalPowerApplied: true };
+    if (options?.totalNode) {
+      const wroteSafely = global.LuminousPlayerStats?.setRollTotalWithoutAdjustment?.(next.total, options.totalNode);
+      if (!wroteSafely) options.totalNode.textContent = String(next.total);
+    }
+    return next;
+  }
+
   function completedCheckDetail(check = {}, result = {}) {
     const total = numberOr(result.total, 0);
+    const finalPower = numberOr(check.finalPower, 0);
+    const baseRollTotal = Number.isFinite(Number(result.baseRollTotal)) ? Number(result.baseRollTotal) : total - finalPower;
     const rolls = global.LuminousTheatreRolls;
     const outcome = rolls?.checkOutcome ? rolls.checkOutcome(total, check) : (Number.isFinite(Number(check.difficulty ?? check.thresholdRaw ?? check.threshold)) ? (total >= Number(check.difficulty ?? check.thresholdRaw ?? check.threshold) ? "passed" : "failed") : null);
     return {
-      check: { ...(check || {}), total, result: total, finalPower: numberOr(check.finalPower, 0), passed: outcome === "passed", failed: outcome === "failed", outcome },
+      check: { ...(check || {}), total, result: total, finalPower, passed: outcome === "passed", failed: outcome === "failed", outcome },
       total,
+      baseRollTotal,
       outcome,
       target: check.target || check.targetUnit || null,
       rawResult: result,
@@ -582,9 +598,23 @@
   }
 
   function emitCompletedCheck(check = {}, result = {}) {
-    const detail = completedCheckDetail(check, result);
+    const adjusted = applyCheckFinalPower(result, {}, check);
+    const detail = completedCheckDetail(check, adjusted);
     if (typeof global.CustomEvent === "function") global.dispatchEvent(new global.CustomEvent("luminous:theatre-check-completed", { detail }));
     return detail;
+  }
+
+  function equipmentLevelModifier(unit, kind) {
+    const currentCharacter = isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || null : null;
+    const sources = [unit, currentCharacter].filter(Boolean);
+    for (const source of sources) {
+      const fromBreakdown = source?.combatLevels?.[kind]?.itemModifier;
+      if (Number.isFinite(Number(fromBreakdown))) return Number(fromBreakdown);
+      const field = kind === "offensive" ? "offensiveLevel" : "defensiveLevel";
+      const fromEquipment = source?.equipmentModifiers?.[field];
+      if (Number.isFinite(Number(fromEquipment))) return Number(fromEquipment);
+    }
+    return 0;
   }
 
   function precomputedLevel(unit, kind) {
@@ -593,7 +623,9 @@
       ? [combat.offensiveLevel, combat.off_level, unit?.offensiveLevel, unit?.offensive_level]
       : [combat.defensiveLevel, combat.def_level, unit?.defensiveLevel, unit?.defensive_level];
     const found = values.find((value) => Number.isFinite(Number(value)));
-    return found == null ? null : Number(found);
+    if (found == null) return null;
+    const equipmentInactive = Boolean(global.LuminousUniversalModifiers?.resolveEquipment?.(unit)?.equipmentInactive);
+    return Number(found) - (equipmentInactive ? equipmentLevelModifier(unit, kind) : 0);
   }
 
   function restrictionTraitsForUnit(unit) {
@@ -853,7 +885,10 @@
 
     if (originalTriggerPhase) engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
       const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
-      if (phaseTag === "[Round End]") (allUnits || []).forEach(advanceDamageHistory);
+      if (phaseTag === "[Round End]") (allUnits || []).forEach((unit) => {
+        advanceDamageHistory(unit);
+        statusEngine?.advanceDurations?.(unit, "turn_end");
+      });
       return result;
     };
 
@@ -951,7 +986,8 @@
         const onComplete = options.onComplete;
         const wrappedOptions = { ...options, onComplete: null };
         return originalRun(wrappedOptions).then((rawResult) => {
-          const finalResult = check ? applyCheckRetosses(rawResult, options, check) : rawResult;
+          const retossedResult = check ? applyCheckRetosses(rawResult, options, check) : rawResult;
+          const finalResult = check ? applyCheckFinalPower(retossedResult, options, check) : retossedResult;
           if (check) emitCompletedCheck(check, finalResult);
           state.activeCheck = null;
           onComplete?.(finalResult);
@@ -1039,7 +1075,8 @@
       const snapshot = legacyCoinSnapshot(container);
       if (!snapshot) return;
       container.dataset.luminousRetossProcessed = token;
-      const finalResult = applyCheckRetosses(snapshot, { container, totalNode: snapshot.totalNode }, check);
+      const retossedResult = applyCheckRetosses(snapshot, { container, totalNode: snapshot.totalNode }, check);
+      const finalResult = applyCheckFinalPower(retossedResult, { container, totalNode: snapshot.totalNode }, check);
       emitCompletedCheck(check, finalResult);
       state.activeCheck = null;
       state.legacyCheckObserver?.disconnect?.();
@@ -1112,8 +1149,11 @@
     resolveTraitTarget,
     skillCheckBonus,
     resolveTraitRuntimeResolutions,
+    applyCheckFinalPower,
     completedCheckDetail,
     emitCompletedCheck,
+    equipmentLevelModifier,
+    precomputedLevel,
   });
   global.LuminousTraitStandardizationRuntime = api;
 

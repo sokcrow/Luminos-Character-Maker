@@ -281,13 +281,13 @@
       rules: [{ id: "goblin_fury_fixed_damage", type: "modifier", trigger: "damage_dealt", target: "self", path: "damage.amount", mode: "add", formula: "max(1, ConstitutionMod)", scope: "once_per_turn", conditions: [{ path: "target.size", operator: "in", value: ["medium", "large", "huge", "gargantuan"] }] }],
     },
 
-    goblin_nimble_escape: passiveModifier("goblin_nimble_escape", "Nimble Escape", "goblin", "final_power", 1, { description: "Evade Skills gain +1 Final Power.", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] }),
+    goblin_nimble_escape: passiveModifier("goblin_nimble_escape", "Nimble Escape", "goblin", "evade_power", 1, { description: "Evade Skills gain +1 Evade Power.", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] }),
 
     fairy_form: {
       schemaVersion: 1,
       id: "fairy_form",
       name: "Fairy Form",
-      description: "Toggle Fairy Form: Tiny size, +2 Min/+2 Max Speed, +2 Evade Final Power, and take 50% more Damage.",
+      description: "Toggle Fairy Form: Tiny size, +2 Min/+2 Max Speed, +2 Evade Power, and take 50% more Damage.",
       source: raceSource("fairy"),
       contexts: ["combat", "theatre"],
       activation: { type: "manual", actionCost: "none" },
@@ -298,7 +298,7 @@
       rules: [
         { type: "modifier", trigger: "passive", target: "self", channel: "min_speed", mode: "add", value: 2, whileStatus: "fairy_form" },
         { type: "modifier", trigger: "passive", target: "self", channel: "max_speed", mode: "add", value: 2, whileStatus: "fairy_form" },
-        { type: "modifier", trigger: "passive", target: "self", channel: "final_power", mode: "add", value: 2, whileStatus: "fairy_form", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] },
+        { type: "modifier", trigger: "passive", target: "self", channel: "evade_power", mode: "add", value: 2, whileStatus: "fairy_form", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] },
         { type: "modifier", trigger: "passive", target: "self", channel: "damage_taken_multiplier", mode: "add", value: -5, whileStatus: "fairy_form" },
       ],
     },
@@ -412,14 +412,14 @@
       schemaVersion: 1,
       id: "feline_reflexes",
       name: "Feline Reflexes",
-      description: "Gain floor(Proficiency / 2) Max Speed and Proficiency Final Power on Evade Skills.",
+      description: "Gain floor(Proficiency / 2) Max Speed and Proficiency Evade Power on Evade Skills.",
       source: raceSource("felinae"),
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
       effects: [],
       rules: [
         { type: "modifier", trigger: "passive", target: "self", channel: "max_speed", mode: "add", formula: "floor(Proficiency / 2)" },
-        { type: "modifier", trigger: "passive", target: "self", channel: "final_power", mode: "add", formula: "Proficiency", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] },
+        { type: "modifier", trigger: "passive", target: "self", channel: "evade_power", mode: "add", formula: "Proficiency", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] },
       ],
     },
 
@@ -506,7 +506,7 @@
     },
 
     moonfae_crescent_speed: passiveModifier("moonfae_crescent_speed", "Fast", "moonfae", "max_speed", 1, { description: "35 ft racial movement converts to +1 Max Speed." }),
-    moonfae_agile_escape: passiveModifier("moonfae_agile_escape", "Agile Escape", "moonfae", "final_power", 2, { description: "Evade Skills gain +2 Final Power.", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] }),
+    moonfae_agile_escape: passiveModifier("moonfae_agile_escape", "Agile Escape", "moonfae", "evade_power", 2, { description: "Evade Skills gain +2 Evade Power.", conditions: [{ path: "skill.type", operator: "eq", value: "evade" }] }),
 
     moonfae_natural_talent: {
       schemaVersion: 1,
@@ -610,8 +610,8 @@
     yuan_ti_lust_affinity: sinAffinityTrait("yuan_ti_lust_affinity", "Lust", "Orange Eyes — Lust"),
     yuan_ti_sloth_affinity: sinAffinityTrait("yuan_ti_sloth_affinity", "Sloth", "Yellow Eyes — Sloth"),
 
-    yuan_ti_cold_fury: passiveModifier("yuan_ti_cold_fury", "Cold Fury", "yuan_ti_pureblood", "final_power", 4, {
-      description: "Counter Skills gain +4 Final Power.",
+    yuan_ti_cold_fury: passiveModifier("yuan_ti_cold_fury", "Cold Fury", "yuan_ti_pureblood", "counter_power", 4, {
+      description: "Counter Skills gain +4 Counter Power.",
       conditions: [{ path: "skill.type", operator: "eq", value: "counter" }],
     }),
 
@@ -657,7 +657,7 @@
 
     undae_stable_step: thresholdTrait("undae_stable_step", "Stable Step", "undae", [{ path: "check.effectTag", operator: "in", value: ["knockdown", "forced_displacement"] }], -4, { description: "Checks to resist Knockdown or Forced Displacement reduce Threshold by 4." }),
 
-    undae_calming_presence: thresholdTrait("undae_calming_presence", "Calming Presence", "undae", [{ path: "check.skillId", operator: "eq", value: "persuasion" }, { any: [{ path: "target.injured", operator: "truthy" }, { path: "target.frightened", operator: "truthy" }] }], -4, { description: "Persuasion against injured or frightened creatures reduces Threshold by 4." }),
+    undae_calming_presence: thresholdTrait("undae_calming_presence", "Calming Presence", "undae", [{ path: "check.skillId", operator: "eq", value: "persuasion" }, { any: [{ path: "target.injured", operator: "truthy" }, { path: "target.statusEffects.frightened", operator: "truthy" }] }], -4, { description: "Persuasion against injured or frightened creatures reduces Threshold by 4." }),
 
     undae_silent_step: thresholdTrait("undae_silent_step", "Silent Step", "undae", [{ path: "check.skillId", operator: "eq", value: "stealth" }, { path: "check.environmentTags", operator: "contains", value: "natural" }], -4, { description: "Stealth checks in Natural Terrain reduce Threshold by 4." }),
 
@@ -669,7 +669,7 @@
       source: raceSource("undae"),
       contexts: ["combat", "theatre"],
       activation: { type: "automatic", actionCost: "none" },
-      effects: [{ id: "undae_friend_of_life_revive", contexts: ["combat", "theatre"], trigger: "after_check", conditions: [{ any: [{ path: "check.actionId", operator: "eq", value: "stabilize" }, { path: "check.tags", operator: "contains", value: "stabilize" }] }, { path: "check.passed", operator: "truthy" }], operations: [{ type: "heal_hp", path: "target.hp", maxPath: "target.maxHp", formula: "floor(TargetMaxHP * 5 / 100)" }] }],
+      effects: [{ id: "undae_friend_of_life_revive", contexts: ["combat", "theatre"], trigger: "after_check", conditions: [{ any: [{ path: "check.actionId", operator: "eq", value: "stabilize" }, { path: "check.tags", operator: "contains", value: "stabilize" }] }, { path: "check.passed", operator: "truthy" }], operations: [{ type: "heal_hp", path: "target.hp", maxPath: "target.maxHp", formula: "max(1, floor(TargetMaxHP * 5 / 100))" }] }],
       rules: [],
     },
   });

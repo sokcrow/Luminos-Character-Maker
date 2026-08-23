@@ -11,6 +11,9 @@
     "final_power",
     "base_power",
     "defense_power",
+    "counter_power",
+    "evade_power",
+    "guard_power",
     "clash_power",
     "offensive_level",
     "defensive_level",
@@ -29,6 +32,10 @@
     maxspeed: "max_speed",
     finalpower: "final_power",
     basepower: "base_power",
+    defensepower: "defense_power",
+    counterpower: "counter_power",
+    evadepower: "evade_power",
+    guardpower: "guard_power",
     coinpower: "coin_power",
     critdamagepercent: "crit_damage_multiplier",
     damagedealtpercent: "damage_dealt_multiplier",
@@ -118,6 +125,24 @@
 
     skill.skillFamily = family;
     skill.skill_family = family;
+    if (family === "defense") {
+      const rawSubtype = normalizeId(skill.defenseSubtype || skill.defense_subtype || type);
+      const subtypeMap = {
+        guard: "Guard",
+        clashableguard: "ClashableGuard",
+        clashable_guard: "ClashableGuard",
+        evade: "Evade",
+        counter: "Counter",
+        clashablecounter: "ClashableCounter",
+        clashable_counter: "ClashableCounter",
+      };
+      const canonicalSubtype = subtypeMap[rawSubtype] || subtypeMap[type] || null;
+      if (canonicalSubtype) {
+        skill.defenseSubtype = canonicalSubtype;
+        skill.defense_subtype = normalizeId(canonicalSubtype);
+      }
+      skill.isDefense = true;
+    }
     if (family === "attack") {
       skill.attackMode = attackMode || "melee";
       skill.attack_mode = skill.attackMode;
@@ -133,6 +158,15 @@
       };
     }
     return skill;
+  }
+
+  function defensePowerChannelForSkill(skillInput = {}) {
+    const skill = normalizeSkill(skillInput || {});
+    const subtype = normalizeId(skill?.defenseSubtype || skill?.defense_subtype || skill?.type);
+    if (["counter", "clashablecounter", "clashable_counter"].includes(subtype)) return "counter_power";
+    if (subtype === "evade") return "evade_power";
+    if (["guard", "clashableguard", "clashable_guard"].includes(subtype)) return "guard_power";
+    return null;
   }
 
   function hasStatus(unit, statusId, traitState = {}) {
@@ -345,6 +379,7 @@
     mergeModifiers,
     resolveEquipment,
     normalizeSkill,
+    defensePowerChannelForSkill,
     resolveTraitModifiers,
     resolveStatusModifiers,
     resolveStats,
