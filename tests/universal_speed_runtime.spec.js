@@ -112,3 +112,28 @@ test("install decorates the exact unit object received by CombatEngine.initializ
     global.LuminousUniversalModifiers = previousModifiers;
   }
 });
+
+test("late-loaded runtime decorates and registers combatData objects that already exist in the Battle viewer", () => {
+  const previousCombatData = global.combatData;
+  const previousTraitRuntime = global.LuminousTraitStandardizationRuntime;
+  const character = unit(2);
+  character.traitDefinitions = [catalog.getDefinition("fast_movement")];
+  const registered = [];
+  let encounterBridgeCalls = 0;
+  global.combatData = { existing_player: character };
+  global.LuminousTraitStandardizationRuntime = {
+    registerCombatUnit(unitValue) { registered.push(unitValue); },
+    installViewerEncounterBridge() { encounterBridgeCalls += 1; },
+  };
+
+  try {
+    expect(speedRuntime.decorateKnownCombatants()).toBe(1);
+    expect(registered).toEqual([character]);
+    expect(encounterBridgeCalls).toBe(1);
+    expect(speedRuntime.rawSpeed(character)).toBe(2);
+    expect(character.speed).toBe(3);
+  } finally {
+    global.combatData = previousCombatData;
+    global.LuminousTraitStandardizationRuntime = previousTraitRuntime;
+  }
+});
