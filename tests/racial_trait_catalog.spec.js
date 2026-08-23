@@ -2,6 +2,8 @@ const { test, expect } = require("@playwright/test");
 const engine = require("../js/trait-engine.js");
 const modifiers = require("../js/universal-modifier-engine.js");
 const catalog = require("../js/racial-trait-catalog.js");
+const damageBridge = require("../js/racial-trait-runtime-bridge.js");
+const runtimeEngine = global.LuminousTraitEngine;
 
 test("racial Trait catalog validates every declarative definition and complete manifest", () => {
   const result = catalog.validateAll(engine);
@@ -133,19 +135,47 @@ test("Fury of the Small adds fixed damage once per Turn against a larger target"
   const character = { level: 20, stats: { constitucion: 16 } };
   const self = { size: "small" };
   const target = { size: "medium" };
-  const state = engine.createState();
+  const state = runtimeEngine.createState();
   const firstDamage = { amount: 10 };
   const secondDamage = { amount: 10 };
 
-  engine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: firstDamage });
-  engine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: secondDamage });
+  runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: firstDamage });
+  runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: secondDamage });
   expect(firstDamage.amount).toBe(13);
   expect(secondDamage.amount).toBe(10);
 
-  engine.dispatchCombatEvent("turn_start", { character, self, target, traits: [trait], state });
+  runtimeEngine.dispatchCombatEvent("turn_start", { character, self, target, traits: [trait], state });
   const nextTurnDamage = { amount: 10 };
-  engine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: nextTurnDamage });
+  runtimeEngine.dispatchCombatEvent("damage_dealt", { character, self, target, traits: [trait], state, damage: nextTurnDamage });
   expect(nextTurnDamage.amount).toBe(13);
+});
+
+test("racial damage bridge returns Trait-adjusted damage to the production CombatEngine path", () => {
+  const trait = catalog.getDefinition("goblin_fury_of_small");
+  const attacker = { size: "small", stats: { constitucion: 16 }, level: 20 };
+  const defender = { size: "medium" };
+  const skill = { id: "test_attack" };
+
+  global.CombatEngine = {
+    __universalModifierBridge: true,
+    calculateCoinDamage(currentAttacker, currentDefender, currentSkill) {
+      global.LuminousTraitEngine.dispatchCombatEvent("damage_dealt", {
+        character: currentAttacker,
+        self: currentAttacker,
+        attacker: currentAttacker,
+        target: currentDefender,
+        defender: currentDefender,
+        skill: currentSkill,
+        traits: [trait],
+        damageDealt: 10,
+      });
+      return 10;
+    },
+  };
+  damageBridge.installAll();
+
+  expect(global.CombatEngine.calculateCoinDamage(attacker, defender, skill)).toBe(13);
+  delete global.CombatEngine;
 });
 
 test("Centaur Charge and White Semi Dragon compare target Speed against user Max Speed", () => {
