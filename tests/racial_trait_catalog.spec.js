@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const engine = require("../js/trait-engine.js");
 const modifiers = require("../js/universal-modifier-engine.js");
 const catalog = require("../js/racial-trait-catalog.js");
+const buildRules = require("../js/character-build-rules.js");
 
 test("racial Trait catalog validates every declarative definition", () => {
   const result = catalog.validateAll(engine);
@@ -37,6 +38,20 @@ test("Lupae automatically receives shared Pack Tactics instead of a race-only du
   expect(catalog.getDefinition("pack_tactics").source).toMatchObject({ type: "special", id: "shared" });
 });
 
+test("Pack Tactics consumes the runtime ally-targeting predicate", () => {
+  const trait = catalog.getDefinition("pack_tactics");
+  const skill = { finalPower: 0 };
+  engine.dispatchCombatEvent("before_attack", {
+    character: { level: 20 },
+    self: {},
+    target: {},
+    targetedByAlly: true,
+    skill,
+    traits: [trait],
+  });
+  expect(skill.finalPower).toBe(1);
+});
+
 test("Moonfae cycle grants are isolated by raceSubtypeId", () => {
   const crescent = catalog.resolveTraitGrants({
     characterBuild: { raceId: "moonfae", raceSubtypeId: "crescent_moon", calculatedAtLevel: 30 },
@@ -58,6 +73,27 @@ test("Moonfae cycle grants are isolated by raceSubtypeId", () => {
   ]);
 });
 
+test("Moonfae cycle is a persisted production build subtype", () => {
+  expect(buildRules.getRace("moonfae")?.subtypes?.map((entry) => entry.id)).toEqual([
+    "full_moon",
+    "crescent_moon",
+    "new_moon",
+    "crimson_moon",
+    "blue_moon",
+  ]);
+
+  const build = buildRules.calculateBuild({
+    level: 10,
+    constitution: 10,
+    classes: [{ classId: "fighter", levels: 10 }],
+    backgroundId: "chef",
+    raceId: "moonfae",
+    raceSubtypeId: "new_moon",
+  });
+  expect(build.valid).toBe(true);
+  expect(build.raceSubtypeId).toBe("new_moon");
+});
+
 test("Yuan-ti eye colors grant the correct Sin affinity and Pale Eyes get no Sin bonus", () => {
   const green = catalog.resolveTraitGrants({ level: 80, raceId: "yuan_ti_pureblood", raceSubtypeId: "green_eyes" });
   const pale = catalog.resolveTraitGrants({ level: 80, raceId: "yuan_ti_pureblood", raceSubtypeId: "pale_eyes" });
@@ -71,21 +107,68 @@ test("Yuan-ti eye colors grant the correct Sin affinity and Pale Eyes get no Sin
   expect(pale.some((trait) => trait.id.includes("affinity"))).toBe(false);
 });
 
-test("Voracious Impulse heals (5 + CHA Mod)% Max HP on kill", () => {
+test("Voracious Impulse heals production hp by (5 + CHA Mod)% Max HP on kill", () => {
   const trait = catalog.getDefinition("yuan_ti_voracious_impulse");
   const character = {
     level: 40,
     stats: { carisma: 16 },
   };
-  const self = { currentHp: 40, maxHp: 100 };
+  const self = { hp: 40, maxHp: 100 };
   const result = engine.dispatchCombatEvent("on_kill", {
     character,
     self,
     traits: [trait],
   });
 
-  expect(self.currentHp).toBe(48);
+  expect(self.hp).toBe(48);
+  expect(self.currentHp).toBeUndefined();
   expect(result.outcomes[0]).toMatchObject({ type: "heal_hp", amount: 8, after: 48 });
+});
+
+test("Undae Regeneration heals production hp unless previous Turn included Fire or Acid", () => {
+  const trait = catalog.getDefinition("undae_regeneration");
+  const character = { level: 40, stats: { constitucion: 16 } };
+
+  const clear = { hp: 50, maxHp: 100, damageTakenPreviousTurnTypes: [] };
+  engine.dispatchCombatEvent("turn_start", { character, self: clear, traits: [trait] });
+  expect(clear.hp).toBe(63);
+
+  for (const blockedType of ["Fire", "Acid"]) {
+    const blocked = { hp: 50, maxHp: 100, damageTakenPreviousTurnTypes: [blockedType] };
+    engine.dispatchCombatEvent("turn_start", { character, self: blocked, traits: [trait] });
+    expect(blocked.hp).toBe(50);
+  }
+});
+
+test("Stone's Endurance mutates incoming damage before production application", () => {
+  const trait = catalog.getDefinition("goliath_stone_endurance");
+  const damage = { amount: 10 };
+  engine.dispatchCombatEvent("damage_taken", {
+    character: { level: 20, stats: { constitucion: 16 } },
+    self: {},
+    damage,
+    traits: [trait],
+  });
+  expect(damage.amount).toBe(7);
+});
+
+test("Desert Predator matches array environment tags with contains", () => {
+  const trait = catalog.getDefinition("half_dragon_desert_predator");
+  for (const tag of ["sand", "loose_earth", "burrowable_ground"]) {
+    const result = engine.resolveTheatreCheck({
+      character: { level: 20 },
+      traits: [trait],
+      check: { skillId: "stealth", environmentTags: [tag], difficulty: 16 },
+    });
+    expect(result.check.difficulty).toBe(12);
+  }
+
+  const forest = engine.resolveTheatreCheck({
+    character: { level: 20 },
+    traits: [trait],
+    check: { skillId: "stealth", environmentTags: ["forest"], difficulty: 16 },
+  });
+  expect(forest.check.difficulty).toBe(16);
 });
 
 test("Feline Reflexes resolves Max Speed and Evade Final Power from Proficiency", () => {
