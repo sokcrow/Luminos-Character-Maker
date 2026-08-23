@@ -317,7 +317,7 @@
       schemaVersion: 1,
       id: "aasimar_protector_transformation",
       name: "Radiant Soul",
-      description: "Protector transformation for Count 6. Grants Flight and once per Turn adds Level/10 Radiant Fixed Damage.",
+      description: "Protector transformation for Count 6. Grants Flight and once per Turn adds at least 1 Fixed Damage based on Level/10.",
       source: raceSource("aasimar"),
       contexts: ["combat"],
       activation: { type: "manual", actionCost: "action", uses: { max: 1, reset: "long_rest" } },
