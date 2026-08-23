@@ -3,21 +3,44 @@ name: Trait Engine
 on:
   pull_request:
     paths:
-      - "scripts/pr565_fix_all.py"
+      - "js/trait-engine.js"
+      - "js/trait-catalog-core.js"
+      - "js/racial-trait-catalog.js"
+      - "js/racial-trait-runtime-bridge.js"
+      - "js/status-engine.js"
+      - "js/universal-modifier-engine.js"
+      - "js/universal-speed-runtime.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/player-trait-runtime.js"
+      - "js/trait-player-tray.js"
+      - "js/player-stats-ability-bar.js"
+      - "js/instance-control.js"
+      - "hoja_personaje.js"
+      - "js/dm-trait-catalog-importer.js"
+      - "js/trait-builder.js"
+      - "dm-trait-creator.html"
+      - "tests/trait_engine.spec.js"
+      - "tests/trait_engine_codex_regressions.spec.js"
+      - "tests/trait_catalog_core.spec.js"
+      - "tests/racial_trait_catalog.spec.js"
+      - "tests/racial_trait_engine_regressions.spec.js"
+      - "tests/player_trait_tabs.spec.js"
+      - "tests/dm_trait_catalog_importer.spec.js"
+      - "tests/barbarian_trait_rules_runtime.spec.js"
+      - "tests/universal_modifier_engine.spec.js"
+      - "tests/universal_speed_runtime.spec.js"
+      - "tests/trait_standardization_review_fixes.spec.js"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-pr565-universal-fixes:
+  trait-engine-contract:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR branch
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: feat/racial-traits-automation
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,51 +48,49 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Align patch with current dispatch runtime
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/pr565_fix_all.py')
-          text = p.read_text()
-          old = '''    '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    return traitEngine.dispatchCombatEvent(trigger, {\\n      character: getCharacter(),\\n      traits: resolveTraits(),\\n      state: state.traitState,\\n      ...(input || {}),\\n    });\\n  }\\n',
-              '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    const traits = resolveTraits();\\n    const result = traitEngine.dispatchCombatEvent(trigger, {\\n      character: getCharacter(),\\n      traits,\\n      state: state.traitState,\\n      ...runtime,\\n    });\\n    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, trigger, result?.runtime || runtime, result);\\n    return result;\\n  }\\n','''
-          new = '''    '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    return traitEngine.dispatchCombatEvent(trigger, {\\n      ...runtime,\\n      traits: resolveTraits(),\\n      state: state.traitState,\\n    });\\n  }\\n',
-              '  function dispatchCombatEvent(trigger, input = {}) {\\n    const traitEngine = global.LuminousTraitEngine;\\n    if (!traitEngine?.dispatchCombatEvent) return null;\\n    if (!state.traitState) state.traitState = traitEngine.createState();\\n    const runtime = getRuntime({ context: "combat", ...(input || {}) });\\n    const traits = resolveTraits();\\n    const result = traitEngine.dispatchCombatEvent(trigger, {\\n      ...runtime,\\n      traits,\\n      state: state.traitState,\\n    });\\n    global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, trigger, result?.runtime || runtime, result);\\n    return result;\\n  }\\n','''
-          if text.count(old) != 1:
-              raise SystemExit(f'Could not align dispatch patch block: {text.count(old)}')
-          p.write_text(text.replace(old, new, 1))
-          PY
-
-      - name: Apply audited patch
-        run: python3 scripts/pr565_fix_all.py
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Syntax
+      - name: Check syntax
         run: |
+          node --check js/trait-engine.js
+          node --check js/trait-catalog-core.js
           node --check js/racial-trait-catalog.js
+          node --check js/racial-trait-runtime-bridge.js
+          node --check js/status-engine.js
           node --check js/universal-modifier-engine.js
+          node --check js/universal-speed-runtime.js
           node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
+          node --check js/player-stats-ability-bar.js
+          node --check js/instance-control.js
+          node --check js/dm-trait-catalog-importer.js
+          node --check js/trait-builder.js
+          node --check tests/trait_engine.spec.js
+          node --check tests/trait_engine_codex_regressions.spec.js
+          node --check tests/trait_catalog_core.spec.js
+          node --check tests/racial_trait_catalog.spec.js
+          node --check tests/racial_trait_engine_regressions.spec.js
+          node --check tests/player_trait_tabs.spec.js
+          node --check tests/dm_trait_catalog_importer.spec.js
+          node --check tests/barbarian_trait_rules_runtime.spec.js
           node --check tests/universal_modifier_engine.spec.js
+          node --check tests/universal_speed_runtime.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
 
-      - name: Focused regressions
+      - name: Run Trait regressions
         run: >-
           npx playwright test
-          tests/universal_modifier_engine.spec.js
-          tests/trait_standardization_review_fixes.spec.js
+          tests/trait_engine.spec.js
+          tests/trait_engine_codex_regressions.spec.js
+          tests/trait_catalog_core.spec.js
           tests/racial_trait_catalog.spec.js
           tests/racial_trait_engine_regressions.spec.js
+          tests/player_trait_tabs.spec.js
+          tests/dm_trait_catalog_importer.spec.js
+          tests/barbarian_trait_rules_runtime.spec.js
+          tests/universal_modifier_engine.spec.js
+          tests/universal_speed_runtime.spec.js
+          tests/trait_standardization_review_fixes.spec.js
           --workers=1
-
-      - name: Commit fixes
-        run: |
-          git config user.name "OpenAI"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/racial-trait-catalog.js js/universal-modifier-engine.js js/trait-standardization-runtime.js js/player-trait-runtime.js js/trait-player-tray.js tests/universal_modifier_engine.spec.js tests/trait_standardization_review_fixes.spec.js
-          git diff --cached --check
-          git commit -m "fix: resolve universal racial Trait integrations"
-          git push origin HEAD:feat/racial-traits-automation
