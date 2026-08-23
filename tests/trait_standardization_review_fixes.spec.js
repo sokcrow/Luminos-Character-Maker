@@ -71,8 +71,10 @@ function loadStandardizationRuntime(overrides = {}) {
     LuminousStatusEngine: statusEngine,
     LuminousUniversalModifiers: modifiers,
     LuminousPlayerTraitRuntime: overrides.playerRuntime || null,
+    LuminousPlayerStats: overrides.playerStats || null,
     CombatEngine: overrides.combatEngine || null,
     datosJugador: overrides.datosJugador || null,
+    firebase: overrides.firebase || null,
     CustomEvent: class CustomEvent {
       constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
     },
@@ -155,7 +157,6 @@ test("active declarative spell restriction blocks Spell Skills without class-spe
 test("wrapped CombatEngine.createSkill preserves legacy skillRange before Attack/Melee/Ranged normalization", () => {
   const combatEngine = {
     createSkill(config = {}) {
-      // Deliberately mirrors the legacy factory bug: skillRange is not copied.
       return { type: config.type || "Normal", coinAmount: config.coinAmount || 1, coins: [{ type: "standard", status: "active" }] };
     },
     applyPassiveModifiers() { return {}; },
@@ -172,6 +173,60 @@ test("wrapped CombatEngine.createSkill preserves legacy skillRange before Attack
   expect(ranged.attackMode).toBe("ranged");
   expect(ranged.isRanged).toBe(true);
   expect(melee.attackMode).toBe("melee");
+});
+
+test("production combatants Firebase lifecycle dispatches encounter_start once per encounter to the registered player unit", () => {
+  let combatantsListener = null;
+  const firebase = {
+    apps: [{}],
+    database() {
+      return {
+        ref(pathName) {
+          expect(pathName).toBe("campaña/combate/combatants");
+          return {
+            on(type, handler) {
+              expect(type).toBe("value");
+              combatantsListener = handler;
+            },
+          };
+        },
+      };
+    },
+  };
+  const dispatched = [];
+  const playerCharacter = { id: "player_1", name: "Player One" };
+  const playerRuntime = {
+    getCharacter() { return playerCharacter; },
+    getTraits() { return []; },
+    dispatchCombatEvent(trigger, input) {
+      dispatched.push({ trigger, input });
+      return { runtime: input, state: traitEngine.createState(), outcomes: [] };
+    },
+  };
+  const combatEngine = {
+    initializeUnitData(unit) { unit.initialized = true; },
+    applyPassiveModifiers() { return {}; },
+  };
+  const { api } = loadStandardizationRuntime({ playerRuntime, combatEngine, firebase, datosJugador: playerCharacter });
+  api.installAll();
+
+  const playerUnit = { id: "player_1", name: "Player One", speed: 2 };
+  combatEngine.initializeUnitData(playerUnit);
+  combatantsListener({ val: () => ({ player_1: { id: "player_1" }, enemy_1: { id: "enemy_1" } }) });
+
+  expect(dispatched).toHaveLength(1);
+  expect(dispatched[0].trigger).toBe("encounter_start");
+  expect(dispatched[0].input.self).toBe(playerUnit);
+
+  combatantsListener({ val: () => ({ player_1: { id: "player_1", hp: 80 }, enemy_1: { id: "enemy_1" } }) });
+  expect(dispatched).toHaveLength(1);
+
+  combatantsListener({ val: () => ({}) });
+  const nextPlayerUnit = { id: "player_1", name: "Player One", speed: 3 };
+  combatEngine.initializeUnitData(nextPlayerUnit);
+  combatantsListener({ val: () => ({ player_1: { id: "player_1" } }) });
+  expect(dispatched).toHaveLength(2);
+  expect(dispatched[1].input.self).toBe(nextPlayerUnit);
 });
 
 test("legacy sheet Coin roller can re-toss the last failed Strength Check without LuminousCoinEngine", () => {
@@ -208,6 +263,33 @@ test("legacy sheet Coin roller can re-toss the last failed Strength Check withou
   expect(result.reTosses).toEqual({ coinIndex: 1, attempted: 1, maximum: 1 });
   expect(coinImages[1].src).toBe("https://imgur.com/yshLPnQ.png");
   expect(totalNode.textContent).toBe("14");
+});
+
+test("legacy re-toss writes the adjusted total through the HUD suppression API instead of retriggering proficiency bonus", () => {
+  const totalNode = { textContent: "12" };
+  const writes = [];
+  const playerStats = {
+    setRollTotalWithoutAdjustment(value, node) {
+      writes.push(value);
+      node.textContent = String(value);
+      return true;
+    },
+  };
+  const playerRuntime = {
+    dispatch() { return { runtime: { check: { reTossLastCoin: 1 } } }; },
+  };
+  const { api } = loadStandardizationRuntime({ playerRuntime, playerStats, random: () => 0 });
+  const result = api.applyCheckRetosses({
+    coins: [{ index: 0, side: "tail", src: "https://imgur.com/XDx0ICt.png" }],
+    headsChance: 50,
+    headBonus: 4,
+    total: 12,
+  }, { container: { querySelector() { return null; }, querySelectorAll() { return []; } }, totalNode }, { abilityId: "str", kind: "skill", skillId: "athletics" });
+
+  expect(result.total).toBe(16);
+  expect(writes).toEqual([16]);
+  expect(totalNode.textContent).toBe("16");
+  expect(read("js/player-stats-ability-bar.js")).toContain("setRollTotalWithoutAdjustment");
 });
 
 test("legacy Check bridge is wired to the actual sheet roll selector and excludes Saving Throws", () => {
