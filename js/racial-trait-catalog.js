@@ -611,8 +611,8 @@
     yuan_ti_sloth_affinity: sinAffinityTrait("yuan_ti_sloth_affinity", "Sloth", "Yellow Eyes — Sloth"),
 
     yuan_ti_cold_fury: passiveModifier("yuan_ti_cold_fury", "Cold Fury", "yuan_ti_pureblood", "counter_power", 4, {
-      description: "Counter Skills gain +4 Counter Power.",
-      conditions: [{ path: "skill.type", operator: "eq", value: "counter" }],
+      description: "Counter and ClashableCounter Skills gain +4 Counter Power.",
+      conditions: [{ path: "skill.defense_subtype", operator: "in", value: ["counter", "clashablecounter", "clashable_counter"] }],
     }),
 
     yuan_ti_subtle_influence: {

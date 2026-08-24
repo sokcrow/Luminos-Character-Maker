@@ -78,9 +78,27 @@ const CombatEngine = {
         });
     },
 
-    triggerEncounterStart: function() {
+    beginPlanningPhase: function(allUnits = []) {
+        this.currentState = 'PRE_COMBAT_PLANNING';
+        const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (economy && Array.isArray(allUnits)) allUnits.forEach(unit => economy.beginPlanning(unit));
+        return this.currentState;
+    },
+
+    triggerEncounterStart: function(allUnits = []) {
         this.currentState = 'COMBAT_ACTIVE';
+        const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (economy && Array.isArray(allUnits)) allUnits.forEach(unit => economy.beginCombat(unit));
         // Add additional logic if needed when planning ends
+    },
+
+    resolveActionSlot: function(unit, slotIndex, context = {}) {
+        const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;
+        if (runtime && typeof runtime.executePlannedTraitAction === 'function') {
+            const result = runtime.executePlannedTraitAction(unit, slotIndex, context);
+            if (result && result.handled) return result;
+        }
+        return { handled: false };
     },
 
 // 0. Habilidades y Poder (Skills)
@@ -735,13 +753,20 @@ const CombatEngine = {
         }
 
 
-                if (!unitDefender.isStaggered) {
-            result.pendingActions.push({
-                type: 'counter',
-                unit: unitDefender,
-                target: unitAttacker,
-                skill: counterSkill
-            });
+                if (counterSkill && !unitDefender.isStaggered) {
+            const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+            const reactionAvailable = !economy || economy.consumeCounterReaction(unitDefender, counterSkill, { phase: this.currentState });
+            if (reactionAvailable) {
+                result.pendingActions.push({
+                    type: 'counter',
+                    unit: unitDefender,
+                    target: unitAttacker,
+                    skill: counterSkill
+                });
+            } else {
+                result.attackLogs.push({ message: `${unitDefender.name || 'Defender'} cannot Counter: Reaction already spent.`, class: 'interrupt' });
+                result.counterReactionBlocked = true;
+            }
         }
 
         // Cortafuegos y Retargeting: Reuse Skill
@@ -852,6 +877,23 @@ const CombatEngine = {
 
     resolveStandardClash: function(unitA, skillA, unitB, skillB) {
         if (this.currentState === 'PRE_COMBAT_PLANNING') return { logs: [{ message: 'Clash blocked during Planning Phase.', class: 'error' }], clashWinner: null, damageResult: null };
+        const actionEconomy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (actionEconomy) {
+            const counterA = actionEconomy.isCounterSkill(skillA);
+            const counterB = actionEconomy.isCounterSkill(skillB);
+            const blockedA = counterA && !actionEconomy.consumeCounterReaction(unitA, skillA, { phase: this.currentState });
+            const blockedB = counterB && !actionEconomy.consumeCounterReaction(unitB, skillB, { phase: this.currentState });
+            if (blockedA || blockedB) {
+                return {
+                    winner: blockedA && blockedB ? 'Tie' : (blockedA ? 'B' : 'A'),
+                    clashLogs: [{ note: 'Counter Reaction unavailable.', blockedA, blockedB }],
+                    pendingActions: [],
+                    reactionBlocked: true,
+                    blockedA,
+                    blockedB,
+                };
+            }
+        }
         // [Unclashable bypass fallback]
         // The driver should theoretically not call resolveStandardClash if either skill is isUnclashable.
         // But if it does, we can return a flag telling it to bypass, or handle it as Unilateral.
@@ -1831,6 +1873,10 @@ const CombatEngine = {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
+            // Universal Turn resources: Quick Action and Reaction are each 1 per Turn.
+            if (phaseTag === '[Round Start]' && typeof globalThis !== 'undefined') {
+                globalThis.LuminousActionEconomy?.resetTurnResources?.(unit);
+            }
             // Evaluacion de inmovilizacion (al inicio del round)
             if (phaseTag === '[Round Start]') {
                 unit.isImmobilized = unit.statusEffects && unit.statusEffects['immobilized'] && unit.statusEffects['immobilized'].count > 0;

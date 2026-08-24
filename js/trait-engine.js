@@ -537,7 +537,14 @@
   function dispatchTraits(traits, trigger, runtime = {}, stateInput) { const state = stateInput || createState(), outcomes = []; (traits || []).forEach((t) => outcomes.push(...dispatchTrait(t, trigger, runtime, state).outcomes)); return { state, runtime, outcomes }; }
   function usageRecord(state, trait) { const id = assertSafeKey(trait.id, "Trait id"); if (!state.usages[id]) state.usages[id] = { used: 0, reset: normalizeId(trait.activation?.uses?.reset || "never") }; return state.usages[id]; }
   function maxUses(trait, runtime) { const uses = trait.activation?.uses; if (!uses) return null; const env = environment(trait, runtime, createState()), v = uses.formula != null ? evaluateFormula(uses.formula, env.variables) : valueOf(uses.max ?? uses.value, env); return Math.max(0, Math.floor(v)); }
-  function actionAvailable(runtime, cost) { const c = normalizeId(cost || "none"); if (["none", "special"].includes(c) || !runtime.actionEconomy) return true; return num(runtime.actionEconomy[c] ?? getPath(runtime.actionEconomy, `available.${c}`)) > 0; }
+  function actionAvailable(runtime, cost) {
+    const c = normalizeId(cost || "none");
+    if (["none", "special"].includes(c)) return true;
+    if (runtime.executePlannedAction && c === "action") return true;
+    if (!runtime.actionEconomy) return true;
+    if (typeof runtime.actionEconomy.canUse === "function") return Boolean(runtime.actionEconomy.canUse(c));
+    return num(runtime.actionEconomy[c] ?? getPath(runtime.actionEconomy, `available.${c}`)) > 0;
+  }
 
   function canActivateTrait(input, runtime = {}, stateInput) {
     const validation = validateTrait(input), state = stateInput || createState();
@@ -549,10 +556,51 @@
   }
 
   function activateTrait(input, runtime = {}, stateInput) {
-    const state = stateInput || createState(), check = canActivateTrait(input, runtime, state); if (!check.available) return Object.assign(check, { outcomes: [] }); const trait = check.trait, cost = trait.activation.actionCost;
-    if (!["none", "special"].includes(cost) && runtime.actionEconomy) { if (Object.prototype.hasOwnProperty.call(runtime.actionEconomy, cost)) runtime.actionEconomy[cost] = Math.max(0, num(runtime.actionEconomy[cost]) - 1); else if (runtime.actionEconomy.available) runtime.actionEconomy.available[cost] = Math.max(0, num(runtime.actionEconomy.available[cost]) - 1); }
-    const record = usageRecord(state, trait); if (check.maximum != null) record.used += 1; if (trait.activation.type === "choice" && runtime.choice != null) state.choices[assertSafeKey(trait.id, "Trait id")] = clone(runtime.choice);
-    const result = dispatchTrait(trait, "on_use", runtime, state); return { available: true, reasons: [], maximum: check.maximum, remaining: check.maximum == null ? null : Math.max(0, check.maximum - record.used), actionCost: cost, trait, state, runtime, outcomes: result.outcomes };
+    const state = stateInput || createState(), check = canActivateTrait(input, runtime, state);
+    if (!check.available) return Object.assign(check, { outcomes: [] });
+    const trait = check.trait, cost = trait.activation.actionCost;
+
+    // Combat Actions are assignments to Action Slots during Planning. Assignment does not
+    // execute the Trait or spend limited uses; the slot resolves later in Combat Phase.
+    if (cost === "action" && runtime.context === "combat" && !runtime.executePlannedAction && typeof runtime.actionEconomy?.schedule === "function") {
+      const scheduled = runtime.actionEconomy.schedule({
+        kind: "trait",
+        traitId: trait.id,
+        sourceId: trait.id,
+        target: runtime.target || runtime.defender || null,
+      });
+      if (!scheduled?.scheduled) return Object.assign(check, { available: false, reasons: [scheduled?.reason || "No Action Slot available."], outcomes: [] });
+      return {
+        available: true,
+        scheduled: true,
+        slotIndex: scheduled.slotIndex,
+        slotId: scheduled.slotId,
+        reasons: [],
+        maximum: check.maximum,
+        remaining: check.remaining,
+        actionCost: cost,
+        trait,
+        state,
+        runtime,
+        outcomes: [],
+      };
+    }
+
+    if (!["none", "special", "action"].includes(cost) && runtime.actionEconomy) {
+      if (typeof runtime.actionEconomy.consume === "function") {
+        if (!runtime.actionEconomy.consume(cost)) return Object.assign(check, { available: false, reasons: [`No ${cost} remaining.`], outcomes: [] });
+      } else if (Object.prototype.hasOwnProperty.call(runtime.actionEconomy, cost)) {
+        runtime.actionEconomy[cost] = Math.max(0, num(runtime.actionEconomy[cost]) - 1);
+      } else if (runtime.actionEconomy.available) {
+        runtime.actionEconomy.available[cost] = Math.max(0, num(runtime.actionEconomy.available[cost]) - 1);
+      }
+    }
+
+    const record = usageRecord(state, trait);
+    if (check.maximum != null) record.used += 1;
+    if (trait.activation.type === "choice" && runtime.choice != null) state.choices[assertSafeKey(trait.id, "Trait id")] = clone(runtime.choice);
+    const result = dispatchTrait(trait, "on_use", runtime, state);
+    return { available: true, reasons: [], maximum: check.maximum, remaining: check.maximum == null ? null : Math.max(0, check.maximum - record.used), actionCost: cost, trait, state, runtime, outcomes: result.outcomes };
   }
 
   function resetUsage(state, scope) { Object.values(state?.usages || {}).forEach((r) => { if (normalizeId(r.reset) === normalizeId(scope)) r.used = 0; }); return state; }

@@ -76,6 +76,7 @@
         ensureScript("racial-trait-catalog-script", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog)),
         ensureScript("class-milestone-engine-script", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones)),
         ensureScript("trait-player-tray-script", "js/trait-player-tray.js", () => Boolean(global.LuminousTraitPlayerTray)),
+        ensureScript("universal-action-economy-script", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy)),
       ]));
     return state.dependencyPromise;
   }
@@ -162,7 +163,10 @@
     const target = Object.prototype.hasOwnProperty.call(input, "target") ? input.target : (completed?.target || state.theatreTarget || null);
     const standard = global.LuminousTraitStandardizationRuntime;
     const allies = context === "combat" && standard?.liveCombatUnits ? standard.liveCombatUnits({ self }).filter((unit) => unit !== self && Number(unit?.hp ?? 1) > 0 && String(unit?.faction ?? "") === String(self?.faction ?? "")) : [];
-    return { context, character, self, level, check, target, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
+    const actionEconomy = context === "combat"
+      ? (input.actionEconomy || global.LuminousActionEconomy?.runtimeFor?.(self, { phase: input.phase || global.CombatEngine?.currentState }))
+      : input.actionEconomy;
+    return { context, character, self, level, check, target, actionEconomy, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
   }
 
 
@@ -210,9 +214,46 @@
 
   function handleTraitActivated(result, meta = {}) {
     const runtime = result?.runtime || meta.runtime || getRuntime();
+    if (result?.scheduled) {
+      emit("luminous:trait-action-scheduled", result);
+      emit("luminous:trait-activated", result);
+      return;
+    }
     global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.([meta.trait].filter(Boolean), "on_use", runtime, result);
     recalculateCompletedCheck(result);
     emit("luminous:trait-activated", result);
+  }
+
+  function executePlannedTraitAction(unit, slotIndex, context = {}) {
+    const actionEconomy = global.LuminousActionEconomy;
+    const traitEngine = global.LuminousTraitEngine;
+    if (!actionEconomy?.getPlannedAction || !traitEngine?.activateTrait) return { handled: false, reason: "action_economy_unavailable" };
+    const planned = actionEconomy.getPlannedAction(unit, slotIndex);
+    if (!planned || planned.kind !== "trait" || !planned.traitId) return { handled: false, reason: "no_planned_trait" };
+    const trait = resolveTraits().find((entry) => normalizeId(entry?.id || entry?.name) === normalizeId(planned.traitId));
+    if (!trait) return { handled: false, reason: "planned_trait_missing", planned };
+    const standard = global.LuminousTraitStandardizationRuntime;
+    const units = standard?.liveCombatUnits?.({ self: unit }) || [];
+    const target = planned.targetId
+      ? units.find((candidate) => identityValues(candidate).includes(String(planned.targetId)) || String(candidate?.id || "") === String(planned.targetId)) || null
+      : null;
+    const taken = actionEconomy.takePlannedAction(unit, slotIndex, { phase: "combat" });
+    if (!taken) return { handled: false, reason: "planned_action_not_in_combat_phase", planned };
+    const runtime = getRuntime({
+      context: "combat",
+      self: unit,
+      target,
+      defender: target,
+      executePlannedAction: true,
+      actionEconomy: actionEconomy.runtimeFor(unit, { phase: "combat" }),
+      ...(context || {}),
+    });
+    const result = traitEngine.activateTrait(trait, runtime, state.traitState || (state.traitState = traitEngine.createState()));
+    if (result?.available) {
+      global.LuminousTraitPlayerTray?.syncActivationStatuses?.(result, runtime);
+      handleTraitActivated(result, { trait, runtime });
+    }
+    return { handled: true, planned: taken, result };
   }
 
   function recordCompletedTheatreCheck(detail = {}) {
@@ -483,7 +524,9 @@
     if (originalEncounterStart) {
       engine.triggerEncounterStart = function (...args) {
         const result = originalEncounterStart.apply(this, args);
-        dispatchCombatEvent("encounter_start", { context: "combat", self: currentCombatUnit() });
+        const unit = currentCombatUnit();
+        global.LuminousActionEconomy?.beginCombat?.(unit);
+        dispatchCombatEvent("encounter_start", { context: "combat", self: unit });
         return result;
       };
     }
@@ -493,6 +536,7 @@
         const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
         const unit = currentPlayerUnit(allUnits || []);
         if (unit && phaseTag === "[Round Start]") {
+          global.LuminousActionEconomy?.resetTurnResources?.(unit);
           dispatchCombatEvent("turn_start", { context: "combat", self: unit, units: allUnits });
         } else if (unit && phaseTag === "[Round End]") {
           dispatchCombatEvent("turn_end", { context: "combat", self: unit, units: allUnits });
@@ -547,6 +591,7 @@
     resolveTheatreCheck,
     dispatchCombatEvent,
     prepareTraitRuntime,
+    executePlannedTraitAction,
     recordCompletedTheatreCheck,
     setTheatreTarget,
     getLastCompletedCheck: () => state.lastCompletedCheck,
