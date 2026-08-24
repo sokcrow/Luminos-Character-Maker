@@ -12,12 +12,17 @@ on:
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
+      - "js/rest-engine.js"
+      - "js/rest-runtime-integration.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
+      - "docs/rest-system.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
+      - "tests/rest_engine.spec.js"
+      - "tests/rest_runtime_contract.spec.js"
       - ".github/workflows/archetype-engine.yml"
   pull_request:
     paths:
@@ -28,12 +33,17 @@ on:
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
+      - "js/rest-engine.js"
+      - "js/rest-runtime-integration.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
+      - "docs/rest-system.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
+      - "tests/rest_engine.spec.js"
+      - "tests/rest_runtime_contract.spec.js"
       - ".github/workflows/archetype-engine.yml"
 
 permissions:
@@ -63,11 +73,15 @@ jobs:
           node --check js/archetype-trait-catalog.js
           node --check js/player-archetype-runtime.js
           node --check js/archetype-combat-event-runtime.js
+          node --check js/rest-engine.js
+          node --check js/rest-runtime-integration.js
           node --check js/utils.js
           node --check tests/death_save_runtime.spec.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
           node --check tests/archetype_review_regressions.spec.js
+          node --check tests/rest_engine.spec.js
+          node --check tests/rest_runtime_contract.spec.js
 
       - name: Run Archetype regressions
         run: >-
@@ -76,6 +90,8 @@ jobs:
           tests/archetype_engine.spec.js
           tests/archetype_runtime_contract.spec.js
           tests/archetype_review_regressions.spec.js
+          tests/rest_engine.spec.js
+          tests/rest_runtime_contract.spec.js
           tests/trait_engine.spec.js
           tests/player_trait_tabs.spec.js
           tests/barbarian_trait_rules_runtime.spec.js
