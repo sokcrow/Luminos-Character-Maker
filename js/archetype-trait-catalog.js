@@ -79,10 +79,14 @@
       source,
       contexts: ["any"],
       activation: { type: "passive", actionCost: "none" },
-      effects: [],
-      rules: [
-        { type: "modifier", trigger: "turn_start", target: "self", path: "hpPercent", mode: "regain", formula: "ConstitutionMod + Proficiency" },
-      ],
+      effects: [{
+        id: "devil_lineage_demonic_resistance_heal",
+        contexts: ["combat"],
+        trigger: "turn_start",
+        conditions: [],
+        operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", formula: "floor(MaxHP * (ConstitutionMod + Proficiency) / 100)" }],
+      }],
+      rules: [],
       mechanics: {
         statusDamageMultipliers: { burn: 0.5, poison: 0.5 },
       },
