@@ -1,0 +1,26 @@
+from pathlib import Path
+
+ROOT = Path('.')
+
+def rep(path, old, new, count=1):
+    p = ROOT / path
+    text = p.read_text(encoding='utf-8')
+    if old not in text:
+        raise SystemExit(f'missing block in {path}')
+    p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+# Persist player-planned Trait actions to shared Firebase combat state.
+p = ROOT / 'js/player-trait-runtime.js'
+text = p.read_text(encoding='utf-8')
+text = text.replace('  const PLAYER_ID_STORAGE_KEY = "playerId";\n', '  const PLAYER_ID_STORAGE_KEY = "playerId";\n  const SHARED_PLANNED_ACTIONS_ROOT = "campaña/combate/plannedActions";\n')
+marker = '\n  function recalculateCompletedCheck(result) {'
+helper = '''\n  function sharedUnitId(unit = {}) {\n    return String(unit?.id || unit?.unitId || unit?.characterId || unit?.actorId || state.playerId || "").trim();\n  }\n\n  function persistScheduledAction(result, meta = {}) {\n    if (!state.db || !result?.scheduled) return null;\n    const runtime = result.runtime || meta.runtime || {};\n    const unit = runtime.self || runtime.character || currentCombatUnit();\n    const unitId = sharedUnitId(unit);\n    const slotIndex = Number(result.slotIndex);\n    if (!unitId || !Number.isInteger(slotIndex)) return null;\n    const local = global.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) || {};\n    const trait = result.trait || meta.trait || null;\n    const payload = {\n      ...local,\n      kind: "trait",\n      traitId: trait?.id || local.traitId || null,\n      sourceId: trait?.id || local.sourceId || null,\n      unitId, slotIndex,\n      slotId: result.slotId || `${unitId}_slot_${slotIndex}`,\n      targetId: local.targetId || runtime.target?.id || runtime.defender?.id || null,\n      data: { ...(local.data || {}), trait },\n      scheduledBy: state.playerId || null,\n      status: "planned",\n      scheduledAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),\n    };\n    state.db.ref(`${SHARED_PLANNED_ACTIONS_ROOT}/${unitId}/${slotIndex}`).set(payload).catch((error) => console.error("No se pudo compartir el Action Slot planeado:", error));\n    return payload;\n  }\n'''
+if marker not in text: raise SystemExit('player runtime insertion marker missing')
+text = text.replace(marker, helper + marker, 1)
+text = text.replace('''    if (result?.scheduled) {\n      emit("luminous:trait-action-scheduled", result);\n      emit("luminous:trait-activated", result);\n      return;\n    }''', '''    if (result?.scheduled) {\n      persistScheduledAction(result, meta);\n      emit("luminous:trait-action-scheduled", result);\n      emit("luminous:trait-activated", result);\n      return;\n    }''', 1)
+p.write_text(text, encoding='utf-8')
+
+# Generic CombatEngine fallback executes the serialized shared Trait definition.
+rep('js/combatEngine.js', '''    resolveActionSlot: function(unit, slotIndex, context = {}) {\n        const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;\n        if (runtime && typeof runtime.executePlannedTraitAction === 'function') {\n            const result = runtime.executePlannedTraitAction(unit, slotIndex, context);\n            if (result && result.handled) return result;\n        }\n        return { handled: false };\n    },''', '''    resolveActionSlot: function(unit, slotIndex, context = {}) {\n        const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;\n        if (!context.plannedAction && runtime && typeof runtime.executePlannedTraitAction === 'function') {\n            const result = runtime.executePlannedTraitAction(unit, slotIndex, context);\n            if (result && result.handled) return result;\n        }\n        const planned = context.plannedAction || null;\n        const trait = planned?.kind === 'trait' ? planned?.data?.trait : null;\n        const traitEngine = (typeof globalThis !== 'undefined') ? globalThis.LuminousTraitEngine : null;\n        if (!trait || !traitEngine?.activateTrait) return { handled: false, planned };\n        if (!unit.__luminousSharedTraitState) Object.defineProperty(unit, '__luminousSharedTraitState', { value: traitEngine.createState ? traitEngine.createState() : {}, writable: true, configurable: true, enumerable: false });\n        const units = Object.values(context.combatData || {});\n        const target = planned.targetId ? units.find(candidate => String(candidate?.id || candidate?.unitId || candidate?.characterId || '') === String(planned.targetId)) || null : null;\n        const traitRuntime = { context: 'combat', character: unit, self: unit, target, defender: target, executePlannedAction: true, actionEconomy: globalThis.LuminousActionEconomy?.runtimeFor?.(unit, { phase: 'combat' }) };\n        const result = traitEngine.activateTrait(trait, traitRuntime, unit.__luminousSharedTraitState);\n        if (result?.available) {\n            globalThis.LuminousTraitPlayerTray?.syncActivationStatuses?.(result, traitRuntime);\n            globalThis.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.([trait], 'on_use', traitRuntime, result);\n        }\n        return { handled: true, planned, result };\n    },''')
+
+print('shared planned action runtime staged')
