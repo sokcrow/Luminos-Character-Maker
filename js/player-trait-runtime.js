@@ -157,6 +157,24 @@
     return "any";
   }
 
+  function combatReservedActionSlotIndexes(unit = {}) {
+    const unitId = sharedUnitId(unit);
+    if (!unitId) return [];
+    let targets = global.slotTargets && typeof global.slotTargets === "object" ? global.slotTargets : null;
+    let vectors = global.attackVectors && typeof global.attackVectors === "object" ? global.attackVectors : null;
+    try {
+      if (!targets && typeof global.eval === "function") targets = global.eval("typeof slotTargets !== 'undefined' ? slotTargets : null");
+      if (!vectors && typeof global.eval === "function") vectors = global.eval("typeof attackVectors !== 'undefined' ? attackVectors : null");
+    } catch (_) {}
+    const prefix = `${unitId}_slot_`;
+    const ids = new Set([...Object.keys(targets || {}), ...Object.keys(vectors || {})]);
+    return [...ids].filter((slotId) => slotId.startsWith(prefix)).map((slotId) => Number(slotId.slice(prefix.length))).filter(Number.isInteger);
+  }
+
+  function currentAuthUid() {
+    try { return String(global.firebase?.auth?.()?.currentUser?.uid || "").trim(); } catch (_) { return ""; }
+  }
+
   function getRuntime(overrides = {}) {
     const character = getCharacter();
     const input = overrides || {};
@@ -171,7 +189,7 @@
     const standard = global.LuminousTraitStandardizationRuntime;
     const allies = context === "combat" && standard?.liveCombatUnits ? standard.liveCombatUnits({ self }).filter((unit) => unit !== self && Number(unit?.hp ?? 1) > 0 && String(unit?.faction ?? "") === String(self?.faction ?? "")) : [];
     const actionEconomy = context === "combat"
-      ? (input.actionEconomy || global.LuminousActionEconomy?.runtimeFor?.(self, { phase: input.phase || global.CombatEngine?.currentState }))
+      ? (input.actionEconomy || global.LuminousActionEconomy?.runtimeFor?.(self, { phase: input.phase || global.CombatEngine?.currentState, reservedSlotIndexes: combatReservedActionSlotIndexes(self) }))
       : input.actionEconomy;
     const runtime = { context, character, self, level, check, target, actionEconomy, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
     if (context === "theatre") runtime.registerDmEffect = (descriptor) => registerDmManagedEffect(descriptor, runtime);
@@ -211,15 +229,20 @@
     if (!unitId || !Number.isInteger(slotIndex)) return null;
     const local = global.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) || {};
     const trait = result.trait || meta.trait || null;
+    const schedulerUid = currentAuthUid();
+    if (!schedulerUid) {
+      global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
+      console.error("No se pudo compartir el Action Slot: usuario Firebase no autenticado.");
+      return null;
+    }
     const payload = {
-      ...local,
       kind: "trait",
       traitId: trait?.id || local.traitId || null,
       sourceId: trait?.id || local.sourceId || null,
       unitId, slotIndex,
       slotId: result.slotId || `${unitId}_slot_${slotIndex}`,
       targetId: local.targetId || runtime.target?.id || runtime.defender?.id || null,
-      data: { ...(local.data || {}), trait },
+      schedulerUid,
       scheduledBy: state.playerId || null,
       status: "planned",
       scheduledAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
@@ -279,7 +302,9 @@
     const hours = Math.max(0, Number(descriptor.durationHours ?? 1) || 0);
     const target = runtime.target || runtime.defender || null;
     const character = runtime.character || getCharacter();
-    const record = { id: ref.key, effectId: descriptor.effectId || descriptor.sourceTraitId || "dm_effect", name: descriptor.name || "DM Managed Effect", sourceTraitId: descriptor.sourceTraitId || null, subjectPlayerId: state.playerId || null, subjectName: character?.characterName || character?.nombre || character?.name || state.playerId || "Player", targetId: descriptor.targetId || target?.id || target?.actorId || target?.characterId || null, targetName: descriptor.targetName || target?.name || target?.nombre || target?.characterName || "Target", check: { ...(descriptor.check || {}) }, modifier: { ...(descriptor.modifier || {}) }, note: descriptor.note || "", active: true, approved: false, startsAt: now, expiresAt: now + Math.round(hours * 3600000), durationHours: hours };
+    const subjectUid = currentAuthUid();
+    if (!subjectUid) return null;
+    const record = { id: ref.key, effectId: descriptor.effectId || descriptor.sourceTraitId || "dm_effect", name: descriptor.name || "DM Managed Effect", sourceTraitId: descriptor.sourceTraitId || null, subjectUid, subjectPlayerId: state.playerId || null, subjectName: character?.characterName || character?.nombre || character?.name || state.playerId || "Player", targetId: descriptor.targetId || target?.id || target?.actorId || target?.characterId || null, targetName: descriptor.targetName || target?.name || target?.nombre || target?.characterName || "Target", check: { ...(descriptor.check || {}) }, modifier: { ...(descriptor.modifier || {}) }, note: descriptor.note || "", active: true, approved: false, startsAt: now, expiresAt: now + Math.round(hours * 3600000), durationHours: hours };
     ref.set(record).catch((error) => console.error("No se pudo registrar el efecto administrado por DM:", error));
     return record;
   }
@@ -290,7 +315,7 @@
     const now = Date.now();
     let bonus = 0;
     Object.values(state.dmEffects || {}).forEach((effect) => {
-      if (!effect || effect.active === false || effect.approved !== true) return;
+      if (!effect || effect.active === false || effect.approved !== true || effect.consumedAt) return;
       if (Number(effect.expiresAt || 0) && Number(effect.expiresAt) <= now) return;
       if (effect.subjectPlayerId && state.playerId && String(effect.subjectPlayerId) !== String(state.playerId)) return;
       const requiredAbility = normalizeId(effect.check?.abilityId || "");
@@ -299,7 +324,7 @@
       const modifier = effect.modifier || {};
       if (normalizeId(modifier.channel || "final_power") !== "final_power") return;
       bonus += Number(modifier.value || 0) || 0;
-      if (state.db && effect.id) state.db.ref(`${DM_MANAGED_EFFECTS_ROOT}/${effect.id}`).update({ approved: false, lastConsumedAt: now }).catch(() => {});
+      if (state.db && effect.id) state.db.ref(`${DM_MANAGED_EFFECTS_ROOT}/${effect.id}/consumedAt`).set(now).catch(() => {});
     });
     if (bonus) check.finalPower = (Number(check.finalPower || 0) || 0) + bonus;
     return bonus;

@@ -4,6 +4,52 @@ const RESONANCE_BONUS = {
     ABSOLUTE: [0, 0, 0, 3, 5, 5, 7, 7, 9, 9, 11, 11]
 };
 
+function normalizeTrustedTraitId(value) {
+    return String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function normalizeTrustedGrantCharacter(unit = {}) {
+    const build = unit.characterBuild && typeof unit.characterBuild === 'object' ? unit.characterBuild : {};
+    return {
+        ...unit,
+        raceId: build.raceId ?? unit.raceId ?? unit.race?.id,
+        raceSubtypeId: build.raceSubtypeId ?? unit.raceSubtypeId ?? unit.race?.subtypeId,
+        classes: Array.isArray(build.classes) ? build.classes : unit.classes,
+        level: build.calculatedAtLevel ?? unit.level,
+        lineages: Array.isArray(build.lineages) ? build.lineages : unit.lineages,
+        lineageId: build.lineageId ?? unit.lineageId,
+    };
+}
+
+function trustedExplicitTraitIds(unit = {}) {
+    const values = [];
+    for (const key of ['traitIds', 'racialTraitIds', 'grantedTraitIds']) if (Array.isArray(unit?.[key])) values.push(...unit[key]);
+    if (Array.isArray(unit?.traits)) values.push(...unit.traits.map((trait) => trait?.id || trait));
+    return new Set(values.filter(Boolean).map(normalizeTrustedTraitId));
+}
+
+function resolveTrustedTraitForUnit(unit = {}, traitId) {
+    const id = normalizeTrustedTraitId(traitId);
+    if (!id) return null;
+    const g = typeof globalThis !== 'undefined' ? globalThis : {};
+    const engine = g.LuminousTraitEngine;
+    const character = normalizeTrustedGrantCharacter(unit);
+    const explicit = trustedExplicitTraitIds(unit);
+    const racial = g.LuminousRacialTraitCatalog;
+    const racialDefinition = racial?.getDefinition?.(id) || null;
+    if (racialDefinition) {
+        const granted = racial?.resolveTraitGrants?.(character, racial.allDefinitions?.() || {}) || [];
+        return (explicit.has(id) || granted.some((trait) => normalizeTrustedTraitId(trait?.id) === id)) ? racialDefinition : null;
+    }
+    const core = g.LuminousTraitCatalogCore;
+    const coreDefinition = core?.getDefinition?.(id) || null;
+    if (coreDefinition) {
+        const granted = engine?.resolveTraitGrants?.(character, core.allGrants?.() || [], core.allDefinitions?.() || {}) || [];
+        return (explicit.has(id) || granted.some((trait) => normalizeTrustedTraitId(trait?.id) === id)) ? coreDefinition : null;
+    }
+    return null;
+}
+
 const CombatEngine = {
     // Game State
     currentState: 'COMBAT_ACTIVE',
@@ -92,6 +138,10 @@ const CombatEngine = {
         // Add additional logic if needed when planning ends
     },
 
+    resolveTrustedTraitForUnit: function(unit, traitId) {
+        return resolveTrustedTraitForUnit(unit, traitId);
+    },
+
     resolveActionSlot: function(unit, slotIndex, context = {}) {
         const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;
         if (!context.plannedAction && runtime && typeof runtime.executePlannedTraitAction === 'function') {
@@ -99,9 +149,10 @@ const CombatEngine = {
             if (result && result.handled) return result;
         }
         const planned = context.plannedAction || null;
-        const trait = planned?.kind === 'trait' ? planned?.data?.trait : null;
         const traitEngine = (typeof globalThis !== 'undefined') ? globalThis.LuminousTraitEngine : null;
-        if (!trait || !traitEngine?.activateTrait) return { handled: false, planned };
+        if (planned?.kind !== 'trait' || !planned?.traitId || !traitEngine?.activateTrait) return { handled: false, planned };
+        const trait = resolveTrustedTraitForUnit(unit, planned.traitId);
+        if (!trait) return { handled: true, planned, result: { available: false, reasons: ["Trait is not granted to this Unit or is not in a trusted catalog."], trait: null } };
         if (!unit.__luminousSharedTraitState) Object.defineProperty(unit, '__luminousSharedTraitState', { value: traitEngine.createState ? traitEngine.createState() : {}, writable: true, configurable: true, enumerable: false });
         const units = Object.values(context.combatData || {});
         const target = planned.targetId ? units.find(candidate => String(candidate?.id || candidate?.unitId || candidate?.characterId || '') === String(planned.targetId)) || null : null;

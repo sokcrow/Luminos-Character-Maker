@@ -38,14 +38,26 @@
     return state.db.ref(`${ROOT}/${id}`).update(patch).then(() => true);
   }
 
+  function appendTextLine(parent, text, style = "") {
+    const line = global.document.createElement("div");
+    if (style) line.style.cssText = style;
+    line.textContent = String(text ?? "");
+    parent.appendChild(line);
+    return line;
+  }
+
   function render() {
     const panel = ensurePanel();
     if (!panel) return;
     const now = Date.now();
     const active = Object.values(state.effects || {}).filter((effect) => isActive(effect, now));
-    panel.innerHTML = `<h4 style="margin:0 0 8px;color:#d4ad58;">EFECTOS ACTIVOS PARA DM (${active.length})</h4>`;
+    panel.replaceChildren();
+    const heading = global.document.createElement("h4");
+    heading.style.cssText = "margin:0 0 8px;color:#d4ad58;";
+    heading.textContent = `EFECTOS ACTIVOS PARA DM (${active.length})`;
+    panel.appendChild(heading);
     if (!active.length) {
-      panel.insertAdjacentHTML("beforeend", '<div style="opacity:.65;">Sin efectos temporales activos.</div>');
+      appendTextLine(panel, "Sin efectos temporales activos.", "opacity:.65;");
       return;
     }
     active.sort((a, b) => Number(a.expiresAt || 0) - Number(b.expiresAt || 0));
@@ -53,7 +65,11 @@
       const card = global.document.createElement("div");
       card.style.cssText = "border-top:1px solid #29313a;padding:8px 0;";
       const modifier = Number(effect.modifier?.value || 0) || 0;
-      card.innerHTML = `<div style="color:#fff;font-weight:700;">${effect.name || effect.effectId || "Effect"}</div><div>${effect.subjectName || effect.subjectPlayerId || "Player"} → ${effect.targetName || effect.targetId || "Target"}</div><div style="color:#e6c56c;">Tiempo restante: ${formatRemaining(effect, now)}</div><div style="font-size:11px;opacity:.8;margin-top:4px;">${effect.note || ""}</div><div style="font-size:11px;margin-top:4px;">CHA Check · bono configurado: +${modifier} Check Power</div>`;
+      appendTextLine(card, effect.name || effect.effectId || "Effect", "color:#fff;font-weight:700;");
+      appendTextLine(card, `${effect.subjectName || effect.subjectPlayerId || "Player"} → ${effect.targetName || effect.targetId || "Target"}`);
+      appendTextLine(card, `Tiempo restante: ${formatRemaining(effect, now)}`, "color:#e6c56c;");
+      appendTextLine(card, effect.note || "", "font-size:11px;opacity:.8;margin-top:4px;");
+      appendTextLine(card, `CHA Check · bono configurado: +${modifier} Check Power`, "font-size:11px;margin-top:4px;");
       const controls = global.document.createElement("div");
       controls.style.cssText = "display:flex;gap:6px;margin-top:6px;";
       const apply = global.document.createElement("button");

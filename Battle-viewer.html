@@ -222,9 +222,11 @@
     </div>
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="js/status-engine.js"></script>
     <script src="js/trait-engine.js"></script>
+    <script src="js/trait-catalog-core.js"></script>
     <script src="js/racial-trait-catalog.js"></script>
     <script src="js/universal-modifier-engine.js"></script>
     <script src="js/universal-action-economy.js"></script>
@@ -299,6 +301,20 @@
 
     function getSharedPlannedAction(unitId, slotIndex) {
         return sharedPlannedActions?.[unitId]?.[slotIndex] || sharedPlannedActions?.[unitId]?.[String(slotIndex)] || null;
+    }
+
+    function isTraitActionSlotReserved(slotId) {
+        const marker = '_slot_';
+        const splitAt = String(slotId || '').lastIndexOf(marker);
+        if (splitAt < 0) return false;
+        const unitId = slotId.slice(0, splitAt);
+        const slotIndex = Number(slotId.slice(splitAt + marker.length));
+        if (!Number.isInteger(slotIndex)) return false;
+        const shared = getSharedPlannedAction(unitId, slotIndex);
+        if (shared && ['planned', 'resolving'].includes(shared.status)) return true;
+        const unit = combatData[unitId];
+        const local = unit ? window.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) : null;
+        return local?.kind === 'trait';
     }
 
     function collectPlannedActionSlotIds() {
@@ -672,6 +688,7 @@
 
         allySlotsNodes.forEach(ally => {
             const baseId = ally.id.split('_slot_')[0];
+            if (isTraitActionSlotReserved(ally.id)) return;
             if (combatData[baseId] && combatData[baseId].isImmobilized) return;
 
             let allyId = ally.id; let targetId = null;
@@ -774,6 +791,10 @@
             const slot = e.target.closest('.action-slot-wrapper');
             if (slot && slot.dataset.faction === 'ally') {
                 const baseId = slot.id.split('_slot_')[0];
+                if (isTraitActionSlotReserved(slot.id)) {
+                    addLogEntry(`[ ACTION SLOT ] - ${combatData[baseId]?.name || baseId} ya reservó este Slot para una Trait.`, 'interrupt');
+                    return;
+                }
                 if (combatData[baseId] && combatData[baseId].isImmobilized) {
                     addLogEntry(`[ INMOVILIZADO ] - ${combatData[baseId].name} no puede asignar objetivos.`, 'interrupt');
                     return;
@@ -1101,6 +1122,11 @@
     function selectMatrixCell(x, y) {
         const attackerId = pendingAttackerSlotId;
         const targetId = pendingTargetSlotId;
+        if (!attackerId || isTraitActionSlotReserved(attackerId)) {
+            if (attackerId) addLogEntry('[ ACTION SLOT ] - Ese Slot está reservado para una Trait.', 'interrupt');
+            closeTargetingMatrix();
+            return;
+        }
 
         // Clear previous selection by this attacker on this target if any
         if (matrixOccupancy[targetId]) {

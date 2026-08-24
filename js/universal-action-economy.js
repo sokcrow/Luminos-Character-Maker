@@ -60,16 +60,23 @@
     return state;
   }
 
+  function reservedSlotIndexes(options = {}, max = Number.POSITIVE_INFINITY) {
+    const raw = options.reservedSlotIndexes ?? options.reservedSlots ?? [];
+    const values = raw instanceof Set ? [...raw] : (Array.isArray(raw) ? raw : Object.keys(raw || {}).filter((key) => raw[key]));
+    return new Set(values.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 0 && value < max));
+  }
+
   function snapshot(unit = {}, options = {}) {
     const state = ensureState(unit);
     const phase = phaseFor(options);
     if (!state) return { phase, action: 0, quick_action: 0, reaction: 0, actionSlots: 0, plannedActions: {} };
     state.phase = phase;
     const max = actionSlotMaximum(unit);
-    const planned = Object.keys(state.plannedActions || {}).length;
+    const occupied = new Set(Object.keys(state.plannedActions || {}).map(Number));
+    reservedSlotIndexes(options, max).forEach((index) => occupied.add(index));
     return {
       phase,
-      action: phase === PHASES.PLANNING ? Math.max(0, max - planned) : 0,
+      action: phase === PHASES.PLANNING ? Math.max(0, max - occupied.size) : 0,
       quick_action: phase === PHASES.PLANNING ? finiteInt(state.quickActionRemaining, 0) : 0,
       reaction: phase === PHASES.COMBAT ? finiteInt(state.reactionRemaining, 0) : 0,
       actionSlots: max,
@@ -128,10 +135,12 @@
     const max = actionSlotMaximum(unit);
     const requested = Number.isInteger(Number(options.slotIndex)) ? Number(options.slotIndex) : null;
     let slotIndex = requested;
+    const reserved = reservedSlotIndexes(options, max);
     if (slotIndex == null) {
-      slotIndex = Array.from({ length: max }, (_, index) => index).find((index) => !Object.prototype.hasOwnProperty.call(state.plannedActions, index));
+      slotIndex = Array.from({ length: max }, (_, index) => index).find((index) => !reserved.has(index) && !Object.prototype.hasOwnProperty.call(state.plannedActions, index));
     }
     if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= max) return { scheduled: false, reason: "invalid_action_slot" };
+    if (reserved.has(slotIndex)) return { scheduled: false, reason: "action_slot_reserved", slotIndex };
     if (Object.prototype.hasOwnProperty.call(state.plannedActions, slotIndex)) return { scheduled: false, reason: "action_slot_occupied", slotIndex };
     const entry = {
       kind: normalizeId(payload.kind || payload.type || "action") || "action",
@@ -237,6 +246,7 @@
     normalizePhase,
     phaseFor,
     actionSlotMaximum,
+    reservedSlotIndexes,
     ensureState,
     snapshot,
     availability,
