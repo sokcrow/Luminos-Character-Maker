@@ -12,6 +12,7 @@ on:
       - "js/combatEngine.js"
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
+      - "js/universal-action-economy.js"
       - "js/trait-standardization-runtime.js"
       - "js/player-trait-runtime.js"
       - "js/trait-player-tray.js"
@@ -31,11 +32,13 @@ on:
       - "tests/barbarian_trait_rules_runtime.spec.js"
       - "tests/universal_modifier_engine.spec.js"
       - "tests/universal_speed_runtime.spec.js"
+      - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
+      - ".github/scripts/apply_universal_action_economy.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   trait-engine-contract:
@@ -43,6 +46,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Apply universal action economy integration
+        run: python .github/scripts/apply_universal_action_economy.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -64,6 +72,7 @@ jobs:
           node --check js/combatEngine.js
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
+          node --check js/universal-action-economy.js
           node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
@@ -81,6 +90,7 @@ jobs:
           node --check tests/barbarian_trait_rules_runtime.spec.js
           node --check tests/universal_modifier_engine.spec.js
           node --check tests/universal_speed_runtime.spec.js
+          node --check tests/universal_action_economy.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
 
       - name: Run Trait regressions
@@ -96,5 +106,17 @@ jobs:
           tests/barbarian_trait_rules_runtime.spec.js
           tests/universal_modifier_engine.spec.js
           tests/universal_speed_runtime.spec.js
+          tests/universal_action_economy.spec.js
           tests/trait_standardization_review_fixes.spec.js
           --workers=1
+
+      - name: Commit verified action economy integration
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/trait-engine.js js/racial-trait-catalog.js js/combatEngine.js js/player-trait-runtime.js
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: enforce universal combat action economy"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
