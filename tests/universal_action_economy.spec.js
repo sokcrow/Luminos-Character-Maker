@@ -1,4 +1,6 @@
 const { test, expect } = require("@playwright/test");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const modifiers = require("../js/universal-modifier-engine.js");
 const economy = require("../js/universal-action-economy.js");
@@ -130,4 +132,22 @@ test("Cold Fury inherits Counter Power for Counter and ClashableCounter", () => 
   expect(ordinary.counter_power).toBe(4);
   expect(clashable.counter_power).toBe(4);
   expect(guard.counter_power).toBe(0);
+});
+
+
+test("production Battle viewer follows Firebase Planning state", () => {
+  const viewer = fs.readFileSync(path.join(__dirname, "..", "Battle-viewer.html"), "utf8");
+  expect(viewer).toContain("db.ref(COMBAT_STATE_PATH).on('value'");
+  expect(viewer).toContain("CombatEngine.beginPlanningPhase(units)");
+  expect(viewer).toContain("CombatEngine.triggerEncounterStart(units)");
+  expect(viewer).toContain("syncCombatEnginePhase('COMBAT_ACTIVE')");
+  expect(viewer).toContain("await db.ref(COMBAT_STATE_PATH).set('COMBAT_ACTIVE')");
+});
+
+test("production timeline resolves planned Trait Action Slots", () => {
+  const viewer = fs.readFileSync(path.join(__dirname, "..", "Battle-viewer.html"), "utf8");
+  expect(viewer).toContain("...collectPlannedActionSlotIds()");
+  expect(viewer).toContain("CombatEngine.resolveActionSlot(attackerUnit, slotIndex");
+  expect(viewer).toContain("if (plannedResolution?.handled)");
+  expect(viewer).toContain("resolvedSlots.add(attackerSlotId)");
 });

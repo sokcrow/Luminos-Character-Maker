@@ -242,6 +242,67 @@
 
     let combatData = {};
 
+    const COMBAT_STATE_PATH = 'campaña/combate/estado';
+    let luminousCombatPhaseState = null;
+
+    function combatUnitsForActionEconomy() {
+        return Object.values(combatData || {}).filter(unit => unit && typeof unit === 'object');
+    }
+
+    function syncCombatEnginePhase(rawState) {
+        const normalized = String(rawState || '').trim().toUpperCase();
+        if (!window.CombatEngine) return normalized;
+
+        const units = combatUnitsForActionEconomy();
+        const economy = window.LuminousActionEconomy;
+        const previous = luminousCombatPhaseState;
+
+        if (normalized === 'PRE_COMBAT_PLANNING') {
+            if (previous !== normalized) {
+                CombatEngine.beginPlanningPhase(units);
+            } else {
+                CombatEngine.currentState = 'PRE_COMBAT_PLANNING';
+                if (economy?.ensureState) {
+                    units.forEach(unit => {
+                        const state = economy.ensureState(unit);
+                        if (state?.phase !== 'planning') economy.beginPlanning(unit);
+                    });
+                }
+            }
+        } else if (normalized === 'COMBAT_ACTIVE') {
+            if (previous !== normalized) {
+                CombatEngine.triggerEncounterStart(units);
+            } else {
+                CombatEngine.currentState = 'COMBAT_ACTIVE';
+                if (economy?.ensureState) {
+                    units.forEach(unit => {
+                        const state = economy.ensureState(unit);
+                        if (state?.phase !== 'combat') economy.beginCombat(unit);
+                    });
+                }
+            }
+        }
+
+        luminousCombatPhaseState = normalized;
+        window.LuminousCombatPhaseState = normalized;
+        return normalized;
+    }
+
+    function collectPlannedActionSlotIds() {
+        const economy = window.LuminousActionEconomy;
+        if (!economy?.actionSlotMaximum || !economy?.getPlannedAction) return [];
+        const slotIds = [];
+        combatUnitsForActionEconomy().forEach(unit => {
+            const unitId = String(unit.id || unit.unitId || unit.characterId || '');
+            if (!unitId) return;
+            const maximum = economy.actionSlotMaximum(unit);
+            for (let slotIndex = 0; slotIndex < maximum; slotIndex++) {
+                if (economy.getPlannedAction(unit, slotIndex)) slotIds.push(`${unitId}_slot_${slotIndex}`);
+            }
+        });
+        return slotIds;
+    }
+
     // --- MODAL CREATOR LOGIC ---
     function openCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'flex'; }
     function closeCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'none'; }
@@ -778,12 +839,20 @@
 
     // --- TIMELINE DE EJECUCIÓN (Flanqueo y Movimiento) ---
     async function executeCombatTimeline() {
+        // Pressing Execute is the authoritative Planning -> Combat transition for this timeline.
+        syncCombatEnginePhase('COMBAT_ACTIVE');
+        try {
+            await db.ref(COMBAT_STATE_PATH).set('COMBAT_ACTIVE');
+        } catch (error) {
+            console.error('No se pudo sincronizar COMBAT_ACTIVE en Firebase:', error);
+        }
+
         addLogEntry('--- INICIANDO FASE DE RESOLUCIÓN ---', 'interrupt');
 
         // Colectar todos los slots que van a actuar
         // Para simplificar, iteramos sobre los atacantes (aliados) registrados en attackVectors
 
-        let actingSlots = Object.keys(attackVectors);
+        let actingSlots = [...new Set([...Object.keys(attackVectors), ...collectPlannedActionSlotIds()])];
         if (actingSlots.length === 0) {
             addLogEntry('NO HAY ACCIONES REGISTRADAS.');
             return;
@@ -797,17 +866,44 @@
 
         // Loop secuencial
         for (let attackerSlotId of actingSlots) {
-            const vector = attackVectors[attackerSlotId];
-            const targetSlotId = vector.target;
-
             const attackerBaseId = attackerSlotId.split('_slot_')[0];
-            const targetBaseId = targetSlotId.split('_slot_')[0];
-
             const attackerUnit = combatData[attackerBaseId];
-            const targetUnit = combatData[targetBaseId];
+            if (!attackerUnit) continue;
 
             if (attackerUnit.isImmobilized) {
                 addLogEntry(`[ INMOVILIZADO ] - ${attackerUnit.name} no puede actuar este turno.`, 'interrupt');
+                continue;
+            }
+
+            const slotIndex = Number(attackerSlotId.split('_slot_')[1]);
+            if (Number.isInteger(slotIndex) && typeof CombatEngine.resolveActionSlot === 'function') {
+                const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, {
+                    phase: 'combat',
+                    combatData,
+                    attackerSlotId,
+                });
+                if (plannedResolution?.handled) {
+                    const actionName = plannedResolution.result?.trait?.name || plannedResolution.planned?.traitId || 'Trait';
+                    if (plannedResolution.result?.available) {
+                        addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
+                    } else {
+                        addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');
+                    }
+                    resolvedSlots.add(attackerSlotId);
+                    continue;
+                }
+            }
+
+            const vector = attackVectors[attackerSlotId];
+            if (!vector?.target) {
+                resolvedSlots.add(attackerSlotId);
+                continue;
+            }
+            const targetSlotId = vector.target;
+            const targetBaseId = targetSlotId.split('_slot_')[0];
+            const targetUnit = combatData[targetBaseId];
+            if (!targetUnit) {
+                resolvedSlots.add(attackerSlotId);
                 continue;
             }
 
@@ -1118,6 +1214,11 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
     let activeDragRef = null;
 
     function initFirebaseCombat() {
+        // Firebase is the production source of truth for Planning vs Combat Phase.
+        db.ref(COMBAT_STATE_PATH).on('value', snap => {
+            syncCombatEnginePhase(snap.val());
+        });
+
         // Escuchar datos de los combatientes
         db.ref('campaña/combate/combatants').on('value', snap => {
             const data = snap.val() || {};
@@ -1132,6 +1233,9 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
             Object.values(dbCombatData).forEach(unit => {
                 spawnCombatant(unit);
             });
+            // Initial Firebase callbacks can arrive in either order. Re-apply the already-known
+            // phase to newly materialized Unit objects without resetting existing planned actions.
+            if (luminousCombatPhaseState) syncCombatEnginePhase(luminousCombatPhaseState);
             drawArcs();
         });
 
