@@ -223,6 +223,13 @@
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="js/status-engine.js"></script>
+    <script src="js/trait-engine.js"></script>
+    <script src="js/racial-trait-catalog.js"></script>
+    <script src="js/universal-modifier-engine.js"></script>
+    <script src="js/universal-action-economy.js"></script>
+    <script src="js/trait-player-tray.js"></script>
+    <script src="js/trait-standardization-runtime.js"></script>
     <script src="js/combatEngine.js"></script>
 
 <script>
@@ -243,7 +250,9 @@
     let combatData = {};
 
     const COMBAT_STATE_PATH = 'campaña/combate/estado';
+    const SHARED_PLANNED_ACTIONS_PATH = 'campaña/combate/plannedActions';
     let luminousCombatPhaseState = null;
+    let sharedPlannedActions = {};
 
     function combatUnitsForActionEconomy() {
         return Object.values(combatData || {}).filter(unit => unit && typeof unit === 'object');
@@ -288,19 +297,34 @@
         return normalized;
     }
 
+    function getSharedPlannedAction(unitId, slotIndex) {
+        return sharedPlannedActions?.[unitId]?.[slotIndex] || sharedPlannedActions?.[unitId]?.[String(slotIndex)] || null;
+    }
+
     function collectPlannedActionSlotIds() {
-        const economy = window.LuminousActionEconomy;
-        if (!economy?.actionSlotMaximum || !economy?.getPlannedAction) return [];
         const slotIds = [];
-        combatUnitsForActionEconomy().forEach(unit => {
-            const unitId = String(unit.id || unit.unitId || unit.characterId || '');
-            if (!unitId) return;
-            const maximum = economy.actionSlotMaximum(unit);
-            for (let slotIndex = 0; slotIndex < maximum; slotIndex++) {
-                if (economy.getPlannedAction(unit, slotIndex)) slotIds.push(`${unitId}_slot_${slotIndex}`);
-            }
+        Object.entries(sharedPlannedActions || {}).forEach(([unitId, slots]) => {
+            Object.entries(slots || {}).forEach(([slotIndex, action]) => {
+                if (action?.status === 'planned') slotIds.push(`${unitId}_slot_${slotIndex}`);
+            });
         });
         return slotIds;
+    }
+
+    async function claimSharedPlannedAction(unitId, slotIndex) {
+        const ref = db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${unitId}/${slotIndex}`);
+        const result = await ref.transaction(current => {
+            if (!current || current.status !== 'planned') return;
+            return { ...current, status: 'resolving', resolvingAt: Date.now() };
+        });
+        return result.committed ? result.snapshot.val() : null;
+    }
+
+    async function finishSharedPlannedAction(unitId, slotIndex, resolution) {
+        const success = Boolean(resolution?.handled && resolution?.result?.available);
+        const payload = { status: success ? 'resolved' : 'failed', resolvedAt: Date.now(), resolution: { handled: Boolean(resolution?.handled), available: Boolean(resolution?.result?.available), traitId: resolution?.planned?.traitId || resolution?.result?.trait?.id || null, reasons: resolution?.result?.reasons || [] } };
+        await db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${unitId}/${slotIndex}`).update(payload);
+        return payload;
     }
 
     // --- MODAL CREATOR LOGIC ---
@@ -876,19 +900,16 @@
             }
 
             const slotIndex = Number(attackerSlotId.split('_slot_')[1]);
-            if (Number.isInteger(slotIndex) && typeof CombatEngine.resolveActionSlot === 'function') {
-                const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, {
-                    phase: 'combat',
-                    combatData,
-                    attackerSlotId,
-                });
-                if (plannedResolution?.handled) {
-                    const actionName = plannedResolution.result?.trait?.name || plannedResolution.planned?.traitId || 'Trait';
-                    if (plannedResolution.result?.available) {
-                        addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
-                    } else {
-                        addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');
-                    }
+            const sharedAction = Number.isInteger(slotIndex) ? getSharedPlannedAction(attackerBaseId, slotIndex) : null;
+            if (sharedAction?.status === 'planned' && typeof CombatEngine.resolveActionSlot === 'function') {
+                let claimed = null;
+                try { claimed = await claimSharedPlannedAction(attackerBaseId, slotIndex); } catch (error) { console.error('No se pudo reclamar el Action Slot compartido:', error); }
+                if (claimed) {
+                    const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, { phase: 'combat', combatData, attackerSlotId, plannedAction: claimed });
+                    try { await finishSharedPlannedAction(attackerBaseId, slotIndex, plannedResolution); } catch (error) { console.error('No se pudo cerrar el Action Slot compartido:', error); }
+                    const actionName = plannedResolution?.result?.trait?.name || claimed?.traitId || 'Trait';
+                    if (plannedResolution?.result?.available) addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
+                    else addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');
                     resolvedSlots.add(attackerSlotId);
                     continue;
                 }
@@ -1218,6 +1239,9 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
         db.ref(COMBAT_STATE_PATH).on('value', snap => {
             syncCombatEnginePhase(snap.val());
         });
+
+        // Shared Planning is authoritative across every player and the DM viewer.
+        db.ref(SHARED_PLANNED_ACTIONS_PATH).on('value', snap => { sharedPlannedActions = snap.val() || {}; });
 
         // Escuchar datos de los combatientes
         db.ref('campaña/combate/combatants').on('value', snap => {

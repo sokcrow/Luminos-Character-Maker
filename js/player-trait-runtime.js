@@ -8,6 +8,8 @@
   const GRANTS_ROOT = "campaña/config/traits/grants";
   const PLAYER_ROOT = "campaña/jugadores";
   const PLAYER_ID_STORAGE_KEY = "playerId";
+  const SHARED_PLANNED_ACTIONS_ROOT = "campaña/combate/plannedActions";
+  const DM_MANAGED_EFFECTS_ROOT = "campaña/efectos_dm";
   const COMBAT_EVENT_MAP = Object.freeze({
     "[Before Use]": { trigger: "before_skill", timing: "before" },
     "[Before Attack]": { trigger: "before_attack", timing: "before" },
@@ -41,6 +43,8 @@
     lastCompletedCheck: null,
     theatreTarget: null,
     combatEngineSource: null,
+    dmEffects: {},
+    dmEffectsBound: false,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -166,7 +170,9 @@
     const actionEconomy = context === "combat"
       ? (input.actionEconomy || global.LuminousActionEconomy?.runtimeFor?.(self, { phase: input.phase || global.CombatEngine?.currentState }))
       : input.actionEconomy;
-    return { context, character, self, level, check, target, actionEconomy, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
+    const runtime = { context, character, self, level, check, target, actionEconomy, AliveAllies: input.AliveAllies ?? completed?.AliveAllies ?? allies.length, ...input };
+    if (context === "theatre") runtime.registerDmEffect = (descriptor) => registerDmManagedEffect(descriptor, runtime);
+    return runtime;
   }
 
 
@@ -187,6 +193,77 @@
       return { available: false, blocked: true, reason: `No live ${targetSpec.replaceAll("_", " ")} target is available.` };
     }
     return { runtime: resolved };
+  }
+
+  function sharedUnitId(unit = {}) {
+    return String(unit?.id || unit?.unitId || unit?.characterId || unit?.actorId || state.playerId || "").trim();
+  }
+
+  function persistScheduledAction(result, meta = {}) {
+    if (!state.db || !result?.scheduled) return null;
+    const runtime = result.runtime || meta.runtime || {};
+    const unit = runtime.self || runtime.character || currentCombatUnit();
+    const unitId = sharedUnitId(unit);
+    const slotIndex = Number(result.slotIndex);
+    if (!unitId || !Number.isInteger(slotIndex)) return null;
+    const local = global.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) || {};
+    const trait = result.trait || meta.trait || null;
+    const payload = {
+      ...local,
+      kind: "trait",
+      traitId: trait?.id || local.traitId || null,
+      sourceId: trait?.id || local.sourceId || null,
+      unitId, slotIndex,
+      slotId: result.slotId || `${unitId}_slot_${slotIndex}`,
+      targetId: local.targetId || runtime.target?.id || runtime.defender?.id || null,
+      data: { ...(local.data || {}), trait },
+      scheduledBy: state.playerId || null,
+      status: "planned",
+      scheduledAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
+    };
+    state.db.ref(`${SHARED_PLANNED_ACTIONS_ROOT}/${unitId}/${slotIndex}`).set(payload).catch((error) => console.error("No se pudo compartir el Action Slot planeado:", error));
+    return payload;
+  }
+
+  function targetMatchesDmEffect(target, effect = {}) {
+    if (!target) return !effect?.check?.targetScoped;
+    const ids = new Set(identityValues(target));
+    const effectId = String(effect.targetId || "").trim();
+    if (effectId && ids.has(effectId)) return true;
+    return Boolean(entityName(target) && normalizeId(effect.targetName || "") && entityName(target) === normalizeId(effect.targetName || ""));
+  }
+
+  function registerDmManagedEffect(descriptor = {}, runtime = {}) {
+    if (!state.db) return null;
+    const ref = state.db.ref(DM_MANAGED_EFFECTS_ROOT).push();
+    const now = Date.now();
+    const hours = Math.max(0, Number(descriptor.durationHours ?? 1) || 0);
+    const target = runtime.target || runtime.defender || null;
+    const character = runtime.character || getCharacter();
+    const record = { id: ref.key, effectId: descriptor.effectId || descriptor.sourceTraitId || "dm_effect", name: descriptor.name || "DM Managed Effect", sourceTraitId: descriptor.sourceTraitId || null, subjectPlayerId: state.playerId || null, subjectName: character?.characterName || character?.nombre || character?.name || state.playerId || "Player", targetId: descriptor.targetId || target?.id || target?.actorId || target?.characterId || null, targetName: descriptor.targetName || target?.name || target?.nombre || target?.characterName || "Target", check: { ...(descriptor.check || {}) }, modifier: { ...(descriptor.modifier || {}) }, note: descriptor.note || "", active: true, approved: false, startsAt: now, expiresAt: now + Math.round(hours * 3600000), durationHours: hours };
+    ref.set(record).catch((error) => console.error("No se pudo registrar el efecto administrado por DM:", error));
+    return record;
+  }
+
+  function applyApprovedDmEffects(check = {}, runtimeInput = {}) {
+    const target = runtimeInput.target || state.theatreTarget || null;
+    const abilityId = normalizeId(check.abilityId || check.statId || "");
+    const now = Date.now();
+    let bonus = 0;
+    Object.values(state.dmEffects || {}).forEach((effect) => {
+      if (!effect || effect.active === false || effect.approved !== true) return;
+      if (Number(effect.expiresAt || 0) && Number(effect.expiresAt) <= now) return;
+      if (effect.subjectPlayerId && state.playerId && String(effect.subjectPlayerId) !== String(state.playerId)) return;
+      const requiredAbility = normalizeId(effect.check?.abilityId || "");
+      if (requiredAbility && requiredAbility !== abilityId) return;
+      if (!targetMatchesDmEffect(target, effect)) return;
+      const modifier = effect.modifier || {};
+      if (normalizeId(modifier.channel || "final_power") !== "final_power") return;
+      bonus += Number(modifier.value || 0) || 0;
+      if (state.db && effect.id) state.db.ref(`${DM_MANAGED_EFFECTS_ROOT}/${effect.id}`).update({ approved: false, lastConsumedAt: now }).catch(() => {});
+    });
+    if (bonus) check.finalPower = (Number(check.finalPower || 0) || 0) + bonus;
+    return bonus;
   }
 
   function recalculateCompletedCheck(result) {
@@ -215,6 +292,7 @@
   function handleTraitActivated(result, meta = {}) {
     const runtime = result?.runtime || meta.runtime || getRuntime();
     if (result?.scheduled) {
+      persistScheduledAction(result, meta);
       emit("luminous:trait-action-scheduled", result);
       emit("luminous:trait-activated", result);
       return;
@@ -358,6 +436,10 @@
         refresh();
       });
     }
+    if (!state.dmEffectsBound) {
+      state.dmEffectsBound = true;
+      state.db.ref(DM_MANAGED_EFFECTS_ROOT).on("value", (snapshot) => { state.dmEffects = snapshot.val() || {}; });
+    }
     return true;
   }
 
@@ -381,6 +463,7 @@
     if (!state.traitState) state.traitState = traitEngine.createState();
     const character = getCharacter();
     const preparedCheck = normalizeTheatreCheckInput(check, runtimeInput);
+    applyApprovedDmEffects(preparedCheck, runtimeInput);
     const hadThreshold = finiteNumber(preparedCheck.thresholdRaw ?? preparedCheck.threshold) != null;
     const result = traitEngine.resolveTheatreCheck({
       character,

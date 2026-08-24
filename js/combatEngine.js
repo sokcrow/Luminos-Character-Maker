@@ -94,11 +94,24 @@ const CombatEngine = {
 
     resolveActionSlot: function(unit, slotIndex, context = {}) {
         const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;
-        if (runtime && typeof runtime.executePlannedTraitAction === 'function') {
+        if (!context.plannedAction && runtime && typeof runtime.executePlannedTraitAction === 'function') {
             const result = runtime.executePlannedTraitAction(unit, slotIndex, context);
             if (result && result.handled) return result;
         }
-        return { handled: false };
+        const planned = context.plannedAction || null;
+        const trait = planned?.kind === 'trait' ? planned?.data?.trait : null;
+        const traitEngine = (typeof globalThis !== 'undefined') ? globalThis.LuminousTraitEngine : null;
+        if (!trait || !traitEngine?.activateTrait) return { handled: false, planned };
+        if (!unit.__luminousSharedTraitState) Object.defineProperty(unit, '__luminousSharedTraitState', { value: traitEngine.createState ? traitEngine.createState() : {}, writable: true, configurable: true, enumerable: false });
+        const units = Object.values(context.combatData || {});
+        const target = planned.targetId ? units.find(candidate => String(candidate?.id || candidate?.unitId || candidate?.characterId || '') === String(planned.targetId)) || null : null;
+        const traitRuntime = { context: 'combat', character: unit, self: unit, target, defender: target, executePlannedAction: true, actionEconomy: globalThis.LuminousActionEconomy?.runtimeFor?.(unit, { phase: 'combat' }) };
+        const result = traitEngine.activateTrait(trait, traitRuntime, unit.__luminousSharedTraitState);
+        if (result?.available) {
+            globalThis.LuminousTraitPlayerTray?.syncActivationStatuses?.(result, traitRuntime);
+            globalThis.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.([trait], 'on_use', traitRuntime, result);
+        }
+        return { handled: true, planned, result };
     },
 
 // 0. Habilidades y Poder (Skills)

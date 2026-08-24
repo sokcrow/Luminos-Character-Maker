@@ -348,3 +348,15 @@ test("Friend of Life restores at least 1 HP when 5% would round to zero", () => 
   });
   expect(target.hp).toBe(1);
 });
+
+
+test("Subtle Influence is a one-hour DM-managed CHA effect", () => {
+  const trait = catalog.getDefinition("yuan_ti_subtle_influence");
+  const op = trait.effects.flatMap((effect) => effect.operations).find((entry) => entry.type === "register_dm_effect");
+  expect(op).toBeTruthy();
+  expect(op.durationHours).toBe(1);
+  expect(op.check.abilityId).toBe("cha");
+  expect(op.modifier.channel).toBe("final_power");
+  expect(op.modifier.value).toBe(4);
+  expect(trait.activation.conditions.some((condition) => condition.path === "target" && condition.operator === "truthy")).toBeTruthy();
+});

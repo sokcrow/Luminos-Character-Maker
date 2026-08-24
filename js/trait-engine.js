@@ -16,7 +16,7 @@
   });
   const RESET_SCOPES = Object.freeze({ TURN: "turn", ENCOUNTER: "encounter", SHORT_REST: "short_rest", LONG_REST: "long_rest", DAY: "day", NEVER: "never" });
   const DURATION_TYPES = Object.freeze({ IMMEDIATE: "immediate", THIS_SKILL: "this_skill", THIS_TURN: "this_turn", NEXT_TURN: "next_turn", NEXT_SKILL: "next_skill", ENCOUNTER: "encounter", UNTIL_REMOVED: "until_removed", PERMANENT: "permanent" });
-  const OPERATION_TYPES = Object.freeze(["modify", "resource", "apply_status", "remove_status", "heal_hp", "heal_sp", "gain_shield", "set_flag", "clear_flag", "log"]);
+  const OPERATION_TYPES = Object.freeze(["modify", "resource", "apply_status", "remove_status", "heal_hp", "heal_sp", "gain_shield", "set_flag", "clear_flag", "register_dm_effect", "log"]);
   const RULE_TYPES = Object.freeze(["modifier", "status", "restriction", "resource", "coin", "check", "counter", "stagger_threshold", "status_protection", "stat", "speed_override"]);
   const CONDITION_OPERATORS = Object.freeze(["eq", "equals", "ne", "not_equals", "gt", "gte", "lt", "lte", "truthy", "falsy", "contains", "not_contains", "in", "not_in", "between"]);
   const FORBIDDEN_PATH_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
@@ -318,6 +318,12 @@
     else if (["heal_hp", "heal_sp", "gain_shield"].includes(type)) { const path = op.path || (type === "heal_hp" ? "self.currentHp" : type === "heal_sp" ? "self.currentSp" : "self.shield"), m = mutate(env.runtime, path, "add", amount); if (op.maxPath) setPath(env.runtime, path, Math.min(num(getPath(env.runtime, op.maxPath), m.after), m.after)); out = Object.assign(base, { path, amount, before: m.before, after: num(getPath(env.runtime, path), m.after) }); }
     else if (type === "set_flag") { const id = assertSafeKey(op.flagId || op.path, "Flag id"); env.state.flags[id] = op.value == null ? true : op.value; out = Object.assign(base, { flagId: id, value: env.state.flags[id] }); }
     else if (type === "clear_flag") { const id = assertSafeKey(op.flagId || op.path, "Flag id"); delete env.state.flags[id]; out = Object.assign(base, { flagId: id, cleared: true }); }
+    else if (type === "register_dm_effect") {
+      const target = env.runtime.target || env.runtime.defender || null;
+      const descriptor = { effectId: normalizeId(op.effectId || env.trait.id), name: String(op.name || env.trait.name || env.trait.id), durationHours: Math.max(0, num(op.durationHours ?? op.hours, 1)), sourceTraitId: env.trait.id, targetId: target?.id ?? target?.actorId ?? target?.characterId ?? null, targetName: target?.name ?? target?.nombre ?? target?.characterName ?? null, check: clone(op.check || {}), modifier: clone(op.modifier || {}), note: String(op.note || "") };
+      const registered = typeof env.runtime.registerDmEffect === "function" ? env.runtime.registerDmEffect(descriptor) : null;
+      out = Object.assign(base, { descriptor, registered: clone(registered) });
+    }
     else if (type === "log") out = Object.assign(base, { message: String(op.message || "") }); else throw new Error(`Unsupported trait operation type: ${op.type}`);
     env.state.history.push(Object.assign({ at: Date.now() }, clone(out))); return out;
   }

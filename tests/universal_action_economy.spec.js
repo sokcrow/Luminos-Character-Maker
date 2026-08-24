@@ -6,6 +6,8 @@ const modifiers = require("../js/universal-modifier-engine.js");
 const economy = require("../js/universal-action-economy.js");
 const traitEngine = require("../js/trait-engine.js");
 const racialCatalog = require("../js/racial-trait-catalog.js");
+const CombatEngine = require("../js/combatEngine.js");
+const dmEffects = require("../js/dm-managed-effect-engine.js");
 
 test("Actions are assigned to free Action Slots during Planning instead of executing immediately", () => {
   const unit = { id: "actor", activeSlots: 2, hp: 10, maxHp: 20 };
@@ -148,6 +150,28 @@ test("production timeline resolves planned Trait Action Slots", () => {
   const viewer = fs.readFileSync(path.join(__dirname, "..", "Battle-viewer.html"), "utf8");
   expect(viewer).toContain("...collectPlannedActionSlotIds()");
   expect(viewer).toContain("CombatEngine.resolveActionSlot(attackerUnit, slotIndex");
-  expect(viewer).toContain("if (plannedResolution?.handled)");
+  expect(viewer).toContain("claimSharedPlannedAction(attackerBaseId, slotIndex)");
+  expect(viewer).toContain("plannedAction: claimed");
+  expect(viewer).toContain("finishSharedPlannedAction(attackerBaseId, slotIndex, plannedResolution)");
   expect(viewer).toContain("resolvedSlots.add(attackerSlotId)");
+});
+
+
+test("CombatEngine executes a serialized shared Trait Action without player-local memory", () => {
+  global.LuminousTraitEngine = traitEngine;
+  const unit = { id: "actor", hp: 10, maxHp: 20 };
+  const trait = { id: "shared_heal", name: "Shared Heal", contexts: ["combat"], activation: { type: "manual", actionCost: "action" }, effects: [{ id: "heal", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", value: 5 }] }], rules: [] };
+  const plannedAction = { kind: "trait", traitId: trait.id, targetId: null, data: { trait } };
+  const result = CombatEngine.resolveActionSlot(unit, 0, { phase: "combat", combatData: { actor: unit }, plannedAction });
+  expect(result.handled).toBeTruthy();
+  expect(result.result.available).toBeTruthy();
+  expect(unit.hp).toBe(15);
+  delete global.LuminousTraitEngine;
+});
+
+test("DM managed effects expose deterministic duration helpers", () => {
+  const effect = { active: true, expiresAt: 3_600_000 };
+  expect(dmEffects.isActive(effect, 0)).toBeTruthy();
+  expect(dmEffects.formatRemaining(effect, 0)).toBe("1h 0m");
+  expect(dmEffects.isActive(effect, 3_600_000)).toBeFalsy();
 });
