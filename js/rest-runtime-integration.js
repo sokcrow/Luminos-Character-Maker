@@ -272,13 +272,19 @@
       global.document.head?.appendChild(script);
       return script;
     };
+    const ensureBridge = () => {
+      if (!global.LuminousInjuryEquipmentRuntime) ensureScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
+    };
+    const ensureInjury = () => {
+      if (global.LuminousInjuryEngine) return ensureBridge();
+      const injury = ensureScript("injury-engine-script", "js/injury-engine.js");
+      injury?.addEventListener?.("load", ensureBridge, { once: true });
+    };
     if (global.LuminousAnatomyEquipmentEngine) {
-      return { anatomy: null, injury: global.LuminousInjuryEngine ? null : ensureScript("injury-engine-script", "js/injury-engine.js") };
+      ensureInjury();
+      return { anatomy: null };
     }
     const anatomy = ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
-    const ensureInjury = () => {
-      if (!global.LuminousInjuryEngine) ensureScript("injury-engine-script", "js/injury-engine.js");
-    };
     anatomy?.addEventListener?.("load", ensureInjury, { once: true });
     return { anatomy };
   }
