@@ -174,32 +174,30 @@
     return script;
   }
 
-  // Rest/Recover is a shared player + combat resource. Load the canonical Class table first,
-  // then Rest Engine, then the bridge that connects Trait activation and persistence.
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
   if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
   if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
   if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
 
-  // Status Engine is loaded by the real Battle Viewer before CombatEngine. Bootstrap the
-  // Archetype runtimes here so combat mechanics do not depend on player-sheet-only loaders.
   if (global.document && !global.LuminousArchetypeRuntime) loadScript("player-archetype-runtime-script", "js/player-archetype-runtime.js");
   if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
-
-  // Death/Downed is a combat-wide rule, not a player-sheet feature.
   if (global.document && !global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
 
-  // Anatomy/Equipment and Injuries are also combat-wide rules. Anatomy must load first because
-  // Injuries can disable/miss parts and immediately invalidate held or worn equipment.
-  if (global.document && !global.LuminousAnatomyEquipmentEngine) {
-    const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
-    const ensureInjury = () => {
-      if (!global.LuminousInjuryEngine) loadScript("injury-engine-script", "js/injury-engine.js");
+  function ensureInjuryEquipmentRuntime() {
+    if (!global.document) return;
+    const ensureBridge = () => {
+      if (!global.LuminousInjuryEquipmentRuntime) loadScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
     };
-    if (global.LuminousAnatomyEquipmentEngine) ensureInjury();
-    else anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
-  } else if (global.document && !global.LuminousInjuryEngine) {
-    loadScript("injury-engine-script", "js/injury-engine.js");
+    const ensureInjury = () => {
+      if (global.LuminousInjuryEngine) return ensureBridge();
+      const injuryScript = loadScript("injury-engine-script", "js/injury-engine.js");
+      injuryScript?.addEventListener?.("load", ensureBridge, { once: true });
+    };
+    if (global.LuminousAnatomyEquipmentEngine) return ensureInjury();
+    const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+    anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
   }
+
+  ensureInjuryEquipmentRuntime();
 })(typeof window !== "undefined" ? window : globalThis);
