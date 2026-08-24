@@ -8,6 +8,8 @@ on:
       - "Battle-viewer.html"
       - "js/status-engine.js"
       - "js/death-save-runtime.js"
+      - "js/anatomy-equipment-engine.js"
+      - "js/injury-engine.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
@@ -17,8 +19,11 @@ on:
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
       - "docs/rest-system.md"
+      - "docs/injury-equipment-system.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/death_save_trait_modifiers.spec.js"
+      - "tests/anatomy_equipment_engine.spec.js"
+      - "tests/injury_engine.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -30,6 +35,8 @@ on:
       - "Battle-viewer.html"
       - "js/status-engine.js"
       - "js/death-save-runtime.js"
+      - "js/anatomy-equipment-engine.js"
+      - "js/injury-engine.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
@@ -39,8 +46,11 @@ on:
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
       - "docs/rest-system.md"
+      - "docs/injury-equipment-system.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/death_save_trait_modifiers.spec.js"
+      - "tests/anatomy_equipment_engine.spec.js"
+      - "tests/injury_engine.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -71,6 +81,8 @@ jobs:
         run: |
           node --check js/status-engine.js
           node --check js/death-save-runtime.js
+          node --check js/anatomy-equipment-engine.js
+          node --check js/injury-engine.js
           node --check js/archetype-engine.js
           node --check js/archetype-trait-catalog.js
           node --check js/player-archetype-runtime.js
@@ -80,6 +92,8 @@ jobs:
           node --check js/utils.js
           node --check tests/death_save_runtime.spec.js
           node --check tests/death_save_trait_modifiers.spec.js
+          node --check tests/anatomy_equipment_engine.spec.js
+          node --check tests/injury_engine.spec.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
           node --check tests/archetype_review_regressions.spec.js
@@ -91,6 +105,8 @@ jobs:
           npx playwright test
           tests/death_save_runtime.spec.js
           tests/death_save_trait_modifiers.spec.js
+          tests/anatomy_equipment_engine.spec.js
+          tests/injury_engine.spec.js
           tests/archetype_engine.spec.js
           tests/archetype_runtime_contract.spec.js
           tests/archetype_review_regressions.spec.js
