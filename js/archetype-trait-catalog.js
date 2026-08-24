@@ -50,6 +50,7 @@
         activeInventoryBonus: 2,
         strengthCheckThreshold: -1,
         twoHandedHandSlots: 1,
+        twoHandedAsOneHanded: true,
       },
     },
 
@@ -83,7 +84,10 @@
         id: "devil_lineage_demonic_resistance_heal",
         contexts: ["combat"],
         trigger: "turn_start",
-        conditions: [],
+        conditions: [
+          { path: "self.isDowned", operator: "falsy" },
+          { path: "self.lifeState", operator: "ne", value: "downed" },
+        ],
         operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", formula: "floor(MaxHP * (ConstitutionMod + Proficiency) / 100)" }],
       }],
       rules: [],
@@ -143,7 +147,13 @@
       source,
       contexts: ["any"],
       activation: { type: "passive", actionCost: "none" },
-      effects: [],
+      effects: [{
+        id: "devil_lineage_supernatural_endurance_death_save_power",
+        contexts: ["combat"],
+        trigger: "before_check",
+        conditions: [{ path: "check.kind", operator: "eq", value: "death_save" }],
+        operations: [{ type: "modify", path: "check.deathSavePower", mode: "add", value: 2 }],
+      }],
       rules: [],
       mechanics: { deathSavePowerBonus: 2 },
     },
@@ -167,14 +177,14 @@
       schemaVersion: 1,
       id: "devil_lineage_improved_devil_strength",
       name: "Improved Devil Strength",
-      description: "On Hit, apply 3 Burn Potency. On Critical, apply 1 Burn Count.",
+      description: "While having Rage, On Hit apply 3 Burn Potency and On Critical apply 1 Burn Count.",
       source,
       contexts: ["combat"],
       activation: { type: "automatic", actionCost: "none" },
       effects: [],
       rules: [
-        { type: "status", trigger: "on_hit", target: "target", action: "inflict", statusId: "burn", potency: 3, count: 0 },
-        { type: "status", trigger: "on_crit", target: "target", action: "inflict", statusId: "burn", potency: 0, count: 1 },
+        { type: "status", trigger: "on_hit", target: "target", action: "inflict", statusId: "burn", potency: 3, count: 0, whileStatus: "rage" },
+        { type: "status", trigger: "on_crit", target: "target", action: "inflict", statusId: "burn", potency: 0, count: 1, whileStatus: "rage" },
       ],
     },
 
@@ -207,6 +217,7 @@
       rules: [],
       mechanics: {
         bodyPartRegenerationDays: 3,
+        bodyPartRegenerationHours: 72,
         minimumHpDuringRegeneration: 1,
         restoreBlockedEquipmentSlots: true,
       },
@@ -304,8 +315,24 @@
     return { ...ARCHETYPES };
   }
 
+  function getDefinition(id) {
+    const key = String(id ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+    return DEFINITIONS[key] || null;
+  }
+
   function resolveTraitGrants(character = {}, definitions = allDefinitions()) {
     return archetypeEngine.resolveTraitGrants(character, GRANTS, definitions, ARCHETYPES, global.LuminousTraitEngine || traitEngine);
+  }
+
+  function ensureDevilLineageRuntime() {
+    const doc = global.document;
+    if (!doc || global.LuminousDevilLineageRuntime || doc.getElementById?.("devil-lineage-runtime-script")) return null;
+    const script = doc.createElement("script");
+    script.id = "devil-lineage-runtime-script";
+    script.src = "js/devil-lineage-runtime.js";
+    script.async = false;
+    doc.head?.appendChild(script);
+    return script;
   }
 
   const api = Object.freeze({
@@ -317,9 +344,12 @@
     allDefinitions,
     allGrants,
     allArchetypes,
+    getDefinition,
     resolveTraitGrants,
+    ensureDevilLineageRuntime,
   });
 
   global.LuminousArchetypeTraitCatalog = api;
+  ensureDevilLineageRuntime();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
