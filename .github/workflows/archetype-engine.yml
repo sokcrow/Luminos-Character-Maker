@@ -18,6 +18,7 @@ on:
       - "js/utils.js"
       - "docs/rest-system.md"
       - "tests/death_save_runtime.spec.js"
+      - "tests/death_save_trait_modifiers.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -39,6 +40,7 @@ on:
       - "js/utils.js"
       - "docs/rest-system.md"
       - "tests/death_save_runtime.spec.js"
+      - "tests/death_save_trait_modifiers.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -77,6 +79,7 @@ jobs:
           node --check js/rest-runtime-integration.js
           node --check js/utils.js
           node --check tests/death_save_runtime.spec.js
+          node --check tests/death_save_trait_modifiers.spec.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
           node --check tests/archetype_review_regressions.spec.js
@@ -87,6 +90,7 @@ jobs:
         run: >-
           npx playwright test
           tests/death_save_runtime.spec.js
+          tests/death_save_trait_modifiers.spec.js
           tests/archetype_engine.spec.js
           tests/archetype_runtime_contract.spec.js
           tests/archetype_review_regressions.spec.js
