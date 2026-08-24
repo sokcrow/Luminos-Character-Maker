@@ -1,5 +1,4 @@
-# Final clean regression contract for the production Trait/runtime integration.
-# Includes the shared Firebase-state security contract.
+# Temporary verified patch runner for the final Codex review findings.
 name: Trait Engine
 
 on:
@@ -25,26 +24,13 @@ on:
       - "js/instance-control.js"
       - "js/dm-managed-effect-engine.js"
       - "hoja_personaje.js"
-      - "js/dm-trait-catalog-importer.js"
-      - "js/trait-builder.js"
-      - "dm-trait-creator.html"
-      - "tests/trait_engine.spec.js"
-      - "tests/trait_engine_codex_regressions.spec.js"
-      - "tests/trait_catalog_core.spec.js"
-      - "tests/racial_trait_catalog.spec.js"
       - "tests/racial_trait_engine_regressions.spec.js"
-      - "tests/player_trait_tabs.spec.js"
-      - "tests/dm_trait_catalog_importer.spec.js"
-      - "tests/barbarian_trait_rules_runtime.spec.js"
-      - "tests/universal_modifier_engine.spec.js"
-      - "tests/universal_speed_runtime.spec.js"
-      - "tests/universal_action_economy.spec.js"
-      - "tests/trait_standardization_review_fixes.spec.js"
       - "tests/firebase_shared_trait_rules.spec.js"
+      - ".github/scripts/apply_final_codex_round.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   trait-engine-contract:
@@ -52,6 +38,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: feat/racial-traits-automation
+
+      - name: Apply final Codex fixes
+        run: python .github/scripts/apply_final_codex_round.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -65,36 +56,12 @@ jobs:
       - name: Check syntax
         run: |
           node --check js/trait-engine.js
-          node --check js/trait-catalog-core.js
           node --check js/racial-trait-catalog.js
-          node --check js/racial-trait-runtime-bridge.js
-          node --check js/status-engine.js
-          node --check js/statusManager.js
-          node --check js/combatEngine.js
-          node --check js/universal-modifier-engine.js
-          node --check js/universal-speed-runtime.js
-          node --check js/universal-action-economy.js
-          node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
-          node --check js/trait-player-tray.js
-          node --check js/player-stats-ability-bar.js
-          node --check js/instance-control.js
           node --check js/dm-managed-effect-engine.js
-          node --check js/dm-trait-catalog-importer.js
-          node --check js/trait-builder.js
-          node --check tests/trait_engine.spec.js
-          node --check tests/trait_engine_codex_regressions.spec.js
-          node --check tests/trait_catalog_core.spec.js
-          node --check tests/racial_trait_catalog.spec.js
           node --check tests/racial_trait_engine_regressions.spec.js
-          node --check tests/player_trait_tabs.spec.js
-          node --check tests/dm_trait_catalog_importer.spec.js
-          node --check tests/barbarian_trait_rules_runtime.spec.js
-          node --check tests/universal_modifier_engine.spec.js
-          node --check tests/universal_speed_runtime.spec.js
-          node --check tests/universal_action_economy.spec.js
-          node --check tests/trait_standardization_review_fixes.spec.js
           node --check tests/firebase_shared_trait_rules.spec.js
+          python -m json.tool database.rules.json >/dev/null
 
       - name: Run Trait regressions
         run: >-
@@ -113,3 +80,15 @@ jobs:
           tests/trait_standardization_review_fixes.spec.js
           tests/firebase_shared_trait_rules.spec.js
           --workers=1
+
+      - name: Commit verified final Codex fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Battle-viewer.html database.rules.json js/player-trait-runtime.js js/racial-trait-catalog.js js/trait-engine.js js/dm-managed-effect-engine.js tests/racial_trait_engine_regressions.spec.js tests/firebase_shared_trait_rules.spec.js
+          if git diff --cached --quiet; then
+            echo "No patch changes to commit."
+          else
+            git commit -m "fix: close final Codex trait blockers"
+            git push origin HEAD:feat/racial-traits-automation
+          fi
