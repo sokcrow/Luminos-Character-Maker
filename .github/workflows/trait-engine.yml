@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "Battle-viewer.html"
+      - "hoja_de_DM.html"
       - "js/trait-engine.js"
       - "js/trait-catalog-core.js"
       - "js/racial-trait-catalog.js"
@@ -19,6 +20,7 @@ on:
       - "js/trait-player-tray.js"
       - "js/player-stats-ability-bar.js"
       - "js/instance-control.js"
+      - "js/dm-managed-effect-engine.js"
       - "hoja_personaje.js"
       - "js/dm-trait-catalog-importer.js"
       - "js/trait-builder.js"
@@ -35,10 +37,16 @@ on:
       - "tests/universal_speed_runtime.spec.js"
       - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
+      - ".github/scripts/apply_shared_planned_actions.py"
+      - ".github/scripts/apply_shared_planned_actions_viewer.py"
+      - ".github/scripts/apply_subtle_influence.py"
+      - ".github/scripts/apply_subtle_runtime.py"
+      - ".github/scripts/apply_dm_effect_dashboard.py"
+      - ".github/scripts/apply_final_action_subtle_tests.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   trait-engine-contract:
@@ -46,6 +54,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Apply final shared Action and Subtle integration
+        run: |
+          python .github/scripts/apply_shared_planned_actions.py
+          python .github/scripts/apply_shared_planned_actions_viewer.py
+          python .github/scripts/apply_subtle_influence.py
+          python .github/scripts/apply_subtle_runtime.py
+          python .github/scripts/apply_dm_effect_dashboard.py
+          python .github/scripts/apply_final_action_subtle_tests.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -73,6 +92,7 @@ jobs:
           node --check js/trait-player-tray.js
           node --check js/player-stats-ability-bar.js
           node --check js/instance-control.js
+          node --check js/dm-managed-effect-engine.js
           node --check js/dm-trait-catalog-importer.js
           node --check js/trait-builder.js
           node --check tests/trait_engine.spec.js
@@ -104,3 +124,14 @@ jobs:
           tests/universal_action_economy.spec.js
           tests/trait_standardization_review_fixes.spec.js
           --workers=1
+
+      - name: Commit verified final integration
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Battle-viewer.html hoja_de_DM.html js/trait-engine.js js/racial-trait-catalog.js js/player-trait-runtime.js js/combatEngine.js js/dm-managed-effect-engine.js tests/trait_engine.spec.js tests/racial_trait_catalog.spec.js tests/universal_action_economy.spec.js
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: share planned Actions and surface Subtle Influence"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
