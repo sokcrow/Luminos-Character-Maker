@@ -40,18 +40,19 @@
         ? { classId, archetypeId: value }
         : { classId, ...(value || {}) });
 
-    const byClass = new Map();
-    list.forEach((entry) => {
+    // Intentionally preserve duplicate Class entries here. Validation must see malformed
+    // persisted input instead of silently normalizing it into a valid one. Callers that
+    // select/replace an Archetype canonicalize the chosen Class by filtering and re-adding it.
+    return list.map((entry) => {
       const classId = normalizeId(entry?.classId || entry?.parentClassId || entry?.class);
       const archetypeId = normalizeId(entry?.archetypeId || entry?.subclassId || entry?.id || entry?.archetype);
-      if (!classId || !archetypeId || byClass.has(classId)) return;
-      byClass.set(classId, {
+      if (!classId || !archetypeId) return null;
+      return {
         classId,
         archetypeId,
         selectedAtClassLevel: Math.max(0, toInt(entry?.selectedAtClassLevel ?? entry?.selectedAtLevel)),
-      });
-    });
-    return [...byClass.values()];
+      };
+    }).filter(Boolean);
   }
 
   function catalogEntries(catalog = {}) {
