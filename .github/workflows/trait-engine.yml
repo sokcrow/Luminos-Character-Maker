@@ -41,8 +41,6 @@ on:
       - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
       - "tests/firebase_shared_trait_rules.spec.js"
-      - ".github/scripts/apply_final_codex_round.py"
-      - ".github/scripts/update_final_codex_tests.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
