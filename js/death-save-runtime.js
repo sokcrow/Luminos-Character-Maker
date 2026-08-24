@@ -74,9 +74,7 @@
 
   function ensureDeathState(unit) {
     if (!unit || typeof unit !== "object") return null;
-    if (!unit.deathSaves || typeof unit.deathSaves !== "object") {
-      unit.deathSaves = { successes: 0, failures: 0 };
-    }
+    if (!unit.deathSaves || typeof unit.deathSaves !== "object") unit.deathSaves = { successes: 0, failures: 0 };
     unit.deathSaves.successes = Math.max(0, Math.min(MAX_DEATH_SAVES, Math.trunc(numberOr(unit.deathSaves.successes, 0))));
     unit.deathSaves.failures = Math.max(0, Math.min(MAX_DEATH_SAVES, Math.trunc(numberOr(unit.deathSaves.failures, 0))));
     if (!unit.lifeState) {
@@ -169,7 +167,6 @@
 
     const sourceKind = normalizeId(options.sourceKind || options.damageType || options.reason || "other");
     emit("luminous:downed", { unit, sourceKind, context: options.context || null });
-
     if (!wasDowned && ["status", "status_effect", "effect_status", "efecto_estado", "dot"].includes(sourceKind)) {
       const failure = addFailure(unit, { reason: "downed_by_status", context: options.context || null });
       return { entered: true, unit, failure };
@@ -195,7 +192,9 @@
     resetDeathSaves(unit);
 
     if (unit.dead_sprite) unit.current_sprite = unit.dead_sprite;
-    dispatchLifeEvent("on_death", unit, { ...options, wasDowned, deathType: unit.deathType });
+    const deathEventContext = { ...options, wasDowned, deathType: unit.deathType };
+    if (options.deferOnDeath === true) unit.__luminousPendingDeathEvent = deathEventContext;
+    else dispatchLifeEvent("on_death", unit, deathEventContext);
     emit("luminous:unit-dead", { unit, wasDowned, deathType: unit.deathType, reason: options.reason || "death" });
     return { died: true, unit, deathType: unit.deathType, permanentRecordDeletion: false };
   }
@@ -212,11 +211,7 @@
 
   function grantRetreat(unit, options = {}) {
     if (!unit) return null;
-    unit.retreat = {
-      pending: true,
-      grantedAt: Date.now(),
-      reason: options.reason || "death_save_success",
-    };
+    unit.retreat = { pending: true, grantedAt: Date.now(), reason: options.reason || "death_save_success" };
     try {
       global.LuminousStatusEngine?.applyStatus?.(unit, "retreat", {
         mode: "set",
@@ -328,6 +323,7 @@
     const snapshot = {
       hp: Math.max(0, numberOr(unit.hp, 0)),
       sp: numberOr(unit.sp, 0),
+      releasedSlots: Math.max(0, numberOr(unit.activeSlots ?? unit.actionSlots, 0)),
       retreatedAt: Date.now(),
     };
     unit.retreatSnapshot = snapshot;
@@ -344,9 +340,8 @@
 
   function statusPersistsThroughRetreat(statusId, instance) {
     if (instance?.data?.persistsThroughRetreat === true || instance?.persistsThroughRetreat === true) return true;
-    try {
-      return global.LuminousStatusEngine?.getDefinition?.(statusId)?.persistsThroughRetreat === true;
-    } catch (_) { return false; }
+    try { return global.LuminousStatusEngine?.getDefinition?.(statusId)?.persistsThroughRetreat === true; }
+    catch (_) { return false; }
   }
 
   function clearRetreatEffects(unit) {
@@ -367,11 +362,13 @@
   function returnFromRetreat(unit, options = {}) {
     if (!unit || !isRetreated(unit)) return { returned: false, unit };
     const snapshot = unit.retreatSnapshot || { hp: numberOr(unit.hp, 0), sp: numberOr(unit.sp, 0) };
+    const key = unitIds(unit)[0] || unit;
+    const firstQueued = state.retreatQueue[0] || null;
+    if (firstQueued && firstQueued.key !== key && options.force !== true) return { returned: false, reason: "retreat_order", unit, nextUnit: firstQueued.unit };
     markAlive(unit);
     unit.hp = Math.max(1, numberOr(snapshot.hp, 1));
     unit.sp = numberOr(snapshot.sp, 0) < 0 ? 0 : numberOr(snapshot.sp, 0);
     const keptStatuses = clearRetreatEffects(unit);
-    const key = unitIds(unit)[0] || unit;
     state.retreatQueue = state.retreatQueue.filter((entry) => entry.key !== key);
     emit("luminous:unit-returned-from-retreat", { unit, keptStatuses, options });
     return { returned: true, unit, keptStatuses };
@@ -439,7 +436,10 @@
 
         if (wasDowned) {
           if (statusDamage) return { hp: 0, shield: unit.shield, deathSave: addFailure(unit, { reason: "status_damage_while_downed" }) };
-          if (skillUsed) return { hp: 0, shield: unit.shield, downedHitDeferred: true };
+          if (skillUsed) {
+            unit.__luminousDownedHitPending = true;
+            return { hp: unit.hp, shield: unit.shield, downedHitDeferred: true };
+          }
           return { hp: 0, shield: unit.shield };
         }
 
@@ -451,7 +451,12 @@
           const transition = enterDowned(unit, { sourceKind: statusDamage ? "status" : (skillUsed?.type === "Spell" ? "spell" : (skillUsed ? "skill" : normalizeId(damageType))), skill: skillUsed });
           return { ...(result || {}), hp: unit.hp, downed: true, transition };
         }
-        const death = resolveDeath(unit, { reason: "hp_zero", sourceKind: statusDamage ? "status" : (skillUsed ? "skill" : normalizeId(damageType)), skill: skillUsed });
+        const death = resolveDeath(unit, {
+          reason: "hp_zero",
+          sourceKind: statusDamage ? "status" : (skillUsed ? "skill" : normalizeId(damageType)),
+          skill: skillUsed,
+          deferOnDeath: Boolean(skillUsed && !statusDamage),
+        });
         return { ...(result || {}), hp: 0, death };
       };
     }
@@ -473,14 +478,27 @@
     if (originalTriggerEvent) {
       engine.triggerEvent = function (tag, context = {}, targetsHit = [], ...rest) {
         const targets = Array.isArray(targetsHit) && targetsHit.length ? targetsHit : [context?.defender || context?.currentTarget].filter(Boolean);
-        if (tag === "[On Kill]" && targets.some((target) => target?.__luminousDownedAttackProxy || (isDowned(target) && numberOr(target.hp, 0) <= 0))) return;
+        if (tag === "[On Kill]" && targets.some((target) => target?.__luminousDownedAttackProxy)) return;
         const result = originalTriggerEvent.call(this, tag, context, targetsHit, ...rest);
         if (tag === "[On Hit]" && context?.skill) {
           targets.forEach((target) => {
-            if (target?.__luminousDownedAttackProxy || isDowned(target)) noteSkillHitOnDowned(target, context.skill, context);
+            if (target?.__luminousDownedHitPending || target?.__luminousDownedAttackProxy) {
+              noteSkillHitOnDowned(target, context.skill, context);
+              delete target.__luminousDownedHitPending;
+            }
           });
         }
-        if (tag === "[Attack End]") targets.forEach(clearSkillHitToken);
+        if (tag === "[Attack End]") {
+          targets.forEach((target) => {
+            clearSkillHitToken(target);
+            delete target.__luminousDownedHitPending;
+            if (target?.__luminousPendingDeathEvent) {
+              const pending = target.__luminousPendingDeathEvent;
+              delete target.__luminousPendingDeathEvent;
+              dispatchLifeEvent("on_death", target, pending);
+            }
+          });
+        }
         return result;
       };
     }
