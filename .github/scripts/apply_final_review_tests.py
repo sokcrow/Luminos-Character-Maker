@@ -1,6 +1,29 @@
 from pathlib import Path
 p=Path('tests/universal_action_economy.spec.js')
 t=p.read_text(encoding='utf-8')
+old='''test("CombatEngine executes a serialized shared Trait Action without player-local memory", () => {
+  global.LuminousTraitEngine = traitEngine;
+  const unit = { id: "actor", hp: 10, maxHp: 20 };
+  const trait = { id: "shared_heal", name: "Shared Heal", contexts: ["combat"], activation: { type: "manual", actionCost: "action" }, effects: [{ id: "heal", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", value: 5 }] }], rules: [] };
+  const plannedAction = { kind: "trait", traitId: trait.id, targetId: null, data: { trait } };
+  const result = CombatEngine.resolveActionSlot(unit, 0, { phase: "combat", combatData: { actor: unit }, plannedAction });
+  expect(result.handled).toBeTruthy();
+  expect(result.result.available).toBeTruthy();
+  expect(unit.hp).toBe(15);
+  delete global.LuminousTraitEngine;
+});'''
+new='''test("CombatEngine rejects serialized shared Traits that are not trusted grants", () => {
+  global.LuminousTraitEngine = traitEngine;
+  const unit = { id: "actor", hp: 10, maxHp: 20 };
+  const trait = { id: "shared_heal", name: "Shared Heal", contexts: ["combat"], activation: { type: "manual", actionCost: "action" }, effects: [{ id: "heal", contexts: ["combat"], trigger: "on_use", conditions: [], operations: [{ type: "heal_hp", path: "self.hp", maxPath: "self.maxHp", value: 5 }] }], rules: [] };
+  const plannedAction = { kind: "trait", traitId: trait.id, targetId: null, data: { trait } };
+  const result = CombatEngine.resolveActionSlot(unit, 0, { phase: "combat", combatData: { actor: unit }, plannedAction });
+  expect(result.handled).toBeTruthy();
+  expect(result.result.available).toBeFalsy();
+  expect(unit.hp).toBe(10);
+  delete global.LuminousTraitEngine;
+});'''
+if old in t: t=t.replace(old,new,1)
 append=r'''
 
 test("normal Skill reservations and Trait Actions cannot occupy the same Action Slot", () => {
