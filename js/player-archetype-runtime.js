@@ -18,6 +18,7 @@
     theatreSource: null,
     combatSource: null,
     lastSelectionSignature: "",
+    cursedByUnit: new Map(),
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -73,13 +74,21 @@
   }
 
   function idsFor(entity = {}) {
-    return [entity.id, entity.playerId, entity.player_id, entity.characterId, entity.character_id, entity.actorId, entity.actor_id, entity.uid]
+    return [
+      entity.combatId, entity.combat_id, entity.unitId, entity.unit_id,
+      entity.id, entity.playerId, entity.player_id, entity.characterId, entity.character_id,
+      entity.actorId, entity.actor_id, entity.uid,
+    ]
       .filter((value) => value != null && String(value).trim() !== "")
       .map((value) => String(value).trim());
   }
 
   function entityName(entity = {}) {
     return normalizeId(entity.characterName || entity.character_name || entity.nombre || entity.name || "");
+  }
+
+  function combatUnitKey(unit = {}) {
+    return idsFor(unit)[0] || entityName(unit) || null;
   }
 
   function isCurrentPlayerUnit(unit = {}) {
@@ -177,15 +186,21 @@
     return ["burn", "poison"].includes(normalizeId(statusId)) ? 0.5 : 1;
   }
 
+  function isDevilArchetypeTrait(trait = {}) {
+    const source = trait?.source || {};
+    const type = normalizeId(source.type || trait?.sourceType);
+    const archetypeId = normalizeId(source.archetypeId || source.id || trait?.archetypeId);
+    return ["archetype", "subclass", "class_archetype"].includes(type) && archetypeId === DEVIL_ARCHETYPE_ID;
+  }
+
   function syncArchetypeTraitsForUnit(unit = {}) {
     const archetypeCatalog = catalog();
     if (!unit || !archetypeCatalog?.resolveTraitGrants) return [];
     const character = characterForUnit(unit);
     const granted = archetypeCatalog.resolveTraitGrants(character) || [];
-    if (!granted.length) return [];
     const existing = Array.isArray(unit.traitDefinitions) ? unit.traitDefinitions : [];
     const byId = new Map();
-    [...existing, ...granted].forEach((trait) => {
+    [...existing.filter((trait) => !isDevilArchetypeTrait(trait)), ...granted].forEach((trait) => {
       const id = normalizeId(trait?.id || trait?.name);
       if (id && !byId.has(id)) byId.set(id, trait);
     });
@@ -554,6 +569,11 @@
   }
 
   function cursedState(unit = {}) {
+    const key = combatUnitKey(unit);
+    if (key) {
+      if (!state.cursedByUnit.has(key)) state.cursedByUnit.set(key, { used: false, pending: false });
+      return state.cursedByUnit.get(key);
+    }
     if (!unit.__devilLineageCursedJuggernaut) {
       Object.defineProperty(unit, "__devilLineageCursedJuggernaut", {
         value: { used: false, pending: false },
@@ -633,7 +653,7 @@
         }
         if (level >= 15 && coinSpendsAmmo(skill, context)) {
           const multiplier = 1 + (10 * statMod(character, "strength")) / 100;
-          if (typeof result === "number") result *= multiplier;
+          if (typeof result === "number") result = Math.max(0, Math.floor(result * multiplier));
         }
         return result;
       };
@@ -696,6 +716,7 @@
     const originalEncounterStart = typeof engine.triggerEncounterStart === "function" ? engine.triggerEncounterStart : null;
     if (originalEncounterStart) {
       engine.triggerEncounterStart = function (allUnits = [], ...rest) {
+        state.cursedByUnit.clear();
         (Array.isArray(allUnits) ? allUnits : []).forEach((unit) => {
           syncArchetypeTraitsForUnit(unit);
           if (!hasDevilLineageLevel(characterForUnit(unit), 70)) return;
@@ -727,6 +748,31 @@
     return true;
   }
 
+  function watchCombatEngineAssignment() {
+    if (global.CombatEngine || global.__luminousArchetypeCombatAssignmentWatch) return false;
+    global.__luminousArchetypeCombatAssignmentWatch = true;
+    try {
+      Object.defineProperty(global, "CombatEngine", {
+        configurable: true,
+        enumerable: true,
+        get() { return undefined; },
+        set(value) {
+          Object.defineProperty(global, "CombatEngine", {
+            value,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
+          state.combatSource = null;
+          patchCombatEngine();
+        },
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function installActiveInventoryBridge() {
     if (global.__luminousArchetypeInventoryBridge) return true;
     global.__luminousArchetypeInventoryBridge = true;
@@ -737,10 +783,11 @@
       const bonus = activeInventoryBonus(character);
       if (bonus <= 0) return;
 
-      event.stopImmediatePropagation();
       const playerId = currentPlayerId();
       const db = global.firebase?.database?.();
       if (!playerId || !db || !detail.itemKey || !detail.itemData) return;
+      event.stopImmediatePropagation();
+
       const itemKey = detail.itemKey;
       const itemData = detail.itemData;
       const sourceRef = db.ref(`${PLAYER_ROOT}/${playerId}/inventario_stash/${itemKey}`);
@@ -802,6 +849,7 @@
 
   function boot() {
     ensureStyles();
+    watchCombatEngineAssignment();
     installActiveInventoryBridge();
     installPatches();
     global.addEventListener?.("luminous:traits-refreshed", () => {
@@ -833,6 +881,7 @@
     patchTraitTray,
     patchTheatreRolls,
     patchCombatEngine,
+    watchCombatEngineAssignment,
     resolveCursedJuggernautRecovery,
   });
 
