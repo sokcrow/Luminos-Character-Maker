@@ -53,6 +53,18 @@
     return Boolean(aName && aName === entityName(b));
   }
 
+  function traitCharacterForUnit(unit = {}) {
+    const build = unit.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
+    const classes = Array.isArray(unit.classes)
+      ? unit.classes
+      : (Array.isArray(build.classes) ? build.classes : []);
+    return {
+      ...unit,
+      classes,
+      characterBuild: build,
+    };
+  }
+
   function delegatedToPlayerRuntime(unit) {
     const runtime = global.LuminousPlayerTraitRuntime;
     if (!runtime?.dispatchCombatEvent || !runtime?.getCharacter) return false;
@@ -108,16 +120,17 @@
     resetScopeForTrigger(trigger, traitState);
     const allOutcomes = [];
     const normalizedTrigger = normalizeId(trigger);
+    const character = traitCharacterForUnit(unit);
 
     traits.forEach((trait) => {
       const runtime = {
         context: "combat",
-        character: unit,
+        character,
         self: unit,
         sourceClassId: normalizeId(trait?.source?.classId || trait?.classId),
         ...(input || {}),
       };
-      runtime.character = unit;
+      runtime.character = character;
       runtime.self = unit;
 
       if (normalizedTrigger !== "passive") {
@@ -257,6 +270,7 @@
     EVENT_MAP,
     unitKey,
     sameUnit,
+    traitCharacterForUnit,
     traitsForUnit,
     traitStateFor,
     delegatedToPlayerRuntime,
