@@ -7,12 +7,14 @@ on:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/death-save-runtime.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
+      - "tests/death_save_runtime.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -21,12 +23,14 @@ on:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/death-save-runtime.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
+      - "tests/death_save_runtime.spec.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
@@ -54,11 +58,13 @@ jobs:
       - name: Check syntax
         run: |
           node --check js/status-engine.js
+          node --check js/death-save-runtime.js
           node --check js/archetype-engine.js
           node --check js/archetype-trait-catalog.js
           node --check js/player-archetype-runtime.js
           node --check js/archetype-combat-event-runtime.js
           node --check js/utils.js
+          node --check tests/death_save_runtime.spec.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
           node --check tests/archetype_review_regressions.spec.js
@@ -66,6 +72,7 @@ jobs:
       - name: Run Archetype regressions
         run: >-
           npx playwright test
+          tests/death_save_runtime.spec.js
           tests/archetype_engine.spec.js
           tests/archetype_runtime_contract.spec.js
           tests/archetype_review_regressions.spec.js
