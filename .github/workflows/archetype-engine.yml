@@ -1,0 +1,62 @@
+name: Archetype Engine
+
+on:
+  push:
+    branches:
+      - feature/archetypes-devil-lineage
+    paths:
+      - "js/archetype-engine.js"
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime.js"
+      - "css/player-archetype-runtime.css"
+      - "js/utils.js"
+      - "tests/archetype_engine.spec.js"
+      - "tests/archetype_runtime_contract.spec.js"
+      - ".github/workflows/archetype-engine.yml"
+  pull_request:
+    paths:
+      - "js/archetype-engine.js"
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime.js"
+      - "css/player-archetype-runtime.css"
+      - "js/utils.js"
+      - "tests/archetype_engine.spec.js"
+      - "tests/archetype_runtime_contract.spec.js"
+      - ".github/workflows/archetype-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  archetype-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check js/archetype-engine.js
+          node --check js/archetype-trait-catalog.js
+          node --check js/player-archetype-runtime.js
+          node --check js/utils.js
+          node --check tests/archetype_engine.spec.js
+          node --check tests/archetype_runtime_contract.spec.js
+
+      - name: Run Archetype regressions
+        run: >-
+          npx playwright test
+          tests/archetype_engine.spec.js
+          tests/archetype_runtime_contract.spec.js
+          tests/trait_engine.spec.js
+          tests/player_trait_tabs.spec.js
+          --workers=1
