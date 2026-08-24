@@ -236,6 +236,5 @@ test("Death Save resolves before Round End and a third Success Retreats in the s
 });
 
 test("Status Engine bootstraps the Death Save runtime in the real Battle Viewer load chain", () => {
-  expect(statusSource).toContain('script.id = "death-save-runtime-script"');
-  expect(statusSource).toContain('script.src = "js/death-save-runtime.js"');
+  expect(statusSource).toContain('loadScript("death-save-runtime-script", "js/death-save-runtime.js")');
 });
