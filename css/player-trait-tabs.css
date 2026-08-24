@@ -232,6 +232,101 @@ body:not(.on-game-dashboard) #stats-modal .player-trait-card__description{
   font-size:10px;
   line-height:1.45;
 }
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value{
+  position:relative;
+  display:inline;
+  appearance:none;
+  margin:0;
+  padding:0 1px;
+  border:0;
+  border-bottom:1px dotted currentColor;
+  background:transparent;
+  color:#f0b64e;
+  font:inherit;
+  font-weight:800;
+  line-height:inherit;
+  cursor:help;
+  vertical-align:baseline;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover,
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus-visible,
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open{
+  outline:0;
+  color:#ffd37b;
+  border-bottom-color:#ffd37b;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{
+  position:absolute;
+  z-index:40;
+  left:50%;
+  top:calc(100% + 7px);
+  width:240px;
+  max-width:min(240px,calc(100vw - 48px));
+  padding:9px 10px;
+  border:1px solid #8a632c;
+  background:linear-gradient(180deg,#201a12,#0b0907);
+  color:#c6b9a6;
+  box-shadow:0 10px 24px rgba(0,0,0,.65),inset 0 0 14px rgba(235,164,52,.07);
+  text-align:left;
+  font:500 9px/1.35 Arial,sans-serif;
+  letter-spacing:.015em;
+  white-space:normal;
+  pointer-events:none;
+  opacity:0;
+  visibility:hidden;
+  transform:translate(-50%,-3px);
+  transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:hover .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value:focus .player-trait-formula-tooltip,
+body:not(.on-game-dashboard) #stats-modal .player-trait-resolved-value.is-open .player-trait-formula-tooltip{
+  opacity:1;
+  visibility:visible;
+  transform:translate(-50%,0);
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__title{
+  display:block;
+  margin-bottom:6px;
+  color:#f0c171;
+  font:700 10px/1.2 Georgia,"Times New Roman",serif;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__row,
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula,
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:3px;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__key{
+  color:#918574;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__number{
+  color:#dfc796;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula{
+  display:block;
+  margin-top:7px;
+  padding-top:6px;
+  border-top:1px solid #3a3024;
+  color:#766d61;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__formula code{
+  display:block;
+  margin-top:2px;
+  overflow-wrap:anywhere;
+  color:#bca783;
+  font:600 8px/1.35 Consolas,"Courier New",monospace;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total{
+  margin-top:6px;
+  color:#a99a83;
+}
+body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip__total b{
+  color:#ffc65f;
+  font-size:10px;
+}
 body:not(.on-game-dashboard) #stats-modal .player-trait-contexts{
   display:flex;
   flex-wrap:wrap;
@@ -318,6 +413,10 @@ body:not(.on-game-dashboard) #stats-modal .player-traits-empty{
   text-align:center;
   font:700 12px Georgia,"Times New Roman",serif;
   letter-spacing:.08em;
+}
+
+@media (prefers-reduced-motion:reduce){
+  body:not(.on-game-dashboard) #stats-modal .player-trait-formula-tooltip{transition:none}
 }
 
 @media (max-width:1180px){
