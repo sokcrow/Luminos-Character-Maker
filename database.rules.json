@@ -2,60 +2,48 @@
   "rules": {
     "campaña": {
       ".read": "auth != null",
-
       "estado_mundo": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "clima": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "worldData": {
         "weatherForecast": {
           ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
         }
       },
-
       "hora_actual": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "config": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "actores": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "base_datos_npcs": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "escenarios": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "calendario": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
-
       "jugadores": {
         "$nombre_personaje": {
           ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
         }
       },
-
       "teatro": {
         ".write": "auth != null"
       },
-
       "combate": {
         "plannedActions": {
-          "$unitId": {
+          "$ownerPlayerId": {
             "$slotIndex": {
-              ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' && ((!data.exists() && newData.exists() && newData.child('schedulerUid').val() === auth.uid && newData.child('status').val() === 'planned') || (data.exists() && data.child('schedulerUid').val() === auth.uid && (!newData.exists() || (newData.child('schedulerUid').val() === auth.uid && newData.child('status').val() === 'planned'))))))"
+              ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' && root.child('campaña').child('jugadores').child($ownerPlayerId).child('uid').val() === auth.uid && ((!data.exists() && newData.exists() && newData.child('schedulerUid').val() === auth.uid && newData.child('scheduledBy').val() === $ownerPlayerId && newData.child('status').val() === 'planned' && newData.child('kind').val() === 'trait' && newData.child('traitId').isString() && newData.child('unitId').isString()) || (data.exists() && data.child('schedulerUid').val() === auth.uid && data.child('scheduledBy').val() === $ownerPlayerId && !newData.exists()))))"
             }
           }
         },
@@ -63,7 +51,6 @@
           ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
         }
       },
-
       "efectos_dm": {
         "$effectId": {
           ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('subjectUid').val() === auth.uid && newData.child('active').val() === true && newData.child('approved').val() === false && !newData.child('consumedAt').exists()))",
@@ -73,7 +60,6 @@
         }
       }
     },
-
     "dm_private": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "theatre_rolls": {
@@ -84,7 +70,6 @@
         }
       }
     },
-
     "theatre_check_requests": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "$requestId": {
@@ -92,14 +77,12 @@
         ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('requesterUid').val() === auth.uid))"
       }
     },
-
     "theatre_check_commands": {
       "$uid": {
         ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       }
     },
-
     "theatre_check_live": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "$uid": {
@@ -109,7 +92,6 @@
         }
       }
     },
-
     "theatre_opposed_checks": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "$sessionId": {
@@ -122,7 +104,6 @@
         }
       }
     },
-
     "theatre_opposed_results": {
       "$uid": {
         ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || auth.uid === $uid)",

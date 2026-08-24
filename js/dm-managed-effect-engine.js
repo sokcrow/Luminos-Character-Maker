@@ -65,18 +65,29 @@
       const card = global.document.createElement("div");
       card.style.cssText = "border-top:1px solid #29313a;padding:8px 0;";
       const modifier = Number(effect.modifier?.value || 0) || 0;
+      const isRequest = String(effect.kind || "").toLowerCase() === "request";
       appendTextLine(card, effect.name || effect.effectId || "Effect", "color:#fff;font-weight:700;");
       appendTextLine(card, `${effect.subjectName || effect.subjectPlayerId || "Player"} → ${effect.targetName || effect.targetId || "Target"}`);
       appendTextLine(card, `Tiempo restante: ${formatRemaining(effect, now)}`, "color:#e6c56c;");
       appendTextLine(card, effect.note || "", "font-size:11px;opacity:.8;margin-top:4px;");
-      appendTextLine(card, `CHA Check · bono configurado: +${modifier} Check Power`, "font-size:11px;margin-top:4px;");
+      if (!isRequest) appendTextLine(card, `CHA Check · bono configurado: +${modifier} Check Power`, "font-size:11px;margin-top:4px;");
       const controls = global.document.createElement("div");
       controls.style.cssText = "display:flex;gap:6px;margin-top:6px;";
       const apply = global.document.createElement("button");
       apply.type = "button";
-      apply.textContent = effect.approved ? "BONO LISTO" : "APLICAR AL PRÓXIMO CHA CHECK";
-      apply.disabled = Boolean(effect.approved);
-      apply.onclick = () => updateEffect(effect.id, { approved: true, approvedAt: Date.now() });
+      if (isRequest) {
+        apply.textContent = effect.response ? "RESPONDIDO" : "RESPONDER";
+        apply.disabled = Boolean(effect.response);
+        apply.onclick = () => {
+          const response = global.prompt?.(effect.prompt || "Describe el resultado para el jugador:", effect.response || "");
+          if (response == null || !String(response).trim()) return;
+          updateEffect(effect.id, { response: String(response).trim(), respondedAt: Date.now(), active: false });
+        };
+      } else {
+        apply.textContent = effect.approved ? "BONO LISTO" : "APLICAR AL PRÓXIMO CHA CHECK";
+        apply.disabled = Boolean(effect.approved);
+        apply.onclick = () => updateEffect(effect.id, { approved: true, approvedAt: Date.now() });
+      }
       const disable = global.document.createElement("button");
       disable.type = "button";
       disable.textContent = "DESACTIVAR";

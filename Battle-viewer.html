@@ -299,8 +299,31 @@
         return normalized;
     }
 
+    function combatUnitIdentityValues(unit = {}) {
+        return [unit?.id, unit?.unitId, unit?.playerId, unit?.player_id, unit?.ownerPlayerId, unit?.owner_player_id, unit?.characterId, unit?.character_id, unit?.uid, unit?.vinculo_jugador]
+            .filter(value => value != null && String(value).trim() !== '')
+            .map(value => String(value).trim());
+    }
+
+    function combatUnitForOwner(ownerPlayerId) {
+        const owner = String(ownerPlayerId || '').trim();
+        if (!owner) return null;
+        return Object.values(combatData || {}).find(unit => combatUnitIdentityValues(unit).includes(owner)) || null;
+    }
+
+    function combatUnitId(unit = {}) {
+        return String(unit?.id || unit?.unitId || unit?.characterId || unit?.actorId || '').trim();
+    }
+
     function getSharedPlannedAction(unitId, slotIndex) {
-        return sharedPlannedActions?.[unitId]?.[slotIndex] || sharedPlannedActions?.[unitId]?.[String(slotIndex)] || null;
+        const wantedUnitId = String(unitId || '');
+        for (const [ownerPlayerId, slots] of Object.entries(sharedPlannedActions || {})) {
+            const ownerUnit = combatUnitForOwner(ownerPlayerId);
+            if (!ownerUnit || combatUnitId(ownerUnit) !== wantedUnitId) continue;
+            const action = slots?.[slotIndex] || slots?.[String(slotIndex)] || null;
+            if (action) return { ...action, __ownerPlayerId: ownerPlayerId };
+        }
+        return null;
     }
 
     function isTraitActionSlotReserved(slotId) {
@@ -319,16 +342,21 @@
 
     function collectPlannedActionSlotIds() {
         const slotIds = [];
-        Object.entries(sharedPlannedActions || {}).forEach(([unitId, slots]) => {
-            Object.entries(slots || {}).forEach(([slotIndex, action]) => {
-                if (action?.status === 'planned') slotIds.push(`${unitId}_slot_${slotIndex}`);
+        Object.entries(sharedPlannedActions || {}).forEach(([ownerPlayerId, slots]) => {
+            const ownerUnit = combatUnitForOwner(ownerPlayerId);
+            if (!ownerUnit) return;
+            const unitId = combatUnitId(ownerUnit);
+            const maxSlots = window.LuminousActionEconomy?.actionSlotMaximum?.(ownerUnit) || Number(ownerUnit.actionSlots || ownerUnit.activeSlots || 1);
+            Object.entries(slots || {}).forEach(([slotIndexRaw, action]) => {
+                const slotIndex = Number(slotIndexRaw);
+                if (action?.status === 'planned' && Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < maxSlots) slotIds.push(`${unitId}_slot_${slotIndex}`);
             });
         });
         return slotIds;
     }
 
-    async function claimSharedPlannedAction(unitId, slotIndex) {
-        const ref = db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${unitId}/${slotIndex}`);
+    async function claimSharedPlannedAction(ownerPlayerId, slotIndex) {
+        const ref = db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`);
         const result = await ref.transaction(current => {
             if (!current || current.status !== 'planned') return;
             return { ...current, status: 'resolving', resolvingAt: Date.now() };
@@ -336,10 +364,10 @@
         return result.committed ? result.snapshot.val() : null;
     }
 
-    async function finishSharedPlannedAction(unitId, slotIndex, resolution) {
+    async function finishSharedPlannedAction(ownerPlayerId, slotIndex, resolution) {
         const success = Boolean(resolution?.handled && resolution?.result?.available);
         const payload = { status: success ? 'resolved' : 'failed', resolvedAt: Date.now(), resolution: { handled: Boolean(resolution?.handled), available: Boolean(resolution?.result?.available), traitId: resolution?.planned?.traitId || resolution?.result?.trait?.id || null, reasons: resolution?.result?.reasons || [] } };
-        await db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${unitId}/${slotIndex}`).update(payload);
+        await db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`).update(payload);
         return payload;
     }
 
@@ -922,12 +950,13 @@
 
             const slotIndex = Number(attackerSlotId.split('_slot_')[1]);
             const sharedAction = Number.isInteger(slotIndex) ? getSharedPlannedAction(attackerBaseId, slotIndex) : null;
-            if (sharedAction?.status === 'planned' && typeof CombatEngine.resolveActionSlot === 'function') {
+            const sharedOwnerPlayerId = sharedAction?.__ownerPlayerId || null;
+            if (sharedAction?.status === 'planned' && sharedOwnerPlayerId && !attackVectors[attackerSlotId] && typeof CombatEngine.resolveActionSlot === 'function') {
                 let claimed = null;
-                try { claimed = await claimSharedPlannedAction(attackerBaseId, slotIndex); } catch (error) { console.error('No se pudo reclamar el Action Slot compartido:', error); }
-                if (claimed) {
+                try { claimed = await claimSharedPlannedAction(sharedOwnerPlayerId, slotIndex); } catch (error) { console.error('No se pudo reclamar el Action Slot compartido:', error); }
+                if (claimed && String(claimed.scheduledBy || '') === String(sharedOwnerPlayerId)) {
                     const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, { phase: 'combat', combatData, attackerSlotId, plannedAction: claimed });
-                    try { await finishSharedPlannedAction(attackerBaseId, slotIndex, plannedResolution); } catch (error) { console.error('No se pudo cerrar el Action Slot compartido:', error); }
+                    try { await finishSharedPlannedAction(sharedOwnerPlayerId, slotIndex, plannedResolution); } catch (error) { console.error('No se pudo cerrar el Action Slot compartido:', error); }
                     const actionName = plannedResolution?.result?.trait?.name || claimed?.traitId || 'Trait';
                     if (plannedResolution?.result?.available) addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
                     else addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');

@@ -128,3 +128,34 @@ test("stored characterBuild level powers positive racial damage with a minimum o
   });
   expect(protectorDamage.amount).toBe(3);
 });
+
+
+test("Moonfae Empathy registers a concrete DM request and returns no orphan flag", () => {
+  const trait = racialCatalog.getDefinition("moonfae_empathy");
+  const target = { id: "npc-heart", name: "Quiet Stranger" };
+  let descriptor = null;
+  const state = engine.createState();
+  const result = engine.activateTrait(trait, {
+    context: "theatre",
+    character: { level: 20, proficiencyBonus: 3 },
+    self: { level: 20 },
+    target,
+    registerDmEffect(value) { descriptor = value; return { id: "request-1", ...value }; },
+  }, state);
+  expect(result.available).toBeTruthy();
+  expect(descriptor).toBeTruthy();
+  expect(descriptor.kind).toBe("request");
+  expect(descriptor.effectId).toBe("empathy_read");
+  expect(descriptor.targetId).toBe("npc-heart");
+  expect(state.flags?.empathy_read_requested).toBeUndefined();
+});
+
+test("shared Trait source binds Firebase owner buckets to actual combat Units", () => {
+  const runtime = require("fs").readFileSync(require("path").join(__dirname, "..", "js", "player-trait-runtime.js"), "utf8");
+  const viewer = require("fs").readFileSync(require("path").join(__dirname, "..", "Battle-viewer.html"), "utf8");
+  expect(runtime).toContain("${SHARED_PLANNED_ACTIONS_ROOT}/${ownerPlayerId}/${slotIndex}");
+  expect(runtime).toContain("scheduledBy: ownerPlayerId");
+  expect(viewer).toContain("function combatUnitForOwner(ownerPlayerId)");
+  expect(viewer).toContain("sharedOwnerPlayerId");
+  expect(viewer).toContain("!attackVectors[attackerSlotId]");
+});

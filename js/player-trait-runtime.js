@@ -48,6 +48,7 @@
     sharedActions: {},
     sharedActionsBound: false,
     seenSharedActionResolutions: new Set(),
+    seenDmResponses: new Set(),
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -235,6 +236,11 @@
       console.error("No se pudo compartir el Action Slot: usuario Firebase no autenticado.");
       return null;
     }
+    const ownerPlayerId = String(state.playerId || "").trim();
+    if (!ownerPlayerId) {
+      global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
+      return null;
+    }
     const payload = {
       kind: "trait",
       traitId: trait?.id || local.traitId || null,
@@ -243,11 +249,11 @@
       slotId: result.slotId || `${unitId}_slot_${slotIndex}`,
       targetId: local.targetId || runtime.target?.id || runtime.defender?.id || null,
       schedulerUid,
-      scheduledBy: state.playerId || null,
+      scheduledBy: ownerPlayerId,
       status: "planned",
       scheduledAt: global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
     };
-    state.db.ref(`${SHARED_PLANNED_ACTIONS_ROOT}/${unitId}/${slotIndex}`).set(payload).catch((error) => console.error("No se pudo compartir el Action Slot planeado:", error));
+    state.db.ref(`${SHARED_PLANNED_ACTIONS_ROOT}/${ownerPlayerId}/${slotIndex}`).set(payload).catch((error) => console.error("No se pudo compartir el Action Slot planeado:", error));
     return payload;
   }
 
@@ -256,11 +262,12 @@
     if (!playerId) return 0;
     let changed = 0;
     const unit = currentCombatUnit();
-    Object.entries(state.sharedActions || {}).forEach(([unitId, slots]) => {
+    Object.entries(state.sharedActions || {}).forEach(([ownerPlayerId, slots]) => {
+      if (String(ownerPlayerId) !== playerId) return;
       Object.entries(slots || {}).forEach(([slotIndexRaw, action]) => {
         if (!action || action.status !== "resolved" || !action.traitId) return;
         if (String(action.scheduledBy || "") !== playerId) return;
-        const resolutionKey = `${unitId}:${slotIndexRaw}:${action.resolvedAt || "resolved"}`;
+        const resolutionKey = `${ownerPlayerId}:${slotIndexRaw}:${action.resolvedAt || "resolved"}`;
         if (state.seenSharedActionResolutions.has(resolutionKey)) return;
         state.seenSharedActionResolutions.add(resolutionKey);
 
@@ -277,7 +284,7 @@
           changed += 1;
         }
 
-        if (unit && sharedUnitId(unit) === String(unitId)) {
+        if (unit && sharedUnitId(unit) === String(action.unitId || "")) {
           const slotIndex = Number(slotIndexRaw);
           if (Number.isInteger(slotIndex)) global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
         }
@@ -304,9 +311,30 @@
     const character = runtime.character || getCharacter();
     const subjectUid = currentAuthUid();
     if (!subjectUid) return null;
-    const record = { id: ref.key, effectId: descriptor.effectId || descriptor.sourceTraitId || "dm_effect", name: descriptor.name || "DM Managed Effect", sourceTraitId: descriptor.sourceTraitId || null, subjectUid, subjectPlayerId: state.playerId || null, subjectName: character?.characterName || character?.nombre || character?.name || state.playerId || "Player", targetId: descriptor.targetId || target?.id || target?.actorId || target?.characterId || null, targetName: descriptor.targetName || target?.name || target?.nombre || target?.characterName || "Target", check: { ...(descriptor.check || {}) }, modifier: { ...(descriptor.modifier || {}) }, note: descriptor.note || "", active: true, approved: false, startsAt: now, expiresAt: now + Math.round(hours * 3600000), durationHours: hours };
+    const record = { id: ref.key, effectId: descriptor.effectId || descriptor.sourceTraitId || "dm_effect", name: descriptor.name || "DM Managed Effect", kind: normalizeId(descriptor.kind || "effect") || "effect", prompt: descriptor.prompt || "", sourceTraitId: descriptor.sourceTraitId || null, subjectUid, subjectPlayerId: state.playerId || null, subjectName: character?.characterName || character?.nombre || character?.name || state.playerId || "Player", targetId: descriptor.targetId || target?.id || target?.actorId || target?.characterId || null, targetName: descriptor.targetName || target?.name || target?.nombre || target?.characterName || "Target", check: { ...(descriptor.check || {}) }, modifier: { ...(descriptor.modifier || {}) }, note: descriptor.note || "", active: true, approved: false, startsAt: now, expiresAt: now + Math.round(hours * 3600000), durationHours: hours };
     ref.set(record).catch((error) => console.error("No se pudo registrar el efecto administrado por DM:", error));
     return record;
+  }
+
+  function processDmResponses() {
+    const subjectUid = currentAuthUid();
+    if (!subjectUid) return 0;
+    let delivered = 0;
+    Object.values(state.dmEffects || {}).forEach((effect) => {
+      if (normalizeId(effect?.kind) !== "request") return;
+      if (String(effect?.subjectUid || "") !== subjectUid) return;
+      const response = String(effect?.response || "").trim();
+      if (!response) return;
+      const key = `${effect.id || effect.effectId}:${effect.respondedAt || response}`;
+      if (state.seenDmResponses.has(key)) return;
+      state.seenDmResponses.add(key);
+      const detail = { effect, response, target: effect.targetName || effect.targetId || null };
+      emit("luminous:dm-trait-response", detail);
+      global.alert?.(`${effect.name || "Trait"} — ${effect.targetName || effect.targetId || "Target"}
+${response}`);
+      delivered += 1;
+    });
+    return delivered;
   }
 
   function applyApprovedDmEffects(check = {}, runtimeInput = {}) {
@@ -503,7 +531,7 @@
     }
     if (!state.dmEffectsBound) {
       state.dmEffectsBound = true;
-      state.db.ref(DM_MANAGED_EFFECTS_ROOT).on("value", (snapshot) => { state.dmEffects = snapshot.val() || {}; });
+      state.db.ref(DM_MANAGED_EFFECTS_ROOT).on("value", (snapshot) => { state.dmEffects = snapshot.val() || {}; processDmResponses(); });
     }
     if (!state.sharedActionsBound) {
       state.sharedActionsBound = true;

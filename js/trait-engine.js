@@ -320,7 +320,7 @@
     else if (type === "clear_flag") { const id = assertSafeKey(op.flagId || op.path, "Flag id"); delete env.state.flags[id]; out = Object.assign(base, { flagId: id, cleared: true }); }
     else if (type === "register_dm_effect") {
       const target = env.runtime.target || env.runtime.defender || null;
-      const descriptor = { effectId: normalizeId(op.effectId || env.trait.id), name: String(op.name || env.trait.name || env.trait.id), durationHours: Math.max(0, num(op.durationHours ?? op.hours, 1)), sourceTraitId: env.trait.id, targetId: target?.id ?? target?.actorId ?? target?.characterId ?? null, targetName: target?.name ?? target?.nombre ?? target?.characterName ?? null, check: clone(op.check || {}), modifier: clone(op.modifier || {}), note: String(op.note || "") };
+      const descriptor = { effectId: normalizeId(op.effectId || env.trait.id), name: String(op.name || env.trait.name || env.trait.id), kind: normalizeId(op.kind || "effect") || "effect", prompt: String(op.prompt || ""), durationHours: Math.max(0, num(op.durationHours ?? op.hours, 1)), sourceTraitId: env.trait.id, targetId: target?.id ?? target?.actorId ?? target?.characterId ?? null, targetName: target?.name ?? target?.nombre ?? target?.characterName ?? null, check: clone(op.check || {}), modifier: clone(op.modifier || {}), note: String(op.note || "") };
       const registered = typeof env.runtime.registerDmEffect === "function" ? env.runtime.registerDmEffect(descriptor) : null;
       out = Object.assign(base, { descriptor, registered: clone(registered) });
     }

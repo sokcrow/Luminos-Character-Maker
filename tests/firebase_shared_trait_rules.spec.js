@@ -12,9 +12,13 @@ test('shared Trait Firebase paths keep campaign writes scoped', () => {
   expect(campaign.combate['.write']).toBeUndefined();
   expect(campaign.combate.$other['.write']).toContain(DM_UID);
 
-  const plannedWrite = campaign.combate.plannedActions.$unitId.$slotIndex['.write'];
+  const plannedWrite = campaign.combate.plannedActions.$ownerPlayerId.$slotIndex['.write'];
   expect(plannedWrite).toContain("PRE_COMBAT_PLANNING");
   expect(plannedWrite).toContain("schedulerUid");
+  expect(plannedWrite).toContain("jugadores");
+  expect(plannedWrite).toContain("$ownerPlayerId");
+  expect(plannedWrite).toContain("scheduledBy");
+  expect(plannedWrite).toContain("!newData.exists()");
   expect(plannedWrite).toContain("auth.uid");
   expect(plannedWrite).toContain("status");
   expect(plannedWrite).toContain("planned");

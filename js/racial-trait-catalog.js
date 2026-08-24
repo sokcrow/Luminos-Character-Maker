@@ -539,8 +539,8 @@
       description: "Touch a creature to learn its general emotional state without making the target aware. Uses equal Proficiency; Long Rest.",
       source: raceSource("moonfae"),
       contexts: ["theatre"],
-      activation: { type: "manual", actionCost: "action", uses: { formula: "Proficiency", reset: "long_rest" }, target: "creature" },
-      effects: [{ id: "moonfae_empathy_read", contexts: ["theatre"], trigger: "on_use", conditions: [], operations: [{ type: "set_flag", flagId: "empathy_read_requested", value: true }] }],
+      activation: { type: "manual", actionCost: "action", uses: { formula: "Proficiency", reset: "long_rest" }, target: "creature", conditions: [{ path: "target", operator: "truthy" }] },
+      effects: [{ id: "moonfae_empathy_read", contexts: ["theatre"], trigger: "on_use", conditions: [], operations: [{ type: "register_dm_effect", kind: "request", effectId: "empathy_read", name: "Empathy", durationHours: 24, prompt: "Describe the target creature's general emotional state. The target is not made aware of this reading.", note: "Empathy: return only the target's general emotional state to the requesting player." }] }],
       rules: [],
     },
 

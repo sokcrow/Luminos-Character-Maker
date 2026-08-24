@@ -150,10 +150,12 @@ test("production timeline resolves planned Trait Action Slots", () => {
   const viewer = fs.readFileSync(path.join(__dirname, "..", "Battle-viewer.html"), "utf8");
   expect(viewer).toContain("...collectPlannedActionSlotIds()");
   expect(viewer).toContain("CombatEngine.resolveActionSlot(attackerUnit, slotIndex");
-  expect(viewer).toContain("claimSharedPlannedAction(attackerBaseId, slotIndex)");
+  expect(viewer).toContain("claimSharedPlannedAction(sharedOwnerPlayerId, slotIndex)");
   expect(viewer).toContain("plannedAction: claimed");
-  expect(viewer).toContain("finishSharedPlannedAction(attackerBaseId, slotIndex, plannedResolution)");
+  expect(viewer).toContain("finishSharedPlannedAction(sharedOwnerPlayerId, slotIndex, plannedResolution)");
   expect(viewer).toContain("resolvedSlots.add(attackerSlotId)");
+  expect(viewer).toContain("function combatUnitForOwner(ownerPlayerId)");
+  expect(viewer).toContain("!attackVectors[attackerSlotId]");
 });
 
 
