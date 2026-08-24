@@ -200,4 +200,15 @@
     script.async = false;
     global.document.head?.appendChild(script);
   }
+
+  // Status Engine is loaded by the real Battle Viewer before CombatEngine. Bootstrap the
+  // Archetype Runtime here as a shared runtime bridge so combat mechanics do not depend on
+  // player-sheet-only loaders such as utils.js or .sheet-phone-wrapper.
+  if (global.document && !global.LuminousArchetypeRuntime && !global.document.getElementById("player-archetype-runtime-script")) {
+    const script = global.document.createElement("script");
+    script.id = "player-archetype-runtime-script";
+    script.src = "js/player-archetype-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
 })(typeof window !== "undefined" ? window : globalThis);
