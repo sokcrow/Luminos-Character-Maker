@@ -1,3 +1,4 @@
+# Regression contract for the production Trait/runtime integration.
 name: Trait Engine
 
 on:
