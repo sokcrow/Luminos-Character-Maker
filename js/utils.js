@@ -110,6 +110,24 @@ function ensurePlayerTraitRuntimeAssets(doc) {
     return ensureScriptAsset(documentRef, 'player-trait-runtime-script', 'js/player-trait-runtime.js', { ui: 'player-trait-runtime' });
 }
 
+function ensurePlayerRestRuntimeAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+
+    const ensureRestRuntime = () => {
+        const restEngine = ensureScriptAsset(documentRef, 'rest-engine-script', 'js/rest-engine.js', { engine: 'rest-engine' });
+        const ensureBridge = () => ensureScriptAsset(documentRef, 'rest-runtime-integration-script', 'js/rest-runtime-integration.js', { engine: 'rest-runtime' });
+        if (typeof window !== 'undefined' && window.LuminousRestEngine) ensureBridge();
+        else restEngine.addEventListener('load', ensureBridge, { once: true });
+        return restEngine;
+    };
+
+    const buildRules = ensureScriptAsset(documentRef, 'character-build-rules-script', 'js/character-build-rules.js', { engine: 'character-build-rules' });
+    if (typeof window !== 'undefined' && window.LuminousCharacterBuildRules) ensureRestRuntime();
+    else buildRules.addEventListener('load', ensureRestRuntime, { once: true });
+    return { buildRules };
+}
+
 function ensurePlayerArchetypeRuntimeAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
@@ -302,6 +320,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerUxPolishAssets(document);
     ensurePlayerStatsAbilityBarAssets(document);
     ensurePlayerTraitRuntimeAssets(document);
+    ensurePlayerRestRuntimeAssets(document);
     ensurePlayerArchetypeRuntimeAssets(document);
     ensureDmPlayerDndStudioAssets(document);
     ensureDmTraitLibraryAssets(document);
@@ -321,6 +340,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerUxPolishAssets,
         ensurePlayerStatsAbilityBarAssets,
         ensurePlayerTraitRuntimeAssets,
+        ensurePlayerRestRuntimeAssets,
         ensurePlayerArchetypeRuntimeAssets,
         ensureDmPlayerDndStudioAssets,
         ensureDmTraitLibraryAssets,
