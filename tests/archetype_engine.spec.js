@@ -39,6 +39,18 @@ test("multiclase conserva un Archetype separado por Class", () => {
   expect(both.find((entry) => entry.classId === "wizard")?.archetypeId).toBe("school_of_test");
 });
 
+test("validateSelections rechaza dos Archetypes persistidos para la misma Class", () => {
+  const malformed = character({ barbarian: 40 }, [
+    { classId: "barbarian", archetypeId: "path_of_the_devil_lineage", selectedAtClassLevel: 15 },
+    { classId: "barbarian", archetypeId: "path_of_the_devil_lineage", selectedAtClassLevel: 30 },
+  ]);
+  const normalized = archetypeEngine.normalizeSelections(malformed);
+  expect(normalized).toHaveLength(2);
+  const validation = archetypeEngine.validateSelections(malformed, catalog.allArchetypes());
+  expect(validation.valid).toBe(false);
+  expect(validation.errors.some((message) => message.includes("Only one Archetype can be selected for barbarian"))).toBe(true);
+});
+
 test("Path of the Devil Lineage entrega Traits por pisos 15/30/50/70", () => {
   const expected = new Map([[15, 4], [30, 5], [50, 9], [70, 13]]);
   for (const [level, count] of expected) {
