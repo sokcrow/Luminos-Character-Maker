@@ -6,13 +6,32 @@
   const PATCH_INTERVAL_MS = 250;
   const MAX_DEATH_SAVES = 3;
   const DEATH_SAVE_CHECK = Object.freeze({
+    id: "death_save",
+    kind: "death_save",
+    checkType: "death_save",
+    abilityId: "death_save",
     coinAmount: 5,
     coinPower: 4,
     basePower: 0,
     threshold: 10,
+    deathSavePower: 0,
+    deathSaveThreshold: 10,
     flat: true,
     statModifiers: false,
+    proficiency: false,
     headsChance: 50,
+  });
+
+  const SINNER_TRAIT = Object.freeze({
+    schemaVersion: 1,
+    id: "sinner",
+    name: "Sinner",
+    source: { type: "special", id: "sinner" },
+    contexts: ["combat"],
+    activation: { type: "passive", actionCost: "none" },
+    description: "On actual death, use Sinner Death instead of normal permanent-death consequences. Player Sinners still use Downed and Death Saves to determine whether they remain available in the Encounter.",
+    effects: [],
+    rules: [],
   });
 
   const state = {
@@ -20,6 +39,8 @@
     retreatQueue: [],
     skillTokens: typeof WeakMap === "function" ? new WeakMap() : null,
     nextSkillToken: 1,
+    deathSaveTraitStateByKey: new Map(),
+    deathSaveTraitStateByObject: typeof WeakMap === "function" ? new WeakMap() : null,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -27,9 +48,26 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
   function unitIds(unit = {}) {
-    return [unit.id, unit.unitId, unit.unit_id, unit.characterId, unit.character_id, unit.playerId, unit.player_id, unit.uid]
+    return [
+      unit.combatId, unit.combat_id, unit.id, unit.unitId, unit.unit_id,
+      unit.characterId, unit.character_id, unit.playerId, unit.player_id,
+      unit.actorId, unit.actor_id, unit.uid, unit.vinculo_jugador,
+    ]
       .filter((value) => value != null && String(value).trim() !== "")
       .map((value) => String(value).trim());
+  }
+
+  function unitName(unit = {}) {
+    return normalizeId(unit.characterName || unit.character_name || unit.nombre || unit.name || "");
+  }
+
+  function sameUnit(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const ids = new Set(unitIds(a));
+    if (unitIds(b).some((id) => ids.has(id))) return true;
+    const name = unitName(a);
+    return Boolean(name && name === unitName(b));
   }
 
   function hasTag(unit = {}, tag) {
@@ -72,6 +110,147 @@
     return isPlayerCharacter(unit) || isCaptain(unit);
   }
 
+  function traitCharacterForUnit(unit = {}) {
+    const build = unit.characterBuild && typeof unit.characterBuild === "object" ? unit.characterBuild : {};
+    return {
+      ...unit,
+      characterBuild: build,
+      classes: Array.isArray(unit.classes) ? unit.classes : (Array.isArray(build.classes) ? build.classes : []),
+      raceId: build.raceId ?? unit.raceId ?? unit.race?.id,
+      raceSubtypeId: build.raceSubtypeId ?? unit.raceSubtypeId ?? unit.race?.subtypeId,
+      backgroundId: build.backgroundId ?? unit.backgroundId ?? unit.background?.id,
+      level: build.calculatedAtLevel ?? unit.level,
+      lineages: Array.isArray(build.lineages) ? build.lineages : unit.lineages,
+      lineageId: build.lineageId ?? unit.lineageId,
+    };
+  }
+
+  function addTraitDefinition(byId, definition) {
+    if (!definition || typeof definition !== "object") return;
+    const engine = global.LuminousTraitEngine;
+    let trait = definition;
+    try { trait = engine?.normalizeTrait ? engine.normalizeTrait(definition) : definition; } catch (_) {}
+    const id = normalizeId(trait?.id || trait?.name);
+    if (id && !byId.has(id)) byId.set(id, trait);
+  }
+
+  function traitsForDeathSaveUnit(unit = {}) {
+    const engine = global.LuminousTraitEngine;
+    if (!engine) return [];
+    const byId = new Map();
+    const character = traitCharacterForUnit(unit);
+
+    try { global.LuminousArchetypeRuntime?.syncArchetypeTraitsForUnit?.(unit); } catch (_) {}
+    [unit.traitDefinitions, unit.traits].forEach((list) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((entry) => { if (entry && typeof entry === "object") addTraitDefinition(byId, entry); });
+    });
+
+    const core = global.LuminousTraitCatalogCore;
+    const racial = global.LuminousRacialTraitCatalog;
+    const archetypeCatalog = global.LuminousArchetypeTraitCatalog;
+    const coreDefinitions = core?.allDefinitions?.() || {};
+    const racialDefinitions = racial?.allDefinitions?.() || {};
+
+    try {
+      (engine.resolveTraitGrants?.(character, core?.allGrants?.() || [], coreDefinitions) || []).forEach((trait) => addTraitDefinition(byId, trait));
+    } catch (_) {}
+    try {
+      (racial?.resolveTraitGrants?.(character, { ...coreDefinitions, ...racialDefinitions }) || []).forEach((trait) => addTraitDefinition(byId, trait));
+    } catch (_) {}
+    try {
+      (global.LuminousArchetypeCombatEventRuntime?.traitsForUnit?.(unit) || []).forEach((trait) => addTraitDefinition(byId, trait));
+    } catch (_) {}
+
+    const selectedDefinitions = { ...coreDefinitions, ...racialDefinitions };
+    try {
+      (global.LuminousClassMilestones?.resolveSelectedGeneralTraits?.(unit, selectedDefinitions) || []).forEach((trait) => addTraitDefinition(byId, trait));
+    } catch (_) {}
+
+    traitIds(unit).forEach((id) => {
+      if (byId.has(id)) return;
+      let definition = null;
+      try { definition = core?.getDefinition?.(id) || null; } catch (_) {}
+      try { definition = definition || racial?.getDefinition?.(id) || null; } catch (_) {}
+      try { definition = definition || archetypeCatalog?.getDefinition?.(id) || null; } catch (_) {}
+      if (id === "sinner") definition = definition || SINNER_TRAIT;
+      addTraitDefinition(byId, definition);
+    });
+
+    return [...byId.values()];
+  }
+
+  function deathSaveTraitStateFor(unit = {}) {
+    const shared = global.LuminousArchetypeCombatEventRuntime?.traitStateFor?.(unit);
+    if (shared) return shared;
+    const engine = global.LuminousTraitEngine;
+    const key = unitIds(unit)[0] || unitName(unit) || null;
+    if (key) {
+      if (!state.deathSaveTraitStateByKey.has(key)) state.deathSaveTraitStateByKey.set(key, engine?.createState?.() || {});
+      return state.deathSaveTraitStateByKey.get(key);
+    }
+    if (state.deathSaveTraitStateByObject) {
+      if (!state.deathSaveTraitStateByObject.has(unit)) state.deathSaveTraitStateByObject.set(unit, engine?.createState?.() || {});
+      return state.deathSaveTraitStateByObject.get(unit);
+    }
+    return engine?.createState?.() || {};
+  }
+
+  function playerRuntimeOwnsUnit(unit) {
+    const runtime = global.LuminousPlayerTraitRuntime;
+    if (!runtime?.getCharacter || !runtime?.dispatchCombatEvent) return false;
+    try { return sameUnit(unit, runtime.getCharacter()); } catch (_) { return false; }
+  }
+
+  function dispatchDeathSaveTraitTrigger(trigger, unit, check, options = {}) {
+    if (!unit || !check) return { delegated: false, outcomes: [] };
+    const input = {
+      context: "combat",
+      character: traitCharacterForUnit(unit),
+      self: unit,
+      unit,
+      target: unit,
+      defender: unit,
+      check,
+      checkKind: "death_save",
+      deathSave: true,
+      source: "death_save",
+      ...(options.runtime || {}),
+    };
+    input.character = traitCharacterForUnit(unit);
+    input.self = unit;
+    input.check = check;
+
+    if (playerRuntimeOwnsUnit(unit)) {
+      try {
+        const result = global.LuminousPlayerTraitRuntime.dispatchCombatEvent(trigger, input) || null;
+        return { delegated: true, result, outcomes: result?.outcomes || [] };
+      } catch (_) {
+        return { delegated: true, result: null, outcomes: [] };
+      }
+    }
+
+    const engine = global.LuminousTraitEngine;
+    const traits = traitsForDeathSaveUnit(unit);
+    if (!engine?.dispatchTraits || !traits.length) return { delegated: false, traits, outcomes: [] };
+    const traitState = deathSaveTraitStateFor(unit);
+    const runtime = { ...input };
+    const outcomes = [];
+    try {
+      if (normalizeId(trigger) !== "passive") {
+        const passive = engine.dispatchTraits(traits, "passive", runtime, traitState);
+        if (Array.isArray(passive?.outcomes)) outcomes.push(...passive.outcomes);
+      }
+      const result = engine.dispatchTraits(traits, trigger, runtime, traitState);
+      if (Array.isArray(result?.outcomes)) outcomes.push(...result.outcomes);
+      global.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.(traits, normalizeId(trigger), runtime, result);
+      return { delegated: false, traits, state: traitState, runtime, result, outcomes };
+    } catch (error) {
+      console.warn?.("Death Save Trait dispatch failed:", error);
+      return { delegated: false, traits, state: traitState, runtime, outcomes, error };
+    }
+  }
+
   function ensureDeathState(unit) {
     if (!unit || typeof unit !== "object") return null;
     if (!unit.deathSaves || typeof unit.deathSaves !== "object") unit.deathSaves = { successes: 0, failures: 0 };
@@ -83,6 +262,8 @@
       else if (unit.isDowned === true) unit.lifeState = "downed";
       else unit.lifeState = "alive";
     }
+    if (!Number.isFinite(Number(unit.deathSavePower))) unit.deathSavePower = DEATH_SAVE_CHECK.deathSavePower;
+    if (!Number.isFinite(Number(unit.deathSaveThreshold))) unit.deathSaveThreshold = DEATH_SAVE_CHECK.deathSaveThreshold;
     return unit.deathSaves;
   }
 
@@ -246,22 +427,100 @@
     return result;
   }
 
+  function prepareDeathSaveCheck(unit = null, options = {}) {
+    const check = {
+      ...DEATH_SAVE_CHECK,
+      id: "death_save",
+      kind: "death_save",
+      checkType: "death_save",
+      abilityId: "death_save",
+      skillId: null,
+      abilityPower: 0,
+      finalPower: 0,
+      deathSavePower: DEATH_SAVE_CHECK.deathSavePower,
+      difficulty: DEATH_SAVE_CHECK.threshold,
+      threshold: DEATH_SAVE_CHECK.threshold,
+      deathSaveThreshold: DEATH_SAVE_CHECK.deathSaveThreshold,
+      statModifier: 0,
+      proficiencyBonus: 0,
+      statModifiers: false,
+      proficiency: false,
+      source: "death_save",
+      ...(options.check || {}),
+    };
+
+    const baseThreshold = DEATH_SAVE_CHECK.threshold;
+    const traitResolution = unit ? dispatchDeathSaveTraitTrigger("before_check", unit, check, options) : { outcomes: [] };
+
+    // Death Saves never import ordinary Check bonuses. Only values written into the Check
+    // by Traits are honored. Dedicated Death Save fields and generic Check channels stack.
+    const traitPower =
+      numberOr(check.deathSavePower, DEATH_SAVE_CHECK.deathSavePower) +
+      numberOr(check.finalPower, 0) +
+      numberOr(check.abilityPower, 0);
+    const resolvedThreshold = baseThreshold
+      + (numberOr(check.deathSaveThreshold, baseThreshold) - baseThreshold)
+      + (numberOr(check.difficulty, baseThreshold) - baseThreshold)
+      + (numberOr(check.threshold, baseThreshold) - baseThreshold);
+
+    check.coinAmount = Math.max(1, Math.trunc(numberOr(check.coinAmount, DEATH_SAVE_CHECK.coinAmount)));
+    check.coinPower = numberOr(check.coinPower, DEATH_SAVE_CHECK.coinPower);
+    check.basePower = numberOr(check.basePower, DEATH_SAVE_CHECK.basePower);
+    check.headsChance = Math.max(5, Math.min(95, numberOr(check.headsChance, DEATH_SAVE_CHECK.headsChance)));
+    check.deathSavePower = traitPower;
+    check.deathSaveThreshold = resolvedThreshold;
+    check.resolvedThreshold = resolvedThreshold;
+    check.statModifier = 0;
+    check.proficiencyBonus = 0;
+    check.statModifiers = false;
+    check.proficiency = false;
+    check.traitOutcomes = clone(traitResolution?.outcomes || []);
+
+    if (unit) {
+      unit.deathSavePower = traitPower;
+      unit.deathSaveThreshold = resolvedThreshold;
+      unit.deathSaveCheck = {
+        power: traitPower,
+        threshold: resolvedThreshold,
+        coinAmount: check.coinAmount,
+        coinPower: check.coinPower,
+        basePower: check.basePower,
+      };
+    }
+
+    emit("luminous:death-save-check-prepared", { unit, check, traitResolution });
+    return { check, traitResolution };
+  }
+
   function rollDeathSave(options = {}) {
+    const unit = options.unit || null;
+    const prepared = prepareDeathSaveCheck(unit, options);
+    const check = prepared.check;
     const coin = global.LuminousCoinEngine;
     const rng = typeof options.rng === "function" ? options.rng : Math.random;
     const tosses = [];
-    for (let index = 0; index < DEATH_SAVE_CHECK.coinAmount; index += 1) {
-      const side = coin?.rollSide ? coin.rollSide(DEATH_SAVE_CHECK.headsChance, rng) : ((rng() * 100) < DEATH_SAVE_CHECK.headsChance ? "head" : "tail");
+    for (let index = 0; index < check.coinAmount; index += 1) {
+      const side = coin?.rollSide ? coin.rollSide(check.headsChance, rng) : ((rng() * 100) < check.headsChance ? "head" : "tail");
       tosses.push(side);
     }
     const heads = tosses.filter((side) => side === "head").length;
-    const total = DEATH_SAVE_CHECK.basePower + heads * DEATH_SAVE_CHECK.coinPower;
-    return { ...DEATH_SAVE_CHECK, tosses, heads, total, passed: total >= DEATH_SAVE_CHECK.threshold };
+    const rolledPower = check.basePower + heads * check.coinPower;
+    const total = rolledPower + check.deathSavePower;
+    check.tosses = tosses;
+    check.heads = heads;
+    check.rolledPower = rolledPower;
+    check.total = total;
+    check.passed = total >= check.deathSaveThreshold;
+
+    if (unit) dispatchDeathSaveTraitTrigger("after_check", unit, check, options);
+    return check;
   }
 
   function resolveDeathSave(unit, options = {}) {
     if (!isDowned(unit) || isDead(unit)) return { resolved: false, reason: "not_downed", unit };
-    const check = options.checkResult || rollDeathSave(options);
+    const check = options.checkResult
+      ? { ...DEATH_SAVE_CHECK, ...options.checkResult }
+      : rollDeathSave({ ...options, unit });
     const outcome = check.passed ? addSuccess(unit, { reason: "death_save", check }) : addFailure(unit, { reason: "death_save", check });
     const result = { resolved: true, unit, check, outcome };
     emit("luminous:death-save-resolved", result);
@@ -416,6 +675,7 @@
     engine.canUnitAct = function (unit) { return canAct(unit); };
     engine.applyHealing = function (unit, amount, options = {}) { return heal(unit, amount, options); };
     engine.reviveUnit = function (unit, amount = 1, options = {}) { return heal(unit, amount, { ...options, revive: true, source: options.source || "revival" }); };
+    engine.prepareDeathSaveCheck = function (unit, options = {}) { return prepareDeathSaveCheck(unit, options); };
     engine.resolveDeathSave = function (unit, options = {}) { return resolveDeathSave(unit, options); };
     engine.returnFromRetreat = function (unit, options = {}) { return returnFromRetreat(unit, options); };
     engine.getAllTargetableUnits = function () {
@@ -615,19 +875,11 @@
   const api = Object.freeze({
     MAX_DEATH_SAVES,
     DEATH_SAVE_CHECK,
-    SINNER_TRAIT: Object.freeze({
-      schemaVersion: 1,
-      id: "sinner",
-      name: "Sinner",
-      source: { type: "special", id: "sinner" },
-      contexts: ["combat"],
-      activation: { type: "passive", actionCost: "none" },
-      description: "On actual death, use Sinner Death instead of normal permanent-death consequences. Player Sinners still use Downed and Death Saves to determine whether they remain available in the Encounter.",
-      effects: [],
-      rules: [],
-    }),
+    SINNER_TRAIT,
     normalizeId,
     traitIds,
+    traitsForDeathSaveUnit,
+    dispatchDeathSaveTraitTrigger,
     isPlayerCharacter,
     isCaptain,
     isSinner,
@@ -643,6 +895,7 @@
     resolveDeath,
     addFailure,
     addSuccess,
+    prepareDeathSaveCheck,
     rollDeathSave,
     resolveDeathSave,
     heal,
