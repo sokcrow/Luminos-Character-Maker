@@ -7,6 +7,7 @@ on:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/fixed-damage-runtime.js"
       - "js/death-save-runtime.js"
       - "js/anatomy-equipment-engine.js"
       - "js/injury-engine.js"
@@ -21,6 +22,7 @@ on:
       - "js/utils.js"
       - "docs/rest-system.md"
       - "docs/injury-equipment-system.md"
+      - "docs/fixed-damage.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/death_save_trait_modifiers.spec.js"
       - "tests/anatomy_equipment_engine.spec.js"
@@ -31,11 +33,13 @@ on:
       - "tests/devil_lineage_completion.spec.js"
       - "tests/rest_engine.spec.js"
       - "tests/rest_runtime_contract.spec.js"
+      - "tests/fixed_damage_runtime.test.js"
       - ".github/workflows/archetype-engine.yml"
   pull_request:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/fixed-damage-runtime.js"
       - "js/death-save-runtime.js"
       - "js/anatomy-equipment-engine.js"
       - "js/injury-engine.js"
@@ -50,6 +54,7 @@ on:
       - "js/utils.js"
       - "docs/rest-system.md"
       - "docs/injury-equipment-system.md"
+      - "docs/fixed-damage.md"
       - "tests/death_save_runtime.spec.js"
       - "tests/death_save_trait_modifiers.spec.js"
       - "tests/anatomy_equipment_engine.spec.js"
@@ -60,6 +65,7 @@ on:
       - "tests/devil_lineage_completion.spec.js"
       - "tests/rest_engine.spec.js"
       - "tests/rest_runtime_contract.spec.js"
+      - "tests/fixed_damage_runtime.test.js"
       - ".github/workflows/archetype-engine.yml"
 
 permissions:
@@ -84,6 +90,7 @@ jobs:
       - name: Check syntax
         run: |
           node --check js/status-engine.js
+          node --check js/fixed-damage-runtime.js
           node --check js/death-save-runtime.js
           node --check js/anatomy-equipment-engine.js
           node --check js/injury-engine.js
@@ -105,6 +112,10 @@ jobs:
           node --check tests/devil_lineage_completion.spec.js
           node --check tests/rest_engine.spec.js
           node --check tests/rest_runtime_contract.spec.js
+          node --check tests/fixed_damage_runtime.test.js
+
+      - name: Run Fixed Damage contract
+        run: node tests/fixed_damage_runtime.test.js
 
       - name: Run Archetype regressions
         run: >-
