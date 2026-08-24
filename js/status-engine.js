@@ -218,4 +218,14 @@
     script.async = false;
     global.document.head?.appendChild(script);
   }
+
+  // Death/Downed is a combat-wide rule, not a player-sheet feature. Load it from the same
+  // Battle Viewer bootstrap and let it patch CombatEngine when that script becomes available.
+  if (global.document && !global.LuminousDeathSaveRuntime && !global.document.getElementById("death-save-runtime-script")) {
+    const script = global.document.createElement("script");
+    script.id = "death-save-runtime-script";
+    script.src = "js/death-save-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
 })(typeof window !== "undefined" ? window : globalThis);
