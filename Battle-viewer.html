@@ -222,7 +222,16 @@
     </div>
     <!-- Firebase App (núcleo) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="js/status-engine.js"></script>
+    <script src="js/trait-engine.js"></script>
+    <script src="js/trait-catalog-core.js"></script>
+    <script src="js/racial-trait-catalog.js"></script>
+    <script src="js/universal-modifier-engine.js"></script>
+    <script src="js/universal-action-economy.js"></script>
+    <script src="js/trait-player-tray.js"></script>
+    <script src="js/trait-standardization-runtime.js"></script>
     <script src="js/combatEngine.js"></script>
 
 <script>
@@ -241,6 +250,126 @@
     const db = firebase.database();
 
     let combatData = {};
+
+    const COMBAT_STATE_PATH = 'campaña/combate/estado';
+    const SHARED_PLANNED_ACTIONS_PATH = 'campaña/combate/plannedActions';
+    let luminousCombatPhaseState = null;
+    let sharedPlannedActions = {};
+
+    function combatUnitsForActionEconomy() {
+        return Object.values(combatData || {}).filter(unit => unit && typeof unit === 'object');
+    }
+
+    function syncCombatEnginePhase(rawState) {
+        const normalized = String(rawState || '').trim().toUpperCase();
+        if (!window.CombatEngine) return normalized;
+
+        const units = combatUnitsForActionEconomy();
+        const economy = window.LuminousActionEconomy;
+        const previous = luminousCombatPhaseState;
+
+        if (normalized === 'PRE_COMBAT_PLANNING') {
+            if (previous !== normalized) {
+                CombatEngine.beginPlanningPhase(units);
+            } else {
+                CombatEngine.currentState = 'PRE_COMBAT_PLANNING';
+                if (economy?.ensureState) {
+                    units.forEach(unit => {
+                        const state = economy.ensureState(unit);
+                        if (state?.phase !== 'planning') economy.beginPlanning(unit);
+                    });
+                }
+            }
+        } else if (normalized === 'COMBAT_ACTIVE') {
+            if (previous !== normalized) {
+                CombatEngine.triggerEncounterStart(units);
+            } else {
+                CombatEngine.currentState = 'COMBAT_ACTIVE';
+                if (economy?.ensureState) {
+                    units.forEach(unit => {
+                        const state = economy.ensureState(unit);
+                        if (state?.phase !== 'combat') economy.beginCombat(unit);
+                    });
+                }
+            }
+        }
+
+        luminousCombatPhaseState = normalized;
+        window.LuminousCombatPhaseState = normalized;
+        return normalized;
+    }
+
+    function combatUnitIdentityValues(unit = {}) {
+        return [unit?.id, unit?.unitId, unit?.playerId, unit?.player_id, unit?.ownerPlayerId, unit?.owner_player_id, unit?.characterId, unit?.character_id, unit?.uid, unit?.vinculo_jugador]
+            .filter(value => value != null && String(value).trim() !== '')
+            .map(value => String(value).trim());
+    }
+
+    function combatUnitForOwner(ownerPlayerId) {
+        const owner = String(ownerPlayerId || '').trim();
+        if (!owner) return null;
+        return Object.values(combatData || {}).find(unit => combatUnitIdentityValues(unit).includes(owner)) || null;
+    }
+
+    function combatUnitId(unit = {}) {
+        return String(unit?.id || unit?.unitId || unit?.characterId || unit?.actorId || '').trim();
+    }
+
+    function getSharedPlannedAction(unitId, slotIndex) {
+        const wantedUnitId = String(unitId || '');
+        for (const [ownerPlayerId, slots] of Object.entries(sharedPlannedActions || {})) {
+            const ownerUnit = combatUnitForOwner(ownerPlayerId);
+            if (!ownerUnit || combatUnitId(ownerUnit) !== wantedUnitId) continue;
+            const action = slots?.[slotIndex] || slots?.[String(slotIndex)] || null;
+            if (action) return { ...action, __ownerPlayerId: ownerPlayerId };
+        }
+        return null;
+    }
+
+    function isTraitActionSlotReserved(slotId) {
+        const marker = '_slot_';
+        const splitAt = String(slotId || '').lastIndexOf(marker);
+        if (splitAt < 0) return false;
+        const unitId = slotId.slice(0, splitAt);
+        const slotIndex = Number(slotId.slice(splitAt + marker.length));
+        if (!Number.isInteger(slotIndex)) return false;
+        const shared = getSharedPlannedAction(unitId, slotIndex);
+        if (shared && ['planned', 'resolving'].includes(shared.status)) return true;
+        const unit = combatData[unitId];
+        const local = unit ? window.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) : null;
+        return local?.kind === 'trait';
+    }
+
+    function collectPlannedActionSlotIds() {
+        const slotIds = [];
+        Object.entries(sharedPlannedActions || {}).forEach(([ownerPlayerId, slots]) => {
+            const ownerUnit = combatUnitForOwner(ownerPlayerId);
+            if (!ownerUnit) return;
+            const unitId = combatUnitId(ownerUnit);
+            const maxSlots = window.LuminousActionEconomy?.actionSlotMaximum?.(ownerUnit) || Number(ownerUnit.actionSlots || ownerUnit.activeSlots || 1);
+            Object.entries(slots || {}).forEach(([slotIndexRaw, action]) => {
+                const slotIndex = Number(slotIndexRaw);
+                if (action?.status === 'planned' && Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < maxSlots) slotIds.push(`${unitId}_slot_${slotIndex}`);
+            });
+        });
+        return slotIds;
+    }
+
+    async function claimSharedPlannedAction(ownerPlayerId, slotIndex) {
+        const ref = db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`);
+        const result = await ref.transaction(current => {
+            if (!current || current.status !== 'planned') return;
+            return { ...current, status: 'resolving', resolvingAt: Date.now() };
+        });
+        return result.committed ? result.snapshot.val() : null;
+    }
+
+    async function finishSharedPlannedAction(ownerPlayerId, slotIndex, resolution) {
+        const success = Boolean(resolution?.handled && resolution?.result?.available);
+        const payload = { status: success ? 'resolved' : 'failed', resolvedAt: Date.now(), resolution: { handled: Boolean(resolution?.handled), available: Boolean(resolution?.result?.available), traitId: resolution?.planned?.traitId || resolution?.result?.trait?.id || null, reasons: resolution?.result?.reasons || [] } };
+        await db.ref(`${SHARED_PLANNED_ACTIONS_PATH}/${ownerPlayerId}/${slotIndex}`).update(payload);
+        return payload;
+    }
 
     // --- MODAL CREATOR LOGIC ---
     function openCreatorModal() { document.getElementById('npc-creator-modal').style.display = 'flex'; }
@@ -587,6 +716,7 @@
 
         allySlotsNodes.forEach(ally => {
             const baseId = ally.id.split('_slot_')[0];
+            if (isTraitActionSlotReserved(ally.id)) return;
             if (combatData[baseId] && combatData[baseId].isImmobilized) return;
 
             let allyId = ally.id; let targetId = null;
@@ -689,6 +819,10 @@
             const slot = e.target.closest('.action-slot-wrapper');
             if (slot && slot.dataset.faction === 'ally') {
                 const baseId = slot.id.split('_slot_')[0];
+                if (isTraitActionSlotReserved(slot.id)) {
+                    addLogEntry(`[ ACTION SLOT ] - ${combatData[baseId]?.name || baseId} ya reservó este Slot para una Trait.`, 'interrupt');
+                    return;
+                }
                 if (combatData[baseId] && combatData[baseId].isImmobilized) {
                     addLogEntry(`[ INMOVILIZADO ] - ${combatData[baseId].name} no puede asignar objetivos.`, 'interrupt');
                     return;
@@ -778,12 +912,20 @@
 
     // --- TIMELINE DE EJECUCIÓN (Flanqueo y Movimiento) ---
     async function executeCombatTimeline() {
+        // Pressing Execute is the authoritative Planning -> Combat transition for this timeline.
+        syncCombatEnginePhase('COMBAT_ACTIVE');
+        try {
+            await db.ref(COMBAT_STATE_PATH).set('COMBAT_ACTIVE');
+        } catch (error) {
+            console.error('No se pudo sincronizar COMBAT_ACTIVE en Firebase:', error);
+        }
+
         addLogEntry('--- INICIANDO FASE DE RESOLUCIÓN ---', 'interrupt');
 
         // Colectar todos los slots que van a actuar
         // Para simplificar, iteramos sobre los atacantes (aliados) registrados en attackVectors
 
-        let actingSlots = Object.keys(attackVectors);
+        let actingSlots = [...new Set([...Object.keys(attackVectors), ...collectPlannedActionSlotIds()])];
         if (actingSlots.length === 0) {
             addLogEntry('NO HAY ACCIONES REGISTRADAS.');
             return;
@@ -797,17 +939,42 @@
 
         // Loop secuencial
         for (let attackerSlotId of actingSlots) {
-            const vector = attackVectors[attackerSlotId];
-            const targetSlotId = vector.target;
-
             const attackerBaseId = attackerSlotId.split('_slot_')[0];
-            const targetBaseId = targetSlotId.split('_slot_')[0];
-
             const attackerUnit = combatData[attackerBaseId];
-            const targetUnit = combatData[targetBaseId];
+            if (!attackerUnit) continue;
 
             if (attackerUnit.isImmobilized) {
                 addLogEntry(`[ INMOVILIZADO ] - ${attackerUnit.name} no puede actuar este turno.`, 'interrupt');
+                continue;
+            }
+
+            const slotIndex = Number(attackerSlotId.split('_slot_')[1]);
+            const sharedAction = Number.isInteger(slotIndex) ? getSharedPlannedAction(attackerBaseId, slotIndex) : null;
+            const sharedOwnerPlayerId = sharedAction?.__ownerPlayerId || null;
+            if (sharedAction?.status === 'planned' && sharedOwnerPlayerId && !attackVectors[attackerSlotId] && typeof CombatEngine.resolveActionSlot === 'function') {
+                let claimed = null;
+                try { claimed = await claimSharedPlannedAction(sharedOwnerPlayerId, slotIndex); } catch (error) { console.error('No se pudo reclamar el Action Slot compartido:', error); }
+                if (claimed && String(claimed.scheduledBy || '') === String(sharedOwnerPlayerId)) {
+                    const plannedResolution = CombatEngine.resolveActionSlot(attackerUnit, slotIndex, { phase: 'combat', combatData, attackerSlotId, plannedAction: claimed });
+                    try { await finishSharedPlannedAction(sharedOwnerPlayerId, slotIndex, plannedResolution); } catch (error) { console.error('No se pudo cerrar el Action Slot compartido:', error); }
+                    const actionName = plannedResolution?.result?.trait?.name || claimed?.traitId || 'Trait';
+                    if (plannedResolution?.result?.available) addLogEntry(`[ ACTION ] - ${attackerUnit.name}: ${actionName}`);
+                    else addLogEntry(`[ ACTION FAILED ] - ${attackerUnit.name}: ${actionName}`, 'interrupt');
+                    resolvedSlots.add(attackerSlotId);
+                    continue;
+                }
+            }
+
+            const vector = attackVectors[attackerSlotId];
+            if (!vector?.target) {
+                resolvedSlots.add(attackerSlotId);
+                continue;
+            }
+            const targetSlotId = vector.target;
+            const targetBaseId = targetSlotId.split('_slot_')[0];
+            const targetUnit = combatData[targetBaseId];
+            if (!targetUnit) {
+                resolvedSlots.add(attackerSlotId);
                 continue;
             }
 
@@ -984,6 +1151,11 @@
     function selectMatrixCell(x, y) {
         const attackerId = pendingAttackerSlotId;
         const targetId = pendingTargetSlotId;
+        if (!attackerId || isTraitActionSlotReserved(attackerId)) {
+            if (attackerId) addLogEntry('[ ACTION SLOT ] - Ese Slot está reservado para una Trait.', 'interrupt');
+            closeTargetingMatrix();
+            return;
+        }
 
         // Clear previous selection by this attacker on this target if any
         if (matrixOccupancy[targetId]) {
@@ -1118,6 +1290,14 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
     let activeDragRef = null;
 
     function initFirebaseCombat() {
+        // Firebase is the production source of truth for Planning vs Combat Phase.
+        db.ref(COMBAT_STATE_PATH).on('value', snap => {
+            syncCombatEnginePhase(snap.val());
+        });
+
+        // Shared Planning is authoritative across every player and the DM viewer.
+        db.ref(SHARED_PLANNED_ACTIONS_PATH).on('value', snap => { sharedPlannedActions = snap.val() || {}; });
+
         // Escuchar datos de los combatientes
         db.ref('campaña/combate/combatants').on('value', snap => {
             const data = snap.val() || {};
@@ -1132,6 +1312,9 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
             Object.values(dbCombatData).forEach(unit => {
                 spawnCombatant(unit);
             });
+            // Initial Firebase callbacks can arrive in either order. Re-apply the already-known
+            // phase to newly materialized Unit objects without resetting existing planned actions.
+            if (luminousCombatPhaseState) syncCombatEnginePhase(luminousCombatPhaseState);
             drawArcs();
         });
 

@@ -11,6 +11,9 @@
     "final_power",
     "base_power",
     "defense_power",
+    "counter_power",
+    "evade_power",
+    "guard_power",
     "clash_power",
     "offensive_level",
     "defensive_level",
@@ -29,6 +32,10 @@
     maxspeed: "max_speed",
     finalpower: "final_power",
     basepower: "base_power",
+    defensepower: "defense_power",
+    counterpower: "counter_power",
+    evadepower: "evade_power",
+    guardpower: "guard_power",
     coinpower: "coin_power",
     critdamagepercent: "crit_damage_multiplier",
     damagedealtpercent: "damage_dealt_multiplier",
@@ -63,6 +70,19 @@
   }
 
   function resolveEquipment(unit = {}) {
+    const equipmentDisabled = hasStatus(unit, "moonfae_rabbit_form");
+    if (equipmentDisabled) {
+      return {
+        armor: { itemId: null, category: "none" },
+        armorEquipped: false,
+        armorCategory: "none",
+        shield: null,
+        mainHand: null,
+        offHand: null,
+        equipmentInactive: true,
+        disabledByStatus: "moonfae_rabbit_form",
+      };
+    }
     const equipment = unit.equipment && typeof unit.equipment === "object" ? unit.equipment : {};
     const armor = equipment.armor && typeof equipment.armor === "object" ? equipment.armor : {};
     const legacyType = normalizeId(unit.armorType || unit.armor_type || "none");
@@ -105,6 +125,24 @@
 
     skill.skillFamily = family;
     skill.skill_family = family;
+    if (family === "defense") {
+      const rawSubtype = normalizeId(skill.defenseSubtype || skill.defense_subtype || type);
+      const subtypeMap = {
+        guard: "Guard",
+        clashableguard: "ClashableGuard",
+        clashable_guard: "ClashableGuard",
+        evade: "Evade",
+        counter: "Counter",
+        clashablecounter: "ClashableCounter",
+        clashable_counter: "ClashableCounter",
+      };
+      const canonicalSubtype = subtypeMap[rawSubtype] || subtypeMap[type] || null;
+      if (canonicalSubtype) {
+        skill.defenseSubtype = canonicalSubtype;
+        skill.defense_subtype = normalizeId(canonicalSubtype);
+      }
+      skill.isDefense = true;
+    }
     if (family === "attack") {
       skill.attackMode = attackMode || "melee";
       skill.attack_mode = skill.attackMode;
@@ -122,21 +160,36 @@
     return skill;
   }
 
+  function defensePowerChannelForSkill(skillInput = {}) {
+    const skill = normalizeSkill(skillInput || {});
+    const subtype = normalizeId(skill?.defenseSubtype || skill?.defense_subtype || skill?.type);
+    if (["counter", "clashablecounter", "clashable_counter"].includes(subtype)) return "counter_power";
+    if (subtype === "evade") return "evade_power";
+    if (["guard", "clashableguard", "clashable_guard"].includes(subtype)) return "guard_power";
+    return null;
+  }
+
   function hasStatus(unit, statusId, traitState = {}) {
     if (statusEngine?.hasStatus?.(unit, statusId)) return true;
     return Boolean(traitState?.statuses?.[normalizeId(statusId)]);
   }
 
-  function conditionMatches(condition, runtime) {
+  function conditionMatches(condition, runtime, character = runtime?.character || {}, trait = {}) {
     if (!condition || typeof condition !== "object") return Boolean(condition);
-    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime));
-    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime));
-    if (condition.not) return !conditionMatches(condition.not, runtime);
+    if (Array.isArray(condition.all)) return condition.all.every((entry) => conditionMatches(entry, runtime, character, trait));
+    if (Array.isArray(condition.any)) return condition.any.some((entry) => conditionMatches(entry, runtime, character, trait));
+    if (condition.not) return !conditionMatches(condition.not, runtime, character, trait);
     const left = condition.path ? getPath(runtime, condition.path) : condition.left;
-    const right = condition.value;
+    const right = condition.valueFormula != null && traitEngine?.evaluateFormula && traitEngine?.buildVariables
+      ? traitEngine.evaluateFormula(condition.valueFormula, traitEngine.buildVariables(character || {}, runtime || {}, trait || {}))
+      : condition.value;
     const operator = normalizeId(condition.operator || "eq");
-    if (["eq", "equals"].includes(operator)) return left === right;
-    if (["ne", "not_equals"].includes(operator)) return left !== right;
+    const equal = (a, b) => typeof a === "string" && typeof b === "string" ? normalizeId(a) === normalizeId(b) : a === b;
+    const contains = (container, value) => Array.isArray(container)
+      ? container.some((entry) => equal(entry, value))
+      : (typeof container === "string" && typeof value === "string" ? normalizeId(container).includes(normalizeId(value)) : String(container ?? "").includes(String(value ?? "")));
+    if (["eq", "equals"].includes(operator)) return equal(left, right);
+    if (["ne", "not_equals"].includes(operator)) return !equal(left, right);
     if (operator === "truthy") return Boolean(left);
     if (operator === "falsy") return !left;
     if (operator === "gt") return Number(left) > Number(right);
@@ -144,8 +197,10 @@
     if (operator === "lt") return Number(left) < Number(right);
     if (operator === "lte") return Number(left) <= Number(right);
     if (operator === "between") return Number(left) >= Number(right) && Number(left) <= Number(condition.max);
-    if (operator === "in") return Array.isArray(right) && right.includes(left);
-    if (operator === "not_in") return Array.isArray(right) && !right.includes(left);
+    if (operator === "contains") return contains(left, right);
+    if (operator === "not_contains") return !contains(left, right);
+    if (operator === "in") return Array.isArray(right) && right.some((entry) => equal(left, entry));
+    if (operator === "not_in") return Array.isArray(right) && !right.some((entry) => equal(left, entry));
     return false;
   }
 
@@ -188,7 +243,7 @@
     const equipment = options.equipment || resolveEquipment(unit);
     const traitState = options.traitState || {};
     const context = normalizeId(options.context || "combat");
-    const runtime = { context, character, self: unit, skill, equipment };
+    const runtime = { context, character, self: unit, skill, equipment, target: options.target || null, targetedByAlly: Boolean(options.targetedByAlly), variables: options.variables || {} };
     const output = emptyModifiers();
 
     (options.traits || []).forEach((trait) => {
@@ -196,7 +251,7 @@
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "modifier" || normalizeId(rule.trigger || "passive") !== "passive") return;
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
-        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;
+        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
         const channel = channelForRule(rule);
         if (!channel) return;
         const amount = normalizeChannelAmount(channel, rule, valueForRule(rule, character, runtime, trait));
@@ -256,7 +311,7 @@
       (trait.rules || []).forEach((rule) => {
         if (normalizeId(rule.type) !== "stat" || normalizeId(rule.trigger || "passive") !== "passive") return;
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
-        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime))) return;
+        if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
         const id = normalizeId(rule.statId);
         const aliases = id === "strength" ? ["fuerza", "strength"] : id === "constitution" ? ["constitucion", "constitution"] : [id];
         const key = aliases.find((entry) => Object.prototype.hasOwnProperty.call(stats, entry)) || aliases[0];
@@ -307,7 +362,11 @@
 
   function canUseSkill(unit, skillInput) {
     const skill = normalizeSkill(skillInput);
-    if (!skill || skill.skillFamily !== "attack" || skill.attackMode !== "ranged") return { usable: true, reason: null };
+    if (!skill) return { usable: true, reason: null };
+    if (hasStatus(unit, "moonfae_rabbit_form") && (skill.isItemSkill || skill.requiresEquipment || skill.equipmentId || skill.equipment_id)) {
+      return { usable: false, reason: "equipment_inactive", restriction: "equipment" };
+    }
+    if (skill.skillFamily !== "attack" || skill.attackMode !== "ranged") return { usable: true, reason: null };
     const ammo = skill.ammo || { resourceId: "ammo", cost: 1 };
     const resources = unit?.resources || unit?.combatResources || unit?.ammo || {};
     const available = typeof resources === "number" ? resources : numberOr(resources?.[ammo.resourceId]?.value ?? resources?.[ammo.resourceId], 0);
@@ -320,6 +379,7 @@
     mergeModifiers,
     resolveEquipment,
     normalizeSkill,
+    defensePowerChannelForSkill,
     resolveTraitModifiers,
     resolveStatusModifiers,
     resolveStats,

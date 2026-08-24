@@ -301,34 +301,48 @@ test("damage history feeds Undae previous-Turn Fire and Acid conditions", () => 
   expect(unit.damageTakenPreviousTurnTypes).toEqual(["Acid"]);
 });
 
-test("Pack Tactics computes another ally targeting the same defender from production slotTargets", () => {
-  const attacker = { id: "kobold", faction: "player", level: 20 };
-  const ally = { id: "ally", faction: "player", level: 20 };
-  const target = { id: "enemy", faction: "enemy", level: 20 };
-  const combatData = { kobold: attacker, ally, enemy: target };
-  const slotTargets = {
-    kobold_slot_0: "enemy_slot_0",
-    ally_slot_0: "enemy_slot_0",
+test("Pack Tactics is scoped to the current target and never mutates a reusable Skill", () => {
+  const attacker = { id: "kobold", faction: "player", combatStats: { maxSpeed: 6 } };
+  const ally = { id: "ally", faction: "player" };
+  const targetA = { id: "enemy_a", faction: "enemy", speed: 3 };
+  const targetB = { id: "enemy_b", faction: "enemy", speed: 3 };
+  const combatData = { kobold: attacker, ally, enemy_a: targetA, enemy_b: targetB };
+  const slotTargets = { kobold_slot_0: "enemy_a_slot_0", ally_slot_0: "enemy_a_slot_0" };
+  const pack = racialCatalog.getDefinition("pack_tactics");
+  const playerRuntime = { getCharacter() { return attacker; }, getTraits() { return [pack]; } };
+  const combatEngine = {
+    applyPassiveModifiers() { return {}; },
+    resolveUnilateralWithCounter(unitAttacker, attackSkill) {
+      const passive = this.applyPassiveModifiers(unitAttacker, { skill: attackSkill });
+      return { finalPower: (attackSkill.basePower || 0) + (passive.final_power || 0) };
+    },
   };
-  const { window, api } = loadStandardizationRuntime({
-    combatData,
-    slotTargets,
-    datosJugador: attacker,
-  });
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, combatData, slotTargets, datosJugador: attacker });
   api.installAll();
+  const skill = { type: "Normal", basePower: 10 };
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetA, null).finalPower).toBe(11);
+  slotTargets.kobold_slot_0 = "enemy_b_slot_0";
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetB, null).finalPower).toBe(10);
+  slotTargets.kobold_slot_0 = "enemy_a_slot_0";
+  expect(combatEngine.resolveUnilateralWithCounter(attacker, skill, targetA, null).finalPower).toBe(11);
+  expect(skill.finalPower).toBeUndefined();
+  expect(skill.final_power).toBeUndefined();
+});
 
-  expect(api.isTargetedByAlly(attacker, target)).toBe(true);
-
-  const skill = { finalPower: 0 };
-  window.LuminousTraitEngine.dispatchCombatEvent("before_attack", {
-    character: attacker,
-    self: attacker,
-    target,
-    skill,
-    traits: [racialCatalog.getDefinition("pack_tactics")],
-    state: traitEngine.createState(),
-  });
-  expect(skill.finalPower).toBe(1);
+test("production clash resolution receives universal Clash Power from target-scoped racial Traits", () => {
+  const attacker = { id: "hunter", faction: "player", combatStats: { maxSpeed: 6 } };
+  const target = { id: "enemy", faction: "enemy", speed: 3 };
+  const skilled = racialCatalog.getDefinition("half_dragon_skilled_hunter");
+  const playerRuntime = { getCharacter() { return attacker; }, getTraits() { return [skilled]; } };
+  const combatEngine = {
+    applyPassiveModifiers() { return {}; },
+    resolveStandardClash(unitA, skillA) {
+      return { clashPower: this.applyPassiveModifiers(unitA, { skill: skillA }).clash_power || 0 };
+    },
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: attacker });
+  api.installAll();
+  expect(combatEngine.resolveStandardClash(attacker, { type: "Normal" }, target, { type: "Normal" }).clashPower).toBe(2);
 });
 
 test("legacy sheet Coin roller can re-toss the last failed Strength Check without LuminousCoinEngine", () => {
@@ -404,4 +418,169 @@ test("legacy Check bridge is wired to the actual sheet roll selector and exclude
   expect(source).toContain('["ability", "skill"].includes');
   expect(source).toContain('saving[\\s_-]*throw|save|salvaci[oó]n');
   expect(source).toContain('installLegacyCheckBridge();');
+});
+
+test("player Trait runtime resolves manual combat activations against the live CombatEngine Unit", () => {
+  const document = makeDocument();
+  const snapshot = { id: "aasimar_live", hp: 2, maxHp: 20, stats: { constitucion: 10 }, characterBuild: { raceId: "aasimar", calculatedAtLevel: 20 } };
+  const liveUnit = { id: "aasimar_live", hp: 5, maxHp: 20, stats: { constitucion: 10 } };
+  const fakeWindow = eventTarget({
+    document,
+    LuminousGameContext: "combat",
+    LuminousTraitEngine: traitEngine,
+    LuminousTraitCatalogCore: { allDefinitions: () => ({}), allGrants: () => [] },
+    LuminousRacialTraitCatalog: racialCatalog,
+    LuminousClassMilestones: { resolveSelectedGeneralTraits: () => [] },
+    LuminousTraitPlayerTray: { mount: () => null },
+    LuminousTheatreRolls: null,
+    CombatEngine: null,
+    datosJugador: snapshot,
+    combatData: { aasimar_live: liveUnit },
+    firebase: null,
+    localStorage: { getItem: () => null },
+    CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
+    setInterval() { return 1; },
+    setTimeout(handler) { handler(); return 1; },
+    console,
+  });
+  const context = vm.createContext({ window: fakeWindow, document, console, CustomEvent: fakeWindow.CustomEvent, setInterval: fakeWindow.setInterval, setTimeout: fakeWindow.setTimeout });
+  vm.runInContext(read("js/player-trait-runtime.js"), context, { filename: "player-trait-runtime.js" });
+  const runtime = fakeWindow.LuminousPlayerTraitRuntime.getRuntime();
+  expect(runtime.context).toBe("combat");
+  expect(runtime.self).toBe(liveUnit);
+  expect(runtime.character).toBe(snapshot);
+  expect(runtime.level).toBe(20);
+  traitEngine.activateTrait(racialCatalog.getDefinition("aasimar_healing_hands"), runtime, traitEngine.createState());
+  expect(liveUnit.hp).toBe(15);
+  expect(snapshot.hp).toBe(2);
+});
+
+
+test("universal Trait target resolver selects a live random enemy rather than an ephemeral object", () => {
+  const actor = { id: "moonfae", faction: "player", hp: 20 };
+  const ally = { id: "ally", faction: "player", hp: 20 };
+  const enemy = { id: "enemy", faction: "enemy", hp: 20, sp: 10 };
+  const { api } = loadStandardizationRuntime({ combatData: { moonfae: actor, ally, enemy }, random: () => 0 });
+  expect(api.resolveTraitTarget(actor, "random_enemy", { units: [actor, ally, enemy] })).toBe(enemy);
+});
+
+test("Cower resolves enemy Checks and applies canonical Clash Power Down to failures", () => {
+  const actor = { id: "kobold", faction: "player", hp: 20, level: 20, stats: { carisma: 10 }, dndSkills: { deception: { value: 2 } } };
+  const enemy = { id: "enemy", faction: "enemy", hp: 20, sp: 0, stats: {} };
+  const { api } = loadStandardizationRuntime({ combatData: { kobold: actor, enemy }, random: () => 0.99 });
+  const outcomes = api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("kobold_cower_grovel_beg")], "on_use", { context: "combat", self: actor, units: [actor, enemy] });
+  expect(outcomes).toHaveLength(1);
+  expect(enemy.statusEffects.clash_power_down).toMatchObject({ count: 1, duration: "this_turn" });
+});
+
+test("Fallen Aasimar resolves nearby CHA checks and applies Frightened through Status Engine", () => {
+  const actor = { id: "aasimar", faction: "player", hp: 20, level: 40, proficiency: 2, stats: { carisma: 16 }, grid_pos: { x: 0, y: 0 } };
+  const near = { id: "near", faction: "enemy", hp: 20, sp: 0, stats: { carisma: 10 }, grid_pos: { x: 1, y: 0 } };
+  const far = { id: "far", faction: "enemy", hp: 20, sp: 0, stats: { carisma: 10 }, grid_pos: { x: 4, y: 0 } };
+  const { api } = loadStandardizationRuntime({ combatData: { aasimar: actor, near, far }, random: () => 0.99 });
+  api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("aasimar_fallen_transformation")], "on_use", { context: "combat", self: actor, units: [actor, near, far] });
+  expect(near.statusEffects.frightened).toBeTruthy();
+  expect(far.statusEffects).toBeUndefined();
+});
+
+test("Scourge aura uses CombatEngine.applyDamage only for self and creatures within 10 ft", () => {
+  const actor = { id: "aasimar", faction: "player", hp: 30, level: 40, grid_pos: { x: 0, y: 0 }, statusEffects: { aasimar_scourge_form: { id: "aasimar_scourge_form", count: 1 } } };
+  const near = { id: "near", faction: "enemy", hp: 30, grid_pos: { x: 2, y: 0 } };
+  const far = { id: "far", faction: "enemy", hp: 30, grid_pos: { x: 3, y: 0 } };
+  const combatEngine = { applyDamage(unit, amount) { unit.hp -= amount; }, initializeUnitData() {}, applyPassiveModifiers() { return {}; } };
+  const { api } = loadStandardizationRuntime({ combatEngine, combatData: { aasimar: actor, near, far } });
+  const outcomes = api.resolveTraitRuntimeResolutions([racialCatalog.getDefinition("aasimar_scourge_transformation")], "turn_end", { context: "combat", self: actor, units: [actor, near, far], level: 40 });
+  expect(outcomes[0].amount).toBe(4);
+  expect(actor.hp).toBe(26);
+  expect(near.hp).toBe(26);
+  expect(far.hp).toBe(30);
+});
+
+test("completed Check event preserves pass/fail data for after_check consumers", () => {
+  const { window, api } = loadStandardizationRuntime();
+  let detail = null;
+  window.addEventListener("luminous:theatre-check-completed", (event) => { detail = event.detail; });
+  api.emitCompletedCheck({ abilityId: "wis", skillId: "medicine", actionId: "stabilize", threshold: 10, target: { id: "downed" } }, { total: 12, coins: [] });
+  expect(detail.check).toMatchObject({ abilityId: "wis", skillId: "medicine", actionId: "stabilize", total: 12, passed: true, failed: false });
+  expect(detail.target.id).toBe("downed");
+});
+
+test("universal Defense Power hierarchy reaches production defensive rolls", () => {
+  const unit = { id: "defender", level: 40, statusEffects: {} };
+  const cold = racialCatalog.getDefinition("yuan_ti_cold_fury");
+  const nimble = racialCatalog.getDefinition("goblin_nimble_escape");
+  const playerRuntime = { getCharacter() { return unit; }, getTraits() { return [cold, nimble]; } };
+  const combatEngine = {
+    initializeUnitData() {},
+    applyPassiveModifiers() { return { defense_power: 2 }; },
+    calculateFinalPower(skill, _heads, currentUnit) {
+      const passive = this.applyPassiveModifiers(currentUnit, { skill });
+      const subtype = skill.defenseSubtype || skill.type;
+      let power = passive.defense_power || 0;
+      if (subtype === "Counter" || subtype === "ClashableCounter") power += passive.counter_power || 0;
+      else if (subtype === "Evade") power += passive.evade_power || 0;
+      else if (subtype === "Guard" || subtype === "ClashableGuard") power += passive.guard_power || 0;
+      return power;
+    },
+  };
+  const { api } = loadStandardizationRuntime({ combatEngine, playerRuntime, datosJugador: unit });
+  api.installAll();
+
+  expect(combatEngine.calculateFinalPower({ type: "Counter", isDefense: true }, [], unit)).toBe(6);
+  expect(combatEngine.calculateFinalPower({ type: "Evade", isDefense: true }, [], unit)).toBe(3);
+  expect(combatEngine.calculateFinalPower({ type: "Guard", isDefense: true }, [], unit)).toBe(2);
+});
+
+test("before_check Final Power is added to the real Coin total exactly once", () => {
+  const { api } = loadStandardizationRuntime();
+  const adjusted = api.applyCheckFinalPower({ total: 10 }, {}, { difficulty: 13, finalPower: 4 });
+  expect(adjusted.total).toBe(14);
+  expect(adjusted.baseRollTotal).toBe(10);
+  expect(api.applyCheckFinalPower(adjusted, {}, { finalPower: 4 }).total).toBe(14);
+  expect(api.completedCheckDetail({ difficulty: 13, finalPower: 4 }, adjusted)).toMatchObject({ total: 14, baseRollTotal: 10, outcome: "passed" });
+});
+
+test("Rabbit Form removes baked equipment level contributions without deleting equipment", () => {
+  const unit = {
+    combatStats: { offensiveLevel: 50, defensiveLevel: 40 },
+    equipmentModifiers: { offensiveLevel: 3, defensiveLevel: 5 },
+    equipment: { armor: { itemId: "plate", category: "heavy" }, mainHand: { id: "blade" } },
+    statusEffects: { moonfae_rabbit_form: { id: "moonfae_rabbit_form", count: 1 } },
+  };
+  const { api } = loadStandardizationRuntime();
+  expect(api.precomputedLevel(unit, "offensive")).toBe(47);
+  expect(api.precomputedLevel(unit, "defensive")).toBe(35);
+  expect(unit.equipment.mainHand.id).toBe("blade");
+  delete unit.statusEffects.moonfae_rabbit_form;
+  expect(api.precomputedLevel(unit, "offensive")).toBe(50);
+  expect(api.precomputedLevel(unit, "defensive")).toBe(40);
+});
+
+test("Defense Power statuses and Frightened use canonical universal channels and duration", () => {
+  const sandbox = { window: {} };
+  vm.runInNewContext(read("js/statusManager.js"), sandbox, { filename: "statusManager.js" });
+  const registry = sandbox.window.STATUS_REGISTRY;
+  expect(registry.defense_power_up.rules[0].affectation).toBe("defense_power");
+  expect(registry.counter_power_up.rules[0].affectation).toBe("counter_power");
+  expect(registry.evade_power_up.rules[0].affectation).toBe("evade_power");
+  expect(registry.guard_power_up.rules[0].affectation).toBe("guard_power");
+
+  const previousRegistry = global.STATUS_REGISTRY;
+  global.STATUS_REGISTRY = registry;
+  try {
+    const unit = {};
+    statusEngine.applyStatus(unit, "frightened", { count: 1, duration: "next_turn_end", mode: "set" });
+    expect(modifiers.resolveStatusModifiers({ unit, skill: { type: "Normal" } }).final_power).toBe(-1);
+    expect(modifiers.resolveStatusModifiers({ unit, skill: { type: "Counter" } }).defense_power).toBe(-1);
+    expect(statusEngine.advanceDurations(unit, "turn_end")).toEqual(["frightened"]);
+    expect(statusEngine.hasStatus(unit, "frightened")).toBe(false);
+  } finally {
+    global.STATUS_REGISTRY = previousRegistry;
+  }
+});
+
+test("prompt Check modifiers recalculate from baseRollTotal instead of requiring a trait-specific flag", () => {
+  const source = read("js/player-trait-runtime.js");
+  expect(source).toContain("const baseRollTotal = Number.isFinite(Number(state.lastCompletedCheck.baseRollTotal))");
+  expect(source).not.toContain("if (!check?.recalculate || !state.lastCompletedCheck) return null;");
 });

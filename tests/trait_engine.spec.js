@@ -236,3 +236,15 @@ test("validator rechaza operaciones incompletas y mantiene el schema declarativo
   expect(valid.valid).toBe(true);
   expect(valid.trait.schemaVersion).toBe(1);
 });
+
+
+test("register_dm_effect delegates a structured temporary effect to the runtime", () => {
+  const trait = { id: "dm_effect_test", contexts: ["theatre"], activation: { type: "manual", actionCost: "none" }, effects: [{ id: "register", contexts: ["theatre"], trigger: "on_use", conditions: [], operations: [{ type: "register_dm_effect", effectId: "test", durationHours: 1, check: { abilityId: "cha" }, modifier: { channel: "final_power", value: 4 } }] }], rules: [] };
+  let captured = null;
+  const result = traits.activateTrait(trait, { context: "theatre", character: { id: "p" }, self: { id: "p" }, target: { id: "npc", name: "NPC" }, registerDmEffect: (descriptor) => (captured = descriptor) }, traits.createState());
+  expect(result.available).toBeTruthy();
+  expect(captured.effectId).toBe("test");
+  expect(captured.durationHours).toBe(1);
+  expect(captured.targetId).toBe("npc");
+  expect(captured.modifier.value).toBe(4);
+});

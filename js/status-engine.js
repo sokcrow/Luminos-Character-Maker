@@ -47,15 +47,20 @@
     const definition = getDefinition(id);
     const count = Math.max(0, numberOr(input.count, existing?.count ?? 1));
     const potency = numberOr(input.potency, existing?.potency ?? 0);
+    const duration = normalizeId(input.duration || existing?.duration || "until_removed");
+    const data = { ...(existing?.data || {}), ...(input.data || {}) };
+    if (["this_turn", "next_turn_end"].includes(duration) && !Number.isFinite(Number(data.durationTurnsRemaining))) {
+      data.durationTurnsRemaining = 1;
+    }
     return {
       id,
       name: input.name || existing?.name || definition.name || id,
       count,
       potency,
-      duration: normalizeId(input.duration || existing?.duration || "until_removed"),
+      duration,
       sourceTraitId: input.sourceTraitId || existing?.sourceTraitId || null,
       sourceUnitId: input.sourceUnitId || existing?.sourceUnitId || null,
-      data: { ...(existing?.data || {}), ...(input.data || {}) },
+      data,
     };
   }
 
@@ -135,6 +140,26 @@
     return unit;
   }
 
+  function advanceDurations(unit, trigger = "turn_end") {
+    const phase = normalizeId(trigger);
+    if (!["turn_end", "round_end", "[round_end]"].includes(phase)) return [];
+    const store = ensureStore(unit) || {};
+    const expired = [];
+    Object.entries({ ...store }).forEach(([statusId, raw]) => {
+      if (!raw || typeof raw !== "object") return;
+      const duration = normalizeId(raw.duration || "until_removed");
+      if (!["this_turn", "next_turn_end"].includes(duration)) return;
+      if (!raw.data || typeof raw.data !== "object") raw.data = {};
+      const remaining = Math.max(1, Math.trunc(numberOr(raw.data.durationTurnsRemaining, 1))) - 1;
+      raw.data.durationTurnsRemaining = remaining;
+      if (remaining <= 0) {
+        removeStatus(unit, statusId, { from: "duration", ignoreProtection: true });
+        expired.push(normalizeId(statusId));
+      }
+    });
+    return expired;
+  }
+
   function listStatuses(unit) {
     const store = ensureStore(unit) || {};
     return Object.entries(store).map(([id, instance]) => ({
@@ -153,6 +178,7 @@
     getStatus,
     protectStatus,
     syncTraitState,
+    advanceDurations,
     listStatuses,
   });
 
@@ -163,6 +189,14 @@
     const script = global.document.createElement("script");
     script.id = "universal-speed-runtime-script";
     script.src = "js/universal-speed-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
+  if (global.document && !global.LuminousRacialTraitRuntimeBridge && !global.document.getElementById("racial-trait-runtime-bridge-script")) {
+    const script = global.document.createElement("script");
+    script.id = "racial-trait-runtime-bridge-script";
+    script.src = "js/racial-trait-runtime-bridge.js";
     script.async = false;
     global.document.head?.appendChild(script);
   }

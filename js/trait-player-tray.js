@@ -72,6 +72,53 @@
     return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   }
 
+  function ensureStatusStore(unit) {
+    if (!unit || typeof unit !== "object") return null;
+    if (!unit.statusEffects || Array.isArray(unit.statusEffects) || typeof unit.statusEffects !== "object") unit.statusEffects = {};
+    return unit.statusEffects;
+  }
+
+  function applyOutcomeStatus(unit, outcome) {
+    if (!unit || !outcome || typeof outcome !== "object") return;
+    const statusEngine = global.LuminousStatusEngine;
+    const statusId = normalizeId(outcome.statusId || outcome.status?.id);
+    if (!statusId) return;
+    const type = normalizeId(outcome.type);
+    const action = normalizeId(outcome.action || "");
+
+    if (["apply_status", "rule_status"].includes(type) && ["", "gain", "apply", "inflict"].includes(action)) {
+      if (statusEngine?.applyStatus) statusEngine.applyStatus(unit, statusId, { ...(outcome.status || {}), mode: "set" });
+      else {
+        const store = ensureStatusStore(unit);
+        if (store) store[statusId] = { id: statusId, count: 1, potency: 0, ...(outcome.status || {}) };
+      }
+      return;
+    }
+
+    if (["remove_status", "rule_status"].includes(type) && (action || "remove") === "remove" && outcome.protected !== true && outcome.removed !== false) {
+      if (statusEngine?.removeStatus) statusEngine.removeStatus(unit, statusId, { from: "self", ignoreProtection: true });
+      else {
+        const store = ensureStatusStore(unit);
+        if (store) delete store[statusId];
+      }
+    }
+  }
+
+  function syncActivationStatuses(result, runtime = {}) {
+    if (!result || typeof result !== "object") return result;
+    const resolvedRuntime = result.runtime || runtime || {};
+    const self = runtime.self || runtime.character || resolvedRuntime.self || resolvedRuntime.character || null;
+    const target = runtime.target || runtime.defender || resolvedRuntime.target || resolvedRuntime.defender || null;
+    const visit = (outcome) => {
+      if (!outcome || typeof outcome !== "object") return;
+      const unit = normalizeId(outcome.target) === "target" ? target : self;
+      applyOutcomeStatus(unit, outcome);
+      (outcome.outcomes || []).forEach(visit);
+    };
+    (result.outcomes || []).forEach(visit);
+    return result;
+  }
+
   function titleCaseId(value) {
     return String(value ?? "")
       .trim()
@@ -193,6 +240,7 @@
       this.onBlocked = typeof options.onBlocked === "function" ? options.onBlocked : () => {};
       this.resolveChoice = typeof options.resolveChoice === "function" ? options.resolveChoice : null;
       this.resolveInputs = typeof options.resolveInputs === "function" ? options.resolveInputs : null;
+      this.prepareRuntime = typeof options.prepareRuntime === "function" ? options.prepareRuntime : null;
       this.title = options.title || "TRAITS";
       this.expanded = options.expanded !== false;
       this.filter = "all";
@@ -246,7 +294,17 @@
         return { available: false, reasons: action.reasons || [] };
       }
 
-      const runtime = Object.assign({}, this.getRuntime() || {});
+      let runtime = Object.assign({}, this.getRuntime() || {});
+      if (this.prepareRuntime) {
+        const prepared = await this.prepareRuntime({ action, trait, runtime, state: this.state });
+        if (prepared?.available === false || prepared?.blocked) {
+          const blocked = { available: false, reasons: prepared.reasons || [prepared.reason || "Trait target is unavailable."] };
+          this.onBlocked(blocked);
+          this.render();
+          return blocked;
+        }
+        runtime = Object.assign(runtime, prepared?.runtime || prepared || {});
+      }
       if (action.activationType === engine.ACTIVATION_TYPES.CHOICE && this.resolveChoice) {
         const choice = await this.resolveChoice({ action, trait, runtime, state: this.state });
         if (choice == null) return { available: false, cancelled: true, reasons: ["Choice cancelled."] };
@@ -259,8 +317,10 @@
       }
 
       const result = engine.activateTrait(trait, runtime, this.state);
-      if (result.available) this.onActivated(result);
-      else this.onBlocked(result);
+      if (result.available) {
+        syncActivationStatuses(result, runtime);
+        this.onActivated(result, { action, trait, runtime });
+      } else this.onBlocked(result);
       this.render();
       return result;
     }
@@ -445,6 +505,7 @@
     TraitPlayerTray,
     mount,
     preserveGrantMetadata,
+    syncActivationStatuses,
     sourceCategory,
     sourceMeta,
     filterTraits,

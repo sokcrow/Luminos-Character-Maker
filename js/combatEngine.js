@@ -4,6 +4,52 @@ const RESONANCE_BONUS = {
     ABSOLUTE: [0, 0, 0, 3, 5, 5, 7, 7, 9, 9, 11, 11]
 };
 
+function normalizeTrustedTraitId(value) {
+    return String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function normalizeTrustedGrantCharacter(unit = {}) {
+    const build = unit.characterBuild && typeof unit.characterBuild === 'object' ? unit.characterBuild : {};
+    return {
+        ...unit,
+        raceId: build.raceId ?? unit.raceId ?? unit.race?.id,
+        raceSubtypeId: build.raceSubtypeId ?? unit.raceSubtypeId ?? unit.race?.subtypeId,
+        classes: Array.isArray(build.classes) ? build.classes : unit.classes,
+        level: build.calculatedAtLevel ?? unit.level,
+        lineages: Array.isArray(build.lineages) ? build.lineages : unit.lineages,
+        lineageId: build.lineageId ?? unit.lineageId,
+    };
+}
+
+function trustedExplicitTraitIds(unit = {}) {
+    const values = [];
+    for (const key of ['traitIds', 'racialTraitIds', 'grantedTraitIds']) if (Array.isArray(unit?.[key])) values.push(...unit[key]);
+    if (Array.isArray(unit?.traits)) values.push(...unit.traits.map((trait) => trait?.id || trait));
+    return new Set(values.filter(Boolean).map(normalizeTrustedTraitId));
+}
+
+function resolveTrustedTraitForUnit(unit = {}, traitId) {
+    const id = normalizeTrustedTraitId(traitId);
+    if (!id) return null;
+    const g = typeof globalThis !== 'undefined' ? globalThis : {};
+    const engine = g.LuminousTraitEngine;
+    const character = normalizeTrustedGrantCharacter(unit);
+    const explicit = trustedExplicitTraitIds(unit);
+    const racial = g.LuminousRacialTraitCatalog;
+    const racialDefinition = racial?.getDefinition?.(id) || null;
+    if (racialDefinition) {
+        const granted = racial?.resolveTraitGrants?.(character, racial.allDefinitions?.() || {}) || [];
+        return (explicit.has(id) || granted.some((trait) => normalizeTrustedTraitId(trait?.id) === id)) ? racialDefinition : null;
+    }
+    const core = g.LuminousTraitCatalogCore;
+    const coreDefinition = core?.getDefinition?.(id) || null;
+    if (coreDefinition) {
+        const granted = engine?.resolveTraitGrants?.(character, core.allGrants?.() || [], core.allDefinitions?.() || {}) || [];
+        return (explicit.has(id) || granted.some((trait) => normalizeTrustedTraitId(trait?.id) === id)) ? coreDefinition : null;
+    }
+    return null;
+}
+
 const CombatEngine = {
     // Game State
     currentState: 'COMBAT_ACTIVE',
@@ -78,9 +124,45 @@ const CombatEngine = {
         });
     },
 
-    triggerEncounterStart: function() {
+    beginPlanningPhase: function(allUnits = []) {
+        this.currentState = 'PRE_COMBAT_PLANNING';
+        const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (economy && Array.isArray(allUnits)) allUnits.forEach(unit => economy.beginPlanning(unit));
+        return this.currentState;
+    },
+
+    triggerEncounterStart: function(allUnits = []) {
         this.currentState = 'COMBAT_ACTIVE';
+        const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (economy && Array.isArray(allUnits)) allUnits.forEach(unit => economy.beginCombat(unit));
         // Add additional logic if needed when planning ends
+    },
+
+    resolveTrustedTraitForUnit: function(unit, traitId) {
+        return resolveTrustedTraitForUnit(unit, traitId);
+    },
+
+    resolveActionSlot: function(unit, slotIndex, context = {}) {
+        const runtime = (typeof globalThis !== 'undefined') ? globalThis.LuminousPlayerTraitRuntime : null;
+        if (!context.plannedAction && runtime && typeof runtime.executePlannedTraitAction === 'function') {
+            const result = runtime.executePlannedTraitAction(unit, slotIndex, context);
+            if (result && result.handled) return result;
+        }
+        const planned = context.plannedAction || null;
+        const traitEngine = (typeof globalThis !== 'undefined') ? globalThis.LuminousTraitEngine : null;
+        if (planned?.kind !== 'trait' || !planned?.traitId || !traitEngine?.activateTrait) return { handled: false, planned };
+        const trait = resolveTrustedTraitForUnit(unit, planned.traitId);
+        if (!trait) return { handled: true, planned, result: { available: false, reasons: ["Trait is not granted to this Unit or is not in a trusted catalog."], trait: null } };
+        if (!unit.__luminousSharedTraitState) Object.defineProperty(unit, '__luminousSharedTraitState', { value: traitEngine.createState ? traitEngine.createState() : {}, writable: true, configurable: true, enumerable: false });
+        const units = Object.values(context.combatData || {});
+        const target = planned.targetId ? units.find(candidate => String(candidate?.id || candidate?.unitId || candidate?.characterId || '') === String(planned.targetId)) || null : null;
+        const traitRuntime = { context: 'combat', character: unit, self: unit, target, defender: target, executePlannedAction: true, actionEconomy: globalThis.LuminousActionEconomy?.runtimeFor?.(unit, { phase: 'combat' }) };
+        const result = traitEngine.activateTrait(trait, traitRuntime, unit.__luminousSharedTraitState);
+        if (result?.available) {
+            globalThis.LuminousTraitPlayerTray?.syncActivationStatuses?.(result, traitRuntime);
+            globalThis.LuminousTraitStandardizationRuntime?.resolveTraitRuntimeResolutions?.([trait], 'on_use', traitRuntime, result);
+        }
+        return { handled: true, planned, result };
     },
 
 // 0. Habilidades y Poder (Skills)
@@ -324,6 +406,7 @@ const CombatEngine = {
         const defenseTypes = ['Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'];
         if (defenseTypes.includes(skill.type)) {
             skill.isDefense = true;
+            skill.defenseSubtype = skill.type;
             skill.isClashable = (skill.type === 'ClashableGuard' || skill.type === 'ClashableCounter');
         } else {
             skill.isDefense = false;
@@ -734,13 +817,20 @@ const CombatEngine = {
         }
 
 
-                if (!unitDefender.isStaggered) {
-            result.pendingActions.push({
-                type: 'counter',
-                unit: unitDefender,
-                target: unitAttacker,
-                skill: counterSkill
-            });
+                if (counterSkill && !unitDefender.isStaggered) {
+            const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+            const reactionAvailable = !economy || economy.consumeCounterReaction(unitDefender, counterSkill, { phase: this.currentState });
+            if (reactionAvailable) {
+                result.pendingActions.push({
+                    type: 'counter',
+                    unit: unitDefender,
+                    target: unitAttacker,
+                    skill: counterSkill
+                });
+            } else {
+                result.attackLogs.push({ message: `${unitDefender.name || 'Defender'} cannot Counter: Reaction already spent.`, class: 'interrupt' });
+                result.counterReactionBlocked = true;
+            }
         }
 
         // Cortafuegos y Retargeting: Reuse Skill
@@ -851,6 +941,23 @@ const CombatEngine = {
 
     resolveStandardClash: function(unitA, skillA, unitB, skillB) {
         if (this.currentState === 'PRE_COMBAT_PLANNING') return { logs: [{ message: 'Clash blocked during Planning Phase.', class: 'error' }], clashWinner: null, damageResult: null };
+        const actionEconomy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
+        if (actionEconomy) {
+            const counterA = actionEconomy.isCounterSkill(skillA);
+            const counterB = actionEconomy.isCounterSkill(skillB);
+            const blockedA = counterA && !actionEconomy.consumeCounterReaction(unitA, skillA, { phase: this.currentState });
+            const blockedB = counterB && !actionEconomy.consumeCounterReaction(unitB, skillB, { phase: this.currentState });
+            if (blockedA || blockedB) {
+                return {
+                    winner: blockedA && blockedB ? 'Tie' : (blockedA ? 'B' : 'A'),
+                    clashLogs: [{ note: 'Counter Reaction unavailable.', blockedA, blockedB }],
+                    pendingActions: [],
+                    reactionBlocked: true,
+                    blockedA,
+                    blockedB,
+                };
+            }
+        }
         // [Unclashable bypass fallback]
         // The driver should theoretically not call resolveStandardClash if either skill is isUnclashable.
         // But if it does, we can return a flag telling it to bypass, or handle it as Unilateral.
@@ -1134,8 +1241,16 @@ const CombatEngine = {
         let finalPowerBonus = 0;
 
         if (skill.isDefense) {
+            const defenseSubtype = skill.defenseSubtype || skill.type || '';
             finalActualBasePower += (passiveMods.defense_power || 0);
-            if (skill.defenseSubtype === 'ClashableGuard' || skill.defenseSubtype === 'ClashableCounter') {
+            if (defenseSubtype === 'Counter' || defenseSubtype === 'ClashableCounter') {
+                finalActualBasePower += (passiveMods.counter_power || 0);
+            } else if (defenseSubtype === 'Evade') {
+                finalActualBasePower += (passiveMods.evade_power || 0);
+            } else if (defenseSubtype === 'Guard' || defenseSubtype === 'ClashableGuard') {
+                finalActualBasePower += (passiveMods.guard_power || 0);
+            }
+            if (defenseSubtype === 'ClashableGuard' || defenseSubtype === 'ClashableCounter') {
                  finalActualBasePower += (passiveMods.clash_power || 0);
             }
         } else {
@@ -1531,6 +1646,9 @@ const CombatEngine = {
             final_power: 0,
             base_power: 0,
             defense_power: 0,
+            counter_power: 0,
+            evade_power: 0,
+            guard_power: 0,
             clash_power: 0,
             offensive_level: 0,
             defensive_level: 0,
@@ -1660,7 +1778,7 @@ const CombatEngine = {
                          } else if (rule.operation === 'sub') {
                              this.modifyNextStaggerThreshold(unit, -effectValue);
                          }
-                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power' || actualAffectation === 'defense_power') {
+                    } else if (actualAffectation === 'damage_dealt_multiplier' || actualAffectation === 'damage_taken_multiplier' || actualAffectation === 'healing_multiplier' || actualAffectation === 'speed' || actualAffectation === 'resource' || actualAffectation === 'defensive_level' || actualAffectation === 'offensive_level' || actualAffectation === 'clash_power' || actualAffectation === 'coin_power' || actualAffectation === 'base_power' || actualAffectation === 'final_power' || actualAffectation === 'defense_power' || actualAffectation === 'counter_power' || actualAffectation === 'evade_power' || actualAffectation === 'guard_power') {
                         if (context && typeof context === 'object') {
                             if (!context.modifiers) context.modifiers = {};
                             if (!context.modifiers[actualAffectation]) context.modifiers[actualAffectation] = 0;
@@ -1819,6 +1937,10 @@ const CombatEngine = {
         if (!allUnits || !Array.isArray(allUnits)) return;
 
         for (let unit of allUnits) {
+            // Universal Turn resources: Quick Action and Reaction are each 1 per Turn.
+            if (phaseTag === '[Round Start]' && typeof globalThis !== 'undefined') {
+                globalThis.LuminousActionEconomy?.resetTurnResources?.(unit);
+            }
             // Evaluacion de inmovilizacion (al inicio del round)
             if (phaseTag === '[Round Start]') {
                 unit.isImmobilized = unit.statusEffects && unit.statusEffects['immobilized'] && unit.statusEffects['immobilized'].count > 0;

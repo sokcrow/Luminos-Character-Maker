@@ -3,6 +3,7 @@ const traitEngine = require("../js/trait-engine.js");
 const statusEngine = require("../js/status-engine.js");
 const modifiers = require("../js/universal-modifier-engine.js");
 const catalog = require("../js/trait-catalog-core.js");
+const racialCatalog = require("../js/racial-trait-catalog.js");
 
 function barbarian(level = 100) {
   return {
@@ -170,4 +171,62 @@ test("Unstoppable Strength check_coin_fail is limited to Strength ability/skill 
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", athleticsRuntime, traitEngine.createState()).outcomes).toHaveLength(1);
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", saveRuntime, traitEngine.createState()).outcomes).toHaveLength(0);
   expect(traitEngine.dispatchTrait(trait, "check_coin_fail", combatRuntime, traitEngine.createState()).outcomes).toHaveLength(0);
+});
+
+test("racial combat Traits use universal channels with normalized enums and current target context", () => {
+  const unit = { id: "racial_universal", combatStats: { maxSpeed: 6 }, took_damage_last_turn: false };
+  const slower = { id: "slow", speed: 3 };
+  const faster = { id: "fast", speed: 7 };
+  const counter = { type: "Counter", basePower: 0 };
+  const normal = { type: "Normal", basePower: 10 };
+
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [racialCatalog.getDefinition("yuan_ti_cold_fury")], skill: counter, context: "combat" }).counter_power).toBe(4);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [racialCatalog.getDefinition("yuan_ti_cold_fury")], skill: normal, context: "combat" }).counter_power).toBe(0);
+
+  const pack = racialCatalog.getDefinition("pack_tactics");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [pack], skill: normal, target: slower, targetedByAlly: true, context: "combat" }).final_power).toBe(1);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [pack], skill: normal, target: faster, targetedByAlly: false, context: "combat" }).final_power).toBe(0);
+  expect(normal.finalPower).toBeUndefined();
+  expect(normal.final_power).toBeUndefined();
+
+  const hunter = racialCatalog.getDefinition("half_dragon_skilled_hunter");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [hunter], skill: normal, target: slower, context: "combat" }).clash_power).toBe(2);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [hunter], skill: normal, target: faster, context: "combat" }).clash_power).toBe(0);
+
+  const lunge = racialCatalog.getDefinition("moonfae_lunge");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [lunge], skill: normal, target: slower, context: "combat" }).clash_power).toBe(2);
+  unit.took_damage_last_turn = true;
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [lunge], skill: normal, target: slower, context: "combat" }).clash_power).toBe(0);
+});
+
+
+test("Rabbit Form virtualizes equipment and blocks item Skills without deleting stored gear", () => {
+  const unit = {
+    equipment: { armor: { itemId: "plate_1", category: "heavy" }, mainHand: { id: "sword_1" } },
+    statusEffects: { moonfae_rabbit_form: { id: "moonfae_rabbit_form", count: 1 } },
+  };
+  const hidden = modifiers.resolveEquipment(unit);
+  expect(hidden).toMatchObject({ armorEquipped: false, armorCategory: "none", mainHand: null, equipmentInactive: true, disabledByStatus: "moonfae_rabbit_form" });
+  expect(modifiers.canUseSkill(unit, { type: "Normal", isItemSkill: true })).toMatchObject({ usable: false, reason: "equipment_inactive" });
+  expect(unit.equipment.mainHand.id).toBe("sword_1");
+
+  delete unit.statusEffects.moonfae_rabbit_form;
+  expect(modifiers.resolveEquipment(unit)).toMatchObject({ armorEquipped: true, armorCategory: "heavy", mainHand: { id: "sword_1" } });
+});
+
+test("Defense Power hierarchy exposes common Counter, Evade, and Guard subchannels", () => {
+  expect(modifiers.CHANNELS).toEqual(expect.arrayContaining(["defense_power", "counter_power", "evade_power", "guard_power"]));
+  expect(modifiers.defensePowerChannelForSkill({ type: "Counter" })).toBe("counter_power");
+  expect(modifiers.defensePowerChannelForSkill({ type: "ClashableCounter" })).toBe("counter_power");
+  expect(modifiers.defensePowerChannelForSkill({ type: "Evade" })).toBe("evade_power");
+  expect(modifiers.defensePowerChannelForSkill({ type: "Guard" })).toBe("guard_power");
+  expect(modifiers.defensePowerChannelForSkill({ type: "ClashableGuard" })).toBe("guard_power");
+
+  const unit = { level: 40, combatStats: { maxSpeed: 6 } };
+  const cold = racialCatalog.getDefinition("yuan_ti_cold_fury");
+  const nimble = racialCatalog.getDefinition("goblin_nimble_escape");
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [cold], skill: { type: "Counter" }, context: "combat" }).counter_power).toBe(4);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [cold], skill: { type: "Evade" }, context: "combat" }).counter_power).toBe(0);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [nimble], skill: { type: "Evade" }, context: "combat" }).evade_power).toBe(1);
+  expect(modifiers.resolveTraitModifiers({ unit, character: unit, traits: [nimble], skill: { type: "Guard" }, context: "combat" }).evade_power).toBe(0);
 });

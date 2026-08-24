@@ -16,6 +16,7 @@
     legacyCheckObserver: null,
     legacyCheckToken: 0,
     combatUnits: new Map(),
+    modifierTargets: new Map(),
     viewerEncounterBound: false,
     viewerEncounterActive: false,
     viewerEncounterPending: false,
@@ -138,6 +139,48 @@
     return false;
   }
 
+  function currentAssignedTarget(attacker) {
+    if (!attacker) return null;
+    const slotTargets = viewerSlotTargets();
+    if (!slotTargets) return null;
+    const combatData = viewerCombatData() || {};
+    const attackerIds = new Set(identityValues(attacker));
+    for (const [attackerSlotId, targetSlotId] of Object.entries(slotTargets)) {
+      const attackerBaseId = String(attackerSlotId || "").split("_slot_")[0];
+      if (!attackerIds.has(attackerBaseId) && combatData?.[attackerBaseId] !== attacker) continue;
+      const targetBaseId = String(targetSlotId || "").split("_slot_")[0];
+      const direct = combatData?.[targetBaseId];
+      if (direct) return direct;
+      const registered = registeredCombatUnits().find((unit) => identityValues(unit).includes(targetBaseId));
+      if (registered) return registered;
+    }
+    return null;
+  }
+
+  function modifierTarget(unit) {
+    if (!unit) return null;
+    return state.modifierTargets.get(combatUnitKey(unit)) || currentAssignedTarget(unit) || null;
+  }
+
+  function withModifierTargets(pairs, callback) {
+    const previous = [];
+    (pairs || []).forEach(([unit, target]) => {
+      if (!unit) return;
+      const key = combatUnitKey(unit);
+      previous.push([key, state.modifierTargets.has(key), state.modifierTargets.get(key)]);
+      if (target) state.modifierTargets.set(key, target);
+      else state.modifierTargets.delete(key);
+    });
+    try {
+      return callback();
+    } finally {
+      previous.reverse().forEach(([key, hadValue, value]) => {
+        if (hadValue) state.modifierTargets.set(key, value);
+        else state.modifierTargets.delete(key);
+      });
+    }
+  }
+
   function ensureDamageHistory(unit) {
     if (!unit || typeof unit !== "object") return unit;
     if (!Array.isArray(unit.damageTakenThisTurnTypes)) unit.damageTakenThisTurnTypes = [];
@@ -228,6 +271,7 @@
         state.viewerEncounterActive = false;
         state.viewerEncounterPending = false;
         state.combatUnits.clear();
+        state.modifierTargets.clear();
         return;
       }
       if (state.viewerEncounterActive) return;
@@ -352,9 +396,225 @@
     }
     const heads = coins.filter((coin) => coin.side === "head").length;
     const total = base + heads * 4;
-    const result = { passed: total >= threshold, total, threshold, abilityId: ability, coins, heads };
+    const result = { ...(request || {}), passed: total >= threshold, failed: total < threshold, total, threshold, abilityId: ability, coins, heads };
+    if (request.dispatchAfterCheck && isCurrentPlayerUnit(unit)) {
+      global.LuminousPlayerTraitRuntime?.dispatch?.("after_check", { context: "combat", self: unit, target: request.target || null, check: result });
+    }
     if (typeof global.CustomEvent === "function") global.dispatchEvent(new global.CustomEvent("luminous:trait-check-resolved", { detail: result }));
     return result;
+  }
+
+
+  function uniqueCombatUnits(values = []) {
+    const seen = new Set();
+    return (values || []).filter((unit) => {
+      if (!unit || typeof unit !== "object") return false;
+      const key = combatUnitKey(unit);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function liveCombatUnits(runtime = {}) {
+    const explicit = Array.isArray(runtime.units) ? runtime.units : [];
+    const combatData = viewerCombatData() || {};
+    return uniqueCombatUnits([...explicit, ...registeredCombatUnits(), ...Object.values(combatData).filter(Boolean)]);
+  }
+
+  function isAliveUnit(unit) {
+    if (!unit || typeof unit !== "object") return false;
+    if (!Number.isFinite(Number(unit.hp))) return true;
+    return Number(unit.hp) > 0;
+  }
+
+  function sameFaction(a, b) {
+    const fa = factionId(a);
+    const fb = factionId(b);
+    if (fa && fb) return fa === fb;
+    return a === b;
+  }
+
+  function unitDistanceFeet(a, b) {
+    const pa = a?.grid_pos || a?.gridPos;
+    const pb = b?.grid_pos || b?.gridPos;
+    if (!pa || !pb || !Number.isFinite(Number(pa.x)) || !Number.isFinite(Number(pa.y)) || !Number.isFinite(Number(pb.x)) || !Number.isFinite(Number(pb.y))) return null;
+    return (Math.abs(Number(pa.x) - Number(pb.x)) + Math.abs(Number(pa.y) - Number(pb.y))) * 5;
+  }
+
+  function canSeeSource(unit) {
+    if (!unit) return false;
+    if (unit.canSeeSource === false || unit.canSee === false || unit.blinded === true) return false;
+    if (global.LuminousStatusEngine?.hasStatus?.(unit, "blinded")) return false;
+    return true;
+  }
+
+  function resolveTraitTargets(actor, targetSpec, runtime = {}) {
+    const spec = normalizeId(targetSpec || "self");
+    const units = liveCombatUnits(runtime).filter(isAliveUnit);
+    const selected = runtime.target || runtime.defender || null;
+    const allies = units.filter((unit) => unit !== actor && sameFaction(unit, actor));
+    const enemies = units.filter((unit) => unit !== actor && !sameFaction(unit, actor));
+    if (spec === "self") return actor ? [actor] : [];
+    if (["self_or_ally", "ally"].includes(spec)) {
+      if (selected && (selected === actor || sameFaction(selected, actor))) return [selected];
+      return spec === "self_or_ally" && actor ? [actor] : allies.slice(0, 1);
+    }
+    if (["enemy", "selected_enemy"].includes(spec)) {
+      if (selected && !sameFaction(selected, actor)) return [selected];
+      return enemies.slice(0, 1);
+    }
+    if (spec === "random_enemy") {
+      if (!enemies.length) return [];
+      return [enemies[Math.floor(Math.random() * enemies.length)]];
+    }
+    if (spec === "all_enemies") return enemies;
+    if (["all_other_creatures", "other_creatures"].includes(spec)) return units.filter((unit) => unit !== actor);
+    if (["self_and_all_creatures", "all_creatures"].includes(spec)) return spec === "all_creatures" ? units : uniqueCombatUnits([actor, ...units]);
+    if (selected) return [selected];
+    return [];
+  }
+
+  function resolveTraitTarget(actor, targetSpec, runtime = {}) {
+    return resolveTraitTargets(actor, targetSpec, runtime)[0] || null;
+  }
+
+  function skillCheckBonus(unit, skillId) {
+    const id = normalizeId(skillId);
+    const direct = unit?.dndSkills?.[id]?.value ?? unit?.skills?.[id]?.value ?? unit?.skillValues?.[id];
+    if (Number.isFinite(Number(direct))) return Number(direct);
+    const abilityBySkill = { deception: "cha", persuasion: "cha", intimidation: "cha", performance: "cha", insight: "wis", perception: "wis", survival: "wis", athletics: "str", acrobatics: "dex", stealth: "dex" };
+    const ability = abilityBySkill[id] || "";
+    const statAliases = ability === "cha" ? ["carisma", "charisma"] : ability === "wis" ? ["sabiduria", "wisdom"] : ability === "str" ? ["fuerza", "strength"] : ability === "dex" ? ["destreza", "dexterity"] : [ability];
+    const stats = unit?.stats || {};
+    const key = statAliases.find((entry) => Object.prototype.hasOwnProperty.call(stats, entry));
+    const modifier = Math.floor((numberOr(key ? stats[key] : 10, 10) - 10) / 2);
+    const level = Math.max(0, numberOr(unit?.level ?? unit?.characterBuild?.calculatedAtLevel, 0));
+    const proficiency = numberOr(unit?.proficiency, Math.ceil(level / 20));
+    const rawState = normalizeId(unit?.skillProficiency?.[id] ?? unit?.dndSkills?.[id]?.proficiency ?? "none");
+    const multiplier = rawState === "expertise" ? 2 : rawState === "proficient" ? 1 : rawState === "half" ? 0.5 : 0;
+    return modifier + Math.floor(proficiency * multiplier);
+  }
+
+  function traitFormulaValue(formula, actor, runtime, trait) {
+    const engine = global.LuminousTraitEngine;
+    if (formula == null) return 0;
+    if (!engine?.evaluateFormula || !engine?.buildVariables) return numberOr(formula, 0);
+    const character = isCurrentPlayerUnit(actor) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || actor : actor;
+    return engine.evaluateFormula(formula, engine.buildVariables(character || actor || {}, { ...(runtime || {}), self: actor, character }, trait || {}));
+  }
+
+  function resolutionTargets(actor, resolution, runtime) {
+    let targets = resolveTraitTargets(actor, resolution.targets || resolution.target || "self", runtime);
+    if (Number.isFinite(Number(resolution.rangeFeet))) {
+      const range = Number(resolution.rangeFeet);
+      targets = targets.filter((target) => {
+        if (target === actor) return true;
+        const distance = unitDistanceFeet(actor, target);
+        return distance == null || distance <= range;
+      });
+    }
+    if (resolution.requireCanSeeSource) targets = targets.filter((target) => target === actor || canSeeSource(target));
+    return targets;
+  }
+
+  function resolveTraitRuntimeResolutions(traits = [], trigger, runtime = {}, result = null) {
+    const actor = runtime.self || runtime.character || null;
+    if (!actor) return [];
+    const statusEngine = global.LuminousStatusEngine;
+    const outcomes = [];
+    (traits || []).forEach((trait) => {
+      (trait?.resolutions || []).forEach((resolution) => {
+        if (normalizeId(resolution.trigger || "on_use") !== normalizeId(trigger)) return;
+        if (resolution.whileStatus && !statusEngine?.hasStatus?.(actor, resolution.whileStatus)) return;
+        const targets = resolutionTargets(actor, resolution, runtime);
+        if (!targets.length) return;
+        const type = normalizeId(resolution.type);
+        if (type === "check_status") {
+          const check = resolution.check || {};
+          const thresholdFormula = check.thresholdFormula;
+          let threshold = thresholdFormula != null ? traitFormulaValue(thresholdFormula, actor, runtime, trait) : numberOr(check.thresholdBase, 0);
+          if (check.sourceSkillId) threshold += skillCheckBonus(actor, check.sourceSkillId);
+          const resolved = targets.map((target) => {
+            const checkResult = resolveCombatCheck(target, { abilityId: check.abilityId || "", threshold });
+            let status = null;
+            if (!checkResult.passed && resolution.onFail?.statusId) {
+              status = statusEngine?.applyStatus?.(target, resolution.onFail.statusId, {
+                count: Math.max(1, numberOr(resolution.onFail.count, 1)),
+                potency: numberOr(resolution.onFail.potency, 0),
+                duration: resolution.onFail.duration || "this_turn",
+                sourceTraitId: trait.id,
+                sourceUnitId: actor.id || null,
+                mode: "set",
+              });
+            }
+            return { target, check: checkResult, status };
+          });
+          outcomes.push({ type: "runtime_resolution", resolutionId: resolution.id || null, traitId: trait.id, resolutionType: type, resolved });
+        } else if (type === "area_damage") {
+          const amount = Math.max(1, Math.floor(traitFormulaValue(resolution.amountFormula ?? resolution.amount ?? 1, actor, runtime, trait)));
+          const resolved = targets.map((target) => {
+            const before = numberOr(target?.hp, 0);
+            if (global.CombatEngine?.applyDamage) {
+              global.CombatEngine.applyDamage(target, amount, resolution.damageType || "Fixed", false, { id: resolution.id || trait.id, type: "Trait", sourceTraitId: trait.id, tags: ["fixed_damage"] });
+            }
+            return { target, amount, before, after: numberOr(target?.hp, before) };
+          });
+          outcomes.push({ type: "runtime_resolution", resolutionId: resolution.id || null, traitId: trait.id, resolutionType: type, amount, resolved });
+        }
+      });
+    });
+    if (result?.outcomes && outcomes.length) result.outcomes.push(...outcomes);
+    return outcomes;
+  }
+
+  function applyCheckFinalPower(result = {}, options = {}, check = {}) {
+    if (!result || typeof result !== "object") return result;
+    if (result.checkFinalPowerApplied === true) return result;
+    const baseRollTotal = numberOr(result.total, 0);
+    const bonus = numberOr(check.finalPower, 0);
+    const next = { ...(result || {}), baseRollTotal, total: baseRollTotal + bonus, checkFinalPower: bonus, checkFinalPowerApplied: true };
+    if (options?.totalNode) {
+      const wroteSafely = global.LuminousPlayerStats?.setRollTotalWithoutAdjustment?.(next.total, options.totalNode);
+      if (!wroteSafely) options.totalNode.textContent = String(next.total);
+    }
+    return next;
+  }
+
+  function completedCheckDetail(check = {}, result = {}) {
+    const total = numberOr(result.total, 0);
+    const finalPower = numberOr(check.finalPower, 0);
+    const baseRollTotal = Number.isFinite(Number(result.baseRollTotal)) ? Number(result.baseRollTotal) : total - finalPower;
+    const rolls = global.LuminousTheatreRolls;
+    const outcome = rolls?.checkOutcome ? rolls.checkOutcome(total, check) : (Number.isFinite(Number(check.difficulty ?? check.thresholdRaw ?? check.threshold)) ? (total >= Number(check.difficulty ?? check.thresholdRaw ?? check.threshold) ? "passed" : "failed") : null);
+    return {
+      check: { ...(check || {}), total, result: total, finalPower, passed: outcome === "passed", failed: outcome === "failed", outcome },
+      total,
+      baseRollTotal,
+      outcome,
+      target: check.target || check.targetUnit || null,
+      rawResult: result,
+    };
+  }
+
+  function emitCompletedCheck(check = {}, result = {}) {
+    const adjusted = applyCheckFinalPower(result, {}, check);
+    const detail = completedCheckDetail(check, adjusted);
+    if (typeof global.CustomEvent === "function") global.dispatchEvent(new global.CustomEvent("luminous:theatre-check-completed", { detail }));
+    return detail;
+  }
+
+  function equipmentLevelModifier(unit, kind) {
+    const currentCharacter = isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || null : null;
+    const sources = [unit, currentCharacter].filter(Boolean);
+    for (const source of sources) {
+      const fromBreakdown = source?.combatLevels?.[kind]?.itemModifier;
+      if (Number.isFinite(Number(fromBreakdown))) return Number(fromBreakdown);
+      const field = kind === "offensive" ? "offensiveLevel" : "defensiveLevel";
+      const fromEquipment = source?.equipmentModifiers?.[field];
+      if (Number.isFinite(Number(fromEquipment))) return Number(fromEquipment);
+    }
+    return 0;
   }
 
   function precomputedLevel(unit, kind) {
@@ -363,7 +623,9 @@
       ? [combat.offensiveLevel, combat.off_level, unit?.offensiveLevel, unit?.offensive_level]
       : [combat.defensiveLevel, combat.def_level, unit?.defensiveLevel, unit?.defensive_level];
     const found = values.find((value) => Number.isFinite(Number(value)));
-    return found == null ? null : Number(found);
+    if (found == null) return null;
+    const equipmentInactive = Boolean(global.LuminousUniversalModifiers?.resolveEquipment?.(unit)?.equipmentInactive);
+    return Number(found) - (equipmentInactive ? equipmentLevelModifier(unit, kind) : 0);
   }
 
   function restrictionTraitsForUnit(unit) {
@@ -488,7 +750,10 @@
     if (originalUnilateral) engine.resolveUnilateralWithCounter = function (unitAttacker, attackSkill, ...rest) {
       const check = canUseSkillByTraits(unitAttacker, attackSkill);
       if (!check.usable) return blockedSkillResult(check, { attackLogs: [{ message: check.reason, class: "error" }], damageTaken: 0 });
-      return originalUnilateral.call(this, unitAttacker, attackSkill, ...rest);
+      const unitDefender = rest[0] || null;
+      return withModifierTargets([[unitAttacker, unitDefender], [unitDefender, unitAttacker]], () =>
+        originalUnilateral.call(this, unitAttacker, attackSkill, ...rest)
+      );
     };
 
     if (originalClash) engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
@@ -502,7 +767,7 @@
           clashLogs: [{ winner, note: [!checkA.usable ? checkA.reason : null, !checkB.usable ? checkB.reason : null].filter(Boolean).join(" | ") }],
         });
       }
-      return originalClash.call(this, unitA, skillA, unitB, skillB, ...rest);
+      return withModifierTargets([[unitA, unitB], [unitB, unitA]], () => originalClash.call(this, unitA, skillA, unitB, skillB, ...rest));
     };
 
     if (originalSpell) engine.resolveSpell = function (spellSkill, target, ...rest) {
@@ -517,11 +782,14 @@
     if (originalPassive) engine.applyPassiveModifiers = function (unit, contextOptions) {
       const statusMods = originalPassive.call(this, unit, contextOptions) || {};
       const traits = traitsForUnit(unit);
+      const target = contextOptions?.target || modifierTarget(unit);
       const traitMods = modifiers.resolveTraitModifiers({
         unit,
         character: isCurrentPlayerUnit(unit) ? global.LuminousPlayerTraitRuntime?.getCharacter?.() || unit : unit,
         traits,
         skill: contextOptions?.skill || null,
+        target,
+        targetedByAlly: contextOptions?.targetedByAlly ?? isTargetedByAlly(unit, target),
         context: "combat",
       });
       return modifiers.mergeModifiers(statusMods, traitMods);
@@ -617,7 +885,10 @@
 
     if (originalTriggerPhase) engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
       const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
-      if (phaseTag === "[Round End]") (allUnits || []).forEach(advanceDamageHistory);
+      if (phaseTag === "[Round End]") (allUnits || []).forEach((unit) => {
+        advanceDamageHistory(unit);
+        statusEngine?.advanceDurations?.(unit, "turn_end");
+      });
       return result;
     };
 
@@ -715,7 +986,9 @@
         const onComplete = options.onComplete;
         const wrappedOptions = { ...options, onComplete: null };
         return originalRun(wrappedOptions).then((rawResult) => {
-          const finalResult = check ? applyCheckRetosses(rawResult, options, check) : rawResult;
+          const retossedResult = check ? applyCheckRetosses(rawResult, options, check) : rawResult;
+          const finalResult = check ? applyCheckFinalPower(retossedResult, options, check) : retossedResult;
+          if (check) emitCompletedCheck(check, finalResult);
           state.activeCheck = null;
           onComplete?.(finalResult);
           return finalResult;
@@ -802,7 +1075,9 @@
       const snapshot = legacyCoinSnapshot(container);
       if (!snapshot) return;
       container.dataset.luminousRetossProcessed = token;
-      applyCheckRetosses(snapshot, { container, totalNode: snapshot.totalNode }, check);
+      const retossedResult = applyCheckRetosses(snapshot, { container, totalNode: snapshot.totalNode }, check);
+      const finalResult = applyCheckFinalPower(retossedResult, { container, totalNode: snapshot.totalNode }, check);
+      emitCompletedCheck(check, finalResult);
       state.activeCheck = null;
       state.legacyCheckObserver?.disconnect?.();
       state.legacyCheckObserver = null;
@@ -868,6 +1143,17 @@
     classifyDamageTypes,
     recordDamageTypes,
     advanceDamageHistory,
+    liveCombatUnits,
+    unitDistanceFeet,
+    resolveTraitTargets,
+    resolveTraitTarget,
+    skillCheckBonus,
+    resolveTraitRuntimeResolutions,
+    applyCheckFinalPower,
+    completedCheckDetail,
+    emitCompletedCheck,
+    equipmentLevelModifier,
+    precomputedLevel,
   });
   global.LuminousTraitStandardizationRuntime = api;
 
