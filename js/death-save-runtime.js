@@ -410,6 +410,7 @@
     const originalTriggerEvent = typeof engine.triggerEvent === "function" ? engine.triggerEvent : null;
     const originalResolveUnilateral = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
     const originalCalculateAoE = typeof engine.calculateAoETargets === "function" ? engine.calculateAoETargets : null;
+    const originalGetAllAliveUnits = typeof engine.getAllAliveUnits === "function" ? engine.getAllAliveUnits : null;
 
     engine.isUnitTargetable = function (unit) { return isTargetable(unit); };
     engine.canUnitAct = function (unit) { return canAct(unit); };
@@ -417,6 +418,17 @@
     engine.reviveUnit = function (unit, amount = 1, options = {}) { return heal(unit, amount, { ...options, revive: true, source: options.source || "revival" }); };
     engine.resolveDeathSave = function (unit, options = {}) { return resolveDeathSave(unit, options); };
     engine.returnFromRetreat = function (unit, options = {}) { return returnFromRetreat(unit, options); };
+    engine.getAllTargetableUnits = function () {
+      const data = global.combatData && typeof global.combatData === "object" ? Object.values(global.combatData) : [];
+      return data.filter((unit) => isTargetable(unit));
+    };
+
+    if (originalGetAllAliveUnits) {
+      engine.getAllAliveUnits = function (...args) {
+        const units = originalGetAllAliveUnits.apply(this, args) || [];
+        return units.filter((unit) => !isDead(unit) && !isRetreated(unit));
+      };
+    }
 
     if (originalInitialize) {
       engine.initializeUnitData = function (unit, ...rest) {
@@ -523,7 +535,14 @@
 
     if (originalCalculateAoE) {
       engine.calculateAoETargets = function (skill, primaryTarget, allPossibleTargets, attacker, ...rest) {
-        const source = Array.isArray(allPossibleTargets) ? allPossibleTargets : [];
+        const supplied = Array.isArray(allPossibleTargets) ? allPossibleTargets : [];
+        const world = global.combatData && typeof global.combatData === "object" ? Object.values(global.combatData) : [];
+        const sideKey = (unit) => normalizeId(unit?.team || unit?.faction || unit?.side || (isPlayerCharacter(unit) ? "player" : "enemy"));
+        const targetSide = sideKey(primaryTarget);
+        const source = [...supplied];
+        world.forEach((unit) => {
+          if (!source.includes(unit) && isTargetable(unit) && (!targetSide || sideKey(unit) === targetSide)) source.push(unit);
+        });
         const eligible = source.filter((unit) => isTargetable(unit));
         const targets = originalCalculateAoE.call(this, skill, primaryTarget, eligible, attacker, ...rest) || [];
         let remainingWeight = Math.max(0, numberOr(skill?.atkWeight ?? skill?.weight, 1) - targets.reduce((sum, unit) => sum + Math.max(1, numberOr(unit?.slotWeight, 1)), 0));
@@ -551,21 +570,35 @@
     if (originalTriggerPhase) {
       engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
         const units = Array.isArray(allUnits) ? allUnits : [];
+        units.forEach(ensureDeathState);
+
         if (phaseTag === "[Round Start]") {
-          units.forEach((unit) => {
-            ensureDeathState(unit);
-            if (isDowned(unit)) unit.actionQueue = [];
-          });
+          units.forEach((unit) => { if (isDowned(unit)) unit.actionQueue = []; });
         }
+
         if (phaseTag === "[Round End]") {
+          // Death Save resolves before Turn End. A third Success arms Retreat and Retreat
+          // immediately removes the unit before normal Turn End passives/status decay.
           units.forEach((unit) => {
             if (isDowned(unit) && !isDead(unit)) resolveDeathSave(unit);
           });
-        }
-        const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
-        if (phaseTag === "[Round End]") {
           units.forEach((unit) => {
             if (unit?.retreat?.pending && !isDead(unit)) resolveRetreat(unit, { units });
+          });
+          units.forEach((unit) => {
+            if (isDowned(unit) && !isDead(unit)) unit.__luminousPausedStatusSnapshot = clone(unit.statusEffects || {});
+          });
+        }
+
+        const activeUnits = units.filter((unit) => !isDead(unit) && !isRetreated(unit));
+        const result = originalTriggerPhase.call(this, phaseTag, activeUnits, ...rest);
+
+        if (phaseTag === "[Round End]") {
+          units.forEach((unit) => {
+            if (unit.__luminousPausedStatusSnapshot) {
+              if (isDowned(unit) && !isDead(unit)) unit.statusEffects = unit.__luminousPausedStatusSnapshot;
+              delete unit.__luminousPausedStatusSnapshot;
+            }
           });
         }
         return result;
