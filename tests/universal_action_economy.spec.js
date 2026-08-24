@@ -175,3 +175,14 @@ test("DM managed effects expose deterministic duration helpers", () => {
   expect(dmEffects.formatRemaining(effect, 0)).toBe("1h 0m");
   expect(dmEffects.isActive(effect, 3_600_000)).toBeFalsy();
 });
+
+
+test("player runtime reconciles resolved shared Trait Actions into local usage state", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "js", "player-trait-runtime.js"), "utf8");
+  expect(source).toContain("function processSharedActionResolutions()");
+  expect(source).toContain('action.status !== "resolved"');
+  expect(source).toContain('String(action.scheduledBy || "") !== playerId');
+  expect(source).toContain('record.used = Math.max(0, Number(record.used || 0)) + 1');
+  expect(source).toContain("LuminousActionEconomy?.cancelAction?.(unit, slotIndex)");
+  expect(source).toContain("state.db.ref(SHARED_PLANNED_ACTIONS_ROOT).on");
+});

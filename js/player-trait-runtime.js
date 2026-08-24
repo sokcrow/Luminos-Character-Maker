@@ -45,6 +45,9 @@
     combatEngineSource: null,
     dmEffects: {},
     dmEffectsBound: false,
+    sharedActions: {},
+    sharedActionsBound: false,
+    seenSharedActionResolutions: new Set(),
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -223,6 +226,42 @@
     };
     state.db.ref(`${SHARED_PLANNED_ACTIONS_ROOT}/${unitId}/${slotIndex}`).set(payload).catch((error) => console.error("No se pudo compartir el Action Slot planeado:", error));
     return payload;
+  }
+
+  function processSharedActionResolutions() {
+    const playerId = String(state.playerId || "").trim();
+    if (!playerId) return 0;
+    let changed = 0;
+    const unit = currentCombatUnit();
+    Object.entries(state.sharedActions || {}).forEach(([unitId, slots]) => {
+      Object.entries(slots || {}).forEach(([slotIndexRaw, action]) => {
+        if (!action || action.status !== "resolved" || !action.traitId) return;
+        if (String(action.scheduledBy || "") !== playerId) return;
+        const resolutionKey = `${unitId}:${slotIndexRaw}:${action.resolvedAt || "resolved"}`;
+        if (state.seenSharedActionResolutions.has(resolutionKey)) return;
+        state.seenSharedActionResolutions.add(resolutionKey);
+
+        const trait = resolveTraits().find((entry) => normalizeId(entry?.id || entry?.name) === normalizeId(action.traitId));
+        if (trait?.activation?.uses) {
+          if (!state.traitState) state.traitState = global.LuminousTraitEngine?.createState?.() || { usages: {} };
+          if (!state.traitState.usages) state.traitState.usages = {};
+          const traitId = normalizeId(trait.id || trait.name);
+          const record = state.traitState.usages[traitId] || (state.traitState.usages[traitId] = {
+            used: 0,
+            reset: normalizeId(trait.activation.uses.reset || "never"),
+          });
+          record.used = Math.max(0, Number(record.used || 0)) + 1;
+          changed += 1;
+        }
+
+        if (unit && sharedUnitId(unit) === String(unitId)) {
+          const slotIndex = Number(slotIndexRaw);
+          if (Number.isInteger(slotIndex)) global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
+        }
+      });
+    });
+    if (changed) refresh();
+    return changed;
   }
 
   function targetMatchesDmEffect(target, effect = {}) {
@@ -414,6 +453,7 @@
       refresh();
     };
     state.playerRef.on("value", state.playerListener);
+    processSharedActionResolutions();
     return true;
   }
 
@@ -439,6 +479,13 @@
     if (!state.dmEffectsBound) {
       state.dmEffectsBound = true;
       state.db.ref(DM_MANAGED_EFFECTS_ROOT).on("value", (snapshot) => { state.dmEffects = snapshot.val() || {}; });
+    }
+    if (!state.sharedActionsBound) {
+      state.sharedActionsBound = true;
+      state.db.ref(SHARED_PLANNED_ACTIONS_ROOT).on("value", (snapshot) => {
+        state.sharedActions = snapshot.val() || {};
+        processSharedActionResolutions();
+      });
     }
     return true;
   }
