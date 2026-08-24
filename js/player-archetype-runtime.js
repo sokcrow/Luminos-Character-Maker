@@ -46,6 +46,7 @@
   }
 
   function ensureStyles() {
+    if (!doc.querySelector?.(".sheet-phone-wrapper")) return;
     if (doc.getElementById("player-archetype-runtime-stylesheet")) return;
     const link = doc.createElement("link");
     link.id = "player-archetype-runtime-stylesheet";
@@ -138,7 +139,7 @@
   function statMod(character = {}, stat) {
     const key = normalizeId(stat);
     const aliases = key === "strength" ? ["fuerza", "strength", "str"] : key === "constitution" ? ["constitucion", "constitution", "con"] : [key];
-    const stats = character.stats || {};
+    const stats = character.stats || character.dndStats || {};
     const score = aliases.map((alias) => stats[alias] ?? character[alias]).find((value) => Number.isFinite(Number(value)));
     return Math.floor((numberOr(score, 10) - 10) / 2);
   }
@@ -174,6 +175,23 @@
   function statusDamageMultiplier(character = currentCharacter(), statusId) {
     if (devilLineageLevel(character) < 15) return 1;
     return ["burn", "poison"].includes(normalizeId(statusId)) ? 0.5 : 1;
+  }
+
+  function syncArchetypeTraitsForUnit(unit = {}) {
+    const archetypeCatalog = catalog();
+    if (!unit || !archetypeCatalog?.resolveTraitGrants) return [];
+    const character = characterForUnit(unit);
+    const granted = archetypeCatalog.resolveTraitGrants(character) || [];
+    if (!granted.length) return [];
+    const existing = Array.isArray(unit.traitDefinitions) ? unit.traitDefinitions : [];
+    const byId = new Map();
+    [...existing, ...granted].forEach((trait) => {
+      const id = normalizeId(trait?.id || trait?.name);
+      if (id && !byId.has(id)) byId.set(id, trait);
+    });
+    unit.traitDefinitions = [...byId.values()];
+    global.LuminousTraitStandardizationRuntime?.registerCombatUnit?.(unit);
+    return granted;
   }
 
   function patchTraitEngine() {
@@ -570,8 +588,9 @@
 
   function coinSpendsAmmo(skill = {}, context = {}) {
     const coin = context?.currentCoin || context?.coin || context?.coinData || null;
-    if (!coin) return false;
-    return coin.spendsAmmo === true || coin.spendAmmo === true || numberOr(coin.ammoCost ?? coin.ammo_cost ?? coin.ammo?.cost, 0) > 0;
+    const coinCost = numberOr(coin?.ammoCost ?? coin?.ammo_cost ?? coin?.ammo?.cost, 0);
+    const skillCost = numberOr(skill?.ammo?.cost ?? skill?.ammoCost ?? skill?.ammo_cost, 0);
+    return coin?.spendsAmmo === true || coin?.spendAmmo === true || coinCost > 0 || skillCost > 0;
   }
 
   function patchCombatEngine() {
@@ -582,6 +601,15 @@
       return true;
     }
     if (state.combatSource === engine) return true;
+
+    const originalInitialize = typeof engine.initializeUnitData === "function" ? engine.initializeUnitData : null;
+    if (originalInitialize) {
+      engine.initializeUnitData = function (unit, ...rest) {
+        const result = originalInitialize.call(this, unit, ...rest);
+        syncArchetypeTraitsForUnit(unit);
+        return result;
+      };
+    }
 
     const originalCoinDamage = typeof engine.calculateCoinDamage === "function" ? engine.calculateCoinDamage : null;
     if (originalCoinDamage) {
@@ -615,7 +643,7 @@
     if (originalApplyDamage) {
       engine.applyDamage = function (unit, damage, ...rest) {
         const character = characterForUnit(unit);
-        const active = isCurrentPlayerUnit(unit) && hasDevilLineageLevel(character, 70) && hasStatus(unit, "rage");
+        const active = hasDevilLineageLevel(character, 70) && hasStatus(unit, "rage");
         if (!active) return originalApplyDamage.call(this, unit, damage, ...rest);
         const hpBefore = currentHp(unit);
         const shieldBefore = Math.max(0, numberOr(unit?.shield, 0));
@@ -638,7 +666,7 @@
     if (originalProcessStatuses) {
       engine.processStatusEffects = function (unit, triggerKey, context = {}) {
         const character = characterForUnit(unit);
-        const resistant = isCurrentPlayerUnit(unit) && hasDevilLineageLevel(character, 15);
+        const resistant = hasDevilLineageLevel(character, 15);
         const store = unit?.statusEffects && typeof unit.statusEffects === "object" ? unit.statusEffects : null;
         const changed = [];
         if (resistant && store) {
@@ -657,7 +685,7 @@
         } finally {
           changed.forEach(([status, potency]) => { status.potency = potency; });
         }
-        if (isCurrentPlayerUnit(unit) && hasDevilLineageLevel(character, 70) && hasStatus(unit, "rage") && currentHp(unit) <= 1) {
+        if (hasDevilLineageLevel(character, 70) && hasStatus(unit, "rage") && currentHp(unit) <= 1) {
           if (hpBefore > 1) armCursedJuggernaut(unit);
           if (currentHp(unit) < 1) setHp(unit, 1);
         }
@@ -668,7 +696,9 @@
     const originalEncounterStart = typeof engine.triggerEncounterStart === "function" ? engine.triggerEncounterStart : null;
     if (originalEncounterStart) {
       engine.triggerEncounterStart = function (allUnits = [], ...rest) {
-        (Array.isArray(allUnits) ? allUnits : []).filter(isCurrentPlayerUnit).forEach((unit) => {
+        (Array.isArray(allUnits) ? allUnits : []).forEach((unit) => {
+          syncArchetypeTraitsForUnit(unit);
+          if (!hasDevilLineageLevel(characterForUnit(unit), 70)) return;
           const record = cursedState(unit);
           record.used = false;
           record.pending = false;
@@ -680,9 +710,11 @@
     const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
     if (originalTriggerPhase) {
       engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
+        const units = Array.isArray(allUnits) ? allUnits : [];
+        units.forEach(syncArchetypeTraitsForUnit);
         const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
         if (phaseTag === "[Round Start]") {
-          (Array.isArray(allUnits) ? allUnits : []).filter(isCurrentPlayerUnit).forEach((unit) => {
+          units.forEach((unit) => {
             if (hasDevilLineageLevel(characterForUnit(unit), 70)) resolveCursedJuggernautRecovery(unit);
           });
         }
@@ -789,6 +821,8 @@
     deathSavePowerBonus,
     capabilities,
     statusDamageMultiplier,
+    syncArchetypeTraitsForUnit,
+    coinSpendsAmmo,
     applyTheatreCheckMechanics,
     classArchetypeOptions,
     persistArchetypeSelection,
