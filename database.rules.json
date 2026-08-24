@@ -49,6 +49,28 @@
 
       "teatro": {
         ".write": "auth != null"
+      },
+
+      "combate": {
+        "plannedActions": {
+          "$unitId": {
+            "$slotIndex": {
+              ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' && ((!data.exists() && newData.exists() && newData.child('schedulerUid').val() === auth.uid && newData.child('status').val() === 'planned') || (data.exists() && data.child('schedulerUid').val() === auth.uid && (!newData.exists() || (newData.child('schedulerUid').val() === auth.uid && newData.child('status').val() === 'planned'))))))"
+            }
+          }
+        },
+        "$other": {
+          ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+        }
+      },
+
+      "efectos_dm": {
+        "$effectId": {
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('subjectUid').val() === auth.uid && newData.child('active').val() === true && newData.child('approved').val() === false && !newData.child('consumedAt').exists()))",
+          "consumedAt": {
+            ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (auth.uid === root.child('campaña').child('efectos_dm').child($effectId).child('subjectUid').val() && root.child('campaña').child('efectos_dm').child($effectId).child('approved').val() === true && !data.exists() && newData.exists() && newData.isNumber()))"
+          }
+        }
       }
     },
 
