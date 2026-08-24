@@ -10,6 +10,7 @@ on:
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
       - "tests/archetype_engine.spec.js"
@@ -23,6 +24,7 @@ on:
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
       - "css/player-archetype-runtime.css"
       - "js/utils.js"
       - "tests/archetype_engine.spec.js"
@@ -55,6 +57,7 @@ jobs:
           node --check js/archetype-engine.js
           node --check js/archetype-trait-catalog.js
           node --check js/player-archetype-runtime.js
+          node --check js/archetype-combat-event-runtime.js
           node --check js/utils.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
