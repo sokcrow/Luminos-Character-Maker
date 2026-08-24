@@ -177,11 +177,7 @@
         if (!base?.available) return base;
         const recovery = recoverAvailability(base.trait || trait, runtime);
         if (recovery.available) return base;
-        return {
-          ...base,
-          available: false,
-          reasons: [...(base.reasons || []), recovery.reason || "No Recover Slots available."],
-        };
+        return { ...base, available: false, reasons: [...(base.reasons || []), recovery.reason || "No Recover Slots available."] };
       };
     }
 
@@ -264,8 +260,32 @@
     return true;
   }
 
+  function ensureHealthEquipmentAssets() {
+    if (!global.document) return null;
+    const ensureScript = (id, src) => {
+      let script = global.document.getElementById(id);
+      if (script) return script;
+      script = global.document.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      global.document.head?.appendChild(script);
+      return script;
+    };
+    if (global.LuminousAnatomyEquipmentEngine) {
+      return { anatomy: null, injury: global.LuminousInjuryEngine ? null : ensureScript("injury-engine-script", "js/injury-engine.js") };
+    }
+    const anatomy = ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+    const ensureInjury = () => {
+      if (!global.LuminousInjuryEngine) ensureScript("injury-engine-script", "js/injury-engine.js");
+    };
+    anatomy?.addEventListener?.("load", ensureInjury, { once: true });
+    return { anatomy };
+  }
+
   function install() {
     bindRequestEvents();
+    ensureHealthEquipmentAssets();
     return installTraitEngineBridge();
   }
 
@@ -281,6 +301,7 @@
     completeShortRest,
     completeLongRest,
     installTraitEngineBridge,
+    ensureHealthEquipmentAssets,
     install,
   });
 
