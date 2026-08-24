@@ -35,11 +35,10 @@ on:
       - "tests/universal_speed_runtime.spec.js"
       - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
-      - ".github/scripts/apply_combat_action_timeline_integration.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   trait-engine-contract:
@@ -47,11 +46,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Apply combat Action timeline integration
-        run: python .github/scripts/apply_combat_action_timeline_integration.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -110,14 +104,3 @@ jobs:
           tests/universal_action_economy.spec.js
           tests/trait_standardization_review_fixes.spec.js
           --workers=1
-
-      - name: Commit verified combat Action timeline integration
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Battle-viewer.html tests/universal_action_economy.spec.js
-          if ! git diff --cached --quiet; then
-            git commit -m "fix: execute planned actions in combat timeline"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
