@@ -78,19 +78,14 @@
       next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(input.count, 1));
       next.potency = numberOr(existing.potency, 0) + numberOr(input.potency, 0);
     }
-    if (Number.isFinite(Number(definition.maxCount))) {
-      next.count = Math.min(Number(definition.maxCount), next.count);
-    }
+    if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
     store[id] = next;
     return next;
   }
 
   function protectionFor(unit, statusId, options = {}) {
     const id = normalizeId(statusId);
-    return options.protectedStatuses?.[id]
-      || unit?.statusProtections?.[id]
-      || unit?.protectedStatuses?.[id]
-      || null;
+    return options.protectedStatuses?.[id] || unit?.statusProtections?.[id] || unit?.protectedStatuses?.[id] || null;
   }
 
   function removeStatus(unit, statusId, options = {}) {
@@ -122,21 +117,14 @@
     if (!unit || typeof unit !== "object") return null;
     if (!unit.statusProtections || typeof unit.statusProtections !== "object") unit.statusProtections = {};
     const id = normalizeId(statusId);
-    unit.statusProtections[id] = {
-      from: normalizeId(protection.from || "effects"),
-      sourceTraitId: protection.sourceTraitId || null,
-    };
+    unit.statusProtections[id] = { from: normalizeId(protection.from || "effects"), sourceTraitId: protection.sourceTraitId || null };
     return clone(unit.statusProtections[id]);
   }
 
   function syncTraitState(unit, traitState = {}) {
     if (!unit) return unit;
-    Object.entries(traitState.statuses || {}).forEach(([statusId, status]) => {
-      applyStatus(unit, statusId, { ...status, mode: "set" });
-    });
-    Object.entries(traitState.protectedStatuses || {}).forEach(([statusId, protection]) => {
-      protectStatus(unit, statusId, protection);
-    });
+    Object.entries(traitState.statuses || {}).forEach(([statusId, status]) => applyStatus(unit, statusId, { ...status, mode: "set" }));
+    Object.entries(traitState.protectedStatuses || {}).forEach(([statusId, protection]) => protectStatus(unit, statusId, protection));
     return unit;
   }
 
@@ -169,35 +157,48 @@
   }
 
   const api = Object.freeze({
-    normalizeId,
-    getDefinition,
-    ensureStore,
-    applyStatus,
-    removeStatus,
-    hasStatus,
-    getStatus,
-    protectStatus,
-    syncTraitState,
-    advanceDurations,
-    listStatuses,
+    normalizeId, getDefinition, ensureStore, applyStatus, removeStatus, hasStatus, getStatus,
+    protectStatus, syncTraitState, advanceDurations, listStatuses,
   });
 
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
-  if (global.document && !global.LuminousUniversalSpeedRuntime && !global.document.getElementById("universal-speed-runtime-script")) {
+  function loadScript(id, src) {
+    if (!global.document || global.document.getElementById(id)) return null;
     const script = global.document.createElement("script");
-    script.id = "universal-speed-runtime-script";
-    script.src = "js/universal-speed-runtime.js";
+    script.id = id;
+    script.src = src;
     script.async = false;
     global.document.head?.appendChild(script);
+    return script;
   }
 
-  if (global.document && !global.LuminousRacialTraitRuntimeBridge && !global.document.getElementById("racial-trait-runtime-bridge-script")) {
-    const script = global.document.createElement("script");
-    script.id = "racial-trait-runtime-bridge-script";
-    script.src = "js/racial-trait-runtime-bridge.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
+  if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
+  if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
+  if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
+  if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
+  if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
+  if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
+
+  if (global.document && !global.LuminousArchetypeRuntime) loadScript("player-archetype-runtime-script", "js/player-archetype-runtime.js");
+  if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
+  if (global.document && !global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
+
+  function ensureInjuryEquipmentRuntime() {
+    if (!global.document) return;
+    const ensureBridge = () => {
+      if (!global.LuminousInjuryEquipmentRuntime) loadScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
+    };
+    const ensureInjury = () => {
+      if (global.LuminousInjuryEngine) return ensureBridge();
+      const injuryScript = loadScript("injury-engine-script", "js/injury-engine.js");
+      injuryScript?.addEventListener?.("load", ensureBridge, { once: true });
+    };
+    if (global.LuminousAnatomyEquipmentEngine) return ensureInjury();
+    const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+    anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
   }
+
+  ensureInjuryEquipmentRuntime();
 })(typeof window !== "undefined" ? window : globalThis);
