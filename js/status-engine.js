@@ -185,6 +185,32 @@
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
+  // Rest/Recover is a shared player + combat resource. Load the canonical Class table first,
+  // then Rest Engine, then the bridge that connects Trait activation and persistence.
+  if (global.document && !global.LuminousCharacterBuildRules && !global.document.getElementById("character-build-rules-script")) {
+    const script = global.document.createElement("script");
+    script.id = "character-build-rules-script";
+    script.src = "js/character-build-rules.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
+  if (global.document && !global.LuminousRestEngine && !global.document.getElementById("rest-engine-script")) {
+    const script = global.document.createElement("script");
+    script.id = "rest-engine-script";
+    script.src = "js/rest-engine.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
+  if (global.document && !global.LuminousRestRuntime && !global.document.getElementById("rest-runtime-integration-script")) {
+    const script = global.document.createElement("script");
+    script.id = "rest-runtime-integration-script";
+    script.src = "js/rest-runtime-integration.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
   if (global.document && !global.LuminousUniversalSpeedRuntime && !global.document.getElementById("universal-speed-runtime-script")) {
     const script = global.document.createElement("script");
     script.id = "universal-speed-runtime-script";
