@@ -1,3 +1,4 @@
+# Final clean regression contract for the production Trait/runtime integration.
 name: Trait Engine
 
 on:
@@ -38,14 +39,11 @@ on:
       - "tests/universal_speed_runtime.spec.js"
       - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
-      - ".github/scripts/apply_slot_reservation_fix.py"
-      - ".github/scripts/apply_trusted_trait_fix.py"
-      - ".github/scripts/apply_dm_effect_safety_fix.py"
-      - ".github/scripts/apply_final_review_tests.py"
+      - "tests/firebase_shared_trait_rules.spec.js"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   trait-engine-contract:
@@ -53,15 +51,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Apply final review fixes
-        run: |
-          python .github/scripts/apply_slot_reservation_fix.py
-          python .github/scripts/apply_trusted_trait_fix.py
-          python .github/scripts/apply_dm_effect_safety_fix.py
-          python .github/scripts/apply_final_review_tests.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -104,6 +93,7 @@ jobs:
           node --check tests/universal_speed_runtime.spec.js
           node --check tests/universal_action_economy.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
+          node --check tests/firebase_shared_trait_rules.spec.js
 
       - name: Run Trait regressions
         run: >-
@@ -120,15 +110,5 @@ jobs:
           tests/universal_speed_runtime.spec.js
           tests/universal_action_economy.spec.js
           tests/trait_standardization_review_fixes.spec.js
+          tests/firebase_shared_trait_rules.spec.js
           --workers=1
-
-      - name: Commit verified final review fixes
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Battle-viewer.html js/player-trait-runtime.js js/combatEngine.js js/universal-action-economy.js js/dm-managed-effect-engine.js tests/universal_action_economy.spec.js
-          if ! git diff --cached --quiet; then
-            git commit -m "fix: secure shared Trait actions and reserve slots"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
