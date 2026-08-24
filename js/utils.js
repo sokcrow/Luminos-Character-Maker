@@ -110,6 +110,12 @@ function ensurePlayerTraitRuntimeAssets(doc) {
     return ensureScriptAsset(documentRef, 'player-trait-runtime-script', 'js/player-trait-runtime.js', { ui: 'player-trait-runtime' });
 }
 
+function ensurePlayerArchetypeRuntimeAssets(doc) {
+    const documentRef = doc || (typeof document !== 'undefined' ? document : null);
+    if (!documentRef?.querySelector?.('.sheet-phone-wrapper')) return null;
+    return ensureScriptAsset(documentRef, 'player-archetype-runtime-script', 'js/player-archetype-runtime.js', { ui: 'player-archetype-runtime' });
+}
+
 function ensureDmPlayerDndStudioAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-jugadores')) return null;
@@ -296,6 +302,7 @@ if (typeof document !== 'undefined') {
     ensurePlayerUxPolishAssets(document);
     ensurePlayerStatsAbilityBarAssets(document);
     ensurePlayerTraitRuntimeAssets(document);
+    ensurePlayerArchetypeRuntimeAssets(document);
     ensureDmPlayerDndStudioAssets(document);
     ensureDmTraitLibraryAssets(document);
     ensurePlayerSplashFramingAssets(document);
@@ -314,6 +321,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ensurePlayerUxPolishAssets,
         ensurePlayerStatsAbilityBarAssets,
         ensurePlayerTraitRuntimeAssets,
+        ensurePlayerArchetypeRuntimeAssets,
         ensureDmPlayerDndStudioAssets,
         ensureDmTraitLibraryAssets,
         ensurePlayerSplashFramingAssets,
