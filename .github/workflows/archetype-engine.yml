@@ -5,6 +5,8 @@ on:
     branches:
       - feature/archetypes-devil-lineage
     paths:
+      - "Battle-viewer.html"
+      - "js/status-engine.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
@@ -12,9 +14,12 @@ on:
       - "js/utils.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
+      - "tests/archetype_review_regressions.spec.js"
       - ".github/workflows/archetype-engine.yml"
   pull_request:
     paths:
+      - "Battle-viewer.html"
+      - "js/status-engine.js"
       - "js/archetype-engine.js"
       - "js/archetype-trait-catalog.js"
       - "js/player-archetype-runtime.js"
@@ -22,6 +27,7 @@ on:
       - "js/utils.js"
       - "tests/archetype_engine.spec.js"
       - "tests/archetype_runtime_contract.spec.js"
+      - "tests/archetype_review_regressions.spec.js"
       - ".github/workflows/archetype-engine.yml"
 
 permissions:
@@ -45,18 +51,25 @@ jobs:
 
       - name: Check syntax
         run: |
+          node --check js/status-engine.js
           node --check js/archetype-engine.js
           node --check js/archetype-trait-catalog.js
           node --check js/player-archetype-runtime.js
           node --check js/utils.js
           node --check tests/archetype_engine.spec.js
           node --check tests/archetype_runtime_contract.spec.js
+          node --check tests/archetype_review_regressions.spec.js
 
       - name: Run Archetype regressions
         run: >-
           npx playwright test
           tests/archetype_engine.spec.js
           tests/archetype_runtime_contract.spec.js
+          tests/archetype_review_regressions.spec.js
           tests/trait_engine.spec.js
           tests/player_trait_tabs.spec.js
+          tests/barbarian_trait_rules_runtime.spec.js
+          tests/universal_modifier_engine.spec.js
+          tests/universal_speed_runtime.spec.js
+          tests/trait_standardization_review_fixes.spec.js
           --workers=1
