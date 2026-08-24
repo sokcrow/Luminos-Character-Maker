@@ -1,4 +1,5 @@
 # Final clean regression contract for the production Trait/runtime integration.
+# Includes the shared Firebase-state security contract.
 name: Trait Engine
 
 on:
