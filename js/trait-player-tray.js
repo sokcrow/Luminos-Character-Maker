@@ -54,6 +54,73 @@
     general: "General",
     other: "Other",
   });
+  const FORMULA_FUNCTIONS = new Set(["floor", "ceil", "round", "abs", "min", "max", "clamp"]);
+  const VARIABLE_LABELS = Object.freeze({
+    Level: "Level",
+    ClassLevel: "Class Level",
+    Proficiency: "Proficiency",
+    StrengthMod: "STR Mod",
+    DexterityMod: "DEX Mod",
+    ConstitutionMod: "CON Mod",
+    IntelligenceMod: "INT Mod",
+    WisdomMod: "WIS Mod",
+    CharismaMod: "CHA Mod",
+    OffensiveLevel: "Offensive Level",
+    DefensiveLevel: "Defensive Level",
+    MinSpeed: "Min Speed",
+    MaxSpeed: "Max Speed",
+    MaxHP: "Max HP",
+    CurrentHP: "Current HP",
+    MaxSP: "Max SP",
+    CurrentSP: "Current SP",
+  });
+  const BUILTIN_DISPLAY_METADATA = Object.freeze({
+    lizalin_hungry_jaws: {
+      playerDescription: "When Bite deals damage, gain Shield equal to {shieldRate} of that Bite damage.",
+      resolvedValues: [{ id: "shieldRate", label: "Shield from Bite Damage", formula: "ConstitutionMod + Level / 4", unit: "percent" }],
+    },
+    goliath_stone_endurance: {
+      playerDescription: "When damage is taken, reduce incoming damage by {damageReduction}.",
+      resolvedValues: [{ id: "damageReduction", label: "Damage Reduction", formula: "max(0, ConstitutionMod)", unit: "flat" }],
+    },
+    goblin_fury_of_small: {
+      playerDescription: "Once per Turn when damaging a larger Unit, add {fixedDamage} Fixed Damage.",
+      resolvedValues: [{ id: "fixedDamage", label: "Fixed Damage", formula: "max(1, ConstitutionMod)", unit: "flat", signed: true }],
+    },
+    aasimar_healing_hands: {
+      playerDescription: "Heal {healing}. Uses equal Proficiency; Long Rest.",
+      resolvedValues: [{ id: "healing", label: "Healing", formula: "max(0, floor(Level / 2) + ConstitutionMod)", unit: "hp" }],
+    },
+    yuan_ti_wrath_affinity: {
+      playerDescription: "Deal {sinBonus} Wrath Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Wrath Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_envy_affinity: {
+      playerDescription: "Deal {sinBonus} Envy Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Envy Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_gloom_affinity: {
+      playerDescription: "Deal {sinBonus} Gloom Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Gloom Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_pride_affinity: {
+      playerDescription: "Deal {sinBonus} Pride Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Pride Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_gluttony_affinity: {
+      playerDescription: "Deal {sinBonus} Gluttony Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Gluttony Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_lust_affinity: {
+      playerDescription: "Deal {sinBonus} Lust Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Lust Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+    yuan_ti_sloth_affinity: {
+      playerDescription: "Deal {sinBonus} Sloth Sin Damage.",
+      resolvedValues: [{ id: "sinBonus", label: "Sloth Sin Damage", formula: "Level / 4", unit: "percent", signed: true }],
+    },
+  });
+  let tooltipSequence = 0;
 
   function resolveHost(host) {
     if (!host) return null;
@@ -217,6 +284,166 @@
     const list = Array.isArray(traits) ? traits : [];
     if (normalizedFilter === "all") return list;
     return list.filter((trait) => sourceCategory(trait) === normalizedFilter);
+  }
+
+  function formulaIdentifiers(formula) {
+    const matches = String(formula || "").match(/[A-Za-z_][A-Za-z0-9_.]*/g) || [];
+    return [...new Set(matches.filter((identifier) => !FORMULA_FUNCTIONS.has(identifier.toLowerCase())))];
+  }
+
+  function variableEntry(variables = {}, identifier) {
+    const key = Object.keys(variables).find((candidate) => candidate.toLowerCase() === String(identifier).toLowerCase());
+    return key ? { key, value: variables[key] } : null;
+  }
+
+  function formatNumber(value, precision) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    const digits = Number.isInteger(Number(precision)) && Number(precision) >= 0
+      ? Math.min(6, Number(precision))
+      : Number.isInteger(number) ? 0 : 2;
+    const rounded = Number(number.toFixed(digits));
+    return Object.is(rounded, -0) ? "0" : String(rounded);
+  }
+
+  function formatResolvedTraitValue(value, spec = {}) {
+    const base = formatNumber(value, spec.precision);
+    if (base == null) return "";
+    const number = Number(base);
+    const signed = spec.signed && number > 0 ? `+${base}` : base;
+    const unit = normalizeId(spec.unit || "flat");
+    const suffix = unit === "percent" ? "%" : unit === "hp" ? " HP" : unit === "sp" ? " SP" : "";
+    return `${spec.prefix || ""}${signed}${suffix}${spec.suffix || ""}`;
+  }
+
+  function formatBreakdownValue(identifier, value) {
+    const base = formatNumber(value);
+    if (base == null) return "?";
+    const number = Number(base);
+    if (/Mod$/i.test(identifier) && number > 0) return `+${base}`;
+    return base;
+  }
+
+  function traitFormulaBreakdown(spec = {}, variables = {}) {
+    return formulaIdentifiers(spec.formula).map((identifier) => {
+      const entry = variableEntry(variables, identifier);
+      if (!entry) return null;
+      return {
+        identifier,
+        label: VARIABLE_LABELS[entry.key] || VARIABLE_LABELS[identifier] || titleCaseId(identifier),
+        value: Number(entry.value),
+        display: formatBreakdownValue(identifier, entry.value),
+      };
+    }).filter(Boolean);
+  }
+
+  function resolveTraitDisplayValue(trait = {}, spec = {}, runtime = {}) {
+    if (!engine?.buildVariables || !engine?.evaluateFormula || !spec?.id || spec.formula == null) return null;
+    const character = runtime.character || runtime.self || {};
+    const variables = engine.buildVariables(character, runtime, trait);
+    const missing = formulaIdentifiers(spec.formula).filter((identifier) => !variableEntry(variables, identifier));
+    if (missing.length) return null;
+    try {
+      const value = engine.evaluateFormula(spec.formula, variables);
+      if (!Number.isFinite(Number(value))) return null;
+      const display = formatResolvedTraitValue(value, spec);
+      if (!display) return null;
+      return {
+        id: String(spec.id),
+        label: String(spec.label || titleCaseId(spec.id)),
+        formula: String(spec.formula),
+        value: Number(value),
+        display,
+        variables,
+        breakdown: traitFormulaBreakdown(spec, variables),
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function resolveTraitDisplay(trait = {}, runtime = {}) {
+    const display = trait?.display || BUILTIN_DISPLAY_METADATA[normalizeId(trait?.id || trait?.name)] || null;
+    const template = typeof display?.playerDescription === "string" ? display.playerDescription : "";
+    const specs = Array.isArray(display?.resolvedValues) ? display.resolvedValues : [];
+    if (!template || !specs.length) return null;
+    const values = {};
+    for (const spec of specs) {
+      const resolved = resolveTraitDisplayValue(trait, spec, runtime);
+      if (!resolved) return null;
+      values[resolved.id] = resolved;
+    }
+    const placeholders = [...template.matchAll(/\{([A-Za-z0-9_-]+)\}/g)].map((match) => match[1]);
+    if (!placeholders.length || placeholders.some((id) => !values[id])) return null;
+    return { template, values };
+  }
+
+  function appendTooltipRows(tooltip, resolved) {
+    tooltip.appendChild(createElement("strong", "player-trait-formula-tooltip__title", resolved.label));
+    resolved.breakdown.forEach((row) => {
+      const line = createElement("span", "player-trait-formula-tooltip__row");
+      line.append(
+        createElement("span", "player-trait-formula-tooltip__key", `${row.label}:`),
+        createElement("b", "player-trait-formula-tooltip__number", row.display),
+      );
+      tooltip.appendChild(line);
+    });
+    const formula = createElement("span", "player-trait-formula-tooltip__formula");
+    formula.append(createElement("span", "", "Formula:"), createElement("code", "", resolved.formula));
+    tooltip.appendChild(formula);
+    const total = createElement("span", "player-trait-formula-tooltip__total");
+    total.append(createElement("span", "", "Total:"), createElement("b", "", resolved.display));
+    tooltip.appendChild(total);
+  }
+
+  function createResolvedValueControl(resolved) {
+    const control = createElement("button", "player-trait-resolved-value", resolved.display);
+    control.type = "button";
+    control.dataset.traitResolvedValue = resolved.id;
+    control.setAttribute("aria-expanded", "false");
+    control.setAttribute("aria-label", `${resolved.label}: ${resolved.display}. Show formula breakdown.`);
+    const tooltip = createElement("span", "player-trait-formula-tooltip");
+    tooltip.id = `player-trait-formula-tooltip-${++tooltipSequence}`;
+    tooltip.setAttribute("role", "tooltip");
+    control.setAttribute("aria-describedby", tooltip.id);
+    appendTooltipRows(tooltip, resolved);
+    control.appendChild(tooltip);
+    const setOpen = (open) => {
+      control.classList.toggle("is-open", Boolean(open));
+      control.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    control.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setOpen(!control.classList.contains("is-open"));
+    });
+    control.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
+      control.blur();
+    });
+    control.addEventListener("blur", () => setOpen(false));
+    return control;
+  }
+
+  function renderTraitDescription(trait = {}, runtime = {}) {
+    const description = createElement("p", "player-trait-card__description");
+    const fallback = trait.description || "No description available.";
+    const resolved = resolveTraitDisplay(trait, runtime);
+    if (!resolved) {
+      description.textContent = fallback;
+      return description;
+    }
+    const pattern = /\{([A-Za-z0-9_-]+)\}/g;
+    let cursor = 0;
+    let match;
+    while ((match = pattern.exec(resolved.template))) {
+      if (match.index > cursor) description.appendChild(global.document.createTextNode(resolved.template.slice(cursor, match.index)));
+      description.appendChild(createResolvedValueControl(resolved.values[match[1]]));
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < resolved.template.length) description.appendChild(global.document.createTextNode(resolved.template.slice(cursor)));
+    return description;
   }
 
   function ensureStyles() {
@@ -428,7 +655,7 @@
       header.append(source, activation);
 
       const name = createElement("h3", "player-trait-card__name", trait.name || trait.id || "Unnamed Trait");
-      const description = createElement("p", "player-trait-card__description", trait.description || "No description available.");
+      const description = renderTraitDescription(trait, this.getRuntime() || {});
       const metaRow = createElement("div", "player-trait-card__meta");
       contextLabels(trait).forEach((context) => metaRow.appendChild(createElement("span", "player-trait-context", context)));
       if (meta.level != null) metaRow.appendChild(createElement("span", "player-trait-context", `LEVEL ${meta.level}`));
@@ -509,6 +736,12 @@
     sourceCategory,
     sourceMeta,
     filterTraits,
+    formulaIdentifiers,
+    formatResolvedTraitValue,
+    traitFormulaBreakdown,
+    resolveTraitDisplayValue,
+    resolveTraitDisplay,
+    BUILTIN_DISPLAY_METADATA,
     CATEGORY_ORDER,
     CATEGORY_LABELS,
   });
