@@ -78,19 +78,14 @@
       next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(input.count, 1));
       next.potency = numberOr(existing.potency, 0) + numberOr(input.potency, 0);
     }
-    if (Number.isFinite(Number(definition.maxCount))) {
-      next.count = Math.min(Number(definition.maxCount), next.count);
-    }
+    if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
     store[id] = next;
     return next;
   }
 
   function protectionFor(unit, statusId, options = {}) {
     const id = normalizeId(statusId);
-    return options.protectedStatuses?.[id]
-      || unit?.statusProtections?.[id]
-      || unit?.protectedStatuses?.[id]
-      || null;
+    return options.protectedStatuses?.[id] || unit?.statusProtections?.[id] || unit?.protectedStatuses?.[id] || null;
   }
 
   function removeStatus(unit, statusId, options = {}) {
@@ -122,21 +117,14 @@
     if (!unit || typeof unit !== "object") return null;
     if (!unit.statusProtections || typeof unit.statusProtections !== "object") unit.statusProtections = {};
     const id = normalizeId(statusId);
-    unit.statusProtections[id] = {
-      from: normalizeId(protection.from || "effects"),
-      sourceTraitId: protection.sourceTraitId || null,
-    };
+    unit.statusProtections[id] = { from: normalizeId(protection.from || "effects"), sourceTraitId: protection.sourceTraitId || null };
     return clone(unit.statusProtections[id]);
   }
 
   function syncTraitState(unit, traitState = {}) {
     if (!unit) return unit;
-    Object.entries(traitState.statuses || {}).forEach(([statusId, status]) => {
-      applyStatus(unit, statusId, { ...status, mode: "set" });
-    });
-    Object.entries(traitState.protectedStatuses || {}).forEach(([statusId, protection]) => {
-      protectStatus(unit, statusId, protection);
-    });
+    Object.entries(traitState.statuses || {}).forEach(([statusId, status]) => applyStatus(unit, statusId, { ...status, mode: "set" }));
+    Object.entries(traitState.protectedStatuses || {}).forEach(([statusId, protection]) => protectStatus(unit, statusId, protection));
     return unit;
   }
 
@@ -169,89 +157,49 @@
   }
 
   const api = Object.freeze({
-    normalizeId,
-    getDefinition,
-    ensureStore,
-    applyStatus,
-    removeStatus,
-    hasStatus,
-    getStatus,
-    protectStatus,
-    syncTraitState,
-    advanceDurations,
-    listStatuses,
+    normalizeId, getDefinition, ensureStore, applyStatus, removeStatus, hasStatus, getStatus,
+    protectStatus, syncTraitState, advanceDurations, listStatuses,
   });
 
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
+  function loadScript(id, src) {
+    if (!global.document || global.document.getElementById(id)) return null;
+    const script = global.document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return script;
+  }
+
   // Rest/Recover is a shared player + combat resource. Load the canonical Class table first,
   // then Rest Engine, then the bridge that connects Trait activation and persistence.
-  if (global.document && !global.LuminousCharacterBuildRules && !global.document.getElementById("character-build-rules-script")) {
-    const script = global.document.createElement("script");
-    script.id = "character-build-rules-script";
-    script.src = "js/character-build-rules.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
-
-  if (global.document && !global.LuminousRestEngine && !global.document.getElementById("rest-engine-script")) {
-    const script = global.document.createElement("script");
-    script.id = "rest-engine-script";
-    script.src = "js/rest-engine.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
-
-  if (global.document && !global.LuminousRestRuntime && !global.document.getElementById("rest-runtime-integration-script")) {
-    const script = global.document.createElement("script");
-    script.id = "rest-runtime-integration-script";
-    script.src = "js/rest-runtime-integration.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
-
-  if (global.document && !global.LuminousUniversalSpeedRuntime && !global.document.getElementById("universal-speed-runtime-script")) {
-    const script = global.document.createElement("script");
-    script.id = "universal-speed-runtime-script";
-    script.src = "js/universal-speed-runtime.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
-
-  if (global.document && !global.LuminousRacialTraitRuntimeBridge && !global.document.getElementById("racial-trait-runtime-bridge-script")) {
-    const script = global.document.createElement("script");
-    script.id = "racial-trait-runtime-bridge-script";
-    script.src = "js/racial-trait-runtime-bridge.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
+  if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
+  if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
+  if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
+  if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
+  if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
 
   // Status Engine is loaded by the real Battle Viewer before CombatEngine. Bootstrap the
   // Archetype runtimes here so combat mechanics do not depend on player-sheet-only loaders.
-  if (global.document && !global.LuminousArchetypeRuntime && !global.document.getElementById("player-archetype-runtime-script")) {
-    const script = global.document.createElement("script");
-    script.id = "player-archetype-runtime-script";
-    script.src = "js/player-archetype-runtime.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
+  if (global.document && !global.LuminousArchetypeRuntime) loadScript("player-archetype-runtime-script", "js/player-archetype-runtime.js");
+  if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
 
-  if (global.document && !global.LuminousArchetypeCombatEventRuntime && !global.document.getElementById("archetype-combat-event-runtime-script")) {
-    const script = global.document.createElement("script");
-    script.id = "archetype-combat-event-runtime-script";
-    script.src = "js/archetype-combat-event-runtime.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
-  }
+  // Death/Downed is a combat-wide rule, not a player-sheet feature.
+  if (global.document && !global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
 
-  // Death/Downed is a combat-wide rule, not a player-sheet feature. Load it from the same
-  // Battle Viewer bootstrap and let it patch CombatEngine when that script becomes available.
-  if (global.document && !global.LuminousDeathSaveRuntime && !global.document.getElementById("death-save-runtime-script")) {
-    const script = global.document.createElement("script");
-    script.id = "death-save-runtime-script";
-    script.src = "js/death-save-runtime.js";
-    script.async = false;
-    global.document.head?.appendChild(script);
+  // Anatomy/Equipment and Injuries are also combat-wide rules. Anatomy must load first because
+  // Injuries can disable/miss parts and immediately invalidate held or worn equipment.
+  if (global.document && !global.LuminousAnatomyEquipmentEngine) {
+    const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+    const ensureInjury = () => {
+      if (!global.LuminousInjuryEngine) loadScript("injury-engine-script", "js/injury-engine.js");
+    };
+    if (global.LuminousAnatomyEquipmentEngine) ensureInjury();
+    else anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
+  } else if (global.document && !global.LuminousInjuryEngine) {
+    loadScript("injury-engine-script", "js/injury-engine.js");
   }
 })(typeof window !== "undefined" ? window : globalThis);
