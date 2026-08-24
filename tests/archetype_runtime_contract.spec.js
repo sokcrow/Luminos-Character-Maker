@@ -4,6 +4,7 @@ const path = require("node:path");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 const runtime = read("js/player-archetype-runtime.js");
+const archetypeEngine = read("js/archetype-engine.js");
 const utils = read("js/utils.js");
 const css = read("css/player-archetype-runtime.css");
 const tray = read("js/trait-player-tray.js");
@@ -19,7 +20,7 @@ test("selección se persiste por Class dentro de characterBuild.archetypes", () 
   expect(runtime).toContain("character.characterBuild.archetypes = selections");
   expect(runtime).toContain("characterBuild/archetypes");
   expect(runtime).toContain("api.selectArchetype(character, classId, archetypeId");
-  expect(runtime).toContain("selectedAtClassLevel");
+  expect(archetypeEngine).toContain("selectedAtClassLevel: classLevel");
 });
 
 test("Traits mantiene categoría Archetype y agrega subtabs sólo al filtrar Archetype", () => {
