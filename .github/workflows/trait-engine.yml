@@ -26,7 +26,9 @@ on:
       - "hoja_personaje.js"
       - "tests/racial_trait_engine_regressions.spec.js"
       - "tests/firebase_shared_trait_rules.spec.js"
+      - "tests/universal_action_economy.spec.js"
       - ".github/scripts/apply_final_codex_round.py"
+      - ".github/scripts/update_final_codex_tests.py"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
@@ -42,7 +44,9 @@ jobs:
           ref: feat/racial-traits-automation
 
       - name: Apply final Codex fixes
-        run: python .github/scripts/apply_final_codex_round.py
+        run: |
+          python .github/scripts/apply_final_codex_round.py
+          python .github/scripts/update_final_codex_tests.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -61,6 +65,7 @@ jobs:
           node --check js/dm-managed-effect-engine.js
           node --check tests/racial_trait_engine_regressions.spec.js
           node --check tests/firebase_shared_trait_rules.spec.js
+          node --check tests/universal_action_economy.spec.js
           python -m json.tool database.rules.json >/dev/null
 
       - name: Run Trait regressions
@@ -85,7 +90,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Battle-viewer.html database.rules.json js/player-trait-runtime.js js/racial-trait-catalog.js js/trait-engine.js js/dm-managed-effect-engine.js tests/racial_trait_engine_regressions.spec.js tests/firebase_shared_trait_rules.spec.js
+          git add Battle-viewer.html database.rules.json js/player-trait-runtime.js js/racial-trait-catalog.js js/trait-engine.js js/dm-managed-effect-engine.js tests/racial_trait_engine_regressions.spec.js tests/firebase_shared_trait_rules.spec.js tests/universal_action_economy.spec.js
           if git diff --cached --quiet; then
             echo "No patch changes to commit."
           else
