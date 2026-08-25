@@ -10,7 +10,10 @@ on:
       - "database.rules.json"
       - "js/trait-engine.js"
       - "js/trait-catalog-core.js"
+      - "js/spellcasting-runtime.js"
       - "js/bard-class-runtime.js"
+      - "js/archetype-trait-catalog.js"
+      - "js/college-of-whispers-runtime.js"
       - "js/racial-trait-catalog.js"
       - "js/racial-trait-runtime-bridge.js"
       - "js/status-engine.js"
@@ -32,7 +35,9 @@ on:
       - "tests/trait_engine.spec.js"
       - "tests/trait_engine_codex_regressions.spec.js"
       - "tests/trait_catalog_core.spec.js"
+      - "tests/spellcasting_runtime.spec.js"
       - "tests/bard_class_runtime.spec.js"
+      - "tests/college_of_whispers_runtime.spec.js"
       - "tests/racial_trait_catalog.spec.js"
       - "tests/racial_trait_engine_regressions.spec.js"
       - "tests/player_trait_tabs.spec.js"
@@ -68,7 +73,10 @@ jobs:
         run: |
           node --check js/trait-engine.js
           node --check js/trait-catalog-core.js
+          node --check js/spellcasting-runtime.js
           node --check js/bard-class-runtime.js
+          node --check js/archetype-trait-catalog.js
+          node --check js/college-of-whispers-runtime.js
           node --check js/racial-trait-catalog.js
           node --check js/racial-trait-runtime-bridge.js
           node --check js/status-engine.js
@@ -88,7 +96,9 @@ jobs:
           node --check tests/trait_engine.spec.js
           node --check tests/trait_engine_codex_regressions.spec.js
           node --check tests/trait_catalog_core.spec.js
+          node --check tests/spellcasting_runtime.spec.js
           node --check tests/bard_class_runtime.spec.js
+          node --check tests/college_of_whispers_runtime.spec.js
           node --check tests/racial_trait_catalog.spec.js
           node --check tests/racial_trait_engine_regressions.spec.js
           node --check tests/player_trait_tabs.spec.js
@@ -106,7 +116,9 @@ jobs:
           tests/trait_engine.spec.js
           tests/trait_engine_codex_regressions.spec.js
           tests/trait_catalog_core.spec.js
+          tests/spellcasting_runtime.spec.js
           tests/bard_class_runtime.spec.js
+          tests/college_of_whispers_runtime.spec.js
           tests/racial_trait_catalog.spec.js
           tests/racial_trait_engine_regressions.spec.js
           tests/player_trait_tabs.spec.js
