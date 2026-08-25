@@ -180,6 +180,7 @@
   if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
   if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
   if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
+  if (global.document && !global.LuminousBardClassRuntime) loadScript("bard-class-runtime-script", "js/bard-class-runtime.js");
 
   if (global.document && !global.LuminousArchetypeRuntime) loadScript("player-archetype-runtime-script", "js/player-archetype-runtime.js");
   if (global.document && !global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
