@@ -1,7 +1,41 @@
 (function (global) {
   "use strict";
 
-  if (global.LuminousWeatherEngine) return;
+  function ensureEnvironmentRuntime() {
+    if (!global.document) return;
+
+    const loadRuntime = () => {
+      if (global.LuminousEnvironmentRuntime || global.document.getElementById("luminous-environment-runtime-script")) return;
+      const runtimeScript = global.document.createElement("script");
+      runtimeScript.id = "luminous-environment-runtime-script";
+      runtimeScript.src = "js/environment-runtime.js";
+      runtimeScript.async = false;
+      global.document.head?.appendChild(runtimeScript);
+    };
+
+    if (global.LuminousEnvironmentEngine) {
+      loadRuntime();
+      return;
+    }
+
+    const existing = global.document.getElementById("luminous-environment-engine-script");
+    if (existing) {
+      existing.addEventListener("load", loadRuntime, { once: true });
+      return;
+    }
+
+    const engineScript = global.document.createElement("script");
+    engineScript.id = "luminous-environment-engine-script";
+    engineScript.src = "js/environment-engine.js";
+    engineScript.async = false;
+    engineScript.addEventListener("load", loadRuntime, { once: true });
+    global.document.head?.appendChild(engineScript);
+  }
+
+  if (global.LuminousWeatherEngine) {
+    ensureEnvironmentRuntime();
+    return;
+  }
 
   const ROOT = "campaña/clima";
   const LEGACY_WORLD_ROOT = "campaña/estado_mundo";
@@ -217,5 +251,8 @@
     bind();
   }
 
-  if (global.document) boot();
+  if (global.document) {
+    ensureEnvironmentRuntime();
+    boot();
+  }
 })(window);
