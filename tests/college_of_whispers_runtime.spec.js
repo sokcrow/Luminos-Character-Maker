@@ -5,10 +5,12 @@ global.LuminousTraitEngine = baseTraitEngine;
 global.LuminousStatusEngine = require("../js/status-engine.js");
 global.LuminousArchetypeEngine = require("../js/archetype-engine.js");
 delete global.LuminousSpellcastingRuntime;
+delete require.cache[require.resolve("../js/spellcasting-runtime.js")];
 require("../js/spellcasting-runtime.js");
 const catalog = require("../js/archetype-trait-catalog.js");
 global.LuminousArchetypeTraitCatalog = catalog;
 delete global.LuminousCollegeOfWhispersRuntime;
+delete require.cache[require.resolve("../js/college-of-whispers-runtime.js")];
 const whispers = require("../js/college-of-whispers-runtime.js");
 
 function character(level = 30) {
