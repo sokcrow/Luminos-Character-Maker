@@ -13,7 +13,7 @@
 
   function getDefinition(statusId) {
     const id = normalizeId(statusId);
-    const found = registry()[id];
+    const found = registry()[id] || global.LuminousConditionRuntime?.getDefinition?.(id);
     if (found) return { id, icon: null, rules: [], ...clone(found) };
     return {
       id,
@@ -67,6 +67,8 @@
   function applyStatus(unit, statusId, input = {}) {
     const id = normalizeId(statusId);
     if (!id) return null;
+    const conditionGate = global.LuminousConditionRuntime?.canApplyStatus?.(unit, id, input);
+    if (conditionGate?.allowed === false) return null;
     const store = ensureStore(unit);
     if (!store) return null;
     const existing = store[id] && typeof store[id] === "object" ? store[id] : null;
@@ -164,6 +166,11 @@
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
+  if (typeof require === "function") {
+    try { if (!global.LuminousExhaustionEngine) require("./exhaustion-engine.js"); } catch (_) {}
+    try { if (!global.LuminousConditionRuntime) require("./core-condition-runtime.js"); } catch (_) {}
+  }
+
   function loadScript(id, src) {
     if (!global.document || global.document.getElementById(id)) return null;
     const script = global.document.createElement("script");
@@ -174,6 +181,17 @@
     return script;
   }
 
+  function ensureCoreConditionRuntime() {
+    if (!global.document || global.LuminousConditionRuntime) return;
+    const loadConditions = () => {
+      if (!global.LuminousConditionRuntime) loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+    };
+    if (global.LuminousExhaustionEngine) return loadConditions();
+    const exhaustion = loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+    exhaustion?.addEventListener?.("load", loadConditions, { once: true });
+  }
+
+  ensureCoreConditionRuntime();
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
   if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
