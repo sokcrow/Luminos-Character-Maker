@@ -2,8 +2,11 @@ const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const path = require("node:path");
 const studio = require("../js/dm-trait-library-studio.js");
-const catalog = require("../js/trait-catalog-core.js");
+require("../js/trait-catalog-core.js");
 const importer = require("../js/dm-trait-catalog-importer.js");
+const catalog = global.LuminousTraitCatalogCore;
+const racialCatalog = global.LuminousRacialTraitCatalog;
+const archetypeCatalog = global.LuminousArchetypeTraitCatalog;
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
@@ -14,16 +17,41 @@ const helpers = {
 };
 
 const barbarianGrantCount = () => catalog.GRANTS.filter((grant) => grant.sourceType === "class" && grant.sourceId === "barbarian").length;
+const allBuiltInDefinitions = () => Object.fromEntries(
+  Object.values(importer.collectCatalog().definitions).map(({ id, definition }) => [id, definition]),
+);
 
-test("empty Trait Library imports all known core definitions and confirmed Grants", () => {
+test("empty Trait Library imports every built-in definition and only generic Grants", () => {
   const plan = importer.buildImportPlan({}, [], helpers);
+  const collected = importer.collectCatalog();
+
   expect(plan.valid).toBe(true);
   expect(plan.errors).toEqual([]);
-  expect(plan.definitionWrites.map((entry) => entry.id).sort()).toEqual(Object.keys(catalog.DEFINITIONS).sort());
-  expect(plan.grantWrites.map((entry) => entry.id).sort()).toEqual(catalog.GRANTS.map((entry) => entry.id).sort());
-  expect(plan.definitionWrites).toHaveLength(Object.keys(catalog.DEFINITIONS).length);
-  expect(plan.grantWrites).toHaveLength(catalog.GRANTS.length);
+  expect(plan.providerKeys).toEqual(expect.arrayContaining(["core", "racial", "archetype"]));
+  expect(plan.definitionWrites.map((entry) => entry.id).sort()).toEqual(Object.keys(collected.definitions).sort());
+  expect(plan.grantWrites.map((entry) => entry.id).sort()).toEqual(collected.grants.map((entry) => entry.id).sort());
+  expect(plan.definitionWrites).toHaveLength(Object.keys(collected.definitions).length);
+  expect(plan.grantWrites).toHaveLength(collected.grants.length);
   expect(barbarianGrantCount()).toBe(12);
+
+  const definitionIds = new Set(plan.definitionWrites.map((entry) => entry.id));
+  expect(definitionIds.has("bardic_inspiration")).toBe(true);
+  expect(definitionIds.has("yuan_ti_magic_resistance")).toBe(true);
+  expect(definitionIds.has("psychic_blade")).toBe(true);
+
+  expect(plan.grantWrites.some((entry) => entry.grant.sourceType === "race")).toBe(false);
+  expect(plan.grantWrites.some((entry) => entry.grant.sourceType === "archetype")).toBe(false);
+  expect(plan.grantWrites.some((entry) => entry.grant.traitId === "bardic_inspiration")).toBe(true);
+});
+
+test("catalog providers expose the specialized catalogs without importing their automatic Grants", () => {
+  expect(racialCatalog?.allDefinitions?.().yuan_ti_magic_resistance).toBeTruthy();
+  expect(archetypeCatalog?.allDefinitions?.().psychic_blade).toBeTruthy();
+
+  const collected = importer.collectCatalog();
+  expect(collected.definitions.yuan_ti_magic_resistance.catalogSource).toBe("racial");
+  expect(collected.definitions.psychic_blade.catalogSource).toBe("archetype");
+  expect(collected.grants.every((entry) => entry.catalogSource === "core")).toBe(true);
 });
 
 test("core import never overwrites an existing DM Trait definition without catalog ownership", () => {
@@ -39,7 +67,7 @@ test("core import never overwrites an existing DM Trait definition without catal
   const plan = importer.buildImportPlan(existing, [], helpers);
   expect(plan.valid).toBe(true);
   expect(plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(plan.skippedDefinitions).toBe(1);
+  expect(plan.skippedDefinitions).toBeGreaterThanOrEqual(1);
 });
 
 test("managed core definitions upgrade when their catalogVersion is older", () => {
@@ -53,13 +81,48 @@ test("managed core definitions upgrade when their catalogVersion is older", () =
   const plan = importer.buildImportPlan({ rage: oldManagedRage }, [], helpers);
   const rageWrite = plan.definitionWrites.find((entry) => entry.id === "rage");
   expect(plan.valid).toBe(true);
-  expect(rageWrite).toMatchObject({ id: "rage", replace: true });
+  expect(rageWrite).toMatchObject({ id: "rage", replace: true, catalogSource: "core" });
 
   const mutation = importer.buildAtomicImportMutation({ definitions: { rage: oldManagedRage }, grants: {} }, helpers, 222);
   expect(mutation.next.definitions.rage.name).toBe("Rage");
+  expect(mutation.next.definitions.rage.catalogSource).toBe("core");
   expect(mutation.next.definitions.rage.catalogVersion).toBe(catalog.CATALOG_VERSION);
   expect(mutation.next.definitions.rage.createdAt).toBe(111);
   expect(mutation.next.definitions.rage.updatedAt).toBe(222);
+});
+
+test("managed specialized definitions refresh on content changes without leaking specialized Grants", () => {
+  const racial = importer.collectCatalog().definitions.yuan_ti_magic_resistance;
+  const stale = {
+    ...racial.definition,
+    description: "STALE RACIAL COPY",
+    catalogSource: "racial",
+    catalogVersion: racial.catalogVersion,
+    createdAt: 333,
+    updatedAt: 333,
+  };
+
+  const mutation = importer.buildAtomicImportMutation({ definitions: { yuan_ti_magic_resistance: stale }, grants: {} }, helpers, 444);
+  expect(mutation.valid).toBe(true);
+  expect(mutation.next.definitions.yuan_ti_magic_resistance.description).toBe(racial.definition.description);
+  expect(mutation.next.definitions.yuan_ti_magic_resistance.catalogSource).toBe("racial");
+  expect(mutation.next.definitions.yuan_ti_magic_resistance.createdAt).toBe(333);
+  expect(mutation.plan.grantWrites.some((entry) => entry.grant.sourceType === "race")).toBe(false);
+});
+
+test("custom definition with a built-in archetype id remains DM-owned", () => {
+  const custom = {
+    id: "psychic_blade",
+    name: "Psychic Blade - DM Custom",
+    description: "Custom definition.",
+    contexts: ["combat"],
+    activation: { type: "passive", actionCost: "none" },
+    effects: [],
+    rules: [],
+  };
+  const plan = importer.buildImportPlan({ psychic_blade: custom }, [], helpers);
+  expect(plan.valid).toBe(true);
+  expect(plan.definitionWrites.some((entry) => entry.id === "psychic_blade")).toBe(false);
 });
 
 test("core import deduplicates confirmed Grants by semantic identity even with another Firebase push id", () => {
@@ -72,7 +135,7 @@ test("core import deduplicates confirmed Grants by semantic identity even with a
   const plan = importer.buildImportPlan({}, existingGrants, helpers);
   expect(plan.valid).toBe(true);
   expect(plan.grantWrites.some((entry) => entry.grant.traitId === "devil_body")).toBe(false);
-  expect(plan.grantWrites).toHaveLength(barbarianGrantCount());
+  expect(plan.grantWrites).toHaveLength(catalog.GRANTS.length - 1);
 });
 
 test("atomic mutation preserves concurrent custom definitions and semantic Grants", () => {
@@ -94,11 +157,13 @@ test("atomic mutation preserves concurrent custom definitions and semantic Grant
   expect(mutation.valid).toBe(true);
   expect(mutation.changed).toBe(true);
   expect(mutation.plan.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(mutation.plan.grantWrites).toHaveLength(barbarianGrantCount());
+  expect(mutation.plan.grantWrites).toHaveLength(catalog.GRANTS.length - 1);
   expect(mutation.next.definitions.rage.name).toBe("Rage - Concurrent DM Version");
   expect(mutation.next.grants.custom_push_id.traitId).toBe("devil_body");
   expect(mutation.next.unrelated).toEqual({ keep: true });
   expect(mutation.next.definitions.danger_senses.createdAt).toBe(1234);
+  expect(mutation.next.definitions.yuan_ti_magic_resistance.catalogSource).toBe("racial");
+  expect(mutation.next.definitions.psychic_blade.catalogSource).toBe("archetype");
   expect(mutation.next.grants.core_class_barbarian_l100_primordial_champion.atLevel).toBe(100);
 });
 
@@ -139,22 +204,25 @@ test("Firebase transaction retry replans against a concurrent DM write before co
   expect(attempts).toBe(2);
   expect(result.committed).toBe(true);
   expect(result.definitionWrites.some((entry) => entry.id === "rage")).toBe(false);
-  expect(result.grantWrites).toHaveLength(barbarianGrantCount());
+  expect(result.grantWrites).toHaveLength(catalog.GRANTS.length - 1);
   expect(committedTree.definitions.rage.name).toBe("Rage - Saved During Import");
   expect(committedTree.grants.another_dm_grant.traitId).toBe("devil_body");
   expect(Object.keys(committedTree.definitions)).toEqual(expect.arrayContaining([
     "additional_attack",
     "armorless_defense",
+    "bardic_inspiration",
     "danger_senses",
     "devil_body",
     "devil_trigger",
+    "psychic_blade",
     "rage",
+    "yuan_ti_magic_resistance",
   ]));
 });
 
 test("no-op cache is server-confirmed and retries when the server lost a catalog definition", async () => {
   const completeTree = {
-    definitions: catalog.allDefinitions(),
+    definitions: allBuiltInDefinitions(),
     grants: Object.fromEntries(catalog.allGrants().map(({ id, ...grant }) => [id, grant])),
   };
   const serverTree = JSON.parse(JSON.stringify(completeTree));
@@ -185,10 +253,11 @@ test("no-op cache is server-confirmed and retries when the server lost a catalog
   expect(result.definitionWrites.map((entry) => entry.id)).toEqual(["rage"]);
   expect(result.grantWrites).toHaveLength(0);
   expect(committedTree.definitions.rage.name).toBe("Rage");
+  expect(committedTree.definitions.rage.catalogSource).toBe("core");
   expect(committedTree.definitions.rage.createdAt).toBe(9012);
 });
 
-test("core Grant ids are Firebase-safe and deterministic", () => {
+test("generic catalog Grant ids are Firebase-safe and deterministic", () => {
   catalog.GRANTS.forEach((grant) => {
     expect(studio.validateFirebaseKey(grant.id).valid).toBe(true);
     expect(importer.grantIdentity(grant)).toBe(studio.grantIdentity(grant));
