@@ -3,12 +3,23 @@ const { test, expect } = require("@playwright/test");
 require("../js/trait-engine.js");
 require("../js/status-engine.js");
 require("../js/trait-catalog-core.js");
+
+const originalEngine = global.LuminousTraitEngine;
+const originalCatalog = global.LuminousTraitCatalogCore;
+const originalBardRuntime = global.LuminousBardClassRuntime;
 const bardRuntime = require("../js/bard-class-runtime.js");
 
 bardRuntime.install();
 
 const engine = global.LuminousTraitEngine;
 const catalog = global.LuminousTraitCatalogCore;
+
+test.afterAll(() => {
+  global.LuminousTraitEngine = originalEngine;
+  global.LuminousTraitCatalogCore = originalCatalog;
+  if (originalBardRuntime === undefined) delete global.LuminousBardClassRuntime;
+  else global.LuminousBardClassRuntime = originalBardRuntime;
+});
 
 const BARD_PROGRESS = [
   [1, "bardic_inspiration"],
