@@ -174,7 +174,7 @@
   function getPlannedAction(unit, slotIndex) {
     const state = ensureState(unit);
     const entry = state?.plannedActions?.[slotIndex];
-    return entry ? { ...entry, data: { ...(entry.data || {}) } : null;
+    return entry ? { ...entry, data: { ...(entry.data || {}) } } : null;
   }
 
   function takePlannedAction(unit, slotIndex, options = {}) {
