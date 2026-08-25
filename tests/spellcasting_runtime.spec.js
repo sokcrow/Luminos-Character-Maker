@@ -3,6 +3,7 @@ const { test, expect } = require("@playwright/test");
 const baseTraitEngine = require("../js/trait-engine.js");
 global.LuminousTraitEngine = baseTraitEngine;
 delete global.LuminousSpellcastingRuntime;
+delete require.cache[require.resolve("../js/spellcasting-runtime.js")];
 const spellcasting = require("../js/spellcasting-runtime.js");
 
 function bardCharacter() {
