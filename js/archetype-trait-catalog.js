@@ -5,8 +5,11 @@
   const traitEngine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
   if (!archetypeEngine) return;
 
+  // Kept for backwards compatibility with the original single-Archetype catalog API.
   const ARCHETYPE_ID = "path_of_the_devil_lineage";
   const CLASS_ID = "barbarian";
+  const COLLEGE_OF_WHISPERS_ID = "college_of_whispers";
+  const COLLEGE_OF_WHISPERS_CLASS_ID = "bard";
 
   function deepFreeze(value, seen = new WeakSet()) {
     if (!value || typeof value !== "object" || seen.has(value)) return value;
@@ -24,6 +27,14 @@
       unlockLevel: 15,
       traitLevels: [15, 30, 50, 70],
     },
+    [COLLEGE_OF_WHISPERS_ID]: {
+      id: COLLEGE_OF_WHISPERS_ID,
+      name: "College of Whispers",
+      classId: COLLEGE_OF_WHISPERS_CLASS_ID,
+      className: "Bard",
+      unlockLevel: 15,
+      traitLevels: [15, 30, 70],
+    },
   });
 
   const source = Object.freeze({
@@ -33,6 +44,15 @@
     archetypeName: "Path of the Devil Lineage",
     classId: CLASS_ID,
     className: "Barbarian",
+  });
+
+  const whispersSource = Object.freeze({
+    type: "archetype",
+    id: COLLEGE_OF_WHISPERS_ID,
+    archetypeId: COLLEGE_OF_WHISPERS_ID,
+    archetypeName: "College of Whispers",
+    classId: COLLEGE_OF_WHISPERS_CLASS_ID,
+    className: "Bard",
   });
 
   const DEFINITIONS = deepFreeze({
@@ -277,31 +297,114 @@
         pendingRecoveryPersistsAfterHealing: true,
       },
     },
+
+    psychic_blade: {
+      schemaVersion: 1,
+      id: "psychic_blade",
+      name: "Psychic Blade",
+      description: "[On Use] Consume 1 Bardic Inspiration to Gain ((CHA Mod)+(Bard Level/20)) Psychic Blade. [On Hit] Reduce SP by ((CHA Mod/2)+(Bard Level/25)), then reduce Count by 1.",
+      source: whispersSource,
+      contexts: ["combat"],
+      activation: { type: "manual", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        consumeTraitUse: { traitId: "bardic_inspiration", amount: 1 },
+        gainCountFormula: "CharismaMod + ClassLevel / 20",
+        onHitSpReductionFormula: "CharismaMod / 2 + ClassLevel / 25",
+      },
+    },
+
+    words_of_terror: {
+      schemaVersion: 1,
+      id: "words_of_terror",
+      name: "Words of Terror",
+      description: "[On Use] Target makes a WIS Save against your Spell DC. On Fail, Inflict Frightened.",
+      source: whispersSource,
+      contexts: ["any"],
+      activation: { type: "manual", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        save: { abilityId: "wis", dc: "SpellDC", onFailStatusId: "frightened" },
+      },
+    },
+
+    mantle_of_whispers: {
+      schemaVersion: 1,
+      id: "mantle_of_whispers",
+      name: "Mantle of Whispers",
+      description: "[On Encounter] When a Humanoid dies, choose to absorb its Shadow to Gain Shadow of [Unit or Character Name]. (Once Per Long Rest) Shadow of [Unit or Character Name]: [On Use] Consume Stored Shadow to assume its Identity for 1 Hour. [While Disguised] Gain +5 Deception Power against Insight Checks. [On Long Rest] If Stored Shadow was not consumed, lose it.",
+      source: whispersSource,
+      contexts: ["any"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        trigger: "humanoid_death",
+        acquireScope: "long_rest",
+        dynamicEffectName: "Shadow of [Unit or Character Name]",
+        storedShadowMax: 1,
+        assumedIdentityHours: 1,
+        deceptionPowerAgainstInsight: 5,
+        unusedShadowExpiresOnLongRest: true,
+      },
+    },
+
+    shadow_lore: {
+      schemaVersion: 1,
+      id: "shadow_lore",
+      name: "Shadow Lore",
+      description: "[On Use] Target makes a WIS Save against your Spell DC. On Fail, Inflict Charmed for 8 Hours. (Once Per Long Rest) While Charmed by Shadow Lore, the Target believes you know its darkest secret and treats you as a trusted ally out of fear of exposure. The Target will not willingly risk its life unless it was already inclined to do so. Shadow Lore ends if you or your Allies attack or damage the Target. You do not learn the Target's secret.",
+      source: whispersSource,
+      contexts: ["any"],
+      activation: { type: "manual", actionCost: "none", uses: { max: 1, reset: "long_rest" } },
+      effects: [],
+      rules: [],
+      mechanics: {
+        save: { abilityId: "wis", dc: "SpellDC", onFailStatusId: "charmed" },
+        durationHours: 8,
+        believesDarkestSecretKnown: true,
+        treatsCasterAsTrustedAlly: true,
+        willNotRiskLifeUnlessAlreadyInclined: true,
+        endsIfCasterOrAlliesDamageTarget: true,
+        casterLearnsSecret: false,
+      },
+    },
   });
 
+  function archetypeGrant(atLevel, traitId, archetypeId, classId, traitSource) {
+    return {
+      sourceType: "archetype",
+      sourceId: archetypeId,
+      archetypeId,
+      classId,
+      atLevel,
+      traitId,
+      source: { ...traitSource, atLevel, requiredClassLevel: atLevel },
+    };
+  }
+
   const GRANTS = deepFreeze([
-    [15, "devil_lineage_devil_strength"],
-    [15, "devil_lineage_infernal_speed"],
-    [15, "devil_lineage_demonic_resistance"],
-    [15, "devil_lineage_jackpot"],
-    [30, "devil_lineage_infernal_touch"],
-    [50, "devil_lineage_supernatural_endurance"],
-    [50, "devil_lineage_demon_wing"],
-    [50, "devil_lineage_improved_devil_strength"],
-    [50, "devil_lineage_improved_demonic_resistance"],
-    [70, "devil_lineage_demonic_regeneration"],
-    [70, "devil_lineage_demon_wings"],
-    [70, "devil_lineage_power_of_the_nine_hells"],
-    [70, "devil_lineage_cursed_juggernaut"],
-  ].map(([atLevel, traitId]) => ({
-    sourceType: "archetype",
-    sourceId: ARCHETYPE_ID,
-    archetypeId: ARCHETYPE_ID,
-    classId: CLASS_ID,
-    atLevel,
-    traitId,
-    source: { ...source, atLevel, requiredClassLevel: atLevel },
-  })));
+    archetypeGrant(15, "devil_lineage_devil_strength", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(15, "devil_lineage_infernal_speed", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(15, "devil_lineage_demonic_resistance", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(15, "devil_lineage_jackpot", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(30, "devil_lineage_infernal_touch", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(50, "devil_lineage_supernatural_endurance", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(50, "devil_lineage_demon_wing", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(50, "devil_lineage_improved_devil_strength", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(50, "devil_lineage_improved_demonic_resistance", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(70, "devil_lineage_demonic_regeneration", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(70, "devil_lineage_demon_wings", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(70, "devil_lineage_power_of_the_nine_hells", ARCHETYPE_ID, CLASS_ID, source),
+    archetypeGrant(70, "devil_lineage_cursed_juggernaut", ARCHETYPE_ID, CLASS_ID, source),
+
+    archetypeGrant(15, "psychic_blade", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
+    archetypeGrant(15, "words_of_terror", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
+    archetypeGrant(30, "mantle_of_whispers", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
+    archetypeGrant(70, "shadow_lore", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
+  ]);
 
   function allDefinitions() {
     return { ...DEFINITIONS };
@@ -324,20 +427,30 @@
     return archetypeEngine.resolveTraitGrants(character, GRANTS, definitions, ARCHETYPES, global.LuminousTraitEngine || traitEngine);
   }
 
-  function ensureDevilLineageRuntime() {
+  function ensureRuntime(id, src, ready) {
     const doc = global.document;
-    if (!doc || global.LuminousDevilLineageRuntime || doc.getElementById?.("devil-lineage-runtime-script")) return null;
+    if (!doc || ready?.() || doc.getElementById?.(id)) return null;
     const script = doc.createElement("script");
-    script.id = "devil-lineage-runtime-script";
-    script.src = "js/devil-lineage-runtime.js";
+    script.id = id;
+    script.src = src;
     script.async = false;
     doc.head?.appendChild(script);
     return script;
   }
 
+  function ensureDevilLineageRuntime() {
+    return ensureRuntime("devil-lineage-runtime-script", "js/devil-lineage-runtime.js", () => Boolean(global.LuminousDevilLineageRuntime));
+  }
+
+  function ensureCollegeOfWhispersRuntime() {
+    return ensureRuntime("college-of-whispers-runtime-script", "js/college-of-whispers-runtime.js", () => Boolean(global.LuminousCollegeOfWhispersRuntime));
+  }
+
   const api = Object.freeze({
     ARCHETYPE_ID,
     CLASS_ID,
+    COLLEGE_OF_WHISPERS_ID,
+    COLLEGE_OF_WHISPERS_CLASS_ID,
     ARCHETYPES,
     DEFINITIONS,
     GRANTS,
@@ -347,9 +460,11 @@
     getDefinition,
     resolveTraitGrants,
     ensureDevilLineageRuntime,
+    ensureCollegeOfWhispersRuntime,
   });
 
   global.LuminousArchetypeTraitCatalog = api;
   ensureDevilLineageRuntime();
+  ensureCollegeOfWhispersRuntime();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
