@@ -45,7 +45,7 @@
   function normalizeInstance(statusId, input = {}, existing = null) {
     const id = normalizeId(statusId);
     const definition = getDefinition(id);
-    const count = Math.max(0, numberOr(input.count, existing?.count ?? 1));
+    const count = Math.max(0, numberOr(input.count, existing?.count ?? definition.defaultCount ?? 1));
     const potency = numberOr(input.potency, existing?.potency ?? 0);
     const duration = normalizeId(input.duration || existing?.duration || "until_removed");
     const data = { ...(existing?.data || {}), ...(input.data || {}) };
@@ -74,11 +74,14 @@
     const existing = store[id] && typeof store[id] === "object" ? store[id] : null;
     const mode = normalizeId(input.mode || input.action || "gain");
     const definition = getDefinition(id);
-    let next = normalizeInstance(id, input, existing);
+    const normalizedInput = !existing && mode !== "set" && Number.isFinite(Number(definition.defaultCount))
+      ? { ...input, count: Number(definition.defaultCount) }
+      : input;
+    let next = normalizeInstance(id, normalizedInput, existing);
 
     if (existing && ["gain", "add", "inflict", "apply"].includes(mode)) {
-      next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(input.count, 1));
-      next.potency = numberOr(existing.potency, 0) + numberOr(input.potency, 0);
+      next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(normalizedInput.count, 1));
+      next.potency = numberOr(existing.potency, 0) + numberOr(normalizedInput.potency, 0);
     }
     if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
     store[id] = next;
