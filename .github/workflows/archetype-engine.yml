@@ -7,6 +7,7 @@ on:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/spellcasting-runtime.js"
       - "js/fixed-damage-runtime.js"
       - "js/death-save-runtime.js"
       - "js/anatomy-equipment-engine.js"
@@ -16,6 +17,7 @@ on:
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "js/devil-lineage-runtime.js"
+      - "js/college-of-whispers-runtime.js"
       - "js/rest-engine.js"
       - "js/rest-runtime-integration.js"
       - "css/player-archetype-runtime.css"
@@ -31,6 +33,8 @@ on:
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
       - "tests/devil_lineage_completion.spec.js"
+      - "tests/spellcasting_runtime.spec.js"
+      - "tests/college_of_whispers_runtime.spec.js"
       - "tests/rest_engine.spec.js"
       - "tests/rest_runtime_contract.spec.js"
       - "tests/fixed_damage_runtime.test.js"
@@ -39,6 +43,7 @@ on:
     paths:
       - "Battle-viewer.html"
       - "js/status-engine.js"
+      - "js/spellcasting-runtime.js"
       - "js/fixed-damage-runtime.js"
       - "js/death-save-runtime.js"
       - "js/anatomy-equipment-engine.js"
@@ -48,6 +53,7 @@ on:
       - "js/player-archetype-runtime.js"
       - "js/archetype-combat-event-runtime.js"
       - "js/devil-lineage-runtime.js"
+      - "js/college-of-whispers-runtime.js"
       - "js/rest-engine.js"
       - "js/rest-runtime-integration.js"
       - "css/player-archetype-runtime.css"
@@ -63,6 +69,8 @@ on:
       - "tests/archetype_runtime_contract.spec.js"
       - "tests/archetype_review_regressions.spec.js"
       - "tests/devil_lineage_completion.spec.js"
+      - "tests/spellcasting_runtime.spec.js"
+      - "tests/college_of_whispers_runtime.spec.js"
       - "tests/rest_engine.spec.js"
       - "tests/rest_runtime_contract.spec.js"
       - "tests/fixed_damage_runtime.test.js"
@@ -90,6 +98,7 @@ jobs:
       - name: Check syntax
         run: |
           node --check js/status-engine.js
+          node --check js/spellcasting-runtime.js
           node --check js/fixed-damage-runtime.js
           node --check js/death-save-runtime.js
           node --check js/anatomy-equipment-engine.js
@@ -99,6 +108,7 @@ jobs:
           node --check js/player-archetype-runtime.js
           node --check js/archetype-combat-event-runtime.js
           node --check js/devil-lineage-runtime.js
+          node --check js/college-of-whispers-runtime.js
           node --check js/rest-engine.js
           node --check js/rest-runtime-integration.js
           node --check js/utils.js
@@ -110,6 +120,8 @@ jobs:
           node --check tests/archetype_runtime_contract.spec.js
           node --check tests/archetype_review_regressions.spec.js
           node --check tests/devil_lineage_completion.spec.js
+          node --check tests/spellcasting_runtime.spec.js
+          node --check tests/college_of_whispers_runtime.spec.js
           node --check tests/rest_engine.spec.js
           node --check tests/rest_runtime_contract.spec.js
           node --check tests/fixed_damage_runtime.test.js
@@ -128,6 +140,8 @@ jobs:
           tests/archetype_runtime_contract.spec.js
           tests/archetype_review_regressions.spec.js
           tests/devil_lineage_completion.spec.js
+          tests/spellcasting_runtime.spec.js
+          tests/college_of_whispers_runtime.spec.js
           tests/rest_engine.spec.js
           tests/rest_runtime_contract.spec.js
           tests/trait_engine.spec.js
