@@ -7,6 +7,10 @@
     REACTION: "reaction",
   });
 
+  const UNIVERSAL_ACTIONS = Object.freeze({
+    GRAPPLE: "grapple",
+  });
+
   const PHASES = Object.freeze({
     PLANNING: "planning",
     COMBAT: "combat",
@@ -87,6 +91,8 @@
 
   function availability(unit, cost, options = {}) {
     const id = normalizeId(cost);
+    const conditionGate = global.LuminousConditionRuntime?.actionAvailability?.(unit, id, options);
+    if (conditionGate?.available === false) return { available: false, reason: conditionGate.reason || "condition_blocks_action", remaining: 0, condition: true };
     const current = snapshot(unit, options);
     if (id === ACTION_COSTS.ACTION) {
       if (current.phase !== PHASES.PLANNING) return { available: false, reason: "action_requires_planning_phase", remaining: 0 };
@@ -174,6 +180,7 @@
     const entry = state?.plannedActions?.[slotIndex];
     if (!entry) return null;
     delete state.plannedActions[slotIndex];
+    global.LuminousConditionRuntime?.onActionUsed?.(unit, options);
     return { ...entry, data: { ...(entry.data || {}) } };
   }
 
@@ -214,6 +221,22 @@
     return consume(unit, ACTION_COSTS.REACTION, options);
   }
 
+  function canUseUniversalAction(unit, actionId, options = {}) {
+    const id = normalizeId(actionId);
+    if (!Object.values(UNIVERSAL_ACTIONS).includes(id)) return { available: false, reason: "unknown_universal_action", actionId: id };
+    const conditionGate = global.LuminousConditionRuntime?.canUseUniversalAction?.(unit, { ...options, actionId: id, cost: ACTION_COSTS.ACTION });
+    if (conditionGate?.available === false) return { ...conditionGate, actionId: id };
+    const gate = availability(unit, ACTION_COSTS.ACTION, { ...options, universalAction: true });
+    return { ...gate, actionId: id };
+  }
+
+  function performGrapple(unitA, unitB, options = {}) {
+    const gate = canUseUniversalAction(unitA, UNIVERSAL_ACTIONS.GRAPPLE, options);
+    if (!gate.available) return { applied: false, reason: gate.reason || "grapple_unavailable" };
+    if (!global.LuminousConditionRuntime?.grapple) return { applied: false, reason: "condition_runtime_unavailable" };
+    return global.LuminousConditionRuntime.grapple(unitA, unitB, options);
+  }
+
   function runtimeFor(unit, options = {}) {
     const phase = phaseFor(options);
     const runtime = {
@@ -223,6 +246,7 @@
       availability(cost) { return availability(unit, cost, { ...options, phase }); },
       consume(cost) { return consume(unit, cost, { ...options, phase }); },
       schedule(payload, scheduleOptions = {}) { return scheduleAction(unit, payload, { ...options, ...scheduleOptions, phase }); },
+      canUseUniversalAction(actionId) { return canUseUniversalAction(unit, actionId, { ...options, phase }); },
     };
     Object.defineProperties(runtime, {
       action: { enumerable: true, get: () => snapshot(unit, { ...options, phase }).action },
@@ -242,6 +266,7 @@
 
   const api = Object.freeze({
     ACTION_COSTS,
+    UNIVERSAL_ACTIONS,
     PHASES,
     normalizePhase,
     phaseFor,
@@ -261,6 +286,8 @@
     resetTurnResources,
     isCounterSkill,
     consumeCounterReaction,
+    canUseUniversalAction,
+    performGrapple,
     runtimeFor,
   });
 
