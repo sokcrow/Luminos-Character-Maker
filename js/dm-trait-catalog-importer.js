@@ -3,13 +3,106 @@
 
   const doc = global.document || null;
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const catalog = global.LuminousTraitCatalogCore || (typeof require === "function" ? require("./trait-catalog-core.js") : null);
+
+  function optionalRequire(path) {
+    if (typeof require !== "function") return null;
+    try { return require(path); } catch (_) { return null; }
+  }
+
+  const initialCoreCatalog = global.LuminousTraitCatalogCore || optionalRequire("./trait-catalog-core.js");
+  const initialBardRuntime = global.LuminousBardClassRuntime || optionalRequire("./bard-class-runtime.js");
+  initialBardRuntime?.wrapCatalog?.();
+  const initialRacialCatalog = global.LuminousRacialTraitCatalog || optionalRequire("./racial-trait-catalog.js");
+  const initialArchetypeCatalog = global.LuminousArchetypeTraitCatalog || optionalRequire("./archetype-trait-catalog.js");
+
   const TRAITS_ROOT = "campaña/config/traits";
   const DEFINITIONS_ROOT = `${TRAITS_ROOT}/definitions`;
   const GRANTS_ROOT = `${TRAITS_ROOT}/grants`;
 
   function asRecord(value) {
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((out, key) => {
+      out[key] = stableValue(value[key]);
+      return out;
+    }, {});
+  }
+
+  function comparableDefinition(value = {}) {
+    const copy = { ...(value || {}) };
+    delete copy.createdAt;
+    delete copy.updatedAt;
+    delete copy.catalogSource;
+    delete copy.catalogVersion;
+    return stableValue(copy);
+  }
+
+  function definitionsEqual(left, right) {
+    return JSON.stringify(comparableDefinition(left)) === JSON.stringify(comparableDefinition(right));
+  }
+
+  function providerVersion(catalog) {
+    const value = Number(catalog?.CATALOG_VERSION || 1);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  }
+
+  function catalogProviders() {
+    const core = global.LuminousTraitCatalogCore || initialCoreCatalog;
+    const racial = global.LuminousRacialTraitCatalog || initialRacialCatalog;
+    const archetype = global.LuminousArchetypeTraitCatalog || initialArchetypeCatalog;
+    return [
+      { key: "core", catalog: core, includeGrants: true },
+      { key: "racial", catalog: racial, includeGrants: false },
+      { key: "archetype", catalog: archetype, includeGrants: false },
+    ].filter((entry) => entry.catalog?.allDefinitions);
+  }
+
+  function collectCatalog() {
+    const definitions = {};
+    const grants = [];
+    const errors = [];
+    const providers = catalogProviders();
+
+    providers.forEach(({ key, catalog, includeGrants }) => {
+      const version = providerVersion(catalog);
+      Object.entries(catalog.allDefinitions?.() || {}).forEach(([rawId, definition]) => {
+        const id = engine?.normalizeId ? engine.normalizeId(rawId) : String(rawId || "").trim().toLowerCase();
+        if (!id) {
+          errors.push(`${key}: Trait definition is missing an id.`);
+          return;
+        }
+
+        if (definitions[id]) {
+          if (!definitionsEqual(definitions[id].definition, definition)) {
+            errors.push(`${id}: conflicting Trait definitions from ${definitions[id].catalogSource} and ${key}.`);
+          }
+          return;
+        }
+
+        definitions[id] = {
+          id,
+          definition,
+          catalogSource: key,
+          catalogVersion: version,
+        };
+      });
+
+      if (!includeGrants) return;
+      (catalog.allGrants?.() || []).forEach((grant) => {
+        grants.push({
+          id: grant?.id,
+          grant,
+          catalogSource: key,
+          catalogVersion: version,
+        });
+      });
+    });
+
+    return { definitions, grants, providers, errors };
   }
 
   function grantIdentity(grant = {}) {
@@ -21,14 +114,13 @@
   }
 
   function buildImportPlan(existingDefinitions = {}, existingGrants = [], helpers = {}) {
-    const definitions = catalog?.allDefinitions?.() || {};
-    const grants = catalog?.allGrants?.() || [];
-    const errors = [];
+    const collected = collectCatalog();
+    const errors = [...collected.errors];
     const definitionWrites = [];
     const grantWrites = [];
     const existingIdentities = new Set((existingGrants || []).map(grantIdentity));
 
-    Object.entries(definitions).forEach(([id, definition]) => {
+    Object.values(collected.definitions).forEach(({ id, definition, catalogSource, catalogVersion }) => {
       const validation = helpers.validateDefinitionForPersistence
         ? helpers.validateDefinitionForPersistence(definition)
         : engine?.validateTrait?.(definition);
@@ -38,9 +130,14 @@
       }
 
       const existing = existingDefinitions?.[id];
+      const existingSource = String(existing?.catalogSource || "").trim().toLowerCase();
       const existingCatalogVersion = Number(existing?.catalogVersion || 0);
-      const isManagedCoreDefinition = existingCatalogVersion > 0;
-      const needsCatalogUpgrade = isManagedCoreDefinition && existingCatalogVersion < Number(catalog.CATALOG_VERSION || 0);
+      const legacyCoreManaged = !existingSource && catalogSource === "core" && existingCatalogVersion > 0;
+      const managedByProvider = existingSource === catalogSource || legacyCoreManaged;
+      const needsCatalogUpgrade = Boolean(existing && managedByProvider && (
+        existingCatalogVersion < catalogVersion ||
+        !definitionsEqual(existing, validation.trait)
+      ));
 
       if (!existing || needsCatalogUpgrade) {
         definitionWrites.push({
@@ -48,24 +145,26 @@
           definition: validation.trait,
           replace: Boolean(existing),
           previous: existing || null,
+          catalogSource,
+          catalogVersion,
         });
       }
     });
 
-    grants.forEach((grant) => {
-      const idValidation = helpers.validateFirebaseKey ? helpers.validateFirebaseKey(grant.id) : { valid: Boolean(grant.id), errors: [] };
+    collected.grants.forEach(({ id, grant, catalogSource, catalogVersion }) => {
+      const idValidation = helpers.validateFirebaseKey ? helpers.validateFirebaseKey(id) : { valid: Boolean(id), errors: [] };
       const validation = helpers.validateGrant ? helpers.validateGrant(grant) : { valid: true, grant };
       if (!idValidation.valid) {
-        (idValidation.errors || ["Invalid Firebase key."]).forEach((message) => errors.push(`${grant.id || "<grant>"}: ${message}`));
+        (idValidation.errors || ["Invalid Firebase key."]).forEach((message) => errors.push(`${id || "<grant>"}: ${message}`));
         return;
       }
       if (!validation.valid) {
-        (validation.errors || ["Invalid Grant."]).forEach((message) => errors.push(`${grant.id}: ${message}`));
+        (validation.errors || ["Invalid Grant."]).forEach((message) => errors.push(`${id}: ${message}`));
         return;
       }
       const identity = grantIdentity(validation.grant);
       if (!existingIdentities.has(identity)) {
-        grantWrites.push({ id: grant.id, grant: validation.grant });
+        grantWrites.push({ id, grant: validation.grant, catalogSource, catalogVersion });
         existingIdentities.add(identity);
       }
     });
@@ -75,8 +174,9 @@
       errors,
       definitionWrites,
       grantWrites,
-      skippedDefinitions: Math.max(0, Object.keys(definitions).length - definitionWrites.length),
-      skippedGrants: Math.max(0, grants.length - grantWrites.length),
+      skippedDefinitions: Math.max(0, Object.keys(collected.definitions).length - definitionWrites.length),
+      skippedGrants: Math.max(0, collected.grants.length - grantWrites.length),
+      providerKeys: collected.providers.map((entry) => entry.key),
     };
   }
 
@@ -97,20 +197,22 @@
     const nextDefinitions = { ...definitions };
     const nextGrants = { ...grantMap };
 
-    plan.definitionWrites.forEach(({ id, definition, previous }) => {
+    plan.definitionWrites.forEach(({ id, definition, previous, catalogSource, catalogVersion }) => {
       nextDefinitions[id] = {
         ...definition,
         createdAt: previous?.createdAt ?? stamp,
         updatedAt: stamp,
-        catalogVersion: catalog.CATALOG_VERSION,
+        catalogSource,
+        catalogVersion,
       };
     });
-    plan.grantWrites.forEach(({ id, grant }) => {
+    plan.grantWrites.forEach(({ id, grant, catalogSource, catalogVersion }) => {
       nextGrants[id] = {
         ...grant,
         createdAt: stamp,
         updatedAt: stamp,
-        catalogVersion: catalog.CATALOG_VERSION,
+        catalogSource,
+        catalogVersion,
       };
     });
 
@@ -157,19 +259,60 @@
     return { ...lastMutation.plan, committed: true };
   }
 
+  function ensureScript(id, src, ready) {
+    if (!doc || ready?.()) return Promise.resolve();
+    const existing = doc.getElementById(id);
+    if (existing) {
+      if (ready?.()) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const script = doc.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      script.addEventListener("load", resolve, { once: true });
+      script.addEventListener("error", reject, { once: true });
+      doc.head?.appendChild(script);
+    });
+  }
+
+  async function ensureBuiltInCatalogs() {
+    initialBardRuntime?.wrapCatalog?.();
+    if (!doc) return catalogProviders();
+
+    await ensureScript("bard-class-runtime-script", "js/bard-class-runtime.js", () => Boolean(global.LuminousBardClassRuntime));
+    global.LuminousBardClassRuntime?.wrapCatalog?.();
+
+    await Promise.all([
+      ensureScript("racial-trait-catalog-script", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog)),
+      ensureScript("archetype-engine-script", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine)),
+    ]);
+    await ensureScript("archetype-trait-catalog-script", "js/archetype-trait-catalog.js", () => Boolean(global.LuminousArchetypeTraitCatalog));
+
+    return catalogProviders();
+  }
+
   if (typeof module !== "undefined" && module.exports) {
     module.exports = {
       TRAITS_ROOT,
       DEFINITIONS_ROOT,
       GRANTS_ROOT,
       grantIdentity,
+      catalogProviders,
+      collectCatalog,
       buildImportPlan,
       buildAtomicImportMutation,
       runAtomicImport,
+      ensureBuiltInCatalogs,
     };
   }
 
-  if (!doc || !engine || !catalog || global.LuminousTraitCatalogImporter) return;
+  if (!doc || !engine || global.LuminousTraitCatalogImporter) return;
 
   function timestamp() {
     return global.firebase?.database?.ServerValue?.TIMESTAMP || Date.now();
@@ -191,8 +334,16 @@
     if (!lib) throw new Error("Trait Library no está lista.");
     if (!global.firebase?.database || !global.firebase?.apps?.length) throw new Error("Firebase no está disponible.");
 
-    const catalogValidation = catalog.validateAll(engine);
-    if (!catalogValidation.valid) throw new Error(catalogValidation.errors.join(" · "));
+    const providers = await ensureBuiltInCatalogs();
+    const validationErrors = [];
+    providers.forEach(({ key, catalog }) => {
+      if (!catalog?.validateAll) return;
+      const validation = catalog.validateAll(engine);
+      if (!validation?.valid) {
+        (validation?.errors || ["Invalid catalog."]).forEach((message) => validationErrors.push(`${key}: ${message}`));
+      }
+    });
+    if (validationErrors.length) throw new Error(validationErrors.join(" · "));
 
     const plan = await runAtomicImport(
       global.firebase.database(),
@@ -205,13 +356,13 @@
     );
 
     if (!plan.definitionWrites.length && !plan.grantWrites.length) {
-      feedback("El catálogo base ya está importado. No hay cambios.", "success");
+      feedback("Los catálogos integrados ya están sincronizados. No hay cambios.", "success");
       return plan;
     }
 
     const upgraded = plan.definitionWrites.filter((entry) => entry.replace).length;
     const created = plan.definitionWrites.length - upgraded;
-    feedback(`Catálogo base importado: ${created} Traits nuevos · ${upgraded} actualizados · ${plan.grantWrites.length} Grants.`, "success");
+    feedback(`Catálogos sincronizados: ${created} Traits nuevos · ${upgraded} actualizados · ${plan.grantWrites.length} Grants genéricos.`, "success");
     return plan;
   }
 
@@ -224,16 +375,16 @@
     button.id = "dm-trait-import-core";
     button.className = "btn-cyber";
     button.type = "button";
-    button.textContent = "IMPORTAR CATÁLOGO BASE";
+    button.textContent = "SINCRONIZAR CATÁLOGOS";
     button.addEventListener("click", async () => {
       button.disabled = true;
       const oldText = button.textContent;
-      button.textContent = "IMPORTANDO...";
+      button.textContent = "SINCRONIZANDO...";
       try {
         await importCatalog();
       } catch (error) {
-        console.error("Core Trait Catalog Import:", error);
-        feedback(error.message || "No se pudo importar el catálogo base.", "error");
+        console.error("Trait Catalog Sync:", error);
+        feedback(error.message || "No se pudieron sincronizar los catálogos.", "error");
       } finally {
         button.disabled = false;
         button.textContent = oldText;
@@ -257,9 +408,12 @@
     DEFINITIONS_ROOT,
     GRANTS_ROOT,
     grantIdentity,
+    catalogProviders,
+    collectCatalog,
     buildImportPlan,
     buildAtomicImportMutation,
     runAtomicImport,
+    ensureBuiltInCatalogs,
     importCatalog,
     mountButton,
   });
