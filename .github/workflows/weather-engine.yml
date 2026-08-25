@@ -4,16 +4,21 @@ on:
   pull_request:
     paths:
       - "js/weather-engine.js"
+      - "js/environment-engine.js"
+      - "js/environment-runtime.js"
       - "js/weather-readonly-engine.js"
       - "js/weather-post-merge-hotfix.js"
       - "js/weather-player-widget.js"
       - "js/weather-fx.js"
+      - "js/universal-action-economy.js"
       - "js/utils.js"
       - "css/weather-player.css"
       - "css/weather-fx.css"
       - "hoja_de_DM.html"
       - "tests/weather_engine.spec.js"
+      - "tests/environment_engine.spec.js"
       - "tests/weather_post_merge_hotfix.spec.js"
+      - "docs/environment-context.md"
       - ".github/workflows/weather-engine.yml"
   workflow_dispatch:
 
@@ -40,13 +45,17 @@ jobs:
       - name: Syntax check Weather JavaScript
         run: |
           node --check js/weather-engine.js
+          node --check js/environment-engine.js
+          node --check js/environment-runtime.js
           node --check js/weather-readonly-engine.js
           node --check js/weather-post-merge-hotfix.js
           node --check js/weather-player-widget.js
           node --check js/weather-fx.js
+          node --check js/universal-action-economy.js
           node --check js/utils.js
           node --check tests/weather_engine.spec.js
+          node --check tests/environment_engine.spec.js
           node --check tests/weather_post_merge_hotfix.spec.js
 
       - name: Verify Weather contracts
-        run: npx playwright test tests/weather_engine.spec.js tests/weather_post_merge_hotfix.spec.js --workers=1
+        run: npx playwright test tests/weather_engine.spec.js tests/environment_engine.spec.js tests/weather_post_merge_hotfix.spec.js --workers=1
