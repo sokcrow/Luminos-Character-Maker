@@ -9,9 +9,8 @@
   const ABILITY_IDS = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
   const ABILITY_KEYS = Object.freeze({ str: "fuerza", dex: "destreza", con: "constitucion", int: "inteligencia", wis: "sabiduria", cha: "carisma" });
   const ABILITY_LABELS = Object.freeze({ str: "STR", dex: "DEX", con: "CON", int: "INT", wis: "WIS", cha: "CHA" });
-  const PLAYERS_ROOT = "campaña/jugadores";
-
   const fixed = (values, choose) => Object.freeze({ fixed: Object.freeze(values || {}), ...(choose ? { choose: Object.freeze(choose) } : {}) });
+
   const RACIAL_STAT_RULES = Object.freeze({
     lizalin: Object.freeze({ base: fixed({ con: 2, wis: 1 }) }),
     kobold: Object.freeze({ base: fixed({ dex: 2, int: 1 }) }),
@@ -31,34 +30,36 @@
     moonfae: Object.freeze({ base: fixed({ dex: 2, cha: 1 }) }),
     yuan_ti_pureblood: Object.freeze({ base: fixed({ cha: 2 }, { count: 1, amount: 1, exclude: Object.freeze(["str"]) }) }),
   });
+
   const SOURCE_UNRESOLVED = Object.freeze([]);
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
   const zeroBonuses = () => Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
   let installedRules = null;
   let domBound = false;
-  const boundSaveButtons = new WeakSet();
 
   function choicesFrom(value) {
-    const raw = Array.isArray(value) ? value : [];
     const out = [];
-    raw.forEach((entry) => {
+    (Array.isArray(value) ? value : []).forEach((entry) => {
       const id = normalizeId(entry?.abilityId ?? entry?.id ?? entry);
       if (ABILITY_IDS.includes(id) && !out.includes(id)) out.push(id);
     });
     return out;
   }
+
   function choiceRuleFor(raceId, subtypeId) {
     const raceRule = RACIAL_STAT_RULES[normalizeId(raceId)] || null;
     if (!raceRule) return null;
     return (subtypeId ? raceRule[normalizeId(subtypeId)]?.choose : null) || raceRule.base?.choose || null;
   }
+
   function allowedChoiceAbilities(rule) {
     if (!rule) return [];
     const allowed = Array.isArray(rule.allowed) ? rule.allowed : ABILITY_IDS;
     const excluded = new Set(Array.isArray(rule.exclude) ? rule.exclude : []);
     return allowed.filter((id) => ABILITY_IDS.includes(id) && !excluded.has(id));
   }
+
   function validateChoices(input = {}) {
     const raceId = normalizeId(input.raceId || input.characterBuild?.raceId);
     const subtypeId = normalizeId(input.raceSubtypeId || input.characterBuild?.raceSubtypeId);
@@ -75,24 +76,29 @@
     if (invalid.length) errors.push(`Stats raciales no permitidas: ${invalid.map((id) => ABILITY_LABELS[id]).join(", ")}.`);
     return { valid: !errors.length, errors, selected, allowed };
   }
+
   function resolveRacialStatBonuses(input = {}) {
     const raceId = normalizeId(input.raceId || input.characterBuild?.raceId);
     const subtypeId = normalizeId(input.raceSubtypeId || input.characterBuild?.raceSubtypeId);
     const raceRule = RACIAL_STAT_RULES[raceId];
     const result = zeroBonuses();
     if (!raceRule) return result;
-    const add = (values) => Object.entries(values || {}).forEach(([id, amount]) => { if (ABILITY_IDS.includes(id)) result[id] += Number(amount) || 0; });
+    const add = (values) => Object.entries(values || {}).forEach(([id, amount]) => {
+      if (ABILITY_IDS.includes(id)) result[id] += Number(amount) || 0;
+    });
     add(raceRule.base?.fixed);
     if (subtypeId && raceRule[subtypeId]) add(raceRule[subtypeId].fixed);
     const choose = choiceRuleFor(raceId, subtypeId);
     if (choose) {
       const allowed = allowedChoiceAbilities(choose);
       choicesFrom(input.racialStatChoices ?? input.characterBuild?.racialStatChoices ?? [])
-        .filter((id) => allowed.includes(id)).slice(0, choose.count)
+        .filter((id) => allowed.includes(id))
+        .slice(0, choose.count)
         .forEach((id) => { result[id] += Number(choose.amount || 0); });
     }
     return result;
   }
+
   function resolveEffectiveStats(stats = {}, input = {}) {
     const bonuses = resolveRacialStatBonuses(input);
     return Object.fromEntries(ABILITY_IDS.map((id) => {
@@ -103,7 +109,11 @@
 
   function installRules(base = global.LuminousCharacterBuildRules) {
     if (!base || !base.__canonicalRaceIntegration) return null;
-    if (base.__existingRacialStatIntegration) { installedRules = base; return base; }
+    if (base.__existingRacialStatIntegration) {
+      installedRules = base;
+      return base;
+    }
+
     const validateBuild = (input = {}) => {
       const validation = base.validateBuild(input);
       const raceId = normalizeId(input.raceId || validation.race?.id);
@@ -112,14 +122,27 @@
       const errors = [...(validation.errors || []), ...choice.errors];
       return { ...validation, complete: errors.length === 0, errors, racialStatChoices: choice.selected };
     };
+
     const calculateBuild = (input = {}) => {
       const result = base.calculateBuild(input);
       const raceId = normalizeId(input.raceId || result.raceId);
       if (!RACIAL_STAT_RULES[raceId]) return result;
       const validation = validateBuild(input);
-      const bonuses = resolveRacialStatBonuses({ ...input, raceId, raceSubtypeId: input.raceSubtypeId || result.raceSubtypeId, racialStatChoices: validation.racialStatChoices });
-      return { ...result, valid: validation.complete, errors: validation.errors.slice(), racialStatChoices: validation.racialStatChoices.slice(), racialStatBonuses: bonuses };
+      const bonuses = resolveRacialStatBonuses({
+        ...input,
+        raceId,
+        raceSubtypeId: input.raceSubtypeId || result.raceSubtypeId,
+        racialStatChoices: validation.racialStatChoices,
+      });
+      return {
+        ...result,
+        valid: validation.complete,
+        errors: validation.errors.slice(),
+        racialStatChoices: validation.racialStatChoices.slice(),
+        racialStatBonuses: bonuses,
+      };
     };
+
     const api = Object.freeze({
       ...base,
       __existingRacialStatIntegration: true,
@@ -137,6 +160,7 @@
   }
 
   const field = (id) => global.document?.getElementById(id) || null;
+
   function currentInput() {
     return {
       raceId: normalizeId(field("dm-player-build-race")?.value),
@@ -144,6 +168,7 @@
       racialStatChoices: choicesFrom([field("existing-racial-stat-choice-1")?.value, field("existing-racial-stat-choice-2")?.value]),
     };
   }
+
   function ensureChoiceUi() {
     const doc = global.document;
     if (!doc) return null;
@@ -164,9 +189,10 @@
     anchor.insertAdjacentElement("afterend", box);
     return box;
   }
+
   function refreshChoiceUi() {
     const box = ensureChoiceUi();
-    if (!box) return;
+    if (!box) return false;
     const input = currentInput();
     const rule = choiceRuleFor(input.raceId, input.raceSubtypeId);
     box.style.display = rule ? "grid" : "none";
@@ -176,66 +202,11 @@
       if (!select) continue;
       select.style.display = rule && index <= rule.count ? "block" : "none";
       select.disabled = !rule || index > rule.count;
-      Array.from(select.options || []).forEach((option) => { if (option.value) option.disabled = !allowed.has(option.value); });
+      Array.from(select.options || []).forEach((option) => {
+        if (option.value) option.disabled = !allowed.has(option.value);
+      });
       if (select.value && !allowed.has(select.value)) select.value = "";
     }
-  }
-  function readBaseStats() {
-    return Object.fromEntries(ABILITY_IDS.map((id) => [ABILITY_KEYS[id], integerOr(field(`dm-player-stat-${id}`)?.value, 10)]));
-  }
-  function writeStats(stats) {
-    ABILITY_IDS.forEach((id) => { const node = field(`dm-player-stat-${id}`); if (node) node.value = String(stats[ABILITY_KEYS[id]]); });
-  }
-  function persistBase(baseStats) {
-    const db = global.firebase?.database?.();
-    const playerId = String(field("dm-player-dnd-select")?.value || "").trim();
-    if (!db || !playerId) return Promise.resolve(false);
-    const input = currentInput();
-    if (!RACIAL_STAT_RULES[input.raceId]) return Promise.resolve(false);
-    const updates = {};
-    ABILITY_IDS.forEach((id) => { updates[`baseStats/${ABILITY_KEYS[id]}`] = baseStats[ABILITY_KEYS[id]]; });
-    updates["characterBuild/racialStatChoices"] = input.racialStatChoices;
-    updates["characterBuild/breakdown/racialStatBonuses"] = resolveRacialStatBonuses(input);
-    return db.ref(`${PLAYERS_ROOT}/${playerId}`).update(updates).then(() => true);
-  }
-  function hydrate(playerId) {
-    const db = global.firebase?.database?.();
-    if (!db || !playerId) return Promise.resolve(false);
-    return db.ref(`${PLAYERS_ROOT}/${playerId}`).once("value").then((snap) => {
-      const player = snap.val() || {}, build = player.characterBuild || {};
-      if (!RACIAL_STAT_RULES[normalizeId(build.raceId)]) return false;
-      const savedChoices = choicesFrom(build.racialStatChoices || []);
-      savedChoices.forEach((choice, index) => { const node = field(`existing-racial-stat-choice-${index + 1}`); if (node) node.value = choice; });
-      const bonuses = resolveRacialStatBonuses({ raceId: build.raceId, raceSubtypeId: build.raceSubtypeId, racialStatChoices: savedChoices });
-      const hasRacialLayer = Boolean(player.baseStats || player?.characterBuild?.breakdown?.racialStatBonuses);
-      const base = player.baseStats && typeof player.baseStats === "object" ? player.baseStats : Object.fromEntries(ABILITY_IDS.map((id) => {
-        const key = ABILITY_KEYS[id];
-        const effective = integerOr(player?.stats?.[key], 10);
-        return [key, effective - (hasRacialLayer ? bonuses[id] : 0)];
-      }));
-      writeStats(base);
-      refreshChoiceUi();
-      global.LuminousDmPlayerDndStudio?.updatePreviewFromForm?.();
-      return true;
-    });
-  }
-
-  function handleSaveCapture() {
-    const input = currentInput();
-    if (!RACIAL_STAT_RULES[input.raceId]) return;
-    const base = readBaseStats();
-    writeStats(resolveEffectiveStats(base, input));
-    persistBase(base).catch((error) => console.error("Existing racial Stats persistence failed:", error));
-    const restore = () => writeStats(base);
-    if (typeof global.queueMicrotask === "function") global.queueMicrotask(restore);
-    else Promise.resolve().then(restore);
-  }
-
-  function bindSaveButton() {
-    const button = field("dm-player-dnd-save");
-    if (!button || boundSaveButtons.has(button)) return false;
-    button.addEventListener("click", handleSaveCapture, true);
-    boundSaveButtons.add(button);
     return true;
   }
 
@@ -244,28 +215,48 @@
     if (!doc) return false;
     ensureChoiceUi();
     refreshChoiceUi();
-    bindSaveButton();
     if (domBound) return true;
     doc.addEventListener("change", (event) => {
       if (["dm-player-build-race", "dm-player-build-subrace"].includes(event.target?.id)) refreshChoiceUi();
-      if (event.target?.id === "dm-player-dnd-select") global.queueMicrotask?.(() => hydrate(String(event.target.value || "").trim()).catch((error) => console.error("Existing racial Stats hydrate failed:", error)));
     });
     domBound = true;
     return true;
   }
-  function install() { const rules = installRules(); if (global.document) bindDom(); return rules; }
+
+  function install() {
+    const rules = installRules();
+    if (global.document) bindDom();
+    return rules;
+  }
 
   const api = Object.freeze({
-    ABILITY_IDS, ABILITY_KEYS, RACIAL_STAT_RULES, SOURCE_UNRESOLVED,
-    choicesFrom, choiceRuleFor, allowedChoiceAbilities, validateChoices,
-    resolveRacialStatBonuses, resolveEffectiveStats, installRules, bindDom, install,
+    ABILITY_IDS,
+    ABILITY_KEYS,
+    RACIAL_STAT_RULES,
+    SOURCE_UNRESOLVED,
+    choicesFrom,
+    choiceRuleFor,
+    allowedChoiceAbilities,
+    validateChoices,
+    resolveRacialStatBonuses,
+    resolveEffectiveStats,
+    installRules,
+    bindDom,
+    refreshChoiceUi,
+    install,
     get rules() { return installedRules; },
   });
+
   global.LuminousExistingRacialStatIntegration = api;
   install();
   if (global.document && typeof global.setInterval === "function") {
-    const retry = global.setInterval(() => { if (installRules()) bindDom(); }, 100);
+    const retry = global.setInterval(() => {
+      const ready = Boolean(installRules());
+      const uiReady = bindDom();
+      if (ready && uiReady && field("dm-player-build-race")) global.clearInterval(retry);
+    }, 100);
     global.setTimeout?.(() => global.clearInterval(retry), 10000);
   }
+
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
