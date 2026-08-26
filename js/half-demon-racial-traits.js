@@ -20,9 +20,7 @@
       contexts: Object.freeze(["combat"]),
       activation: Object.freeze({ type: "passive", actionCost: "none" }),
       effects: Object.freeze([]),
-      rules: Object.freeze([
-        Object.freeze({ runtime: "half_demon_combat_runtime", statusId: "devil_gauge", max: 100 }),
-      ]),
+      rules: Object.freeze([]),
     }),
     half_demon_devil_trigger: Object.freeze({
       schemaVersion: 1,
@@ -33,9 +31,7 @@
       contexts: Object.freeze(["combat"]),
       activation: Object.freeze({ type: "passive", actionCost: "none" }),
       effects: Object.freeze([]),
-      rules: Object.freeze([
-        Object.freeze({ runtime: "half_demon_combat_runtime", statusId: "devil_gauge" }),
-      ]),
+      rules: Object.freeze([]),
     }),
   });
 
