@@ -10,7 +10,37 @@
     traitEngineSource: null,
     combatDamageSource: null,
     pendingDamageOverride: null,
+    racialSkillScriptRequested: false,
   };
+
+  function ensureRacialSkillRuntime() {
+    if (global.LuminousRacialSkillRuntime) {
+      global.LuminousRacialSkillRuntime.installCombatBridge?.();
+      return true;
+    }
+
+    if (typeof require === "function") {
+      try {
+        require("./racial-skill-runtime.js");
+        if (global.LuminousRacialSkillRuntime) {
+          global.LuminousRacialSkillRuntime.installCombatBridge?.();
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    if (!global.document || state.racialSkillScriptRequested) return false;
+    state.racialSkillScriptRequested = true;
+    const existing = global.document.getElementById("racial-skill-runtime-script");
+    if (existing) return false;
+    const script = global.document.createElement("script");
+    script.id = "racial-skill-runtime-script";
+    script.src = "js/racial-skill-runtime.js";
+    script.async = false;
+    script.addEventListener("load", () => global.LuminousRacialSkillRuntime?.installCombatBridge?.(), { once: true });
+    global.document.head?.appendChild(script);
+    return false;
+  }
 
   function installTraitDamageContextBridge() {
     const source = global.LuminousTraitEngine;
@@ -89,12 +119,14 @@
   }
 
   function installAll() {
+    ensureRacialSkillRuntime();
     installTraitDamageContextBridge();
     installCombatDamageReturnBridge();
   }
 
   const api = Object.freeze({
     installAll,
+    ensureRacialSkillRuntime,
     installTraitDamageContextBridge,
     installCombatDamageReturnBridge,
     getPendingDamageOverride: () => state.pendingDamageOverride ? { ...state.pendingDamageOverride } : null,
