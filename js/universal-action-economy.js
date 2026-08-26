@@ -239,11 +239,29 @@
     return { ...gate, actionId: id };
   }
 
+  function scheduleUniversalAction(unit, actionId, target = null, options = {}) {
+    const id = normalizeId(actionId);
+    const gate = canUseUniversalAction(unit, id, options);
+    if (!gate.available) return { scheduled: false, reason: gate.reason || "universal_action_unavailable", actionId: id };
+    return scheduleAction(unit, {
+      kind: "universal_action",
+      sourceId: id,
+      targetId: target?.id || target?.unitId || target?.characterId || options.targetId || null,
+      data: { ...(options.data || {}), actionId: id },
+    }, { ...options, universalAction: true });
+  }
+
+  function scheduleGrapple(unitA, unitB, options = {}) {
+    if (!unitB || unitA === unitB) return { scheduled: false, reason: "invalid_grapple_target", actionId: UNIVERSAL_ACTIONS.GRAPPLE };
+    return scheduleUniversalAction(unitA, UNIVERSAL_ACTIONS.GRAPPLE, unitB, options);
+  }
+
   function performGrapple(unitA, unitB, options = {}) {
-    const gate = canUseUniversalAction(unitA, UNIVERSAL_ACTIONS.GRAPPLE, options);
-    if (!gate.available) return { applied: false, reason: gate.reason || "grapple_unavailable" };
-    if (!global.LuminousConditionRuntime?.grapple) return { applied: false, reason: "condition_runtime_unavailable" };
-    return global.LuminousConditionRuntime.grapple(unitA, unitB, options);
+    if (options.resolveImmediately === true) {
+      if (!global.LuminousConditionRuntime?.grapple) return { applied: false, reason: "condition_runtime_unavailable" };
+      return global.LuminousConditionRuntime.grapple(unitA, unitB, options);
+    }
+    return scheduleGrapple(unitA, unitB, options);
   }
 
   function runtimeFor(unit, options = {}) {
@@ -256,6 +274,8 @@
       consume(cost) { return consume(unit, cost, { ...options, phase }); },
       schedule(payload, scheduleOptions = {}) { return scheduleAction(unit, payload, { ...options, ...scheduleOptions, phase }); },
       canUseUniversalAction(actionId) { return canUseUniversalAction(unit, actionId, { ...options, phase }); },
+      scheduleUniversalAction(actionId, target, scheduleOptions = {}) { return scheduleUniversalAction(unit, actionId, target, { ...options, ...scheduleOptions, phase }); },
+      scheduleGrapple(target, scheduleOptions = {}) { return scheduleGrapple(unit, target, { ...options, ...scheduleOptions, phase }); },
     };
     Object.defineProperties(runtime, {
       action: { enumerable: true, get: () => snapshot(unit, { ...options, phase }).action },
@@ -296,6 +316,8 @@
     isCounterSkill,
     consumeCounterReaction,
     canUseUniversalAction,
+    scheduleUniversalAction,
+    scheduleGrapple,
     performGrapple,
     runtimeFor,
   });

@@ -331,6 +331,39 @@
         if (gate?.available === false) {
           return { handled: true, conditionBlocked: true, reason: gate.reason || "condition_blocks_action", planned: context?.plannedAction || null };
         }
+
+        const localPlanned = context?.plannedAction || global.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) || null;
+        if (normalizeId(localPlanned?.kind) === "universal_action") {
+          const actionId = normalizeId(localPlanned?.data?.actionId || localPlanned?.sourceId);
+          if (actionId !== "grapple") {
+            return { handled: true, planned: localPlanned, result: { applied: false, reason: "unknown_universal_action", actionId } };
+          }
+          const units = Object.values(context?.combatData || {}).filter(Boolean);
+          if (!units.some((candidate) => candidate === unit)) units.push(unit);
+          const target = findUnitById(units, localPlanned?.targetId);
+          if (!target) {
+            return { handled: true, planned: localPlanned, result: { applied: false, reason: "grapple_target_unavailable" } };
+          }
+          runtime.onActionUsed?.(unit, { ...context, combatants: units, units });
+          const unitARoll = rollCheck(this, unit, { kind: "ability", abilityId: "str" }, context);
+          const unitBRoll = rollCheck(this, target, { kind: "ability", abilityId: "str" }, context);
+          const opposed = {
+            unitATotal: unitARoll.total,
+            unitBTotal: unitBRoll.total,
+            unitBPassed: numberOr(unitBRoll.total, 0) >= numberOr(unitARoll.total, 0),
+            unitARoll,
+            unitBRoll,
+          };
+          const grappleResult = runtime.grapple?.(unit, target, {
+            ...context,
+            combatants: units,
+            units,
+            resolveOpposedCheck: () => opposed,
+          }) || { applied: false, reason: "condition_runtime_unavailable" };
+          if (!context?.plannedAction) global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
+          return { handled: true, planned: localPlanned, result: grappleResult, opposed };
+        }
+
         return originalResolveActionSlot.call(this, unit, slotIndex, context, ...rest);
       };
     }

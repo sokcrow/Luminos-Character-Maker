@@ -11,14 +11,16 @@ function restoreGlobals(snapshot) {
   });
 }
 
-test('condition combat bridge enforces phases, saves, poison damage, targeting, and action gates', () => {
-  const keys = ['CombatEngine', 'LuminousConditionRuntime', 'LuminousConditionCombatBridge', 'LuminousStatusEngine', 'CustomEvent', 'dispatchEvent', 'LuminousSpellcastingRuntime'];
+test('condition combat bridge enforces phases, saves, poison damage, targeting, action gates, and Grapple slots', () => {
+  const keys = ['CombatEngine', 'LuminousConditionRuntime', 'LuminousConditionCombatBridge', 'LuminousStatusEngine', 'LuminousActionEconomy', 'CustomEvent', 'dispatchEvent', 'LuminousSpellcastingRuntime'];
   const previous = snapshotGlobals(keys);
   const events = [];
   const phases = [];
   try {
     delete require.cache[require.resolve('../js/core-condition-combat-bridge.js')];
+    delete require.cache[require.resolve('../js/universal-action-economy.js')];
     delete global.LuminousConditionCombatBridge;
+    delete global.LuminousActionEconomy;
     global.CustomEvent = class CustomEvent { constructor(name, init) { this.type = name; this.detail = init?.detail; } };
     global.dispatchEvent = (event) => { events.push(event); return true; };
     global.LuminousStatusEngine = { advanceDurations: () => [] };
@@ -36,6 +38,12 @@ test('condition combat bridge enforces phases, saves, poison damage, targeting, 
       poisonDamageMultiplier(unit) { return unit.petrified ? 0 : (unit.poisoned ? 1.5 : 1); },
       actionAvailability(unit) { return unit.actionBlocked ? { available: false, reason: 'blocked_action' } : { available: true }; },
       canTarget(unit, target) { return target?.conditionBlocked ? { allowed: false, reason: 'blocked_target' } : { allowed: true }; },
+      canUseUniversalAction(unit) { return unit.actionBlocked ? { available: false, reason: 'blocked_action' } : { available: true }; },
+      onActionUsed() { return []; },
+      grapple(unitA, unitB, options) {
+        const opposed = options.resolveOpposedCheck();
+        return { applied: opposed.unitBPassed === false, unitA: unitA.id, unitB: unitB.id, opposed };
+      },
     };
     global.CombatEngine = {
       currentState: 'COMBAT_ACTIVE',
@@ -49,6 +57,7 @@ test('condition combat bridge enforces phases, saves, poison damage, targeting, 
       getCoinProbability() { return 100; },
     };
 
+    const economy = require('../js/universal-action-economy.js');
     const bridge = require('../js/core-condition-combat-bridge.js');
     expect(bridge.install()).toBe(true);
 
@@ -91,9 +100,29 @@ test('condition combat bridge enforces phases, saves, poison damage, targeting, 
     const slot = global.CombatEngine.resolveActionSlot(actionBlocked, 0, {});
     expect(slot.conditionBlocked).toBe(true);
     expect(slot.reason).toBe('blocked_action');
+
+    const grappler = { id: 'grappler', actionSlots: 1, stats: { fuerza: 14 }, hp: 20 };
+    const held = { id: 'held', actionSlots: 1, stats: { fuerza: 10 }, hp: 20 };
+    economy.beginPlanning(grappler);
+    const scheduled = economy.scheduleGrapple(grappler, held, { phase: 'planning' });
+    expect(scheduled.scheduled).toBe(true);
+    expect(scheduled.slotIndex).toBe(0);
+    expect(scheduled.entry.kind).toBe('universal_action');
+    expect(scheduled.entry.sourceId).toBe('grapple');
+    expect(scheduled.entry.targetId).toBe('held');
+    expect(economy.snapshot(grappler, { phase: 'planning' }).action).toBe(0);
+
+    const resolvedGrapple = global.CombatEngine.resolveActionSlot(grappler, 0, {
+      plannedAction: scheduled.entry,
+      combatData: { grappler, held },
+    });
+    expect(resolvedGrapple.handled).toBe(true);
+    expect(resolvedGrapple.result.applied).toBe(true);
+    expect(resolvedGrapple.opposed.unitATotal).toBeGreaterThan(resolvedGrapple.opposed.unitBTotal);
   } finally {
     restoreGlobals(previous);
     delete require.cache[require.resolve('../js/core-condition-combat-bridge.js')];
+    delete require.cache[require.resolve('../js/universal-action-economy.js')];
   }
 });
 
