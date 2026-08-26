@@ -76,6 +76,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Chromium for UI regressions
+        run: npx playwright install --with-deps chromium
+
       - name: Check syntax
         run: |
           node --check js/trait-engine.js
