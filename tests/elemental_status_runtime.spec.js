@@ -57,6 +57,7 @@ function installBaseStatusEngine() {
 
 function installCombatEngine() {
   global.CombatEngine = {
+    currentState: 'PRE_COMBAT_PLANNING',
     modifyNextStaggerThreshold(unit, amount) { unit.staggerThresholds[0] += amount; },
     applyPassiveModifiers(unit) {
       const out = { speed: 0, defensive_level: 0, offensive_level: 0 };
@@ -82,6 +83,11 @@ function installCombatEngine() {
       unit.hp = Math.max(0, unit.hp - remaining);
       return { hp: unit.hp, shield: unit.shield };
     },
+    triggerEncounterStart(allUnits = []) {
+      this.currentState = 'COMBAT_ACTIVE';
+      this.lastEncounterUnits = allUnits;
+      return this.currentState;
+    },
     triggerPhase() {},
     processStatusEffects(unit, trigger) {
       Object.entries(unit.statusEffects || {}).forEach(([id, instance]) => {
@@ -104,6 +110,12 @@ function loadRuntime() {
   delete global.LuminousElementalStatusRuntime;
   delete require.cache[require.resolve('../js/elemental-status-runtime.js')];
   return require('../js/elemental-status-runtime.js');
+}
+
+function loadCompatibility() {
+  delete global.LuminousElementalStatusCompatibility;
+  delete require.cache[require.resolve('../js/elemental-status-compat.js')];
+  return require('../js/elemental-status-compat.js');
 }
 
 test.beforeEach(() => {
@@ -245,4 +257,27 @@ test('Burn keeps its base tick while reducing Chill and damaging Frozen Shield a
   expect(unit.shield).toBe(shieldBefore - 10);
   expect(runtime.countOf(unit, 'burn')).toBe(1);
   expect(runtime.countOf(unit, 'chill')).toBe(19);
+});
+
+test('compat bridge preserves protected statuses and detects encounter end', () => {
+  const runtime = loadRuntime();
+  const compat = loadCompatibility();
+  const unit = {
+    hp: 100,
+    maxHp: 100,
+    shield: 0,
+    statusEffects: {},
+    statusProtections: { radiance: { from: 'effects' } },
+  };
+
+  global.LuminousStatusEngine.applyStatus(unit, 'radiance', { count: 4 });
+  const blocked = global.LuminousStatusEngine.removeStatus(unit, 'radiance', { from: 'effects' });
+  expect(blocked.protected).toBe(true);
+  expect(runtime.countOf(unit, 'radiance')).toBe(4);
+
+  global.CombatEngine.triggerEncounterStart([unit]);
+  expect(compat.state.units).toEqual([unit]);
+  global.CombatEngine.currentState = 'PRE_COMBAT_PLANNING';
+  compat.observeEncounterState();
+  expect(runtime.countOf(unit, 'radiance')).toBe(2);
 });
