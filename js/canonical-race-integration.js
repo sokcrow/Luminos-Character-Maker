@@ -7,20 +7,11 @@
   }
 
   const ABILITY_IDS = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
-  const ABILITY_KEYS = Object.freeze({
-    str: "fuerza",
-    dex: "destreza",
-    con: "constitucion",
-    int: "inteligencia",
-    wis: "sabiduria",
-    cha: "carisma",
-  });
-  const PLAYERS_ROOT = "campaña/jugadores";
+  const ABILITY_KEYS = Object.freeze({ str: "fuerza", dex: "destreza", con: "constitucion", int: "inteligencia", wis: "sabiduria", cha: "carisma" });
 
   const CANONICAL_RACES = Object.freeze([
     {
-      id: "dwarf", name: "Enano", hpCoefBonus: 0, defMod: 0,
-      tags: ["organic", "humanoid", "dwarf"],
+      id: "dwarf", name: "Enano", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "dwarf"],
       subtypes: [
         { id: "hill", name: "Enano de Colina", hpCoefBonus: 0, defMod: 0 },
         { id: "mountain", name: "Enano de Montaña", hpCoefBonus: 0, defMod: 0 },
@@ -28,8 +19,7 @@
       ],
     },
     {
-      id: "elf", name: "Elfo", hpCoefBonus: 0, defMod: 0,
-      tags: ["organic", "humanoid", "elf", "fae"],
+      id: "elf", name: "Elfo", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "elf", "fae"],
       subtypes: [
         { id: "high", name: "Alto Elfo", hpCoefBonus: 0, defMod: 0 },
         { id: "wood", name: "Elfo del Bosque", hpCoefBonus: 0, defMod: 0 },
@@ -40,16 +30,14 @@
       ],
     },
     {
-      id: "halfling", name: "Mediano", hpCoefBonus: 0, defMod: 0,
-      tags: ["organic", "humanoid", "halfling", "small"],
+      id: "halfling", name: "Mediano", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "halfling", "small"],
       subtypes: [
         { id: "lightfoot", name: "Piesligeros", hpCoefBonus: 0, defMod: 0 },
         { id: "stout", name: "Fornido", hpCoefBonus: 0, defMod: 0 },
       ],
     },
     {
-      id: "dragonborn", name: "Dracónido", hpCoefBonus: 0, defMod: 0,
-      tags: ["organic", "humanoid", "draconic"],
+      id: "dragonborn", name: "Dracónido", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "draconic"],
       subtypes: [
         { id: "red", name: "Rojo", hpCoefBonus: 0, defMod: 0 },
         { id: "black", name: "Negro", hpCoefBonus: 0, defMod: 0 },
@@ -64,8 +52,7 @@
       ],
     },
     {
-      id: "gnome", name: "Gnomo", hpCoefBonus: 0, defMod: 0,
-      tags: ["organic", "humanoid", "gnome", "small"],
+      id: "gnome", name: "Gnomo", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "gnome", "small"],
       subtypes: [
         { id: "forest", name: "Gnomo del Bosque", hpCoefBonus: 0, defMod: 0 },
         { id: "rock", name: "Gnomo de las Rocas", hpCoefBonus: 0, defMod: 0 },
@@ -77,7 +64,6 @@
   ]);
 
   const HUMAN_VARIANT = Object.freeze({ id: "variant", name: "Humano Variante", hpCoefBonus: 0, defMod: 0 });
-
   const RACIAL_STAT_RULES = Object.freeze({
     human: Object.freeze({
       base: Object.freeze({ fixed: Object.freeze({ str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }) }),
@@ -114,13 +100,11 @@
     orc: Object.freeze({ base: Object.freeze({ fixed: Object.freeze({ str: 2, con: 1 }) }) }),
   });
 
+  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
   let installedRules = null;
   let baseRules = null;
   let domBound = false;
-  const domState = { playerId: null, baseStats: null, bonuses: Object.fromEntries(ABILITY_IDS.map((id) => [id, 0])) };
-
-  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
-  const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
 
   function loadBaseRules() {
     if (global.LuminousCharacterBuildRules?.__canonicalRaceIntegration) return global.LuminousCharacterBuildRules;
@@ -133,22 +117,12 @@
   }
 
   function choicesFrom(value) {
-    const raw = Array.isArray(value) ? value : [];
     const out = [];
-    raw.forEach((entry) => {
+    (Array.isArray(value) ? value : []).forEach((entry) => {
       const id = normalizeId(entry?.abilityId ?? entry?.id ?? entry);
       if (ABILITY_IDS.includes(id) && !out.includes(id)) out.push(id);
     });
     return out;
-  }
-
-  function domChoices() {
-    const doc = global.document;
-    if (!doc) return [];
-    return choicesFrom([
-      doc.getElementById("canonical-racial-stat-choice-1")?.value,
-      doc.getElementById("canonical-racial-stat-choice-2")?.value,
-    ]);
   }
 
   function choiceRuleFor(raceId, subtypeId) {
@@ -165,31 +139,28 @@
     const result = Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
     if (!raceRule) return result;
 
-    const addFixed = (fixed) => {
-      Object.entries(fixed || {}).forEach(([id, amount]) => {
-        if (ABILITY_IDS.includes(id)) result[id] += Number(amount) || 0;
-      });
-    };
+    const addFixed = (values) => Object.entries(values || {}).forEach(([id, amount]) => {
+      if (ABILITY_IDS.includes(id)) result[id] += Number(amount) || 0;
+    });
     const subtypeRule = subtypeId ? raceRule[subtypeId] : null;
     if (!subtypeRule?.replaceBase) addFixed(raceRule.base?.fixed);
     if (subtypeRule) addFixed(subtypeRule.fixed);
 
     const choose = choiceRuleFor(raceId, subtypeId);
-    const explicitChoices = input.racialStatChoices ?? input.characterBuild?.racialStatChoices;
-    const selected = choicesFrom(explicitChoices == null ? domChoices() : explicitChoices);
-    if (choose) selected.slice(0, choose.count).forEach((id) => { result[id] += choose.amount; });
+    if (choose) {
+      choicesFrom(input.racialStatChoices ?? input.characterBuild?.racialStatChoices ?? [])
+        .slice(0, choose.count)
+        .forEach((id) => { result[id] += Number(choose.amount || 0); });
+    }
     return result;
   }
 
   function resolveEffectiveStats(stats = {}, input = {}) {
     const bonuses = resolveRacialStatBonuses(input);
-    const effective = {};
-    ABILITY_IDS.forEach((id) => {
+    return Object.fromEntries(ABILITY_IDS.map((id) => {
       const key = ABILITY_KEYS[id];
-      const base = integerOr(stats?.[key] ?? stats?.[id], 10);
-      effective[key] = base + bonuses[id];
-    });
-    return effective;
+      return [key, integerOr(stats?.[key] ?? stats?.[id], 10) + bonuses[id]];
+    }));
   }
 
   function installRules(base = loadBaseRules()) {
@@ -202,18 +173,18 @@
 
     const human = base.RACES.find((race) => race.id === "human") || { id: "human", name: "Humano", hpCoefBonus: 0, defMod: 0, tags: ["organic", "humanoid", "human"] };
     const humanExtended = Object.freeze({ ...human, subtypes: Object.freeze([HUMAN_VARIANT]) });
-    const races = Object.freeze([...base.RACES.filter((race) => race.id !== "human")]);
+    const originalRaces = Object.freeze(base.RACES.filter((race) => race.id !== "human"));
     const orderedRaces = Object.freeze([
       humanExtended,
-      ...races,
+      ...originalRaces,
       ...CANONICAL_RACES.filter((race) => !base.RACES.some((existing) => existing.id === race.id)),
     ]);
     const raceMap = new Map(orderedRaces.map((race) => [race.id, race]));
 
-    const raceSubtype = (race, subtypeId) => {
+    function raceSubtype(race, subtypeId) {
       if (!race || !subtypeId || !Array.isArray(race.subtypes)) return null;
       return race.subtypes.find((entry) => entry.id === subtypeId) || null;
-    };
+    }
 
     function validateBuild(input = {}) {
       const raceId = normalizeId(input.raceId || base.SETTINGS.defaultRaceId || "human") || "human";
@@ -232,8 +203,10 @@
       if (requiresSubtype && !subtype) errors.push("Selecciona la subraza / variante racial.");
 
       const choose = choiceRuleFor(raceId, subtypeId);
-      const explicitChoices = input.racialStatChoices ?? input.characterBuild?.racialStatChoices;
-      const selectedChoices = choicesFrom(explicitChoices == null ? domChoices() : explicitChoices);
+      const supplied = input.racialStatChoices ?? input.characterBuild?.racialStatChoices ?? [];
+      const rawChoices = (Array.isArray(supplied) ? supplied : []).map((entry) => normalizeId(entry?.abilityId ?? entry?.id ?? entry)).filter(Boolean);
+      const selectedChoices = choicesFrom(supplied);
+      if (rawChoices.length !== selectedChoices.length) errors.push("Las elecciones de Stats raciales deben ser diferentes y válidas.");
       if (choose && selectedChoices.length !== choose.count) errors.push(`Selecciona ${choose.count} Stats raciales diferentes.`);
 
       return {
@@ -263,7 +236,11 @@
         raceId,
         raceSubtypeId: subtypeId,
         racialStatChoices: validation.racialStatChoices.slice(),
-        racialStatBonuses: resolveRacialStatBonuses({ raceId, raceSubtypeId: subtypeId, racialStatChoices: validation.racialStatChoices }),
+        racialStatBonuses: resolveRacialStatBonuses({
+          raceId,
+          raceSubtypeId: subtypeId,
+          racialStatChoices: validation.racialStatChoices,
+        }),
       };
     }
 
@@ -286,14 +263,14 @@
     return api;
   }
 
-  function field(id) { return global.document?.getElementById(id) || null; }
+  const field = (id) => global.document?.getElementById(id) || null;
 
   function currentRaceInput() {
     const rules = installedRules || installRules();
     return {
       raceId: normalizeId(field("dm-player-build-race")?.value || rules?.SETTINGS?.defaultRaceId || "human") || "human",
       raceSubtypeId: normalizeId(field("dm-player-build-subrace")?.value || ""),
-      racialStatChoices: domChoices(),
+      racialStatChoices: choicesFrom([field("canonical-racial-stat-choice-1")?.value, field("canonical-racial-stat-choice-2")?.value]),
     };
   }
 
@@ -329,9 +306,9 @@
     return box;
   }
 
-  function renderChoiceUi(savedChoices) {
+  function renderChoiceUi() {
     const box = ensureChoiceUi();
-    if (!box) return;
+    if (!box) return false;
     const current = currentRaceInput();
     const choose = choiceRuleFor(current.raceId, current.raceSubtypeId);
     box.hidden = !choose;
@@ -339,158 +316,25 @@
     const two = field("canonical-racial-stat-choice-2");
     const copy = field("canonical-racial-stat-choice-copy");
     if (copy) copy.textContent = choose ? `Choose ${choose.count} different Stats · +${choose.amount} each` : "";
-    if (Array.isArray(savedChoices)) {
-      const selected = choicesFrom(savedChoices);
-      if (one) one.value = selected[0] || "";
-      if (two) two.value = selected[1] || "";
-    }
-  }
-
-  function racialBonusesForForm() {
-    const rules = installedRules || installRules();
-    return rules?.resolveRacialStatBonuses(currentRaceInput()) || Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
-  }
-
-  function decorateBonuses() {
-    const bonuses = racialBonusesForForm();
-    domState.bonuses = bonuses;
-    ABILITY_IDS.forEach((id) => {
-      const input = field(`dm-player-stat-${id}`);
-      if (!input?.parentElement) return;
-      let badge = input.parentElement.querySelector(`[data-canonical-racial-bonus="${id}"]`);
-      if (!badge) {
-        badge = global.document.createElement("small");
-        badge.dataset.canonicalRacialBonus = id;
-        badge.style.cssText = "display:block;opacity:.72;margin-top:2px";
-        input.insertAdjacentElement("afterend", badge);
-      }
-      badge.textContent = bonuses[id] ? `RACE +${bonuses[id]} · FINAL ${integerOr(input.value, 10) + bonuses[id]}` : "";
-    });
-  }
-
-  function captureBaseStatsFromForm() {
-    const out = {};
-    ABILITY_IDS.forEach((id) => { out[ABILITY_KEYS[id]] = integerOr(field(`dm-player-stat-${id}`)?.value, 10); });
-    domState.baseStats = out;
-    return out;
-  }
-
-  function applyEffectiveStatsToForm(baseStats) {
-    const effective = (installedRules || installRules())?.resolveEffectiveStats(baseStats, currentRaceInput()) || baseStats;
-    ABILITY_IDS.forEach((id) => {
-      const input = field(`dm-player-stat-${id}`);
-      if (input) input.value = String(integerOr(effective[ABILITY_KEYS[id]], 10));
-    });
-    return effective;
-  }
-
-  function restoreBaseStatsToForm(baseStats) {
-    ABILITY_IDS.forEach((id) => {
-      const input = field(`dm-player-stat-${id}`);
-      if (input) input.value = String(integerOr(baseStats?.[ABILITY_KEYS[id]], 10));
-    });
-    decorateBonuses();
-  }
-
-  async function syncSelectedPlayer() {
-    const playerId = String(field("dm-player-dnd-select")?.value || "").trim();
-    domState.playerId = playerId || null;
-    if (!playerId) return;
-    const db = global.firebase?.database?.();
-    if (!db) {
-      captureBaseStatsFromForm();
-      decorateBonuses();
-      return;
-    }
-    try {
-      const snap = await db.ref(`${PLAYERS_ROOT}/${playerId}`).once("value");
-      const player = snap.val() || {};
-      const savedChoices = player?.characterBuild?.racialStatChoices;
-      renderChoiceUi(savedChoices);
-      const bonuses = (installedRules || installRules())?.resolveRacialStatBonuses({
-        raceId: player?.characterBuild?.raceId || field("dm-player-build-race")?.value || "human",
-        raceSubtypeId: player?.characterBuild?.raceSubtypeId || field("dm-player-build-subrace")?.value || "",
-        racialStatChoices: savedChoices || domChoices(),
-      }) || Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
-      const base = {};
-      ABILITY_IDS.forEach((id) => {
-        const key = ABILITY_KEYS[id];
-        const storedBase = Number.parseInt(player?.baseStats?.[key], 10);
-        const storedEffective = Number.parseInt(player?.stats?.[key], 10);
-        const hasRacialLayer = Boolean(player?.baseStats || player?.characterBuild?.breakdown?.racialStatBonuses);
-        base[key] = Number.isFinite(storedBase)
-          ? storedBase
-          : Number.isFinite(storedEffective) ? storedEffective - (hasRacialLayer ? (bonuses[id] || 0) : 0) : integerOr(field(`dm-player-stat-${id}`)?.value, 10);
-        const input = field(`dm-player-stat-${id}`);
-        if (input) input.value = String(base[key]);
-      });
-      domState.baseStats = base;
-      decorateBonuses();
-    } catch (_) {
-      captureBaseStatsFromForm();
-      decorateBonuses();
-    }
-  }
-
-  function persistBaseLayer(baseStats) {
-    const playerId = String(field("dm-player-dnd-select")?.value || domState.playerId || "").trim();
-    const db = global.firebase?.database?.();
-    if (!playerId || !db) return Promise.resolve(false);
-    const choices = domChoices();
-    const updates = {};
-    ABILITY_IDS.forEach((id) => { updates[`baseStats/${ABILITY_KEYS[id]}`] = integerOr(baseStats?.[ABILITY_KEYS[id]], 10); });
-    updates["characterBuild/racialStatChoices"] = choices.length ? choices : null;
-    const bonuses = racialBonusesForForm();
-    updates["characterBuild/breakdown/racialStatBonuses"] = bonuses;
-    return db.ref(`${PLAYERS_ROOT}/${playerId}`).update(updates).then(() => true);
+    if (one) one.style.display = choose && choose.count >= 1 ? "block" : "none";
+    if (two) two.style.display = choose && choose.count >= 2 ? "block" : "none";
+    return true;
   }
 
   function bindDom() {
     const doc = global.document;
-    if (!doc || domBound) return false;
+    if (!doc) return false;
     ensureRaceOptions();
     ensureChoiceUi();
     renderChoiceUi();
-    decorateBonuses();
-
+    if (domBound) return true;
     doc.addEventListener("change", (event) => {
-      const target = event.target;
-      if (!target) return;
-      if (target.id === "dm-player-dnd-select") {
-        global.setTimeout(syncSelectedPlayer, 0);
-        return;
+      if (event.target?.id === "dm-player-build-race" || event.target?.id === "dm-player-build-subrace") {
+        ensureRaceOptions();
+        renderChoiceUi();
       }
-      if (target.id === "dm-player-build-race" || target.id === "dm-player-build-subrace") {
-        global.setTimeout(() => {
-          ensureRaceOptions();
-          renderChoiceUi();
-          decorateBonuses();
-        }, 0);
-        return;
-      }
-      if (target.id === "canonical-racial-stat-choice-1" || target.id === "canonical-racial-stat-choice-2") decorateBonuses();
-    }, true);
-
-    doc.addEventListener("input", (event) => {
-      if (ABILITY_IDS.some((id) => event.target?.id === `dm-player-stat-${id}`)) decorateBonuses();
-    }, true);
-
-    doc.addEventListener("click", (event) => {
-      const button = event.target?.closest?.("#dm-player-dnd-save");
-      if (!button) return;
-      const base = captureBaseStatsFromForm();
-      applyEffectiveStatsToForm(base);
-      persistBaseLayer(base).catch((error) => console.error("No se pudo persistir la capa base de Stats raciales:", error));
-      queueMicrotask(() => restoreBaseStatsToForm(base));
-    }, true);
-
+    });
     domBound = true;
-    global.setTimeout(() => {
-      ensureRaceOptions();
-      renderChoiceUi();
-      if (field("dm-player-dnd-select")?.value) syncSelectedPlayer();
-      else decorateBonuses();
-    }, 0);
     return true;
   }
 
@@ -511,18 +355,20 @@
     resolveEffectiveStats,
     choicesFrom,
     choiceRuleFor,
+    bindDom,
+    renderChoiceUi,
+    get rules() { return installedRules; },
   });
 
   global.LuminousCanonicalRaceIntegration = api;
   install();
   if (global.document && typeof global.setInterval === "function") {
     const retry = global.setInterval(() => {
-      if (installRules()) {
-        bindDom();
-        if (ensureRaceOptions() && field("dm-player-build-race")) global.clearInterval(retry);
-      }
+      const ready = Boolean(installRules());
+      const uiReady = bindDom();
+      if (ready && uiReady && ensureRaceOptions() && field("dm-player-build-race")) global.clearInterval(retry);
     }, 100);
-    global.setTimeout(() => global.clearInterval(retry), 10000);
+    global.setTimeout?.(() => global.clearInterval(retry), 10000);
   }
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
