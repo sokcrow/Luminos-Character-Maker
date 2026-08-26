@@ -13,6 +13,18 @@
     racialSkillScriptRequested: false,
   };
 
+  function ensureScript(id, src) {
+    if (!global.document) return null;
+    const existing = global.document.getElementById(id);
+    if (existing) return existing;
+    const script = global.document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return script;
+  }
+
   function ensureRacialSkillRuntime() {
     if (global.LuminousRacialSkillRuntime) {
       global.LuminousRacialSkillRuntime.installCombatBridge?.();
@@ -40,6 +52,41 @@
     script.addEventListener("load", () => global.LuminousRacialSkillRuntime?.installCombatBridge?.(), { once: true });
     global.document.head?.appendChild(script);
     return false;
+  }
+
+  function ensureHalfDemonRuntime() {
+    if (global.LuminousHalfDemonCombatRuntime) {
+      global.LuminousHalfDemonRacialTraits?.install?.();
+      global.LuminousHalfDemonCombatRuntime.installCombatBridge?.();
+      return true;
+    }
+
+    if (typeof require === "function") {
+      try {
+        if (!global.LuminousCanonicalRacialTraits) require("./canonical-racial-traits.js");
+        if (!global.LuminousHalfDemonRacialTraits) require("./half-demon-racial-traits.js");
+        const runtime = require("./half-demon-combat-runtime.js");
+        runtime?.installCombatBridge?.();
+        return Boolean(global.LuminousHalfDemonCombatRuntime || runtime);
+      } catch (_) {}
+    }
+
+    if (!global.document || !global.LuminousTraitEngine || !global.LuminousRacialTraitCatalog) return false;
+    if (!global.LuminousCanonicalRacialTraits) {
+      ensureScript("canonical-racial-traits-script", "js/canonical-racial-traits.js");
+      return false;
+    }
+    if (!global.LuminousHalfDemonRacialTraits) {
+      ensureScript("half-demon-racial-traits-script", "js/half-demon-racial-traits.js");
+      return false;
+    }
+    if (!global.LuminousHalfDemonCombatRuntime) {
+      ensureScript("half-demon-combat-runtime-script", "js/half-demon-combat-runtime.js");
+      return false;
+    }
+    global.LuminousHalfDemonRacialTraits.install?.();
+    global.LuminousHalfDemonCombatRuntime.installCombatBridge?.();
+    return true;
   }
 
   function installTraitDamageContextBridge() {
@@ -120,6 +167,7 @@
 
   function installAll() {
     ensureRacialSkillRuntime();
+    ensureHalfDemonRuntime();
     installTraitDamageContextBridge();
     installCombatDamageReturnBridge();
   }
@@ -127,6 +175,7 @@
   const api = Object.freeze({
     installAll,
     ensureRacialSkillRuntime,
+    ensureHalfDemonRuntime,
     installTraitDamageContextBridge,
     installCombatDamageReturnBridge,
     getPendingDamageOverride: () => state.pendingDamageOverride ? { ...state.pendingDamageOverride } : null,

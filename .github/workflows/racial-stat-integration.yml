@@ -1,0 +1,68 @@
+name: Racial Stats Integration
+
+on:
+  pull_request:
+    paths:
+      - "js/character-build-rules.js"
+      - "js/canonical-race-integration.js"
+      - "js/existing-racial-stat-integration.js"
+      - "js/dm-player-dnd-studio.js"
+      - "js/dm-player-dnd-studio-hotfix.js"
+      - "js/trait-engine.js"
+      - "js/racial-trait-catalog.js"
+      - "js/canonical-racial-traits.js"
+      - "js/half-demon-racial-traits.js"
+      - "js/half-demon-combat-runtime.js"
+      - "js/racial-trait-runtime-bridge.js"
+      - "js/dm-trait-catalog-importer.js"
+      - "tests/character_build_rules.spec.js"
+      - "tests/racial_trait_catalog.spec.js"
+      - "tests/racial_trait_engine_regressions.spec.js"
+      - "tests/racial_stat_integration.spec.js"
+      - "tests/half_demon_traits.spec.js"
+      - ".github/workflows/racial-stat-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  racial-stats-and-traits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check syntax
+        run: |
+          node --check js/canonical-race-integration.js
+          node --check js/existing-racial-stat-integration.js
+          node --check js/canonical-racial-traits.js
+          node --check js/half-demon-racial-traits.js
+          node --check js/half-demon-combat-runtime.js
+          node --check js/racial-trait-runtime-bridge.js
+          node --check js/dm-player-dnd-studio.js
+          node --check js/dm-player-dnd-studio-hotfix.js
+          node --check tests/racial_stat_integration.spec.js
+          node --check tests/half_demon_traits.spec.js
+
+      - name: Run racial and regression matrix
+        run: >-
+          npx playwright test
+          tests/character_build_rules.spec.js
+          tests/racial_stat_integration.spec.js
+          tests/half_demon_traits.spec.js
+          tests/racial_trait_catalog.spec.js
+          tests/racial_trait_engine_regressions.spec.js
+          --workers=1

@@ -2,6 +2,29 @@
   "use strict";
 
   const doc = global.document;
+  global.LuminousDmPlayerDndStudioOwnsRacialStats = true;
+
+  function ensureRacialIntegrationAssets() {
+    if (!doc?.head) return;
+    const assets = [
+      ["canonical-race-integration-script", "js/canonical-race-integration.js", "racial-stats"],
+      ["existing-racial-stat-integration-script", "js/existing-racial-stat-integration.js", "racial-stats"],
+      ["trait-engine-script", "js/trait-engine.js", "trait-engine"],
+      ["racial-trait-catalog-script", "js/racial-trait-catalog.js", "racial-traits"],
+      ["canonical-racial-traits-script", "js/canonical-racial-traits.js", "racial-traits"],
+      ["half-demon-racial-traits-script", "js/half-demon-racial-traits.js", "racial-traits"],
+    ];
+
+    assets.forEach(([id, src, engine]) => {
+      if (doc.getElementById(id)) return;
+      const script = doc.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      script.dataset.engine = engine;
+      doc.head.appendChild(script);
+    });
+  }
 
   function ensureClassMilestoneAssets() {
     if (!doc) return;
@@ -69,6 +92,7 @@
     global.LuminousDmPlayerProxyMilestoneSync = true;
   }
 
+  ensureRacialIntegrationAssets();
   ensureClassMilestoneAssets();
   installPlayerProxyMilestoneSync();
 
