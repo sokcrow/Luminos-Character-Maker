@@ -6,6 +6,8 @@ on:
       - "js/character-build-rules.js"
       - "js/canonical-race-integration.js"
       - "js/existing-racial-stat-integration.js"
+      - "js/racial-stat-runtime.js"
+      - "js/player-stats-ability-bar.js"
       - "js/dm-player-dnd-studio.js"
       - "js/dm-player-dnd-studio-hotfix.js"
       - "js/trait-engine.js"
@@ -19,6 +21,7 @@ on:
       - "tests/racial_trait_catalog.spec.js"
       - "tests/racial_trait_engine_regressions.spec.js"
       - "tests/racial_stat_integration.spec.js"
+      - "tests/racial_stat_visibility.spec.js"
       - "tests/half_demon_traits.spec.js"
       - ".github/workflows/racial-stat-integration.yml"
 
@@ -48,6 +51,8 @@ jobs:
         run: |
           node --check js/canonical-race-integration.js
           node --check js/existing-racial-stat-integration.js
+          node --check js/racial-stat-runtime.js
+          node --check js/player-stats-ability-bar.js
           node --check js/canonical-racial-traits.js
           node --check js/half-demon-racial-traits.js
           node --check js/half-demon-combat-runtime.js
@@ -55,6 +60,7 @@ jobs:
           node --check js/dm-player-dnd-studio.js
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check tests/racial_stat_integration.spec.js
+          node --check tests/racial_stat_visibility.spec.js
           node --check tests/half_demon_traits.spec.js
 
       - name: Run racial and regression matrix
@@ -62,6 +68,7 @@ jobs:
           npx playwright test
           tests/character_build_rules.spec.js
           tests/racial_stat_integration.spec.js
+          tests/racial_stat_visibility.spec.js
           tests/half_demon_traits.spec.js
           tests/racial_trait_catalog.spec.js
           tests/racial_trait_engine_regressions.spec.js
