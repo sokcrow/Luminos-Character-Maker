@@ -17,6 +17,18 @@
   const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value)));
   const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
+  function ensureStatModifierTooltipRuntime() {
+    let script = doc.getElementById("player-stat-tooltip-runtime-script");
+    if (script) return script;
+    script = doc.createElement("script");
+    script.id = "player-stat-tooltip-runtime-script";
+    script.src = "js/player-stat-tooltip-runtime.js";
+    script.async = false;
+    script.dataset.ui = "player-stat-tooltip-runtime";
+    doc.head?.appendChild(script);
+    return script;
+  }
+
   function normalizeFrame(source) {
     const raw = source || {};
     return {
@@ -298,6 +310,7 @@
   }
 
   function boot() {
+    ensureStatModifierTooltipRuntime();
     const tick = () => {
       if (doc.getElementById("dashboard-jugadores")) {
         mountDmControls();
@@ -326,5 +339,6 @@
     openLightbox,
     closeLightbox,
     syncPlayerFrame,
+    ensureStatModifierTooltipRuntime,
   });
 })(window);
