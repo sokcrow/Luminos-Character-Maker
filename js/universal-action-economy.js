@@ -7,6 +7,10 @@
     REACTION: "reaction",
   });
 
+  const UNIVERSAL_ACTIONS = Object.freeze({
+    GRAPPLE: "grapple",
+  });
+
   const PHASES = Object.freeze({
     PLANNING: "planning",
     COMBAT: "combat",
@@ -97,6 +101,8 @@
 
   function availability(unit, cost, options = {}) {
     const id = normalizeId(cost);
+    const conditionGate = global.LuminousConditionRuntime?.actionAvailability?.(unit, id, options);
+    if (conditionGate?.available === false) return { available: false, reason: conditionGate.reason || "condition_blocks_action", remaining: 0, condition: true };
     const current = snapshot(unit, options);
     if (id === ACTION_COSTS.ACTION) {
       if (current.phase !== PHASES.PLANNING) return { available: false, reason: "action_requires_planning_phase", remaining: 0 };
@@ -183,6 +189,7 @@
     const entry = state?.plannedActions?.[slotIndex];
     if (!entry) return null;
     delete state.plannedActions[slotIndex];
+    global.LuminousConditionRuntime?.onActionUsed?.(unit, options);
     return { ...entry, data: { ...(entry.data || {}) } };
   }
 
@@ -223,6 +230,40 @@
     return consume(unit, ACTION_COSTS.REACTION, options);
   }
 
+  function canUseUniversalAction(unit, actionId, options = {}) {
+    const id = normalizeId(actionId);
+    if (!Object.values(UNIVERSAL_ACTIONS).includes(id)) return { available: false, reason: "unknown_universal_action", actionId: id };
+    const conditionGate = global.LuminousConditionRuntime?.canUseUniversalAction?.(unit, { ...options, actionId: id, cost: ACTION_COSTS.ACTION });
+    if (conditionGate?.available === false) return { ...conditionGate, actionId: id };
+    const gate = availability(unit, ACTION_COSTS.ACTION, { ...options, universalAction: true });
+    return { ...gate, actionId: id };
+  }
+
+  function scheduleUniversalAction(unit, actionId, target = null, options = {}) {
+    const id = normalizeId(actionId);
+    const gate = canUseUniversalAction(unit, id, options);
+    if (!gate.available) return { scheduled: false, reason: gate.reason || "universal_action_unavailable", actionId: id };
+    return scheduleAction(unit, {
+      kind: "universal_action",
+      sourceId: id,
+      targetId: target?.id || target?.unitId || target?.characterId || options.targetId || null,
+      data: { ...(options.data || {}), actionId: id },
+    }, { ...options, universalAction: true });
+  }
+
+  function scheduleGrapple(unitA, unitB, options = {}) {
+    if (!unitB || unitA === unitB) return { scheduled: false, reason: "invalid_grapple_target", actionId: UNIVERSAL_ACTIONS.GRAPPLE };
+    return scheduleUniversalAction(unitA, UNIVERSAL_ACTIONS.GRAPPLE, unitB, options);
+  }
+
+  function performGrapple(unitA, unitB, options = {}) {
+    if (options.resolveImmediately === true) {
+      if (!global.LuminousConditionRuntime?.grapple) return { applied: false, reason: "condition_runtime_unavailable" };
+      return global.LuminousConditionRuntime.grapple(unitA, unitB, options);
+    }
+    return scheduleGrapple(unitA, unitB, options);
+  }
+
   function runtimeFor(unit, options = {}) {
     const phase = phaseFor(options);
     const runtime = {
@@ -232,6 +273,9 @@
       availability(cost) { return availability(unit, cost, { ...options, phase }); },
       consume(cost) { return consume(unit, cost, { ...options, phase }); },
       schedule(payload, scheduleOptions = {}) { return scheduleAction(unit, payload, { ...options, ...scheduleOptions, phase }); },
+      canUseUniversalAction(actionId) { return canUseUniversalAction(unit, actionId, { ...options, phase }); },
+      scheduleUniversalAction(actionId, target, scheduleOptions = {}) { return scheduleUniversalAction(unit, actionId, target, { ...options, ...scheduleOptions, phase }); },
+      scheduleGrapple(target, scheduleOptions = {}) { return scheduleGrapple(unit, target, { ...options, ...scheduleOptions, phase }); },
     };
     Object.defineProperties(runtime, {
       action: { enumerable: true, get: () => snapshot(unit, { ...options, phase }).action },
@@ -251,6 +295,7 @@
 
   const api = Object.freeze({
     ACTION_COSTS,
+    UNIVERSAL_ACTIONS,
     PHASES,
     normalizePhase,
     phaseFor,
@@ -270,6 +315,10 @@
     resetTurnResources,
     isCounterSkill,
     consumeCounterReaction,
+    canUseUniversalAction,
+    scheduleUniversalAction,
+    scheduleGrapple,
+    performGrapple,
     runtimeFor,
   });
 

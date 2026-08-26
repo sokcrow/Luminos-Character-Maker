@@ -24,6 +24,10 @@ on:
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
       - "js/universal-action-economy.js"
+      - "js/core-condition-runtime.js"
+      - "js/core-condition-combat-bridge.js"
+      - "js/core-condition-theatre-bridge.js"
+      - "js/exhaustion-engine.js"
       - "js/trait-standardization-runtime.js"
       - "js/player-trait-runtime.js"
       - "js/trait-player-tray.js"
@@ -48,6 +52,9 @@ on:
       - "tests/universal_modifier_engine.spec.js"
       - "tests/universal_speed_runtime.spec.js"
       - "tests/universal_action_economy.spec.js"
+      - "tests/core_conditions.spec.js"
+      - "tests/core_condition_integration.spec.js"
+      - "tests/exhaustion_engine.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
       - "tests/firebase_shared_trait_rules.spec.js"
       - "tests/status_builder.spec.js"
@@ -97,6 +104,10 @@ jobs:
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
           node --check js/universal-action-economy.js
+          node --check js/core-condition-runtime.js
+          node --check js/core-condition-combat-bridge.js
+          node --check js/core-condition-theatre-bridge.js
+          node --check js/exhaustion-engine.js
           node --check js/trait-standardization-runtime.js
           node --check js/player-trait-runtime.js
           node --check js/trait-player-tray.js
@@ -119,6 +130,9 @@ jobs:
           node --check tests/universal_modifier_engine.spec.js
           node --check tests/universal_speed_runtime.spec.js
           node --check tests/universal_action_economy.spec.js
+          node --check tests/core_conditions.spec.js
+          node --check tests/core_condition_integration.spec.js
+          node --check tests/exhaustion_engine.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
           node --check tests/firebase_shared_trait_rules.spec.js
           node --check tests/status_builder.spec.js
@@ -144,6 +158,9 @@ jobs:
           tests/universal_modifier_engine.spec.js
           tests/universal_speed_runtime.spec.js
           tests/universal_action_economy.spec.js
+          tests/core_conditions.spec.js
+          tests/core_condition_integration.spec.js
+          tests/exhaustion_engine.spec.js
           tests/trait_standardization_review_fixes.spec.js
           tests/firebase_shared_trait_rules.spec.js
           tests/status_builder.spec.js
