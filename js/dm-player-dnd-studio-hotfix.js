@@ -92,9 +92,60 @@
     global.LuminousDmPlayerProxyMilestoneSync = true;
   }
 
+  const DM_ABILITIES = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
+  const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const signed = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
+
+  function syncDmRacialStatBadges() {
+    const studio = global.LuminousDmPlayerDndStudio;
+    if (!doc || !studio?.effectiveAbilityScore || !studio?.resolveRacialStatBonuses) return false;
+    const bonuses = studio.resolveRacialStatBonuses() || {};
+    let found = false;
+
+    DM_ABILITIES.forEach((abilityId) => {
+      const input = doc.getElementById(`dm-player-stat-${abilityId}`);
+      if (!input) return;
+      found = true;
+      const host = input.closest?.(".dm-player-dnd-ability") || input.parentElement;
+      if (!host) return;
+      let badge = host.querySelector?.(`[data-racial-effective-stat="${abilityId}"]`);
+      if (!badge) {
+        badge = doc.createElement("small");
+        badge.dataset.racialEffectiveStat = abilityId;
+        badge.style.cssText = "display:block;grid-column:1/-1;margin-top:2px;font-size:10px;letter-spacing:.06em;color:#d6b56d;opacity:.95;";
+        host.appendChild(badge);
+      }
+      const base = Number.parseInt(input.value, 10);
+      const effective = Number(studio.effectiveAbilityScore(abilityId));
+      const bonus = numberOr(bonuses?.[abilityId], 0);
+      const baseText = Number.isFinite(base) ? base : 10;
+      const effectiveText = Number.isFinite(effective) ? effective : baseText + bonus;
+      badge.textContent = `BASE ${baseText} → EFFECTIVE ${effectiveText} · RACE ${signed(bonus)}`;
+      input.dataset.effectiveScore = String(effectiveText);
+      input.dataset.racialBonus = String(bonus);
+      input.title = `Base ${baseText} · Racial ${signed(bonus)} · Effective ${effectiveText}`;
+    });
+    return found;
+  }
+
+  function installDmRacialStatVisibility() {
+    if (!doc || global.LuminousDmRacialStatVisibility) return;
+    const refresh = () => global.setTimeout?.(syncDmRacialStatBadges, 0);
+    doc.addEventListener("input", (event) => {
+      if (event.target?.id?.startsWith?.("dm-player-stat-")) refresh();
+    }, true);
+    doc.addEventListener("change", (event) => {
+      const id = String(event.target?.id || "");
+      if (id.startsWith("dm-player-stat-") || ["dm-player-build-race", "dm-player-build-subrace", "canonical-racial-stat-choice-1", "canonical-racial-stat-choice-2", "existing-racial-stat-choice-1", "existing-racial-stat-choice-2", "dm-player-dnd-select"].includes(id)) refresh();
+    }, true);
+    global.setInterval?.(syncDmRacialStatBadges, 500);
+    global.LuminousDmRacialStatVisibility = Object.freeze({ sync: syncDmRacialStatBadges });
+  }
+
   ensureRacialIntegrationAssets();
   ensureClassMilestoneAssets();
   installPlayerProxyMilestoneSync();
+  installDmRacialStatVisibility();
 
   if (!global?.Node || global.LuminousDmPlayerDndObserverHotfix) return;
 
