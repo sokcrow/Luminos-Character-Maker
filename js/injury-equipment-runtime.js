@@ -64,6 +64,16 @@
     return String(item?.key || item?.id || item?.itemId || item?.item_id || fallback || "").trim();
   }
 
+  function itemIdentityCandidates(item, fallback = null) {
+    return new Set([
+      fallback,
+      item?.key,
+      item?.id,
+      item?.itemId,
+      item?.item_id,
+    ].map((value) => String(value ?? "").trim()).filter(Boolean));
+  }
+
   function objectValuesWithKeys(container) {
     if (!container) return [];
     if (Array.isArray(container)) return container.map((item, index) => ({ key: itemIdentity(item, index), item }));
@@ -72,13 +82,14 @@
   }
 
   function clearOriginalEquippedState(unit, droppedItem) {
-    const wanted = itemIdentity(droppedItem);
-    if (!wanted || !unit) return false;
+    const wanted = itemIdentityCandidates(droppedItem);
+    if (!wanted.size || !unit) return false;
     let changed = false;
     [unit.equipment, unit.activeInventory, unit.inventory, unit.inventario, unit.items].forEach((container) => {
       objectValuesWithKeys(container).forEach(({ key, item }) => {
         if (!item || typeof item !== "object") return;
-        if (itemIdentity(item, key) !== wanted) return;
+        const original = itemIdentityCandidates(item, key);
+        if (![...original].some((identity) => wanted.has(identity))) return;
         item.equipped = false;
         item.equipped_slot = null;
         item.equippedSlot = null;
