@@ -25,7 +25,7 @@ test("tooltip del Mod muestra solo fuentes distintas de cero", () => {
 
 test("tooltip conserva Mod actual 0 pero oculta todas las fuentes en 0", () => {
   const parts = tooltipRuntime.modifierContributions({ baseScore: 10 });
-  expect(tooltipRuntime.buildModifierTooltip(parts)).toBe("Mod actual: +0");
+  expect(tooltipRuntime.buildModifierTooltip(parts)).toBe("Mod actual: 0");
 });
 
 test("bonos de Score se convierten a aporte real del Mod sin doble conteo", () => {
