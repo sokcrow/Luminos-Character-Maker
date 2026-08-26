@@ -172,6 +172,8 @@
   if (typeof require === "function") {
     try { if (!global.LuminousExhaustionEngine) require("./exhaustion-engine.js"); } catch (_) {}
     try { if (!global.LuminousConditionRuntime) require("./core-condition-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousConditionCombatBridge) require("./core-condition-combat-bridge.js"); } catch (_) {}
+    try { if (!global.LuminousConditionTheatreBridge) require("./core-condition-theatre-bridge.js"); } catch (_) {}
   }
 
   function loadScript(id, src) {
@@ -195,6 +197,8 @@
   }
 
   ensureCoreConditionRuntime();
+  if (global.document && !global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
+  if (global.document && !global.LuminousConditionTheatreBridge) loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
   if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
