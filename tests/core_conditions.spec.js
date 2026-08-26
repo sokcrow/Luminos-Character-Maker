@@ -93,14 +93,16 @@ test('Charmed lowers Unit A CHA Threshold and blocks harmful targeting of the ch
   statusEngine.applyStatus(charmed, 'charmed', { sourceUnitId: 'source' });
   expect(conditionRuntime.thresholdModifier(source, { kind: 'skill', abilityId: 'cha', skillId: 'persuasion' }, { target: charmed })).toBe(-3);
   expect(conditionRuntime.canTarget(charmed, source, { type: 'attack' }).allowed).toBe(false);
+  expect(conditionRuntime.canTarget(charmed, source, { type: 'Normal' }).allowed).toBe(false);
   expect(conditionRuntime.canTarget(charmed, source, { type: 'skill', harmful: false }).allowed).toBe(true);
 });
 
-test('Invisible blocks Weight 3 or less and allows Weight 4+', () => {
+test('Invisible blocks CombatEngine attackWeight 3 or less and allows Weight 4+', () => {
   const attacker = unit('attacker');
   const target = unit('target');
   statusEngine.applyStatus(target, 'invisible');
-  expect(conditionRuntime.canTarget(attacker, target, { type: 'attack', weight: 3 }).allowed).toBe(false);
+  expect(conditionRuntime.canTarget(attacker, target, { type: 'attack', attackWeight: 3 }).allowed).toBe(false);
+  expect(conditionRuntime.canTarget(attacker, target, { type: 'attack', attackWeight: 4 }).allowed).toBe(true);
   expect(conditionRuntime.canTarget(attacker, target, { type: 'attack', weight: 4 }).allowed).toBe(true);
 });
 
@@ -146,9 +148,11 @@ test('Prone removes itself on Turn Start', () => {
   expect(statusEngine.hasStatus(actor, 'prone')).toBe(false);
 });
 
-test('Frightened loses Count on a failed Turn End save and retreats from Count 0', () => {
+test('Frightened loses Count only on a resolved failed Turn End save', () => {
   const actor = unit('actor');
   statusEngine.applyStatus(actor, 'frightened', { sourceUnitId: 'source', data: { spellDC: 15 } });
+  conditionRuntime.turnEnd(actor, { resolveCheck: () => ({ pending: true, reason: 'missing_threshold' }) });
+  expect(statusEngine.getStatus(actor, 'frightened').count).toBe(5);
   conditionRuntime.turnEnd(actor, { resolveCheck: () => ({ passed: false }) });
   expect(statusEngine.getStatus(actor, 'frightened').count).toBe(4);
   statusEngine.applyStatus(actor, 'frightened', { mode: 'set', count: 0, sourceUnitId: 'source' });

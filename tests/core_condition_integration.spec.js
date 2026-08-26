@@ -11,8 +11,8 @@ function restoreGlobals(snapshot) {
   });
 }
 
-test('condition combat bridge enforces phases, poison damage, targeting, and action gates', () => {
-  const keys = ['CombatEngine', 'LuminousConditionRuntime', 'LuminousConditionCombatBridge', 'LuminousStatusEngine', 'CustomEvent', 'dispatchEvent'];
+test('condition combat bridge enforces phases, saves, poison damage, targeting, and action gates', () => {
+  const keys = ['CombatEngine', 'LuminousConditionRuntime', 'LuminousConditionCombatBridge', 'LuminousStatusEngine', 'CustomEvent', 'dispatchEvent', 'LuminousSpellcastingRuntime'];
   const previous = snapshotGlobals(keys);
   const events = [];
   const phases = [];
@@ -46,12 +46,19 @@ test('condition combat bridge enforces phases, poison damage, targeting, and act
       resolveUnilateralWithCounter() { return { resolved: true }; },
       resolveStandardClash() { return { resolved: true }; },
       resolveActionSlot() { return { handled: false }; },
-      calculateDndBonus() { return 0; },
       getCoinProbability() { return 100; },
     };
 
     const bridge = require('../js/core-condition-combat-bridge.js');
     expect(bridge.install()).toBe(true);
+
+    const source = { id: 'source', spellDC: 14 };
+    const victim = { id: 'victim', stats: { constitucion: 10 }, hp: 20 };
+    const sourceDcSave = bridge.resolveConditionCheck(global.CombatEngine, {
+      type: 'save_check', unit: victim, sourceUnitId: 'source', check: { kind: 'save', abilityId: 'con', threshold: NaN },
+    }, [source, victim], { rng: () => 0 });
+    expect(sourceDcSave.threshold).toBe(14);
+    expect(sourceDcSave.passed).toBe(true);
 
     const units = [{ id: 'a', hp: 20, invisible: true }, { id: 'b', hp: 20 }];
     expect(global.CombatEngine.triggerPhase('[Round Start]', units)).toBe('[Round Start]');

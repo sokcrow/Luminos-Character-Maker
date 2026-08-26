@@ -68,7 +68,7 @@
   }
 
   function proficiencyBonus(unit = {}) {
-    const explicit = unit?.dndStats?.proficiencyBonus ?? unit?.proficiencyBonus ?? unit?.proficiency_bonus;
+    const explicit = unit?.dndStats?.proficiencyBonus ?? unit?.proficiencyBonus ?? unit?.proficiency_bonus ?? unit?.proficiency;
     if (Number.isFinite(Number(explicit))) return Number(explicit);
     return Math.ceil(Math.max(0, numberOr(unit?.level ?? unit?.characterBuild?.calculatedAtLevel, 1)) / 20);
   }
@@ -81,6 +81,12 @@
     return 0;
   }
 
+  function legacyProficiencies(unit = {}) {
+    return Array.isArray(unit?.dndStats?.proficiencies)
+      ? unit.dndStats.proficiencies.map((value) => String(value).toUpperCase())
+      : [];
+  }
+
   function fallbackCheckBonus(unit, check = {}) {
     const abilityId = normalizeId(check.abilityId || check.ability || "str");
     const score = scoreFor(unit, abilityId);
@@ -88,15 +94,16 @@
     const kind = normalizeId(check.kind || check.checkType || "ability");
     const skillId = normalizeId(check.skillId || check.skill || "");
     const pb = proficiencyBonus(unit);
+    const legacy = legacyProficiencies(unit);
     if (kind === "skill" && skillId) {
       const stored = unit?.dndSkills?.[skillId]?.value;
       if (Number.isFinite(Number(stored))) return Number(stored);
       const prof = unit?.skillProficiency?.[skillId] ?? unit?.dndSkills?.[skillId]?.proficiency ?? unit?.dndSkills?.[skillId]?.proficiencyState;
-      bonus += Math.floor(pb * proficiencyMultiplier(prof));
+      if (legacy.includes(skillId.toUpperCase())) bonus += pb;
+      else bonus += Math.floor(pb * proficiencyMultiplier(prof));
     } else if (["save", "saving_throw", "savingthrow"].includes(kind)) {
       const code = ABILITY_CODES[abilityId] || String(abilityId).toUpperCase();
-      const proficiencies = Array.isArray(unit?.dndStats?.proficiencies) ? unit.dndStats.proficiencies.map((value) => String(value).toUpperCase()) : [];
-      if (proficiencies.includes(`${code}_SAVE`)) bonus += pb;
+      if (legacy.includes(`${code}_SAVE`)) bonus += pb;
       else {
         const prof = unit?.saveProficiency?.[abilityId] ?? unit?.savingThrowProficiency?.[abilityId];
         bonus += Math.floor(pb * proficiencyMultiplier(prof));
@@ -108,14 +115,33 @@
     return bonus;
   }
 
-  function checkBonus(engine, unit, check = {}) {
-    const abilityId = normalizeId(check.abilityId || check.ability || "str");
-    const code = ABILITY_CODES[abilityId] || String(abilityId).toUpperCase();
-    const skillId = check.skillId || check.skill || null;
-    if (unit?.dndStats && typeof engine?.calculateDndBonus === "function") {
-      try { return numberOr(engine.calculateDndBonus(unit, code, skillId), fallbackCheckBonus(unit, check)); } catch (_) {}
-    }
+  function checkBonus(_engine, unit, check = {}) {
     return fallbackCheckBonus(unit, check);
+  }
+
+  function sourceSpellDc(source = {}) {
+    const direct = [
+      source.spellDC, source.spellDc, source.spellSaveDC, source.spell_save_dc,
+      source.spellcasting?.spellDC, source.spellcasting?.spellDc, source.spellcasting?.saveDC,
+      source.combatStats?.spellDC, source.dndStats?.spellDC, source.dndStats?.spellSaveDC,
+    ].map(Number).find(Number.isFinite);
+    if (Number.isFinite(direct)) return direct;
+
+    const spellcasting = global.LuminousSpellcastingRuntime;
+    const classes = Array.isArray(source.classes)
+      ? source.classes
+      : (Array.isArray(source.characterBuild?.classes) ? source.characterBuild.classes : []);
+    if (spellcasting?.resolveSpellcasting) {
+      for (const entry of classes) {
+        const classId = normalizeId(entry?.id || entry?.classId || entry?.class_id || entry?.name || entry);
+        if (!classId) continue;
+        try {
+          const resolved = spellcasting.resolveSpellcasting(source, classId, {}, {});
+          if (Number.isFinite(Number(resolved?.spellDC))) return Number(resolved.spellDC);
+        } catch (_) {}
+      }
+    }
+    return NaN;
   }
 
   function rollCheck(engine, unit, check = {}, options = {}) {
@@ -142,9 +168,13 @@
   function resolveConditionCheck(engine, request, units, options = {}) {
     if (!request || typeof request !== "object") return { pending: true, reason: "invalid_request" };
     if (request.type === "save_check") {
-      const threshold = Number(request?.check?.threshold);
-      if (!Number.isFinite(threshold)) return { pending: true, reason: "missing_threshold" };
-      return rollCheck(engine, request.unit, request.check, options);
+      const source = findUnitById(units, request.sourceUnitId);
+      const check = { ...(request.check || {}) };
+      let threshold = Number(check.threshold);
+      if (!Number.isFinite(threshold) && source) threshold = sourceSpellDc(source);
+      if (!Number.isFinite(threshold)) return { pending: true, reason: "missing_threshold", source };
+      check.threshold = threshold;
+      return { ...rollCheck(engine, request.unit, check, options), source };
     }
     if (request.type === "opposed_check") {
       const source = findUnitById(units, request.sourceUnitId);
@@ -314,6 +344,7 @@
     POISON_TYPES,
     isPoisonDamage,
     fallbackCheckBonus,
+    sourceSpellDc,
     rollCheck,
     resolveConditionCheck,
     resolvePerceptionChecks,

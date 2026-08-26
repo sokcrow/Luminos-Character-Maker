@@ -168,7 +168,7 @@
   }
 
   function isHarmfulSkill(skill = {}) {
-    return skill.harmful === true || skill.isHarmful === true || skill.dealsDamage === true || ["attack", "damage", "harmful"].includes(skillFamily(skill));
+    return skill.harmful === true || skill.isHarmful === true || skill.dealsDamage === true || ["attack", "normal", "melee", "ranged", "damage", "harmful"].includes(skillFamily(skill));
   }
 
   function canTarget(unit, target, skill = {}, options = {}) {
@@ -178,7 +178,7 @@
     const frightened = status(unit, "frightened");
     if (frightened && statusSourceMatches(frightened, target)) return { allowed: false, reason: "frightened_source_untargetable" };
     if (has(target, "invisible")) {
-      const weight = Math.max(1, numberOr(skill.weight ?? skill.skillWeight ?? skill.skill_weight, 1));
+      const weight = Math.max(1, numberOr(skill.weight ?? skill.skillWeight ?? skill.skill_weight ?? skill.attackWeight ?? skill.attack_weight, 1));
       if (weight <= 3 && options.ignoreInvisible !== true) return { allowed: false, reason: "invisible_weight_3_or_less", weight };
     }
     return { allowed: true, reason: null };
@@ -281,7 +281,7 @@
   }
 
   function sourceSpellDc(entry) {
-    return numberOr(entry?.data?.spellDC ?? entry?.data?.spellDc ?? entry?.data?.sourceSpellDC, NaN);
+    return numberOr(entry?.data?.spellDC ?? entry?.data?.spellDc ?? entry?.data?.sourceSpellDC ?? entry?.data?.sourceSaveDC ?? entry?.data?.saveDC, NaN);
   }
 
   function saveRequest(unit, statusId, abilityId, entry) {
@@ -328,7 +328,7 @@
       const result = resolver ? resolver(request) : null;
       request.result = result;
       if (result?.passed === true || result === true) statusEngine()?.removeStatus?.(unit, "frightened", { from: "self", ignoreProtection: true });
-      else if (resolver) statusEngine()?.applyStatus?.(unit, "frightened", { mode: "set", count: Math.max(0, numberOr(frightened.count, 5) - 1), duration: frightened.duration, sourceUnitId: frightened.sourceUnitId, data: frightened.data });
+      else if (result?.passed === false || result === false) statusEngine()?.applyStatus?.(unit, "frightened", { mode: "set", count: Math.max(0, numberOr(frightened.count, 5) - 1), duration: frightened.duration, sourceUnitId: frightened.sourceUnitId, data: frightened.data });
       outcomes.push(request);
       if (!resolver) emit("luminous:condition-check-requested", request);
     }
