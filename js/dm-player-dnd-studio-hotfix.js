@@ -12,6 +12,7 @@
       ["trait-engine-script", "js/trait-engine.js", "trait-engine"],
       ["racial-trait-catalog-script", "js/racial-trait-catalog.js", "racial-traits"],
       ["canonical-racial-traits-script", "js/canonical-racial-traits.js", "racial-traits"],
+      ["half-demon-racial-traits-script", "js/half-demon-racial-traits.js", "racial-traits"],
     ];
 
     assets.forEach(([id, src, engine]) => {
