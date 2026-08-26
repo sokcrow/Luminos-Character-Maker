@@ -2,13 +2,13 @@
   "use strict";
 
   const doc = global.document;
+  global.LuminousDmPlayerDndStudioOwnsRacialStats = true;
 
   function ensureRacialIntegrationAssets() {
     if (!doc?.head) return;
     const assets = [
       ["canonical-race-integration-script", "js/canonical-race-integration.js", "racial-stats"],
       ["existing-racial-stat-integration-script", "js/existing-racial-stat-integration.js", "racial-stats"],
-      ["racial-stat-preview-bridge-script", "js/racial-stat-preview-bridge.js", "racial-stats"],
       ["trait-engine-script", "js/trait-engine.js", "trait-engine"],
       ["racial-trait-catalog-script", "js/racial-trait-catalog.js", "racial-traits"],
       ["canonical-racial-traits-script", "js/canonical-racial-traits.js", "racial-traits"],
