@@ -25,11 +25,26 @@ function barbarian(level = 100) {
   };
 }
 
-test("Armorless Defense resolves Defensive Level universally and removes its Stagger Threshold only once", () => {
-  const character = barbarian(100);
+test("Armorless Defense snapshots Guard from Barbarian Class Level and no longer modifies Defensive Level", () => {
+  const character = barbarian(30);
+  character.level = 100;
+  character.classes = [
+    { classId: "barbarian", levels: 30 },
+    { classId: "wizard", levels: 70 },
+  ];
   character.staggerThresholds = [70, 40];
   const trait = catalog.getDefinition("armorless_defense");
   const state = engine.createState();
+
+  engine.dispatchCombatEvent("encounter_start", {
+    character,
+    self: character,
+    traits: [trait],
+    state,
+    equipment: { armorEquipped: false },
+  });
+
+  expect(character.guard).toMatchObject({ powerBonus: 34, shieldPercent: 15 });
 
   const firstSnapshot = modifiers.resolveCharacterSnapshot({
     unit: character,
@@ -43,10 +58,19 @@ test("Armorless Defense resolves Defensive Level universally and removes its Sta
     traits: [trait],
     context: "combat",
   });
-  expect(firstSnapshot.defensiveLevel).toBe(64);
-  expect(secondSnapshot.defensiveLevel).toBe(64);
+  expect(firstSnapshot.defensiveLevel).toBe(60);
+  expect(secondSnapshot.defensiveLevel).toBe(60);
   expect(character.combatStats.defensiveLevel).toBe(60);
 
+  engine.dispatchCombatEvent("encounter_start", {
+    character,
+    self: character,
+    traits: [trait],
+    state,
+    equipment: { armorEquipped: false },
+  });
+  expect(character.guard).toMatchObject({ powerBonus: 34, shieldPercent: 15 });
+
   engine.dispatchTrait(trait, "passive", {
     context: "combat",
     character,
@@ -62,6 +86,39 @@ test("Armorless Defense resolves Defensive Level universally and removes its Sta
     equipment: { armorEquipped: false },
   }, state);
   expect(character.staggerThresholds).toEqual([70]);
+
+  engine.dispatchCombatEvent("encounter_start", {
+    character,
+    self: character,
+    traits: [trait],
+    state,
+    equipment: { armorEquipped: true },
+  });
+  expect(character.guard).toMatchObject({ powerBonus: 0, shieldPercent: 0 });
+});
+
+test("Barbarian class scaling ignores total Character Level and Offensive Level", () => {
+  const character = barbarian(45);
+  character.level = 100;
+  character.classes = [
+    { classId: "barbarian", levels: 45 },
+    { classId: "wizard", levels: 55 },
+  ];
+  character.combatStats.offensiveLevel = 100;
+
+  const rage = catalog.getDefinition("rage");
+  const rageVars = engine.buildVariables(character, {}, rage);
+  const rageDamage = rage.rules.find((rule) => rule.channel === "damage_dealt_multiplier");
+  const rageWrathPower = rage.rules.find((rule) => rule.channel === "final_power");
+  expect(rageVars.Level).toBe(100);
+  expect(rageVars.ClassLevel).toBe(45);
+  expect(rageVars.OffensiveLevel).toBe(100);
+  expect(engine.evaluateFormula(rageDamage.formula, rageVars)).toBe(45);
+  expect(engine.evaluateFormula(rageWrathPower.formula, rageVars)).toBe(1);
+
+  const brutal = catalog.getDefinition("brutal_critical");
+  const brutalVars = engine.buildVariables(character, {}, brutal);
+  expect(engine.evaluateFormula(brutal.rules[0].formula, brutalVars)).toBe(22);
 });
 
 test("Wild Instincts grants STR Mod Haste Count once at Encounter Start", () => {
@@ -150,8 +207,14 @@ test("Additional Attack reuses the last Coin only once per eligible Skill", () =
   expect(fourCoinSkill.coins).toHaveLength(4);
 });
 
-test("Unstoppable Rage raises Threshold after every trigger and only Long Rest resets it", () => {
-  const character = barbarian(100);
+test("Unstoppable Rage uses Barbarian Class Level even when total level and Defensive Level are higher", () => {
+  const character = barbarian(55);
+  character.level = 100;
+  character.classes = [
+    { classId: "barbarian", levels: 55 },
+    { classId: "wizard", levels: 45 },
+  ];
+  character.combatStats.defensiveLevel = 100;
   const trait = catalog.getDefinition("unstoppable_rage");
   const state = engine.createState({ statuses: { rage: { id: "rage", count: 1 } } });
   const self = { hp: 0, maxHp: 300 };
@@ -162,7 +225,7 @@ test("Unstoppable Rage raises Threshold after every trigger and only Long Rest r
     self,
     traits: [trait],
     state,
-    DefensiveLevel: 60,
+    DefensiveLevel: 100,
     resolveCheck: ({ abilityId, threshold }) => {
       expect(abilityId).toBe("con");
       thresholds.push(threshold);
@@ -170,7 +233,7 @@ test("Unstoppable Rage raises Threshold after every trigger and only Long Rest r
     },
   });
   expect(thresholds).toEqual([10]);
-  expect(self.hp).toBe(60);
+  expect(self.hp).toBe(54);
   expect(state.counters.unstoppable_rage_threshold.value).toBe(15);
   expect(pass.outcomes.some((outcome) => outcome.type === "rule_check" && outcome.passed === true)).toBe(true);
 
@@ -180,7 +243,7 @@ test("Unstoppable Rage raises Threshold after every trigger and only Long Rest r
     self,
     traits: [trait],
     state,
-    DefensiveLevel: 60,
+    DefensiveLevel: 100,
     resolveCheck: ({ threshold }) => {
       thresholds.push(threshold);
       return { passed: false };
