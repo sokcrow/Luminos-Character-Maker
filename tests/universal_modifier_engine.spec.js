@@ -44,7 +44,7 @@ test("equipment contract recognizes legacy armorType and future equipment armor 
   expect(modifiers.resolveEquipment({})).toMatchObject({ armorEquipped: false, armorCategory: "none" });
 });
 
-test("Armorless Defense contributes to the universal defensive level only while unarmored", () => {
+test("Armorless Defense no longer modifies the universal defensive level", () => {
   const trait = catalog.getDefinition("armorless_defense");
   const unarmored = barbarian(100);
   const armored = { ...barbarian(100), armorType: "medium" };
@@ -62,7 +62,7 @@ test("Armorless Defense contributes to the universal defensive level only while 
     context: "combat",
   });
 
-  expect(freeMods.defensive_level).toBe(4);
+  expect(freeMods.defensive_level).toBe(0);
   expect(armoredMods.defensive_level).toBe(0);
 });
 
@@ -121,9 +121,9 @@ test("Rage, Brutal Critical and Fast Movement feed canonical modifier channels",
   const resolved = modifiers.resolveTraitModifiers({ unit: character, character, traits, skill, context: "combat" });
 
   expect(resolved.damage_taken_multiplier).toBe(5); // +5 means 50% reduction in CombatEngine's 10%-step channel.
-  expect(resolved.damage_dealt_multiplier).toBe(9); // Offensive Level 90 => +90% damage.
-  expect(resolved.final_power).toBe(3); // floor(90 / 30)
-  expect(resolved.crit_damage_multiplier).toBe(4.5); // floor(90 / 2)=45% => 4.5 x 10% steps.
+  expect(resolved.damage_dealt_multiplier).toBe(10); // Barbarian ClassLevel 100 => +100% damage.
+  expect(resolved.final_power).toBe(3); // floor(Barbarian ClassLevel 100 / 30)
+  expect(resolved.crit_damage_multiplier).toBe(5); // floor(Barbarian ClassLevel 100 / 2)=50% => 5 x 10% steps.
   expect(resolved.min_speed).toBe(1);
 });
 
@@ -137,7 +137,7 @@ test("universal snapshot preserves pre-combat Off/Def levels and layers trait mo
   });
 
   expect(snapshot.offensiveLevel).toBe(90);
-  expect(snapshot.defensiveLevel).toBe(64);
+  expect(snapshot.defensiveLevel).toBe(60);
   expect(snapshot.minSpeed).toBe(3);
   expect(snapshot.maxSpeed).toBe(6);
 });
