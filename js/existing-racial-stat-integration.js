@@ -23,6 +23,7 @@
     fairy: Object.freeze({ base: fixed({ dex: 1, cha: 1 }) }),
     aasimar: Object.freeze({ base: fixed({ cha: 2 }), protector: fixed({ wis: 1 }), scourge: fixed({ con: 1 }), fallen: fixed({ str: 1 }) }),
     tiefling: Object.freeze({ base: fixed({ cha: 2 }, { count: 1, amount: 1, allowed: Object.freeze(["int", "dex"]) }) }),
+    half_demon: Object.freeze({ base: fixed({ dex: 1, con: 1 }) }),
     warforged: Object.freeze({ base: fixed({ con: 2 }, { count: 1, amount: 1, exclude: Object.freeze(["con"]) }) }),
     felinae: Object.freeze({ base: fixed({ dex: 2 }, { count: 1, amount: 1, exclude: Object.freeze(["dex"]) }) }),
     half_dragon: Object.freeze({ base: fixed({ str: 1, cha: 1 }, { count: 1, amount: 1, exclude: Object.freeze(["str", "cha"]) }) }),
@@ -30,7 +31,7 @@
     moonfae: Object.freeze({ base: fixed({ dex: 2, cha: 1 }) }),
     yuan_ti_pureblood: Object.freeze({ base: fixed({ cha: 2 }, { count: 1, amount: 1, exclude: Object.freeze(["str"]) }) }),
   });
-  const SOURCE_UNRESOLVED = Object.freeze(["half_demon"]);
+  const SOURCE_UNRESOLVED = Object.freeze([]);
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
   const zeroBonuses = () => Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
