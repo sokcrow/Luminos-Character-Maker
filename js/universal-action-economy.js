@@ -21,6 +21,16 @@
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   const finiteInt = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : fallback;
 
+  function ensureEnvironmentRuntime() {
+    if (!global.document || global.LuminousEnvironmentRuntime) return;
+    if (global.document.getElementById("luminous-weather-environment-bootstrap")) return;
+    const script = global.document.createElement("script");
+    script.id = "luminous-weather-environment-bootstrap";
+    script.src = "js/weather-readonly-engine.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
   function normalizePhase(value) {
     const id = normalizeId(value);
     if (["pre_combat_planning", "planning", "planning_phase", "before_combat", "before_combat_phase"].includes(id)) return PHASES.PLANNING;
@@ -125,7 +135,6 @@
       state.reactionRemaining = Math.max(0, finiteInt(state.reactionRemaining, 0) - 1);
       return true;
     }
-    // Actions are never consumed as an immediate resource. They must be assigned to an Action Slot.
     return id !== ACTION_COSTS.ACTION;
   }
 
@@ -171,7 +180,7 @@
   function getPlannedAction(unit, slotIndex) {
     const state = ensureState(unit);
     const entry = state?.plannedActions?.[slotIndex];
-    return entry ? { ...entry, data: { ...(entry.data || {}) } } : null;
+    return entry ? { ...entry, data: { ...(entry.data || {}) } : null;
   }
 
   function takePlannedAction(unit, slotIndex, options = {}) {
@@ -292,5 +301,6 @@
   });
 
   global.LuminousActionEconomy = api;
+  ensureEnvironmentRuntime();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
