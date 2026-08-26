@@ -36,6 +36,7 @@
     ] },
   ]);
 
+  const ABILITY_BY_ID = Object.freeze(Object.fromEntries(ABILITIES.map((ability) => [ability.id, ability])));
   const PROFICIENCY_STATES = Object.freeze([
     { value: "none", label: "Not Proficient", multiplier: 0 },
     { value: "half", label: "Half Proficient", multiplier: 0.5 },
@@ -62,9 +63,88 @@
   const proficiencyBonus = (level) => Math.ceil(Math.max(0, numberOr(level, 0)) / 20);
   const formatSigned = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
   const formatCoef = (value) => numberOr(value, 0).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
 
   function rules() {
     return global.LuminousCharacterBuildRules || null;
+  }
+
+  function zeroRacialBonuses() {
+    return Object.fromEntries(ABILITIES.map((ability) => [ability.id, 0]));
+  }
+
+  function uniqueAbilityChoices(values) {
+    const out = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const id = normalizeId(value?.abilityId ?? value?.id ?? value);
+      if (ABILITY_BY_ID[id] && !out.includes(id)) out.push(id);
+    });
+    return out;
+  }
+
+  function racialStatChoicesFromForm() {
+    const existingBox = field("existing-racial-stat-choices");
+    const canonicalBox = field("canonical-racial-stat-choices");
+    const existingFields = [field("existing-racial-stat-choice-1"), field("existing-racial-stat-choice-2")];
+    const canonicalFields = [field("canonical-racial-stat-choice-1"), field("canonical-racial-stat-choice-2")];
+    const existingVisible = existingBox && existingBox.style.display !== "none" && existingFields.some(Boolean);
+    const canonicalVisible = canonicalBox && !canonicalBox.hidden && canonicalFields.some(Boolean);
+    const fields = existingVisible ? existingFields : canonicalVisible ? canonicalFields : [];
+    if (fields.length) return uniqueAbilityChoices(fields.map((node) => node?.value));
+    const saved = state.players[state.playerId]?.characterBuild?.racialStatChoices;
+    return uniqueAbilityChoices(saved || []);
+  }
+
+  function racialStatInput() {
+    const api = rules();
+    return {
+      raceId: String(field("dm-player-build-race")?.value || api?.SETTINGS?.defaultRaceId || "human").trim(),
+      raceSubtypeId: String(field("dm-player-build-subrace")?.value || "").trim() || null,
+      racialStatChoices: racialStatChoicesFromForm(),
+    };
+  }
+
+  function resolveRacialStatBonuses(input = racialStatInput()) {
+    const api = rules();
+    if (!api) return zeroRacialBonuses();
+    const raceId = normalizeId(input.raceId);
+    if (api.EXISTING_RACIAL_STAT_RULES?.[raceId] && typeof api.resolveExistingRacialStatBonuses === "function") {
+      return api.resolveExistingRacialStatBonuses(input);
+    }
+    if (api.RACIAL_STAT_RULES?.[raceId] && typeof api.resolveRacialStatBonuses === "function") {
+      return api.resolveRacialStatBonuses(input);
+    }
+    return zeroRacialBonuses();
+  }
+
+  function baseStatsFromForm() {
+    return Object.fromEntries(ABILITIES.map((ability) => [ability.key, integerOr(field(`dm-player-stat-${ability.id}`)?.value, 10)]));
+  }
+
+  function resolveEffectiveStats(baseStats = baseStatsFromForm(), input = racialStatInput()) {
+    const bonuses = resolveRacialStatBonuses(input);
+    return Object.fromEntries(ABILITIES.map((ability) => [ability.key, integerOr(baseStats?.[ability.key], 10) + numberOr(bonuses[ability.id], 0)]));
+  }
+
+  function effectiveAbilityScore(abilityId) {
+    const ability = ABILITY_BY_ID[abilityId];
+    if (!ability) return 10;
+    return integerOr(resolveEffectiveStats()[ability.key], 10);
+  }
+
+  function restoreRacialStatChoices(choices) {
+    const selected = uniqueAbilityChoices(choices || []);
+    const apply = () => {
+      ["canonical", "existing"].forEach((prefix) => {
+        const one = field(`${prefix}-racial-stat-choice-1`);
+        const two = field(`${prefix}-racial-stat-choice-2`);
+        if (one) one.value = selected[0] || "";
+        if (two) two.value = selected[1] || "";
+      });
+    };
+    apply();
+    global.setTimeout?.(apply, 0);
+    global.setTimeout?.(apply, 150);
   }
 
   function ensureBuildRules(callback) {
@@ -413,13 +493,16 @@
 
   function buildInput(level) {
     const api = rules();
+    const racial = racialStatInput();
+    const effective = resolveEffectiveStats(baseStatsFromForm(), racial);
     return {
       level,
-      constitution: integerOr(field("dm-player-stat-con")?.value, 10),
+      constitution: integerOr(effective.constitucion, 10),
       classes: collectClassChoices(),
       backgroundId: String(field("dm-player-build-background")?.value || "").trim(),
-      raceId: String(field("dm-player-build-race")?.value || api?.SETTINGS?.defaultRaceId || "").trim(),
-      raceSubtypeId: String(field("dm-player-build-subrace")?.value || "").trim() || null,
+      raceId: racial.raceId || api?.SETTINGS?.defaultRaceId || "",
+      raceSubtypeId: racial.raceSubtypeId,
+      racialStatChoices: racial.racialStatChoices,
       baseOffLevel: level,
       baseDefLevel: level,
     };
@@ -507,8 +590,9 @@
   }
 
   function updateSkillTotalsFromForm(level) {
+    const effectiveStats = resolveEffectiveStats();
     ABILITIES.forEach((ability) => {
-      const score = integerOr(field(`dm-player-stat-${ability.id}`)?.value, 10);
+      const score = integerOr(effectiveStats[ability.key], 10);
       const modifier = abilityModifier(score);
       ability.skills.forEach((skill) => {
         const profState = normalizeProficiencyState(field(`dm-player-skill-${skill.id}`)?.value);
@@ -588,6 +672,7 @@
     if (field("dm-player-build-background")) field("dm-player-build-background").value = String(build.backgroundId || "");
     if (field("dm-player-build-race")) field("dm-player-build-race").value = String(build.raceId || api.SETTINGS.defaultRaceId || "");
     renderRaceSubtypeOptions(String(build.raceSubtypeId || ""));
+    restoreRacialStatChoices(build.racialStatChoices || []);
   }
 
   function loadPlayer(playerId) {
@@ -601,9 +686,16 @@
 
     editor.hidden = false;
     field("dm-player-dnd-xp").value = String(Math.max(0, integerOr(player?.xp, 0)));
+    const savedRacialBonuses = player?.characterBuild?.breakdown?.racialStatBonuses;
     ABILITIES.forEach((ability) => {
-      const score = Number.parseInt(player?.stats?.[ability.key], 10);
-      field(`dm-player-stat-${ability.id}`).value = String(Number.isFinite(score) ? score : 10);
+      const storedBase = Number.parseInt(player?.baseStats?.[ability.key], 10);
+      const storedEffective = Number.parseInt(player?.stats?.[ability.key], 10);
+      const score = Number.isFinite(storedBase)
+        ? storedBase
+        : Number.isFinite(storedEffective)
+          ? storedEffective - (savedRacialBonuses ? numberOr(savedRacialBonuses?.[ability.id], 0) : 0)
+          : 10;
+      field(`dm-player-stat-${ability.id}`).value = String(score);
       field(`dm-player-prof-${ability.id}`).value = normalizeProficiencyState(player?.abilityProficiency?.[ability.id] ?? player?.abilityProficiency?.[ability.key]);
       ability.skills.forEach((skill) => {
         const select = field(`dm-player-skill-${skill.id}`);
@@ -646,10 +738,12 @@
       "characterBuild/backgroundId": buildCalculation.backgroundId,
       "characterBuild/raceId": buildCalculation.raceId,
       "characterBuild/raceSubtypeId": buildCalculation.raceSubtypeId,
+      "characterBuild/racialStatChoices": buildCalculation.racialStatChoices || [],
       "characterBuild/calculatedAtLevel": buildCalculation.level,
       "characterBuild/breakdown/classHpCoef": buildCalculation.classHpCoef,
       "characterBuild/breakdown/backgroundHpCoefBonus": buildCalculation.backgroundHpCoefBonus,
       "characterBuild/breakdown/raceHpCoefBonus": buildCalculation.raceHpCoefBonus,
+      "characterBuild/breakdown/racialStatBonuses": buildCalculation.racialStatBonuses || zeroRacialBonuses(),
       "characterBuild/breakdown/intrinsicHpCoef": buildCalculation.intrinsicHpCoef,
       "characterBuild/breakdown/weightedHpPer5": buildCalculation.weightedHpPer5,
       "characterBuild/breakdown/classOffModifier": buildCalculation.classOffMod,
@@ -670,6 +764,10 @@
 
     const xp = Math.max(0, integerOr(field("dm-player-dnd-xp")?.value, 0));
     const xpData = levelDataFromXp(xp);
+    const racial = racialStatInput();
+    const baseStats = baseStatsFromForm();
+    const effectiveStats = resolveEffectiveStats(baseStats, racial);
+    const racialBonuses = resolveRacialStatBonuses(racial);
     const buildCalculation = calculateBuildFromForm(xpData.level);
     if (buildCalculation && !buildCalculation.valid) {
       if (feedback) feedback.textContent = `BUILD INCOMPLETO: ${buildCalculation.errors.join(" ")}`;
@@ -699,6 +797,10 @@
       hp_coefficient: hpCoef,
       hp_max: hpMax,
       hp_actual: hpActual,
+      "characterBuild/raceId": racial.raceId,
+      "characterBuild/raceSubtypeId": racial.raceSubtypeId,
+      "characterBuild/racialStatChoices": racial.racialStatChoices,
+      "characterBuild/breakdown/racialStatBonuses": racialBonuses,
       "combatLevels/offensive/classModifier": offensive.classModifier,
       "combatLevels/offensive/raceModifier": 0,
       "combatLevels/offensive/dmModifier": offensive.dmModifier,
@@ -722,8 +824,8 @@
     if (buildCalculation?.valid) Object.assign(updates, buildPersistenceUpdates(buildCalculation));
 
     ABILITIES.forEach((ability) => {
-      const raw = Number.parseInt(field(`dm-player-stat-${ability.id}`)?.value, 10);
-      updates[`stats/${ability.key}`] = Number.isFinite(raw) ? raw : 10;
+      updates[`baseStats/${ability.key}`] = integerOr(baseStats[ability.key], 10);
+      updates[`stats/${ability.key}`] = integerOr(effectiveStats[ability.key], 10);
       updates[`abilityProficiency/${ability.id}`] = normalizeProficiencyState(field(`dm-player-prof-${ability.id}`)?.value);
       ability.skills.forEach((skill) => {
         updates[`skillProficiency/${skill.id}`] = normalizeProficiencyState(field(`dm-player-skill-${skill.id}`)?.value);
@@ -783,6 +885,12 @@
     levelDataFromXp,
     combatBreakdown,
     collectClassChoices,
+    racialStatChoicesFromForm,
+    racialStatInput,
+    resolveRacialStatBonuses,
+    baseStatsFromForm,
+    resolveEffectiveStats,
+    effectiveAbilityScore,
     calculateBuildFromForm,
     loadPlayer,
     savePlayerDnd,
