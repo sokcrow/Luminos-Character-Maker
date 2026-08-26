@@ -45,8 +45,8 @@ test("idiomas usan el formato canónico compatible con Theatre", () => {
   expect(engine).toContain("setLanguageKnowledge");
   expect(engine).toContain('updates[`${PATHS.players}/${options.playerId}/idiomas`]');
   expect(theatreEngine).toContain("profile.idiomas");
-  expect(theatreEngine).toContain("entry.porcentaje");
-  expect(theatreEngine).toContain("entry.comprendido");
+  expect(theatreEngine).toContain("value.porcentaje");
+  expect(theatreEngine).toContain("value.comprendido");
 });
 
 test("expresiones pueden crecer dinámicamente y se normalizan antes de persistir", () => {

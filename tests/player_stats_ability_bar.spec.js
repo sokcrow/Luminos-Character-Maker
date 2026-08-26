@@ -84,8 +84,8 @@ test("el editor unificado conserva los campos de combate del menú antiguo", () 
 });
 
 test("Offensive y Defensive Level están junto a Level y no dentro de Resistances", () => {
-  const resistanceStart = statsUi.indexOf('class="player-info-resistances"');
-  const resistanceEnd = statsUi.indexOf('<section class="player-stats-information-panel">', resistanceStart);
+  const resistanceStart = statsUi.indexOf("player-info-resistances");
+  const resistanceEnd = statsUi.indexOf("</section>", resistanceStart);
   const resistanceBlock = statsUi.slice(resistanceStart, resistanceEnd);
   expect(resistanceBlock).toContain("EQUIPMENT · PENDING");
   expect(resistanceBlock).not.toContain("data-player-offensive-level");

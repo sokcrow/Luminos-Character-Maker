@@ -7,6 +7,7 @@ const liveSync = read("js/character-manager-live-sync.js");
 const messagePolicy = read("js/theatre-message-policy.js");
 const languageCatalog = read("js/language-catalog-engine.js");
 const languagePolicy = read("js/theatre-language-policy.js");
+const specialLanguageAccess = read("js/theatre-special-language-access.js");
 const bondEngine = read("js/bond-engine.js");
 const socialStudio = read("js/character-manager-social-studio.js");
 const socialCss = read("css/character-manager-social.css");
@@ -69,11 +70,10 @@ test("el catálogo D&D se crea sin reemplazar idiomas existentes", () => {
   expect(languageCatalog).toContain('const ROOT = "campaña/teatro/idiomas"');
 });
 
-test("Dante es un idioma especial de distorsión con Tik Tok para quien no comprende", () => {
-  expect(languageCatalog).toContain("dante_clock");
-  expect(languageCatalog).toContain('tipo: "distortion"');
-  expect(languageCatalog).toContain("distortion: true");
-  expect(languageCatalog).toContain('texto_desconocido: "Tik... Tok..."');
+test("los idiomas especiales de distorsión conservan gate binario y texto desconocido", () => {
+  expect(specialLanguageAccess).toContain('kind === "distortion" ? "distortion" : "special"');
+  expect(specialLanguageAccess).toContain("distortion: true");
+  expect(specialLanguageAccess).toContain("texto_desconocido: unknownText");
   expect(theatreEngine).toContain("understandsDistortion(profile, languageId)");
   expect(theatreEngine).toContain('"Tik... Tok..."');
 });
@@ -82,7 +82,8 @@ test("Común es default y los selectores limitan idiomas por conocimiento del ha
   expect(languagePolicy).toContain('option.value = ""');
   expect(languagePolicy).toContain('definition?.nombre');
   expect(languagePolicy).toContain("known.porcentaje <= 0");
-  expect(languagePolicy).toContain("languageKnowledgeForActor");
+  expect(languagePolicy).toContain("function speakerKnowledge()");
+  expect(languagePolicy).toContain("managerRecord.actor.idiomas");
   expect(languagePolicy).toContain("player-theatre-language-select");
   expect(languagePolicy).toContain("next.idiomaId = languageId");
   expect(dm).toContain('src="js/theatre-language-policy.js"');
