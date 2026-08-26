@@ -50,6 +50,19 @@
   const playerData = () => global.datosJugador || {};
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
+  function ensureRacialStatRuntime() {
+    if (global.LuminousRacialStatRuntime) {
+      global.LuminousRacialStatRuntime.ensureDependencies?.();
+      return true;
+    }
+    if (!doc?.head || doc.getElementById("racial-stat-runtime-script")) return false;
+    const script = doc.createElement("script");
+    script.id = "racial-stat-runtime-script";
+    script.src = "js/racial-stat-runtime.js";
+    script.async = false;
+    doc.head.appendChild(script);
+    return false;
+  }
   const currentLevel = (data = playerData()) => Math.max(1, Math.trunc(numberOr(data?.level, 1)));
   function proficiencyBonus(level) {
     return Math.ceil(Math.max(0, numberOr(level, 0)) / 20);
@@ -72,6 +85,8 @@
     return Math.floor(proficiencyBonus(level) * definition.multiplier);
   }
   function abilityScore(ability, data = playerData()) {
+    const effective = global.LuminousRacialStatRuntime?.abilityScore?.(ability?.id, data);
+    if (Number.isFinite(Number(effective))) return Number(effective);
     const fromData = Number.parseInt(data?.stats?.[ability.key], 10);
     if (Number.isFinite(fromData)) return fromData;
     const fromInput = Number.parseInt(doc.getElementById(`stat-${ability.key}`)?.value, 10);
@@ -458,9 +473,11 @@
     return true;
   }
   function boot() {
+    ensureRacialStatRuntime();
     buildPanel();
     installCoinResultAdjustment();
     global.setInterval(() => {
+      ensureRacialStatRuntime();
       buildPanel();
       syncPanel();
       installCoinResultAdjustment();
@@ -471,6 +488,8 @@
   global.LuminousPlayerStats = Object.freeze({
     ABILITIES,
     PROFICIENCY_STATES,
+    abilityScore,
+    abilityRollMath,
     abilityModifier,
     proficiencyBonus,
     proficiencyContribution,
