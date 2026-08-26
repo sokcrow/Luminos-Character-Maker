@@ -6,7 +6,7 @@ on:
       - "js/character-build-rules.js"
       - "js/canonical-race-integration.js"
       - "js/existing-racial-stat-integration.js"
-      - "js/racial-stat-preview-bridge.js"
+      - "js/dm-player-dnd-studio.js"
       - "js/dm-player-dnd-studio-hotfix.js"
       - "js/trait-engine.js"
       - "js/racial-trait-catalog.js"
@@ -44,8 +44,8 @@ jobs:
         run: |
           node --check js/canonical-race-integration.js
           node --check js/existing-racial-stat-integration.js
-          node --check js/racial-stat-preview-bridge.js
           node --check js/canonical-racial-traits.js
+          node --check js/dm-player-dnd-studio.js
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check tests/racial_stat_integration.spec.js
 
