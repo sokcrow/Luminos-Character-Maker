@@ -2,7 +2,7 @@
   "use strict";
 
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const CATALOG_VERSION = 3;
+  const CATALOG_VERSION = 4;
 
   const RULE_TYPES = Object.freeze([
     "modifier",
@@ -51,7 +51,14 @@
       schemaVersion: 1,
       id: "armorless_defense",
       name: "Armorless Defense",
-      description: "Without Armor, gain Constitution Mod Defensive Level; at Encounter Start Guard gains Level% Shield for the encounter; remove 1 Stagger Threshold.",
+      description: "Without Armor, at Encounter Start gain (CON Mod + Barbarian Class Level) Guard. Guard gains +(Barbarian Class Level / 2)% Shield for the encounter. Remove 1 Stagger Threshold.",
+      display: {
+        playerDescription: "Without Armor, at Encounter Start gain {guardBonus}. Guard gains {shieldBonus} Shield for the encounter. Remove 1 Stagger Threshold.",
+        resolvedValues: [
+          { id: "guardBonus", label: "Guard", formula: "ConstitutionMod + ClassLevel", suffix: " Guard" },
+          { id: "shieldBonus", label: "Guard Shield Bonus", formula: "ClassLevel / 2", unit: "percent", signed: true },
+        ],
+      },
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
@@ -59,11 +66,30 @@
       rules: [
         {
           type: "modifier",
-          trigger: "passive",
+          trigger: "encounter_start",
           target: "self",
-          channel: "defensive_level",
-          mode: "add",
-          formula: "ConstitutionMod",
+          path: "guard.powerBonus",
+          mode: "set",
+          value: 0,
+          duration: "encounter",
+        },
+        {
+          type: "modifier",
+          trigger: "encounter_start",
+          target: "self",
+          path: "guard.shieldPercent",
+          mode: "set",
+          value: 0,
+          duration: "encounter",
+        },
+        {
+          type: "modifier",
+          trigger: "encounter_start",
+          target: "self",
+          path: "guard.powerBonus",
+          mode: "set",
+          formula: "ConstitutionMod + ClassLevel",
+          duration: "encounter",
           conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
         {
@@ -71,8 +97,8 @@
           trigger: "encounter_start",
           target: "self",
           path: "guard.shieldPercent",
-          mode: "add",
-          formula: "Level",
+          mode: "set",
+          formula: "ClassLevel / 2",
           duration: "encounter",
           conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
@@ -92,7 +118,7 @@
       schemaVersion: 1,
       id: "rage",
       name: "Rage",
-      description: "Spend a Quick Action to gain Rage. Uses scale with Barbarian ClassLevel, are always at least 1, and reset on Long Rest.",
+      description: "Spend a Quick Action to gain Rage. Uses and Rage scaling use Barbarian Class Level, not total Character Level or Offensive Level. Uses are always at least 1 and reset on Long Rest.",
       source: classSource,
       contexts: ["combat"],
       activation: {
@@ -131,7 +157,7 @@
           target: "self",
           channel: "damage_dealt_multiplier",
           mode: "add",
-          formula: "OffensiveLevel",
+          formula: "ClassLevel",
           unit: "percent",
           whileStatus: "rage",
         },
@@ -145,7 +171,7 @@
           target: "self",
           channel: "final_power",
           mode: "add",
-          formula: "floor(OffensiveLevel / 30)",
+          formula: "floor(ClassLevel / 30)",
           whileStatus: "rage",
           conditions: [{ any: [
             { path: "skill.affinity", operator: "eq", value: "Wrath" },
@@ -264,7 +290,13 @@
       schemaVersion: 1,
       id: "brutal_critical",
       name: "Brutal Critical",
-      description: "Deal floor(Offensive Level / 2)% additional Crit Damage.",
+      description: "Deal floor(Barbarian Class Level / 2)% additional Crit Damage.",
+      display: {
+        playerDescription: "Deal {critDamage} additional Crit Damage.",
+        resolvedValues: [
+          { id: "critDamage", label: "Additional Crit Damage", formula: "floor(ClassLevel / 2)", unit: "percent", signed: true },
+        ],
+      },
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
@@ -275,7 +307,7 @@
         target: "self",
         channel: "crit_damage_multiplier",
         mode: "add",
-        formula: "floor(OffensiveLevel / 2)",
+        formula: "floor(ClassLevel / 2)",
         unit: "percent",
       }],
     },
@@ -284,7 +316,13 @@
       schemaVersion: 1,
       id: "unstoppable_rage",
       name: "Unstoppable Rage",
-      description: "While Raging, at 0 HP make a CON Check starting at Threshold 10. On a pass regain floor(Defensive Level / 3)% HP. Every trigger raises this Trait Threshold by 5; only Long Rest resets it to 10.",
+      description: "While Raging, at 0 HP make a CON Check starting at Threshold 10. On a pass regain floor(Barbarian Class Level / 3)% HP. Every trigger raises this Trait Threshold by 5; only Long Rest resets it to 10.",
+      display: {
+        playerDescription: "While Raging, at 0 HP make a CON Check starting at Threshold 10. On a pass regain {recovery} HP. Every trigger raises this Trait Threshold by 5; only Long Rest resets it to 10.",
+        resolvedValues: [
+          { id: "recovery", label: "HP Recovery", formula: "floor(ClassLevel / 3)", unit: "percent" },
+        ],
+      },
       source: classSource,
       contexts: ["combat", "theatre"],
       activation: { type: "automatic", actionCost: "none" },
@@ -297,7 +335,7 @@
           abilityId: "con",
           threshold: { stateKey: "unstoppable_rage_threshold", initial: 10 },
           whileStatus: "rage",
-          onPass: [{ type: "modifier", target: "self", path: "hpPercent", mode: "regain", formula: "floor(DefensiveLevel / 3)" }],
+          onPass: [{ type: "modifier", target: "self", path: "hpPercent", mode: "regain", formula: "floor(ClassLevel / 3)" }],
         },
         {
           type: "counter",
@@ -554,6 +592,14 @@
     const script = document.createElement("script");
     script.id = "trait-standardization-runtime-script";
     script.src = "js/trait-standardization-runtime.js";
+    script.async = false;
+    document.head?.appendChild(script);
+  }
+
+  if (typeof document !== "undefined" && !global.LuminousBarbarianClassRuntime && !document.getElementById("barbarian-class-runtime-script")) {
+    const script = document.createElement("script");
+    script.id = "barbarian-class-runtime-script";
+    script.src = "js/barbarian-class-runtime.js";
     script.async = false;
     document.head?.appendChild(script);
   }
