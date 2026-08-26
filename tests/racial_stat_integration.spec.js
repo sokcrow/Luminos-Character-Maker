@@ -128,8 +128,24 @@ test("DOM save exposes effective racial Stats, persists base Stats, then restore
   for (const file of ["character-build-rules.js", "canonical-race-integration.js", "existing-racial-stat-integration.js", "racial-stat-preview-bridge.js"]) {
     await page.addScriptTag({ path: path.join(root, "js", file) });
   }
+  await page.evaluate(() => { document.getElementById("dm-player-build-race").value = "lizalin"; });
+  const diagnostic = await page.evaluate(() => {
+    const base = { fuerza: 10, destreza: 10, constitucion: 10, inteligencia: 10, sabiduria: 10, carisma: 10 };
+    const input = { raceId: "lizalin", raceSubtypeId: "", racialStatChoices: [] };
+    return {
+      canonical: Boolean(window.LuminousCharacterBuildRules?.__canonicalRaceIntegration),
+      existing: Boolean(window.LuminousCharacterBuildRules?.__existingRacialStatIntegration),
+      rule: Boolean(window.LuminousExistingRacialStatIntegration?.RACIAL_STAT_RULES?.lizalin),
+      direct: window.LuminousExistingRacialStatIntegration?.resolveEffectiveStats(base, input),
+      bind: window.LuminousExistingRacialStatIntegration?.bindDom?.(),
+      previewBind: window.LuminousRacialStatPreviewBridge?.bind?.(),
+    };
+  });
+  expect(diagnostic.canonical).toBe(true);
+  expect(diagnostic.existing).toBe(true);
+  expect(diagnostic.rule).toBe(true);
+  expect(diagnostic.direct).toMatchObject({ constitucion: 12, sabiduria: 11 });
   await page.evaluate(() => {
-    document.getElementById("dm-player-build-race").value = "lizalin";
     document.getElementById("dm-player-dnd-save").addEventListener("click", () => {
       window.__observedEffective = { con: Number(document.getElementById("dm-player-stat-con").value), wis: Number(document.getElementById("dm-player-stat-wis").value) };
     });
@@ -160,6 +176,15 @@ test("preview bridge exposes effective Stats during input without mutating the b
   for (const file of ["character-build-rules.js", "canonical-race-integration.js", "existing-racial-stat-integration.js", "racial-stat-preview-bridge.js"]) {
     await page.addScriptTag({ path: path.join(root, "js", file) });
   }
+  const diagnostic = await page.evaluate(() => {
+    const base = { fuerza: 10, destreza: 10, constitucion: 14, inteligencia: 10, sabiduria: 10, carisma: 10 };
+    const input = { raceId: "lizalin", raceSubtypeId: "", racialStatChoices: [] };
+    return {
+      direct: window.LuminousRacialStatPreviewBridge?.effectiveStats(base, input),
+      bind: window.LuminousRacialStatPreviewBridge?.bind?.(),
+    };
+  });
+  expect(diagnostic.direct).toMatchObject({ constitucion: 16, sabiduria: 11 });
   await page.evaluate(() => {
     document.getElementById("dm-player-stat-con").addEventListener("input", () => { window.__previewObserved = Number(document.getElementById("dm-player-stat-con").value); });
   });
