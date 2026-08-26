@@ -18,6 +18,8 @@ on:
       - "js/racial-trait-runtime-bridge.js"
       - "js/status-engine.js"
       - "js/statusManager.js"
+      - "js/elemental-status-runtime.js"
+      - "js/elemental-status-compat.js"
       - "js/combatEngine.js"
       - "js/universal-modifier-engine.js"
       - "js/universal-speed-runtime.js"
@@ -48,6 +50,11 @@ on:
       - "tests/universal_action_economy.spec.js"
       - "tests/trait_standardization_review_fixes.spec.js"
       - "tests/firebase_shared_trait_rules.spec.js"
+      - "tests/status_builder.spec.js"
+      - "tests/elemental_status_runtime.spec.js"
+      - "tests/elemental_status_builder.spec.js"
+      - "tests/fixed_damage_runtime.test.js"
+      - "tests/rest_engine.spec.js"
       - ".github/workflows/trait-engine.yml"
 
 permissions:
@@ -69,6 +76,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Chromium for UI regressions
+        run: npx playwright install --with-deps chromium
+
       - name: Check syntax
         run: |
           node --check js/trait-engine.js
@@ -81,6 +91,8 @@ jobs:
           node --check js/racial-trait-runtime-bridge.js
           node --check js/status-engine.js
           node --check js/statusManager.js
+          node --check js/elemental-status-runtime.js
+          node --check js/elemental-status-compat.js
           node --check js/combatEngine.js
           node --check js/universal-modifier-engine.js
           node --check js/universal-speed-runtime.js
@@ -109,6 +121,11 @@ jobs:
           node --check tests/universal_action_economy.spec.js
           node --check tests/trait_standardization_review_fixes.spec.js
           node --check tests/firebase_shared_trait_rules.spec.js
+          node --check tests/status_builder.spec.js
+          node --check tests/elemental_status_runtime.spec.js
+          node --check tests/elemental_status_builder.spec.js
+          node --check tests/fixed_damage_runtime.test.js
+          node --check tests/rest_engine.spec.js
 
       - name: Run Trait regressions
         run: >-
@@ -129,4 +146,9 @@ jobs:
           tests/universal_action_economy.spec.js
           tests/trait_standardization_review_fixes.spec.js
           tests/firebase_shared_trait_rules.spec.js
+          tests/status_builder.spec.js
+          tests/elemental_status_runtime.spec.js
+          tests/elemental_status_builder.spec.js
+          tests/fixed_damage_runtime.test.js
+          tests/rest_engine.spec.js
           --workers=1
