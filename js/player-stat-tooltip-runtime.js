@@ -92,11 +92,19 @@
     const racialRuntime = global.LuminousRacialStatRuntime;
     const normalized = normalizeAbility(ability);
     const runtimeBase = racialRuntime?.baseStats?.(data)?.[normalized.key];
-    let baseScore = Number.isFinite(Number(runtimeBase)) ? Number(runtimeBase) : numberOr(actualScore, 10);
-    let racialScoreBonus = mapAbilityValue(racialRuntime?.resolveBonuses?.(data) || data?.characterBuild?.breakdown?.racialStatBonuses, normalized);
+    const hasModernBase = Boolean(racialRuntime?.hasBaseStats?.(data));
+    const hasStoredRacialBreakdown = Boolean(racialRuntime?.hasStoredRacialBreakdown?.(data));
+    const storedRacialBonuses = data?.characterBuild?.breakdown?.racialStatBonuses;
+    let racialScoreBonus = mapAbilityValue(
+      (!hasModernBase && hasStoredRacialBreakdown ? storedRacialBonuses : null) || racialRuntime?.resolveBonuses?.(data) || storedRacialBonuses,
+      normalized,
+    );
+    const actual = numberOr(actualScore, 10);
+    let baseScore = hasModernBase && Number.isFinite(Number(runtimeBase))
+      ? Number(runtimeBase)
+      : (!hasModernBase && hasStoredRacialBreakdown ? actual - racialScoreBonus : (Number.isFinite(Number(runtimeBase)) ? Number(runtimeBase) : actual));
     let backgroundScoreBonus = optionalScoreBonus(data, "background", normalized);
     let traitsScoreBonus = optionalScoreBonus(data, "trait", normalized) || optionalScoreBonus(data, "traits", normalized);
-    const actual = numberOr(actualScore, baseScore + racialScoreBonus + backgroundScoreBonus + traitsScoreBonus);
 
     if (baseScore + racialScoreBonus + backgroundScoreBonus + traitsScoreBonus !== actual) {
       if (baseScore + racialScoreBonus + backgroundScoreBonus === actual) {
