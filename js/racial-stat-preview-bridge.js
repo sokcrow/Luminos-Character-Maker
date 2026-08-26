@@ -6,7 +6,7 @@
   const ABILITY_IDS = Object.freeze(["str", "dex", "con", "int", "wis", "cha"]);
   const ABILITY_KEYS = Object.freeze({ str: "fuerza", dex: "destreza", con: "constitucion", int: "inteligencia", wis: "sabiduria", cha: "carisma" });
   const doc = global.document || null;
-  let bound = false;
+  const boundTargets = new WeakSet();
 
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -37,11 +37,14 @@
 
   function effectiveStats(baseStats, input = currentInput()) {
     const rules = global.LuminousCharacterBuildRules;
-    if (!rules) return baseStats;
-    if (rules.EXISTING_RACIAL_STAT_RULES?.[input.raceId] && typeof rules.resolveExistingEffectiveStats === "function") {
+    const existing = global.LuminousExistingRacialStatIntegration;
+    if (existing?.RACIAL_STAT_RULES?.[input.raceId] && typeof existing.resolveEffectiveStats === "function") {
+      return existing.resolveEffectiveStats(baseStats, input);
+    }
+    if (rules?.EXISTING_RACIAL_STAT_RULES?.[input.raceId] && typeof rules.resolveExistingEffectiveStats === "function") {
       return rules.resolveExistingEffectiveStats(baseStats, input);
     }
-    if (typeof rules.resolveEffectiveStats === "function") return rules.resolveEffectiveStats(baseStats, input);
+    if (typeof rules?.resolveEffectiveStats === "function") return rules.resolveEffectiveStats(baseStats, input);
     return baseStats;
   }
 
@@ -53,30 +56,33 @@
     else Promise.resolve().then(restore);
   }
 
-  function bind() {
-    if (!doc || bound) return false;
-    doc.addEventListener("input", (event) => {
-      if (ABILITY_IDS.some((id) => event.target?.id === `dm-player-stat-${id}`)) exposeForCurrentEvent();
-    }, true);
-    doc.addEventListener("change", (event) => {
-      if ([
-        "dm-player-build-race",
-        "dm-player-build-subrace",
-        "canonical-racial-stat-choice-1",
-        "canonical-racial-stat-choice-2",
-        "existing-racial-stat-choice-1",
-        "existing-racial-stat-choice-2",
-      ].includes(event.target?.id)) exposeForCurrentEvent();
-    }, true);
-    bound = true;
+  function bindTarget(node, eventName) {
+    if (!node || boundTargets.has(node)) return false;
+    node.addEventListener(eventName, exposeForCurrentEvent, true);
+    boundTargets.add(node);
     return true;
+  }
+
+  function bind() {
+    if (!doc) return false;
+    let found = false;
+    ABILITY_IDS.forEach((id) => { found = bindTarget(field(`dm-player-stat-${id}`), "input") || found; });
+    [
+      "dm-player-build-race",
+      "dm-player-build-subrace",
+      "canonical-racial-stat-choice-1",
+      "canonical-racial-stat-choice-2",
+      "existing-racial-stat-choice-1",
+      "existing-racial-stat-choice-2",
+    ].forEach((id) => { found = bindTarget(field(id), "change") || found; });
+    return found;
   }
 
   const api = Object.freeze({ currentInput, readBaseStats, effectiveStats, exposeForCurrentEvent, bind });
   global.LuminousRacialStatPreviewBridge = api;
   bind();
   if (doc && typeof global.setInterval === "function") {
-    const retry = global.setInterval(() => { if (bind()) global.clearInterval(retry); }, 100);
+    const retry = global.setInterval(bind, 100);
     global.setTimeout?.(() => global.clearInterval(retry), 10000);
   }
 
