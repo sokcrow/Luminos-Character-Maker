@@ -13,7 +13,7 @@
 
   function getDefinition(statusId) {
     const id = normalizeId(statusId);
-    const found = registry()[id];
+    const found = registry()[id] || global.LuminousConditionRuntime?.getDefinition?.(id);
     if (found) return { id, icon: null, rules: [], ...clone(found) };
     return {
       id,
@@ -45,7 +45,7 @@
   function normalizeInstance(statusId, input = {}, existing = null) {
     const id = normalizeId(statusId);
     const definition = getDefinition(id);
-    const count = Math.max(0, numberOr(input.count, existing?.count ?? 1));
+    const count = Math.max(0, numberOr(input.count, existing?.count ?? definition.defaultCount ?? 1));
     const potency = numberOr(input.potency, existing?.potency ?? 0);
     const duration = normalizeId(input.duration || existing?.duration || "until_removed");
     const data = { ...(existing?.data || {}), ...(input.data || {}) };
@@ -67,16 +67,21 @@
   function applyStatus(unit, statusId, input = {}) {
     const id = normalizeId(statusId);
     if (!id) return null;
+    const conditionGate = global.LuminousConditionRuntime?.canApplyStatus?.(unit, id, input);
+    if (conditionGate?.allowed === false) return null;
     const store = ensureStore(unit);
     if (!store) return null;
     const existing = store[id] && typeof store[id] === "object" ? store[id] : null;
     const mode = normalizeId(input.mode || input.action || "gain");
     const definition = getDefinition(id);
-    let next = normalizeInstance(id, input, existing);
+    const normalizedInput = !existing && mode !== "set" && Number.isFinite(Number(definition.defaultCount))
+      ? { ...input, count: Number(definition.defaultCount) }
+      : input;
+    let next = normalizeInstance(id, normalizedInput, existing);
 
     if (existing && ["gain", "add", "inflict", "apply"].includes(mode)) {
-      next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(input.count, 1));
-      next.potency = numberOr(existing.potency, 0) + numberOr(input.potency, 0);
+      next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(normalizedInput.count, 1));
+      next.potency = numberOr(existing.potency, 0) + numberOr(normalizedInput.potency, 0);
     }
     if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
     store[id] = next;
@@ -164,6 +169,13 @@
   global.LuminousStatusEngine = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
+  if (typeof require === "function") {
+    try { if (!global.LuminousExhaustionEngine) require("./exhaustion-engine.js"); } catch (_) {}
+    try { if (!global.LuminousConditionRuntime) require("./core-condition-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousConditionCombatBridge) require("./core-condition-combat-bridge.js"); } catch (_) {}
+    try { if (!global.LuminousConditionTheatreBridge) require("./core-condition-theatre-bridge.js"); } catch (_) {}
+  }
+
   function loadScript(id, src) {
     if (!global.document || global.document.getElementById(id)) return null;
     const script = global.document.createElement("script");
@@ -174,6 +186,19 @@
     return script;
   }
 
+  function ensureCoreConditionRuntime() {
+    if (!global.document || global.LuminousConditionRuntime) return;
+    const loadConditions = () => {
+      if (!global.LuminousConditionRuntime) loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+    };
+    if (global.LuminousExhaustionEngine) return loadConditions();
+    const exhaustion = loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+    exhaustion?.addEventListener?.("load", loadConditions, { once: true });
+  }
+
+  ensureCoreConditionRuntime();
+  if (global.document && !global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
+  if (global.document && !global.LuminousConditionTheatreBridge) loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
   if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");

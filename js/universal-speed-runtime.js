@@ -65,6 +65,8 @@
   }
 
   function effectiveSpeed(unit, options = {}) {
+    const fixed = global.LuminousConditionRuntime?.fixedSpeedFor?.(unit);
+    if (fixed != null && Number.isFinite(Number(fixed))) return Number(fixed);
     const modifiers = options.modifierEngine || global.LuminousUniversalModifiers;
     const character = options.character || (isCurrentPlayerUnit(unit) ? currentPlayerCharacter() : unit) || unit || {};
     const traits = options.traits || traitsForUnit(unit);
