@@ -37,6 +37,7 @@
   const zeroBonuses = () => Object.fromEntries(ABILITY_IDS.map((id) => [id, 0]));
   let installedRules = null;
   let domBound = false;
+  const boundSaveButtons = new WeakSet();
 
   function choicesFrom(value) {
     const raw = Array.isArray(value) ? value : [];
@@ -218,23 +219,37 @@
       return true;
     });
   }
+
+  function handleSaveCapture() {
+    const input = currentInput();
+    if (!RACIAL_STAT_RULES[input.raceId]) return;
+    const base = readBaseStats();
+    writeStats(resolveEffectiveStats(base, input));
+    persistBase(base).catch((error) => console.error("Existing racial Stats persistence failed:", error));
+    const restore = () => writeStats(base);
+    if (typeof global.queueMicrotask === "function") global.queueMicrotask(restore);
+    else Promise.resolve().then(restore);
+  }
+
+  function bindSaveButton() {
+    const button = field("dm-player-dnd-save");
+    if (!button || boundSaveButtons.has(button)) return false;
+    button.addEventListener("click", handleSaveCapture, true);
+    boundSaveButtons.add(button);
+    return true;
+  }
+
   function bindDom() {
     const doc = global.document;
-    if (!doc || domBound) return false;
-    ensureChoiceUi(); refreshChoiceUi();
+    if (!doc) return false;
+    ensureChoiceUi();
+    refreshChoiceUi();
+    bindSaveButton();
+    if (domBound) return true;
     doc.addEventListener("change", (event) => {
       if (["dm-player-build-race", "dm-player-build-subrace"].includes(event.target?.id)) refreshChoiceUi();
       if (event.target?.id === "dm-player-dnd-select") global.queueMicrotask?.(() => hydrate(String(event.target.value || "").trim()).catch((error) => console.error("Existing racial Stats hydrate failed:", error)));
     });
-    doc.addEventListener("click", (event) => {
-      if (!event.target?.closest?.("#dm-player-dnd-save")) return;
-      const input = currentInput();
-      if (!RACIAL_STAT_RULES[input.raceId]) return;
-      const base = readBaseStats();
-      writeStats(resolveEffectiveStats(base, input));
-      persistBase(base).catch((error) => console.error("Existing racial Stats persistence failed:", error));
-      global.queueMicrotask?.(() => writeStats(base));
-    }, true);
     domBound = true;
     return true;
   }
