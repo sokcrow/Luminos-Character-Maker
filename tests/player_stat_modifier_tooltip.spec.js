@@ -45,6 +45,38 @@ test("bonos de Score se convierten a aporte real del Mod sin doble conteo", () =
   expect(tooltipRuntime.buildModifierTooltip(parts)).not.toContain("Background");
 });
 
+test("personajes legacy conservan el desglose racial cuando stats ya guarda el Score efectivo", () => {
+  const previousRacialRuntime = global.LuminousRacialStatRuntime;
+  const previousPlayerStats = global.LuminousPlayerStats;
+  try {
+    global.LuminousRacialStatRuntime = {
+      baseStats: () => ({ fuerza: 14 }),
+      hasBaseStats: () => false,
+      hasStoredRacialBreakdown: () => true,
+      resolveBonuses: () => ({ str: 2 }),
+      abilityScore: () => 14,
+    };
+    global.LuminousPlayerStats = {
+      abilityRollMath: () => ({ score: 14, proficiencyValue: 0 }),
+      abilityScore: () => 14,
+    };
+    const data = {
+      stats: { fuerza: 14 },
+      characterBuild: { breakdown: { racialStatBonuses: { str: 2 } } },
+    };
+    const parts = tooltipRuntime.playerAbilityBreakdown({ id: "str", key: "fuerza" }, data);
+    expect(parts.baseScore).toBe(12);
+    expect(parts.racial).toBe(1);
+    expect(parts.total).toBe(2);
+    expect(tooltipRuntime.buildModifierTooltip(parts)).toContain("+1 Racial");
+  } finally {
+    if (previousRacialRuntime === undefined) delete global.LuminousRacialStatRuntime;
+    else global.LuminousRacialStatRuntime = previousRacialRuntime;
+    if (previousPlayerStats === undefined) delete global.LuminousPlayerStats;
+    else global.LuminousPlayerStats = previousPlayerStats;
+  }
+});
+
 test("runtime se carga tanto en Player como DM desde el bridge compartido", () => {
   expect(splashRuntime).toContain('script.id = "player-stat-tooltip-runtime-script"');
   expect(splashRuntime).toContain('script.src = "js/player-stat-tooltip-runtime.js"');
