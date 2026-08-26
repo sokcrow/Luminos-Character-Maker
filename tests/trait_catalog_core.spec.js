@@ -35,7 +35,7 @@ test("core Trait catalog validates every declarative definition and rule contrac
   const validation = catalog.validateAll(engine);
   expect(validation.valid).toBe(true);
   expect(validation.errors).toEqual([]);
-  expect(catalog.CATALOG_VERSION).toBe(3);
+  expect(catalog.CATALOG_VERSION).toBe(4);
   expect(Object.keys(catalog.DEFINITIONS).sort()).toEqual([
     "additional_attack",
     "armorless_defense",
