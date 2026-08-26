@@ -81,7 +81,7 @@
   const RACIAL_STAT_RULES = Object.freeze({
     human: Object.freeze({
       base: Object.freeze({ fixed: Object.freeze({ str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }) }),
-      variant: Object.freeze({ fixed: Object.freeze({}), choose: Object.freeze({ count: 2, amount: 1 }) }),
+      variant: Object.freeze({ fixed: Object.freeze({}), choose: Object.freeze({ count: 2, amount: 1 }), replaceBase: true }),
     }),
     dwarf: Object.freeze({
       base: Object.freeze({ fixed: Object.freeze({ con: 2 }) }),
@@ -123,7 +123,8 @@
   const integerOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
 
   function loadBaseRules() {
-    if (global.LuminousCharacterBuildRules && !global.LuminousCharacterBuildRules.__canonicalRaceIntegration) return global.LuminousCharacterBuildRules;
+    if (global.LuminousCharacterBuildRules?.__canonicalRaceIntegration) return global.LuminousCharacterBuildRules;
+    if (global.LuminousCharacterBuildRules) return global.LuminousCharacterBuildRules;
     if (baseRules) return baseRules;
     if (typeof require === "function") {
       try { baseRules = require("./character-build-rules.js"); } catch (_) {}
@@ -169,8 +170,9 @@
         if (ABILITY_IDS.includes(id)) result[id] += Number(amount) || 0;
       });
     };
-    addFixed(raceRule.base?.fixed);
-    if (subtypeId && raceRule[subtypeId]) addFixed(raceRule[subtypeId].fixed);
+    const subtypeRule = subtypeId ? raceRule[subtypeId] : null;
+    if (!subtypeRule?.replaceBase) addFixed(raceRule.base?.fixed);
+    if (subtypeRule) addFixed(subtypeRule.fixed);
 
     const choose = choiceRuleFor(raceId, subtypeId);
     const explicitChoices = input.racialStatChoices ?? input.characterBuild?.racialStatChoices;
