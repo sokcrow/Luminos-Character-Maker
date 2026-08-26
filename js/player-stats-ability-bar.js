@@ -28,7 +28,7 @@
       { id: "deception", name: "Deception", spanish: "Engaño" },
       { id: "intimidation", name: "Intimidation", spanish: "Intimidación" },
       { id: "performance", name: "Performance", spanish: "Interpretación" },
-      { id: "persuasion", name: "Persuasión", spanish: "Persuasión" },
+      { id: "persuasion", name: "Persuasion", spanish: "Persuasión" },
     ] },
   ]);
   const PROFICIENCY_STATES = Object.freeze({
