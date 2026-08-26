@@ -42,7 +42,7 @@ test("pre-existing races now resolve their source-backed racial Stats too", () =
     ["centaur", null, [], { str: 12, wis: 11 }], ["goliath", null, [], { str: 12, con: 11 }], ["lanae", null, [], { con: 12, wis: 11 }],
     ["goblin", null, [], { dex: 12, con: 11 }], ["fairy", "fire", [], { dex: 11, cha: 11 }],
     ["aasimar", "protector", [], { cha: 12, wis: 11 }], ["aasimar", "scourge", [], { cha: 12, con: 11 }], ["aasimar", "fallen", [], { cha: 12, str: 11 }],
-    ["tiefling", "asmodeus", ["int"], { cha: 12, int: 11 }], ["warforged", "envoy", ["str"], { con: 12, str: 11 }],
+    ["tiefling", "asmodeus", ["int"], { cha: 12, int: 11 }], ["half_demon", null, [], { dex: 11, con: 11 }], ["warforged", "envoy", ["str"], { con: 12, str: 11 }],
     ["felinae", "ordinary", ["wis"], { dex: 12, wis: 11 }], ["half_dragon", "red", ["dex"], { str: 11, cha: 11, dex: 11 }],
     ["lupae", null, [], { str: 12, wis: 11 }], ["moonfae", "full_moon", [], { dex: 12, cha: 11 }],
     ["yuan_ti_pureblood", "red_eyes", ["dex"], { cha: 12, dex: 11 }],
@@ -66,9 +66,9 @@ test("racial Stat choices enforce source restrictions", () => {
   expect(variant.complete).toBe(false);
 });
 
-test("Half-Demon stays unresolved instead of receiving an invented racial bonus", () => {
-  expect(rules.SOURCE_UNRESOLVED_RACIAL_STAT_RACES).toContain("half_demon");
-  expect(rules.resolveExistingRacialStatBonuses({ raceId: "half_demon" })).toEqual({ str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 });
+test("Half-Demon receives its sourced DEX +1 and CON +1 racial bonus", () => {
+  expect(rules.SOURCE_UNRESOLVED_RACIAL_STAT_RACES).not.toContain("half_demon");
+  expect(rules.resolveExistingRacialStatBonuses({ raceId: "half_demon" })).toEqual({ str: 0, dex: 1, con: 1, int: 0, wis: 0, cha: 0 });
 });
 
 test("old HP Coef/OFF/DEF race calculations are preserved while racial Stats are added", () => {
