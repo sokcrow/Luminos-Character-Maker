@@ -204,6 +204,8 @@
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
   if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
   if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
+  if (global.document && !global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
+  if (global.document && !global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
   if (global.document && !global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
   if (global.document && !global.LuminousSpellcastingRuntime) loadScript("spellcasting-runtime-script", "js/spellcasting-runtime.js");
   if (global.document && !global.LuminousBardClassRuntime) loadScript("bard-class-runtime-script", "js/bard-class-runtime.js");

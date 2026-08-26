@@ -291,6 +291,57 @@ const generateElementalStatuses = () => {
 
 generateElementalStatuses();
 
+Object.assign(STATUS_REGISTRY, {
+    chill: {
+        name: 'Chill', type: 'negative', mode: 'single',
+        rules: [{trigger: 'passive', cond_input: 2, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'speed', decay: 'none'}],
+        description: 'Speed decreases by 1 for every 2 Count. At 20 Count, inflict Frozen. When hit by a Wrath Skill, reduce this effect by 2 Count. When taking Burn damage, reduce this effect by 1 Count.'
+    },
+    frozen: {
+        name: 'Frozen', type: 'negative', mode: 'single', rules: [],
+        description: 'Gain a Shield equal to 100 + 10% of Max HP. Each turn, lose 5% of Max HP directly. The Shield takes double damage from Wrath Skills and Burn damage.'
+    },
+    shock: {
+        name: 'Shock', type: 'negative', mode: 'single', rules: [],
+        description: 'At the start of the turn, gain 1 Paralyze for every 3 Count, then reduce this effect by 3 for each Paralyze gained.'
+    },
+    corrosion: {
+        name: 'Corrosion', type: 'negative', mode: 'single', maxCount: 10,
+        rules: [
+            {trigger: 'passive', cond_input: 2, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'defensive_level', decay: 'none'},
+            {trigger: 'passive', cond_input: 2, cond_type: 'count', operation: 'sub', aff_input: 1, affectation: 'offensive_level', decay: 'none'}
+        ],
+        description: 'Max 10 Count. Defense and Offense Levels decrease by 1 for every 2 Count. At the start of the turn, take fixed damage equal to 1% of Max HP per Count, then reduce Count by 1.'
+    },
+    poison: {
+        name: 'Poison', type: 'negative', mode: 'double', maxPotency: 10, rules: [],
+        description: 'Max 10 Potency. At the end of the turn, take fixed damage equal to Count, raise Potency by 1, then halve Count. At 10 Potency, gain Poisoned, then reduce Potency to 0. While Poisoned, damage from this effect is doubled. At 10 Potency while already Poisoned, damage from this effect is tripled instead.'
+    },
+    poisoned: {
+        name: 'Poisoned', type: 'negative', mode: 'single', rules: [],
+        description: 'Poisoned condition. Source effects define its additional interactions.'
+    },
+    decay: {
+        name: 'Decay', type: 'negative', mode: 'single', maxCount: 99, rules: [],
+        description: 'Max 99 Count. Reduce Max HP by 1% per Count. Max HP cannot be reduced below 1 by this effect. When receiving healing, reduce Count by 5. When healed by Passive Regeneration, reduce Count by 2. On Short Rest, halve Count. On Long Rest, lose this effect.'
+    },
+    radiance: {
+        name: 'Radiance', type: 'negative', mode: 'single', maxCount: 10, rules: [],
+        description: 'Max 10 Count. When getting hit, take fixed damage equal to 1% of hit damage for every 2 Count. Shields take double damage. At the end of an Encounter, reduce Count by 2. On Short Rest, reduce Count by 5. On Long Rest, lose this effect.'
+    },
+    force: {
+        name: 'Force', type: 'negative', mode: 'single', rules: [],
+        description: 'Raise Stagger Threshold by Count, then lose this effect.'
+    }
+});
+
 if (typeof window !== 'undefined') {
     window.STATUS_REGISTRY = STATUS_REGISTRY;
+    if (window.document && !window.LuminousElementalStatusRuntime && !window.document.getElementById('elemental-status-runtime-script')) {
+        const script = window.document.createElement('script');
+        script.id = 'elemental-status-runtime-script';
+        script.src = 'js/elemental-status-runtime.js';
+        script.async = false;
+        window.document.head?.appendChild(script);
+    }
 }
