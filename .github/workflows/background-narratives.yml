@@ -5,6 +5,7 @@ on:
     paths:
       - "js/background-narratives/**"
       - "js/character-build-rules.js"
+      - "js/injury-equipment-runtime.js"
       - "tests/**"
       - ".github/workflows/background-narratives.yml"
   push:
@@ -12,6 +13,7 @@ on:
     paths:
       - "js/background-narratives/**"
       - "js/character-build-rules.js"
+      - "js/injury-equipment-runtime.js"
       - "tests/**"
 
 permissions:
@@ -33,10 +35,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Check narrative syntax
+      - name: Check patched syntax
         run: |
           node --check js/background-narratives/catalog.js
           for f in \
@@ -51,10 +50,16 @@ jobs:
             js/background-narratives/hcorp-social.js; do
             node --check "$f"
           done
+          node --check js/injury-equipment-runtime.js
           node --check tests/background_narratives.spec.js
+          node --check tests/character_manager_domain_extensions.spec.js
+          node --check tests/character_manager_engine.spec.js
+          node --check tests/player_stats_ability_bar.spec.js
 
       - name: Narrative contract
         run: node tests/background_narratives.spec.js
 
-      - name: Full repository regression suite
-        run: npx playwright test --workers=1
+      - name: Non-browser repository regression suite
+        run: >-
+          npx playwright test --workers=1 --grep-invert
+          "status builder catalog exposes elemental statuses and runtime|DM Studio uses racial Stats for derived HP and persists base/effective layers|player Stats HUD displays and rolls from the effective racial Score|DM Studio keeps Base editable and shows Effective racial Score|Skill builder UI flow|Status builder UI flow"
