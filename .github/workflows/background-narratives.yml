@@ -1,0 +1,57 @@
+name: Background Narratives
+
+on:
+  pull_request:
+    paths:
+      - "js/background-narratives/**"
+      - "js/character-build-rules.js"
+      - "tests/**"
+      - ".github/workflows/background-narratives.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/background-narratives/**"
+      - "js/character-build-rules.js"
+      - "tests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  background-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check narrative syntax
+        run: |
+          node --check js/background-narratives/catalog.js
+          for f in \
+            js/background-narratives/templates-*.js \
+            js/background-narratives/civilian-labor.js \
+            js/background-narratives/backstreets-fixers.js \
+            js/background-narratives/associations-workshops.js \
+            js/background-narratives/syndicates-fingers.js \
+            js/background-narratives/greatlake-outskirts.js \
+            js/background-narratives/wings-war.js \
+            js/background-narratives/lobotomy-anomaly.js \
+            js/background-narratives/hcorp-social.js; do
+            node --check "$f"
+          done
+          node --check tests/background_narratives.spec.js
+
+      - name: Narrative contract
+        run: node tests/background_narratives.spec.js
+
+      - name: Full repository regression suite
+        run: npx playwright test --workers=1
