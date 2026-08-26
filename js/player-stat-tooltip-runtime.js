@@ -73,7 +73,7 @@
   function buildModifierTooltip(parts = {}) {
     const values = Object.fromEntries(SOURCE_ORDER.map(({ key }) => [key, numberOr(parts?.[key], 0)]));
     const total = SOURCE_ORDER.reduce((sum, { key }) => sum + values[key], 0);
-    const lines = [`Mod actual: ${formatSigned(total)}`];
+    const lines = [`Mod actual: ${total === 0 ? "0" : formatSigned(total)}`];
     SOURCE_ORDER.forEach(({ key, label }) => {
       const value = values[key];
       if (value === 0) return;
