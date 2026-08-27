@@ -44,7 +44,7 @@ test("equipment contract recognizes legacy armorType and future equipment armor 
   expect(modifiers.resolveEquipment({})).toMatchObject({ armorEquipped: false, armorCategory: "none" });
 });
 
-test("Armorless Defense no longer modifies the universal defensive level", () => {
+test("Armorless Defense adds Constitution Mod to universal Defensive Level only while unarmored", () => {
   const trait = catalog.getDefinition("armorless_defense");
   const unarmored = barbarian(100);
   const armored = { ...barbarian(100), armorType: "medium" };
@@ -62,7 +62,7 @@ test("Armorless Defense no longer modifies the universal defensive level", () =>
     context: "combat",
   });
 
-  expect(freeMods.defensive_level).toBe(0);
+  expect(freeMods.defensive_level).toBe(4);
   expect(armoredMods.defensive_level).toBe(0);
 });
 
@@ -127,7 +127,7 @@ test("Rage, Brutal Critical and Fast Movement feed canonical modifier channels",
   expect(resolved.min_speed).toBe(1);
 });
 
-test("universal snapshot preserves pre-combat Off/Def levels and layers trait modifiers on top", () => {
+test("universal snapshot preserves pre-combat Off/Def levels and layers Armorless/Fast Movement modifiers on top", () => {
   const character = barbarian(100);
   const snapshot = modifiers.resolveCharacterSnapshot({
     unit: character,
@@ -137,7 +137,7 @@ test("universal snapshot preserves pre-combat Off/Def levels and layers trait mo
   });
 
   expect(snapshot.offensiveLevel).toBe(90);
-  expect(snapshot.defensiveLevel).toBe(60);
+  expect(snapshot.defensiveLevel).toBe(64);
   expect(snapshot.minSpeed).toBe(3);
   expect(snapshot.maxSpeed).toBe(6);
 });
