@@ -126,30 +126,49 @@
     const aliases = canonical ? VARIABLE_ALIASES[canonical] : [identifier];
     return `(?:${aliases.map((alias) => escapeRegExp(alias).replace(/\\ /g, "\\s+")).join("|")})`;
   }
+  function tokenPattern(token) {
+    if (token === "*") return "(?:\\*|×|[xX])";
+    if (/^[A-Za-z_]/.test(token)) return FORMULA_FUNCTIONS.has(token.toLowerCase()) ? escapeRegExp(token) : aliasPattern(token);
+    return escapeRegExp(token);
+  }
+  function maxShorthandPattern(tokens) {
+    if (!tokens || tokens.length !== 6) return null;
+    if (String(tokens[0]).toLowerCase() !== "max" || tokens[1] !== "(" || tokens[3] !== "," || tokens[5] !== ")") return null;
+    return `\\(\\s*${tokenPattern(tokens[2])}\\s*,\\s*${tokenPattern(tokens[4])}\\s*\\)`;
+  }
   function formulaPattern(formula) {
     const tokens = tokenizeFormula(formula);
     if (!tokens) return null;
-    const body = tokens.map((token) => {
-      if (token === "*") return "(?:\\*|×|[xX])";
-      if (/^[A-Za-z_]/.test(token)) return FORMULA_FUNCTIONS.has(token.toLowerCase()) ? escapeRegExp(token) : aliasPattern(token);
-      return escapeRegExp(token);
-    }).join("\\s*");
-    return `(?:\\(\\s*${body}\\s*\\)|${body})`;
+    const body = tokens.map(tokenPattern).join("\\s*");
+    const exact = `(?:\\(\\s*${body}\\s*\\)|${body})`;
+    const shorthand = maxShorthandPattern(tokens);
+    return shorthand ? `(?:${exact}|${shorthand})` : exact;
   }
   function formulaRegex(formula) {
     const pattern = formulaPattern(formula);
     if (!pattern) return null;
-    try { return new RegExp(pattern, "gi"); } catch (_) { return null; }
+    try { return new RegExp(`(?:([+-])\\s*)?(${pattern})`, "gi"); } catch (_) { return null; }
+  }
+  function displayForSignedFormula(resolved, sign = "") {
+    const base = Number(resolved?.value);
+    if (!sign || !Number.isFinite(base)) return resolved?.display ?? "";
+    const value = sign === "-" ? -base : base;
+    const formatted = formatNumber(value);
+    if (sign === "+" && value >= 0) return `+${formatted}`;
+    if (sign === "-" && value === 0) return "-0";
+    return formatted;
   }
 
-  function createFormulaControl(trait, resolved) {
+  function createFormulaControl(trait, resolved, sign = "") {
     const control = doc.createElement("button");
+    const display = displayForSignedFormula(resolved, sign);
     control.type = "button";
     control.className = "player-trait-live-formula-value";
-    control.textContent = resolved.display;
+    control.textContent = display;
     control.dataset.traitFormula = resolved.formula;
+    if (sign) control.dataset.traitFormulaSign = sign;
     control.setAttribute("aria-expanded", "false");
-    control.setAttribute("aria-label", `${trait?.name || trait?.id || "Trait"}: resultado ${resolved.display}. Ver cálculo.`);
+    control.setAttribute("aria-label", `${trait?.name || trait?.id || "Trait"}: resultado ${display}. Ver cálculo.`);
     const tooltip = doc.createElement("span");
     tooltip.className = "player-trait-live-formula-tooltip";
     tooltip.setAttribute("role", "tooltip");
@@ -157,7 +176,7 @@
     const original = doc.createElement("code"); original.textContent = ensureParentheses(resolved.humanFormula); tooltip.appendChild(original);
     const substituted = doc.createElement("code"); substituted.textContent = ensureParentheses(resolved.substitutedFormula); tooltip.appendChild(substituted);
     resolved.breakdown.forEach((row) => { const line = doc.createElement("span"); line.className = "player-trait-live-formula-row"; line.textContent = `${row.label}: ${row.display}`; tooltip.appendChild(line); });
-    const total = doc.createElement("b"); total.className = "player-trait-live-formula-total"; total.textContent = `Resultado: ${resolved.display}`; tooltip.appendChild(total);
+    const total = doc.createElement("b"); total.className = "player-trait-live-formula-total"; total.textContent = `Resultado: ${display}`; tooltip.appendChild(total);
     control.appendChild(tooltip);
     const setOpen = (open) => { control.classList.toggle("is-open", Boolean(open)); control.setAttribute("aria-expanded", open ? "true" : "false"); };
     control.addEventListener("click", (event) => { event.stopPropagation(); setOpen(!control.classList.contains("is-open")); });
@@ -177,7 +196,7 @@
     let replaced = 0;
     nodes.forEach((textNode) => {
       if (!textNode.parentElement || textNode.parentElement.closest(".player-trait-resolved-value, .player-trait-live-formula-value, .player-trait-formula-tooltip, .player-trait-live-formula-tooltip")) return;
-      let segments = [{ text: textNode.nodeValue || "", resolved: null }];
+      let segments = [{ text: textNode.nodeValue || "", resolved: null, sign: "" }];
       formulas.forEach((entry) => {
         const next = [];
         segments.forEach((segment) => {
@@ -185,19 +204,19 @@
           entry.regex.lastIndex = 0; let cursor = 0; let match; let matched = false;
           while ((match = entry.regex.exec(segment.text))) {
             matched = true;
-            if (match.index > cursor) next.push({ text: segment.text.slice(cursor, match.index), resolved: null });
-            next.push({ text: "", resolved: entry.resolved });
+            if (match.index > cursor) next.push({ text: segment.text.slice(cursor, match.index), resolved: null, sign: "" });
+            next.push({ text: "", resolved: entry.resolved, sign: match[1] || "" });
             cursor = match.index + match[0].length;
             if (!match[0].length) entry.regex.lastIndex += 1;
           }
           if (!matched) next.push(segment);
-          else if (cursor < segment.text.length) next.push({ text: segment.text.slice(cursor), resolved: null });
+          else if (cursor < segment.text.length) next.push({ text: segment.text.slice(cursor), resolved: null, sign: "" });
         });
         segments = next;
       });
       if (!segments.some((segment) => segment.resolved)) return;
       const fragment = doc.createDocumentFragment();
-      segments.forEach((segment) => { if (segment.resolved) { fragment.appendChild(createFormulaControl(trait, segment.resolved)); replaced += 1; } else if (segment.text) fragment.appendChild(doc.createTextNode(segment.text)); });
+      segments.forEach((segment) => { if (segment.resolved) { fragment.appendChild(createFormulaControl(trait, segment.resolved, segment.sign)); replaced += 1; } else if (segment.text) fragment.appendChild(doc.createTextNode(segment.text)); });
       textNode.replaceWith(fragment);
     });
     return replaced;
@@ -206,7 +225,7 @@
   function ensureStyles() {
     if (!doc || doc.getElementById("trait-formula-view-patch-style")) return;
     const style = doc.createElement("style"); style.id = "trait-formula-view-patch-style";
-    style.textContent = `.player-trait-live-formula-value{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:1.6em;margin:0 .12em;padding:.02em .25em;border:0;background:transparent;color:#fff27a;font:inherit;font-weight:900;line-height:1;text-shadow:0 0 5px rgba(255,242,122,.95),0 0 12px rgba(255,215,80,.68);cursor:help;vertical-align:baseline}.player-trait-live-formula-value:hover,.player-trait-live-formula-value:focus,.player-trait-live-formula-value.is-open{outline:none;color:#fffbd0;text-shadow:0 0 7px #fff,0 0 16px rgba(255,220,80,.95)}.player-trait-live-formula-tooltip{position:absolute;z-index:220000;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);display:none;min-width:240px;max-width:360px;padding:10px 12px;border:1px solid rgba(255,235,130,.8);background:rgba(8,10,13,.97);box-shadow:0 8px 30px rgba(0,0,0,.55),0 0 16px rgba(255,220,80,.22);color:#f4f1dd;text-align:left;white-space:normal;font:600 12px/1.35 monospace}.player-trait-live-formula-value:hover .player-trait-live-formula-tooltip,.player-trait-live-formula-value:focus .player-trait-live-formula-tooltip,.player-trait-live-formula-value.is-open .player-trait-live-formula-tooltip{display:grid;gap:5px}.player-trait-live-formula-tooltip strong{color:#fff27a;letter-spacing:.04em}.player-trait-live-formula-tooltip code{display:block;padding:3px 5px;background:rgba(255,255,255,.05);color:#fff}.player-trait-live-formula-row{display:block;color:#d8d5c6}.player-trait-live-formula-total{display:block;margin-top:2px;padding-top:5px;border-top:1px solid rgba(255,255,255,.14);color:#fff27a}`;
+    style.textContent = `.player-trait-live-formula-value{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:0;margin:0;padding:.02em .08em;border:0;background:transparent;color:#fff27a;font:inherit;font-weight:900;line-height:1;text-shadow:0 0 5px rgba(255,242,122,.95),0 0 12px rgba(255,215,80,.68);cursor:help;vertical-align:baseline}.player-trait-live-formula-value:hover,.player-trait-live-formula-value:focus,.player-trait-live-formula-value.is-open{outline:none;color:#fffbd0;text-shadow:0 0 7px #fff,0 0 16px rgba(255,220,80,.95)}.player-trait-live-formula-tooltip{position:absolute;z-index:220000;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);display:none;min-width:240px;max-width:360px;padding:10px 12px;border:1px solid rgba(255,235,130,.8);background:rgba(8,10,13,.97);box-shadow:0 8px 30px rgba(0,0,0,.55),0 0 16px rgba(255,220,80,.22);color:#f4f1dd;text-align:left;white-space:normal;font:600 12px/1.35 monospace}.player-trait-live-formula-value:hover .player-trait-live-formula-tooltip,.player-trait-live-formula-value:focus .player-trait-live-formula-tooltip,.player-trait-live-formula-value.is-open .player-trait-live-formula-tooltip{display:grid;gap:5px}.player-trait-live-formula-tooltip strong{color:#fff27a;letter-spacing:.04em}.player-trait-live-formula-tooltip code{display:block;padding:3px 5px;background:rgba(255,255,255,.05);color:#fff}.player-trait-live-formula-row{display:block;color:#d8d5c6}.player-trait-live-formula-total{display:block;margin-top:2px;padding-top:5px;border-top:1px solid rgba(255,255,255,.14);color:#fff27a}`;
     doc.head?.appendChild(style);
   }
   function patchTraitTray() {
@@ -227,7 +246,7 @@
   function tick() { ensureStyles(); patchTraitTray(); }
   function boot() { tick(); global.setInterval?.(tick, 500); }
 
-  const api = Object.freeze({ VARIABLE_LABELS, formulaIdentifiers, tokenizeFormula, humanizeFormula, substituteFormula, collectTraitFormulas, resolveFormula, formulaPattern, decorateTraitFormulaDescription, patchTraitTray, tick });
+  const api = Object.freeze({ VARIABLE_LABELS, formulaIdentifiers, tokenizeFormula, humanizeFormula, substituteFormula, collectTraitFormulas, resolveFormula, formulaPattern, formulaRegex, displayForSignedFormula, decorateTraitFormulaDescription, patchTraitTray, tick });
   global.LuminousTraitFormulaViewPatch = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true }); else boot(); }
