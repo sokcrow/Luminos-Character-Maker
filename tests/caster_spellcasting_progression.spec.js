@@ -126,7 +126,7 @@ test("Short Rest restores Pact Slots only; Long Rest restores all caster Slots",
   expect(spellcasting.spellSlotPool(character, "sorcerer").levels[2].available).toBe(2);
 });
 
-test("Every caster receives a Level 1 Spellcasting Ability Trait without duplicating Bard's existing grant", () => {
+test("Every caster receives one Level 1 Spellcasting Ability Trait grant", () => {
   const catalog = global.LuminousTraitCatalogCore;
   const definitions = catalog.allDefinitions();
   const grants = catalog.allGrants();
@@ -134,21 +134,20 @@ test("Every caster receives a Level 1 Spellcasting Ability Trait without duplica
   for (const classId of casterTraits.CASTER_CLASS_IDS) {
     const traitId = casterTraits.traitIdFor(classId);
     const definition = definitions[traitId];
+    const profile = spellcasting.getClassSpellcastingProfile(classId);
     expect(definition).toBeTruthy();
     expect(definition.name).toBe("Spellcasting Ability");
     expect(definition.source.classId).toBe(classId);
-    expect(definition.mechanics.abilityId).toBe(spellcasting.getClassSpellcastingProfile(classId).abilityId);
-    expect(definition.mechanics.progression).toBe(spellcasting.getClassSpellcastingProfile(classId).progression);
+    expect(definition.mechanics.abilityId).toBe(profile.abilityId);
+    expect(definition.mechanics.progression).toBe(profile.progression);
     expect(definition.mechanics.automaticSlots).toBe(true);
+
+    const matching = grants.filter((grant) => grant.sourceType === "class" && grant.sourceId === classId && grant.atLevel === 1 && grant.traitId === traitId);
+    expect(matching).toHaveLength(1);
   }
 
-  const generatedBardGrants = casterTraits.CASTER_GRANTS.filter((grant) => grant.sourceId === "bard");
-  expect(generatedBardGrants).toHaveLength(0);
-
-  for (const classId of casterTraits.CASTER_CLASS_IDS.filter((id) => id !== "bard")) {
-    const traitId = casterTraits.traitIdFor(classId);
-    expect(grants.some((grant) => grant.sourceType === "class" && grant.sourceId === classId && grant.atLevel === 1 && grant.traitId === traitId)).toBe(true);
-  }
+  const identities = grants.map(casterTraits.grantIdentity);
+  expect(new Set(identities).size).toBe(identities.length);
 });
 
 test("Caster Spellcasting Trait catalog validates against the Trait Engine", () => {
