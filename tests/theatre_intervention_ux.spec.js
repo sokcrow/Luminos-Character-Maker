@@ -7,6 +7,7 @@ const interventionUx = require("../js/theatre-intervention-ux.js");
 const logPolicy = require("../js/theatre-special-language-log-hotfix.js");
 
 const uxSource = read("js/theatre-intervention-ux.js");
+const uxCoreSource = read("js/theatre-intervention-ux-core.js");
 const policySource = read("js/theatre-language-policy.js");
 const cssSource = read("css/theatre-intervention-ux.css");
 
@@ -80,7 +81,7 @@ test("Dante log portrait resolves the master actor icon, never the scene sprite"
 
   expect(interventionUx.resolveCanonicalActorIcon(message, sceneActors, [modernCatalog]))
     .toBe("dante-actor-icon.png");
-  expect(uxSource).not.toMatch(/return\s+.*sprite.*fallback/i);
+  expect(uxCoreSource).not.toMatch(/return\s+.*sprite.*fallback/i);
 });
 
 test("archived sprite contamination is rejected when no canonical icon exists", () => {
@@ -105,6 +106,7 @@ test("log text formats actuar and keeps special-language privacy", () => {
 test("language policy loads intervention UX for both DM and player contexts", () => {
   expect(policySource).toContain("ensureInterventionUxRuntime");
   expect(policySource).toContain("js/theatre-intervention-ux.js");
-  expect(uxSource).toContain('option.value = "actuar"');
-  expect(uxSource).toContain("#btn-send-dialogue, #btn-enviar-teatro-modal");
+  expect(uxSource).toContain("js/theatre-intervention-ux-core.js");
+  expect(uxCoreSource).toContain('option.value = "actuar"');
+  expect(uxCoreSource).toContain("#btn-send-dialogue, #btn-enviar-teatro-modal");
 });
