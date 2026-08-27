@@ -25,26 +25,20 @@ function barbarian(level = 100) {
   };
 }
 
-test("Armorless Defense snapshots Guard from Barbarian Class Level and no longer modifies Defensive Level", () => {
+test("Armorless Defense grants CON-based Defensive Level and Class Level percent Max HP Encounter Shield", () => {
   const character = barbarian(30);
   character.level = 100;
   character.classes = [
     { classId: "barbarian", levels: 30 },
     { classId: "wizard", levels: 70 },
   ];
+  character.maxHp = 200;
+  character.shield = 0;
   character.staggerThresholds = [70, 40];
   const trait = catalog.getDefinition("armorless_defense");
   const state = engine.createState();
 
-  engine.dispatchCombatEvent("encounter_start", {
-    character,
-    self: character,
-    traits: [trait],
-    state,
-    equipment: { armorEquipped: false },
-  });
-
-  expect(character.guard).toMatchObject({ powerBonus: 34, shieldPercent: 15 });
+  expect(trait.description).toBe("Without Armor:\nGain +(1, Constitution Mod) Defensive Level.\n\n[On Encounter Start] Without Armor:\nGain (Class Level)% Max HP as Shield for encounter\n\nRemove 1 Stagger Threshold.");
 
   const firstSnapshot = modifiers.resolveCharacterSnapshot({
     unit: character,
@@ -58,8 +52,8 @@ test("Armorless Defense snapshots Guard from Barbarian Class Level and no longer
     traits: [trait],
     context: "combat",
   });
-  expect(firstSnapshot.defensiveLevel).toBe(60);
-  expect(secondSnapshot.defensiveLevel).toBe(60);
+  expect(firstSnapshot.defensiveLevel).toBe(64);
+  expect(secondSnapshot.defensiveLevel).toBe(64);
   expect(character.combatStats.defensiveLevel).toBe(60);
 
   engine.dispatchCombatEvent("encounter_start", {
@@ -69,7 +63,9 @@ test("Armorless Defense snapshots Guard from Barbarian Class Level and no longer
     state,
     equipment: { armorEquipped: false },
   });
-  expect(character.guard).toMatchObject({ powerBonus: 34, shieldPercent: 15 });
+  expect(character.shield).toBe(60);
+  expect(character.shieldPools).toMatchObject({ encounter: 60 });
+  expect(character.guard).toBeUndefined();
 
   engine.dispatchTrait(trait, "passive", {
     context: "combat",
@@ -86,15 +82,29 @@ test("Armorless Defense snapshots Guard from Barbarian Class Level and no longer
     equipment: { armorEquipped: false },
   }, state);
   expect(character.staggerThresholds).toEqual([70]);
+
+  const armored = {
+    ...character,
+    shield: 0,
+    shieldPools: undefined,
+    equipment: { armor: { itemId: "armor_test", category: "medium" } },
+  };
+  const armoredSnapshot = modifiers.resolveCharacterSnapshot({
+    unit: armored,
+    character: armored,
+    traits: [trait],
+    context: "combat",
+  });
+  expect(armoredSnapshot.defensiveLevel).toBe(60);
 
   engine.dispatchCombatEvent("encounter_start", {
-    character,
-    self: character,
+    character: armored,
+    self: armored,
     traits: [trait],
-    state,
+    state: engine.createState(),
     equipment: { armorEquipped: true },
   });
-  expect(character.guard).toMatchObject({ powerBonus: 0, shieldPercent: 0 });
+  expect(armored.shield).toBe(0);
 });
 
 test("Barbarian class scaling ignores total Character Level and Offensive Level", () => {
