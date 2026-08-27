@@ -32,6 +32,24 @@
     return store?.[cid]?.[String(milestoneLevel)] || store?.[`${cid}:${milestoneLevel}`] || null;
   }
 
+  function normalizedChoiceSignature(choice = {}) {
+    const type = normalizeId(choice.type || choice.choiceType || choice.mode);
+    if (["trait", "general_trait", "generaltrait"].includes(type)) {
+      return JSON.stringify({ type: "trait", traitId: normalizeId(choice.traitId || choice.generalTraitId || choice.id), selectedAt: choice.selectedAt ?? null });
+    }
+    const allocation = {};
+    Object.entries(choice.allocation || choice.stats || choice.statAllocation || {})
+      .map(([stat, amount]) => [canonicalStatKey(stat), integerOr(amount, 0)])
+      .filter(([stat, amount]) => stat && amount > 0)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([stat, amount]) => { allocation[stat] = amount; });
+    return JSON.stringify({ type: ["stats", "stat"].includes(type) ? "stats" : type, allocation, selectedAt: choice.selectedAt ?? null });
+  }
+
+  function sameMilestoneChoice(left, right) {
+    return Boolean(left && right) && normalizedChoiceSignature(left) === normalizedChoiceSignature(right);
+  }
+
   function milestoneRevertSummary(choice = {}) {
     const type = normalizeId(choice.type || choice.choiceType || choice.mode);
     if (["trait", "general_trait", "generaltrait"].includes(type)) return `Trait General · ${choice.traitId || choice.generalTraitId || choice.id || "Trait"}`;
@@ -66,7 +84,9 @@
     if (["stats", "stat"].includes(type)) {
       const allocation = choice.allocation || choice.stats || choice.statAllocation || {};
       if (!current.stats || typeof current.stats !== "object") return { valid: false, error: "No hay Stats persistidos para revertir este milestone." };
-      for (const [rawStat, rawAmount] of Object.entries(allocation)) {
+      const entries = Object.entries(allocation);
+      if (!entries.length) return { valid: false, error: "El allocation guardado del milestone no es válido." };
+      for (const [rawStat, rawAmount] of entries) {
         const stat = canonicalStatKey(rawStat), amount = integerOr(rawAmount, 0);
         if (!stat || amount <= 0) return { valid: false, error: "El allocation guardado del milestone no es válido." };
         const existingKey = Object.keys(current.stats).find((key) => canonicalStatKey(key) === stat) || stat;
@@ -88,7 +108,8 @@
   function feedback(message, kind = "") {
     const node = doc?.getElementById("dm-player-milestone-feedback");
     if (!node) return;
-    node.textContent = message || ""; node.dataset.kind = kind;
+    node.textContent = message || "";
+    node.dataset.kind = kind;
   }
 
   async function revertMilestone(classId, level, button) {
@@ -97,36 +118,61 @@
     if (!playerId) return false;
     const ref = global.firebase.database().ref(`${PLAYER_ROOT}/${playerId}`);
     let snapshot;
-    try { snapshot = await ref.once("value"); } catch (_) { feedback("ERROR AL LEER EL MILESTONE.", "error"); return false; }
-    const choice = milestoneChoiceAt(snapshot.val(), classId, level);
-    if (!choice) { feedback("Ese milestone ya no está reclamado.", "error"); return false; }
-    const summary = milestoneRevertSummary(choice);
+    try {
+      snapshot = await ref.once("value");
+    } catch (_) {
+      feedback("ERROR AL LEER EL MILESTONE.", "error");
+      return false;
+    }
+    const confirmedChoice = milestoneChoiceAt(snapshot.val(), classId, level);
+    if (!confirmedChoice) {
+      feedback("Ese milestone ya no está reclamado.", "error");
+      return false;
+    }
+    const summary = milestoneRevertSummary(confirmedChoice);
     if (global.confirm?.(`Revertir Milestone LV.${level}\n\nSe retirará: ${summary}\nEl milestone volverá a estar disponible.`) === false) return false;
+
     let abortReason = "No se pudo revertir el milestone.";
     if (button) button.disabled = true;
     feedback("REVIRTIENDO MILESTONE...", "pending");
     try {
       const result = await ref.transaction((current) => {
+        const latestChoice = milestoneChoiceAt(current, classId, level);
+        if (!sameMilestoneChoice(confirmedChoice, latestChoice)) {
+          abortReason = "El milestone cambió mientras se confirmaba. No se revirtió nada; revisa la elección actual.";
+          return;
+        }
         const reverted = revertMilestoneState(current, classId, level);
-        if (!reverted.valid) { abortReason = reverted.error; return; }
+        if (!reverted.valid) {
+          abortReason = reverted.error;
+          return;
+        }
         return reverted.player;
       });
-      if (!result.committed) { feedback(abortReason, "error"); return false; }
+      if (!result.committed) {
+        feedback(abortReason, "error");
+        return false;
+      }
       feedback(`MILESTONE REVERTIDO · ${summary}`, "success");
       global.LuminousDmPlayerClassMilestones?.render?.();
       return true;
     } catch (error) {
       console.error("No se pudo revertir Class Milestone:", error);
-      feedback("ERROR AL REVERTIR EL MILESTONE.", "error"); return false;
-    } finally { if (button) button.disabled = false; }
+      feedback("ERROR AL REVERTIR EL MILESTONE.", "error");
+      return false;
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function ensureStyles() {
     if (!doc || doc.getElementById("milestone-revert-patch-style")) return;
-    const style = doc.createElement("style"); style.id = "milestone-revert-patch-style";
+    const style = doc.createElement("style");
+    style.id = "milestone-revert-patch-style";
     style.textContent = `.dm-player-milestone-revert{margin-top:8px;padding:7px 10px;border:1px solid rgba(255,120,120,.65);background:rgba(90,15,15,.25);color:#ffd7d7;font-weight:800;letter-spacing:.04em;cursor:pointer}.dm-player-milestone-revert:hover{background:rgba(120,20,20,.38)}.dm-player-milestone-revert:disabled{opacity:.5;cursor:wait}`;
     doc.head?.appendChild(style);
   }
+
   function enhanceMilestoneRows() {
     if (!doc || !global.firebase?.database || !global.firebase?.apps?.length) return false;
     let enhanced = false;
@@ -134,18 +180,42 @@
       if (row.querySelector(".dm-player-milestone-revert")) return;
       const classId = normalizeId(row.dataset.classId), level = integerOr(row.dataset.milestoneLevel, 0);
       if (!classId || !level) return;
-      const button = doc.createElement("button"); button.type = "button"; button.className = "dm-player-milestone-revert"; button.textContent = "REVERTIR MILESTONE";
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.className = "dm-player-milestone-revert";
+      button.textContent = "REVERTIR MILESTONE";
       button.title = "Retira exactamente la mejora guardada y vuelve a habilitar este milestone.";
       button.addEventListener("click", () => { void revertMilestone(classId, level, button); });
-      row.appendChild(button); enhanced = true;
+      row.appendChild(button);
+      enhanced = true;
     });
     return enhanced;
   }
-  function tick() { ensureStyles(); enhanceMilestoneRows(); }
-  function boot() { tick(); global.setInterval?.(tick, 500); }
 
-  const api = Object.freeze({ canonicalStatKey, milestoneChoiceAt, milestoneRevertSummary, revertMilestoneState, enhanceMilestoneRows, tick });
+  function tick() {
+    ensureStyles();
+    enhanceMilestoneRows();
+  }
+
+  function boot() {
+    tick();
+    global.setInterval?.(tick, 500);
+  }
+
+  const api = Object.freeze({
+    canonicalStatKey,
+    milestoneChoiceAt,
+    normalizedChoiceSignature,
+    sameMilestoneChoice,
+    milestoneRevertSummary,
+    revertMilestoneState,
+    enhanceMilestoneRows,
+    tick,
+  });
   global.LuminousMilestoneRevertPatch = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true }); else boot(); }
+  if (doc) {
+    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot, { once: true });
+    else boot();
+  }
 })(typeof window !== "undefined" ? window : globalThis);
