@@ -2,7 +2,7 @@
   "use strict";
 
   const engine = global.LuminousTraitEngine || (typeof require === "function" ? require("./trait-engine.js") : null);
-  const CATALOG_VERSION = 4;
+  const CATALOG_VERSION = 5;
 
   const RULE_TYPES = Object.freeze([
     "modifier",
@@ -51,55 +51,34 @@
       schemaVersion: 1,
       id: "armorless_defense",
       name: "Armorless Defense",
-      description: "Without Armor, at Encounter Start gain (CON Mod + Barbarian Class Level) Guard. Guard gains +(Barbarian Class Level / 2)% Shield for the encounter. Remove 1 Stagger Threshold.",
-      display: {
-        playerDescription: "Without Armor, at Encounter Start gain {guardBonus}. Guard gains {shieldBonus} Shield for the encounter. Remove 1 Stagger Threshold.",
-        resolvedValues: [
-          { id: "guardBonus", label: "Guard", formula: "ConstitutionMod + ClassLevel", suffix: " Guard" },
-          { id: "shieldBonus", label: "Guard Shield Bonus", formula: "ClassLevel / 2", unit: "percent", signed: true },
-        ],
-      },
+      description: "Without Armor:\nGain +(1, Constitution Mod) Defensive Level.\n\n[On Encounter Start] Without Armor:\nGain (Class Level)% Max HP as Shield for encounter\n\nRemove 1 Stagger Threshold.",
       source: classSource,
       contexts: ["combat"],
       activation: { type: "passive", actionCost: "none" },
-      effects: [],
+      mechanics: {
+        defensiveLevelFormula: "max(1, ConstitutionMod)",
+        encounterShieldPercentFormula: "ClassLevel",
+        encounterShieldAmountFormula: "MaxHP * ClassLevel / 100",
+        encounterShieldType: "encounter",
+      },
+      effects: [{
+        id: "armorless_defense_encounter_shield",
+        contexts: ["combat"],
+        trigger: "encounter_start",
+        conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
+        operations: [
+          { type: "modify", path: "self.shieldPools.encounter", mode: "add", formula: "MaxHP * ClassLevel / 100" },
+          { type: "modify", path: "self.shield", mode: "add", formula: "MaxHP * ClassLevel / 100" },
+        ],
+      }],
       rules: [
         {
           type: "modifier",
-          trigger: "encounter_start",
+          trigger: "passive",
           target: "self",
-          path: "guard.powerBonus",
-          mode: "set",
-          value: 0,
-          duration: "encounter",
-        },
-        {
-          type: "modifier",
-          trigger: "encounter_start",
-          target: "self",
-          path: "guard.shieldPercent",
-          mode: "set",
-          value: 0,
-          duration: "encounter",
-        },
-        {
-          type: "modifier",
-          trigger: "encounter_start",
-          target: "self",
-          path: "guard.powerBonus",
-          mode: "set",
-          formula: "ConstitutionMod + ClassLevel",
-          duration: "encounter",
-          conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
-        },
-        {
-          type: "modifier",
-          trigger: "encounter_start",
-          target: "self",
-          path: "guard.shieldPercent",
-          mode: "set",
-          formula: "ClassLevel / 2",
-          duration: "encounter",
+          channel: "defensive_level",
+          mode: "add",
+          formula: "max(1, ConstitutionMod)",
           conditions: [{ path: "equipment.armorEquipped", operator: "falsy" }],
         },
         {
@@ -592,6 +571,14 @@
     const script = document.createElement("script");
     script.id = "trait-standardization-runtime-script";
     script.src = "js/trait-standardization-runtime.js";
+    script.async = false;
+    document.head?.appendChild(script);
+  }
+
+  if (typeof document !== "undefined" && !global.LuminousShieldDurationRuntime && !document.getElementById("shield-duration-runtime-script")) {
+    const script = document.createElement("script");
+    script.id = "shield-duration-runtime-script";
+    script.src = "js/shield-duration-runtime.js";
     script.async = false;
     document.head?.appendChild(script);
   }
