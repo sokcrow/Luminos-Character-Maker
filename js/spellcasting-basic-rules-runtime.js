@@ -196,11 +196,14 @@
     const current = readCurrentSp(character);
     if (current == null) return { success: false, reason: "Overcast requires a readable SP resource.", slotLevel: level, spCost: cost };
     const spSpent = Math.min(Math.max(0, current), cost), overflow = Math.max(0, cost - spSpent);
+    const fixed = overflow > 0 ? (options.fixedDamageRuntime || fixedDamageRuntime()) : null;
+    if (overflow > 0 && !fixed?.applyFixedDamage) {
+      return { success: false, reason: "Fixed Damage Runtime is required for Overcast overflow.", slotLevel: level, spCost: cost, spBefore: current, overflowFixedDamage: overflow };
+    }
     writeCurrentSp(character, current - spSpent);
-    const fixed = options.fixedDamageRuntime || fixedDamageRuntime();
-    const fixedDamage = overflow > 0 && fixed?.applyFixedDamage
+    const fixedDamage = overflow > 0
       ? fixed.applyFixedDamage(options.damageTarget || character, overflow, { engine: options.engine, damageKind: "directo", skillUsed: options.skillUsed || options.spell || null })
-      : (overflow > 0 ? { applied: false, amount: overflow, reason: "Fixed Damage Runtime unavailable." } : null);
+      : null;
     return { success: true, slotLevel: level, spCost: cost, spBefore: current, spSpent, spAfter: readCurrentSp(character), overflowFixedDamage: overflow, fixedDamage };
   }
 
@@ -340,6 +343,18 @@
     global.addEventListener("luminous:rest-completed", handleRestCompleted); restListenerBound = true; return true;
   }
 
+  function ensureFixedDamageAsset() {
+    if (global.LuminousFixedDamageRuntime || !global.document) return global.LuminousFixedDamageRuntime || null;
+    let script = global.document.getElementById("luminous-fixed-damage-runtime");
+    if (script) return script;
+    script = global.document.createElement("script");
+    script.id = "luminous-fixed-damage-runtime";
+    script.src = "js/fixed-damage-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return script;
+  }
+
   function wrapTraitEngine() {
     const source = global.LuminousTraitEngine;
     if (!source?.buildVariables || source.__spellcastingBasicRulesWrapped) return Boolean(source?.__spellcastingBasicRulesWrapped);
@@ -352,14 +367,14 @@
     return true;
   }
 
-  function install() { bindRestIntegration(); return wrapTraitEngine(); }
+  function install() { ensureFixedDamageAsset(); bindRestIntegration(); return wrapTraitEngine(); }
 
   const api = Object.freeze({ ...base, __basicRulesV1: true, SCHEMA_VERSION, STATE_KEY, OVERCAST_SP_PER_SLOT_LEVEL, VALID_TARGET_TYPES,
     normalizeAbility, classSpellcastingAbility, resolveSpellcasting, resolveForTrait, normalizeSlotTable, slotTableForClass, ensureSpellcastingState,
     reconcileSlotPool, spellSlotPool, canSpendSpellSlot, spendSpellSlot, syncSpellSlotPools, restoreSpellSlots, readCurrentSp, writeCurrentSp,
     applyOvercast, normalizeTargetType, normalizeSave, resolveSpellSave, normalizeUpcast, resolveUpcast, normalizeCastingTimeSeconds,
     buildCastingActionMessage, startConcentration, endConcentration, concentrationCheckForSkill, resolveConcentrationCheck, normalizeSpell, castSpell,
-    persistSpellcastingState, handleRestCompleted, bindRestIntegration, wrapTraitEngine, install });
+    persistSpellcastingState, handleRestCompleted, bindRestIntegration, ensureFixedDamageAsset, wrapTraitEngine, install });
 
   global.LuminousSpellcastingRuntime = api;
   install();
