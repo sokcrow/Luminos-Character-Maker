@@ -83,13 +83,22 @@
     };
   }
 
-  // Bard already owns core_class_bard_l1_spellcasting in bard-class-runtime.js.
-  const CASTER_GRANTS = Object.freeze(CASTER_CLASS_IDS.filter((classId) => classId !== "bard").map(grantFor));
+  const CASTER_GRANTS = Object.freeze(CASTER_CLASS_IDS.map(grantFor));
+
+  function grantIdentity(grant = {}) {
+    return `${grant.sourceType}:${grant.sourceId}:${grant.traitId}:${grant.atLevel}`;
+  }
 
   function catalogIsCurrent(source) {
     if (!source?.__casterSpellcastingTraitsExtended) return false;
     const bard = source.getDefinition?.("spellcasting") || source.DEFINITIONS?.spellcasting;
-    return bard?.name === "Spellcasting Ability" && bard?.mechanics?.progression === "full" && bard?.mechanics?.automaticSlots === true;
+    const grants = source.allGrants?.() || source.GRANTS || [];
+    const identities = grants.map(grantIdentity);
+    return bard?.name === "Spellcasting Ability"
+      && bard?.mechanics?.progression === "full"
+      && bard?.mechanics?.automaticSlots === true
+      && new Set(identities).size === identities.length
+      && CASTER_GRANTS.every((grant) => identities.includes(grantIdentity(grant)));
   }
 
   function wrapCatalog() {
@@ -104,10 +113,14 @@
 
     const allDefinitions = () => ({ ...baseDefinitions(), ...clone(CASTER_DEFINITIONS) });
     const allGrants = () => {
-      const existing = baseGrants();
-      const identities = new Set(existing.map((grant) => `${grant.sourceType}:${grant.sourceId}:${grant.traitId}:${grant.atLevel}`));
-      const additions = CASTER_GRANTS.filter((grant) => !identities.has(`${grant.sourceType}:${grant.sourceId}:${grant.traitId}:${grant.atLevel}`));
-      return [...existing, ...clone(additions)];
+      const combined = [...baseGrants(), ...clone(CASTER_GRANTS)];
+      const seen = new Set();
+      return combined.filter((grant) => {
+        const identity = grantIdentity(grant);
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        return true;
+      });
     };
     const getDefinition = (id) => clone(CASTER_DEFINITIONS[normalizeId(id)] || baseGet(id));
     const validateAll = (engine = global.LuminousTraitEngine) => {
@@ -122,6 +135,13 @@
         const validation = engine.validateTrait(definition);
         validation.errors.forEach((message) => errors.push(`${key}: ${message}`));
         validation.warnings.forEach((message) => warnings.push(`${key}: ${message}`));
+      });
+      const grants = allGrants();
+      const identities = new Set();
+      grants.forEach((grant) => {
+        const identity = grantIdentity(grant);
+        if (identities.has(identity)) errors.push(`Duplicate caster grant identity: ${identity}`);
+        identities.add(identity);
       });
       return { valid: baseResult.valid !== false && !errors.length, errors, warnings };
     };
@@ -153,6 +173,7 @@
     traitIdFor,
     definitionFor,
     grantFor,
+    grantIdentity,
     wrapCatalog,
     install,
   });
