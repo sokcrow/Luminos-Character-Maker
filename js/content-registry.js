@@ -126,12 +126,12 @@
     const source = options.source || "catalog";
     const raw = Array.isArray(catalog)
       ? catalog
-      : Object.entries(catalog || {}).map(([key, value]) => ({ id: value?.id || key, ...(value || {}) }));
+      : Object.entries(catalog || {}).map(([key, value]) => ({ ...(value || {}), id: value?.id || key }));
     const registered = [];
     raw.filter(Boolean).forEach((definition) => {
       const id = definition.id;
       if (!id) throw new Error(`Catalog ${source} contains a definition without explicit id.`);
-      registered.push(register({ type, id, ...definition }, { source, nameAliases: options.nameAliases === true, allowSameDefinition: options.allowSameDefinition === true }));
+      registered.push(register({ ...definition, type, id }, { source, nameAliases: options.nameAliases === true, allowSameDefinition: options.allowSameDefinition === true }));
     });
     return registered;
   }
