@@ -111,7 +111,7 @@ test("rollback invalido aborta sin mutacion parcial", () => {
 });
 
 test("parche no modifica el Coin Engine ni triggerCoinRoll para evitar doble conteo", () => {
-  const source = read("js/milestone-trait-modifier-patch.js");
+  const source = read("js/skill-trait-breakdown-patch.js");
   expect(source).not.toContain("rollAdjustment.bonus =");
   expect(source).not.toContain("triggerCoinRoll =");
   expect(source).toContain("skillTraitContributions");
@@ -120,6 +120,10 @@ test("parche no modifica el Coin Engine ni triggerCoinRoll para evitar doble con
 
 test("runtime compartido carga el parche en Player y DM", () => {
   const loader = read("js/player-stat-tooltip-runtime.js");
+  const facade = read("js/milestone-trait-modifier-patch.js");
   expect(loader).toContain("milestone-trait-modifier-patch-script");
   expect(loader).toContain("js/milestone-trait-modifier-patch.js");
+  expect(facade).toContain("js/trait-formula-view-patch.js");
+  expect(facade).toContain("js/skill-trait-breakdown-patch.js");
+  expect(facade).toContain("js/milestone-revert-patch.js");
 });
