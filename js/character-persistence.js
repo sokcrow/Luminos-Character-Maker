@@ -225,10 +225,10 @@
     const backgroundId = backgroundRaw ? resolveContentLocalId("background", backgroundRaw, options, bucket) : null;
     const baseStats = clone(firstOwned(build, ["baseStats"], raw.baseStats ?? {}));
     const racialStatChoices = clone(firstOwned(build, ["racialStatChoices"], raw.racialStatChoices ?? []));
-    const milestoneSelections = clone(firstOwned(build, ["milestoneSelections"], raw.milestoneSelections ?? raw.milestones ?? []));
-    const traitSelections = normalizeStringSelections(firstOwned(build, ["traitSelections"], raw.traitSelections ?? raw.traits ?? raw.humanPerks ?? []));
-    const skillSelections = normalizeStringSelections(firstOwned(build, ["skillSelections"], raw.skillSelections ?? raw.skills ?? []));
-    const spellSelections = normalizeStringSelections(firstOwned(build, ["spellSelections"], raw.spellSelections ?? raw.spells ?? []));
+    const milestoneSelections = clone(firstOwned(build, ["milestoneSelections"], raw.milestoneSelections ?? []));
+    const traitSelections = normalizeStringSelections(firstOwned(build, ["traitSelections"], raw.traitSelections ?? []));
+    const skillSelections = normalizeStringSelections(firstOwned(build, ["skillSelections"], raw.skillSelections ?? []));
+    const spellSelections = normalizeStringSelections(firstOwned(build, ["spellSelections"], raw.spellSelections ?? []));
 
     const next = { ...raw, schemaVersion: CURRENT_SCHEMA_VERSION };
     next.characterBuild = {
@@ -324,7 +324,7 @@
     if (from < 0 || typeof migration !== "function") throw new Error("Migration requires a non-negative fromVersion and a function.");
     if (migrations.has(from)) throw new Error(`Migration from v${from} is already registered.`);
     migrations.set(from, migration);
-    return api;
+    return migration;
   }
 
   function runMigrations(raw, options = {}) {
