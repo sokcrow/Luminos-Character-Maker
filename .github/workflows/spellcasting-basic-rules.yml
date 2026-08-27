@@ -5,8 +5,10 @@ on:
     paths:
       - "js/spellcasting-runtime.js"
       - "js/spellcasting-basic-rules-runtime.js"
+      - "js/caster-spellcasting-traits-runtime.js"
       - "js/scene-time-engine.js"
       - "tests/spellcasting_runtime.spec.js"
+      - "tests/caster_spellcasting_progression.spec.js"
       - "docs/spellcasting-basic-rules.md"
       - ".github/workflows/spellcasting-basic-rules.yml"
 
@@ -30,10 +32,16 @@ jobs:
         run: |
           node --check js/spellcasting-runtime.js
           node --check js/spellcasting-basic-rules-runtime.js
+          node --check js/caster-spellcasting-traits-runtime.js
           node --check js/scene-time-engine.js
           node --check tests/spellcasting_runtime.spec.js
+          node --check tests/caster_spellcasting_progression.spec.js
       - name: Focused Spellcasting regressions
-        run: npx playwright test tests/spellcasting_runtime.spec.js --workers=1
+        run: >-
+          npx playwright test
+          tests/spellcasting_runtime.spec.js
+          tests/caster_spellcasting_progression.spec.js
+          --workers=1
       - name: Related integration regressions
         run: >-
           npx playwright test
