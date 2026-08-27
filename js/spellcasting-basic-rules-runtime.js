@@ -27,6 +27,7 @@
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const intOr = (value, fallback = 0) => Number.isFinite(Number.parseInt(value, 10)) ? Number.parseInt(value, 10) : fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
+  const canonicalClassId = (value) => base.canonicalSpellcastingClassId?.(value) || normalizeId(value);
   let restListenerBound = false;
 
   function normalizeAbility(value) {
@@ -44,8 +45,8 @@
   }
 
   function classEntry(character, classId) {
-    const id = normalizeId(classId);
-    return classEntries(character).find((entry) => normalizeId(entry.classId || entry.id) === id) || null;
+    const id = canonicalClassId(classId);
+    return classEntries(character).find((entry) => canonicalClassId(entry.classId || entry.id) === id) || null;
   }
 
   function classSpellcastingAbility(character = {}, classId) {
@@ -66,7 +67,7 @@
   }
 
   function resolveSpellcasting(character = {}, classId, runtime = {}, variables = {}) {
-    const normalizedClassId = normalizeId(classId);
+    const normalizedClassId = canonicalClassId(classId);
     const abilityId = classSpellcastingAbility(character, normalizedClassId);
     if (!abilityId) return null;
     const variableName = ABILITY_VARIABLES[abilityId];
@@ -75,7 +76,17 @@
       : (Number.isFinite(Number(runtime?.[variableName])) ? Number(runtime[variableName]) : statModifier(character, abilityId));
     const baseResolved = base.resolveSpellcasting(character, normalizedClassId, runtime, variables);
     const proficiency = numberOr(variables?.Proficiency ?? runtime?.Proficiency ?? character.proficiency ?? baseResolved?.proficiency, 0);
-    return { classId: normalizedClassId, abilityId, spellMod, proficiency, spellDC: 8 + spellMod + proficiency };
+    const profile = base.getClassSpellcastingProfile?.(normalizedClassId) || null;
+    return {
+      classId: normalizedClassId,
+      abilityId,
+      progression: profile?.progression || baseResolved?.progression || null,
+      recovery: profile?.recovery || baseResolved?.recovery || null,
+      spellMod,
+      proficiency,
+      spellAttack: spellMod + proficiency,
+      spellDC: 8 + spellMod + proficiency,
+    };
   }
 
   function resolveForTrait(character = {}, trait = {}, runtime = {}, variables = {}) {
@@ -93,12 +104,25 @@
     return table;
   }
 
+  function configuredSlotTable(character = {}, classId) {
+    const rawId = normalizeId(classId), id = canonicalClassId(classId), entry = classEntry(character, id);
+    const aliases = [...new Set([rawId, id])];
+    const candidates = [
+      entry?.spellSlots,
+      entry?.spell_slots,
+      entry?.spellcasting?.slots,
+      ...aliases.map((key) => character?.spellSlotsByClass?.[key]),
+      ...aliases.map((key) => character?.spellSlots?.[key]),
+      ...aliases.map((key) => character?.characterBuild?.spellSlotsByClass?.[key]),
+    ];
+    return normalizeSlotTable(candidates.find((value) => value && typeof value === "object" && Object.keys(value).length) || {});
+  }
+
   function slotTableForClass(character = {}, classId, explicit = null) {
     if (explicit && typeof explicit === "object") return normalizeSlotTable(explicit);
-    const id = normalizeId(classId), entry = classEntry(character, id);
-    const candidates = [entry?.spellSlots, entry?.spell_slots, entry?.spellcasting?.slots,
-      character?.spellSlotsByClass?.[id], character?.spellSlots?.[id], character?.characterBuild?.spellSlotsByClass?.[id]];
-    return normalizeSlotTable(candidates.find((value) => value && typeof value === "object" && Object.keys(value).length) || {});
+    const configured = configuredSlotTable(character, classId);
+    if (Object.keys(configured).length) return configured;
+    return normalizeSlotTable(base.getClassSpellSlotTable?.(character, canonicalClassId(classId)) || {});
   }
 
   function ensureSpellcastingState(character) {
@@ -113,7 +137,7 @@
   }
 
   function reconcileSlotPool(character, classId, explicitTable = null) {
-    const state = ensureSpellcastingState(character), id = normalizeId(classId), maxima = slotTableForClass(character, id, explicitTable);
+    const state = ensureSpellcastingState(character), id = canonicalClassId(classId), maxima = slotTableForClass(character, id, explicitTable);
     if (!id) throw new Error("Spell Slot pool requires classId.");
     if (!state.slotsByClass[id]?.levels) state.slotsByClass[id] = { levels: {} };
     const levels = state.slotsByClass[id].levels;
@@ -126,7 +150,7 @@
   }
 
   function spellSlotPool(character, classId, explicitTable = null) {
-    const id = normalizeId(classId), pool = reconcileSlotPool(character, id, explicitTable), levels = {};
+    const id = canonicalClassId(classId), pool = reconcileSlotPool(character, id, explicitTable), levels = {};
     Object.entries(pool.levels).forEach(([level, entry]) => {
       const maximum = Math.max(0, intOr(entry.maximum, 0)), spent = Math.max(0, Math.min(maximum, intOr(entry.spent, 0)));
       levels[level] = { level: Number(level), maximum, spent, available: maximum - spent };
@@ -136,7 +160,7 @@
 
   function canSpendSpellSlot(character, classId, slotLevel, explicitTable = null) {
     const level = Math.max(0, intOr(slotLevel, 0));
-    if (level === 0) return { available: true, cantrip: true, classId: normalizeId(classId), slotLevel: 0 };
+    if (level === 0) return { available: true, cantrip: true, classId: canonicalClassId(classId), slotLevel: 0 };
     const pool = spellSlotPool(character, classId, explicitTable), levelPool = pool.levels[level] || { maximum: 0, spent: 0, available: 0 };
     return { available: levelPool.available > 0, cantrip: false, classId: pool.classId, slotLevel: level, levelPool, pool,
       reason: levelPool.available > 0 ? null : `No Level ${level} Spell Slots available for ${pool.classId}.` };
@@ -151,16 +175,23 @@
 
   function syncSpellSlotPools(character) {
     return classEntries(character).map((entry) => {
-      const classId = normalizeId(entry.classId || entry.id), table = slotTableForClass(character, classId);
+      const classId = canonicalClassId(entry.classId || entry.id), table = slotTableForClass(character, classId);
       return classId && Object.keys(table).length ? spellSlotPool(character, classId, table) : null;
     }).filter(Boolean);
   }
 
-  function restoreSpellSlots(character, classId = null) {
+  function shouldRestoreForRest(classId, restType) {
+    const type = normalizeId(restType || "long_rest");
+    if (type === "long_rest") return true;
+    if (type !== "short_rest") return false;
+    return base.getClassSpellcastingProfile?.(classId)?.recovery === "short_or_long_rest";
+  }
+
+  function restoreSpellSlots(character, classId = null, restType = "long_rest") {
     syncSpellSlotPools(character);
-    const state = ensureSpellcastingState(character), ids = classId ? [normalizeId(classId)] : Object.keys(state.slotsByClass), changes = [];
+    const state = ensureSpellcastingState(character), ids = classId ? [canonicalClassId(classId)] : Object.keys(state.slotsByClass), changes = [];
     ids.forEach((id) => {
-      if (!state.slotsByClass[id]?.levels) return;
+      if (!state.slotsByClass[id]?.levels || !shouldRestoreForRest(id, restType)) return;
       Object.values(state.slotsByClass[id].levels).forEach((entry) => { entry.spent = 0; });
       changes.push(spellSlotPool(character, id));
     });
@@ -262,7 +293,7 @@
     const state = ensureSpellcastingState(character), requires = spell.concentration === true || spell.requiresConcentration === true || spell.requires_concentration === true;
     if (!requires) return { started: false, concentration: clone(state.concentration.active || null) };
     state.concentration.active = { spellId: normalizeId(spell.id || spell.name), spellName: String(spell.name || spell.id || "Spell"),
-      startedAt: options.startedAt ?? Date.now(), sourceClassId: normalizeId(options.classId || spell.classId || spell.sourceClassId) };
+      startedAt: options.startedAt ?? Date.now(), sourceClassId: canonicalClassId(options.classId || spell.classId || spell.sourceClassId) };
     return { started: true, concentration: clone(state.concentration.active) };
   }
 
@@ -297,13 +328,13 @@
   function normalizeSpell(spell = {}, options = {}) {
     const slotLevel = Math.max(0, intOr(spell.slotLevel ?? spell.level ?? spell.spellLevel, 0));
     return { ...spell, id: normalizeId(spell.id || spell.name), slotLevel, cantrip: slotLevel === 0 || spell.cantrip === true,
-      sourceClassId: normalizeId(spell.sourceClassId || spell.classId || options.classId), targetType: normalizeTargetType(spell.targetType || spell.target_type),
+      sourceClassId: canonicalClassId(spell.sourceClassId || spell.classId || options.classId), targetType: normalizeTargetType(spell.targetType || spell.target_type),
       save: normalizeSave(spell), concentration: spell.concentration === true || spell.requiresConcentration === true || spell.requires_concentration === true,
       castingTimeSeconds: normalizeCastingTimeSeconds(spell), upcast: normalizeUpcast(spell) };
   }
 
   function castSpell(character, spellInput = {}, options = {}) {
-    const spell = normalizeSpell(spellInput, options), classId = normalizeId(options.classId || spell.sourceClassId);
+    const spell = normalizeSpell(spellInput, options), classId = canonicalClassId(options.classId || spell.sourceClassId);
     if (!classId) return { success: false, reason: "Spell has no source Class.", spell };
     const requestedSlotLevel = spell.cantrip ? 0 : Math.max(spell.slotLevel, intOr(options.slotLevel, spell.slotLevel));
     let resource = { type: "cantrip", spent: 0 };
@@ -331,11 +362,11 @@
   }
 
   function handleRestCompleted(event) {
-    const detail = event?.detail || {};
-    if (normalizeId(detail.type) !== "long_rest") return null;
+    const detail = event?.detail || {}, type = normalizeId(detail.type);
+    if (!["long_rest", "short_rest"].includes(type)) return null;
     const character = detail.character || global.LuminousPlayerTraitRuntime?.getCharacter?.() || global.datosJugador || null;
     if (!character) return null;
-    const restored = restoreSpellSlots(character); persistSpellcastingState(character); return restored;
+    const restored = restoreSpellSlots(character, null, type); persistSpellcastingState(character); return restored;
   }
 
   function bindRestIntegration() {
@@ -362,7 +393,7 @@
     global.LuminousTraitEngine = Object.freeze({ ...source, __spellcastingBasicRulesWrapped: true,
       buildVariables(character = {}, runtime = {}, trait = {}) {
         const variables = original(character, runtime, trait), resolved = resolveForTrait(character, trait, runtime, variables);
-        return resolved ? { ...variables, SpellMod: resolved.spellMod, SpellDC: resolved.spellDC } : variables;
+        return resolved ? { ...variables, SpellMod: resolved.spellMod, SpellAttack: resolved.spellAttack, SpellDC: resolved.spellDC } : variables;
       } });
     return true;
   }
@@ -370,8 +401,8 @@
   function install() { ensureFixedDamageAsset(); bindRestIntegration(); return wrapTraitEngine(); }
 
   const api = Object.freeze({ ...base, __basicRulesV1: true, SCHEMA_VERSION, STATE_KEY, OVERCAST_SP_PER_SLOT_LEVEL, VALID_TARGET_TYPES,
-    normalizeAbility, classSpellcastingAbility, resolveSpellcasting, resolveForTrait, normalizeSlotTable, slotTableForClass, ensureSpellcastingState,
-    reconcileSlotPool, spellSlotPool, canSpendSpellSlot, spendSpellSlot, syncSpellSlotPools, restoreSpellSlots, readCurrentSp, writeCurrentSp,
+    normalizeAbility, classSpellcastingAbility, resolveSpellcasting, resolveForTrait, normalizeSlotTable, configuredSlotTable, slotTableForClass, ensureSpellcastingState,
+    reconcileSlotPool, spellSlotPool, canSpendSpellSlot, spendSpellSlot, syncSpellSlotPools, shouldRestoreForRest, restoreSpellSlots, readCurrentSp, writeCurrentSp,
     applyOvercast, normalizeTargetType, normalizeSave, resolveSpellSave, normalizeUpcast, resolveUpcast, normalizeCastingTimeSeconds,
     buildCastingActionMessage, startConcentration, endConcentration, concentrationCheckForSkill, resolveConcentrationCheck, normalizeSpell, castSpell,
     persistSpellcastingState, handleRestCompleted, bindRestIntegration, ensureFixedDamageAsset, wrapTraitEngine, install });
