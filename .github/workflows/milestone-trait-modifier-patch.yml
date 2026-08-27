@@ -8,8 +8,15 @@ on:
       - "js/trait-formula-view-patch.js"
       - "js/skill-trait-breakdown-patch.js"
       - "js/milestone-revert-patch.js"
+      - "js/barbarian-class-runtime.js"
+      - "js/shield-duration-runtime.js"
+      - "js/trait-catalog-core.js"
       - "tests/milestone_trait_modifier_patch.spec.js"
       - "tests/milestone_revert_race.spec.js"
+      - "tests/barbarian_classlevel_patch.spec.js"
+      - "tests/barbarian_trait_rules_runtime.spec.js"
+      - "tests/shield_duration_runtime.spec.js"
+      - "tests/trait_formula_sign_rendering.spec.js"
       - ".github/workflows/milestone-trait-modifier-patch.yml"
 
 permissions:
@@ -41,8 +48,15 @@ jobs:
           node --check js/trait-formula-view-patch.js
           node --check js/skill-trait-breakdown-patch.js
           node --check js/milestone-revert-patch.js
+          node --check js/barbarian-class-runtime.js
+          node --check js/shield-duration-runtime.js
+          node --check js/trait-catalog-core.js
           node --check tests/milestone_trait_modifier_patch.spec.js
           node --check tests/milestone_revert_race.spec.js
+          node --check tests/barbarian_classlevel_patch.spec.js
+          node --check tests/barbarian_trait_rules_runtime.spec.js
+          node --check tests/shield_duration_runtime.spec.js
+          node --check tests/trait_formula_sign_rendering.spec.js
 
       - name: Run focused regressions
         run: >-
@@ -56,6 +70,10 @@ jobs:
           tests/class_milestone_ui.spec.js
           tests/trait_engine.spec.js
           tests/trait_standardization_review_fixes.spec.js
+          tests/barbarian_classlevel_patch.spec.js
+          tests/barbarian_trait_rules_runtime.spec.js
+          tests/shield_duration_runtime.spec.js
+          tests/trait_formula_sign_rendering.spec.js
           --workers=1
 
       - name: Run full regression suite

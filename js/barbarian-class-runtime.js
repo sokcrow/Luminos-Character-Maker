@@ -1,9 +1,11 @@
 (function (global) {
   "use strict";
 
-  if (global.LuminousBarbarianClassRuntime) return;
+  if (global.LuminousBarbarianClassRuntime) {
+    if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousBarbarianClassRuntime;
+    return;
+  }
 
-  const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[_\s-]+/g, "");
 
   function isGuardSkill(skill = {}) {
@@ -12,43 +14,12 @@
     return subtype === "guard" || subtype === "clashableguard";
   }
 
-  function guardState(unit = {}) {
-    return unit?.guard && typeof unit.guard === "object" ? unit.guard : {};
-  }
-
   function installCombatBridge(engine = global.CombatEngine) {
-    if (!engine || engine.__barbarianClassLevelGuardPatched) return Boolean(engine);
+    if (!engine) return false;
+    if (engine.__barbarianClassLevelGuardPatched) return true;
 
-    const originalCalculateFinalPower = engine.calculateFinalPower;
-    const originalResolveGuard = engine.resolveGuard;
-    if (typeof originalCalculateFinalPower !== "function" || typeof originalResolveGuard !== "function") return false;
-
-    engine.calculateFinalPower = function (skill, headsFlipped, unit = null) {
-      const result = originalCalculateFinalPower.call(this, skill, headsFlipped, unit);
-      if (!unit || !isGuardSkill(skill)) return result;
-      return result + numberOr(guardState(unit).powerBonus, 0);
-    };
-
-    engine.resolveGuard = function (unitDefender, guardSkill) {
-      const shieldBefore = numberOr(unitDefender?.shield, 0);
-      const result = originalResolveGuard.call(this, unitDefender, guardSkill);
-      if (!result || !unitDefender) return result;
-
-      const shieldPercent = Math.max(0, numberOr(guardState(unitDefender).shieldPercent, 0));
-      if (shieldPercent <= 0) return result;
-
-      const baseShieldGain = Math.max(0, numberOr(unitDefender.shield, shieldBefore) - shieldBefore);
-      const shieldBonus = baseShieldGain * shieldPercent / 100;
-      unitDefender.shield = numberOr(unitDefender.shield, shieldBefore) + shieldBonus;
-
-      return {
-        ...result,
-        shieldPercentBonus: shieldPercent,
-        shieldBonus,
-        newShieldAmount: unitDefender.shield,
-      };
-    };
-
+    // Armorless Defense no longer modifies Guard Power or Guard Shield.
+    // Keep this compatibility marker/API so older loaders and tests can call the bridge safely.
     Object.defineProperty(engine, "__barbarianClassLevelGuardPatched", {
       value: true,
       enumerable: false,
