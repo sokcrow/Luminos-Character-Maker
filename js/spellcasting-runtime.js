@@ -324,8 +324,26 @@
     return true;
   }
 
+  function ensureCasterSpellcastingTraitsAsset() {
+    if (global.LuminousCasterSpellcastingTraitsRuntime) return global.LuminousCasterSpellcastingTraitsRuntime;
+    if (typeof require === "function" && !global.document) {
+      try { return require("./caster-spellcasting-traits-runtime.js"); } catch (_) { return null; }
+    }
+    if (!global.document) return null;
+    let script = global.document.getElementById("caster-spellcasting-traits-runtime-script");
+    if (script) return script;
+    script = global.document.createElement("script");
+    script.id = "caster-spellcasting-traits-runtime-script";
+    script.src = "js/caster-spellcasting-traits-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return script;
+  }
+
   function install() {
-    return wrapTraitEngine();
+    const wrapped = wrapTraitEngine();
+    ensureCasterSpellcastingTraitsAsset();
+    return wrapped;
   }
 
   const api = Object.freeze({
@@ -352,6 +370,7 @@
     resolveSpellcasting,
     resolveForTrait,
     wrapTraitEngine,
+    ensureCasterSpellcastingTraitsAsset,
     install,
   });
 
