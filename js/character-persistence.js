@@ -24,8 +24,8 @@
     "uiState",
   ]);
 
-  // Only aliases whose equivalence is already explicit in current repository catalogs are mapped here.
-  // Unknown legacy content is preserved in the raw-compatible document and reported, never guessed.
+  // Verified aliases from the legacy character-creation IDs to current Race IDs.
+  // Anything without a proven equivalent is preserved as legacy input and diagnosed.
   const LEGACY_CONTENT_ALIASES = Object.freeze({
     race: Object.freeze({
       humano: "human",
@@ -46,6 +46,15 @@
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
   }
 
+  function owns(object, key) {
+    return Object.prototype.hasOwnProperty.call(object || {}, key);
+  }
+
+  function firstOwned(object, keys, fallback) {
+    for (const key of keys) if (owns(object, key)) return object[key];
+    return fallback;
+  }
+
   function toInteger(value, fallback = 0) {
     const parsed = Number.parseInt(value, 10);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -55,7 +64,7 @@
     return typeof value === "string" ? value.trim() : "";
   }
 
-  function diagnostics() {
+  function newDiagnostics() {
     return { errors: [], warnings: [] };
   }
 
@@ -100,7 +109,7 @@
     return String(canonical || "").startsWith(prefix) ? String(canonical).slice(prefix.length) : null;
   }
 
-  function resolveContentLocalId(type, value, options = {}, bucket = diagnostics()) {
+  function resolveContentLocalId(type, value, options = {}, bucket = newDiagnostics()) {
     const raw = cleanString(value);
     if (!raw) return null;
     const registry = ensureRegistry(options.registry);
@@ -126,36 +135,34 @@
       return raw;
     }
 
-    pushDiagnostic(bucket, "warning", "UNRESOLVED_LEGACY_CONTENT_ID", `Legacy ${type} '${raw}' has no verified canonical mapping.`, { type, value: raw });
-    return null;
+    if (options.legacyMode === true) {
+      pushDiagnostic(bucket, "warning", "UNRESOLVED_LEGACY_CONTENT_ID", `Legacy ${type} '${raw}' has no verified canonical mapping.`, { type, value: raw });
+      return null;
+    }
+
+    return raw;
   }
 
   function normalizeClassEntries(raw, options, bucket) {
     const build = isObject(raw.characterBuild) ? raw.characterBuild : {};
-    const source = Array.isArray(build.classes)
-      ? build.classes
-      : Array.isArray(raw.classes)
-        ? raw.classes
-        : null;
-
+    const source = owns(build, "classes") ? build.classes : (Array.isArray(raw.classes) ? raw.classes : null);
     const entries = [];
-    if (source) {
+
+    if (Array.isArray(source)) {
       source.forEach((entry) => {
         if (!entry) return;
         const value = typeof entry === "string" ? { classId: entry, levels: 1 } : entry;
         const classId = resolveContentLocalId("class", value.classId || value.id || value.clase || value.name, options, bucket);
         if (!classId) return;
-        const levels = Math.max(1, toInteger(value.levels ?? value.level ?? value.classLevel ?? 1, 1));
-        entries.push({ classId, levels });
+        entries.push({ classId, levels: Math.max(1, toInteger(value.levels ?? value.level ?? value.classLevel ?? 1, 1)) });
       });
     } else {
-      const byId = build.classLevels || raw.classLevels || raw.classesById;
+      const byId = firstOwned(build, ["classLevels"], raw.classLevels || raw.classesById);
       if (isObject(byId)) {
         Object.entries(byId).forEach(([id, amount]) => {
           const classId = resolveContentLocalId("class", id, options, bucket);
           if (!classId) return;
-          const levels = Math.max(1, toInteger(amount?.levels ?? amount?.level ?? amount, 1));
-          entries.push({ classId, levels });
+          entries.push({ classId, levels: Math.max(1, toInteger(amount?.levels ?? amount?.level ?? amount, 1)) });
         });
       } else {
         const legacyClass = raw.clase || raw.classId || raw.className;
@@ -173,7 +180,7 @@
 
   function normalizeArchetypes(raw, options, bucket) {
     const build = isObject(raw.characterBuild) ? raw.characterBuild : {};
-    const source = build.archetypes ?? raw.archetypes ?? [];
+    const source = owns(build, "archetypes") ? build.archetypes : (raw.archetypes ?? []);
     const list = Array.isArray(source)
       ? source
       : isObject(source)
@@ -184,10 +191,10 @@
       const classId = resolveContentLocalId("class", entry?.classId || entry?.parentClassId, options, bucket);
       const archetypeId = resolveContentLocalId("archetype", entry?.archetypeId || entry?.subclassId || entry?.id, options, bucket);
       if (!classId || !archetypeId) return null;
-      const result = { classId, archetypeId };
+      const normalized = { classId, archetypeId };
       const selectedAt = toInteger(entry?.selectedAtClassLevel ?? entry?.selectedAtLevel, 0);
-      if (selectedAt > 0) result.selectedAtClassLevel = selectedAt;
-      return result;
+      if (selectedAt > 0) normalized.selectedAtClassLevel = selectedAt;
+      return normalized;
     }).filter(Boolean).sort((a, b) => a.classId.localeCompare(b.classId));
   }
 
@@ -198,13 +205,13 @@
 
   function normalizeCanonicalCharacter(input, options = {}) {
     const raw = clone(input || {});
-    const bucket = options.diagnostics || diagnostics();
-    const existingBuild = isObject(raw.characterBuild) ? raw.characterBuild : {};
+    const bucket = options.diagnostics || newDiagnostics();
+    const build = isObject(raw.characterBuild) ? raw.characterBuild : {};
 
-    const raceRaw = existingBuild.raceId ?? raw.raceId ?? raw.originId ?? raw.razaId ?? raw.raza;
+    const raceRaw = firstOwned(build, ["raceId"], raw.raceId ?? raw.originId ?? raw.razaId ?? raw.raza);
     const raceId = raceRaw ? resolveContentLocalId("race", raceRaw, options, bucket) : null;
 
-    let raceSubtypeId = cleanString(existingBuild.raceSubtypeId ?? existingBuild.subraceId ?? raw.raceSubtypeId ?? raw.subraceId);
+    let raceSubtypeId = cleanString(firstOwned(build, ["raceSubtypeId", "subraceId"], raw.raceSubtypeId ?? raw.subraceId));
     if (raceSubtypeId && raceId) {
       const registry = ensureRegistry(options.registry);
       const candidate = `${raceId}:${raceSubtypeId}`;
@@ -214,19 +221,18 @@
       }
     }
 
-    const backgroundRaw = existingBuild.backgroundId ?? raw.backgroundId ?? raw.trasfondoId;
+    const backgroundRaw = firstOwned(build, ["backgroundId"], raw.backgroundId ?? raw.trasfondoId);
     const backgroundId = backgroundRaw ? resolveContentLocalId("background", backgroundRaw, options, bucket) : null;
-
-    const baseStats = clone(existingBuild.baseStats ?? raw.baseStats ?? {});
-    const racialStatChoices = clone(existingBuild.racialStatChoices ?? raw.racialStatChoices ?? []);
-    const milestoneSelections = clone(existingBuild.milestoneSelections ?? raw.milestoneSelections ?? raw.milestones ?? []);
-    const traitSelections = normalizeStringSelections(existingBuild.traitSelections ?? raw.traitSelections ?? raw.traits ?? raw.humanPerks ?? []);
-    const skillSelections = normalizeStringSelections(existingBuild.skillSelections ?? raw.skillSelections ?? raw.skills ?? []);
-    const spellSelections = normalizeStringSelections(existingBuild.spellSelections ?? raw.spellSelections ?? raw.spells ?? []);
+    const baseStats = clone(firstOwned(build, ["baseStats"], raw.baseStats ?? {}));
+    const racialStatChoices = clone(firstOwned(build, ["racialStatChoices"], raw.racialStatChoices ?? []));
+    const milestoneSelections = clone(firstOwned(build, ["milestoneSelections"], raw.milestoneSelections ?? raw.milestones ?? []));
+    const traitSelections = normalizeStringSelections(firstOwned(build, ["traitSelections"], raw.traitSelections ?? raw.traits ?? raw.humanPerks ?? []));
+    const skillSelections = normalizeStringSelections(firstOwned(build, ["skillSelections"], raw.skillSelections ?? raw.skills ?? []));
+    const spellSelections = normalizeStringSelections(firstOwned(build, ["spellSelections"], raw.spellSelections ?? raw.spells ?? []));
 
     const next = { ...raw, schemaVersion: CURRENT_SCHEMA_VERSION };
     next.characterBuild = {
-      ...clone(existingBuild),
+      ...clone(build),
       raceId,
       raceSubtypeId: raceSubtypeId || null,
       backgroundId,
@@ -240,8 +246,8 @@
       spellSelections,
     };
 
-    const name = cleanString(raw.characterName || raw.character_name || raw.nombre || raw.name);
-    const characterId = cleanString(raw.characterId || raw.identityId || raw.id);
+    const name = cleanString(raw.characterIdentity?.name || raw.characterName || raw.character_name || raw.nombre || raw.name);
+    const characterId = cleanString(raw.characterIdentity?.characterId || raw.characterId || raw.identityId || raw.id);
     next.characterIdentity = {
       ...(isObject(raw.characterIdentity) ? clone(raw.characterIdentity) : {}),
       characterId: characterId || null,
@@ -264,9 +270,8 @@
   }
 
   function validateCanonicalCharacter(character, options = {}) {
-    const bucket = options.diagnostics || diagnostics();
+    const bucket = options.diagnostics || newDiagnostics();
     const registry = ensureRegistry(options.registry);
-
     if (!isObject(character)) {
       pushDiagnostic(bucket, "error", "INVALID_CHARACTER_DOCUMENT", "Character save must be an object.");
       return { valid: false, diagnostics: bucket };
@@ -282,9 +287,7 @@
     const build = character.characterBuild;
     validateTypedReference(registry, "race", build.raceId, bucket, "characterBuild.raceId");
     validateTypedReference(registry, "background", build.backgroundId, bucket, "characterBuild.backgroundId");
-    if (build.raceId && build.raceSubtypeId) {
-      validateTypedReference(registry, "subrace", `${build.raceId}:${build.raceSubtypeId}`, bucket, "characterBuild.raceSubtypeId");
-    }
+    if (build.raceId && build.raceSubtypeId) validateTypedReference(registry, "subrace", `${build.raceId}:${build.raceSubtypeId}`, bucket, "characterBuild.raceSubtypeId");
 
     if (!Array.isArray(build.classes)) {
       pushDiagnostic(bucket, "error", "INVALID_CLASSES", "characterBuild.classes must be an array.");
@@ -308,12 +311,7 @@
       });
     }
 
-    const selectionTypes = [
-      ["traitSelections", "trait"],
-      ["skillSelections", "skill"],
-      ["spellSelections", "spell"],
-    ];
-    selectionTypes.forEach(([field, type]) => {
+    [["traitSelections", "trait"], ["skillSelections", "skill"], ["spellSelections", "spell"]].forEach(([field, type]) => {
       if (!Array.isArray(build[field])) return;
       build[field].forEach((id, index) => validateTypedReference(registry, type, id, bucket, `characterBuild.${field}[${index}]`));
     });
@@ -331,7 +329,7 @@
 
   function runMigrations(raw, options = {}) {
     const rawBackup = clone(raw);
-    const bucket = diagnostics();
+    const bucket = newDiagnostics();
     if (!isObject(raw)) {
       pushDiagnostic(bucket, "error", "INVALID_CHARACTER_DOCUMENT", "Raw character must be an object.");
       return { ok: false, character: null, rawBackup, diagnostics: bucket, fromVersion: 0, toVersion: null };
@@ -360,7 +358,7 @@
       return { ok: false, character: null, rawBackup, diagnostics: bucket, fromVersion, toVersion: null };
     }
 
-    const normalized = normalizeCanonicalCharacter(current, { ...options, diagnostics: bucket });
+    const normalized = normalizeCanonicalCharacter(current, { ...options, diagnostics: bucket, legacyMode: false });
     const validation = validateCanonicalCharacter(normalized.character, { ...options, diagnostics: bucket });
     return {
       ok: validation.valid,
@@ -383,15 +381,15 @@
   }
 
   function prepareForSave(input, options = {}) {
-    const result = runMigrations(input, options);
-    if (!result.ok) return result;
-    const stripped = stripTransientState(result.character);
-    const bucket = diagnostics();
-    bucket.warnings.push(...clone(result.diagnostics.warnings));
-    const normalized = normalizeCanonicalCharacter(stripped, { ...options, diagnostics: bucket });
+    const loaded = runMigrations(input, options);
+    if (!loaded.ok) return loaded;
+    const stripped = stripTransientState(loaded.character);
+    const bucket = newDiagnostics();
+    bucket.warnings.push(...clone(loaded.diagnostics.warnings));
+    const normalized = normalizeCanonicalCharacter(stripped, { ...options, diagnostics: bucket, legacyMode: false });
     const validation = validateCanonicalCharacter(normalized.character, { ...options, diagnostics: bucket });
     return {
-      ...result,
+      ...loaded,
       ok: validation.valid,
       character: validation.valid ? normalized.character : null,
       candidate: normalized.character,
@@ -404,7 +402,7 @@
   }
 
   registerMigration(0, (raw, options = {}) => {
-    const normalized = normalizeCanonicalCharacter({ ...clone(raw), schemaVersion: CURRENT_SCHEMA_VERSION }, options);
+    const normalized = normalizeCanonicalCharacter({ ...clone(raw), schemaVersion: CURRENT_SCHEMA_VERSION }, { ...options, legacyMode: true });
     return normalized.character;
   });
 
