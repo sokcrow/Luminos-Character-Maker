@@ -17,20 +17,20 @@ const BASE_10 = Object.freeze({
 });
 
 function character(overrides = {}) {
+  const overrideBuild = overrides.characterBuild || {};
   return {
     level: 10,
-    baseStats: { ...BASE_10 },
     stats: { ...BASE_10 },
+    ...overrides,
+    baseStats: { ...BASE_10, ...(overrides.baseStats || {}) },
     characterBuild: {
       raceId: "human",
       raceSubtypeId: null,
       racialStatChoices: [],
       backgroundId: "chef",
       classes: [{ classId: "fighter", levels: 10 }],
-      ...(overrides.characterBuild || {}),
+      ...overrideBuild,
     },
-    ...overrides,
-    baseStats: { ...BASE_10, ...(overrides.baseStats || {}) },
   };
 }
 
@@ -92,6 +92,7 @@ test("Player, DM, NPC and Combat adapters expose the same canonical Ability Mod"
   });
   global.LuminousNpcStats = Object.freeze({
     abilityModifier: () => 999,
+    normalizeProfile: (profile) => profile,
     abilityRollMath: (profile, abilityId) => ({ abilityId, score: profile.stats.fuerza, proficiencyValue: 0 }),
   });
   global.CombatEngine = {
@@ -214,6 +215,7 @@ test("OFF DEF and Speed are one canonical base plus Universal Modifier channels"
   const source = {
     ...character({
       level: 100,
+      baseStats: { constitucion: 18 },
       characterBuild: {
         raceId: null,
         backgroundId: "chef",
@@ -259,9 +261,18 @@ test("Derived Stats runtime owns Combat base while preserving Skill-specific sca
   runtime.installCombat();
 
   const base = derived.resolveCharacterStats(source).offensiveLevel.total;
-  const skill = { scaling_stat: "fuerza", resonance: 2 };
+  const skill = { scaling_stat: "fuerza", resonanceOffenseBonus: 2 };
   expect(global.CombatEngine.getOffensiveLevel(source, skill)).toBe(base + 15 + 2);
   expect(global.CombatEngine.__derivedStatsV1).toBe(true);
+});
+
+test("production Player DM and Combat loaders request Derived Stats v1", () => {
+  const splashSource = fs.readFileSync(path.join(__dirname, "..", "js/player-splash-framing.js"), "utf8");
+  const speedSource = fs.readFileSync(path.join(__dirname, "..", "js/universal-speed-runtime.js"), "utf8");
+  expect(splashSource).toContain('script.id = "derived-stats-runtime-script"');
+  expect(splashSource).toContain('script.src = "js/derived-stats-runtime.js"');
+  expect(speedSource).toContain("function ensureDerivedStatsRuntime()");
+  expect(speedSource).toContain('script.src = "js/derived-stats-runtime.js"');
 });
 
 test("runtime and engine stay mechanics-only and do not persist derived state", () => {
