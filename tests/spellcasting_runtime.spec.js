@@ -117,6 +117,14 @@ test("Overcast costs 15 SP per Slot Level and overflow becomes Fixed Damage", ()
   expect(fixedDamageCalls[0].amount).toBe(25);
 });
 
+test("Overcast overflow never mutates SP when Fixed Damage is unavailable", () => {
+  const character = bardCharacter({ currentSp: 5 });
+  const result = spellcasting.applyOvercast(character, 2, { fixedDamageRuntime: {} });
+  expect(result.success).toBe(false);
+  expect(result.reason).toContain("Fixed Damage Runtime");
+  expect(character.currentSp).toBe(5);
+});
+
 test("Upcast exposes Final Power, Coin Power, ATK Weight and Duration as independent channels", () => {
   const result = spellcasting.resolveUpcast({
     slotLevel: 2,
