@@ -5,6 +5,7 @@ const path = require("node:path");
 const engine = require(path.join(__dirname, "..", "js", "trait-engine.js"));
 require(path.join(__dirname, "..", "js", "class-milestone-engine.js"));
 const patch = require(path.join(__dirname, "..", "js", "milestone-trait-modifier-patch.js"));
+const skillPatch = require(path.join(__dirname, "..", "js", "skill-trait-breakdown-patch.js"));
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
 test("formula de Trait resuelve el numero actual sin reescribir la descripcion", () => {
@@ -14,7 +15,7 @@ test("formula de Trait resuelve el numero actual sin reescribir la descripcion",
     description: "Gain (10 x STR MOD) and add STR MOD to Performance.",
     source: { type: "general", id: "jackpot" },
     activation: { type: "passive", actionCost: "none" },
-    effects: [{ id: "jackpot_math", contexts: ["theatre"], trigger: "before_check", conditions: [{ path: "check.skillId", operator: "eq", value: "performance" }], operations: [{ type: "modify", path: "check.finalPower", mode: "add", formula: "StrengthMod" }] }],
+    effects: [{ id: "jackpot_math", contexts: ["theatre"], trigger: "before_check", conditions: [{ path: "check.skillId", operator: "eq", value: "performance" }], operations: [{ type: "modify", path: "check.abilityPower", mode: "add", formula: "StrengthMod" }] }],
     rules: [{ type: "modifier", trigger: "passive", target: "self", path: "resource.jackpot", mode: "set", formula: "10 * StrengthMod" }],
   };
   const originalDescription = trait.description;
@@ -64,21 +65,81 @@ test("matcher visual acepta formula machine, x y signo de multiplicacion", () =>
   expect("10 * StrengthMod".match(regex())).toEqual(["10 * StrengthMod"]);
 });
 
-test("JACKPOT aporta STR Mod solo a Performance y conserva fuente", () => {
+test("JACKPOT Check Power aporta STR Mod solo a Performance y conserva fuente", () => {
   const jackpot = {
     schemaVersion: 1,
     id: "jackpot",
     name: "JACKPOT!",
-    description: "Add STR MOD to Performance.",
+    description: "Add STR MOD as Power to Performance.",
     source: { type: "general", id: "jackpot" },
     contexts: ["theatre"],
     activation: { type: "passive", actionCost: "none" },
-    effects: [{ id: "jackpot_performance", contexts: ["theatre"], trigger: "before_check", conditions: [{ path: "check.skillId", operator: "eq", value: "performance" }], operations: [{ type: "modify", path: "check.finalPower", mode: "add", formula: "StrengthMod" }] }],
+    effects: [{ id: "jackpot_performance", contexts: ["theatre"], trigger: "before_check", conditions: [{ path: "check.skillId", operator: "eq", value: "performance" }], operations: [{ type: "modify", path: "check.abilityPower", mode: "add", formula: "StrengthMod" }] }],
     rules: [],
   };
   const character = { level: 20, stats: { fuerza: 16, carisma: 14 } };
-  expect(patch.skillTraitContributions(engine, [jackpot], character, { kind: "skill", abilityId: "cha", skillId: "performance" })).toEqual([{ traitId: "jackpot", name: "JACKPOT!", amount: 3 }]);
-  expect(patch.skillTraitContributions(engine, [jackpot], character, { kind: "skill", abilityId: "cha", skillId: "persuasion" })).toEqual([]);
+  expect(skillPatch.checkPowerContributions(engine, [jackpot], character, { kind: "skill", abilityId: "cha", skillId: "performance" }))
+    .toEqual([{ traitId: "jackpot", name: "JACKPOT!", amount: 3, channel: "check_power" }]);
+  expect(skillPatch.checkPowerContributions(engine, [jackpot], character, { kind: "skill", abilityId: "cha", skillId: "persuasion" })).toEqual([]);
+});
+
+test("Final Power nunca se incorpora al Mod visible de Skill", () => {
+  const finisher = {
+    schemaVersion: 1,
+    id: "late_bonus",
+    name: "Late Bonus",
+    source: { type: "general", id: "late_bonus" },
+    contexts: ["theatre"],
+    activation: { type: "passive", actionCost: "none" },
+    effects: [{ id: "late_bonus_check", contexts: ["theatre"], trigger: "before_check", conditions: [{ path: "check.skillId", operator: "eq", value: "performance" }], operations: [{ type: "modify", path: "check.finalPower", mode: "add", formula: "StrengthMod" }] }],
+    rules: [],
+  };
+  const character = { level: 20, stats: { fuerza: 16, carisma: 14 } };
+  const check = { kind: "skill", abilityId: "cha", skillId: "performance" };
+
+  expect(skillPatch.checkPowerContributions(engine, [finisher], character, check)).toEqual([]);
+  expect(skillPatch.finalPowerContributions(engine, [finisher], character, check))
+    .toEqual([{ traitId: "late_bonus", name: "Late Bonus", amount: 3, channel: "final_power" }]);
+});
+
+test("Check Power y Final Power permanecen en canales distintos dentro del mismo Check", () => {
+  const trait = {
+    schemaVersion: 1,
+    id: "two_stage",
+    name: "Two Stage",
+    source: { type: "general", id: "two_stage" },
+    contexts: ["theatre"],
+    activation: { type: "passive", actionCost: "none" },
+    effects: [{
+      id: "two_stage_check",
+      contexts: ["theatre"],
+      trigger: "before_check",
+      operations: [
+        { type: "modify", path: "check.abilityPower", mode: "add", formula: "StrengthMod" },
+        { type: "modify", path: "check.finalPower", mode: "add", formula: "Proficiency" },
+      ],
+    }],
+    rules: [],
+  };
+  const character = { level: 40, stats: { fuerza: 16 } };
+  const check = { kind: "skill", abilityId: "cha", skillId: "performance" };
+  expect(skillPatch.checkPowerContributions(engine, [trait], character, check)[0].amount).toBe(3);
+  expect(skillPatch.finalPowerContributions(engine, [trait], character, check)[0].amount).toBe(2);
+});
+
+test("aliases check.power y check.checkPower son Check Power, no Final Power", () => {
+  const aliases = ["check.power", "check.checkPower"].map((targetPath, index) => ({
+    schemaVersion: 1,
+    id: `alias_${index}`,
+    name: `Alias ${index}`,
+    source: { type: "general", id: `alias_${index}` },
+    contexts: ["theatre"],
+    activation: { type: "passive", actionCost: "none" },
+    effects: [{ id: `alias_effect_${index}`, contexts: ["theatre"], trigger: "before_check", operations: [{ type: "modify", path: targetPath, mode: "add", formula: "1" }] }],
+    rules: [],
+  }));
+  expect(skillPatch.checkPowerContributions(engine, aliases, { level: 20 }, { kind: "skill", skillId: "performance" }).map((entry) => entry.amount)).toEqual([1, 1]);
+  expect(skillPatch.finalPowerContributions(engine, aliases, { level: 20 }, { kind: "skill", skillId: "performance" })).toEqual([]);
 });
 
 test("rollback +2 resta exactamente el allocation y conserva otros milestones", () => {
@@ -110,20 +171,18 @@ test("rollback invalido aborta sin mutacion parcial", () => {
   expect(player.characterBuild.classMilestones.barbarian[20]).toBeTruthy();
 });
 
-test("parche no modifica el Coin Engine ni triggerCoinRoll para evitar doble conteo", () => {
+test("parche no modifica Coin Engine y solo intercepta una tirada cuando existe Check Power", () => {
   const source = read("js/skill-trait-breakdown-patch.js");
   expect(source).not.toContain("rollAdjustment.bonus =");
-  expect(source).not.toContain("triggerCoinRoll =");
-  expect(source).toContain("skillTraitContributions");
-  expect(source).toContain("check.finalpower");
+  expect(source).not.toContain("LuminousCoinEngine =");
+  expect(source).toContain('stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + previewPower)');
+  expect(source).toContain('target.dataset.resolvedCheckPower');
+  expect(source).toContain('CHECK_POWER_PATHS');
+  expect(source).toContain('FINAL_POWER_PATHS');
 });
 
 test("runtime compartido carga el parche en Player y DM", () => {
   const loader = read("js/player-stat-tooltip-runtime.js");
-  const facade = read("js/milestone-trait-modifier-patch.js");
   expect(loader).toContain("milestone-trait-modifier-patch-script");
   expect(loader).toContain("js/milestone-trait-modifier-patch.js");
-  expect(facade).toContain("js/trait-formula-view-patch.js");
-  expect(facade).toContain("js/skill-trait-breakdown-patch.js");
-  expect(facade).toContain("js/milestone-revert-patch.js");
 });
