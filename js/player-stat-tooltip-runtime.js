@@ -23,6 +23,19 @@
   const abilityModifier = (score) => Math.floor((numberOr(score, 10) - 10) / 2);
   const formatSigned = (value) => numberOr(value, 0) >= 0 ? `+${numberOr(value, 0)}` : String(numberOr(value, 0));
 
+  function ensureMilestoneTraitModifierPatch() {
+    if (!doc || global.LuminousMilestoneTraitModifierPatch) return global.LuminousMilestoneTraitModifierPatch || null;
+    let script = doc.getElementById("milestone-trait-modifier-patch-script");
+    if (script) return script;
+    script = doc.createElement("script");
+    script.id = "milestone-trait-modifier-patch-script";
+    script.src = "js/milestone-trait-modifier-patch.js";
+    script.async = false;
+    script.dataset.ui = "milestone-trait-modifier-patch";
+    doc.head?.appendChild(script);
+    return script;
+  }
+
   function normalizeAbility(ability = {}) {
     const id = normalizeId(ability.id || ability.code);
     const key = ability.key || ABILITY_KEYS[id] || id;
@@ -208,6 +221,7 @@
   }
 
   function boot() {
+    ensureMilestoneTraitModifierPatch();
     sync();
     global.setInterval?.(sync, 500);
   }
@@ -225,6 +239,7 @@
     syncPlayerTooltip,
     syncDmTooltips,
     sync,
+    ensureMilestoneTraitModifierPatch,
   });
 
   global.LuminousPlayerStatTooltipRuntime = api;
