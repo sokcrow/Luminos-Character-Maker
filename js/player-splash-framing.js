@@ -29,6 +29,18 @@
     return script;
   }
 
+  function ensureDerivedStatsRuntime() {
+    let script = doc.getElementById("derived-stats-runtime-script");
+    if (script) return script;
+    script = doc.createElement("script");
+    script.id = "derived-stats-runtime-script";
+    script.src = "js/derived-stats-runtime.js";
+    script.async = false;
+    script.dataset.engine = "derived-stats-v1";
+    doc.head?.appendChild(script);
+    return script;
+  }
+
   function normalizeFrame(source) {
     const raw = source || {};
     return {
@@ -311,6 +323,7 @@
 
   function boot() {
     ensureStatModifierTooltipRuntime();
+    ensureDerivedStatsRuntime();
     const tick = () => {
       if (doc.getElementById("dashboard-jugadores")) {
         mountDmControls();
@@ -340,5 +353,6 @@
     closeLightbox,
     syncPlayerFrame,
     ensureStatModifierTooltipRuntime,
+    ensureDerivedStatsRuntime,
   });
 })(window);
