@@ -7,6 +7,35 @@
   const BASE_SPEED = typeof Symbol === "function" ? Symbol.for("luminous.baseSpeed") : "__luminousBaseSpeed";
   const decoratedUnits = typeof WeakSet === "function" ? new WeakSet() : null;
   const resolvingUnits = typeof WeakSet === "function" ? new WeakSet() : null;
+  let derivedLoaderStarted = false;
+
+  function ensureDerivedStatsRuntime() {
+    if (global.LuminousDerivedStatsRuntime) {
+      global.LuminousDerivedStatsRuntime.install?.();
+      return true;
+    }
+    if (typeof require === "function") {
+      try {
+        const runtime = require("./derived-stats-runtime.js");
+        runtime?.install?.();
+        if (runtime) return true;
+      } catch (_) {}
+    }
+    const doc = global.document;
+    if (!doc || derivedLoaderStarted) return false;
+    derivedLoaderStarted = true;
+    let script = doc.getElementById("derived-stats-runtime-script");
+    if (!script) {
+      script = doc.createElement("script");
+      script.id = "derived-stats-runtime-script";
+      script.src = "js/derived-stats-runtime.js";
+      script.async = false;
+      script.dataset.engine = "derived-stats-v1";
+      doc.head?.appendChild(script);
+    }
+    script.addEventListener?.("load", () => global.LuminousDerivedStatsRuntime?.install?.(), { once: true });
+    return false;
+  }
 
   function identityValues(entity = {}) {
     return [entity?.id, entity?.playerId, entity?.player_id, entity?.characterId, entity?.character_id, entity?.uid, entity?.vinculo_jugador]
@@ -67,6 +96,12 @@
   function effectiveSpeed(unit, options = {}) {
     const fixed = global.LuminousConditionRuntime?.fixedSpeedFor?.(unit);
     if (fixed != null && Number.isFinite(Number(fixed))) return Number(fixed);
+    const derived = global.LuminousDerivedStatsRuntime?.snapshot?.(
+      options.character || (isCurrentPlayerUnit(unit) ? currentPlayerCharacter() : unit) || unit || {},
+      { unit, traits: options.traits || traitsForUnit(unit), context: "combat", baseSpeed: options.baseSpeed },
+    );
+    if (derived?.speed && Number.isFinite(Number(derived.speed.current))) return Number(derived.speed.current);
+
     const modifiers = options.modifierEngine || global.LuminousUniversalModifiers;
     const character = options.character || (isCurrentPlayerUnit(unit) ? currentPlayerCharacter() : unit) || unit || {};
     const traits = options.traits || traitsForUnit(unit);
@@ -155,6 +190,7 @@
   }
 
   function install() {
+    ensureDerivedStatsRuntime();
     const engine = global.CombatEngine;
     const modifiers = global.LuminousUniversalModifiers;
     if (!engine || !modifiers) return false;
@@ -194,7 +230,7 @@
     return true;
   }
 
-  const api = Object.freeze({ effectiveSpeed, decorateSpeed, decorateKnownCombatants, rawSpeed, withResolvedSpeeds, install });
+  const api = Object.freeze({ effectiveSpeed, decorateSpeed, decorateKnownCombatants, rawSpeed, withResolvedSpeeds, ensureDerivedStatsRuntime, install });
   global.LuminousUniversalSpeedRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
