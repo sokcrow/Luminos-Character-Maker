@@ -1,0 +1,47 @@
+name: Character Persistence Schema
+
+on:
+  pull_request:
+    paths:
+      - "js/character-persistence.js"
+      - "js/character-persistence-firebase.js"
+      - "js/content-registry.js"
+      - "js/content-registry-bootstrap.js"
+      - "js/character-build-rules.js"
+      - "js/archetype-engine.js"
+      - "js/archetype-trait-catalog.js"
+      - "tests/character_persistence.spec.js"
+      - "docs/character-persistence-v1.md"
+      - ".github/workflows/character-persistence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  character-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Syntax checks
+        run: |
+          node --check js/character-persistence.js
+          node --check js/character-persistence-firebase.js
+          node --check tests/character_persistence.spec.js
+
+      - name: Persistence contract
+        run: npx playwright test tests/character_persistence.spec.js --workers=1
+
+      - name: Registry dependency contract
+        run: npx playwright test tests/content_registry.spec.js --workers=1
