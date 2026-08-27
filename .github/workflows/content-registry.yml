@@ -1,0 +1,49 @@
+name: Canonical Content Registry
+
+on:
+  pull_request:
+    paths:
+      - "js/content-registry.js"
+      - "js/content-registry-bootstrap.js"
+      - "js/character-build-rules.js"
+      - "js/canonical-race-integration.js"
+      - "js/trait-catalog-core.js"
+      - "js/archetype-engine.js"
+      - "js/archetype-trait-catalog.js"
+      - "js/language-catalog-engine.js"
+      - "js/status-engine.js"
+      - "tests/content_registry.spec.js"
+      - "docs/content-registry-v1.md"
+      - ".github/workflows/content-registry.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-content-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Syntax checks
+        run: |
+          node --check js/content-registry.js
+          node --check js/content-registry-bootstrap.js
+          node --check tests/content_registry.spec.js
+
+      - name: Canonical Registry contract
+        run: npx playwright test tests/content_registry.spec.js --workers=1
+
+      - name: Full regression suite
+        run: npm test -- --workers=1
