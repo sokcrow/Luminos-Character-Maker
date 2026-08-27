@@ -1,0 +1,59 @@
+name: Milestone Trait Modifier Patch
+
+on:
+  pull_request:
+    paths:
+      - "js/player-stat-tooltip-runtime.js"
+      - "js/milestone-trait-modifier-patch.js"
+      - "js/trait-formula-view-patch.js"
+      - "js/skill-trait-breakdown-patch.js"
+      - "js/milestone-revert-patch.js"
+      - "tests/milestone_trait_modifier_patch.spec.js"
+      - ".github/workflows/milestone-trait-modifier-patch.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  patch-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check patch syntax
+        run: |
+          node --check js/player-stat-tooltip-runtime.js
+          node --check js/milestone-trait-modifier-patch.js
+          node --check js/trait-formula-view-patch.js
+          node --check js/skill-trait-breakdown-patch.js
+          node --check js/milestone-revert-patch.js
+          node --check tests/milestone_trait_modifier_patch.spec.js
+
+      - name: Run focused regressions
+        run: >-
+          npx playwright test
+          tests/milestone_trait_modifier_patch.spec.js
+          tests/player_stat_modifier_tooltip.spec.js
+          tests/player_stats_ability_bar.spec.js
+          tests/player_trait_tabs.spec.js
+          tests/class_milestone_engine.spec.js
+          tests/class_milestone_ui.spec.js
+          tests/trait_engine.spec.js
+          tests/trait_standardization_review_fixes.spec.js
+          --workers=1
+
+      - name: Run full regression suite
+        run: npx playwright test --workers=1
