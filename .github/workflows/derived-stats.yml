@@ -11,6 +11,7 @@ on:
       - "js/existing-racial-stat-integration.js"
       - "js/player-stat-tooltip-runtime.js"
       - "js/player-stats-ability-bar.js"
+      - "js/player-splash-framing.js"
       - "js/npc-stats-engine.js"
       - "js/character-manager-npc-stats.js"
       - "js/universal-modifier-engine.js"
@@ -45,6 +46,8 @@ jobs:
         run: |
           node --check js/derived-stats-engine.js
           node --check js/derived-stats-runtime.js
+          node --check js/player-splash-framing.js
+          node --check js/universal-speed-runtime.js
           node --check tests/derived_stats.spec.js
       - name: Derived Stats contract
         run: npx playwright test tests/derived_stats.spec.js --workers=1
