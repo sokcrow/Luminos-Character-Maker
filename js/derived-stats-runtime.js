@@ -169,7 +169,7 @@
       abilityRollMath(profile, abilityId) {
         const legacy = original.abilityRollMath?.(profile, abilityId) || null;
         const normalized = original.normalizeProfile?.(profile || {}) || profile || {};
-        const proficiencyOverride = Number.isFinite(Number(normalized.proficiencyBonus)) ? Number(normalized.proficiencyBonus) : undefined;
+        const proficiencyBonusOverride = Number.isFinite(Number(normalized.proficiencyBonus)) ? Number(normalized.proficiencyBonus) : undefined;
         const resolved = api.resolveCharacterStats({ stats: normalized.stats || profile?.stats || {} }, { proficiencyBonusOverride });
         const id = api.abilityId(abilityId);
         const ability = resolved.abilities[id];
@@ -190,9 +190,12 @@
     return true;
   }
 
-  function combatSkillScaling(unit, skill, kind) {
+  function combatSkillScaling(unit, skill, kind, resolved) {
     if (!skill) return 0;
-    if (skill.scaling_stat && unit?.stats) return Number(unit.stats[String(skill.scaling_stat).toLowerCase()]) || 0;
+    if (skill.scaling_stat) {
+      const key = String(skill.scaling_stat).toLowerCase();
+      return Number(resolved?.effectiveStats?.[key] ?? unit?.stats?.[key]) || 0;
+    }
     return kind === "defensive"
       ? (Number(skill.defenseModifier) || 0)
       : (Number(skill.offenseModifier) || 0);
@@ -217,7 +220,7 @@
       combat.getOffensiveLevel = function derivedOffensiveLevel(unit, skill = {}) {
         try {
           const resolved = combat.resolveDerivedStats(unit, { skill, context: "combat" });
-          const scaling = combatSkillScaling(unit, skill, "offensive");
+          const scaling = combatSkillScaling(unit, skill, "offensive", resolved);
           const resonance = Number(skill?.resonanceOffenseBonus) || 0;
           return Math.max(1, resolved.offensiveLevel.total + scaling + resonance);
         } catch (_) {
@@ -230,7 +233,7 @@
       combat.getDefensiveLevel = function derivedDefensiveLevel(unit, skillOrPart = {}) {
         try {
           const resolved = combat.resolveDerivedStats(unit, { skill: skillOrPart, context: "combat" });
-          const scaling = combatSkillScaling(unit, skillOrPart, "defensive");
+          const scaling = combatSkillScaling(unit, skillOrPart, "defensive", resolved);
           const resonance = Number(skillOrPart?.resonanceDefenseBonus) || 0;
           return Math.max(1, resolved.defensiveLevel.total + scaling + resonance);
         } catch (_) {
