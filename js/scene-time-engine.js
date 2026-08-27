@@ -16,6 +16,12 @@
     document.head?.appendChild(script);
   }
   const runtime = () => load('scene-time-v1-runtime', 'js/scene-time-runtime.js');
+  const spellcasting = () => {
+    const basic = () => load('luminous-spellcasting-basic-rules', 'js/spellcasting-basic-rules-runtime.js');
+    if (global.LuminousSpellcastingRuntime) basic();
+    else load('luminous-spellcasting-runtime', 'js/spellcasting-runtime.js', basic);
+  };
+  spellcasting();
   if (global.LuminousSceneTimeCore) runtime();
   else load('scene-time-v1-core', 'js/scene-time-core.js', runtime);
 })(typeof window !== 'undefined' ? window : globalThis);
