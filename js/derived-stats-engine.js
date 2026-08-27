@@ -170,6 +170,19 @@
     return { base, racial, background: extra.background, traits: extra.traits, stats };
   }
 
+  function canonicalStatView(character, stats, base) {
+    const build = character.characterBuild || {};
+    return {
+      ...clone(character),
+      baseStats: { ...(base || {}) },
+      stats: { ...(stats || {}) },
+      characterBuild: {
+        ...clone(build),
+        baseStats: { ...(base || {}) },
+      },
+    };
+  }
+
   function runtimeStats(character, persistent, options = {}) {
     const direct = normalizeAbilityBonuses(options.runtimeStatBonuses || {});
     const starting = { ...persistent.stats };
@@ -182,10 +195,10 @@
     }
 
     try {
-      const unit = { ...clone(character), stats: { ...starting } };
-      const runtimeCharacter = { ...clone(character), stats: { ...starting } };
+      const runtimeCharacter = canonicalStatView(character, starting, persistent.base);
+      const runtimeUnit = canonicalStatView(options.unit || character, starting, persistent.base);
       const resolved = engine.resolveStats({
-        unit,
+        unit: runtimeUnit,
         character: runtimeCharacter,
         traits: traitDefinitions,
         traitState: options.traitState || {},
@@ -290,9 +303,11 @@
     if (!engine) return { trait: {}, status: {}, merged: {} };
     let trait = {};
     let status = {};
+    const traitUnit = options.traitUnit || character;
+    const statusUnit = options.unit || character;
     try {
       if (engine.resolveTraitModifiers) trait = engine.resolveTraitModifiers({
-        unit: options.unit || character,
+        unit: traitUnit,
         character,
         traits: options.traits || options.traitDefinitions || [],
         traitState: options.traitState || {},
@@ -301,7 +316,7 @@
       }) || {};
     } catch (_) {}
     try {
-      if (engine.resolveStatusModifiers) status = engine.resolveStatusModifiers({ unit: options.unit || character, skill: options.skill }) || {};
+      if (engine.resolveStatusModifiers) status = engine.resolveStatusModifiers({ unit: statusUnit, skill: options.skill }) || {};
     } catch (_) {}
     const merged = engine.mergeModifiers ? engine.mergeModifiers(trait, status) : { ...trait, ...status };
     return { trait, status, merged };
@@ -323,7 +338,7 @@
     return Object.freeze({ level, classModifier, raceModifier, dmModifier, itemModifier, runtimeModifier, total });
   }
 
-  function hpSnapshot(character, calculation, channels, options = {}) {
+  function hpSnapshot(character, calculation, options = {}) {
     const storedBase = readFirst(character, ["combatStats.hp_base", "hp_base"], 0);
     const storedCoef = readFirst(character, ["combatStats.hp_coefficient", "hp_coefficient"], 0);
     const storedMax = readFirst(character, ["combatStats.hp_max", "hp_max", "maxHp", "max_hp"], null);
@@ -363,7 +378,15 @@
     const runtime = runtimeStats(source, persistent, options);
     const abilities = abilitySnapshots(persistent, runtime);
     const calculation = buildCalculation(source, abilities, level, options);
-    const channels = channelModifiers(source, options);
+
+    const canonicalCharacter = canonicalStatView(source, runtime.stats, persistent.base);
+    const canonicalTraitUnit = canonicalStatView(options.unit || source, runtime.stats, persistent.base);
+    const channels = channelModifiers(canonicalCharacter, {
+      ...options,
+      traitUnit: canonicalTraitUnit,
+      unit: options.unit || source,
+    });
+
     const offensiveLevel = combatLevelSnapshot(source, "offensive", level, calculation, channels);
     const defensiveLevel = combatLevelSnapshot(source, "defensive", level, calculation, channels);
     const proficiency = Object.freeze({
@@ -373,7 +396,7 @@
       level,
       source: Number.isFinite(Number(options.proficiencyBonusOverride)) ? "override" : "character-level",
     });
-    const hp = hpSnapshot(source, calculation, channels, { ...options, defensiveLevel: defensiveLevel.total });
+    const hp = hpSnapshot(source, calculation, { ...options, defensiveLevel: defensiveLevel.total });
     const sp = spSnapshot(source);
     const speed = speedSnapshot(source, channels, options);
 
