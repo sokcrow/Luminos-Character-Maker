@@ -2,10 +2,13 @@ const { test, expect } = require("@playwright/test");
 const engine = require("../js/trait-engine.js");
 const catalog = require("../js/trait-catalog-core.js");
 const tray = require("../js/trait-player-tray.js");
+const modifiers = require("../js/universal-modifier-engine.js");
 const CombatEngine = require("../js/combatEngine.js");
 const barbarianRuntime = require("../js/barbarian-class-runtime.js");
+const shieldRuntime = require("../js/shield-duration-runtime.js");
 
 barbarianRuntime.installCombatBridge(CombatEngine);
+shieldRuntime.installCombatBridge(CombatEngine);
 
 function multiclassBarbarian(barbarianLevel, otherLevel = 0, constitution = 16) {
   return {
@@ -27,28 +30,38 @@ function multiclassBarbarian(barbarianLevel, otherLevel = 0, constitution = 16) 
       offensiveLevel: barbarianLevel + otherLevel,
       defensiveLevel: barbarianLevel + otherLevel,
     },
+    hp: 200,
+    maxHp: 200,
     sp: 0,
     shield: 0,
+    statusEffects: {},
   };
 }
 
-test("Armorless Defense display resolves Barbarian ClassLevel instead of Character Level", () => {
+test("Armorless Defense uses Barbarian ClassLevel for Shield and Constitution Mod for Defensive Level", () => {
   const trait = catalog.getDefinition("armorless_defense");
   const character = multiclassBarbarian(30, 70, 16);
-  const resolved = tray.resolveTraitDisplay(trait, { character });
+  const variables = engine.buildVariables(character, {}, trait);
+  const defensiveRule = trait.rules.find((rule) => rule.channel === "defensive_level");
 
-  expect(resolved.values.guardBonus.display).toBe("33 Guard");
-  expect(resolved.values.shieldBonus.display).toBe("+15%");
-  expect(resolved.values.guardBonus.breakdown).toEqual(expect.arrayContaining([
-    expect.objectContaining({ label: "CON Mod", display: "+3" }),
-    expect.objectContaining({ label: "Class Level", display: "30" }),
-  ]));
-  expect(resolved.values.shieldBonus.breakdown).toEqual(expect.arrayContaining([
-    expect.objectContaining({ label: "Class Level", display: "30" }),
-  ]));
+  expect(trait.description).toContain("Gain +(1, Constitution Mod) Defensive Level.");
+  expect(trait.description).toContain("Gain (Class Level)% Max HP as Shield for encounter");
+  expect(variables.ClassLevel).toBe(30);
+  expect(engine.evaluateFormula(defensiveRule.formula, variables)).toBe(3);
+  expect(engine.evaluateFormula(trait.mechanics.encounterShieldPercentFormula, variables)).toBe(30);
+  expect(engine.evaluateFormula(trait.mechanics.encounterShieldAmountFormula, variables)).toBe(60);
+  expect(tray.resolveTraitDisplay(trait, { character })).toBeNull();
+
+  const snapshot = modifiers.resolveCharacterSnapshot({
+    unit: character,
+    character,
+    traits: [trait],
+    context: "combat",
+  });
+  expect(snapshot.defensiveLevel).toBe(103);
 });
 
-test("Armorless encounter state increases Guard Power and Guard Shield without using other class levels", () => {
+test("Armorless Encounter Shield is separate from normal Guard Ephemeral Shield", () => {
   const trait = catalog.getDefinition("armorless_defense");
   const character = multiclassBarbarian(30, 70, 16);
   const state = engine.createState();
@@ -61,7 +74,13 @@ test("Armorless encounter state increases Guard Power and Guard Shield without u
     equipment: { armorEquipped: false },
   });
 
-  expect(character.guard).toMatchObject({ powerBonus: 33, shieldPercent: 15 });
+  expect(character.shield).toBe(60);
+  expect(shieldRuntime.shieldBreakdown(character)).toEqual({
+    ephemeral: 0,
+    encounter: 60,
+    persistent: 0,
+    total: 60,
+  });
 
   const guardSkill = {
     type: "Guard",
@@ -74,12 +93,22 @@ test("Armorless encounter state increases Guard Power and Guard Shield without u
   };
   const result = CombatEngine.resolveGuard(character, guardSkill);
 
-  // Native Guard uses CON Mod (+3) as base. Armorless adds 33 Guard, for 36 total.
-  expect(result.guardPower).toBe(36);
-  expect(result.shieldPercentBonus).toBe(15);
-  expect(result.shieldBonus).toBeCloseTo(5.4, 6);
-  expect(result.newShieldAmount).toBeCloseTo(41.4, 6);
-  expect(character.shield).toBeCloseTo(41.4, 6);
+  expect(result.guardPower).toBe(3);
+  expect(result.shieldType).toBe("ephemeral");
+  expect(result.newShieldAmount).toBe(63);
+  expect(shieldRuntime.shieldBreakdown(character)).toEqual({
+    ephemeral: 3,
+    encounter: 60,
+    persistent: 0,
+    total: 63,
+  });
+
+  CombatEngine.triggerPhase("[Round Start]", [character]);
+  expect(character.shield).toBe(60);
+  expect(shieldRuntime.shieldBreakdown(character).encounter).toBe(60);
+
+  CombatEngine.triggerPhase("[Encounter End]", [character]);
+  expect(character.shield).toBe(0);
 });
 
 test("Brutal Critical and Unstoppable Rage previews stay tied to Barbarian ClassLevel", () => {
