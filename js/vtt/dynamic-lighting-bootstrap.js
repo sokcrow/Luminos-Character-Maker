@@ -107,6 +107,7 @@ ready(() => {
     engine,
     mapData,
     stateBridge: povStateBridge,
+    sceneBridge: lightingStateBridge,
     isDm: bridge.isDm,
     getControlledViewers: controlledViewers,
     notify: (message, mode) => runtime.controller?.notify?.(message, mode),
