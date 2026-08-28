@@ -59,8 +59,34 @@ document.addEventListener('DOMContentLoaded', () => {
         verticalPortalController: verticalController,
     }) || null;
 
+    const applyLayer = (zLayer) => {
+        engine.setZLayer(zLayer);
+        controller.handleTopologyChanged();
+        verticalController.handleLayerChanged();
+    };
+
+    const tokenStateApi = globalThis.LuminousVttTokenState;
+    if (!tokenStateApi) {
+        console.error('VTT canonical token state bridge not found.');
+        return;
+    }
+
+    const tokenStateBridge = tokenStateApi.createBridge({
+        mapData: mockMapData,
+        isDm: bridge.isDm,
+        notify: (message, mode) => controller?.notify(message, mode),
+        onTokensChanged: () => {
+            if (bridge.isDm) return;
+            const viewer = (mockMapData.tokens || []).find((token) => token.viewer === true)
+                || (mockMapData.tokens || []).find((token) => token.characterLink?.mode === 'current_player');
+            const zLayer = Number(viewer?.zLayer ?? viewer?.gridPosition?.z ?? viewer?.z?.[0]);
+            if (Number.isFinite(zLayer) && zLayer !== engine.activeZ) applyLayer(zLayer);
+        },
+    });
+
     bridge.start();
     verticalBridge.start();
+    tokenStateBridge.start();
 
     const characterVisionApi = globalThis.LuminousVttCharacterVisionBridge;
     const characterVisionBridge = characterVisionApi?.createBridge?.({
@@ -74,11 +100,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = document.getElementById('btn-export-uv');
     exportBtn?.addEventListener('click', () => engine.exportUVTemplate());
 
-    const applyLayer = (zLayer) => {
-        engine.setZLayer(zLayer);
-        controller.handleTopologyChanged();
-        verticalController.handleLayerChanged();
-    };
+    canvas.addEventListener('vtt:token-moved', (event) => {
+        const detail = event.detail || {};
+        const token = (mockMapData.tokens || []).find((entry) => String(entry.id) === String(detail.tokenId));
+        if (!token) return;
+        tokenStateBridge.saveToken(token).catch((error) => {
+            console.error('VTT token persistence failed:', error);
+            controller?.notify?.('No se pudo sincronizar la posición de la ficha.', 'error');
+        });
+    });
 
     canvas.addEventListener('vtt:token-z-transition', (event) => {
         const detail = event.detail || {};
@@ -94,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bridge,
         verticalController,
         verticalBridge,
+        tokenStateBridge,
         editMode,
         characterVisionBridge,
     });
@@ -113,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('beforeunload', () => {
         editMode?.stop?.();
         characterVisionBridge?.stop?.();
+        tokenStateBridge.stop();
         verticalController.destroy();
         verticalBridge.stop();
         bridge.stop();
