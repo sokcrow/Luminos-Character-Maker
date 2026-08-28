@@ -8,6 +8,7 @@
     const host = hostWindow();
     const runtime = root.LuminousVttRuntime;
     const racial = root.LuminousRacialSenseRuntime;
+    const lighting = root.LuminousVttLightingEngine;
     const db = host?.firebase?.database?.();
     const mapData = runtime?.engine?.mapData;
     if (!db || !mapData || !racial?.resolveCharacterSenses) return null;
@@ -17,6 +18,8 @@
       for (const token of mapData.tokens || []) {
         const playerId = String(token.canonicalPlayerKey || token.playerId || '').trim();
         if (!playerId || !records[playerId]) continue;
+        if (!Number.isFinite(Number(token.visionConeDeg))) token.visionConeDeg = lighting?.DEFAULT_VISION_CONE_DEG || 120;
+        if (!Number.isFinite(Number(token.facingDeg))) token.facingDeg = 0;
         token.senses = racial.resolveCharacterSenses(records[playerId]);
         token.characterVision = {
           raceId: token.senses.raceId,
