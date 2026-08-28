@@ -64,6 +64,7 @@
   function collectCatalog() {
     const definitions = {};
     const grants = [];
+    const grantIdentities = new Set();
     const errors = [];
     const providers = catalogProviders();
 
@@ -93,6 +94,9 @@
 
       if (!includeGrants) return;
       (catalog.allGrants?.() || []).forEach((grant) => {
+        const identity = grantIdentity(grant);
+        if (grantIdentities.has(identity)) return;
+        grantIdentities.add(identity);
         grants.push({
           id: grant?.id,
           grant,
