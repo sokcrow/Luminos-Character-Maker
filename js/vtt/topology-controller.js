@@ -178,6 +178,10 @@ export class TopologyController {
         return distance <= (this.mapData.grid.size * 0.8);
     }
 
+    learnMemoryFact(detail) {
+        try { window.dispatchEvent(new CustomEvent('vtt:memory-learn', { detail })); } catch (_) {}
+    }
+
     async openPlayerMenu(rawElement, clientX, clientY) {
         const element = this.topology.normalizeElement(rawElement);
         if (!this.canReach(element)) {
@@ -221,6 +225,7 @@ export class TopologyController {
         if (direct.includes('close')) addButton('CERRAR', () => this.stateBridge.requestDirectAction(element.id, 'close'));
 
         if (element.state === 'locked') {
+            this.learnMemoryFact({ kind: 'lock_state', elementId: element.id, type: element.type, locked: true });
             const hasLockpick = await this.stateBridge.hasItem('lockpick');
             addButton('JUEGO DE MANOS', () => this.stateBridge.requestTopologyCheck(element.id, 'lockpick'), !hasLockpick, hasLockpick ? 'Requiere Ganzúa' : 'No tienes Ganzúa');
             addButton('ROMPER · STRENGTH', () => this.stateBridge.requestTopologyCheck(element.id, 'strength'));
