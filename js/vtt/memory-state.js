@@ -82,7 +82,7 @@
     }
 
     function overrideFor(playerId = current.playerId) {
-      return { ...(overrides[clean(playerId)] || {}) };
+      return { ...(overrides[firebaseKey(playerId, 'player')] || {}) };
     }
 
     function applyPlayers(raw = {}) {
@@ -126,14 +126,25 @@
 
     async function saveOverride(playerId, override = null) {
       const id = clean(playerId);
+      const key = firebaseKey(id, 'player');
       if (!id) throw new Error('PLAYER_ID_REQUIRED');
       if (!isDm) throw new Error('DM_REQUIRED');
-      if (override == null || (typeof override === 'object' && !Object.keys(override).length)) delete overrides[id];
-      else overrides[id] = { ...override };
+      const empty = override == null || (typeof override === 'object' && !Object.keys(override).length);
+      let normalized = null;
+      if (!empty) {
+        normalized = { ...override };
+        if (Number.isFinite(Number(normalized.rank))) {
+          const rank = Math.max(0, Math.min(3, Math.trunc(Number(normalized.rank))));
+          normalized.rank = rank;
+          normalized.capabilities = { ...memory.capabilitiesForRank(rank, mapData), ...(normalized.capabilities || {}) };
+        }
+      }
+      if (empty) delete overrides[key];
+      else overrides[key] = normalized;
       if (db) {
-        const ref = overrideRootRef().child(firebaseKey(id, 'player'));
-        if (override == null || (typeof override === 'object' && !Object.keys(override).length)) await ref.remove();
-        else await ref.set({ ...override, updatedByUid: current.uid || DM_UID, updatedAt: firebase.database.ServerValue.TIMESTAMP });
+        const ref = overrideRootRef().child(key);
+        if (empty) await ref.remove();
+        else await ref.set({ ...normalized, updatedByUid: current.uid || DM_UID, updatedAt: firebase.database.ServerValue.TIMESTAMP });
       }
       if (typeof onChanged === 'function') onChanged({ type: 'override', playerId: id });
       return overrideFor(id);
