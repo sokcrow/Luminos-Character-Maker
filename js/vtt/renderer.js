@@ -35,9 +35,7 @@ export class Renderer {
 
     drawWalls(zLayer, isOnionSkin = false) {
         if (!this.mapData.walls) return;
-
         this.ctx.save();
-
         if (isOnionSkin) {
             this.ctx.strokeStyle = '#666666';
             this.ctx.globalAlpha = 0.3;
@@ -45,10 +43,8 @@ export class Renderer {
             this.ctx.strokeStyle = '#ff0000';
             this.ctx.globalAlpha = 1.0;
         }
-
         this.ctx.lineWidth = 3;
         this.ctx.lineCap = 'round';
-
         this.ctx.beginPath();
         for (const wall of this.mapData.walls) {
             if (wall.z.includes(zLayer)) {
@@ -57,7 +53,6 @@ export class Renderer {
             }
         }
         this.ctx.stroke();
-
         this.ctx.restore();
     }
 
@@ -73,10 +68,7 @@ export class Renderer {
             curtain_window: { stroke: '#b784ff', width: 7, label: state === 'locked' ? 'C·LOCK' : 'CURTAIN' },
         };
         const base = styles[element.type] || styles.wall;
-        return {
-            ...base,
-            dash: broken ? [5, 7] : open ? [12, 9] : [],
-        };
+        return { ...base, dash: broken ? [5, 7] : open ? [12, 9] : [] };
     }
 
     drawTopologyElement(element, isOnionSkin = false, preview = false) {
@@ -121,22 +113,41 @@ export class Renderer {
         this.mapData.topology.forEach((element) => {
             if (topology.elementOnLayer(element, zLayer)) this.drawTopologyElement(element, isOnionSkin, false);
         });
-
         const preview = this.mapData.topologyPreview;
         if (!isOnionSkin && preview && topology.elementOnLayer(preview, zLayer)) {
             this.drawTopologyElement(preview, false, true);
         }
     }
 
+    drawVerticalPortals(zLayer) {
+        const spatial = globalThis.LuminousVttSpatialVision;
+        if (!spatial || !Array.isArray(this.mapData.verticalPortals)) return;
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.strokeStyle = '#5dff9a';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([7, 5]);
+        for (const portal of this.mapData.verticalPortals) {
+            const layers = spatial.portalLayers(portal);
+            if (!layers.includes(Number(zLayer))) continue;
+            const a = spatial.vertexToPoint(portal.from || portal.a, this.mapData);
+            const b = spatial.vertexToPoint(portal.to || portal.b, this.mapData);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
     drawPersonIcon(token, radius) {
         const ctx = this.ctx;
         const iconColor = token.iconColor || '#ffffff';
-
         ctx.fillStyle = iconColor;
         ctx.beginPath();
         ctx.arc(token.x, token.y - radius * 0.24, radius * 0.22, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.beginPath();
         ctx.arc(token.x, token.y + radius * 0.46, radius * 0.47, Math.PI, Math.PI * 2);
         ctx.lineTo(token.x + radius * 0.47, token.y + radius * 0.56);
@@ -147,23 +158,17 @@ export class Renderer {
 
     drawTokens(zLayer) {
         if (!this.mapData.tokens) return;
-
         const tokenRules = globalThis.LuminousVttTokenInteraction;
         for (const token of this.mapData.tokens) {
-            if (!token.z.includes(zLayer)) continue;
-
-            const radius = tokenRules?.tokenRadius?.(token, this.mapData.grid)
-                || token.radius
-                || (this.mapData.grid.size * 0.4);
-
+            const tokenLayer = Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0);
+            if (tokenLayer !== Number(zLayer)) continue;
+            const radius = tokenRules?.tokenRadius?.(token, this.mapData.grid) || token.radius || (this.mapData.grid.size * 0.4);
             this.ctx.save();
             this.ctx.fillStyle = token.backgroundColor || '#20242a';
             this.ctx.beginPath();
             this.ctx.arc(token.x, token.y, radius, 0, Math.PI * 2);
             this.ctx.fill();
-
             if ((token.icon || 'person') === 'person') this.drawPersonIcon(token, radius);
-
             this.ctx.strokeStyle = token.color || '#ffffff';
             this.ctx.lineWidth = Math.max(2, radius * 0.08);
             this.ctx.beginPath();
@@ -182,73 +187,41 @@ export class Renderer {
             this.drawGrid(true);
             this.drawWalls(activeZ, false);
             this.drawTopology(activeZ, false);
+            this.drawVerticalPortals(activeZ);
             this.ctx.restore();
             return;
         }
 
-        if (!renderData) return;
-
-        const { fovPolygon, visionRadius, tokenPos, isLookingAway } = renderData;
+        if (!renderData || renderData.visible === false) return;
+        const { fovPolygon, visionRadius, tokenPos, monochrome } = renderData;
+        if (!fovPolygon || fovPolygon.length < 3 || visionRadius <= 0) return;
 
         this.ctx.save();
         camera.applyTransformSimple(this.ctx);
+        this.ctx.beginPath();
+        this.ctx.moveTo(fovPolygon[0].x, fovPolygon[0].y);
+        for (let i = 1; i < fovPolygon.length; i++) this.ctx.lineTo(fovPolygon[i].x, fovPolygon[i].y);
+        this.ctx.closePath();
+        this.ctx.clip();
 
-        if (fovPolygon && fovPolygon.length > 0) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(fovPolygon[0].x, fovPolygon[0].y);
-            for (let i = 1; i < fovPolygon.length; i++) {
-                this.ctx.lineTo(fovPolygon[i].x, fovPolygon[i].y);
-            }
-            this.ctx.closePath();
-            this.ctx.clip();
+        this.ctx.beginPath();
+        this.ctx.arc(tokenPos.x, tokenPos.y, visionRadius, 0, Math.PI * 2, false);
+        this.ctx.clip();
 
-            this.ctx.beginPath();
-            this.ctx.arc(tokenPos.x, tokenPos.y, visionRadius, 0, Math.PI * 2, false);
-            this.ctx.clip();
-        }
-
+        if (monochrome) this.ctx.filter = 'grayscale(1)';
         this.ctx.fillStyle = '#111';
         const cameraRectSize = 10000;
-        this.ctx.fillRect(
-            tokenPos.x - cameraRectSize/2,
-            tokenPos.y - cameraRectSize/2,
-            cameraRectSize,
-            cameraRectSize
-        );
+        this.ctx.fillRect(tokenPos.x - cameraRectSize / 2, tokenPos.y - cameraRectSize / 2, cameraRectSize, cameraRectSize);
 
         this.drawGrid();
-
         if (activeZ > 0) {
             this.drawWalls(activeZ - 1, true);
             this.drawTopology(activeZ - 1, true);
         }
-
         this.drawWalls(activeZ, false);
         this.drawTopology(activeZ, false);
+        this.drawVerticalPortals(activeZ);
         this.drawTokens(activeZ);
-
-        if (isLookingAway) {
-            const gradient = this.ctx.createRadialGradient(
-                tokenPos.x, tokenPos.y, visionRadius * 0.5,
-                tokenPos.x, tokenPos.y, visionRadius
-            );
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
-
-            this.ctx.fillStyle = gradient;
-            this.ctx.beginPath();
-            this.ctx.arc(tokenPos.x, tokenPos.y, visionRadius, 0, Math.PI * 2);
-            this.ctx.fill();
-        }
-
         this.ctx.restore();
-
-        if (isLookingAway) {
-            this.ctx.save();
-            camera.applyTransformSimple(this.ctx);
-            this.ctx.globalAlpha = 0.5;
-            this.drawTokens(this.mapData.tokens[0].z[0]);
-            this.ctx.restore();
-        }
     }
 }
