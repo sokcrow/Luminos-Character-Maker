@@ -10,6 +10,8 @@
   const CLASS_ID = "barbarian";
   const COLLEGE_OF_WHISPERS_ID = "college_of_whispers";
   const COLLEGE_OF_WHISPERS_CLASS_ID = "bard";
+  const OROSH_LINEAGE_ID = "orosh_lineage";
+  const OROSH_LINEAGE_CLASS_ID = "sorcerer";
 
   function deepFreeze(value, seen = new WeakSet()) {
     if (!value || typeof value !== "object" || seen.has(value)) return value;
@@ -35,6 +37,14 @@
       unlockLevel: 15,
       traitLevels: [15, 30, 70],
     },
+    [OROSH_LINEAGE_ID]: {
+      id: OROSH_LINEAGE_ID,
+      name: "Orosh Lineage",
+      classId: OROSH_LINEAGE_CLASS_ID,
+      className: "Sorcerer",
+      unlockLevel: 1,
+      traitLevels: [1, 30, 70, 85],
+    },
   });
 
   const source = Object.freeze({
@@ -53,6 +63,15 @@
     archetypeName: "College of Whispers",
     classId: COLLEGE_OF_WHISPERS_CLASS_ID,
     className: "Bard",
+  });
+
+  const oroshSource = Object.freeze({
+    type: "archetype",
+    id: OROSH_LINEAGE_ID,
+    archetypeId: OROSH_LINEAGE_ID,
+    archetypeName: "Orosh Lineage",
+    classId: OROSH_LINEAGE_CLASS_ID,
+    className: "Sorcerer",
   });
 
   const DEFINITIONS = deepFreeze({
@@ -371,6 +390,139 @@
         casterLearnsSecret: false,
       },
     },
+
+    orosh_lineage_termosense: {
+      schemaVersion: 1,
+      id: "orosh_lineage_termosense",
+      name: "Termosense",
+      description: "Can Target Units, even through Normal Darkness, Magical Darkness or visual camouflage.",
+      source: oroshSource,
+      contexts: ["any"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        targetingIgnores: ["normal_darkness", "magical_darkness", "visual_camouflage"],
+      },
+    },
+
+    orosh_lineage_emotional_echo: {
+      schemaVersion: 1,
+      id: "orosh_lineage_emotional_echo",
+      name: "Emotional Echo",
+      description: "Gain +2 Final Power on Insight Checks made to interpret emotions or detect lies from non-Yuan-ti Units. Can cast Detect Emotions once per Long Rest without spending a Spell Slot.",
+      source: oroshSource,
+      contexts: ["any"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        insightFinalPowerBonus: 2,
+        insightPurposes: ["interpret_emotions", "detect_lies"],
+        excludedCreatureTags: ["yuan_ti"],
+        freeSpellCast: { spellId: "detect_emotions", uses: 1, reset: "long_rest", spendSpellSlot: false },
+      },
+    },
+
+    orosh_lineage_fragmented_blessing: {
+      schemaVersion: 1,
+      id: "orosh_lineage_fragmented_blessing",
+      name: "Fragmented Blessing",
+      description: "After a Long Rest, choose one Fragment. Only one Fragment can be active at a time. Once before your next Long Rest, gain +2 Final Power on one matching Check. Wrath — Strength or Intimidation. Envy — Deception or Stealth. Gloom — Insight or History. Pride — Charisma or Persuasion. Gluttony — Investigation or Perception. Lust — Arcana or Religion. Sloth — Nature or Survival. Combat: Skills matching your selected Sin deal +(Class Level / 2)% Damage and gain +max(1, Class Level / 20) Final Power.",
+      source: oroshSource,
+      contexts: ["any"],
+      activation: { type: "choice", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        selectionTiming: "long_rest",
+        maxActiveFragments: 1,
+        checkBonusUses: 1,
+        checkBonusReset: "long_rest",
+        checkFinalPowerBonus: 2,
+        fragments: {
+          wrath: { sin: "Wrath", checks: ["Strength", "Intimidation"] },
+          envy: { sin: "Envy", checks: ["Deception", "Stealth"] },
+          gloom: { sin: "Gloom", checks: ["Insight", "History"] },
+          pride: { sin: "Pride", checks: ["Charisma", "Persuasion"] },
+          gluttony: { sin: "Gluttony", checks: ["Investigation", "Perception"] },
+          lust: { sin: "Lust", checks: ["Arcana", "Religion"] },
+          sloth: { sin: "Sloth", checks: ["Nature", "Survival"] },
+        },
+        matchingSinDamagePercentFormula: "ClassLevel / 2",
+        matchingSinFinalPowerFormula: "max(1, ClassLevel / 20)",
+      },
+    },
+
+    orosh_lineage_primordial_bond: {
+      schemaVersion: 1,
+      id: "orosh_lineage_primordial_bond",
+      name: "Primordial Bond",
+      description: "Once per Turn, when you cast a Spell that affects the mind or emotions, gain +1 ATK Weight.",
+      source: oroshSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        trigger: "spell_cast",
+        scope: "once_per_turn",
+        spellTagsAny: ["mind", "emotion"],
+        attackWeightBonus: 1,
+      },
+    },
+
+    orosh_lineage_voice_of_the_first: {
+      schemaVersion: 1,
+      id: "orosh_lineage_voice_of_the_first",
+      name: "Voice of the First",
+      description: "[On Hit] Gain 1 Emotional Echo matching the Sin of the Skill used. You can't have more than 1 Emotional Echo of each Sin. Wrath — Deal +30% Damage. Gloom — [On Hit] Deal 4 SP Damage. Envy — Gain +2 Final Power. Pride — [On Clash Win] Gain 7 SP. Gluttony — [On Hit] Heal HP equal to 15% of Damage dealt. Lust — Inflict +3 Potency with Skills. Sloth — [On Hit] Inflict 2 Bind.",
+      source: oroshSource,
+      contexts: ["combat"],
+      activation: { type: "passive", actionCost: "none" },
+      effects: [],
+      rules: [],
+      mechanics: {
+        trigger: "on_hit",
+        echoMatchesSkillSin: true,
+        maxPerEcho: 1,
+        echoes: {
+          wrath: { damagePercent: 30 },
+          gloom: { onHitSpDamage: 4 },
+          envy: { finalPowerBonus: 2 },
+          pride: { onClashWinSpGain: 7 },
+          gluttony: { onHitHealDamagePercent: 15 },
+          lust: { skillInflictedPotencyBonus: 3 },
+          sloth: { onHitStatus: { statusId: "bind", potency: 2 } },
+        },
+      },
+    },
+
+    orosh_lineage_ascension_of_the_heiress: {
+      schemaVersion: 1,
+      id: "orosh_lineage_ascension_of_the_heiress",
+      name: "Ascension of the Heiress",
+      description: "[Action] Once per Long Rest, enter Ascension for 10 Rounds. While Ascended: Reduce SP Loss by 5. Spells gain +6 Final Power. Saves against your Emotion, Illusion or Psychic Spells have +4 Threshold. [On Kill] If a Unit dies while affected by one of your Spells, recover 3 Spell Slots of Level 5 or lower. Once per Turn.",
+      source: oroshSource,
+      contexts: ["combat"],
+      activation: { type: "manual", actionCost: "action", uses: { max: 1, reset: "long_rest" } },
+      effects: [],
+      rules: [],
+      mechanics: {
+        statusId: "orosh_ascension",
+        durationRounds: 10,
+        spLossReduction: 5,
+        spellFinalPowerBonus: 6,
+        saveThresholdBonus: 4,
+        saveSpellTagsAny: ["emotion", "illusion", "psychic"],
+        slotRecoveryOnKill: {
+          count: 3,
+          maxSlotLevel: 5,
+          scope: "once_per_turn",
+          requiresTargetAffectedByOwnSpell: true,
+        },
+      },
+    },
   });
 
   function archetypeGrant(atLevel, traitId, archetypeId, classId, traitSource) {
@@ -404,6 +556,13 @@
     archetypeGrant(15, "words_of_terror", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
     archetypeGrant(30, "mantle_of_whispers", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
     archetypeGrant(70, "shadow_lore", COLLEGE_OF_WHISPERS_ID, COLLEGE_OF_WHISPERS_CLASS_ID, whispersSource),
+
+    archetypeGrant(1, "orosh_lineage_termosense", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
+    archetypeGrant(1, "orosh_lineage_emotional_echo", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
+    archetypeGrant(1, "orosh_lineage_fragmented_blessing", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
+    archetypeGrant(30, "orosh_lineage_primordial_bond", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
+    archetypeGrant(70, "orosh_lineage_voice_of_the_first", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
+    archetypeGrant(85, "orosh_lineage_ascension_of_the_heiress", OROSH_LINEAGE_ID, OROSH_LINEAGE_CLASS_ID, oroshSource),
   ]);
 
   function allDefinitions() {
@@ -451,6 +610,8 @@
     CLASS_ID,
     COLLEGE_OF_WHISPERS_ID,
     COLLEGE_OF_WHISPERS_CLASS_ID,
+    OROSH_LINEAGE_ID,
+    OROSH_LINEAGE_CLASS_ID,
     ARCHETYPES,
     DEFINITIONS,
     GRANTS,
