@@ -2,12 +2,23 @@ import { Engine } from './engine.js';
 import { TopologyController } from './topology-controller.js';
 import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
+import './map-authoring.js';
+import './map-authoring-state.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const canvas = document.getElementById('vtt-canvas');
     if (!canvas) {
         console.error('VTT Canvas not found!');
         return;
+    }
+
+    const mapAuthoring = globalThis.LuminousVttMapAuthoring;
+    const mapAuthoringState = globalThis.LuminousVttMapAuthoringState;
+    try {
+        const activeDefinition = await mapAuthoringState?.resolveActiveDefinition?.({ fallback: mockMapData });
+        if (activeDefinition) mapAuthoring?.applyDefinition?.(mockMapData, activeDefinition);
+    } catch (error) {
+        console.warn('VTT map authoring: falling back to bundled map.', error);
     }
 
     mockMapData.dmEditMode ||= { active: false };
@@ -127,7 +138,19 @@ document.addEventListener('DOMContentLoaded', () => {
         tokenStateBridge,
         editMode,
         characterVisionBridge,
+        setLayer: applyLayer,
     });
+
+    const initialMapId = String(mockMapData.id || mockMapData.mapId || 'default');
+    const stopMapWatch = mapAuthoringState?.watchActiveMap?.({
+        onChanged: (mapId) => {
+            if (mapId && String(mapId) !== initialMapId) window.location.reload();
+        },
+    }) || (() => {});
+
+    import('./map-authoring-bootstrap.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT map authoring bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
@@ -142,6 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('beforeunload', () => {
+        stopMapWatch();
+        window.LuminousVttRuntime?.mapAuthoring?.stop?.();
         editMode?.stop?.();
         characterVisionBridge?.stop?.();
         tokenStateBridge.stop();
