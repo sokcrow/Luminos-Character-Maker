@@ -4,7 +4,13 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #111; /* Dark background typical for VTT */
+    background-color: #111;
+    color: #e9eef2;
+    font-family: "Share Tech Mono", monospace, sans-serif;
+}
+
+button, input, select {
+    font: inherit;
 }
 
 #vtt-canvas {
@@ -18,30 +24,216 @@ html, body {
     top: 20px;
     right: 20px;
     z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+}
+
+#vtt-ui-container > * {
+    pointer-events: auto;
+}
+
+.vtt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    max-width: min(760px, calc(100vw - 40px));
+    padding: 8px;
+    background: rgba(0, 0, 0, .88);
+    border: 1px solid #5d6770;
 }
 
 .brutalist-button {
     background-color: #000;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #ff3b3b;
+    border: 2px solid #ff3b3b;
     font-family: monospace, sans-serif;
     font-weight: bold;
-    font-size: 14px;
-    padding: 10px 15px;
+    font-size: 12px;
+    padding: 8px 11px;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.1s ease;
-    box-shadow: 4px 4px 0px rgba(255, 0, 0, 0.3);
+    box-shadow: 3px 3px 0 rgba(255, 0, 0, 0.24);
 }
 
-.brutalist-button:hover {
-    background-color: #ff0000;
+.brutalist-button:hover,
+.brutalist-button.is-active {
+    background-color: #ff3b3b;
     color: #000;
-    box-shadow: 2px 2px 0px rgba(255, 0, 0, 0.5);
+    box-shadow: 1px 1px 0 rgba(255, 0, 0, 0.45);
     transform: translate(2px, 2px);
 }
 
 .brutalist-button:active {
-    box-shadow: 0px 0px 0px rgba(255, 0, 0, 0);
-    transform: translate(4px, 4px);
+    box-shadow: none;
+    transform: translate(3px, 3px);
+}
+
+.vtt-panel {
+    position: absolute;
+    top: 96px;
+    left: 20px;
+    z-index: 1100;
+    width: min(310px, calc(100vw - 40px));
+    padding: 14px;
+    background: rgba(5, 7, 9, .96);
+    border: 1px solid #c49a00;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .7);
+}
+
+.vtt-panel header,
+.vtt-context-menu header {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #46505a;
+}
+
+.vtt-panel header strong,
+.vtt-context-menu header strong {
+    color: #d7b151;
+    letter-spacing: .08em;
+}
+
+.vtt-panel header small,
+.vtt-context-menu header span {
+    color: #89949e;
+    font-size: 11px;
+}
+
+.vtt-panel label,
+.vtt-threshold-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.vtt-panel label > span {
+    color: #9ba5ad;
+    font-size: 10px;
+    letter-spacing: .07em;
+}
+
+.vtt-panel input,
+.vtt-panel select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    background: #11161a;
+    color: #fff;
+    border: 1px solid #53606d;
+}
+
+.vtt-threshold-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+}
+
+.vtt-danger-button {
+    width: 100%;
+    padding: 9px;
+    background: #31070a;
+    color: #ff6673;
+    border: 1px solid #ff6673;
+    cursor: pointer;
+}
+
+.vtt-context-menu {
+    position: absolute;
+    z-index: 1600;
+    width: 250px;
+    padding: 12px;
+    background: rgba(4, 7, 9, .98);
+    border: 1px solid #c49a00;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .8);
+}
+
+#vtt-context-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vtt-context-action {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.vtt-context-action button {
+    width: 100%;
+    padding: 9px 10px;
+    background: #141a1f;
+    color: #e7edf2;
+    border: 1px solid #68737d;
+    cursor: pointer;
+    text-align: left;
+}
+
+.vtt-context-action button:hover:not(:disabled) {
+    border-color: #d7b151;
+    color: #d7b151;
+}
+
+.vtt-context-action button:disabled {
+    opacity: .42;
+    cursor: not-allowed;
+}
+
+.vtt-context-action small,
+.vtt-context-note {
+    color: #8f9aa2;
+    font-size: 10px;
+}
+
+.vtt-context-note {
+    padding: 8px;
+    border: 1px dashed #68737d;
+}
+
+.vtt-notice {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    z-index: 1800;
+    max-width: min(560px, calc(100vw - 40px));
+    padding: 10px 15px;
+    background: rgba(4, 7, 9, .96);
+    border: 1px solid #68737d;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .7);
+    text-align: center;
+    font-size: 12px;
+}
+
+.vtt-notice[data-mode="success"] { border-color: #52b788; }
+.vtt-notice[data-mode="error"] { border-color: #ff6673; }
+.vtt-notice[data-mode="pending"] { border-color: #d7b151; }
+
+[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 900px) {
+    #vtt-ui-container {
+        top: 10px;
+        right: 10px;
+    }
+    .vtt-panel {
+        top: auto;
+        bottom: 10px;
+        left: 10px;
+    }
+    .brutalist-button {
+        font-size: 10px;
+        padding: 6px 8px;
+    }
 }

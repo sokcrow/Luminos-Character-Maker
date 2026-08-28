@@ -30,6 +30,10 @@ export class Engine {
         return globalThis.LuminousVttTokenInteraction || null;
     }
 
+    get topologyRules() {
+        return globalThis.LuminousVttTopology || null;
+    }
+
     init() {
         window.addEventListener('resize', this.handleResize);
         this.canvas.addEventListener('mousedown', this.handleTokenMouseDown);
@@ -160,13 +164,23 @@ export class Engine {
         requestAnimationFrame(this.loop);
     }
 
+    visionWallsForLayer(zLayer) {
+        const legacy = (this.mapData.walls || []).filter((wall) => wall.z.includes(zLayer) && wall.blocksVision);
+        const topology = this.topologyRules;
+        if (!topology || !Array.isArray(this.mapData.topology)) return legacy;
+        return [
+            ...legacy,
+            ...topology.blockingSegments(this.mapData.topology, 'vision', zLayer, this.mapData.grid),
+        ];
+    }
+
     calculateVision() {
         const player = this.mapData.tokens[0];
         if (!player) return null;
 
         const isLookingAway = this.activeZ !== player.z[0];
         const currentVisionRadius = isLookingAway ? (this.baseVisionRadius * 0.5) : this.baseVisionRadius;
-        const visionWalls = this.mapData.walls.filter(w => w.z.includes(this.activeZ) && w.blocksVision);
+        const visionWalls = this.visionWallsForLayer(this.activeZ);
 
         const points = [];
         for (const wall of visionWalls) {
