@@ -66,6 +66,41 @@ test("Path of the Devil Lineage entrega Traits por pisos 15/30/50/70", () => {
   }
 });
 
+test("Orosh Lineage se desbloquea para Sorcerer en Class Level 1", () => {
+  const unit = character({ sorcerer: 1 });
+  const eligible = archetypeEngine.eligibleArchetypes(unit, catalog.allArchetypes(), "sorcerer");
+  expect(eligible.map((entry) => entry.id)).toContain("orosh_lineage");
+  expect(catalog.ARCHETYPES.orosh_lineage.traitLevels).toEqual([1, 30, 70, 85]);
+});
+
+test("Orosh Lineage entrega Traits por pisos 1/30/70/85", () => {
+  const expected = new Map([[1, 3], [30, 4], [70, 5], [85, 6]]);
+  for (const [level, count] of expected) {
+    const unit = character({ sorcerer: level }, [{ classId: "sorcerer", archetypeId: "orosh_lineage", selectedAtClassLevel: 1 }]);
+    const traits = catalog.resolveTraitGrants(unit);
+    expect(traits).toHaveLength(count);
+    for (const trait of traits) {
+      expect(trait.source.type).toBe("archetype");
+      expect(trait.source.archetypeId).toBe("orosh_lineage");
+      expect(trait.source.classId).toBe("sorcerer");
+      expect(trait.source.requiredClassLevel).toBeLessThanOrEqual(level);
+    }
+  }
+});
+
+test("Orosh Lineage conserva las mecánicas acordadas", () => {
+  const defs = catalog.allDefinitions();
+  expect(defs.orosh_lineage_termosense.mechanics.targetingIgnores).toEqual(["normal_darkness", "magical_darkness", "visual_camouflage"]);
+  expect(defs.orosh_lineage_emotional_echo.mechanics.insightFinalPowerBonus).toBe(2);
+  expect(defs.orosh_lineage_fragmented_blessing.mechanics.matchingSinDamagePercentFormula).toBe("ClassLevel / 2");
+  expect(defs.orosh_lineage_fragmented_blessing.mechanics.matchingSinFinalPowerFormula).toBe("max(1, ClassLevel / 20)");
+  expect(defs.orosh_lineage_primordial_bond.mechanics.attackWeightBonus).toBe(1);
+  expect(defs.orosh_lineage_voice_of_the_first.mechanics.echoes.wrath.damagePercent).toBe(30);
+  expect(defs.orosh_lineage_voice_of_the_first.mechanics.echoes.sloth.onHitStatus).toEqual({ statusId: "bind", potency: 2 });
+  expect(defs.orosh_lineage_ascension_of_the_heiress.mechanics.durationRounds).toBe(10);
+  expect(defs.orosh_lineage_ascension_of_the_heiress.mechanics.slotRecoveryOnKill).toMatchObject({ count: 3, maxSlotLevel: 5, scope: "once_per_turn" });
+});
+
 test("sin selección de Archetype no se conceden Traits de Archetype", () => {
   expect(catalog.resolveTraitGrants(character({ barbarian: 70 }))).toEqual([]);
 });
