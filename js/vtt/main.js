@@ -7,6 +7,10 @@ import './map-authoring-state.js';
 import './actor-library.js';
 import './actor-library-state.js';
 import './token-state-dynamic-patch.js';
+import './pathfinding.js';
+import './movement-engine.js';
+import './movement-state.js';
+import './movement-integration-patch.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const canvas = document.getElementById('vtt-canvas');
@@ -157,6 +161,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./actor-library-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT actor library bootstrap failed:', error));
+    import('./movement-bootstrap.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT movement bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
@@ -172,6 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttRuntime?.movement?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
         window.LuminousVttRuntime?.mapAuthoring?.stop?.();
         editMode?.stop?.();
