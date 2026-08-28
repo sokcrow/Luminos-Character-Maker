@@ -3,8 +3,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 require('../js/vtt/topology.js');
 require('../js/vtt/token-interaction.js');
-const pathfinding = require('../js/vtt/pathfinding.js');
-const movement = require('../js/vtt/movement-engine.js');
+require('../js/vtt/pathfinding.js');
+require('../js/vtt/movement-engine.js');
+require('../js/vtt/token-state.js');
+require('../js/vtt/token-state-dynamic-patch.js');
+require('../js/vtt/movement-integration-patch.js');
+const pathfinding = globalThis.LuminousVttPathfinding;
+const movement = globalThis.LuminousVttMovementEngine;
+const tokenState = globalThis.LuminousVttTokenState;
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const token = (patch = {}) => ({ id: 'mover', x: 35, y: 175, zLayer: 0, z: [0], radius: 8, speedFt: 30, gridPosition: { col: 0, row: 2, z: 0 }, ...patch });
@@ -49,6 +55,19 @@ test('difficult terrain multiplies movement cost', () => {
   expect(route.costFt).toBe(15);
 });
 
+test('A* remains optimal when traversable terrain costs less than one', () => {
+  const mapData = { ...map5(), grid: { cols: 5, rows: 3, size: 70, distancePerCell: 5 } };
+  mapData.movement.terrain = { 0: {} };
+  for (let col = 0; col < 5; col += 1) mapData.movement.terrain[0][`${col}_0`] = { multiplier: 0.05 };
+  const mover = token({ x: 35, y: 105, gridPosition: { col: 0, row: 1, z: 0 } });
+  mapData.tokens = [mover];
+  const route = pathfinding.findPath({ token: mover, start: mover, target: { x: 315, y: 105 }, mapData });
+  expect(route.valid).toBe(true);
+  expect(route.path.some((point) => point.row === 0)).toBe(true);
+  expect(route.costFt).toBeLessThan(10);
+  expect(pathfinding.MIN_TERRAIN_MULTIPLIER).toBe(0.05);
+});
+
 test('other tokens can block path cells and may be disabled for planning queries', () => {
   const mapData = { ...map5(), grid: { cols: 3, rows: 1, size: 70, distancePerCell: 5 } };
   const mover = token({ x: 35, y: 35, radius: 10, gridPosition: { col: 0, row: 0, z: 0 } });
@@ -78,6 +97,36 @@ test('ROUND TIME gives a speed budget, Dash adds speed, prone costs half speed t
   movement.setProne(mover, true);
   expect(movement.standUp(mover, world)).toMatchObject({ valid: true, costFt: 15, remainingFt: 35 });
   expect(mover.movementState.prone).toBe(false);
+});
+
+test('round budget and Dash state survive canonical movement snapshot reload', () => {
+  const mover = token({ x: 35, y: 35 });
+  const world = movement.normalizeWorldState({ mode: 'round', roundId: 7 });
+  movement.beginRound(mover, 7);
+  movement.spend(mover, 10, world);
+  movement.dash(mover, world);
+  const snapshot = tokenState.movementSnapshot(mover);
+  expect(snapshot).toMatchObject({ remainingFt: 50, state: { roundId: 7, remainingFt: 50, dashed: true, mode: 'walk' } });
+
+  const restored = token({ x: 35, y: 35 });
+  tokenState.applyMovementSnapshot(restored, { movementState: snapshot.state, movementRemainingFt: snapshot.remainingFt });
+  expect(movement.ensureRound(restored, world)).toMatchObject({ roundId: 7, remainingFt: 50, dashed: true });
+  expect(restored.movementRemainingFt).toBe(50);
+});
+
+test('movement mode changes reconcile spent distance and reject unavailable fly or burrow', () => {
+  const world = movement.normalizeWorldState({ mode: 'round', roundId: 4 });
+  const versatile = token({ flySpeedFt: 60 });
+  movement.beginRound(versatile, 4);
+  movement.spend(versatile, 10, world);
+  expect(movement.setMovementMode(versatile, 'fly', world)).toMatchObject({ mode: 'fly', speedFt: 60, remainingFt: 50 });
+
+  const walker = token();
+  movement.beginRound(walker, 4);
+  expect(() => movement.setMovementMode(walker, 'fly', world)).toThrow('MOVEMENT_MODE_UNAVAILABLE');
+  expect(() => movement.setMovementMode(walker, 'burrow', world)).toThrow('MOVEMENT_MODE_UNAVAILABLE');
+  const mapData = { ...map5(), grid: { cols: 2, rows: 1, size: 70, distancePerCell: 5 }, tokens: [walker] };
+  expect(movement.planMove({ token: walker, start: walker, target: { x: 105, y: 175 }, mapData, worldState: world, movementMode: 'fly' })).toMatchObject({ valid: false, reason: 'MOVEMENT_MODE_UNAVAILABLE' });
 });
 
 test('round movement refuses a route that exceeds remaining speed', () => {
@@ -111,12 +160,17 @@ test('teleport ignores intervening walls but still requires a valid destination'
   expect(plan.movementCostFt).toBe(0);
 });
 
-test('movement integration replaces direct-drop resolution with planned paths', () => {
+test('movement integration replaces direct-drop resolution with planned paths and persists round state', () => {
   const source = read('js/vtt/movement-integration-patch.js');
   expect(source).toContain('movement.planMove');
-  expect(source).toContain('movement.commitMove');
+  expect(source).toContain('movementBase.commitMove');
   expect(source).toContain('__pathfindingMovementPatch');
   expect(source).toContain('token.verticalMovement');
+  expect(source).toContain('__movementBudgetPersistencePatch');
+  expect(source).toContain("'position/movementState'");
+  expect(source).toContain("'position/movementRemainingFt'");
+  expect(source).toContain('MOVEMENT_MODE_UNAVAILABLE');
+  expect(source).toContain('__cheapTerrainHeuristicPatch');
 });
 
 test('world movement state is DM canonical per map and advances six-second rounds', () => {
