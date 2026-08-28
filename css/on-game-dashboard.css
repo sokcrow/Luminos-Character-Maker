@@ -47,6 +47,8 @@ body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
 .theatre-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 12px; background: #090c10; }
 .theatre-controls input, .theatre-controls textarea, .theatre-controls button { padding: 9px; background: #121820; color: white; border: 1px solid #53606d; }
 .theatre-controls textarea { grid-column: 1 / 3; resize: none; }
+#modulo-mapa { flex-direction: column; }
+#modulo-mapa iframe { width: 100%; height: 100%; border: 0; background: #000; }
 #modulo-combate { flex-direction: column; }
 #combat-grid { flex: 1; }
 #combat-grid iframe { width: 100%; height: 100%; border: 0; }
