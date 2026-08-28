@@ -41,7 +41,7 @@ test('vertical portal runtime creates hole, balcony and stairs contracts', () =>
   expect(portals.labelFor(balcony)).toBe('BALCÓN');
 
   const stairs = portals.createPortal({ type: 'stairs', from, to, fromZ: 0, toZ: 1, mapData: map });
-  expect(stairs).toMatchObject({ allowsMovement: true, movementMode: 'stairs' });
+  expect(stairs).toMatchObject({ allowsMovement: true, movementMode: 'stairs', layout: 'straight', widthFt: 5 });
   expect(portals.labelFor(stairs)).toBe('ESCALERA');
 });
 
@@ -99,13 +99,14 @@ test('local vertical portal state bridge allows DM persistence and denies player
   await expect(playerBridge.savePortal(portal)).rejects.toThrow('DM_REQUIRED');
 });
 
-test('DM vertical editor UI exposes tools, Z target, persistence and DM-only guides', () => {
+test('DM vertical editor UI exposes tools, Z target, persistence and edit-mode-only guides', () => {
   const html = read('vtt.html');
   const main = read('js/vtt/main.js');
   const controller = read('js/vtt/vertical-portal-controller.js');
   const renderer = read('js/vtt/renderer.js');
   const state = read('js/vtt/vertical-portal-state.js');
 
+  expect(html).toContain('id="vtt-dm-edit-toggle"');
   expect(html).toContain('id="vtt-vertical-toolbar"');
   expect(html).toContain('data-vtt-vertical-tool="opening"');
   expect(html).toContain('data-vtt-vertical-tool="balcony_edge"');
@@ -119,13 +120,15 @@ test('DM vertical editor UI exposes tools, Z target, persistence and DM-only gui
   expect(main).toContain('isDm: bridge.isDm');
   expect(main).toContain('verticalBridge.start()');
   expect(main).toContain('verticalController.handleLayerChanged()');
+  expect(main).toContain('LuminousVttDmEditMode');
 
   expect(controller).toContain("const valid = ['select', 'opening', 'balcony_edge', 'stairs', 'erase']");
   expect(controller).toContain('snapPointToVertex');
   expect(controller).toContain('axisAlignedVertex');
   expect(controller).toContain('this.stateBridge.savePortal(portal)');
-  expect(controller).toContain('toolbar.hidden = !this.isDm');
-  expect(controller).toContain('visible: this.isDm');
+  expect(controller).toContain('toolbar.hidden = !active');
+  expect(controller).toContain('this.mapData.verticalPortalEditor.visible = active');
+  expect(controller).toContain('this.editActive()');
 
   expect(renderer).toContain('drawVerticalPortalGuides');
   expect(renderer).toContain('this.mapData.verticalPortalEditor?.visible');
