@@ -4,6 +4,9 @@ import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
 import './map-authoring.js';
 import './map-authoring-state.js';
+import './actor-library.js';
+import './actor-library-state.js';
+import './token-state-dynamic-patch.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const canvas = document.getElementById('vtt-canvas');
@@ -151,6 +154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./map-authoring-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT map authoring bootstrap failed:', error));
+    import('./actor-library-bootstrap.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT actor library bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
@@ -166,6 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttRuntime?.actorLibrary?.stop?.();
         window.LuminousVttRuntime?.mapAuthoring?.stop?.();
         editMode?.stop?.();
         characterVisionBridge?.stop?.();
