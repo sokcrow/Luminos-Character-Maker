@@ -32,6 +32,9 @@
       } else if (activeInstance === "teatro") {
         statusText.textContent = "SALIDA ACTUAL: TEATRO / LORE";
         statusText.style.color = "#4CAF50";
+      } else if (activeInstance === "mapa") {
+        statusText.textContent = "SALIDA ACTUAL: MAPA TÁCTICO";
+        statusText.style.color = "#00BCD4";
       } else if (activeInstance === "combate") {
         statusText.textContent = "SALIDA ACTUAL: COMBATE TÁCTICO";
         statusText.style.color = "#F44336";
@@ -45,6 +48,7 @@
 
     let activeModuleId = "modulo-standby";
     if (activeInstance === "teatro") activeModuleId = "modulo-teatro";
+    else if (activeInstance === "mapa") activeModuleId = "modulo-mapa";
     else if (activeInstance === "combate") activeModuleId = "modulo-combate";
 
     const activeModule = documentRef.getElementById(activeModuleId);
@@ -108,10 +112,12 @@
     const documentRef = doc || global.document;
     const activeInstance = normalizeInstance(instance);
     const theatreActive = activeInstance === "teatro";
+    const mapActive = activeInstance === "mapa";
     const blackoutActive = activeInstance === "ninguno";
     const theatreView = documentRef.getElementById("theatre-view-player");
     const blackout = documentRef.getElementById("player-instance-blackout");
     let combatView = documentRef.getElementById("player-instance-combat");
+    let mapView = documentRef.getElementById("player-instance-map");
 
     if (!combatView && documentRef.body) {
       combatView = documentRef.createElement("iframe");
@@ -129,6 +135,19 @@
       });
       combatView.src = "Battle-viewer.html";
       documentRef.body.appendChild(combatView);
+    }
+
+    if (!mapView && documentRef.body && mapActive) {
+      mapView = documentRef.createElement("iframe");
+      mapView.id = "player-instance-map";
+      mapView.title = "Mapa táctico";
+      mapView.setAttribute("aria-hidden", "true");
+      Object.assign(mapView.style, {
+        display: "none", position: "fixed", inset: "0", width: "100vw",
+        height: "100vh", border: "0", zIndex: "10000", background: "#000",
+      });
+      mapView.src = "vtt.html";
+      documentRef.body.appendChild(mapView);
     }
 
     if (combatView?.contentDocument?.readyState === "complete") {
@@ -151,8 +170,13 @@
       combatView.style.display = combatActive ? "block" : "none";
       combatView.setAttribute("aria-hidden", combatActive ? "false" : "true");
     }
+    if (mapView) {
+      mapView.style.display = mapActive ? "block" : "none";
+      mapView.setAttribute("aria-hidden", mapActive ? "false" : "true");
+    }
     if (documentRef.body) {
       documentRef.body.classList.toggle("player-instance-theatre", theatreActive);
+      documentRef.body.classList.toggle("player-instance-map", mapActive);
       documentRef.body.classList.toggle("player-instance-blackout", blackoutActive);
     }
     return activeInstance;
