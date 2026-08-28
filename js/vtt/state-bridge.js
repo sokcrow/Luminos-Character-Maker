@@ -134,6 +134,7 @@
         const mapId = safeString(mapData.id || mapData.mapId || 'default') || 'default';
         const dm = isDmSurface(root);
         const watchedChecks = new Map();
+        const issuingChecks = new Set();
         const subscriptions = [];
         let started = false;
 
@@ -344,40 +345,54 @@
 
         async function issueTopologyCheck(requestId, request) {
             if (!dm || !db || request.status !== 'pending' || !request.vttContext || request.vttContext.mapId !== mapId) return;
-            const element = elementById(request.vttContext.elementId);
-            const descriptor = topology.checkDescriptor(element, request.vttContext.method);
-            if (!descriptor || request.requesterUid == null) {
-                await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({ status: 'denied', decidedAt: firebase.database.ServerValue.TIMESTAMP });
-                return;
+            if (issuingChecks.has(requestId)) return;
+            issuingChecks.add(requestId);
+            try {
+                const freshSnapshot = await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).once('value');
+                const freshRequest = freshSnapshot.val() || {};
+                if (freshRequest.status !== 'pending' || freshRequest.commandId) return;
+
+                const element = elementById(freshRequest.vttContext?.elementId);
+                const descriptor = topology.checkDescriptor(element, freshRequest.vttContext?.method);
+                if (!descriptor || freshRequest.requesterUid == null) {
+                    await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({
+                        status: 'denied',
+                        decidedAt: firebase.database.ServerValue.TIMESTAMP,
+                    });
+                    return;
+                }
+
+                const commandRef = db.ref(`${CHECK_COMMAND_ROOT}/${freshRequest.requesterUid}`).push();
+                const command = {
+                    schemaVersion: 1,
+                    targetUid: freshRequest.requesterUid,
+                    targetPlayerId: freshRequest.playerId || null,
+                    targetName: freshRequest.playerName || 'PLAYER',
+                    roomKey: freshRequest.roomKey || roomKey(root),
+                    requestedBy: 'player',
+                    requestId,
+                    rollSpec: descriptor.rollSpec,
+                    check: {
+                        thresholdRaw: descriptor.threshold,
+                        hiddenThreshold: true,
+                        modifierType: 'neutral',
+                        modifierValue: 0,
+                        tipText: '',
+                    },
+                    status: 'issued',
+                    issuedAt: firebase.database.ServerValue.TIMESTAMP,
+                    clientIssuedAt: Date.now(),
+                };
+                await commandRef.set(command);
+                await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({
+                    status: 'approved',
+                    commandId: commandRef.key,
+                    decidedAt: firebase.database.ServerValue.TIMESTAMP,
+                });
+                await watchCheckResult(requestId, { ...freshRequest, status: 'approved', commandId: commandRef.key });
+            } finally {
+                issuingChecks.delete(requestId);
             }
-            const commandRef = db.ref(`${CHECK_COMMAND_ROOT}/${request.requesterUid}`).push();
-            const command = {
-                schemaVersion: 1,
-                targetUid: request.requesterUid,
-                targetPlayerId: request.playerId || null,
-                targetName: request.playerName || 'PLAYER',
-                roomKey: request.roomKey || roomKey(root),
-                requestedBy: 'player',
-                requestId,
-                rollSpec: descriptor.rollSpec,
-                check: {
-                    thresholdRaw: descriptor.threshold,
-                    hiddenThreshold: true,
-                    modifierType: 'neutral',
-                    modifierValue: 0,
-                    tipText: '',
-                },
-                status: 'issued',
-                issuedAt: firebase.database.ServerValue.TIMESTAMP,
-                clientIssuedAt: Date.now(),
-            };
-            await commandRef.set(command);
-            await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({
-                status: 'approved',
-                commandId: commandRef.key,
-                decidedAt: firebase.database.ServerValue.TIMESTAMP,
-            });
-            await watchCheckResult(requestId, { ...request, status: 'approved', commandId: commandRef.key });
         }
 
         function processCheckRequests(snapshot) {
@@ -416,6 +431,7 @@
             subscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
             watchedChecks.forEach(({ liveRef, handler }) => liveRef.off('value', handler));
             watchedChecks.clear();
+            issuingChecks.clear();
             started = false;
         }
 
