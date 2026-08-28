@@ -6,6 +6,7 @@ const { execFileSync } = require('node:child_process');
 const pov = require('../js/vtt/pov-engine.js');
 const povState = require('../js/vtt/pov-state.js');
 const lighting = require('../js/vtt/lighting-engine.js');
+const lightingState = require('../js/vtt/lighting-state.js');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
 function map(overrides = {}) {
@@ -120,8 +121,15 @@ test('an upper dark interior is visible only 5 ft through an un-walled boundary'
   expect(pov.lookUpInteriorGate(viewer(), deep, s, m, brightEnv())).toMatchObject({ allowed: false, reason: 'INTERIOR_DEPTH_LIMIT' });
 });
 
-test('a closed wall removes the implicit open-boundary Look Up window', () => {
+test('a closed topology wall removes the implicit open-boundary Look Up window', () => {
   const m = map({ topology: [{ id: 'left-wall', type: 'wall', from: { col: 0, row: 0 }, to: { col: 0, row: 10 }, z: [1] }] });
+  const s = scene({ interiors: [{ id: 'upper-room', zLayer: 1, x1: 0, y1: 0, x2: 700, y2: 700, baseLight: 'darkness', roof: { present: true, transparent: false } }] });
+  const near = { x: lighting.feetToPixels(4, m), y: 350, zLayer: 1, elevationFt: 15 };
+  expect(pov.lookUpInteriorGate(viewer(), near, s, m, brightEnv())).toMatchObject({ allowed: false, reason: 'INTERIOR_DEPTH_LIMIT' });
+});
+
+test('legacy walls also remove the implicit Look Up opening', () => {
+  const m = map({ walls: [{ x1: 0, y1: 0, x2: 0, y2: 700, z: [1], blocksVision: true }] });
   const s = scene({ interiors: [{ id: 'upper-room', zLayer: 1, x1: 0, y1: 0, x2: 700, y2: 700, baseLight: 'darkness', roof: { present: true, transparent: false } }] });
   const near = { x: lighting.feetToPixels(4, m), y: 350, zLayer: 1, elevationFt: 15 };
   expect(pov.lookUpInteriorGate(viewer(), near, s, m, brightEnv())).toMatchObject({ allowed: false, reason: 'INTERIOR_DEPTH_LIMIT' });
@@ -175,22 +183,33 @@ test('a player cannot persist another token look direction while DM can persist 
   expect(dm.writes[0].value.lookDeg).toBe(270);
 });
 
-test('runtime wiring uses mouse Look, E lock, hold-Q Look Up, white direction marker and roof authoring', () => {
+test('lighting canonical scene normalization preserves authored roofs', () => {
+  const normalized = lightingState.normalizeScene({ roofs: [{ id: 'roof-a', x1: 0, y1: 0, x2: 70, y2: 70, elevationFt: 10 }] });
+  expect(normalized.roofs).toEqual([{ id: 'roof-a', x1: 0, y1: 0, x2: 70, y2: 70, elevationFt: 10 }]);
+});
+
+test('runtime wiring uses mouse Look, E lock, hold-Q Look Up, white direction marker and canonical roof authoring', () => {
   const bootstrap = read('js/vtt/dynamic-lighting-bootstrap.js');
   const controller = read('js/vtt/pov-controller.js');
   const renderer = read('js/vtt/pov-renderer.js');
+  const main = read('js/vtt/main.js');
 
   expect(bootstrap).toContain("import './pov-engine.js'");
   expect(bootstrap).toContain('pov.perceptionAtPoint');
   expect(bootstrap).toContain('povController.viewLayer(activeZ)');
+  expect(bootstrap).toContain('sceneBridge: lightingStateBridge');
   expect(controller).toContain("key === 'e'");
   expect(controller).toContain("key === 'q'");
   expect(controller).toContain("canvas.addEventListener('mousemove', onPointerMove)");
+  expect(controller).toContain("root.addEventListener('blur', onWindowBlur)");
+  expect(controller).toContain('bridge.saveScene(scene())');
   expect(controller).toContain("button.textContent = 'ROOF'");
   expect(controller).toContain('mapData.pov.lookUpHeld');
   expect(renderer).toContain("ctx.fillStyle = '#ffffff'");
   expect(renderer).toContain('token.lookDeg');
   expect(renderer).not.toContain('ctx.rotate(');
+  expect(main).not.toContain("(event.key === 'e' || event.key === 'E')");
+  expect(main).toContain('E belongs exclusively to token PoV Look Lock/Unlock');
 });
 
 test('new PoV UMD runtimes parse as JavaScript and the ESM bootstrap imports them', () => {
