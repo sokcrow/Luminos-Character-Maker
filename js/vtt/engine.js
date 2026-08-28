@@ -12,7 +12,7 @@ export class Engine {
 
         this.activeZ = 0;
         this.isRunning = false;
-        this.baseVisionRadius = 400;
+        this.legacyVisionRadius = 400;
         this.isExporting = false;
         this.tokenDrag = null;
 
@@ -32,6 +32,14 @@ export class Engine {
 
     get topologyRules() {
         return globalThis.LuminousVttTopology || null;
+    }
+
+    get racialSenseRules() {
+        return globalThis.LuminousRacialSenseRuntime || null;
+    }
+
+    get spatialVisionRules() {
+        return globalThis.LuminousVttSpatialVision || null;
     }
 
     init() {
@@ -58,6 +66,13 @@ export class Engine {
             this.mapData.grid,
             this.activeZ,
         );
+    }
+
+    viewerToken() {
+        return (this.mapData.tokens || []).find((token) => token.viewer === true)
+            || (this.mapData.tokens || []).find((token) => token.draggable !== false)
+            || this.mapData.tokens?.[0]
+            || null;
     }
 
     handleTokenMouseDown(event) {
@@ -110,12 +125,14 @@ export class Engine {
         if (result.valid) {
             token.x = result.x;
             token.y = result.y;
-            token.gridPosition = { col: result.col, row: result.row, z: token.z?.[0] ?? 0 };
+            const zLayer = this.spatialVisionRules?.layerOf?.(token) ?? token.z?.[0] ?? 0;
+            token.zLayer = zLayer;
+            token.gridPosition = { col: result.col, row: result.row, z: zLayer };
             this.canvas.dispatchEvent(new CustomEvent('vtt:token-moved', {
                 detail: {
                     tokenId: token.id,
                     from: { x: drag.originX, y: drag.originY },
-                    to: { x: token.x, y: token.y, ...token.gridPosition },
+                    to: { x: token.x, y: token.y, ...token.gridPosition, elevationFt: token.elevationFt ?? 0 },
                 },
             }));
         } else {
@@ -174,68 +191,122 @@ export class Engine {
         ];
     }
 
-    calculateVision() {
-        const player = this.mapData.tokens[0];
-        if (!player) return null;
+    ambientLightLevel() {
+        return String(this.mapData.ambientLight?.level || 'bright').toLowerCase();
+    }
 
-        const isLookingAway = this.activeZ !== player.z[0];
-        const currentVisionRadius = isLookingAway ? (this.baseVisionRadius * 0.5) : this.baseVisionRadius;
-        const visionWalls = this.visionWallsForLayer(this.activeZ);
+    visionProfile(player) {
+        const senseRules = this.racialSenseRules;
+        const spatial = this.spatialVisionRules;
+        const senses = player.senses || senseRules?.resolveCharacterSenses?.(player) || { darkvisionFt: 0 };
+        const ambient = this.ambientLightLevel();
+        const crossLayer = (spatial?.layerOf?.(player) ?? player.z?.[0] ?? 0) !== this.activeZ;
 
-        const points = [];
-        for (const wall of visionWalls) {
-            points.push({x: wall.x1, y: wall.y1});
-            points.push({x: wall.x2, y: wall.y2});
+        if (ambient === 'darkness') {
+            const darkvisionFt = Number(senses.darkvisionFt) || 0;
+            if (darkvisionFt <= 0) {
+                return { visible: false, radiusPx: 0, monochrome: false, mode: 'none', senses, crossLayer };
+            }
+            const radiusPx = spatial?.horizontalRadiusPxForRange?.(darkvisionFt, player, this.activeZ, this.mapData)
+                ?? ((darkvisionFt / (this.mapData.grid.distancePerCell || 5)) * this.mapData.grid.size);
+            if (radiusPx <= 0) {
+                return { visible: false, radiusPx: 0, monochrome: false, mode: 'none', senses, crossLayer };
+            }
+            return { visible: true, radiusPx, monochrome: true, mode: 'darkvision', senses, crossLayer };
         }
 
+        return {
+            visible: true,
+            radiusPx: this.legacyVisionRadius,
+            monochrome: false,
+            mode: ambient === 'dim' ? 'normal_dim' : 'normal',
+            senses,
+            crossLayer,
+        };
+    }
+
+    verticalPortalPoints(player) {
+        const spatial = this.spatialVisionRules;
+        if (!spatial) return [];
+        const fromLayer = spatial.layerOf(player);
+        if (fromLayer === this.activeZ) return [];
+        return (this.mapData.verticalPortals || [])
+            .filter((portal) => spatial.portalConnects(portal, fromLayer, this.activeZ) && spatial.portalAllows(portal, 'vision'))
+            .flatMap((portal) => [
+                spatial.vertexToPoint(portal.from || portal.a, this.mapData),
+                spatial.vertexToPoint(portal.to || portal.b, this.mapData),
+            ]);
+    }
+
+    calculateVision() {
+        const player = this.viewerToken();
+        if (!player) return null;
+
+        const profile = this.visionProfile(player);
+        const center = { x: player.x, y: player.y };
+        if (!profile.visible) {
+            return {
+                fovPolygon: [],
+                visionRadius: 0,
+                tokenPos: center,
+                visible: false,
+                monochrome: false,
+                perceptionMode: 'none',
+                crossLayer: profile.crossLayer,
+                senses: profile.senses,
+            };
+        }
+
+        const currentVisionRadius = profile.radiusPx;
+        const visionWalls = this.visionWallsForLayer(this.activeZ);
+        const points = [];
+        for (const wall of visionWalls) {
+            points.push({ x: wall.x1, y: wall.y1 });
+            points.push({ x: wall.x2, y: wall.y2 });
+        }
+        points.push(...this.verticalPortalPoints(player));
+
         const margin = currentVisionRadius + 10;
-        points.push({x: player.x - margin, y: player.y - margin});
-        points.push({x: player.x + margin, y: player.y - margin});
-        points.push({x: player.x + margin, y: player.y + margin});
-        points.push({x: player.x - margin, y: player.y + margin});
+        points.push({ x: player.x - margin, y: player.y - margin });
+        points.push({ x: player.x + margin, y: player.y - margin });
+        points.push({ x: player.x + margin, y: player.y + margin });
+        points.push({ x: player.x - margin, y: player.y + margin });
 
         const bounds = [
-            { a: {x: player.x - margin, y: player.y - margin}, b: {x: player.x + margin, y: player.y - margin} },
-            { a: {x: player.x + margin, y: player.y - margin}, b: {x: player.x + margin, y: player.y + margin} },
-            { a: {x: player.x + margin, y: player.y + margin}, b: {x: player.x - margin, y: player.y + margin} },
-            { a: {x: player.x - margin, y: player.y + margin}, b: {x: player.x - margin, y: player.y - margin} }
+            { a: { x: player.x - margin, y: player.y - margin }, b: { x: player.x + margin, y: player.y - margin } },
+            { a: { x: player.x + margin, y: player.y - margin }, b: { x: player.x + margin, y: player.y + margin } },
+            { a: { x: player.x + margin, y: player.y + margin }, b: { x: player.x - margin, y: player.y + margin } },
+            { a: { x: player.x - margin, y: player.y + margin }, b: { x: player.x - margin, y: player.y - margin } },
         ];
 
         let angles = [];
-        for (const pt of points) {
-            const angle = Math.atan2(pt.y - player.y, pt.x - player.x);
-            angles.push(angle - 0.00001);
-            angles.push(angle);
-            angles.push(angle + 0.00001);
+        for (const point of points) {
+            const angle = Math.atan2(point.y - player.y, point.x - player.x);
+            angles.push(angle - 0.00001, angle, angle + 0.00001);
         }
-
         angles = [...new Set(angles)].sort((a, b) => a - b);
 
         const fovPolygon = [];
-        const center = { x: player.x, y: player.y };
-
+        const spatial = this.spatialVisionRules;
         for (const angle of angles) {
             const dx = Math.cos(angle);
             const dy = Math.sin(angle);
             const rayLength = margin * 2;
-
             const ray = {
                 a: center,
-                b: { x: center.x + dx * rayLength, y: center.y + dy * rayLength }
+                b: { x: center.x + dx * rayLength, y: center.y + dy * rayLength },
             };
 
             let closestIntersect = null;
             let minT = Infinity;
-
             for (const wall of visionWalls) {
-                const segment = { a: {x: wall.x1, y: wall.y1}, b: {x: wall.x2, y: wall.y2} };
+                const segment = { a: { x: wall.x1, y: wall.y1 }, b: { x: wall.x2, y: wall.y2 } };
                 const intersect = getIntersection(ray, segment);
                 if (intersect && intersect.param < minT) {
                     minT = intersect.param;
                     closestIntersect = intersect;
                 }
             }
-
             for (const bound of bounds) {
                 const intersect = getIntersection(ray, bound);
                 if (intersect && intersect.param < minT) {
@@ -244,14 +315,22 @@ export class Engine {
                 }
             }
 
-            if (closestIntersect) fovPolygon.push(closestIntersect);
+            if (!closestIntersect) continue;
+            if (profile.crossLayer && spatial
+                && !spatial.canTraverseLayers(player, closestIntersect, this.activeZ, this.mapData, 'vision')) continue;
+            fovPolygon.push(closestIntersect);
         }
 
+        const visible = !profile.crossLayer || fovPolygon.length >= 3;
         return {
             fovPolygon,
             visionRadius: currentVisionRadius,
             tokenPos: center,
-            isLookingAway
+            visible,
+            monochrome: profile.monochrome,
+            perceptionMode: profile.mode,
+            crossLayer: profile.crossLayer,
+            senses: profile.senses,
         };
     }
 
