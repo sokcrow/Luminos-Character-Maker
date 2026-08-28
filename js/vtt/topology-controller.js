@@ -136,7 +136,8 @@ export class TopologyController {
 
     handleMouseMove(event) {
         if (!this.isDm || !this.drawStart || !['wall', 'door', 'window', 'curtain_window'].includes(this.tool)) return;
-        const to = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
+        const candidate = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
+        const to = this.topology.axisAlignedVertex(this.drawStart, candidate);
         this.mapData.topologyPreview = {
             type: this.tool,
             from: this.drawStart,
@@ -150,7 +151,8 @@ export class TopologyController {
     handleMouseUp(event) {
         if (event.button !== 0 || !this.isDm || !this.drawStart) return;
         const from = this.drawStart;
-        const to = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
+        const candidate = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
+        const to = this.topology.axisAlignedVertex(from, candidate);
         this.drawStart = null;
         this.mapData.topologyPreview = null;
         event.preventDefault();
@@ -181,9 +183,11 @@ export class TopologyController {
     }
 
     currentPlayerToken() {
-        return (this.mapData.tokens || []).find((token) => token.draggable !== false && (token.z || [0]).includes(this.engine.activeZ))
-            || this.mapData.tokens?.[0]
-            || null;
+        return (this.mapData.tokens || []).find((token) => {
+            if (!token || token.draggable === false) return false;
+            const layers = Array.isArray(token.z) ? token.z.map(Number) : [Number(token.z) || 0];
+            return layers.includes(Number(this.engine.activeZ));
+        }) || this.mapData.tokens?.[0] || null;
     }
 
     canReach(element) {
