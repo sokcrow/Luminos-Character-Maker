@@ -6,12 +6,9 @@
     'use strict';
 
     const TYPES = Object.freeze(['opening', 'balcony_edge', 'stairs']);
-    const LABELS = Object.freeze({
-        opening: 'HUECO',
-        balcony_edge: 'BALCÓN',
-        stairs: 'ESCALERA',
-    });
-
+    const STAIR_LAYOUTS = Object.freeze(['straight', 'switchback', 'spiral', 'ladder']);
+    const LABELS = Object.freeze({ opening: 'HUECO', balcony_edge: 'BALCÓN', stairs: 'ESCALERA' });
+    const LAYOUT_LABELS = Object.freeze({ straight: 'RECTA', switchback: 'U / DOS TRAMOS', spiral: 'CARACOL', ladder: 'VERTICAL / LADDER' });
     const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
     const clampInt = (value, min, max) => Math.max(min, Math.min(max, Math.trunc(numberOr(value, min))));
 
@@ -24,10 +21,7 @@
     function normalizeVertex(vertex = {}, grid = {}) {
         const maxCol = Math.max(0, Math.trunc(numberOr(grid.cols, 0)));
         const maxRow = Math.max(0, Math.trunc(numberOr(grid.rows, 0)));
-        return {
-            col: clampInt(vertex.col, 0, maxCol),
-            row: clampInt(vertex.row, 0, maxRow),
-        };
+        return { col: clampInt(vertex.col, 0, maxCol), row: clampInt(vertex.row, 0, maxRow) };
     }
 
     function normalizeLayers(value, fallbackFrom = 0, fallbackTo = 1) {
@@ -38,11 +32,17 @@
         return [first, second];
     }
 
+    function normalizeLayout(value) {
+        const layout = String(value || 'straight').toLowerCase();
+        return STAIR_LAYOUTS.includes(layout) ? layout : 'straight';
+    }
+
     function normalizePortal(portal = {}, mapData = {}) {
         const type = TYPES.includes(portal.type) ? portal.type : 'opening';
         const between = normalizeLayers(portal.between, portal.fromZ ?? 0, portal.toZ ?? 1);
+        const layout = type === 'stairs' ? normalizeLayout(portal.layout) : null;
         return {
-            schemaVersion: 1,
+            schemaVersion: 2,
             id: String(portal.id || makeId(type)),
             type,
             between,
@@ -52,22 +52,21 @@
             blocksVision: portal.blocksVision === true,
             blocksLight: portal.blocksLight === true,
             allowsMovement: portal.allowsMovement != null ? Boolean(portal.allowsMovement) : type === 'stairs',
-            movementMode: portal.movementMode || (type === 'stairs' ? 'stairs' : null),
+            movementMode: type === 'stairs' ? (layout === 'ladder' ? 'climb' : 'stairs') : null,
+            layout,
+            widthFt: type === 'stairs' ? Math.max(2, numberOr(portal.widthFt, 5)) : Math.max(0, numberOr(portal.widthFt, 0)),
+            costMultiplier: type === 'stairs' ? Math.max(1, numberOr(portal.costMultiplier, layout === 'ladder' ? 2 : 1)) : 1,
+            bidirectional: portal.bidirectional !== false,
         };
     }
 
-    function createPortal({ type = 'opening', from, to, fromZ = 0, toZ = 1, mapData = {} } = {}) {
+    function createPortal({ type = 'opening', from, to, fromZ = 0, toZ = 1, mapData = {}, layout = 'straight', widthFt = 5 } = {}) {
+        const normalizedLayout = normalizeLayout(layout);
         return normalizePortal({
-            id: makeId(type),
-            type,
-            from,
-            to,
-            between: [fromZ, toZ],
-            state: 'open',
-            blocksVision: false,
-            blocksLight: false,
-            allowsMovement: type === 'stairs',
-            movementMode: type === 'stairs' ? 'stairs' : null,
+            id: makeId(type), type, from, to, between: [fromZ, toZ], state: 'open', blocksVision: false, blocksLight: false,
+            allowsMovement: type === 'stairs', movementMode: type === 'stairs' ? (normalizedLayout === 'ladder' ? 'climb' : 'stairs') : null,
+            layout: type === 'stairs' ? normalizedLayout : null, widthFt: type === 'stairs' ? widthFt : 0,
+            costMultiplier: type === 'stairs' && normalizedLayout === 'ladder' ? 2 : 1, bidirectional: true,
         }, mapData);
     }
 
@@ -76,10 +75,7 @@
         return layers.slice(0, 2).map((value) => Math.trunc(numberOr(value, 0)));
     }
 
-    function portalOnLayer(portal = {}, zLayer) {
-        return portalLayers(portal).includes(Number(zLayer));
-    }
-
+    function portalOnLayer(portal = {}, zLayer) { return portalLayers(portal).includes(Number(zLayer)); }
     function otherLayer(portal = {}, zLayer) {
         const layers = portalLayers(portal);
         const current = Number(zLayer);
@@ -103,14 +99,8 @@
     }
 
     function pointToSegmentDistance(point, a, b) {
-        const px = numberOr(point?.x);
-        const py = numberOr(point?.y);
-        const ax = numberOr(a?.x);
-        const ay = numberOr(a?.y);
-        const bx = numberOr(b?.x);
-        const by = numberOr(b?.y);
-        const dx = bx - ax;
-        const dy = by - ay;
+        const px = numberOr(point?.x), py = numberOr(point?.y), ax = numberOr(a?.x), ay = numberOr(a?.y), bx = numberOr(b?.x), by = numberOr(b?.y);
+        const dx = bx - ax, dy = by - ay;
         if (dx === 0 && dy === 0) return Math.hypot(px - ax, py - ay);
         const t = Math.max(0, Math.min(1, (((px - ax) * dx) + ((py - ay) * dy)) / ((dx * dx) + (dy * dy))));
         return Math.hypot(px - (ax + (t * dx)), py - (ay + (t * dy)));
@@ -118,17 +108,13 @@
 
     function hitTest(portals, point, mapData = {}, zLayer = 0, tolerancePx = null) {
         const tolerance = tolerancePx == null ? Math.max(8, numberOr(mapData.grid?.size, 70) * 0.14) : Math.max(1, numberOr(tolerancePx, 8));
-        let best = null;
-        let bestDistance = Infinity;
+        let best = null, bestDistance = Infinity;
         for (const raw of Array.isArray(portals) ? portals : []) {
             const portal = normalizePortal(raw, mapData);
             if (!portalOnLayer(portal, zLayer)) continue;
             const line = segment(portal, mapData);
             const distance = pointToSegmentDistance(point, { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 });
-            if (distance <= tolerance && distance < bestDistance) {
-                best = portal;
-                bestDistance = distance;
-            }
+            if (distance <= tolerance && distance < bestDistance) { best = portal; bestDistance = distance; }
         }
         return best;
     }
@@ -138,19 +124,14 @@
         return LABELS[type] || 'PORTAL Z';
     }
 
+    function layoutLabel(portalOrLayout) {
+        const layout = typeof portalOrLayout === 'string' ? portalOrLayout : portalOrLayout?.layout;
+        return LAYOUT_LABELS[normalizeLayout(layout)] || LAYOUT_LABELS.straight;
+    }
+
     return Object.freeze({
-        TYPES,
-        LABELS,
-        normalizeVertex,
-        normalizePortal,
-        createPortal,
-        portalLayers,
-        portalOnLayer,
-        otherLayer,
-        vertexToPoint,
-        segment,
-        pointToSegmentDistance,
-        hitTest,
-        labelFor,
+        TYPES, STAIR_LAYOUTS, LABELS, LAYOUT_LABELS, normalizeVertex, normalizeLayers, normalizeLayout, normalizePortal,
+        createPortal, portalLayers, portalOnLayer, otherLayer, vertexToPoint, segment, pointToSegmentDistance, hitTest,
+        labelFor, layoutLabel,
     });
 });
