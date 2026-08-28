@@ -18,7 +18,7 @@ Sorcerer ASIs are not class Traits in Luminous; the universal Class Milestone sy
 
 ## Sorcery Points
 
-`Sorcery Points = floor(Sorcerer Class Level / 5)`, minimum 1 while the character has Sorcerer levels.
+Once Font of Magic is granted at Sorcerer Class Level 10: `Sorcery Points = floor(Sorcerer Class Level / 5)`, minimum 1.
 
 Sorcery Points recover fully on Long Rest. At Sorcerer Class Level 100, Sorcerous Restoration also recovers 4 Sorcery Points on Short Rest.
 
