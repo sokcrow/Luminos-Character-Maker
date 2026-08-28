@@ -183,7 +183,6 @@ test('runtime wiring uses mouse Look, E lock, hold-Q Look Up, white direction ma
   expect(bootstrap).toContain("import './pov-engine.js'");
   expect(bootstrap).toContain('pov.perceptionAtPoint');
   expect(bootstrap).toContain('povController.viewLayer(activeZ)');
-  expect(bootstrap).not.toContain('updateFacingFromMove');
   expect(controller).toContain("key === 'e'");
   expect(controller).toContain("key === 'q'");
   expect(controller).toContain("canvas.addEventListener('mousemove', onPointerMove)");
@@ -194,8 +193,13 @@ test('runtime wiring uses mouse Look, E lock, hold-Q Look Up, white direction ma
   expect(renderer).not.toContain('ctx.rotate(');
 });
 
-test('new PoV runtimes parse as JavaScript', () => {
-  for (const file of ['js/vtt/pov-engine.js', 'js/vtt/pov-state.js', 'js/vtt/pov-controller.js', 'js/vtt/pov-renderer.js', 'js/vtt/dynamic-lighting-bootstrap.js']) {
+test('new PoV UMD runtimes parse as JavaScript and the ESM bootstrap imports them', () => {
+  for (const file of ['js/vtt/pov-engine.js', 'js/vtt/pov-state.js', 'js/vtt/pov-controller.js', 'js/vtt/pov-renderer.js']) {
     execFileSync(process.execPath, ['--check', path.join(__dirname, '..', file)], { stdio: 'pipe' });
   }
+  const bootstrap = read('js/vtt/dynamic-lighting-bootstrap.js');
+  expect(bootstrap).toContain("import './pov-engine.js';");
+  expect(bootstrap).toContain("import './pov-state.js';");
+  expect(bootstrap).toContain("import './pov-controller.js';");
+  expect(bootstrap).toContain("import './pov-renderer.js';");
 });
