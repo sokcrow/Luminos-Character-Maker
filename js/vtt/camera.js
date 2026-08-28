@@ -10,6 +10,7 @@ export class Camera {
         this.isDragging = false;
         this.lastMouseX = 0;
         this.lastMouseY = 0;
+        this.dragGuard = null;
 
         this.setupEventListeners();
     }
@@ -21,8 +22,13 @@ export class Camera {
         this.canvas.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
     }
 
+    setDragGuard(guard) {
+        this.dragGuard = typeof guard === 'function' ? guard : null;
+    }
+
     onMouseDown(e) {
-        if (e.button === 0 || e.button === 1 || e.button === 2) { // Allow dragging with left, middle, or right click for now
+        if (e.button === 0 && this.dragGuard && !this.dragGuard(e)) return;
+        if (e.button === 0 || e.button === 1 || e.button === 2) {
             this.isDragging = true;
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
@@ -42,7 +48,7 @@ export class Camera {
         this.lastMouseY = e.clientY;
     }
 
-    onMouseUp(e) {
+    onMouseUp() {
         this.isDragging = false;
     }
 
@@ -60,16 +66,13 @@ export class Camera {
 
         this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom));
 
-        // Adjust camera position to zoom towards the mouse cursor
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Convert mouse position to world coordinates before zoom
         const worldX = (mouseX / previousZoom) - this.x;
         const worldY = (mouseY / previousZoom) - this.y;
 
-        // Calculate new camera position so the world coordinate under the mouse stays the same
         this.x = (mouseX / this.zoom) - worldX;
         this.y = (mouseY / this.zoom) - worldY;
     }
@@ -79,12 +82,10 @@ export class Camera {
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(-this.canvas.width / 2, -this.canvas.height / 2);
 
-        // Apply camera offset based on screen center
         ctx.translate(this.x + this.canvas.width / (2 * this.zoom) - this.canvas.width / 2,
                       this.y + this.canvas.height / (2 * this.zoom) - this.canvas.height / 2);
     }
 
-    // Easier alternative for applyTransform depending on how we render
     applyTransformSimple(ctx) {
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(this.x, this.y);
