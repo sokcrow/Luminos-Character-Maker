@@ -6,6 +6,7 @@ function freshModules() {
   delete global.LuminousTraitEngine;
   delete global.LuminousSpellcastingRuntime;
   delete global.LuminousUniversalSpeedRuntime;
+  delete global.LuminousCasterSpellcastingTraitsRuntime;
 
   const paths = [
     "../js/trait-engine.js",
