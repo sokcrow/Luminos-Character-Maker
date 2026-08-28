@@ -57,7 +57,6 @@
     const subscriptions = [];
     let playerRecords = {};
     let worldRecords = {};
-    let timer = null;
     let started = false;
 
     const playersRef = () => db?.ref(PLAYER_ROOT);
@@ -114,16 +113,15 @@
       started = true;
       applyRecords();
       if (!db) return false;
+      // Firebase subscriptions are the single remote authority. Avoid polling stale cached
+      // records while the local mouse is actively changing lookDeg.
       subscribe(playersRef(), (snapshot) => { playerRecords = snapshot.val() || {}; applyRecords(); });
       subscribe(worldRef(), (snapshot) => { worldRecords = snapshot.val() || {}; applyRecords(); });
-      timer = root?.setInterval?.(applyRecords, 750) || null;
       return true;
     }
 
     function stop() {
       subscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
-      if (timer != null) root?.clearInterval?.(timer);
-      timer = null;
       started = false;
     }
 
