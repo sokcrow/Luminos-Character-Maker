@@ -34,7 +34,7 @@
     function findTransitionAtPoint(point, mapData = {}, zLayer, tolerancePx = null) {
         const routes = routeRuntime();
         if (!routes) return null;
-        const tolerance = tolerancePx == null ? Math.max(12, numberOr(mapData.grid?.size, 70) * 0.55) : Math.max(1, numberOr(tolerancePx));
+        const tolerance = tolerancePx == null ? Math.max(12, numberOr(mapData.grid?.size, 70) * 0.8) : Math.max(1, numberOr(tolerancePx));
         let best = null;
         let bestDistance = Infinity;
         for (const candidate of transitionCandidates(mapData, zLayer)) {
@@ -54,6 +54,14 @@
         const col = Math.max(0, Math.min(cols - 1, Math.floor(numberOr(point.x) / size)));
         const row = Math.max(0, Math.min(rows - 1, Math.floor(numberOr(point.y) / size)));
         return { col, row, z: Number(zLayer) || 0 };
+    }
+
+    function centerForGridPosition(gridPosition = {}, mapData = {}) {
+        const size = Math.max(1, numberOr(mapData.grid?.size, 70));
+        return {
+            x: (Number(gridPosition.col) + 0.5) * size,
+            y: (Number(gridPosition.row) + 0.5) * size,
+        };
     }
 
     function hasDedicatedClimbSpeed(token = {}) {
@@ -96,12 +104,14 @@
         const targetZ = routes.targetLayer(route, sourceLayer);
         const ordered = routes.orderedPoints(route, sourceLayer);
         const exit = ordered[ordered.length - 1];
-        token.x = exit.x;
-        token.y = exit.y;
+        const gridPosition = gridPositionForPoint(exit, targetZ, mapData);
+        const center = centerForGridPosition(gridPosition, mapData);
+        token.x = center.x;
+        token.y = center.y;
         token.elevationFt = exit.elevationFt;
         token.zLayer = Number(targetZ);
         token.z = [Number(targetZ)];
-        token.gridPosition = gridPositionForPoint(exit, targetZ, mapData);
+        token.gridPosition = gridPosition;
         token.lastVerticalTravel = {
             routeId: route.id,
             fromZ: Number(sourceLayer),
@@ -131,9 +141,7 @@
         const spendFt = Math.min(availableFt, totalCostFt);
         token.movementRemainingFt = Math.max(0, availableFt - spendFt);
         const travelFt = spendFt / multiplier;
-        if (travelFt + 1e-9 >= route.pathLengthFt) {
-            return completeTransition(token, route, sourceLayer, mapData, spendFt);
-        }
+        if (travelFt + 1e-9 >= route.pathLengthFt) return completeTransition(token, route, sourceLayer, mapData, spendFt);
 
         const point = routes.pointAtDistance(route, sourceLayer, travelFt, mapData);
         applyPoint(token, point, sourceLayer, route, travelFt, spendFt, mapData);
@@ -161,6 +169,7 @@
         transitionCandidates,
         findTransitionAtPoint,
         gridPositionForPoint,
+        centerForGridPosition,
         hasDedicatedClimbSpeed,
         effectiveMultiplier,
         availableMovementFt,
