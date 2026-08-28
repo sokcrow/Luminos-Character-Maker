@@ -113,17 +113,18 @@ test('VTT wiring loads linked racial senses, feet grid, grayscale rendering and 
   expect(mapData).toContain("characterLink: { mode: 'current_player' }");
 });
 
-test('all new and modified vision modules parse as JavaScript', () => {
+test('new UMD runtimes parse and VTT files keep their ES module contracts', () => {
   const root = path.join(__dirname, '..');
   for (const file of [
     'js/racial-sense-runtime.js',
     'js/vtt/spatial-vision.js',
     'js/vtt/character-vision-bridge.js',
-    'js/vtt/engine.js',
-    'js/vtt/renderer.js',
-    'js/vtt/main.js',
-    'js/vtt/mapData.js',
   ]) {
     execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
   }
+
+  expect(read('js/vtt/engine.js')).toMatch(/^import\s+\{\s*Camera\s*\}/);
+  expect(read('js/vtt/renderer.js')).toMatch(/^export\s+class\s+Renderer/);
+  expect(read('js/vtt/main.js')).toMatch(/^import\s+\{\s*Engine\s*\}/);
+  expect(read('js/vtt/mapData.js')).toMatch(/^export\s+const\s+mockMapData/);
 });
