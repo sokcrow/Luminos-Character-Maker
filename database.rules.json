@@ -92,6 +92,21 @@
         }
       }
     },
+    "vtt_topology": {
+      ".read": "auth != null",
+      "$mapId": {
+        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+      }
+    },
+    "vtt_topology_action_requests": {
+      "$mapId": {
+        ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        "$requestId": {
+          ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('mapId').val() === $mapId))"
+        }
+      }
+    },
     "theatre_opposed_checks": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "$sessionId": {
