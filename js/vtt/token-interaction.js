@@ -134,7 +134,18 @@
 
     function resolveDrop(token, from, worldPoint, mapData = {}) {
         if (!token || !mapData.grid) return { valid: false, reason: 'INVALID_INPUT' };
-        const snapped = snapPointToGrid(worldPoint, mapData.grid);
+
+        const { width, height } = gridBounds(mapData.grid);
+        const requestedX = numberOr(worldPoint?.x, NaN);
+        const requestedY = numberOr(worldPoint?.y, NaN);
+        if (!Number.isFinite(requestedX) || !Number.isFinite(requestedY)) {
+            return { valid: false, reason: 'INVALID_INPUT' };
+        }
+        if (requestedX < 0 || requestedY < 0 || requestedX >= width || requestedY >= height) {
+            return { valid: false, reason: 'OUT_OF_BOUNDS' };
+        }
+
+        const snapped = snapPointToGrid({ x: requestedX, y: requestedY }, mapData.grid);
         const destination = canOccupy(token, snapped, mapData);
         if (!destination.valid) return { ...snapped, ...destination };
 
