@@ -10,7 +10,7 @@
 
   function uid(prefix) { return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
 
-  function createController({ canvas, engine, mapData, stateBridge, isDm = false, getControlledViewers, notify, root = browserRoot } = {}) {
+  function createController({ canvas, engine, mapData, stateBridge, sceneBridge = null, isDm = false, getControlledViewers, notify, root = browserRoot } = {}) {
     if (!canvas || !engine || !mapData || !stateBridge) throw new Error('POV_CONTROLLER_INPUT_REQUIRED');
     const doc = root?.document;
     const pov = root?.LuminousVttPovEngine;
@@ -194,6 +194,12 @@
       event.preventDefault();
     }
 
+    function onWindowBlur() {
+      if (lookUpHeld()) setLookUpHeld(false);
+      roofDragStart = null;
+      mapData.pov.roofPreviewPoint = null;
+    }
+
     function roofAtPoint(point) {
       const roofs = scene().roofs || [];
       return roofs.find((roof) => Number(roof.zLayer ?? 0) === activeZ() && pov.pointInRect(point, roof, 1)) || null;
@@ -219,7 +225,13 @@
     }
 
     async function persistScene() {
-      try { await stateBridge.saveScene?.(scene()); }
+      const bridge = sceneBridge || stateBridge;
+      if (typeof bridge?.saveScene !== 'function') {
+        console.error('VTT roof persistence failed: scene bridge is unavailable.');
+        emit('No se pudo guardar el techo.', 'error');
+        return;
+      }
+      try { await bridge.saveScene(scene()); }
       catch (error) { console.error('VTT roof save failed:', error); emit('No se pudo guardar el techo.', 'error'); }
     }
 
@@ -327,11 +339,13 @@
     root.addEventListener('mouseup', onRoofMouseUp, true); listeners.push(() => root.removeEventListener('mouseup', onRoofMouseUp, true));
     root.addEventListener('keydown', onKeyDown, true); listeners.push(() => root.removeEventListener('keydown', onKeyDown, true));
     root.addEventListener('keyup', onKeyUp, true); listeners.push(() => root.removeEventListener('keyup', onKeyUp, true));
+    root.addEventListener('blur', onWindowBlur); listeners.push(() => root.removeEventListener('blur', onWindowBlur));
 
     function stop() {
       listeners.splice(0).forEach((fn) => fn());
       if (saveTimer != null) root.clearTimeout?.(saveTimer);
       saveTimer = null;
+      setLookUpHeld(false);
       closeRoofEditor();
     }
 
