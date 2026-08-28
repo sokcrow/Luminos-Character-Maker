@@ -18,6 +18,20 @@
             <button type="button" data-vtt-tool="curtain_window" class="brutalist-button">CURTAIN WINDOW</button>
             <button type="button" data-vtt-tool="erase" class="brutalist-button">ERASE</button>
         </div>
+
+        <div id="vtt-vertical-toolbar" class="vtt-toolbar vtt-vertical-toolbar" hidden aria-label="Editor vertical del DM">
+            <span class="vtt-toolbar-title">Z PORTALS</span>
+            <button type="button" data-vtt-vertical-tool="select" class="brutalist-button">V-SELECT</button>
+            <button type="button" data-vtt-vertical-tool="opening" class="brutalist-button">HUECO</button>
+            <button type="button" data-vtt-vertical-tool="balcony_edge" class="brutalist-button">BALCÓN</button>
+            <button type="button" data-vtt-vertical-tool="stairs" class="brutalist-button">ESCALERA</button>
+            <button type="button" data-vtt-vertical-tool="erase" class="brutalist-button">V-ERASE</button>
+            <label class="vtt-toolbar-field" for="vtt-vertical-target-z">
+                <span>Z DESTINO</span>
+                <select id="vtt-vertical-target-z" aria-label="Z destino de la conexión vertical"></select>
+            </label>
+        </div>
+
         <button id="btn-export-uv" class="brutalist-button">[ EXPORTAR PLANTILLA UV ]</button>
     </div>
 
@@ -48,6 +62,24 @@
         <button id="vtt-topology-delete" type="button" class="vtt-danger-button">BORRAR ELEMENTO</button>
     </aside>
 
+    <aside id="vtt-vertical-editor" class="vtt-panel vtt-vertical-panel" hidden>
+        <header>
+            <strong id="vtt-vertical-type">PORTAL Z</strong>
+            <small id="vtt-vertical-id"></small>
+        </header>
+        <div class="vtt-vertical-readout">
+            <span>DESDE</span>
+            <strong id="vtt-vertical-from-z">Z0</strong>
+        </div>
+        <label>
+            <span>HASTA</span>
+            <select id="vtt-vertical-editor-target" aria-label="Editar Z destino"></select>
+        </label>
+        <p id="vtt-vertical-movement" class="vtt-context-note"></p>
+        <p class="vtt-panel-help">El trazo se ajusta a vértices/bordes de la cuadrícula. Sólo el DM ve estas guías; jugadores reciben únicamente su efecto sobre visión/luz.</p>
+        <button id="vtt-vertical-delete" type="button" class="vtt-danger-button">BORRAR CONEXIÓN VERTICAL</button>
+    </aside>
+
     <section id="vtt-context-menu" class="vtt-context-menu" hidden>
         <header>
             <strong id="vtt-context-title">OBJETO</strong>
@@ -60,6 +92,8 @@
 
     <script src="js/racial-sense-runtime.js"></script>
     <script src="js/vtt/spatial-vision.js"></script>
+    <script src="js/vtt/vertical-portal.js"></script>
+    <script src="js/vtt/vertical-portal-state.js"></script>
     <script src="js/vtt/character-vision-bridge.js"></script>
     <script src="js/vtt/topology.js"></script>
     <script src="js/vtt/state-bridge.js"></script>
