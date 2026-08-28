@@ -1,11 +1,19 @@
 (function (root, factory) {
-    const api = factory();
+    const api = factory(root);
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (root) root.LuminousVttTokenInteraction = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (root) {
     'use strict';
 
     const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+    function topologyRuntime() {
+        if (root?.LuminousVttTopology) return root.LuminousVttTopology;
+        if (typeof require !== 'undefined') {
+            try { return require('./topology.js'); } catch (_) {}
+        }
+        return null;
+    }
 
     function tokenRadius(token = {}, grid = {}) {
         const size = Math.max(1, numberOr(grid.size, 70));
@@ -80,11 +88,19 @@
 
     function movementWalls(mapData = {}, token = {}) {
         const layers = tokenLayers(token);
-        return (Array.isArray(mapData.walls) ? mapData.walls : []).filter((wall) => {
+        const legacy = (Array.isArray(mapData.walls) ? mapData.walls : []).filter((wall) => {
             if (!wall || !wall.blocksMovement) return false;
             const wallLayers = Array.isArray(wall.z) ? wall.z : [numberOr(wall.z, 0)];
             return wallLayers.some((layer) => layers.includes(Number(layer)));
         });
+
+        const topology = topologyRuntime();
+        if (!topology || !Array.isArray(mapData.topology)) return legacy;
+        const dynamic = [];
+        layers.forEach((layer) => {
+            dynamic.push(...topology.blockingSegments(mapData.topology, 'movement', layer, mapData.grid));
+        });
+        return [...legacy, ...dynamic];
     }
 
     function canOccupy(token, point, mapData = {}) {
@@ -162,6 +178,8 @@
         findDraggableToken,
         gridBounds,
         snapPointToGrid,
+        pointToSegmentDistance,
+        movementWalls,
         canOccupy,
         isPathClear,
         resolveDrop,
