@@ -3,8 +3,31 @@ export const mockMapData = {
     grid: {
         cols: 30,
         rows: 30,
-        size: 70
+        size: 70,
+        distancePerCell: 5,
+        distanceUnit: 'ft'
     },
+    ambientLight: {
+        level: 'bright'
+    },
+    defaultZStepFt: 15,
+    zLevels: {
+        0: { zLayer: 0, elevationFt: 0, label: 'Street' },
+        1: { zLayer: 1, elevationFt: 15, label: 'Upper Floor' },
+        2: { zLayer: 2, elevationFt: 30, label: 'Roof' }
+    },
+    verticalPortals: [
+        {
+            id: 'balcony_demo',
+            type: 'balcony_edge',
+            between: [0, 1],
+            from: { col: 2, row: 7 },
+            to: { col: 7, row: 7 },
+            blocksVision: false,
+            blocksLight: false,
+            state: 'open'
+        }
+    ],
     walls: [
         { x1: 0, y1: 0, x2: 2100, y2: 0, z: [0, 1], blocksMovement: true, blocksVision: true },
         { x1: 2100, y1: 0, x2: 2100, y2: 2100, z: [0, 1], blocksMovement: true, blocksVision: true },
@@ -59,6 +82,9 @@ export const mockMapData = {
             iconColor: '#ffffff',
             icon: 'person',
             draggable: true,
+            characterLink: { mode: 'current_player' },
+            elevationFt: 0,
+            zLayer: 0,
             gridPosition: { col: 3, row: 3, z: 0 },
             z: [0]
         }
