@@ -31,6 +31,16 @@
             .filter(({ route }) => route && routes.routeEntryForLayer(route, zLayer));
     }
 
+    function candidateForRouteId(mapData = {}, routeId) {
+        if (!routeId) return null;
+        const routes = routeRuntime();
+        const portal = (Array.isArray(mapData.verticalPortals) ? mapData.verticalPortals : [])
+            .find((entry) => entry?.type === 'stairs' && String(entry.id) === String(routeId));
+        if (!portal || portal.state === 'closed' || portal.allowsMovement === false || !routes) return null;
+        const route = routes.routeFor(portal, mapData);
+        return route ? { portal, route, resumed: true } : null;
+    }
+
     function findTransitionAtPoint(point, mapData = {}, zLayer, tolerancePx = null) {
         const routes = routeRuntime();
         if (!routes) return null;
@@ -80,6 +90,26 @@
         return Infinity;
     }
 
+    function routeSourceLayer(token, route) {
+        const active = token?.verticalMovement;
+        if (active && String(active.routeId) === String(route?.id) && Number.isFinite(Number(active.fromZ))) {
+            return Number(active.fromZ);
+        }
+        return tokenLayer(token);
+    }
+
+    function progressFor(token, route) {
+        const active = token?.verticalMovement;
+        if (!active || String(active.routeId) !== String(route?.id)) return 0;
+        return Math.max(0, Math.min(numberOr(active.progressFt, 0), numberOr(route?.pathLengthFt, 0)));
+    }
+
+    function previousCostFor(token, route) {
+        const active = token?.verticalMovement;
+        if (!active || String(active.routeId) !== String(route?.id)) return 0;
+        return Math.max(0, numberOr(active.costSpentFt, 0));
+    }
+
     function applyPoint(token, point, sourceLayer, route, progressFt, costSpentFt, mapData) {
         token.x = point.x;
         token.y = point.y;
@@ -99,7 +129,7 @@
         token.z = [Number(sourceLayer)];
     }
 
-    function completeTransition(token, route, sourceLayer, mapData, costSpentFt = 0) {
+    function completeTransition(token, route, sourceLayer, mapData, stepCostFt = 0, totalCostFt = stepCostFt) {
         const routes = routeRuntime();
         const targetZ = routes.targetLayer(route, sourceLayer);
         const ordered = routes.orderedPoints(route, sourceLayer);
@@ -118,46 +148,64 @@
             toZ: Number(targetZ),
             pathLengthFt: route.pathLengthFt,
             movementMode: route.movementMode,
-            costSpentFt,
+            costSpentFt: totalCostFt,
         };
         delete token.verticalMovement;
-        return { valid: true, complete: true, targetZ, route, token, costSpentFt };
+        return { valid: true, complete: true, targetZ, route, token, costSpentFt: stepCostFt, totalCostFt };
     }
 
     function traverse(token, candidate, mapData = {}) {
         const routes = routeRuntime();
         if (!routes || !candidate?.route) return { valid: false, reason: 'ROUTE_UNAVAILABLE' };
         const route = candidate.route;
-        const sourceLayer = tokenLayer(token);
+        const sourceLayer = routeSourceLayer(token, route);
         const targetZ = routes.targetLayer(route, sourceLayer);
         if (targetZ == null) return { valid: false, reason: 'ROUTE_NOT_ON_LAYER' };
-        if (route.bidirectional === false && sourceLayer !== route.fromZ) return { valid: false, reason: 'ONE_WAY_ROUTE' };
+        if (route.bidirectional === false && Number(sourceLayer) !== Number(route.fromZ)) return { valid: false, reason: 'ONE_WAY_ROUTE' };
 
         const multiplier = effectiveMultiplier(route, token);
-        const totalCostFt = route.pathLengthFt * multiplier;
+        const startProgressFt = progressFor(token, route);
+        const previousCostFt = previousCostFor(token, route);
+        const remainingTravelFt = Math.max(0, route.pathLengthFt - startProgressFt);
+        const remainingCostFt = remainingTravelFt * multiplier;
         const availableFt = availableMovementFt(token);
-        if (!Number.isFinite(availableFt)) return completeTransition(token, route, sourceLayer, mapData, totalCostFt);
 
-        const spendFt = Math.min(availableFt, totalCostFt);
+        if (remainingTravelFt <= 1e-9) return completeTransition(token, route, sourceLayer, mapData, 0, previousCostFt);
+        if (!Number.isFinite(availableFt)) {
+            return completeTransition(token, route, sourceLayer, mapData, remainingCostFt, previousCostFt + remainingCostFt);
+        }
+
+        const spendFt = Math.min(availableFt, remainingCostFt);
         token.movementRemainingFt = Math.max(0, availableFt - spendFt);
-        const travelFt = spendFt / multiplier;
-        if (travelFt + 1e-9 >= route.pathLengthFt) return completeTransition(token, route, sourceLayer, mapData, spendFt);
+        const travelAddedFt = spendFt / multiplier;
+        const progressFt = Math.min(route.pathLengthFt, startProgressFt + travelAddedFt);
+        const totalCostFt = previousCostFt + spendFt;
 
-        const point = routes.pointAtDistance(route, sourceLayer, travelFt, mapData);
-        applyPoint(token, point, sourceLayer, route, travelFt, spendFt, mapData);
+        if (progressFt + 1e-9 >= route.pathLengthFt) {
+            return completeTransition(token, route, sourceLayer, mapData, spendFt, totalCostFt);
+        }
+
+        const point = routes.pointAtDistance(route, sourceLayer, progressFt, mapData);
+        applyPoint(token, point, sourceLayer, route, progressFt, totalCostFt, mapData);
         return {
             valid: true,
             complete: false,
+            resumed: startProgressFt > 0,
             route,
             token,
             targetZ,
-            progressFt: travelFt,
-            remainingRouteFt: route.pathLengthFt - travelFt,
+            progressFt,
+            remainingRouteFt: route.pathLengthFt - progressFt,
             costSpentFt: spendFt,
+            totalCostFt,
         };
     }
 
     function transitionOnDrop(token, dropPoint, mapData = {}) {
+        const activeRouteId = token?.verticalMovement?.routeId;
+        const resumed = candidateForRouteId(mapData, activeRouteId);
+        if (resumed) return traverse(token, resumed, mapData);
+
         const zLayer = tokenLayer(token);
         const candidate = findTransitionAtPoint(dropPoint, mapData, zLayer);
         if (!candidate) return { valid: false, reason: 'NO_VERTICAL_TRANSITION' };
@@ -167,12 +215,15 @@
     return Object.freeze({
         tokenLayer,
         transitionCandidates,
+        candidateForRouteId,
         findTransitionAtPoint,
         gridPositionForPoint,
         centerForGridPosition,
         hasDedicatedClimbSpeed,
         effectiveMultiplier,
         availableMovementFt,
+        routeSourceLayer,
+        progressFor,
         completeTransition,
         traverse,
         transitionOnDrop,
