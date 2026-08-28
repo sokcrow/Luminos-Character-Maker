@@ -1,4 +1,5 @@
 export const mockMapData = {
+    id: 'default',
     grid: {
         cols: 30,
         rows: 30,
@@ -16,8 +17,36 @@ export const mockMapData = {
         { x1: 70, y1: 2030, x2: 70, y2: 70, z: [0, 1], blocksMovement: true, blocksVision: true },
 
         { x1: 350, y1: 70, x2: 350, y2: 490, z: [0], blocksMovement: true, blocksVision: true },
-        { x1: 350, y1: 490, x2: 350, y2: 630, z: [0], blocksMovement: true, blocksVision: false },
         { x1: 700, y1: 70, x2: 700, y2: 980, z: [1], blocksMovement: true, blocksVision: true }
+    ],
+    topology: [
+        {
+            id: 'door_demo',
+            type: 'door',
+            from: { col: 4, row: 3 },
+            to: { col: 4, row: 4 },
+            z: [0],
+            state: 'locked',
+            thresholds: { lockpick: 15, break: 15 }
+        },
+        {
+            id: 'window_demo',
+            type: 'window',
+            from: { col: 4, row: 4 },
+            to: { col: 4, row: 5 },
+            z: [0],
+            state: 'locked',
+            thresholds: { lockpick: 12, break: 10 }
+        },
+        {
+            id: 'curtain_window_demo',
+            type: 'curtain_window',
+            from: { col: 4, row: 5 },
+            to: { col: 4, row: 6 },
+            z: [0],
+            state: 'closed',
+            thresholds: { lockpick: 12, break: 10 }
+        }
     ],
     tokens: [
         {
