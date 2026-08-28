@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    mockMapData.dmEditMode ||= { active: false };
     const engine = new Engine(canvas, mockMapData);
     let controller = null;
     let verticalController = null;
@@ -39,11 +40,24 @@ document.addEventListener('DOMContentLoaded', () => {
         notify: (message, mode) => verticalController?.notify(message, mode),
     });
 
-    // Vertical controller binds capture listeners first so an active Z tool wins over
-    // topology selection or token dragging. When no vertical tool is active it yields.
+    // Z tools bind first so an active vertical authoring tool wins over topology/token drag.
     verticalController = new VerticalPortalController(canvas, engine, mockMapData, verticalBridge);
     controller = new TopologyController(canvas, engine, mockMapData, bridge);
     verticalController.setTopologyController(controller);
+
+    const tokenControlApi = globalThis.LuminousVttTokenControl;
+    engine.setTokenControlResolver(tokenControlApi?.createResolver?.({ isDm: bridge.isDm }) || null);
+    if (!bridge.isDm) {
+        const viewer = (mockMapData.tokens || []).find((token) => token.characterLink?.mode === 'current_player');
+        if (viewer) viewer.viewer = true;
+    }
+
+    const editMode = globalThis.LuminousVttDmEditMode?.createController?.({
+        isDm: bridge.isDm,
+        mapData: mockMapData,
+        topologyController: controller,
+        verticalPortalController: verticalController,
+    }) || null;
 
     bridge.start();
     verticalBridge.start();
@@ -58,11 +72,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkPortal = globalThis.LuminousVttCheckPortal?.start?.() || null;
 
     const exportBtn = document.getElementById('btn-export-uv');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            engine.exportUVTemplate();
-        });
-    }
+    exportBtn?.addEventListener('click', () => engine.exportUVTemplate());
+
+    const applyLayer = (zLayer) => {
+        engine.setZLayer(zLayer);
+        controller.handleTopologyChanged();
+        verticalController.handleLayerChanged();
+    };
+
+    canvas.addEventListener('vtt:token-z-transition', (event) => {
+        const detail = event.detail || {};
+        const token = (mockMapData.tokens || []).find((entry) => String(entry.id) === String(detail.tokenId));
+        if (detail.complete && token?.viewer === true && Number.isFinite(Number(detail.targetZ))) applyLayer(Number(detail.targetZ));
+    });
 
     engine.start();
 
@@ -72,23 +94,16 @@ document.addEventListener('DOMContentLoaded', () => {
         bridge,
         verticalController,
         verticalBridge,
+        editMode,
         characterVisionBridge,
     });
 
-    const applyLayer = (zLayer) => {
-        engine.setZLayer(zLayer);
-        controller.handleTopologyChanged();
-        verticalController.handleLayerChanged();
-    };
-
     window.addEventListener('keydown', (event) => {
-        if (event.key === '0') {
-            applyLayer(0);
-        } else if (event.key === '1') {
-            applyLayer(1);
-        } else if (event.key === '2') {
-            applyLayer(2);
-        } else if (event.key === 'Escape') {
+        if (event.key === '0') applyLayer(0);
+        else if (event.key === '1') applyLayer(1);
+        else if (event.key === '2') applyLayer(2);
+        else if ((event.key === 'e' || event.key === 'E') && bridge.isDm && !event.ctrlKey && !event.metaKey && !event.altKey) editMode?.toggle?.();
+        else if (event.key === 'Escape') {
             controller.hideContextMenu();
             controller.setTool('select');
             verticalController.setTool('select', false);
@@ -96,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('beforeunload', () => {
+        editMode?.stop?.();
         characterVisionBridge?.stop?.();
         verticalController.destroy();
         verticalBridge.stop();
