@@ -315,6 +315,33 @@ ready(() => {
   };
   engine.calculateVision = () => ({ dynamicLighting: true, directionalPov: true });
 
+  // Body-facing compatibility remains canonical, but PoV no longer reads this value once lookDeg exists.
+  function tokenFromMoveEvent(event) {
+    const id = event.detail?.tokenId;
+    return (mapData.tokens || []).find((token) => String(token.id) === String(id)) || null;
+  }
+
+  function updateFacingFromMove(event) {
+    const token = tokenFromMoveEvent(event);
+    const from = event.detail?.from || {}, to = event.detail?.to || {};
+    if (!token || !Number.isFinite(Number(from.x)) || !Number.isFinite(Number(to.x))) return;
+    const dx = Number(to.x) - Number(from.x), dy = Number(to.y) - Number(from.y);
+    if (Math.hypot(dx, dy) < 1) return;
+    token.facingDeg = light.normalizeAngleDeg((Math.atan2(dy, dx) * 180) / Math.PI);
+    lightingStateBridge.saveFacing(token).catch((error) => console.error('VTT body facing persistence failed:', error));
+  }
+  canvas.addEventListener('vtt:token-moved', updateFacingFromMove);
+
+  const bodyFacingKeyHandler = (event) => {
+    if (!['[', ']'].includes(event.key) || event.ctrlKey || event.metaKey || event.altKey) return;
+    const token = controlledViewers()[0] || null;
+    if (!token) return;
+    token.facingDeg = light.normalizeAngleDeg(Number(token.facingDeg || 0) + (event.key === '[' ? -15 : 15));
+    lightingStateBridge.saveFacing(token).catch((error) => console.error('VTT body facing persistence failed:', error));
+    event.preventDefault();
+  };
+  window.addEventListener('keydown', bodyFacingKeyHandler);
+
   const previousRuntime = window.LuminousVttRuntime;
   window.LuminousVttRuntime = Object.freeze({
     ...previousRuntime,
@@ -336,6 +363,8 @@ ready(() => {
   });
 
   window.addEventListener('beforeunload', () => {
+    canvas.removeEventListener('vtt:token-moved', updateFacingFromMove);
+    window.removeEventListener('keydown', bodyFacingKeyHandler);
     povController.stop();
     lightingController.stop();
     environmentLightBridge.stop();
