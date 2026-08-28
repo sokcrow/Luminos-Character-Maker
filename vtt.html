@@ -10,7 +10,10 @@
     <canvas id="vtt-canvas"></canvas>
 
     <div id="vtt-ui-container">
+        <button id="vtt-dm-edit-toggle" type="button" class="brutalist-button vtt-edit-toggle" hidden aria-pressed="false">EDIT MODE</button>
+
         <div id="vtt-topology-toolbar" class="vtt-toolbar" hidden aria-label="Editor de topología del DM">
+            <span class="vtt-toolbar-title">TOPOLOGY</span>
             <button type="button" data-vtt-tool="select" class="brutalist-button">SELECT</button>
             <button type="button" data-vtt-tool="wall" class="brutalist-button">WALL</button>
             <button type="button" data-vtt-tool="door" class="brutalist-button">DOOR</button>
@@ -20,7 +23,7 @@
         </div>
 
         <div id="vtt-vertical-toolbar" class="vtt-toolbar vtt-vertical-toolbar" hidden aria-label="Editor vertical del DM">
-            <span class="vtt-toolbar-title">Z PORTALS</span>
+            <span class="vtt-toolbar-title">Z ROUTES</span>
             <button type="button" data-vtt-vertical-tool="select" class="brutalist-button">V-SELECT</button>
             <button type="button" data-vtt-vertical-tool="opening" class="brutalist-button">HUECO</button>
             <button type="button" data-vtt-vertical-tool="balcony_edge" class="brutalist-button">BALCÓN</button>
@@ -49,6 +52,10 @@
                 <option value="broken">BROKEN</option>
             </select>
         </label>
+        <label id="vtt-topology-thickness-field" hidden>
+            <span>GROSOR DEL MURO · FT</span>
+            <input id="vtt-topology-thickness" type="number" min="0.1" step="0.1" value="0.5">
+        </label>
         <div id="vtt-topology-threshold-fields" class="vtt-threshold-grid">
             <label>
                 <span>JUEGO DE MANOS</span>
@@ -75,8 +82,27 @@
             <span>HASTA</span>
             <select id="vtt-vertical-editor-target" aria-label="Editar Z destino"></select>
         </label>
+        <div id="vtt-stair-fields" hidden>
+            <label>
+                <span>FORMA DE ESCALERA</span>
+                <select id="vtt-vertical-layout">
+                    <option value="straight">RECTA</option>
+                    <option value="switchback">U / DOS TRAMOS</option>
+                    <option value="spiral">CARACOL</option>
+                    <option value="ladder">VERTICAL / LADDER</option>
+                </select>
+            </label>
+            <label>
+                <span>ANCHO · FT</span>
+                <input id="vtt-vertical-width" type="number" min="2" step="0.5" value="5">
+            </label>
+            <div class="vtt-vertical-readout">
+                <span>RECORRIDO 3D</span>
+                <strong id="vtt-vertical-path-length">—</strong>
+            </div>
+        </div>
         <p id="vtt-vertical-movement" class="vtt-context-note"></p>
-        <p class="vtt-panel-help">El trazo se ajusta a vértices/bordes de la cuadrícula. Sólo el DM ve estas guías; jugadores reciben únicamente su efecto sobre visión/luz.</p>
+        <p class="vtt-panel-help">El trazo define la ruta/apertura sobre la cuadrícula. RECTAs suben entre extremos; U genera dos tramos y descanso; CARACOL genera una hélice; VERTICAL crea una escalera de mano. Muros y huecos siguen decidiendo la línea de visión.</p>
         <button id="vtt-vertical-delete" type="button" class="vtt-danger-button">BORRAR CONEXIÓN VERTICAL</button>
     </aside>
 
@@ -93,11 +119,15 @@
     <script src="js/racial-sense-runtime.js"></script>
     <script src="js/vtt/spatial-vision.js"></script>
     <script src="js/vtt/vertical-portal.js"></script>
+    <script src="js/vtt/stair-route.js"></script>
+    <script src="js/vtt/vertical-movement.js"></script>
     <script src="js/vtt/vertical-portal-state.js"></script>
     <script src="js/vtt/character-vision-bridge.js"></script>
     <script src="js/vtt/topology.js"></script>
     <script src="js/vtt/state-bridge.js"></script>
     <script src="js/vtt/token-interaction.js"></script>
+    <script src="js/vtt/token-control.js"></script>
+    <script src="js/vtt/dm-edit-mode.js"></script>
     <script src="js/vtt/check-portal.js"></script>
     <script type="module" src="js/vtt/main.js"></script>
 </body>
