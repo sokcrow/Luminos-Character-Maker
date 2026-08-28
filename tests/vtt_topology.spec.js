@@ -1,6 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const topology = require('../js/vtt/topology.js');
@@ -145,6 +147,36 @@ test('VTT wiring exposes DM topology tools and routes checks through existing co
     expect(bridge).toContain("const CHECK_LIVE_ROOT = 'theatre_check_live'");
     expect(bridge).toContain("live.outcome === 'passed'");
     expect(portal).toContain("#theatre-check-command-prompt");
+});
+
+test('new and modified VTT JavaScript files pass Node syntax parsing', () => {
+    const commonJsCompatible = [
+        'js/vtt/topology.js',
+        'js/vtt/state-bridge.js',
+        'js/vtt/check-portal.js',
+        'js/vtt/token-interaction.js',
+    ];
+    for (const file of commonJsCompatible) {
+        execFileSync(process.execPath, ['--check', path.join(__dirname, '..', file)], { stdio: 'pipe' });
+    }
+
+    const esModules = [
+        'js/vtt/topology-controller.js',
+        'js/vtt/engine.js',
+        'js/vtt/renderer.js',
+        'js/vtt/main.js',
+        'js/vtt/mapData.js',
+    ];
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luminous-vtt-syntax-'));
+    try {
+        for (const file of esModules) {
+            const tempFile = path.join(tempDir, `${path.basename(file, '.js')}.mjs`);
+            fs.writeFileSync(tempFile, read(file));
+            execFileSync(process.execPath, ['--check', tempFile], { stdio: 'pipe' });
+        }
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
 });
 
 test('Firebase rules keep topology canonical as DM-write and player actions request-only', () => {
