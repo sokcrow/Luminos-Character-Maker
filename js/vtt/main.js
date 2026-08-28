@@ -26,6 +26,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     controller = new TopologyController(canvas, engine, mockMapData, bridge);
     bridge.start();
+
+    const characterVisionApi = globalThis.LuminousVttCharacterVisionBridge;
+    const characterVisionBridge = characterVisionApi?.createBridge?.({
+        mapData: mockMapData,
+        onSensesChanged: () => {},
+    }) || null;
+    characterVisionBridge?.start?.();
+
     const checkPortal = globalThis.LuminousVttCheckPortal?.start?.() || null;
 
     const exportBtn = document.getElementById('btn-export-uv');
@@ -41,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         engine,
         controller,
         bridge,
+        characterVisionBridge,
     });
 
     window.addEventListener('keydown', (event) => {
@@ -60,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('beforeunload', () => {
+        characterVisionBridge?.stop?.();
         bridge.stop();
         checkPortal?.stop?.();
         engine.stop();
