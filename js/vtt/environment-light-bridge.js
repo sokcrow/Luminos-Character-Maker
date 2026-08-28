@@ -18,6 +18,7 @@
     const host = hostWindow(root);
     let unsubscribe = null;
     let started = false;
+    let resolveQueued = false;
 
     function resolve() {
       const lighting = root?.LuminousVttLightingEngine || browserRoot?.LuminousVttLightingEngine;
@@ -45,22 +46,33 @@
       return environment;
     }
 
+    function scheduleResolve() {
+      if (resolveQueued) return;
+      resolveQueued = true;
+      const schedule = typeof queueMicrotask === 'function' ? queueMicrotask : (fn) => Promise.resolve().then(fn);
+      schedule(() => {
+        resolveQueued = false;
+        if (started) resolve();
+      });
+    }
+
     function start() {
       if (started) return true;
       started = true;
       const weatherEngine = host?.LuminousWeatherEngine || root?.LuminousWeatherEngine;
-      if (weatherEngine?.onChange) unsubscribe = weatherEngine.onChange(() => resolve());
-      resolve();
+      if (weatherEngine?.onChange) unsubscribe = weatherEngine.onChange(scheduleResolve);
+      scheduleResolve();
       return Boolean(weatherEngine);
     }
 
     function stop() {
       try { unsubscribe?.(); } catch (_) {}
       unsubscribe = null;
+      resolveQueued = false;
       started = false;
     }
 
-    return Object.freeze({ start, stop, resolve, getEnvironment: () => mapData.lighting?.environment || null });
+    return Object.freeze({ start, stop, resolve, scheduleResolve, getEnvironment: () => mapData.lighting?.environment || null });
   }
 
   return Object.freeze({ hostWindow, createBridge });
