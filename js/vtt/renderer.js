@@ -119,28 +119,6 @@ export class Renderer {
         }
     }
 
-    drawVerticalPortals(zLayer) {
-        const spatial = globalThis.LuminousVttSpatialVision;
-        if (!spatial || !Array.isArray(this.mapData.verticalPortals)) return;
-        const ctx = this.ctx;
-        ctx.save();
-        ctx.strokeStyle = '#5dff9a';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([7, 5]);
-        for (const portal of this.mapData.verticalPortals) {
-            const layers = spatial.portalLayers(portal);
-            if (!layers.includes(Number(zLayer))) continue;
-            const a = spatial.vertexToPoint(portal.from || portal.a, this.mapData);
-            const b = spatial.vertexToPoint(portal.to || portal.b, this.mapData);
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-        }
-        ctx.setLineDash([]);
-        ctx.restore();
-    }
-
     drawPersonIcon(token, radius) {
         const ctx = this.ctx;
         const iconColor = token.iconColor || '#ffffff';
@@ -187,7 +165,6 @@ export class Renderer {
             this.drawGrid(true);
             this.drawWalls(activeZ, false);
             this.drawTopology(activeZ, false);
-            this.drawVerticalPortals(activeZ);
             this.ctx.restore();
             return;
         }
@@ -220,7 +197,6 @@ export class Renderer {
         }
         this.drawWalls(activeZ, false);
         this.drawTopology(activeZ, false);
-        this.drawVerticalPortals(activeZ);
         this.drawTokens(activeZ);
         this.ctx.restore();
     }
