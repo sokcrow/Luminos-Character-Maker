@@ -46,6 +46,13 @@ test('drop validation blocks direct dragging through movement walls', () => {
     expect(result.reason).toBe('BLOCKED_BY_WALL');
 });
 
+test('drops released outside the map are rejected instead of clamped to an edge cell', () => {
+    const token = { id: 'player', x: 105, y: 105, radius: 20, z: [0] };
+    const result = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: -15, y: 105 }, { grid, walls: [] });
+
+    expect(result).toEqual({ valid: false, reason: 'OUT_OF_BOUNDS' });
+});
+
 test('valid drops return canonical grid coordinates', () => {
     const token = { id: 'player', x: 105, y: 105, radius: 20, z: [0] };
     const result = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: 225, y: 225 }, { grid, walls: [] });
