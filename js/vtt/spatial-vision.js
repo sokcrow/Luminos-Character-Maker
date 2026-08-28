@@ -1,11 +1,19 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.LuminousVttSpatialVision = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+})(typeof window !== 'undefined' ? window : globalThis, function (root) {
   'use strict';
 
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+  function stairRuntime() {
+    if (root?.LuminousVttStairRoute) return root.LuminousVttStairRoute;
+    if (typeof require !== 'undefined') {
+      try { return require('./stair-route.js'); } catch (_) {}
+    }
+    return null;
+  }
 
   function layerOf(entity = {}) {
     if (Number.isFinite(Number(entity.zLayer))) return Number(entity.zLayer);
@@ -108,7 +116,20 @@
     const a = portal.a || portal.from;
     const b = portal.b || portal.to;
     if (!a || !b) return false;
-    return segmentsIntersect(fromPoint, targetPoint, vertexToPoint(a, mapData), vertexToPoint(b, mapData));
+
+    const originalA = vertexToPoint(a, mapData);
+    const originalB = vertexToPoint(b, mapData);
+    if (segmentsIntersect(fromPoint, targetPoint, originalA, originalB)) return true;
+
+    if (portal.type !== 'stairs') return false;
+    const route = stairRuntime()?.routeFor?.(portal, mapData);
+    if (!route?.points?.length) return false;
+    for (let i = 1; i < route.points.length; i += 1) {
+      const p0 = route.points[i - 1];
+      const p1 = route.points[i];
+      if (segmentsIntersect(fromPoint, targetPoint, { x: p0.x, y: p0.y }, { x: p1.x, y: p1.y })) return true;
+    }
+    return false;
   }
 
   function canTraverseLayers(viewer = {}, targetPoint = {}, targetLayer, mapData = {}, kind = 'vision') {
