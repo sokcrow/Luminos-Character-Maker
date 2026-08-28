@@ -1,5 +1,6 @@
 import { Engine } from './engine.js';
 import { TopologyController } from './topology-controller.js';
+import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const engine = new Engine(canvas, mockMapData);
     let controller = null;
+    let verticalController = null;
 
     const stateApi = globalThis.LuminousVttStateBridge;
     if (!stateApi) {
@@ -24,8 +26,27 @@ document.addEventListener('DOMContentLoaded', () => {
         notify: (message, mode) => controller?.notify(message, mode),
     });
 
+    const verticalStateApi = globalThis.LuminousVttVerticalPortalState;
+    if (!verticalStateApi) {
+        console.error('VTT vertical portal state bridge not found.');
+        return;
+    }
+
+    const verticalBridge = verticalStateApi.createBridge({
+        mapData: mockMapData,
+        isDm: bridge.isDm,
+        onChanged: () => verticalController?.handlePortalsChanged(),
+        notify: (message, mode) => verticalController?.notify(message, mode),
+    });
+
+    // Vertical controller binds capture listeners first so an active Z tool wins over
+    // topology selection or token dragging. When no vertical tool is active it yields.
+    verticalController = new VerticalPortalController(canvas, engine, mockMapData, verticalBridge);
     controller = new TopologyController(canvas, engine, mockMapData, bridge);
+    verticalController.setTopologyController(controller);
+
     bridge.start();
+    verticalBridge.start();
 
     const characterVisionApi = globalThis.LuminousVttCharacterVisionBridge;
     const characterVisionBridge = characterVisionApi?.createBridge?.({
@@ -49,27 +70,35 @@ document.addEventListener('DOMContentLoaded', () => {
         engine,
         controller,
         bridge,
+        verticalController,
+        verticalBridge,
         characterVisionBridge,
     });
 
+    const applyLayer = (zLayer) => {
+        engine.setZLayer(zLayer);
+        controller.handleTopologyChanged();
+        verticalController.handleLayerChanged();
+    };
+
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') {
-            engine.setZLayer(0);
-            controller.handleTopologyChanged();
+            applyLayer(0);
         } else if (event.key === '1') {
-            engine.setZLayer(1);
-            controller.handleTopologyChanged();
+            applyLayer(1);
         } else if (event.key === '2') {
-            engine.setZLayer(2);
-            controller.handleTopologyChanged();
+            applyLayer(2);
         } else if (event.key === 'Escape') {
             controller.hideContextMenu();
             controller.setTool('select');
+            verticalController.setTool('select', false);
         }
     });
 
     window.addEventListener('beforeunload', () => {
         characterVisionBridge?.stop?.();
+        verticalController.destroy();
+        verticalBridge.stop();
         bridge.stop();
         checkPortal?.stop?.();
         engine.stop();
