@@ -1,0 +1,40 @@
+name: Sorcerer Base Class
+
+on:
+  pull_request:
+    paths:
+      - "js/sorcerer-class-runtime.js"
+      - "js/caster-spellcasting-traits-runtime.js"
+      - "js/spellcasting-runtime.js"
+      - "js/spellcasting-basic-rules-runtime.js"
+      - "js/universal-speed-runtime.js"
+      - "tests/sorcerer_class_runtime.spec.js"
+      - "docs/sorcerer-base-class.md"
+      - ".github/workflows/sorcerer-base-class.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/sorcerer-class-runtime.js"
+      - "js/caster-spellcasting-traits-runtime.js"
+      - "js/spellcasting-runtime.js"
+      - "js/spellcasting-basic-rules-runtime.js"
+      - "js/universal-speed-runtime.js"
+      - "tests/sorcerer_class_runtime.spec.js"
+      - "docs/sorcerer-base-class.md"
+      - ".github/workflows/sorcerer-base-class.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Sorcerer runtime tests
+        run: npx playwright test tests/sorcerer_class_runtime.spec.js --workers=1
