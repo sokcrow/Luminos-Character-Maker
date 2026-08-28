@@ -137,6 +137,7 @@
         const issuingChecks = new Set();
         const subscriptions = [];
         let started = false;
+        let seedAttempted = false;
 
         const emitNotice = (message, mode = 'info') => {
             if (typeof notify === 'function') notify(message, mode);
@@ -153,8 +154,11 @@
         const actionRootRef = () => db?.ref(`${ACTION_REQUEST_ROOT}/${mapId}`);
 
         async function seedIfNeeded(snapshot) {
+            if (seedAttempted) return;
+            seedAttempted = true;
             if (!dm || snapshot.exists() || !Array.isArray(mapData.topology) || !mapData.topology.length) return;
-            await topologyRef().set(recordFromElements(mapData.topology, topology));
+            const initialRecord = recordFromElements(mapData.topology, topology);
+            await topologyRef().set(initialRecord);
         }
 
         function subscribe(ref, event, handler) {
@@ -415,7 +419,7 @@
 
             subscribe(topologyRef(), 'value', (snapshot) => {
                 seedIfNeeded(snapshot).catch((error) => console.error('VTT topology seed failed:', error));
-                if (snapshot.exists()) replaceTopology(elementsFromRecord(snapshot.val(), topology));
+                replaceTopology(elementsFromRecord(snapshot.val(), topology));
             });
 
             if (dm) {
