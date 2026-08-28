@@ -7,7 +7,7 @@ const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 test('memory defaults patch includes legacy walls in dungeon observations', () => {
   const patch = read('js/vtt/memory-defaults-patch.js');
   expect(patch).toContain('legacyWalls(mapData');
-  expect(patch).toContain('...(Array.isArray(mapData.walls) ? mapData.walls : [])');
+  expect(patch).toContain('(Array.isArray(mapData.walls) ? mapData.walls : []).map');
   expect(patch).toContain('...legacyWalls(mapData)');
 });
 
