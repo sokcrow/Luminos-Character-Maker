@@ -61,6 +61,73 @@ export class Renderer {
         this.ctx.restore();
     }
 
+    topologyStyle(element, preview = false) {
+        if (preview) return { stroke: '#ffffff', width: 4, dash: [8, 5], label: '' };
+        const state = element.state;
+        const broken = state === 'broken';
+        const open = state === 'open';
+        const styles = {
+            wall: { stroke: '#ff3030', width: 4, label: 'WALL' },
+            door: { stroke: '#ffb000', width: 7, label: state === 'locked' ? 'D·LOCK' : 'DOOR' },
+            window: { stroke: '#00cfff', width: 6, label: state === 'locked' ? 'W·LOCK' : 'WINDOW' },
+            curtain_window: { stroke: '#b784ff', width: 7, label: state === 'locked' ? 'C·LOCK' : 'CURTAIN' },
+        };
+        const base = styles[element.type] || styles.wall;
+        return {
+            ...base,
+            dash: broken ? [5, 7] : open ? [12, 9] : [],
+        };
+    }
+
+    drawTopologyElement(element, isOnionSkin = false, preview = false) {
+        const topology = globalThis.LuminousVttTopology;
+        if (!topology) return;
+        const normalized = preview ? element : topology.normalizeElement(element);
+        const line = topology.segment(normalized, this.mapData.grid);
+        const style = this.topologyStyle(normalized, preview);
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.globalAlpha = isOnionSkin ? 0.28 : preview ? 0.75 : 1;
+        ctx.strokeStyle = isOnionSkin ? '#6f6f6f' : style.stroke;
+        ctx.lineWidth = style.width;
+        ctx.lineCap = 'round';
+        ctx.setLineDash(style.dash || []);
+        ctx.beginPath();
+        ctx.moveTo(line.x1, line.y1);
+        ctx.lineTo(line.x2, line.y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if (!preview && normalized.type !== 'wall' && !isOnionSkin) {
+            const mx = (line.x1 + line.x2) / 2;
+            const my = (line.y1 + line.y2) / 2;
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = normalized.state === 'broken' ? 'BROKEN' : style.label;
+            const metrics = ctx.measureText(label);
+            ctx.fillStyle = 'rgba(0,0,0,.82)';
+            ctx.fillRect(mx - (metrics.width / 2) - 5, my - 9, metrics.width + 10, 18);
+            ctx.fillStyle = style.stroke;
+            ctx.fillText(label, mx, my);
+        }
+        ctx.restore();
+    }
+
+    drawTopology(zLayer, isOnionSkin = false) {
+        const topology = globalThis.LuminousVttTopology;
+        if (!topology || !Array.isArray(this.mapData.topology)) return;
+        this.mapData.topology.forEach((element) => {
+            if (topology.elementOnLayer(element, zLayer)) this.drawTopologyElement(element, isOnionSkin, false);
+        });
+
+        const preview = this.mapData.topologyPreview;
+        if (!isOnionSkin && preview && topology.elementOnLayer(preview, zLayer)) {
+            this.drawTopologyElement(preview, false, true);
+        }
+    }
+
     drawPersonIcon(token, radius) {
         const ctx = this.ctx;
         const iconColor = token.iconColor || '#ffffff';
@@ -114,6 +181,7 @@ export class Renderer {
             camera.applyTransformSimple(this.ctx);
             this.drawGrid(true);
             this.drawWalls(activeZ, false);
+            this.drawTopology(activeZ, false);
             this.ctx.restore();
             return;
         }
@@ -152,9 +220,11 @@ export class Renderer {
 
         if (activeZ > 0) {
             this.drawWalls(activeZ - 1, true);
+            this.drawTopology(activeZ - 1, true);
         }
 
         this.drawWalls(activeZ, false);
+        this.drawTopology(activeZ, false);
         this.drawTokens(activeZ);
 
         if (isLookingAway) {
