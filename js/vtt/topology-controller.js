@@ -20,6 +20,8 @@ export class TopologyController {
         this.renderMode();
     }
 
+    editActive() { return Boolean(this.isDm && this.mapData.dmEditMode?.active); }
+
     bindCanvas() {
         this.canvas.addEventListener('mousedown', this.handleMouseDown, true);
         window.addEventListener('mousemove', this.handleMouseMove, true);
@@ -31,18 +33,14 @@ export class TopologyController {
         document.querySelectorAll('[data-vtt-tool]').forEach((button) => {
             button.addEventListener('click', () => this.setTool(button.dataset.vttTool));
         });
-
-        document.getElementById('vtt-topology-state')?.addEventListener('change', (event) => {
-            this.updateSelected({ state: event.target.value });
-        });
-        document.getElementById('vtt-topology-lockpick')?.addEventListener('change', (event) => {
-            this.updateSelectedThreshold('lockpick', event.target.value);
-        });
-        document.getElementById('vtt-topology-break')?.addEventListener('change', (event) => {
-            this.updateSelectedThreshold('break', event.target.value);
+        document.getElementById('vtt-topology-state')?.addEventListener('change', (event) => this.updateSelected({ state: event.target.value }));
+        document.getElementById('vtt-topology-lockpick')?.addEventListener('change', (event) => this.updateSelectedThreshold('lockpick', event.target.value));
+        document.getElementById('vtt-topology-break')?.addEventListener('change', (event) => this.updateSelectedThreshold('break', event.target.value));
+        document.getElementById('vtt-topology-thickness')?.addEventListener('change', (event) => {
+            this.updateSelected({ thicknessFt: Math.max(0.1, Number(event.target.value) || 0.5) });
         });
         document.getElementById('vtt-topology-delete')?.addEventListener('click', () => {
-            if (!this.selectedId) return;
+            if (!this.selectedId || !this.editActive()) return;
             this.stateBridge.deleteElement(this.selectedId)
                 .then(() => {
                     this.selectedId = null;
@@ -54,19 +52,25 @@ export class TopologyController {
     }
 
     renderMode() {
+        const active = this.editActive();
         const toolbar = document.getElementById('vtt-topology-toolbar');
         const exportButton = document.getElementById('btn-export-uv');
-        if (toolbar) toolbar.hidden = !this.isDm;
+        if (toolbar) toolbar.hidden = !active;
         if (exportButton) exportButton.hidden = !this.isDm;
         document.body.classList.toggle('vtt-dm-mode', this.isDm);
         document.body.classList.toggle('vtt-player-mode', !this.isDm);
+        if (!active) {
+            this.tool = 'select';
+            this.drawStart = null;
+            this.mapData.topologyPreview = null;
+        }
         this.renderToolButtons();
         this.renderEditor();
     }
 
     setTool(tool) {
         const valid = ['select', 'wall', 'door', 'window', 'curtain_window', 'erase'];
-        this.tool = valid.includes(tool) ? tool : 'select';
+        this.tool = this.editActive() && valid.includes(tool) ? tool : 'select';
         this.drawStart = null;
         this.mapData.topologyPreview = null;
         this.hideContextMenu();
@@ -74,23 +78,14 @@ export class TopologyController {
     }
 
     renderToolButtons() {
-        document.querySelectorAll('[data-vtt-tool]').forEach((button) => {
-            button.classList.toggle('is-active', button.dataset.vttTool === this.tool);
-        });
+        document.querySelectorAll('[data-vtt-tool]').forEach((button) => button.classList.toggle('is-active', button.dataset.vttTool === this.tool));
     }
 
-    worldPoint(event) {
-        return this.engine.eventWorldPoint(event);
-    }
+    worldPoint(event) { return this.engine.eventWorldPoint(event); }
 
     topologyAtEvent(event) {
         if (!this.topology) return null;
-        return this.topology.hitTest(
-            this.mapData.topology,
-            this.worldPoint(event),
-            this.mapData.grid,
-            this.engine.activeZ,
-        );
+        return this.topology.hitTest(this.mapData.topology, this.worldPoint(event), this.mapData.grid, this.engine.activeZ);
     }
 
     handleMouseDown(event) {
@@ -105,6 +100,7 @@ export class TopologyController {
             this.openPlayerMenu(hit, event.clientX, event.clientY);
             return;
         }
+        if (!this.editActive()) return;
 
         if (this.tool === 'select') {
             if (!hit) return;
@@ -126,45 +122,31 @@ export class TopologyController {
         }
 
         this.drawStart = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
-        this.mapData.topologyPreview = {
-            type: this.tool,
-            from: this.drawStart,
-            to: this.drawStart,
-            z: [this.engine.activeZ],
-        };
+        this.mapData.topologyPreview = { type: this.tool, from: this.drawStart, to: this.drawStart, z: [this.engine.activeZ] };
     }
 
     handleMouseMove(event) {
-        if (!this.isDm || !this.drawStart || !['wall', 'door', 'window', 'curtain_window'].includes(this.tool)) return;
+        if (!this.editActive() || !this.drawStart || !['wall', 'door', 'window', 'curtain_window'].includes(this.tool)) return;
         const candidate = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
         const to = this.topology.axisAlignedVertex(this.drawStart, candidate);
-        this.mapData.topologyPreview = {
-            type: this.tool,
-            from: this.drawStart,
-            to,
-            z: [this.engine.activeZ],
-        };
+        this.mapData.topologyPreview = { type: this.tool, from: this.drawStart, to, z: [this.engine.activeZ] };
         event.preventDefault();
         event.stopImmediatePropagation();
     }
 
     handleMouseUp(event) {
-        if (event.button !== 0 || !this.isDm || !this.drawStart) return;
+        if (event.button !== 0 || !this.editActive() || !this.drawStart) return;
         const from = this.drawStart;
         const candidate = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
         const to = this.topology.axisAlignedVertex(from, candidate);
+        const type = this.tool;
         this.drawStart = null;
         this.mapData.topologyPreview = null;
         event.preventDefault();
         event.stopImmediatePropagation();
         if (this.topology.sameVertex(from, to)) return;
 
-        const element = this.topology.createElement({
-            type: this.tool,
-            from,
-            to,
-            zLayer: this.engine.activeZ,
-        });
+        const element = this.topology.createElement({ type, from, to, zLayer: this.engine.activeZ });
         this.stateBridge.saveElement(element)
             .then((saved) => {
                 this.selectedId = saved.id;
@@ -176,9 +158,7 @@ export class TopologyController {
 
     handleDocumentClick(event) {
         const menu = document.getElementById('vtt-context-menu');
-        if (!menu || menu.hidden) return;
-        if (menu.contains(event.target)) return;
-        if (event.target === this.canvas) return;
+        if (!menu || menu.hidden || menu.contains(event.target) || event.target === this.canvas) return;
         this.hideContextMenu();
     }
 
@@ -194,11 +174,7 @@ export class TopologyController {
         const token = this.currentPlayerToken();
         if (!token) return false;
         const line = this.topology.segment(element, this.mapData.grid);
-        const distance = this.topology.pointToSegmentDistance(
-            { x: token.x, y: token.y },
-            { x: line.x1, y: line.y1 },
-            { x: line.x2, y: line.y2 },
-        );
+        const distance = this.topology.pointToSegmentDistance({ x: token.x, y: token.y }, { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 });
         return distance <= (this.mapData.grid.size * 0.8);
     }
 
@@ -215,11 +191,7 @@ export class TopologyController {
         const actions = document.getElementById('vtt-context-actions');
         if (!menu || !title || !state || !actions) return;
 
-        const typeLabels = {
-            door: 'PUERTA',
-            window: 'VENTANA',
-            curtain_window: 'VENTANA CON CORTINA',
-        };
+        const typeLabels = { door: 'PUERTA', window: 'VENTANA', curtain_window: 'VENTANA CON CORTINA' };
         title.textContent = typeLabels[element.type] || 'OBJETO';
         state.textContent = element.state === 'locked' ? 'CERRADA' : String(element.state || '').toUpperCase();
         actions.replaceChildren();
@@ -233,11 +205,7 @@ export class TopologyController {
             button.disabled = disabled;
             button.addEventListener('click', async () => {
                 this.hideContextMenu();
-                try {
-                    await handler();
-                } catch (error) {
-                    this.notify(String(error.message || error), 'error');
-                }
+                try { await handler(); } catch (error) { this.notify(String(error.message || error), 'error'); }
             });
             wrapper.appendChild(button);
             if (hint) {
@@ -254,12 +222,7 @@ export class TopologyController {
 
         if (element.state === 'locked') {
             const hasLockpick = await this.stateBridge.hasItem('lockpick');
-            addButton(
-                'JUEGO DE MANOS',
-                () => this.stateBridge.requestTopologyCheck(element.id, 'lockpick'),
-                !hasLockpick,
-                hasLockpick ? 'Requiere Ganzúa' : 'No tienes Ganzúa',
-            );
+            addButton('JUEGO DE MANOS', () => this.stateBridge.requestTopologyCheck(element.id, 'lockpick'), !hasLockpick, hasLockpick ? 'Requiere Ganzúa' : 'No tienes Ganzúa');
             addButton('ROMPER · STRENGTH', () => this.stateBridge.requestTopologyCheck(element.id, 'strength'));
             addButton('ROMPER · ATHLETICS', () => this.stateBridge.requestTopologyCheck(element.id, 'athletics'));
         }
@@ -288,7 +251,7 @@ export class TopologyController {
     renderEditor() {
         const editor = document.getElementById('vtt-topology-editor');
         if (!editor) return;
-        if (!this.isDm) {
+        if (!this.editActive()) {
             editor.hidden = true;
             return;
         }
@@ -301,32 +264,33 @@ export class TopologyController {
         document.getElementById('vtt-topology-type').textContent = normalized.type.toUpperCase().replace('_', ' ');
         const stateField = document.getElementById('vtt-topology-state-field');
         const thresholdFields = document.getElementById('vtt-topology-threshold-fields');
+        const thicknessField = document.getElementById('vtt-topology-thickness-field');
         const state = document.getElementById('vtt-topology-state');
         const lockpick = document.getElementById('vtt-topology-lockpick');
         const breakThreshold = document.getElementById('vtt-topology-break');
+        const thickness = document.getElementById('vtt-topology-thickness');
 
         const interactive = normalized.type !== 'wall';
         if (stateField) stateField.hidden = !interactive;
         if (thresholdFields) thresholdFields.hidden = !interactive;
+        if (thicknessField) thicknessField.hidden = interactive;
         if (state && interactive) state.value = normalized.state;
         if (lockpick && interactive) lockpick.value = normalized.thresholds.lockpick;
         if (breakThreshold && interactive) breakThreshold.value = normalized.thresholds.break;
+        if (thickness && !interactive) thickness.value = normalized.thicknessFt;
     }
 
     updateSelected(patch) {
         const element = this.selectedElement();
-        if (!element) return;
+        if (!element || !this.editActive()) return;
         this.stateBridge.saveElement(this.topology.normalizeElement({ ...element, ...patch }))
             .catch((error) => this.notify(String(error.message || error), 'error'));
     }
 
     updateSelectedThreshold(key, value) {
         const element = this.selectedElement();
-        if (!element || element.type === 'wall') return;
-        const thresholds = {
-            ...element.thresholds,
-            [key]: Math.max(0, Math.trunc(Number(value) || 0)),
-        };
+        if (!element || element.type === 'wall' || !this.editActive()) return;
+        const thresholds = { ...element.thresholds, [key]: Math.max(0, Math.trunc(Number(value) || 0)) };
         this.updateSelected({ thresholds });
     }
 
@@ -342,8 +306,6 @@ export class TopologyController {
         node.dataset.mode = mode;
         node.hidden = false;
         window.clearTimeout(this.noticeTimer);
-        this.noticeTimer = window.setTimeout(() => {
-            node.hidden = true;
-        }, 3200);
+        this.noticeTimer = window.setTimeout(() => { node.hidden = true; }, 3200);
     }
 }

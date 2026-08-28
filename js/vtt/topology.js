@@ -70,6 +70,7 @@
             to: normalizeVertex(element.to),
             z: elementLayers(element),
             state: normalizeState(type, element.state),
+            thicknessFt: type === TYPES.WALL ? Math.max(0.1, numberOr(element.thicknessFt, 0.5)) : Math.max(0, numberOr(element.thicknessFt, 0)),
             thresholds: type === TYPES.WALL ? undefined : {
                 lockpick: clampInteger(element.thresholds?.lockpick, defaults.lockpick),
                 break: clampInteger(element.thresholds?.break, defaults.break),
@@ -85,6 +86,13 @@
         };
     }
 
+    function thicknessPx(element, grid = {}) {
+        const normalized = normalizeElement(element);
+        const size = Math.max(1, numberOr(grid.size, 70));
+        const feetPerCell = Math.max(0.001, numberOr(grid.distancePerCell, 5));
+        return (normalized.thicknessFt / feetPerCell) * size;
+    }
+
     function segment(element, grid = {}) {
         const normalized = normalizeElement(element);
         const a = vertexToPoint(normalized.from, grid);
@@ -98,6 +106,8 @@
             x2: b.x,
             y2: b.y,
             z: normalized.z,
+            thicknessFt: normalized.thicknessFt,
+            thicknessPx: thicknessPx(normalized, grid),
             element: normalized,
         };
     }
@@ -155,7 +165,8 @@
                 { x: line.x1, y: line.y1 },
                 { x: line.x2, y: line.y2 },
             );
-            if (distance <= tolerance && distance < bestDistance) {
+            const effectiveTolerance = Math.max(tolerance, line.thicknessPx / 2);
+            if (distance <= effectiveTolerance && distance < bestDistance) {
                 best = raw;
                 bestDistance = distance;
             }
@@ -204,12 +215,7 @@
                 action: 'unlock',
                 threshold: normalized.thresholds.lockpick,
                 requiredItem: 'lockpick',
-                rollSpec: {
-                    kind: 'skill',
-                    abilityId: 'dex',
-                    skillId: 'sleight_of_hand',
-                    label: 'Sleight of Hand',
-                },
+                rollSpec: { kind: 'skill', abilityId: 'dex', skillId: 'sleight_of_hand', label: 'Sleight of Hand' },
             };
         }
         if (method === 'strength') {
@@ -218,12 +224,7 @@
                 action: 'break',
                 threshold: normalized.thresholds.break,
                 requiredItem: null,
-                rollSpec: {
-                    kind: 'ability',
-                    abilityId: 'str',
-                    skillId: null,
-                    label: 'STRENGTH',
-                },
+                rollSpec: { kind: 'ability', abilityId: 'str', skillId: null, label: 'STRENGTH' },
             };
         }
         if (method === 'athletics') {
@@ -232,12 +233,7 @@
                 action: 'break',
                 threshold: normalized.thresholds.break,
                 requiredItem: null,
-                rollSpec: {
-                    kind: 'skill',
-                    abilityId: 'str',
-                    skillId: 'athletics',
-                    label: 'Athletics',
-                },
+                rollSpec: { kind: 'skill', abilityId: 'str', skillId: 'athletics', label: 'Athletics' },
             };
         }
         return null;
@@ -247,22 +243,14 @@
         const normalized = normalizeElement(element);
         if (normalized.type === TYPES.WALL) return { valid: false, reason: 'NOT_INTERACTIVE', element: normalized };
 
-        if (action === 'open' && normalized.state === STATES.CLOSED) {
-            return { valid: true, reason: null, element: { ...normalized, state: STATES.OPEN } };
-        }
-        if (action === 'close' && normalized.state === STATES.OPEN) {
-            return { valid: true, reason: null, element: { ...normalized, state: STATES.CLOSED } };
-        }
-        if (action === 'unlock' && normalized.state === STATES.LOCKED) {
-            return { valid: true, reason: null, element: { ...normalized, state: STATES.OPEN } };
-        }
-        if (action === 'break' && normalized.state === STATES.LOCKED) {
-            return { valid: true, reason: null, element: { ...normalized, state: STATES.BROKEN } };
-        }
+        if (action === 'open' && normalized.state === STATES.CLOSED) return { valid: true, reason: null, element: { ...normalized, state: STATES.OPEN } };
+        if (action === 'close' && normalized.state === STATES.OPEN) return { valid: true, reason: null, element: { ...normalized, state: STATES.CLOSED } };
+        if (action === 'unlock' && normalized.state === STATES.LOCKED) return { valid: true, reason: null, element: { ...normalized, state: STATES.OPEN } };
+        if (action === 'break' && normalized.state === STATES.LOCKED) return { valid: true, reason: null, element: { ...normalized, state: STATES.BROKEN } };
         return { valid: false, reason: 'INVALID_STATE_TRANSITION', element: normalized };
     }
 
-    function createElement({ id, type, from, to, zLayer = 0 } = {}) {
+    function createElement({ id, type, from, to, zLayer = 0, thicknessFt = 0.5 } = {}) {
         const normalizedType = Object.values(TYPES).includes(type) ? type : TYPES.WALL;
         return normalizeElement({
             id: id || `topology_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
@@ -271,30 +259,15 @@
             to,
             z: [Number(zLayer) || 0],
             state: normalizedType === TYPES.WALL ? null : STATES.CLOSED,
+            thicknessFt: normalizedType === TYPES.WALL ? thicknessFt : 0,
             thresholds: defaultThresholds(normalizedType),
         });
     }
 
     return Object.freeze({
-        TYPES,
-        STATES,
-        DEFAULT_THRESHOLDS,
-        elementLayers,
-        elementOnLayer,
-        defaultThresholds,
-        normalizeElement,
-        vertexToPoint,
-        segment,
-        effectiveFlags,
-        blockingSegments,
-        pointToSegmentDistance,
-        hitTest,
-        snapPointToVertex,
-        axisAlignedVertex,
-        sameVertex,
-        directActions,
-        checkDescriptor,
-        applyAction,
-        createElement,
+        TYPES, STATES, DEFAULT_THRESHOLDS, elementLayers, elementOnLayer, defaultThresholds,
+        normalizeElement, vertexToPoint, thicknessPx, segment, effectiveFlags, blockingSegments,
+        pointToSegmentDistance, hitTest, snapPointToVertex, axisAlignedVertex, sameVertex,
+        directActions, checkDescriptor, applyAction, createElement,
     });
 });

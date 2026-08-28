@@ -9,9 +9,7 @@ html, body {
     font-family: "Share Tech Mono", monospace, sans-serif;
 }
 
-button, input, select {
-    font: inherit;
-}
+button, input, select { font: inherit; }
 
 #vtt-canvas {
     display: block;
@@ -31,19 +29,47 @@ button, input, select {
     pointer-events: none;
 }
 
-#vtt-ui-container > * {
-    pointer-events: auto;
-}
+#vtt-ui-container > * { pointer-events: auto; }
 
 .vtt-toolbar {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
+    align-items: center;
     gap: 6px;
-    max-width: min(760px, calc(100vw - 40px));
+    max-width: min(900px, calc(100vw - 40px));
     padding: 8px;
     background: rgba(0, 0, 0, .88);
     border: 1px solid #5d6770;
+}
+
+.vtt-toolbar-title {
+    color: #89949e;
+    font-size: 10px;
+    letter-spacing: .12em;
+    margin-right: 3px;
+}
+
+.vtt-toolbar-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 7px;
+    border-left: 1px solid #46505a;
+}
+
+.vtt-toolbar-field span {
+    color: #9ba5ad;
+    font-size: 9px;
+    letter-spacing: .08em;
+}
+
+.vtt-toolbar-field select {
+    min-width: 120px;
+    padding: 6px;
+    color: #e9eef2;
+    background: #11161a;
+    border: 1px solid #53606d;
 }
 
 .brutalist-button {
@@ -73,6 +99,22 @@ button, input, select {
     transform: translate(3px, 3px);
 }
 
+.vtt-edit-toggle {
+    border-color: #d7b151;
+    color: #d7b151;
+    box-shadow: 3px 3px 0 rgba(215, 177, 81, .22);
+}
+
+.vtt-edit-toggle:hover,
+.vtt-edit-toggle.is-active {
+    background: #d7b151;
+    border-color: #d7b151;
+    color: #050709;
+    box-shadow: 1px 1px 0 rgba(215, 177, 81, .4);
+}
+
+.vtt-dm-edit-active #vtt-canvas { outline: 1px solid rgba(215, 177, 81, .34); outline-offset: -1px; }
+
 .vtt-panel {
     position: absolute;
     top: 96px;
@@ -83,6 +125,12 @@ button, input, select {
     background: rgba(5, 7, 9, .96);
     border: 1px solid #c49a00;
     box-shadow: 0 10px 28px rgba(0, 0, 0, .7);
+}
+
+.vtt-vertical-panel {
+    top: 96px;
+    left: 350px;
+    border-color: #54b8df;
 }
 
 .vtt-panel header,
@@ -100,6 +148,8 @@ button, input, select {
     color: #d7b151;
     letter-spacing: .08em;
 }
+
+.vtt-vertical-panel header strong { color: #7fd6ff; }
 
 .vtt-panel header small,
 .vtt-context-menu header span {
@@ -135,6 +185,27 @@ button, input, select {
     display: grid;
     grid-template-columns: 1fr;
     gap: 2px;
+}
+
+.vtt-vertical-readout {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 7px 8px;
+    border: 1px solid #33414b;
+    background: #0d1216;
+    font-size: 10px;
+}
+
+.vtt-vertical-readout span { color: #89949e; }
+.vtt-vertical-readout strong { color: #7fd6ff; }
+
+.vtt-panel-help {
+    margin: 8px 0 12px;
+    color: #84909a;
+    font-size: 10px;
+    line-height: 1.45;
 }
 
 .vtt-danger-button {
@@ -218,22 +289,11 @@ button, input, select {
 .vtt-notice[data-mode="error"] { border-color: #ff6673; }
 .vtt-notice[data-mode="pending"] { border-color: #d7b151; }
 
-[hidden] {
-    display: none !important;
-}
+[hidden] { display: none !important; }
 
 @media (max-width: 900px) {
-    #vtt-ui-container {
-        top: 10px;
-        right: 10px;
-    }
-    .vtt-panel {
-        top: auto;
-        bottom: 10px;
-        left: 10px;
-    }
-    .brutalist-button {
-        font-size: 10px;
-        padding: 6px 8px;
-    }
+    #vtt-ui-container { top: 10px; right: 10px; }
+    .vtt-panel { top: auto; bottom: 10px; left: 10px; }
+    .vtt-vertical-panel { left: auto; right: 10px; }
+    .brutalist-button { font-size: 10px; padding: 6px 8px; }
 }

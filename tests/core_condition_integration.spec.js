@@ -115,6 +115,7 @@ test('condition combat bridge enforces phases, saves, poison damage, targeting, 
     const resolvedGrapple = global.CombatEngine.resolveActionSlot(grappler, 0, {
       plannedAction: scheduled.entry,
       combatData: { grappler, held },
+      rng: () => 0,
     });
     expect(resolvedGrapple.handled).toBe(true);
     expect(resolvedGrapple.result.applied).toBe(true);

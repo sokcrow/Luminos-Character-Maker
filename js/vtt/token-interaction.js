@@ -23,10 +23,16 @@
     function tokenLayers(token = {}) {
         if (Array.isArray(token.z)) return token.z;
         if (Number.isFinite(Number(token.z))) return [Number(token.z)];
+        if (Number.isFinite(Number(token.zLayer))) return [Number(token.zLayer)];
         return [0];
     }
 
     function tokenOnLayer(token, zLayer) {
+        if (token?.verticalMovement) {
+            const fromZ = Number(token.verticalMovement.fromZ);
+            const toZ = Number(token.verticalMovement.toZ);
+            if (Number(zLayer) === fromZ || Number(zLayer) === toZ) return true;
+        }
         return tokenLayers(token).includes(Number(zLayer));
     }
 
@@ -38,11 +44,12 @@
         return (dx * dx) + (dy * dy) <= radius * radius;
     }
 
-    function findDraggableToken(tokens, point, grid, zLayer) {
+    function findDraggableToken(tokens, point, grid, zLayer, canControl = null) {
         const list = Array.isArray(tokens) ? tokens : [];
         for (let i = list.length - 1; i >= 0; i -= 1) {
             const token = list[i];
             if (!token || token.draggable === false || !tokenOnLayer(token, zLayer)) continue;
+            if (typeof canControl === 'function' && !canControl(token)) continue;
             if (tokenContainsPoint(token, point, grid)) return token;
         }
         return null;
@@ -61,12 +68,7 @@
         const rawRow = Math.floor(numberOr(point?.y) / size);
         const col = Math.max(0, Math.min(cols - 1, rawCol));
         const row = Math.max(0, Math.min(rows - 1, rawRow));
-        return {
-            x: (col + 0.5) * size,
-            y: (row + 0.5) * size,
-            col,
-            row,
-        };
+        return { x: (col + 0.5) * size, y: (row + 0.5) * size, col, row };
     }
 
     function pointToSegmentDistance(point, a, b) {
@@ -93,13 +95,10 @@
             const wallLayers = Array.isArray(wall.z) ? wall.z : [numberOr(wall.z, 0)];
             return wallLayers.some((layer) => layers.includes(Number(layer)));
         });
-
         const topology = topologyRuntime();
         if (!topology || !Array.isArray(mapData.topology)) return legacy;
         const dynamic = [];
-        layers.forEach((layer) => {
-            dynamic.push(...topology.blockingSegments(mapData.topology, 'movement', layer, mapData.grid));
-        });
+        layers.forEach((layer) => dynamic.push(...topology.blockingSegments(mapData.topology, 'movement', layer, mapData.grid)));
         return [...legacy, ...dynamic];
     }
 
@@ -109,20 +108,13 @@
         const radius = tokenRadius(token, grid);
         const x = numberOr(point?.x);
         const y = numberOr(point?.y);
-
-        if (x - radius < 0 || y - radius < 0 || x + radius > width || y + radius > height) {
-            return { valid: false, reason: 'OUT_OF_BOUNDS' };
-        }
+        if (x - radius < 0 || y - radius < 0 || x + radius > width || y + radius > height) return { valid: false, reason: 'OUT_OF_BOUNDS' };
 
         for (const wall of movementWalls(mapData, token)) {
-            const distance = pointToSegmentDistance(
-                { x, y },
-                { x: wall.x1, y: wall.y1 },
-                { x: wall.x2, y: wall.y2 },
-            );
-            if (distance < radius) return { valid: false, reason: 'BLOCKED_BY_WALL', wall };
+            const distance = pointToSegmentDistance({ x, y }, { x: wall.x1, y: wall.y1 }, { x: wall.x2, y: wall.y2 });
+            const extraThickness = Math.max(0, numberOr(wall.thicknessPx, 0)) / 2;
+            if (distance < radius + extraThickness) return { valid: false, reason: 'BLOCKED_BY_WALL', wall };
         }
-
         return { valid: true, reason: null };
     }
 
@@ -134,54 +126,32 @@
         const distance = Math.hypot(dx, dy);
         const sampleStep = Math.max(4, Math.min(radius * 0.5, numberOr(grid.size, 70) * 0.2));
         const steps = Math.max(1, Math.ceil(distance / sampleStep));
-
         for (let i = 0; i <= steps; i += 1) {
             const t = i / steps;
-            const point = {
-                x: numberOr(from?.x) + (dx * t),
-                y: numberOr(from?.y) + (dy * t),
-            };
+            const point = { x: numberOr(from?.x) + (dx * t), y: numberOr(from?.y) + (dy * t) };
             const occupancy = canOccupy(token, point, mapData);
             if (!occupancy.valid) return occupancy;
         }
-
         return { valid: true, reason: null };
     }
 
     function resolveDrop(token, from, worldPoint, mapData = {}) {
         if (!token || !mapData.grid) return { valid: false, reason: 'INVALID_INPUT' };
-
         const { width, height } = gridBounds(mapData.grid);
         const requestedX = numberOr(worldPoint?.x, NaN);
         const requestedY = numberOr(worldPoint?.y, NaN);
-        if (!Number.isFinite(requestedX) || !Number.isFinite(requestedY)) {
-            return { valid: false, reason: 'INVALID_INPUT' };
-        }
-        if (requestedX < 0 || requestedY < 0 || requestedX >= width || requestedY >= height) {
-            return { valid: false, reason: 'OUT_OF_BOUNDS' };
-        }
-
+        if (!Number.isFinite(requestedX) || !Number.isFinite(requestedY)) return { valid: false, reason: 'INVALID_INPUT' };
+        if (requestedX < 0 || requestedY < 0 || requestedX >= width || requestedY >= height) return { valid: false, reason: 'OUT_OF_BOUNDS' };
         const snapped = snapPointToGrid({ x: requestedX, y: requestedY }, mapData.grid);
         const destination = canOccupy(token, snapped, mapData);
         if (!destination.valid) return { ...snapped, ...destination };
-
         const path = isPathClear(token, from, snapped, mapData);
         if (!path.valid) return { ...snapped, ...path };
-
         return { ...snapped, valid: true, reason: null };
     }
 
     return Object.freeze({
-        tokenRadius,
-        tokenOnLayer,
-        tokenContainsPoint,
-        findDraggableToken,
-        gridBounds,
-        snapPointToGrid,
-        pointToSegmentDistance,
-        movementWalls,
-        canOccupy,
-        isPathClear,
-        resolveDrop,
+        tokenRadius, tokenOnLayer, tokenContainsPoint, findDraggableToken, gridBounds, snapPointToGrid,
+        pointToSegmentDistance, movementWalls, canOccupy, isPathClear, resolveDrop,
     });
 });
