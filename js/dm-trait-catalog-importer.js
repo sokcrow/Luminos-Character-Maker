@@ -11,7 +11,9 @@
 
   const initialCoreCatalog = global.LuminousTraitCatalogCore || optionalRequire("./trait-catalog-core.js");
   const initialBardRuntime = global.LuminousBardClassRuntime || optionalRequire("./bard-class-runtime.js");
+  const initialCasterSpellcastingRuntime = global.LuminousCasterSpellcastingTraitsRuntime || optionalRequire("./caster-spellcasting-traits-runtime.js");
   initialBardRuntime?.wrapCatalog?.();
+  initialCasterSpellcastingRuntime?.wrapCatalog?.();
   const initialRacialCatalog = global.LuminousRacialTraitCatalog || optionalRequire("./racial-trait-catalog.js");
   const initialArchetypeCatalog = global.LuminousArchetypeTraitCatalog || optionalRequire("./archetype-trait-catalog.js");
 
@@ -287,10 +289,12 @@
 
   async function ensureBuiltInCatalogs() {
     initialBardRuntime?.wrapCatalog?.();
+    initialCasterSpellcastingRuntime?.wrapCatalog?.();
     if (!doc) return catalogProviders();
 
     await ensureScript("bard-class-runtime-script", "js/bard-class-runtime.js", () => Boolean(global.LuminousBardClassRuntime));
     global.LuminousBardClassRuntime?.wrapCatalog?.();
+    global.LuminousCasterSpellcastingTraitsRuntime?.wrapCatalog?.();
 
     await Promise.all([
       ensureScript("racial-trait-catalog-script", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog)),
