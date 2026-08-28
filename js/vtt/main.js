@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.key === '0') applyLayer(0);
         else if (event.key === '1') applyLayer(1);
         else if (event.key === '2') applyLayer(2);
-        else if ((event.key === 'e' || event.key === 'E') && bridge.isDm && !event.ctrlKey && !event.metaKey && !event.altKey) editMode?.toggle?.();
+        // E belongs exclusively to token PoV Look Lock/Unlock. DM Edit Mode remains available via its button.
         else if (event.key === 'Escape') {
             controller.hideContextMenu();
             controller.setTool('select');
