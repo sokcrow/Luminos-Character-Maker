@@ -181,6 +181,13 @@
   global.LuminousCasterSpellcastingTraitsRuntime = api;
   install();
 
+  // Node test/import stacks can load Bard after Spellcasting in the same module
+  // turn. Reconcile once the synchronous require chain finishes so wrapper order
+  // cannot leave duplicate semantic Grants in the final catalog.
+  if (!global.document && typeof queueMicrotask === "function") {
+    queueMicrotask(install);
+  }
+
   if (global.document && global.setInterval) {
     const timer = global.setInterval(install, 800);
     timer?.unref?.();
