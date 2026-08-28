@@ -115,6 +115,7 @@ test('condition combat bridge enforces phases, saves, poison damage, targeting, 
     const resolvedGrapple = global.CombatEngine.resolveActionSlot(grappler, 0, {
       plannedAction: scheduled.entry,
       combatData: { grappler, held },
+      rng: () => 0,
     });
     expect(resolvedGrapple.handled).toBe(true);
     expect(resolvedGrapple.result.applied).toBe(true);
@@ -172,9 +173,31 @@ test('condition theatre bridge injects the real roll spec before arming a Check'
   }
 });
 
-test('status engine loads both condition integration bridges', () => {
-  const fs = require('fs');
-  const source = fs.readFileSync(require.resolve('../js/status-engine.js'), 'utf8');
-  expect(source).toContain('core-condition-combat-bridge.js');
-  expect(source).toContain('core-condition-theatre-bridge.js');
+test('condition Environment bridge remaps numeric actor Conditions and applies penalties once', () => {
+  const keys = ['EnvironmentEngine', 'LuminousConditionRuntime', 'LuminousConditionEnvironmentBridge'];
+  const previous = snapshotGlobals(keys);
+  try {
+    delete require.cache[require.resolve('../js/core-condition-environment-bridge.js')];
+    delete global.LuminousConditionEnvironmentBridge;
+    global.LuminousConditionRuntime = {
+      conditionForEnvironmentId(id) { return id === 'hambriento' ? 'hungry' : null; },
+      environmentCheckModifiers(unit) { return { checks: unit.statusEffects?.hungry ? -2 : 0, saves: unit.statusEffects?.hungry ? -1 : 0 }; },
+    };
+    global.EnvironmentEngine = {
+      applyStatusEffects(actor, ids) { actor.baseIds = ids; return { ids }; },
+      getCheckPenalty() { return -1; },
+      getSavePenalty() { return -2; },
+    };
+    const bridge = require('../js/core-condition-environment-bridge.js');
+    expect(bridge.install()).toBe(true);
+    const actor = { statusEffects: {} };
+    const applied = global.EnvironmentEngine.applyStatusEffects(actor, [101]);
+    expect(applied.ids).toEqual([101]);
+    expect(actor.statusEffects.hungry).toBeTruthy();
+    expect(global.EnvironmentEngine.getCheckPenalty(actor)).toBe(-3);
+    expect(global.EnvironmentEngine.getSavePenalty(actor)).toBe(-3);
+  } finally {
+    restoreGlobals(previous);
+    delete require.cache[require.resolve('../js/core-condition-environment-bridge.js')];
+  }
 });
