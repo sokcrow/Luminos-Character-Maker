@@ -196,14 +196,25 @@
   }
 
   function blockingSegmentsForLayer(mapData = {}, zLayer = 0) {
-    const topology = topologyRuntime();
-    if (!topology) return [];
+    const lighting = lightingRuntime();
+    if (lighting?.blockersForLayer) return lighting.blockersForLayer(mapData, zLayer);
+
     const result = [];
-    for (const raw of Array.isArray(mapData.topology) ? mapData.topology : []) {
-      const element = topology.normalizeElement(raw);
-      if (!topology.elementOnLayer(element, zLayer)) continue;
-      if (!topology.effectiveFlags(element).blocksVision) continue;
-      result.push(topology.segment(element, mapData.grid));
+    const topology = topologyRuntime();
+    if (topology) {
+      for (const raw of Array.isArray(mapData.topology) ? mapData.topology : []) {
+        const element = topology.normalizeElement(raw);
+        if (!topology.elementOnLayer(element, zLayer)) continue;
+        if (!topology.effectiveFlags(element).blocksVision) continue;
+        result.push(topology.segment(element, mapData.grid));
+      }
+    }
+    for (const wall of Array.isArray(mapData.walls) ? mapData.walls : []) {
+      const onLayer = Array.isArray(wall.z)
+        ? wall.z.map(Number).includes(Number(zLayer))
+        : Number(wall.z ?? wall.zLayer ?? 0) === Number(zLayer);
+      if (!onLayer || wall.blocksVision === false) continue;
+      result.push({ x1: num(wall.x1), y1: num(wall.y1), x2: num(wall.x2), y2: num(wall.y2), blocksVision: true });
     }
     return result;
   }
