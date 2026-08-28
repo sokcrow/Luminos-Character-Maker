@@ -173,6 +173,15 @@
         };
     }
 
+    function axisAlignedVertex(from, candidate) {
+        const start = normalizeVertex(from);
+        const target = normalizeVertex(candidate);
+        const deltaCol = Math.abs(target.col - start.col);
+        const deltaRow = Math.abs(target.row - start.row);
+        if (deltaCol >= deltaRow) return { col: target.col, row: start.row };
+        return { col: start.col, row: target.row };
+    }
+
     function sameVertex(a, b) {
         return Number(a?.col) === Number(b?.col) && Number(a?.row) === Number(b?.row);
     }
@@ -281,6 +290,7 @@
         pointToSegmentDistance,
         hitTest,
         snapPointToVertex,
+        axisAlignedVertex,
         sameVertex,
         directActions,
         checkDescriptor,
