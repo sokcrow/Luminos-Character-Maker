@@ -9,9 +9,7 @@ html, body {
     font-family: "Share Tech Mono", monospace, sans-serif;
 }
 
-button, input, select {
-    font: inherit;
-}
+button, input, select { font: inherit; }
 
 #vtt-canvas {
     display: block;
@@ -31,9 +29,7 @@ button, input, select {
     pointer-events: none;
 }
 
-#vtt-ui-container > * {
-    pointer-events: auto;
-}
+#vtt-ui-container > * { pointer-events: auto; }
 
 .vtt-toolbar {
     display: flex;
@@ -47,38 +43,33 @@ button, input, select {
     border: 1px solid #5d6770;
 }
 
-.vtt-vertical-toolbar {
-    border-color: #4f7f99;
-}
-
 .vtt-toolbar-title {
-    padding: 0 5px;
-    color: #7fd6ff;
+    color: #89949e;
     font-size: 10px;
-    font-weight: bold;
     letter-spacing: .12em;
+    margin-right: 3px;
 }
 
 .vtt-toolbar-field {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding-left: 6px;
-    border-left: 1px solid #43515c;
+    padding-left: 7px;
+    border-left: 1px solid #46505a;
 }
 
 .vtt-toolbar-field span {
-    color: #8fb8cc;
+    color: #9ba5ad;
     font-size: 9px;
     letter-spacing: .08em;
 }
 
 .vtt-toolbar-field select {
-    max-width: 180px;
-    padding: 6px 8px;
-    background: #0c1216;
-    color: #dff5ff;
-    border: 1px solid #4f7f99;
+    min-width: 120px;
+    padding: 6px;
+    color: #e9eef2;
+    background: #11161a;
+    border: 1px solid #53606d;
 }
 
 .brutalist-button {
@@ -103,23 +94,26 @@ button, input, select {
     transform: translate(2px, 2px);
 }
 
-#vtt-vertical-toolbar .brutalist-button {
-    color: #7fd6ff;
-    border-color: #4f7f99;
-    box-shadow: 3px 3px 0 rgba(80, 173, 220, .18);
-}
-
-#vtt-vertical-toolbar .brutalist-button:hover,
-#vtt-vertical-toolbar .brutalist-button.is-active {
-    background: #7fd6ff;
-    color: #061016;
-    box-shadow: 1px 1px 0 rgba(80, 173, 220, .35);
-}
-
 .brutalist-button:active {
     box-shadow: none;
     transform: translate(3px, 3px);
 }
+
+.vtt-edit-toggle {
+    border-color: #d7b151;
+    color: #d7b151;
+    box-shadow: 3px 3px 0 rgba(215, 177, 81, .22);
+}
+
+.vtt-edit-toggle:hover,
+.vtt-edit-toggle.is-active {
+    background: #d7b151;
+    border-color: #d7b151;
+    color: #050709;
+    box-shadow: 1px 1px 0 rgba(215, 177, 81, .4);
+}
+
+.vtt-dm-edit-active #vtt-canvas { outline: 1px solid rgba(215, 177, 81, .34); outline-offset: -1px; }
 
 .vtt-panel {
     position: absolute;
@@ -135,9 +129,8 @@ button, input, select {
 
 .vtt-vertical-panel {
     top: 96px;
-    left: auto;
-    right: 20px;
-    border-color: #4f7f99;
+    left: 350px;
+    border-color: #54b8df;
 }
 
 .vtt-panel header,
@@ -156,9 +149,7 @@ button, input, select {
     letter-spacing: .08em;
 }
 
-.vtt-vertical-panel header strong {
-    color: #7fd6ff;
-}
+.vtt-vertical-panel header strong { color: #7fd6ff; }
 
 .vtt-panel header small,
 .vtt-context-menu header span {
@@ -199,25 +190,20 @@ button, input, select {
 .vtt-vertical-readout {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    gap: 10px;
     margin-bottom: 10px;
-    padding: 8px;
-    background: #0b1115;
-    border: 1px solid #344a57;
-}
-
-.vtt-vertical-readout span {
-    color: #8fa4af;
+    padding: 7px 8px;
+    border: 1px solid #33414b;
+    background: #0d1216;
     font-size: 10px;
 }
 
-.vtt-vertical-readout strong {
-    color: #7fd6ff;
-}
+.vtt-vertical-readout span { color: #89949e; }
+.vtt-vertical-readout strong { color: #7fd6ff; }
 
 .vtt-panel-help {
-    margin: 10px 0 12px;
-    color: #7f8c95;
+    margin: 8px 0 12px;
+    color: #84909a;
     font-size: 10px;
     line-height: 1.45;
 }
@@ -303,30 +289,11 @@ button, input, select {
 .vtt-notice[data-mode="error"] { border-color: #ff6673; }
 .vtt-notice[data-mode="pending"] { border-color: #d7b151; }
 
-[hidden] {
-    display: none !important;
-}
+[hidden] { display: none !important; }
 
 @media (max-width: 900px) {
-    #vtt-ui-container {
-        top: 10px;
-        right: 10px;
-    }
-    .vtt-panel,
-    .vtt-vertical-panel {
-        top: auto;
-        right: auto;
-        bottom: 10px;
-        left: 10px;
-    }
-    .brutalist-button {
-        font-size: 10px;
-        padding: 6px 8px;
-    }
-    .vtt-toolbar-field {
-        width: 100%;
-        justify-content: flex-end;
-        border-left: 0;
-        padding-left: 0;
-    }
+    #vtt-ui-container { top: 10px; right: 10px; }
+    .vtt-panel { top: auto; bottom: 10px; left: 10px; }
+    .vtt-vertical-panel { left: auto; right: 10px; }
+    .brutalist-button { font-size: 10px; padding: 6px 8px; }
 }
