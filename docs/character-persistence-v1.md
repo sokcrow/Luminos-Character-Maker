@@ -1,8 +1,8 @@
 # Character Persistence Schema v1
 
-Tracked by GitHub Issue #591. This document describes the v1 persistence boundary and the migration core implemented ahead of final integration.
+Tracked by GitHub Issue #591. This document describes the v1 persistence boundary and migration core.
 
-> Status: the migration/validation core is implemented, but #591 remains blocked by #587 (Derived Stats v1). The final persistent-vs-derived field boundary and integration into the live creation/load surfaces must not be frozen until #587 is complete.
+> Status: #587 (Derived Stats v1) is complete. The persistent-vs-derived contract below is now validated against the canonical `LuminousDerivedStats` resolver. Live creation/load integration remains a separate close gate for #591.
 
 ## Purpose
 
@@ -111,7 +111,9 @@ v0 (no schemaVersion) -> v1
 
 ## Base vs derived state
 
-#587 is the authority that will finalize this boundary. Until it is complete, v1 strips only a conservative denylist of fields that are unambiguously runtime/derived caches:
+#587 defines the canonical Derived Stats boundary. Persistence keeps user choices and Base Stats; `LuminousDerivedStats` reconstructs effective Scores, Ability Mods, HP, OFF/DEF, Speed and other deterministic derived values.
+
+V1 strips the following unambiguously runtime/derived caches from the canonical save:
 
 ```text
 abilityMods
@@ -128,7 +130,7 @@ uiBreakdown
 uiState
 ```
 
-Inside `characterBuild`, the current denylist is:
+Inside `characterBuild`, the denylist is:
 
 ```text
 effectiveStats
@@ -139,9 +141,9 @@ runtime
 cache
 ```
 
-The migration deliberately does **not** remove ambiguous fields such as inventory, equipment, statuses, finance, actor links or unknown extensions. #587 must be completed before this list is declared final for #591.
+The migration deliberately does **not** remove ambiguous compatibility fields such as inventory, equipment, statuses, finance, actor links or unknown extensions. Existing top-level effective/cache-shaped fields that old consumers still need may remain as compatibility data, but `characterBuild.baseStats` is the canonical source for Derived Stats and those compatibility fields must never be treated as Base Stats.
 
-Most importantly, persistence does not calculate racial bonuses, Ability Mods, OFF/DEF/Speed, HP, or any other derived value. It preserves `baseStats` and user choices. That prevents save/reload from reapplying racial bonuses.
+Persistence does not calculate racial bonuses, Ability Mods, OFF/DEF/Speed, HP, or any other derived value. It preserves `baseStats` and user choices. Regression coverage with #587 verifies that saving/reloading a Human Base 10 remains Effective 11 rather than becoming 12.
 
 ## Firebase adapter
 
@@ -176,7 +178,7 @@ That live path does not yet pass through this module. It must be integrated befo
 
 `hoja_personaje.js` currently reads the player node, assigns `snap.val()` directly to `window.datosJugador`, caches it, and renders it. That live path also does not yet pass through the migration boundary.
 
-It must be integrated before #591 closes, after #587 freezes which values are base/persistent versus derived/runtime.
+It must be integrated before #591 closes so legacy input is normalized and validated before Character runtime/rendering.
 
 ### Character Manager / Actor data
 
@@ -186,7 +188,7 @@ It must be integrated before #591 closes, after #587 freezes which values are ba
 
 Before this issue can be marked complete:
 
-1. #587 must be complete and the persistent/derived denylist reviewed against its contract.
+1. #587 must be complete and Persistence must remain regression-tested against its resolver. **Complete for this foundation.**
 2. New Character creation must save through `prepareForSave()`/Firebase adapter and write `schemaVersion: 1`.
 3. Player load must run migration/validation before Character runtime/rendering.
 4. A validated migrated save must round-trip through load -> modify -> save -> reload.
@@ -196,7 +198,7 @@ Before this issue can be marked complete:
 ## Focused regression suite
 
 ```bash
-npx playwright test tests/character_persistence.spec.js --workers=1
+npx playwright test tests/character_persistence.spec.js tests/character_persistence_derived_stats.spec.js --workers=1
 ```
 
-The focused suite covers the mandatory #591 migration cases, including idempotence, legacy aliases, unknown canonical IDs, transient-data stripping, multiclass/Archetypes, backup behavior and future-schema safety.
+The focused suite covers the mandatory #591 migration cases, including idempotence, legacy aliases, unknown canonical IDs, transient-data stripping, multiclass/Archetypes, backup behavior, future-schema safety, and the #587 Base/Effective no-double-application contract.
