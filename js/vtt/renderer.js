@@ -119,6 +119,66 @@ export class Renderer {
         }
     }
 
+    verticalPortalStyle(portal, preview = false, selected = false) {
+        if (preview) return { stroke: '#ffffff', width: 5, dash: [8, 5] };
+        const styles = {
+            opening: { stroke: '#ff66d9', width: 6, dash: [5, 5] },
+            balcony_edge: { stroke: '#5dff9a', width: 6, dash: [12, 6] },
+            stairs: { stroke: '#7fd6ff', width: 7, dash: [3, 4] },
+        };
+        const base = styles[portal.type] || styles.opening;
+        return selected ? { ...base, stroke: '#ffffff', width: base.width + 2 } : base;
+    }
+
+    drawVerticalPortalElement(rawPortal, zLayer, preview = false) {
+        const runtime = globalThis.LuminousVttVerticalPortal;
+        if (!runtime || !rawPortal) return;
+        const portal = preview ? rawPortal : runtime.normalizePortal(rawPortal, this.mapData);
+        if (!runtime.portalOnLayer(portal, zLayer)) return;
+        const line = runtime.segment(portal, this.mapData);
+        const selectedId = this.mapData.verticalPortalEditor?.selectedId;
+        const selected = !preview && String(selectedId || '') === String(portal.id || '');
+        const style = this.verticalPortalStyle(portal, preview, selected);
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.globalAlpha = preview ? 0.82 : 0.92;
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = style.width;
+        ctx.lineCap = 'round';
+        ctx.setLineDash(style.dash || []);
+        ctx.beginPath();
+        ctx.moveTo(line.x1, line.y1);
+        ctx.lineTo(line.x2, line.y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if (!preview) {
+            const mx = (line.x1 + line.x2) / 2;
+            const my = (line.y1 + line.y2) / 2;
+            const other = runtime.otherLayer(portal, zLayer);
+            const label = `${runtime.labelFor(portal)} · Z${other}`;
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const metrics = ctx.measureText(label);
+            ctx.fillStyle = 'rgba(0,0,0,.86)';
+            ctx.fillRect(mx - (metrics.width / 2) - 5, my - 9, metrics.width + 10, 18);
+            ctx.fillStyle = style.stroke;
+            ctx.fillText(label, mx, my);
+        }
+        ctx.restore();
+    }
+
+    drawVerticalPortalGuides(zLayer) {
+        if (!this.mapData.verticalPortalEditor?.visible) return;
+        for (const portal of Array.isArray(this.mapData.verticalPortals) ? this.mapData.verticalPortals : []) {
+            this.drawVerticalPortalElement(portal, zLayer, false);
+        }
+        const preview = this.mapData.verticalPortalEditor?.preview;
+        if (preview) this.drawVerticalPortalElement(preview, zLayer, true);
+    }
+
     drawPersonIcon(token, radius) {
         const ctx = this.ctx;
         const iconColor = token.iconColor || '#ffffff';
@@ -169,7 +229,15 @@ export class Renderer {
             return;
         }
 
-        if (!renderData || renderData.visible === false) return;
+        if (!renderData || renderData.visible === false) {
+            if (this.mapData.verticalPortalEditor?.visible) {
+                this.ctx.save();
+                camera.applyTransformSimple(this.ctx);
+                this.drawVerticalPortalGuides(activeZ);
+                this.ctx.restore();
+            }
+            return;
+        }
         const { fovPolygon, visionRadius, tokenPos, monochrome } = renderData;
         if (!fovPolygon || fovPolygon.length < 3 || visionRadius <= 0) return;
 
@@ -199,5 +267,12 @@ export class Renderer {
         this.drawTopology(activeZ, false);
         this.drawTokens(activeZ);
         this.ctx.restore();
+
+        if (this.mapData.verticalPortalEditor?.visible) {
+            this.ctx.save();
+            camera.applyTransformSimple(this.ctx);
+            this.drawVerticalPortalGuides(activeZ);
+            this.ctx.restore();
+        }
     }
 }
