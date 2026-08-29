@@ -189,6 +189,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./movement-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT movement bootstrap failed:', error));
+    import('./world-object-mainline-integration.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT world object bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
@@ -205,6 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
         window.LuminousVttRuntime?.movement?.stop?.();
+        window.LuminousVttRuntime?.worldObjects?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
         window.LuminousVttRuntime?.mapAuthoring?.stop?.();
         editMode?.stop?.();
