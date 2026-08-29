@@ -57,49 +57,20 @@
             <input id="vtt-topology-thickness" type="number" min="0.1" step="0.1" value="0.5">
         </label>
         <div id="vtt-topology-threshold-fields" class="vtt-threshold-grid">
-            <label>
-                <span>JUEGO DE MANOS</span>
-                <input id="vtt-topology-lockpick" type="number" min="0" step="1">
-            </label>
-            <label>
-                <span>ROMPER · STR / ATHLETICS</span>
-                <input id="vtt-topology-break" type="number" min="0" step="1">
-            </label>
+            <label><span>JUEGO DE MANOS</span><input id="vtt-topology-lockpick" type="number" min="0" step="1"></label>
+            <label><span>ROMPER · STR / ATHLETICS</span><input id="vtt-topology-break" type="number" min="0" step="1"></label>
         </div>
         <button id="vtt-topology-delete" type="button" class="vtt-danger-button">BORRAR ELEMENTO</button>
     </aside>
 
     <aside id="vtt-vertical-editor" class="vtt-panel vtt-vertical-panel" hidden>
-        <header>
-            <strong id="vtt-vertical-type">PORTAL Z</strong>
-            <small id="vtt-vertical-id"></small>
-        </header>
-        <div class="vtt-vertical-readout">
-            <span>DESDE</span>
-            <strong id="vtt-vertical-from-z">Z0</strong>
-        </div>
-        <label>
-            <span>HASTA</span>
-            <select id="vtt-vertical-editor-target" aria-label="Editar Z destino"></select>
-        </label>
+        <header><strong id="vtt-vertical-type">PORTAL Z</strong><small id="vtt-vertical-id"></small></header>
+        <div class="vtt-vertical-readout"><span>DESDE</span><strong id="vtt-vertical-from-z">Z0</strong></div>
+        <label><span>HASTA</span><select id="vtt-vertical-editor-target" aria-label="Editar Z destino"></select></label>
         <div id="vtt-stair-fields" hidden>
-            <label>
-                <span>FORMA DE ESCALERA</span>
-                <select id="vtt-vertical-layout">
-                    <option value="straight">RECTA</option>
-                    <option value="switchback">U / DOS TRAMOS</option>
-                    <option value="spiral">CARACOL</option>
-                    <option value="ladder">VERTICAL / LADDER</option>
-                </select>
-            </label>
-            <label>
-                <span>ANCHO · FT</span>
-                <input id="vtt-vertical-width" type="number" min="2" step="0.5" value="5">
-            </label>
-            <div class="vtt-vertical-readout">
-                <span>RECORRIDO 3D</span>
-                <strong id="vtt-vertical-path-length">—</strong>
-            </div>
+            <label><span>FORMA DE ESCALERA</span><select id="vtt-vertical-layout"><option value="straight">RECTA</option><option value="switchback">U / DOS TRAMOS</option><option value="spiral">CARACOL</option><option value="ladder">VERTICAL / LADDER</option></select></label>
+            <label><span>ANCHO · FT</span><input id="vtt-vertical-width" type="number" min="2" step="0.5" value="5"></label>
+            <div class="vtt-vertical-readout"><span>RECORRIDO 3D</span><strong id="vtt-vertical-path-length">—</strong></div>
         </div>
         <p id="vtt-vertical-movement" class="vtt-context-note"></p>
         <p class="vtt-panel-help">El trazo define la ruta/apertura sobre la cuadrícula. RECTAs suben entre extremos; U genera dos tramos y descanso; CARACOL genera una hélice; VERTICAL crea una escalera de mano. Muros y huecos siguen decidiendo la línea de visión.</p>
@@ -107,10 +78,7 @@
     </aside>
 
     <section id="vtt-context-menu" class="vtt-context-menu" hidden>
-        <header>
-            <strong id="vtt-context-title">OBJETO</strong>
-            <span id="vtt-context-state"></span>
-        </header>
+        <header><strong id="vtt-context-title">OBJETO</strong><span id="vtt-context-state"></span></header>
         <div id="vtt-context-actions"></div>
     </section>
 
@@ -128,6 +96,7 @@
     <script src="js/vtt/token-interaction.js"></script>
     <script src="js/vtt/token-control.js"></script>
     <script src="js/vtt/token-state.js"></script>
+    <script src="js/vtt/physical-state-patch.js"></script>
     <script src="js/vtt/dm-edit-mode.js"></script>
     <script src="js/vtt/check-portal.js"></script>
     <script src="js/vtt/multiplayer-senses-bridge.js"></script>
