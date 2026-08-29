@@ -1,0 +1,44 @@
+name: VTT Elevator Lift Foundation
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/**'
+      - 'vtt.html'
+      - 'tests/vtt_elevator_lift_foundation.spec.js'
+      - 'tests/vtt_elevator_authority.spec.js'
+      - '.github/workflows/vtt-elevator-lift.yml'
+  workflow_dispatch:
+
+jobs:
+  elevator-lift-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/elevator-core.js
+          node --check js/vtt/elevator-portal-patch.js
+          node --check js/vtt/elevator-state-patch.js
+          node --check js/vtt/elevator-renderer-patch.js
+          node --check js/vtt/elevator-floor-support-patch.js
+          node --check js/vtt/elevator-terrain-patch.js
+          node --check js/vtt/elevator-map-authoring-patch.js
+          node --input-type=module --check < js/vtt/elevator-bootstrap.js
+          node --input-type=module --check < js/vtt/elevator-autostart.js
+          node --input-type=module --check < js/vtt/elevator-authoring-bootstrap.js
+          node --input-type=module --check < js/vtt/elevator-physics-preload.js
+          node --input-type=module --check < js/vtt/elevator-support-runtime.js
+          node --check tests/vtt_elevator_lift_foundation.spec.js
+          node --check tests/vtt_elevator_authority.spec.js
+      - name: Focused contracts
+        run: npx playwright test tests/vtt_elevator_lift_foundation.spec.js tests/vtt_elevator_authority.spec.js tests/vtt_roof_ceiling_foundation.spec.js tests/vtt_floor_openings_foundation.spec.js tests/vtt_stair_builder_foundation.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_map_hud_physical.spec.js --workers=1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Repository regression
+        run: npx playwright test --workers=1

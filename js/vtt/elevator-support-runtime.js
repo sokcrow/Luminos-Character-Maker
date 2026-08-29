@@ -1,0 +1,4 @@
+import './elevator-physics-preload.js';
+
+function boot(attempt=0){const runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData;if(!mapData){if(attempt<100)window.setTimeout(()=>boot(attempt+1),100);return;}let fingerprint='';const sync=()=>{const next=JSON.stringify((mapData.verticalPortals||[]).filter(p=>p?.type==='elevator').map(p=>[p.id,p.currentZ??p.elevator?.currentZ,p.motionState??p.elevator?.motionState,p.targetZ??p.elevator?.targetZ]));if(next===fingerprint)return;fingerprint=next;window.LuminousVttSurfaceCore?.syncFloorOpeningTerrain?.(mapData);};sync();const timer=window.setInterval(sync,150);window.addEventListener('beforeunload',()=>window.clearInterval(timer),{once:true});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot(),{once:true});else boot();
