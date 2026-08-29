@@ -204,7 +204,7 @@ export class Engine {
         const legacy = (this.mapData.walls || []).filter((wall) => wall.z.includes(zLayer) && wall.blocksVision);
         const topology = this.topologyRules;
         if (!topology || !Array.isArray(this.mapData.topology)) return legacy;
-        return [...legacy, ...topology.blockingSegments(this.mapData.topology, 'vision', zLayer, this.mapData.grid)];
+        return [...legacy, ...topology.blockingSegments(this.mapData.topology, 'vision', zLayer, this.mapData.grid, this.mapData)];
     }
 
     ambientLightLevel() { return String(this.mapData.ambientLight?.level || 'bright').toLowerCase(); }
