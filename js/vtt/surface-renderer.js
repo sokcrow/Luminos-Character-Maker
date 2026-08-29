@@ -59,7 +59,7 @@
   function drawSurfaceLayer(ctx, mapData = {}, zLayer = 0) {
     const core = coreRuntime();
     if (!core || !ctx) return 0;
-    core.ensureMapState(mapData);
+    if (!mapData.surfaceMaterials || !mapData.surfaceLayers || !mapData.movement?.terrain) core.ensureMapState(mapData);
     let count = 0;
     for (const cell of core.cellsOnLayer(mapData, zLayer)) if (drawCell(ctx, mapData, cell)) count += 1;
     return count;
