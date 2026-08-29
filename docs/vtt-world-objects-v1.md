@@ -27,6 +27,8 @@ The first reusable library contains Chair, Utility Table, Wooden Crate, Industri
 
 A non-destroyed instance whose definition blocks movement participates in token occupancy. The integration wraps the canonical token collision resolver, so direct token drag and A* pathfinding use the same blocker query. Moving, pushing or destroying an object changes the live obstacle set without introducing a second navigation representation.
 
+The initial editor rotates placed objects in 90-degree steps. Rectangular collision footprints rotate with those quarter turns, so a 2×1 table or barricade blocks 1×2 cells after a 90-degree rotation instead of retaining stale axis dimensions.
+
 ## Rendering and visibility
 
 Objects render inside the existing VTT perception clip because the renderer integration inserts them before tokens in the canonical `drawTokens` stage. Custom image paths are supported with a glyph/box fallback. Height, occlusion, cover and hide metadata are stored now; height-aware LoS, partial cover and stealth resolution remain follow-up systems rather than being approximated in this PR.
