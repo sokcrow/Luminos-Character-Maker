@@ -11,7 +11,7 @@
     try { return require(path); } catch (_) { return null; }
   }
 
-  const items = () => global.LuminousItemRuntime || global.LuminousItemInventoryRuntime || safeRequire("./item-inventory-runtime.js") || safeRequire("./item-runtime-engine.js");
+  const items = () => global.LuminousItemInventoryRuntime || global.LuminousItemRuntime || safeRequire("./item-inventory-runtime.js") || safeRequire("./item-runtime-engine.js");
   const spells = () => global.LuminousSpellcastingRuntime || safeRequire("./spellcasting-runtime.js");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
