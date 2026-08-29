@@ -43,6 +43,37 @@
     return player || actor || {};
   }
 
+  function actorImage(data = {}) {
+    return clean(
+      data.tokenImage
+      || data.token_image
+      || data.tokenUrl
+      || data.token_url
+      || data.sprite
+      || data.portrait
+      || data.portraitUrl
+      || data.imagen
+      || data.image
+      || '',
+    );
+  }
+
+  function actorName(data = {}) {
+    return clean(data.name || data.nombre || data.displayName || data.characterName || data.character_name || '');
+  }
+
+  function applyActorPresentation(token, player = null, actor = null) {
+    if (!token) return token;
+    const image = actorImage(actor || {}) || actorImage(player || {});
+    const name = actorName(actor || {}) || actorName(player || {});
+    if (image) {
+      token.tokenImage = image;
+      token.portrait = image;
+    }
+    if (name) token.name = name;
+    return token;
+  }
+
   function createBridge({ mapData, root = browserRoot, onSensesChanged } = {}) {
     if (!mapData) throw new Error('MAP_DATA_REQUIRED');
     const runtime = root?.LuminousRacialSenseRuntime
@@ -78,6 +109,7 @@
     }
 
     function applyRecord(token, record) {
+      applyActorPresentation(token, record?.player, record?.actor);
       const carrier = resolveBuildCarrier(record?.player, record?.actor);
       return emit(token, carrier);
     }
@@ -107,14 +139,15 @@
     }
 
     function bindToken(token) {
+      if (!token || !clean(token.id) || records.has(clean(token.id))) return false;
       const link = tokenLink(token, root);
       const record = { player: null, actor: null, boundActors: new Set() };
-      records.set(token.id, record);
+      records.set(clean(token.id), record);
 
       if (!db) {
         if (link.playerId && link.playerId === currentPlayerId(root)) record.player = localCurrentPlayer();
         applyRecord(token, record);
-        return;
+        return true;
       }
 
       if (link.playerId) {
@@ -131,18 +164,28 @@
         if (local) record.player = local;
         applyRecord(token, record);
       }
+      return true;
+    }
+
+    function syncTokens() {
+      let bound = 0;
+      (mapData.tokens || []).forEach((token) => {
+        if (bindToken(token)) bound += 1;
+      });
+      return bound;
     }
 
     function start() {
       if (started) return true;
       started = true;
-      (mapData.tokens || []).forEach(bindToken);
+      syncTokens();
       return true;
     }
 
     function refreshToken(tokenId, character) {
       const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(tokenId));
       if (!token) return null;
+      applyActorPresentation(token, character, null);
       return emit(token, character);
     }
 
@@ -152,8 +195,18 @@
       started = false;
     }
 
-    return Object.freeze({ start, stop, refreshToken, tokenLink: (token) => tokenLink(token, root) });
+    return Object.freeze({ start, stop, syncTokens, refreshToken, tokenLink: (token) => tokenLink(token, root) });
   }
 
-  return Object.freeze({ hostWindow, hostFirebase, currentPlayerId, tokenLink, resolveBuildCarrier, createBridge });
+  return Object.freeze({
+    hostWindow,
+    hostFirebase,
+    currentPlayerId,
+    tokenLink,
+    resolveBuildCarrier,
+    actorImage,
+    actorName,
+    applyActorPresentation,
+    createBridge,
+  });
 });
