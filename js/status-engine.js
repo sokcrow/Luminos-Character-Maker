@@ -229,6 +229,16 @@
     anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
   }
 
+  function ensureItemInventoryRuntime() {
+    if (!global.document) return;
+    const ensureInventory = () => {
+      if (!global.LuminousItemInventoryRuntime) loadScript("item-inventory-runtime-script", "js/item-inventory-runtime.js");
+    };
+    if (global.LuminousItemRuntime) return ensureInventory();
+    const itemScript = loadScript("item-runtime-engine-script", "js/item-runtime-engine.js");
+    itemScript?.addEventListener?.("load", ensureInventory, { once: true });
+  }
+
   ensureInjuryEquipmentRuntime();
-  if (global.document && !global.LuminousItemRuntime) loadScript("item-runtime-engine-script", "js/item-runtime-engine.js");
+  ensureItemInventoryRuntime();
 })(typeof window !== "undefined" ? window : globalThis);
