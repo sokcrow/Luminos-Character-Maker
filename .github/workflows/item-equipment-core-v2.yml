@@ -35,5 +35,7 @@ jobs:
           node --check js/dm-equipment-forge.js
       - name: Focused contracts
         run: npx playwright test tests/item_equipment_core_v2.spec.js tests/dm_equipment_forge_contract.spec.js --workers=1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
       - name: Repository regression
         run: npx playwright test --workers=1
