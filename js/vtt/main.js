@@ -1,6 +1,6 @@
 import { Engine } from './engine.js';
 import { TopologyController } from './topology-controller.js';
-import { VerticalPortalController } from './vertical-portal-controller-token-yield.js';
+import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
 import './map-authoring.js';
 import './map-authoring-state.js';
