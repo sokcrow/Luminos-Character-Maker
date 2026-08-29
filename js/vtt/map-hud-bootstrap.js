@@ -28,7 +28,7 @@ function ensureHud() {
   hud.setAttribute('aria-label', 'Tactical map HUD');
   hud.innerHTML = `
 <div class="vtt-map-hud-card"><span><strong id="vtt-hud-map-name">MAP</strong><small id="vtt-hud-map-position">Z0 · CELL —</small></span><span class="vtt-hud-inline"><button type="button" class="vtt-hud-layer" data-hud-layer="prev">Z−</button><button type="button" class="vtt-hud-layer" data-hud-layer="next">Z+</button></span></div>
-<div class="vtt-map-hud-card"><span><strong>CAMERA</strong><small id="vtt-hud-camera-state">FREE</small></span><span class="vtt-hud-inline"><button type="button" class="vtt-hud-follow" data-hud-camera="toggle">FOLLOW</button><button type="button" data-hud-camera="recenter">CENTER</button></span></div>
+<div class="vtt-map-hud-card" title="Pan: middle mouse or Space + left drag · Zoom: wheel"><span><strong>CAMERA</strong><small id="vtt-hud-camera-state">FREE</small></span><span class="vtt-hud-inline"><button type="button" class="vtt-hud-follow" data-hud-camera="toggle" title="F · Toggle Follow / Look Around">FOLLOW</button><button type="button" data-hud-camera="recenter" title="Home · Center and Follow">CENTER</button></span></div>
 <div class="vtt-map-hud-card"><span><strong id="vtt-hud-token-name">NO TOKEN</strong><small id="vtt-hud-movement-state">MOVEMENT —</small></span></div>
 <div class="vtt-map-hud-card"><span><strong>PHYSICAL</strong><small id="vtt-hud-physical-state">COVER NONE · EXPOSED</small></span></div>
 <div class="vtt-map-hud-card vtt-map-hud-actions" id="vtt-hud-actions" hidden><span class="vtt-hud-object-label"><strong id="vtt-hud-object-name">OBJECT</strong><small id="vtt-hud-object-meta">—</small></span><div class="vtt-hud-inline" id="vtt-hud-action-buttons"></div><button type="button" data-hud-clear-object>×</button></div>`;
@@ -68,7 +68,6 @@ function perceivedByPlayer(runtime, actor, instance, definition, mapData) {
   if (runtime?.bridge?.isDm) return true;
   if (!actor || !instance || !definition) return false;
   const perception = runtime?.lighting?.perceptionAtPoint;
-  // Fail closed for players until Dynamic Lighting has published the canonical perception API.
   if (typeof perception !== 'function') return false;
   const physical = window.LuminousVttPhysicalResolver;
   const point = { x: finite(instance.position?.x), y: finite(instance.position?.y), zLayer: finite(instance.position?.zLayer), elevationFt: physical?.objectTopFt?.(instance, definition, mapData) ?? finite(instance.position?.elevationFt) };
@@ -114,8 +113,16 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
   function syncCamera() {
     const state = cameraFollow.state(), button = hud.querySelector('[data-hud-camera="toggle"]');
-    node('vtt-hud-camera-state').textContent = state.enabled ? 'FOLLOWING TOKEN' : state.hasTarget ? 'FREE PAN' : 'DM FREE';
-    button.textContent = state.enabled ? 'FREE' : 'FOLLOW';
+    let label;
+    if (state.tokenRules) {
+      const mod = `${state.perceptionModifier >= 0 ? '+' : ''}${state.perceptionModifier}`;
+      const mode = state.mode === 'follow' ? (state.isDm ? 'TOKEN FOLLOW' : 'FOLLOW') : (state.isDm ? 'TOKEN LOOK' : 'LOOK AROUND');
+      label = `${mode} · PER ${mod} · ${state.maxLookFt}FT · MIN ${state.minZoom.toFixed(2)}x`;
+    } else {
+      label = 'DM FREE · 0.10x–5x';
+    }
+    node('vtt-hud-camera-state').textContent = label;
+    button.textContent = state.enabled ? 'LOOK' : 'FOLLOW';
     button.classList.toggle('is-following', state.enabled); button.classList.toggle('is-free', !state.enabled); button.disabled = !state.hasTarget;
     hud.querySelector('[data-hud-camera="recenter"]').disabled = !state.hasTarget;
   }
