@@ -1,8 +1,10 @@
 import './wall-builder.js';
 import { start as startWallAutoTile } from './wall-auto-tile-bootstrap.js';
+import { start as startOpeningEdges } from './topology-opening-edge-bootstrap.js';
 
 const PROFILE_FIELD_ID = 'vtt-wall-builder-profile-field';
 const STYLE_ID = 'vtt-wall-builder-style';
+const OPENING_TOOLS = Object.freeze(['door', 'window', 'curtain_window']);
 
 function ensureProfileUi(builder, controller) {
   const toolbar = document.getElementById('vtt-topology-toolbar');
@@ -57,9 +59,14 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   let profileId = profileField?.querySelector('[data-wall-profile]')?.value || 'concrete';
   let stopped = false;
   let autoTileApi = null;
+  let openingApi = null;
 
   function editWallActive() {
     return Boolean(controller.isDm && controller.editActive?.() && controller.tool === 'wall');
+  }
+
+  function editOpeningActive() {
+    return Boolean(controller.isDm && controller.editActive?.() && OPENING_TOOLS.includes(controller.tool));
   }
 
   function activeProfile() {
@@ -77,6 +84,26 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function onMouseDown(event) {
+    if (editOpeningActive()) {
+      if (event.button !== 0) return;
+      if (engine.tokenAtEvent(event)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      controller.hideContextMenu?.();
+      const hit = controller.topologyAtEvent?.(event);
+      if (!hit) {
+        controller.notify?.('Selecciona un WALL EDGE existente para insertar la apertura.', 'error');
+        return;
+      }
+      if (!openingApi) {
+        controller.notify?.('Opening Edge runtime no disponible.', 'error');
+        return;
+      }
+      void openingApi.placeOnElement(hit, controller.tool)
+        .catch((error) => controller.notify?.(String(error.message || error), 'error'));
+      return;
+    }
+
     if (!editWallActive()) return original.down(event);
     if (event.button !== 0) return;
     if (engine.tokenAtEvent(event)) return;
@@ -159,6 +186,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   function stop() {
     if (stopped) return;
     stopped = true;
+    openingApi?.stop?.();
     autoTileApi?.stop?.();
     canvas.removeEventListener('mousedown', onMouseDown, true);
     window.removeEventListener('mousemove', onMouseMove, true);
@@ -171,11 +199,20 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     document.getElementById(STYLE_ID)?.remove();
   }
 
-  const api = Object.freeze({ builder, saveRun, setProfile, getProfile:activeProfile, getAutoTile:() => autoTileApi, stop });
+  const api = Object.freeze({
+    builder,
+    saveRun,
+    setProfile,
+    getProfile:activeProfile,
+    getAutoTile:() => autoTileApi,
+    getOpeningEdges:() => openingApi,
+    stop,
+  });
   window.LuminousVttWallBuilderRuntime = Object.freeze({ api, stop });
   window.LuminousVttRuntime = Object.freeze({ ...window.LuminousVttRuntime, wallBuilder:api });
   try {
     autoTileApi = startWallAutoTile({ runtime:window.LuminousVttRuntime, mapData });
+    openingApi = startOpeningEdges({ runtime:window.LuminousVttRuntime, mapData });
   } catch (error) {
     stop();
     throw error;
