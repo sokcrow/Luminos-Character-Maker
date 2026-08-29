@@ -190,8 +190,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT movement bootstrap failed:', error));
     import('./world-object-mainline-integration.js')
-        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
-        .catch((error) => console.error('VTT world object bootstrap failed:', error));
+        .then(async (module) => {
+            await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const hudModule = await import('./map-hud-bootstrap.js');
+            return hudModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+        })
+        .catch((error) => console.error('VTT world object / map HUD bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
@@ -207,6 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttMapHudRuntime?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
         window.LuminousVttRuntime?.worldObjects?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
@@ -219,5 +224,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         bridge.stop();
         checkPortal?.stop?.();
         engine.stop();
+        engine.camera?.destroy?.();
     }, { once: true });
 });
