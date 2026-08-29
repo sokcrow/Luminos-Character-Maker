@@ -1,17 +1,26 @@
+import './stair-builder.js';
+import './stair-builder-portal-patch.js';
+import './stair-builder-route-patch.js';
+import './stair-builder-renderer-patch.js';
+import './vertical-authoring-patch.js';
+
 export class VerticalPortalController {
     constructor(canvas, engine, mapData, stateBridge) {
         this.canvas = canvas;
         this.engine = engine;
         this.mapData = mapData;
         this.stateBridge = stateBridge;
+        globalThis.LuminousVttVerticalAuthoringPatch?.install?.();
         this.runtime = globalThis.LuminousVttVerticalPortal;
         this.routeRuntime = globalThis.LuminousVttStairRoute;
+        this.stairBuilder = globalThis.LuminousVttStairBuilder;
         this.topology = globalThis.LuminousVttTopology;
         this.isDm = Boolean(stateBridge?.isDm);
         this.tool = 'select';
         this.drawStart = null;
         this.selectedId = null;
         this.topologyController = null;
+        this.stopStairRendererPatch = globalThis.LuminousVttStairBuilderRendererPatch?.install?.(engine?.renderer, mapData) || (() => {});
 
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -143,6 +152,14 @@ export class VerticalPortalController {
     axisAligned(from, candidate) { return this.topology?.axisAlignedVertex?.(from, candidate) || candidate; }
     sameVertex(a, b) { return this.topology?.sameVertex?.(a, b) || (a?.col === b?.col && a?.row === b?.row); }
 
+    previewFor(type, from, to, fromZ, toZ) {
+        if (type !== 'stairs' || !this.stairBuilder) return { type, from, to, between: [fromZ, toZ] };
+        return this.stairBuilder.normalizeStairPortal({
+            id: '__stair_preview__', type: 'stairs', from, to, between: [fromZ, toZ], layout: 'straight', widthFt: 5,
+            state: 'open', blocksVision: false, blocksLight: false, allowsMovement: true, definitionId: 'stairs:straight', builder: {},
+        }, this.mapData);
+    }
+
     setPreview(preview) {
         this.mapData.verticalPortalEditor ||= {};
         this.mapData.verticalPortalEditor.preview = preview;
@@ -176,7 +193,7 @@ export class VerticalPortalController {
         const start = this.snapVertex(event);
         if (!start) return;
         this.drawStart = start;
-        this.setPreview({ type: this.tool, from: start, to: start, between: [this.activeLayer(), this.targetLayer()] });
+        this.setPreview(this.previewFor(this.tool, start, start, this.activeLayer(), this.targetLayer()));
     }
 
     handleMouseMove(event) {
@@ -184,7 +201,7 @@ export class VerticalPortalController {
         const candidate = this.snapVertex(event);
         if (!candidate) return;
         const to = this.axisAligned(this.drawStart, candidate);
-        this.setPreview({ type: this.tool, from: this.drawStart, to, between: [this.activeLayer(), this.targetLayer()] });
+        this.setPreview(this.previewFor(this.tool, this.drawStart, to, this.activeLayer(), this.targetLayer()));
         event.preventDefault();
         event.stopImmediatePropagation();
     }
@@ -203,7 +220,9 @@ export class VerticalPortalController {
         event.stopImmediatePropagation();
         if (this.sameVertex(from, to) || fromZ === toZ) return;
 
-        const portal = this.runtime.createPortal({ type, from, to, fromZ, toZ, mapData: this.mapData });
+        const portal = type === 'stairs' && this.stairBuilder
+            ? this.stairBuilder.buildPortal({ from, to, fromZ, toZ, mapData: this.mapData, layout: 'straight', widthFt: 5 })
+            : this.runtime.createPortal({ type, from, to, fromZ, toZ, mapData: this.mapData });
         this.stateBridge.savePortal(portal)
             .then((saved) => {
                 this.selectedId = saved.id;
@@ -235,7 +254,7 @@ export class VerticalPortalController {
         const raw = this.selectedPortal();
         editor.hidden = !raw;
         if (!raw) return;
-        const portal = this.runtime.normalizePortal(raw, this.mapData);
+        const portal = raw.type === 'stairs' && this.stairBuilder ? this.stairBuilder.normalizeStairPortal(raw, this.mapData) : this.runtime.normalizePortal(raw, this.mapData);
         const layers = this.runtime.portalLayers(portal);
         const current = this.activeLayer();
         const other = layers[0] === current ? layers[1] : layers[0];
@@ -265,7 +284,10 @@ export class VerticalPortalController {
     updateSelected(patch) {
         const raw = this.selectedPortal();
         if (!raw || !this.editActive()) return;
-        const next = this.runtime.normalizePortal({ ...raw, ...patch }, this.mapData);
+        const candidate = { ...raw, ...patch };
+        const next = raw.type === 'stairs' && this.stairBuilder
+            ? this.stairBuilder.normalizeStairPortal(candidate, this.mapData)
+            : this.runtime.normalizePortal(candidate, this.mapData);
         this.stateBridge.savePortal(next)
             .then(() => {
                 this.renderEditor();
@@ -277,10 +299,12 @@ export class VerticalPortalController {
     updateSelectedTarget(targetZ) {
         const raw = this.selectedPortal();
         if (!raw || !Number.isFinite(Number(targetZ)) || !this.editActive()) return;
-        const portal = this.runtime.normalizePortal(raw, this.mapData);
         const current = this.activeLayer();
         if (Number(targetZ) === current) return;
-        portal.between = [current, Number(targetZ)];
+        const candidate = { ...raw, between: [current, Number(targetZ)] };
+        const portal = raw.type === 'stairs' && this.stairBuilder
+            ? this.stairBuilder.normalizeStairPortal(candidate, this.mapData)
+            : this.runtime.normalizePortal(candidate, this.mapData);
         this.stateBridge.savePortal(portal)
             .then(() => this.notify(`Conexión actualizada · Z${current} ↔ Z${targetZ}.`, 'success'))
             .catch((error) => this.notify(String(error.message || error), 'error'));
@@ -315,6 +339,7 @@ export class VerticalPortalController {
         this.canvas.removeEventListener('mousedown', this.handleMouseDown, true);
         window.removeEventListener('mousemove', this.handleMouseMove, true);
         window.removeEventListener('mouseup', this.handleMouseUp, true);
+        this.stopStairRendererPatch?.();
         this.clearPreview();
     }
 }
