@@ -11,4 +11,4 @@ function applyDefinition(mapData,rawDefinition,options={}){const normalized=norm
 function preserve(fn){return function wrapped(rawDefinition,...args){const result=fn(rawDefinition,...args);return attach(result,rawDefinition||{},rawDefinition||{});};}
 function createDefinition(options={}){const result=base.createDefinition(options);return attach(result,options,{grid:result.grid,zLevels:result.zLevels});}
 const patched=Object.freeze({...base,__verticalAware:true,normalizeDefinition,definitionFromMapData,applyDefinition,addLevel:preserve(base.addLevel),updateLevel:preserve(base.updateLevel),removeLevel:preserve(base.removeLevel),createDefinition});root.LuminousVttMapAuthoring=patched;return patched;}
-const installed=install();return Object.freeze({install,installed});});
+const installed=install();if(!installed&&typeof queueMicrotask==='function')queueMicrotask(()=>install());return Object.freeze({install,installed});});
