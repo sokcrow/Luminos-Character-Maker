@@ -98,7 +98,7 @@
         const topology = topologyRuntime();
         if (!topology || !Array.isArray(mapData.topology)) return legacy;
         const dynamic = [];
-        layers.forEach((layer) => dynamic.push(...topology.blockingSegments(mapData.topology, 'movement', layer, mapData.grid)));
+        layers.forEach((layer) => dynamic.push(...topology.blockingSegments(mapData.topology, 'movement', layer, mapData.grid, mapData)));
         return [...legacy, ...dynamic];
     }
 
