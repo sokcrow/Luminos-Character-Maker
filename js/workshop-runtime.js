@@ -92,9 +92,7 @@
   function sampleUnique(items, count, random) {
     const pool = [...new Set(asArray(items).filter(Boolean))];
     const output = [];
-    while (pool.length && output.length < count) {
-      output.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
-    }
+    while (pool.length && output.length < count) output.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
     return output;
   }
 
@@ -129,22 +127,20 @@
     const random = options.random || seededRandom(options.seed || "workshop_name");
     const pools = asArray(options.namePools).filter((entry) => entry && entry.token);
     if (!pools.length) return { generated: false, reason: "missing_name_pool" };
-    const specialization = options.primarySpecialization || null;
     const thematic = random() < numberOr(options.thematicChance, 0.30);
-    const filtered = thematic ? pools.filter((entry) => affinityMatches(entry, specialization)) : pools;
+    const filtered = thematic ? pools.filter((entry) => affinityMatches(entry, options.primarySpecialization)) : pools;
     const candidates = filtered.length ? filtered : pools;
     const singles = candidates.filter((entry) => normalizeId(entry.tokenRole) === "single");
     const adjectives = candidates.filter((entry) => normalizeId(entry.tokenRole) === "adjective");
     const nouns = candidates.filter((entry) => normalizeId(entry.tokenRole) === "noun");
 
     for (let attempt = 0; attempt < 50; attempt += 1) {
-      let raw;
-      if (singles.length && (random() < 0.55 || !adjectives.length || !nouns.length)) {
-        raw = weightedPick(singles, random)?.token;
-      } else {
+      let raw = null;
+      if (singles.length && (random() < 0.55 || !adjectives.length || !nouns.length)) raw = weightedPick(singles, random)?.token;
+      else {
         const adjective = weightedPick(adjectives, random)?.token;
         const noun = weightedPick(nouns, random)?.token;
-        raw = adjective && noun ? `${adjective} ${noun}` : null;
+        if (adjective && noun) raw = `${adjective} ${noun}`;
       }
       raw = normalizedWorkshopName(raw);
       const validation = validateWorkshopName(raw, options);
@@ -161,8 +157,7 @@
 
   function rollQualityTier(profile, random) {
     const weights = asArray(profile?.quality || profile?.qualityWeights || [0, 0, 100, 0, 0]);
-    const entries = [1, 2, 3, 4, 5].map((tier, index) => ({ tier, weight: Math.max(0, numberOr(weights[index], 0)) }));
-    return weightedPick(entries, random, (entry) => entry.weight)?.tier || 3;
+    return weightedPick([1, 2, 3, 4, 5].map((tier, index) => ({ tier, weight: Math.max(0, numberOr(weights[index], 0)) })), random, (entry) => entry.weight)?.tier || 3;
   }
 
   function normalizeSpecialization(entry) {
@@ -176,8 +171,7 @@
 
   function moduleCompatibleWithSpecialization(module, specialization) {
     const requirements = asArray(module?.specializations || module?.compatibleSpecializations || module?.specializationIds).map(normalizeId).filter(Boolean);
-    if (!requirements.length) return true;
-    return requirements.includes(normalizeId(specialization));
+    return !requirements.length || requirements.includes(normalizeId(specialization));
   }
 
   function createWorkshopInstance(options = {}) {
@@ -194,11 +188,7 @@
     const secondary = options.secondarySpecializations || sampleUnique(specializationDefs.map((entry) => entry.id).filter((id) => id !== primary), secondaryCount, random);
     const primaryDef = specializationDefs.find((entry) => entry.id === primary);
     const secondaryDefs = secondary.map((id) => specializationDefs.find((entry) => entry.id === id)).filter(Boolean);
-    const knownFamilies = [...new Set([
-      ...asArray(options.knownItemFamilies),
-      ...asArray(primaryDef?.familyIds),
-      ...secondaryDefs.flatMap((entry) => asArray(entry.familyIds)),
-    ].filter(Boolean))];
+    const knownFamilies = [...new Set([...asArray(options.knownItemFamilies), ...asArray(primaryDef?.familyIds), ...secondaryDefs.flatMap((entry) => asArray(entry.familyIds))].filter(Boolean))];
 
     const modulePool = asArray(options.modules).filter((entry) => moduleId(entry) && moduleCompatibleWithSpecialization(entry, primary));
     const knownModuleIds = options.knownModuleIds || sampleUnique(modulePool.map(moduleId), Math.max(0, intOr(profile.knownModuleCount, 0)), random);
@@ -209,10 +199,7 @@
 
     let workshopName = normalizedWorkshopName(options.workshopName);
     if (!workshopName) {
-      const generated = generateWorkshopName({
-        seed: `${seed}:name`, namePools: options.namePools, primarySpecialization: primary,
-        reservedNames: options.reservedNames, existingNames: options.existingNames,
-      });
+      const generated = generateWorkshopName({ seed: `${seed}:name`, namePools: options.namePools, primarySpecialization: primary, reservedNames: options.reservedNames, existingNames: options.existingNames });
       if (!generated.generated) return { created: false, reason: generated.reason };
       workshopName = generated.workshopName;
     }
@@ -244,7 +231,6 @@
       namingSeed: String(options.namingSeed || `${seed}:name`),
       createdAt: options.createdAt || null,
     };
-
     workshops.set(workshopId, clone(workshop));
     emit("luminous:workshop-created", { workshop: clone(workshop) });
     return { created: true, workshop };
@@ -264,14 +250,8 @@
     const found = workshops.get(String(workshopId));
     return found ? clone(found) : null;
   }
-
-  function listWorkshops() {
-    return [...workshops.values()].map(clone);
-  }
-
-  function clearWorkshops() {
-    workshops.clear();
-  }
+  function listWorkshops() { return [...workshops.values()].map(clone); }
+  function clearWorkshops() { workshops.clear(); }
 
   function productLineName(options, random) {
     const pool = asArray(options.productLineNamePool || options.modelNamePool).filter(Boolean);
@@ -289,12 +269,11 @@
     if (options.force !== true && random() > chance) return { created: false, reason: "product_line_roll_failed", chance };
     const name = options.productLineName || productLineName(options, random);
     if (!name) return { created: false, reason: "missing_product_line_name_pool" };
-    const familyIds = clone(options.compatibleItemFamilies || workshop.preferredItemFamilies || workshop.knownItemFamilies || []);
     const line = {
       productLineId: options.productLineId || `${workshop.workshopId}:line:${normalizeId(name)}`,
       manufacturerWorkshopId: workshop.workshopId,
       productLineName: String(name),
-      compatibleItemFamilies: familyIds,
+      compatibleItemFamilies: clone(options.compatibleItemFamilies || workshop.preferredItemFamilies || workshop.knownItemFamilies || []),
       technologyProfile: clone(options.technologyProfile || []),
       moduleBiasIds: clone(options.moduleBiasIds || workshop.signatureModuleIds || []),
       qualityBias: clamp(intOr(options.qualityBias, 0), -1, 1),
@@ -308,10 +287,7 @@
   function definitionFamilyIds(definition = {}) {
     return [...new Set(asArray(definition.familyIds || definition.productFamilies || definition.familyId || definition.productFamily).filter(Boolean))];
   }
-
-  function definitionTier(definition = {}) {
-    return clamp(intOr(definition.tier ?? definition.tierNumber ?? definition.tierRomanValue, 1), 1, 10);
-  }
+  function definitionTier(definition = {}) { return clamp(intOr(definition.tier ?? definition.tierNumber ?? definition.tierRomanValue, 1), 1, 10); }
 
   function compatibleDefinitions(workshop, catalog, options = {}) {
     const profile = tierProfile(workshop.workshopTier, options);
@@ -322,8 +298,7 @@
       const tier = definitionTier(definition);
       if (tier < profile.productTierMin || tier > profile.productTierMax) return false;
       const families = definitionFamilyIds(definition);
-      if (!knownFamilies.size || !families.length) return true;
-      return families.some((family) => knownFamilies.has(String(family)));
+      return !knownFamilies.size || !families.length || families.some((family) => knownFamilies.has(String(family)));
     });
   }
 
@@ -334,8 +309,7 @@
     const cycleId = String(options.restockCycleId ?? "initial");
     const seed = String(options.seed || `${workshop.stockGenerationSeed}:${cycleId}:${index}`);
     const random = seededRandom(seed);
-    const catalog = options.itemCatalog || options.catalog || [];
-    const candidates = compatibleDefinitions(workshop, catalog, options);
+    const candidates = compatibleDefinitions(workshop, options.itemCatalog || options.catalog || [], options);
     if (!candidates.length) return { generated: false, reason: "no_compatible_item_definitions" };
     const entry = weightedPick(candidates, random, (candidate) => candidate?.weight ?? candidate?.definition?.workshopWeight ?? 1);
     const definition = clone(entry?.definition || entry);
@@ -358,7 +332,8 @@
     const serial = options.productSerial || `${normalizeId(workshop.workshopId)}-${normalizeId(cycleId)}-${String(index + 1).padStart(4, "0")}`;
     const instanceId = options.instanceId || `item_${hashSeed(`${seed}:${serial}`).toString(36)}_${normalizeId(serial)}`;
 
-    const instance = itemRuntime()?.createItemInstance?.(definition, {
+    const runtime = itemRuntime();
+    const instance = runtime?.createItemInstance?.(definition, {
       instanceId,
       qualityTier,
       manufacturerId: workshop.workshopId,
@@ -370,7 +345,14 @@
     });
     if (!instance) return { generated: false, reason: "item_inventory_runtime_unavailable" };
     if (productLine?.productLineName) instance.productLineName = productLine.productLineName;
-    const resolved = itemRuntime()?.resolveItem?.(instance, { ...options, workshops: api, catalog: options.itemCatalog || options.catalog });
+
+    const resolveOptions = {
+      ...options,
+      workshops: api,
+      catalog: options.itemCatalog || options.catalog,
+      productLineName: productLine?.productLineName || options.productLineName || null,
+    };
+    const resolved = runtime?.resolveItem?.(instance, resolveOptions);
     const result = { generated: true, workshopId: workshop.workshopId, seed, definition, instance, resolved };
     emit("luminous:workshop-product-generated", result);
     return result;
@@ -392,8 +374,7 @@
   function priceMultiplier(workshop) {
     const rep = REPUTATION_MULTIPLIERS[normalizeId(workshop?.reputation)] || REPUTATION_MULTIPLIERS.established;
     const tier = clamp(intOr(workshop?.workshopTier, 1), 1, 10);
-    const tierMultiplier = 1 + Math.max(0, tier - 1) * 0.06;
-    return tierMultiplier * rep.price;
+    return (1 + Math.max(0, tier - 1) * 0.06) * rep.price;
   }
 
   function calculateWorkshopPrice(workshop, item, options = {}) {
@@ -406,9 +387,7 @@
     return Math.round(((basePrice * numberOr(qualityMultipliers[quality], 1) * priceMultiplier(workshop)) + moduleValue + signatureValue) * marketPressure);
   }
 
-  function serializeWorkshop(workshop) {
-    return clone(workshop);
-  }
+  function serializeWorkshop(workshop) { return clone(workshop); }
 
   const api = Object.freeze({
     version: 1,
