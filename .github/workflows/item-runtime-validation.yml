@@ -6,6 +6,7 @@ on:
       - "js/item-runtime-engine.js"
       - "js/status-engine.js"
       - "tests/item_runtime_engine.spec.js"
+      - "tests/item_runtime_catalog_profile.spec.js"
       - ".github/workflows/item-runtime-validation.yml"
 
 jobs:
@@ -19,4 +20,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright test tests/item_runtime_engine.spec.js
+      - run: npx playwright test tests/item_runtime_engine.spec.js tests/item_runtime_catalog_profile.spec.js
