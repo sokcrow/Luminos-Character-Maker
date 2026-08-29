@@ -1,5 +1,47 @@
-(function(root){'use strict';const base=root?.LuminousVttTokenInteraction,core=root?.LuminousVttWorldObjectCore;if(!base||!core||base.__worldObjectsPatched)return;function blocker(token,point,mapData){const radius=base.tokenRadius(token,mapData?.grid||{});const z=Number(token?.zLayer??token?.gridPosition?.z??token?.z?.[0]??0);const definitions={...(root.LuminousVttWorldObjectCatalog?.byId||{}),...(mapData?.worldObjectDefinitions||{})};return core.blockingObjectAtPoint({point,radius,zLayer:z,instances:mapData?.worldObjects||[],definitions,grid:mapData?.grid||{}});}
-function canOccupy(token,point,mapData={}){const prior=base.canOccupy(token,point,mapData);if(!prior.valid)return prior;const hit=blocker(token,point,mapData);return hit?{valid:false,reason:'BLOCKED_BY_WORLD_OBJECT',worldObject:hit.instance,definition:hit.definition}:{valid:true,reason:null};}
-function isPathClear(token,from,to,mapData={}){const grid=mapData.grid||{},radius=base.tokenRadius(token,grid),dx=Number(to?.x||0)-Number(from?.x||0),dy=Number(to?.y||0)-Number(from?.y||0),distance=Math.hypot(dx,dy),sampleStep=Math.max(4,Math.min(radius*.5,Number(grid.size||70)*.2)),steps=Math.max(1,Math.ceil(distance/sampleStep));for(let i=0;i<=steps;i++){const t=i/steps,p={x:Number(from?.x||0)+dx*t,y:Number(from?.y||0)+dy*t},gate=canOccupy(token,p,mapData);if(!gate.valid)return gate;}return{valid:true,reason:null};}
-function resolveDrop(token,from,worldPoint,mapData={}){if(!token||!mapData.grid)return{valid:false,reason:'INVALID_INPUT'};const bounds=base.gridBounds(mapData.grid),x=Number(worldPoint?.x),y=Number(worldPoint?.y);if(!Number.isFinite(x)||!Number.isFinite(y))return{valid:false,reason:'INVALID_INPUT'};if(x<0||y<0||x>=bounds.width||y>=bounds.height)return{valid:false,reason:'OUT_OF_BOUNDS'};const snapped=base.snapPointToGrid({x,y},mapData.grid),destination=canOccupy(token,snapped,mapData);if(!destination.valid)return{...snapped,...destination};const path=isPathClear(token,from,snapped,mapData);return path.valid?{...snapped,valid:true,reason:null}:{...snapped,...path};}
-root.LuminousVttTokenInteraction=Object.freeze({...base,__worldObjectsPatched:true,canOccupy,isPathClear,resolveDrop});})(typeof window!=='undefined'?window:globalThis);
+(function(root){
+'use strict';
+const base=root?.LuminousVttTokenInteraction,core=root?.LuminousVttWorldObjectCore;
+if(!base||!core||base.__worldObjectsPatched)return;
+
+function blocker(token,point,mapData){
+  const radius=base.tokenRadius(token,mapData?.grid||{});
+  const z=Number(token?.zLayer??token?.gridPosition?.z??token?.z?.[0]??0);
+  const definitions={...(root.LuminousVttWorldObjectCatalog?.byId||{}),...(mapData?.worldObjectDefinitions||{})};
+  return core.blockingObjectAtPoint({point,radius,zLayer:z,instances:mapData?.worldObjects||[],definitions,grid:mapData?.grid||{}});
+}
+
+function canOccupy(token,point,mapData={}){
+  const prior=base.canOccupy(token,point,mapData);
+  if(!prior.valid)return prior;
+  const hit=blocker(token,point,mapData);
+  return hit?{valid:false,reason:'BLOCKED_BY_WORLD_OBJECT',worldObject:hit.instance,definition:hit.definition}:{valid:true,reason:null};
+}
+
+function isPathClear(token,from,to,mapData={}){
+  const prior=typeof base.isPathClear==='function'?base.isPathClear(token,from,to,mapData):{valid:true,reason:null};
+  if(prior&&!prior.valid)return prior;
+  const grid=mapData.grid||{},radius=base.tokenRadius(token,grid),dx=Number(to?.x||0)-Number(from?.x||0),dy=Number(to?.y||0)-Number(from?.y||0),distance=Math.hypot(dx,dy),sampleStep=Math.max(4,Math.min(radius*.5,Number(grid.size||70)*.2)),steps=Math.max(1,Math.ceil(distance/sampleStep));
+  for(let i=0;i<=steps;i++){
+    const t=i/steps,p={x:Number(from?.x||0)+dx*t,y:Number(from?.y||0)+dy*t},gate=canOccupy(token,p,mapData);
+    if(!gate.valid)return gate;
+  }
+  return prior||{valid:true,reason:null};
+}
+
+function legacyResolveDrop(token,from,worldPoint,mapData={}){
+  if(!token||!mapData.grid)return{valid:false,reason:'INVALID_INPUT'};
+  const bounds=base.gridBounds(mapData.grid),x=Number(worldPoint?.x),y=Number(worldPoint?.y);
+  if(!Number.isFinite(x)||!Number.isFinite(y))return{valid:false,reason:'INVALID_INPUT'};
+  if(x<0||y<0||x>=bounds.width||y>=bounds.height)return{valid:false,reason:'OUT_OF_BOUNDS'};
+  const snapped=base.snapPointToGrid({x,y},mapData.grid),destination=canOccupy(token,snapped,mapData);
+  if(!destination.valid)return{...snapped,...destination};
+  const path=isPathClear(token,from,snapped,mapData);
+  return path.valid?{...snapped,valid:true,reason:null}:{...snapped,...path};
+}
+
+// On current main, movement-integration-patch owns resolveDrop because it applies A*,
+// movement budgets and movement modes. Keep that resolver intact; its pathfinding
+// calls the patched canOccupy/isPathClear dynamically and therefore sees objects.
+const resolveDrop=base.__pathfindingMovementPatch?base.resolveDrop:legacyResolveDrop;
+root.LuminousVttTokenInteraction=Object.freeze({...base,__worldObjectsPatched:true,canOccupy,isPathClear,resolveDrop});
+})(typeof window!=='undefined'?window:globalThis);
