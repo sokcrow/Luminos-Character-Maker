@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
         })
         .catch((error) => console.error('VTT map authoring / surfaces bootstrap failed:', error));
+    import('./wall-builder-bootstrap.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT wall builder bootstrap failed:', error));
     import('./actor-library-bootstrap.js')
         .then((module) => {
             const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
@@ -217,6 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttWallBuilderRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
