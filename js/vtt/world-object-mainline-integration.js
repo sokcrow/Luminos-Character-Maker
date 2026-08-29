@@ -24,6 +24,7 @@ function ensureStyles() {
     #vtt-object-library{left:auto!important;right:210px!important;top:12px!important;max-height:calc(100vh - 24px)!important;z-index:34500!important}
     #vtt-object-library-toggle.vtt-object-shell-button{position:static!important;inset:auto!important;width:100%;display:grid;grid-template-columns:22px 1fr;align-items:center;gap:7px;text-align:left;box-sizing:border-box}
     #vtt-object-library-toggle .vtt-ui-icon{display:block;flex:0 0 auto}
+    .vtt-object-component-fieldset{grid-column:1/-1;border:1px solid #46505a;padding:8px;margin:2px 0 0}.vtt-object-component-fieldset legend{color:#d7b151;font:700 10px monospace;letter-spacing:.08em;padding:0 4px}.vtt-object-component-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.vtt-object-component-grid .wide{grid-column:1/-1}.vtt-object-component-grid label{min-width:0}.vtt-object-component-grid input{width:100%;box-sizing:border-box}
     @media(max-width:900px){#vtt-object-library{right:178px!important;max-width:calc(100vw - 196px)!important}}
   `;
   document.head.appendChild(style);
@@ -82,7 +83,29 @@ function ensureUi() {
             <label><input name="openable" type="checkbox"> OPENABLE</label>
             <label><input name="searchable" type="checkbox"> SEARCHABLE</label>
             <label><input name="lockable" type="checkbox"> LOCKABLE</label>
+            <label><input name="usable" type="checkbox"> USABLE</label>
           </div>
+          <fieldset class="vtt-object-component-fieldset">
+            <legend>WORLD COMPONENTS</legend>
+            <div class="vtt-object-component-grid">
+              <label class="wide"><input name="componentLight" type="checkbox"> LIGHT EMITTER</label>
+              <label>BRIGHT FT<input name="lightBrightFt" type="number" min="0" step="5" value="20"></label>
+              <label>DIM +FT<input name="lightDimFt" type="number" min="0" step="5" value="20"></label>
+              <label>LIGHT COLOR<input name="lightColor" value="#ffd27a"></label>
+              <label>LIGHT CIRCUIT<input name="lightCircuit" placeholder="street"></label>
+              <label>ELEVATION +FT<input name="lightElevationOffsetFt" type="number" step="0.5" value="0"></label>
+              <label>FLICKER<input name="lightFlicker" type="checkbox"></label>
+              <label class="wide"><input name="componentSwitch" type="checkbox"> SWITCH</label>
+              <label>SWITCH CIRCUIT<input name="switchCircuit" value="main"></label>
+              <label>START STATE<select name="switchState"><option value="on">ON</option><option value="off">OFF</option></select></label>
+              <label class="wide"><input name="componentTransformer" type="checkbox"> TRANSFORMER</label>
+              <label class="wide">TRANSFORMER CIRCUITS<input name="transformerCircuits" placeholder="street, interior_a"></label>
+              <label class="wide"><input name="componentPowerSource" type="checkbox"> POWER SOURCE / GENERATOR</label>
+              <label class="wide">POWER CIRCUITS<input name="powerCircuits" placeholder="street"></label>
+              <label class="wide"><input name="componentContainer" type="checkbox"> CONTAINER</label>
+              <label>CAPACITY<input name="containerCapacity" type="number" min="1" step="1" value="10"></label>
+            </div>
+          </fieldset>
           <button type="submit" class="wide">SAVE DEFINITION</button>
         </form>
       </section>
