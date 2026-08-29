@@ -10,7 +10,8 @@ const dashboardCss = read('css/on-game-dashboard.css');
 test('DM game controls expose the tactical map as a canonical instance', () => {
     expect(dashboardHtml).toContain('name="instancia" value="mapa"');
     expect(dashboardHtml).toContain('id="modulo-mapa"');
-    expect(dashboardHtml).toContain('<iframe src="vtt.html" title="Mapa táctico D&amp;D"></iframe>');
+    expect(dashboardHtml).toContain('<iframe data-vtt-src="vtt.html" title="Mapa táctico D&amp;D"></iframe>');
+    expect(dashboardHtml).toContain('js/vtt/dm-map-lazy-loader.js');
     expect(instanceSource).toContain('activeInstance === "mapa"');
     expect(instanceSource).toContain('activeModuleId = "modulo-mapa"');
     expect(instanceSource).toContain('SALIDA ACTUAL: MAPA TÁCTICO');
