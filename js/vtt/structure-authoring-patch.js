@@ -1,0 +1,13 @@
+(function(root,factory){const api=factory(root);if(typeof module!=='undefined'&&module.exports)module.exports=api;if(root)root.LuminousVttStructureAuthoringPatch=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+function install(){const base=root?.LuminousVttMapAuthoring,core=root?.LuminousVttStructureCore;if(!base||!core)return null;if(base.__structureAware===true)return base;
+function structurePayload(raw={},fallback={}){const definitions=core.normalizeDefinitionCatalog(raw.structureDefinitions||fallback.structureDefinitions||null);const mapLike={...(fallback||{}),...(raw||{}),structureDefinitions:definitions};const structures=(Array.isArray(raw.structures)?raw.structures:Array.isArray(fallback.structures)?fallback.structures:[]).map(entry=>core.normalizeInstance(entry,mapLike));return{structureDefinitions:definitions,structures};}
+function attach(definition,raw={},fallback={}){return{...definition,...structurePayload(raw,fallback)};}
+function normalizeDefinition(raw={},fallback={}){return attach(base.normalizeDefinition(raw,fallback),raw,fallback);}
+function definitionFromMapData(mapData={}){return attach(base.definitionFromMapData(mapData),mapData,mapData);}
+function applyDefinition(mapData,rawDefinition,options={}){const normalized=normalizeDefinition(rawDefinition,mapData||{});base.applyDefinition(mapData,normalized,options);mapData.structureDefinitions=clone(normalized.structureDefinitions);mapData.structures=clone(normalized.structures);core.ensureMapState(mapData);return mapData;}
+function preserve(fn){return function wrapped(rawDefinition,...args){const result=fn(rawDefinition,...args);return attach(result,rawDefinition||{},rawDefinition||{});};}
+function canDeleteLevel(mapData={},zLayer=0){const gate=base.canDeleteLevel(mapData,zLayer);if(!gate.valid)return gate;core.ensureMapState(mapData);const structures=core.structuresOnLayer(mapData,zLayer);if(structures.length)return{valid:false,reason:'FLOOR_IN_USE',dependencies:{...(gate.dependencies||{}),structures}};return{...gate,dependencies:{...(gate.dependencies||{}),structures:[]}};}
+function createDefinition(options={}){const definition=base.createDefinition(options);return attach(definition,options,{grid:definition.grid});}
+const patched=Object.freeze({...base,__structureAware:true,normalizeDefinition,definitionFromMapData,applyDefinition,addLevel:preserve(base.addLevel),updateLevel:preserve(base.updateLevel),removeLevel:preserve(base.removeLevel),canDeleteLevel,createDefinition});root.LuminousVttMapAuthoring=patched;return patched;}
+const installed=install();return Object.freeze({install,installed});});
