@@ -6,12 +6,14 @@ on:
       - 'js/vtt/camera.js'
       - 'js/vtt/camera-follow.js'
       - 'js/vtt/physical-resolver.js'
+      - 'js/vtt/physical-state-patch.js'
       - 'js/vtt/lighting-physical-patch.js'
       - 'js/vtt/world-object-*.js'
       - 'js/vtt/environment-affordance-engine.js'
       - 'js/vtt/interaction-intent.js'
       - 'js/vtt/map-hud-bootstrap.js'
       - 'js/vtt/main.js'
+      - 'vtt.html'
       - 'database.rules.json'
       - 'tests/vtt_world_objects.spec.js'
       - 'tests/vtt_map_hud_physical.spec.js'
@@ -33,6 +35,7 @@ jobs:
           node --input-type=module --check < js/vtt/camera.js
           node --check js/vtt/camera-follow.js
           node --check js/vtt/physical-resolver.js
+          node --check js/vtt/physical-state-patch.js
           node --check js/vtt/lighting-physical-patch.js
           node --check js/vtt/world-object-core.js
           node --check js/vtt/world-object-catalog.js
