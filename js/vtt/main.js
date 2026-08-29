@@ -3,6 +3,9 @@ import { TopologyController } from './topology-controller.js';
 import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
 import './map-authoring.js';
+import './surface-core.js';
+import './surface-renderer.js';
+import './surface-authoring-patch.js';
 import './map-authoring-state.js';
 import './map-switch-guard.js';
 import './actor-library.js';
@@ -30,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.warn('VTT map authoring: falling back to bundled map.', error);
     }
+    globalThis.LuminousVttSurfaceCore?.ensureMapState?.(mockMapData);
 
     mockMapData.dmEditMode ||= { active: false };
     const engine = new Engine(canvas, mockMapData);
@@ -175,8 +179,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }) || (() => {});
 
     import('./map-authoring-bootstrap.js')
-        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
-        .catch((error) => console.error('VTT map authoring bootstrap failed:', error));
+        .then(async (module) => {
+            module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const surfaceModule = await import('./surface-bootstrap.js');
+            return surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+        })
+        .catch((error) => console.error('VTT map authoring / surfaces bootstrap failed:', error));
     import('./actor-library-bootstrap.js')
         .then((module) => {
             const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
@@ -209,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
         window.LuminousVttRuntime?.worldObjects?.stop?.();
