@@ -1,0 +1,41 @@
+name: VTT Stair Builder Foundation
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/stair-builder*.js'
+      - 'js/vtt/stair-route.js'
+      - 'js/vtt/vertical-*.js'
+      - 'js/vtt/map-authoring*.js'
+      - 'tests/vtt_stair_builder_foundation.spec.js'
+      - 'tests/vtt_stair_movement_edit_mode.spec.js'
+      - 'tests/vtt_stair_resume.spec.js'
+      - 'tests/vtt_vertical_portal_editor.spec.js'
+      - '.github/workflows/vtt-stair-builder.yml'
+  workflow_dispatch:
+
+jobs:
+  stair-builder-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/stair-builder.js
+          node --check js/vtt/stair-builder-portal-patch.js
+          node --check js/vtt/stair-builder-route-patch.js
+          node --check js/vtt/stair-builder-renderer-patch.js
+          node --check js/vtt/vertical-authoring-patch.js
+          node --input-type=module --check < js/vtt/vertical-portal-controller.js
+          node --check tests/vtt_stair_builder_foundation.spec.js
+      - name: Focused contracts
+        run: npx playwright test tests/vtt_stair_builder_foundation.spec.js tests/vtt_stair_movement_edit_mode.spec.js tests/vtt_stair_resume.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_structure_primitives.spec.js tests/vtt_surface_foundation.spec.js tests/vtt_map_hud_physical.spec.js --workers=1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Repository regression
+        run: npx playwright test --workers=1
