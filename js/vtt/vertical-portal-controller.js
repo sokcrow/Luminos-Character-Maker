@@ -151,6 +151,7 @@ export class VerticalPortalController {
 
     handleMouseDown(event) {
         if (event.button !== 0 || !this.editActive()) return;
+        if (this.engine?.tokenAtEvent?.(event)) return;
         const hit = this.portalAtEvent(event);
         if (this.tool === 'select') {
             if (!hit) return;
