@@ -30,14 +30,16 @@ test('physical token state snapshots hiding cover and posture without mixing wor
   if (previous === undefined) delete global.LuminousVttTokenState; else global.LuminousVttTokenState=previous;
 });
 
-test('VTT loads physical persistence after canonical token state and shared executor saves through tokenStateBridge', async () => {
+test('VTT composes dynamic token state then physical state then movement persistence', async () => {
   const html=fs.readFileSync(path.join(__dirname,'..','vtt.html'),'utf8');
+  const main=fs.readFileSync(path.join(__dirname,'..','js','vtt','main.js'),'utf8');
   const intent=fs.readFileSync(path.join(__dirname,'..','js','vtt','interaction-intent.js'),'utf8');
-  const tokenIndex=html.indexOf('js/vtt/token-state.js');
-  const physicalIndex=html.indexOf('js/vtt/physical-state-patch.js');
-  const mainIndex=html.indexOf('js/vtt/main.js');
-  expect(tokenIndex).toBeGreaterThan(-1);
-  expect(physicalIndex).toBeGreaterThan(tokenIndex);
-  expect(mainIndex).toBeGreaterThan(physicalIndex);
+  const dynamicIndex=main.indexOf("import './token-state-dynamic-patch.js'");
+  const physicalIndex=main.indexOf("import './physical-state-patch.js'");
+  const movementIndex=main.indexOf("import './movement-integration-patch.js'");
+  expect(dynamicIndex).toBeGreaterThan(-1);
+  expect(physicalIndex).toBeGreaterThan(dynamicIndex);
+  expect(movementIndex).toBeGreaterThan(physicalIndex);
+  expect(html).not.toContain('js/vtt/physical-state-patch.js');
   expect(intent).toContain('runtime.tokenStateBridge?.saveToken');
 });
