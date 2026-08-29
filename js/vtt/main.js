@@ -6,6 +6,11 @@ import './map-authoring.js';
 import './surface-core.js';
 import './surface-renderer.js';
 import './surface-authoring-patch.js';
+import './structure-core.js';
+import './structure-authoring-patch.js';
+import './physical-resolver.js';
+import './structure-topology-patch.js';
+import './structure-physical-patch.js';
 import './map-authoring-state.js';
 import './map-switch-guard.js';
 import './topology-replace-state-patch.js';
@@ -35,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('VTT map authoring: falling back to bundled map.', error);
     }
     globalThis.LuminousVttSurfaceCore?.ensureMapState?.(mockMapData);
+    globalThis.LuminousVttStructureCore?.ensureMapState?.(mockMapData);
 
     mockMapData.dmEditMode ||= { active: false };
     const engine = new Engine(canvas, mockMapData);
@@ -46,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const stateApi = globalThis.LuminousVttStateBridge;
     if (!stateApi) {
-        console.error('VTT state bridge not found.');
+        console.error('VTT state bridge not found!');
         return;
     }
 
@@ -183,9 +189,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         .then(async (module) => {
             module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
             const surfaceModule = await import('./surface-bootstrap.js');
-            return surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            await surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const structureModule = await import('./structure-bootstrap.js');
+            return structureModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
         })
-        .catch((error) => console.error('VTT map authoring / surfaces bootstrap failed:', error));
+        .catch((error) => console.error('VTT map authoring / surfaces / structures bootstrap failed:', error));
     import('./wall-builder-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT wall builder bootstrap failed:', error));
@@ -222,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
         window.LuminousVttWallBuilderRuntime?.stop?.();
+        window.LuminousVttStructureRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
