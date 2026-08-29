@@ -12,6 +12,7 @@ import './token-state-dynamic-patch.js';
 import './pathfinding.js';
 import './movement-engine.js';
 import './movement-state.js';
+import './physical-state-patch.js';
 import './movement-integration-patch.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -63,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         notify: (message, mode) => verticalController?.notify(message, mode),
     });
 
-    // Z tools bind first so an active vertical authoring tool wins over topology/token drag.
     verticalController = new VerticalPortalController(canvas, engine, mockMapData, verticalBridge);
     controller = new TopologyController(canvas, engine, mockMapData, bridge);
     verticalController.setTopologyController(controller);
@@ -180,8 +180,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./actor-library-bootstrap.js')
         .then((module) => {
             const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            // Actor-library legacy rendering is DM-only. Reinstall the canonical ficha renderer
-            // so DM and players always see the same centered Actor image.
             tokenAppearanceApi?.installRenderer?.(engine.renderer);
             return actorLibrary;
         })
@@ -189,12 +187,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./movement-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT movement bootstrap failed:', error));
+    import('./world-object-mainline-integration.js')
+        .then(async (module) => {
+            await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const hudModule = await import('./map-hud-bootstrap.js');
+            return hudModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+        })
+        .catch((error) => console.error('VTT world object / map HUD bootstrap failed:', error));
 
+    // E belongs exclusively to token PoV Look Lock/Unlock. Camera uses F/Home/Space and never consumes E.
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
         else if (event.key === '1') applyLayer(1);
         else if (event.key === '2') applyLayer(2);
-        // E belongs exclusively to token PoV Look Lock/Unlock. DM Edit Mode remains available via its button.
         else if (event.key === 'Escape') {
             controller.hideContextMenu();
             controller.setTool('select');
@@ -204,7 +209,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttMapHudRuntime?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
+        window.LuminousVttRuntime?.worldObjects?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
         window.LuminousVttRuntime?.mapAuthoring?.stop?.();
         editMode?.stop?.();
@@ -215,5 +222,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         bridge.stop();
         checkPortal?.stop?.();
         engine.stop();
+        engine.camera?.destroy?.();
     }, { once: true });
 });
