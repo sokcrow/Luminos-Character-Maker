@@ -1,0 +1,7 @@
+(function(root,factory){const api=factory(root);if(typeof module!=='undefined'&&module.exports)module.exports=api;if(root)root.LuminousVttFloorOpeningSpatialPatch=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+function openings(){if(root?.LuminousVttFloorOpenings)return root.LuminousVttFloorOpenings;if(typeof require!=='undefined'){try{return require('./floor-opening-core.js');}catch(_){}}return null;}
+function install(){const base=root?.LuminousVttSpatialVision,core=openings();if(!base||!core)return null;if(base.__floorOpeningAware===true)return base;
+function canTraverseLayers(viewer={},targetPoint={},targetLayer,mapData={},kind='vision'){if(base.canTraverseLayers(viewer,targetPoint,targetLayer,mapData,kind))return true;const fromLayer=base.layerOf(viewer),toLayer=Number(targetLayer);if(fromLayer===toLayer)return true;return(Array.isArray(mapData.floorOpenings)?mapData.floorOpenings:[]).some(raw=>{const opening=core.normalizeOpening(raw,mapData);return core.connects(opening,fromLayer,toLayer)&&core.allows(opening,kind)&&core.rayCrosses(opening,{x:Number(viewer.x)||0,y:Number(viewer.y)||0},targetPoint,mapData);});}
+const patched=Object.freeze({...base,__floorOpeningAware:true,canTraverseLayers});root.LuminousVttSpatialVision=patched;return patched;}
+const installed=install();return Object.freeze({install,installed});
+});
