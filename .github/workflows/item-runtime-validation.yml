@@ -5,10 +5,12 @@ on:
     paths:
       - "js/item-runtime-engine.js"
       - "js/item-inventory-runtime.js"
+      - "js/workshop-runtime.js"
       - "js/status-engine.js"
       - "tests/item_runtime_engine.spec.js"
       - "tests/item_runtime_catalog_profile.spec.js"
       - "tests/item_inventory_runtime.spec.js"
+      - "tests/workshop_runtime.spec.js"
       - ".github/workflows/item-runtime-validation.yml"
 
 jobs:
@@ -22,4 +24,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright test tests/item_runtime_engine.spec.js tests/item_runtime_catalog_profile.spec.js tests/item_inventory_runtime.spec.js
+      - run: npx playwright test tests/item_runtime_engine.spec.js tests/item_runtime_catalog_profile.spec.js tests/item_inventory_runtime.spec.js tests/workshop_runtime.spec.js
