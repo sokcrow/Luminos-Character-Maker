@@ -11,7 +11,11 @@
     try { return require(path); } catch (_) { return null; }
   }
 
-  const base = () => global.LuminousItemRuntime || safeRequire("./item-runtime-engine.js");
+  // Capture the original functional item runtime before this module extends
+  // global.LuminousItemRuntime. Keeping this reference stable prevents a
+  // missing-item lookup from delegating back into this same findItem().
+  const baseRuntime = global.LuminousItemRuntime || safeRequire("./item-runtime-engine.js");
+  const base = () => baseRuntime;
   const registry = () => global.LuminousContentRegistry || safeRequire("./content-registry.js");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
@@ -163,6 +167,17 @@
     return id;
   }
 
+  function getProductLineName(item = {}, options = {}) {
+    if (item.productLineName) return String(item.productLineName);
+    if (options.productLineName) return String(options.productLineName);
+    const lineId = item.productLineId || item.product_line_id;
+    if (!lineId) return null;
+    const source = options.workshops || options.workshopCatalog || global.LuminousWorkshopRuntime;
+    const workshop = source?.getWorkshop?.(item.manufacturerId) || (source && typeof source === "object" ? source[item.manufacturerId] : null);
+    const line = asArray(workshop?.productLines).find((entry) => String(entry?.productLineId || entry?.id || "") === String(lineId));
+    return line?.productLineName || line?.name || null;
+  }
+
   function formatWorkshopProductName(item, options = {}) {
     const hydrated = hydrateItemInstance(item, options) || item || {};
     const manufacturerRaw = getRawWorkshopName(hydrated.manufacturerId, options);
@@ -170,7 +185,7 @@
     if (!manufacturerRaw) return baseName;
     const cleanWorkshopName = manufacturerRaw.replace(/\s+Workshop$/i, "").trim();
     let display = `${cleanWorkshopName} Workshop ${baseName}`;
-    const productLineName = hydrated.productLineName || options.productLineName || null;
+    const productLineName = getProductLineName(hydrated, options);
     if (productLineName) display += ` — ${productLineName}`;
     const commissionName = hydrated.commissionName || hydrated.modelName || null;
     if (commissionName) display += ` “${commissionName}”`;
@@ -613,9 +628,38 @@
   });
 
   global.LuminousItemInventoryRuntime = inventoryApi;
-  const currentBase = base();
-  if (currentBase) {
-    global.LuminousItemRuntime = Object.freeze({ ...currentBase, ...inventoryApi, __luminousInventoryRuntimeBridge: true, __luminousItemRuntimeBase: currentBase });
+  if (baseRuntime) {
+    global.LuminousItemRuntime = Object.freeze({ ...baseRuntime, ...inventoryApi, __luminousInventoryRuntimeBridge: true, __luminousItemRuntimeBase: baseRuntime });
   }
+
+  function loadExtension(globalName, scriptId, src, next) {
+    if (!global.document) return;
+    if (global[globalName]) {
+      if (typeof next === "function") next();
+      return;
+    }
+    const existing = global.document.getElementById(scriptId);
+    if (existing) {
+      existing.addEventListener?.("load", () => next?.(), { once: true });
+      return;
+    }
+    const script = global.document.createElement("script");
+    script.id = scriptId;
+    script.src = src;
+    script.async = false;
+    script.addEventListener?.("load", () => next?.(), { once: true });
+    global.document.head?.appendChild(script);
+  }
+
+  function ensureRuntimeExtensions() {
+    if (!global.document) return;
+    loadExtension("LuminousWorkshopRuntime", "workshop-runtime-script", "js/workshop-runtime.js", () => {
+      loadExtension("LuminousItemMagicRuntime", "item-magic-runtime-script", "js/item-magic-runtime.js", () => {
+        loadExtension("LuminousItemPersistenceRuntime", "item-persistence-runtime-script", "js/item-persistence-runtime.js");
+      });
+    });
+  }
+
+  ensureRuntimeExtensions();
   if (typeof module !== "undefined" && module.exports) module.exports = inventoryApi;
 })(typeof window !== "undefined" ? window : globalThis);
