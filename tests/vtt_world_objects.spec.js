@@ -60,6 +60,15 @@ test('world objects block token collision and A star until destroyed', async () 
   expect(openGate.valid).toBe(true);
 });
 
+test('quarter-turn rotation also rotates rectangular collision footprint', async () => {
+  const core = require('../js/vtt/world-object-core.js');
+  const def = core.normalizeDefinition({ id:'long_table', physical:{ footprint:{widthCells:2,heightCells:1}, hp:20 } });
+  const inst = core.createInstance(def,{ position:{x:140,y:140,zLayer:0}, rotationDeg:90 });
+  const rect = core.footprintRect(inst,def,{size:70});
+  expect(rect.width).toBe(70);
+  expect(rect.height).toBe(140);
+});
+
 test('VTT HUD exposes object library and custom object definition form', async () => {
   const html=fs.readFileSync(path.join(__dirname,'..','vtt.html'),'utf8');
   const main=fs.readFileSync(path.join(__dirname,'..','js','vtt','main.js'),'utf8');
