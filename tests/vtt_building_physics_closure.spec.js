@@ -5,10 +5,11 @@ const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const KEYS = ['LuminousVttTopology','LuminousVttFloorOpenings','LuminousVttBuildingPhysics'];
+const MODULES = ['js/vtt/topology.js','js/vtt/floor-opening-core.js','js/vtt/building-physics-core.js'];
 const ORIGINAL = new Map(KEYS.map(k => [k, global[k]]));
 function fresh(file){const r=require.resolve(path.join(ROOT,file));delete require.cache[r];return require(r);}
 function reset(){for(const k of KEYS)delete global[k];global.LuminousVttTopology=fresh('js/vtt/topology.js');global.LuminousVttFloorOpenings=fresh('js/vtt/floor-opening-core.js');}
-function restore(){for(const k of KEYS){const v=ORIGINAL.get(k);if(v===undefined)delete global[k];else global[k]=v;}}
+function restore(){for(const file of MODULES){try{delete require.cache[require.resolve(path.join(ROOT,file))];}catch(_){}}for(const k of KEYS){const v=ORIGINAL.get(k);if(v===undefined)delete global[k];else global[k]=v;}}
 function edge(id,type,from,to,z=0){return global.LuminousVttTopology.normalizeElement({id,type,from,to,z:[z],state:type==='wall'?null:'closed'});}
 function perimeter(footprint,z=0,doorEdge='1,1-2,1'){
   const out=[];let n=0;
