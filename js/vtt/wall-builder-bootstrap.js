@@ -1,4 +1,5 @@
 import './wall-builder.js';
+import { start as startWallAutoTile } from './wall-auto-tile-bootstrap.js';
 
 const PROFILE_FIELD_ID = 'vtt-wall-builder-profile-field';
 const STYLE_ID = 'vtt-wall-builder-style';
@@ -20,7 +21,7 @@ function ensureProfileUi(builder, controller) {
   field = document.createElement('label');
   field.id = PROFILE_FIELD_ID;
   field.className = 'vtt-toolbar-field';
-  field.innerHTML = `<span>WALL PROFILE</span><select data-wall-profile>${Object.values(catalog).map((profile) => `<option value="${profile.id}">${profile.name.toUpperCase()} · ${profile.thicknessFt}FT</option>`).join('')}</select><small data-wall-profile-status>UNIT EDGES · FULL BLOCKER</small>`;
+  field.innerHTML = `<span>WALL PROFILE</span><select data-wall-profile>${Object.values(catalog).map((profile) => `<option value="${profile.id}">${profile.name.toUpperCase()} · ${profile.thicknessFt}FT</option>`).join('')}</select><small data-wall-profile-status>UNIT EDGES · AUTO-TILE READY</small>`;
   toolbar.appendChild(field);
   const syncVisibility = () => { field.hidden = controller.tool !== 'wall'; };
   toolbar.addEventListener('click', () => queueMicrotask(syncVisibility));
@@ -55,6 +56,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   const profileField = controller.isDm ? ensureProfileUi(builder, controller) : null;
   let profileId = profileField?.querySelector('[data-wall-profile]')?.value || 'concrete';
   let stopped = false;
+  let autoTileApi = null;
 
   function editWallActive() {
     return Boolean(controller.isDm && controller.editActive?.() && controller.tool === 'wall');
@@ -134,7 +136,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     profileId = event.target.value;
     const profile = activeProfile();
     const status = profileField.querySelector('[data-wall-profile-status]');
-    if (status) status.textContent = `${profile.materialId.toUpperCase()} · ${profile.heightFt}FT HIGH · UNIT EDGES`;
+    if (status) status.textContent = `${profile.materialId.toUpperCase()} · ${profile.heightFt}FT HIGH · AUTO-TILE`;
   });
 
   renderer.topologyStyle = function wallBuilderTopologyStyle(element, isPreview = false) {
@@ -157,6 +159,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   function stop() {
     if (stopped) return;
     stopped = true;
+    autoTileApi?.stop?.();
     canvas.removeEventListener('mousedown', onMouseDown, true);
     window.removeEventListener('mousemove', onMouseMove, true);
     window.removeEventListener('mouseup', onMouseUp, true);
@@ -168,8 +171,14 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     document.getElementById(STYLE_ID)?.remove();
   }
 
-  const api = Object.freeze({ builder, saveRun, setProfile, getProfile:activeProfile, stop });
+  const api = Object.freeze({ builder, saveRun, setProfile, getProfile:activeProfile, getAutoTile:() => autoTileApi, stop });
   window.LuminousVttWallBuilderRuntime = Object.freeze({ api, stop });
   window.LuminousVttRuntime = Object.freeze({ ...window.LuminousVttRuntime, wallBuilder:api });
+  try {
+    autoTileApi = startWallAutoTile({ runtime:window.LuminousVttRuntime, mapData });
+  } catch (error) {
+    stop();
+    throw error;
+  }
   return api;
 }
