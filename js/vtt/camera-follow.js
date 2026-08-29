@@ -171,7 +171,10 @@
         if (policy.active) {
           camera.setZoomBounds?.(policy.minZoom, policy.maxZoom);
           const radiusPx = feetToPixels(policy.maxLookFt, mapData);
-          camera.setCenterConstraint?.((point) => clampPointAround(point, policy.token, radiusPx));
+          camera.setCenterConstraint?.((point) => {
+            const liveToken = target();
+            return liveToken ? clampPointAround(point, liveToken, radiusPx) : point;
+          });
         } else {
           camera.setCenterConstraint?.(null);
           camera.setZoomBounds?.(0.1, 5);
