@@ -5,9 +5,14 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (browserRoot) {
   'use strict';
 
-  function ensureLoaded(documentRef = browserRoot?.document) {
+  function resolveMapFrame(documentRef = browserRoot?.document) {
     const section = documentRef?.getElementById?.('modulo-mapa');
     const frame = section?.querySelector?.('iframe[data-vtt-src]');
+    return { section, frame };
+  }
+
+  function ensureLoaded(documentRef = browserRoot?.document) {
+    const { section, frame } = resolveMapFrame(documentRef);
     if (!section || !frame || !section.classList?.contains?.('active-module')) return false;
     if (frame.getAttribute?.('src')) return true;
 
@@ -17,11 +22,31 @@
     return true;
   }
 
+  function ensureUnloaded(documentRef = browserRoot?.document) {
+    const { section, frame } = resolveMapFrame(documentRef);
+    if (!section || !frame || section.classList?.contains?.('active-module')) return false;
+    if (!frame.getAttribute?.('src')) return false;
+
+    // Navigating an iframe with its src removed tears down the VTT document.
+    // That gives vtt/main.js a real unload lifecycle so its animation loop,
+    // Firebase subscriptions and bridges cannot keep running behind Theatre.
+    frame.removeAttribute?.('src');
+    return !frame.getAttribute?.('src');
+  }
+
+  function sync(documentRef = browserRoot?.document) {
+    const { section } = resolveMapFrame(documentRef);
+    if (!section) return false;
+    return section.classList?.contains?.('active-module')
+      ? ensureLoaded(documentRef)
+      : ensureUnloaded(documentRef);
+  }
+
   function start({ documentRef = browserRoot?.document, MutationObserverCtor = browserRoot?.MutationObserver } = {}) {
     const section = documentRef?.getElementById?.('modulo-mapa');
     if (!section) return () => {};
 
-    const check = () => ensureLoaded(documentRef);
+    const check = () => sync(documentRef);
     check();
 
     if (typeof MutationObserverCtor !== 'function') return () => {};
@@ -42,5 +67,5 @@
   }
 
   autoStart();
-  return Object.freeze({ ensureLoaded, start });
+  return Object.freeze({ ensureLoaded, ensureUnloaded, sync, start });
 });
