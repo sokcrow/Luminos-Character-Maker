@@ -8,6 +8,7 @@ import './surface-renderer.js';
 import './surface-authoring-patch.js';
 import './map-authoring-state.js';
 import './map-switch-guard.js';
+import './topology-replace-state-patch.js';
 import './actor-library.js';
 import './actor-library-state.js';
 import './token-appearance.js';

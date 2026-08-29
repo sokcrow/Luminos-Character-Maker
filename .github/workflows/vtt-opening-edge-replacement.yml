@@ -1,0 +1,37 @@
+name: VTT Opening Edge Replacement
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/topology-opening-edge*.js'
+      - 'js/vtt/topology-replace-state-patch.js'
+      - 'js/vtt/wall-builder-bootstrap.js'
+      - 'js/vtt/main.js'
+      - 'tests/vtt_opening_edge_replacement.spec.js'
+      - '.github/workflows/vtt-opening-edge-replacement.yml'
+  workflow_dispatch:
+
+jobs:
+  opening-edge-replacement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/topology-opening-edge.js
+          node --check js/vtt/topology-replace-state-patch.js
+          node --input-type=module --check < js/vtt/topology-opening-edge-bootstrap.js
+          node --input-type=module --check < js/vtt/wall-builder-bootstrap.js
+          node --input-type=module --check < js/vtt/main.js
+          node --check tests/vtt_opening_edge_replacement.spec.js
+      - name: Focused contracts
+        run: npx playwright test tests/vtt_opening_edge_replacement.spec.js tests/vtt_wall_autotiling.spec.js tests/vtt_wall_builder_foundation.spec.js tests/vtt_surface_foundation.spec.js tests/vtt_map_hud_physical.spec.js --workers=1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Repository regression
+        run: npx playwright test --workers=1
