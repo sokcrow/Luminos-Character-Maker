@@ -81,35 +81,35 @@
             <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px;">
               <input id="theatre-scenario-name" type="text" placeholder="Nombre del escenario" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
               <input id="theatre-background-input" type="url" placeholder="URL del fondo" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
-              <input id="theatre-location-input" type="text" placeholder="Localización" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
+              <input id="theatre-location-input" type="text" placeholder="Localización" style="padding: 6px; background:#121820; color:white; border:1px solid #53606d; width:100%; box-sizing:border-box;">
               <input id="theatre-scenario-tags" type="text" placeholder="Sub-etiquetas (separadas por coma)" style="padding: 6px; background: #121820; color: white; border: 1px solid #53606d; width: 100%; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button id="btn-save-scenario" type="button" style="padding: 8px; background: #1a222c; color: #a37c35; border: 1px solid #a37c35; cursor: pointer;">GUARDAR ESCENARIO</button>
-              <button id="btn-use-scenario" type="button" style="padding: 8px; background: #8a1c1c; color: white; border: 1px solid #ff6575; cursor: pointer; flex: 1;">USAR EN TEATRO</button>
-              <button id="btn-delete-scenario" type="button" style="padding: 8px; background: #3a0c0c; color: #ff6575; border: 1px solid #ff6575; cursor: pointer;">BORRAR</button>
-              <button id="btn-update-scene" type="button" style="padding: 8px; background: #222; color: white; border: 1px solid #555; cursor: pointer;">APLICAR MANUAL</button>
+              <button id="btn-save-scenario" type="button" style="padding: 8px; background: #1a222c; color: #a37c35; border: 1px solid #a37c35; cursor:pointer;">GUARDAR ESCENARIO</button>
+              <button id="btn-use-scenario" type="button" style="padding: 8px; background: #8a1c1c; color:white; border:1px solid #ff6575; cursor:pointer; flex:1;">USAR EN TEATRO</button>
+              <button id="btn-delete-scenario" type="button" style="padding: 8px; background: #3a0c0c; color:#ff6575; border:1px solid #ff6575; cursor:pointer;">BORRAR</button>
+              <button id="btn-update-scene" type="button" style="padding: 8px; background:#222; color:white; border:1px solid #555; cursor:pointer;">APLICAR MANUAL</button>
             </div>
           </div>
 
-          <div class="theatre-controls" style="display: flex; flex-direction: column; gap: 10px;">
-            <h4 style="color: #a37c35; margin: 0; font-family: 'Cinzel', serif;">Compositor de Diálogo</h4>
-            <div style="display: flex; gap: 8px;">
-              <select id="theatre-speaker-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+          <div class="theatre-controls" style="display:flex; flex-direction:column; gap:10px;">
+            <h4 style="color:#a37c35; margin:0; font-family:'Cinzel', serif;">Compositor de Diálogo</h4>
+            <div style="display:flex; gap:8px;">
+              <select id="theatre-speaker-select" style="flex:1; padding:9px; background:#121820; color:white; border:1px solid #53606d;">
                 <option value="narrador">Narrador</option>
               </select>
-              <select id="dm-tipo-dialogo-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+              <select id="dm-tipo-dialogo-select" style="flex:1; padding:9px; background:#121820; color:white; border:1px solid #53606d;">
                 <option value="dialogo">Diálogo</option>
                 <option value="narracion">Narración</option>
                 <option value="pensamiento">Pensamiento</option>
               </select>
-              <select id="theatre-expression-select" style="flex: 1; padding: 9px; background: #121820; color: white; border: 1px solid #53606d;">
+              <select id="theatre-expression-select" style="flex:1; padding:9px; background:#121820; color:white; border:1px solid #53606d;">
                 <option value="Neutral">Neutral</option>
               </select>
             </div>
 
-            <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo" style="min-height: 80px;"></textarea>
+            <textarea id="theatre-dialogue-input" placeholder="Diálogo en vivo" style="min-height:80px;"></textarea>
             <button id="btn-send-dialogue" type="button">ENVIAR DIÁLOGO</button>
           </div>
         </div>
@@ -117,7 +117,7 @@
     </section>
 
     <section id="modulo-mapa" class="game-module hidden" aria-hidden="true">
-      <iframe src="vtt.html" title="Mapa táctico D&amp;D"></iframe>
+      <iframe data-vtt-src="vtt.html" title="Mapa táctico D&amp;D"></iframe>
     </section>
 
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
@@ -138,6 +138,7 @@
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
   <script src="js/instance-control.js"></script>
+  <script src="js/vtt/dm-map-lazy-loader.js"></script>
   <script src="js/dm-managed-effect-engine.js"></script>
   <script src="js/language-catalog-engine.js"></script>
   <script src="js/bond-engine.js"></script>
