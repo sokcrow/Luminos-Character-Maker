@@ -230,4 +230,5 @@
   }
 
   ensureInjuryEquipmentRuntime();
+  if (global.document && !global.LuminousItemRuntime) loadScript("item-runtime-engine-script", "js/item-runtime-engine.js");
 })(typeof window !== "undefined" ? window : globalThis);
