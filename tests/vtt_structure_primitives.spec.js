@@ -56,13 +56,24 @@ test('railing/fence/barrier movement blockers and pillar footprint project throu
     ...core.createLinearRun({ type: 'railing', from: { col: 1, row: 0 }, to: { col: 1, row: 2 }, zLayer: 0, definitionId: 'railing:metal', mapData: map }),
     core.createPillar({ col: 3, row: 1, zLayer: 0, mapData: map }),
   );
-  core.bindMap(map);
-  const movement = global.LuminousVttTopology.blockingSegments([], 'movement', 0, map.grid);
-  const vision = global.LuminousVttTopology.blockingSegments([], 'vision', 0, map.grid);
+  const movement = global.LuminousVttTopology.blockingSegments([], 'movement', 0, map.grid, map);
+  const vision = global.LuminousVttTopology.blockingSegments([], 'vision', 0, map.grid, map);
   expect(movement.filter((entry) => entry.structure?.type === 'railing')).toHaveLength(2);
   expect(movement.some((entry) => entry.structure?.type === 'pillar' && entry.x1 === entry.x2 && entry.thicknessPx > 0)).toBeTruthy();
   expect(vision.some((entry) => entry.structure?.type === 'railing')).toBeFalsy();
   expect(vision.filter((entry) => entry.structure?.type === 'pillar')).toHaveLength(4);
+});
+
+test('structure blockers never leak into topology queries without an explicit map context', () => {
+  const core = fresh('js/vtt/structure-core.js');
+  global.LuminousVttStructureCore = core;
+  global.LuminousVttTopology = fresh('js/vtt/topology.js');
+  fresh('js/vtt/structure-topology-patch.js');
+  const map = mapBase(); core.ensureMapState(map);
+  map.structures.push(...core.createLinearRun({ type: 'barrier', from: { col: 2, row: 0 }, to: { col: 2, row: 1 }, zLayer: 0, definitionId: 'barrier:concrete', mapData: map }));
+  core.bindMap(map);
+  expect(global.LuminousVttTopology.blockingSegments([], 'movement', 0, map.grid)).toHaveLength(0);
+  expect(global.LuminousVttTopology.blockingSegments([], 'movement', 0, map.grid, map)).toHaveLength(1);
 });
 
 test('token movement and A* consume structure blockers through the existing topology contract', () => {
@@ -74,7 +85,6 @@ test('token movement and A* consume structure blockers through the existing topo
   const pathfinding = fresh('js/vtt/pathfinding.js');
   const map = mapBase(); core.ensureMapState(map);
   map.structures.push(...core.createLinearRun({ type: 'barrier', from: { col: 2, row: 0 }, to: { col: 2, row: 2 }, zLayer: 0, definitionId: 'barrier:concrete', mapData: map }));
-  core.bindMap(map);
   const token = { id: 'p1', x: 105, y: 35, zLayer: 0, z: [0], radius: 20 };
   const direct = global.LuminousVttTokenInteraction.isPathClear(token, { x: 105, y: 35 }, { x: 175, y: 35 }, map);
   expect(direct.valid).toBeFalsy();
@@ -96,7 +106,7 @@ test('structure physical resolver respects height, cover and Z isolation', () =>
   const low = core.createPillar({ col: 3, row: 0, zLayer: 0, definitionId: 'pillar:low', mapData: map });
   const railing = core.createLinearRun({ type: 'railing', from: { col: 1, row: 1 }, to: { col: 2, row: 1 }, zLayer: 0, definitionId: 'railing:metal', mapData: map })[0];
   const barrierZ1 = core.createLinearRun({ type: 'barrier', from: { col: 1, row: 1 }, to: { col: 2, row: 1 }, zLayer: 1, definitionId: 'barrier:concrete', mapData: map })[0];
-  map.structures.push(tall, low, railing, barrierZ1); core.bindMap(map);
+  map.structures.push(tall, low, railing, barrierZ1);
   const viewer = { x: 0, y: 35, zLayer: 0, eyeHeightFt: 5.5, heightFt: 6 };
   expect(physical.blocksLineOfEffect(viewer, { x: 140, y: 35, zLayer: 0, elevationFt: 5.5 }, map, 'vision')).toBeTruthy();
   expect(physical.blocksLineOfEffect({ x: 140, y: 35, zLayer: 0, eyeHeightFt: 5.5 }, { x: 280, y: 35, zLayer: 0, elevationFt: 5.5 }, map, 'vision')).toBeFalsy();
@@ -142,10 +152,14 @@ test('bootstrap exposes dedicated structure tools without hijacking topology too
   const fs = require('fs');
   const bootstrap = fs.readFileSync(path.join(ROOT, 'js/vtt/structure-bootstrap.js'), 'utf8');
   const main = fs.readFileSync(path.join(ROOT, 'js/vtt/main.js'), 'utf8');
+  const engine = fs.readFileSync(path.join(ROOT, 'js/vtt/engine.js'), 'utf8');
+  const tokenInteraction = fs.readFileSync(path.join(ROOT, 'js/vtt/token-interaction.js'), 'utf8');
   expect(bootstrap).toContain("['select','pillar','fence','railing','barrier','erase']");
   expect(bootstrap).toContain("runtime.controller?.setTool?.('select')");
   expect(bootstrap).toContain("runtime.surfaces?.setTool?.('select')");
   expect(main).toContain("import './structure-topology-patch.js';");
   expect(main).toContain("import './structure-physical-patch.js';");
   expect(main).toContain("import('./structure-bootstrap.js')");
+  expect(engine).toContain("blockingSegments(this.mapData.topology, 'vision', zLayer, this.mapData.grid, this.mapData)");
+  expect(tokenInteraction).toContain("blockingSegments(mapData.topology, 'movement', layer, mapData.grid, mapData)");
 });
