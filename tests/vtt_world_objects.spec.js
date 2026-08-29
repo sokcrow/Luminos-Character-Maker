@@ -96,6 +96,7 @@ test('mainline integration keeps the hardened runtime and docks Objects in DM Ed
   expect(integration).toContain("toggle.id = 'vtt-object-library-toggle'");
   expect(integration).toContain("document.getElementById('vtt-edit-sidebar')");
   expect(integration).toContain('attachWorldObjectRenderer');
-  expect(integration).toContain('Object.freeze({ ...currentRuntime, worldObjects: api })');
+  expect(integration).toContain('Object.freeze({ ...currentRuntime, worldObjects: publicApi })');
+  expect(integration).toContain('const publicApi = Object.freeze({ ...api, stop })');
   expect(integration).toContain('HIDE INSIDE');
 });
