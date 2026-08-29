@@ -1,0 +1,16 @@
+(function(root,factory){const api=factory(root);if(typeof module!=='undefined'&&module.exports)module.exports=api;if(root)root.LuminousVttFloorOpeningAuthoringPatch=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+function openingRuntime(){if(root?.LuminousVttFloorOpenings)return root.LuminousVttFloorOpenings;if(typeof require!=='undefined'){try{return require('./floor-opening-core.js');}catch(_){}}return null;}
+function install(){const base=root?.LuminousVttMapAuthoring,openings=openingRuntime();if(!base||!openings)return null;if(base.__floorOpeningAware===true)return base;
+function payload(raw={},fallback={},definition={}){const source=Array.isArray(raw.floorOpenings)?raw.floorOpenings:Array.isArray(fallback.floorOpenings)?fallback.floorOpenings:[];const mapLike={...(fallback||{}),...(definition||{}),...(raw||{}),grid:definition.grid||raw.grid||fallback.grid,zLevels:definition.zLevels||raw.zLevels||fallback.zLevels};return{floorOpenings:source.filter(Boolean).map(entry=>openings.normalizeOpening(entry,mapLike))};}
+function attach(definition,raw={},fallback={}){return{...definition,...payload(raw,fallback,definition)};}
+function normalizeDefinition(raw={},fallback={}){return attach(base.normalizeDefinition(raw,fallback),raw,fallback);}
+function definitionFromMapData(mapData={}){return attach(base.definitionFromMapData(mapData),mapData,mapData);}
+function applyDefinition(mapData,rawDefinition,options={}){const normalized=normalizeDefinition(rawDefinition,mapData||{});base.applyDefinition(mapData,normalized,options);mapData.floorOpenings=clone(normalized.floorOpenings);return mapData;}
+function preserve(fn){return function wrapped(rawDefinition,...args){const result=fn(rawDefinition,...args);return attach(result,rawDefinition||{},rawDefinition||{});};}
+function dependenciesForLayer(mapData={},zLayer=0){const deps=base.dependenciesForLayer(mapData,zLayer);const z=Number(zLayer)||0;const floorOpenings=(Array.isArray(mapData.floorOpenings)?mapData.floorOpenings:[]).filter(entry=>openings.normalizeLayers(entry).includes(z));return{...deps,floorOpenings};}
+function canDeleteLevel(mapData={},zLayer=0){const levels=base.levelEntries(mapData.zLevels);if(levels.length<=1)return{valid:false,reason:'LAST_FLOOR'};const dependencies=dependenciesForLayer(mapData,zLayer);const count=Object.values(dependencies).reduce((total,entries)=>total+(Array.isArray(entries)?entries.length:0),0);return count?{valid:false,reason:'FLOOR_IN_USE',dependencies}:{valid:true,dependencies};}
+function createDefinition(options={}){return attach(base.createDefinition(options),options,options);}
+const patched=Object.freeze({...base,__floorOpeningAware:true,normalizeDefinition,definitionFromMapData,applyDefinition,addLevel:preserve(base.addLevel),updateLevel:preserve(base.updateLevel),removeLevel:preserve(base.removeLevel),dependenciesForLayer,canDeleteLevel,createDefinition});root.LuminousVttMapAuthoring=patched;return patched;}
+const installed=install();if(!installed&&typeof queueMicrotask==='function')queueMicrotask(()=>install());return Object.freeze({install,installed});
+});
