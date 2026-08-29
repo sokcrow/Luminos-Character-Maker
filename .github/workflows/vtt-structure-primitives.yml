@@ -5,6 +5,7 @@ on:
     paths:
       - 'js/vtt/structure-*.js'
       - 'js/vtt/main.js'
+      - 'js/vtt/engine.js'
       - 'js/vtt/topology*.js'
       - 'js/vtt/token-interaction.js'
       - 'js/vtt/pathfinding.js'
@@ -30,7 +31,9 @@ jobs:
           node --check js/vtt/structure-topology-patch.js
           node --check js/vtt/structure-physical-patch.js
           node --check js/vtt/structure-renderer.js
+          node --check js/vtt/token-interaction.js
           node --input-type=module --check < js/vtt/structure-bootstrap.js
+          node --input-type=module --check < js/vtt/engine.js
           node --input-type=module --check < js/vtt/main.js
           node --check tests/vtt_structure_primitives.spec.js
       - name: Focused contracts
