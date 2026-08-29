@@ -46,11 +46,13 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   if (!runtime?.engine || !mapData) return null;
   if (window.LuminousVttSurfaceRuntime?.api) return window.LuminousVttSurfaceRuntime.api;
   const core = window.LuminousVttSurfaceCore;
-  if (!core) throw new Error('SURFACE_CORE_REQUIRED');
+  const surfaceRenderer = window.LuminousVttSurfaceRenderer;
+  if (!core || !surfaceRenderer) throw new Error('SURFACE_RUNTIME_REQUIRED');
   core.ensureMapState(mapData);
 
   const engine = runtime.engine;
   const canvas = engine.canvas;
+  const renderer = engine.renderer;
   const isDm = Boolean(runtime.bridge?.isDm);
   let stopped = false;
   let tool = isDm ? 'brush' : 'select';
@@ -64,7 +66,17 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   const currentRuntime = () => window.LuminousVttRuntime || runtime;
   const activeZ = () => Number(engine.activeZ) || 0;
+  const renderZ = () => Number(currentRuntime()?.pov?.controller?.viewLayer?.(engine.activeZ) ?? engine.activeZ) || 0;
   const painterEnabled = () => isDm && mapData.dmEditMode?.active === true && tool !== 'select';
+
+  const originalDrawGrid = renderer.drawGrid.bind(renderer);
+  const surfaceDrawGrid = function surfaceDrawGrid(...args) {
+    const result = originalDrawGrid(...args);
+    surfaceRenderer.drawSurfaceLayer(renderer.ctx, mapData, renderZ());
+    surfaceRenderer.drawGridOverlay(renderer.ctx, mapData, Boolean(args[0]));
+    return result;
+  };
+  renderer.drawGrid = surfaceDrawGrid;
 
   function cellAtEvent(event) {
     const rect = canvas.getBoundingClientRect();
@@ -232,6 +244,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     window.removeEventListener('mousemove', onPointerMove, true);
     window.removeEventListener('mouseup', onPointerUp, true);
     document.removeEventListener('click', onExternalTool, true);
+    if (renderer.drawGrid === surfaceDrawGrid) renderer.drawGrid = originalDrawGrid;
     toolbar?.remove();
     document.getElementById(STYLE_ID)?.remove();
   }
