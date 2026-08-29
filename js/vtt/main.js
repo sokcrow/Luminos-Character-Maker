@@ -4,6 +4,7 @@ import { VerticalPortalController } from './vertical-portal-controller.js';
 import { mockMapData } from './mapData.js';
 import './map-authoring.js';
 import './map-authoring-state.js';
+import './map-switch-guard.js';
 import './actor-library.js';
 import './actor-library-state.js';
 import './token-state-dynamic-patch.js';
@@ -149,9 +150,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const initialMapId = String(mockMapData.id || mockMapData.mapId || 'default');
+    const mapSwitchGuard = globalThis.LuminousVttMapSwitchGuard?.createGuard?.({
+        currentMapId: initialMapId,
+        resolveActiveDefinition: () => mapAuthoringState?.resolveActiveDefinition?.({ fallback: mockMapData }),
+        reload: () => window.location.reload(),
+        notify: (message, mode) => controller?.notify?.(message, mode),
+        log: console,
+    }) || null;
     const stopMapWatch = mapAuthoringState?.watchActiveMap?.({
         onChanged: (mapId) => {
-            if (mapId && String(mapId) !== initialMapId) window.location.reload();
+            if (!mapId || String(mapId) === initialMapId) return;
+            if (!mapSwitchGuard) {
+                console.error('VTT map switch guard unavailable; refusing blind reload.', { initialMapId, mapId });
+                controller?.notify?.('No se pudo validar el cambio de mapa. Se mantiene el mapa actual.', 'error');
+                return;
+            }
+            void mapSwitchGuard(mapId);
         },
     }) || (() => {});
 
