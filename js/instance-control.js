@@ -108,6 +108,14 @@
     return chain.then(() => true);
   }
 
+  function teardownPlayerMapView(mapView) {
+    if (!mapView) return false;
+    mapView.removeAttribute?.("src");
+    if (typeof mapView.remove === "function") mapView.remove();
+    else mapView.parentNode?.removeChild?.(mapView);
+    return true;
+  }
+
   function applyPlayerInstance(instance, doc) {
     const documentRef = doc || global.document;
     const activeInstance = normalizeInstance(instance);
@@ -148,6 +156,11 @@
       });
       mapView.src = "vtt.html";
       documentRef.body.appendChild(mapView);
+    }
+
+    if (mapView && !mapActive) {
+      teardownPlayerMapView(mapView);
+      mapView = null;
     }
 
     if (combatView?.contentDocument?.readyState === "complete") {

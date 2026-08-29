@@ -13,6 +13,7 @@ function fakeDmMapDom(initiallyActive = false) {
     dataset: { vttSrc: 'vtt.html' },
     getAttribute(name) { return attributes.get(name) || null; },
     setAttribute(name, value) { attributes.set(name, String(value)); },
+    removeAttribute(name) { attributes.delete(name); },
   };
   const section = {
     classList: { contains(name) { return name === 'active-module' && active; } },
@@ -31,6 +32,21 @@ test('DM VTT iframe remains unloaded until MAPA is the active module', () => {
 
   dom.setActive(true);
   expect(dmMapLazyLoader.ensureLoaded(dom.documentRef)).toBe(true);
+  expect(dom.frame.getAttribute('src')).toBe('vtt.html');
+});
+
+test('DM VTT iframe is torn down on MAPA -> TEATRO and can reload on re-entry', () => {
+  const dom = fakeDmMapDom(true);
+
+  expect(dmMapLazyLoader.sync(dom.documentRef)).toBe(true);
+  expect(dom.frame.getAttribute('src')).toBe('vtt.html');
+
+  dom.setActive(false);
+  expect(dmMapLazyLoader.sync(dom.documentRef)).toBe(true);
+  expect(dom.frame.getAttribute('src')).toBeNull();
+
+  dom.setActive(true);
+  expect(dmMapLazyLoader.sync(dom.documentRef)).toBe(true);
   expect(dom.frame.getAttribute('src')).toBe('vtt.html');
 });
 
