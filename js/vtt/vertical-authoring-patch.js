@@ -1,0 +1,14 @@
+(function(root,factory){const api=factory(root);if(typeof module!=='undefined'&&module.exports)module.exports=api;if(root)root.LuminousVttVerticalAuthoringPatch=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+function portalRuntime(){if(root?.LuminousVttVerticalPortal)return root.LuminousVttVerticalPortal;if(typeof require!=='undefined'){try{return require('./vertical-portal.js');}catch(_){}}return null;}
+function stairBuilder(){if(root?.LuminousVttStairBuilder)return root.LuminousVttStairBuilder;if(typeof require!=='undefined'){try{return require('./stair-builder.js');}catch(_){}}return null;}
+function install(){const base=root?.LuminousVttMapAuthoring,portals=portalRuntime(),stairs=stairBuilder();if(!base||!portals)return null;if(base.__verticalAware===true)return base;
+function verticalPayload(raw={},fallback={},definition={}){const source=Array.isArray(raw.verticalPortals)?raw.verticalPortals:Array.isArray(fallback.verticalPortals)?fallback.verticalPortals:[];const mapLike={...(fallback||{}),...(definition||{}),...(raw||{}),grid:definition.grid||raw.grid||fallback.grid,zLevels:definition.zLevels||raw.zLevels||fallback.zLevels};return{verticalPortals:source.filter(Boolean).map(entry=>entry.type==='stairs'&&stairs?stairs.normalizeStairPortal(entry,mapLike):portals.normalizePortal(entry,mapLike)).filter(Boolean)};}
+function attach(definition,raw={},fallback={}){return{...definition,...verticalPayload(raw,fallback,definition)};}
+function normalizeDefinition(raw={},fallback={}){return attach(base.normalizeDefinition(raw,fallback),raw,fallback);}
+function definitionFromMapData(mapData={}){return attach(base.definitionFromMapData(mapData),mapData,mapData);}
+function applyDefinition(mapData,rawDefinition,options={}){const normalized=normalizeDefinition(rawDefinition,mapData||{});base.applyDefinition(mapData,normalized,options);mapData.verticalPortals=clone(normalized.verticalPortals);return mapData;}
+function preserve(fn){return function wrapped(rawDefinition,...args){const result=fn(rawDefinition,...args);return attach(result,rawDefinition||{},rawDefinition||{});};}
+function createDefinition(options={}){const result=base.createDefinition(options);return attach(result,options,{grid:result.grid,zLevels:result.zLevels});}
+const patched=Object.freeze({...base,__verticalAware:true,normalizeDefinition,definitionFromMapData,applyDefinition,addLevel:preserve(base.addLevel),updateLevel:preserve(base.updateLevel),removeLevel:preserve(base.removeLevel),createDefinition});root.LuminousVttMapAuthoring=patched;return patched;}
+const installed=install();return Object.freeze({install,installed});});
