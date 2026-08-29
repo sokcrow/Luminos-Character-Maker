@@ -65,5 +65,22 @@
     return count;
   }
 
-  return Object.freeze({ imageFor, drawCell, drawSurfaceLayer });
+  function drawGridOverlay(ctx, mapData = {}, isExporting = false) {
+    if (!ctx || !mapData.grid) return false;
+    const cols = Math.max(1, Math.trunc(finite(mapData.grid.cols, 1)));
+    const rows = Math.max(1, Math.trunc(finite(mapData.grid.rows, 1)));
+    const size = Math.max(1, finite(mapData.grid.size, 70));
+    const width = cols * size, height = rows * size;
+    ctx.save();
+    ctx.strokeStyle = isExporting ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= cols; x += 1) { ctx.moveTo(x * size, 0); ctx.lineTo(x * size, height); }
+    for (let y = 0; y <= rows; y += 1) { ctx.moveTo(0, y * size); ctx.lineTo(width, y * size); }
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  }
+
+  return Object.freeze({ imageFor, drawCell, drawSurfaceLayer, drawGridOverlay });
 });
