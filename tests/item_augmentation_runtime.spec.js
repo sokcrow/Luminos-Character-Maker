@@ -23,6 +23,8 @@ test("installs an augmentation separately from normal equipment", () => {
   expect(unit.augmentations).toHaveLength(1);
   expect(item.equipped).toBe(true);
   expect(augments.isAugmentation(item)).toBe(true);
+  expect(installed.anatomy.parts.left_arm.state).toBe("replaced");
+  expect(installed.anatomy.parts.left_arm.substrate).toBe("mechanical");
 });
 
 test("augmentation body requirements reject missing target parts", () => {
