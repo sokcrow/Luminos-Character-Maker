@@ -3,6 +3,7 @@ import './ramp-portal-patch.js';
 import './ramp-route-patch.js';
 import './ramp-movement-patch.js';
 import './ramp-renderer-patch.js';
+import './floor-opening-core.js';
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
   if(!runtime?.engine||!mapData)return null;
