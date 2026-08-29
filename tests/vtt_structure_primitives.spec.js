@@ -9,9 +9,7 @@ function fresh(modulePath) {
 }
 function resetGlobals() {
   for (const key of [
-    'LuminousVttStructureCore','LuminousVttStructureRenderer','LuminousVttTopology','LuminousVttTokenInteraction',
-    'LuminousVttPhysicalResolver','LuminousVttMapAuthoring','LuminousVttSurfaceCore','LuminousVttSurfaceAuthoringPatch',
-    'LuminousVttStructureAuthoringPatch',
+    'LuminousVttStructureCore','LuminousVttStructureRenderer','LuminousVttStructureAuthoringPatch',
   ]) delete global[key];
 }
 function mapBase() {
