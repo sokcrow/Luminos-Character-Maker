@@ -1,0 +1,41 @@
+name: VTT World Objects
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/world-object-*.js'
+      - 'js/vtt/environment-affordance-engine.js'
+      - 'js/vtt/main.js'
+      - 'vtt.html'
+      - 'css/vtt-world-objects.css'
+      - 'tests/vtt_world_objects.spec.js'
+      - 'docs/vtt-world-objects-v1.md'
+      - '.github/workflows/vtt-world-objects.yml'
+  workflow_dispatch:
+
+jobs:
+  world-objects:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/world-object-core.js
+          node --check js/vtt/world-object-catalog.js
+          node --check js/vtt/environment-affordance-engine.js
+          node --check js/vtt/world-object-state.js
+          node --check js/vtt/world-object-movement-patch.js
+          node --check js/vtt/world-object-renderer.js
+          node --check js/vtt/world-object-bootstrap.js
+          node --check js/vtt/main.js
+      - name: Focused contracts
+        run: npx playwright test tests/vtt_world_objects.spec.js --workers=1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Repository regression
+        run: npx playwright test --workers=1
