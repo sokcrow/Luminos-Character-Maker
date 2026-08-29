@@ -51,7 +51,8 @@ test('world objects block token collision and A star until destroyed', async () 
   const mapData={grid:{cols:5,rows:3,size:70,distancePerCell:5},walls:[],topology:[],tokens:[],worldObjects:[blocker],worldObjectDefinitions:{}};
   const token={id:'p1',x:35,y:105,zLayer:0,radius:20};
   const gate=global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData);
-  expect(gate.valid).toBe(false);expect(gate.reason).toBe('BLOCKED_BY_WORLD_OBJECT');
+  expect(gate.valid).toBe(false);
+  expect(gate.reason).toBe('BLOCKED_BY_WORLD_OBJECT');
   const route=pf.findPath({token,start:{x:35,y:105},target:{x:315,y:105},mapData,blockTokens:false});
   expect(route.valid).toBe(true);
   expect(route.cells.some(c=>c.col===2&&c.row===1)).toBe(false);
@@ -69,12 +70,15 @@ test('quarter-turn rotation also rotates rectangular collision footprint', async
   expect(rect.height).toBe(140);
 });
 
-test('VTT HUD exposes object library and custom object definition form', async () => {
-  const html=fs.readFileSync(path.join(__dirname,'..','vtt.html'),'utf8');
+test('mainline integration keeps the hardened runtime and docks Objects in DM Edit', async () => {
   const main=fs.readFileSync(path.join(__dirname,'..','js','vtt','main.js'),'utf8');
-  expect(html).toContain('id="vtt-object-library-toggle"');
-  expect(html).toContain('id="vtt-object-definition-form"');
-  expect(html).toContain('HIDE INSIDE');
-  expect(main).toContain("import('./world-object-bootstrap.js')");
-  expect(main).toContain('attachWorldObjectRenderer');
+  const integration=fs.readFileSync(path.join(__dirname,'..','js','vtt','world-object-mainline-integration.js'),'utf8');
+  expect(main).toContain("import('./world-object-mainline-integration.js')");
+  expect(main).toContain('window.LuminousVttRuntime = Object.freeze');
+  expect(integration).toContain("panel.id = 'vtt-object-library'");
+  expect(integration).toContain("toggle.id = 'vtt-object-library-toggle'");
+  expect(integration).toContain("document.getElementById('vtt-edit-sidebar')");
+  expect(integration).toContain('attachWorldObjectRenderer');
+  expect(integration).toContain('Object.freeze({ ...currentRuntime, worldObjects: api })');
+  expect(integration).toContain('HIDE INSIDE');
 });
