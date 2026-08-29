@@ -138,6 +138,14 @@
     if (!gate.allowed) return { installed: false, ...gate };
     const item = gate.item;
     const store = installedAugments(unit, true).value;
+
+    // AnatomyEquipmentEngine reads augmentation.mechanics/anatomy/bodyModification.
+    // Canonical item data keeps the augment profile under runtime.augmentation,
+    // so project it into mechanics on the installed instance instead of creating
+    // a parallel anatomy implementation.
+    const profile = augmentationProfile(item);
+    if (Object.keys(profile).length) item.mechanics = { ...clone(item.mechanics || {}), ...clone(profile) };
+
     item.installed = true;
     item.equipped = true;
     item.installedBodyPartIds = clone(gate.body.matchedPartIds || []);
