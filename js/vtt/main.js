@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         })
         .catch((error) => console.error('VTT world object / map HUD bootstrap failed:', error));
 
+    // E belongs exclusively to token PoV Look Lock/Unlock. Camera uses F/Home/Space and never consumes E.
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
         else if (event.key === '1') applyLayer(1);
