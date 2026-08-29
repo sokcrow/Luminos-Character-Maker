@@ -61,6 +61,23 @@ test('world objects block token collision and A star until destroyed', async () 
   expect(openGate.valid).toBe(true);
 });
 
+test('mainline world-object patch preserves movement resolveDrop and prior path blockers', async () => {
+  const core = require('../js/vtt/world-object-core.js');
+  global.LuminousVttWorldObjectCore = core;
+  const sentinelResolveDrop = () => ({ valid:true, marker:'movement-engine' });
+  global.LuminousVttTokenInteraction = Object.freeze({
+    __pathfindingMovementPatch:true,
+    tokenRadius:()=>10,
+    canOccupy:()=>({valid:true,reason:null}),
+    isPathClear:()=>({valid:false,reason:'WALL_BLOCKED'}),
+    resolveDrop:sentinelResolveDrop,
+  });
+  delete require.cache[require.resolve('../js/vtt/world-object-movement-patch.js')];
+  require('../js/vtt/world-object-movement-patch.js');
+  expect(global.LuminousVttTokenInteraction.resolveDrop).toBe(sentinelResolveDrop);
+  expect(global.LuminousVttTokenInteraction.isPathClear({}, {x:0,y:0}, {x:10,y:0}, {grid:{size:70}})).toMatchObject({valid:false,reason:'WALL_BLOCKED'});
+});
+
 test('quarter-turn rotation also rotates rectangular collision footprint', async () => {
   const core = require('../js/vtt/world-object-core.js');
   const def = core.normalizeDefinition({ id:'long_table', physical:{ footprint:{widthCells:2,heightCells:1}, hp:20 } });
