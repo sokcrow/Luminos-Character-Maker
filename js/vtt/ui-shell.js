@@ -6,12 +6,7 @@
   'use strict';
 
   const clean = (value) => String(value ?? '').trim();
-  const esc = (value) => clean(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  const esc = (value) => clean(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   const ICONS = Object.freeze({
     map: '<path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5M15 6.5V20"/>',
@@ -37,7 +32,7 @@
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>',
   });
 
-  const BUTTON_ICON_MAP = Object.freeze({
+  const ID_ICONS = Object.freeze({
     'vtt-map-library-toggle': 'map',
     'vtt-actor-library-toggle': 'users',
     'vtt-dm-edit-toggle': 'edit',
@@ -45,20 +40,9 @@
     'vtt-view-as-token': 'eye',
   });
 
-  const TOOL_ICON_MAP = Object.freeze({
-    select: 'select',
-    wall: 'wall',
-    door: 'door',
-    window: 'window',
-    curtain_window: 'curtain',
-    erase: 'erase',
-    opening: 'opening',
-    balcony_edge: 'balcony',
-    stairs: 'stairs',
-    light: 'light',
-    interior: 'interior',
-    transformer: 'transformer',
-    switch: 'switch',
+  const TOOL_ICONS = Object.freeze({
+    select: 'select', wall: 'wall', door: 'door', window: 'window', curtain_window: 'curtain', erase: 'erase',
+    opening: 'opening', balcony_edge: 'balcony', stairs: 'stairs', light: 'light', interior: 'interior', transformer: 'transformer', switch: 'switch',
   });
 
   function iconMarkup(name, size = 20) {
@@ -78,44 +62,20 @@
     return true;
   }
 
-  function rawButtonLabel(button) {
-    const remembered = clean(button?.dataset?.vttShellOriginalLabel);
-    if (remembered) return remembered;
-    const text = clean(button?.textContent || button?.getAttribute?.('aria-label') || '');
-    if (button?.dataset) button.dataset.vttShellOriginalLabel = text;
-    return text;
-  }
-
   function knownButtonDescriptor(button) {
     if (!button) return null;
-    const byId = BUTTON_ICON_MAP[button.id];
-    if (byId) {
-      let label = clean(button.textContent);
-      if (button.id === 'vtt-view-as-token') label = label || 'VIEW AS TOKEN';
-      if (button.id === 'vtt-dm-edit-toggle') label = label || 'EDIT MODE';
-      return { icon: byId, label };
-    }
+    const idIcon = ID_ICONS[button.id];
+    if (idIcon) return { icon: idIcon, label: clean(button.textContent) || (button.id === 'vtt-dm-edit-toggle' ? 'EDIT MODE' : button.id === 'vtt-view-as-token' ? 'VIEW AS TOKEN' : button.id.replace(/^vtt-|^btn-/, '').replace(/-/g, ' ').toUpperCase()) };
     const tool = button.dataset?.vttTool || button.dataset?.vttVerticalTool || button.dataset?.lightTool;
     if (!tool) return null;
-    return { icon: TOOL_ICON_MAP[tool] || 'select', label: rawButtonLabel(button) || clean(tool).replace(/_/g, ' ').toUpperCase() };
+    const remembered = clean(button.dataset?.vttOriginalLabel || button.textContent);
+    if (button.dataset && !button.dataset.vttOriginalLabel) button.dataset.vttOriginalLabel = remembered;
+    return { icon: TOOL_ICONS[tool] || 'select', label: remembered || clean(tool).replace(/_/g, ' ').toUpperCase() };
   }
 
   function factionFromActor(actor = {}) {
     const raw = actor.raw && typeof actor.raw === 'object' ? actor.raw : actor;
-    const candidates = [
-      actor.factionId,
-      actor.factionName,
-      raw.factionId,
-      raw.faction_id,
-      raw.faction,
-      raw.faccion,
-      raw.affiliation,
-      raw.affiliationId,
-      raw.organizationId,
-      raw.organization,
-      raw.organizacion,
-      raw.corporation,
-    ];
+    const candidates = [actor.factionId, actor.factionName, raw.factionId, raw.faction_id, raw.faction, raw.faccion, raw.affiliation, raw.affiliationId, raw.organizationId, raw.organization, raw.organizacion, raw.corporation];
     for (const candidate of candidates) {
       if (candidate && typeof candidate === 'object') {
         const nested = clean(candidate.id || candidate.name || candidate.nombre || candidate.label);
@@ -143,9 +103,7 @@
       if (!groups.has(folder.id)) groups.set(folder.id, { ...folder, actors: [] });
       groups.get(folder.id).actors.push(actor);
     }
-    return [...groups.values()]
-      .map((group) => ({ ...group, actors: group.actors.slice().sort((a, b) => clean(a.name).localeCompare(clean(b.name))) }))
-      .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));
+    return [...groups.values()].map((group) => ({ ...group, actors: group.actors.slice().sort((a, b) => clean(a.name).localeCompare(clean(b.name))) })).sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));
   }
 
   function defaultVisionConeDeg(viewer = {}) {
@@ -184,22 +142,13 @@
     const style = doc.createElement('style');
     style.id = 'vtt-ui-shell-style';
     style.textContent = `
-      .vtt-primary-sidebar{position:fixed;left:12px;top:12px;z-index:36000;width:66px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;gap:7px;padding:7px;background:rgba(7,9,11,.95);border:1px solid #59636c;box-shadow:5px 5px 0 rgba(0,0,0,.58);overflow:auto;pointer-events:auto}
-      .vtt-primary-sidebar:empty{display:none}.vtt-primary-sidebar .brutalist-button{position:static!important;inset:auto!important;width:52px;min-height:52px;padding:6px 4px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px;line-height:1.05;box-sizing:border-box;text-align:center;white-space:normal}
-      .vtt-ui-icon{display:block;flex:0 0 auto}.vtt-ui-button-label{display:block;max-width:100%;overflow-wrap:anywhere}
-      .vtt-edit-sidebar{position:fixed;right:12px;top:12px;bottom:12px;z-index:35000;width:184px;display:none;flex-direction:column;gap:10px;padding:8px;background:rgba(7,9,11,.95);border:1px solid #6b5c2e;box-shadow:-5px 5px 0 rgba(0,0,0,.58);overflow-y:auto;pointer-events:auto}
-      body.vtt-dm-edit-active .vtt-edit-sidebar{display:flex}.vtt-edit-sidebar .vtt-toolbar,.vtt-edit-sidebar .vtt-light-toolbar{position:static!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;width:100%!important;max-width:none!important;box-sizing:border-box;margin:0!important;padding:7px!important;gap:5px!important}
-      .vtt-edit-sidebar .vtt-toolbar-title{display:block;width:100%;padding:3px 2px 6px;color:#d7b151;border-bottom:1px solid #3c4147;margin:0 0 2px;font-size:9px;letter-spacing:.13em}
-      .vtt-edit-sidebar .brutalist-button{width:100%;display:grid;grid-template-columns:22px 1fr;align-items:center;gap:7px;padding:7px 8px!important;text-align:left;box-sizing:border-box}.vtt-edit-sidebar .vtt-ui-button-label{text-align:left}
-      .vtt-edit-sidebar .vtt-toolbar-field{display:grid;grid-template-columns:1fr;padding:5px 0 0;margin-top:2px;border-left:0;border-top:1px solid #3c4147}.vtt-edit-sidebar .vtt-toolbar-field select{min-width:0;width:100%;box-sizing:border-box}
-      .vtt-map-library-toggle,.vtt-actor-library-toggle,.vtt-view-token{position:static!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important}
-      .vtt-map-library,.vtt-actor-library{left:90px!important;right:auto!important;top:12px!important;max-height:calc(100vh - 24px)!important;z-index:34500!important}
-      .vtt-panel{left:auto!important;right:210px!important;top:12px!important;max-height:calc(100vh - 24px);overflow:auto}.vtt-vertical-panel{left:auto!important;right:540px!important;top:12px!important}
-      .vtt-light-panel{right:210px!important;top:12px!important;max-height:calc(100vh - 24px)!important}
-      .vtt-lighting-status,.vtt-pov-status{display:flex;align-items:center;gap:6px;padding:7px;border:1px solid #46505a;background:#0b0e11;color:#dce3e8;font:10px monospace;line-height:1.25}.vtt-lighting-status strong,.vtt-pov-status strong{color:#d7b151}
-      .vtt-actor-folder{border:1px solid #454b51;margin:7px 0;background:#0d1013}.vtt-actor-folder>summary{display:flex;align-items:center;gap:7px;padding:7px;cursor:pointer;color:#d7b151;font-weight:700;letter-spacing:.05em}.vtt-actor-folder-count{margin-left:auto;color:#8d979f;font-weight:400}.vtt-actor-folder-body{padding:0 6px 6px}.vtt-actor-folder .vtt-actor-card{margin:6px 0}
-      .vtt-flicker-advanced{border-top:1px solid #4f555a;margin-top:9px;padding-top:7px}.vtt-flicker-advanced legend{padding:0 5px;color:#d7b151;font-size:10px;letter-spacing:.08em}.vtt-flicker-help{display:block;color:#8f9aa2;font-size:9px;line-height:1.35;margin-top:4px}
-      @media (max-width:900px){.vtt-primary-sidebar{left:8px;top:8px}.vtt-edit-sidebar{right:8px;top:8px;bottom:8px;width:154px}.vtt-map-library,.vtt-actor-library{left:82px!important}.vtt-panel,.vtt-light-panel{right:178px!important}.vtt-vertical-panel{right:178px!important;top:50%!important}}
+      .vtt-primary-sidebar{position:fixed;left:12px;top:12px;z-index:36000;width:66px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;gap:7px;padding:7px;background:rgba(7,9,11,.95);border:1px solid #59636c;box-shadow:5px 5px 0 rgba(0,0,0,.58);overflow:auto;pointer-events:auto}.vtt-primary-sidebar:empty{display:none}
+      .vtt-primary-sidebar .brutalist-button{position:static!important;inset:auto!important;width:52px;min-height:52px;padding:6px 4px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px;line-height:1.05;box-sizing:border-box;text-align:center;white-space:normal}.vtt-ui-icon{display:block;flex:0 0 auto}.vtt-ui-button-label{display:block;max-width:100%;overflow-wrap:anywhere}
+      .vtt-edit-sidebar{position:fixed;right:12px;top:12px;bottom:12px;z-index:35000;width:184px;display:none;flex-direction:column;gap:10px;padding:8px;background:rgba(7,9,11,.95);border:1px solid #6b5c2e;box-shadow:-5px 5px 0 rgba(0,0,0,.58);overflow-y:auto;pointer-events:auto}body.vtt-dm-edit-active .vtt-edit-sidebar{display:flex}
+      .vtt-edit-sidebar .vtt-toolbar,.vtt-edit-sidebar .vtt-light-toolbar{position:static!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;width:100%!important;max-width:none!important;box-sizing:border-box;margin:0!important;padding:7px!important;gap:5px!important}.vtt-edit-sidebar .vtt-toolbar-title{display:block;width:100%;padding:3px 2px 6px;color:#d7b151;border-bottom:1px solid #3c4147;margin:0 0 2px;font-size:9px;letter-spacing:.13em}.vtt-edit-sidebar .brutalist-button{width:100%;display:grid;grid-template-columns:22px 1fr;align-items:center;gap:7px;padding:7px 8px!important;text-align:left;box-sizing:border-box}.vtt-edit-sidebar .vtt-toolbar-field{display:grid;grid-template-columns:1fr;padding:5px 0 0;margin-top:2px;border-left:0;border-top:1px solid #3c4147}.vtt-edit-sidebar .vtt-toolbar-field select{min-width:0;width:100%;box-sizing:border-box}
+      .vtt-map-library-toggle,.vtt-actor-library-toggle,.vtt-view-token{position:static!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important}.vtt-map-library,.vtt-actor-library{left:90px!important;right:auto!important;top:12px!important;max-height:calc(100vh - 24px)!important;z-index:34500!important}.vtt-panel{left:auto!important;right:210px!important;top:12px!important;max-height:calc(100vh - 24px);overflow:auto}.vtt-vertical-panel{left:auto!important;right:540px!important;top:12px!important}.vtt-light-panel{right:210px!important;top:12px!important;max-height:calc(100vh - 24px)!important}
+      .vtt-lighting-status,.vtt-pov-status{display:flex;align-items:center;gap:6px;padding:7px;border:1px solid #46505a;background:#0b0e11;color:#dce3e8;font:10px monospace;line-height:1.25}.vtt-lighting-status strong,.vtt-pov-status strong{color:#d7b151}.vtt-actor-folder{border:1px solid #454b51;margin:7px 0;background:#0d1013}.vtt-actor-folder>summary{display:flex;align-items:center;gap:7px;padding:7px;cursor:pointer;color:#d7b151;font-weight:700;letter-spacing:.05em}.vtt-actor-folder-count{margin-left:auto;color:#8d979f;font-weight:400}.vtt-actor-folder-body{padding:0 6px 6px}.vtt-actor-folder .vtt-actor-card{margin:6px 0}.vtt-flicker-advanced{border-top:1px solid #4f555a;margin-top:9px;padding-top:7px}.vtt-flicker-advanced legend{padding:0 5px;color:#d7b151;font-size:10px;letter-spacing:.08em}.vtt-flicker-help{display:block;color:#8f9aa2;font-size:9px;line-height:1.35;margin-top:4px}
+      @media (max-width:900px){.vtt-primary-sidebar{left:8px;top:8px}.vtt-edit-sidebar{right:8px;top:8px;bottom:8px;width:154px}.vtt-map-library,.vtt-actor-library{left:82px!important}.vtt-panel,.vtt-light-panel,.vtt-vertical-panel{right:178px!important}.vtt-vertical-panel{top:50%!important}}
     `;
     doc.head.appendChild(style);
   }
@@ -207,154 +156,89 @@
   function ensureShell(doc) {
     if (!doc?.body) return {};
     let primary = doc.getElementById('vtt-primary-sidebar');
-    if (!primary) {
-      primary = doc.createElement('nav');
-      primary.id = 'vtt-primary-sidebar';
-      primary.className = 'vtt-primary-sidebar';
-      primary.setAttribute('aria-label', 'VTT primary tools');
-      doc.body.appendChild(primary);
-    }
+    if (!primary) { primary = doc.createElement('nav'); primary.id = 'vtt-primary-sidebar'; primary.className = 'vtt-primary-sidebar'; primary.setAttribute('aria-label', 'VTT primary tools'); doc.body.appendChild(primary); }
     let edit = doc.getElementById('vtt-edit-sidebar');
-    if (!edit) {
-      edit = doc.createElement('aside');
-      edit.id = 'vtt-edit-sidebar';
-      edit.className = 'vtt-edit-sidebar';
-      edit.setAttribute('aria-label', 'DM map editing tools');
-      doc.body.appendChild(edit);
-    }
+    if (!edit) { edit = doc.createElement('aside'); edit.id = 'vtt-edit-sidebar'; edit.className = 'vtt-edit-sidebar'; edit.setAttribute('aria-label', 'DM map editing tools'); doc.body.appendChild(edit); }
     return { primary, edit };
   }
 
-  function moveKnownControls(doc, shell) {
-    const primaryIds = ['vtt-map-library-toggle', 'vtt-actor-library-toggle', 'vtt-dm-edit-toggle', 'vtt-view-as-token', 'btn-export-uv'];
-    primaryIds.forEach((id) => {
-      const node = doc.getElementById(id);
-      if (node && node.parentNode !== shell.primary) shell.primary.appendChild(node);
-    });
-    ['vtt-topology-toolbar', 'vtt-vertical-toolbar', 'vtt-lighting-toolbar'].forEach((id) => {
-      const node = doc.getElementById(id);
-      if (node && node.parentNode !== shell.edit) shell.edit.appendChild(node);
-    });
+  function syncControls(doc, shell) {
+    ['vtt-map-library-toggle', 'vtt-actor-library-toggle', 'vtt-dm-edit-toggle', 'vtt-view-as-token', 'btn-export-uv'].forEach((id) => { const node = doc.getElementById(id); if (node && node.parentNode !== shell.primary) shell.primary.appendChild(node); });
+    ['vtt-topology-toolbar', 'vtt-vertical-toolbar', 'vtt-lighting-toolbar'].forEach((id) => { const node = doc.getElementById(id); if (node && node.parentNode !== shell.edit) shell.edit.appendChild(node); });
+    doc.querySelectorAll?.('#vtt-primary-sidebar button, #vtt-edit-sidebar button').forEach((button) => { const descriptor = knownButtonDescriptor(button); if (descriptor) setButtonContent(button, descriptor.icon, descriptor.label); });
   }
 
-  function decorateButtons(doc) {
-    const candidates = doc.querySelectorAll?.('#vtt-primary-sidebar button, #vtt-edit-sidebar button') || [];
-    candidates.forEach((button) => {
-      const descriptor = knownButtonDescriptor(button);
-      if (!descriptor) return;
-      setButtonContent(button, descriptor.icon, descriptor.label);
-    });
-  }
-
-  function closeOtherPrimaryDrawers(doc, exceptId) {
-    const ids = ['vtt-map-library-panel', 'vtt-actor-library-panel'];
-    ids.forEach((id) => {
-      if (id === exceptId) return;
-      const panel = doc.getElementById(id);
-      if (panel) panel.hidden = true;
-    });
-  }
-
-  function wireExclusiveDrawers(doc) {
-    const pairs = [
-      ['vtt-map-library-toggle', 'vtt-map-library-panel'],
-      ['vtt-actor-library-toggle', 'vtt-actor-library-panel'],
-    ];
-    pairs.forEach(([buttonId, panelId]) => {
+  function wireDrawers(doc) {
+    [['vtt-map-library-toggle', 'vtt-map-library-panel', 'vtt-actor-library-panel'], ['vtt-actor-library-toggle', 'vtt-actor-library-panel', 'vtt-map-library-panel']].forEach(([buttonId, ownId, otherId]) => {
       const button = doc.getElementById(buttonId);
       if (!button || button.dataset.vttShellDrawerWired) return;
       button.dataset.vttShellDrawerWired = '1';
-      button.addEventListener('click', () => {
-        if (!doc.getElementById(panelId)?.hidden) closeOtherPrimaryDrawers(doc, panelId);
-      });
+      button.addEventListener('click', () => { if (!doc.getElementById(ownId)?.hidden) { const other = doc.getElementById(otherId); if (other) other.hidden = true; } });
     });
   }
 
-  function injectLightingStatus(doc, runtime, mapData) {
+  function syncLightingStatus(doc, runtime, mapData) {
     const toolbar = doc.getElementById('vtt-lighting-toolbar');
-    if (!toolbar) return null;
+    if (!toolbar) return;
     let status = doc.getElementById('vtt-lighting-status');
-    if (!status) {
-      status = doc.createElement('div');
-      status.id = 'vtt-lighting-status';
-      status.className = 'vtt-lighting-status';
-      toolbar.insertBefore(status, toolbar.children?.[1] || null);
-    }
+    if (!status) { status = doc.createElement('div'); status.id = 'vtt-lighting-status'; status.className = 'vtt-lighting-status'; toolbar.insertBefore(status, toolbar.children?.[1] || null); }
     const environment = mapData?.lighting?.environment || {};
     const level = clean(environment?.state?.light || mapData?.ambientLight?.level || 'bright').toUpperCase();
     const isDay = environment?.isDay !== false;
     const source = clean(environment?.source || 'environment').toUpperCase();
-    status.innerHTML = `${iconMarkup(isDay ? 'sun' : 'moon', 17)}<span><strong>${isDay ? 'DAY' : 'NIGHT'} · ${esc(level)}</strong><br>${esc(source)}</span>`;
-    return status;
+    const markup = `${iconMarkup(isDay ? 'sun' : 'moon', 17)}<span><strong>${isDay ? 'DAY' : 'NIGHT'} · ${esc(level)}</strong><br>${esc(source)}</span>`;
+    if (status.innerHTML !== markup) status.innerHTML = markup;
   }
 
-  function injectPovStatus(doc, runtime) {
+  function syncPovStatus(doc, runtime) {
     const primary = doc.getElementById('vtt-primary-sidebar');
-    if (!primary) return null;
+    if (!primary || !runtime?.lighting) return;
     let status = doc.getElementById('vtt-pov-status');
-    if (!status) {
-      status = doc.createElement('div');
-      status.id = 'vtt-pov-status';
-      status.className = 'vtt-pov-status';
-      primary.appendChild(status);
-    }
+    if (!status) { status = doc.createElement('div'); status.id = 'vtt-pov-status'; status.className = 'vtt-pov-status'; primary.appendChild(status); }
     const viewer = runtime?.pov?.controlledViewers?.()?.[0] || runtime?.lighting?.controlledViewers?.()?.[0] || {};
     const cone = defaultVisionConeDeg(viewer);
     const preview = runtime?.bridge?.isDm && runtime?.engine?.mapData?.lighting?.dmPreviewTokenId;
-    status.innerHTML = `${iconMarkup('eye', 16)}<span><strong>${preview ? 'TOKEN VIEW' : runtime?.bridge?.isDm ? 'DM FULL' : 'POV'}</strong><br>${esc(cone)}° CONE</span>`;
-    return status;
+    const markup = `${iconMarkup('eye', 16)}<span><strong>${preview ? 'TOKEN VIEW' : runtime?.bridge?.isDm ? 'DM FULL' : 'POV'}</strong><br>${esc(cone)}° CONE</span>`;
+    if (status.innerHTML !== markup) status.innerHTML = markup;
   }
 
-  function injectFlickerAdvanced(doc, runtime) {
+  function syncFlickerEditor(doc, runtime) {
     const panel = doc.getElementById('vtt-light-editor');
-    if (!panel || panel.hidden || panel.querySelector('[data-vtt-flicker-advanced]')) return false;
+    if (!panel || panel.hidden || panel.querySelector('[data-vtt-flicker-advanced]')) return;
     const selected = runtime?.lighting?.controller?.getSelected?.();
-    if (selected?.kind !== 'source') return false;
-    const item = selected.item || {};
+    if (selected?.kind !== 'source') return;
     const save = panel.querySelector('[data-light-save]');
-    if (!save) return false;
+    if (!save) return;
+    const item = selected.item || {};
     const fieldset = doc.createElement('fieldset');
-    fieldset.className = 'vtt-flicker-advanced';
-    fieldset.dataset.vttFlickerAdvanced = '1';
+    fieldset.className = 'vtt-flicker-advanced'; fieldset.dataset.vttFlickerAdvanced = '1';
     const amount = Number.isFinite(Number(item.flicker?.amount)) ? Number(item.flicker.amount) : 0.08;
     const speed = Number.isFinite(Number(item.flicker?.speed)) ? Number(item.flicker.speed) : 7;
     fieldset.innerHTML = `<legend>FLICKER</legend><div class="row"><label>AMOUNT<input type="number" min="0" max="0.45" step="0.01" data-field="flicker.amount" value="${amount}"></label><label>SPEED<input type="number" min="0.1" max="30" step="0.1" data-field="flicker.speed" value="${speed}"></label></div><small class="vtt-flicker-help">Visual intensity only. It does not toggle mechanical Bright/Dim/Darkness every frame.</small>`;
     panel.insertBefore(fieldset, save);
-    return true;
   }
 
-  function groupActorDom(doc, runtime) {
+  function syncActorFolders(doc, runtime) {
     const listNode = doc.getElementById('vtt-actor-list');
     const bridge = runtime?.actorLibrary?.libraryBridge;
-    if (!listNode || !bridge?.list) return false;
+    if (!listNode || !bridge?.list) return;
     const directCards = [...listNode.children].filter((node) => node.matches?.('[data-actor-key]'));
-    if (!directCards.length && listNode.querySelector('.vtt-actor-folder')) return false;
-    const cards = [...listNode.querySelectorAll('[data-actor-key]')];
-    if (!cards.length) return false;
+    if (!directCards.length) return;
     const actors = bridge.list();
     const byKey = new Map(actors.map((actor) => [actor.key, actor]));
-    const cardsByFolder = new Map();
-    cards.forEach((card) => {
-      const actor = byKey.get(card.dataset.actorKey) || {};
-      const folder = actorFolder(actor);
-      if (!cardsByFolder.has(folder.id)) cardsByFolder.set(folder.id, { ...folder, cards: [] });
-      cardsByFolder.get(folder.id).cards.push(card);
+    const folders = new Map();
+    directCards.forEach((card) => {
+      const folder = actorFolder(byKey.get(card.dataset.actorKey) || {});
+      if (!folders.has(folder.id)) folders.set(folder.id, { ...folder, cards: [] });
+      folders.get(folder.id).cards.push(card);
     });
-    const groups = [...cardsByFolder.values()].sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));
+    const groups = [...folders.values()].sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));
     listNode.replaceChildren();
     groups.forEach((group, index) => {
-      const details = doc.createElement('details');
-      details.className = 'vtt-actor-folder';
-      details.open = index < 2;
-      const summary = doc.createElement('summary');
-      summary.innerHTML = `${iconMarkup('folder', 16)}<span>${esc(group.rank === 1 ? `FACTION · ${group.label}` : group.label)}</span><span class="vtt-actor-folder-count">${group.cards.length}</span>`;
-      const body = doc.createElement('div');
-      body.className = 'vtt-actor-folder-body';
-      group.cards.forEach((card) => body.appendChild(card));
-      details.append(summary, body);
-      listNode.appendChild(details);
+      const details = doc.createElement('details'); details.className = 'vtt-actor-folder'; details.open = index < 2;
+      const summary = doc.createElement('summary'); summary.innerHTML = `${iconMarkup('folder', 16)}<span>${esc(group.rank === 1 ? `FACTION · ${group.label}` : group.label)}</span><span class="vtt-actor-folder-count">${group.cards.length}</span>`;
+      const body = doc.createElement('div'); body.className = 'vtt-actor-folder-body'; group.cards.forEach((card) => body.appendChild(card)); details.append(summary, body); listNode.appendChild(details);
     });
-    return true;
   }
 
   function start({ root = browserRoot } = {}) {
@@ -363,119 +247,58 @@
     root.__luminousVttUiShellStarted = true;
     injectStyles(doc);
     const shell = ensureShell(doc);
-    let runtime = root.LuminousVttRuntime || null;
-    let mapData = runtime?.engine?.mapData || null;
+    let runtime = null;
+    let mapData = null;
     let stopVerticalBridge = () => {};
-    let rendererWrapped = false;
+    let renderer = null;
     let originalRender = null;
-    let actorObserver = null;
-    let bodyObserver = null;
-    let domObserver = null;
-    let interval = null;
 
-    function ensureRuntimeHooks() {
+    function installRuntimeHooks() {
       runtime = root.LuminousVttRuntime || runtime;
       mapData = runtime?.engine?.mapData || mapData;
       if (!runtime?.engine || !mapData) return;
       enforceDmEditorView(runtime, mapData);
-      if (!runtime.engine.renderer.__vttUiVerticalGuideBridge) {
-        stopVerticalBridge = installVerticalGuideBridge(runtime, mapData);
-      }
-      if (!rendererWrapped && typeof runtime.engine.renderer.render === 'function') {
-        const renderer = runtime.engine.renderer;
+      if (!runtime.engine.renderer.__vttUiVerticalGuideBridge) stopVerticalBridge = installVerticalGuideBridge(runtime, mapData);
+      if (!renderer && typeof runtime.engine.renderer.render === 'function') {
+        renderer = runtime.engine.renderer;
         originalRender = renderer.render.bind(renderer);
-        const wrapped = function vttUiShellRender(...args) {
+        renderer.render = function vttUiShellRender(...args) {
           enforceDmEditorView(root.LuminousVttRuntime || runtime, mapData);
           return originalRender(...args);
         };
-        renderer.render = wrapped;
-        rendererWrapped = true;
       }
     }
 
-    function syncDom() {
+    function sync() {
       runtime = root.LuminousVttRuntime || runtime;
       mapData = runtime?.engine?.mapData || mapData;
-      moveKnownControls(doc, shell);
-      decorateButtons(doc);
-      wireExclusiveDrawers(doc);
-      ensureRuntimeHooks();
-      if (runtime?.lighting) {
-        injectLightingStatus(doc, runtime, mapData);
-        injectPovStatus(doc, runtime);
-        injectFlickerAdvanced(doc, runtime);
-      }
-      if (runtime?.actorLibrary) groupActorDom(doc, runtime);
+      syncControls(doc, shell);
+      wireDrawers(doc);
+      installRuntimeHooks();
+      if (runtime?.lighting) { syncLightingStatus(doc, runtime, mapData); syncPovStatus(doc, runtime); syncFlickerEditor(doc, runtime); }
+      if (runtime?.actorLibrary) syncActorFolders(doc, runtime);
     }
 
-    const editToggle = doc.getElementById('vtt-dm-edit-toggle');
-    editToggle?.addEventListener('click', () => root.setTimeout?.(() => {
-      runtime = root.LuminousVttRuntime || runtime;
-      mapData = runtime?.engine?.mapData || mapData;
-      enforceDmEditorView(runtime, mapData);
-      syncDom();
-    }, 0));
-
-    if (typeof root.MutationObserver === 'function') {
-      bodyObserver = new root.MutationObserver(() => {
-        if (doc.body.classList.contains('vtt-dm-edit-active')) enforceDmEditorView(root.LuminousVttRuntime || runtime, mapData);
-      });
-      bodyObserver.observe(doc.body, { attributes: true, attributeFilter: ['class'] });
-
-      domObserver = new root.MutationObserver(() => root.setTimeout?.(syncDom, 0));
-      domObserver.observe(doc.body, { childList: true, subtree: true, characterData: true });
-
-      const listNode = doc.getElementById('vtt-actor-list');
-      if (listNode) {
-        actorObserver = new root.MutationObserver(() => {
-          actorObserver.disconnect();
-          try { groupActorDom(doc, root.LuminousVttRuntime || runtime); }
-          finally { actorObserver.observe(listNode, { childList: true, subtree: true }); }
-        });
-        actorObserver.observe(listNode, { childList: true, subtree: true });
-      }
-    }
-
-    interval = root.setInterval?.(syncDom, 500) || null;
-    syncDom();
+    const interval = root.setInterval?.(sync, 400) || null;
+    doc.getElementById('vtt-dm-edit-toggle')?.addEventListener('click', () => root.setTimeout?.(sync, 0));
+    sync();
 
     function stop() {
       if (interval != null) root.clearInterval?.(interval);
-      actorObserver?.disconnect?.();
-      bodyObserver?.disconnect?.();
-      domObserver?.disconnect?.();
       stopVerticalBridge?.();
-      if (rendererWrapped && originalRender && runtime?.engine?.renderer) runtime.engine.renderer.render = originalRender;
-      doc.getElementById('vtt-ui-shell-style')?.remove?.();
-      doc.getElementById('vtt-primary-sidebar')?.remove?.();
-      doc.getElementById('vtt-edit-sidebar')?.remove?.();
+      if (renderer && originalRender) renderer.render = originalRender;
       root.__luminousVttUiShellStarted = false;
     }
-
     root.addEventListener?.('beforeunload', stop, { once: true });
-    return Object.freeze({ syncDom, stop });
+    return Object.freeze({ sync, stop });
   }
 
   function autoStart(root = browserRoot) {
     if (!root?.document) return;
     const run = () => start({ root });
-    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', run, { once: true });
-    else run();
+    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', run, { once: true }); else run();
   }
 
   autoStart();
-  return Object.freeze({
-    ICONS,
-    iconMarkup,
-    setButtonContent,
-    knownButtonDescriptor,
-    factionFromActor,
-    actorFolder,
-    groupActors,
-    defaultVisionConeDeg,
-    enforceDmEditorView,
-    installVerticalGuideBridge,
-    start,
-    autoStart,
-  });
+  return Object.freeze({ ICONS, iconMarkup, setButtonContent, knownButtonDescriptor, factionFromActor, actorFolder, groupActors, defaultVisionConeDeg, enforceDmEditorView, installVerticalGuideBridge, start, autoStart });
 });
