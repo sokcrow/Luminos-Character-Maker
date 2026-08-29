@@ -34,7 +34,7 @@ test('look-around leash clamps the camera center around the controlled token', a
   expect(clamped.y).toBeCloseTo(80,6);
 });
 
-test('player starts in Follow, manual pan becomes constrained Look Around, and recenter restores Follow', async () => {
+test('player starts in Follow, manual pan becomes constrained Look Around, resync keeps leash live, and recenter restores Follow', async () => {
   const previousCustomEvent = global.CustomEvent;
   if (typeof global.CustomEvent !== 'function') global.CustomEvent = class CustomEvent { constructor(type, init={}) { this.type=type; this.detail=init.detail; } };
   const api = loadFollow();
@@ -50,7 +50,7 @@ test('player starts in Follow, manual pan becomes constrained Look Around, and r
   const canvas={addEventListener:()=>{},removeEventListener:()=>{},dispatchEvent:()=>{}};
   const token={id:'p1',x:100,y:100,zLayer:0,viewer:true,skills:{Perception:{modifier:3}}};
   const mapData={grid:{size:70,distancePerCell:5},tokens:[token]};
-  const runtime={bridge:{isDm:false},engine:{camera,canvas},lighting:{controlledViewers:()=>[token]}};
+  const runtime={bridge:{isDm:false},engine:{camera,canvas},lighting:{controlledViewers:()=>mapData.tokens}};
   const host={LuminousVttRuntime:runtime,setInterval:()=>1,clearInterval:()=>{},setTimeout:(fn)=>fn(),addEventListener:()=>{},removeEventListener:()=>{}};
   const controller=api.createController({runtime,mapData,root:host});
   expect(controller.state()).toMatchObject({mode:'follow',tokenRules:true,perceptionModifier:3,minZoom:0.65,maxLookFt:90});
@@ -58,6 +58,13 @@ test('player starts in Follow, manual pan becomes constrained Look Around, and r
   expect(typeof constraint).toBe('function');
   manualPan?.({dx:10,dy:0});
   expect(controller.state().mode).toBe('look');
+
+  mapData.tokens=[{...token,x:500,y:100}];
+  const leashPx=api.feetToPixels(90,mapData);
+  const afterResync=constraint({x:500+leashPx+500,y:100});
+  expect(afterResync.clamped).toBe(true);
+  expect(afterResync.x).toBeCloseTo(500+leashPx,6);
+
   controller.recenter();
   expect(controller.state().mode).toBe('follow');
   controller.stop();
