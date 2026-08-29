@@ -3,28 +3,39 @@ const { test, expect } = require("@playwright/test");
 const itemBase = require("../js/item-runtime-engine.js");
 global.LuminousItemRuntime = itemBase;
 const inventory = require("../js/item-inventory-runtime.js");
+global.LuminousItemInventoryRuntime = inventory;
+const workshops = require("../js/workshop-runtime.js");
 
 test.describe("canonical item inventory runtime", () => {
+  test.beforeEach(() => workshops.clearWorkshops());
+
   test("creates compact ItemInstances and hydrates definitions without persisting definition copies", () => {
     const catalog = {
       "item:scythe": { canonicalId: "item:scythe", name: "Scythe", category: "weapon", tier: 4 },
     };
+    const workshop = workshops.createWorkshopInstance({
+      workshopId: "workshop:vesper",
+      workshopName: "Vesper",
+      workshopTier: 4,
+      primarySpecialization: "weapon_blades",
+      knownItemFamilies: ["family:weapon_blades"],
+    }).workshop;
     const instance = inventory.createItemInstance("item:scythe", {
       catalog,
       instanceId: "instance:scythe:1",
       qualityTier: 4,
-      manufacturerId: "Vesper",
+      manufacturerId: workshop.workshopId,
       condition: 87,
     });
 
     expect(instance.definitionId).toBe("item:scythe");
     expect(instance.instanceId).toBe("instance:scythe:1");
     expect(instance.qualityTier).toBe(4);
-    expect(instance.manufacturerId).toBe("Vesper");
+    expect(instance.manufacturerId).toBe("workshop:vesper");
     expect(instance.condition).toBe(87);
     expect(instance.name).toBeUndefined();
 
-    const resolved = inventory.resolveItem(instance, { catalog });
+    const resolved = inventory.resolveItem(instance, { catalog, workshops });
     expect(resolved.name).toBe("Scythe");
     expect(resolved.displayName).toBe("Vesper Workshop Scythe");
   });
@@ -53,19 +64,19 @@ test.describe("canonical item inventory runtime", () => {
     expect(inventory.canStack(base, { ...base, quantity: 2 })).toBe(true);
     expect(inventory.canStack(base, { ...base, qualityTier: 3 })).toBe(false);
     expect(inventory.canStack(base, { ...base, condition: 80 })).toBe(false);
-    expect(inventory.canStack(base, { ...base, manufacturerId: "Vector" })).toBe(false);
+    expect(inventory.canStack(base, { ...base, manufacturerId: "workshop:vector" })).toBe(false);
   });
 
   test("preserves manufacturer identity when ownership changes", () => {
     const item = inventory.createItemInstance({ id: "scythe", name: "Scythe" }, {
       instanceId: "scythe_1",
-      manufacturerId: "Vesper",
+      manufacturerId: "workshop:vesper",
       currentOwnerId: "fixer_a",
     });
 
     const result = inventory.transferOwnership(item, "player_1", { sellerId: "pawn_shop" });
     expect(result.transferred).toBe(true);
-    expect(item.manufacturerId).toBe("Vesper");
+    expect(item.manufacturerId).toBe("workshop:vesper");
     expect(item.currentOwnerId).toBe("player_1");
     expect(item.previousOwnerIds).toContain("fixer_a");
     expect(item.sellerId).toBe("pawn_shop");
