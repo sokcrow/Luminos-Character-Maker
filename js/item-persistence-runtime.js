@@ -16,6 +16,13 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const SCHEMA_VERSION = 2;
+  const LEGACY_HUD_FIELDS = Object.freeze([
+    "nombre", "name", "displayName", "tipo_categoria", "category", "itemType", "type",
+    "tags", "tag", "keywords", "limite_activo", "limite_alijo", "precio", "price", "cost",
+    "tier", "tierRoman", "icon", "imagen", "image", "description", "descripcion",
+    "weapon_details", "armor_details", "shield_details", "accessory_details", "consumable_details",
+    "upgrade_details", "runtime", "function", "functions", "carga_actual", "carga_maxima",
+  ]);
 
   function emit(name, detail) {
     try {
@@ -31,12 +38,23 @@
     return container && typeof container === "object" ? Object.entries(container) : [];
   }
 
+  function preserveLegacyHudFields(target, source = {}) {
+    if (!target || typeof target !== "object") return target;
+    const custom = source.customData && typeof source.customData === "object" ? source.customData : {};
+    LEGACY_HUD_FIELDS.forEach((field) => {
+      const value = source[field] !== undefined ? source[field] : custom[field];
+      if (value !== undefined) target[field] = clone(value);
+    });
+    return target;
+  }
+
   function serializeContainer(container) {
     const runtime = inventory();
     const out = {};
     objectEntries(container).forEach(([key, item]) => {
       if (!item || typeof item !== "object") return;
       const serialized = runtime?.serializeItemInstance?.(item) || clone(item);
+      preserveLegacyHudFields(serialized, item);
       const instanceId = String(serialized.instanceId || key);
       serialized.instanceId = instanceId;
       out[instanceId] = serialized;
@@ -78,6 +96,7 @@
       const instance = intOr(item.schemaVersion, 0) >= SCHEMA_VERSION && item.instanceId && item.definitionId
         ? (runtime?.deserializeItemInstance?.(item, options) || clone(item))
         : (runtime?.migrateLegacyItem?.(item, key, options) || clone(item));
+      preserveLegacyHudFields(instance, item);
       const instanceId = String(instance.instanceId || key);
       instance.instanceId = instanceId;
       out[instanceId] = instance;
@@ -90,7 +109,7 @@
       schemaVersion: SCHEMA_VERSION,
       inventario_activo: deserializeContainer(snapshot.inventario_activo || snapshot.activeInventory || snapshot.inventory || {}, options),
       inventario_stash: deserializeContainer(snapshot.inventario_stash || snapshot.stashInventory || snapshot.stash || {}, options),
-      equipmentRefs: clone(snapshot.equipmentRefs || {}),
+      equipmentRefs: clone(snapshot.equipmentRefs || snapshot.itemEquipmentRefs || {}),
       attunedItemInstanceIds: [...new Set((snapshot.attunedItemInstanceIds || snapshot.attunedItems || []).map(String).filter(Boolean))],
       migratedFromVersion: intOr(snapshot.schemaVersion, 0),
     };
@@ -110,9 +129,7 @@
       const item = findInstance(state, id);
       if (item) unit.equipment[slot] = item;
     });
-    if (Array.isArray(refs.accessoryIds)) {
-      unit.equipment.accessories = refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean);
-    }
+    if (Array.isArray(refs.accessoryIds)) unit.equipment.accessories = refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean);
     return unit.equipment;
   }
 
@@ -168,21 +185,29 @@
     };
     const state = deserializeInventoryState(raw, options);
     const migrated = intOr(raw.schemaVersion, 0) < SCHEMA_VERSION;
-    if (migrated && options.writeBackMigration === true) {
-      await saveInventoryState(db, playerId, state, options);
-    }
+    if (migrated && options.writeBackMigration === true) await saveInventoryState(db, playerId, state, options);
     const result = { loaded: true, playerId: String(playerId), migrated, state };
     emit("luminous:inventory-loaded", result);
     return result;
+  }
+
+  function normalizeStateForSave(unitOrState = {}, options = {}) {
+    const looksLikeState = unitOrState.schemaVersion != null && unitOrState.equipmentRefs !== undefined && !unitOrState.equipment;
+    if (!looksLikeState) return serializeInventoryState(unitOrState);
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      inventario_activo: serializeContainer(unitOrState.inventario_activo || {}),
+      inventario_stash: serializeContainer(unitOrState.inventario_stash || {}),
+      equipmentRefs: clone(unitOrState.equipmentRefs || {}),
+      attunedItemInstanceIds: clone(unitOrState.attunedItemInstanceIds || []),
+    };
   }
 
   async function saveInventoryState(db, playerId, unitOrState, options = {}) {
     if (!requireDb(db)) return { saved: false, reason: "firebase_db_unavailable" };
     const paths = playerPaths(playerId, options);
     if (!paths) return { saved: false, reason: "missing_player_id" };
-    const state = unitOrState?.inventario_activo || unitOrState?.inventario_stash
-      ? serializeInventoryState(unitOrState)
-      : deserializeInventoryState(unitOrState || {}, options);
+    const state = normalizeStateForSave(unitOrState || {}, options);
     const updates = {
       inventario_activo: serializeContainer(state.inventario_activo),
       inventario_stash: serializeContainer(state.inventario_stash),
@@ -192,9 +217,8 @@
     };
     const ref = db.ref(paths.base);
     if (typeof ref.update === "function") await ref.update(updates);
-    else if (typeof ref.set === "function") {
-      await Promise.all(Object.entries(updates).map(([key, value]) => db.ref(`${paths.base}/${key}`).set(value)));
-    } else return { saved: false, reason: "firebase_write_unavailable" };
+    else if (typeof ref.set === "function") await Promise.all(Object.entries(updates).map(([key, value]) => db.ref(`${paths.base}/${key}`).set(value)));
+    else return { saved: false, reason: "firebase_write_unavailable" };
     const result = { saved: true, playerId: String(playerId), schemaVersion: SCHEMA_VERSION, state: updates };
     emit("luminous:inventory-saved", result);
     return result;
@@ -210,19 +234,12 @@
     let equipment = {};
     let attunement = [];
     let scheduled = false;
-
     const publish = () => {
       if (scheduled) return;
       scheduled = true;
       Promise.resolve().then(() => {
         scheduled = false;
-        callback(deserializeInventoryState({
-          schemaVersion,
-          inventario_activo: active,
-          inventario_stash: stash,
-          equipmentRefs: equipment,
-          attunedItemInstanceIds: attunement,
-        }, options));
+        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement }, options));
       });
     };
     const handlers = [
@@ -286,6 +303,8 @@
   const api = Object.freeze({
     version: 1,
     schemaVersion: SCHEMA_VERSION,
+    LEGACY_HUD_FIELDS,
+    preserveLegacyHudFields,
     serializeContainer,
     serializeInventoryState,
     deserializeInventoryState,
