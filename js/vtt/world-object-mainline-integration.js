@@ -139,9 +139,6 @@ export async function start({ runtime = window.LuminousVttRuntime, mapData = run
     return null;
   }
 
-  const currentRuntime = window.LuminousVttRuntime || runtime;
-  window.LuminousVttRuntime = Object.freeze({ ...currentRuntime, worldObjects: api });
-
   let stopped = false;
   const stop = () => {
     if (stopped) return;
@@ -150,7 +147,11 @@ export async function start({ runtime = window.LuminousVttRuntime, mapData = run
     api.stop?.();
     detachRenderer?.();
   };
+  const publicApi = Object.freeze({ ...api, stop });
+  const currentRuntime = window.LuminousVttRuntime || runtime;
+  window.LuminousVttRuntime = Object.freeze({ ...currentRuntime, worldObjects: publicApi });
+
   window.addEventListener('beforeunload', stop, { once: true });
-  window.LuminousVttWorldObjectMainline = Object.freeze({ api, stop });
-  return api;
+  window.LuminousVttWorldObjectMainline = Object.freeze({ api: publicApi, stop });
+  return publicApi;
 }
