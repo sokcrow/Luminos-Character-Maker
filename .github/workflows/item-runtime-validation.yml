@@ -14,6 +14,7 @@ on:
       - "tests/item_runtime_engine.spec.js"
       - "tests/item_runtime_catalog_profile.spec.js"
       - "tests/item_inventory_runtime.spec.js"
+      - "tests/item_inventory_regression.spec.js"
       - "tests/workshop_runtime.spec.js"
       - "tests/item_magic_runtime.spec.js"
       - "tests/item_persistence_runtime.spec.js"
@@ -32,4 +33,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright test tests/item_runtime_engine.spec.js tests/item_runtime_catalog_profile.spec.js tests/item_inventory_runtime.spec.js tests/workshop_runtime.spec.js tests/item_magic_runtime.spec.js tests/item_persistence_runtime.spec.js tests/item_augmentation_runtime.spec.js tests/item_salvage_runtime.spec.js
+      - run: npx playwright test tests/item_runtime_engine.spec.js tests/item_runtime_catalog_profile.spec.js tests/item_inventory_runtime.spec.js tests/item_inventory_regression.spec.js tests/workshop_runtime.spec.js tests/item_magic_runtime.spec.js tests/item_persistence_runtime.spec.js tests/item_augmentation_runtime.spec.js tests/item_salvage_runtime.spec.js
