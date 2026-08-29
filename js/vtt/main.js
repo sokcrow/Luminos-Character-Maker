@@ -7,6 +7,12 @@ import './map-authoring-state.js';
 import './actor-library.js';
 import './actor-library-state.js';
 import './token-state-dynamic-patch.js';
+import './world-object-core.js';
+import './world-object-catalog.js';
+import './environment-affordance-engine.js';
+import './world-object-state.js';
+import './world-object-movement-patch.js';
+import { attachWorldObjectRenderer } from './world-object-renderer.js';
 import './pathfinding.js';
 import './movement-engine.js';
 import './movement-state.js';
@@ -29,7 +35,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     mockMapData.dmEditMode ||= { active: false };
+    mockMapData.worldObjects ||= [];
+    mockMapData.worldObjectDefinitions ||= {};
+    mockMapData.worldObjectEditor ||= { selectedId: null };
     const engine = new Engine(canvas, mockMapData);
+    const detachWorldObjectRenderer = attachWorldObjectRenderer(engine, mockMapData);
     let controller = null;
     let verticalController = null;
 
@@ -58,7 +68,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         notify: (message, mode) => verticalController?.notify(message, mode),
     });
 
-    // Z tools bind first so an active vertical authoring tool wins over topology/token drag.
     verticalController = new VerticalPortalController(canvas, engine, mockMapData, verticalBridge);
     controller = new TopologyController(canvas, engine, mockMapData, bridge);
     verticalController.setTopologyController(controller);
@@ -136,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     engine.start();
 
-    window.LuminousVttRuntime = Object.freeze({
+    window.LuminousVttRuntime = {
         engine,
         controller,
         bridge,
@@ -145,8 +154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         tokenStateBridge,
         editMode,
         characterVisionBridge,
+        worldObjects: null,
         setLayer: applyLayer,
-    });
+    };
 
     const initialMapId = String(mockMapData.id || mockMapData.mapId || 'default');
     const stopMapWatch = mapAuthoringState?.watchActiveMap?.({
@@ -164,12 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./movement-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT movement bootstrap failed:', error));
+    import('./world-object-bootstrap.js')
+        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .catch((error) => console.error('VTT world object bootstrap failed:', error));
 
     window.addEventListener('keydown', (event) => {
         if (event.key === '0') applyLayer(0);
         else if (event.key === '1') applyLayer(1);
         else if (event.key === '2') applyLayer(2);
-        // E belongs exclusively to token PoV Look Lock/Unlock. DM Edit Mode remains available via its button.
         else if (event.key === 'Escape') {
             controller.hideContextMenu();
             controller.setTool('select');
@@ -179,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttRuntime?.worldObjects?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
         window.LuminousVttRuntime?.mapAuthoring?.stop?.();
@@ -189,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         verticalBridge.stop();
         bridge.stop();
         checkPortal?.stop?.();
+        detachWorldObjectRenderer?.();
         engine.stop();
     }, { once: true });
 });
