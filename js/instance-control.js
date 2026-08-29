@@ -329,7 +329,7 @@
     script.id = "character-manager-engine-script";
     script.src = "js/character-manager-engine.js";
     script.async = false;
-    script.dataset.ui = "character-manager";
+    script.dataset.engine = "character-manager";
     script.addEventListener("load", initialize, { once: true });
     documentRef.head?.appendChild(script);
     return script;
