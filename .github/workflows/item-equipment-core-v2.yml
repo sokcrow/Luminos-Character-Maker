@@ -1,0 +1,39 @@
+name: Item Equipment Core v2
+
+on:
+  pull_request:
+    paths:
+      - 'js/item-equipment-core.js'
+      - 'js/equipment-catalog-v2.js'
+      - 'js/equipment-module-catalog.js'
+      - 'js/equipment-recipe-engine.js'
+      - 'js/dm-equipment-forge.js'
+      - 'css/dm-equipment-forge.css'
+      - 'dm-equipment-forge.html'
+      - 'tests/item_equipment_core_v2.spec.js'
+      - 'tests/dm_equipment_forge_contract.spec.js'
+      - 'docs/item-equipment-core-v2.md'
+      - '.github/workflows/item-equipment-core-v2.yml'
+  workflow_dispatch:
+
+jobs:
+  equipment-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/item-equipment-core.js
+          node --check js/equipment-catalog-v2.js
+          node --check js/equipment-module-catalog.js
+          node --check js/equipment-recipe-engine.js
+          node --check js/dm-equipment-forge.js
+      - name: Focused contracts
+        run: npx playwright test tests/item_equipment_core_v2.spec.js tests/dm_equipment_forge_contract.spec.js --workers=1
+      - name: Repository regression
+        run: npx playwright test --workers=1
