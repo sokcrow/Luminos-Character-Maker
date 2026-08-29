@@ -1,0 +1,15 @@
+(function(root,factory){const api=factory(root);if(typeof module!=='undefined'&&module.exports)module.exports=api;if(root)root.LuminousVttHorizontalPlaneAuthoringPatch=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+function coreRuntime(){if(root?.LuminousVttHorizontalPlanes)return root.LuminousVttHorizontalPlanes;if(typeof require!=='undefined'){try{return require('./horizontal-plane-core.js');}catch(_){}}return null;}
+function install(){const base=root?.LuminousVttMapAuthoring,core=coreRuntime();if(!base||!core)return null;if(base.__horizontalPlaneAware===true)return base;
+function payload(raw={},fallback={},definition={}){const source=Array.isArray(raw.horizontalPlanes)?raw.horizontalPlanes:Array.isArray(fallback.horizontalPlanes)?fallback.horizontalPlanes:[];const mapLike={...(fallback||{}),...(definition||{}),...(raw||{}),grid:definition.grid||raw.grid||fallback.grid,zLevels:definition.zLevels||raw.zLevels||fallback.zLevels};return{horizontalPlanes:source.filter(Boolean).map(entry=>core.normalizePlane(entry,mapLike))};}
+function attach(definition,raw={},fallback={}){return{...definition,...payload(raw,fallback,definition)};}
+function normalizeDefinition(raw={},fallback={}){return attach(base.normalizeDefinition(raw,fallback),raw,fallback);}
+function definitionFromMapData(mapData={}){return attach(base.definitionFromMapData(mapData),mapData,mapData);}
+function applyDefinition(mapData,rawDefinition,options={}){const normalized=normalizeDefinition(rawDefinition,mapData||{});base.applyDefinition(mapData,normalized,options);mapData.horizontalPlanes=clone(normalized.horizontalPlanes);return mapData;}
+function preserve(fn){return function wrapped(rawDefinition,...args){const result=fn(rawDefinition,...args);return attach(result,rawDefinition||{},rawDefinition||{});};}
+function canDeleteLevel(mapData={},zLayer=0){const gate=base.canDeleteLevel(mapData,zLayer);if(!gate.valid)return gate;const z=Number(zLayer)||0,planes=(Array.isArray(mapData.horizontalPlanes)?mapData.horizontalPlanes:[]).map(entry=>core.normalizePlane(entry,mapData)).filter(entry=>entry.between.map(Number).includes(z));if(planes.length)return{valid:false,reason:'FLOOR_IN_USE',dependencies:{...(gate.dependencies||{}),horizontalPlanes:planes}};return{...gate,dependencies:{...(gate.dependencies||{}),horizontalPlanes:[]}};}
+function createDefinition(options={}){return attach(base.createDefinition(options),options,options);}
+const patched=Object.freeze({...base,__horizontalPlaneAware:true,normalizeDefinition,definitionFromMapData,applyDefinition,addLevel:preserve(base.addLevel),updateLevel:preserve(base.updateLevel),removeLevel:preserve(base.removeLevel),canDeleteLevel,createDefinition});root.LuminousVttMapAuthoring=patched;return patched;}
+const installed=install();if(!installed&&typeof queueMicrotask==='function')queueMicrotask(()=>install());return Object.freeze({install,installed});
+});
