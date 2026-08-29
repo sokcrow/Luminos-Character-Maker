@@ -2,13 +2,18 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 
-test('world object library seeds twelve reusable definitions', async () => {
+test('world object library seeds sixteen reusable definitions including map utilities', async () => {
   const core = require('../js/vtt/world-object-core.js');
   global.LuminousVttWorldObjectCore = core;
+  delete require.cache[require.resolve('../js/vtt/world-object-catalog.js')];
   const catalog = require('../js/vtt/world-object-catalog.js');
-  expect(catalog.definitions).toHaveLength(12);
+  expect(catalog.definitions).toHaveLength(16);
   expect(catalog.get('locker_industrial').affordances.hideInside).toBe(true);
   expect(catalog.get('concrete_barrier').physical.blocksMovement).toBe(true);
+  expect(catalog.get('street_light').components.lightEmitter.brightFt).toBe(30);
+  expect(catalog.get('wall_switch').components.switch.circuitId).toBe('street');
+  expect(catalog.get('transformer_box').components.transformer.circuits).toContain('street');
+  expect(catalog.get('portable_generator').components.powerSource.circuits).toContain('street');
 });
 
 test('definition and instance remain separate and use stable canonical ids', async () => {
@@ -19,6 +24,16 @@ test('definition and instance remain separate and use stable canonical ids', asy
   expect(inst.definitionId).toBe(def.id);
   expect(inst.mapId).toBe('warehouse');
   expect(inst.position.zLayer).toBe(2);
+});
+
+test('world component defaults are normalized into persistent instance state', async () => {
+  const core = require('../js/vtt/world-object-core.js');
+  const def = core.normalizeDefinition({ id:'lamp', physical:{blocksMovement:false}, components:{ lightEmitter:{enabled:true,brightFt:20}, switch:{circuitId:'room',stateDefault:'off'} } });
+  const inst = core.createInstance(def,{});
+  expect(def.schemaVersion).toBe(2);
+  expect(def.affordances.usable).toBe(true);
+  expect(inst.state.components.lightEnabled).toBe(true);
+  expect(inst.state.components.switchState).toBe('off');
 });
 
 test('affordance engine exposes actions instead of hard coding object types', async () => {
@@ -32,6 +47,18 @@ test('affordance engine exposes actions instead of hard coding object types', as
   const opened = actions.applyAction(inst,def,'open');
   expect(opened.ok).toBe(true);
   expect(opened.instance.state.open).toBe(true);
+});
+
+test('use toggles canonical electrical component state', async () => {
+  const core = require('../js/vtt/world-object-core.js');
+  global.LuminousVttWorldObjectCore = core;
+  delete require.cache[require.resolve('../js/vtt/environment-affordance-engine.js')];
+  const actions = require('../js/vtt/environment-affordance-engine.js');
+  const def = core.normalizeDefinition({ id:'switch', physical:{blocksMovement:false}, components:{switch:{circuitId:'street',stateDefault:'on'}} });
+  const inst = core.createInstance(def,{});
+  const used = actions.applyAction(inst,def,'use');
+  expect(used.ok).toBe(true);
+  expect(used.instance.state.components.switchState).toBe('off');
 });
 
 test('world objects block token collision and A star until destroyed', async () => {
@@ -57,8 +84,7 @@ test('world objects block token collision and A star until destroyed', async () 
   expect(route.valid).toBe(true);
   expect(route.cells.some(c=>c.col===2&&c.row===1)).toBe(false);
   blocker.state.destroyed=true;
-  const openGate=global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData);
-  expect(openGate.valid).toBe(true);
+  expect(global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData).valid).toBe(true);
 });
 
 test('mainline world-object patch preserves movement resolveDrop and prior path blockers', async () => {
@@ -91,6 +117,7 @@ test('mainline integration keeps the hardened runtime and docks Objects in DM Ed
   const main=fs.readFileSync(path.join(__dirname,'..','js','vtt','main.js'),'utf8');
   const integration=fs.readFileSync(path.join(__dirname,'..','js','vtt','world-object-mainline-integration.js'),'utf8');
   expect(main).toContain("import('./world-object-mainline-integration.js')");
+  expect(main).toContain("await import('./map-hud-bootstrap.js')");
   expect(main).toContain('window.LuminousVttRuntime = Object.freeze');
   expect(integration).toContain("panel.id = 'vtt-object-library'");
   expect(integration).toContain("toggle.id = 'vtt-object-library-toggle'");
@@ -99,4 +126,5 @@ test('mainline integration keeps the hardened runtime and docks Objects in DM Ed
   expect(integration).toContain('Object.freeze({ ...currentRuntime, worldObjects: publicApi })');
   expect(integration).toContain('const publicApi = Object.freeze({ ...api, stop })');
   expect(integration).toContain('HIDE INSIDE');
+  expect(integration).toContain('WORLD COMPONENTS');
 });
