@@ -7,6 +7,7 @@ import './map-authoring-state.js';
 import './map-switch-guard.js';
 import './actor-library.js';
 import './actor-library-state.js';
+import './token-appearance.js';
 import './token-state-dynamic-patch.js';
 import './pathfinding.js';
 import './movement-engine.js';
@@ -31,8 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     mockMapData.dmEditMode ||= { active: false };
     const engine = new Engine(canvas, mockMapData);
+    const tokenAppearanceApi = globalThis.LuminousVttTokenAppearance;
+    tokenAppearanceApi?.installRenderer?.(engine.renderer);
     let controller = null;
     let verticalController = null;
+    let characterVisionBridge = null;
 
     const stateApi = globalThis.LuminousVttStateBridge;
     if (!stateApi) {
@@ -95,6 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         isDm: bridge.isDm,
         notify: (message, mode) => controller?.notify(message, mode),
         onTokensChanged: () => {
+            characterVisionBridge?.syncTokens?.();
             if (bridge.isDm) return;
             const viewer = (mockMapData.tokens || []).find((token) => token.viewer === true)
                 || (mockMapData.tokens || []).find((token) => token.characterLink?.mode === 'current_player');
@@ -108,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     tokenStateBridge.start();
 
     const characterVisionApi = globalThis.LuminousVttCharacterVisionBridge;
-    const characterVisionBridge = characterVisionApi?.createBridge?.({
+    characterVisionBridge = characterVisionApi?.createBridge?.({
         mapData: mockMapData,
         onSensesChanged: () => {},
     }) || null;
@@ -173,7 +178,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT map authoring bootstrap failed:', error));
     import('./actor-library-bootstrap.js')
-        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+        .then((module) => {
+            const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            // Actor-library legacy rendering is DM-only. Reinstall the canonical ficha renderer
+            // so DM and players always see the same centered Actor image.
+            tokenAppearanceApi?.installRenderer?.(engine.renderer);
+            return actorLibrary;
+        })
         .catch((error) => console.error('VTT actor library bootstrap failed:', error));
     import('./movement-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
