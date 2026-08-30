@@ -105,6 +105,14 @@ export function start({runtime=globalThis.LuminousVttRuntime,mapData=runtime?.en
     })().finally(()=>flushInFlight.delete(key));
     flushInFlight.set(key,task);return task;
   }
+  async function releaseDormant(raw,reason='dormant'){
+    const identity=Core.zoneIdentity(raw),key=Core.zoneKey(identity),meaningful=store.hasMeaningfulState(identity),dirty=store.isDirty(identity);
+    try{if(meaningful||dirty)await flushZone(identity,{reason});}
+    finally{
+      loadedZones.delete(key);
+      const canReload=Boolean(db);if(!meaningful||canReload)store.forget(identity,{onlyPristine:false});
+    }
+  }
   async function persistEntityDelta(identity,entityId,reason='persistent-change'){
     if(!isDm||!db)return null;
     const record=store.get(identity,worldNowMs()),entry=record?.entities?.[entityId];if(!record||!entry)return null;
@@ -143,7 +151,7 @@ export function start({runtime=globalThis.LuminousVttRuntime,mapData=runtime?.en
     worldStreaming.reconcile?.(now);
     const lifecycle=manager.reconcile(rawActors,now);lastLifecycle=lifecycle;
     for(const active of lifecycle.activated){ensureRecord(active.identity);void restoreZone(active.identity);}
-    for(const dormant of lifecycle.dormant)if(store.hasMeaningfulState(dormant.identity)||store.isDirty(dormant.identity))void flushZone(dormant.identity,{reason:dormant.reason||'dormant'});
+    for(const dormant of lifecycle.dormant)void releaseDormant(dormant.identity,dormant.reason||'dormant');
     mapData.mapSimulation={schemaVersion:Core.SCHEMA_VERSION,...lifecycle.metrics,persistence:store.metrics()};
     emit('vtt:map-simulation-lifecycle',{metrics:mapData.mapSimulation,activated:lifecycle.activated,warmed:lifecycle.warmed,dormant:lifecycle.dormant});return lifecycle;
   }
@@ -152,7 +160,7 @@ export function start({runtime=globalThis.LuminousVttRuntime,mapData=runtime?.en
   }
   function onMovement(){reconcile();}
   function onDelta(event){const detail=event?.detail||{};if(detail.temporary===true||detail.expiresAt!=null)void recordTemporary(detail);else void recordPersistentChange(detail);}
-  function onWorldClock(){pruneTemporary();const lifecycle=manager.tick(worldNowMs());lastLifecycle=lifecycle;for(const dormant of lifecycle.dormant)if(store.hasMeaningfulState(dormant.identity)||store.isDirty(dormant.identity))void flushZone(dormant.identity,{reason:dormant.reason||'world-clock'});mapData.mapSimulation={schemaVersion:Core.SCHEMA_VERSION,...lifecycle.metrics,persistence:store.metrics()};}
+  function onWorldClock(){pruneTemporary();const lifecycle=manager.tick(worldNowMs());lastLifecycle=lifecycle;for(const dormant of lifecycle.dormant)void releaseDormant(dormant.identity,dormant.reason||'world-clock');mapData.mapSimulation={schemaVersion:Core.SCHEMA_VERSION,...lifecycle.metrics,persistence:store.metrics()};}
 
   canvas?.addEventListener?.('vtt:token-moved',onMovement);
   canvas?.addEventListener?.('vtt:regional-local-transition-applied',onMovement);
