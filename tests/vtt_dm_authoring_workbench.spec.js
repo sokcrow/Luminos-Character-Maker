@@ -55,12 +55,15 @@ test('workbench exposes professional zone launch, safe cancel, status and non-in
   expect(source).toContain('MutationObserver');
 });
 
-test('workbench keeps toolbars as original DOM nodes and only reparents them',()=>{
+test('workbench groups original direct-child toolbars by metadata and CSS without DOM reparent churn',()=>{
   const source=read();
-  expect(source).toContain('body.appendChild(toolbar)');
+  expect(source).toContain("querySelectorAll(':scope > .vtt-toolbar,:scope > .vtt-light-toolbar')");
+  expect(source).toContain('toolbar.dataset.dmWorkbenchGroup=groupId');
+  expect(source).toContain("toolbar.style.setProperty('--dm-workbench-order'");
+  expect(source).not.toContain('body.appendChild(toolbar)');
   expect(source).not.toContain('toolbar.cloneNode');
   expect(source).not.toContain('toolbar.outerHTML');
-  expect(source).toContain('body.appendChild(toolbar)');
+  expect(source).toContain('{childList:true,subtree:false}');
 });
 
 test('DM workbench parses as an ES module',()=>{
