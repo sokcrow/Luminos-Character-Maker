@@ -59,7 +59,7 @@ test('NEW MAP is captured by a safe async path that reports save failures instea
   expect(hotfix).toContain('await bridge.saveDefinition(created)');
   expect(hotfix).toContain("console.error('VTT NEW MAP FAILED:'");
   expect(hotfix).toContain("localNotice(root,message,'error')");
-  expect(hotfix).toContain("select.dispatchEvent(new Event('change',{bubbles:true}))");
+  expect(hotfix).toContain("select.dispatchEvent(new EventCtor('change',{bubbles:true}))");
 });
 
 test('DM authoring shell has shared professional states and keyboard focus treatment',()=>{
