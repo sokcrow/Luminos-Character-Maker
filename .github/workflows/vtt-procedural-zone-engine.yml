@@ -1,0 +1,49 @@
+name: VTT Procedural Zone Engine
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/procedural-*.js'
+      - 'js/vtt/urban-fabric-core.js'
+      - 'js/vtt/semantic-map-bootstrap.js'
+      - 'tests/vtt_procedural_zone_engine.spec.js'
+      - '.github/workflows/vtt-procedural-zone-engine.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: vtt-procedural-zone-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  procedural-zone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/procedural-zone-core.js
+          node --check js/vtt/urban-fabric-core.js
+          node --check js/vtt/procedural-building-generator.js
+          node --check js/vtt/procedural-generator-core.js
+          node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
+          node --input-type=module --check < js/vtt/procedural-generator-authoring-bootstrap.js
+      - name: Focused contracts
+        run: >-
+          npx playwright test
+          tests/vtt_procedural_zone_engine.spec.js
+          tests/vtt_building_navigation_graph.spec.js
+          tests/vtt_building_archetypes.spec.js
+          tests/vtt_building_semantic_model.spec.js
+          tests/vtt_building_physics_closure.spec.js
+          tests/vtt_semantic_map_foundation.spec.js
+          tests/vtt_surface_foundation.spec.js
+          tests/vtt_topology.spec.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Repository regression
+        run: npx playwright test
