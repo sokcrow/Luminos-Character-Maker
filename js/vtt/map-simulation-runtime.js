@@ -1,5 +1,6 @@
 import './map-simulation-core.js';
 import { start as startWorldStreaming } from './world-streaming-runtime.js';
+import { start as startPlayerDiscovery } from './player-discovery-runtime.js';
 
 const DM_UID='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
 const PERSIST_ROOT='campaña/estado_mundo/mapSimulationZones';
@@ -169,6 +170,8 @@ export function start({runtime=globalThis.LuminousVttRuntime,mapData=runtime?.en
   globalThis.addEventListener?.('luminous:world-scheduler-updated',onWorldClock);
 
   const initial=reconcile();
-  const api=Object.freeze({Core,PERSIST_ROOT,isDm,manager,store,reconcile,reconcileActors:(actors,now=worldNowMs())=>reconcile(actors,now),restoreZone,flushZone,recordPersistentChange,recordTemporary,markZone,pinZone:(raw,pinned=true)=>markZone(raw,{pinned,persistent:true,reason:'pin-zone'}),snapshot:()=>({lifecycle:manager.snapshot(),persistence:store.metrics(),lastLifecycle}),worldNowMs,stop(){if(stopped)return;stopped=true;canvas?.removeEventListener?.('vtt:token-moved',onMovement);canvas?.removeEventListener?.('vtt:regional-local-transition-applied',onMovement);canvas?.removeEventListener?.('vtt:procedural-chunk-loaded',onMovement);globalThis.removeEventListener?.('vtt:map-delta',onDelta);globalThis.removeEventListener?.('luminous:world-scheduler-updated',onWorldClock);for(const key of store.dirtyKeys()){const record=store.get(key,worldNowMs());if(record?.identity)void flushZone(record.identity,{reason:'runtime-stop'});}loadedZones.clear();restoreInFlight.clear();}});
-  globalThis.LuminousVttMapSimulationRuntime={api};globalThis.LuminousVttRuntime=Object.freeze({...globalThis.LuminousVttRuntime,mapSimulation:api});return api;
+  const api=Object.freeze({Core,PERSIST_ROOT,isDm,manager,store,reconcile,reconcileActors:(actors,now=worldNowMs())=>reconcile(actors,now),restoreZone,flushZone,recordPersistentChange,recordTemporary,markZone,pinZone:(raw,pinned=true)=>markZone(raw,{pinned,persistent:true,reason:'pin-zone'}),snapshot:()=>({lifecycle:manager.snapshot(),persistence:store.metrics(),lastLifecycle}),worldNowMs,stop(){if(stopped)return;stopped=true;globalThis.LuminousVttPlayerDiscoveryRuntime?.api?.stop?.();canvas?.removeEventListener?.('vtt:token-moved',onMovement);canvas?.removeEventListener?.('vtt:regional-local-transition-applied',onMovement);canvas?.removeEventListener?.('vtt:procedural-chunk-loaded',onMovement);globalThis.removeEventListener?.('vtt:map-delta',onDelta);globalThis.removeEventListener?.('luminous:world-scheduler-updated',onWorldClock);for(const key of store.dirtyKeys()){const record=store.get(key,worldNowMs());if(record?.identity)void flushZone(record.identity,{reason:'runtime-stop'});}loadedZones.clear();restoreInFlight.clear();}});
+  globalThis.LuminousVttMapSimulationRuntime={api};globalThis.LuminousVttRuntime=Object.freeze({...globalThis.LuminousVttRuntime,mapSimulation:api});
+  startPlayerDiscovery({runtime:globalThis.LuminousVttRuntime,mapData});
+  return api;
 }
