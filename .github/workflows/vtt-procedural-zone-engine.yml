@@ -10,6 +10,10 @@ on:
       - '.github/workflows/vtt-procedural-zone-engine.yml'
   workflow_dispatch:
 
+concurrency:
+  group: vtt-procedural-zone-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   procedural-zone:
     runs-on: ubuntu-latest
