@@ -54,11 +54,12 @@ jobs:
           node --check js/regional-local-transition-core.js
           node --check js/regional-travel-runtime.js
           node --check js/scene-time-engine.js
-          node --check js/vtt/regional-local-transition-runtime.js
-          node --check js/vtt/world-streaming-runtime.js
-          node --check js/vtt/main.js
+          node --input-type=module --check < js/vtt/regional-local-transition-runtime.js
+          node --input-type=module --check < js/vtt/world-streaming-runtime.js
+          node --input-type=module --check < js/vtt/main.js
           node --check tests/regional_local_transition.spec.js
           node --check tests/regional_local_transition_realtime.spec.js
+          node --check tests/regional_local_transition_bootstrap.spec.js
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -67,6 +68,7 @@ jobs:
           npx playwright test --workers=1
           tests/regional_local_transition.spec.js
           tests/regional_local_transition_realtime.spec.js
+          tests/regional_local_transition_bootstrap.spec.js
           tests/regional_world_graph.spec.js
           tests/regional_world_graph_realtime.spec.js
           tests/regional_travel_engine.spec.js
