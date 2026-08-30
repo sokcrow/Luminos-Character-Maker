@@ -10,7 +10,7 @@ test('completed Zone Creator exposes ghost preview, editable fabric and Building
   for(const token of ['DENSIDAD','EDIF. PEGADOS','CALLEJONES','SERVICIO','VÍAS SEC.','03 · BUILDING MIX','TIENDAS','APARTAMENTOS','TALLERES','ALMACENES','GENERAR PREVIEW','CANCELAR PREVIEW','ENCUADRAR'])expect(authoring).toContain(token);
   for(const option of ['showChunks','showParcels','showRooms','showTopology','showLabels'])expect(authoring).toContain(option);
   expect(authoring).toContain('buildingMix:customBuildingMix()');expect(authoring).toMatch(/mapData\.proceduralEditor\.previewPlan=(?:lastPlan|generated)/);
-  expect(preview).toContain('mapData.dmEditMode?.active===true');expect(preview).toContain('!isExporting');expect(preview).toContain('drawPreview(renderer,camera,mapData)');
+  expect(preview).toMatch(/mapData\??\.dmEditMode\?\.active===true/);expect(preview).toContain('!isExporting');expect(preview).toContain('drawPreview(renderer,camera,mapData)');
   expect(runtime).toContain("import './procedural-building-mix-patch.js'");expect(mix).toContain('fabric.profile?.buildingMix');expect(mix).toContain('eligibleWeights');
 });
 
