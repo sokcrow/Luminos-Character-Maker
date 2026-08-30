@@ -18,7 +18,15 @@
   const worldScheduler = () => load(
     'world-time-scheduler-core',
     'js/world-time-scheduler-core.js',
-    () => load('world-time-scheduler-runtime', 'js/world-time-scheduler-runtime.js')
+    () => load(
+      'regional-travel-core',
+      'js/regional-travel-core.js',
+      () => load(
+        'world-time-scheduler-runtime',
+        'js/world-time-scheduler-runtime.js',
+        () => load('regional-travel-runtime', 'js/regional-travel-runtime.js')
+      )
+    )
   );
   const runtime = () => {
     load('scene-time-v1-runtime', 'js/scene-time-runtime.js');
