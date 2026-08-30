@@ -9,7 +9,7 @@ test('completed Zone Creator exposes ghost preview, editable fabric and Building
   const authoring=read('js/vtt/procedural-generator-authoring-bootstrap.js'),runtime=read('js/vtt/procedural-generator-bootstrap.js'),preview=read('js/vtt/procedural-preview-renderer-patch.js'),mix=read('js/vtt/procedural-building-mix-patch.js');
   for(const token of ['DENSIDAD','EDIF. PEGADOS','CALLEJONES','SERVICIO','VÍAS SEC.','03 · BUILDING MIX','TIENDAS','APARTAMENTOS','TALLERES','ALMACENES','GENERAR PREVIEW','CANCELAR PREVIEW','ENCUADRAR'])expect(authoring).toContain(token);
   for(const option of ['showChunks','showParcels','showRooms','showTopology','showLabels'])expect(authoring).toContain(option);
-  expect(authoring).toContain('buildingMix:customBuildingMix()');expect(authoring).toContain('mapData.proceduralEditor.previewPlan=lastPlan');
+  expect(authoring).toContain('buildingMix:customBuildingMix()');expect(authoring).toMatch(/mapData\.proceduralEditor\.previewPlan=(?:lastPlan|generated)/);
   expect(preview).toContain('mapData.dmEditMode?.active===true');expect(preview).toContain('!isExporting');expect(preview).toContain('drawPreview(renderer,camera,mapData)');
   expect(runtime).toContain("import './procedural-building-mix-patch.js'");expect(mix).toContain('fabric.profile?.buildingMix');expect(mix).toContain('eligibleWeights');
 });
@@ -32,6 +32,6 @@ test('preview path cannot apply a plan and apply remains gated by a valid lastPl
 });
 
 test('final Zone Creator modules parse as JavaScript',()=>{
-  for(const file of ['js/vtt/procedural-preview-renderer-patch.js','js/vtt/procedural-building-mix-patch.js'])execFileSync(process.execPath,['--check',path.join(ROOT,file)],{stdio:'pipe'});
+  for(const file of ['js/vtt/procedural-preview-renderer-patch.js','js/vtt/procedural-building-mix-patch.js','js/vtt/procedural-generator-worker.js'])execFileSync(process.execPath,['--check',path.join(ROOT,file)],{stdio:'pipe'});
   for(const file of ['js/vtt/procedural-generator-bootstrap.js','js/vtt/procedural-generator-authoring-bootstrap.js'])execFileSync(process.execPath,['--input-type=module','--check'],{input:read(file),stdio:['pipe','pipe','pipe']});
 });
