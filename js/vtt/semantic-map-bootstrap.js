@@ -5,6 +5,8 @@ import { start as startBuildingSemantics } from './building-semantic-bootstrap.j
 import { start as startBuildingSemanticAuthoring } from './building-semantic-authoring-bootstrap.js';
 import { start as startBuildingArchetypes } from './building-archetype-bootstrap.js';
 import { start as startBuildingArchetypeAuthoring } from './building-archetype-authoring-bootstrap.js';
+import { start as startBuildingNavigation } from './building-navigation-bootstrap.js';
+import { start as startBuildingNavigationAuthoring } from './building-navigation-authoring-bootstrap.js';
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
   if(!runtime?.engine||!mapData)return null;
@@ -40,6 +42,8 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   if(buildingRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startBuildingSemanticAuthoring({runtime:window.LuminousVttRuntime,mapData});
   const archetypeRuntime=buildingRuntime?startBuildingArchetypes({runtime:window.LuminousVttRuntime,mapData}):null;
   if(archetypeRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startBuildingArchetypeAuthoring({runtime:window.LuminousVttRuntime,mapData});
+  const navigationRuntime=buildingRuntime?startBuildingNavigation({runtime:window.LuminousVttRuntime,mapData}):null;
+  if(navigationRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startBuildingNavigationAuthoring({runtime:window.LuminousVttRuntime,mapData});
   return api;
 }
 function boot(attempt=0){const runtime=window.LuminousVttRuntime;if(runtime?.engine){const api=start({runtime,mapData:runtime.engine.mapData});if(api)window.addEventListener('beforeunload',()=>api.stop?.(),{once:true});return;}if(attempt<100)window.setTimeout(()=>boot(attempt+1),100);}
