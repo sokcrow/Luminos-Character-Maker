@@ -15,12 +15,17 @@
     return link;
   }
 
-  function ensureScript(id, src) {
+  function ensureScript(id, src, globalName) {
     return new Promise((resolve, reject) => {
+      if (globalName && global[globalName]) return resolve(doc.getElementById(id) || null);
+
       let script = doc.getElementById(id);
       if (script) {
-        if (script.dataset.loaded === "true") return resolve(script);
-        script.addEventListener("load", () => resolve(script), { once: true });
+        if (script.dataset.loaded === "true" || (globalName && global[globalName])) return resolve(script);
+        script.addEventListener("load", () => {
+          script.dataset.loaded = "true";
+          resolve(script);
+        }, { once: true });
         script.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
         return;
       }
@@ -40,20 +45,20 @@
 
   async function boot() {
     try {
-      await ensureScript("player-ux-polish-core-script", "js/player-ux-polish-core.js");
+      await ensureScript("player-ux-polish-core-script", "js/player-ux-polish-core.js", "LuminousPlayerUxPolish");
 
       if (!doc.getElementById("inventory-modal")) return;
 
       ensureStyle("inventory-hud-v2-stylesheet", "css/inventory-hud-v2.css");
 
-      await ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
-      await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js");
-      await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js");
-      await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js");
-      await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js");
-      await ensureScript("item-augmentation-runtime-script", "js/item-augmentation-runtime.js");
-      await ensureScript("item-equipment-bridge-script", "js/item-equipment-bridge.js");
-      await ensureScript("inventory-hud-v2-script", "js/inventory-hud-v2.js");
+      await ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js", "LuminousAnatomyEquipmentEngine");
+      await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
+      await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
+      await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
+      await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
+      await ensureScript("item-augmentation-runtime-script", "js/item-augmentation-runtime.js", "LuminousItemAugmentationRuntime");
+      await ensureScript("item-equipment-bridge-script", "js/item-equipment-bridge.js", "LuminousItemEquipmentBridge");
+      await ensureScript("inventory-hud-v2-script", "js/inventory-hud-v2.js", "LuminousInventoryHudV2");
     } catch (error) {
       console.error("[Luminous] Inventory HUD V2 bootstrap failed:", error);
     }
