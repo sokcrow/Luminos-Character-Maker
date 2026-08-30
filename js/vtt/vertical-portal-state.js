@@ -1,6 +1,6 @@
 (function (root, factory) {
     const api = factory(root);
-    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+    if (typeof module !== 'undefined'&&module.exports) module.exports = api;
     if (root) root.LuminousVttVerticalPortalState = api;
 })(typeof window !== 'undefined' ? window : globalThis, function (browserRoot) {
     'use strict';
@@ -101,6 +101,20 @@
             return true;
         }
 
+        async function replaceAll(portals = mapData.verticalPortals || []) {
+            if (!isDm) throw new Error('DM_REQUIRED');
+            const normalized = (Array.isArray(portals) ? portals : [])
+                .map((portal) => runtime.normalizePortal(portal, mapData))
+                .filter((portal) => portal.id)
+                .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            if (!db) {
+                replacePortals(normalized);
+                return normalized;
+            }
+            await portalsRef().set(recordFromPortals(normalized, runtime, mapData));
+            return normalized;
+        }
+
         function start() {
             if (started) return true;
             started = true;
@@ -127,9 +141,10 @@
             stop,
             savePortal,
             deletePortal,
+            replaceAll,
             notify: emitNotice,
         });
     }
 
-    return Object.freeze({ ROOT, createBridge });
+    return Object.freeze({ ROOT, recordFromPortals, portalsFromRecord, createBridge });
 });

@@ -14,7 +14,7 @@
 
   function createBridge(options = {}) {
     const bridge = originalCreateBridge(options);
-    if (bridge?.replaceElement) return bridge;
+    if (bridge?.replaceElement && bridge?.replaceAll) return bridge;
 
     const mapData = options.mapData;
     const topology = root?.LuminousVttTopology;
@@ -53,7 +53,26 @@
       return normalized;
     }
 
-    return Object.freeze({ ...bridge, replaceElement });
+    async function replaceAll(elements = mapData?.topology || []) {
+      if (!bridge?.isDm) throw new Error('DM_REQUIRED');
+      if (!mapData || !topology) throw new Error('TOPOLOGY_REPLACE_DEPENDENCY_REQUIRED');
+      const normalized = (Array.isArray(elements) ? elements : [])
+        .map((element) => topology.normalizeElement(element))
+        .filter((element) => String(element.id || '').trim())
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      const record = base.recordFromElements ? base.recordFromElements(normalized, topology) : Object.fromEntries(normalized.map((element) => [element.id, clone(element)]));
+
+      if (!db) {
+        mapData.topology = clone(normalized);
+        if (typeof options.onTopologyChanged === 'function') options.onTopologyChanged(mapData.topology);
+        return mapData.topology;
+      }
+
+      await db.ref(`${base.TOPOLOGY_ROOT}/${bridge.mapId}/elements`).set(record);
+      return normalized;
+    }
+
+    return Object.freeze({ ...bridge, replaceElement, replaceAll });
   }
 
   root.LuminousVttStateBridge = Object.freeze({

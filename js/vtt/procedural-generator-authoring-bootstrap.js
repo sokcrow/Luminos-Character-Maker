@@ -1,122 +1,147 @@
-const LAUNCHER_ID='vtt-procedural-zone-launcher',PANEL_ID='vtt-procedural-zone-creator',STYLE_ID='vtt-procedural-zone-creator-style';
-const esc=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-const pct=value=>`${Math.round(Math.max(0,Math.min(1,Number(value)||0))*100)}%`;
+import './procedural-preview-renderer-patch.js';
 
-function randomSeed(prefix='luminous-zone'){
-  let suffix='';
-  try{const data=new Uint32Array(2);crypto.getRandomValues(data);suffix=[...data].map(x=>x.toString(36)).join('-');}catch(_){suffix=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
-  return `${prefix}:${suffix}`;
-}
-
-function buildingFootprints(plan){
-  const byId=new Map();
-  for(const cell of plan?.generated?.surfaceCells||[]){
-    if(!cell.buildingId)continue;
-    const current=byId.get(cell.buildingId)||{id:cell.buildingId,minCol:cell.col,maxCol:cell.col,minRow:cell.row,maxRow:cell.row};
-    current.minCol=Math.min(current.minCol,cell.col);current.maxCol=Math.max(current.maxCol,cell.col);current.minRow=Math.min(current.minRow,cell.row);current.maxRow=Math.max(current.maxRow,cell.row);byId.set(cell.buildingId,current);
-  }
-  return[...byId.values()];
-}
-
-function svgRect(g,cls,title=''){
-  if(!g)return'';const x=Number(g.minCol)||0,y=Number(g.minRow)||0,w=Math.max(1,(Number(g.maxCol)||0)-x+1),h=Math.max(1,(Number(g.maxRow)||0)-y+1);
-  return`<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}">${title?`<title>${esc(title)}</title>`:''}</rect>`;
-}
-
-export function renderPreviewSvg(plan){
-  if(!plan?.zone)return'<div class="proc-empty-preview">GENERA UN PREVIEW PARA INSPECCIONAR LA ZONA</div>';
-  const zone=plan.zone,cols=Math.max(1,Number(zone.cols)||40),rows=Math.max(1,Number(zone.rows)||40),chunk=Math.max(1,Number(zone.chunkSize)||40);
-  const grid=[];for(let x=chunk;x<cols;x+=chunk)grid.push(`<line x1="${x}" y1="0" x2="${x}" y2="${rows}"/>`);for(let y=chunk;y<rows;y+=chunk)grid.push(`<line x1="0" y1="${y}" x2="${cols}" y2="${y}"/>`);
-  const parcels=(plan.fabric?.parcels||[]).map(p=>svgRect(p.geometry,'proc-svg-parcel',p.id)).join('');
-  const streets=(plan.fabric?.streets||[]).filter(s=>s.kind!=='alley').map(s=>svgRect(s.geometry,'proc-svg-street',s.semanticId||s.id)).join('');
-  const alleys=[...(plan.fabric?.streets||[]).filter(s=>s.kind==='alley'),...(plan.fabric?.alleys||[])].map(a=>svgRect(a.geometry,'proc-svg-alley',a.semanticId||a.id)).join('');
-  const buildings=buildingFootprints(plan).map(b=>svgRect(b,'proc-svg-building',b.id)).join('');
-  return`<svg class="proc-preview-svg" viewBox="0 0 ${cols} ${rows}" role="img" aria-label="Procedural zone preview"><rect class="proc-svg-ground" x="0" y="0" width="${cols}" height="${rows}"/>${parcels}${streets}${alleys}${buildings}<g class="proc-svg-chunks">${grid.join('')}</g></svg>`;
-}
-
-function validatorRows(plan){
-  if(!plan?.validation)return'<div class="proc-validation-empty">SIN VALIDACIÓN</div>';
-  const checks=plan.validation.checks||{},specs=[['boundary','BOUNDARY'],['semantic','SEMANTICS'],['buildings','BUILDINGS'],['archetypes','ARCHETYPES'],['navigation','NAVIGATION'],['physics','PHYSICS']];
-  return specs.map(([key,label])=>{const check=checks[key],valid=check?.valid!==false;return`<div class="proc-check ${valid?'is-valid':'is-invalid'}"><span>${label}</span><strong>${valid?'PASS':'FAIL'}</strong></div>`;}).join('');
-}
-
-function summaryMarkup(plan){
-  if(!plan)return'<div class="proc-summary-empty">NO HAY UN PLAN GENERADO</div>';
-  const v=plan.validation||{},s=v.summary||{},f=plan.fabric||{},z=plan.zone||{};
-  return`<div class="proc-summary-grid"><div><small>STATUS</small><strong class="${v.valid?'is-valid':'is-invalid'}">${v.valid?'VALID':'INVALID'}</strong></div><div><small>SIZE</small><strong>${z.cols||0}×${z.rows||0}</strong></div><div><small>BUILDINGS</small><strong>${s.buildings||0}</strong></div><div><small>STREETS</small><strong>${(f.streets||[]).length}</strong></div><div><small>PARCELS</small><strong>${(f.parcels||[]).length}</strong></div><div><small>ALLEYS</small><strong>${(f.alleys||[]).length}</strong></div></div><div class="proc-signature">SIGNATURE · ${esc(plan.signature||'—')}</div>`;
-}
+const TOOLBAR_ID='vtt-procedural-generator-toolbar';
+const PANEL_ID='vtt-procedural-zone-panel';
+const STYLE_ID='vtt-procedural-generator-style';
+const clean=v=>String(v??'').trim();
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,Number(v)));
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
   if(!runtime?.engine||!mapData||!runtime.bridge?.isDm)return null;
   if(window.LuminousVttProceduralGeneratorAuthoringRuntime?.stop)return window.LuminousVttProceduralGeneratorAuthoringRuntime;
   const procedural=runtime.procedural;if(!procedural)return null;
-  let launcher=null,panel=null,lastPlan=null,stopped=false,reroll=0,applyArmed=false,selectedChunks=3;
+
+  mapData.proceduralEditor||={previewPlan:null,previewOptions:{showChunks:true,showParcels:true,showRooms:true,showTopology:true,showLabels:true}};
+  let toolbar=null,panel=null,lastPlan=null,stopped=false,reroll=0,panelOpen=false,busy=false;
+  const stopPreviewRenderer=window.LuminousVttProceduralPreviewRenderer?.install?.(runtime.engine.renderer,mapData)||(()=>{});
   const enabled=()=>mapData.dmEditMode?.active===true;
-  const notify=(message,type='info')=>runtime.controller?.notify?.(message,type);
-  const baseSeed=()=>panel?.querySelector('[data-proc-seed]')?.value?.trim()||`${mapData.id||mapData.mapId||'map'}:zone`;
-  const currentProfile=()=>procedural.profiles().find(p=>p.id===(panel?.querySelector('[data-proc-profile]')?.value||'mixed_urban'))||procedural.profiles()[0]||{};
 
-  function values(){const seed=baseSeed();return{seed:reroll?`${seed}:reroll:${reroll}`:seed,profileId:currentProfile().id||'mixed_urban',chunkCols:selectedChunks,chunkRows:selectedChunks};}
-  function invalidate(){lastPlan=null;applyArmed=false;reroll=0;syncUi();}
-  function open(){if(!enabled())return;panel.hidden=false;panel.setAttribute('aria-hidden','false');syncUi();panel.querySelector('[data-proc-profile]')?.focus?.();}
-  function close(){panel.hidden=true;panel.setAttribute('aria-hidden','true');applyArmed=false;syncUi();}
-
-  function preview(){
-    applyArmed=false;
-    try{lastPlan=procedural.preview(values());notify(`Zona procedural válida · ${lastPlan.validation.summary.buildings} buildings · ${lastPlan.signature}`,'success');}
-    catch(error){lastPlan=null;const first=error?.failures?.[0]?.errors?.[0]?.code||error?.message||'PROCEDURAL_GENERATION_FAILED';notify(first,'warning');}
-    syncUi();return lastPlan;
+  function notify(message,type='info'){runtime.controller?.notify?.(message,type);}
+  function invalidate(){runtime.engine.renderer?.invalidate?.();runtime.engine.invalidate?.();}
+  function by(sel){return panel?.querySelector(sel)||null;}
+  function number(sel,fallback=0){const n=Number(by(sel)?.value);return Number.isFinite(n)?n:fallback;}
+  function selectedSize(){return Math.max(1,Math.min(3,Math.trunc(number('[data-proc-size]',3))));}
+  function baseSeed(){return clean(by('[data-proc-seed]')?.value)||`${mapData.id||mapData.mapId||'map'}:zone`;}
+  function seed(){const base=baseSeed();return reroll?`${base}:reroll:${reroll}`:base;}
+  function selectedProfileId(){return by('[data-proc-profile]')?.value||'mixed_urban';}
+  function customProfile(){
+    const base=procedural.profile(selectedProfileId());
+    return{...base,
+      density:clamp(number('[data-proc-density]',base.density*100)/100,0,1),
+      attachBias:clamp(number('[data-proc-attach]',base.attachBias*100)/100,0,1),
+      alleyBias:clamp(number('[data-proc-alley]',base.alleyBias*100)/100,0,1),
+      serviceAccessBias:clamp(number('[data-proc-service]',base.serviceAccessBias*100)/100,0,1),
+      secondaryRoadChance:clamp(number('[data-proc-secondary]',base.secondaryRoadChance*100)/100,0,1),
+    };
   }
-  function rerollPreview(){reroll+=1;applyArmed=false;return preview();}
-  function randomize(){const input=panel?.querySelector('[data-proc-seed]');if(input)input.value=randomSeed(`${mapData.id||mapData.mapId||'map'}:zone`);invalidate();}
-  function apply(){
-    if(!lastPlan?.validation?.valid)return null;
-    if(!applyArmed){applyArmed=true;notify('Confirma APLICAR ZONA para reemplazar la geometría actual. Los tokens se conservarán.','warning');syncUi();return null;}
-    try{procedural.apply(lastPlan,{replaceScene:true});notify(`Zona aplicada · ${lastPlan.signature}`,'success');applyArmed=false;close();return lastPlan;}
-    catch(error){applyArmed=false;notify(error?.message||'PROCEDURAL_APPLY_FAILED','warning');syncUi();return null;}
+  function values(){
+    const size=selectedSize();
+    return{seed:seed(),profile:customProfile(),chunkCols:size,chunkRows:size,minBuildings:size===1?1:size===2?3:4};
   }
 
-  function profileMarkup(){const p=currentProfile();return[['DENSITY',p.density],['ATTACHED',p.attachBias],['ALLEYS',p.alleyBias],['SERVICE',p.serviceAccessBias]].map(([label,value])=>`<div class="proc-meter"><div><span>${label}</span><strong>${pct(value)}</strong></div><div class="proc-meter-track"><i style="width:${pct(value)}"></i></div></div>`).join('')+`<div class="proc-profile-meta">ROAD ${p.primaryRoadWidth||'—'} / ${p.secondaryRoadWidth||'—'} TILES · PARCEL ${p.minParcel||'—'}–${p.maxParcel||'—'} · SETBACK ${p.setback||0}</div>`;}
+  function randomSeed(){
+    const bytes=new Uint32Array(2);if(window.crypto?.getRandomValues)window.crypto.getRandomValues(bytes);else{bytes[0]=Date.now();bytes[1]=Math.floor(Math.random()*0xffffffff);}
+    const next=`${mapData.id||mapData.mapId||'map'}:${bytes[0].toString(36)}${bytes[1].toString(36)}`;const input=by('[data-proc-seed]');if(input)input.value=next;reroll=0;clearPreview();syncUi();return next;
+  }
 
+  function setProfileControls(profileId=selectedProfileId()){
+    const p=procedural.profile(profileId),pairs=[['density','density'],['attach','attachBias'],['alley','alleyBias'],['service','serviceAccessBias'],['secondary','secondaryRoadChance']];
+    for(const[name,key]of pairs){const input=by(`[data-proc-${name}]`),readout=by(`[data-proc-${name}-value]`);if(input)input.value=Math.round((Number(p[key])||0)*100);if(readout)readout.textContent=`${input?.value||0}%`;}
+    clearPreview();syncUi();
+  }
+
+  function setBusy(next,label='GENERATING'){busy=Boolean(next);const spinner=by('[data-proc-busy]');if(spinner){spinner.hidden=!busy;spinner.textContent=busy?label:'';}syncUi();}
+  function updatePreviewOptions(){
+    const o=mapData.proceduralEditor.previewOptions||{};
+    for(const key of ['showChunks','showParcels','showRooms','showTopology','showLabels']){const input=by(`[data-proc-view="${key}"]`);if(input)o[key]=input.checked;}
+    mapData.proceduralEditor.previewOptions=o;invalidate();
+  }
+
+  function clearPreview(){lastPlan=null;mapData.proceduralEditor.previewPlan=null;invalidate();}
+  function generationChanged({resetReroll=true}={}){if(resetReroll)reroll=0;clearPreview();syncUi();}
+  function fitPreview(){
+    const plan=lastPlan,camera=runtime.engine.camera;if(!plan||!camera)return false;const size=Number(plan.mapData?.grid?.size)||70,width=(Number(plan.zone?.cols)||120)*size,height=(Number(plan.zone?.rows)||120)*size,canvas=runtime.engine.canvas,pad=64;
+    const target=Math.min((canvas.width-pad*2)/Math.max(1,width),(canvas.height-pad*2)/Math.max(1,height));camera.zoom=Math.max(camera.minZoom||.1,Math.min(camera.maxZoom||5,target));camera.centerOnWorldPoint?.({x:width/2,y:height/2});invalidate();return true;
+  }
+
+  function preview({fit=true}={}){
+    if(busy)return null;setBusy(true,'GENERATING');
+    try{
+      lastPlan=procedural.preview(values());mapData.proceduralEditor.previewPlan=lastPlan;reroll=Math.max(0,reroll);if(fit)fitPreview();
+      notify(`Preview válido · ${lastPlan.validation.summary.buildings} edificios · ${lastPlan.signature}`,'success');return lastPlan;
+    }catch(error){clearPreview();const first=error?.failures?.[0]?.errors?.[0]?.code||error?.message||'PROCEDURAL_GENERATION_FAILED';notify(first,'warning');return null;}
+    finally{setBusy(false);syncUi();}
+  }
+
+  function rerollPreview(){reroll+=1;return preview();}
+  function sceneHasContent(){return['topology','walls','worldObjects','horizontalPlanes','structures','verticalPortals'].some(k=>(mapData[k]||[]).length>0)||(mapData.semantics?.buildings||[]).length>0;}
+  function createZone(){
+    if(!lastPlan?.validation?.valid||busy)return null;
+    if(sceneHasContent()&&!window.confirm('CREAR ZONA reemplazará la geometría y semántica actual. Los tokens de jugador se conservarán. ¿Continuar?'))return null;
+    try{procedural.apply(lastPlan,{replaceScene:true});mapData.proceduralEditor.previewPlan=null;notify(`Zona creada · ${lastPlan.signature}`,'success');panelOpen=false;syncUi();return lastPlan;}
+    catch(error){notify(error?.message||'PROCEDURAL_APPLY_FAILED','warning');return null;}
+  }
+
+  function openPanel(){if(!enabled())return false;panelOpen=true;syncUi();return true;}
+  function closePanel(){panelOpen=false;clearPreview();syncUi();return true;}
+
+  function metric(label,value){return`<div class="proc-metric"><span>${label}</span><strong>${value}</strong></div>`;}
   function syncUi(){
-    if(!launcher||!panel)return;launcher.hidden=!enabled();if(!enabled())panel.hidden=true;
-    launcher.querySelector('[data-proc-launch]')?.classList.toggle('is-active',!panel.hidden);
-    panel.querySelectorAll('[data-proc-size]').forEach(btn=>{const active=Number(btn.dataset.procSize)===selectedChunks;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',active?'true':'false');});
-    const profile=panel.querySelector('[data-proc-profile-summary]');if(profile)profile.innerHTML=profileMarkup();
-    const previewNode=panel.querySelector('[data-proc-visual]');if(previewNode)previewNode.innerHTML=renderPreviewSvg(lastPlan);
-    const summary=panel.querySelector('[data-proc-summary]');if(summary)summary.innerHTML=summaryMarkup(lastPlan);
-    const validation=panel.querySelector('[data-proc-validation]');if(validation)validation.innerHTML=validatorRows(lastPlan);
-    const applyButton=panel.querySelector('[data-proc-apply]');if(applyButton){applyButton.disabled=!lastPlan?.validation?.valid;applyButton.classList.toggle('is-armed',applyArmed);applyButton.textContent=applyArmed?'CONFIRMAR APLICACIÓN':'APLICAR ZONA';}
-    const warning=panel.querySelector('[data-proc-apply-warning]');if(warning)warning.hidden=!applyArmed;
-    const rerollButton=panel.querySelector('[data-proc-reroll]');if(rerollButton)rerollButton.disabled=!lastPlan;
+    if(!toolbar||!panel)return;toolbar.hidden=!enabled();if(!enabled())panelOpen=false;panel.hidden=!panelOpen;
+    const launch=toolbar.querySelector('[data-proc-open]');if(launch)launch.setAttribute('aria-expanded',panelOpen?'true':'false');
+    const apply=by('[data-proc-apply]'),rerollButton=by('[data-proc-reroll]'),previewButton=by('[data-proc-preview]');if(apply)apply.disabled=busy||!lastPlan?.validation?.valid;if(rerollButton)rerollButton.disabled=busy;if(previewButton)previewButton.disabled=busy;
+    for(const name of ['density','attach','alley','service','secondary']){const input=by(`[data-proc-${name}]`),out=by(`[data-proc-${name}-value]`);if(input&&out)out.textContent=`${input.value}%`;}
+    const status=by('[data-proc-status]'),metrics=by('[data-proc-metrics]'),signature=by('[data-proc-signature]'),warning=by('[data-proc-replace-warning]');
+    if(warning)warning.hidden=!sceneHasContent();
+    if(!lastPlan){if(status){status.textContent='SIN PREVIEW';status.dataset.state='idle';}if(metrics)metrics.innerHTML=metric('ZONE',`${selectedSize()}×${selectedSize()} CHUNKS`)+metric('CELDAS',`${selectedSize()*40}×${selectedSize()*40}`)+metric('ESTADO','—');if(signature)signature.textContent='Genera un preview para validar la zona.';}
+    else{const v=lastPlan.validation,f=lastPlan.fabric,z=lastPlan.zone;if(status){status.textContent=v.valid?'VALIDADO':'INVÁLIDO';status.dataset.state=v.valid?'valid':'invalid';}if(metrics)metrics.innerHTML=metric('ZONE',`${z.chunkCols}×${z.chunkRows} CHUNKS`)+metric('CELDAS',`${z.cols}×${z.rows}`)+metric('EDIFICIOS',v.summary.buildings)+metric('CALLES',f.streets.length)+metric('PARCELAS',f.parcels.length)+metric('CALLEJONES',f.alleys.length);if(signature)signature.textContent=`SEED ${lastPlan.seed} · SIG ${lastPlan.signature} · ATTEMPT ${lastPlan.attempt}`;}
   }
 
-  function installStyles(){
+  function injectStyles(){
     if(document.getElementById(STYLE_ID))return;const style=document.createElement('style');style.id=STYLE_ID;style.textContent=`
-#${LAUNCHER_ID}{display:flex;flex-direction:column;gap:5px}#${LAUNCHER_ID} [data-proc-launch]{min-height:44px}
-#${PANEL_ID}{position:fixed;right:252px;top:18px;z-index:36500;width:min(520px,calc(100vw - 290px));max-height:calc(100vh - 36px);overflow:auto;background:#090b0d;border:1px solid #806d2d;box-shadow:-8px 8px 0 rgba(0,0,0,.65);color:#e7ebee;font:11px/1.35 monospace;box-sizing:border-box}#${PANEL_ID}[hidden]{display:none!important}
-.proc-creator-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#0b0e11;border-bottom:1px solid #806d2d}.proc-creator-head h2{margin:0;font:700 14px/1 monospace;letter-spacing:.16em;color:#e6c861}.proc-close{width:32px;height:32px;background:#11161a;border:1px solid #59636c;color:#dce3e8;cursor:pointer}
-.proc-creator-body{display:grid;grid-template-columns:minmax(180px,.85fr) minmax(230px,1.15fr);gap:12px;padding:12px}.proc-card{border:1px solid #394149;background:#0d1013;padding:10px}.proc-card h3{margin:0 0 9px;color:#d7b151;font:700 10px/1 monospace;letter-spacing:.13em}.proc-field{display:grid;gap:5px;margin:0 0 10px}.proc-field>span{color:#8f9aa2;font-size:9px;letter-spacing:.1em}.proc-field input,.proc-field select{width:100%;box-sizing:border-box;background:#080a0c;border:1px solid #4d565e;color:#edf1f3;padding:8px;font:11px monospace}.proc-seed-row{display:grid;grid-template-columns:1fr auto;gap:5px}.proc-size-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.proc-size-row button,.proc-actions button,.proc-seed-row button{background:#11161a;border:1px solid #59636c;color:#dce3e8;padding:8px;cursor:pointer;font:700 10px monospace}.proc-size-row button.is-active{border-color:#d7b151;color:#f4dc8c;background:#25200f}.proc-actions button:disabled{opacity:.35;cursor:not-allowed}.proc-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}.proc-actions [data-proc-generate]{grid-column:1/-1;border-color:#d7b151;color:#f2d774}.proc-actions [data-proc-apply]{grid-column:1/-1;border-color:#587b61;color:#aee1b8}.proc-actions [data-proc-apply].is-armed{border-color:#c36e53;color:#ffd0c2;background:#27120d}.proc-apply-warning{margin-top:7px;padding:7px;border:1px solid #9b5744;color:#ffc3b2;background:#22100c}
-.proc-meter{margin:7px 0}.proc-meter>div:first-child{display:flex;justify-content:space-between;color:#aeb6bc;font-size:9px}.proc-meter-track{height:4px;background:#242a2f;margin-top:3px;overflow:hidden}.proc-meter-track i{display:block;height:100%;background:#b89d4a}.proc-profile-meta{margin-top:9px;color:#7f8a92;font-size:9px}.proc-preview-wrap{aspect-ratio:1/1;min-height:230px;border:1px solid #333b42;background:#07090a;display:grid;place-items:center;overflow:hidden}.proc-preview-svg{width:100%;height:100%;display:block}.proc-svg-ground{fill:#11161a}.proc-svg-parcel{fill:none;stroke:#252d33;stroke-width:.35}.proc-svg-street{fill:#394149}.proc-svg-alley{fill:#252c31}.proc-svg-building{fill:#765f28;stroke:#d7b151;stroke-width:.35}.proc-svg-chunks{stroke:#64717a;stroke-width:.25;stroke-dasharray:1.5 1.5;opacity:.65}.proc-empty-preview{padding:18px;text-align:center;color:#68747c;font-size:9px}.proc-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.proc-summary-grid>div{border:1px solid #30373d;padding:6px}.proc-summary-grid small{display:block;color:#737e86;font-size:8px}.proc-summary-grid strong{display:block;margin-top:2px}.is-valid{color:#9bd3a7!important}.is-invalid{color:#ef9276!important}.proc-signature{margin-top:6px;color:#7d878e;font-size:9px;overflow-wrap:anywhere}.proc-check{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #252b30}.proc-check:last-child{border-bottom:0}.proc-validation-empty,.proc-summary-empty{color:#68747c;font-size:9px}.proc-footer{padding:0 12px 12px;color:#7f8a92;font-size:9px}.proc-footer strong{color:#b5bdc3}
-@media(max-width:900px){#${PANEL_ID}{right:176px;width:calc(100vw - 194px)}.proc-creator-body{grid-template-columns:1fr}.proc-preview-wrap{min-height:180px}}
+#${TOOLBAR_ID}{border-color:#d7b151!important}#${TOOLBAR_ID} [data-proc-open]{border-color:#d7b151;color:#f3d982;background:linear-gradient(180deg,#18150c,#0d0c08)}
+#${PANEL_ID}{position:fixed;right:210px;top:12px;bottom:12px;z-index:37200;width:390px;box-sizing:border-box;display:flex;flex-direction:column;background:rgba(7,9,11,.985);border:1px solid #d7b151;box-shadow:-8px 8px 0 rgba(0,0,0,.62);color:#e7e9eb;font:11px/1.35 monospace;pointer-events:auto}#${PANEL_ID}[hidden]{display:none}
+#${PANEL_ID} *{box-sizing:border-box}#${PANEL_ID} .proc-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #4b452e;background:#0d0f12}#${PANEL_ID} .proc-head strong{font-size:14px;letter-spacing:.14em;color:#f0ca59}#${PANEL_ID} .proc-head small{display:block;color:#7e8790;margin-top:2px;letter-spacing:.08em}#${PANEL_ID} .proc-close{width:32px;height:32px;border:1px solid #555;background:#101216;color:#ddd;font:18px monospace;cursor:pointer}
+#${PANEL_ID} .proc-scroll{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}#${PANEL_ID} .proc-section{border:1px solid #30363d;background:#0b0e11;padding:10px}#${PANEL_ID} .proc-section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;color:#d7b151;font-weight:700;letter-spacing:.12em}#${PANEL_ID} label{display:grid;gap:4px;margin:7px 0;color:#aeb6bd}#${PANEL_ID} input[type=text],#${PANEL_ID} select{width:100%;border:1px solid #515960;background:#080a0c;color:#f2f2f2;padding:8px;font:11px monospace;outline:none}#${PANEL_ID} input:focus,#${PANEL_ID} select:focus{border-color:#d7b151;box-shadow:0 0 0 1px #d7b15133}
+#${PANEL_ID} .proc-seed-row{display:grid;grid-template-columns:1fr auto;gap:6px}#${PANEL_ID} .proc-mini{border:1px solid #555;background:#11151a;color:#d9dee2;padding:0 10px;cursor:pointer;font:10px monospace}#${PANEL_ID} .proc-slider{display:grid;grid-template-columns:112px 1fr 38px;align-items:center;gap:8px;margin:8px 0}#${PANEL_ID} input[type=range]{width:100%;accent-color:#d7b151}#${PANEL_ID} .proc-value{text-align:right;color:#f0ca59}
+#${PANEL_ID} .proc-view-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#${PANEL_ID} .proc-check{display:flex;align-items:center;gap:6px;margin:0;padding:6px;border:1px solid #262c31;background:#0d1013;color:#c5ccd2}#${PANEL_ID} .proc-status{padding:7px 9px;border:1px solid #555;letter-spacing:.12em;font-weight:700}#${PANEL_ID} .proc-status[data-state=valid]{border-color:#4fa875;color:#79e7a8;background:#0b1911}#${PANEL_ID} .proc-status[data-state=invalid]{border-color:#a84f4f;color:#ff8b8b;background:#1b0c0c}#${PANEL_ID} .proc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}#${PANEL_ID} .proc-metric{display:flex;justify-content:space-between;gap:8px;border:1px solid #272d32;padding:6px;background:#090b0d}#${PANEL_ID} .proc-metric span{color:#77818a}#${PANEL_ID} .proc-metric strong{color:#e5e8ea}#${PANEL_ID} .proc-signature{margin-top:8px;color:#7f8992;word-break:break-all}#${PANEL_ID} .proc-warning{border:1px solid #8e6d2a;background:#1b1608;color:#f0ca59;padding:8px;margin-top:8px}
+#${PANEL_ID} .proc-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}#${PANEL_ID} .proc-action{min-height:38px;border:1px solid #545d65;background:#12161a;color:#e7eaed;font:700 10px monospace;letter-spacing:.08em;cursor:pointer}#${PANEL_ID} .proc-action:hover:not(:disabled){border-color:#d7b151;color:#f0ca59}#${PANEL_ID} .proc-action:disabled{opacity:.35;cursor:not-allowed}#${PANEL_ID} .proc-create{grid-column:1/-1;border-color:#d7b151;background:linear-gradient(180deg,#2a2412,#151107);color:#f0ca59;font-size:12px}#${PANEL_ID} .proc-busy{color:#f0ca59;text-align:center;padding:5px;letter-spacing:.1em}
+@media(max-width:900px){#${PANEL_ID}{right:12px;width:min(390px,calc(100vw - 24px))}}
 `;document.head.appendChild(style);
   }
 
   function ensureUi(){
-    installStyles();
-    launcher=document.createElement('div');launcher.id=LAUNCHER_ID;launcher.className='vtt-toolbar';launcher.hidden=true;launcher.innerHTML='<span class="vtt-toolbar-title">ZONE CREATOR</span><button type="button" class="brutalist-button" data-proc-launch>CREAR ZONA</button>';
-    (document.getElementById('vtt-edit-sidebar')||document.getElementById('vtt-ui-container')||document.body).prepend(launcher);
-    panel=document.createElement('section');panel.id=PANEL_ID;panel.hidden=true;panel.setAttribute('aria-hidden','true');panel.setAttribute('aria-label','Crear zona procedural');
-    const options=procedural.profiles().map(p=>`<option value="${esc(p.id)}">${esc(p.label||p.id)}</option>`).join('');
-    panel.innerHTML=`<header class="proc-creator-head"><h2>CREAR ZONA</h2><button type="button" class="proc-close" data-proc-close aria-label="Cerrar">×</button></header><div class="proc-creator-body"><div><section class="proc-card"><h3>ZONE CONFIGURATION</h3><label class="proc-field"><span>TIPO DE ZONA</span><select data-proc-profile>${options}</select></label><div class="proc-field"><span>TAMAÑO</span><div class="proc-size-row"><button type="button" data-proc-size="1">1×1</button><button type="button" data-proc-size="2">2×2</button><button type="button" data-proc-size="3">3×3</button></div></div><label class="proc-field"><span>SEED</span><div class="proc-seed-row"><input data-proc-seed type="text" value="${esc(mapData.id||mapData.mapId||'map')}:zone"><button type="button" data-proc-randomize>RANDOM</button></div></label></section><section class="proc-card"><h3>URBAN PROFILE</h3><div data-proc-profile-summary></div></section><section class="proc-card"><h3>VALIDATION GATE</h3><div data-proc-validation></div></section></div><div><section class="proc-card"><h3>GENERATION PREVIEW</h3><div class="proc-preview-wrap" data-proc-visual></div><div data-proc-summary></div><div class="proc-actions"><button type="button" data-proc-generate>GENERAR PREVIEW</button><button type="button" data-proc-reroll disabled>REROLL</button><button type="button" data-proc-cancel>CANCELAR</button><button type="button" data-proc-apply disabled>APLICAR ZONA</button></div><div class="proc-apply-warning" data-proc-apply-warning hidden>REEMPLAZARÁ la geometría, superficies y semántica de la escena. Los tokens existentes se conservarán.</div></section></div></div><footer class="proc-footer"><strong>40×40 cells por Chunk.</strong> 1×1 = 40×40 · 2×2 = 80×80 · 3×3 = 120×120. El preview no modifica el mapa.</footer>`;
-    document.body.appendChild(panel);
-    launcher.querySelector('[data-proc-launch]')?.addEventListener('click',open);panel.querySelector('[data-proc-close]')?.addEventListener('click',close);panel.querySelector('[data-proc-cancel]')?.addEventListener('click',close);
-    panel.querySelector('[data-proc-generate]')?.addEventListener('click',()=>{reroll=0;preview();});panel.querySelector('[data-proc-reroll]')?.addEventListener('click',rerollPreview);panel.querySelector('[data-proc-apply]')?.addEventListener('click',apply);panel.querySelector('[data-proc-randomize]')?.addEventListener('click',randomize);
-    panel.querySelector('[data-proc-profile]')?.addEventListener('change',invalidate);panel.querySelector('[data-proc-seed]')?.addEventListener('input',invalidate);panel.querySelectorAll('[data-proc-size]').forEach(btn=>btn.addEventListener('click',()=>{selectedChunks=Math.max(1,Math.min(3,Number(btn.dataset.procSize)||3));invalidate();}));
+    injectStyles();toolbar=document.createElement('div');toolbar.id=TOOLBAR_ID;toolbar.className='vtt-toolbar';toolbar.hidden=true;toolbar.innerHTML=`<span class="vtt-toolbar-title">MAP CREATOR</span><button type="button" class="brutalist-button" data-proc-open aria-expanded="false" aria-controls="${PANEL_ID}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>CREAR ZONA</span></button>`;
+    (document.getElementById('vtt-edit-sidebar')||document.getElementById('vtt-ui-container')||document.body).appendChild(toolbar);
+
+    panel=document.createElement('aside');panel.id=PANEL_ID;panel.hidden=true;panel.setAttribute('aria-label','Creador procedural de zonas');
+    const profileOptions=procedural.profiles().map(p=>`<option value="${p.id}">${p.label||p.id}</option>`).join('');
+    panel.innerHTML=`<div class="proc-head"><div><strong>ZONE CREATOR</strong><small>PROCEDURAL MAP AUTHORING</small></div><button type="button" class="proc-close" data-proc-close aria-label="Cerrar">×</button></div><div class="proc-scroll">
+      <section class="proc-section"><div class="proc-section-title"><span>01 · ZONA</span><span data-proc-status class="proc-status" data-state="idle">SIN PREVIEW</span></div><label>TIPO DE ZONA<select data-proc-profile>${profileOptions}</select></label><label>TAMAÑO<select data-proc-size><option value="1">1×1 CHUNK · 40×40</option><option value="2">2×2 CHUNKS · 80×80</option><option value="3" selected>3×3 CHUNKS · 120×120</option></select></label><label>SEED<div class="proc-seed-row"><input data-proc-seed type="text" value="${mapData.id||mapData.mapId||'map'}:zone"><button type="button" class="proc-mini" data-proc-random>RANDOM</button></div></label></section>
+      <section class="proc-section"><div class="proc-section-title"><span>02 · URBAN FABRIC</span><button type="button" class="proc-mini" data-proc-reset>RESET</button></div><div class="proc-slider"><span>DENSIDAD</span><input data-proc-density type="range" min="20" max="100" step="1"><strong class="proc-value" data-proc-density-value></strong></div><div class="proc-slider"><span>EDIF. PEGADOS</span><input data-proc-attach type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-attach-value></strong></div><div class="proc-slider"><span>CALLEJONES</span><input data-proc-alley type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-alley-value></strong></div><div class="proc-slider"><span>SERVICIO</span><input data-proc-service type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-service-value></strong></div><div class="proc-slider"><span>VÍAS SEC.</span><input data-proc-secondary type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-secondary-value></strong></div></section>
+      <section class="proc-section"><div class="proc-section-title"><span>03 · PREVIEW</span><button type="button" class="proc-mini" data-proc-fit>ENCUADRAR</button></div><div class="proc-view-grid"><label class="proc-check"><input type="checkbox" data-proc-view="showChunks" checked> CHUNKS</label><label class="proc-check"><input type="checkbox" data-proc-view="showParcels" checked> PARCELAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showRooms" checked> INTERIORES</label><label class="proc-check"><input type="checkbox" data-proc-view="showTopology" checked> MUROS/PUERTAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showLabels" checked> LABELS</label></div><div class="proc-metrics" data-proc-metrics></div><div class="proc-signature" data-proc-signature></div><div class="proc-warning" data-proc-replace-warning hidden>CREAR ZONA reemplazará la geometría/semántica actual. Los tokens de jugador se conservan.</div></section>
+      <section class="proc-section"><div class="proc-section-title"><span>04 · ACCIONES</span><span data-proc-busy class="proc-busy" hidden></span></div><div class="proc-actions"><button type="button" class="proc-action" data-proc-preview>GENERAR PREVIEW</button><button type="button" class="proc-action" data-proc-reroll>REROLL</button><button type="button" class="proc-action" data-proc-cancel>CANCELAR PREVIEW</button><button type="button" class="proc-action" data-proc-fit>ENCUADRAR</button><button type="button" class="proc-action proc-create" data-proc-apply disabled>CREAR ZONA</button></div></section>
+    </div>`;document.body.appendChild(panel);
+
+    toolbar.querySelector('[data-proc-open]')?.addEventListener('click',()=>panelOpen?closePanel():openPanel());
+    by('[data-proc-close]')?.addEventListener('click',closePanel);
+    by('[data-proc-profile]')?.addEventListener('change',e=>setProfileControls(e.target.value));
+    by('[data-proc-size]')?.addEventListener('change',()=>generationChanged());
+    by('[data-proc-seed]')?.addEventListener('input',()=>generationChanged());
+    by('[data-proc-random]')?.addEventListener('click',randomSeed);
+    by('[data-proc-reset]')?.addEventListener('click',()=>setProfileControls());
+    by('[data-proc-preview]')?.addEventListener('click',()=>{reroll=0;preview();});
+    by('[data-proc-reroll]')?.addEventListener('click',rerollPreview);
+    by('[data-proc-cancel]')?.addEventListener('click',()=>{clearPreview();syncUi();});
+    panel.querySelectorAll('[data-proc-fit]').forEach(b=>b.addEventListener('click',fitPreview));
+    by('[data-proc-apply]')?.addEventListener('click',createZone);
+    panel.querySelectorAll('[data-proc-view]').forEach(input=>input.addEventListener('change',updatePreviewOptions));
+    panel.querySelectorAll('input[type=range]').forEach(input=>input.addEventListener('input',()=>generationChanged()));
+    setProfileControls('mixed_urban');
   }
 
-  ensureUi();const timer=window.setInterval(syncUi,350);syncUi();
-  const api=Object.freeze({open,close,preview,apply,reroll:rerollPreview,randomize,renderPreview:()=>renderPreviewSvg(lastPlan),getLastPlan:()=>lastPlan,getSize:()=>selectedChunks,syncUi,stop(){if(stopped)return;stopped=true;window.clearInterval(timer);launcher?.remove();panel?.remove();document.getElementById(STYLE_ID)?.remove();}});
+  ensureUi();const timer=window.setInterval(syncUi,300);syncUi();
+  const api=Object.freeze({open:openPanel,close:closePanel,preview,createZone,apply:createZone,reroll:rerollPreview,randomSeed,fitPreview,clearPreview,getLastPlan:()=>lastPlan,syncUi,stop(){if(stopped)return;stopped=true;window.clearInterval(timer);clearPreview();stopPreviewRenderer();toolbar?.remove();panel?.remove();document.getElementById(STYLE_ID)?.remove();}});
   window.LuminousVttProceduralGeneratorAuthoringRuntime=api;return api;
 }
 
