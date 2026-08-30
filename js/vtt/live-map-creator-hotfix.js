@@ -41,30 +41,32 @@ export async function ensureCreatorRuntime(root=window){
 }
 
 export async function createMapSafely(root=window,button=null){
-  const runtime=root?.LuminousVttRuntime;
-  const authoring=root?.LuminousVttMapAuthoring;
-  const bridge=runtime?.mapAuthoring?.bridge;
-  const doc=root?.document;
-  if(!runtime?.engine||!authoring||!bridge||!doc)throw new Error('MAP_AUTHORING_RUNTIME_REQUIRED');
-  const name=clean(root.prompt?.('Map name','New Map'));
-  if(!name)return null;
-  const selectedId=clean(doc.querySelector?.('[data-map-select]')?.value);
-  const selected=bridge.get?.(selectedId)||authoring.definitionFromMapData(runtime.engine.mapData);
-  const id=authoring.firebaseKey(`${name}_${Date.now().toString(36)}`);
-  const created=authoring.createDefinition({
-    id,name,
-    grid:selected.grid,
-    environmentTags:selected.environmentTags,
-    defaultZStepFt:selected.defaultZStepFt,
-  });
   if(button)button.disabled=true;
   try{
+    const runtime=root?.LuminousVttRuntime;
+    const authoring=root?.LuminousVttMapAuthoring;
+    const bridge=runtime?.mapAuthoring?.bridge;
+    const doc=root?.document;
+    if(!runtime?.engine||!authoring||!bridge||!doc)throw new Error('MAP_AUTHORING_RUNTIME_REQUIRED');
+    const name=clean(root.prompt?.('Map name','New Map'));
+    if(!name)return null;
+    const selectedId=clean(doc.querySelector?.('[data-map-select]')?.value);
+    const selected=bridge.get?.(selectedId)||authoring.definitionFromMapData(runtime.engine.mapData);
+    if(!selected)throw new Error('MAP_TEMPLATE_REQUIRED');
+    const id=authoring.firebaseKey(`${name}_${Date.now().toString(36)}`);
+    const created=authoring.createDefinition({
+      id,name,
+      grid:selected.grid,
+      environmentTags:selected.environmentTags,
+      defaultZStepFt:selected.defaultZStepFt,
+    });
     await bridge.saveDefinition(created);
     await Promise.resolve();
     const select=doc.querySelector?.('[data-map-select]');
     if(select){
       select.value=created.id;
-      select.dispatchEvent(new Event('change',{bubbles:true}));
+      const EventCtor=root.Event;
+      if(EventCtor)select.dispatchEvent(new EventCtor('change',{bubbles:true}));
     }
     localNotice(root,'Map created.','success');
     return created;
