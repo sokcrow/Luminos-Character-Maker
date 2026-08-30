@@ -41,12 +41,33 @@ test('DM creator keeps preview presentation separate from generated scene state'
   expect(renderer).toContain('mapData.dmEditMode?.active===true');expect(renderer).toContain('mapData.proceduralEditor?.previewPlan');expect(renderer).toContain('isExporting');
 });
 
+test('live VTT integration always remounts the procedural creator into the DM edit sidebar',()=>{
+  const hotfix=read('js/vtt/live-map-creator-hotfix.js'),semantic=read('js/vtt/semantic-map-bootstrap.js');
+  expect(semantic).toContain("import './live-map-creator-hotfix.js'");
+  expect(hotfix).toContain("TOOLBAR_ID='vtt-procedural-generator-toolbar'");
+  expect(hotfix).toContain("EDIT_SIDEBAR_ID='vtt-edit-sidebar'");
+  expect(hotfix).toContain('sidebar.appendChild(toolbar)');
+  expect(hotfix).toContain('if(!runtime.procedural&&runtime.buildingNavigation)');
+  expect(hotfix).toContain("import('./procedural-generator-authoring-bootstrap.js')");
+});
+
+test('NEW MAP is captured by a safe async path that reports save failures instead of leaking a rejection',()=>{
+  const hotfix=read('js/vtt/live-map-creator-hotfix.js');
+  expect(hotfix).toContain("MAP_NEW_SELECTOR='[data-map-new]'");
+  expect(hotfix).toContain("doc.addEventListener('click',clickCapture,true)");
+  expect(hotfix).toContain('event.stopImmediatePropagation?.()');
+  expect(hotfix).toContain('await bridge.saveDefinition(created)');
+  expect(hotfix).toContain("console.error('VTT NEW MAP FAILED:'");
+  expect(hotfix).toContain("localNotice(root,message,'error')");
+  expect(hotfix).toContain("select.dispatchEvent(new Event('change',{bubbles:true}))");
+});
+
 test('DM authoring shell has shared professional states and keyboard focus treatment',()=>{
   const polish=read('js/vtt/dm-authoring-shell-polish.js'),semantic=read('js/vtt/semantic-map-bootstrap.js');
   expect(polish).toContain('DM MAP TOOLS');expect(polish).toContain('AUTHORING MODE');expect(polish).toContain(':focus-visible');expect(polish).toContain('[aria-pressed="true"]');expect(polish).toContain('width:228px');expect(semantic).toContain('installDmAuthoringShellPolish');
 });
 
 test('zone creator and DM shell modules parse as ESM JavaScript',()=>{
-  for(const file of ['js/vtt/procedural-generator-authoring-bootstrap.js','js/vtt/dm-authoring-shell-polish.js','js/vtt/semantic-map-bootstrap.js'])execFileSync(process.execPath,['--input-type=module','--check'],{input:read(file),stdio:['pipe','pipe','pipe']});
+  for(const file of ['js/vtt/procedural-generator-authoring-bootstrap.js','js/vtt/dm-authoring-shell-polish.js','js/vtt/semantic-map-bootstrap.js','js/vtt/live-map-creator-hotfix.js'])execFileSync(process.execPath,['--input-type=module','--check'],{input:read(file),stdio:['pipe','pipe','pipe']});
   execFileSync(process.execPath,['--check',path.join(ROOT,'js/vtt/procedural-preview-renderer-patch.js')],{stdio:'pipe'});
 });
