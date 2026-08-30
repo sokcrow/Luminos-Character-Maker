@@ -122,7 +122,7 @@ test.describe('Regional World Graph v1', () => {
     expect(result.valid).toBe(true);
     expect(result.plan.durationSeconds).toBe(result.routeResult.durationSeconds);
     expect(result.routing.mode).toBe('graph_v1');
-    expect(result.routing.destinationEntrySide).toBe('northwest');
+    expect(result.routing.destinationEntrySide).toBe('southeast');
 
     const command = graphCommand(result);
     expect(Graph.validateScheduledCommand(command).valid).toBe(true);
