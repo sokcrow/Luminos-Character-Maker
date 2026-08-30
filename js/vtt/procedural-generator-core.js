@@ -76,9 +76,60 @@
     return{mapData:base,footprints,physicalPlans:(base.semantics.buildings||[]).filter(b=>footprints[b.id]).map(b=>physicalPlanFor(b,base.semantics,footprints[b.id]))};
   }
 
+  function corridorForSocket(fabric={},socket={}){
+    return(fabric.streets||[]).find(s=>s.socketId===socket.id||(s.semanticId&&socket.semanticId&&s.semanticId===socket.semanticId))||null;
+  }
+
+  function materializeBoundaryCorridors(fabric={}){
+    const zone=fabric.zone||{},streets=fabric.streets||=[];
+    for(const socket of zone.sockets||[]){
+      if(!['alley','service_route'].includes(socket.type)||corridorForSocket(fabric,socket))continue;
+      const vertical=socket.edge==='north'||socket.edge==='south',geometry=vertical?{minCol:socket.span.fromCell,minRow:0,maxCol:socket.span.toCell,maxRow:zone.rows-1}:{minCol:0,minRow:socket.span.fromCell,maxCol:zone.cols-1,maxRow:socket.span.toCell};
+      streets.push({schemaVersion:SCHEMA_VERSION,id:socket.semanticId||`socket_corridor_${socket.id}`,semanticId:socket.semanticId||`socket_corridor_${socket.id}`,key:`socket:${socket.id}`,kind:'alley',orientation:vertical?'vertical':'horizontal',geometry,widthTiles:socket.span.toCell-socket.span.fromCell+1,source:'boundary_socket',socketId:socket.id,tags:['procedural','required_continuity',socket.type]});
+    }
+    return fabric;
+  }
+
+  function reserveNonStreetCorridors(fabric={}){
+    const fc=fabricCore(),reserved=(fabric.streets||[]).filter(x=>x.kind==='alley');if(!fc||!reserved.length)return fabric;
+    const keep=(fabric.parcels||[]).filter(parcel=>!reserved.some(c=>fc.intersects(parcel.geometry,c.geometry))),ids=new Set(keep.map(p=>p.id));
+    fabric.parcels=keep;fabric.edgeRelations=(fabric.edgeRelations||[]).filter(r=>ids.has(r.parcelA)&&ids.has(r.parcelB));return fabric;
+  }
+
+  function corridorBoundarySpecs(fabric={},corridor={}){
+    const zone=fabric.zone||{},g=corridor.geometry||{},type=corridor.kind==='alley'?'service_route':'street',semanticId=corridor.semanticId||corridor.id,out=[];
+    if(corridor.orientation==='vertical'){
+      if(g.minRow<=0)out.push({edge:'north',type,span:{fromCell:g.minCol,toCell:g.maxCol},semanticId});
+      if(g.maxRow>=zone.rows-1)out.push({edge:'south',type,span:{fromCell:g.minCol,toCell:g.maxCol},semanticId});
+    }else{
+      if(g.minCol<=0)out.push({edge:'west',type,span:{fromCell:g.minRow,toCell:g.maxRow},semanticId});
+      if(g.maxCol>=zone.cols-1)out.push({edge:'east',type,span:{fromCell:g.minRow,toCell:g.maxRow},semanticId});
+    }
+    return out;
+  }
+
+  function ensureCorridorBoundarySockets(fabric={}){
+    const zc=zoneCore(),zone=fabric.zone;if(!zc||!zone)return fabric;
+    zone.sockets=Array.isArray(zone.sockets)?zone.sockets:[];
+    for(const corridor of fabric.streets||[])for(const spec of corridorBoundarySpecs(fabric,corridor)){
+      const exists=zone.sockets.some(s=>s.edge===spec.edge&&s.type===spec.type&&s.span?.fromCell===spec.span.fromCell&&s.span?.toCell===spec.span.toCell&&(!s.semanticId||s.semanticId===spec.semanticId));
+      if(exists)continue;
+      zone.sockets.push(zc.normalizeSocket({id:`auto_${spec.edge}_${corridor.id}`,edge:spec.edge,type:spec.type,span:spec.span,semanticId:spec.semanticId,continuationRequired:true,tags:['procedural','auto_continuity'],metadata:{generated:true,corridorId:corridor.id}},zone.sockets.length,zone));
+    }
+    return fabric;
+  }
+
   function boundarySocketValidation(fabric={}){
     const errors=[],warnings=[],zone=fabric.zone||{};
-    for(const socket of zone.sockets||[]){if(!socket.continuationRequired)continue;const corridor=(fabric.streets||[]).find(s=>s.socketId===socket.id||s.semanticId&&socket.semanticId&&s.semanticId===socket.semanticId);if(!corridor){errors.push({code:'PROCEDURAL_BOUNDARY_SOCKET_UNSATISFIED',socketId:socket.id});continue;}if(socket.semanticId&&corridor.semanticId!==socket.semanticId)errors.push({code:'PROCEDURAL_BOUNDARY_SEMANTIC_MISMATCH',socketId:socket.id,expected:socket.semanticId,actual:corridor.semanticId});}
+    for(const socket of zone.sockets||[]){
+      if(!socket.continuationRequired||!['street','alley','service_route'].includes(socket.type))continue;
+      const corridor=corridorForSocket(fabric,socket);if(!corridor){errors.push({code:'PROCEDURAL_BOUNDARY_SOCKET_UNSATISFIED',socketId:socket.id});continue;}
+      if(socket.semanticId&&corridor.semanticId!==socket.semanticId)errors.push({code:'PROCEDURAL_BOUNDARY_SEMANTIC_MISMATCH',socketId:socket.id,expected:socket.semanticId,actual:corridor.semanticId});
+    }
+    for(const corridor of fabric.streets||[])for(const spec of corridorBoundarySpecs(fabric,corridor)){
+      const found=(zone.sockets||[]).some(s=>s.edge===spec.edge&&['street','alley','service_route'].includes(s.type)&&s.span?.fromCell===spec.span.fromCell&&s.span?.toCell===spec.span.toCell&&s.semanticId===spec.semanticId);
+      if(!found)errors.push({code:'PROCEDURAL_CORRIDOR_SOCKET_MISSING',corridorId:corridor.id,edge:spec.edge});
+    }
     return{valid:errors.length===0,errors,warnings};
   }
 
@@ -103,8 +154,9 @@
   function generateAttempt(options={},attempt=0){
     const zc=zoneCore(),fc=fabricCore(),bg=buildingGenerator();if(!zc||!fc||!bg)throw new Error('PROCEDURAL_GENERATOR_DEPENDENCY_REQUIRED');
     const seed=clean(options.seed)||'luminous-zone',profile=fc.normalizeProfile(options.profileId||options.profile||'mixed_urban'),attemptSeed=`${seed}::attempt:${attempt}`,rng=fc.createRng(attemptSeed),zone=zc.createZone({id:options.zoneId||'zone_0_0',districtId:options.districtId,coord:options.coord,chunkCols:options.chunkCols,chunkRows:options.chunkRows,profileId:profile.id,seed,sockets:options.sockets||[]});
-    const fabric=fc.generateFabricPlan(zone,profile,rng),generated=bg.generateBuildings(fabric,rng),candidate=candidateMap(fabric,generated,options),validation=validateCandidate(fabric,generated,candidate,options);
-    const plan={schemaVersion:SCHEMA_VERSION,generatorVersion:GENERATOR_VERSION,seed,attempt,attemptSeed,profileId:profile.id,zone,fabric,generated,mapData:candidate.mapData,physicalPlans:candidate.physicalPlans,surfaceCells:buildSurfaceCells(fabric,generated),validation};plan.signature=planSignature(plan);return plan;
+    const fabric=fc.generateFabricPlan(zone,profile,rng);materializeBoundaryCorridors(fabric);reserveNonStreetCorridors(fabric);ensureCorridorBoundarySockets(fabric);
+    const generated=bg.generateBuildings(fabric,rng),candidate=candidateMap(fabric,generated,options),validation=validateCandidate(fabric,generated,candidate,options);
+    const plan={schemaVersion:SCHEMA_VERSION,generatorVersion:GENERATOR_VERSION,seed,attempt,attemptSeed,profileId:profile.id,zone:fabric.zone,fabric,generated,mapData:candidate.mapData,physicalPlans:candidate.physicalPlans,surfaceCells:buildSurfaceCells(fabric,generated),validation};plan.signature=planSignature(plan);return plan;
   }
 
   function generateZone(options={}){
@@ -134,7 +186,7 @@
   }
 
   return Object.freeze({
-    SCHEMA_VERSION,GENERATOR_VERSION,buildSemantics,buildSurfaceCells,candidateMap,boundarySocketValidation,
+    SCHEMA_VERSION,GENERATOR_VERSION,buildSemantics,buildSurfaceCells,candidateMap,corridorForSocket,materializeBoundaryCorridors,reserveNonStreetCorridors,corridorBoundarySpecs,ensureCorridorBoundarySockets,boundarySocketValidation,
     validateCandidate,planSignature,generateAttempt,generateZone,surfaceLayersFromCells,applyPlan,
   });
 });
