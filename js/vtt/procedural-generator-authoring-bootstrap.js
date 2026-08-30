@@ -13,7 +13,8 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   const procedural=runtime.procedural;if(!procedural)return null;
 
   mapData.proceduralEditor||={previewPlan:null,previewOptions:{showChunks:true,showParcels:true,showRooms:true,showTopology:true,showLabels:true}};
-  let toolbar=null,panel=null,lastPlan=null,stopped=false,reroll=0,panelOpen=false,busy=false;
+  mapData.proceduralEditor.previewGenerationError??=null;
+  let toolbar=null,panel=null,lastPlan=null,stopped=false,reroll=0,panelOpen=false,busy=false,generationRevision=0;
   const stopPreviewRenderer=window.LuminousVttProceduralPreviewRenderer?.install?.(runtime.engine.renderer,mapData)||(()=>{});
   const enabled=()=>mapData.dmEditMode?.active===true;
 
@@ -46,6 +47,13 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   function values(){
     const size=selectedSize();
     return{seed:seed(),profile:customProfile(),chunkCols:size,chunkRows:size,minBuildings:size===1?1:size===2?3:4};
+  }
+
+  function clearPreview({invalidateGeneration=true,clearError=true}={}){
+    if(invalidateGeneration)generationRevision+=1;
+    lastPlan=null;mapData.proceduralEditor.previewPlan=null;
+    if(clearError)mapData.proceduralEditor.previewGenerationError=null;
+    invalidate();
   }
 
   function randomSeed(){
@@ -87,20 +95,39 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     mapData.proceduralEditor.previewOptions=o;invalidate();
   }
 
-  function clearPreview(){lastPlan=null;mapData.proceduralEditor.previewPlan=null;invalidate();}
   function generationChanged({resetReroll=true}={}){if(resetReroll)reroll=0;clearPreview();syncUi();}
   function fitPreview(){
     const plan=lastPlan,camera=runtime.engine.camera;if(!plan||!camera)return false;const size=Number(plan.mapData?.grid?.size)||70,width=(Number(plan.zone?.cols)||120)*size,height=(Number(plan.zone?.rows)||120)*size,canvas=runtime.engine.canvas,pad=64;
+    if(!canvas||!Number.isFinite(Number(canvas.width))||!Number.isFinite(Number(canvas.height)))return false;
     const target=Math.min((canvas.width-pad*2)/Math.max(1,width),(canvas.height-pad*2)/Math.max(1,height));camera.zoom=Math.max(camera.minZoom||.1,Math.min(camera.maxZoom||5,target));camera.centerOnWorldPoint?.({x:width/2,y:height/2});invalidate();return true;
   }
+  function generationErrorMessage(error){
+    const first=error?.failures?.[0]?.errors?.[0];
+    return clean(first?.code||first?.message||error?.message)||'PROCEDURAL_GENERATION_FAILED';
+  }
 
-  function preview({fit=true}={}){
-    if(busy)return null;setBusy(true,'GENERATING');
+  async function preview({fit=true}={}){
+    if(busy)return null;
+    const requestRevision=generationRevision;
+    setBusy(true,'GENERATING');
+    let generated=null;
     try{
-      lastPlan=procedural.preview(values());mapData.proceduralEditor.previewPlan=lastPlan;reroll=Math.max(0,reroll);if(fit)fitPreview();
-      notify(`Preview válido · ${lastPlan.validation.summary.buildings} edificios · ${lastPlan.signature}`,'success');return lastPlan;
-    }catch(error){clearPreview();const first=error?.failures?.[0]?.errors?.[0]?.code||error?.message||'PROCEDURAL_GENERATION_FAILED';notify(first,'warning');return null;}
-    finally{setBusy(false);syncUi();}
+      generated=await(procedural.previewAsync?procedural.previewAsync(values()):Promise.resolve(procedural.preview(values())));
+      if(requestRevision!==generationRevision)return null;
+      lastPlan=generated;mapData.proceduralEditor.previewPlan=generated;mapData.proceduralEditor.previewGenerationError=null;reroll=Math.max(0,reroll);
+    }catch(error){
+      if(requestRevision!==generationRevision)return null;
+      const message=generationErrorMessage(error);clearPreview({invalidateGeneration:false,clearError:false});mapData.proceduralEditor.previewGenerationError=message;
+      console.error('VTT PROCEDURAL PREVIEW GENERATION FAILED:',error);notify(message,'warning');return null;
+    }finally{
+      setBusy(false);syncUi();
+    }
+    if(!generated||requestRevision!==generationRevision)return null;
+    if(fit){
+      try{if(!fitPreview())notify('Preview válido; no se pudo encuadrar automáticamente.','warning');}
+      catch(error){console.warn('VTT procedural preview camera fit failed:',error);notify('Preview válido; ENCUADRAR falló, pero la zona puede crearse.','warning');}
+    }
+    notify(`Preview válido · ${generated.validation.summary.buildings} edificios · ${generated.signature}`,'success');syncUi();return generated;
   }
 
   function rerollPreview(){reroll+=1;return preview();}
@@ -122,9 +149,9 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const apply=by('[data-proc-apply]'),rerollButton=by('[data-proc-reroll]'),previewButton=by('[data-proc-preview]');if(apply)apply.disabled=busy||!lastPlan?.validation?.valid;if(rerollButton)rerollButton.disabled=busy;if(previewButton)previewButton.disabled=busy;
     for(const name of ['density','attach','alley','service','secondary']){const input=by(`[data-proc-${name}]`),out=by(`[data-proc-${name}-value]`);if(input&&out)out.textContent=`${input.value}%`;}
     let mixTotal=0;for(const name of Object.keys(MIX_FIELDS)){const input=by(`[data-proc-mix="${name}"]`),out=by(`[data-proc-mix-value="${name}"]`);if(input&&out){out.textContent=`${input.value}%`;mixTotal+=Number(input.value)||0;}}const mixTotalOut=by('[data-proc-mix-total]');if(mixTotalOut)mixTotalOut.textContent=`${mixTotal}%`;
-    const status=by('[data-proc-status]'),metrics=by('[data-proc-metrics]'),signature=by('[data-proc-signature]'),warning=by('[data-proc-replace-warning]');
+    const status=by('[data-proc-status]'),metrics=by('[data-proc-metrics]'),signature=by('[data-proc-signature]'),warning=by('[data-proc-replace-warning]'),generationError=mapData.proceduralEditor?.previewGenerationError;
     if(warning)warning.hidden=!sceneHasContent();
-    if(!lastPlan){if(status){status.textContent='SIN PREVIEW';status.dataset.state='idle';}if(metrics)metrics.innerHTML=metric('ZONE',`${selectedSize()}×${selectedSize()} CHUNKS`)+metric('CELDAS',`${selectedSize()*40}×${selectedSize()*40}`)+metric('ESTADO','—');if(signature)signature.textContent='Genera un preview para validar la zona.';}
+    if(!lastPlan){if(status){status.textContent=generationError?'ERROR':'SIN PREVIEW';status.dataset.state=generationError?'invalid':'idle';}if(metrics)metrics.innerHTML=metric('ZONE',`${selectedSize()}×${selectedSize()} CHUNKS`)+metric('CELDAS',`${selectedSize()*40}×${selectedSize()*40}`)+metric('ESTADO',generationError?'ERROR':'—');if(signature)signature.textContent=generationError?`PREVIEW FALLÓ · ${generationError} · usa REROLL o cambia la configuración.`:'Genera un preview para validar la zona.';}
     else{const v=lastPlan.validation,f=lastPlan.fabric,z=lastPlan.zone;if(status){status.textContent=v.valid?'VALIDADO':'INVÁLIDO';status.dataset.state=v.valid?'valid':'invalid';}if(metrics)metrics.innerHTML=metric('ZONE',`${z.chunkCols}×${z.chunkRows} CHUNKS`)+metric('CELDAS',`${z.cols}×${z.rows}`)+metric('EDIFICIOS',v.summary.buildings)+metric('CALLES',f.streets.length)+metric('PARCELAS',f.parcels.length)+metric('CALLEJONES',f.alleys.length);if(signature)signature.textContent=`SEED ${lastPlan.seed} · SIG ${lastPlan.signature} · ATTEMPT ${lastPlan.attempt}`;}
   }
 
@@ -162,8 +189,8 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     by('[data-proc-seed]')?.addEventListener('input',()=>generationChanged());
     by('[data-proc-random]')?.addEventListener('click',randomSeed);
     by('[data-proc-reset]')?.addEventListener('click',()=>setProfileControls());
-    by('[data-proc-preview]')?.addEventListener('click',()=>{reroll=0;preview();});
-    by('[data-proc-reroll]')?.addEventListener('click',rerollPreview);
+    by('[data-proc-preview]')?.addEventListener('click',()=>{reroll=0;void preview();});
+    by('[data-proc-reroll]')?.addEventListener('click',()=>{void rerollPreview();});
     by('[data-proc-cancel]')?.addEventListener('click',()=>{clearPreview();syncUi();});
     panel.querySelectorAll('[data-proc-fit]').forEach(b=>b.addEventListener('click',fitPreview));
     by('[data-proc-apply]')?.addEventListener('click',createZone);
