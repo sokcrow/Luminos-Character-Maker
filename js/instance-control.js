@@ -3,6 +3,9 @@
 
   const INSTANCE_PATH = "campaña/estado_mundo/instancia_activa";
   const DEFAULT_THEATRE_SCENE_PATH = "campaña/estado_mundo/escena_actual";
+  const PLAYER_MAP_Z_INDEX = "8000";
+  const MAP_DIALOGUE_RETRY_MS = 250;
+  const MAP_DIALOGUE_STUCK_MS = 120000;
   const COMBAT_RUNTIME_SCRIPTS = Object.freeze([
     ["combat-player-trait-runtime-script", "js/player-trait-runtime.js", "LuminousPlayerTraitRuntime"],
     ["combat-trait-standardization-runtime-script", "js/trait-standardization-runtime.js", "LuminousTraitStandardizationRuntime"],
@@ -116,6 +119,52 @@
     return true;
   }
 
+  function applyPlayerMapUiPolicy(mapActive, doc) {
+    const documentRef = doc || global.document;
+    if (!documentRef) return false;
+
+    const phoneWrapper = documentRef.querySelector?.(".sheet-phone-wrapper") || null;
+    if (phoneWrapper) {
+      if (mapActive) {
+        if (!phoneWrapper.classList?.contains?.("phone-hidden")) {
+          phoneWrapper.dataset ||= {};
+          phoneWrapper.dataset.mapWasVisible = "true";
+          phoneWrapper.classList?.add?.("phone-hidden");
+        }
+        if (phoneWrapper.style) phoneWrapper.style.zIndex = "10000";
+      } else {
+        if (phoneWrapper.style) phoneWrapper.style.zIndex = "";
+        if (phoneWrapper.dataset?.mapWasVisible === "true") {
+          phoneWrapper.classList?.remove?.("phone-hidden");
+          delete phoneWrapper.dataset.mapWasVisible;
+        }
+      }
+    }
+
+    const logButtons = [
+      documentRef.getElementById("btn-toggle-theatre-log-player"),
+      documentRef.getElementById("btn-toggle-theatre-log"),
+    ].filter(Boolean);
+
+    logButtons.forEach((button) => {
+      button.disabled = Boolean(mapActive);
+      button.setAttribute?.("aria-disabled", mapActive ? "true" : "false");
+      if (mapActive) button.setAttribute?.("aria-expanded", "false");
+    });
+
+    if (mapActive) {
+      const logContainer = documentRef.getElementById("theatre-log-container");
+      if (logContainer) {
+        logContainer.classList?.remove?.("active");
+        logContainer.classList?.remove?.("open");
+        if (logContainer.style) logContainer.style.display = "none";
+        logContainer.setAttribute?.("aria-hidden", "true");
+      }
+    }
+
+    return Boolean(mapActive);
+  }
+
   function applyPlayerInstance(instance, doc) {
     const documentRef = doc || global.document;
     const activeInstance = normalizeInstance(instance);
@@ -126,6 +175,8 @@
     const blackout = documentRef.getElementById("player-instance-blackout");
     let combatView = documentRef.getElementById("player-instance-combat");
     let mapView = documentRef.getElementById("player-instance-map");
+
+    applyPlayerMapUiPolicy(mapActive, documentRef);
 
     if (!combatView && documentRef.body) {
       combatView = documentRef.createElement("iframe");
@@ -152,7 +203,7 @@
       mapView.setAttribute("aria-hidden", "true");
       Object.assign(mapView.style, {
         display: "none", position: "fixed", inset: "0", width: "100vw",
-        height: "100vh", border: "0", zIndex: "10000", background: "#000",
+        height: "100vh", border: "0", zIndex: PLAYER_MAP_Z_INDEX, background: "#000",
       });
       mapView.src = "vtt.html";
       documentRef.body.appendChild(mapView);
@@ -343,6 +394,158 @@
     return { link, script };
   }
 
+  function createMapDialogueQueueProcessor({ db, theatre, setTimer } = {}) {
+    const theatreState = theatre || global.LuminousTheatreState;
+    const schedule = setTimer || global.setTimeout?.bind(global);
+    if (!db || !theatreState?.getPaths || !theatreState?.publishIntervention || !schedule) return null;
+
+    let processing = false;
+    let stopped = false;
+    let queueRef = null;
+    let instanceRef = null;
+    let queueListener = null;
+    let instanceListener = null;
+
+    const retry = () => {
+      if (stopped) return;
+      schedule(() => {
+        process().catch((error) => console.error("Error procesando diálogo de Modo Mapa:", error));
+      }, MAP_DIALOGUE_RETRY_MS);
+    };
+
+    const claimQueueItem = (ref) => new Promise((resolve, reject) => {
+      ref.transaction((current) => {
+        if (!current) return current;
+        const now = Date.now();
+        const stuck = current.processing && current.processingStartedAt &&
+          (now - Number(current.processingStartedAt) > MAP_DIALOGUE_STUCK_MS);
+        if (current.processing && !stuck) return;
+        current.processing = true;
+        current.processingStartedAt = now;
+        return current;
+      }, (error, committed, snapshot) => {
+        if (error) reject(error);
+        else resolve(committed ? snapshot.val() : null);
+      });
+    });
+
+    async function releaseQueueItem(ref) {
+      if (typeof ref.update === "function") {
+        await ref.update({ processing: null, processingStartedAt: null });
+      }
+    }
+
+    async function process() {
+      if (stopped || processing) return false;
+
+      const activeSnapshot = await db.ref(INSTANCE_PATH).once("value");
+      if (normalizeInstance(activeSnapshot.val()) !== "mapa") return false;
+
+      const paths = theatreState.getPaths();
+      const nextSnapshot = await db.ref(paths.queue)
+        .orderByChild("createdAt")
+        .limitToFirst(1)
+        .once("value");
+      if (!nextSnapshot.exists()) return false;
+
+      const queued = nextSnapshot.val() || {};
+      const messageId = Object.keys(queued)[0];
+      if (!messageId) return false;
+
+      const messageRef = db.ref(`${paths.queue}/${messageId}`);
+      processing = true;
+
+      let claimed;
+      try {
+        claimed = await claimQueueItem(messageRef);
+      } catch (error) {
+        processing = false;
+        console.error("No se pudo reclamar el diálogo de Modo Mapa:", error);
+        retry();
+        return false;
+      }
+
+      if (!claimed) {
+        processing = false;
+        retry();
+        return false;
+      }
+
+      const verifySnapshot = await db.ref(INSTANCE_PATH).once("value");
+      if (normalizeInstance(verifySnapshot.val()) !== "mapa") {
+        await releaseQueueItem(messageRef).catch(() => {});
+        processing = false;
+        return false;
+      }
+
+      const textLength = String(claimed.mensaje || "").length;
+      claimed.speedMs = Math.max(1, Number(claimed.speedMs) || 30);
+      claimed.durationMs = Math.max(0, Number(claimed.durationMs) || ((textLength * claimed.speedMs) + 3000));
+
+      const result = await theatreState.publishIntervention(messageId, claimed).catch((error) => {
+        console.error("Error publicando diálogo de Modo Mapa:", error);
+        return { published: false, reason: "error" };
+      });
+
+      if (!result?.published) {
+        await messageRef.remove().catch((error) => console.error("No se pudo descartar diálogo inválido de Modo Mapa:", error));
+        processing = false;
+        retry();
+        return false;
+      }
+
+      // Map dialogue is transient world chatter. It deliberately never writes to paths.log.
+      schedule(async () => {
+        try {
+          await messageRef.remove();
+        } catch (error) {
+          console.error("No se pudo finalizar diálogo de Modo Mapa:", error);
+        } finally {
+          processing = false;
+          process().catch((error) => console.error("Error continuando diálogo de Modo Mapa:", error));
+        }
+      }, claimed.durationMs);
+
+      return true;
+    }
+
+    function start() {
+      if (stopped || queueRef || instanceRef) return api;
+      const paths = theatreState.getPaths();
+      queueRef = db.ref(paths.queue);
+      instanceRef = db.ref(INSTANCE_PATH);
+      queueListener = () => {
+        process().catch((error) => console.error("Error iniciando diálogo de Modo Mapa:", error));
+      };
+      instanceListener = (snapshot) => {
+        if (normalizeInstance(snapshot.val()) === "mapa") queueListener();
+      };
+      queueRef.on("child_added", queueListener);
+      instanceRef.on("value", instanceListener);
+      return api;
+    }
+
+    function stop() {
+      stopped = true;
+      if (queueRef && queueListener) queueRef.off?.("child_added", queueListener);
+      if (instanceRef && instanceListener) instanceRef.off?.("value", instanceListener);
+      queueRef = null;
+      instanceRef = null;
+      queueListener = null;
+      instanceListener = null;
+      return true;
+    }
+
+    const api = Object.freeze({ process, start, stop });
+    return api;
+  }
+
+  function bindMapDialogueQueue({ db } = {}) {
+    const processor = createMapDialogueQueueProcessor({ db });
+    processor?.start();
+    return processor;
+  }
+
   function bindDashboard({ db, doc } = {}) {
     const documentRef = doc || global.document;
     if (!db || !documentRef) return;
@@ -354,6 +557,7 @@
     ensureDashboardCharacterManager({ db, doc: documentRef });
     ensureDashboardActorStudioAssets(documentRef);
     ensureDmLocationControl({ db, doc: documentRef });
+    bindMapDialogueQueue({ db });
 
     documentRef.querySelectorAll('input[name="instancia"]').forEach((radio) => {
       radio.addEventListener("change", (evento) => {
@@ -387,6 +591,7 @@
     INSTANCE_PATH,
     applyDmInstance,
     applyPlayerInstance,
+    applyPlayerMapUiPolicy,
     applyDashboardInstance,
     ensureCombatTraitRuntime,
     ensureDmLocationControl,
@@ -395,6 +600,8 @@
     ensureTheatreOpposedAssets,
     ensureDashboardCharacterManager,
     ensureDashboardActorStudioAssets,
+    createMapDialogueQueueProcessor,
+    bindMapDialogueQueue,
     bindDm,
     bindDashboard,
     bindPlayer,
