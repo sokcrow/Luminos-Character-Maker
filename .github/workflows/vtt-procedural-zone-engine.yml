@@ -46,4 +46,4 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Repository regression
-        run: npx playwright test --project=chromium
+        run: npx playwright test
