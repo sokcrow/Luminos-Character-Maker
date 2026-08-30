@@ -10,6 +10,7 @@ import { start as startBuildingArchetypeAuthoring } from './building-archetype-a
 import { start as startBuildingNavigation } from './building-navigation-bootstrap.js';
 import { start as startBuildingNavigationAuthoring } from './building-navigation-authoring-bootstrap.js';
 import { start as startProceduralGenerator } from './procedural-generator-bootstrap.js';
+import { start as startProceduralChunkStreaming } from './procedural-chunk-streaming-runtime.js';
 import { start as startProceduralGeneratorAuthoring } from './procedural-generator-authoring-bootstrap.js';
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
@@ -39,7 +40,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     relationsFrom:(id)=>core.relationsFrom(mapData.semantics,id),
     relationsTo:(id)=>core.relationsTo(mapData.semantics,id),
     validate:()=>core.validateSemantics(mapData.semantics,mapData),
-    stop(){if(stopped)return;stopped=true;stopRenderer();stopDmPolish();},
+    stop(){if(stopped)return;stopped=true;stopRenderer();stopDmPolish();window.LuminousVttRuntime?.proceduralChunks?.stop?.();},
   });
   window.LuminousVttSemanticMapRuntime={api};
   window.LuminousVttRuntime=Object.freeze({...window.LuminousVttRuntime,semanticMap:api});
@@ -50,6 +51,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   const navigationRuntime=buildingRuntime?startBuildingNavigation({runtime:window.LuminousVttRuntime,mapData}):null;
   if(navigationRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startBuildingNavigationAuthoring({runtime:window.LuminousVttRuntime,mapData});
   const proceduralRuntime=navigationRuntime?startProceduralGenerator({runtime:window.LuminousVttRuntime,mapData}):null;
+  if(proceduralRuntime)startProceduralChunkStreaming({runtime:window.LuminousVttRuntime,mapData,procedural:proceduralRuntime});
   if(proceduralRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startProceduralGeneratorAuthoring({runtime:window.LuminousVttRuntime,mapData});
   return api;
 }
