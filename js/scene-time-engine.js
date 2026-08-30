@@ -15,7 +15,15 @@
     if (done) script.addEventListener('load', () => { script.dataset.loaded = 'true'; done(); }, { once: true });
     document.head?.appendChild(script);
   }
-  const runtime = () => load('scene-time-v1-runtime', 'js/scene-time-runtime.js');
+  const worldScheduler = () => load(
+    'world-time-scheduler-core',
+    'js/world-time-scheduler-core.js',
+    () => load('world-time-scheduler-runtime', 'js/world-time-scheduler-runtime.js')
+  );
+  const runtime = () => {
+    load('scene-time-v1-runtime', 'js/scene-time-runtime.js');
+    worldScheduler();
+  };
   const spellcasting = () => {
     const basic = () => load('luminous-spellcasting-basic-rules', 'js/spellcasting-basic-rules-runtime.js');
     if (global.LuminousSpellcastingRuntime) basic();
