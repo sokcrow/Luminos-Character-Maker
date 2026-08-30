@@ -21,6 +21,10 @@
   const nowValue=(value,fallback=Date.now())=>Math.max(0,finite(value,fallback));
 
   function zoneIdentity(raw={}){
+    if(typeof raw==='string'){
+      const parts=raw.split('/');
+      if(parts.length>=3)return Object.freeze({worldId:clean(parts[0],'luminous'),regionId:clean(parts[1],'region'),zoneId:clean(parts.slice(2).join('/'),'zone')});
+    }
     const source=raw?.position||raw?.worldPosition||raw||{};
     const position=Streaming.normalizeWorldPosition(source,{cellSize:source.cellSize||70,chunkSizeCells:source.chunkSizeCells||40});
     return Object.freeze({worldId:clean(position.worldId,'luminous'),regionId:clean(position.regionId,'region'),zoneId:clean(position.zoneId,'zone')});
@@ -147,6 +151,7 @@
     function bump(record,updatedAt){record.revision+=1;record.updatedAt=Math.max(record.updatedAt,nowValue(updatedAt));record.dirty=true;return record;}
     function entityCount(record){return Object.keys(record.entities||{}).length;}
     function temporaryCount(record){return Object.keys(record.temporary||{}).length;}
+    function snapshotRecord(record){return Object.freeze({schemaVersion:SCHEMA_VERSION,state:STATES.DORMANT,key:record.key,identity:clone(record.identity),seed:record.seed,generatorVersion:record.generatorVersion,revision:record.revision,updatedAt:record.updatedAt,lastSimulatedAt:record.lastSimulatedAt,persistent:Boolean(record.persistent),pinned:Boolean(record.pinned),entities:clone(record.entities),temporary:clone(record.temporary)});}
     function recordEntityChange(raw,input={}){
       const record=ensure(raw,input),entityId=normalizeEntityId(input.entityId||input.id),operation=normalizeOperation(input.operation||input.op),updatedAt=nowValue(input.updatedAt);
       const existing=record.entities[entityId]||null;
@@ -175,12 +180,11 @@
       if(changed)bump(record,meta.updatedAt);return compactRecord(record.identity,meta.worldNow);
     }
     function compactRecord(raw,worldNow=Date.now()){
-      const key=zoneKey(raw),record=records.get(key);if(!record)return null;pruneExpired(record.identity,worldNow);
-      return Object.freeze({schemaVersion:SCHEMA_VERSION,state:STATES.DORMANT,key:record.key,identity:clone(record.identity),seed:record.seed,generatorVersion:record.generatorVersion,revision:record.revision,updatedAt:record.updatedAt,lastSimulatedAt:record.lastSimulatedAt,persistent:Boolean(record.persistent),pinned:Boolean(record.pinned),entities:clone(record.entities),temporary:clone(record.temporary)});
+      const key=zoneKey(raw),record=records.get(key);if(!record)return null;pruneExpired(record.identity,worldNow);return snapshotRecord(record);
     }
     function importRecord(raw={}){
       const identity=zoneIdentity(raw.identity||raw),record=ensure(identity,{seed:raw.seed,generatorVersion:raw.generatorVersion,persistent:raw.persistent,pinned:raw.pinned});
-      record.revision=Math.max(0,integer(raw.revision,0));record.updatedAt=nowValue(raw.updatedAt,0);record.lastSimulatedAt=nowValue(raw.lastSimulatedAt,0);record.entities=clone(raw.entities||{});record.temporary=clone(raw.temporary||{});record.dirty=false;return compactRecord(identity,Number.MAX_SAFE_INTEGER);
+      record.revision=Math.max(0,integer(raw.revision,0));record.updatedAt=nowValue(raw.updatedAt,0);record.lastSimulatedAt=nowValue(raw.lastSimulatedAt,0);record.entities=clone(raw.entities||{});record.temporary=clone(raw.temporary||{});record.dirty=false;return snapshotRecord(record);
     }
     function touchSimulated(raw,worldNow=Date.now()){
       const record=ensure(raw),next=nowValue(worldNow);if(next>record.lastSimulatedAt){record.lastSimulatedAt=next;bump(record,next);}return record.lastSimulatedAt;
@@ -198,7 +202,7 @@
 
   function stableEntityId(entity,index=0){return safeKey(entity?.entityId||entity?.instanceId||entity?.id||`entity_${index}`);}
   function applyEntityDeltas(baseEntities=[],record={},options={}){
-    const kind=clean(options.kind);const map=new Map();
+    const kind=clean(options.kind),map=new Map();
     for(const [index,entity] of (Array.isArray(baseEntities)?baseEntities:[]).entries())map.set(stableEntityId(entity,index),clone(entity));
     const deltas=record?.entities&&typeof record.entities==='object'?record.entities:{};
     for(const [rawId,delta] of Object.entries(deltas)){
@@ -206,7 +210,7 @@
       const id=normalizeEntityId(delta.entityId||rawId),operation=normalizeOperation(delta.operation);
       if(operation===OPS.REMOVE){map.delete(id);continue;}
       const patch=clone(delta.patch||{}),previous=map.get(id)||{};
-      map.set(id,{...previous,...patch,entityId:patch?.entityId||previous?.entityId||(kind==='world_object'?undefined:id)});
+      map.set(id,{...previous,...patch});
     }
     return [...map.values()];
   }
