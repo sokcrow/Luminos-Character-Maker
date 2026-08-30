@@ -5,6 +5,7 @@ import './building-physics-core.js';
 import './procedural-zone-core.js';
 import './urban-fabric-core.js';
 import './procedural-building-generator.js';
+import './procedural-building-mix-patch.js';
 import './procedural-generator-core.js';
 import './procedural-map-authoring-patch.js';
 
@@ -12,8 +13,8 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   if(!runtime?.engine||!mapData)return null;
   if(window.LuminousVttProceduralGeneratorRuntime?.api)return window.LuminousVttProceduralGeneratorRuntime.api;
   window.LuminousVttProceduralMapAuthoringPatch?.install?.();
-  const core=window.LuminousVttProceduralGenerator,zoneCore=window.LuminousVttProceduralZone,fabric=window.LuminousVttUrbanFabric;
-  if(!core||!zoneCore||!fabric)throw new Error('PROCEDURAL_GENERATOR_RUNTIME_REQUIRED');
+  const core=window.LuminousVttProceduralGenerator,zoneCore=window.LuminousVttProceduralZone,fabric=window.LuminousVttUrbanFabric,buildings=window.LuminousVttProceduralBuildings;
+  if(!core||!zoneCore||!fabric||!buildings)throw new Error('PROCEDURAL_GENERATOR_RUNTIME_REQUIRED');
   let lastPlan=null;
   function emit(name,detail={}){runtime.engine.canvas?.dispatchEvent?.(new CustomEvent(name,{detail}));window.dispatchEvent?.(new CustomEvent(name,{detail}));}
   function preview(options={}){
@@ -61,9 +62,10 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   }
   async function createZone(options={},applyOptions={}){const plan=preview(options);apply(plan,{...applyOptions,persist:false});await persist(plan);return plan;}
   const api=Object.freeze({
-    core,zoneCore,fabric,
+    core,zoneCore,fabric,buildings,
     profiles:()=>Object.values(fabric.PROFILES).map(x=>({...x})),
     profile:(id='mixed_urban')=>({...fabric.normalizeProfile(id)}),
+    buildingMix:(id='mixed_urban')=>({...buildings.normalizeBuildingMix?.(buildings.WEIGHTS?.[id]||buildings.WEIGHTS?.mixed_urban,id)}),
     preview,apply,persist,createZone,
     generateAndApply:createZone,
     getLastPlan:()=>lastPlan,
