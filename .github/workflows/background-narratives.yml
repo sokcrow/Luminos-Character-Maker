@@ -59,7 +59,10 @@ jobs:
       - name: Narrative contract
         run: node tests/background_narratives.spec.js
 
-      - name: Non-browser repository regression suite
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Repository regression suite
         run: >-
           npx playwright test --workers=1 --grep-invert
           "status builder catalog exposes elemental statuses and runtime|DM Studio uses racial Stats for derived HP and persists base/effective layers|player Stats HUD displays and rolls from the effective racial Score|DM Studio keeps Base editable and shows Effective racial Score|Skill builder UI flow|Status builder UI flow"
