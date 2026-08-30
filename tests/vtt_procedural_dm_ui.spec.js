@@ -49,7 +49,7 @@ test('DM creator requires a current valid preview and explicit destructive confi
 test('DM creator keeps preview presentation separate from generated scene state',()=>{
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js'),renderer=read('js/vtt/procedural-preview-renderer-patch.js');
   expect(source).toMatch(/mapData\.proceduralEditor\.previewPlan=(?:lastPlan|generated)/);expect(source).toContain('mapData.proceduralEditor.previewOptions');
-  expect(renderer).toContain('mapData.dmEditMode?.active===true');expect(renderer).toContain('mapData.proceduralEditor?.previewPlan');expect(renderer).toContain('isExporting');
+  expect(renderer).toMatch(/mapData\??\.dmEditMode\?\.active===true/);expect(renderer).toMatch(/mapData\??\.proceduralEditor\?\.previewPlan/);expect(renderer).toContain('isExporting');
 });
 
 test('live VTT integration always remounts the procedural creator into the DM edit sidebar',()=>{
