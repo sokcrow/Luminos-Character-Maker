@@ -6,6 +6,8 @@
 #inventory-modal.inventory-v2-ready .inventory-body-wrapper{background:#080706}
 #inventory-modal.inventory-v2-ready .inventory-left-panel{min-width:0;padding:10px;background:linear-gradient(rgba(8,7,6,.97),rgba(8,7,6,.97)),repeating-linear-gradient(135deg,transparent 0 22px,rgba(214,154,43,.025) 22px 23px)}
 #inventory-modal.inventory-v2-ready #inv-active{height:100%;min-height:0;padding:0}
+/* Legacy equipment stays in the DOM because old inventory rendering still queries its .equip-slot nodes. It must never be part of the V2 visual layout. */
+#inventory-modal.inventory-v2-ready #inv-active #equipment-panel{display:none!important}
 .inventory-v2-active-stack{height:100%;min-height:0;display:grid;grid-template-rows:minmax(300px,1fr) minmax(220px,.72fr);gap:10px}
 .inventory-v2-equipment,.inventory-v2-carry{min-height:0;border:1px solid #3e3021;background:linear-gradient(180deg,#0e0b08,#080706);box-shadow:inset 0 0 30px rgba(0,0,0,.75)}
 .inventory-v2-equipment{position:relative;overflow:hidden}
