@@ -14,9 +14,15 @@ async function bootHarness(page) {
         <button class="inv-tab-btn" data-tab="inv-sintesis">SÍNTESIS</button>
       </div>
       <div class="inventory-body-wrapper"><div class="inventory-left-panel">
-        <div class="inventory-tab-content active" id="inv-active"><div class="inv-grid" id="inv-active-grid">
-          <div class="item-slot" data-key="blade_1">Blade</div><div class="item-slot" data-key="coat_1">Coat</div>
-        </div></div>
+        <div class="inventory-tab-content active" id="inv-active">
+          <div id="equipment-panel" class="cyber-panel">
+            <h3 class="cyber-panel-title">EQUIPAMIENTO TÁCTICO</h3>
+            <div class="equipamiento-layout"><div class="equip-slot" data-slot-id="mainHand">VACÍO</div></div>
+          </div>
+          <div class="inv-grid" id="inv-active-grid">
+            <div class="item-slot" data-key="blade_1">Blade</div><div class="item-slot" data-key="coat_1">Coat</div>
+          </div>
+        </div>
         <div class="inventory-tab-content" id="inv-stash"><div class="inv-grid" id="inv-stash-grid"><div class="item-slot" data-key="med_1">Med</div></div></div>
         <div class="inventory-tab-content" id="inv-sintesis"></div>
       </div><div class="item-detail-card active" id="item-detail-card"><div id="detail-title">Item</div><div id="detail-equip-btn-container"></div></div></div>
@@ -42,12 +48,15 @@ async function bootHarness(page) {
   await page.waitForFunction(() => window.LuminousInventoryHudV2?.state?.unit);
 }
 
-test("builds Equipment above a preserved 5x2 Active Inventory grid", async ({page}) => {
+test("builds only the V2 Equipment above a preserved 5x2 Active Inventory grid", async ({page}) => {
   await bootHarness(page);
   await expect(page.locator(".inventory-v2-equipment")).toHaveCount(1);
+  await expect(page.locator(".inventory-v2-equipment")).toBeVisible();
   await expect(page.locator(".inventory-v2-carry")).toHaveCount(1);
-  const layout=await page.locator("#inv-active-grid").evaluate(el=>({columns:getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,stack:Boolean(el.closest(".inventory-v2-active-stack")),carry:Boolean(el.closest(".inventory-v2-carry"))}));
-  expect(layout.columns).toBe(5); expect(layout.stack).toBe(true); expect(layout.carry).toBe(true);
+  await expect(page.locator(".inventory-v2-carry")).toBeVisible();
+  await expect(page.locator("#inv-active #equipment-panel")).toBeHidden();
+  const layout=await page.locator("#inv-active-grid").evaluate(el=>({columns:getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length,stack:Boolean(el.closest(".inventory-v2-active-stack")),carry:Boolean(el.closest(".inventory-v2-carry")),visible:getComputedStyle(el).display!=="none"}));
+  expect(layout.columns).toBe(5); expect(layout.stack).toBe(true); expect(layout.carry).toBe(true); expect(layout.visible).toBe(true);
   await expect(page.locator('.inv-tab-btn[data-tab="inv-active"]')).toHaveText("LOADOUT");
 });
 
@@ -58,6 +67,7 @@ test("equips an Active item into visible Equipment and persists it", async ({pag
   await page.waitForFunction(()=>window.__saves.length>0);
   expect((await page.evaluate(()=>window.__saves.at(-1))).mainHand).toBe("blade_1");
   await expect(page.locator('[data-equipment-slot="mainHand"] .inventory-v2-eq-name')).toContainText("Test Workshop Blade");
+  await expect(page.locator("#inv-active #equipment-panel")).toBeHidden();
 });
 
 test("moves Active to Stash through runtime and persistence", async ({page}) => {
