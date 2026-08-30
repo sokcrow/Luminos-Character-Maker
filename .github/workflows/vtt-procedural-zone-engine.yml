@@ -5,8 +5,10 @@ on:
     paths:
       - 'js/vtt/procedural-*.js'
       - 'js/vtt/urban-fabric-core.js'
+      - 'js/vtt/dm-authoring-shell-polish.js'
       - 'js/vtt/semantic-map-bootstrap.js'
       - 'tests/vtt_procedural_zone_engine.spec.js'
+      - 'tests/vtt_procedural_dm_ui.spec.js'
       - '.github/workflows/vtt-procedural-zone-engine.yml'
   workflow_dispatch:
 
@@ -32,10 +34,13 @@ jobs:
           node --check js/vtt/procedural-generator-core.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-generator-authoring-bootstrap.js
+          node --input-type=module --check < js/vtt/dm-authoring-shell-polish.js
+          node --input-type=module --check < js/vtt/semantic-map-bootstrap.js
       - name: Focused contracts
         run: >-
           npx playwright test
           tests/vtt_procedural_zone_engine.spec.js
+          tests/vtt_procedural_dm_ui.spec.js
           tests/vtt_building_navigation_graph.spec.js
           tests/vtt_building_archetypes.spec.js
           tests/vtt_building_semantic_model.spec.js
