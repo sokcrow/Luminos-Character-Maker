@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -63,6 +64,29 @@ function fakeContext() {
     fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, lineCap: '',
     font: '', textAlign: '', textBaseline: '',
   };
+}
+
+function runWorkerGeneration(options) {
+  const workerDir = path.join(ROOT, 'js/vtt');
+  const messages = [];
+  let messageHandler = null;
+  const sandbox = {
+    console: { log(){}, warn(){}, error(){} },
+    importScripts(...scripts) {
+      for (const script of scripts) {
+        const absolute = path.resolve(workerDir, script);
+        vm.runInContext(fs.readFileSync(absolute, 'utf8'), sandbox, { filename: absolute });
+      }
+    },
+    addEventListener(type, handler) { if (type === 'message') messageHandler = handler; },
+    postMessage(message) { messages.push(message); },
+  };
+  sandbox.self = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(read('js/vtt/procedural-generator-worker.js'), sandbox, { filename: 'procedural-generator-worker.js' });
+  expect(typeof messageHandler).toBe('function');
+  messageHandler({ data: { type: 'generate', requestId: 'worker-contract', options } });
+  return messages.at(-1);
 }
 
 test('live default Zone Creator configuration generates a valid 3x3 preview', () => withGenerator((gen, fabric, buildings) => {
@@ -130,6 +154,22 @@ test('ghost presentation failures are isolated from the VTT render loop and keep
   stop();
   delete require.cache[require.resolve(previewPath)];
 }));
+
+test('procedural Worker loads the real core stack and generates a valid plan', () => {
+  const result = runWorkerGeneration({
+    seed: 'worker-contract-zone',
+    profileId: 'mixed_urban',
+    chunkCols: 1,
+    chunkRows: 1,
+    minBuildings: 1,
+    maxAttempts: 8,
+    gridSize: 70,
+  });
+  expect(result?.type).toBe('generated');
+  expect(result?.requestId).toBe('worker-contract');
+  expect(result?.plan?.validation?.valid).toBe(true);
+  expect(result?.plan?.zone).toMatchObject({ cols: 40, rows: 40, chunkCols: 1, chunkRows: 1 });
+});
 
 test('Zone Creator uses a dedicated Web Worker for heavy preview generation', () => {
   const worker = read('js/vtt/procedural-generator-worker.js');
