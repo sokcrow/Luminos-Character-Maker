@@ -1,6 +1,7 @@
 import './semantic-map-core.js';
 import './semantic-map-authoring-patch.js';
 import './semantic-map-renderer-patch.js';
+import './live-map-creator-hotfix.js';
 import { install as installDmAuthoringShellPolish } from './dm-authoring-shell-polish.js';
 import { start as startBuildingSemantics } from './building-semantic-bootstrap.js';
 import { start as startBuildingSemanticAuthoring } from './building-semantic-authoring-bootstrap.js';
