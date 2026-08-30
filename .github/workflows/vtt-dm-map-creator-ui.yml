@@ -63,3 +63,5 @@ jobs:
         run: |
           mapfile -t specs < <(find tests -name '*.spec.js' ! -name 'player_dm_ux_polish.spec.js' ! -name 'theatre_ui_polish.spec.js' -print | sort)
           npx playwright test "${specs[@]}"
+
+# Verification-only touch: re-run the merged preview crash regression against current main.
