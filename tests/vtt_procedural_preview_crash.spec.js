@@ -1,7 +1,10 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const GEN_FILES = [
   'topology.js','surface-core.js','horizontal-plane-core.js','building-physics-core.js',
   'semantic-map-core.js','building-semantic-core.js','building-archetype-core.js','vertical-portal.js',
@@ -104,3 +107,55 @@ test('a valid generated plan can be painted by the ghost preview renderer withou
   stop();
   delete require.cache[require.resolve(previewPath)];
 }));
+
+test('ghost presentation failures are isolated from the VTT render loop and keep the valid plan', () => withGenerator((gen, fabric, buildings) => {
+  const plan = gen.generateZone({
+    seed: 'default:zone',
+    profile: defaultCreatorProfile(fabric, buildings),
+    chunkCols: 1,
+    chunkRows: 1,
+    minBuildings: 1,
+    maxAttempts: 8,
+    gridSize: 70,
+  });
+  const previewPath = path.join(ROOT, 'js/vtt/procedural-preview-renderer-patch.js');
+  delete require.cache[require.resolve(previewPath)];
+  const preview = require(previewPath);
+  const renderer = { ctx: fakeContext(), canvas: { width: 1280, height: 720 }, render() { return 'base-render'; } };
+  const mapData = { dmEditMode: { active: true }, proceduralEditor: { previewPlan: plan, previewOptions: {} } };
+  const stop = preview.install(renderer, mapData);
+  expect(() => renderer.render({ applyTransformSimple() { throw new Error('CAMERA_TEST_FAILURE'); } }, 0, null, false)).not.toThrow();
+  expect(mapData.proceduralEditor.previewPlan).toBe(plan);
+  expect(mapData.proceduralEditor.previewRenderError).toContain('CAMERA_TEST_FAILURE');
+  stop();
+  delete require.cache[require.resolve(previewPath)];
+}));
+
+test('Zone Creator uses a dedicated Web Worker for heavy preview generation', () => {
+  const worker = read('js/vtt/procedural-generator-worker.js');
+  const runtime = read('js/vtt/procedural-generator-bootstrap.js');
+  const authoring = read('js/vtt/procedural-generator-authoring-bootstrap.js');
+
+  for (const dependency of [
+    'topology.js','surface-core.js','horizontal-plane-core.js','building-physics-core.js',
+    'semantic-map-core.js','building-semantic-core.js','building-archetype-core.js','vertical-portal.js',
+    'building-navigation-core.js','procedural-zone-core.js','urban-fabric-core.js',
+    'procedural-building-generator.js','procedural-building-mix-patch.js','procedural-generator-core.js',
+  ]) expect(worker).toContain(`'./${dependency}'`);
+  expect(worker).toContain("event?.data?.type !== 'generate'");
+  expect(worker).toContain('core.generateZone(event.data.options || {})');
+  expect(runtime).toContain("new Worker(new URL('./procedural-generator-worker.js',import.meta.url))");
+  expect(runtime).toContain('function previewAsync(options={})');
+  expect(runtime).toContain('preview,previewAsync,apply,persist,createZone');
+  expect(authoring).toContain('procedural.previewAsync?procedural.previewAsync(values())');
+  expect(authoring).toContain('requestRevision!==generationRevision');
+  expect(authoring).toContain('ENCUADRAR falló, pero la zona puede crearse.');
+});
+
+test('worker and preview crash-fix modules parse cleanly', () => {
+  execFileSync(process.execPath, ['--check', path.join(ROOT, 'js/vtt/procedural-generator-worker.js')], { stdio: 'pipe' });
+  execFileSync(process.execPath, ['--check', path.join(ROOT, 'js/vtt/procedural-preview-renderer-patch.js')], { stdio: 'pipe' });
+  for (const file of ['js/vtt/procedural-generator-bootstrap.js','js/vtt/procedural-generator-authoring-bootstrap.js']) {
+    execFileSync(process.execPath, ['--input-type=module','--check'], { input: read(file), stdio: ['pipe','pipe','pipe'] });
+  }
+});
