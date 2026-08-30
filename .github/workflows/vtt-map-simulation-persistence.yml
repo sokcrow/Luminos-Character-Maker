@@ -1,0 +1,70 @@
+name: VTT Map Simulation Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/map-simulation-*.js'
+      - 'js/vtt/world-streaming-*.js'
+      - 'js/vtt/world-object-state.js'
+      - 'js/vtt/main.js'
+      - 'database.rules.json'
+      - 'tests/vtt_map_simulation*.spec.js'
+      - 'tests/vtt_world_streaming_lifecycle.spec.js'
+      - 'tests/vtt_world_objects.spec.js'
+      - 'tests/vtt_performance_guard.spec.js'
+      - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
+      - 'tests/regional_local_transition*.spec.js'
+      - '.github/workflows/vtt-map-simulation-persistence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/vtt/map-simulation-*.js'
+      - 'js/vtt/world-streaming-*.js'
+      - 'js/vtt/world-object-state.js'
+      - 'js/vtt/main.js'
+      - 'tests/vtt_map_simulation*.spec.js'
+      - '.github/workflows/vtt-map-simulation-persistence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  map-simulation-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/map-simulation-core.js
+          node --input-type=module --check < js/vtt/map-simulation-runtime.js
+          node --check js/vtt/world-streaming-core.js
+          node --input-type=module --check < js/vtt/world-streaming-runtime.js
+          node --check js/vtt/world-object-state.js
+          node --input-type=module --check < js/vtt/main.js
+          node --check tests/vtt_map_simulation_bubbles.spec.js
+          node --check tests/vtt_map_simulation_realtime.spec.js
+          node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Focused simulation realtime persistence and performance contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_map_simulation_bubbles.spec.js
+          tests/vtt_map_simulation_realtime.spec.js
+          tests/vtt_world_streaming_lifecycle.spec.js
+          tests/vtt_world_objects.spec.js
+          tests/vtt_performance_guard.spec.js
+          tests/vtt_procedural_chunk_streaming_performance.spec.js
+          tests/regional_local_transition.spec.js
+          tests/regional_local_transition_realtime.spec.js
+          tests/regional_local_transition_bootstrap.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1

@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentMapId: initialMapId,
         resolveActiveDefinition: () => mapAuthoringState?.resolveActiveDefinition?.({ fallback: mockMapData }),
         reload: () => window.location.reload(),
-        notify: (message, mode) => controller?.notify?.(message, mode),
+        notify: (message, mode) => controller?.notify(message, mode),
         log: console,
     }) || null;
     const stopMapWatch = mapAuthoringState?.watchActiveMap?.({
@@ -214,9 +214,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const chunkModule = await import('./procedural-chunk-streaming-runtime.js');
             chunkModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural });
             const transitionModule = await import('./regional-local-transition-runtime.js');
-            return transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const simulationModule = await import('./map-simulation-runtime.js');
+            return simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
         })
-        .catch((error) => console.error('VTT procedural / regional-local transition bootstrap failed:', error));
+        .catch((error) => console.error('VTT procedural / regional-local / map simulation bootstrap failed:', error));
     import('./world-object-mainline-integration.js')
         .then(async (module) => {
             await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
@@ -244,7 +246,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.LuminousVttStructureRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
+        window.LuminousVttRuntime?.mapSimulation?.stop?.();
         window.LuminousVttRuntime?.regionalLocalTransition?.stop?.();
+        window.LuminousVttRuntime?.worldStreaming?.stop?.();
         window.LuminousVttRuntime?.proceduralChunks?.stop?.();
         window.LuminousVttRuntime?.procedural?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
