@@ -192,12 +192,17 @@
     function hasMeaningfulState(raw){const record=records.get(zoneKey(raw));return Boolean(record&&(record.persistent||record.pinned||entityCount(record)>0||temporaryCount(record)>0));}
     function isDirty(raw){return Boolean(records.get(zoneKey(raw))?.dirty);}
     function clearDirty(raw){const record=records.get(zoneKey(raw));if(record)record.dirty=false;}
+    function forget(raw,{onlyPristine=true}={}){
+      const key=zoneKey(raw),record=records.get(key);if(!record)return false;
+      if(onlyPristine&&(record.persistent||record.pinned||entityCount(record)>0||temporaryCount(record)>0||record.dirty))return false;
+      records.delete(key);return true;
+    }
     function get(raw,worldNow=Date.now()){return compactRecord(raw,worldNow);}
     function keys(){return [...records.keys()];}
     function dirtyKeys(){return [...records.values()].filter(record=>record.dirty).map(record=>record.key);}
     function metrics(){let deltaEntities=0,temporaryEntities=0,dirtyZones=0,pinnedZones=0,persistentZones=0;for(const record of records.values()){deltaEntities+=entityCount(record);temporaryEntities+=temporaryCount(record);if(record.dirty)dirtyZones+=1;if(record.pinned)pinnedZones+=1;if(record.persistent)persistentZones+=1;}return Object.freeze({schemaVersion:SCHEMA_VERSION,records:records.size,deltaEntities,temporaryEntities,dirtyZones,pinnedZones,persistentZones,maxDeltaEntities,maxTemporaryEntities});}
 
-    return Object.freeze({ensure,recordEntityChange,recordTemporary,pruneExpired,markZone,compactRecord,importRecord,touchSimulated,hasMeaningfulState,isDirty,clearDirty,get,keys,dirtyKeys,metrics});
+    return Object.freeze({ensure,recordEntityChange,recordTemporary,pruneExpired,markZone,compactRecord,importRecord,touchSimulated,hasMeaningfulState,isDirty,clearDirty,forget,get,keys,dirtyKeys,metrics});
   }
 
   function stableEntityId(entity,index=0){return safeKey(entity?.entityId||entity?.instanceId||entity?.id||`entity_${index}`);}
