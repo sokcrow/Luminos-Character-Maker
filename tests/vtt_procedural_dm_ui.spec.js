@@ -1,10 +1,19 @@
 const { test, expect } = require('@playwright/test');
-const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('node:child_process');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),{execFileSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
 const GEN_FILES=['topology.js','surface-core.js','horizontal-plane-core.js','building-physics-core.js','semantic-map-core.js','building-semantic-core.js','building-archetype-core.js','vertical-portal.js','building-navigation-core.js','procedural-zone-core.js','urban-fabric-core.js','procedural-building-generator.js','procedural-generator-core.js'];
 const GEN_KEYS=['LuminousVttTopology','LuminousVttSurfaceCore','LuminousVttHorizontalPlanes','LuminousVttBuildingPhysics','LuminousVttSemanticMap','LuminousVttBuildingSemantics','LuminousVttBuildingArchetypes','LuminousVttVerticalPortal','LuminousVttBuildingNavigation','LuminousVttProceduralZone','LuminousVttUrbanFabric','LuminousVttProceduralBuildings','LuminousVttProceduralGenerator'];
 function withGenerator(run){const original=new Map(GEN_KEYS.map(k=>[k,global[k]]));try{for(let i=0;i<GEN_FILES.length;i++){const resolved=require.resolve(path.join(ROOT,'js/vtt',GEN_FILES[i]));delete require.cache[resolved];global[GEN_KEYS[i]]=require(resolved);}return run(global.LuminousVttProceduralGenerator);}finally{for(const f of GEN_FILES){try{delete require.cache[require.resolve(path.join(ROOT,'js/vtt',f))];}catch(_){}}for(const key of GEN_KEYS){const value=original.get(key);if(value===undefined)delete global[key];else global[key]=value;}}}
+function loadHotfixForRuntimeTest(){
+  const source=read('js/vtt/live-map-creator-hotfix.js')
+    .replace(/\bexport\s+(?=(?:async\s+)?function)/g,'')
+    .replace(/\nautoStart\(\);\s*$/,'');
+  const sandbox={console:{warn(){},error(){}},setTimeout,clearTimeout};
+  vm.createContext(sandbox);
+  vm.runInContext(`${source}\n;globalThis.__hotfix={createMapSafely};`,sandbox,{filename:'live-map-creator-hotfix.runtime-test.js'});
+  return sandbox.__hotfix;
+}
 
 test('zone size presets map cleanly to the 40x40 chunk contract',()=>{
   const file=path.join(ROOT,'js/vtt/procedural-zone-core.js'),resolved=require.resolve(file);delete require.cache[resolved];const zone=require(resolved);
@@ -60,6 +69,34 @@ test('NEW MAP is captured by a safe async path that reports save failures instea
   expect(hotfix).toContain("console.error('VTT NEW MAP FAILED:'");
   expect(hotfix).toContain("localNotice(root,message,'error')");
   expect(hotfix).toContain("select.dispatchEvent(new EventCtor('change',{bubbles:true}))");
+});
+
+test('NEW MAP failure path executes without throwing, restores the button, and reports the Firebase error',async()=>{
+  const {createMapSafely}=loadHotfixForRuntimeTest();
+  const authoring=require('../js/vtt/map-authoring.js');
+  const active=authoring.createDefinition({id:'active',name:'Active'});
+  const notice={textContent:'',dataset:{},hidden:true};
+  const select={value:'active',dispatchEvent(){throw new Error('should not dispatch on failed save');}};
+  const notifications=[];
+  const bridge={
+    get:id=>id==='active'?active:null,
+    async saveDefinition(){throw new Error('PERMISSION_DENIED');},
+  };
+  const root={
+    prompt:()=> 'Crash Test Map',
+    LuminousVttMapAuthoring:authoring,
+    LuminousVttRuntime:{engine:{mapData:active},mapAuthoring:{bridge},controller:{notify:(message,mode)=>notifications.push({message,mode})}},
+    document:{querySelector:selector=>selector==='[data-map-select]'?select:null,getElementById:id=>id==='vtt-map-authoring-notice'?notice:null},
+    Event:class TestEvent{},
+  };
+  const button={disabled:false,isConnected:true};
+  const result=await createMapSafely(root,button);
+  expect(result).toBeNull();
+  expect(button.disabled).toBe(false);
+  expect(notice.hidden).toBe(false);
+  expect(notice.dataset.mode).toBe('error');
+  expect(notice.textContent).toContain('PERMISSION_DENIED');
+  expect(notifications.at(-1)).toEqual({message:'PERMISSION_DENIED',mode:'error'});
 });
 
 test('DM authoring shell has shared professional states and keyboard focus treatment',()=>{
