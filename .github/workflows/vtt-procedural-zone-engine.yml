@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'js/vtt/procedural-*.js'
+      - 'js/vtt/world-streaming-*.js'
       - 'js/vtt/urban-fabric-core.js'
       - 'js/vtt/dm-authoring-shell-polish.js'
       - 'js/vtt/semantic-map-bootstrap.js'
@@ -12,6 +13,7 @@ on:
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
       - 'tests/vtt_procedural_lazy_preview_performance.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_authority.spec.js'
+      - 'tests/vtt_world_streaming_lifecycle.spec.js'
       - '.github/workflows/vtt-procedural-zone-engine.yml'
   workflow_dispatch:
 
@@ -33,12 +35,14 @@ jobs:
         run: |
           node --check js/vtt/procedural-zone-core.js
           node --check js/vtt/procedural-chunk-streaming-core.js
+          node --check js/vtt/world-streaming-core.js
           node --check js/vtt/urban-fabric-core.js
           node --check js/vtt/procedural-building-generator.js
           node --check js/vtt/procedural-generator-core.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-generator-authoring-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-chunk-streaming-runtime.js
+          node --input-type=module --check < js/vtt/world-streaming-runtime.js
           node --input-type=module --check < js/vtt/dm-authoring-shell-polish.js
           node --input-type=module --check < js/vtt/semantic-map-bootstrap.js
       - name: Chunk streaming performance contract
@@ -47,6 +51,7 @@ jobs:
           tests/vtt_procedural_chunk_streaming_performance.spec.js
           tests/vtt_procedural_lazy_preview_performance.spec.js
           tests/vtt_procedural_chunk_streaming_authority.spec.js
+          tests/vtt_world_streaming_lifecycle.spec.js
       - name: Focused contracts
         run: >-
           npx playwright test
