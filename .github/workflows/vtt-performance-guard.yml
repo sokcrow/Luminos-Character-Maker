@@ -5,7 +5,11 @@ on:
     paths:
       - 'vtt.html'
       - 'js/vtt/performance-guard.js'
+      - 'js/vtt/lighting-engine.js'
+      - 'js/vtt/lighting-defaults-patch.js'
+      - 'js/vtt/pov-engine.js'
       - 'tests/vtt_performance_guard.spec.js'
+      - 'tests/vtt_vision_cone_runtime.spec.js'
       - '.github/workflows/vtt-performance-guard.yml'
   workflow_dispatch:
 
@@ -25,6 +29,8 @@ jobs:
       - run: npm ci
       - name: Syntax
         run: node --input-type=module --check < js/vtt/performance-guard.js
+      - name: Vision cone 120 degree regression
+        run: npx playwright test tests/vtt_vision_cone_runtime.spec.js
       - name: Idle render budget
         run: npx playwright test tests/vtt_performance_guard.spec.js
       - name: Lighting/Fog focused regression
