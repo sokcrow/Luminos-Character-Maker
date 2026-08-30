@@ -68,6 +68,31 @@ test('map state uses DM-owned campaign world paths and activates map instance', 
   expect(source).toContain('firebase?.storage?.()');
 });
 
+test('failed Firebase map save rolls local map cache back instead of leaving a phantom map', async () => {
+  const statePath = path.join(__dirname, '..', 'js/vtt/map-authoring-state.js');
+  delete require.cache[require.resolve(statePath)];
+  const state = require(statePath);
+  const db = {
+    ref() {
+      return {
+        child() { return { set: async () => { throw new Error('PERMISSION_DENIED'); } }; },
+        on() {}, off() {},
+      };
+    },
+  };
+  const database = () => db;
+  database.ServerValue = { TIMESTAMP: 123 };
+  const root = {
+    LuminousVttMapAuthoring: authoring,
+    firebase: { auth: () => ({ currentUser: { uid: state.DM_UID } }), database },
+    document: { body: { classList: { contains: () => false } } },
+  };
+  const mapData = authoring.createDefinition({ id: 'active', name: 'Active' });
+  const bridge = state.createBridge({ mapData, root });
+  await expect(bridge.saveDefinition(authoring.createDefinition({ id: 'new-map', name: 'New Map' }))).rejects.toThrow('PERMISSION_DENIED');
+  expect(bridge.list()).toEqual([]);
+});
+
 test('main resolves the active map before constructing the engine and reloads on map switch', () => {
   const source = read('js/vtt/main.js');
   const resolveIndex = source.indexOf('resolveActiveDefinition');
