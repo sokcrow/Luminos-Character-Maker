@@ -45,6 +45,26 @@
     return worldPosition;
   }
 
+  function arrivalWorldPosition(plan, group, arrivalId, arrivedAtWorldTs) {
+    const routing = group?.activity?.payload?.routing;
+    const transition = global.LuminousRegionalLocalTransitionCore;
+    if (routing?.mode === "graph_v1" && routing.destinationEntrySide && transition?.entryPosition) {
+      const destination = plan?.route?.[plan.route.length - 1] || {};
+      return transition.entryPosition({
+        worldId: plan.worldId,
+        regionalHex: destination,
+        entrySide: routing.destinationEntrySide,
+        regionalGraphId: routing.graphId,
+        regionalGraphRevision: routing.graphRevision,
+        regionalGraphFingerprint: routing.graphFingerprint,
+        travelArrivalId: arrivalId,
+        arrivedAtWorldTs,
+        transitionMode: "regional_to_local",
+      });
+    }
+    return applyGraphArrivalMetadata(Core.destinationWorldPosition(plan, arrivalId, arrivedAtWorldTs), group);
+  }
+
   async function applyArrival(group) {
     if (!isDm() || group?.status !== "completed") return false;
     const plan = planFromGroup(group);
@@ -60,10 +80,10 @@
       const alreadyApplied = members.every((playerId) => players[playerId]?.worldPosition?.travelArrivalId === arrivalId);
       if (alreadyApplied) return false;
 
-      const worldPosition = applyGraphArrivalMetadata(
-        Core.destinationWorldPosition(plan, arrivalId, group.completedAtWorldTs || group.processedAtWorldTs || 0),
-        group
-      );
+      const worldPosition = {
+        ...arrivalWorldPosition(plan, group, arrivalId, group.completedAtWorldTs || group.processedAtWorldTs || 0),
+        realtimeUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+      };
       const updates = {};
       for (const playerId of members) updates[`${PLAYER_ROOT}/${playerId}/worldPosition`] = worldPosition;
       await db.ref().update(updates);
@@ -95,6 +115,7 @@
     cancelTravel,
     planFromGroup,
     applyGraphArrivalMetadata,
+    arrivalWorldPosition,
     applyArrival,
     reconcileCompleted,
     stop: () => global.removeEventListener?.("luminous:world-scheduler-updated", onSchedulerUpdated),
