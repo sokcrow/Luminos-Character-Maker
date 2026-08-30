@@ -44,12 +44,12 @@
   }
 
   async function authorized(request) {
-    if (isDm()) return true;
-    const uid = String(request?.requesterUid || "");
-    if (!uid || uid !== currentUid()) return false;
+    const requesterUid = String(request?.requesterUid || "");
+    if (!requesterUid) return false;
+    if (requesterUid === DM_UID) return true;
 
     const playerSnapshot = await db.ref(PLAYER_ROOT).once("value");
-    const owned = new Set(ownedPlayerIds(playerSnapshot.val(), uid));
+    const owned = new Set(ownedPlayerIds(playerSnapshot.val(), requesterUid));
     if (!owned.size) return false;
 
     if (request.type === "start_activity") {
