@@ -23,7 +23,7 @@
     if (request?.type !== "start_activity" || request?.activityType !== "regional_travel") return true;
     const travelCore = global.LuminousRegionalTravelCore;
     if (!travelCore?.validateScheduledCommand) return false;
-    if (travelCore.validateScheduledCommand(request).valid !== true) return false;
+    if (!(travelCore.validateScheduledCommand(request).valid === true)) return false;
 
     if (request?.payload?.routing?.mode === "graph_v1") {
       const graphCore = global.LuminousRegionalWorldGraphCore;
