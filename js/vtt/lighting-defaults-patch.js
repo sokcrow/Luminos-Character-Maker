@@ -3,9 +3,12 @@ import './lighting-engine.js';
 const base = window.LuminousVttLightingEngine;
 if (base) {
   const finite = (value) => Number.isFinite(Number(value));
+  const effectiveViewerCone = (viewer = {}) => finite(viewer.visionConeDeg)
+    ? Math.max(1, Math.min(base.DEFAULT_VISION_CONE_DEG, Number(viewer.visionConeDeg)))
+    : base.DEFAULT_VISION_CONE_DEG;
   const withViewerDefaults = (viewer = {}) => ({
     ...viewer,
-    visionConeDeg: finite(viewer.visionConeDeg) ? Number(viewer.visionConeDeg) : base.DEFAULT_VISION_CONE_DEG,
+    visionConeDeg: effectiveViewerCone(viewer),
   });
   const withSourceDefaults = (source = {}) => ({
     ...source,
@@ -18,9 +21,7 @@ if (base) {
 
   window.LuminousVttLightingEngine = Object.freeze({
     ...base,
-    visionConeDeg: (viewer = {}) => finite(viewer.visionConeDeg)
-      ? Math.max(1, Math.min(360, Number(viewer.visionConeDeg)))
-      : base.DEFAULT_VISION_CONE_DEG,
+    visionConeDeg: effectiveViewerCone,
     normalizeSource: (source, mapData) => base.normalizeSource(withSourceDefaults(source), mapData),
     sourcePosition: (source, mapData, nowMs) => base.sourcePosition(withSourceDefaults(source), mapData, nowMs),
     sourceLevelAtPoint: (source, point, scene, mapData, nowMs) => base.sourceLevelAtPoint(withSourceDefaults(source), point, withSceneDefaults(scene), mapData, nowMs),
