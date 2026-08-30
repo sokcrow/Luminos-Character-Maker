@@ -11,6 +11,7 @@ import { start as startBuildingNavigation } from './building-navigation-bootstra
 import { start as startBuildingNavigationAuthoring } from './building-navigation-authoring-bootstrap.js';
 import { start as startProceduralGenerator } from './procedural-generator-bootstrap.js';
 import { start as startProceduralChunkStreaming } from './procedural-chunk-streaming-runtime.js';
+import { start as startWorldStreaming } from './world-streaming-runtime.js';
 import { start as startProceduralGeneratorAuthoring } from './procedural-generator-authoring-bootstrap.js';
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
@@ -40,10 +41,11 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     relationsFrom:(id)=>core.relationsFrom(mapData.semantics,id),
     relationsTo:(id)=>core.relationsTo(mapData.semantics,id),
     validate:()=>core.validateSemantics(mapData.semantics,mapData),
-    stop(){if(stopped)return;stopped=true;stopRenderer();stopDmPolish();window.LuminousVttRuntime?.proceduralChunks?.stop?.();},
+    stop(){if(stopped)return;stopped=true;stopRenderer();stopDmPolish();window.LuminousVttRuntime?.proceduralChunks?.stop?.();window.LuminousVttRuntime?.worldStreaming?.stop?.();},
   });
   window.LuminousVttSemanticMapRuntime={api};
   window.LuminousVttRuntime=Object.freeze({...window.LuminousVttRuntime,semanticMap:api});
+  startWorldStreaming({runtime:window.LuminousVttRuntime,mapData});
   const buildingRuntime=startBuildingSemantics({runtime:window.LuminousVttRuntime,mapData});
   if(buildingRuntime&&window.LuminousVttRuntime?.bridge?.isDm)startBuildingSemanticAuthoring({runtime:window.LuminousVttRuntime,mapData});
   const archetypeRuntime=buildingRuntime?startBuildingArchetypes({runtime:window.LuminousVttRuntime,mapData}):null;
