@@ -1,0 +1,47 @@
+/* Inventory HUD V2 — functional overlay for the player sheet. */
+#inventory-modal.inventory-v2-ready .inventory-modal-content{width:min(96vw,1180px);max-width:1180px;height:min(90vh,900px);background:#0b0907;border:1px solid #5a4227;box-shadow:0 20px 70px rgba(0,0,0,.82),inset 0 0 36px rgba(0,0,0,.7)}
+#inventory-modal.inventory-v2-ready .inventory-tabs{padding:10px 12px 0;gap:6px;background:linear-gradient(90deg,#0d0b08,#151006,#0a0907);border-bottom:1px solid #44331f}
+#inventory-modal.inventory-v2-ready .inv-tab-btn{min-width:150px;border-radius:0;border:1px solid #3c3024;border-bottom:0;background:#100d09;color:#8e8271;font-family:"Share Tech Mono",monospace;letter-spacing:.08em}
+#inventory-modal.inventory-v2-ready .inv-tab-btn.active{color:#151006;background:linear-gradient(90deg,#efbf66,#c88927);border-color:#e6ae4c;box-shadow:none}
+#inventory-modal.inventory-v2-ready .inventory-body-wrapper{background:#080706}
+#inventory-modal.inventory-v2-ready .inventory-left-panel{min-width:0;padding:10px;background:linear-gradient(rgba(8,7,6,.97),rgba(8,7,6,.97)),repeating-linear-gradient(135deg,transparent 0 22px,rgba(214,154,43,.025) 22px 23px)}
+#inventory-modal.inventory-v2-ready #inv-active{height:100%;min-height:0;padding:0}
+.inventory-v2-active-stack{height:100%;min-height:0;display:grid;grid-template-rows:minmax(300px,1fr) minmax(220px,.72fr);gap:10px}
+.inventory-v2-equipment,.inventory-v2-carry{min-height:0;border:1px solid #3e3021;background:linear-gradient(180deg,#0e0b08,#080706);box-shadow:inset 0 0 30px rgba(0,0,0,.75)}
+.inventory-v2-equipment{position:relative;overflow:hidden}
+.inventory-v2-equipment-header,.inventory-v2-carry-header{min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;border-bottom:1px solid #392c1f;background:linear-gradient(90deg,#100c08,#171107,#0c0a08)}
+.inventory-v2-equipment-header div:first-child,.inventory-v2-carry-header div:first-child{display:flex;flex-direction:column;gap:1px}
+.inventory-v2-equipment-header span,.inventory-v2-carry-header span{color:#766c5f;font:9px "Share Tech Mono",monospace;letter-spacing:.14em}
+.inventory-v2-equipment-header strong,.inventory-v2-carry-header strong{color:#dba74e;font-family:"BebasKai",Impact,sans-serif;font-size:20px;font-weight:400;letter-spacing:.08em}
+.inventory-v2-sync,#inventory-v2-carry-count{color:#a99a83;font:10px "Share Tech Mono",monospace;letter-spacing:.09em}
+.inventory-v2-equipment-field{position:relative;height:calc(100% - 40px);min-height:260px}
+.inventory-v2-body-silhouette{position:absolute;left:50%;top:50%;width:126px;height:230px;transform:translate(-50%,-46%);border:1px solid #2b251e;background:linear-gradient(180deg,rgba(99,70,34,.08),rgba(20,16,12,.02));clip-path:polygon(40% 0,60% 0,68% 10%,66% 28%,78% 42%,68% 55%,64% 100%,36% 100%,32% 55%,22% 42%,34% 28%,32% 10%);pointer-events:none}
+.inventory-v2-eq-slot{position:absolute;width:150px;min-height:72px;padding:8px 9px;text-align:left;overflow:hidden;border:1px solid #403225;border-radius:0;background:#0b0907;color:#cabb9f;box-shadow:inset 0 0 18px rgba(0,0,0,.82);transition:border-color .12s ease,box-shadow .12s ease,transform .12s ease}
+.inventory-v2-eq-slot:hover{border-color:#8e642e;transform:translateY(-1px)}
+.inventory-v2-eq-slot.is-filled{background:linear-gradient(145deg,#171109,#0b0907)}
+.inventory-v2-eq-slot.is-compatible{border-color:#d99d37;box-shadow:inset 0 0 18px rgba(0,0,0,.82),0 0 12px rgba(217,157,55,.18)}
+.inventory-v2-eq-slot.is-drop-target{border-color:#ffd77f;box-shadow:0 0 0 1px #d99d37,inset 0 0 20px rgba(215,154,43,.16)}
+.inventory-v2-eq-slot.is-selected{outline:1px solid #f1bd55;outline-offset:2px}
+.inventory-v2-eq-label{display:block;margin-bottom:5px;color:#756a5c;font:8px "Share Tech Mono",monospace;letter-spacing:.14em}
+.inventory-v2-eq-name{display:block;color:#d9cab2;font:10px "Share Tech Mono",monospace;line-height:1.22;text-transform:uppercase}
+.inventory-v2-eq-hint{display:block;margin-top:6px;color:#8d9a6d;font:8px "Share Tech Mono",monospace;letter-spacing:.04em}
+.inv2-eq-main{left:18px;top:18px}.inv2-eq-off{right:18px;top:18px}.inv2-eq-armor{left:50%;top:75px;transform:translateX(-50%)}.inv2-eq-shield{right:18px;bottom:20px}.inv2-eq-acc-a{left:18px;bottom:20px}.inv2-eq-acc-b{left:50%;bottom:20px;transform:translateX(-50%)}
+.inventory-v2-eq-armor:hover,.inventory-v2-eq-acc-b:hover{transform:translateX(-50%) translateY(-1px)}
+.inventory-v2-augment-summary{position:absolute;left:50%;top:178px;transform:translateX(-50%);width:210px;padding:6px 8px;text-align:center;border-top:1px solid #31281e;border-bottom:1px solid #31281e;color:#625b52}
+.inventory-v2-augment-summary span{display:block;font:8px "Share Tech Mono",monospace;letter-spacing:.13em}.inventory-v2-augment-summary strong{display:block;margin-top:3px;color:#8e8271;font:9px "Share Tech Mono",monospace;font-weight:400}
+.inventory-v2-carry{display:grid;grid-template-rows:40px minmax(0,1fr);overflow:hidden}.inventory-v2-grid-host{min-height:0;padding:9px;overflow:auto}
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{width:100%;max-width:none;display:grid;grid-template-columns:repeat(5,minmax(82px,1fr));grid-template-rows:repeat(2,minmax(88px,1fr));grid-auto-rows:minmax(88px,1fr);gap:9px;padding:0;background:transparent;border:0}
+#inventory-modal.inventory-v2-ready #inv-active-grid .item-slot{width:auto;min-width:0;height:100%;min-height:88px;aspect-ratio:auto;background:linear-gradient(145deg,#0c0b09,#15110d);border:1px solid #3b3025;box-shadow:inset 0 0 16px rgba(0,0,0,.82)}
+#inventory-modal.inventory-v2-ready #inv-active-grid .item-slot:hover,#inventory-modal.inventory-v2-ready #inv-active-grid .item-slot.active{border-color:#d49a38;box-shadow:inset 0 0 16px rgba(0,0,0,.82),0 0 9px rgba(212,154,56,.18)}
+#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-equipped{border-color:#9d7b43!important}#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-damaged{box-shadow:inset 0 0 0 1px rgba(167,65,51,.5),inset 0 0 18px rgba(0,0,0,.82)}#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-stolen{border-left:3px solid #9e3d32!important}
+.inventory-v2-item-state{position:absolute;left:5px;bottom:4px;z-index:5;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d7a54e;font:7px "Share Tech Mono",monospace;letter-spacing:.04em;pointer-events:none}
+#inventory-modal.inventory-v2-ready #inv-stash-grid{width:100%;max-width:none;grid-template-columns:repeat(auto-fill,minmax(82px,1fr))}
+#inventory-modal.inventory-v2-ready .item-detail-card{width:350px;min-width:350px;background:#0d0a08;border-left:1px solid #5b4228;border-top:1px solid #3b3025;padding-bottom:10px}
+#inventory-modal.inventory-v2-ready #detail-equip-btn-container{display:none!important}
+.inventory-v2-detail-extra{width:100%;margin-top:10px;padding-top:9px;border-top:1px solid #33291f}.inventory-v2-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.inventory-v2-detail-grid>div{min-width:0;padding:6px;border:1px solid #302820;background:#090806}.inventory-v2-detail-grid span,.inventory-v2-modules>span{display:block;color:#6f675d;font:7px "Share Tech Mono",monospace;letter-spacing:.12em}.inventory-v2-detail-grid b{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#cfc0a9;font:9px "Share Tech Mono",monospace;font-weight:400}
+.inventory-v2-modules{margin-top:7px;padding:7px;border:1px solid #302820;background:#090806;color:#8f8577;font:8px "Share Tech Mono",monospace}.inventory-v2-modules [data-v2-detail="modules"]{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.inventory-v2-modules [data-v2-detail="modules"] span{padding:3px 5px;border-left:2px solid #7c5828;background:#100d09;color:#b9aa94}
+.inventory-v2-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.inventory-v2-action{padding:8px 7px;border:1px solid #493823;border-radius:0;background:#13100c;color:#c6b69e;font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase}.inventory-v2-action.primary{background:linear-gradient(90deg,#d59a32,#bd791d);border-color:#e7b253;color:#130e07;font-weight:700}.inventory-v2-action:disabled{opacity:.28;cursor:not-allowed}
+.inventory-v2-action-status{min-height:20px;margin-top:6px;color:#81776a;font:8px "Share Tech Mono",monospace;letter-spacing:.05em}.inventory-v2-action-status[data-tone="success"]{color:#96a66f}.inventory-v2-action-status[data-tone="error"]{color:#cd665b}.inventory-v2-action-status[data-tone="working"]{color:#d5a24c}
+#inventory-modal.inventory-v2-stash-locked #inv-stash{position:relative}#inventory-modal.inventory-v2-stash-locked #inv-stash::after{content:"STASH LOCKED BY DM";position:absolute;inset:0;z-index:12;display:grid;place-items:center;background:rgba(5,4,3,.72);color:#b96053;font:22px "BebasKai",Impact,sans-serif;letter-spacing:.1em;pointer-events:none}
+#inventory-modal.inventory-v2-ready .limbus-synthesis-container{border:1px solid #45331f;background:#090706}#inventory-modal.inventory-v2-ready .synthesis-bottom-bar{border-top:1px solid #4a3520;background:rgba(8,7,5,.94)}
+@media(max-height:760px){.inventory-v2-active-stack{grid-template-rows:minmax(260px,1fr) minmax(190px,.68fr)}.inventory-v2-eq-slot{width:136px;min-height:62px}.inventory-v2-augment-summary{top:155px}#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-rows:repeat(2,minmax(72px,1fr));grid-auto-rows:minmax(72px,1fr)}}
