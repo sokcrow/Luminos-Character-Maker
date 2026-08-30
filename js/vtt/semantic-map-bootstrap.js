@@ -1,6 +1,7 @@
 import './semantic-map-core.js';
 import './semantic-map-authoring-patch.js';
 import './semantic-map-renderer-patch.js';
+import { install as installDmAuthoringShellPolish } from './dm-authoring-shell-polish.js';
 import { start as startBuildingSemantics } from './building-semantic-bootstrap.js';
 import { start as startBuildingSemanticAuthoring } from './building-semantic-authoring-bootstrap.js';
 import { start as startBuildingArchetypes } from './building-archetype-bootstrap.js';
@@ -15,6 +16,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   if(window.LuminousVttSemanticMapRuntime?.api)return window.LuminousVttSemanticMapRuntime.api;
   const core=window.LuminousVttSemanticMap;if(!core)throw new Error('SEMANTIC_MAP_RUNTIME_REQUIRED');
   window.LuminousVttSemanticMapAuthoringPatch?.install?.();
+  const stopDmPolish=runtime?.bridge?.isDm?installDmAuthoringShellPolish({root:window}):(()=>{});
   mapData.semantics=core.normalizeSemantics(mapData.semantics||{});
   mapData.semanticEditor||={visible:false,selectedId:null,preview:null};
   let revision=0,index=null,indexRevision=-1,stopped=false;
@@ -36,7 +38,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     relationsFrom:(id)=>core.relationsFrom(mapData.semantics,id),
     relationsTo:(id)=>core.relationsTo(mapData.semantics,id),
     validate:()=>core.validateSemantics(mapData.semantics,mapData),
-    stop(){if(stopped)return;stopped=true;stopRenderer();},
+    stop(){if(stopped)return;stopped=true;stopRenderer();stopDmPolish();},
   });
   window.LuminousVttSemanticMapRuntime={api};
   window.LuminousVttRuntime=Object.freeze({...window.LuminousVttRuntime,semanticMap:api});
