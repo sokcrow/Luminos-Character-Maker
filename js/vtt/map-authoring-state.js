@@ -108,11 +108,19 @@
     async function saveDefinition(rawDefinition) {
       if (!dm) throw new Error('DM_REQUIRED');
       const definition = authoring.normalizeDefinition(rawDefinition, mapData || {});
+      const previous = maps[definition.id];
       maps[definition.id] = definition;
-      if (db) {
-        const payload = { ...definition, updatedByUid: currentUid(root) || DM_UID, updatedAt: firebase.database.ServerValue.TIMESTAMP };
-        if (!payload.createdAt) payload.createdAt = firebase.database.ServerValue.TIMESTAMP;
-        await mapsRef().child(definition.id).set(payload);
+      try {
+        if (db) {
+          const payload = { ...definition, updatedByUid: currentUid(root) || DM_UID, updatedAt: firebase.database.ServerValue.TIMESTAMP };
+          if (!payload.createdAt) payload.createdAt = firebase.database.ServerValue.TIMESTAMP;
+          await mapsRef().child(definition.id).set(payload);
+        }
+      } catch (error) {
+        if (previous === undefined) delete maps[definition.id];
+        else maps[definition.id] = previous;
+        if (typeof onMapsChanged === 'function') onMapsChanged(list());
+        throw error;
       }
       if (typeof onMapsChanged === 'function') onMapsChanged(list());
       return definition;
