@@ -29,7 +29,8 @@
       const graphCore = global.LuminousRegionalWorldGraphCore;
       if (!graphCore?.validateScheduledCommand) return false;
       const requesterIsDm = String(request?.requesterUid || "") === DM_UID;
-      return graphCore.validateScheduledCommand(request, { allowRestricted: requesterIsDm }).valid === true;
+      const explicitDmBypass = requesterIsDm && request?.payload?.routing?.accessMode === "bypass";
+      return graphCore.validateScheduledCommand(request, { allowRestricted: explicitDmBypass }).valid === true;
     }
     return true;
   }
