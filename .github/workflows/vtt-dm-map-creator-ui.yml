@@ -5,11 +5,13 @@ on:
     paths:
       - 'js/vtt/procedural-generator-bootstrap.js'
       - 'js/vtt/procedural-generator-authoring-bootstrap.js'
+      - 'js/vtt/procedural-generator-worker.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/procedural-preview-renderer-patch.js'
       - 'tests/vtt_procedural_building_mix.spec.js'
       - 'tests/vtt_zone_creator_completion.spec.js'
       - 'tests/vtt_procedural_dm_ui.spec.js'
+      - 'tests/vtt_procedural_preview_crash.spec.js'
       - '.github/workflows/vtt-dm-map-creator-ui.yml'
   workflow_dispatch:
 
@@ -31,8 +33,11 @@ jobs:
         run: |
           node --check js/vtt/procedural-building-mix-patch.js
           node --check js/vtt/procedural-preview-renderer-patch.js
+          node --check js/vtt/procedural-generator-worker.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-generator-authoring-bootstrap.js
+      - name: Live preview crash regression
+        run: npx playwright test tests/vtt_procedural_preview_crash.spec.js
       - name: Focused contracts
         run: >-
           npx playwright test
