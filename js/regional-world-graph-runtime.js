@@ -30,10 +30,11 @@
     return Graph.createTravelPlan(input);
   }
 
-  function commandFromPlan(result, commandId) {
+  function commandFromPlan(result, commandId, options = {}) {
     if (!result?.valid || !result.plan || !result.routing) throw new Error("VALID_GRAPH_TRAVEL_PLAN_REQUIRED");
     const command = Travel.toSchedulerCommand(result.plan, commandId || makeId());
     command.payload.routing = clone(result.routing);
+    command.payload.routing.accessMode = options.bypassAccess === true ? "bypass" : "normal";
     return command;
   }
 
@@ -42,12 +43,13 @@
     if (!result.valid) {
       return Promise.reject(Object.assign(new Error(result.reason || "INVALID_GRAPH_TRAVEL"), { graphTravelValidation: result }));
     }
-    const command = commandFromPlan(result, input.commandId);
+    const bypassAccess = input?.accessState?.bypassAccess === true;
+    const command = commandFromPlan(result, input.commandId, { bypassAccess });
     return Scheduler.startActivity(command).then((resolvedCommandId) => ({
       commandId: resolvedCommandId,
       plan: result.plan,
       routeResult: result.routeResult,
-      routing: result.routing,
+      routing: command.payload.routing,
     }));
   }
 
