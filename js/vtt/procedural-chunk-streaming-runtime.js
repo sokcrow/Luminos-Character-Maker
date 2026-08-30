@@ -50,11 +50,9 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
 
   async function activateChunk(desc,coord,{tokenId=null,requestedPoint=null,exit=null,persist=true}={}){
     if(transitioning)throw new Error('PROCEDURAL_CHUNK_TRANSITION_BUSY');
-    transitioning=true;
-    const previous=core.createDescriptor(desc);
+    transitioning=true;const previous=core.createDescriptor(desc);
     try{
-      const plan=await generateChunk(previous,coord);
-      procedural.apply(plan,{replaceScene:true,persist:false});
+      const plan=await generateChunk(previous,coord);procedural.apply(plan,{replaceScene:true,persist:false});
       const next=core.withActiveChunk(previous,coord);writeStreamingMetadata(next,plan);activePlan=plan;
       let token=null;if(tokenId!=null)token=(mapData.tokens||[]).find(x=>String(x.id)===String(tokenId))||null;
       if(token&&requestedPoint&&exit){
@@ -68,19 +66,21 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   }
 
   async function createStreamedZone(previewPlan,size=selectedLogicalSize()){
-    if(!previewPlan?.validation?.valid)throw new Error('PROCEDURAL_PREVIEW_REQUIRED');
-    const desc=buildDescriptor(previewPlan,size),result=await activateChunk(desc,{col:0,row:0},{persist:true});
-    mapData.proceduralEditor&&(mapData.proceduralEditor.previewPlan=null);if(mapData.proceduralEditor)mapData.proceduralEditor.previewGenerationError=null;
-    doc.getElementById(PANEL_ID)?.querySelector('[data-proc-close]')?.click();
-    notify(`Zona ${size}×${size} creada en streaming · activo 40×40 · chunk 1,1`,'success');return result;
+    if(!previewPlan?.validation?.valid)throw new Error('PROCEDURAL_PREVIEW_REQUIRED');if(transitioning)throw new Error('PROCEDURAL_CHUNK_TRANSITION_BUSY');
+    transitioning=true;
+    try{
+      let desc=buildDescriptor(previewPlan,size);desc=core.withChunkSeed(desc,{col:0,row:0},previewPlan.seed);desc=core.withActiveChunk(desc,{col:0,row:0});
+      procedural.apply(previewPlan,{replaceScene:true,persist:false});writeStreamingMetadata(desc,previewPlan);activePlan=previewPlan;engine.centerCamera?.();redraw('procedural-stream-created');await persistChunk(previewPlan);
+      mapData.proceduralEditor&&(mapData.proceduralEditor.previewPlan=null);if(mapData.proceduralEditor)mapData.proceduralEditor.previewGenerationError=null;
+      doc.getElementById(PANEL_ID)?.querySelector('[data-proc-close]')?.click();notify(`Zona ${size}×${size} creada en streaming · activo 40×40 · chunk 1,1`,'success');
+      return{descriptor:desc,plan:previewPlan,token:null};
+    }finally{transitioning=false;}
   }
 
   function capturePreviewSizing(event){
     if(!event.target?.closest?.(PREVIEW_SELECTOR))return;
     const input=sizeInput(),logical=selectedLogicalSize();if(!input||logical<=1)return;
-    mapData.proceduralEditor||={};mapData.proceduralEditor.logicalChunkSize=logical;
-    input.value='1';
-    queueMicrotask(()=>{if(input.isConnected)input.value=String(logical);});
+    mapData.proceduralEditor||={};mapData.proceduralEditor.logicalChunkSize=logical;input.value='1';queueMicrotask(()=>{if(input.isConnected)input.value=String(logical);});
   }
 
   function captureCreate(event){
@@ -88,8 +88,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const plan=mapData.proceduralEditor?.previewPlan,size=selectedLogicalSize();if(size<=1||!plan?.validation?.valid)return;
     event.preventDefault();event.stopImmediatePropagation();
     if(sceneHasContent()&&!window.confirm('CREAR ZONA reemplazará la geometría y semántica actual. Los tokens de jugador se conservarán. ¿Continuar?'))return;
-    button.disabled=true;
-    Promise.resolve(createStreamedZone(plan,size)).catch(error=>{console.error('VTT PROCEDURAL STREAMED ZONE CREATE FAILED:',error);notify(error?.message||'PROCEDURAL_STREAM_CREATE_FAILED','error');}).finally(()=>{if(button.isConnected)button.disabled=false;});
+    button.disabled=true;Promise.resolve(createStreamedZone(plan,size)).catch(error=>{console.error('VTT PROCEDURAL STREAMED ZONE CREATE FAILED:',error);notify(error?.message||'PROCEDURAL_STREAM_CREATE_FAILED','error');}).finally(()=>{if(button.isConnected)button.disabled=false;});
   }
 
   function requestedPoint(event,drag){const world=engine.eventWorldPoint(event);return{x:world.x-drag.grabOffsetX,y:world.y-drag.grabOffsetY};}
@@ -98,8 +97,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const requested=requestedPoint(event,drag),transition=core.resolveTransition(desc,requested,mapData.grid);if(!transition?.valid)return;
     event.preventDefault();event.stopImmediatePropagation();
     const tokenId=drag.token.id,from={x:drag.originX,y:drag.originY,z:drag.originZ,elevationFt:drag.originElevationFt};
-    drag.token.x=drag.originX;drag.token.y=drag.originY;drag.token.zLayer=drag.originZ;drag.token.z=[drag.originZ];drag.token.elevationFt=drag.originElevationFt;
-    engine.tokenDrag=null;if(engine.canvas?.style)engine.canvas.style.cursor='default';
+    drag.token.x=drag.originX;drag.token.y=drag.originY;drag.token.zLayer=drag.originZ;drag.token.z=[drag.originZ];drag.token.elevationFt=drag.originElevationFt;engine.tokenDrag=null;if(engine.canvas?.style)engine.canvas.style.cursor='default';
     Promise.resolve(activateChunk(desc,transition.target,{tokenId,requestedPoint:requested,exit:transition.exit,persist:true})).then(({token,descriptor:next})=>{
       if(!token)return;
       engine.canvas?.dispatchEvent?.(new CustomEvent('vtt:token-moved',{detail:{tokenId:token.id,from,to:{x:token.x,y:token.y,...token.gridPosition,elevationFt:token.elevationFt??0},chunkTransition:{from:transition.from,to:next.activeChunk,edges:transition.exit.edges}}}));
@@ -108,11 +106,6 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   }
 
   doc.addEventListener('click',capturePreviewSizing,true);doc.addEventListener('click',captureCreate,true);window.addEventListener('mouseup',captureBoundaryTransition,true);
-
-  const api=Object.freeze({
-    core,descriptor,createStreamedZone,activateChunk,performance:()=>core.performanceBudget(descriptor()||{chunkCols:1,chunkRows:1}),
-    get activePlan(){return activePlan;},get transitioning(){return transitioning;},
-    stop(){if(stopped)return;stopped=true;doc.removeEventListener('click',capturePreviewSizing,true);doc.removeEventListener('click',captureCreate,true);window.removeEventListener('mouseup',captureBoundaryTransition,true);activePlan=null;},
-  });
+  const api=Object.freeze({core,descriptor,createStreamedZone,activateChunk,performance:()=>core.performanceBudget(descriptor()||{chunkCols:1,chunkRows:1}),get activePlan(){return activePlan;},get transitioning(){return transitioning;},stop(){if(stopped)return;stopped=true;doc.removeEventListener('click',capturePreviewSizing,true);doc.removeEventListener('click',captureCreate,true);window.removeEventListener('mouseup',captureBoundaryTransition,true);activePlan=null;}});
   window.LuminousVttProceduralChunkStreamingRuntime={api};window.LuminousVttRuntime=Object.freeze({...window.LuminousVttRuntime,proceduralChunks:api});return api;
 }
