@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
-const playerUx = read("js/player-ux-polish.js");
+const playerUx = read("js/player-ux-polish-core.js");
 const playerUxCss = read("css/player-ux-polish.css");
 const actorStudio = read("js/theatre-actor-studio.js");
 const actorStudioCss = read("css/theatre-actor-studio.css");
