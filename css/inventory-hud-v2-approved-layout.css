@@ -1,0 +1,187 @@
+/* Approved Inventory HUD V2 layout correction. */
+#inventory-modal.inventory-v2-ready #equipment-panel,
+#inventory-modal.inventory-v2-ready .inventory-v2-legacy-equipment {
+  display: none !important;
+}
+
+#inventory-modal.inventory-v2-ready #inv-active {
+  overflow: hidden;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-left-panel {
+  overflow: hidden;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-active-stack {
+  grid-template-rows: minmax(320px, 1fr) minmax(230px, .72fr) !important;
+  gap: 12px !important;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-equipment {
+  border-color: #4a3824;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(112, 78, 35, .14), transparent 30%),
+    linear-gradient(180deg, #0f0c08, #080706);
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-equipment-header {
+  min-height: 44px;
+  padding: 8px 14px;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-equipment-header strong {
+  font-size: 23px;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-equipment-field {
+  min-height: 276px;
+  height: calc(100% - 44px);
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-body-silhouette {
+  width: 150px;
+  height: 300px;
+  top: 51%;
+  transform: translate(-50%, -48%);
+  border-color: #352a1f;
+  background: linear-gradient(180deg, rgba(100, 70, 34, .10), rgba(20, 16, 12, .03));
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-eq-slot {
+  width: 145px;
+  min-height: 76px;
+  padding: 8px 9px;
+  border-color: #4c3a24;
+  background: #0d0b08;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-eq-name {
+  font-size: 10px;
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-main {
+  left: 24px;
+  top: 20px;
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-off {
+  right: 24px;
+  top: 20px;
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-armor {
+  left: 50%;
+  top: 72px;
+  transform: translateX(-50%);
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-acc-a {
+  left: 24px;
+  bottom: 22px;
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-acc-b {
+  right: 24px;
+  left: auto;
+  bottom: 22px;
+  transform: none;
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-augment-a {
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-158px);
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-augment-b {
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(13px);
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-armor:hover {
+  transform: translateX(-50%) translateY(-1px);
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-augment-a:hover {
+  transform: translateX(-158px) translateY(-1px);
+}
+
+#inventory-modal.inventory-v2-ready .inv2-eq-augment-b:hover {
+  transform: translateX(13px) translateY(-1px);
+}
+
+/* Off Hand already represents weapon/shield; the duplicate legacy shield target is not shown. */
+#inventory-modal.inventory-v2-ready [data-equipment-slot="shield"],
+#inventory-modal.inventory-v2-ready #inventory-v2-augment-summary {
+  display: none !important;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-carry {
+  grid-template-rows: 42px minmax(0, 1fr);
+  border-color: #3b3023;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-grid-host {
+  padding: 10px;
+  overflow: hidden;
+}
+
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(82px, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(92px, 1fr)) !important;
+  grid-auto-rows: minmax(92px, 1fr) !important;
+  gap: 10px !important;
+  height: 100%;
+  overflow: hidden;
+}
+
+#inventory-modal.inventory-v2-ready #inv-active-grid .item-slot {
+  min-height: 92px;
+}
+
+@media (max-height: 760px) {
+  #inventory-modal.inventory-v2-ready .inventory-v2-active-stack {
+    grid-template-rows: minmax(270px, 1fr) minmax(190px, .68fr) !important;
+  }
+
+  #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field {
+    min-height: 226px;
+  }
+
+  #inventory-modal.inventory-v2-ready .inventory-v2-body-silhouette {
+    height: 245px;
+  }
+
+  #inventory-modal.inventory-v2-ready .inventory-v2-eq-slot {
+    width: 132px;
+    min-height: 62px;
+  }
+
+  #inventory-modal.inventory-v2-ready .inv2-eq-main,
+  #inventory-modal.inventory-v2-ready .inv2-eq-off {
+    top: 14px;
+  }
+
+  #inventory-modal.inventory-v2-ready .inv2-eq-armor {
+    top: 58px;
+  }
+
+  #inventory-modal.inventory-v2-ready .inv2-eq-augment-a {
+    transform: translateX(-145px);
+  }
+
+  #inventory-modal.inventory-v2-ready .inv2-eq-augment-b {
+    transform: translateX(13px);
+  }
+
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid {
+    grid-template-rows: repeat(2, minmax(72px, 1fr)) !important;
+    grid-auto-rows: minmax(72px, 1fr) !important;
+  }
+
+  #inventory-modal.inventory-v2-ready #inv-active-grid .item-slot {
+    min-height: 72px;
+  }
+}
