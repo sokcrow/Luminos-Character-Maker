@@ -31,6 +31,16 @@
       "calendario": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
+      "tiempo": {
+        "world_scheduler_requests": {
+          "events": {
+            "$requestId": {
+              ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
+              ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('commandId').val() === $requestId && newData.child('type').isString()))"
+            }
+          }
+        }
+      },
       "jugadores": {
         "$nombre_personaje": {
           ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
