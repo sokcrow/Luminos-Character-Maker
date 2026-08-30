@@ -208,6 +208,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     import('./movement-bootstrap.js')
         .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
         .catch((error) => console.error('VTT movement bootstrap failed:', error));
+    import('./procedural-generator-bootstrap.js')
+        .then(async (generatorModule) => {
+            generatorModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const chunkModule = await import('./procedural-chunk-streaming-runtime.js');
+            chunkModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural });
+            const transitionModule = await import('./regional-local-transition-runtime.js');
+            return transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+        })
+        .catch((error) => console.error('VTT procedural / regional-local transition bootstrap failed:', error));
     import('./world-object-mainline-integration.js')
         .then(async (module) => {
             await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
@@ -235,6 +244,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.LuminousVttStructureRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
+        window.LuminousVttRuntime?.regionalLocalTransition?.stop?.();
+        window.LuminousVttRuntime?.proceduralChunks?.stop?.();
+        window.LuminousVttRuntime?.procedural?.stop?.();
         window.LuminousVttRuntime?.movement?.stop?.();
         window.LuminousVttRuntime?.worldObjects?.stop?.();
         window.LuminousVttRuntime?.actorLibrary?.stop?.();
