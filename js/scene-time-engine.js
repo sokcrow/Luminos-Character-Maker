@@ -22,9 +22,17 @@
       'regional-travel-core',
       'js/regional-travel-core.js',
       () => load(
-        'world-time-scheduler-runtime',
-        'js/world-time-scheduler-runtime.js',
-        () => load('regional-travel-runtime', 'js/regional-travel-runtime.js')
+        'regional-world-graph-core',
+        'js/regional-world-graph-core.js',
+        () => load(
+          'world-time-scheduler-runtime',
+          'js/world-time-scheduler-runtime.js',
+          () => load(
+            'regional-travel-runtime',
+            'js/regional-travel-runtime.js',
+            () => load('regional-world-graph-runtime', 'js/regional-world-graph-runtime.js')
+          )
+        )
       )
     )
   );

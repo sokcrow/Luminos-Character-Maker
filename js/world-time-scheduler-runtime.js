@@ -23,7 +23,16 @@
     if (request?.type !== "start_activity" || request?.activityType !== "regional_travel") return true;
     const travelCore = global.LuminousRegionalTravelCore;
     if (!travelCore?.validateScheduledCommand) return false;
-    return travelCore.validateScheduledCommand(request).valid === true;
+    if (!(travelCore.validateScheduledCommand(request).valid === true)) return false;
+
+    if (request?.payload?.routing?.mode === "graph_v1") {
+      const graphCore = global.LuminousRegionalWorldGraphCore;
+      if (!graphCore?.validateScheduledCommand) return false;
+      const requesterIsDm = String(request?.requesterUid || "") === DM_UID;
+      const explicitDmBypass = requesterIsDm && request?.payload?.routing?.accessMode === "bypass";
+      return graphCore.validateScheduledCommand(request, { allowRestricted: explicitDmBypass }).valid === true;
+    }
+    return true;
   }
 
   function submitCommand(rawCommand) {

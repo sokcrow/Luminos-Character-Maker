@@ -14,6 +14,7 @@
   const currentUid = () => firebase.auth?.().currentUser?.uid || null;
   const isDm = () => currentUid() === DM_UID || document.body?.classList.contains("on-game-dashboard") || document.body?.classList.contains("dm-dashboard");
   const makeId = (prefix = "travel") => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  const safeText = (value, max = 120) => String(value ?? "").trim().slice(0, max);
 
   function startTravel(input = {}) {
     const result = Core.createTravelPlan(input);
@@ -34,6 +35,16 @@
     return result.valid && result.plan.durationSeconds === Number(group.durationSeconds) ? result.plan : null;
   }
 
+  function applyGraphArrivalMetadata(worldPosition, group) {
+    const routing = group?.activity?.payload?.routing;
+    if (routing?.mode !== "graph_v1") return worldPosition;
+    worldPosition.regionalEntrySide = safeText(routing.destinationEntrySide, 20) || null;
+    worldPosition.regionalGraphId = safeText(routing.graphId);
+    worldPosition.regionalGraphRevision = Math.max(1, Math.trunc(Number(routing.graphRevision) || 1));
+    worldPosition.regionalGraphFingerprint = safeText(routing.graphFingerprint, 64);
+    return worldPosition;
+  }
+
   async function applyArrival(group) {
     if (!isDm() || group?.status !== "completed") return false;
     const plan = planFromGroup(group);
@@ -49,7 +60,10 @@
       const alreadyApplied = members.every((playerId) => players[playerId]?.worldPosition?.travelArrivalId === arrivalId);
       if (alreadyApplied) return false;
 
-      const worldPosition = Core.destinationWorldPosition(plan, arrivalId, group.completedAtWorldTs || group.processedAtWorldTs || 0);
+      const worldPosition = applyGraphArrivalMetadata(
+        Core.destinationWorldPosition(plan, arrivalId, group.completedAtWorldTs || group.processedAtWorldTs || 0),
+        group
+      );
       const updates = {};
       for (const playerId of members) updates[`${PLAYER_ROOT}/${playerId}/worldPosition`] = worldPosition;
       await db.ref().update(updates);
@@ -80,6 +94,7 @@
     startTravel,
     cancelTravel,
     planFromGroup,
+    applyGraphArrivalMetadata,
     applyArrival,
     reconcileCompleted,
     stop: () => global.removeEventListener?.("luminous:world-scheduler-updated", onSchedulerUpdated),
