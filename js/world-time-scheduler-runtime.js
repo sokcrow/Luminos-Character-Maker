@@ -24,6 +24,13 @@
   const makeId = (prefix = "sched") => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
   const safeMemberIds = (value) => Core.normalizeMembers(value);
 
+  function specializedRequestValid(request) {
+    if (request?.type !== "start_activity" || request?.activityType !== "regional_travel") return true;
+    const travelCore = global.LuminousRegionalTravelCore;
+    if (!travelCore?.validateScheduledCommand) return false;
+    return travelCore.validateScheduledCommand(request).valid === true;
+  }
+
   function submitCommand(rawCommand) {
     const command = { ...(rawCommand || {}) };
     command.commandId = command.commandId || command.eventId || makeId(command.type || "sched");
@@ -44,6 +51,7 @@
   }
 
   async function authorized(request) {
+    if (!specializedRequestValid(request)) return false;
     const requesterUid = String(request?.requesterUid || "");
     if (!requesterUid) return false;
     if (requesterUid === DM_UID) return true;
@@ -118,6 +126,18 @@
     }
   }
 
+  function getSnapshot() {
+    return {
+      timestamp: state.timestamp,
+      scheduler: JSON.parse(JSON.stringify(state.scheduler || Core.blankState())),
+    };
+  }
+
+  function publishSchedulerSnapshot() {
+    if (typeof global.CustomEvent !== "function") return;
+    global.dispatchEvent?.(new global.CustomEvent("luminous:world-scheduler-updated", { detail: getSnapshot() }));
+  }
+
   function bindRealtime() {
     if (state.started) return;
     state.started = true;
@@ -129,17 +149,11 @@
 
     db.ref(SCHEDULER_ROOT).on("value", (snapshot) => {
       state.scheduler = Core.normalizeState(snapshot.val());
+      publishSchedulerSnapshot();
       void maybeReconcile();
     });
 
     if (isDm()) db.ref(REQUEST_ROOT).on("child_added", consumeRequest);
-  }
-
-  function getSnapshot() {
-    return {
-      timestamp: state.timestamp,
-      scheduler: JSON.parse(JSON.stringify(state.scheduler || Core.blankState())),
-    };
   }
 
   const api = Object.freeze({
@@ -147,7 +161,7 @@
     startActivity: (input) => submitCommand({ type: "start_activity", ...(input || {}) }),
     cancelActivity: (groupId) => submitCommand({ type: "cancel_activity", groupId }),
     splitGroup: (input) => submitCommand({ type: "split_group", ...(input || {}) }),
-    joinGroups: (input) => submitCommand({ type: "join_groups", ...(input || {}) }),
+    joinGroups: (input) => submitCommand({ type: "join_group", ...(input || {}) }),
     advanceToNextEvent: () => submitCommand({ type: "advance_to_next_event" }),
     getSnapshot,
     roots: Object.freeze({ CALENDAR_ROOT, SCHEDULER_ROOT, REQUEST_ROOT, PLAYER_ROOT }),
