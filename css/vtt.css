@@ -271,18 +271,28 @@ button, input, select { font: inherit; }
 }
 
 .vtt-notice {
-    position: absolute;
+    position: fixed;
     left: 50%;
-    bottom: 28px;
+    top: max(12px, env(safe-area-inset-top));
     transform: translateX(-50%);
-    z-index: 1800;
-    max-width: min(560px, calc(100vw - 40px));
+    z-index: 60000;
+    width: max-content;
+    max-width: min(620px, calc(100vw - 200px));
+    box-sizing: border-box;
     padding: 10px 15px;
     background: rgba(4, 7, 9, .96);
     border: 1px solid #68737d;
     box-shadow: 0 8px 22px rgba(0, 0, 0, .7);
     text-align: center;
     font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    pointer-events: none;
+}
+
+body.vtt-dm-edit-active .vtt-notice {
+    max-width: min(620px, max(240px, calc(100vw - 440px)));
 }
 
 .vtt-notice[data-mode="success"] { border-color: #52b788; }
@@ -296,4 +306,6 @@ button, input, select { font: inherit; }
     .vtt-panel { top: auto; bottom: 10px; left: 10px; }
     .vtt-vertical-panel { left: auto; right: 10px; }
     .brutalist-button { font-size: 10px; padding: 6px 8px; }
+    .vtt-notice { top: max(8px, env(safe-area-inset-top)); max-width: calc(100vw - 180px); }
+    body.vtt-dm-edit-active .vtt-notice { max-width: min(440px, max(220px, calc(100vw - 360px))); }
 }
