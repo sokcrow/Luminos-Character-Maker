@@ -101,9 +101,9 @@ test('NEW MAP failure path executes without throwing, restores the button, and r
   expect(notifications.at(-1)).toEqual({message:'PERMISSION_DENIED',mode:'error'});
 });
 
-test('DM authoring shell has shared professional states and keyboard focus treatment',()=>{
+test('DM authoring shell exposes the professional workbench states, zone launcher and keyboard focus treatment',()=>{
   const polish=read('js/vtt/dm-authoring-shell-polish.js'),semantic=read('js/vtt/semantic-map-bootstrap.js');
-  expect(polish).toContain('DM MAP TOOLS');expect(polish).toContain('AUTHORING MODE');expect(polish).toContain(':focus-visible');expect(polish).toContain('[aria-pressed="true"]');expect(polish).toContain('width:228px');expect(semantic).toContain('installDmAuthoringShellPolish');
+  expect(polish).toContain('DM AUTHORING');expect(polish).toContain('MAP WORKBENCH');expect(polish).toContain('CREAR ZONA');expect(polish).toContain(':focus-visible');expect(polish).toContain('[aria-pressed="true"]');expect(polish).toContain('width:264px');expect(polish).toContain('LuminousVttPerformanceGuard');expect(polish).toContain('CHUNK ${col+1},${row+1}');expect(semantic).toContain('installDmAuthoringShellPolish');
 });
 
 test('zone creator and DM shell modules parse as ESM JavaScript',()=>{
