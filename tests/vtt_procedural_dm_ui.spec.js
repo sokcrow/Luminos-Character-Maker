@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
+const GEN_FILES=['topology.js','surface-core.js','horizontal-plane-core.js','building-physics-core.js','semantic-map-core.js','building-semantic-core.js','building-archetype-core.js','vertical-portal.js','building-navigation-core.js','procedural-zone-core.js','urban-fabric-core.js','procedural-building-generator.js','procedural-generator-core.js'];
+const GEN_KEYS=['LuminousVttTopology','LuminousVttSurfaceCore','LuminousVttHorizontalPlanes','LuminousVttBuildingPhysics','LuminousVttSemanticMap','LuminousVttBuildingSemantics','LuminousVttBuildingArchetypes','LuminousVttVerticalPortal','LuminousVttBuildingNavigation','LuminousVttProceduralZone','LuminousVttUrbanFabric','LuminousVttProceduralBuildings','LuminousVttProceduralGenerator'];
+function withGenerator(run){const original=new Map(GEN_KEYS.map(k=>[k,global[k]]));try{for(let i=0;i<GEN_FILES.length;i++){const resolved=require.resolve(path.join(ROOT,'js/vtt',GEN_FILES[i]));delete require.cache[resolved];global[GEN_KEYS[i]]=require(resolved);}return run(global.LuminousVttProceduralGenerator);}finally{for(const f of GEN_FILES){try{delete require.cache[require.resolve(path.join(ROOT,'js/vtt',f))];}catch(_){}}for(const key of GEN_KEYS){const value=original.get(key);if(value===undefined)delete global[key];else global[key]=value;}}}
 
 test('zone size presets map cleanly to the 40x40 chunk contract',()=>{
   const file=path.join(ROOT,'js/vtt/procedural-zone-core.js'),resolved=require.resolve(file);delete require.cache[resolved];const zone=require(resolved);
@@ -9,6 +12,13 @@ test('zone size presets map cleanly to the 40x40 chunk contract',()=>{
   expect(zone.createZone({chunkCols:2,chunkRows:2})).toMatchObject({cols:80,rows:80,chunkCols:2,chunkRows:2});
   expect(zone.createZone({chunkCols:3,chunkRows:3})).toMatchObject({cols:120,rows:120,chunkCols:3,chunkRows:3});delete require.cache[resolved];
 });
+
+test('1x1 and 2x2 creator presets produce fully validated procedural plans',()=>withGenerator(gen=>{
+  const small=gen.generateZone({seed:'dm-ui-small',profileId:'mixed_urban',chunkCols:1,chunkRows:1,maxAttempts:8});
+  const medium=gen.generateZone({seed:'dm-ui-medium',profileId:'residential',chunkCols:2,chunkRows:2,maxAttempts:8});
+  expect(small.zone).toMatchObject({cols:40,rows:40,chunkCols:1,chunkRows:1});expect(small.validation.valid).toBe(true);
+  expect(medium.zone).toMatchObject({cols:80,rows:80,chunkCols:2,chunkRows:2});expect(medium.validation.valid).toBe(true);
+}));
 
 test('DM creator exposes a professional non-destructive generate workflow',()=>{
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js');
