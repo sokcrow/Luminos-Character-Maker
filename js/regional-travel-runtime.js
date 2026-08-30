@@ -80,12 +80,10 @@
       const alreadyApplied = members.every((playerId) => players[playerId]?.worldPosition?.travelArrivalId === arrivalId);
       if (alreadyApplied) return false;
 
-      const worldPosition = arrivalWorldPosition(
-        plan,
-        group,
-        arrivalId,
-        group.completedAtWorldTs || group.processedAtWorldTs || 0
-      );
+      const worldPosition = {
+        ...arrivalWorldPosition(plan, group, arrivalId, group.completedAtWorldTs || group.processedAtWorldTs || 0),
+        realtimeUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+      };
       const updates = {};
       for (const playerId of members) updates[`${PLAYER_ROOT}/${playerId}/worldPosition`] = worldPosition;
       await db.ref().update(updates);
