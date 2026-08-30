@@ -12,6 +12,7 @@ on:
       - 'js/vtt/world-object-state.js'
       - 'tests/vtt_dm_map_creator_ui.spec.js'
       - 'tests/vtt_dm_zone_persistence.spec.js'
+      - 'tests/vtt_procedural_dm_ui.spec.js'
       - '.github/workflows/vtt-dm-map-creator-ui.yml'
   workflow_dispatch:
 
@@ -43,6 +44,7 @@ jobs:
           npx playwright test
           tests/vtt_dm_map_creator_ui.spec.js
           tests/vtt_dm_zone_persistence.spec.js
+          tests/vtt_procedural_dm_ui.spec.js
           tests/vtt_procedural_zone_engine.spec.js
           tests/vtt_building_navigation_graph.spec.js
           tests/vtt_building_archetypes.spec.js
@@ -56,8 +58,8 @@ jobs:
           tests/world_objects_vtt.spec.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Broad repository regression except known unrelated Player UX baseline
+      - name: Broad repository regression except known unrelated UX baselines
         shell: bash
         run: |
-          mapfile -t specs < <(find tests -name '*.spec.js' ! -name 'player_dm_ux_polish.spec.js' -print | sort)
+          mapfile -t specs < <(find tests -name '*.spec.js' ! -name 'player_dm_ux_polish.spec.js' ! -name 'theatre_ui_polish.spec.js' -print | sort)
           npx playwright test "${specs[@]}"
