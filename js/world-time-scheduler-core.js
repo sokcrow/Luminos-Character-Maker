@@ -199,10 +199,6 @@
     return calendar;
   }
 
-  function writeWorldMs(calendar, worldMs) {
-    return SceneTime.writeCalendarWorldMs(calendar, worldMs);
-  }
-
   function commandResult(calendar, state, result, commandId, deltaSeconds = 0, extra = {}) {
     calendar.world_scheduler = prune(state);
     return { calendar, scheduler: clone(calendar.world_scheduler), result, commandId, deltaSeconds, ...extra };
@@ -309,7 +305,7 @@
   }
 
   function applyCommandToCalendar(baseCalendar, rawCommand) {
-    const calendar = clone(baseCalendar || {});
+    let calendar = clone(baseCalendar || {});
     const command = clone(rawCommand || {});
     const commandId = safeKey(command.commandId || command.eventId || `cmd_${Date.now()}_${Math.random().toString(36).slice(2)}`);
     const state = schedulerStateFrom(calendar);
@@ -337,7 +333,7 @@
         const targetMs = Math.max(worldMs, finite(next.dueAtWorldTs));
         deltaSeconds = Math.max(0, (targetMs - worldMs) / 1000);
         advanceSceneRooms(calendar, deltaSeconds);
-        writeWorldMs(calendar, targetMs);
+        calendar = SceneTime.writeCalendarWorldMs(calendar, targetMs);
         const completedGroupIds = reconcileDueState(state, targetMs);
         outcome = { result: "advanced_to_next_event", completedGroupIds, targetWorldTs: targetMs };
       }
@@ -347,7 +343,7 @@
       else {
         deltaSeconds = (targetMs - worldMs) / 1000;
         advanceSceneRooms(calendar, deltaSeconds);
-        writeWorldMs(calendar, targetMs);
+        calendar = SceneTime.writeCalendarWorldMs(calendar, targetMs);
         const completedGroupIds = reconcileDueState(state, targetMs);
         outcome = { result: "advanced_to", completedGroupIds, targetWorldTs: targetMs };
       }
