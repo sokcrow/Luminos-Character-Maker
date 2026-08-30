@@ -3,6 +3,7 @@ name: VTT Map HUD and Physical World
 on:
   pull_request:
     paths:
+      - 'css/vtt.css'
       - 'js/vtt/camera.js'
       - 'js/vtt/camera-follow.js'
       - 'js/vtt/physical-resolver.js'
@@ -20,6 +21,7 @@ on:
       - 'tests/vtt_physical_state_persistence.spec.js'
       - 'tests/vtt_interaction_authority.spec.js'
       - 'tests/vtt_camera_perception.spec.js'
+      - 'tests/vtt_notice_layout.spec.js'
       - '.github/workflows/vtt-map-hud.yml'
   workflow_dispatch:
 
@@ -50,6 +52,8 @@ jobs:
           node --input-type=module --check < js/vtt/map-hud-bootstrap.js
           node --input-type=module --check < js/vtt/main.js
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
+      - name: Notice visibility regression
+        run: npx playwright test tests/vtt_notice_layout.spec.js --workers=1
       - name: Focused contracts
         run: npx playwright test tests/vtt_world_objects.spec.js tests/vtt_map_hud_physical.spec.js tests/vtt_physical_state_persistence.spec.js tests/vtt_interaction_authority.spec.js tests/vtt_camera_perception.spec.js --workers=1
       - name: Install Chromium
