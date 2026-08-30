@@ -22,8 +22,7 @@ test('zone contract is 40x40 chunks with a 3x3 / 120x120 default zone',()=>{
 
 test('buildings and semantic rectangles may cross internal chunk boundaries without transitions',()=>{
   const core=global.LuminousVttProceduralZone,z=core.createZone({id:'z'}),chunks=core.chunksForRect(z,{minCol:35,minRow:10,maxCol:45,maxRow:20});
-  expect(chunks.sort()).toEqual(['z:chunk:0:0','z:chunk:1:0']);
-  expect(z.sockets).toEqual([]);
+  expect(chunks.sort()).toEqual(['z:chunk:0:0','z:chunk:1:0']);expect(z.sockets).toEqual([]);
 });
 
 test('zone boundary sockets project to the opposite edge and retain continuity identity',()=>{
@@ -38,13 +37,23 @@ test('urban fabric is deterministic for a seed and does not encode chunk borders
 
 test('fabric creates real parcels, attachment intent and semantic alleys without overlaps',()=>{
   const zc=global.LuminousVttProceduralZone,fc=global.LuminousVttUrbanFabric,z=zc.createZone({id:'dense',seed:'alleys'}),plan=fc.generateFabricPlan(z,'dense_backstreet',fc.createRng('alleys'));
-  const validation=fc.validateFabric(plan);expect(validation.valid).toBe(true);expect(plan.parcels.length).toBeGreaterThan(3);expect(plan.edgeRelations.every(r=>['attached_buildings','alley'].includes(r.relation))).toBe(true);
-  expect(plan.alleys.every(a=>['service_alley','passage_alley'].includes(a.alleyClass))).toBe(true);
+  const validation=fc.validateFabric(plan);expect(validation.valid).toBe(true);expect(plan.parcels.length).toBeGreaterThan(3);expect(plan.edgeRelations.every(r=>['attached_buildings','alley'].includes(r.relation))).toBe(true);expect(plan.alleys.every(a=>['service_alley','passage_alley'].includes(a.alleyClass))).toBe(true);
 });
 
 test('required street boundary sockets are reserved by the generated street graph',()=>{
   const gen=global.LuminousVttProceduralGenerator,plan=gen.generateZone({seed:'socket-seed',profileId:'commercial',sockets:[{id:'north_main',edge:'north',type:'street',span:{fromCell:20,toCell:24},semanticId:'district_main_street'}]});
   expect(plan.validation.valid).toBe(true);expect(plan.fabric.streets.some(s=>s.socketId==='north_main'&&s.semanticId==='district_main_street')).toBe(true);expect(plan.validation.checks.boundary.valid).toBe(true);
+});
+
+test('every generated corridor that crosses a Zone boundary publishes an explicit continuation socket',()=>{
+  const gen=global.LuminousVttProceduralGenerator,plan=gen.generateZone({seed:'continuity-seed',profileId:'mixed_urban'}),zone=plan.zone;
+  for(const corridor of plan.fabric.streets){for(const spec of gen.corridorBoundarySpecs(plan.fabric,corridor)){expect(zone.sockets.some(s=>s.edge===spec.edge&&s.type===spec.type&&s.semanticId===spec.semanticId&&s.span.fromCell===spec.span.fromCell&&s.span.toCell===spec.span.toCell)).toBe(true);}}
+  expect(plan.validation.checks.boundary.valid).toBe(true);
+});
+
+test('service-route sockets reserve a real non-buildable corridor and propagate through the opposite Zone edge',()=>{
+  const gen=global.LuminousVttProceduralGenerator,fc=global.LuminousVttUrbanFabric,plan=gen.generateZone({seed:'service-socket',profileId:'industrial',sockets:[{id:'service_w',edge:'west',type:'service_route',span:{fromCell:30,toCell:32},semanticId:'service_spine'}]}),corridor=plan.fabric.streets.find(s=>s.semanticId==='service_spine');
+  expect(corridor).toBeTruthy();expect(corridor.kind).toBe('alley');expect(plan.fabric.parcels.every(p=>!fc.intersects(p.geometry,corridor.geometry))).toBe(true);expect(plan.zone.sockets.some(s=>s.edge==='east'&&s.type==='service_route'&&s.semanticId==='service_spine')).toBe(true);expect(plan.validation.valid).toBe(true);
 });
 
 test('full procedural attempt passes semantics, archetypes, navigation and physical building validation',()=>{
