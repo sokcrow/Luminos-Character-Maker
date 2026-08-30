@@ -5,6 +5,7 @@ on:
     paths:
       - 'js/vtt/procedural-generator-bootstrap.js'
       - 'js/vtt/procedural-generator-authoring-bootstrap.js'
+      - 'js/vtt/procedural-generator-worker.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/procedural-preview-renderer-patch.js'
       - 'tests/vtt_procedural_building_mix.spec.js'
@@ -32,6 +33,7 @@ jobs:
         run: |
           node --check js/vtt/procedural-building-mix-patch.js
           node --check js/vtt/procedural-preview-renderer-patch.js
+          node --check js/vtt/procedural-generator-worker.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-generator-authoring-bootstrap.js
       - name: Live preview crash regression
