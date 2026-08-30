@@ -95,7 +95,11 @@
     for (const segment of segments || []) if (!transport.surfaces.includes(segment.surface)) return { valid: false, reason: "surface_not_supported", surface: segment.surface };
     return { valid: true };
   }
-  function segmentDurationSeconds(segment, transport) { return Math.ceil((segment.distanceKm / transport.speedKph) * 3600 * segmentMultiplier(segment)); }
+  function segmentDurationSeconds(segment, transport) {
+    const rawSeconds = (segment.distanceKm / transport.speedKph) * 3600 * segmentMultiplier(segment);
+    const tolerance = Number.EPSILON * Math.max(1, Math.abs(rawSeconds)) * 8;
+    return Math.ceil(rawSeconds - tolerance);
+  }
 
   function createTravelPlan(input = {}) {
     const groupId = safeKey(input.groupId ?? input.activityGroupId), memberIds = normalizeMembers(input.memberIds), route = normalizeRoute(input.route), transport = normalizeTransport(input.transportId ?? input.transport);
