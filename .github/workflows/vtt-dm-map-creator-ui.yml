@@ -10,6 +10,7 @@ on:
       - 'tests/vtt_procedural_building_mix.spec.js'
       - 'tests/vtt_zone_creator_completion.spec.js'
       - 'tests/vtt_procedural_dm_ui.spec.js'
+      - 'tests/vtt_procedural_preview_crash.spec.js'
       - '.github/workflows/vtt-dm-map-creator-ui.yml'
   workflow_dispatch:
 
@@ -39,6 +40,7 @@ jobs:
           tests/vtt_procedural_building_mix.spec.js
           tests/vtt_zone_creator_completion.spec.js
           tests/vtt_procedural_dm_ui.spec.js
+          tests/vtt_procedural_preview_crash.spec.js
           tests/vtt_dm_zone_persistence.spec.js
           tests/vtt_procedural_zone_engine.spec.js
           tests/vtt_building_navigation_graph.spec.js
