@@ -5,6 +5,7 @@ on:
     paths:
       - 'js/vtt/procedural-generator-bootstrap.js'
       - 'js/vtt/procedural-generator-authoring-bootstrap.js'
+      - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/procedural-preview-renderer-patch.js'
       - 'js/vtt/procedural-map-authoring-patch.js'
       - 'js/vtt/topology-replace-state-patch.js'
@@ -12,6 +13,7 @@ on:
       - 'js/vtt/world-object-state.js'
       - 'tests/vtt_dm_map_creator_ui.spec.js'
       - 'tests/vtt_dm_zone_persistence.spec.js'
+      - 'tests/vtt_procedural_building_mix.spec.js'
       - 'tests/vtt_procedural_dm_ui.spec.js'
       - '.github/workflows/vtt-dm-map-creator-ui.yml'
   workflow_dispatch:
@@ -32,6 +34,7 @@ jobs:
       - run: npm ci
       - name: Syntax
         run: |
+          node --check js/vtt/procedural-building-mix-patch.js
           node --check js/vtt/procedural-preview-renderer-patch.js
           node --check js/vtt/procedural-map-authoring-patch.js
           node --check js/vtt/topology-replace-state-patch.js
@@ -44,6 +47,7 @@ jobs:
           npx playwright test
           tests/vtt_dm_map_creator_ui.spec.js
           tests/vtt_dm_zone_persistence.spec.js
+          tests/vtt_procedural_building_mix.spec.js
           tests/vtt_procedural_dm_ui.spec.js
           tests/vtt_procedural_zone_engine.spec.js
           tests/vtt_building_navigation_graph.spec.js
