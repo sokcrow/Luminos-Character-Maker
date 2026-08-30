@@ -33,6 +33,7 @@ test('DM creator exposes the professional non-destructive Zone Creator workflow'
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js');
   for(const token of ['CREAR ZONA','TIPO DE ZONA','1×1 CHUNK · 40×40','2×2 CHUNKS · 80×80','3×3 CHUNKS · 120×120','data-proc-random','GENERAR PREVIEW','REROLL','CANCELAR PREVIEW','ENCUADRAR','INTERIORES','MUROS/PUERTAS','procedural-preview-renderer-patch.js'])expect(source).toContain(token);
   expect(source).toContain('chunkCols:size');expect(source).toContain('chunkRows:size');expect(source).toContain('procedural.preview(values())');expect(source).toContain("procedural.apply(lastPlan,{replaceScene:true})");
+  expect(source).toContain('procedural.previewAsync?procedural.previewAsync(values())');
   const previewStart=source.indexOf('function preview('),createStart=source.indexOf('function createZone()');expect(previewStart).toBeGreaterThan(-1);expect(createStart).toBeGreaterThan(previewStart);expect(source.slice(previewStart,createStart)).not.toContain('procedural.apply(');
 });
 
@@ -42,11 +43,12 @@ test('DM creator requires a current valid preview and explicit destructive confi
   expect(source).toContain("window.confirm('CREAR ZONA reemplazará la geometría y semántica actual. Los tokens de jugador se conservarán. ¿Continuar?')");
   expect(source).toContain('function generationChanged');expect(source).toContain('clearPreview();syncUi()');
   expect(source).toContain("addEventListener('change',()=>generationChanged())");expect(source).toContain("addEventListener('input',()=>generationChanged())");
+  expect(source).toContain('requestRevision!==generationRevision');
 });
 
 test('DM creator keeps preview presentation separate from generated scene state',()=>{
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js'),renderer=read('js/vtt/procedural-preview-renderer-patch.js');
-  expect(source).toContain('mapData.proceduralEditor.previewPlan=lastPlan');expect(source).toContain('mapData.proceduralEditor.previewOptions');
+  expect(source).toMatch(/mapData\.proceduralEditor\.previewPlan=(?:lastPlan|generated)/);expect(source).toContain('mapData.proceduralEditor.previewOptions');
   expect(renderer).toContain('mapData.dmEditMode?.active===true');expect(renderer).toContain('mapData.proceduralEditor?.previewPlan');expect(renderer).toContain('isExporting');
 });
 
@@ -107,4 +109,5 @@ test('DM authoring shell has shared professional states and keyboard focus treat
 test('zone creator and DM shell modules parse as ESM JavaScript',()=>{
   for(const file of ['js/vtt/procedural-generator-authoring-bootstrap.js','js/vtt/dm-authoring-shell-polish.js','js/vtt/semantic-map-bootstrap.js','js/vtt/live-map-creator-hotfix.js'])execFileSync(process.execPath,['--input-type=module','--check'],{input:read(file),stdio:['pipe','pipe','pipe']});
   execFileSync(process.execPath,['--check',path.join(ROOT,'js/vtt/procedural-preview-renderer-patch.js')],{stdio:'pipe'});
+  execFileSync(process.execPath,['--check',path.join(ROOT,'js/vtt/procedural-generator-worker.js')],{stdio:'pipe'});
 });
