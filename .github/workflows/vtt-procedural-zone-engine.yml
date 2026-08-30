@@ -10,6 +10,7 @@ on:
       - 'tests/vtt_procedural_zone_engine.spec.js'
       - 'tests/vtt_procedural_dm_ui.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
+      - 'tests/vtt_procedural_lazy_preview_performance.spec.js'
       - '.github/workflows/vtt-procedural-zone-engine.yml'
   workflow_dispatch:
 
@@ -40,7 +41,7 @@ jobs:
           node --input-type=module --check < js/vtt/dm-authoring-shell-polish.js
           node --input-type=module --check < js/vtt/semantic-map-bootstrap.js
       - name: Chunk streaming performance contract
-        run: npx playwright test tests/vtt_procedural_chunk_streaming_performance.spec.js
+        run: npx playwright test tests/vtt_procedural_chunk_streaming_performance.spec.js tests/vtt_procedural_lazy_preview_performance.spec.js
       - name: Focused contracts
         run: >-
           npx playwright test
