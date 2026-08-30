@@ -20,16 +20,25 @@ test('1x1 and 2x2 creator presets produce fully validated procedural plans',()=>
   expect(medium.zone).toMatchObject({cols:80,rows:80,chunkCols:2,chunkRows:2});expect(medium.validation.valid).toBe(true);
 }));
 
-test('DM creator exposes a professional non-destructive generate workflow',()=>{
+test('DM creator exposes the professional non-destructive Zone Creator workflow',()=>{
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js');
-  for(const token of ['CREAR ZONA','TIPO DE ZONA','data-proc-size="1"','data-proc-size="2"','data-proc-size="3"','data-proc-randomize','GENERAR PREVIEW','REROLL','APLICAR ZONA','CONFIRMAR APLICACIÓN','renderPreviewSvg','VALIDATION GATE'])expect(source).toContain(token);
-  expect(source).toContain('chunkCols:selectedChunks');expect(source).toContain('chunkRows:selectedChunks');expect(source).toContain('procedural.preview(values())');expect(source).toContain("procedural.apply(lastPlan,{replaceScene:true})");
-  const previewStart=source.indexOf('function preview()'),applyStart=source.indexOf('function apply()');expect(previewStart).toBeGreaterThan(-1);expect(applyStart).toBeGreaterThan(previewStart);expect(source.slice(previewStart,applyStart)).not.toContain('procedural.apply(');
+  for(const token of ['CREAR ZONA','TIPO DE ZONA','1×1 CHUNK · 40×40','2×2 CHUNKS · 80×80','3×3 CHUNKS · 120×120','data-proc-random','GENERAR PREVIEW','REROLL','CANCELAR PREVIEW','ENCUADRAR','INTERIORES','MUROS/PUERTAS','procedural-preview-renderer-patch.js'])expect(source).toContain(token);
+  expect(source).toContain('chunkCols:size');expect(source).toContain('chunkRows:size');expect(source).toContain('procedural.preview(values())');expect(source).toContain("procedural.apply(lastPlan,{replaceScene:true})");
+  const previewStart=source.indexOf('function preview('),createStart=source.indexOf('function createZone()');expect(previewStart).toBeGreaterThan(-1);expect(createStart).toBeGreaterThan(previewStart);expect(source.slice(previewStart,createStart)).not.toContain('procedural.apply(');
 });
 
-test('DM creator requires a valid preview and a second explicit apply action',()=>{
+test('DM creator requires a current valid preview and explicit destructive confirmation',()=>{
   const source=read('js/vtt/procedural-generator-authoring-bootstrap.js');
-  expect(source).toContain('applyButton.disabled=!lastPlan?.validation?.valid');expect(source).toContain('if(!applyArmed)');expect(source).toContain('applyArmed=true');expect(source).toContain('Los tokens existentes se conservarán');expect(source).toContain("addEventListener('change',invalidate)");expect(source).toContain("addEventListener('input',invalidate)");
+  expect(source).toContain('apply.disabled=busy||!lastPlan?.validation?.valid');
+  expect(source).toContain("window.confirm('CREAR ZONA reemplazará la geometría y semántica actual. Los tokens de jugador se conservarán. ¿Continuar?')");
+  expect(source).toContain('function generationChanged');expect(source).toContain('clearPreview();syncUi()');
+  expect(source).toContain("addEventListener('change',()=>generationChanged())");expect(source).toContain("addEventListener('input',()=>generationChanged())");
+});
+
+test('DM creator keeps preview presentation separate from generated scene state',()=>{
+  const source=read('js/vtt/procedural-generator-authoring-bootstrap.js'),renderer=read('js/vtt/procedural-preview-renderer-patch.js');
+  expect(source).toContain('mapData.proceduralEditor.previewPlan=lastPlan');expect(source).toContain('mapData.proceduralEditor.previewOptions');
+  expect(renderer).toContain('mapData.dmEditMode?.active===true');expect(renderer).toContain('mapData.proceduralEditor?.previewPlan');expect(renderer).toContain('isExporting');
 });
 
 test('DM authoring shell has shared professional states and keyboard focus treatment',()=>{
@@ -39,4 +48,5 @@ test('DM authoring shell has shared professional states and keyboard focus treat
 
 test('zone creator and DM shell modules parse as ESM JavaScript',()=>{
   for(const file of ['js/vtt/procedural-generator-authoring-bootstrap.js','js/vtt/dm-authoring-shell-polish.js','js/vtt/semantic-map-bootstrap.js'])execFileSync(process.execPath,['--input-type=module','--check'],{input:read(file),stdio:['pipe','pipe','pipe']});
+  execFileSync(process.execPath,['--check',path.join(ROOT,'js/vtt/procedural-preview-renderer-patch.js')],{stdio:'pipe'});
 });
