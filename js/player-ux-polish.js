@@ -50,15 +50,18 @@
       if (!doc.getElementById("inventory-modal")) return;
 
       ensureStyle("inventory-hud-v2-stylesheet", "css/inventory-hud-v2.css");
+      ensureStyle("inventory-hud-v2-approved-layout-stylesheet", "css/inventory-hud-v2-approved-layout.css");
 
       await ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js", "LuminousAnatomyEquipmentEngine");
       await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
       await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
       await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
+      await ensureScript("item-equipment-v2-persistence-script", "js/item-equipment-v2-persistence.js");
       await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
       await ensureScript("item-augmentation-runtime-script", "js/item-augmentation-runtime.js", "LuminousItemAugmentationRuntime");
       await ensureScript("item-equipment-bridge-script", "js/item-equipment-bridge.js", "LuminousItemEquipmentBridge");
       await ensureScript("inventory-hud-v2-script", "js/inventory-hud-v2.js", "LuminousInventoryHudV2");
+      await ensureScript("inventory-hud-v2-approved-layout-script", "js/inventory-hud-v2-approved-layout.js", "LuminousInventoryApprovedLayout");
     } catch (error) {
       console.error("[Luminous] Inventory HUD V2 bootstrap failed:", error);
     }
