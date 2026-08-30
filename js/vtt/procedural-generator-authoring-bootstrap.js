@@ -3,6 +3,7 @@ import './procedural-preview-renderer-patch.js';
 const TOOLBAR_ID='vtt-procedural-generator-toolbar';
 const PANEL_ID='vtt-procedural-zone-panel';
 const STYLE_ID='vtt-procedural-generator-style';
+const MIX_FIELDS=Object.freeze({shop:'shop',apartment:'apartment_building',workshop:'workshop',warehouse:'warehouse'});
 const clean=v=>String(v??'').trim();
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,Number(v)));
 
@@ -24,6 +25,13 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   function baseSeed(){return clean(by('[data-proc-seed]')?.value)||`${mapData.id||mapData.mapId||'map'}:zone`;}
   function seed(){const base=baseSeed();return reroll?`${base}:reroll:${reroll}`:base;}
   function selectedProfileId(){return by('[data-proc-profile]')?.value||'mixed_urban';}
+  function customBuildingMix(){
+    const mix={};let total=0;
+    for(const[name,key]of Object.entries(MIX_FIELDS)){mix[key]=clamp(number(`[data-proc-mix="${name}"]`,0),0,100)/100;total+=mix[key];}
+    if(total<=0)return procedural.buildingMix?.(selectedProfileId())||{shop:.3,apartment_building:.35,workshop:.2,warehouse:.15};
+    for(const key of Object.values(MIX_FIELDS))mix[key]/=total;
+    return mix;
+  }
   function customProfile(){
     const base=procedural.profile(selectedProfileId());
     return{...base,
@@ -32,6 +40,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
       alleyBias:clamp(number('[data-proc-alley]',base.alleyBias*100)/100,0,1),
       serviceAccessBias:clamp(number('[data-proc-service]',base.serviceAccessBias*100)/100,0,1),
       secondaryRoadChance:clamp(number('[data-proc-secondary]',base.secondaryRoadChance*100)/100,0,1),
+      buildingMix:customBuildingMix(),
     };
   }
   function values(){
@@ -44,9 +53,30 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const next=`${mapData.id||mapData.mapId||'map'}:${bytes[0].toString(36)}${bytes[1].toString(36)}`;const input=by('[data-proc-seed]');if(input)input.value=next;reroll=0;clearPreview();syncUi();return next;
   }
 
+  function writeBuildingMix(mix={}){
+    const entries=Object.entries(MIX_FIELDS),values={};let assigned=0;
+    for(let i=0;i<entries.length;i++){
+      const[name,key]=entries[i],value=i===entries.length-1?Math.max(0,100-assigned):Math.max(0,Math.round((Number(mix[key])||0)*100));values[name]=value;assigned+=value;
+    }
+    const correction=100-Object.values(values).reduce((sum,value)=>sum+value,0);values[entries[entries.length-1][0]]+=correction;
+    for(const[name]of entries){const input=by(`[data-proc-mix="${name}"]`);if(input)input.value=values[name];}
+  }
+
+  function rebalanceBuildingMix(changedName){
+    const names=Object.keys(MIX_FIELDS),target=clamp(Math.round(number(`[data-proc-mix="${changedName}"]`,0)),0,100),others=names.filter(name=>name!==changedName),remaining=100-target,current=others.map(name=>Math.max(0,number(`[data-proc-mix="${name}"]`,0))),sum=current.reduce((a,b)=>a+b,0),next={};
+    next[changedName]=target;
+    let assigned=target;
+    for(let i=0;i<others.length;i++){
+      const name=others[i],value=i===others.length-1?Math.max(0,100-assigned):Math.max(0,Math.round(sum>0?(current[i]/sum)*remaining:remaining/others.length));next[name]=value;assigned+=value;
+    }
+    next[others[others.length-1]]+=100-Object.values(next).reduce((a,b)=>a+b,0);
+    for(const name of names){const input=by(`[data-proc-mix="${name}"]`);if(input)input.value=clamp(next[name],0,100);}
+  }
+
   function setProfileControls(profileId=selectedProfileId()){
     const p=procedural.profile(profileId),pairs=[['density','density'],['attach','attachBias'],['alley','alleyBias'],['service','serviceAccessBias'],['secondary','secondaryRoadChance']];
     for(const[name,key]of pairs){const input=by(`[data-proc-${name}]`),readout=by(`[data-proc-${name}-value]`);if(input)input.value=Math.round((Number(p[key])||0)*100);if(readout)readout.textContent=`${input?.value||0}%`;}
+    writeBuildingMix(procedural.buildingMix?.(profileId)||{});
     clearPreview();syncUi();
   }
 
@@ -91,6 +121,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const launch=toolbar.querySelector('[data-proc-open]');if(launch)launch.setAttribute('aria-expanded',panelOpen?'true':'false');
     const apply=by('[data-proc-apply]'),rerollButton=by('[data-proc-reroll]'),previewButton=by('[data-proc-preview]');if(apply)apply.disabled=busy||!lastPlan?.validation?.valid;if(rerollButton)rerollButton.disabled=busy;if(previewButton)previewButton.disabled=busy;
     for(const name of ['density','attach','alley','service','secondary']){const input=by(`[data-proc-${name}]`),out=by(`[data-proc-${name}-value]`);if(input&&out)out.textContent=`${input.value}%`;}
+    let mixTotal=0;for(const name of Object.keys(MIX_FIELDS)){const input=by(`[data-proc-mix="${name}"]`),out=by(`[data-proc-mix-value="${name}"]`);if(input&&out){out.textContent=`${input.value}%`;mixTotal+=Number(input.value)||0;}}const mixTotalOut=by('[data-proc-mix-total]');if(mixTotalOut)mixTotalOut.textContent=`${mixTotal}%`;
     const status=by('[data-proc-status]'),metrics=by('[data-proc-metrics]'),signature=by('[data-proc-signature]'),warning=by('[data-proc-replace-warning]');
     if(warning)warning.hidden=!sceneHasContent();
     if(!lastPlan){if(status){status.textContent='SIN PREVIEW';status.dataset.state='idle';}if(metrics)metrics.innerHTML=metric('ZONE',`${selectedSize()}×${selectedSize()} CHUNKS`)+metric('CELDAS',`${selectedSize()*40}×${selectedSize()*40}`)+metric('ESTADO','—');if(signature)signature.textContent='Genera un preview para validar la zona.';}
@@ -118,9 +149,10 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const profileOptions=procedural.profiles().map(p=>`<option value="${p.id}">${p.label||p.id}</option>`).join('');
     panel.innerHTML=`<div class="proc-head"><div><strong>ZONE CREATOR</strong><small>PROCEDURAL MAP AUTHORING</small></div><button type="button" class="proc-close" data-proc-close aria-label="Cerrar">×</button></div><div class="proc-scroll">
       <section class="proc-section"><div class="proc-section-title"><span>01 · ZONA</span><span data-proc-status class="proc-status" data-state="idle">SIN PREVIEW</span></div><label>TIPO DE ZONA<select data-proc-profile>${profileOptions}</select></label><label>TAMAÑO<select data-proc-size><option value="1">1×1 CHUNK · 40×40</option><option value="2">2×2 CHUNKS · 80×80</option><option value="3" selected>3×3 CHUNKS · 120×120</option></select></label><label>SEED<div class="proc-seed-row"><input data-proc-seed type="text" value="${mapData.id||mapData.mapId||'map'}:zone"><button type="button" class="proc-mini" data-proc-random>RANDOM</button></div></label></section>
-      <section class="proc-section"><div class="proc-section-title"><span>02 · URBAN FABRIC</span><button type="button" class="proc-mini" data-proc-reset>RESET</button></div><div class="proc-slider"><span>DENSIDAD</span><input data-proc-density type="range" min="20" max="100" step="1"><strong class="proc-value" data-proc-density-value></strong></div><div class="proc-slider"><span>EDIF. PEGADOS</span><input data-proc-attach type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-attach-value></strong></div><div class="proc-slider"><span>CALLEJONES</span><input data-proc-alley type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-alley-value></strong></div><div class="proc-slider"><span>SERVICIO</span><input data-proc-service type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-service-value></strong></div><div class="proc-slider"><span>VÍAS SEC.</span><input data-proc-secondary type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-secondary-value></strong></div></section>
-      <section class="proc-section"><div class="proc-section-title"><span>03 · PREVIEW</span><button type="button" class="proc-mini" data-proc-fit>ENCUADRAR</button></div><div class="proc-view-grid"><label class="proc-check"><input type="checkbox" data-proc-view="showChunks" checked> CHUNKS</label><label class="proc-check"><input type="checkbox" data-proc-view="showParcels" checked> PARCELAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showRooms" checked> INTERIORES</label><label class="proc-check"><input type="checkbox" data-proc-view="showTopology" checked> MUROS/PUERTAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showLabels" checked> LABELS</label></div><div class="proc-metrics" data-proc-metrics></div><div class="proc-signature" data-proc-signature></div><div class="proc-warning" data-proc-replace-warning hidden>CREAR ZONA reemplazará la geometría/semántica actual. Los tokens de jugador se conservan.</div></section>
-      <section class="proc-section"><div class="proc-section-title"><span>04 · ACCIONES</span><span data-proc-busy class="proc-busy" hidden></span></div><div class="proc-actions"><button type="button" class="proc-action" data-proc-preview>GENERAR PREVIEW</button><button type="button" class="proc-action" data-proc-reroll>REROLL</button><button type="button" class="proc-action" data-proc-cancel>CANCELAR PREVIEW</button><button type="button" class="proc-action" data-proc-fit>ENCUADRAR</button><button type="button" class="proc-action proc-create" data-proc-apply disabled>CREAR ZONA</button></div></section>
+      <section class="proc-section"><div class="proc-section-title"><span>02 · URBAN FABRIC</span><button type="button" class="proc-mini" data-proc-reset>RESET PROFILE</button></div><div class="proc-slider"><span>DENSIDAD</span><input data-proc-density type="range" min="20" max="100" step="1"><strong class="proc-value" data-proc-density-value></strong></div><div class="proc-slider"><span>EDIF. PEGADOS</span><input data-proc-attach type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-attach-value></strong></div><div class="proc-slider"><span>CALLEJONES</span><input data-proc-alley type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-alley-value></strong></div><div class="proc-slider"><span>SERVICIO</span><input data-proc-service type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-service-value></strong></div><div class="proc-slider"><span>VÍAS SEC.</span><input data-proc-secondary type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-secondary-value></strong></div></section>
+      <section class="proc-section"><div class="proc-section-title"><span>03 · BUILDING MIX</span><strong class="proc-value" data-proc-mix-total>100%</strong></div><div class="proc-slider"><span>TIENDAS</span><input data-proc-mix="shop" type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-mix-value="shop"></strong></div><div class="proc-slider"><span>APARTAMENTOS</span><input data-proc-mix="apartment" type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-mix-value="apartment"></strong></div><div class="proc-slider"><span>TALLERES</span><input data-proc-mix="workshop" type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-mix-value="workshop"></strong></div><div class="proc-slider"><span>ALMACENES</span><input data-proc-mix="warehouse" type="range" min="0" max="100" step="1"><strong class="proc-value" data-proc-mix-value="warehouse"></strong></div><small>El mix es un objetivo. La geometría mínima de cada parcela puede descartar arquetipos demasiado grandes.</small></section>
+      <section class="proc-section"><div class="proc-section-title"><span>04 · PREVIEW</span><button type="button" class="proc-mini" data-proc-fit>ENCUADRAR</button></div><div class="proc-view-grid"><label class="proc-check"><input type="checkbox" data-proc-view="showChunks" checked> CHUNKS</label><label class="proc-check"><input type="checkbox" data-proc-view="showParcels" checked> PARCELAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showRooms" checked> INTERIORES</label><label class="proc-check"><input type="checkbox" data-proc-view="showTopology" checked> MUROS/PUERTAS</label><label class="proc-check"><input type="checkbox" data-proc-view="showLabels" checked> LABELS</label></div><div class="proc-metrics" data-proc-metrics></div><div class="proc-signature" data-proc-signature></div><div class="proc-warning" data-proc-replace-warning hidden>CREAR ZONA reemplazará la geometría/semántica actual. Los tokens de jugador se conservan.</div></section>
+      <section class="proc-section"><div class="proc-section-title"><span>05 · ACCIONES</span><span data-proc-busy class="proc-busy" hidden></span></div><div class="proc-actions"><button type="button" class="proc-action" data-proc-preview>GENERAR PREVIEW</button><button type="button" class="proc-action" data-proc-reroll>REROLL</button><button type="button" class="proc-action" data-proc-cancel>CANCELAR PREVIEW</button><button type="button" class="proc-action" data-proc-fit>ENCUADRAR</button><button type="button" class="proc-action proc-create" data-proc-apply disabled>CREAR ZONA</button></div></section>
     </div>`;document.body.appendChild(panel);
 
     toolbar.querySelector('[data-proc-open]')?.addEventListener('click',()=>panelOpen?closePanel():openPanel());
@@ -136,6 +168,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     panel.querySelectorAll('[data-proc-fit]').forEach(b=>b.addEventListener('click',fitPreview));
     by('[data-proc-apply]')?.addEventListener('click',createZone);
     panel.querySelectorAll('[data-proc-view]').forEach(input=>input.addEventListener('change',updatePreviewOptions));
+    panel.querySelectorAll('[data-proc-mix]').forEach(input=>input.addEventListener('input',event=>rebalanceBuildingMix(event.target.dataset.procMix)));
     panel.querySelectorAll('input[type=range]').forEach(input=>input.addEventListener('input',()=>generationChanged()));
     setProfileControls('mixed_urban');
   }
