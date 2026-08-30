@@ -126,6 +126,15 @@
         }
       }
     },
+    "vtt_regional_local_transition_requests": {
+      "$mapId": {
+        ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        "$requestId": {
+          ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
+          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('requestId').val() === $requestId && newData.child('mapId').val() === $mapId && newData.child('status').val() === 'pending' && newData.child('playerId').isString() && root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid))"
+        }
+      }
+    },
     "theatre_opposed_checks": {
       ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
       "$sessionId": {
