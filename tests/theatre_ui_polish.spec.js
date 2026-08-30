@@ -19,7 +19,7 @@ test("narración y pensamiento pueden ocultar por completo name/title plates", (
 });
 
 test("el controlador de localización reutiliza el input y solo escribe locacion", () => {
-  const locationControl = block(instanceControl, "function ensureDmLocationControl", "function bindDashboard");
+  const locationControl = block(instanceControl, "function ensureDmLocationControl", "function ensureDashboardCharacterManager");
   expect(locationControl).toContain('getElementById("theatre-location-input")');
   expect(locationControl).toContain('button.id = "btn-update-theatre-location"');
   expect(locationControl).toContain('db.ref(`${getTheatreScenePath()}/locacion`).set(locationName)');
