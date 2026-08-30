@@ -17,6 +17,7 @@ on:
       - 'tests/vtt_procedural_preview_crash.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
       - 'tests/vtt_procedural_lazy_preview_performance.spec.js'
+      - 'tests/vtt_procedural_chunk_streaming_authority.spec.js'
       - '.github/workflows/vtt-dm-map-creator-ui.yml'
   workflow_dispatch:
 
@@ -47,7 +48,11 @@ jobs:
       - name: Live preview crash regression
         run: npx playwright test tests/vtt_procedural_preview_crash.spec.js
       - name: One-live-chunk performance regression
-        run: npx playwright test tests/vtt_procedural_chunk_streaming_performance.spec.js tests/vtt_procedural_lazy_preview_performance.spec.js
+        run: >-
+          npx playwright test
+          tests/vtt_procedural_chunk_streaming_performance.spec.js
+          tests/vtt_procedural_lazy_preview_performance.spec.js
+          tests/vtt_procedural_chunk_streaming_authority.spec.js
       - name: Focused contracts
         run: >-
           npx playwright test
