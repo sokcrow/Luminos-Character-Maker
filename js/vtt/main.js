@@ -23,6 +23,7 @@ import './movement-engine.js';
 import './movement-state.js';
 import './physical-state-patch.js';
 import './movement-integration-patch.js';
+import './map-dialogue-overlay.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const canvas = document.getElementById('vtt-canvas');
@@ -229,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         stopMapWatch();
+        window.LuminousVttMapDialogueOverlay?.stop?.();
         window.LuminousVttWallBuilderRuntime?.stop?.();
         window.LuminousVttStructureRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
