@@ -60,6 +60,7 @@
       await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
       await ensureScript("item-augmentation-runtime-script", "js/item-augmentation-runtime.js", "LuminousItemAugmentationRuntime");
       await ensureScript("item-equipment-bridge-script", "js/item-equipment-bridge.js", "LuminousItemEquipmentBridge");
+      await ensureScript("item-equipment-approved-bridge-script", "js/item-equipment-approved-bridge.js");
       await ensureScript("inventory-hud-v2-script", "js/inventory-hud-v2.js", "LuminousInventoryHudV2");
       await ensureScript("inventory-hud-v2-approved-layout-script", "js/inventory-hud-v2-approved-layout.js", "LuminousInventoryApprovedLayout");
     } catch (error) {
