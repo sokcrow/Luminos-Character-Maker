@@ -260,8 +260,12 @@
       if (!renderer || typeof renderer.render !== 'function' || restoreRenderer) return;
       const original = renderer.render;
       renderer.render = function (...args) {
+        const guard = host?.LuminousVttPerformanceGuard || root?.LuminousVttPerformanceGuard;
+        const renderedBefore = guard?.snapshot?.().rendered;
         const result = original.apply(this, args);
-        drawOutlines();
+        const renderedAfter = guard?.snapshot?.().rendered;
+        // If Performance Guard skipped this frame, the DM outline layer must skip it too.
+        if (renderedBefore == null || renderedAfter == null || renderedAfter > renderedBefore) drawOutlines();
         return result;
       };
       restoreRenderer = () => { renderer.render = original; };
