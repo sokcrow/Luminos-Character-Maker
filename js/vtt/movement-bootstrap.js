@@ -2,15 +2,17 @@ import './movement-realtime.js';
 import './movement-connectivity.js';
 import './movement-rules.js';
 import './movement-rules-runtime.js';
+import './movement-door-runtime.js';
 
 window.LuminousVttMovementConnectivity?.installRealtime?.(window);
 
 export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.engine?.mapData } = {}) {
   if (!runtime?.engine || !mapData) return null;
   const movement = window.LuminousVttMovementEngine;
+  const movementRules = window.LuminousVttMovementRules;
   const pathfinding = window.LuminousVttPathfinding;
   const stateApi = window.LuminousVttMovementState;
-  if (!movement || !pathfinding || !stateApi) return null;
+  if (!movement || !movementRules || !pathfinding || !stateApi) return null;
 
   const engine = runtime.engine;
   const renderer = engine.renderer;
@@ -185,7 +187,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     previewAt = Date.now();
     const target = requestedPoint(event, drag);
     const plan = planFor(drag.token, { x: drag.originX, y: drag.originY }, target);
-    preview = { tokenId: drag.token.id, valid: Boolean(plan.valid), reason: plan.reason || null, path: plan.path || [], costFt: plan.movementCostFt ?? plan.costFt ?? 0 };
+    preview = { tokenId: drag.token.id, valid: Boolean(plan.valid), reason: plan.reason || plan.stopAtDoor?.reason || null, path: plan.path || [], costFt: plan.movementCostFt ?? plan.costFt ?? 0 };
   }
 
   function clearPreview() { preview = null; }
@@ -229,10 +231,32 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     ctx.restore();
   }
 
+  async function prepareDoorInteractions(token, plan = {}) {
+    const interactions = Array.isArray(plan.doorInteractions) ? plan.doorInteractions : [];
+    if (!interactions.length) return { valid: true, interactions: [] };
+    if (typeof runtime.bridge?.requestDirectAction !== 'function') return { valid: false, reason: 'DOOR_ACTION_BRIDGE_UNAVAILABLE' };
+    const prepared = [];
+    for (const interaction of interactions) {
+      const door = (mapData.topology || []).find((element) => String(element.id || '') === String(interaction.doorId || ''));
+      if (!door) return { valid: false, reason: 'DOOR_NOT_FOUND', doorId: interaction.doorId || null };
+      const traversal = movementRules.doorTraversal({ mode: 'dash', dashActive: true, door, remainingFt: plan.remainingFt });
+      if (!traversal.valid) return { valid: false, reason: traversal.reason || 'DOOR_BLOCKED', doorId: door.id };
+      const state = String(door.state || 'closed').toLowerCase();
+      if (state !== 'open' && state !== 'broken') {
+        const result = await runtime.bridge.requestDirectAction(door.id, 'open');
+        if (result === false || result?.valid === false) return { valid: false, reason: result?.reason || 'DOOR_OPEN_FAILED', doorId: door.id };
+      }
+      prepared.push({ ...interaction, doorId: door.id, soundEvent: traversal.soundEvent || interaction.soundEvent, noise: traversal.noise || interaction.noise });
+    }
+    return { valid: true, interactions: prepared };
+  }
+
   async function resolveMovementOrder({ token, from, requestedPoint }) {
     if (!movementOnline()) return offlineResult();
     const plan = planFor(token, from, requestedPoint);
     if (!plan.valid) return plan;
+    const doors = await prepareDoorInteractions(token, plan);
+    if (!doors.valid) return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
     const committed = movement.commitMove(token, plan, worldState());
     if (!committed.valid) return committed;
     const endpoint = plan.path?.[plan.path.length - 1] || pathfinding.pointForCell(pathfinding.cellFromPoint(requestedPoint, mapData), mapData, pathfinding.tokenLayer(token));
@@ -245,6 +269,8 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       movementCostFt: plan.movementCostFt ?? 0,
       remainingFt: committed.remainingFt,
       actionMode: token.activeActionMovementMode || 'walk',
+      doorInteractions: doors.interactions,
+      stopAtDoor: plan.stopAtDoor || null,
     };
   }
 
