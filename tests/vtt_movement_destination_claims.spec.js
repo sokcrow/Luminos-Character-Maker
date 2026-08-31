@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs');
+const path = require('node:path');
 
 require('../js/vtt/movement-rules.js');
 
@@ -63,7 +65,7 @@ class FakeRef {
 
 class FakeDb {
   constructor() { this.store = new Map(); }
-  ref(path) { return new FakeRef(this.store, path); }
+  ref(pathValue) { return new FakeRef(this.store, pathValue); }
 }
 
 function mapData() {
@@ -85,6 +87,7 @@ function movingToken(id, controlSource, rttMs = null) {
     movementRemainingFt: 20,
     movementTurnHistory: [{ path: [{ x: 35, y: 35 }, { x: 105, y: 35 }], costFt: 5, movementType: 'normal' }],
     pendingMovementClaim: {
+      localId: `${id}-move`,
       from: { x: 35, y: 35, zLayer: 0, elevationFt: 0, gridPosition: { col: 0, row: 0, z: 0 } },
       to: { x: 105, y: 35, col: 1, row: 0, zLayer: 0 },
       movementCostFt: 5,
@@ -168,22 +171,59 @@ test('equal authority uses lower RTT as the arbitration tie-break', async () => 
   expect(canonicalWrites).toEqual([expect.objectContaining({ tokenId: 'fast-token' })]);
 });
 
+test('a pre-traversal reservation is reused by canonical save instead of being arbitrated twice', async () => {
+  const db = new FakeDb();
+  const map = mapData();
+  const movementBridge = tokenState.createBridge({
+    db,
+    mapData: map,
+    label: 'player',
+    movementClaimArbitrationMs: 0,
+    movementClaimLeaseMs: 500,
+    movementClaimPostCommitHoldMs: 100,
+  });
+  const player = movingToken('reserved-player', 'player', 20);
+  const cell = claims.cellForClaim(player.pendingMovementClaim, map);
+  const claimPath = `${claims.CLAIM_ROOT}/claim-map/0/${cell.col}_${cell.row}`;
+
+  const reserved = await movementBridge.reserveMovementDestinationClaim(player, player.pendingMovementClaim);
+  expect(reserved).toMatchObject({ valid: true });
+  expect(movementBridge.movementDestinationReservationCount()).toBe(1);
+  const claimId = db.store.get(claimPath).claimId;
+  expect(db.store.get(claimPath)).toMatchObject({ claimId, tokenId: 'reserved-player', locked: true, committed: false });
+
+  await expect(movementBridge.saveToken(player)).resolves.toMatchObject({ destinationClaim: { valid: true, cell } });
+  expect(canonicalWrites).toEqual([expect.objectContaining({ tokenId: 'reserved-player' })]);
+  expect(movementBridge.movementDestinationReservationCount()).toBe(0);
+  expect(db.store.get(claimPath)).toMatchObject({ claimId, tokenId: 'reserved-player', locked: true, committed: true });
+  expect(player.pendingMovementClaim).toBeUndefined();
+});
+
 test('expired stale claim can be replaced but a locked live claim cannot be stolen', async () => {
   const db = new FakeDb();
   const map = mapData();
   const cell = claims.cellForClaim({ to: { x: 105, y: 35, col: 1, row: 0, zLayer: 0 } }, map);
-  const path = `${claims.CLAIM_ROOT}/claim-map/0/${cell.col}_${cell.row}`;
-  db.store.set(path, { claimId: 'stale', tokenId: 'old', authority: 'dm', locked: true, committed: true, expiresAtMs: 0 });
+  const claimPath = `${claims.CLAIM_ROOT}/claim-map/0/${cell.col}_${cell.row}`;
+  db.store.set(claimPath, { claimId: 'stale', tokenId: 'old', authority: 'dm', locked: true, committed: true, expiresAtMs: 0 });
 
   const playerBridge = tokenState.createBridge({ db, mapData: map, label: 'player', movementClaimArbitrationMs: 0, movementClaimLeaseMs: 500, movementClaimPostCommitHoldMs: 100 });
   const player = movingToken('player-token', 'player', 20);
   await expect(playerBridge.saveToken(player)).resolves.toMatchObject({ destinationClaim: { valid: true } });
 
-  const locked = clone(db.store.get(path));
+  const locked = clone(db.store.get(claimPath));
   expect(locked).toMatchObject({ tokenId: 'player-token', locked: true, committed: true });
   const dmBridge = tokenState.createBridge({ db, mapData: map, label: 'dm', isDm: true, movementClaimArbitrationMs: 0, movementClaimLeaseMs: 500, movementClaimPostCommitHoldMs: 100 });
   const dm = movingToken('dm-token', 'dm', 1);
   dm.canonicalScope = 'world';
   await expect(dmBridge.saveToken(dm)).rejects.toThrow('MOVEMENT_DESTINATION_CLAIM_LOST');
   expect(canonicalWrites.filter((entry) => entry.tokenId === 'dm-token')).toHaveLength(0);
+});
+
+test('Escape movement cancellation is wired to cancel motion, release the destination claim and rollback', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js/vtt/movement-bootstrap.js'), 'utf8');
+  expect(source).toContain("event.key !== 'Escape'");
+  expect(source).toContain('engine.cancelTokenMotion?.()');
+  expect(source).toContain("cancelDestination(token, reason, true)");
+  expect(source).toContain("window.addEventListener('keydown', onKeyDown)");
+  expect(source).toContain("window.removeEventListener('keydown', onKeyDown)");
 });
