@@ -13,6 +13,7 @@ import './structure-topology-patch.js';
 import './structure-physical-patch.js';
 import './map-authoring-state.js';
 import './map-switch-guard.js';
+import './runtime-lifecycle.js';
 import './topology-replace-state-patch.js';
 import './actor-library.js';
 import './actor-library-state.js';
@@ -31,6 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('VTT Canvas not found!');
         return;
     }
+
+    const lifecycle = globalThis.LuminousVttRuntimeLifecycle?.createLifecycle?.({ log: console }) || {
+        dispose: () => true,
+        isDisposed: () => false,
+    };
 
     const mapAuthoring = globalThis.LuminousVttMapAuthoring;
     const mapAuthoringState = globalThis.LuminousVttMapAuthoringState;
@@ -145,37 +151,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const checkPortal = globalThis.LuminousVttCheckPortal?.start?.() || null;
 
     const exportBtn = document.getElementById('btn-export-uv');
-    exportBtn?.addEventListener('click', () => engine.exportUVTemplate());
+    const handleExport = () => engine.exportUVTemplate();
+    exportBtn?.addEventListener('click', handleExport);
 
-    canvas.addEventListener('vtt:token-moved', (event) => {
+    const handleTokenMoved = (event) => {
+        if (lifecycle.isDisposed()) return;
         const detail = event.detail || {};
         const token = (mockMapData.tokens || []).find((entry) => String(entry.id) === String(detail.tokenId));
         if (!token) return;
         tokenStateBridge.saveToken(token).catch((error) => {
+            if (lifecycle.isDisposed()) return;
             console.error('VTT token persistence failed:', error);
             controller?.notify?.('No se pudo sincronizar la posición de la ficha.', 'error');
         });
-    });
+    };
+    canvas.addEventListener('vtt:token-moved', handleTokenMoved);
 
-    canvas.addEventListener('vtt:token-z-transition', (event) => {
+    const handleTokenZTransition = (event) => {
+        if (lifecycle.isDisposed()) return;
         const detail = event.detail || {};
         const token = (mockMapData.tokens || []).find((entry) => String(entry.id) === String(detail.tokenId));
         if (detail.complete && token?.viewer === true && Number.isFinite(Number(detail.targetZ))) applyLayer(Number(detail.targetZ));
-    });
+    };
+    canvas.addEventListener('vtt:token-z-transition', handleTokenZTransition);
 
     engine.start();
-
-    window.LuminousVttRuntime = Object.freeze({
-        engine,
-        controller,
-        bridge,
-        verticalController,
-        verticalBridge,
-        tokenStateBridge,
-        editMode,
-        characterVisionBridge,
-        setLayer: applyLayer,
-    });
 
     const initialMapId = String(mockMapData.id || mockMapData.mapId || 'default');
     const mapSwitchGuard = globalThis.LuminousVttMapSwitchGuard?.createGuard?.({
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }) || null;
     const stopMapWatch = mapAuthoringState?.watchActiveMap?.({
         onChanged: (mapId) => {
-            if (!mapId || String(mapId) === initialMapId) return;
+            if (!mapId || String(mapId) === initialMapId || lifecycle.isDisposed()) return;
             if (!mapSwitchGuard) {
                 console.error('VTT map switch guard unavailable; refusing blind reload.', { initialMapId, mapId });
                 controller?.notify?.('No se pudo validar el cambio de mapa. Se mantiene el mapa actual.', 'error');
@@ -197,49 +197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         },
     }) || (() => {});
 
-    import('./map-authoring-bootstrap.js')
-        .then(async (module) => {
-            module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            const surfaceModule = await import('./surface-bootstrap.js');
-            await surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            const structureModule = await import('./structure-bootstrap.js');
-            return structureModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-        })
-        .catch((error) => console.error('VTT map authoring / surfaces / structures bootstrap failed:', error));
-    import('./wall-builder-bootstrap.js')
-        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
-        .catch((error) => console.error('VTT wall builder bootstrap failed:', error));
-    import('./actor-library-bootstrap.js')
-        .then((module) => {
-            const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            tokenAppearanceApi?.installRenderer?.(engine.renderer);
-            return actorLibrary;
-        })
-        .catch((error) => console.error('VTT actor library bootstrap failed:', error));
-    import('./movement-bootstrap.js')
-        .then((module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
-        .catch((error) => console.error('VTT movement bootstrap failed:', error));
-    import('./procedural-generator-bootstrap.js')
-        .then(async (generatorModule) => {
-            generatorModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            const chunkModule = await import('./procedural-chunk-streaming-runtime.js');
-            chunkModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural });
-            const transitionModule = await import('./regional-local-transition-runtime.js');
-            transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            const simulationModule = await import('./map-simulation-runtime.js');
-            return simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-        })
-        .catch((error) => console.error('VTT procedural / regional-local / map simulation bootstrap failed:', error));
-    import('./world-object-mainline-integration.js')
-        .then(async (module) => {
-            await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-            const hudModule = await import('./map-hud-bootstrap.js');
-            return hudModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-        })
-        .catch((error) => console.error('VTT world object / map HUD bootstrap failed:', error));
-
-    // E belongs exclusively to token PoV Look Lock/Unlock. Camera uses F/Home/Space and never consumes E.
-    window.addEventListener('keydown', (event) => {
+    const handleKeydown = (event) => {
+        if (lifecycle.isDisposed()) return;
         if (event.key === '0') applyLayer(0);
         else if (event.key === '1') applyLayer(1);
         else if (event.key === '2') applyLayer(2);
@@ -248,10 +207,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             controller.setTool('select');
             verticalController.setTool('select', false);
         }
-    });
+    };
+    window.addEventListener('keydown', handleKeydown);
 
-    window.addEventListener('beforeunload', () => {
+    function disposeRuntime(reason = 'vtt-document-teardown') {
+        if (!lifecycle.dispose(reason)) return false;
+
         stopMapWatch();
+        exportBtn?.removeEventListener?.('click', handleExport);
+        canvas.removeEventListener('vtt:token-moved', handleTokenMoved);
+        canvas.removeEventListener('vtt:token-z-transition', handleTokenZTransition);
+        window.removeEventListener('keydown', handleKeydown);
+
         window.LuminousVttMapDialogueOverlay?.stop?.();
         window.LuminousVttWallBuilderRuntime?.stop?.();
         window.LuminousVttStructureRuntime?.stop?.();
@@ -275,5 +242,131 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkPortal?.stop?.();
         engine.stop();
         engine.camera?.destroy?.();
-    }, { once: true });
+        window.removeEventListener('resize', engine.handleResize);
+        canvas.removeEventListener('mousedown', engine.handleTokenMouseDown);
+        window.removeEventListener('mousemove', engine.handleTokenMouseMove);
+        window.removeEventListener('mouseup', engine.handleTokenMouseUp);
+        return true;
+    }
+
+    window.LuminousVttRuntime = Object.freeze({
+        engine,
+        controller,
+        bridge,
+        verticalController,
+        verticalBridge,
+        tokenStateBridge,
+        editMode,
+        characterVisionBridge,
+        setLayer: applyLayer,
+        dispose: disposeRuntime,
+        isDisposed: lifecycle.isDisposed,
+    });
+
+    const stopIfDisposed = (runtime, label = 'runtime') => {
+        if (!lifecycle.isDisposed()) return false;
+        try {
+            runtime?.stop?.();
+        } catch (error) {
+            console.warn(`VTT lifecycle late-stop failed for ${label}.`, error);
+        }
+        return true;
+    };
+
+    const reportBootstrapError = (label, error) => {
+        if (lifecycle.isDisposed()) return;
+        console.error(`VTT ${label} bootstrap failed:`, error);
+    };
+
+    import('./map-authoring-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const mapAuthoringRuntime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(mapAuthoringRuntime, 'map-authoring')) return null;
+
+            const surfaceModule = await import('./surface-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const surfaceRuntime = await surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(surfaceRuntime, 'surfaces')) return null;
+
+            const structureModule = await import('./structure-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const structureRuntime = await structureModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(structureRuntime, 'structures')) return null;
+            return structureRuntime;
+        })
+        .catch((error) => reportBootstrapError('map authoring / surfaces / structures', error));
+
+    import('./wall-builder-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const runtime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(runtime, 'wall-builder')) return null;
+            return runtime;
+        })
+        .catch((error) => reportBootstrapError('wall builder', error));
+
+    import('./actor-library-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const resolvedActorLibrary = await actorLibrary;
+            if (stopIfDisposed(resolvedActorLibrary, 'actor-library')) return null;
+            tokenAppearanceApi?.installRenderer?.(engine.renderer);
+            return resolvedActorLibrary;
+        })
+        .catch((error) => reportBootstrapError('actor library', error));
+
+    import('./movement-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const runtime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(runtime, 'movement')) return null;
+            return runtime;
+        })
+        .catch((error) => reportBootstrapError('movement', error));
+
+    import('./procedural-generator-bootstrap.js')
+        .then(async (generatorModule) => {
+            if (lifecycle.isDisposed()) return null;
+            const proceduralRuntime = await generatorModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(proceduralRuntime, 'procedural-generator')) return null;
+
+            const chunkModule = await import('./procedural-chunk-streaming-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const chunkRuntime = await chunkModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural });
+            if (stopIfDisposed(chunkRuntime, 'procedural-chunks')) return null;
+
+            const transitionModule = await import('./regional-local-transition-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const transitionRuntime = await transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(transitionRuntime, 'regional-local-transition')) return null;
+
+            const simulationModule = await import('./map-simulation-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const simulationRuntime = await simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(simulationRuntime, 'map-simulation')) return null;
+            return simulationRuntime;
+        })
+        .catch((error) => reportBootstrapError('procedural / regional-local / map simulation', error));
+
+    import('./world-object-mainline-integration.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const worldObjectsRuntime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(worldObjectsRuntime, 'world-objects')) return null;
+
+            const hudModule = await import('./map-hud-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const hudRuntime = await hudModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(hudRuntime, 'map-hud')) return null;
+            return hudRuntime;
+        })
+        .catch((error) => reportBootstrapError('world object / map HUD', error));
+
+    // E belongs exclusively to token PoV Look Lock/Unlock. Camera uses F/Home/Space and never consumes E.
+    const handlePageHide = () => disposeRuntime('pagehide');
+    const handleBeforeUnload = () => disposeRuntime('beforeunload');
+    window.addEventListener('pagehide', handlePageHide, { once: true });
+    window.addEventListener('beforeunload', handleBeforeUnload, { once: true });
 });

@@ -11,6 +11,21 @@
     return { section, frame };
   }
 
+  function requestFrameDispose(frame, reason = 'dm-map-deactivated') {
+    if (!frame) return false;
+    try {
+      const dispose = frame.contentWindow?.LuminousVttRuntime?.dispose;
+      if (typeof dispose !== 'function') return false;
+      dispose(reason);
+      return true;
+    } catch (error) {
+      // The iframe is same-origin in production. If it is already navigating or
+      // inaccessible, removing src below still guarantees browser teardown.
+      browserRoot?.console?.warn?.('VTT DM map graceful dispose unavailable; falling back to iframe teardown.', error);
+      return false;
+    }
+  }
+
   function ensureLoaded(documentRef = browserRoot?.document) {
     const { section, frame } = resolveMapFrame(documentRef);
     if (!section || !frame || !section.classList?.contains?.('active-module')) return false;
@@ -27,9 +42,9 @@
     if (!section || !frame || section.classList?.contains?.('active-module')) return false;
     if (!frame.getAttribute?.('src')) return false;
 
-    // Navigating an iframe with its src removed tears down the VTT document.
-    // That gives vtt/main.js a real unload lifecycle so its animation loop,
-    // Firebase subscriptions and bridges cannot keep running behind Theatre.
+    // Ask the VTT to stop RAF/Firebase/bridges synchronously before navigation.
+    // Removing src remains the hard teardown fallback and releases the document.
+    requestFrameDispose(frame, 'dm-map-deactivated');
     frame.removeAttribute?.('src');
     return !frame.getAttribute?.('src');
   }
@@ -67,5 +82,5 @@
   }
 
   autoStart();
-  return Object.freeze({ ensureLoaded, ensureUnloaded, sync, start });
+  return Object.freeze({ ensureLoaded, ensureUnloaded, requestFrameDispose, sync, start });
 });
