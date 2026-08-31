@@ -11,6 +11,7 @@ require('../js/vtt/token-state-dynamic-patch.js');
 require('../js/vtt/movement-integration-patch.js');
 require('../js/vtt/movement-rules.js');
 require('../js/vtt/movement-rules-runtime.js');
+require('../js/vtt/movement-door-runtime.js');
 
 const rules = globalThis.LuminousVttMovementRules;
 const pathfinding = globalThis.LuminousVttPathfinding;
@@ -40,6 +41,17 @@ function lineMap(cols = 5) {
     topology: [],
     tokens: [],
     movement: { diagonalRule: '5e', blockTokens: true },
+  };
+}
+
+function door(id = 'door-1', state = 'closed') {
+  return {
+    id,
+    type: 'door',
+    from: { col: 1, row: 0 },
+    to: { col: 1, row: 1 },
+    z: [0],
+    state,
   };
 }
 
@@ -118,7 +130,39 @@ test('route over remaining combat movement is rejected instead of clipping or te
   expect(plan).toMatchObject({ valid: false, reason: 'INSUFFICIENT_MOVEMENT', movementCostFt: 20, remainingFt: 10 });
 });
 
-test('walk stops at a closed door; Dash bursts an unlocked door with noise and may continue', () => {
+test('walk stops before a closed door instead of rejecting the entire route', () => {
+  const mapData = lineMap(3);
+  const mover = token('mover', 0, { speedFt: 30 });
+  mapData.tokens = [mover];
+  mapData.topology = [door('door-walk', 'closed')];
+  const plan = movement.planMove({ token: mover, start: mover, target: { x: 175, y: 35 }, mapData, worldState: { mode: 'free' } });
+  expect(plan.valid).toBe(true);
+  expect(plan.complete).toBe(false);
+  expect(plan.movementCostFt).toBe(0);
+  expect(plan.path).toHaveLength(1);
+  expect(plan.stopAtDoor).toMatchObject({ doorId: 'door-walk', state: 'closed', reason: 'DOOR_ACTION_REQUIRED', actionRequired: true });
+});
+
+test('Dash plans through unlocked closed doors, while locked doors stop Dash at the threshold', () => {
+  const mapData = lineMap(3);
+  const mover = token('mover', 0, { speedFt: 30 });
+  mapData.tokens = [mover];
+  mapData.topology = [door('door-dash', 'closed')];
+  const world = movement.normalizeWorldState({ mode: 'round', roundId: 2 });
+  movement.beginRound(mover, 2);
+  expect(movement.dash(mover, world, { actionType: 'action' }).valid).toBe(true);
+  const through = movement.planMove({ token: mover, start: mover, target: { x: 175, y: 35 }, mapData, worldState: world });
+  expect(through).toMatchObject({ valid: true, movementCostFt: 10, dashThroughDoors: true });
+  expect(through.doorInteractions).toEqual([expect.objectContaining({ doorId: 'door-dash', pathIndex: 0, action: 'open', burstOpen: true, noise: 'high', soundEvent: 'DASH_DOOR_BURST' })]);
+
+  mapData.topology = [door('door-locked', 'locked')];
+  const blocked = movement.planMove({ token: mover, start: mover, target: { x: 175, y: 35 }, mapData, worldState: world });
+  expect(blocked.valid).toBe(true);
+  expect(blocked.complete).toBe(false);
+  expect(blocked.stopAtDoor).toMatchObject({ doorId: 'door-locked', state: 'locked', reason: 'DOOR_LOCKED' });
+});
+
+test('walk/dash door primitive contract matches action and noise rules', () => {
   expect(rules.doorTraversal({ mode: 'walk', door: { state: 'closed', locked: false } })).toMatchObject({ valid: false, actionRequired: true, reason: 'DOOR_ACTION_REQUIRED' });
   expect(rules.doorTraversal({ mode: 'dash', dashActive: true, remainingFt: 20, door: { state: 'closed', locked: false } })).toMatchObject({ valid: true, opensDoor: true, burstOpen: true, continueMovement: true, noise: 'high', soundEvent: 'DASH_DOOR_BURST' });
   expect(rules.doorTraversal({ mode: 'dash', dashActive: true, door: { state: 'locked', locked: true } })).toMatchObject({ valid: false, reason: 'DOOR_LOCKED' });
