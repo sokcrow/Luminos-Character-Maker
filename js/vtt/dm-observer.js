@@ -33,6 +33,8 @@
     if (!Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm)) return null;
 
     mapData.lighting ||= {};
+    engine.isDm = true;
+
     let mode = MODES.FREE;
     let targetId = null;
     let selectingMode = null;
@@ -40,12 +42,21 @@
     let panel = null;
     let statusNode = null;
     let restoreRenderer = null;
-    let pointerDown = null;
-    let suppressNextClickTokenId = null;
 
     const tokens = () => Array.isArray(mapData.tokens) ? mapData.tokens : [];
     const tokenById = (id = targetId) => tokens().find((token) => clean(token.id) === clean(id)) || null;
     const target = () => tokenById(targetId);
+
+    // Engine.viewerToken used to fall back to the first draggable token. On a DM surface that
+    // made the first Actor (commonly Agatha) the accidental POV owner. DM FREE/FOLLOW has no
+    // player viewer at all; only explicit VIEW AS exposes one exact Player token.
+    const originalViewerToken = engine.viewerToken;
+    if (typeof originalViewerToken === 'function') {
+      engine.viewerToken = function dmAwareViewerToken() {
+        const previewId = clean(mapData.lighting?.dmPreviewTokenId);
+        return previewId ? tokenById(previewId) : null;
+      };
+    }
 
     function syncLayer(token) {
       if (!token) return false;
@@ -117,14 +128,16 @@
     }
 
     function select(nextMode) {
-      if (nextMode !== MODES.FOLLOW) return free('select-free');
+      if (![MODES.FOLLOW, MODES.VIEW_AS].includes(nextMode)) return free('select-free');
       selectingMode = nextMode;
       renderStatus();
       return snapshot();
     }
 
     function applySelected(id) {
-      return selectingMode === MODES.FOLLOW ? follow(id, 'selected-follow') : viewAs(id, 'selected-view-as');
+      if (selectingMode === MODES.FOLLOW) return follow(id, 'selected-follow');
+      if (selectingMode === MODES.VIEW_AS) return viewAs(id, 'selected-view-as');
+      return snapshot();
     }
 
     function resync(reason = 'canonical-sync') {
@@ -145,7 +158,7 @@
       const token = target();
       if (!token) return free('target-missing');
       syncLayer(token);
-      emit(event?.type === 'vtt:token-preview-moved' ? 'target-preview' : 'target-state');
+      emit('target-state');
     }
 
     const onCanonicalSync = () => resync('canonical-sync');
@@ -155,53 +168,17 @@
       return typeof engine.tokenAtEvent === 'function' ? engine.tokenAtEvent(event) : null;
     }
 
-    function pointerPoint(event) {
-      return {
-        x: Number(event?.clientX ?? event?.detail?.clientX ?? 0),
-        y: Number(event?.clientY ?? event?.detail?.clientY ?? 0),
-      };
-    }
-
-    function onCanvasPointerDown(event) {
-      if (event.button !== 0 || mapData.dmEditMode?.active) return;
-      // A later real click always starts with a new mousedown, so stale suppression
-      // from a drag that never produced a browser click cannot leak forward.
-      suppressNextClickTokenId = null;
-      const token = tokenAtEvent(event);
-      if (!token || !isPlayerToken(token)) {
-        pointerDown = null;
-        return;
-      }
-      const point = pointerPoint(event);
-      pointerDown = { tokenId: clean(token.id), x: point.x, y: point.y };
-    }
-
-    function onCanvasPointerUp(event) {
-      if (!pointerDown || event.button !== 0) return;
-      const point = pointerPoint(event);
-      const distance = Math.hypot(point.x - pointerDown.x, point.y - pointerDown.y);
-      const token = tokenAtEvent(event);
-      const sameToken = !token || clean(token.id) === pointerDown.tokenId;
-      if (sameToken && distance >= 5) suppressNextClickTokenId = pointerDown.tokenId;
-      pointerDown = null;
-    }
-
     function onCanvasSelect(event) {
-      if (event.button !== 0 || mapData.dmEditMode?.active) return;
+      // Normal DM clicks are gameplay/control clicks. Observer selection only owns the click
+      // after FOLLOW or VIEW AS has explicitly armed selection mode.
+      if (!selectingMode || event.button !== 0 || mapData.dmEditMode?.active) return;
       const token = tokenAtEvent(event);
-      if (!token || !isPlayerToken(token)) return;
-      const tokenId = clean(token.id);
-      if (suppressNextClickTokenId && tokenId === suppressNextClickTokenId) {
-        suppressNextClickTokenId = null;
-        event.preventDefault?.();
-        event.stopPropagation?.();
-        return;
-      }
-      suppressNextClickTokenId = null;
+      if (!token) return;
+      if (selectingMode === MODES.VIEW_AS && !isPlayerToken(token)) return;
       event.preventDefault?.();
       event.stopPropagation?.();
-      if (selectingMode === MODES.FOLLOW) follow(token.id, 'clicked-follow');
-      else viewAs(token.id, 'clicked-view-as');
+      event.stopImmediatePropagation?.();
+      applySelected(token.id);
     }
 
     function ensurePanel() {
@@ -212,8 +189,8 @@
       panel = doc.createElement('section');
       panel.id = 'vtt-dm-observer';
       panel.setAttribute('aria-label', 'DM observer controls');
-      panel.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:36600;background:rgba(7,9,11,.96);border:1px solid #59636c;padding:7px;font:700 9px monospace;color:#dce3e8;display:grid;gap:5px;min-width:185px';
-      panel.innerHTML = '<strong>DM OBSERVER</strong><small id="vtt-dm-observer-status">FREE</small><div style="display:flex;gap:4px"><button type="button" data-dm-observer="free">FREE</button><button type="button" data-dm-observer="follow">FOLLOW</button></div><small>Click jugador = VIEW AS 120°</small>';
+      panel.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:36600;background:rgba(7,9,11,.96);border:1px solid #59636c;padding:7px;font:700 9px monospace;color:#dce3e8;display:grid;gap:5px;min-width:220px';
+      panel.innerHTML = '<strong>DM OBSERVER</strong><small id="vtt-dm-observer-status">FREE</small><div style="display:flex;gap:4px"><button type="button" data-dm-observer="free">FREE</button><button type="button" data-dm-observer="follow">FOLLOW</button><button type="button" data-dm-observer="view_as">VIEW AS</button></div><small>Normal click = select/move token · VIEW AS is explicit</small>';
       for (const button of panel.querySelectorAll('button')) {
         button.style.cssText = 'border:1px solid #59636c;background:#11161a;color:#dce3e8;font:700 9px monospace;padding:5px 7px;cursor:pointer';
       }
@@ -228,8 +205,9 @@
       if (!statusNode) return;
       const token = target();
       const name = clean(token?.name || token?.label || token?.id || targetId || '').toUpperCase();
-      if (selectingMode) statusNode.textContent = 'SELECT PLAYER · FOLLOW';
-      else if (mode === MODES.FREE) statusNode.textContent = 'FREE CAMERA · DM VISION';
+      if (selectingMode === MODES.FOLLOW) statusNode.textContent = 'SELECT TOKEN · FOLLOW';
+      else if (selectingMode === MODES.VIEW_AS) statusNode.textContent = 'SELECT PLAYER · VIEW AS 120°';
+      else if (mode === MODES.FREE) statusNode.textContent = 'FREE CAMERA · OMNISCIENT DM';
       else statusNode.textContent = `${mode === MODES.VIEW_AS ? 'VIEW AS 120°' : 'FOLLOW'} · ${name || '—'}`;
     }
 
@@ -237,6 +215,7 @@
       const action = event.target?.closest?.('[data-dm-observer]')?.dataset?.dmObserver;
       if (action === MODES.FREE) free('panel-free');
       else if (action === MODES.FOLLOW) select(MODES.FOLLOW);
+      else if (action === MODES.VIEW_AS) select(MODES.VIEW_AS);
     }
 
     function playerTokensOnLayer() {
@@ -288,10 +267,7 @@
       restoreRenderer = () => { renderer.render = original; };
     }
 
-    canvas.addEventListener('mousedown', onCanvasPointerDown, true);
-    canvas.addEventListener('mouseup', onCanvasPointerUp, true);
     canvas.addEventListener('click', onCanvasSelect, true);
-    canvas.addEventListener('vtt:token-preview-moved', onTokenState);
     canvas.addEventListener('vtt:token-moved', onTokenState);
     canvas.addEventListener('vtt:token-z-transition', onTokenState);
     canvas.addEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
@@ -305,12 +281,8 @@
       if (stopped) return;
       stopped = true;
       mapData.lighting.dmPreviewTokenId = null;
-      pointerDown = null;
-      suppressNextClickTokenId = null;
-      canvas.removeEventListener('mousedown', onCanvasPointerDown, true);
-      canvas.removeEventListener('mouseup', onCanvasPointerUp, true);
+      selectingMode = null;
       canvas.removeEventListener('click', onCanvasSelect, true);
-      canvas.removeEventListener('vtt:token-preview-moved', onTokenState);
       canvas.removeEventListener('vtt:token-moved', onTokenState);
       canvas.removeEventListener('vtt:token-z-transition', onTokenState);
       canvas.removeEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
@@ -318,6 +290,8 @@
       canvas.removeEventListener('vtt:procedural-chunk-loaded', onWorldTransition);
       restoreRenderer?.();
       restoreRenderer = null;
+      if (typeof originalViewerToken === 'function') engine.viewerToken = originalViewerToken;
+      delete engine.isDm;
       if (panel) panel.removeEventListener('click', onPanelClick);
       panel?.remove?.();
       panel = null;
