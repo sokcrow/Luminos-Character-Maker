@@ -1,0 +1,66 @@
+name: VTT Multiclient Realtime Field
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/token-state.js'
+      - 'js/vtt/token-state-dynamic-patch.js'
+      - 'js/vtt/player-discovery-core.js'
+      - 'js/vtt/player-discovery-runtime.js'
+      - 'js/vtt/regional-local-transition-runtime.js'
+      - 'js/vtt/engine.js'
+      - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_canonical_token_state.spec.js'
+      - 'tests/vtt_player_discovery_realtime.spec.js'
+      - 'tests/vtt_player_discovery_fog.spec.js'
+      - 'tests/vtt_map_field_test_sandbox.spec.js'
+      - 'tests/vtt_map_field_test_hardening.spec.js'
+      - 'tests/regional_local_transition_realtime.spec.js'
+      - 'tests/vtt_token_drag.spec.js'
+      - 'tests/vtt_performance_guard.spec.js'
+      - 'tests/vtt_map_theatre_lifecycle.spec.js'
+      - '.github/workflows/vtt-multiclient-realtime-field.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/vtt/token-state.js'
+      - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - '.github/workflows/vtt-multiclient-realtime-field.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  multiclient-realtime-field:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/token-state.js
+          node --check tests/vtt_multiclient_realtime_field.spec.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Multiclient Realtime ownership Fog transition and performance contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_multiclient_realtime_field.spec.js
+          tests/vtt_canonical_token_state.spec.js
+          tests/vtt_player_discovery_realtime.spec.js
+          tests/vtt_player_discovery_fog.spec.js
+          tests/vtt_map_field_test_sandbox.spec.js
+          tests/vtt_map_field_test_hardening.spec.js
+          tests/regional_local_transition_realtime.spec.js
+          tests/vtt_token_drag.spec.js
+          tests/vtt_performance_guard.spec.js
+          tests/vtt_map_theatre_lifecycle.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1

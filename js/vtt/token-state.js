@@ -151,6 +151,7 @@
         const mapId = firebaseKey(mapData.id || mapData.mapId || 'default', 'default');
         const current = identity(root);
         const subscriptions = [];
+        const playerStateSubscriptions = new Map();
         const template = clone((mapData.tokens || []).find(isCurrentPlayerTemplate) || null);
         const fixedTokenIds = new Set((mapData.tokens || []).filter((token) => !isCurrentPlayerTemplate(token)).map((token) => clean(token.id)).filter(Boolean));
         let started = false;
@@ -166,9 +167,11 @@
         const worldRef = () => db?.ref(`${WORLD_ROOT}/${mapId}`);
 
         function subscribe(ref, event, handler) {
-            if (!ref?.on) return;
+            if (!ref?.on) return () => {};
             ref.on(event, handler);
-            subscriptions.push(() => ref.off(event, handler));
+            const unsubscribe = () => ref.off(event, handler);
+            subscriptions.push(unsubscribe);
+            return unsubscribe;
         }
 
         function localViewerToken() {
@@ -183,60 +186,80 @@
             return Boolean(uidMatch || playerMatch);
         }
 
-        function syncPlayerRecords(rawRecord = {}) {
-            const records = rawRecord || {};
-            const keepIds = new Set();
+        function emitPlayerChange() {
+            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'players', tokens: mapData.tokens });
+        }
+
+        function removePlayerRecord(playerKey, { emit = true } = {}) {
+            const key = clean(playerKey);
+            if (!key) return false;
+            const ownTemplate = !isDm ? (mapData.tokens || []).find(isCurrentPlayerTemplate) : null;
+            const before = (mapData.tokens || []).length;
+            mapData.tokens = (mapData.tokens || []).filter((token) => {
+                if (token === ownTemplate) return true;
+                if (fixedTokenIds.has(clean(token.id))) return true;
+                if (token.canonicalScope !== 'player') return true;
+                return clean(token.canonicalPlayerKey || token.playerId) !== key;
+            });
+            if (emit && before !== mapData.tokens.length) emitPlayerChange();
+            return before !== mapData.tokens.length;
+        }
+
+        function syncSinglePlayerRecord(playerKey, record = null, { emit = true } = {}) {
+            const key = clean(playerKey || record?.playerId);
+            if (!key || !record?.position) return removePlayerRecord(key, { emit });
+            const playerId = clean(record.playerId || key);
+            const ownerUid = clean(record.ownerUid);
             const ownTemplate = !isDm ? (mapData.tokens || []).find(isCurrentPlayerTemplate) : null;
 
-            if (isDm && template) {
-                mapData.tokens = (mapData.tokens || []).filter((token) => !isCurrentPlayerTemplate(token));
+            if (!isDm && isOwnRecord(record, key) && ownTemplate) {
+                ownTemplate.ownerUid = ownerUid || ownTemplate.ownerUid || null;
+                ownTemplate.playerId = playerId || ownTemplate.playerId || current.playerId || null;
+                ownTemplate.actorId = clean(record.actorId) || ownTemplate.actorId || null;
+                ownTemplate.canonicalScope = 'player';
+                ownTemplate.canonicalPlayerKey = key || playerId || current.playerId;
+                ownTemplate.canonicalOwnerUid = ownerUid || current.uid || null;
+                ownTemplate.viewer = true;
+                applyPosition(ownTemplate, record.position);
+                mapData.tokens = (mapData.tokens || []).filter((token) => token === ownTemplate || clean(token.canonicalPlayerKey) !== ownTemplate.canonicalPlayerKey);
+                if (emit) emitPlayerChange();
+                return ownTemplate;
             }
 
-            Object.entries(records).forEach(([playerKey, record]) => {
-                if (!record?.position) return;
-                const playerId = clean(record.playerId || playerKey);
-                const ownerUid = clean(record.ownerUid);
+            const id = `player:${firebaseKey(playerId || ownerUid || key, 'unknown')}`;
+            let token = (mapData.tokens || []).find((entry) => clean(entry.id) === id || (entry.canonicalScope === 'player' && clean(entry.canonicalPlayerKey) === key));
+            if (!token) {
+                token = playerTokenFromRecord(template || ownTemplate || {}, key, record, current);
+                mapData.tokens ||= [];
+                mapData.tokens.push(token);
+            } else {
+                token.id = id;
+                token.ownerUid = ownerUid || null;
+                token.playerId = playerId || null;
+                token.actorId = clean(record.actorId) || token.actorId || null;
+                token.characterLink = { mode: 'player', uid: token.ownerUid, playerId: token.playerId, actorId: token.actorId };
+                token.canonicalScope = 'player';
+                token.canonicalPlayerKey = key || playerId;
+                token.canonicalOwnerUid = ownerUid || null;
+                token.viewer = Boolean(!isDm && isOwnRecord(record, key));
+                applyPosition(token, record.position);
+            }
+            if (emit) emitPlayerChange();
+            return token;
+        }
 
-                if (!isDm && isOwnRecord(record, playerKey) && ownTemplate) {
-                    ownTemplate.ownerUid = ownerUid || ownTemplate.ownerUid || null;
-                    ownTemplate.playerId = playerId || ownTemplate.playerId || current.playerId || null;
-                    ownTemplate.actorId = clean(record.actorId) || ownTemplate.actorId || null;
-                    ownTemplate.canonicalScope = 'player';
-                    ownTemplate.canonicalPlayerKey = clean(playerKey || playerId || current.playerId);
-                    ownTemplate.canonicalOwnerUid = ownerUid || current.uid || null;
-                    ownTemplate.viewer = true;
-                    applyPosition(ownTemplate, record.position);
-                    keepIds.add(clean(ownTemplate.id));
-                    return;
-                }
-
-                const id = `player:${firebaseKey(playerId || ownerUid || playerKey, 'unknown')}`;
-                keepIds.add(id);
-                let token = (mapData.tokens || []).find((entry) => clean(entry.id) === id);
-                if (!token) {
-                    token = playerTokenFromRecord(template || ownTemplate || {}, playerKey, record, current);
-                    mapData.tokens ||= [];
-                    mapData.tokens.push(token);
-                } else {
-                    token.ownerUid = ownerUid || null;
-                    token.playerId = playerId || null;
-                    token.actorId = clean(record.actorId) || token.actorId || null;
-                    token.canonicalScope = 'player';
-                    token.canonicalPlayerKey = clean(playerKey || playerId);
-                    token.canonicalOwnerUid = ownerUid || null;
-                    token.viewer = Boolean(!isDm && isOwnRecord(record, playerKey));
-                    applyPosition(token, record.position);
-                }
-            });
-
+        function syncPlayerRecords(rawRecord = {}) {
+            const records = rawRecord || {};
+            const keepKeys = new Set(Object.keys(records).filter((key) => records[key]?.position).map(clean));
+            if (isDm && template) mapData.tokens = (mapData.tokens || []).filter((token) => !isCurrentPlayerTemplate(token));
+            Object.entries(records).forEach(([playerKey, record]) => syncSinglePlayerRecord(playerKey, record, { emit: false }));
             mapData.tokens = (mapData.tokens || []).filter((token) => {
                 if (fixedTokenIds.has(clean(token.id))) return true;
                 if (!isDm && isCurrentPlayerTemplate(token)) return true;
-                if (token.canonicalScope === 'player') return keepIds.has(clean(token.id));
+                if (token.canonicalScope === 'player') return keepKeys.has(clean(token.canonicalPlayerKey || token.playerId));
                 return true;
             });
-
-            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'players', tokens: mapData.tokens });
+            emitPlayerChange();
         }
 
         function syncWorldRecords(rawRecord = {}) {
@@ -250,6 +273,26 @@
                 applyPosition(token, record.position);
             });
             if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'world', tokens: mapData.tokens });
+        }
+
+        function unwatchPlayerState(playerKey) {
+            const key = clean(playerKey);
+            const unsubscribe = playerStateSubscriptions.get(key);
+            if (!unsubscribe) return false;
+            unsubscribe();
+            playerStateSubscriptions.delete(key);
+            return true;
+        }
+
+        function watchPlayerState(playerKey) {
+            const key = clean(playerKey);
+            if (!db || !key || playerStateSubscriptions.has(key)) return false;
+            const ref = playerStateRef(key);
+            if (!ref?.on) return false;
+            const handler = (snapshot) => syncSinglePlayerRecord(key, snapshot.val() || null);
+            ref.on('value', handler);
+            playerStateSubscriptions.set(key, () => ref.off('value', handler));
+            return true;
         }
 
         async function seedOwnPlayerIfNeeded() {
@@ -327,7 +370,12 @@
             started = true;
             if (!db) return false;
 
-            subscribe(playersRootRef(), 'value', (snapshot) => syncPlayerRecords(extractPlayerRecords(snapshot.val() || {}, mapId)));
+            if (isDm && template) mapData.tokens = (mapData.tokens || []).filter((token) => !isCurrentPlayerTemplate(token));
+            subscribe(playersRootRef(), 'child_added', (snapshot) => watchPlayerState(snapshot.key));
+            subscribe(playersRootRef(), 'child_removed', (snapshot) => {
+                unwatchPlayerState(snapshot.key);
+                removePlayerRecord(snapshot.key);
+            });
             subscribe(worldRef(), 'value', (snapshot) => syncWorldRecords(snapshot.val() || {}));
             seedOwnPlayerIfNeeded().catch((error) => console.error('VTT player token seed failed:', error));
             seedWorldIfNeeded().catch((error) => console.error('VTT world token seed failed:', error));
@@ -335,6 +383,8 @@
         }
 
         function stop() {
+            playerStateSubscriptions.forEach((unsubscribe) => unsubscribe());
+            playerStateSubscriptions.clear();
             subscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
             started = false;
         }
@@ -347,6 +397,9 @@
             stop,
             saveToken,
             syncPlayerRecords,
+            syncSinglePlayerRecord,
+            removePlayerRecord,
+            watchPlayerState,
             syncWorldRecords,
             notify: emitNotice,
         });
