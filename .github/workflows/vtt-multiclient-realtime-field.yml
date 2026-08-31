@@ -11,10 +11,12 @@ on:
       - 'js/vtt/engine.js'
       - 'js/vtt/movement-bootstrap.js'
       - 'js/vtt/movement-realtime.js'
+      - 'js/vtt/movement-connectivity.js'
       - 'js/vtt/movement-rules.js'
       - 'js/vtt/movement-rules-runtime.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
       - 'tests/vtt_movement_realtime.spec.js'
+      - 'tests/vtt_movement_connectivity.spec.js'
       - 'tests/vtt_movement_pathfinding.spec.js'
       - 'tests/vtt_movement_rules_closure.spec.js'
       - 'tests/vtt_canonical_token_state.spec.js'
@@ -36,10 +38,12 @@ on:
       - 'js/vtt/engine.js'
       - 'js/vtt/movement-bootstrap.js'
       - 'js/vtt/movement-realtime.js'
+      - 'js/vtt/movement-connectivity.js'
       - 'js/vtt/movement-rules.js'
       - 'js/vtt/movement-rules-runtime.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
       - 'tests/vtt_movement_realtime.spec.js'
+      - 'tests/vtt_movement_connectivity.spec.js'
       - 'tests/vtt_movement_rules_closure.spec.js'
       - '.github/workflows/vtt-multiclient-realtime-field.yml'
 
@@ -63,10 +67,12 @@ jobs:
         run: |
           node --check js/vtt/token-state.js
           node --check js/vtt/movement-realtime.js
+          node --check js/vtt/movement-connectivity.js
           node --check js/vtt/movement-rules.js
           node --check js/vtt/movement-rules-runtime.js
           node --check tests/vtt_multiclient_realtime_field.spec.js
           node --check tests/vtt_movement_realtime.spec.js
+          node --check tests/vtt_movement_connectivity.spec.js
           node --check tests/vtt_movement_rules_closure.spec.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -74,6 +80,7 @@ jobs:
         run: >-
           npx playwright test --workers=1
           tests/vtt_movement_realtime.spec.js
+          tests/vtt_movement_connectivity.spec.js
           tests/vtt_movement_pathfinding.spec.js
           tests/vtt_movement_rules_closure.spec.js
           tests/vtt_multiclient_realtime_field.spec.js
