@@ -82,6 +82,16 @@ test('allies may be traversed but an occupied destination is never legal', () =>
   expect(endOnAlly).toMatchObject({ valid: false, reason: 'OCCUPIED_DESTINATION' });
 });
 
+test('ally radius overlap does not block transit but still blocks the final occupied space', () => {
+  const mapData = lineMap(4);
+  const mover = token('mover', 0, { teamId: 'A', radius: 30 });
+  const ally = token('ally', 1, { teamId: 'A', radius: 30 });
+  mapData.tokens = [mover, ally];
+  const through = pathfinding.findPath({ token: mover, start: mover, target: { x: 245, y: 35 }, mapData });
+  expect(through.valid).toBe(true);
+  expect(pathfinding.findPath({ token: mover, start: mover, target: ally, mapData })).toMatchObject({ valid: false, reason: 'OCCUPIED_DESTINATION' });
+});
+
 test('hostiles block traversal unless mover is at least two size categories smaller; destination remains forbidden', () => {
   const mapData = lineMap(3);
   const medium = token('medium', 0, { teamId: 'A', size: 'medium' });
@@ -111,6 +121,7 @@ test('round start is retained, actual path cost is spent, and reset returns to t
   mover.x = 175;
   mover.gridPosition = { col: 2, row: 0, z: 0 };
   expect(mover.movementTurnHistory).toHaveLength(1);
+  expect(mover.pendingMovementClaim).toMatchObject({ movementCostFt: 10, to: { col: 2, row: 0 } });
 
   expect(movement.dash(mover, world, { actionType: 'quick_action' })).toMatchObject({ valid: true, actionType: 'quick_action', noise: 'high' });
   const reset = movement.resetMovement(mover, world);
@@ -118,6 +129,37 @@ test('round start is retained, actual path cost is spent, and reset returns to t
   expect(mover).toMatchObject({ x: 35, y: 35, gridPosition: { col: 0, row: 0, z: 0 }, movementRemainingFt: 30 });
   expect(mover.movementState.dashed).toBe(false);
   expect(mover.movementTurnHistory).toEqual([]);
+  expect(mover.pendingMovementClaim).toBeUndefined();
+});
+
+test('temporary round-to-free toggle preserves the same round origin, budget and Dash metadata', () => {
+  const mover = token('mover', 0, { speedFt: 30 });
+  const world = movement.normalizeWorldState({ mode: 'round', roundId: 8 });
+  movement.beginRound(mover, 8);
+  expect(movement.dash(mover, world, { actionType: 'action' }).valid).toBe(true);
+  movement.spend(mover, 15, world);
+  const start = movement.movementStart(mover);
+  expect(mover.movementRemainingFt).toBe(45);
+
+  movement.setFreeMode(mover);
+  expect(mover.movementRemainingFt).toBeUndefined();
+  const resumed = movement.ensureRound(mover, world);
+  expect(resumed.remainingFt).toBe(45);
+  expect(movement.movementStart(mover)).toEqual(start);
+  expect(mover.dashActionType).toBe('action');
+});
+
+test('new round clears stale Dash metadata and recreates a missing turn origin', () => {
+  const mover = token('mover', 0, { speedFt: 30 });
+  movement.beginRound(mover, 4);
+  mover.dashActionType = 'quick_action';
+  delete mover.movementTurnStart;
+  const sameRound = movement.ensureRound(mover, { mode: 'round', roundId: 4 });
+  expect(sameRound.roundId).toBe(4);
+  expect(mover.movementTurnStart).toBeTruthy();
+  movement.beginRound(mover, 5);
+  expect(mover.dashActionType).toBeUndefined();
+  expect(mover.activeActionMovementMode).toBeUndefined();
 });
 
 test('route over remaining combat movement is rejected instead of clipping or teleporting', () => {
@@ -128,6 +170,35 @@ test('route over remaining combat movement is rejected instead of clipping or te
   movement.beginRound(mover, 1);
   const plan = movement.planMove({ token: mover, start: mover, target: { x: 315, y: 35 }, mapData, worldState: world });
   expect(plan).toMatchObject({ valid: false, reason: 'INSUFFICIENT_MOVEMENT', movementCostFt: 20, remainingFt: 10 });
+});
+
+test('raw out-of-bounds destinations are rejected before grid snapping can clamp them', () => {
+  const mapData = lineMap(3);
+  const mover = token('mover', 1);
+  mapData.tokens = [mover];
+  for (const target of [
+    { x: -1, y: 35 },
+    { x: 210, y: 35 },
+    { x: 35, y: -1 },
+    { x: 35, y: 70 },
+    { col: -1, row: 0 },
+    { col: 3, row: 0 },
+  ]) {
+    expect(movement.planMove({ token: mover, start: mover, target, mapData, worldState: { mode: 'free' } })).toMatchObject({ valid: false, reason: 'OUT_OF_BOUNDS' });
+  }
+});
+
+test('an active partial vertical route resumes in place without charging a horizontal A* route', () => {
+  const mapData = lineMap(3);
+  const mover = token('mover', 1, {
+    movementRemainingFt: 10,
+    verticalMovement: { routeId: 'stairs-1', fromZ: 0, toZ: 1, progressFt: 10, totalFt: 20, costSpentFt: 10 },
+  });
+  mapData.tokens = [mover];
+  const plan = movement.planMove({ token: mover, start: { x: mover.x, y: mover.y }, target: { x: 175, y: 35 }, mapData, worldState: { mode: 'round', roundId: 1 } });
+  expect(plan).toMatchObject({ valid: true, verticalResume: true, movementCostFt: 0, routeCostFt: 0 });
+  expect(plan.path).toHaveLength(1);
+  expect(plan.path[0]).toMatchObject({ x: mover.x, y: mover.y });
 });
 
 test('walk stops before a closed door instead of rejecting the entire route', () => {
@@ -166,6 +237,7 @@ test('walk/dash door primitive contract matches action and noise rules', () => {
   expect(rules.doorTraversal({ mode: 'walk', door: { state: 'closed', locked: false } })).toMatchObject({ valid: false, actionRequired: true, reason: 'DOOR_ACTION_REQUIRED' });
   expect(rules.doorTraversal({ mode: 'dash', dashActive: true, remainingFt: 20, door: { state: 'closed', locked: false } })).toMatchObject({ valid: true, opensDoor: true, burstOpen: true, continueMovement: true, noise: 'high', soundEvent: 'DASH_DOOR_BURST' });
   expect(rules.doorTraversal({ mode: 'dash', dashActive: true, door: { state: 'locked', locked: true } })).toMatchObject({ valid: false, reason: 'DOOR_LOCKED' });
+  expect(rules.doorTraversal({ mode: 'walk', door: { state: 'broken' } })).toMatchObject({ valid: true, continueMovement: true, actionRequired: false });
 });
 
 test('memory is stale geometry only, minimap is a separate unlock, and unsaved empty zones may regenerate', () => {
@@ -180,6 +252,7 @@ test('memory is stale geometry only, minimap is a separate unlock, and unsaved e
 test('runtime drag contract keeps token stationary until release and then animates traversal previews', () => {
   const engineSource = read('js/vtt/engine.js');
   const bootstrapSource = read('js/vtt/movement-bootstrap.js');
+  const mainSource = read('js/vtt/main.js');
   expect(engineSource).toContain('if (this.tokenMoveResolver)');
   expect(engineSource).toContain("CustomEvent('vtt:movement-destination-preview'");
   expect(engineSource).toContain('await this.tokenMoveResolver');
@@ -191,4 +264,7 @@ test('runtime drag contract keeps token stationary until release and then animat
   expect(bootstrapSource).toContain('RESET MOVE');
   expect(bootstrapSource).toContain("preview.valid ? '#55ff80' : '#ff5f5f'");
   expect(bootstrapSource).toContain('isActiveCombatTurn(token)');
+  expect(mainSource).toContain("import './movement-connectivity.js'");
+  expect(mainSource).toContain("import './movement-destination-claims.js'");
+  expect(mainSource.indexOf("import './movement-destination-claims.js'")).toBeLessThan(mainSource.indexOf('document.addEventListener'));
 });
