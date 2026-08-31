@@ -1,3 +1,5 @@
+import './movement-realtime.js';
+
 export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.engine?.mapData } = {}) {
   if (!runtime?.engine || !mapData) return null;
   const movement = window.LuminousVttMovementEngine;
@@ -10,6 +12,16 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   const camera = engine.camera;
   const canvas = engine.canvas;
   const isDm = Boolean(runtime.bridge?.isDm);
+  const movementRealtimeApi = window.LuminousVttMovementRealtime;
+  const movementRealtimeIdentity = movementRealtimeApi?.identity?.(window) || {};
+  const movementRealtime = movementRealtimeApi?.createController?.({
+    mapData,
+    canvas,
+    engine,
+    isDm,
+    root: window,
+  }) || null;
+  const realtimeCommits = new Map();
   mapData.movement ||= {};
   if (!mapData.movement.diagonalRule) mapData.movement.diagonalRule = '5e';
   if (mapData.movement.blockTokens == null) mapData.movement.blockTokens = true;
@@ -177,6 +189,72 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     ctx.restore();
   }
 
+  function realtimeKey(token) {
+    return movementRealtimeApi?.logicalTokenKey?.(token, movementRealtimeIdentity) || String(token?.id || '');
+  }
+
+  function realtimePosition(token) {
+    return movementRealtimeApi?.snapshotPosition?.(token) || {
+      x: Number(token?.x) || 0,
+      y: Number(token?.y) || 0,
+      zLayer: Number(token?.zLayer ?? token?.gridPosition?.z ?? token?.z?.[0]) || 0,
+    };
+  }
+
+  function sameRealtimePosition(a = {}, b = {}) {
+    return Math.abs((Number(a.x) || 0) - (Number(b.x) || 0)) < 0.01
+      && Math.abs((Number(a.y) || 0) - (Number(b.y) || 0)) < 0.01
+      && Number(a.zLayer ?? a.z?.[0] ?? 0) === Number(b.zLayer ?? b.z?.[0] ?? 0);
+  }
+
+  function settleRealtimeCommit(key, error = null) {
+    const pendingCommit = realtimeCommits.get(key);
+    if (!pendingCommit) return false;
+    realtimeCommits.delete(key);
+    clearTimeout(pendingCommit.timeoutId);
+    if (error) pendingCommit.reject(error);
+    else pendingCommit.resolve({ valid: true, source: 'canonical-sync' });
+    return true;
+  }
+
+  function onRealtimeTokenMoved(event) {
+    const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(event.detail?.tokenId));
+    if (!token || !movementRealtime?.previewRefForToken?.(token)) return;
+    const key = realtimeKey(token);
+    if (!key) return;
+    settleRealtimeCommit(key, new Error('REALTIME_MOVEMENT_SUPERSEDED'));
+    let resolveCanonical;
+    let rejectCanonical;
+    const canonicalPromise = new Promise((resolve, reject) => {
+      resolveCanonical = resolve;
+      rejectCanonical = reject;
+    });
+    const pendingCommit = {
+      token,
+      expected: realtimePosition(token),
+      resolve: resolveCanonical,
+      reject: rejectCanonical,
+      timeoutId: setTimeout(() => {
+        if (realtimeCommits.get(key) !== pendingCommit) return;
+        realtimeCommits.delete(key);
+        rejectCanonical(new Error('REALTIME_CANONICAL_TIMEOUT'));
+      }, 2500),
+    };
+    realtimeCommits.set(key, pendingCommit);
+    void movementRealtime.finalizeToken(token, () => canonicalPromise).catch((error) => {
+      settleRealtimeCommit(key);
+      console.warn('VTT realtime movement finalization failed:', error);
+    });
+  }
+
+  function onRealtimeCanonicalSync() {
+    for (const [key, pendingCommit] of [...realtimeCommits.entries()]) {
+      const token = (mapData.tokens || []).find((entry) => realtimeKey(entry) === key);
+      if (!token || !sameRealtimePosition(realtimePosition(token), pendingCommit.expected)) continue;
+      settleRealtimeCommit(key);
+    }
+  }
+
   const previousRender = renderer.render.bind(renderer);
   renderer.render = function movementRender(...args) {
     previousRender(...args);
@@ -193,16 +271,20 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
+  canvas.addEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
   canvas.addEventListener('vtt:token-moved', onTokenMoved);
 
   injectUi();
   stateBridge.start();
+  movementRealtime?.start?.();
   applyWorldState(stateBridge.current());
 
   const api = Object.freeze({
     engine: movement,
     pathfinding,
     stateBridge,
+    realtime: movementRealtime,
     worldState,
     nextRound: () => stateBridge.nextRound(),
     setMode: (mode) => stateBridge.setMode(mode),
@@ -213,9 +295,13 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     plan: (options) => movement.planMove({ ...options, mapData, worldState: worldState() }),
     stop() {
       clearTimeout(noticeTimer);
+      for (const key of [...realtimeCommits.keys()]) settleRealtimeCommit(key, new Error('REALTIME_RUNTIME_STOPPED'));
+      movementRealtime?.stop?.();
       stateBridge.stop();
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
+      canvas.removeEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
       canvas.removeEventListener('vtt:token-moved', onTokenMoved);
       renderer.render = previousRender;
       document.getElementById('vtt-world-time-status')?.remove();
