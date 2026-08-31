@@ -197,9 +197,8 @@ test('VTT main owns an explicit parent-callable teardown and page lifecycle fall
   expect(source).toContain('dispose: disposeRuntime');
   expect(source).toContain("window.addEventListener('pagehide', handlePageHide");
   expect(source).toContain("window.addEventListener('beforeunload', handleBeforeUnload");
-  expect(source).toContain("await lifecycle.run('map-authoring'");
-  expect(source).toContain("await lifecycle.run('procedural-generator'");
-  expect(source).toContain("await lifecycle.run('world-objects'");
+  expect(source).toContain('const stopIfDisposed = (runtime');
+  expect(source).toContain('if (lifecycle.isDisposed()) return null');
   expect(source).toContain("window.removeEventListener('mousemove', engine.handleTokenMouseMove)");
 });
 
