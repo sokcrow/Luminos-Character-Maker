@@ -261,14 +261,15 @@ test.describe('VTT world token multiclient stress', () => {
     const worldPath = `${tokenState.WORLD_ROOT}/alpha`;
     const listeners = shared.listenersAt(worldPath);
     expect(listeners.value).toBe(0);
-    expect(listeners.child_added).toBe(18);
+    expect(listeners.child_added).toBe(9);
     expect(listeners.child_changed).toBe(18);
     expect(listeners.child_removed).toBe(9);
 
     const baseSource = read('js/vtt/token-state.js');
     const dynamicSource = read('js/vtt/token-state-dynamic-patch.js');
     expect(baseSource).not.toContain("subscribe(worldRef(), 'value'");
-    expect(baseSource).toContain("subscribe(worldRef(), 'child_added'");
+    expect(baseSource).not.toContain("subscribe(worldRef(), 'child_added'");
+    expect(baseSource).toContain("worldRef().once('value')");
     expect(baseSource).toContain("subscribe(worldRef(), 'child_changed'");
     expect(dynamicSource).not.toContain("db.ref(worldPath).on('value'");
     expect(dynamicSource).toContain("listen('child_added'");
