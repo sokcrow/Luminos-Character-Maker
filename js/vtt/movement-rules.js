@@ -98,6 +98,79 @@
     return { valid: false, continueMovement: false, actionRequired: true, opensDoor: false, reason: 'DOOR_ACTION_REQUIRED', noise: 'none' };
   }
 
+  function orientation(a, b, c) {
+    const value = ((finite(b.y) - finite(a.y)) * (finite(c.x) - finite(b.x))) - ((finite(b.x) - finite(a.x)) * (finite(c.y) - finite(b.y)));
+    if (Math.abs(value) < 1e-9) return 0;
+    return value > 0 ? 1 : 2;
+  }
+
+  function onSegment(a, b, c) {
+    return finite(b.x) <= Math.max(finite(a.x), finite(c.x)) + 1e-9
+      && finite(b.x) + 1e-9 >= Math.min(finite(a.x), finite(c.x))
+      && finite(b.y) <= Math.max(finite(a.y), finite(c.y)) + 1e-9
+      && finite(b.y) + 1e-9 >= Math.min(finite(a.y), finite(c.y));
+  }
+
+  function segmentsIntersect(a, b, c, d) {
+    const o1 = orientation(a, b, c);
+    const o2 = orientation(a, b, d);
+    const o3 = orientation(c, d, a);
+    const o4 = orientation(c, d, b);
+    if (o1 !== o2 && o3 !== o4) return true;
+    if (o1 === 0 && onSegment(a, c, b)) return true;
+    if (o2 === 0 && onSegment(a, d, b)) return true;
+    if (o3 === 0 && onSegment(c, a, d)) return true;
+    if (o4 === 0 && onSegment(c, b, d)) return true;
+    return false;
+  }
+
+  function topologyElementLayer(element = {}, zLayer = 0) {
+    const layers = Array.isArray(element.z) ? element.z.map(Number) : [Number(element.z ?? 0)];
+    return layers.includes(Number(zLayer));
+  }
+
+  function doorSegment(door = {}, grid = {}) {
+    const size = Math.max(1, finite(grid.size, 70));
+    return {
+      a: { x: finite(door.from?.col) * size, y: finite(door.from?.row) * size },
+      b: { x: finite(door.to?.col) * size, y: finite(door.to?.row) * size },
+    };
+  }
+
+  function doorCrossings(path = [], mapData = {}, zLayer = 0) {
+    const points = Array.isArray(path) ? path : [];
+    if (points.length < 2) return [];
+    const doors = (Array.isArray(mapData.topology) ? mapData.topology : []).filter((element) => clean(element?.type) === 'door' && topologyElementLayer(element, zLayer));
+    const results = [];
+    for (let pathIndex = 0; pathIndex < points.length - 1; pathIndex += 1) {
+      const from = points[pathIndex];
+      const to = points[pathIndex + 1];
+      for (const door of doors) {
+        const segment = doorSegment(door, mapData.grid || {});
+        if (!segmentsIntersect(from, to, segment.a, segment.b)) continue;
+        if (results.some((entry) => String(entry.door?.id || '') === String(door.id || '') && entry.pathIndex === pathIndex)) continue;
+        results.push({ door, pathIndex, from, to, state: clean(door.state || 'closed') || 'closed' });
+      }
+    }
+    return results;
+  }
+
+  function mapWithPassableDoors(mapData = {}, predicate = () => true) {
+    return {
+      ...mapData,
+      topology: (Array.isArray(mapData.topology) ? mapData.topology : []).map((element) => {
+        if (clean(element?.type) !== 'door' || !predicate(element)) return element;
+        return { ...element, state: 'open' };
+      }),
+    };
+  }
+
+  function truncateBeforeDoor(path = [], crossing = null) {
+    if (!crossing || !Array.isArray(path) || !path.length) return Array.isArray(path) ? [...path] : [];
+    const stopIndex = Math.max(0, Math.min(path.length - 1, Math.trunc(finite(crossing.pathIndex, 0))));
+    return path.slice(0, stopIndex + 1);
+  }
+
   function snapshotTurnStart(token = {}) {
     return {
       x: finite(token.x),
@@ -129,6 +202,11 @@
     compareSpaceClaims,
     resolveSpaceClaim,
     doorTraversal,
+    segmentsIntersect,
+    doorSegment,
+    doorCrossings,
+    mapWithPassableDoors,
+    truncateBeforeDoor,
     snapshotTurnStart,
     rememberVisibility,
     zoneShouldPersist,
