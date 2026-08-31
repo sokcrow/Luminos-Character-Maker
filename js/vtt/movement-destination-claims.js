@@ -107,8 +107,10 @@
       const schedule = typeof options.movementClaimSchedule === 'function'
         ? options.movementClaimSchedule
         : (fn, ms) => setTimeout(fn, ms);
+      const reservations = new Map();
 
       function rulesRuntime() { return host?.LuminousVttMovementRules || null; }
+      function tokenKey(token = {}) { return clean(token.id || token.canonicalPlayerKey || token.playerId || bridge.identity?.playerId); }
 
       function candidateFor(token, pending, cell) {
         const timestamp = Math.max(0, Math.trunc(now()));
@@ -125,6 +127,7 @@
           locked: false,
           committed: false,
           cell,
+          localId: clean(pending.localId) || null,
           from: clone(pending.from || null),
           to: clone(pending.to || null),
           movementCostFt: Math.max(0, finite(pending.movementCostFt, 0)),
@@ -193,24 +196,60 @@
         options.onTokensChanged?.({ scope: 'movement-claim', tokenId: token?.id || null, reason, reverted: true });
       }
 
+      async function reserveMovementDestinationClaim(token, pending = token?.pendingMovementClaim) {
+        if (!pending) return { valid: true, skipped: true };
+        const key = tokenKey(token);
+        if (!key) return { valid: false, reason: 'MOVEMENT_CLAIM_TOKEN_KEY_REQUIRED' };
+        const existing = reservations.get(key);
+        if (existing && clean(existing.localId) === clean(pending.localId)) return { valid: true, reused: true, reservation: existing };
+        if (existing) {
+          await releaseClaim(existing).catch(() => false);
+          reservations.delete(key);
+        }
+        const reservation = await acquireClaim(token, pending);
+        if (!reservation.valid) return reservation;
+        reservation.localId = clean(pending.localId) || null;
+        reservations.set(key, reservation);
+        return { valid: true, reservation };
+      }
+
+      async function cancelMovementDestinationClaim(token, optionsValue = {}) {
+        const key = tokenKey(token);
+        const reservation = key ? reservations.get(key) : null;
+        if (reservation) {
+          reservations.delete(key);
+          await releaseClaim(reservation);
+        }
+        if (optionsValue.rollback === true && token?.pendingMovementClaim) rollback(token, token.pendingMovementClaim, optionsValue.reason || 'MOVEMENT_DESTINATION_CLAIM_CANCELLED');
+        else if (token) delete token.pendingMovementClaim;
+        return { valid: true, released: Boolean(reservation) };
+      }
+
       async function saveWithClaim(token, saveCanonical) {
         const pending = token?.pendingMovementClaim;
         if (!pending) return saveCanonical();
-        const reservation = await acquireClaim(token, pending);
-        if (!reservation.valid) {
-          rollback(token, pending, reservation.reason);
-          const error = new Error(reservation.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST');
-          error.claim = reservation.occupant || null;
-          throw error;
+        const key = tokenKey(token);
+        let reservation = key ? reservations.get(key) : null;
+        if (!reservation || clean(reservation.localId) !== clean(pending.localId)) {
+          const reserved = await reserveMovementDestinationClaim(token, pending);
+          if (!reserved.valid) {
+            rollback(token, pending, reserved.reason);
+            const error = new Error(reserved.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST');
+            error.claim = reserved.occupant || null;
+            throw error;
+          }
+          reservation = reserved.reservation;
         }
         try {
           const result = await saveCanonical();
           const committed = await markCommitted(reservation);
           if (!committed) throw new Error('MOVEMENT_DESTINATION_CLAIM_COMMIT_LOST');
+          if (key) reservations.delete(key);
           delete token.pendingMovementClaim;
           schedule(() => { void releaseClaim(reservation); }, postCommitHoldMs);
           return { ...result, destinationClaim: { valid: true, cell: reservation.candidate.cell, authority: reservation.candidate.authority } };
         } catch (error) {
+          if (key) reservations.delete(key);
           await releaseClaim(reservation);
           rollback(token, pending, error?.message || 'MOVEMENT_CANONICAL_SAVE_FAILED');
           throw error;
@@ -226,12 +265,22 @@
         return saveWithClaim(token, saver);
       }
 
+      function stop() {
+        for (const reservation of reservations.values()) void releaseClaim(reservation);
+        reservations.clear();
+        return bridge.stop?.();
+      }
+
       return Object.freeze({
         ...bridge,
+        stop,
         saveToken,
         createWorldToken,
         acquireMovementDestinationClaim: acquireClaim,
+        reserveMovementDestinationClaim,
+        cancelMovementDestinationClaim,
         releaseMovementDestinationClaim: releaseClaim,
+        movementDestinationReservationCount: () => reservations.size,
       });
     }
 
