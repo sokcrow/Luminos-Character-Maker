@@ -1,4 +1,6 @@
 const DEFAULT_ACTIVE_FRAME_MS = 1000 / 30;
+const DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20;
+const DEFAULT_IDLE_SCAN_MS = 1000 / 15;
 const STATIC_SIGNATURE_TTL_MS = 100;
 
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -53,6 +55,46 @@ function hasActiveLightingAnimation(mapData = {}, now = Date.now()) {
   });
 }
 
+function isDmRuntime(runtime = {}) {
+  return Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm || runtime?.tokenStateBridge?.isDm);
+}
+
+function dmFreeVision(runtime = {}, mapData = {}) {
+  return isDmRuntime(runtime) && !clean(mapData?.lighting?.dmPreviewTokenId);
+}
+
+export function dmOmniscientVision(mapData = {}) {
+  const size = Math.max(1, numberOr(mapData.grid?.size, 70));
+  const width = Math.max(size, numberOr(mapData.grid?.cols, 1) * size);
+  const height = Math.max(size, numberOr(mapData.grid?.rows, 1) * size);
+  const center = { x: width / 2, y: height / 2 };
+  return Object.freeze({
+    visible: true,
+    dmOmniscient: true,
+    perceptionMode: 'dm-omniscient',
+    crossLayer: false,
+    monochrome: false,
+    tokenPos: center,
+    visionRadius: Math.hypot(width, height) + Math.max(width, height),
+    fovPolygon: [
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height },
+    ],
+    senses: { dmOmniscient: true },
+  });
+}
+
+function visualAnimationActive(engine, mapData, now = Date.now()) {
+  return Boolean(engine?.tokenMotion || engine?.tokenDrag) || hasActiveLightingAnimation(mapData, now);
+}
+
+function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS) {
+  if (engine?.tokenMotion) return Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS);
+  return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
+}
+
 export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL_MS) {
   let at = -Infinity;
   let value = '';
@@ -98,31 +140,58 @@ export function frameFingerprint({ engine, mapData, now = Date.now(), staticSign
   });
 }
 
-export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntime, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS } = {}) {
+export function installPerformanceGuard({
+  runtime = globalThis.LuminousVttRuntime,
+  activeFrameMs = DEFAULT_ACTIVE_FRAME_MS,
+  movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS,
+  idleScanMs = DEFAULT_IDLE_SCAN_MS,
+} = {}) {
   const engine = runtime?.engine;
   const renderer = engine?.renderer;
   const mapData = engine?.mapData;
   if (!engine || !renderer || !mapData || renderer.__performanceGuardInstalled) return null;
 
   const originalRender = renderer.render.bind(renderer);
+  const originalCalculateVision = typeof engine.calculateVision === 'function' ? engine.calculateVision.bind(engine) : null;
   const signatureCache = createStaticSignatureCache(mapData);
-  const metrics = { calls: 0, rendered: 0, skipped: 0, throttled: 0, lastRenderAt: 0 };
+  const metrics = {
+    calls: 0,
+    rendered: 0,
+    skipped: 0,
+    throttled: 0,
+    lastRenderAt: 0,
+    visionCalls: 0,
+    visionComputed: 0,
+    visionSkipped: 0,
+    dmVisionBypassed: 0,
+  };
   let lastFingerprint = '';
   let lastRenderAt = -Infinity;
+  let lastIdleScanAt = -Infinity;
+  let lastVisionAt = -Infinity;
+  let visionCache = null;
+  let hasVisionCache = false;
+  let renderDirty = true;
+  let visionDirty = true;
   let stopped = false;
 
   const invalidate = () => {
-    lastFingerprint = '';
+    renderDirty = true;
+    visionDirty = true;
     signatureCache.invalidate();
   };
 
   const interactionInvalidate = () => {
-    if (engine.tokenDrag || mapData.dmEditMode?.active) invalidate();
+    if (engine.tokenDrag || engine.tokenMotion || mapData.dmEditMode?.active) invalidate();
   };
 
   const events = [
+    'vtt:token-preview-moved',
     'vtt:token-moved',
     'vtt:token-z-transition',
+    'vtt:canonical-tokens-synced',
+    'vtt:camera-follow-changed',
+    'vtt:dm-observer-changed',
     'vtt:procedural-chunk-loaded',
     'vtt:procedural-chunk-transition',
     'vtt:memory-learn',
@@ -134,20 +203,65 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
   globalThis.addEventListener?.('keyup', invalidate);
   globalThis.addEventListener?.('mousemove', interactionInvalidate, { passive: true });
 
+  if (originalCalculateVision) {
+    engine.calculateVision = function guardedCalculateVision(...args) {
+      metrics.visionCalls += 1;
+      if (dmFreeVision(runtime, mapData)) {
+        metrics.dmVisionBypassed += 1;
+        visionCache = dmOmniscientVision(mapData);
+        hasVisionCache = true;
+        visionDirty = false;
+        return visionCache;
+      }
+
+      const perfNow = globalThis.performance?.now?.() ?? Date.now();
+      const wallNow = Date.now();
+      const active = visualAnimationActive(engine, mapData, wallNow);
+      const minimumInterval = active
+        ? activeFrameInterval(engine, activeFrameMs, movementFrameMs)
+        : Math.max(1, Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
+      if (hasVisionCache && (perfNow - lastVisionAt) < minimumInterval) {
+        metrics.visionSkipped += 1;
+        return visionCache;
+      }
+      if (hasVisionCache && !visionDirty && !active) {
+        metrics.visionSkipped += 1;
+        return visionCache;
+      }
+
+      visionCache = originalCalculateVision(...args);
+      hasVisionCache = true;
+      lastVisionAt = perfNow;
+      visionDirty = false;
+      metrics.visionComputed += 1;
+      return visionCache;
+    };
+  }
+
   renderer.render = function guardedRender(...args) {
     metrics.calls += 1;
     const perfNow = globalThis.performance?.now?.() ?? Date.now();
     const wallNow = Date.now();
-    const fingerprint = frameFingerprint({ engine, mapData, now: wallNow, staticSignature: signatureCache.value(perfNow) });
-    const changed = fingerprint !== lastFingerprint;
-    const active = Boolean(engine.tokenDrag) || hasActiveLightingAnimation(mapData, wallNow);
+    const active = visualAnimationActive(engine, mapData, wallNow);
+    const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
+    const idleInterval = Math.max(Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS), Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
 
-    if (!changed && !active) {
+    // Important: reject excess animation frames before building token/topology JSON signatures.
+    // Token interpolation stays RAF-smooth, but Dynamic Lighting/Fog heavy work is capped at 20 Hz during tokenMotion.
+    if (active && (perfNow - lastRenderAt) < activeInterval) {
+      metrics.throttled += 1;
+      return;
+    }
+    if (!active && !renderDirty && (perfNow - lastIdleScanAt) < idleInterval) {
       metrics.skipped += 1;
       return;
     }
-    if (active && (perfNow - lastRenderAt) < activeFrameMs) {
-      metrics.throttled += 1;
+
+    lastIdleScanAt = perfNow;
+    const fingerprint = frameFingerprint({ engine, mapData, now: wallNow, staticSignature: signatureCache.value(perfNow) });
+    const changed = renderDirty || fingerprint !== lastFingerprint;
+    if (!changed && !active) {
+      metrics.skipped += 1;
       return;
     }
 
@@ -155,19 +269,37 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
     lastRenderAt = perfNow;
     metrics.lastRenderAt = perfNow;
     metrics.rendered += 1;
+    renderDirty = false;
     return originalRender(...args);
   };
   renderer.__performanceGuardInstalled = true;
 
   const api = Object.freeze({
     invalidate,
-    snapshot: () => ({ ...metrics, savedFrames: metrics.skipped + metrics.throttled }),
-    resetMetrics() { metrics.calls = 0; metrics.rendered = 0; metrics.skipped = 0; metrics.throttled = 0; metrics.lastRenderAt = 0; },
+    snapshot: () => ({
+      ...metrics,
+      savedFrames: metrics.skipped + metrics.throttled,
+      visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
+      activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
+      movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
+    }),
+    resetMetrics() {
+      metrics.calls = 0;
+      metrics.rendered = 0;
+      metrics.skipped = 0;
+      metrics.throttled = 0;
+      metrics.lastRenderAt = 0;
+      metrics.visionCalls = 0;
+      metrics.visionComputed = 0;
+      metrics.visionSkipped = 0;
+      metrics.dmVisionBypassed = 0;
+    },
     stop() {
       if (stopped) return;
       stopped = true;
       renderer.render = originalRender;
       renderer.__performanceGuardInstalled = false;
+      if (originalCalculateVision) engine.calculateVision = originalCalculateVision;
       events.forEach((name) => engine.canvas?.removeEventListener?.(name, invalidate));
       globalThis.removeEventListener?.('resize', invalidate);
       globalThis.removeEventListener?.('wheel', invalidate);
