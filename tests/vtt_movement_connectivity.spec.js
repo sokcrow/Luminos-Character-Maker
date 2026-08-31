@@ -41,7 +41,8 @@ test('realtime movement creates no remote controller and performs no update whil
   expect(controller.snapshot()).toMatchObject({ connected: false, onlineOnly: true });
   expect(instances).toHaveLength(0);
   expect(controller.schedulePreview({ id: 'p1' })).toBe(false);
-  await expect(controller.finalizeToken({ id: 'p1' }, async () => ({ valid: true }))).rejects.toThrow('VTT_OFFLINE_NO_UPDATE');
+  expect(() => controller.finalizeToken({ id: 'p1' }, async () => ({ valid: true }))).toThrow('VTT_OFFLINE_NO_UPDATE');
+  expect(instances).toHaveLength(0);
 
   connectionRef.emit(true);
   expect(instances).toHaveLength(1);
@@ -53,7 +54,8 @@ test('realtime movement creates no remote controller and performs no update whil
   connectionRef.emit(false);
   expect(instances[0].stops).toBe(1);
   expect(controller.schedulePreview({ id: 'p1' })).toBe(false);
-  await expect(controller.finalizeToken({ id: 'p1' }, async () => ({ valid: true }))).rejects.toThrow('VTT_OFFLINE_NO_UPDATE');
+  expect(() => controller.finalizeToken({ id: 'p1' }, async () => ({ valid: true }))).toThrow('VTT_OFFLINE_NO_UPDATE');
+  expect(instances[0].finalizes).toBe(1);
 
   connectionRef.emit(true);
   expect(instances).toHaveLength(2);
