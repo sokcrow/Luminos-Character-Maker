@@ -53,7 +53,7 @@
     const db = firebase?.database?.() || null;
     const worldPath = `${base.WORLD_ROOT}/${bridge.mapId}`;
     let extraStarted = false;
-    let handler = null;
+    const handlers = new Map();
 
     function playerActorIds() {
       const ids = new Set();
@@ -66,51 +66,91 @@
       return ids;
     }
 
+    function emitDynamicChange() {
+      options.onTokensChanged?.({ scope: 'world-dynamic', tokens: mapData.tokens });
+    }
+
+    function removeDynamicRecord(keyOrTokenId, record = null, { emit = true } = {}) {
+      const key = clean(keyOrTokenId);
+      const tokenId = clean(record?.tokenId || record?.token?.id || key);
+      const before = (mapData.tokens || []).length;
+      mapData.tokens = (mapData.tokens || []).filter((token) => {
+        if (!token?.dynamicActorToken || token.canonicalScope !== 'world') return true;
+        const tokenKey = clean(token.canonicalTokenKey || base.firebaseKey(token.id));
+        return clean(token.id) !== tokenId && tokenKey !== base.firebaseKey(key);
+      });
+      const changed = before !== mapData.tokens.length;
+      if (emit && changed) emitDynamicChange();
+      return changed;
+    }
+
+    function applyDynamicRecord(key, record = null, { emit = true } = {}) {
+      const recordKey = clean(key || record?.tokenId || record?.token?.id);
+      if (!recordKey || !record?.position || !record?.token) return removeDynamicRecord(recordKey, record, { emit });
+      const assignedActors = playerActorIds();
+      const recordActorId = clean(record.token.actorId || record.token.actorRef?.id);
+      const tokenId = clean(record.tokenId || record.token.id || recordKey);
+      if (!tokenId) return null;
+      if (recordActorId && assignedActors.has(recordActorId)) {
+        removeDynamicRecord(recordKey, record, { emit });
+        return null;
+      }
+      let token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
+      if (!token) {
+        token = { ...clone(record.token), id: tokenId };
+        mapData.tokens ||= [];
+        mapData.tokens.push(token);
+      } else if (token.dynamicActorToken || token.actorRef) {
+        Object.assign(token, clone(record.token), { id: tokenId });
+      } else {
+        return token;
+      }
+      token.canonicalScope = 'world';
+      token.canonicalTokenKey = base.firebaseKey(recordKey || tokenId);
+      token.dynamicActorToken = true;
+      base.applyPosition(token, record.position);
+      if (emit) emitDynamicChange();
+      return token;
+    }
+
     function applyDynamicRecords(raw = {}) {
       const records = raw || {};
       const keep = new Set();
-      const assignedActors = playerActorIds();
       Object.entries(records).forEach(([key, record]) => {
-        if (!record?.position || !record?.token) return;
-        const recordActorId = clean(record.token.actorId || record.token.actorRef?.id);
-        if (recordActorId && assignedActors.has(recordActorId)) return;
-        const tokenId = clean(record.tokenId || record.token.id || key);
-        if (!tokenId) return;
-        keep.add(tokenId);
-        let token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
-        if (!token) {
-          token = { ...clone(record.token), id: tokenId };
-          mapData.tokens ||= [];
-          mapData.tokens.push(token);
-        } else if (token.dynamicActorToken || token.actorRef) {
-          Object.assign(token, clone(record.token), { id: tokenId });
-        }
-        token.canonicalScope = 'world';
-        token.canonicalTokenKey = base.firebaseKey(tokenId);
-        token.dynamicActorToken = true;
-        base.applyPosition(token, record.position);
+        const token = applyDynamicRecord(key, record, { emit: false });
+        if (token?.dynamicActorToken) keep.add(clean(token.id));
       });
+      const assignedActors = playerActorIds();
       mapData.tokens = (mapData.tokens || []).filter((token) => {
         if (!token?.dynamicActorToken || token.canonicalScope !== 'world') return true;
         const actorId = clean(token.actorId || token.actorRef?.id);
         if (actorId && assignedActors.has(actorId)) return false;
         return keep.has(clean(token.id));
       });
-      options.onTokensChanged?.({ scope: 'world-dynamic', tokens: mapData.tokens });
+      emitDynamicChange();
+    }
+
+    function listen(event, handler) {
+      if (!db || handlers.has(event)) return;
+      db.ref(worldPath).on(event, handler);
+      handlers.set(event, handler);
     }
 
     function start() {
       const result = bridge.start();
       if (extraStarted || !db) return result;
       extraStarted = true;
-      handler = (snapshot) => applyDynamicRecords(snapshot.val() || {});
-      db.ref(worldPath).on('value', handler);
+      listen('child_added', (snapshot) => applyDynamicRecord(snapshot.key, snapshot.val() || null));
+      listen('child_changed', (snapshot) => applyDynamicRecord(snapshot.key, snapshot.val() || null));
+      listen('child_removed', (snapshot) => removeDynamicRecord(snapshot.key, snapshot.val() || null));
       return result;
     }
 
     function stop() {
-      if (db && handler) db.ref(worldPath).off('value', handler);
-      handler = null;
+      if (db) {
+        for (const [event, handler] of handlers) db.ref(worldPath).off(event, handler);
+      }
+      handlers.clear();
       extraStarted = false;
       bridge.stop();
     }
@@ -149,11 +189,23 @@
       if (!id) throw new Error('TOKEN_ID_REQUIRED');
       mapData.tokens = (mapData.tokens || []).filter((token) => clean(token.id) !== id);
       if (db) await db.ref(worldPath).child(base.firebaseKey(id)).remove();
-      options.onTokensChanged?.({ scope: 'world-dynamic', tokens: mapData.tokens });
+      emitDynamicChange();
       return true;
     }
 
-    return Object.freeze({ ...bridge, start, stop, saveToken, createWorldToken, deleteWorldToken, applyDynamicRecords, tokenSnapshot, playerActorIds });
+    return Object.freeze({
+      ...bridge,
+      start,
+      stop,
+      saveToken,
+      createWorldToken,
+      deleteWorldToken,
+      applyDynamicRecords,
+      applyDynamicRecord,
+      removeDynamicRecord,
+      tokenSnapshot,
+      playerActorIds,
+    });
   }
 
   root.LuminousVttTokenState = Object.freeze({ ...base, __dynamicWorldTokenPatch: true, tokenSnapshot, createBridge });
