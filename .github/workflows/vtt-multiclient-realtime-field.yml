@@ -9,10 +9,16 @@ on:
       - 'js/vtt/player-discovery-runtime.js'
       - 'js/vtt/regional-local-transition-runtime.js'
       - 'js/vtt/engine.js'
+      - 'js/vtt/movement-bootstrap.js'
+      - 'js/vtt/movement-realtime.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_movement_realtime.spec.js'
+      - 'tests/vtt_movement_pathfinding.spec.js'
       - 'tests/vtt_canonical_token_state.spec.js'
       - 'tests/vtt_player_discovery_realtime.spec.js'
       - 'tests/vtt_player_discovery_fog.spec.js'
+      - 'tests/vtt_camera_pov_observer_realtime.spec.js'
+      - 'tests/vtt_world_token_multiclient_stress.spec.js'
       - 'tests/vtt_map_field_test_sandbox.spec.js'
       - 'tests/vtt_map_field_test_hardening.spec.js'
       - 'tests/regional_local_transition_realtime.spec.js'
@@ -24,7 +30,10 @@ on:
     branches: [main]
     paths:
       - 'js/vtt/token-state.js'
+      - 'js/vtt/movement-bootstrap.js'
+      - 'js/vtt/movement-realtime.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_movement_realtime.spec.js'
       - '.github/workflows/vtt-multiclient-realtime-field.yml'
 
 permissions:
@@ -46,16 +55,22 @@ jobs:
       - name: Syntax
         run: |
           node --check js/vtt/token-state.js
+          node --check js/vtt/movement-realtime.js
           node --check tests/vtt_multiclient_realtime_field.spec.js
+          node --check tests/vtt_movement_realtime.spec.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Multiclient Realtime ownership Fog transition and performance contracts
+      - name: Multiclient movement realtime ownership Fog transition and performance contracts
         run: >-
           npx playwright test --workers=1
+          tests/vtt_movement_realtime.spec.js
+          tests/vtt_movement_pathfinding.spec.js
           tests/vtt_multiclient_realtime_field.spec.js
           tests/vtt_canonical_token_state.spec.js
           tests/vtt_player_discovery_realtime.spec.js
           tests/vtt_player_discovery_fog.spec.js
+          tests/vtt_camera_pov_observer_realtime.spec.js
+          tests/vtt_world_token_multiclient_stress.spec.js
           tests/vtt_map_field_test_sandbox.spec.js
           tests/vtt_map_field_test_hardening.spec.js
           tests/regional_local_transition_realtime.spec.js
