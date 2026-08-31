@@ -1,4 +1,6 @@
 import './movement-realtime.js';
+import './movement-rules.js';
+import './movement-rules-runtime.js';
 
 export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.engine?.mapData } = {}) {
   if (!runtime?.engine || !mapData) return null;
@@ -14,13 +16,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   const isDm = Boolean(runtime.bridge?.isDm);
   const movementRealtimeApi = window.LuminousVttMovementRealtime;
   const movementRealtimeIdentity = movementRealtimeApi?.identity?.(window) || {};
-  const movementRealtime = movementRealtimeApi?.createController?.({
-    mapData,
-    canvas,
-    engine,
-    isDm,
-    root: window,
-  }) || null;
+  const movementRealtime = movementRealtimeApi?.createController?.({ mapData, canvas, engine, isDm, root: window }) || null;
   const realtimeCommits = new Map();
   mapData.movement ||= {};
   if (!mapData.movement.diagonalRule) mapData.movement.diagonalRule = '5e';
@@ -44,23 +40,12 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     lastMode = current.mode;
     lastRoundId = current.roundId;
     if (newRound) {
-      window.dispatchEvent(new CustomEvent('vtt:world-round', {
-        detail: {
-          mapId: String(mapData.id || mapData.mapId || 'default'),
-          roundId: current.roundId,
-          roundSeconds: current.roundSeconds,
-          worldSeconds: current.worldSeconds,
-        },
-      }));
+      window.dispatchEvent(new CustomEvent('vtt:world-round', { detail: { mapId: String(mapData.id || mapData.mapId || 'default'), roundId: current.roundId, roundSeconds: current.roundSeconds, worldSeconds: current.worldSeconds } }));
     }
     updateUi();
   }
 
-  const stateBridge = stateApi.createBridge({
-    mapData,
-    isDm,
-    onChanged: applyWorldState,
-  });
+  const stateBridge = stateApi.createBridge({ mapData, isDm, onChanged: applyWorldState });
 
   function controlledToken() {
     if (engine.tokenDrag?.token) return engine.tokenDrag.token;
@@ -71,6 +56,15 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     }
     const previewId = mapData.lighting?.dmPreviewTokenId;
     return (mapData.tokens || []).find((token) => String(token.id) === String(previewId)) || null;
+  }
+
+  function combatActiveTokenId() {
+    return String(mapData.combat?.activeTokenId || mapData.combat?.currentTokenId || mapData.initiative?.activeTokenId || mapData.initiative?.currentTokenId || '');
+  }
+
+  function isActiveCombatTurn(token) {
+    const activeId = combatActiveTokenId();
+    return Boolean(activeId && token && String(token.id) === activeId);
   }
 
   function statusText() {
@@ -92,13 +86,14 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     const bar = document.createElement('div');
     bar.id = 'vtt-world-time-status';
     bar.className = 'vtt-world-time';
-    bar.innerHTML = `<span data-world-time-label></span>${isDm ? '<button type="button" class="brutalist-button" data-world-free>FREE</button><button type="button" class="brutalist-button" data-world-round>ROUND TIME</button><button type="button" class="brutalist-button" data-world-next>NEXT ROUND</button>' : ''}`;
+    bar.innerHTML = `<span data-world-time-label></span><button type="button" class="brutalist-button" data-move-reset>RESET MOVE</button>${isDm ? '<button type="button" class="brutalist-button" data-world-free>FREE</button><button type="button" class="brutalist-button" data-world-round>ROUND TIME</button><button type="button" class="brutalist-button" data-world-next>NEXT ROUND</button>' : ''}`;
     document.body.appendChild(bar);
     const toast = document.createElement('div');
     toast.id = 'vtt-move-toast';
     toast.className = 'vtt-move-toast';
     toast.hidden = true;
     document.body.appendChild(toast);
+    bar.querySelector('[data-move-reset]')?.addEventListener('click', resetControlledMovement);
     if (isDm) {
       bar.querySelector('[data-world-free]')?.addEventListener('click', () => stateBridge.setMode('free').catch(showError));
       bar.querySelector('[data-world-round]')?.addEventListener('click', () => stateBridge.setMode('round').catch(showError));
@@ -114,6 +109,8 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     if (label) label.textContent = statusText();
     const next = bar?.querySelector('[data-world-next]');
     if (next) next.disabled = state.mode !== 'round';
+    const reset = bar?.querySelector('[data-move-reset]');
+    if (reset) reset.disabled = state.mode !== 'round' || !controlledToken()?.movementTurnStart;
     const free = bar?.querySelector('[data-world-free]');
     const round = bar?.querySelector('[data-world-round]');
     free?.classList.toggle('is-active', state.mode === 'free');
@@ -136,84 +133,110 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     return { x: world.x - drag.grabOffsetX, y: world.y - drag.grabOffsetY };
   }
 
+  function planFor(token, start, target) {
+    return movement.planMove({
+      token,
+      start,
+      target,
+      mapData,
+      worldState: worldState(),
+      movementMode: token.movementState?.mode || 'walk',
+      movementType: token.pendingMovementType || 'normal',
+      blockTokens: mapData.movement.blockTokens,
+      diagonalRule: mapData.movement.diagonalRule,
+    });
+  }
+
   function updatePreview(event) {
     const drag = engine.tokenDrag;
     if (!drag || !event || Date.now() - previewAt < 45) return;
     previewAt = Date.now();
     const target = requestedPoint(event, drag);
-    const plan = movement.planMove({
-      token: drag.token,
-      start: { x: drag.originX, y: drag.originY },
-      target,
-      mapData,
-      worldState: worldState(),
-      movementMode: drag.token.movementState?.mode || 'walk',
-      blockTokens: mapData.movement.blockTokens,
-      diagonalRule: mapData.movement.diagonalRule,
-    });
-    preview = {
-      tokenId: drag.token.id,
-      valid: Boolean(plan.valid),
-      reason: plan.reason || null,
-      path: plan.path || [],
-      costFt: plan.movementCostFt ?? plan.costFt ?? 0,
-    };
+    const plan = planFor(drag.token, { x: drag.originX, y: drag.originY }, target);
+    preview = { tokenId: drag.token.id, valid: Boolean(plan.valid), reason: plan.reason || null, path: plan.path || [], costFt: plan.movementCostFt ?? plan.costFt ?? 0 };
   }
 
   function clearPreview() { preview = null; }
 
   function drawPreview(ctx) {
     if (!preview?.path?.length || !engine.tokenDrag) return;
+    const token = engine.tokenDrag.token;
+    const showRuler = worldState().mode === 'round' && isActiveCombatTurn(token);
     ctx.save();
     camera.applyTransformSimple(ctx);
     ctx.lineWidth = 3 / Math.max(0.01, camera.zoom || 1);
     ctx.setLineDash([10 / Math.max(0.01, camera.zoom || 1), 6 / Math.max(0.01, camera.zoom || 1)]);
-    ctx.strokeStyle = preview.valid ? '#ffffff' : '#ff6b6b';
+    ctx.strokeStyle = showRuler ? (preview.valid ? '#55ff80' : '#ff5f5f') : '#ffffff';
     ctx.beginPath();
     preview.path.forEach((point, index) => { if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); });
     ctx.stroke();
-    const last = preview.path[preview.path.length - 1];
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#000000';
-    ctx.strokeStyle = preview.valid ? '#ffffff' : '#ff6b6b';
-    const text = preview.valid ? `${Math.round(preview.costFt)} ft` : String(preview.reason || 'NO PATH');
-    ctx.font = `${12 / Math.max(0.01, camera.zoom || 1)}px monospace`;
-    const width = ctx.measureText(text).width + 10 / Math.max(0.01, camera.zoom || 1);
-    const height = 18 / Math.max(0.01, camera.zoom || 1);
-    ctx.fillRect(last.x - width / 2, last.y - height - 12 / Math.max(0.01, camera.zoom || 1), width, height);
-    ctx.strokeRect(last.x - width / 2, last.y - height - 12 / Math.max(0.01, camera.zoom || 1), width, height);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, last.x, last.y - height / 2 - 12 / Math.max(0.01, camera.zoom || 1));
+    if (showRuler) {
+      const last = preview.path[preview.path.length - 1];
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#000000';
+      ctx.strokeStyle = preview.valid ? '#55ff80' : '#ff5f5f';
+      const text = preview.valid ? `${Math.round(preview.costFt)} ft` : String(preview.reason || 'NO PATH');
+      ctx.font = `${12 / Math.max(0.01, camera.zoom || 1)}px monospace`;
+      const width = ctx.measureText(text).width + 10 / Math.max(0.01, camera.zoom || 1);
+      const height = 18 / Math.max(0.01, camera.zoom || 1);
+      ctx.fillRect(last.x - width / 2, last.y - height - 12 / Math.max(0.01, camera.zoom || 1), width, height);
+      ctx.strokeRect(last.x - width / 2, last.y - height - 12 / Math.max(0.01, camera.zoom || 1), width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, last.x, last.y - height / 2 - 12 / Math.max(0.01, camera.zoom || 1));
+    }
+    const start = movement.movementStart?.(token);
+    if (showRuler && start) {
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, 7 / Math.max(0.01, camera.zoom || 1), 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
-  function realtimeKey(token) {
-    return movementRealtimeApi?.logicalTokenKey?.(token, movementRealtimeIdentity) || String(token?.id || '');
-  }
-
-  function realtimePosition(token) {
-    return movementRealtimeApi?.snapshotPosition?.(token) || {
-      x: Number(token?.x) || 0,
-      y: Number(token?.y) || 0,
-      zLayer: Number(token?.zLayer ?? token?.gridPosition?.z ?? token?.z?.[0]) || 0,
+  async function resolveMovementOrder({ token, from, requestedPoint }) {
+    const plan = planFor(token, from, requestedPoint);
+    if (!plan.valid) return plan;
+    const committed = movement.commitMove(token, plan, worldState());
+    if (!committed.valid) return committed;
+    const endpoint = plan.path?.[plan.path.length - 1] || pathfinding.pointForCell(pathfinding.cellFromPoint(requestedPoint, mapData), mapData, pathfinding.tokenLayer(token));
+    return {
+      ...plan,
+      ...endpoint,
+      valid: true,
+      path: plan.path || [],
+      routeCostFt: plan.routeCostFt ?? plan.costFt ?? 0,
+      movementCostFt: plan.movementCostFt ?? 0,
+      remainingFt: committed.remainingFt,
+      actionMode: token.activeActionMovementMode || 'walk',
     };
   }
 
-  function sameRealtimePosition(a = {}, b = {}) {
-    return Math.abs((Number(a.x) || 0) - (Number(b.x) || 0)) < 0.01
-      && Math.abs((Number(a.y) || 0) - (Number(b.y) || 0)) < 0.01
-      && Number(a.zLayer ?? a.z?.[0] ?? 0) === Number(b.zLayer ?? b.z?.[0] ?? 0);
+  function resetControlledMovement() {
+    const token = controlledToken();
+    if (!token) return;
+    const from = { x: token.x, y: token.y, z: token.zLayer ?? token.z?.[0] ?? 0, elevationFt: token.elevationFt ?? 0 };
+    const result = movement.resetMovement?.(token, worldState());
+    if (!result?.valid) return showError(result?.reason || 'RESET_MOVEMENT_UNAVAILABLE');
+    canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', { detail: { tokenId: token.id, x: token.x, y: token.y, z: token.zLayer, reset: true } }));
+    canvas.dispatchEvent(new CustomEvent('vtt:token-moved', { detail: { tokenId: token.id, from, to: { x: token.x, y: token.y, z: token.zLayer, ...token.gridPosition, elevationFt: token.elevationFt ?? 0 }, reset: true } }));
+    canvas.dispatchEvent(new CustomEvent('vtt:movement-reset', { detail: { tokenId: token.id, refundActionType: result.refundActionType || null } }));
+    updateUi();
   }
+
+  function realtimeKey(token) { return movementRealtimeApi?.logicalTokenKey?.(token, movementRealtimeIdentity) || String(token?.id || ''); }
+  function realtimePosition(token) { return movementRealtimeApi?.snapshotPosition?.(token) || { x: Number(token?.x) || 0, y: Number(token?.y) || 0, zLayer: Number(token?.zLayer ?? token?.gridPosition?.z ?? token?.z?.[0]) || 0 }; }
+  function sameRealtimePosition(a = {}, b = {}) { return Math.abs((Number(a.x) || 0) - (Number(b.x) || 0)) < 0.01 && Math.abs((Number(a.y) || 0) - (Number(b.y) || 0)) < 0.01 && Number(a.zLayer ?? a.z?.[0] ?? 0) === Number(b.zLayer ?? b.z?.[0] ?? 0); }
 
   function settleRealtimeCommit(key, error = null) {
     const pendingCommit = realtimeCommits.get(key);
     if (!pendingCommit) return false;
     realtimeCommits.delete(key);
     clearTimeout(pendingCommit.timeoutId);
-    if (error) pendingCommit.reject(error);
-    else pendingCommit.resolve({ valid: true, source: 'canonical-sync' });
+    if (error) pendingCommit.reject(error); else pendingCommit.resolve({ valid: true, source: 'canonical-sync' });
     return true;
   }
 
@@ -225,10 +248,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     settleRealtimeCommit(key, new Error('REALTIME_MOVEMENT_SUPERSEDED'));
     let resolveCanonical;
     let rejectCanonical;
-    const canonicalPromise = new Promise((resolve, reject) => {
-      resolveCanonical = resolve;
-      rejectCanonical = reject;
-    });
+    const canonicalPromise = new Promise((resolve, reject) => { resolveCanonical = resolve; rejectCanonical = reject; });
     const pendingCommit = {
       token,
       expected: realtimePosition(token),
@@ -241,10 +261,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       }, 2500),
     };
     realtimeCommits.set(key, pendingCommit);
-    void movementRealtime.finalizeToken(token, () => canonicalPromise).catch((error) => {
-      settleRealtimeCommit(key);
-      console.warn('VTT realtime movement finalization failed:', error);
-    });
+    void movementRealtime.finalizeToken(token, () => canonicalPromise).catch((error) => { settleRealtimeCommit(key); console.warn('VTT realtime movement finalization failed:', error); });
   }
 
   function onRealtimeCanonicalSync() {
@@ -256,10 +273,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   const previousRender = renderer.render.bind(renderer);
-  renderer.render = function movementRender(...args) {
-    previousRender(...args);
-    drawPreview(renderer.ctx);
-  };
+  renderer.render = function movementRender(...args) { previousRender(...args); drawPreview(renderer.ctx); };
 
   function onMouseMove(event) { updatePreview(event); }
   function onMouseUp() { clearPreview(); setTimeout(updateUi, 0); }
@@ -268,12 +282,15 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     if (token) movement.reconcileVertical(token, worldState());
     updateUi();
   }
+  function onRejected(event) { showError(event.detail?.reason || 'MOVEMENT_REJECTED'); clearPreview(); }
 
+  engine.setTokenMoveResolver?.(resolveMovementOrder);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
   canvas.addEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
   canvas.addEventListener('vtt:token-moved', onTokenMoved);
+  canvas.addEventListener('vtt:movement-order-rejected', onRejected);
 
   injectUi();
   stateBridge.start();
@@ -289,12 +306,15 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     nextRound: () => stateBridge.nextRound(),
     setMode: (mode) => stateBridge.setMode(mode),
     dash: (token, options) => { const result = movement.dash(token, worldState(), options); updateUi(); return result; },
+    resetMovement: resetControlledMovement,
     prone: (token) => { const result = movement.setProne(token, true); updateUi(); return result; },
     stand: (token) => { const result = movement.standUp(token, worldState()); updateUi(); return result; },
     setMovementMode: (token, mode) => movement.setMovementMode(token, mode, worldState()),
     plan: (options) => movement.planMove({ ...options, mapData, worldState: worldState() }),
     stop() {
       clearTimeout(noticeTimer);
+      engine.cancelTokenMotion?.();
+      engine.setTokenMoveResolver?.(null);
       for (const key of [...realtimeCommits.keys()]) settleRealtimeCommit(key, new Error('REALTIME_RUNTIME_STOPPED'));
       movementRealtime?.stop?.();
       stateBridge.stop();
@@ -303,6 +323,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       canvas.removeEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
       canvas.removeEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
       canvas.removeEventListener('vtt:token-moved', onTokenMoved);
+      canvas.removeEventListener('vtt:movement-order-rejected', onRejected);
       renderer.render = previousRender;
       document.getElementById('vtt-world-time-status')?.remove();
       document.getElementById('vtt-move-toast')?.remove();
