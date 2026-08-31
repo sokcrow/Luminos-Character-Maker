@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lifecycle = globalThis.LuminousVttRuntimeLifecycle?.createLifecycle?.({ log: console }) || {
         dispose: () => true,
         isDisposed: () => false,
-        run: async (_label, load, start) => ({ status: 'started', runtime: await start(await load()) }),
     };
 
     const mapAuthoring = globalThis.LuminousVttMapAuthoring;
@@ -264,52 +263,106 @@ document.addEventListener('DOMContentLoaded', async () => {
         isDisposed: lifecycle.isDisposed,
     });
 
+    const stopIfDisposed = (runtime, label = 'runtime') => {
+        if (!lifecycle.isDisposed()) return false;
+        try {
+            runtime?.stop?.();
+        } catch (error) {
+            console.warn(`VTT lifecycle late-stop failed for ${label}.`, error);
+        }
+        return true;
+    };
+
     const reportBootstrapError = (label, error) => {
         if (lifecycle.isDisposed()) return;
         console.error(`VTT ${label} bootstrap failed:`, error);
     };
 
-    void (async () => {
-        try {
-            await lifecycle.run('map-authoring', () => import('./map-authoring-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-            await lifecycle.run('surfaces', () => import('./surface-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-            await lifecycle.run('structures', () => import('./structure-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-        } catch (error) {
-            reportBootstrapError('map authoring / surfaces / structures', error);
-        }
-    })();
+    import('./map-authoring-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const mapAuthoringRuntime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(mapAuthoringRuntime, 'map-authoring')) return null;
 
-    void lifecycle.run('wall-builder', () => import('./wall-builder-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+            const surfaceModule = await import('./surface-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const surfaceRuntime = await surfaceModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(surfaceRuntime, 'surfaces')) return null;
+
+            const structureModule = await import('./structure-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const structureRuntime = await structureModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(structureRuntime, 'structures')) return null;
+            return structureRuntime;
+        })
+        .catch((error) => reportBootstrapError('map authoring / surfaces / structures', error));
+
+    import('./wall-builder-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const runtime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(runtime, 'wall-builder')) return null;
+            return runtime;
+        })
         .catch((error) => reportBootstrapError('wall builder', error));
 
-    void lifecycle.run('actor-library', () => import('./actor-library-bootstrap.js'), (module) => {
-        const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
-        if (!lifecycle.isDisposed()) tokenAppearanceApi?.installRenderer?.(engine.renderer);
-        return actorLibrary;
-    }).catch((error) => reportBootstrapError('actor library', error));
+    import('./actor-library-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const actorLibrary = module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const resolvedActorLibrary = await actorLibrary;
+            if (stopIfDisposed(resolvedActorLibrary, 'actor-library')) return null;
+            tokenAppearanceApi?.installRenderer?.(engine.renderer);
+            return resolvedActorLibrary;
+        })
+        .catch((error) => reportBootstrapError('actor library', error));
 
-    void lifecycle.run('movement', () => import('./movement-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }))
+    import('./movement-bootstrap.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const runtime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(runtime, 'movement')) return null;
+            return runtime;
+        })
         .catch((error) => reportBootstrapError('movement', error));
 
-    void (async () => {
-        try {
-            await lifecycle.run('procedural-generator', () => import('./procedural-generator-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-            await lifecycle.run('procedural-chunks', () => import('./procedural-chunk-streaming-runtime.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural }));
-            await lifecycle.run('regional-local-transition', () => import('./regional-local-transition-runtime.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-            await lifecycle.run('map-simulation', () => import('./map-simulation-runtime.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-        } catch (error) {
-            reportBootstrapError('procedural / regional-local / map simulation', error);
-        }
-    })();
+    import('./procedural-generator-bootstrap.js')
+        .then(async (generatorModule) => {
+            if (lifecycle.isDisposed()) return null;
+            const proceduralRuntime = await generatorModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(proceduralRuntime, 'procedural-generator')) return null;
 
-    void (async () => {
-        try {
-            await lifecycle.run('world-objects', () => import('./world-object-mainline-integration.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-            await lifecycle.run('map-hud', () => import('./map-hud-bootstrap.js'), (module) => module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData }));
-        } catch (error) {
-            reportBootstrapError('world object / map HUD', error);
-        }
-    })();
+            const chunkModule = await import('./procedural-chunk-streaming-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const chunkRuntime = await chunkModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData, procedural: window.LuminousVttRuntime?.procedural });
+            if (stopIfDisposed(chunkRuntime, 'procedural-chunks')) return null;
+
+            const transitionModule = await import('./regional-local-transition-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const transitionRuntime = await transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(transitionRuntime, 'regional-local-transition')) return null;
+
+            const simulationModule = await import('./map-simulation-runtime.js');
+            if (lifecycle.isDisposed()) return null;
+            const simulationRuntime = await simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(simulationRuntime, 'map-simulation')) return null;
+            return simulationRuntime;
+        })
+        .catch((error) => reportBootstrapError('procedural / regional-local / map simulation', error));
+
+    import('./world-object-mainline-integration.js')
+        .then(async (module) => {
+            if (lifecycle.isDisposed()) return null;
+            const worldObjectsRuntime = await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(worldObjectsRuntime, 'world-objects')) return null;
+
+            const hudModule = await import('./map-hud-bootstrap.js');
+            if (lifecycle.isDisposed()) return null;
+            const hudRuntime = await hudModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            if (stopIfDisposed(hudRuntime, 'map-hud')) return null;
+            return hudRuntime;
+        })
+        .catch((error) => reportBootstrapError('world object / map HUD', error));
 
     // E belongs exclusively to token PoV Look Lock/Unlock. Camera uses F/Home/Space and never consumes E.
     const handlePageHide = () => disposeRuntime('pagehide');
