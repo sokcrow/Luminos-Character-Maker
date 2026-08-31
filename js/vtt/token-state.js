@@ -190,6 +190,10 @@
             if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'players', tokens: mapData.tokens });
         }
 
+        function emitWorldChange() {
+            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'world', tokens: mapData.tokens });
+        }
+
         function removePlayerRecord(playerKey, { emit = true } = {}) {
             const key = clean(playerKey);
             if (!key) return false;
@@ -262,17 +266,22 @@
             emitPlayerChange();
         }
 
+        function syncSingleWorldRecord(worldKey, record = null, { emit = true } = {}) {
+            const key = clean(worldKey || record?.tokenId);
+            if (!key || !record?.position) return null;
+            const tokenId = clean(record.tokenId || key);
+            const token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
+            if (!token) return null;
+            token.canonicalScope = 'world';
+            token.canonicalTokenKey = firebaseKey(tokenId);
+            applyPosition(token, record.position);
+            if (emit) emitWorldChange();
+            return token;
+        }
+
         function syncWorldRecords(rawRecord = {}) {
-            Object.entries(rawRecord || {}).forEach(([key, record]) => {
-                if (!record?.position) return;
-                const tokenId = clean(record.tokenId || key);
-                const token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
-                if (!token) return;
-                token.canonicalScope = 'world';
-                token.canonicalTokenKey = firebaseKey(tokenId);
-                applyPosition(token, record.position);
-            });
-            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'world', tokens: mapData.tokens });
+            Object.entries(rawRecord || {}).forEach(([key, record]) => syncSingleWorldRecord(key, record, { emit: false }));
+            emitWorldChange();
         }
 
         function unwatchPlayerState(playerKey) {
@@ -376,7 +385,8 @@
                 unwatchPlayerState(snapshot.key);
                 removePlayerRecord(snapshot.key);
             });
-            subscribe(worldRef(), 'value', (snapshot) => syncWorldRecords(snapshot.val() || {}));
+            subscribe(worldRef(), 'child_added', (snapshot) => syncSingleWorldRecord(snapshot.key, snapshot.val() || null));
+            subscribe(worldRef(), 'child_changed', (snapshot) => syncSingleWorldRecord(snapshot.key, snapshot.val() || null));
             seedOwnPlayerIfNeeded().catch((error) => console.error('VTT player token seed failed:', error));
             seedWorldIfNeeded().catch((error) => console.error('VTT world token seed failed:', error));
             return true;
@@ -401,6 +411,7 @@
             removePlayerRecord,
             watchPlayerState,
             syncWorldRecords,
+            syncSingleWorldRecord,
             notify: emitNotice,
         });
     }
