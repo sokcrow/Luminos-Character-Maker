@@ -67,7 +67,7 @@
     const rightRtt = Math.max(0, finite(right.rttMs ?? right.latencyMs, Infinity));
     if (leftRtt !== rightRtt) return leftRtt - rightRtt;
     const leftReceived = Math.max(0, finite(left.receivedAtMs ?? left.receivedAt, Infinity));
-    const rightReceived = Math.max(0, finite(right.receivedAtMs ?? right.receivedAt, Infinity));
+    const rightReceived = Math.max(0, finite(right.receivedAtMs ?? right.latencyMs, Infinity));
     if (leftReceived !== rightReceived) return leftReceived - rightReceived;
     return String(left.tokenId || left.id || '').localeCompare(String(right.tokenId || right.id || ''));
   }
@@ -81,7 +81,7 @@
   function doorTraversal({ mode = 'walk', door = {}, remainingFt = Infinity, dashActive = false } = {}) {
     const state = clean(door.state || door.doorState || (door.open ? 'open' : 'closed')) || 'closed';
     const locked = Boolean(door.locked || state === 'locked');
-    if (state === 'open' || door.open === true) return { valid: true, continueMovement: true, actionRequired: false, noise: 'normal' };
+    if (state === 'open' || state === 'broken' || door.open === true) return { valid: true, continueMovement: true, actionRequired: false, noise: 'normal' };
     if (locked) return { valid: false, continueMovement: false, actionRequired: true, reason: 'DOOR_LOCKED', noise: 'none' };
     const running = dashActive || clean(mode) === 'dash' || clean(mode) === 'run';
     if (running) {
