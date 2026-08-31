@@ -9,13 +9,19 @@
   const installed = new WeakMap();
   const clean = (value) => String(value ?? '').trim();
 
+  // Actor Studio contract: `icono` is the compact log/HUD/token image.
+  // `sprite` belongs exclusively to Theatre scene rendering and MUST NOT be
+  // used to fill a tactical token container.
   function imageSource(token = {}) {
     return clean(
-      token.tokenImage
+      token.icono
+      || token.icono_jugador
+      || token.iconUrl
+      || token.icon_url
+      || token.tokenImage
       || token.token_image
       || token.tokenUrl
       || token.token_url
-      || token.sprite
       || token.portrait
       || token.portraitUrl
       || token.imagen
@@ -87,9 +93,7 @@
     return true;
   }
 
-  function clearCache() {
-    cache.clear();
-  }
+  function clearCache() { cache.clear(); }
 
   return Object.freeze({ imageSource, coverRect, drawTokenImage, installRenderer, clearCache });
 });
