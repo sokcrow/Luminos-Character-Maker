@@ -1,0 +1,92 @@
+name: VTT Map Field Test Hardening
+
+on:
+  pull_request:
+    paths:
+      - 'database.rules.json'
+      - 'js/vtt/actor-library.js'
+      - 'js/vtt/camera-follow.js'
+      - 'js/vtt/dm-observer.js'
+      - 'js/vtt/engine.js'
+      - 'js/vtt/procedural-generator-bootstrap.js'
+      - 'js/vtt/renderer.js'
+      - 'js/vtt/token-appearance.js'
+      - 'js/vtt/token-state*.js'
+      - 'js/vtt/world-object-state.js'
+      - 'tests/vtt_map_field_test_hardening.spec.js'
+      - 'tests/vtt_actor_token_library.spec.js'
+      - 'tests/vtt_token_drag.spec.js'
+      - 'tests/vtt_camera*.spec.js'
+      - 'tests/vtt_canonical_token_state.spec.js'
+      - 'tests/vtt_world_object*.spec.js'
+      - 'tests/vtt_world_streaming_lifecycle.spec.js'
+      - 'tests/vtt_map_simulation*.spec.js'
+      - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
+      - 'tests/vtt_performance_guard.spec.js'
+      - '.github/workflows/vtt-map-field-test-hardening.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'database.rules.json'
+      - 'js/vtt/actor-library.js'
+      - 'js/vtt/camera-follow.js'
+      - 'js/vtt/dm-observer.js'
+      - 'js/vtt/engine.js'
+      - 'js/vtt/procedural-generator-bootstrap.js'
+      - 'js/vtt/renderer.js'
+      - 'js/vtt/token-appearance.js'
+      - 'js/vtt/token-state*.js'
+      - 'js/vtt/world-object-state.js'
+      - 'tests/vtt_map_field_test_hardening.spec.js'
+      - '.github/workflows/vtt-map-field-test-hardening.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  map-field-hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax and rules JSON
+        run: |
+          node --check js/vtt/actor-library.js
+          node --check js/vtt/camera-follow.js
+          node --check js/vtt/dm-observer.js
+          node --input-type=module --check < js/vtt/engine.js
+          node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
+          node --input-type=module --check < js/vtt/renderer.js
+          node --check js/vtt/token-appearance.js
+          node --check js/vtt/token-state.js
+          node --check js/vtt/token-state-dynamic-patch.js
+          node --check js/vtt/world-object-state.js
+          node --check tests/vtt_map_field_test_hardening.spec.js
+          node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Focused field hardening and realtime performance contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_map_field_test_hardening.spec.js
+          tests/vtt_actor_token_library.spec.js
+          tests/vtt_token_drag.spec.js
+          tests/vtt_camera_pov_observer_field.spec.js
+          tests/vtt_camera_pov_observer_realtime.spec.js
+          tests/vtt_canonical_token_state.spec.js
+          tests/vtt_world_objects.spec.js
+          tests/vtt_world_objects_realtime.spec.js
+          tests/vtt_world_streaming_lifecycle.spec.js
+          tests/vtt_map_simulation_persistence.spec.js
+          tests/vtt_map_simulation_realtime.spec.js
+          tests/vtt_procedural_chunk_streaming_performance.spec.js
+          tests/vtt_performance_guard.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1
