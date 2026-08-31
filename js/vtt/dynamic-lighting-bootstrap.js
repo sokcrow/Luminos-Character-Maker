@@ -5,6 +5,7 @@ import './lighting-state.js';
 import './lighting-controller.js';
 import './pov-engine.js';
 import './pov-state.js';
+import './visibility-mask-core.js';
 import './pov-controller.js';
 import './pov-renderer.js';
 
@@ -33,7 +34,8 @@ ready(() => {
   const povStateApi = window.LuminousVttPovState;
   const povControllerApi = window.LuminousVttPovController;
   const povRenderer = window.LuminousVttPovRenderer;
-  if (!light || !stateApi || !envApi || !controllerApi || !pov || !povStateApi || !povControllerApi || !povRenderer) {
+  const visibility = window.LuminousVttVisibilityMaskCore;
+  if (!light || !stateApi || !envApi || !controllerApi || !pov || !povStateApi || !povControllerApi || !povRenderer || !visibility) {
     console.error('Dynamic Lighting: one or more runtimes are unavailable.');
     return;
   }
@@ -49,16 +51,28 @@ ready(() => {
     if (!Number.isFinite(Number(token.visionConeDeg))) token.visionConeDeg = light.DEFAULT_VISION_CONE_DEG;
   });
 
-  const perceptionCache = { key: '', tiles: [] };
+  const perceptionCache = {
+    key: '',
+    tiles: [],
+    generation: 0,
+    requests: 0,
+    computed: 0,
+    hits: 0,
+  };
+  const offscreenCache = { canvas: null, ctx: null, width: 0, height: 0 };
   let lightingController = null;
   let povController = null;
+
+  function invalidateVisibility() {
+    perceptionCache.key = '';
+  }
 
   const lightingStateBridge = stateApi.createBridge({
     mapData,
     isDm: bridge.isDm,
     notify: (message, mode) => runtime.controller?.notify?.(message, mode),
     onChanged: () => {
-      perceptionCache.key = '';
+      invalidateVisibility();
       lightingController?.handleSceneChanged?.();
       povController?.handleSceneChanged?.();
     },
@@ -67,12 +81,12 @@ ready(() => {
   const povStateBridge = povStateApi.createBridge({
     mapData,
     isDm: bridge.isDm,
-    onChanged: () => { perceptionCache.key = ''; },
+    onChanged: invalidateVisibility,
   });
 
   const environmentLightBridge = envApi.createBridge({
     mapData,
-    onChanged: () => { perceptionCache.key = ''; },
+    onChanged: invalidateVisibility,
   });
 
   function controlledViewers() {
@@ -127,35 +141,20 @@ ready(() => {
 
   function environment() { return mapData.lighting?.environment || { state: { light: mapData.ambientLight?.level || 'bright' } }; }
 
-  function mapFingerprint(viewers, viewZ, lookUp, now) {
-    const tokens = (mapData.tokens || []).map((token) => [
-      token.id,
-      Number(token.x) || 0,
-      Number(token.y) || 0,
-      light.layerOf(token),
-      light.elevationFt(token, mapData),
-      Number(token.lookDeg ?? token.facingDeg) || 0,
-      Number(token.eyeHeightFt) || pov.DEFAULT_EYE_HEIGHT_FT,
-    ]);
+  function movingLightTick(now) {
     const moving = (scene().sources || []).some((source) => source.motion && !light.interpolateMotion(source.motion, now).complete);
-    return JSON.stringify({
-      z: viewZ,
-      lookUp: Boolean(lookUp),
-      viewers: viewers.map((viewer) => [
-        viewer.id,
-        viewer.x,
-        viewer.y,
-        light.layerOf(viewer),
-        light.elevationFt(viewer, mapData),
-        viewer.lookDeg ?? viewer.facingDeg,
-        viewer.eyeHeightFt,
-        viewer.visionConeDeg,
-        viewer.senses?.darkvisionFt,
-      ]),
-      tokens,
+    return moving ? Math.floor(now / 50) : 0;
+  }
+
+  function visibilityFingerprint(viewers, viewZ, lookUp, now) {
+    return visibility.visibilityFingerprint({
+      viewers,
+      viewZ,
+      lookUp,
+      mapData,
       scene: scene(),
-      env: environment()?.state,
-      motionTick: moving ? Math.floor(now / 50) : 0,
+      environment: environment()?.state || null,
+      motionTick: movingLightTick(now),
     });
   }
 
@@ -192,13 +191,50 @@ ready(() => {
     return tiles;
   }
 
-  function perceptionTiles(viewers, viewZ, now, lookUp) {
-    const key = mapFingerprint(viewers, viewZ, lookUp, now);
-    if (key !== perceptionCache.key) {
+  function visibilityMask(viewers, viewZ, now = Date.now(), lookUp = false) {
+    perceptionCache.requests += 1;
+    const key = visibilityFingerprint(viewers, viewZ, lookUp, now);
+    if (key === perceptionCache.key) {
+      perceptionCache.hits += 1;
+    } else {
       perceptionCache.key = key;
       perceptionCache.tiles = computeTiles(viewers, viewZ, now, lookUp);
+      perceptionCache.generation += 1;
+      perceptionCache.computed += 1;
+      mapData.pov ||= {};
+      mapData.pov.dirty = false;
     }
-    return perceptionCache.tiles;
+    return Object.freeze({
+      key: perceptionCache.key,
+      generation: perceptionCache.generation,
+      viewZ: Number(viewZ) || 0,
+      lookUp: Boolean(lookUp),
+      tiles: perceptionCache.tiles,
+    });
+  }
+
+  function visibilityMetrics() {
+    return Object.freeze({
+      requests: perceptionCache.requests,
+      computed: perceptionCache.computed,
+      cacheHits: perceptionCache.hits,
+      generation: perceptionCache.generation,
+      tileCount: perceptionCache.tiles.length,
+    });
+  }
+
+  function ensureOffscreen() {
+    if (!offscreenCache.canvas) {
+      offscreenCache.canvas = document.createElement('canvas');
+      offscreenCache.ctx = offscreenCache.canvas.getContext('2d');
+    }
+    if (offscreenCache.width !== canvas.width || offscreenCache.height !== canvas.height) {
+      offscreenCache.width = canvas.width;
+      offscreenCache.height = canvas.height;
+      offscreenCache.canvas.width = canvas.width;
+      offscreenCache.canvas.height = canvas.height;
+    }
+    return offscreenCache;
   }
 
   function withRendererContext(targetCanvas, targetCtx, fn) {
@@ -251,7 +287,7 @@ ready(() => {
       renderer.drawWalls(renderZ, false);
       renderer.drawTopology(renderZ, false);
       renderer.drawTokens(renderZ);
-      povRenderer.drawIndicators(renderer, renderZ);
+      povRenderer.drawIndicators(renderer, renderZ, { isDm: bridge.isDm, viewers: options.viewers || [] });
       drawLightEffects(targetCtx, renderZ, now, bridge.isDm && !mapData.lighting?.dmPreviewTokenId);
       if (options.lookUp) (options.viewers || []).forEach((viewer) => povRenderer.drawLookUpAnchor(targetCtx, viewer, mapData));
       if (includeGuides) {
@@ -275,17 +311,15 @@ ready(() => {
     const requestedLookUp = povController.lookUpHeld();
     const viewZ = povController.viewLayer(activeZ);
     const lookUp = requestedLookUp && Number(viewZ) !== Number(activeZ);
-    const offscreen = document.createElement('canvas');
-    offscreen.width = canvas.width; offscreen.height = canvas.height;
-    const offctx = offscreen.getContext('2d');
-    drawBaseScene(offscreen, offctx, viewZ, now, false, { lookUp, viewers });
+    const offscreen = ensureOffscreen();
+    drawBaseScene(offscreen.canvas, offscreen.ctx, viewZ, now, false, { lookUp, viewers });
 
     renderer.ctx.clearRect(0, 0, canvas.width, canvas.height);
     renderer.ctx.fillStyle = '#000'; renderer.ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const tiles = perceptionTiles(viewers, viewZ, now, lookUp);
-    povController.setLookUpBlocked(requestedLookUp && (!lookUp || tiles.length === 0));
+    const mask = visibilityMask(viewers, viewZ, now, lookUp);
+    povController.setLookUpBlocked(requestedLookUp && (!lookUp || mask.tiles.length === 0));
     const zoom = camera.zoom;
-    for (const tile of tiles) {
+    for (const tile of mask.tiles) {
       const sx = (tile.x + camera.x) * zoom;
       const sy = (tile.y + camera.y) * zoom;
       const sw = tile.w * zoom + 1;
@@ -297,7 +331,7 @@ ready(() => {
       else if (mode === 'normal_dim') renderer.ctx.filter = 'brightness(.68) contrast(.92)';
       else if (mode === 'near_dim') renderer.ctx.filter = 'brightness(.45) contrast(.88)';
       else renderer.ctx.filter = 'none';
-      renderer.ctx.drawImage(offscreen, sx, sy, sw, sh, sx, sy, sw, sh);
+      renderer.ctx.drawImage(offscreen.canvas, sx, sy, sw, sh, sx, sy, sw, sh);
       const source = sourceForPerception(tile.perception);
       if (source && !tile.perception.monochrome) {
         renderer.ctx.globalCompositeOperation = 'screen'; renderer.ctx.globalAlpha = tile.perception.level === 'bright' ? 0.10 : 0.06;
@@ -334,7 +368,7 @@ ready(() => {
   canvas.addEventListener('vtt:token-moved', updateFacingFromMove);
 
   const bodyFacingKeyHandler = (event) => {
-    if (!['[', ']'].includes(event.key) || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!['[', ']'].includes(event.key) || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
     const token = controlledViewers()[0] || null;
     if (!token) return;
     token.facingDeg = light.normalizeAngleDeg(Number(token.facingDeg || 0) + (event.key === '[' ? -15 : 15));
@@ -353,6 +387,9 @@ ready(() => {
       controller: lightingController,
       controlledViewers,
       perceptionAtPoint: (viewer, point) => pov.perceptionAtPoint(viewer, point, scene(), mapData, environment()),
+      visibilityMask: (viewers = controlledViewers(), zLayer = engine.activeZ, options = {}) => visibilityMask(viewers, zLayer, options.now ?? Date.now(), Boolean(options.lookUp)),
+      visibilityMetrics,
+      invalidateVisibility,
     }),
     pov: Object.freeze({
       engine: pov,
@@ -372,5 +409,7 @@ ready(() => {
     povStateBridge.stop();
     lightingStateBridge.stop();
     renderer.render = originalRender;
+    offscreenCache.canvas = null;
+    offscreenCache.ctx = null;
   }, { once: true });
 });
