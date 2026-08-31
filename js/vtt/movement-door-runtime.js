@@ -146,7 +146,8 @@
   }
 
   function planMove(options = {}) {
-    if (!requestedInBounds(options.target, options.mapData || {})) return rejected('OUT_OF_BOUNDS');
+    if (!options.token || !options.start || !options.target || !options.mapData?.grid) return base.planMove(options);
+    if (!requestedInBounds(options.target, options.mapData)) return rejected('OUT_OF_BOUNDS');
     const resumed = verticalResumePlan(options);
     if (resumed) return resumed;
 
