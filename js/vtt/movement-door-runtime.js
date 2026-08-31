@@ -134,6 +134,7 @@
           action: 'open',
           doorId: entry.door?.id || null,
           pathIndex: entry.pathIndex,
+          at: entry.point ? { x: entry.point.x, y: entry.point.y } : null,
           burstOpen: true,
           noise: 'high',
           soundEvent: 'DASH_DOOR_BURST',
