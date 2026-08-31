@@ -57,8 +57,10 @@ test('hardening: actor icon is authoritative for tokens and Theatre sprite is ne
   expect(token.icono).toBe('agatha-icon.webp');
   expect(token.tokenImage).toBe('agatha-icon.webp');
 
-  const appearanceSource = read('js/vtt/token-appearance.js');
-  expect(appearanceSource).not.toMatch(/\bsprite\b/);
+  delete require.cache[require.resolve('../js/vtt/token-appearance.js')];
+  const appearance = require('../js/vtt/token-appearance.js');
+  expect(appearance.imageSource({ icono: 'actor-icon.webp', sprite: 'scene-sprite.webp' })).toBe('actor-icon.webp');
+  expect(appearance.imageSource({ sprite: 'scene-sprite.webp' })).toBe('');
 });
 
 test('hardening: a player-linked actor exists once even across actors, NPC migration data, and stale world token state', () => {
@@ -143,9 +145,10 @@ test('hardening: drag preview is local-only and persistence commit exists only i
   const engine = read('js/vtt/engine.js');
   const moveStart = engine.indexOf('handleTokenMouseMove(event)');
   const upStart = engine.indexOf('handleTokenMouseUp(event)');
-  const centerStart = engine.indexOf('centerCamera()');
+  const centerStart = engine.indexOf('    centerCamera() {', upStart);
   expect(moveStart).toBeGreaterThan(-1);
   expect(upStart).toBeGreaterThan(moveStart);
+  expect(centerStart).toBeGreaterThan(upStart);
   const moveSection = engine.slice(moveStart, upStart);
   const upSection = engine.slice(upStart, centerStart);
   expect(moveSection).toContain("'vtt:token-preview-moved'");
