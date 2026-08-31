@@ -1,0 +1,56 @@
+name: VTT World Token Multiclient Stress
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/token-state.js'
+      - 'js/vtt/token-state-dynamic-patch.js'
+      - 'tests/vtt_world_token_multiclient_stress.spec.js'
+      - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_canonical_token_state.spec.js'
+      - 'tests/vtt_map_field_test_hardening.spec.js'
+      - 'tests/vtt_performance_guard.spec.js'
+      - 'tests/vtt_map_theatre_lifecycle.spec.js'
+      - '.github/workflows/vtt-world-token-multiclient-stress.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/vtt/token-state.js'
+      - 'js/vtt/token-state-dynamic-patch.js'
+      - 'tests/vtt_world_token_multiclient_stress.spec.js'
+      - '.github/workflows/vtt-world-token-multiclient-stress.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  world-token-multiclient-stress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/vtt/token-state.js
+          node --check js/vtt/token-state-dynamic-patch.js
+          node --check tests/vtt_world_token_multiclient_stress.spec.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: World NPC incremental multiclient stress contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_world_token_multiclient_stress.spec.js
+          tests/vtt_multiclient_realtime_field.spec.js
+          tests/vtt_canonical_token_state.spec.js
+          tests/vtt_map_field_test_hardening.spec.js
+          tests/vtt_performance_guard.spec.js
+          tests/vtt_map_theatre_lifecycle.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1
