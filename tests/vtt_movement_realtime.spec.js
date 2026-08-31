@@ -305,17 +305,19 @@ test('abandoned previews expire back to canonical position without polling', asy
   dm.stop();
 });
 
-test('realtime movement stays event-driven, isolated from canonical records, and is wired into main lifecycle', () => {
+test('realtime movement stays event-driven, isolated from canonical records, and is wired into movement lifecycle', () => {
   const source = read('js/vtt/movement-realtime.js');
-  const main = read('js/vtt/main.js');
+  const bootstrap = read('js/vtt/movement-bootstrap.js');
   expect(source).toContain("const DEFAULT_THROTTLE_MS = 90");
   expect(source).toContain("vttMovementPreview");
   expect(source).toContain("vtt:token-preview-moved");
   expect(source).toContain("vtt:canonical-tokens-synced");
   expect(source).not.toContain('setInterval(');
   expect(source).not.toContain('requestAnimationFrame(');
-  expect(main).toContain("import './movement-realtime.js'");
-  expect(main).toContain('movementRealtime?.start?.()');
-  expect(main).toContain('movementRealtime?.finalizeToken');
-  expect(main).toContain('movementRealtime?.stop?.()');
+  expect(bootstrap).toContain("import './movement-realtime.js'");
+  expect(bootstrap).toContain('movementRealtime?.start?.()');
+  expect(bootstrap).toContain('movementRealtime.finalizeToken');
+  expect(bootstrap).toContain("canvas.addEventListener('vtt:token-moved', onRealtimeTokenMoved, true)");
+  expect(bootstrap).toContain("canvas.addEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync)");
+  expect(bootstrap).toContain('movementRealtime?.stop?.()');
 });
