@@ -49,7 +49,7 @@
     const bridge = createBridgeBase(options);
     const mapData = options.mapData;
     const isDm = Boolean(options.isDm);
-    const firebase = base.hostFirebase(root);
+    const firebase = base.hostFirebase(options.root || root);
     const db = firebase?.database?.() || null;
     const worldPath = `${base.WORLD_ROOT}/${bridge.mapId}`;
     let extraStarted = false;
