@@ -52,14 +52,19 @@
     ctx.restore();
   }
 
-  function drawIndicators(renderer, zLayer) {
+  function drawIndicators(renderer, zLayer, options = {}) {
     const ctx = renderer?.ctx;
     const mapData = renderer?.mapData;
     if (!ctx || !mapData) return;
     const tokenRules = browserRoot?.LuminousVttTokenInteraction;
+    const debug = mapData.pov?.debugIndicators === true;
+    if (options.isDm && !debug) return;
+    const viewerIds = new Set((Array.isArray(options.viewers) ? options.viewers : []).map((token) => String(token?.id || '')));
     for (const token of mapData.tokens || []) {
       const onLayer = tokenRules?.tokenOnLayer ? tokenRules.tokenOnLayer(token, zLayer) : tokenLayer(token) === Number(zLayer);
       if (!onLayer) continue;
+      const isViewer = viewerIds.has(String(token.id || '')) || token.viewer === true || token.characterLink?.mode === 'current_player';
+      if (!debug && !isViewer) continue;
       drawLookIndicator(ctx, token, tokenRadius(token, mapData));
     }
   }
