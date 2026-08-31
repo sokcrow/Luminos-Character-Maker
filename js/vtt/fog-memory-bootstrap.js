@@ -12,7 +12,8 @@ ready(() => {
   const memory = window.LuminousVttMemoryEngine;
   const stateApi = window.LuminousVttMemoryState;
   const memoryRenderer = window.LuminousVttMemoryRenderer;
-  if (!runtime?.engine || !runtime?.pov || !runtime?.lighting || !memory || !stateApi || !memoryRenderer) {
+  const visibility = window.LuminousVttVisibilityMaskCore;
+  if (!runtime?.engine || !runtime?.pov || !runtime?.lighting || !runtime.lighting.visibilityMask || !memory || !stateApi || !memoryRenderer || !visibility) {
     console.error('Fog Memory: required VTT runtimes are unavailable.');
     return;
   }
@@ -30,7 +31,7 @@ ready(() => {
   let dirty = false;
   let saveTimer = null;
   let lastProfileAt = 0;
-  let visibilityCache = { at: 0, zLayer: null, lookUp: false, signature: '', cells: new Set() };
+  let visibleCellCache = { maskKey: '', cells: new Set() };
   let lastObservedSignature = '';
 
   function previewToken() {
@@ -119,46 +120,12 @@ ready(() => {
     return runtime.pov.controlledViewers?.() || runtime.lighting.controlledViewers?.() || [];
   }
 
-  function viewerSignature(viewers, zLayer, lookUp) {
-    const scene = mapData.lighting?.scene || {};
-    return JSON.stringify({
-      zLayer,
-      lookUp,
-      viewers: viewers.map((viewer) => [viewer.id, viewer.x, viewer.y, viewer.zLayer, viewer.elevationFt, viewer.lookDeg, viewer.visionConeDeg, viewer.senses?.darkvisionFt]),
-      topology: (mapData.topology || []).map((element) => [element.id, element.state]),
-      walls: (mapData.walls || []).length,
-      scene: [scene.sources, scene.interiors, scene.roofs].map((list) => JSON.stringify(list || [])),
-      env: mapData.lighting?.environment?.state || null,
-    });
-  }
-
-  function pointAtCell(col, row, zLayer) {
-    const size = Math.max(1, Number(mapData.grid?.size) || 70);
-    const elevationFt = runtime.lighting.engine.elevationForLayer(mapData, zLayer);
-    return { x: (col + .5) * size, y: (row + .5) * size, zLayer, elevationFt };
-  }
-
   function visibleCells(viewers, zLayer, lookUp) {
-    const now = Date.now();
-    const signature = viewerSignature(viewers, zLayer, lookUp);
-    if (visibilityCache.signature === signature && now - visibilityCache.at < 100) return visibilityCache.cells;
-    const cells = new Set();
-    const cols = Math.max(1, Math.trunc(Number(mapData.grid?.cols) || 1));
-    const rows = Math.max(1, Math.trunc(Number(mapData.grid?.rows) || 1));
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        const point = pointAtCell(col, row, zLayer);
-        let visible = false;
-        for (const viewer of viewers) {
-          const perception = lookUp
-            ? runtime.pov.lookUpPerceptionAtPoint?.(viewer, point)
-            : runtime.lighting.perceptionAtPoint?.(viewer, point);
-          if (perception?.visible) { visible = true; break; }
-        }
-        if (visible) cells.add(memory.cellKey(col, row));
-      }
-    }
-    visibilityCache = { at: now, zLayer, lookUp, signature, cells };
+    const mask = runtime.lighting.visibilityMask(viewers, zLayer, { lookUp, now: Date.now() });
+    if (!mask?.key) return new Set();
+    if (visibleCellCache.maskKey === mask.key) return visibleCellCache.cells;
+    const cells = visibility.cellsFromTiles(mask.tiles, mapData, memory.cellKey);
+    visibleCellCache = { maskKey: mask.key, cells };
     return cells;
   }
 
