@@ -14,6 +14,8 @@ export class Engine {
         this.isExporting = false;
         this.tokenDrag = null;
         this.tokenControlResolver = null;
+        this.tokenMoveResolver = null;
+        this.tokenMotion = null;
         this.handleResize = this.handleResize.bind(this);
         this.handleTokenMouseDown = this.handleTokenMouseDown.bind(this);
         this.handleTokenMouseMove = this.handleTokenMouseMove.bind(this);
@@ -29,6 +31,7 @@ export class Engine {
     get spatialVisionRules() { return globalThis.LuminousVttSpatialVision || null; }
     get verticalMovementRules() { return globalThis.LuminousVttVerticalMovement || null; }
     setTokenControlResolver(resolver) { this.tokenControlResolver = typeof resolver === 'function' ? resolver : null; }
+    setTokenMoveResolver(resolver) { this.tokenMoveResolver = typeof resolver === 'function' ? resolver : null; }
 
     init() {
         window.addEventListener('resize', this.handleResize);
@@ -57,7 +60,7 @@ export class Engine {
     }
 
     handleTokenMouseDown(event) {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || this.tokenMotion) return;
         const token = this.tokenAtEvent(event);
         if (!token) return;
         const worldPoint = this.eventWorldPoint(event);
@@ -81,43 +84,152 @@ export class Engine {
         }
         const worldPoint = this.eventWorldPoint(event);
         const token = this.tokenDrag.token;
-        token.x = worldPoint.x - this.tokenDrag.grabOffsetX;
-        token.y = worldPoint.y - this.tokenDrag.grabOffsetY;
+        const target = {
+            x: worldPoint.x - this.tokenDrag.grabOffsetX,
+            y: worldPoint.y - this.tokenDrag.grabOffsetY,
+        };
         this.canvas.style.cursor = 'grabbing';
-        // LOCAL-ONLY preview. Persistence intentionally listens only to
-        // `vtt:token-moved`, which is emitted once after a valid mouseup.
+
+        if (this.tokenMoveResolver) {
+            this.canvas.dispatchEvent(new CustomEvent('vtt:movement-destination-preview', {
+                detail: {
+                    tokenId: token.id,
+                    from: { x: this.tokenDrag.originX, y: this.tokenDrag.originY, z: this.tokenDrag.originZ },
+                    target,
+                },
+            }));
+            return;
+        }
+
+        token.x = target.x;
+        token.y = target.y;
         this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
             detail: { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0) },
         }));
     }
 
-    handleTokenMouseUp(event) {
+    async animateTokenPath(token, path = [], options = {}) {
+        const points = Array.isArray(path) ? path.filter((point) => Number.isFinite(Number(point?.x)) && Number.isFinite(Number(point?.y))) : [];
+        if (!token || points.length < 2) return { valid: true, complete: true };
+        const movement = this.mapData.movement || {};
+        const mode = String(options.actionMode || token.activeActionMovementMode || 'walk').toLowerCase();
+        const defaultMs = mode === 'dash' || mode === 'run' ? 55 : 90;
+        const msPerCell = Math.max(20, Number(movement.animationMsPerCell) || defaultMs);
+        const raf = globalThis.requestAnimationFrame || ((fn) => setTimeout(() => fn(Date.now()), 16));
+        const caf = globalThis.cancelAnimationFrame || clearTimeout;
+        const motion = { cancelled: false, frameId: null, tokenId: token.id };
+        this.tokenMotion = motion;
+
+        const moveSegment = (from, to) => new Promise((resolve) => {
+            const startAt = globalThis.performance?.now?.() ?? Date.now();
+            const step = (nowValue) => {
+                if (motion.cancelled) return resolve(false);
+                const elapsed = Math.max(0, Number(nowValue) - startAt);
+                const t = Math.min(1, elapsed / msPerCell);
+                token.x = Number(from.x) + ((Number(to.x) - Number(from.x)) * t);
+                token.y = Number(from.y) + ((Number(to.y) - Number(from.y)) * t);
+                this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
+                    detail: {
+                        tokenId: token.id,
+                        x: token.x,
+                        y: token.y,
+                        z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0),
+                        traversing: true,
+                        actionMode: mode,
+                    },
+                }));
+                if (t >= 1) return resolve(true);
+                motion.frameId = raf(step);
+            };
+            motion.frameId = raf(step);
+        });
+
+        try {
+            token.x = Number(points[0].x);
+            token.y = Number(points[0].y);
+            for (let index = 1; index < points.length; index += 1) {
+                const complete = await moveSegment(points[index - 1], points[index]);
+                if (!complete) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+            }
+            return { valid: true, complete: true };
+        } finally {
+            if (motion.frameId != null && motion.cancelled) caf(motion.frameId);
+            if (this.tokenMotion === motion) this.tokenMotion = null;
+        }
+    }
+
+    cancelTokenMotion() {
+        if (!this.tokenMotion) return false;
+        this.tokenMotion.cancelled = true;
+        return true;
+    }
+
+    finalizeTokenMove(token, drag, result = {}) {
+        const endpoint = (Array.isArray(result.path) && result.path.length ? result.path[result.path.length - 1] : result);
+        token.x = Number(endpoint.x);
+        token.y = Number(endpoint.y);
+        const zLayer = this.spatialVisionRules?.layerOf?.(token) ?? token.z?.[0] ?? drag.originZ ?? 0;
+        token.zLayer = Number(zLayer) || 0;
+        token.z = [token.zLayer];
+        token.gridPosition = {
+            col: Number.isFinite(Number(endpoint.col)) ? Number(endpoint.col) : this.tokenRules?.snapPointToGrid?.(token, this.mapData.grid)?.col ?? token.gridPosition?.col ?? 0,
+            row: Number.isFinite(Number(endpoint.row)) ? Number(endpoint.row) : this.tokenRules?.snapPointToGrid?.(token, this.mapData.grid)?.row ?? token.gridPosition?.row ?? 0,
+            z: token.zLayer,
+        };
+        const transition = this.verticalMovementRules?.transitionOnDrop?.(token, { x: token.x, y: token.y }, this.mapData) || { valid: false, reason: 'NO_VERTICAL_TRANSITION' };
+        if (transition.valid && transition.complete && token.viewer === true) this.setZLayer(transition.targetZ);
+        this.canvas.dispatchEvent(new CustomEvent('vtt:token-moved', {
+            detail: {
+                tokenId: token.id,
+                from: { x: drag.originX, y: drag.originY, z: drag.originZ, elevationFt: drag.originElevationFt },
+                to: { x: token.x, y: token.y, ...token.gridPosition, elevationFt: token.elevationFt ?? 0, verticalMovement: token.verticalMovement || null },
+                path: Array.isArray(result.path) ? result.path : [],
+                routeCostFt: result.routeCostFt ?? result.costFt ?? null,
+                movementCostFt: result.movementCostFt ?? result.costFt ?? null,
+                movementMode: result.movementMode || result.mode || null,
+                actionMode: result.actionMode || null,
+                transition: transition.valid ? { routeId: transition.route?.id || null, complete: Boolean(transition.complete), targetZ: transition.targetZ, costSpentFt: transition.costSpentFt ?? null } : null,
+            },
+        }));
+        if (transition.valid) this.canvas.dispatchEvent(new CustomEvent('vtt:token-z-transition', { detail: { tokenId: token.id, ...transition } }));
+    }
+
+    async handleTokenMouseUp(event) {
         if (!this.tokenDrag || event.button !== 0) return;
         const drag = this.tokenDrag;
         const token = drag.token;
         const worldPoint = this.eventWorldPoint(event);
         const requestedPoint = { x: worldPoint.x - drag.grabOffsetX, y: worldPoint.y - drag.grabOffsetY };
+        this.tokenDrag = null;
+
+        if (this.tokenMoveResolver) {
+            let result = null;
+            try {
+                result = await this.tokenMoveResolver({ token, from: { x: drag.originX, y: drag.originY }, requestedPoint, drag, event });
+            } catch (error) {
+                result = { valid: false, reason: error?.message || 'MOVEMENT_RESOLVER_FAILED' };
+            }
+            if (result?.valid) {
+                const traversed = await this.animateTokenPath(token, result.path || [], { actionMode: result.actionMode });
+                if (traversed.valid) this.finalizeTokenMove(token, drag, result);
+            } else {
+                token.x = drag.originX;
+                token.y = drag.originY;
+                token.zLayer = drag.originZ;
+                token.z = [drag.originZ];
+                token.elevationFt = drag.originElevationFt;
+                this.canvas.dispatchEvent(new CustomEvent('vtt:movement-order-rejected', { detail: { tokenId: token.id, reason: result?.reason || 'NO_PATH', requestedPoint } }));
+            }
+            this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
+            return;
+        }
+
         const rules = this.tokenRules;
         const result = rules?.resolveDrop?.(token, { x: drag.originX, y: drag.originY }, requestedPoint, this.mapData) || { valid: false, reason: 'TOKEN_RULES_UNAVAILABLE' };
-
         if (result.valid) {
             token.x = result.x;
             token.y = result.y;
-            const zLayer = this.spatialVisionRules?.layerOf?.(token) ?? token.z?.[0] ?? 0;
-            token.zLayer = zLayer;
-            token.z = [Number(zLayer)];
-            token.gridPosition = { col: result.col, row: result.row, z: zLayer };
-            const transition = this.verticalMovementRules?.transitionOnDrop?.(token, { x: token.x, y: token.y }, this.mapData) || { valid: false, reason: 'NO_VERTICAL_TRANSITION' };
-            if (transition.valid && transition.complete && token.viewer === true) this.setZLayer(transition.targetZ);
-            this.canvas.dispatchEvent(new CustomEvent('vtt:token-moved', {
-                detail: {
-                    tokenId: token.id,
-                    from: { x: drag.originX, y: drag.originY, z: drag.originZ, elevationFt: drag.originElevationFt },
-                    to: { x: token.x, y: token.y, ...token.gridPosition, elevationFt: token.elevationFt ?? 0, verticalMovement: token.verticalMovement || null },
-                    transition: transition.valid ? { routeId: transition.route?.id || null, complete: Boolean(transition.complete), targetZ: transition.targetZ, costSpentFt: transition.costSpentFt ?? null } : null,
-                },
-            }));
-            if (transition.valid) this.canvas.dispatchEvent(new CustomEvent('vtt:token-z-transition', { detail: { tokenId: token.id, ...transition } }));
+            this.finalizeTokenMove(token, drag, result);
         } else {
             token.x = drag.originX;
             token.y = drag.originY;
@@ -126,7 +238,6 @@ export class Engine {
             token.elevationFt = drag.originElevationFt;
             this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', { detail: { tokenId: token.id, x: token.x, y: token.y, z: drag.originZ, reverted: true } }));
         }
-        this.tokenDrag = null;
         this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
     }
 
@@ -138,7 +249,7 @@ export class Engine {
     }
     handleResize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
     start() { if (!this.isRunning) { this.isRunning = true; requestAnimationFrame(this.loop); } }
-    stop() { this.isRunning = false; }
+    stop() { this.cancelTokenMotion(); this.isRunning = false; }
     loop() {
         if (!this.isRunning) return;
         const renderData = this.calculateVision();
