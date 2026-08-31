@@ -232,7 +232,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     ctx.restore();
   }
 
-  async function prepareDoorInteractions(token, plan = {}) {
+  function validateDoorInteractions(plan = {}) {
     const interactions = Array.isArray(plan.doorInteractions) ? plan.doorInteractions : [];
     if (!interactions.length) return { valid: true, interactions: [] };
     if (typeof runtime.bridge?.requestDirectAction !== 'function') return { valid: false, reason: 'DOOR_ACTION_BRIDGE_UNAVAILABLE' };
@@ -242,11 +242,6 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       if (!door) return { valid: false, reason: 'DOOR_NOT_FOUND', doorId: interaction.doorId || null };
       const traversal = movementRules.doorTraversal({ mode: 'dash', dashActive: true, door, remainingFt: plan.remainingFt });
       if (!traversal.valid) return { valid: false, reason: traversal.reason || 'DOOR_BLOCKED', doorId: door.id };
-      const state = String(door.state || 'closed').toLowerCase();
-      if (state !== 'open' && state !== 'broken') {
-        const result = await runtime.bridge.requestDirectAction(door.id, 'open');
-        if (result === false || result?.valid === false) return { valid: false, reason: result?.reason || 'DOOR_OPEN_FAILED', doorId: door.id };
-      }
       prepared.push({ ...interaction, doorId: door.id, soundEvent: traversal.soundEvent || interaction.soundEvent, noise: traversal.noise || interaction.noise });
     }
     return { valid: true, interactions: prepared };
@@ -277,10 +272,55 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     }
   }
 
+  async function executeMovementInteraction({ token, interaction = {} } = {}) {
+    if (String(interaction.type || '').toLowerCase() !== 'door') return { valid: true, irreversible: false };
+    if (typeof runtime.bridge?.requestDirectAction !== 'function') {
+      await cancelDestination(token, 'DOOR_ACTION_BRIDGE_UNAVAILABLE', true);
+      return { valid: false, reason: 'DOOR_ACTION_BRIDGE_UNAVAILABLE' };
+    }
+    const door = (mapData.topology || []).find((element) => String(element.id || '') === String(interaction.doorId || ''));
+    if (!door) {
+      await cancelDestination(token, 'DOOR_NOT_FOUND', true);
+      return { valid: false, reason: 'DOOR_NOT_FOUND' };
+    }
+    const traversal = movementRules.doorTraversal({ mode: 'dash', dashActive: true, door, remainingFt: Infinity });
+    if (!traversal.valid) {
+      await cancelDestination(token, traversal.reason || 'DOOR_BLOCKED', true);
+      return { valid: false, reason: traversal.reason || 'DOOR_BLOCKED' };
+    }
+    const state = String(door.state || 'closed').toLowerCase();
+    if (state === 'open' || state === 'broken') {
+      return {
+        valid: true,
+        irreversible: false,
+        interaction: { ...interaction, burstOpen: false, soundEvent: null, noise: 'normal' },
+      };
+    }
+    const result = await runtime.bridge.requestDirectAction(door.id, 'open');
+    if (result === false || result?.valid === false) {
+      const reason = result?.reason || 'DOOR_OPEN_FAILED';
+      await cancelDestination(token, reason, true);
+      return { valid: false, reason };
+    }
+    return {
+      valid: true,
+      irreversible: true,
+      interaction: {
+        ...interaction,
+        burstOpen: true,
+        soundEvent: traversal.soundEvent || interaction.soundEvent || 'DASH_DOOR_BURST',
+        noise: traversal.noise || interaction.noise || 'high',
+      },
+    };
+  }
+
   async function resolveMovementOrder({ token, from, requestedPoint }) {
     if (!movementOnline()) return offlineResult();
     const plan = planFor(token, from, requestedPoint);
     if (!plan.valid) return plan;
+
+    const doors = validateDoorInteractions(plan);
+    if (!doors.valid) return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
 
     const committed = movement.commitMove(token, plan, worldState());
     if (!committed.valid) return committed;
@@ -289,12 +329,6 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     if (!reserved.valid) {
       await cancelDestination(token, reserved.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST', true);
       return { ...plan, valid: false, reason: reserved.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST' };
-    }
-
-    const doors = await prepareDoorInteractions(token, plan);
-    if (!doors.valid) {
-      await cancelDestination(token, doors.reason || 'DOOR_INTERACTION_FAILED', true);
-      return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
     }
 
     const endpoint = plan.path?.[plan.path.length - 1] || pathfinding.pointForCell(pathfinding.cellFromPoint(requestedPoint, mapData), mapData, pathfinding.tokenLayer(token));
@@ -316,6 +350,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   async function cancelActiveMotion(reason = 'MOVEMENT_CANCELLED') {
     const motion = engine.tokenMotion;
     if (!motion) return { valid: false, reason: 'NO_ACTIVE_MOVEMENT' };
+    if (motion.irreversible) return { valid: false, reason: 'MOVEMENT_INTERACTION_COMMITTED' };
     const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(motion.tokenId));
     if (!engine.cancelTokenMotion?.()) return { valid: false, reason: 'NO_ACTIVE_MOVEMENT' };
     if (token) {
@@ -338,6 +373,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   function resetControlledMovement() {
     try { assertMovementOnline(); } catch (error) { showError(error); return; }
+    if (engine.tokenMotion) return showError('MOVEMENT_IN_PROGRESS');
     const token = controlledToken();
     if (!token) return;
     const from = { x: token.x, y: token.y, z: token.zLayer ?? token.z?.[0] ?? 0, elevationFt: token.elevationFt ?? 0 };
@@ -467,7 +503,9 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   function onMouseUp() { clearPreview(); setTimeout(updateUi, 0); }
   function onKeyDown(event) {
     if (event.key !== 'Escape' || !engine.tokenMotion) return;
-    void cancelActiveMotion('MOVEMENT_CANCELLED').catch(showError);
+    void cancelActiveMotion('MOVEMENT_CANCELLED')
+      .then((result) => { if (!result.valid && result.reason === 'MOVEMENT_INTERACTION_COMMITTED') showError(result.reason); })
+      .catch(showError);
   }
   function onTokenMoved(event) {
     const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(event.detail?.tokenId));
@@ -485,6 +523,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   engine.setTokenMoveResolver?.(resolveMovementOrder);
+  engine.setMovementInteractionResolver?.(executeMovementInteraction);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
   window.addEventListener('keydown', onKeyDown);
@@ -525,6 +564,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       clearTimeout(noticeTimer);
       engine.cancelTokenMotion?.();
       engine.setTokenMoveResolver?.(null);
+      engine.setMovementInteractionResolver?.(null);
       for (const key of [...realtimeCommits.keys()]) settleRealtimeCommit(key, new Error('REALTIME_RUNTIME_STOPPED'));
       stopTurnPersistence();
       movementRealtime?.stop?.();
