@@ -1,6 +1,9 @@
 import './movement-realtime.js';
+import './movement-connectivity.js';
 import './movement-rules.js';
 import './movement-rules-runtime.js';
+
+window.LuminousVttMovementConnectivity?.installRealtime?.(window);
 
 export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.engine?.mapData } = {}) {
   if (!runtime?.engine || !mapData) return null;
@@ -14,9 +17,16 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   const camera = engine.camera;
   const canvas = engine.canvas;
   const isDm = Boolean(runtime.bridge?.isDm);
+  const movementConnectivity = window.LuminousVttMovementConnectivity;
   const movementRealtimeApi = window.LuminousVttMovementRealtime;
   const movementRealtimeIdentity = movementRealtimeApi?.identity?.(window) || {};
   const movementRealtime = movementRealtimeApi?.createController?.({ mapData, canvas, engine, isDm, root: window }) || null;
+  const tokenStateApi = window.LuminousVttTokenState;
+  const firebase = tokenStateApi?.hostFirebase?.(window) || window.firebase || null;
+  const db = firebase?.database?.() || null;
+  const mapId = tokenStateApi?.firebaseKey?.(mapData.id || mapData.mapId || 'default', 'default') || String(mapData.id || mapData.mapId || 'default');
+  const playerRoot = tokenStateApi?.PLAYER_ROOT || 'campaña/jugadores';
+  const worldTokenRoot = `${tokenStateApi?.WORLD_ROOT || 'campaña/estado_mundo/vttTokens'}/${mapId}`;
   const realtimeCommits = new Map();
   mapData.movement ||= {};
   if (!mapData.movement.diagonalRule) mapData.movement.diagonalRule = '5e';
@@ -27,6 +37,20 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   let lastRoundId = null;
   let lastMode = null;
   let noticeTimer = null;
+  let turnPlayerHandler = null;
+  let turnWorldHandler = null;
+
+  function movementOnline() {
+    return movementRealtime ? movementRealtime.isConnected?.() === true : false;
+  }
+
+  function offlineResult() {
+    return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE', path: [], costFt: Infinity, movementCostFt: Infinity };
+  }
+
+  function assertMovementOnline() {
+    if (!movementOnline()) throw new Error('VTT_OFFLINE_NO_UPDATE');
+  }
 
   function worldState() { return stateBridge.current(); }
 
@@ -68,6 +92,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function statusText() {
+    if (!movementOnline()) return 'WORLD · OFFLINE · MOVEMENT LOCKED';
     const state = worldState();
     if (state.mode !== 'round') return 'WORLD · FREE EXPLORATION';
     const token = controlledToken();
@@ -80,7 +105,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     const style = document.createElement('style');
     style.id = 'vtt-movement-style';
     style.textContent = `
-      .vtt-world-time{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:33020;display:flex;align-items:center;gap:6px;background:#0b0b0b;border:1px solid #aaa;padding:5px 7px;color:#fff;font:700 11px monospace;box-shadow:3px 3px 0 #000}.vtt-world-time[data-mode="round"]{border-color:#fff}.vtt-world-time button{font-size:10px}.vtt-move-toast{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:33021;background:#111;color:#fff;border:1px solid #ff6b6b;padding:5px 8px;font:11px monospace}.vtt-move-toast[hidden]{display:none}
+      .vtt-world-time{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:33020;display:flex;align-items:center;gap:6px;background:#0b0b0b;border:1px solid #aaa;padding:5px 7px;color:#fff;font:700 11px monospace;box-shadow:3px 3px 0 #000}.vtt-world-time[data-mode="round"]{border-color:#fff}.vtt-world-time[data-online="false"]{border-color:#ff6b6b}.vtt-world-time button{font-size:10px}.vtt-move-toast{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:33021;background:#111;color:#fff;border:1px solid #ff6b6b;padding:5px 8px;font:11px monospace}.vtt-move-toast[hidden]{display:none}
     `;
     document.head.appendChild(style);
     const bar = document.createElement('div');
@@ -95,9 +120,9 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     document.body.appendChild(toast);
     bar.querySelector('[data-move-reset]')?.addEventListener('click', resetControlledMovement);
     if (isDm) {
-      bar.querySelector('[data-world-free]')?.addEventListener('click', () => stateBridge.setMode('free').catch(showError));
-      bar.querySelector('[data-world-round]')?.addEventListener('click', () => stateBridge.setMode('round').catch(showError));
-      bar.querySelector('[data-world-next]')?.addEventListener('click', () => stateBridge.nextRound().catch(showError));
+      bar.querySelector('[data-world-free]')?.addEventListener('click', () => setWorldMode('free'));
+      bar.querySelector('[data-world-round]')?.addEventListener('click', () => setWorldMode('round'));
+      bar.querySelector('[data-world-next]')?.addEventListener('click', nextWorldRound);
     }
   }
 
@@ -105,14 +130,20 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     const bar = document.getElementById('vtt-world-time-status');
     const label = bar?.querySelector('[data-world-time-label]');
     const state = stateBridge.current();
-    if (bar) bar.dataset.mode = state.mode;
+    const online = movementOnline();
+    if (bar) {
+      bar.dataset.mode = state.mode;
+      bar.dataset.online = String(online);
+    }
     if (label) label.textContent = statusText();
     const next = bar?.querySelector('[data-world-next]');
-    if (next) next.disabled = state.mode !== 'round';
+    if (next) next.disabled = !online || state.mode !== 'round';
     const reset = bar?.querySelector('[data-move-reset]');
-    if (reset) reset.disabled = state.mode !== 'round' || !controlledToken()?.movementTurnStart;
+    if (reset) reset.disabled = !online || state.mode !== 'round' || !controlledToken()?.movementTurnStart;
     const free = bar?.querySelector('[data-world-free]');
     const round = bar?.querySelector('[data-world-round]');
+    if (free) free.disabled = !online;
+    if (round) round.disabled = !online;
     free?.classList.toggle('is-active', state.mode === 'free');
     round?.classList.toggle('is-active', state.mode === 'round');
   }
@@ -134,6 +165,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function planFor(token, start, target) {
+    if (!movementOnline()) return offlineResult();
     return movement.planMove({
       token,
       start,
@@ -161,7 +193,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   function drawPreview(ctx) {
     if (!preview?.path?.length || !engine.tokenDrag) return;
     const token = engine.tokenDrag.token;
-    const showRuler = worldState().mode === 'round' && isActiveCombatTurn(token);
+    const showRuler = movementOnline() && worldState().mode === 'round' && isActiveCombatTurn(token);
     ctx.save();
     camera.applyTransformSimple(ctx);
     ctx.lineWidth = 3 / Math.max(0.01, camera.zoom || 1);
@@ -198,6 +230,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   async function resolveMovementOrder({ token, from, requestedPoint }) {
+    if (!movementOnline()) return offlineResult();
     const plan = planFor(token, from, requestedPoint);
     if (!plan.valid) return plan;
     const committed = movement.commitMove(token, plan, worldState());
@@ -216,6 +249,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function resetControlledMovement() {
+    try { assertMovementOnline(); } catch (error) { showError(error); return; }
     const token = controlledToken();
     if (!token) return;
     const from = { x: token.x, y: token.y, z: token.zLayer ?? token.z?.[0] ?? 0, elevationFt: token.elevationFt ?? 0 };
@@ -225,6 +259,71 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     canvas.dispatchEvent(new CustomEvent('vtt:token-moved', { detail: { tokenId: token.id, from, to: { x: token.x, y: token.y, z: token.zLayer, ...token.gridPosition, elevationFt: token.elevationFt ?? 0 }, reset: true } }));
     canvas.dispatchEvent(new CustomEvent('vtt:movement-reset', { detail: { tokenId: token.id, refundActionType: result.refundActionType || null } }));
     updateUi();
+  }
+
+  function turnExtraRef(token) {
+    if (!db || !token) return null;
+    const playerKey = movementRealtimeApi?.playerKeyForToken?.(token, movementRealtimeIdentity) || '';
+    if (playerKey) {
+      const key = tokenStateApi?.firebaseKey?.(playerKey, 'player') || playerKey;
+      return db.ref(`${playerRoot}/${key}/vttTokenState/${mapId}`);
+    }
+    if (!isDm) return null;
+    const tokenId = String(token.id || '');
+    if (!tokenId) return null;
+    const key = tokenStateApi?.firebaseKey?.(tokenId, 'token') || tokenId;
+    return db.ref(worldTokenRoot).child(key);
+  }
+
+  async function persistTurnExtras(token) {
+    if (!movementOnline()) throw new Error('VTT_OFFLINE_NO_UPDATE');
+    const ref = turnExtraRef(token);
+    if (!ref?.update) return { valid: false, reason: 'TURN_PERSISTENCE_UNAVAILABLE' };
+    const extras = movementConnectivity?.turnExtras?.(token) || { movementTurnStart: token.movementTurnStart || null, dashActionType: token.dashActionType || null };
+    await ref.update({
+      'position/movementTurnStart': extras.movementTurnStart,
+      'position/dashActionType': extras.dashActionType,
+    });
+    return { valid: true, extras };
+  }
+
+  function applyPlayerTurnExtras(rawPlayers = {}) {
+    if (!movementOnline()) return;
+    Object.entries(rawPlayers || {}).forEach(([playerKey, playerData]) => {
+      const record = playerData?.vttTokenState?.[mapId];
+      if (!record?.position) return;
+      const recordPlayerId = String(record.playerId || playerKey);
+      const token = (mapData.tokens || []).find((entry) => String(entry.canonicalPlayerKey || entry.playerId || '') === String(playerKey)
+        || (recordPlayerId === String(movementRealtimeIdentity.playerId || '') && (entry.viewer === true || entry.characterLink?.mode === 'current_player')));
+      if (token) movementConnectivity?.applyTurnExtras?.(token, record.position);
+    });
+    updateUi();
+  }
+
+  function applyWorldTurnExtras(rawWorld = {}) {
+    if (!movementOnline()) return;
+    Object.entries(rawWorld || {}).forEach(([key, record]) => {
+      if (!record?.position) return;
+      const tokenId = String(record.tokenId || key);
+      const token = (mapData.tokens || []).find((entry) => String(entry.id || '') === tokenId);
+      if (token) movementConnectivity?.applyTurnExtras?.(token, record.position);
+    });
+    updateUi();
+  }
+
+  function startTurnPersistence() {
+    if (!db) return;
+    turnPlayerHandler = (snapshot) => applyPlayerTurnExtras(snapshot?.val?.() || {});
+    turnWorldHandler = (snapshot) => applyWorldTurnExtras(snapshot?.val?.() || {});
+    db.ref(playerRoot).on('value', turnPlayerHandler);
+    db.ref(worldTokenRoot).on('value', turnWorldHandler);
+  }
+
+  function stopTurnPersistence() {
+    if (db && turnPlayerHandler) db.ref(playerRoot).off('value', turnPlayerHandler);
+    if (db && turnWorldHandler) db.ref(worldTokenRoot).off('value', turnWorldHandler);
+    turnPlayerHandler = null;
+    turnWorldHandler = null;
   }
 
   function realtimeKey(token) { return movementRealtimeApi?.logicalTokenKey?.(token, movementRealtimeIdentity) || String(token?.id || ''); }
@@ -242,7 +341,8 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   function onRealtimeTokenMoved(event) {
     const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(event.detail?.tokenId));
-    if (!token || !movementRealtime?.previewRefForToken?.(token)) return;
+    if (!token || !movementOnline() || !movementRealtime?.previewRefForToken?.(token)) return;
+    void persistTurnExtras(token).catch((error) => console.warn('VTT movement turn persistence failed:', error));
     const key = realtimeKey(token);
     if (!key) return;
     settleRealtimeCommit(key, new Error('REALTIME_MOVEMENT_SUPERSEDED'));
@@ -284,6 +384,14 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
   function onRejected(event) { showError(event.detail?.reason || 'MOVEMENT_REJECTED'); clearPreview(); }
 
+  async function setWorldMode(mode) {
+    try { assertMovementOnline(); await stateBridge.setMode(mode); } catch (error) { showError(error); }
+  }
+
+  async function nextWorldRound() {
+    try { assertMovementOnline(); await stateBridge.nextRound(); } catch (error) { showError(error); }
+  }
+
   engine.setTokenMoveResolver?.(resolveMovementOrder);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
@@ -295,6 +403,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   injectUi();
   stateBridge.start();
   movementRealtime?.start?.();
+  startTurnPersistence();
   applyWorldState(stateBridge.current());
 
   const api = Object.freeze({
@@ -303,19 +412,27 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     stateBridge,
     realtime: movementRealtime,
     worldState,
-    nextRound: () => stateBridge.nextRound(),
-    setMode: (mode) => stateBridge.setMode(mode),
-    dash: (token, options) => { const result = movement.dash(token, worldState(), options); updateUi(); return result; },
+    isConnected: movementOnline,
+    nextRound: nextWorldRound,
+    setMode: setWorldMode,
+    dash: (token, options) => {
+      try { assertMovementOnline(); } catch (error) { return { valid: false, reason: error.message }; }
+      const result = movement.dash(token, worldState(), options);
+      if (result.valid) void persistTurnExtras(token).catch((error) => console.warn('VTT Dash turn persistence failed:', error));
+      updateUi();
+      return result;
+    },
     resetMovement: resetControlledMovement,
-    prone: (token) => { const result = movement.setProne(token, true); updateUi(); return result; },
-    stand: (token) => { const result = movement.standUp(token, worldState()); updateUi(); return result; },
-    setMovementMode: (token, mode) => movement.setMovementMode(token, mode, worldState()),
-    plan: (options) => movement.planMove({ ...options, mapData, worldState: worldState() }),
+    prone: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.setProne(token, true); updateUi(); return result; },
+    stand: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.standUp(token, worldState()); updateUi(); return result; },
+    setMovementMode: (token, mode) => { if (!movementOnline()) throw new Error('VTT_OFFLINE_NO_UPDATE'); return movement.setMovementMode(token, mode, worldState()); },
+    plan: (options) => movementOnline() ? movement.planMove({ ...options, mapData, worldState: worldState() }) : offlineResult(),
     stop() {
       clearTimeout(noticeTimer);
       engine.cancelTokenMotion?.();
       engine.setTokenMoveResolver?.(null);
       for (const key of [...realtimeCommits.keys()]) settleRealtimeCommit(key, new Error('REALTIME_RUNTIME_STOPPED'));
+      stopTurnPersistence();
       movementRealtime?.stop?.();
       stateBridge.stop();
       window.removeEventListener('mousemove', onMouseMove);
