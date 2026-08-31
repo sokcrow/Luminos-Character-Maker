@@ -313,6 +313,29 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     };
   }
 
+  async function cancelActiveMotion(reason = 'MOVEMENT_CANCELLED') {
+    const motion = engine.tokenMotion;
+    if (!motion) return { valid: false, reason: 'NO_ACTIVE_MOVEMENT' };
+    const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(motion.tokenId));
+    if (!engine.cancelTokenMotion?.()) return { valid: false, reason: 'NO_ACTIVE_MOVEMENT' };
+    if (token) {
+      await cancelDestination(token, reason, true);
+      canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
+        detail: {
+          tokenId: token.id,
+          x: token.x,
+          y: token.y,
+          z: token.zLayer ?? token.z?.[0] ?? 0,
+          reverted: true,
+          cancelled: true,
+        },
+      }));
+    }
+    clearPreview();
+    updateUi();
+    return { valid: true, reason };
+  }
+
   function resetControlledMovement() {
     try { assertMovementOnline(); } catch (error) { showError(error); return; }
     const token = controlledToken();
@@ -442,6 +465,10 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   function onMouseMove(event) { updatePreview(event); }
   function onMouseUp() { clearPreview(); setTimeout(updateUi, 0); }
+  function onKeyDown(event) {
+    if (event.key !== 'Escape' || !engine.tokenMotion) return;
+    void cancelActiveMotion('MOVEMENT_CANCELLED').catch(showError);
+  }
   function onTokenMoved(event) {
     const token = (mapData.tokens || []).find((entry) => String(entry.id) === String(event.detail?.tokenId));
     if (token) movement.reconcileVertical(token, worldState());
@@ -460,6 +487,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   engine.setTokenMoveResolver?.(resolveMovementOrder);
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('keydown', onKeyDown);
   canvas.addEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
   canvas.addEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
   canvas.addEventListener('vtt:token-moved', onTokenMoved);
@@ -488,6 +516,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       return result;
     },
     resetMovement: resetControlledMovement,
+    cancelMovement: cancelActiveMotion,
     prone: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.setProne(token, true); updateUi(); return result; },
     stand: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.standUp(token, worldState()); updateUi(); return result; },
     setMovementMode: (token, mode) => { if (!movementOnline()) throw new Error('VTT_OFFLINE_NO_UPDATE'); return movement.setMovementMode(token, mode, worldState()); },
@@ -502,6 +531,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       stateBridge.stop();
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('keydown', onKeyDown);
       canvas.removeEventListener('vtt:token-moved', onRealtimeTokenMoved, true);
       canvas.removeEventListener('vtt:canonical-tokens-synced', onRealtimeCanonicalSync);
       canvas.removeEventListener('vtt:token-moved', onTokenMoved);
