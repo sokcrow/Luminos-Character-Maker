@@ -110,11 +110,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         mapData: mockMapData,
         isDm: bridge.isDm,
         notify: (message, mode) => controller?.notify(message, mode),
-        onTokensChanged: () => {
+        onTokensChanged: (change = {}) => {
             characterVisionBridge?.syncTokens?.();
-            if (bridge.isDm) return;
             const viewer = (mockMapData.tokens || []).find((token) => token.viewer === true)
-                || (mockMapData.tokens || []).find((token) => token.characterLink?.mode === 'current_player');
+                || (mockMapData.tokens || []).find((token) => token.characterLink?.mode === 'current_player')
+                || null;
+            const EventCtor = window.CustomEvent || globalThis.CustomEvent;
+            if (typeof EventCtor === 'function') {
+                canvas.dispatchEvent(new EventCtor('vtt:canonical-tokens-synced', {
+                    detail: {
+                        scope: String(change.scope || 'unknown'),
+                        tokenIds: (mockMapData.tokens || []).map((token) => String(token?.id || '')).filter(Boolean),
+                        viewerTokenId: viewer?.id ? String(viewer.id) : null,
+                    },
+                }));
+            }
+            if (bridge.isDm) return;
             const zLayer = Number(viewer?.zLayer ?? viewer?.gridPosition?.z ?? viewer?.z?.[0]);
             if (Number.isFinite(zLayer) && zLayer !== engine.activeZ) applyLayer(zLayer);
         },
