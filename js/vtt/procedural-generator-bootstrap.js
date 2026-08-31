@@ -29,6 +29,12 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
       sockets:rest.sockets||mapData.procedural?.zone?.sockets||[],
       gridSize:mapData.grid?.size||70,
       ...rest,
+      // A live VTT scene is always exactly one streamed 40x40 chunk. Values
+      // such as 2x2/3x3 belong to the logical Zone descriptor, never to the
+      // materialized tactical plan. This hard cap protects against UI/event
+      // ordering accidentally allocating a full 80x80/120x120 Zone.
+      chunkCols:1,
+      chunkRows:1,
     };
   }
   function publishPreview(plan){
@@ -36,9 +42,7 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     emit('vtt:procedural-preview',{signature:plan.signature,seed:plan.seed,profileId:plan.profileId,summary:plan.validation.summary,zone:plan.zone});
     return plan;
   }
-  function preview(options={}){
-    return publishPreview(core.generateZone(generationOptions(options)));
-  }
+  function preview(options={}){return publishPreview(core.generateZone(generationOptions(options)));}
 
   function workerError(payload={}){
     const error=new Error(String(payload.message||'PROCEDURAL_GENERATION_FAILED'));
@@ -68,19 +72,11 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
       worker.addEventListener('error',(event)=>failWorker(new Error(event?.message||'PROCEDURAL_WORKER_FAILED')));
       worker.addEventListener('messageerror',()=>failWorker(new Error('PROCEDURAL_WORKER_MESSAGE_FAILED')));
       return worker;
-    }catch(error){
-      console.warn('VTT procedural worker unavailable; using synchronous fallback.',error);
-      worker=null;
-      return null;
-    }
+    }catch(error){console.warn('VTT procedural worker unavailable; using synchronous fallback.',error);worker=null;return null;}
   }
   function previewAsync(options={}){
     const activeWorker=ensureWorker();
-    if(!activeWorker){
-      // Compatibility fallback for environments without Worker. Defer at least one task so
-      // the GENERATING state can paint before the synchronous generator begins.
-      return new Promise((resolve,reject)=>window.setTimeout(()=>{try{resolve(preview(options));}catch(error){reject(error);}},0));
-    }
+    if(!activeWorker){return new Promise((resolve,reject)=>window.setTimeout(()=>{try{resolve(preview(options));}catch(error){reject(error);}},0));}
     const requestId=`proc_${Date.now().toString(36)}_${(++workerSeq).toString(36)}`;
     const prepared=generationOptions(options);
     return new Promise((resolve,reject)=>{
@@ -106,6 +102,9 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   }
   function apply(plan=lastPlan,options={}){
     if(!plan)throw new Error('PROCEDURAL_PREVIEW_REQUIRED');
+    const zoneCols=Number(plan.zone?.chunkCols??plan.zone?.cols??plan.chunkCols??1);
+    const zoneRows=Number(plan.zone?.chunkRows??plan.zone?.rows??plan.chunkRows??1);
+    if(zoneCols>1||zoneRows>1)throw new Error('LIVE_PLAN_MUST_BE_SINGLE_CHUNK');
     const shouldPersist=options.persist!==false;
     core.applyPlan(mapData,plan,options);lastPlan=plan;
     runtime.semanticMap?.touch?.('procedural-applied');
