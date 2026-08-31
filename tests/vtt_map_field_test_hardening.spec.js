@@ -141,19 +141,26 @@ test('hardening: DM drag cannot accidentally enter View As, while a real click e
   observer.stop();
 });
 
-test('hardening: drag preview is local-only and persistence commit exists only in mouseup', () => {
+test('hardening: drag preview is local-only and persistence commit exists only after mouseup traversal', () => {
   const engine = read('js/vtt/engine.js');
   const moveStart = engine.indexOf('handleTokenMouseMove(event)');
-  const upStart = engine.indexOf('handleTokenMouseUp(event)');
-  const centerStart = engine.indexOf('    centerCamera() {', upStart);
+  const animateStart = engine.indexOf('async animateTokenPath', moveStart);
+  const upStart = engine.indexOf('async handleTokenMouseUp(event)', animateStart);
+  const finalizeStart = engine.indexOf('finalizeTokenMove(token, drag, result = {})', upStart);
+  const centerStart = engine.indexOf('    centerCamera() {', finalizeStart);
   expect(moveStart).toBeGreaterThan(-1);
-  expect(upStart).toBeGreaterThan(moveStart);
-  expect(centerStart).toBeGreaterThan(upStart);
-  const moveSection = engine.slice(moveStart, upStart);
-  const upSection = engine.slice(upStart, centerStart);
+  expect(animateStart).toBeGreaterThan(moveStart);
+  expect(upStart).toBeGreaterThan(animateStart);
+  expect(finalizeStart).toBeGreaterThan(upStart);
+  expect(centerStart).toBeGreaterThan(finalizeStart);
+  const moveSection = engine.slice(moveStart, animateStart);
+  const upSection = engine.slice(upStart, finalizeStart);
+  const finalizeSection = engine.slice(finalizeStart, centerStart);
   expect(moveSection).toContain("'vtt:token-preview-moved'");
   expect(moveSection).not.toContain("'vtt:token-moved'");
-  expect((upSection.match(/'vtt:token-moved'/g) || [])).toHaveLength(1);
+  expect(upSection).toContain('this.finalizeTokenMove(token, drag, result)');
+  expect(upSection).not.toContain("new CustomEvent('vtt:token-moved'");
+  expect((finalizeSection.match(/'vtt:token-moved'/g) || [])).toHaveLength(1);
 
   const observer = read('js/vtt/dm-observer.js');
   expect(observer).not.toContain('setInterval(');
