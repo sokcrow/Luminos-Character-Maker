@@ -1,0 +1,99 @@
+name: VTT Map Field Test Sandbox
+
+on:
+  pull_request:
+    paths:
+      - 'database.rules.json'
+      - 'js/regional-travel-*.js'
+      - 'js/regional-world-graph-*.js'
+      - 'js/regional-local-transition-*.js'
+      - 'js/vtt/map-field-test-sandbox-core.js'
+      - 'js/vtt/world-streaming-*.js'
+      - 'js/vtt/map-simulation-*.js'
+      - 'js/vtt/player-discovery-*.js'
+      - 'js/vtt/procedural-chunk-streaming-*.js'
+      - 'js/vtt/regional-local-transition-runtime.js'
+      - 'js/vtt/camera-follow.js'
+      - 'js/vtt/dm-observer.js'
+      - 'js/vtt/engine.js'
+      - 'js/vtt/renderer.js'
+      - 'tests/vtt_map_field_test_sandbox.spec.js'
+      - 'tests/vtt_map_field_test_hardening.spec.js'
+      - 'tests/regional_world_graph*.spec.js'
+      - 'tests/regional_travel*.spec.js'
+      - 'tests/regional_local_transition*.spec.js'
+      - 'tests/vtt_world_streaming_lifecycle.spec.js'
+      - 'tests/vtt_map_simulation*.spec.js'
+      - 'tests/vtt_player_discovery*.spec.js'
+      - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
+      - 'tests/vtt_camera*.spec.js'
+      - 'tests/vtt_performance_guard.spec.js'
+      - '.github/workflows/vtt-map-field-test-sandbox.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'database.rules.json'
+      - 'js/regional-travel-*.js'
+      - 'js/regional-world-graph-*.js'
+      - 'js/regional-local-transition-*.js'
+      - 'js/vtt/map-field-test-sandbox-core.js'
+      - 'js/vtt/world-streaming-*.js'
+      - 'js/vtt/map-simulation-*.js'
+      - 'js/vtt/player-discovery-*.js'
+      - 'js/vtt/procedural-chunk-streaming-*.js'
+      - 'js/vtt/regional-local-transition-runtime.js'
+      - 'tests/vtt_map_field_test_sandbox.spec.js'
+      - '.github/workflows/vtt-map-field-test-sandbox.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  map-field-test-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax and rules JSON
+        run: |
+          node --check js/vtt/map-field-test-sandbox-core.js
+          node --check tests/vtt_map_field_test_sandbox.spec.js
+          node --check js/regional-travel-core.js
+          node --check js/regional-world-graph-core.js
+          node --check js/vtt/world-streaming-core.js
+          node --check js/vtt/map-simulation-core.js
+          node --check js/vtt/player-discovery-core.js
+          node --check js/vtt/procedural-chunk-streaming-core.js
+          node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Field sandbox, regional, streaming, fog, camera and performance contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_map_field_test_sandbox.spec.js
+          tests/vtt_map_field_test_hardening.spec.js
+          tests/regional_world_graph.spec.js
+          tests/regional_world_graph_realtime.spec.js
+          tests/regional_travel_engine.spec.js
+          tests/regional_travel_realtime.spec.js
+          tests/regional_local_transition.spec.js
+          tests/regional_local_transition_realtime.spec.js
+          tests/regional_local_transition_bootstrap.spec.js
+          tests/vtt_world_streaming_lifecycle.spec.js
+          tests/vtt_map_simulation_persistence.spec.js
+          tests/vtt_map_simulation_realtime.spec.js
+          tests/vtt_player_discovery_fog.spec.js
+          tests/vtt_player_discovery_realtime.spec.js
+          tests/vtt_procedural_chunk_streaming_performance.spec.js
+          tests/vtt_camera_pov_observer_field.spec.js
+          tests/vtt_camera_pov_observer_realtime.spec.js
+          tests/vtt_performance_guard.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1
