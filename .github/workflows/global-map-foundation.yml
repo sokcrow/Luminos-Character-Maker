@@ -1,0 +1,66 @@
+name: Global Map Foundation
+
+on:
+  pull_request:
+    paths:
+      - "js/global-map-core.js"
+      - "js/vtt/global-map-runtime.js"
+      - "css/global-map.css"
+      - "vtt.html"
+      - "js/regional-world-graph-*.js"
+      - "js/regional-travel-*.js"
+      - "js/vtt/world-streaming-*.js"
+      - "tests/global_map*.spec.js"
+      - "tests/regional_world_graph*.spec.js"
+      - "tests/regional_travel*.spec.js"
+      - "tests/vtt_world_streaming_lifecycle.spec.js"
+      - "tests/vtt_performance_guard.spec.js"
+      - ".github/workflows/global-map-foundation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/global-map-core.js"
+      - "js/vtt/global-map-runtime.js"
+      - "css/global-map.css"
+      - "vtt.html"
+      - "tests/global_map*.spec.js"
+      - ".github/workflows/global-map-foundation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  global-map-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --check js/global-map-core.js
+          node --input-type=module --check < js/vtt/global-map-runtime.js
+          node --check tests/global_map_foundation.spec.js
+          node --check tests/global_map_realtime.spec.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Focused global regional streaming and performance contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/global_map_foundation.spec.js
+          tests/global_map_realtime.spec.js
+          tests/regional_world_graph.spec.js
+          tests/regional_world_graph_realtime.spec.js
+          tests/regional_travel_engine.spec.js
+          tests/regional_travel_realtime.spec.js
+          tests/vtt_world_streaming_lifecycle.spec.js
+          tests/vtt_performance_guard.spec.js
+          tests/vtt_procedural_chunk_streaming_performance.spec.js
+      - name: Full repository regression
+        run: npx playwright test --workers=1
