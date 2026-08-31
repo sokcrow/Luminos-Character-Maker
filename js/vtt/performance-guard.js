@@ -62,6 +62,29 @@ function dmFreeVision(runtime = {}, mapData = {}) {
   return isDmRuntime(runtime) && !clean(mapData?.lighting?.dmPreviewTokenId);
 }
 
+export function dmOmniscientVision(mapData = {}) {
+  const size = Math.max(1, numberOr(mapData.grid?.size, 70));
+  const width = Math.max(size, numberOr(mapData.grid?.cols, 1) * size);
+  const height = Math.max(size, numberOr(mapData.grid?.rows, 1) * size);
+  const center = { x: width / 2, y: height / 2 };
+  return Object.freeze({
+    visible: true,
+    dmOmniscient: true,
+    perceptionMode: 'dm-omniscient',
+    crossLayer: false,
+    monochrome: false,
+    tokenPos: center,
+    visionRadius: Math.hypot(width, height) + Math.max(width, height),
+    fovPolygon: [
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height },
+    ],
+    senses: { dmOmniscient: true },
+  });
+}
+
 function visualAnimationActive(engine, mapData, now = Date.now()) {
   return Boolean(engine?.tokenMotion || engine?.tokenDrag) || hasActiveLightingAnimation(mapData, now);
 }
@@ -174,10 +197,10 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
       metrics.visionCalls += 1;
       if (dmFreeVision(runtime, mapData)) {
         metrics.dmVisionBypassed += 1;
-        visionCache = null;
+        visionCache = dmOmniscientVision(mapData);
         hasVisionCache = true;
         visionDirty = false;
-        return null;
+        return visionCache;
       }
 
       const perfNow = globalThis.performance?.now?.() ?? Date.now();
