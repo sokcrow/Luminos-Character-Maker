@@ -385,7 +385,9 @@
                 unwatchPlayerState(snapshot.key);
                 removePlayerRecord(snapshot.key);
             });
-            subscribe(worldRef(), 'child_added', (snapshot) => syncSingleWorldRecord(snapshot.key, snapshot.val() || null));
+            worldRef().once('value')
+                .then((snapshot) => syncWorldRecords(snapshot.val() || {}))
+                .catch((error) => console.error('VTT world token bootstrap failed:', error));
             subscribe(worldRef(), 'child_changed', (snapshot) => syncSingleWorldRecord(snapshot.key, snapshot.val() || null));
             seedOwnPlayerIfNeeded().catch((error) => console.error('VTT player token seed failed:', error));
             seedWorldIfNeeded().catch((error) => console.error('VTT world token seed failed:', error));
