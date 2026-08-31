@@ -1,5 +1,6 @@
 import './movement-realtime.js';
 import './movement-connectivity.js';
+import './movement-destination-claims.js';
 import './movement-rules.js';
 import './movement-rules-runtime.js';
 import './movement-door-runtime.js';
@@ -251,14 +252,51 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     return { valid: true, interactions: prepared };
   }
 
+  async function reserveDestination(token) {
+    if (!token?.pendingMovementClaim) return { valid: true, skipped: true };
+    const bridge = runtime.tokenStateBridge;
+    if (typeof bridge?.reserveMovementDestinationClaim !== 'function') return { valid: false, reason: 'MOVEMENT_CLAIM_BRIDGE_UNAVAILABLE' };
+    try {
+      return await bridge.reserveMovementDestinationClaim(token, token.pendingMovementClaim);
+    } catch (error) {
+      return { valid: false, reason: error?.message || 'MOVEMENT_DESTINATION_CLAIM_FAILED' };
+    }
+  }
+
+  async function cancelDestination(token, reason, rollback = true) {
+    const bridge = runtime.tokenStateBridge;
+    if (typeof bridge?.cancelMovementDestinationClaim !== 'function') {
+      if (rollback && token?.pendingMovementClaim) window.LuminousVttMovementDestinationClaims?.restoreFromClaim?.(token, token.pendingMovementClaim);
+      else if (token) delete token.pendingMovementClaim;
+      return { valid: false, reason: 'MOVEMENT_CLAIM_BRIDGE_UNAVAILABLE' };
+    }
+    try {
+      return await bridge.cancelMovementDestinationClaim(token, { rollback, reason });
+    } catch (_) {
+      return { valid: false, reason: reason || 'MOVEMENT_DESTINATION_CLAIM_CANCEL_FAILED' };
+    }
+  }
+
   async function resolveMovementOrder({ token, from, requestedPoint }) {
     if (!movementOnline()) return offlineResult();
     const plan = planFor(token, from, requestedPoint);
     if (!plan.valid) return plan;
-    const doors = await prepareDoorInteractions(token, plan);
-    if (!doors.valid) return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
+
     const committed = movement.commitMove(token, plan, worldState());
     if (!committed.valid) return committed;
+
+    const reserved = await reserveDestination(token);
+    if (!reserved.valid) {
+      await cancelDestination(token, reserved.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST', true);
+      return { ...plan, valid: false, reason: reserved.reason || 'MOVEMENT_DESTINATION_CLAIM_LOST' };
+    }
+
+    const doors = await prepareDoorInteractions(token, plan);
+    if (!doors.valid) {
+      await cancelDestination(token, doors.reason || 'DOOR_INTERACTION_FAILED', true);
+      return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
+    }
+
     const endpoint = plan.path?.[plan.path.length - 1] || pathfinding.pointForCell(pathfinding.cellFromPoint(requestedPoint, mapData), mapData, pathfinding.tokenLayer(token));
     return {
       ...plan,
@@ -271,6 +309,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       actionMode: token.activeActionMovementMode || 'walk',
       doorInteractions: doors.interactions,
       stopAtDoor: plan.stopAtDoor || null,
+      destinationReserved: Boolean(reserved.reservation),
     };
   }
 
