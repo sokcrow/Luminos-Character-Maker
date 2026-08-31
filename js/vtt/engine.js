@@ -106,8 +106,10 @@ export class Engine {
         const mode = String(options.actionMode || token.activeActionMovementMode || 'walk').toLowerCase();
         const defaultMs = mode === 'dash' || mode === 'run' ? 55 : 90;
         const msPerCell = Math.max(20, Number(movement.animationMsPerCell) || defaultMs);
+        const doorInteractions = Array.isArray(options.doorInteractions) ? options.doorInteractions : [];
         const raf = globalThis.requestAnimationFrame || ((fn) => setTimeout(() => fn(Date.now()), 16));
         const caf = globalThis.cancelAnimationFrame || clearTimeout;
+        const pause = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
         const motion = { cancelled: false, frameId: null, tokenId: token.id };
         this.tokenMotion = motion;
         const moveSegment = (from, to) => new Promise((resolve) => {
@@ -130,6 +132,28 @@ export class Engine {
             token.x = Number(points[0].x);
             token.y = Number(points[0].y);
             for (let index = 1; index < points.length; index += 1) {
+                const interactions = doorInteractions.filter((entry) => Number(entry.pathIndex) === index - 1);
+                for (const interaction of interactions) {
+                    this.canvas.dispatchEvent(new CustomEvent('vtt:movement-interaction', {
+                        detail: { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...interaction },
+                    }));
+                    if (interaction.soundEvent) {
+                        this.canvas.dispatchEvent(new CustomEvent('vtt:sound-event', {
+                            detail: {
+                                kind: 'movement',
+                                event: interaction.soundEvent,
+                                sourceTokenId: token.id,
+                                doorId: interaction.doorId || null,
+                                intensity: interaction.noise || 'high',
+                                x: token.x,
+                                y: token.y,
+                                z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0),
+                            },
+                        }));
+                    }
+                    if (interaction.pauseMs) await pause(interaction.pauseMs);
+                    if (motion.cancelled) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+                }
                 const complete = await moveSegment(points[index - 1], points[index]);
                 if (!complete) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
             }
@@ -161,7 +185,7 @@ export class Engine {
                 result = { valid: false, reason: error?.message || 'MOVEMENT_RESOLVER_FAILED' };
             }
             if (result?.valid) {
-                const traversed = await this.animateTokenPath(token, result.path || [], { actionMode: result.actionMode });
+                const traversed = await this.animateTokenPath(token, result.path || [], { actionMode: result.actionMode, doorInteractions: result.doorInteractions });
                 if (traversed.valid) this.finalizeTokenMove(token, drag, result);
             } else {
                 token.x = drag.originX;
@@ -218,6 +242,11 @@ export class Engine {
                 transition: transition.valid ? { routeId: transition.route?.id || null, complete: Boolean(transition.complete), targetZ: transition.targetZ, costSpentFt: transition.costSpentFt ?? null } : null,
             },
         }));
+        if (result.stopAtDoor) {
+            this.canvas.dispatchEvent(new CustomEvent('vtt:movement-stopped-at-door', {
+                detail: { tokenId: token.id, x: token.x, y: token.y, z: token.zLayer, ...result.stopAtDoor },
+            }));
+        }
         if (transition.valid) this.canvas.dispatchEvent(new CustomEvent('vtt:token-z-transition', { detail: { tokenId: token.id, ...transition } }));
     }
 
