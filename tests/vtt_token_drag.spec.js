@@ -7,6 +7,7 @@ const tokenRules = require('../js/vtt/token-interaction.js');
 const engineSource = read('js/vtt/engine.js');
 const rendererSource = read('js/vtt/renderer.js');
 const cameraSource = read('js/vtt/camera.js');
+const movementBootstrapSource = read('js/vtt/movement-bootstrap.js');
 const htmlSource = read('vtt.html');
 
 const grid = { cols: 10, rows: 10, size: 70 };
@@ -66,6 +67,17 @@ test('VTT loads token interaction before the module engine and uses drag instead
     expect(engineSource).toContain("new CustomEvent('vtt:token-moved'");
     expect(engineSource).not.toContain('playerSpeed = 4');
     expect(engineSource).not.toContain('this.keys = { w: false');
+});
+
+test('movement interactions resolve at the traversal threshold and irreversible mutations lock cancellation', () => {
+    expect(engineSource).toContain('let resolvedInteraction = interaction');
+    expect(engineSource).toContain('resolvedInteraction = { ...interaction, ...resolution.interaction }');
+    expect(engineSource).toContain('if (resolution?.irreversible === true) motion.irreversible = true');
+    expect(engineSource).toContain('event: resolvedInteraction.soundEvent');
+    expect(engineSource).toContain('intensity: resolvedInteraction.noise');
+    expect(movementBootstrapSource).toContain('engine.setMovementInteractionResolver?.(executeMovementInteraction)');
+    expect(movementBootstrapSource).toContain("if (motion.irreversible) return { valid: false, reason: 'MOVEMENT_INTERACTION_COMMITTED' }");
+    expect(movementBootstrapSource).toContain("runtime.bridge.requestDirectAction(door.id, 'open')");
 });
 
 test('camera drag yields to draggable tokens and renderer draws round person tokens', () => {

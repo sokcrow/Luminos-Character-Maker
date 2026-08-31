@@ -24,6 +24,8 @@ import './movement-engine.js';
 import './movement-state.js';
 import './physical-state-patch.js';
 import './movement-integration-patch.js';
+import './movement-connectivity.js';
+import './movement-destination-claims.js';
 import './map-dialogue-overlay.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
