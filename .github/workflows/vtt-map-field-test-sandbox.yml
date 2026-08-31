@@ -26,6 +26,7 @@ on:
       - 'tests/vtt_map_field_test_sandbox.spec.js'
       - 'tests/vtt_map_field_test_hardening.spec.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_eight_player_realtime_stress.spec.js'
       - 'tests/vtt_actor_*.spec.js'
       - 'tests/vtt_canonical_token_state.spec.js'
       - 'tests/vtt_token_*.spec.js'
@@ -74,6 +75,7 @@ on:
       - 'tests/vtt_map_field_test_sandbox.spec.js'
       - 'tests/vtt_map_field_test_hardening.spec.js'
       - 'tests/vtt_multiclient_realtime_field.spec.js'
+      - 'tests/vtt_eight_player_realtime_stress.spec.js'
       - 'tests/vtt_actor_*.spec.js'
       - 'tests/vtt_canonical_token_state.spec.js'
       - 'tests/vtt_token_*.spec.js'
@@ -119,6 +121,7 @@ jobs:
           node --check tests/vtt_map_field_test_sandbox.spec.js
           node --check tests/vtt_map_field_test_hardening.spec.js
           node --check tests/vtt_multiclient_realtime_field.spec.js
+          node --check tests/vtt_eight_player_realtime_stress.spec.js
           node --check js/regional-travel-core.js
           node --check js/regional-world-graph-core.js
           node --check js/vtt/world-streaming-core.js
@@ -134,6 +137,7 @@ jobs:
           tests/vtt_map_field_test_sandbox.spec.js
           tests/vtt_map_field_test_hardening.spec.js
           tests/vtt_multiclient_realtime_field.spec.js
+          tests/vtt_eight_player_realtime_stress.spec.js
           tests/vtt_actor_ficha_presentation.spec.js
           tests/vtt_actor_token_library.spec.js
           tests/vtt_canonical_token_state.spec.js
