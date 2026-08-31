@@ -198,12 +198,34 @@ test('hardening: world object persistence accepts the authenticated DM dashboard
   }
 });
 
-test('hardening: Firebase rules remain restrictive while VTT DM roots are explicitly identifiable', () => {
+test('hardening: Firebase VTT rules use configured DM UID with legacy fallback and preserve player ownership', () => {
   const rules = JSON.parse(read('database.rules.json')).rules;
-  expect(rules['vtt_topology']?.$mapId?.['.write']).toContain('auth.uid');
-  expect(rules['vtt_topology']?.$mapId?.['.write']).not.toBe('auth != null');
-  expect(rules.campaña?.estado_mundo?.['.write']).toContain('auth.uid');
-  expect(rules.campaña?.jugadores?.$nombre_personaje?.['.write']).toContain("data.child('uid').val() === auth.uid");
-  expect(rules['vtt_world_object_action_requests']).toBeTruthy();
-  expect(rules['vtt_regional_local_transition_requests']).toBeTruthy();
+  const configuredDmPath = "root.child('campaña').child('config').child('dm_uid')";
+  const expectConfiguredDm = (rule) => {
+    expect(rule).toContain(`${configuredDmPath}.val()`);
+    expect(rule).toContain(`!${configuredDmPath}.exists()`);
+    expect(rule).toContain("auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'");
+    expect(rule).not.toBe('auth != null');
+  };
+
+  expectConfiguredDm(rules.campaña?.estado_mundo?.['.write']);
+  const playerWrite = rules.campaña?.jugadores?.$nombre_personaje?.['.write'];
+  expectConfiguredDm(playerWrite);
+  expect(playerWrite).toContain("data.child('uid').val() === auth.uid");
+
+  expectConfiguredDm(rules.vtt_topology?.$mapId?.['.write']);
+  expectConfiguredDm(rules.vtt_topology_action_requests?.$mapId?.['.read']);
+  expectConfiguredDm(rules.vtt_world_object_action_requests?.$mapId?.['.read']);
+  expectConfiguredDm(rules.vtt_regional_local_transition_requests?.$mapId?.['.read']);
+
+  const topologyRequestWrite = rules.vtt_topology_action_requests?.$mapId?.$requestId?.['.write'];
+  const objectRequestWrite = rules.vtt_world_object_action_requests?.$mapId?.$requestId?.['.write'];
+  const regionalRequestWrite = rules.vtt_regional_local_transition_requests?.$mapId?.$requestId?.['.write'];
+  expectConfiguredDm(topologyRequestWrite);
+  expectConfiguredDm(objectRequestWrite);
+  expectConfiguredDm(regionalRequestWrite);
+  expect(topologyRequestWrite).toContain("newData.child('requesterUid').val() === auth.uid");
+  expect(objectRequestWrite).toContain("newData.child('requesterUid').val() === auth.uid");
+  expect(regionalRequestWrite).toContain("newData.child('requesterUid').val() === auth.uid");
+  expect(regionalRequestWrite).toContain("root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid");
 });
