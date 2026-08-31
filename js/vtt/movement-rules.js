@@ -124,6 +124,19 @@
     return false;
   }
 
+  function segmentIntersectionPoint(a = {}, b = {}, c = {}, d = {}) {
+    const x1 = finite(a.x); const y1 = finite(a.y);
+    const x2 = finite(b.x); const y2 = finite(b.y);
+    const x3 = finite(c.x); const y3 = finite(c.y);
+    const x4 = finite(d.x); const y4 = finite(d.y);
+    const denominator = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
+    if (Math.abs(denominator) < 1e-9) return null;
+    const t = (((x1 - x3) * (y3 - y4)) - ((y1 - y3) * (x3 - x4))) / denominator;
+    const u = -((((x1 - x2) * (y1 - y3)) - ((y1 - y2) * (x1 - x3))) / denominator);
+    if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+    return { x: x1 + (t * (x2 - x1)), y: y1 + (t * (y2 - y1)) };
+  }
+
   function topologyElementLayer(element = {}, zLayer = 0) {
     const layers = Array.isArray(element.z) ? element.z.map(Number) : [Number(element.z ?? 0)];
     return layers.includes(Number(zLayer));
@@ -149,7 +162,9 @@
         const segment = doorSegment(door, mapData.grid || {});
         if (!segmentsIntersect(from, to, segment.a, segment.b)) continue;
         if (results.some((entry) => String(entry.door?.id || '') === String(door.id || '') && entry.pathIndex === pathIndex)) continue;
-        results.push({ door, pathIndex, from, to, state: clean(door.state || 'closed') || 'closed' });
+        const point = segmentIntersectionPoint(from, to, segment.a, segment.b)
+          || { x: (finite(from.x) + finite(to.x)) / 2, y: (finite(from.y) + finite(to.y)) / 2 };
+        results.push({ door, pathIndex, from, to, point, state: clean(door.state || 'closed') || 'closed' });
       }
     }
     return results;
@@ -203,6 +218,7 @@
     resolveSpaceClaim,
     doorTraversal,
     segmentsIntersect,
+    segmentIntersectionPoint,
     doorSegment,
     doorCrossings,
     mapWithPassableDoors,
