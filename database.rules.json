@@ -3,7 +3,7 @@
     "campaña": {
       ".read": "auth != null",
       "estado_mundo": {
-        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
       },
       "clima": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
@@ -43,7 +43,7 @@
       },
       "jugadores": {
         "$nombre_personaje": {
-          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
+          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || !data.child('uid').exists() || data.child('uid').val() === auth.uid)"
         }
       },
       "teatro": {
@@ -105,33 +105,33 @@
     "vtt_topology": {
       ".read": "auth != null",
       "$mapId": {
-        ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
       }
     },
     "vtt_topology_action_requests": {
       "$mapId": {
-        ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        ".read": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
         "$requestId": {
-          ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
-          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('mapId').val() === $mapId))"
+          ".read": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || data.child('requesterUid').val() === auth.uid)",
+          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (!data.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('mapId').val() === $mapId))"
         }
       }
     },
     "vtt_world_object_action_requests": {
       "$mapId": {
-        ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        ".read": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
         "$requestId": {
-          ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
-          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('mapId').val() === $mapId && newData.child('status').val() === 'pending' && newData.child('actorTokenId').isString() && newData.child('targetId').isString() && newData.child('action').isString()))"
+          ".read": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || data.child('requesterUid').val() === auth.uid)",
+          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('mapId').val() === $mapId && newData.child('status').val() === 'pending' && newData.child('actorTokenId').isString() && newData.child('targetId').isString() && newData.child('action').isString()))"
         }
       }
     },
     "vtt_regional_local_transition_requests": {
       "$mapId": {
-        ".read": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'",
+        ".read": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
         "$requestId": {
-          ".read": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || data.child('requesterUid').val() === auth.uid)",
-          ".write": "auth != null && (auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1' || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('requestId').val() === $requestId && newData.child('mapId').val() === $mapId && newData.child('status').val() === 'pending' && newData.child('playerId').isString() && root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid))"
+          ".read": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || data.child('requesterUid').val() === auth.uid)",
+          ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (!data.exists() && newData.exists() && newData.child('requesterUid').val() === auth.uid && newData.child('requestId').val() === $requestId && newData.child('mapId').val() === $mapId && newData.child('status').val() === 'pending' && newData.child('playerId').isString() && root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid))"
         }
       }
     },

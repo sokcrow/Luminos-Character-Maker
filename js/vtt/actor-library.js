@@ -24,24 +24,37 @@
   }
 
   function imageFor(data = {}) {
-    return clean(data.tokenImage || data.token_image || data.tokenUrl || data.token_url || data.sprite || data.portrait || data.portraitUrl || data.imagen || data.image) || '';
+    return clean(
+      data.icono || data.icono_jugador || data.iconUrl || data.icon_url
+      || data.tokenImage || data.token_image || data.tokenUrl || data.token_url
+      || data.portrait || data.portraitUrl || data.imagen || data.image,
+    ) || '';
+  }
+
+  function actorIdentity(scope, id, data = {}) {
+    if (scope === 'players') return clean(data.actorId || data.vinculo_jugador || data.actor?.id || data.actorRef?.id) || null;
+    return clean(data.actorId || data.id || id) || null;
   }
 
   function normalizeActor(scope, id, data = {}) {
-    const actorId = clean(data.actorId || data.id || data.uid || id) || safeKey(id);
+    const linkedActorId = actorIdentity(scope, id, data);
+    const actorId = linkedActorId || clean(data.id || data.uid || id) || safeKey(id);
     const category = categoryFor(scope, data);
     const name = displayName(data, actorId);
+    const tokenImage = imageFor(data);
     return {
       key: `${scope}:${safeKey(id || actorId)}`,
       scope,
       sourceId: clean(id || actorId),
       actorId,
+      linkedActorId,
       playerId: scope === 'players' ? clean(data.playerId || data.id || id) : null,
       ownerUid: scope === 'players' ? clean(data.uid) || null : null,
       name,
       category,
-      portrait: imageFor(data),
-      tokenImage: imageFor(data),
+      portrait: tokenImage,
+      tokenImage,
+      icono: tokenImage,
       color: data.color || data.tokenColor || (category === 'enemy' || category === 'boss' ? '#ff5c5c' : category === 'player' ? '#00ffcc' : '#f2f2f2'),
       backgroundColor: data.backgroundColor || '#20242a',
       iconColor: data.iconColor || '#ffffff',
@@ -55,13 +68,28 @@
   }
 
   function mergeCollections({ players = {}, actors = {}, npcs = {} } = {}) {
-    const list = [];
-    Object.entries(players || {}).forEach(([id, data]) => list.push(normalizeActor('players', id, data || {})));
-    Object.entries(actors || {}).forEach(([id, data]) => list.push(normalizeActor('actors', id, data || {})));
-    Object.entries(npcs || {}).forEach(([id, data]) => list.push(normalizeActor('npcs', id, data || {})));
-    const byKey = new Map();
-    list.forEach((actor) => byKey.set(actor.key, actor));
-    return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const result = [];
+    const assignedActorIds = new Set();
+    const playerEntries = Object.entries(players || {}).map(([id, data]) => normalizeActor('players', id, data || {}));
+    playerEntries.forEach((actor) => {
+      result.push(actor);
+      if (actor.linkedActorId) assignedActorIds.add(clean(actor.linkedActorId));
+    });
+
+    const seenPersistent = new Set();
+    const addPersistent = (scope, id, data) => {
+      const actor = normalizeActor(scope, id, data || {});
+      const identity = clean(actor.actorId || actor.sourceId);
+      // A Theatre actor assigned to a player is represented by the player token only.
+      if (identity && assignedActorIds.has(identity)) return;
+      // Same persistent actor can exist in legacy + principal databases during migration.
+      if (identity && seenPersistent.has(identity)) return;
+      if (identity) seenPersistent.add(identity);
+      result.push(actor);
+    };
+    Object.entries(actors || {}).forEach(([id, data]) => addPersistent('actors', id, data));
+    Object.entries(npcs || {}).forEach(([id, data]) => addPersistent('npcs', id, data));
+    return result.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   function snap(point, mapData = {}) {
@@ -84,9 +112,7 @@
     return cell * 0.4;
   }
 
-  function tokenId(actor) {
-    return `${actor.category || 'npc'}:${safeKey(actor.actorId || actor.sourceId)}:${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-  }
+  function tokenId(actor) { return `${actor.category || 'npc'}:${safeKey(actor.actorId || actor.sourceId)}:${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`; }
 
   function tokenFromActor(actor, point, mapData = {}, zLayer = 0) {
     if (!actor) throw new Error('ACTOR_REQUIRED');
@@ -117,6 +143,7 @@
       backgroundColor: actor.backgroundColor,
       iconColor: actor.iconColor,
       icon: 'person',
+      icono: actor.icono || actor.tokenImage || null,
       tokenImage: actor.tokenImage || null,
       portrait: actor.portrait || null,
       size: actor.size || null,
@@ -127,5 +154,5 @@
     };
   }
 
-  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, normalizeActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
+  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, actorIdentity, normalizeActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
 });

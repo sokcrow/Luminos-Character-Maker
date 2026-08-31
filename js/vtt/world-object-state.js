@@ -10,12 +10,18 @@
   const clean=v=>String(v??'').trim();
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
 
-  function database(){return root?.firebase?.database?.()||null;}
-  function authUser(){return root?.firebase?.auth?.().currentUser||null;}
+  function hostWindow(browserRoot=root){
+    if(!browserRoot)return null;
+    try{if(browserRoot.parent&&browserRoot.parent!==browserRoot&&browserRoot.parent.document)return browserRoot.parent;}catch(_){}
+    return browserRoot;
+  }
+  function database(){const host=hostWindow();return host?.firebase?.database?.()||root?.firebase?.database?.()||null;}
+  function authUser(){const host=hostWindow();return host?.firebase?.auth?.().currentUser||root?.firebase?.auth?.().currentUser||null;}
+  function isDmSurface(){const host=hostWindow();return authUser()?.uid===DM_UID||Boolean(host?.document?.body?.classList?.contains('on-game-dashboard'));}
   function mapIdOf(mapData){return clean(mapData?.id||mapData?.mapId||'default');}
 
   function createBridge({mapData,onChanged,onDefinitionsChanged,notify}={}){
-    const db=database(),mapId=mapIdOf(mapData),listeners=[],isDm=authUser()?.uid===DM_UID;
+    const db=database(),mapId=mapIdOf(mapData),listeners=[],isDm=isDmSurface();
     mapData.worldObjects=Array.isArray(mapData.worldObjects)?mapData.worldObjects:[];
     mapData.worldObjectDefinitions=mapData.worldObjectDefinitions||{};
     const objectsPath=`campaña/estado_mundo/vttObjects/${mapId}`;
@@ -66,5 +72,5 @@
     return api;
   }
 
-  return Object.freeze({DM_UID,mapIdOf,createBridge});
+  return Object.freeze({DM_UID,mapIdOf,isDmSurface,createBridge});
 });

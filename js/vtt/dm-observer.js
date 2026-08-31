@@ -22,7 +22,7 @@
   function isPlayerToken(token = {}) {
     return token.canonicalScope === 'player'
       || Boolean(playerIdForToken(token))
-      || token.characterLink?.mode === 'current_player'
+      || ['current_player', 'player'].includes(token.characterLink?.mode)
       || token.viewer === true;
   }
 
@@ -30,9 +30,7 @@
     const engine = runtime?.engine;
     const canvas = engine?.canvas;
     if (!engine || !canvas || !mapData || !cameraFollow) throw new Error('DM_OBSERVER_RUNTIME_REQUIRED');
-
-    const isDm = Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm);
-    if (!isDm) return null;
+    if (!Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm)) return null;
 
     mapData.lighting ||= {};
     let mode = MODES.FREE;
@@ -42,6 +40,8 @@
     let panel = null;
     let statusNode = null;
     let restoreRenderer = null;
+    let pointerDown = null;
+    let suppressNextClickTokenId = null;
 
     const tokens = () => Array.isArray(mapData.tokens) ? mapData.tokens : [];
     const tokenById = (id = targetId) => tokens().find((token) => clean(token.id) === clean(id)) || null;
@@ -105,7 +105,7 @@
 
     function viewAs(id, reason = 'view-as') {
       const token = tokenById(id);
-      if (!token) return free('target-missing');
+      if (!token || !isPlayerToken(token)) return free('target-missing');
       mode = MODES.VIEW_AS;
       targetId = clean(token.id);
       selectingMode = null;
@@ -117,24 +117,21 @@
     }
 
     function select(nextMode) {
-      if (![MODES.FOLLOW, MODES.VIEW_AS].includes(nextMode)) return free('select-free');
+      if (nextMode !== MODES.FOLLOW) return free('select-free');
       selectingMode = nextMode;
       renderStatus();
       return snapshot();
     }
 
     function applySelected(id) {
-      if (selectingMode === MODES.VIEW_AS) return viewAs(id, 'selected-view-as');
-      if (selectingMode === MODES.FOLLOW) return follow(id, 'selected-follow');
-      return snapshot();
+      return selectingMode === MODES.FOLLOW ? follow(id, 'selected-follow') : viewAs(id, 'selected-view-as');
     }
 
     function resync(reason = 'canonical-sync') {
       if (mode === MODES.FREE) return snapshot();
       const token = target();
       if (!token) return free('target-missing');
-      if (mode === MODES.VIEW_AS) mapData.lighting.dmPreviewTokenId = clean(token.id);
-      else mapData.lighting.dmPreviewTokenId = null;
+      mapData.lighting.dmPreviewTokenId = mode === MODES.VIEW_AS ? clean(token.id) : null;
       cameraFollow.setTarget(clean(token.id), { follow: true });
       syncLayer(token);
       emit(reason);
@@ -148,24 +145,63 @@
       const token = target();
       if (!token) return free('target-missing');
       syncLayer(token);
-      emit('target-state');
+      emit(event?.type === 'vtt:token-preview-moved' ? 'target-preview' : 'target-state');
     }
 
-    function onCanonicalSync() { resync('canonical-sync'); }
-    function onWorldTransition() { resync('world-transition'); }
+    const onCanonicalSync = () => resync('canonical-sync');
+    const onWorldTransition = () => resync('world-transition');
 
     function tokenAtEvent(event) {
-      if (typeof engine.tokenAtEvent === 'function') return engine.tokenAtEvent(event);
-      return null;
+      return typeof engine.tokenAtEvent === 'function' ? engine.tokenAtEvent(event) : null;
+    }
+
+    function pointerPoint(event) {
+      return {
+        x: Number(event?.clientX ?? event?.detail?.clientX ?? 0),
+        y: Number(event?.clientY ?? event?.detail?.clientY ?? 0),
+      };
+    }
+
+    function onCanvasPointerDown(event) {
+      if (event.button !== 0 || mapData.dmEditMode?.active) return;
+      // A later real click always starts with a new mousedown, so stale suppression
+      // from a drag that never produced a browser click cannot leak forward.
+      suppressNextClickTokenId = null;
+      const token = tokenAtEvent(event);
+      if (!token || !isPlayerToken(token)) {
+        pointerDown = null;
+        return;
+      }
+      const point = pointerPoint(event);
+      pointerDown = { tokenId: clean(token.id), x: point.x, y: point.y };
+    }
+
+    function onCanvasPointerUp(event) {
+      if (!pointerDown || event.button !== 0) return;
+      const point = pointerPoint(event);
+      const distance = Math.hypot(point.x - pointerDown.x, point.y - pointerDown.y);
+      const token = tokenAtEvent(event);
+      const sameToken = !token || clean(token.id) === pointerDown.tokenId;
+      if (sameToken && distance >= 5) suppressNextClickTokenId = pointerDown.tokenId;
+      pointerDown = null;
     }
 
     function onCanvasSelect(event) {
-      if (!selectingMode || event.button !== 0) return;
+      if (event.button !== 0 || mapData.dmEditMode?.active) return;
       const token = tokenAtEvent(event);
       if (!token || !isPlayerToken(token)) return;
+      const tokenId = clean(token.id);
+      if (suppressNextClickTokenId && tokenId === suppressNextClickTokenId) {
+        suppressNextClickTokenId = null;
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        return;
+      }
+      suppressNextClickTokenId = null;
       event.preventDefault?.();
       event.stopPropagation?.();
-      applySelected(token.id);
+      if (selectingMode === MODES.FOLLOW) follow(token.id, 'clicked-follow');
+      else viewAs(token.id, 'clicked-view-as');
     }
 
     function ensurePanel() {
@@ -177,8 +213,10 @@
       panel.id = 'vtt-dm-observer';
       panel.setAttribute('aria-label', 'DM observer controls');
       panel.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:36600;background:rgba(7,9,11,.96);border:1px solid #59636c;padding:7px;font:700 9px monospace;color:#dce3e8;display:grid;gap:5px;min-width:185px';
-      panel.innerHTML = '<strong>DM OBSERVER</strong><small id="vtt-dm-observer-status">FREE</small><div style="display:flex;gap:4px"><button type="button" data-dm-observer="free">FREE</button><button type="button" data-dm-observer="follow">FOLLOW</button><button type="button" data-dm-observer="view_as">VIEW AS</button></div>';
-      for (const button of panel.querySelectorAll('button')) button.style.cssText = 'border:1px solid #59636c;background:#11161a;color:#dce3e8;font:700 9px monospace;padding:5px 7px;cursor:pointer';
+      panel.innerHTML = '<strong>DM OBSERVER</strong><small id="vtt-dm-observer-status">FREE</small><div style="display:flex;gap:4px"><button type="button" data-dm-observer="free">FREE</button><button type="button" data-dm-observer="follow">FOLLOW</button></div><small>Click jugador = VIEW AS 120°</small>';
+      for (const button of panel.querySelectorAll('button')) {
+        button.style.cssText = 'border:1px solid #59636c;background:#11161a;color:#dce3e8;font:700 9px monospace;padding:5px 7px;cursor:pointer';
+      }
       statusNode = panel.querySelector('#vtt-dm-observer-status');
       panel.addEventListener('click', onPanelClick);
       doc.body.appendChild(panel);
@@ -190,21 +228,25 @@
       if (!statusNode) return;
       const token = target();
       const name = clean(token?.name || token?.label || token?.id || targetId || '').toUpperCase();
-      if (selectingMode) statusNode.textContent = `SELECT PLAYER · ${selectingMode === MODES.VIEW_AS ? 'VIEW AS' : 'FOLLOW'}`;
+      if (selectingMode) statusNode.textContent = 'SELECT PLAYER · FOLLOW';
       else if (mode === MODES.FREE) statusNode.textContent = 'FREE CAMERA · DM VISION';
-      else statusNode.textContent = `${mode === MODES.VIEW_AS ? 'VIEW AS' : 'FOLLOW'} · ${name || '—'}`;
+      else statusNode.textContent = `${mode === MODES.VIEW_AS ? 'VIEW AS 120°' : 'FOLLOW'} · ${name || '—'}`;
     }
 
     function onPanelClick(event) {
       const action = event.target?.closest?.('[data-dm-observer]')?.dataset?.dmObserver;
       if (action === MODES.FREE) free('panel-free');
       else if (action === MODES.FOLLOW) select(MODES.FOLLOW);
-      else if (action === MODES.VIEW_AS) select(MODES.VIEW_AS);
     }
 
     function playerTokensOnLayer() {
       const z = Number(engine.activeZ) || 0;
       return tokens().filter((token) => isPlayerToken(token) && layerOf(token) === z);
+    }
+
+    function outlineRadius(token) {
+      const profile = engine.visionProfile?.(token);
+      return Math.max(Number(mapData.grid?.size) || 70, Number(profile?.radiusPx) || 0);
     }
 
     function drawOutlines() {
@@ -214,12 +256,12 @@
       const camera = engine.camera;
       if (!ctx || !camera) return;
       const lighting = host?.LuminousVttLightingEngine || root?.LuminousVttLightingEngine;
-      const radius = Math.max(140, (Number(mapData.grid?.size) || 70) * 4);
       ctx.save();
       camera.applyTransformSimple?.(ctx);
       for (const token of playerTokensOnLayer()) {
         const cone = Number(lighting?.visionConeDeg?.(token)) || 120;
         const facing = Number(token.lookState?.yawDeg ?? lighting?.facingDeg?.(token) ?? token.facingDeg) || 0;
+        const radius = outlineRadius(token);
         const half = Math.min(180, cone / 2) * Math.PI / 180;
         const center = facing * Math.PI / 180;
         ctx.beginPath();
@@ -246,7 +288,10 @@
       restoreRenderer = () => { renderer.render = original; };
     }
 
+    canvas.addEventListener('mousedown', onCanvasPointerDown, true);
+    canvas.addEventListener('mouseup', onCanvasPointerUp, true);
     canvas.addEventListener('click', onCanvasSelect, true);
+    canvas.addEventListener('vtt:token-preview-moved', onTokenState);
     canvas.addEventListener('vtt:token-moved', onTokenState);
     canvas.addEventListener('vtt:token-z-transition', onTokenState);
     canvas.addEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
@@ -260,7 +305,12 @@
       if (stopped) return;
       stopped = true;
       mapData.lighting.dmPreviewTokenId = null;
+      pointerDown = null;
+      suppressNextClickTokenId = null;
+      canvas.removeEventListener('mousedown', onCanvasPointerDown, true);
+      canvas.removeEventListener('mouseup', onCanvasPointerUp, true);
       canvas.removeEventListener('click', onCanvasSelect, true);
+      canvas.removeEventListener('vtt:token-preview-moved', onTokenState);
       canvas.removeEventListener('vtt:token-moved', onTokenState);
       canvas.removeEventListener('vtt:token-z-transition', onTokenState);
       canvas.removeEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
@@ -287,6 +337,7 @@
       applySelected,
       resync,
       drawOutlines,
+      outlineRadius,
       stop,
     });
   }
