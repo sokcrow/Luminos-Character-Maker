@@ -1,0 +1,209 @@
+.vtt-global-map-toggle {
+  position: fixed;
+  left: 90px;
+  top: 12px;
+  z-index: 37000;
+  min-width: 104px;
+  pointer-events: auto;
+}
+
+.vtt-global-map-root {
+  position: fixed;
+  inset: 0;
+  z-index: 36500;
+  overflow: hidden;
+  background: #080a0c;
+  color: #e8edf0;
+  font: 11px/1.35 "Share Tech Mono", monospace, sans-serif;
+}
+
+.vtt-global-map-root[hidden] { display: none !important; }
+
+#vtt-global-map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  cursor: crosshair;
+}
+
+.vtt-global-map-topbar,
+.vtt-global-map-layers,
+.vtt-global-map-inspector,
+.vtt-global-map-editor {
+  position: fixed;
+  z-index: 36600;
+  background: rgba(7, 9, 11, .94);
+  border: 1px solid #59636c;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, .5);
+  backdrop-filter: blur(3px);
+}
+
+.vtt-global-map-topbar {
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  box-sizing: border-box;
+}
+
+.vtt-global-map-title {
+  margin-right: 6px;
+  color: #f1f3f4;
+  letter-spacing: .12em;
+  white-space: nowrap;
+}
+
+.vtt-global-map-scale,
+.vtt-global-map-status {
+  padding: 6px 8px;
+  border: 1px solid #3c454d;
+  background: #0b0e11;
+  color: #aeb8c0;
+  white-space: nowrap;
+}
+
+.vtt-global-map-status { margin-left: auto; }
+.vtt-global-map-status[data-mode="dirty"] { color: #e0b35b; border-color: #8c6e35; }
+.vtt-global-map-status[data-mode="ok"] { color: #9bbd91; border-color: #506a49; }
+.vtt-global-map-status[data-mode="error"] { color: #e17474; border-color: #8b4747; }
+
+.vtt-global-map-search {
+  width: min(320px, 28vw);
+  min-width: 160px;
+  padding: 8px 9px;
+  color: #e8edf0;
+  background: #0b0e11;
+  border: 1px solid #46505a;
+  outline: none;
+}
+
+.vtt-global-map-search:focus { border-color: #929da5; }
+
+.vtt-global-map-layers {
+  left: 12px;
+  top: 74px;
+  width: 145px;
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.vtt-global-map-layers strong,
+.vtt-global-map-inspector > strong,
+.vtt-global-map-editor > strong {
+  color: #d2d7db;
+  letter-spacing: .12em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #3b434a;
+}
+
+.vtt-global-map-layers label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: #b5bec5;
+  cursor: pointer;
+}
+
+.vtt-global-map-inspector {
+  left: 12px;
+  bottom: 12px;
+  width: 250px;
+  max-height: 38vh;
+  overflow: auto;
+  padding: 10px;
+}
+
+#vtt-global-map-inspector-body {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: #aeb8bf;
+}
+
+#vtt-global-map-inspector-body b { color: #f0f2f4; font-size: 13px; }
+#vtt-global-map-inspector-body span { display: block; }
+
+.vtt-global-map-editor {
+  right: 12px;
+  top: 74px;
+  bottom: 12px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.vtt-global-map-editor label {
+  display: grid;
+  gap: 4px;
+  color: #98a3ab;
+  font-size: 9px;
+  letter-spacing: .07em;
+}
+
+.vtt-global-map-editor input,
+.vtt-global-map-editor select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px;
+  color: #e8edf0;
+  background: #0b0e11;
+  border: 1px solid #46505a;
+}
+
+.vtt-global-map-editor .vtt-global-map-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+}
+
+.vtt-global-map-editor .vtt-global-map-check input { width: auto; }
+
+.vtt-global-map-toolrow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.vtt-global-map-toolrow:first-of-type { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.vtt-global-map-toolrow .brutalist-button {
+  min-width: 0;
+  padding: 7px 5px;
+  font-size: 9px;
+}
+
+.vtt-global-map-toolrow .brutalist-button.active {
+  color: #f1f3f4;
+  border-color: #f1f3f4;
+  background: #20262b;
+}
+
+.vtt-global-save {
+  margin-top: auto;
+  width: 100%;
+  min-height: 40px;
+}
+
+#vtt-global-help {
+  color: #73808a;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .vtt-global-map-title { display: none; }
+  .vtt-global-map-editor { width: 210px; }
+  .vtt-global-map-search { width: 180px; }
+  .vtt-global-map-inspector { width: 190px; }
+}
