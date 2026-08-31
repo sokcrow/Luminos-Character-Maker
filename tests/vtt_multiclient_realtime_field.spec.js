@@ -349,9 +349,18 @@ test.describe('VTT shared multiclient Realtime field', () => {
 
     const engine = read('js/vtt/engine.js');
     const moveStart = engine.indexOf('handleTokenMouseMove(event)');
-    const upStart = engine.indexOf('handleTokenMouseUp(event)');
-    const centerStart = engine.indexOf('    centerCamera() {', upStart);
-    expect(engine.slice(moveStart, upStart)).not.toContain("'vtt:token-moved'");
-    expect((engine.slice(upStart, centerStart).match(/'vtt:token-moved'/g) || [])).toHaveLength(1);
+    const animateStart = engine.indexOf('async animateTokenPath', moveStart);
+    const upStart = engine.indexOf('async handleTokenMouseUp(event)', animateStart);
+    const finalizeStart = engine.indexOf('finalizeTokenMove(token, drag, result = {})', upStart);
+    const centerStart = engine.indexOf('    centerCamera() {', finalizeStart);
+    expect(moveStart).toBeGreaterThan(-1);
+    expect(animateStart).toBeGreaterThan(moveStart);
+    expect(upStart).toBeGreaterThan(animateStart);
+    expect(finalizeStart).toBeGreaterThan(upStart);
+    expect(centerStart).toBeGreaterThan(finalizeStart);
+    expect(engine.slice(moveStart, animateStart)).not.toContain("'vtt:token-moved'");
+    expect(engine.slice(upStart, finalizeStart)).toContain('this.finalizeTokenMove(token, drag, result)');
+    expect(engine.slice(upStart, finalizeStart)).not.toContain("new CustomEvent('vtt:token-moved'");
+    expect((engine.slice(finalizeStart, centerStart).match(/'vtt:token-moved'/g) || [])).toHaveLength(1);
   });
 });
