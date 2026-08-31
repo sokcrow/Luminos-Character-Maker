@@ -1,4 +1,5 @@
 const DEFAULT_ACTIVE_FRAME_MS = 1000 / 30;
+const DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20;
 const DEFAULT_IDLE_SCAN_MS = 1000 / 15;
 const STATIC_SIGNATURE_TTL_MS = 100;
 
@@ -89,6 +90,11 @@ function visualAnimationActive(engine, mapData, now = Date.now()) {
   return Boolean(engine?.tokenMotion || engine?.tokenDrag) || hasActiveLightingAnimation(mapData, now);
 }
 
+function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS) {
+  if (engine?.tokenMotion) return Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS);
+  return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
+}
+
 export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL_MS) {
   let at = -Infinity;
   let value = '';
@@ -134,7 +140,12 @@ export function frameFingerprint({ engine, mapData, now = Date.now(), staticSign
   });
 }
 
-export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntime, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, idleScanMs = DEFAULT_IDLE_SCAN_MS } = {}) {
+export function installPerformanceGuard({
+  runtime = globalThis.LuminousVttRuntime,
+  activeFrameMs = DEFAULT_ACTIVE_FRAME_MS,
+  movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS,
+  idleScanMs = DEFAULT_IDLE_SCAN_MS,
+} = {}) {
   const engine = runtime?.engine;
   const renderer = engine?.renderer;
   const mapData = engine?.mapData;
@@ -206,7 +217,9 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
       const perfNow = globalThis.performance?.now?.() ?? Date.now();
       const wallNow = Date.now();
       const active = visualAnimationActive(engine, mapData, wallNow);
-      const minimumInterval = active ? Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS) : Math.max(1, Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
+      const minimumInterval = active
+        ? activeFrameInterval(engine, activeFrameMs, movementFrameMs)
+        : Math.max(1, Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
       if (hasVisionCache && (perfNow - lastVisionAt) < minimumInterval) {
         metrics.visionSkipped += 1;
         return visionCache;
@@ -230,10 +243,11 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
     const perfNow = globalThis.performance?.now?.() ?? Date.now();
     const wallNow = Date.now();
     const active = visualAnimationActive(engine, mapData, wallNow);
-    const activeInterval = Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
-    const idleInterval = Math.max(activeInterval, Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
+    const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
+    const idleInterval = Math.max(Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS), Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
 
     // Important: reject excess animation frames before building token/topology JSON signatures.
+    // Token interpolation stays RAF-smooth, but Dynamic Lighting/Fog heavy work is capped at 20 Hz during tokenMotion.
     if (active && (perfNow - lastRenderAt) < activeInterval) {
       metrics.throttled += 1;
       return;
@@ -262,7 +276,13 @@ export function installPerformanceGuard({ runtime = globalThis.LuminousVttRuntim
 
   const api = Object.freeze({
     invalidate,
-    snapshot: () => ({ ...metrics, savedFrames: metrics.skipped + metrics.throttled, visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed }),
+    snapshot: () => ({
+      ...metrics,
+      savedFrames: metrics.skipped + metrics.throttled,
+      visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
+      activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
+      movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
+    }),
     resetMetrics() {
       metrics.calls = 0;
       metrics.rendered = 0;
