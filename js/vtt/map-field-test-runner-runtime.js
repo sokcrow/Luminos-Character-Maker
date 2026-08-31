@@ -241,7 +241,8 @@ export function start({ runtime = globalThis.LuminousVttRuntime, mapData = runti
   ];
   for (const name of events) on(canvas, name, recordEvent);
   on(canvas, 'mousedown', markPointerDown, true);
-  on(host, 'mouseup', markPointerUp, true);
+  on(canvas, 'mouseup', markPointerUp, true);
+  if (host !== window) on(host, 'mouseup', markPointerUp, true);
   on(host, 'error', onError);
   on(host, 'unhandledrejection', onError);
   on(doc, 'click', onDocumentClick, true);
