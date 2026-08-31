@@ -7,7 +7,10 @@ on:
       - 'js/regional-travel-*.js'
       - 'js/regional-world-graph-*.js'
       - 'js/regional-local-transition-*.js'
+      - 'js/vtt/main.js'
       - 'js/vtt/map-field-test-sandbox-core.js'
+      - 'js/vtt/map-field-test-runner-*.js'
+      - 'js/vtt/global-map-*.js'
       - 'js/vtt/world-streaming-*.js'
       - 'js/vtt/map-simulation-*.js'
       - 'js/vtt/player-discovery-*.js'
@@ -17,6 +20,7 @@ on:
       - 'js/vtt/dm-observer.js'
       - 'js/vtt/engine.js'
       - 'js/vtt/renderer.js'
+      - 'tests/vtt_map_field_test_runner.spec.js'
       - 'tests/vtt_map_field_test_sandbox.spec.js'
       - 'tests/vtt_map_field_test_hardening.spec.js'
       - 'tests/regional_world_graph*.spec.js'
@@ -36,12 +40,16 @@ on:
       - 'js/regional-travel-*.js'
       - 'js/regional-world-graph-*.js'
       - 'js/regional-local-transition-*.js'
+      - 'js/vtt/main.js'
       - 'js/vtt/map-field-test-sandbox-core.js'
+      - 'js/vtt/map-field-test-runner-*.js'
+      - 'js/vtt/global-map-*.js'
       - 'js/vtt/world-streaming-*.js'
       - 'js/vtt/map-simulation-*.js'
       - 'js/vtt/player-discovery-*.js'
       - 'js/vtt/procedural-chunk-streaming-*.js'
       - 'js/vtt/regional-local-transition-runtime.js'
+      - 'tests/vtt_map_field_test_runner.spec.js'
       - 'tests/vtt_map_field_test_sandbox.spec.js'
       - '.github/workflows/vtt-map-field-test-sandbox.yml'
 
@@ -63,7 +71,11 @@ jobs:
         run: npm ci
       - name: Syntax and rules JSON
         run: |
+          node --check js/vtt/main.js
           node --check js/vtt/map-field-test-sandbox-core.js
+          node --check js/vtt/map-field-test-runner-core.js
+          node --check js/vtt/map-field-test-runner-runtime.js
+          node --check tests/vtt_map_field_test_runner.spec.js
           node --check tests/vtt_map_field_test_sandbox.spec.js
           node --check js/regional-travel-core.js
           node --check js/regional-world-graph-core.js
@@ -74,9 +86,10 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Field sandbox, regional, streaming, fog, camera and performance contracts
+      - name: Field runner, sandbox, regional, streaming, fog, camera and performance contracts
         run: >-
           npx playwright test --workers=1
+          tests/vtt_map_field_test_runner.spec.js
           tests/vtt_map_field_test_sandbox.spec.js
           tests/vtt_map_field_test_hardening.spec.js
           tests/regional_world_graph.spec.js
