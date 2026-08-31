@@ -113,7 +113,7 @@ export class Engine {
         const raf = globalThis.requestAnimationFrame || ((fn) => setTimeout(() => fn(Date.now()), 16));
         const caf = globalThis.cancelAnimationFrame || clearTimeout;
         const pause = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
-        const motion = { cancelled: false, frameId: null, tokenId: token.id };
+        const motion = { cancelled: false, irreversible: false, frameId: null, tokenId: token.id };
         this.tokenMotion = motion;
         const moveSegment = (from, to) => new Promise((resolve) => {
             const distancePx = Math.hypot(Number(to.x) - Number(from.x), Number(to.y) - Number(from.y));
@@ -155,6 +155,7 @@ export class Engine {
                         if (!reachedThreshold) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
                     }
                     if (motion.cancelled) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+                    let resolvedInteraction = interaction;
                     if (this.movementInteractionResolver) {
                         let resolution = null;
                         try {
@@ -165,32 +166,36 @@ export class Engine {
                         if (resolution === false || resolution?.valid === false) {
                             return { valid: false, reason: resolution?.reason || 'MOVEMENT_INTERACTION_FAILED', complete: false, interaction };
                         }
+                        if (resolution?.interaction && typeof resolution.interaction === 'object') {
+                            resolvedInteraction = { ...interaction, ...resolution.interaction };
+                        }
+                        if (resolution?.irreversible === true) motion.irreversible = true;
                     }
                     this.canvas.dispatchEvent(new CustomEvent('vtt:movement-interaction', {
-                        detail: { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...interaction },
+                        detail: { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...resolvedInteraction },
                     }));
-                    if (interaction.soundEvent) {
+                    if (resolvedInteraction.soundEvent) {
                         this.canvas.dispatchEvent(new CustomEvent('vtt:sound-event', {
                             detail: {
                                 kind: 'movement',
-                                event: interaction.soundEvent,
+                                event: resolvedInteraction.soundEvent,
                                 sourceTokenId: token.id,
-                                doorId: interaction.doorId || null,
-                                intensity: interaction.noise || 'high',
+                                doorId: resolvedInteraction.doorId || null,
+                                intensity: resolvedInteraction.noise || 'high',
                                 x: token.x,
                                 y: token.y,
                                 z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0),
                             },
                         }));
                     }
-                    if (interaction.pauseMs) await pause(interaction.pauseMs);
+                    if (resolvedInteraction.pauseMs) await pause(resolvedInteraction.pauseMs);
                     if (motion.cancelled) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
                     segmentStart = threshold;
                 }
                 const complete = await moveSegment(segmentStart, segmentEnd);
                 if (!complete) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
             }
-            return { valid: true, complete: true };
+            return { valid: true, complete: true, irreversible: motion.irreversible };
         } finally {
             if (motion.frameId != null && motion.cancelled) caf(motion.frameId);
             if (this.tokenMotion === motion) this.tokenMotion = null;
