@@ -104,6 +104,7 @@ test('a short confirmed token traversal cannot recalculate FOV and render on eve
     expect(realRenders).toBeLessThan(20);
     expect(stats.visionSaved).toBeGreaterThan(100);
     expect(stats.savedFrames).toBeGreaterThan(100);
+    expect(stats.movementFrameMs).toBeCloseTo(50, 4);
     api.stop();
   } finally {
     fs.unlinkSync(tmp);
@@ -163,8 +164,11 @@ test('performance guard keeps visual rule inputs and caps active movement before
   expect(source).toContain('mapData.lighting?.scene');
   expect(source).toContain('mapData.procedural?.activeChunkSignature');
   expect(source).toContain('DEFAULT_ACTIVE_FRAME_MS = 1000 / 30');
+  expect(source).toContain('DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20');
   expect(source).toContain('DEFAULT_IDLE_SCAN_MS = 1000 / 15');
   expect(source).toContain('engine?.tokenMotion || engine?.tokenDrag');
+  expect(source).toContain('if (engine?.tokenMotion)');
+  expect(source).toContain('Dynamic Lighting/Fog heavy work is capped at 20 Hz during tokenMotion');
   expect(source).toContain('reject excess animation frames before building token/topology JSON signatures');
 });
 
