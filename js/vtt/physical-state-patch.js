@@ -1,3 +1,5 @@
+import './jump-fall-bootstrap.js';
+
 (function(root){'use strict';const base=root?.LuminousVttTokenState;if(!base||base.__physicalStatePersistencePatch)return;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
 function physicalSnapshot(token={}){return{stealthState:clone(token.stealthState||null),coverState:clone(token.coverState||null),posture:token.posture||null,activeMovementMode:token.activeMovementMode||null};}
 function applyPhysicalSnapshot(token={},raw={}){if(!token||!raw||typeof raw!=='object')return token;if(raw.stealthState&&typeof raw.stealthState==='object')token.stealthState=clone(raw.stealthState);else delete token.stealthState;if(raw.coverState&&typeof raw.coverState==='object')token.coverState=clone(raw.coverState);else delete token.coverState;if(raw.posture)token.posture=String(raw.posture);else delete token.posture;if(raw.activeMovementMode)token.activeMovementMode=String(raw.activeMovementMode);else delete token.activeMovementMode;return token;}
