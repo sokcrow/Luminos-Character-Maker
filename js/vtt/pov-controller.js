@@ -14,17 +14,25 @@
     if (!canvas || !engine || !mapData || !stateBridge) throw new Error('POV_CONTROLLER_INPUT_REQUIRED');
     const doc = root?.document;
     const pov = root?.LuminousVttPovEngine;
+    const visibility = root?.LuminousVttVisibilityMaskCore;
     if (!pov) throw new Error('POV_ENGINE_REQUIRED');
+    const LOOK_STEP_DEG = visibility?.DEFAULT_LOOK_STEP_DEG || 2;
+    const LOOK_THROTTLE_MS = visibility?.DEFAULT_LOOK_THROTTLE_MS || 50;
+    const LOOK_BUTTON_STEP_DEG = 15;
     const listeners = [];
     mapData.pov ||= {};
     if (typeof mapData.pov.lookLocked !== 'boolean') mapData.pov.lookLocked = false;
     if (typeof mapData.pov.lookUpHeld !== 'boolean') mapData.pov.lookUpHeld = false;
+    if (!Number.isFinite(Number(mapData.pov.revision))) mapData.pov.revision = 0;
     mapData.pov.lookUpBlocked = false;
     mapData.lighting ||= {};
     mapData.lighting.scene ||= { sources: [], interiors: [], transformers: [], switches: [] };
     mapData.lighting.scene.roofs ||= [];
 
     let saveTimer = null;
+    let lookUpdateTimer = null;
+    let pendingLookDeg = null;
+    let lastLookAppliedAt = -Infinity;
     let roofToolActive = false;
     let roofDragStart = null;
     let selectedRoofId = null;
@@ -37,6 +45,15 @@
     function activeLookToken() { return controlled()[0] || null; }
     function lookLocked() { return Boolean(mapData.pov.lookLocked); }
     function lookUpHeld() { return Boolean(mapData.pov.lookUpHeld); }
+    function nowMs() { return root?.performance?.now?.() ?? Date.now(); }
+    function normalizeAngle(value) { return visibility?.normalizeAngleDeg?.(value) ?? pov.normalizeAngleDeg?.(value) ?? (((num(value) % 360) + 360) % 360); }
+    function quantizeAngle(value) { return visibility?.quantizeAngleDeg?.(value, LOOK_STEP_DEG) ?? normalizeAngle(Math.round(normalizeAngle(value) / LOOK_STEP_DEG) * LOOK_STEP_DEG); }
+    function angleChanged(previous, next) {
+      if (visibility?.meaningfulAngleChange) return visibility.meaningfulAngleChange(previous, next, LOOK_STEP_DEG);
+      let delta = Math.abs(normalizeAngle(next) - normalizeAngle(previous));
+      if (delta > 180) delta = 360 - delta;
+      return delta >= LOOK_STEP_DEG - 1e-9;
+    }
 
     function eventWorldPoint(event) {
       if (typeof engine.eventWorldPoint === 'function') return engine.eventWorldPoint(event);
@@ -60,8 +77,10 @@
         const style = doc.createElement('style');
         style.id = 'vtt-pov-runtime-style';
         style.textContent = `
-          .vtt-pov-status{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30020;background:#0b0b0b;border:1px solid #aaa;color:#fff;padding:6px 10px;font:700 11px monospace;pointer-events:none;box-shadow:3px 3px 0 #000}
+          .vtt-pov-status{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:30020;background:#0b0b0b;border:1px solid #aaa;color:#fff;padding:5px 9px;font:700 10px monospace;pointer-events:none;box-shadow:3px 3px 0 #000}
           .vtt-pov-status[data-mode="blocked"]{border-color:#ff6b6b}.vtt-pov-status[data-mode="up"]{border-color:#8bd8ff}.vtt-pov-status[data-mode="locked"]{border-color:#ffe38b}
+          .vtt-pov-controls{position:fixed;left:50%;bottom:101px;transform:translateX(-50%);z-index:30021;display:flex;gap:4px;background:rgba(11,11,11,.94);border:1px solid #59636c;padding:4px;box-shadow:3px 3px 0 #000}
+          .vtt-pov-controls button{border:1px solid #59636c;background:#11161a;color:#dce3e8;font:700 9px monospace;padding:5px 7px;cursor:pointer}.vtt-pov-controls button:hover{border-color:#d7b151;color:#d7b151}.vtt-pov-controls button:disabled{opacity:.35;cursor:not-allowed}.vtt-pov-controls [data-pov-action="lock"].is-active{border-color:#ffe38b;color:#ffe38b}
           .vtt-pov-roof-panel{position:fixed;right:18px;top:86px;z-index:31500;width:280px;background:#111;border:2px solid #fff;color:#fff;padding:12px;font:12px monospace;box-shadow:6px 6px 0 #000}
           .vtt-pov-roof-panel[hidden]{display:none}.vtt-pov-roof-panel label{display:grid;gap:4px;margin:8px 0}.vtt-pov-roof-panel input{background:#080808;color:#fff;border:1px solid #777;padding:6px}
         `;
@@ -72,6 +91,16 @@
         badge.id = 'vtt-pov-status';
         badge.className = 'vtt-pov-status';
         doc.body.appendChild(badge);
+      }
+      if (!doc.getElementById('vtt-pov-controls')) {
+        const controls = doc.createElement('nav');
+        controls.id = 'vtt-pov-controls';
+        controls.className = 'vtt-pov-controls';
+        controls.setAttribute('aria-label', 'View direction controls');
+        controls.innerHTML = '<button type="button" data-pov-action="left" title="Shift+[">VIEW ◀</button><button type="button" data-pov-action="lock" title="E">VIEW FREE</button><button type="button" data-pov-action="right" title="Shift+]">VIEW ▶</button>';
+        controls.addEventListener('click', onPovControlsClick);
+        listeners.push(() => controls.removeEventListener('click', onPovControlsClick));
+        doc.body.appendChild(controls);
       }
       if (isDm && !doc.getElementById('vtt-pov-roof-editor')) {
         const panel = doc.createElement('aside');
@@ -101,9 +130,26 @@
       toolbar.appendChild(button);
     }
 
+    function syncControls() {
+      const controls = doc?.getElementById('vtt-pov-controls');
+      if (!controls) return;
+      const hasToken = Boolean(activeLookToken()) && !editActive();
+      controls.hidden = Boolean(isDm && !hasToken);
+      for (const button of controls.querySelectorAll('button')) button.disabled = !hasToken;
+      const lockButton = controls.querySelector('[data-pov-action="lock"]');
+      if (lockButton) {
+        lockButton.textContent = lookLocked() ? 'VIEW LOCKED' : 'VIEW FREE';
+        lockButton.classList.toggle('is-active', lookLocked());
+      }
+    }
+
     function updateStatus() {
       const badge = doc?.getElementById('vtt-pov-status');
       if (!badge) return;
+      syncControls();
+      const currentToken = activeLookToken();
+      if (isDm && !currentToken) { badge.hidden = true; return; }
+      badge.hidden = false;
       if (lookUpHeld() && mapData.pov.lookUpBlocked) {
         badge.textContent = 'Q · LOOK UP · BLOCKED';
         badge.dataset.mode = 'blocked';
@@ -115,7 +161,9 @@
         badge.dataset.mode = target == null ? 'blocked' : 'up';
         return;
       }
-      badge.textContent = lookLocked() ? 'E · LOOK LOCKED' : 'E · LOOK FREE';
+      const token = currentToken;
+      const angle = token ? Math.round(normalizeAngle(token.lookDeg ?? token.facingDeg)) : null;
+      badge.textContent = token ? `${lookLocked() ? 'E · LOOK LOCKED' : 'E · LOOK FREE'} · ${angle}°` : 'POV · NO VIEWER';
       badge.dataset.mode = lookLocked() ? 'locked' : 'free';
     }
 
@@ -128,13 +176,78 @@
       }, 120) || null;
     }
 
+    function dispatchPovChanged(reason, token) {
+      mapData.pov.dirty = true;
+      mapData.pov.revision = (Number(mapData.pov.revision) || 0) + 1;
+      root?.LuminousVttPerformanceGuard?.invalidate?.();
+      const EventCtor = root?.CustomEvent || browserRoot?.CustomEvent || globalThis.CustomEvent;
+      if (typeof EventCtor === 'function') {
+        canvas.dispatchEvent?.(new EventCtor('vtt:pov-changed', {
+          detail: { reason, tokenId: token?.id || null, lookDeg: token?.lookDeg ?? null, revision: mapData.pov.revision },
+        }));
+      }
+    }
+
+    function applyLookDeg(value, { reason = 'look', force = false } = {}) {
+      if (editActive()) return false;
+      const token = activeLookToken();
+      if (!token) return false;
+      const next = quantizeAngle(value);
+      const previous = Number(token.lookDeg ?? token.facingDeg);
+      if (!force && !angleChanged(previous, next)) return false;
+      if (Math.abs((visibility?.signedAngleDeltaDeg?.(next, previous)) ?? (next - previous)) < 1e-9) return false;
+      token.lookDeg = next;
+      lastLookAppliedAt = nowMs();
+      scheduleSave(token);
+      dispatchPovChanged(reason, token);
+      updateStatus();
+      return true;
+    }
+
+    function flushPendingLook() {
+      lookUpdateTimer = null;
+      if (pendingLookDeg == null) return false;
+      const value = pendingLookDeg;
+      pendingLookDeg = null;
+      return applyLookDeg(value, { reason: 'mouse-look' });
+    }
+
+    function queueLookDeg(value) {
+      const next = quantizeAngle(value);
+      const token = activeLookToken();
+      if (!token || !angleChanged(token.lookDeg ?? token.facingDeg, next)) return false;
+      const elapsed = nowMs() - lastLookAppliedAt;
+      if (elapsed >= LOOK_THROTTLE_MS && lookUpdateTimer == null) return applyLookDeg(next, { reason: 'mouse-look' });
+      pendingLookDeg = next;
+      if (lookUpdateTimer == null) {
+        const delay = Math.max(0, LOOK_THROTTLE_MS - Math.max(0, elapsed));
+        lookUpdateTimer = root.setTimeout?.(flushPendingLook, delay) || null;
+      }
+      return false;
+    }
+
     function updateLookFromPoint(point) {
       if (lookLocked() || editActive()) return false;
       const token = activeLookToken();
       if (!token) return false;
-      token.lookDeg = pov.angleToPointDeg(token, point);
-      scheduleSave(token);
-      return true;
+      return queueLookDeg(pov.angleToPointDeg(token, point));
+    }
+
+    function rotateLook(deltaDeg = LOOK_BUTTON_STEP_DEG) {
+      if (editActive()) return false;
+      const token = activeLookToken();
+      if (!token) return false;
+      pendingLookDeg = null;
+      if (lookUpdateTimer != null) root.clearTimeout?.(lookUpdateTimer);
+      lookUpdateTimer = null;
+      return applyLookDeg(Number(token.lookDeg ?? token.facingDeg) + Number(deltaDeg || 0), { reason: 'look-step', force: true });
+    }
+
+    function onPovControlsClick(event) {
+      const action = event.target?.closest?.('[data-pov-action]')?.dataset?.povAction;
+      if (action === 'left') rotateLook(-LOOK_BUTTON_STEP_DEG);
+      else if (action === 'right') rotateLook(LOOK_BUTTON_STEP_DEG);
+      else if (action === 'lock') toggleLookLock();
     }
 
     function toggleLookLock() {
@@ -146,8 +259,11 @@
     }
 
     function setLookUpHeld(value) {
-      mapData.pov.lookUpHeld = Boolean(value);
+      const next = Boolean(value);
+      if (next === mapData.pov.lookUpHeld) return mapData.pov.lookUpHeld;
+      mapData.pov.lookUpHeld = next;
       if (!mapData.pov.lookUpHeld) mapData.pov.lookUpBlocked = false;
+      dispatchPovChanged(next ? 'look-up-start' : 'look-up-stop', activeLookToken());
       updateStatus();
       return mapData.pov.lookUpHeld;
     }
@@ -171,12 +287,22 @@
     function onPointerMove(event) {
       if (event.buttons) return;
       if (roofToolActive && editActive()) return;
-      if (updateLookFromPoint(eventWorldPoint(event))) mapData.pov.dirty = true;
+      updateLookFromPoint(eventWorldPoint(event));
     }
 
     function onKeyDown(event) {
       if (isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
       const key = String(event.key || '').toLowerCase();
+      if (event.shiftKey && event.code === 'BracketLeft' && !event.repeat) {
+        rotateLook(-LOOK_BUTTON_STEP_DEG);
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && event.code === 'BracketRight' && !event.repeat) {
+        rotateLook(LOOK_BUTTON_STEP_DEG);
+        event.preventDefault();
+        return;
+      }
       if (key === 'e' && !event.repeat) {
         toggleLookLock();
         event.preventDefault();
@@ -196,6 +322,9 @@
 
     function onWindowBlur() {
       if (lookUpHeld()) setLookUpHeld(false);
+      pendingLookDeg = null;
+      if (lookUpdateTimer != null) root.clearTimeout?.(lookUpdateTimer);
+      lookUpdateTimer = null;
       roofDragStart = null;
       mapData.pov.roofPreviewPoint = null;
     }
@@ -334,6 +463,7 @@
 
     injectUi();
     canvas.addEventListener('mousemove', onPointerMove); listeners.push(() => canvas.removeEventListener('mousemove', onPointerMove));
+    canvas.addEventListener('vtt:dm-observer-changed', updateStatus); listeners.push(() => canvas.removeEventListener('vtt:dm-observer-changed', updateStatus));
     canvas.addEventListener('mousemove', onRoofPreviewMove, true); listeners.push(() => canvas.removeEventListener('mousemove', onRoofPreviewMove, true));
     canvas.addEventListener('mousedown', onRoofMouseDown, true); listeners.push(() => canvas.removeEventListener('mousedown', onRoofMouseDown, true));
     root.addEventListener('mouseup', onRoofMouseUp, true); listeners.push(() => root.removeEventListener('mouseup', onRoofMouseUp, true));
@@ -344,12 +474,19 @@
     function stop() {
       listeners.splice(0).forEach((fn) => fn());
       if (saveTimer != null) root.clearTimeout?.(saveTimer);
+      if (lookUpdateTimer != null) root.clearTimeout?.(lookUpdateTimer);
       saveTimer = null;
+      lookUpdateTimer = null;
+      pendingLookDeg = null;
       setLookUpHeld(false);
       closeRoofEditor();
+      doc?.getElementById('vtt-pov-controls')?.remove?.();
     }
 
     return Object.freeze({
+      LOOK_STEP_DEG,
+      LOOK_THROTTLE_MS,
+      LOOK_BUTTON_STEP_DEG,
       activeLookToken,
       lookLocked,
       lookUpHeld,
@@ -358,6 +495,8 @@
       setLookUpBlocked,
       viewLayer,
       updateLookFromPoint,
+      applyLookDeg,
+      rotateLook,
       renderEditorGuides,
       handleSceneChanged,
       installRoofButton,
