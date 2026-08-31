@@ -24,7 +24,7 @@ test('DM observer is read-only local camera/POV state and never writes Realtime'
   expect(observer).not.toContain('.transaction(');
   expect(observer).not.toContain('.update(');
   expect(observer).not.toContain('.set(');
-  expect(observer).not.toMatch(/\.viewer\s*=/);
+  expect(observer).not.toMatch(/\.viewer\s*=(?!=)/);
   expect(observer).not.toContain('requestAnimationFrame');
   expect(observer).not.toContain('setInterval');
   expect(observer).toContain('mapData.lighting.dmPreviewTokenId = targetId');
