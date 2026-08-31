@@ -1,11 +1,19 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const lifecycleApi = require('../js/vtt/runtime-lifecycle.js');
 const lazyLoader = require('../js/vtt/dm-map-lazy-loader.js');
-const instanceControl = require('../js/instance-control.js');
+
+function loadInstanceControl() {
+  const context = { window: {}, console, setTimeout, clearTimeout };
+  vm.runInNewContext(read('js/instance-control.js'), context, { filename: 'js/instance-control.js' });
+  return context.window.LuminousInstanceControl;
+}
+
+const instanceControl = loadInstanceControl();
 
 function fakeClassList(initial = []) {
   const values = new Set(initial);
@@ -186,7 +194,7 @@ test('player can repeat MAPA -> TEATRO -> MAPA three times without reusing a des
 test('VTT main owns an explicit parent-callable teardown and page lifecycle fallback', () => {
   const source = read('js/vtt/main.js');
   expect(source).toContain("import './runtime-lifecycle.js';");
-  expect(source).toContain("dispose: disposeRuntime");
+  expect(source).toContain('dispose: disposeRuntime');
   expect(source).toContain("window.addEventListener('pagehide', handlePageHide");
   expect(source).toContain("window.addEventListener('beforeunload', handleBeforeUnload");
   expect(source).toContain("await lifecycle.run('map-authoring'");
