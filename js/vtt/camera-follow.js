@@ -26,7 +26,7 @@
       if (explicit) return explicit;
     }
 
-    const isDm = Boolean(runtime?.bridge?.isDm);
+    const isDm = Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm);
     if (isDm) {
       const previewId = mapData?.lighting?.dmPreviewTokenId;
       if (!previewId) return null;
@@ -78,15 +78,7 @@
   }
 
   function perceptionModifier(token = {}, host = root) {
-    const carriers = [
-      token,
-      token.actor,
-      token.raw,
-      token.character,
-      token.characterBuild,
-      token.build,
-      host?.datosJugador,
-    ];
+    const carriers = [token, token.actor, token.raw, token.character, token.characterBuild, token.build, host?.datosJugador];
     for (const carrier of carriers) {
       const modifier = modifierFromCarrier(carrier);
       if (modifier != null) return Math.max(-10, Math.min(20, modifier));
@@ -137,16 +129,15 @@
     return Boolean(target?.isContentEditable || ['input', 'textarea', 'select', 'button'].includes(tag));
   }
 
-  function createController({ runtime, mapData = runtime?.engine?.mapData, root: host = root, intervalMs = 120 } = {}) {
+  function createController({ runtime, mapData = runtime?.engine?.mapData, root: host = root } = {}) {
     const engine = runtime?.engine;
     const camera = engine?.camera;
     const canvas = engine?.canvas;
     if (!engine || !camera || !canvas || !mapData) throw new Error('CAMERA_FOLLOW_RUNTIME_REQUIRED');
 
-    const isDm = Boolean(runtime?.bridge?.isDm);
+    const isDm = Boolean(runtime?.bridge?.isDm || runtime?.tokenState?.isDm);
     let enabled = !isDm;
     let targetId = null;
-    let timer = null;
     let stopped = false;
     let lastSignature = '';
     let lastPolicyKey = '';
@@ -184,16 +175,35 @@
       return policy;
     }
 
+    function state() {
+      const policy = policyState();
+      const token = policy.token;
+      const mode = enabled ? 'follow' : policy.active ? 'look' : 'free';
+      return {
+        enabled,
+        targetId: token ? clean(token.id) : targetId,
+        hasTarget: Boolean(token),
+        targetLayer: token ? layerOf(token) : null,
+        mode,
+        isDm,
+        tokenRules: policy.active,
+        perceptionModifier: policy.perceptionModifier,
+        minZoom: policy.minZoom,
+        maxZoom: policy.maxZoom,
+        maxLookFt: policy.maxLookFt,
+      };
+    }
+
     const emit = (reason = 'sync') => {
-      const detail = state();
-      detail.reason = reason;
-      canvas.dispatchEvent(new CustomEvent('vtt:camera-follow-changed', { detail }));
+      const detail = { ...state(), reason };
+      const EventCtor = host?.CustomEvent || root?.CustomEvent || globalThis.CustomEvent;
+      if (typeof EventCtor === 'function') canvas.dispatchEvent(new EventCtor('vtt:camera-follow-changed', { detail }));
       return detail;
     };
 
     function signature(token) {
       if (!token) return '';
-      return [clean(token.id), Number(token.x) || 0, Number(token.y) || 0, layerOf(token), camera.zoom].join('|');
+      return [clean(token.id), Number(token.x) || 0, Number(token.y) || 0, layerOf(token)].join('|');
     }
 
     function center(reason = 'follow') {
@@ -207,6 +217,20 @@
         emit(reason);
       }
       return ok;
+    }
+
+    function sync(reason = 'state-sync', { forceCenter = false } = {}) {
+      if (stopped) return state();
+      const token = target();
+      applyPolicy();
+      if (!token) {
+        lastSignature = '';
+        emit(reason);
+        return state();
+      }
+      if (enabled && (forceCenter || signature(token) !== lastSignature)) center(reason);
+      else if (!enabled && camera.enforceCenterConstraint?.()) emit('look-clamped');
+      return state();
     }
 
     function setEnabled(value, { reason = 'user', centerNow = true } = {}) {
@@ -229,6 +253,7 @@
     function setTarget(id, { follow = true } = {}) {
       targetId = clean(id) || null;
       if (follow && target()) enabled = true;
+      lastSignature = '';
       applyPolicy(true);
       if (enabled) center('target');
       else emit('target');
@@ -237,6 +262,7 @@
 
     function clearTarget() {
       targetId = null;
+      lastSignature = '';
       applyPolicy(true);
       if (enabled) center('target-clear');
       else emit('target-clear');
@@ -246,27 +272,9 @@
     function recenter() {
       if (!target()) return false;
       enabled = true;
+      lastSignature = '';
       applyPolicy(true);
       return center('recenter');
-    }
-
-    function state() {
-      const policy = policyState();
-      const token = policy.token;
-      const mode = enabled ? 'follow' : policy.active ? 'look' : 'free';
-      return {
-        enabled,
-        targetId: token ? clean(token.id) : targetId,
-        hasTarget: Boolean(token),
-        targetLayer: token ? layerOf(token) : null,
-        mode,
-        isDm,
-        tokenRules: policy.active,
-        perceptionModifier: policy.perceptionModifier,
-        minZoom: policy.minZoom,
-        maxZoom: policy.maxZoom,
-        maxLookFt: policy.maxLookFt,
-      };
     }
 
     const onManualPan = () => {
@@ -281,10 +289,11 @@
       const token = target();
       if (!token) return;
       if (event?.detail?.tokenId != null && clean(event.detail.tokenId) !== clean(token.id)) return;
-      applyPolicy();
-      if (enabled) center('token-moved');
-      else if (camera.enforceCenterConstraint?.()) emit('look-clamped');
+      sync('token-moved');
     };
+
+    const onCanonicalSync = () => sync('canonical-token-sync', { forceCenter: true });
+    const onWorldTransition = () => sync('world-transition', { forceCenter: true });
 
     const onKeyDown = (event) => {
       if (isEditableTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -297,40 +306,31 @@
       }
     };
 
-    const tick = () => {
-      if (stopped) return;
-      const token = target();
-      applyPolicy();
-      if (!token) return;
-      if (enabled) {
-        const next = signature(token);
-        if (next !== lastSignature) center('state-sync');
-      } else {
-        camera.enforceCenterConstraint?.();
-      }
-    };
-
     camera.setManualPanListener?.(onManualPan);
     canvas.addEventListener('vtt:token-moved', onTokenMoved);
     canvas.addEventListener('vtt:token-z-transition', onTokenMoved);
+    canvas.addEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
+    canvas.addEventListener('vtt:regional-local-transition-applied', onWorldTransition);
+    canvas.addEventListener('vtt:procedural-chunk-loaded', onWorldTransition);
     host?.addEventListener?.('keydown', onKeyDown);
-    timer = host?.setInterval?.(tick, Math.max(60, Number(intervalMs) || 120)) || null;
     applyPolicy(true);
-    if (enabled) host?.setTimeout?.(() => center('initial'), 0);
+    if (enabled) host?.setTimeout?.(() => sync('initial', { forceCenter: true }), 0);
 
     function stop() {
       if (stopped) return;
       stopped = true;
-      if (timer != null) host?.clearInterval?.(timer);
       camera.setManualPanListener?.(null);
       camera.setCenterConstraint?.(null);
       camera.setZoomBounds?.(0.1, 5);
       canvas.removeEventListener('vtt:token-moved', onTokenMoved);
       canvas.removeEventListener('vtt:token-z-transition', onTokenMoved);
+      canvas.removeEventListener('vtt:canonical-tokens-synced', onCanonicalSync);
+      canvas.removeEventListener('vtt:regional-local-transition-applied', onWorldTransition);
+      canvas.removeEventListener('vtt:procedural-chunk-loaded', onWorldTransition);
       host?.removeEventListener?.('keydown', onKeyDown);
     }
 
-    return Object.freeze({ state, target, center, recenter, setEnabled, toggle, setTarget, clearTarget, applyPolicy, stop });
+    return Object.freeze({ state, target, center, sync, recenter, setEnabled, toggle, setTarget, clearTarget, applyPolicy, stop });
   }
 
   return Object.freeze({
