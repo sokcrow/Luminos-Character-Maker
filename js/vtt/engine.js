@@ -15,6 +15,7 @@ export class Engine {
         this.tokenDrag = null;
         this.tokenControlResolver = null;
         this.tokenMoveResolver = null;
+        this.movementInteractionResolver = null;
         this.tokenMotion = null;
         this.handleResize = this.handleResize.bind(this);
         this.handleTokenMouseDown = this.handleTokenMouseDown.bind(this);
@@ -32,6 +33,7 @@ export class Engine {
     get verticalMovementRules() { return globalThis.LuminousVttVerticalMovement || null; }
     setTokenControlResolver(resolver) { this.tokenControlResolver = typeof resolver === 'function' ? resolver : null; }
     setTokenMoveResolver(resolver) { this.tokenMoveResolver = typeof resolver === 'function' ? resolver : null; }
+    setMovementInteractionResolver(resolver) { this.movementInteractionResolver = typeof resolver === 'function' ? resolver : null; }
 
     init() {
         window.addEventListener('resize', this.handleResize);
@@ -106,6 +108,7 @@ export class Engine {
         const mode = String(options.actionMode || token.activeActionMovementMode || 'walk').toLowerCase();
         const defaultMs = mode === 'dash' || mode === 'run' ? 55 : 90;
         const msPerCell = Math.max(20, Number(movement.animationMsPerCell) || defaultMs);
+        const gridSize = Math.max(1, Number(this.mapData.grid?.size) || 70);
         const doorInteractions = Array.isArray(options.doorInteractions) ? options.doorInteractions : [];
         const raf = globalThis.requestAnimationFrame || ((fn) => setTimeout(() => fn(Date.now()), 16));
         const caf = globalThis.cancelAnimationFrame || clearTimeout;
@@ -113,11 +116,13 @@ export class Engine {
         const motion = { cancelled: false, frameId: null, tokenId: token.id };
         this.tokenMotion = motion;
         const moveSegment = (from, to) => new Promise((resolve) => {
+            const distancePx = Math.hypot(Number(to.x) - Number(from.x), Number(to.y) - Number(from.y));
+            const durationMs = Math.max(8, msPerCell * (distancePx / gridSize));
             const startAt = globalThis.performance?.now?.() ?? Date.now();
             const step = (nowValue) => {
                 if (motion.cancelled) return resolve(false);
                 const elapsed = Math.max(0, Number(nowValue) - startAt);
-                const t = Math.min(1, elapsed / msPerCell);
+                const t = Math.min(1, elapsed / durationMs);
                 token.x = Number(from.x) + ((Number(to.x) - Number(from.x)) * t);
                 token.y = Number(from.y) + ((Number(to.y) - Number(from.y)) * t);
                 this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
@@ -132,8 +137,35 @@ export class Engine {
             token.x = Number(points[0].x);
             token.y = Number(points[0].y);
             for (let index = 1; index < points.length; index += 1) {
-                const interactions = doorInteractions.filter((entry) => Number(entry.pathIndex) === index - 1);
+                const segmentEnd = points[index];
+                let segmentStart = points[index - 1];
+                const interactions = doorInteractions
+                    .filter((entry) => Number(entry.pathIndex) === index - 1)
+                    .sort((left, right) => {
+                        const leftDistance = Math.hypot(Number(left.at?.x ?? segmentStart.x) - Number(segmentStart.x), Number(left.at?.y ?? segmentStart.y) - Number(segmentStart.y));
+                        const rightDistance = Math.hypot(Number(right.at?.x ?? segmentStart.x) - Number(segmentStart.x), Number(right.at?.y ?? segmentStart.y) - Number(segmentStart.y));
+                        return leftDistance - rightDistance;
+                    });
                 for (const interaction of interactions) {
+                    const threshold = Number.isFinite(Number(interaction.at?.x)) && Number.isFinite(Number(interaction.at?.y))
+                        ? { x: Number(interaction.at.x), y: Number(interaction.at.y) }
+                        : { x: Number(segmentStart.x), y: Number(segmentStart.y) };
+                    if (Math.hypot(threshold.x - Number(segmentStart.x), threshold.y - Number(segmentStart.y)) > 0.01) {
+                        const reachedThreshold = await moveSegment(segmentStart, threshold);
+                        if (!reachedThreshold) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+                    }
+                    if (motion.cancelled) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+                    if (this.movementInteractionResolver) {
+                        let resolution = null;
+                        try {
+                            resolution = await this.movementInteractionResolver({ token, interaction, at: threshold, from: segmentStart, to: segmentEnd, actionMode: mode });
+                        } catch (error) {
+                            resolution = { valid: false, reason: error?.message || 'MOVEMENT_INTERACTION_FAILED' };
+                        }
+                        if (resolution === false || resolution?.valid === false) {
+                            return { valid: false, reason: resolution?.reason || 'MOVEMENT_INTERACTION_FAILED', complete: false, interaction };
+                        }
+                    }
                     this.canvas.dispatchEvent(new CustomEvent('vtt:movement-interaction', {
                         detail: { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...interaction },
                     }));
@@ -153,8 +185,9 @@ export class Engine {
                     }
                     if (interaction.pauseMs) await pause(interaction.pauseMs);
                     if (motion.cancelled) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
+                    segmentStart = threshold;
                 }
-                const complete = await moveSegment(points[index - 1], points[index]);
+                const complete = await moveSegment(segmentStart, segmentEnd);
                 if (!complete) return { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
             }
             return { valid: true, complete: true };
