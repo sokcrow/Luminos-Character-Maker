@@ -227,9 +227,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const transitionModule = await import('./regional-local-transition-runtime.js');
             transitionModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
             const simulationModule = await import('./map-simulation-runtime.js');
-            return simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const simulationRuntime = simulationModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            const fieldTestModule = await import('./map-field-test-runner-runtime.js');
+            fieldTestModule.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
+            return simulationRuntime;
         })
-        .catch((error) => console.error('VTT procedural / regional-local / map simulation bootstrap failed:', error));
+        .catch((error) => console.error('VTT procedural / regional-local / map simulation / field-test bootstrap failed:', error));
     import('./world-object-mainline-integration.js')
         .then(async (module) => {
             await module.start?.({ runtime: window.LuminousVttRuntime, mapData: mockMapData });
@@ -257,6 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.LuminousVttStructureRuntime?.stop?.();
         window.LuminousVttSurfaceRuntime?.stop?.();
         window.LuminousVttMapHudRuntime?.stop?.();
+        window.LuminousVttFieldTestRunnerRuntime?.api?.stop?.();
         window.LuminousVttRuntime?.mapSimulation?.stop?.();
         window.LuminousVttRuntime?.regionalLocalTransition?.stop?.();
         window.LuminousVttRuntime?.worldStreaming?.stop?.();
