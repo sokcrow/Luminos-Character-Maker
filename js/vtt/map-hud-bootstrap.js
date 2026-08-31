@@ -1,4 +1,5 @@
 import './camera-follow.js';
+import './dm-observer.js';
 import './physical-resolver.js';
 import './interaction-intent.js';
 import './world-object-components.js';
@@ -79,16 +80,17 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   if (window.LuminousVttMapHudRuntime?.api) return window.LuminousVttMapHudRuntime.api;
   ensureStyles();
   const hud = ensureHud(), engine = runtime.engine, canvas = engine.canvas;
-  const physical = window.LuminousVttPhysicalResolver, cameraApi = window.LuminousVttCameraFollow, intentApi = window.LuminousVttInteractionIntent, componentApi = window.LuminousVttWorldObjectComponents;
-  if (!physical || !cameraApi || !intentApi || !componentApi) throw new Error('MAP_HUD_DEPENDENCY_REQUIRED');
+  const physical = window.LuminousVttPhysicalResolver, cameraApi = window.LuminousVttCameraFollow, observerApi = window.LuminousVttDmObserver, intentApi = window.LuminousVttInteractionIntent, componentApi = window.LuminousVttWorldObjectComponents;
+  if (!physical || !cameraApi || !observerApi || !intentApi || !componentApi) throw new Error('MAP_HUD_DEPENDENCY_REQUIRED');
 
-  const cameraFollow = cameraApi.createController({ runtime, mapData });
+  const currentRuntime = () => window.LuminousVttRuntime || runtime;
+  const cameraFollow = cameraApi.createController({ runtime: currentRuntime(), mapData });
+  const dmObserver = observerApi.createController({ runtime: currentRuntime(), mapData, cameraFollow });
   const componentRuntime = componentApi.start({ runtime, mapData });
   const executor = intentApi.createExecutor({ runtime, mapData, worldObjectBridge: runtime.worldObjects?.bridge });
   executor.start();
-  let selectedId = null, cursorPoint = null, stopped = false, timer = null;
+  let selectedId = null, cursorPoint = null, cursorCellKey = '', stopped = false;
   const node = (id) => document.getElementById(id);
-  const currentRuntime = () => window.LuminousVttRuntime || runtime;
   const actor = () => cameraFollow.target()
     || currentRuntime()?.pov?.controlledViewers?.()?.[0]
     || currentRuntime()?.lighting?.controlledViewers?.()?.[0]
@@ -112,18 +114,23 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     hud.querySelector('[data-hud-layer="next"]').disabled = !isDm || index < 0 || index >= floors.length - 1;
   }
   function syncCamera() {
-    const state = cameraFollow.state(), button = hud.querySelector('[data-hud-camera="toggle"]');
+    const state = cameraFollow.state(), observerState = dmObserver?.state?.(), button = hud.querySelector('[data-hud-camera="toggle"]');
     let label;
-    if (state.tokenRules) {
+    if (observerState) {
+      const observed = clean(dmObserver?.target?.()?.name || dmObserver?.target?.()?.label || observerState.targetTokenId || '').toUpperCase();
+      if (observerState.mode === 'view_as') label = `VIEW AS · ${observed || '—'} · PLAYER POV`;
+      else if (observerState.mode === 'follow') label = `DM FOLLOW · ${observed || '—'} · FULL VISION`;
+      else label = 'DM FREE · FULL VISION';
+    } else if (state.tokenRules) {
       const mod = `${state.perceptionModifier >= 0 ? '+' : ''}${state.perceptionModifier}`;
-      const mode = state.mode === 'follow' ? (state.isDm ? 'TOKEN FOLLOW' : 'FOLLOW') : (state.isDm ? 'TOKEN LOOK' : 'LOOK AROUND');
+      const mode = state.mode === 'follow' ? 'FOLLOW' : 'LOOK AROUND';
       label = `${mode} · PER ${mod} · ${state.maxLookFt}FT · MIN ${state.minZoom.toFixed(2)}x`;
     } else {
-      label = 'DM FREE · 0.10x–5x';
+      label = 'FREE · 0.10x–5x';
     }
     node('vtt-hud-camera-state').textContent = label;
     button.textContent = state.enabled ? 'LOOK' : 'FOLLOW';
-    button.classList.toggle('is-following', state.enabled); button.classList.toggle('is-free', !state.enabled); button.disabled = !state.hasTarget;
+    button.classList.toggle('is-following', state.enabled); button.classList.toggle('is-free', !state.enabled); button.disabled = Boolean(observerState) || !state.hasTarget;
     hud.querySelector('[data-hud-camera="recenter"]').disabled = !state.hasTarget;
   }
   function syncMovement(currentActor) {
@@ -163,7 +170,15 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     sync();
   }
 
-  const onCanvasMove = (event) => { const rect = canvas.getBoundingClientRect(); cursorPoint = engine.camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top); };
+  const onCanvasMove = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    cursorPoint = engine.camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+    if (actor()) return;
+    const cell = cellForPoint(cursorPoint, mapData), key = `${engine.activeZ}:${cell.col}:${cell.row}`;
+    if (key === cursorCellKey) return;
+    cursorCellKey = key;
+    syncMap(null);
+  };
   const onCanvasClick = (event) => {
     if (mapData.dmEditMode?.active || event.button !== 0) return;
     const rect = canvas.getBoundingClientRect(), point = engine.camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top), hit = objectAt(point, mapData, engine.activeZ);
@@ -174,24 +189,34 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   };
   const onResolved = () => sync();
   const onKey = (event) => { if (event.key === 'Escape' && selectedId) { selectedId = null; sync(); } };
-  canvas.addEventListener('mousemove', onCanvasMove); canvas.addEventListener('click', onCanvasClick); canvas.addEventListener('vtt:camera-follow-changed', onResolved); canvas.addEventListener('vtt:interaction-resolved', onResolved); canvas.addEventListener('vtt:world-object-changed', onResolved); window.addEventListener('keydown', onKey);
-  hud.addEventListener('click', (event) => {
+  const reactiveEvents = [
+    'vtt:camera-follow-changed', 'vtt:dm-observer-changed', 'vtt:canonical-tokens-synced',
+    'vtt:token-moved', 'vtt:token-z-transition', 'vtt:regional-local-transition-applied',
+    'vtt:procedural-chunk-loaded', 'vtt:interaction-resolved', 'vtt:world-object-changed',
+  ];
+  canvas.addEventListener('mousemove', onCanvasMove);
+  canvas.addEventListener('click', onCanvasClick);
+  reactiveEvents.forEach((name) => canvas.addEventListener(name, onResolved));
+  window.addEventListener('keydown', onKey);
+
+  const onHudClick = (event) => {
     const cameraAction = event.target.closest?.('[data-hud-camera]')?.dataset?.hudCamera;
     if (cameraAction === 'toggle') cameraFollow.toggle(); else if (cameraAction === 'recenter') cameraFollow.recenter();
     const direction = event.target.closest?.('[data-hud-layer]')?.dataset?.hudLayer;
     if (direction && runtime.bridge?.isDm) { const floors = layerList(mapData, engine.activeZ), index = floors.indexOf(Number(engine.activeZ)), next = direction === 'prev' ? floors[index - 1] : floors[index + 1]; if (Number.isFinite(Number(next))) runtime.setLayer?.(Number(next)); }
     const action = event.target.closest?.('[data-hud-action]')?.dataset?.hudAction; if (action) void handleAction(action);
     if (event.target.closest?.('[data-hud-clear-object]')) { selectedId = null; sync(); }
-  });
-  timer = window.setInterval(sync, 250); sync();
+  };
+  hud.addEventListener('click', onHudClick);
+  sync();
 
-  function publish() { const current = currentRuntime(); if (current?.mapHud === api) return; window.LuminousVttRuntime = Object.freeze({ ...current, mapHud: api, cameraFollow, physical, interactionExecutor: executor, worldComponents: componentRuntime }); }
+  function publish() { const current = currentRuntime(); if (current?.mapHud === api) return; window.LuminousVttRuntime = Object.freeze({ ...current, mapHud: api, cameraFollow, dmObserver, physical, interactionExecutor: executor, worldComponents: componentRuntime }); }
   function stop() {
-    if (stopped) return; stopped = true; if (timer != null) window.clearInterval(timer);
-    canvas.removeEventListener('mousemove', onCanvasMove); canvas.removeEventListener('click', onCanvasClick); canvas.removeEventListener('vtt:camera-follow-changed', onResolved); canvas.removeEventListener('vtt:interaction-resolved', onResolved); canvas.removeEventListener('vtt:world-object-changed', onResolved); window.removeEventListener('keydown', onKey);
-    cameraFollow.stop(); executor.stop(); componentRuntime?.stop?.(); hud.remove(); document.getElementById(STYLE_ID)?.remove();
+    if (stopped) return; stopped = true;
+    canvas.removeEventListener('mousemove', onCanvasMove); canvas.removeEventListener('click', onCanvasClick); reactiveEvents.forEach((name) => canvas.removeEventListener(name, onResolved)); window.removeEventListener('keydown', onKey); hud.removeEventListener('click', onHudClick);
+    dmObserver?.stop?.(); cameraFollow.stop(); executor.stop(); componentRuntime?.stop?.(); hud.remove(); document.getElementById(STYLE_ID)?.remove();
   }
-  const api = Object.freeze({ sync, stop, selectObject, selected, actor, cameraFollow, physical, executor, componentRuntime, perceivedByPlayer });
+  const api = Object.freeze({ sync, stop, selectObject, selected, actor, cameraFollow, dmObserver, physical, executor, componentRuntime, perceivedByPlayer });
   window.LuminousVttMapHudRuntime = Object.freeze({ api, stop }); publish(); window.setTimeout(publish, 500); window.addEventListener('beforeunload', stop, { once: true });
   return api;
 }
