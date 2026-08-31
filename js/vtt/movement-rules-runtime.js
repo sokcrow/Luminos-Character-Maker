@@ -141,16 +141,81 @@
   function beginRound(token = {}, roundId = 0, mode = null) {
     const state = baseMovement.beginRound(token, roundId, mode);
     captureTurnStart(token);
+    delete token.dashActionType;
+    delete token.activeActionMovementMode;
+    delete token.movementRoundResume;
+    delete token.pendingMovementClaim;
     return state;
+  }
+
+  function setFreeMode(token = {}) {
+    const current = baseMovement.currentMovementState(token);
+    if (token.movementTurnStart && Number.isFinite(Number(token.movementRemainingFt))) {
+      token.movementRoundResume = {
+        roundId: current.roundId,
+        movementState: clone(token.movementState),
+        movementRemainingFt: Number(token.movementRemainingFt),
+        movementTurnStart: clone(token.movementTurnStart),
+        movementTurnHistory: clone(token.movementTurnHistory || []),
+        dashActionType: token.dashActionType || null,
+        activeActionMovementMode: token.activeActionMovementMode || null,
+      };
+    }
+    return baseMovement.setFreeMode(token);
+  }
+
+  function restorePausedRound(token = {}, world = {}) {
+    const paused = token.movementRoundResume;
+    if (!paused || Number(paused.roundId) !== Number(world.roundId)) return null;
+    token.movementState = clone(paused.movementState || {});
+    token.movementRemainingFt = Math.max(0, finite(paused.movementRemainingFt));
+    if (paused.movementTurnStart) token.movementTurnStart = clone(paused.movementTurnStart);
+    token.movementTurnHistory = clone(paused.movementTurnHistory || []);
+    if (paused.dashActionType) token.dashActionType = paused.dashActionType; else delete token.dashActionType;
+    if (paused.activeActionMovementMode) token.activeActionMovementMode = paused.activeActionMovementMode; else delete token.activeActionMovementMode;
+    delete token.movementRoundResume;
+    return baseMovement.currentMovementState(token);
   }
 
   function ensureRound(token = {}, worldState = {}, mode = null) {
     const world = baseMovement.normalizeWorldState(worldState);
-    if (world.mode !== 'round') return baseMovement.setFreeMode(token);
+    if (world.mode !== 'round') return setFreeMode(token);
+    const resumed = restorePausedRound(token, world);
+    if (resumed) return resumed;
     const current = baseMovement.currentMovementState(token);
     if (current.roundId !== world.roundId || !Number.isFinite(Number(token.movementRemainingFt))) return beginRound(token, world.roundId, mode || current.mode);
     if (!token.movementTurnStart) captureTurnStart(token);
     return current;
+  }
+
+  function movementClaimFromPlan(token = {}, plan = {}, result = {}) {
+    if (plan.verticalResume || plan.movementType === 'teleport') return null;
+    const path = Array.isArray(plan.path) ? plan.path : [];
+    if (path.length < 2) return null;
+    const endpoint = path[path.length - 1] || {};
+    const start = path[0] || {};
+    if (!Number.isFinite(Number(endpoint.x)) || !Number.isFinite(Number(endpoint.y))) return null;
+    return {
+      localId: `${String(token.id || 'token')}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 7)}`,
+      from: {
+        x: finite(start.x, token.x),
+        y: finite(start.y, token.y),
+        zLayer: finite(start.z ?? token.zLayer ?? token.gridPosition?.z ?? token.z?.[0]),
+        elevationFt: finite(token.elevationFt),
+        gridPosition: token.gridPosition ? clone(token.gridPosition) : null,
+      },
+      to: {
+        x: finite(endpoint.x),
+        y: finite(endpoint.y),
+        col: Number.isFinite(Number(endpoint.col)) ? Number(endpoint.col) : null,
+        row: Number.isFinite(Number(endpoint.row)) ? Number(endpoint.row) : null,
+        zLayer: finite(endpoint.z ?? token.zLayer ?? token.gridPosition?.z ?? token.z?.[0]),
+      },
+      movementCostFt: Math.max(0, finite(result.costFt ?? plan.movementCostFt)),
+      movementType: plan.movementType || 'normal',
+      authority: token.pendingMovementAuthority || token.controlSource || null,
+      rttMs: Number.isFinite(Number(token.networkRttMs ?? token.rttMs)) ? Number(token.networkRttMs ?? token.rttMs) : null,
+    };
   }
 
   function commitMove(token = {}, plan = {}, worldState = {}) {
@@ -166,6 +231,9 @@
         movementType: plan.movementType || 'normal',
       });
     }
+    const claim = movementClaimFromPlan(token, plan, result);
+    if (claim) token.pendingMovementClaim = claim;
+    else delete token.pendingMovementClaim;
     return result;
   }
 
@@ -195,6 +263,8 @@
     token.movementRemainingFt = state.remainingFt;
     token.movementTurnHistory = [];
     delete token.activeActionMovementMode;
+    delete token.pendingMovementClaim;
+    delete token.movementRoundResume;
     const actionType = token.dashActionType || null;
     delete token.dashActionType;
     return { valid: true, position: clone(start), remainingFt: state.remainingFt, refundActionType: actionType };
@@ -206,11 +276,13 @@
     ...baseMovement,
     __movementRulesClosurePatch: true,
     beginRound,
+    setFreeMode,
     ensureRound,
     commitMove,
     dash,
     resetMovement,
     movementStart,
     captureTurnStart,
+    movementClaimFromPlan,
   });
 })(typeof window !== 'undefined' ? window : globalThis);
