@@ -67,7 +67,7 @@
     const rightRtt = Math.max(0, finite(right.rttMs ?? right.latencyMs, Infinity));
     if (leftRtt !== rightRtt) return leftRtt - rightRtt;
     const leftReceived = Math.max(0, finite(left.receivedAtMs ?? left.receivedAt, Infinity));
-    const rightReceived = Math.max(0, finite(right.receivedAtMs ?? right.latencyMs, Infinity));
+    const rightReceived = Math.max(0, finite(right.receivedAtMs ?? right.receivedAt, Infinity));
     if (leftReceived !== rightReceived) return leftReceived - rightReceived;
     return String(left.tokenId || left.id || '').localeCompare(String(right.tokenId || right.id || ''));
   }
