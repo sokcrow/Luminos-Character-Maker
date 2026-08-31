@@ -84,23 +84,14 @@ export class Engine {
         }
         const worldPoint = this.eventWorldPoint(event);
         const token = this.tokenDrag.token;
-        const target = {
-            x: worldPoint.x - this.tokenDrag.grabOffsetX,
-            y: worldPoint.y - this.tokenDrag.grabOffsetY,
-        };
+        const target = { x: worldPoint.x - this.tokenDrag.grabOffsetX, y: worldPoint.y - this.tokenDrag.grabOffsetY };
         this.canvas.style.cursor = 'grabbing';
-
         if (this.tokenMoveResolver) {
             this.canvas.dispatchEvent(new CustomEvent('vtt:movement-destination-preview', {
-                detail: {
-                    tokenId: token.id,
-                    from: { x: this.tokenDrag.originX, y: this.tokenDrag.originY, z: this.tokenDrag.originZ },
-                    target,
-                },
+                detail: { tokenId: token.id, from: { x: this.tokenDrag.originX, y: this.tokenDrag.originY, z: this.tokenDrag.originZ }, target },
             }));
             return;
         }
-
         token.x = target.x;
         token.y = target.y;
         this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
@@ -119,7 +110,6 @@ export class Engine {
         const caf = globalThis.cancelAnimationFrame || clearTimeout;
         const motion = { cancelled: false, frameId: null, tokenId: token.id };
         this.tokenMotion = motion;
-
         const moveSegment = (from, to) => new Promise((resolve) => {
             const startAt = globalThis.performance?.now?.() ?? Date.now();
             const step = (nowValue) => {
@@ -129,21 +119,13 @@ export class Engine {
                 token.x = Number(from.x) + ((Number(to.x) - Number(from.x)) * t);
                 token.y = Number(from.y) + ((Number(to.y) - Number(from.y)) * t);
                 this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
-                    detail: {
-                        tokenId: token.id,
-                        x: token.x,
-                        y: token.y,
-                        z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0),
-                        traversing: true,
-                        actionMode: mode,
-                    },
+                    detail: { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0), traversing: true, actionMode: mode },
                 }));
                 if (t >= 1) return resolve(true);
                 motion.frameId = raf(step);
             };
             motion.frameId = raf(step);
         });
-
         try {
             token.x = Number(points[0].x);
             token.y = Number(points[0].y);
@@ -162,6 +144,51 @@ export class Engine {
         if (!this.tokenMotion) return false;
         this.tokenMotion.cancelled = true;
         return true;
+    }
+
+    async handleTokenMouseUp(event) {
+        if (!this.tokenDrag || event.button !== 0) return;
+        const drag = this.tokenDrag;
+        const token = drag.token;
+        const worldPoint = this.eventWorldPoint(event);
+        const requestedPoint = { x: worldPoint.x - drag.grabOffsetX, y: worldPoint.y - drag.grabOffsetY };
+        this.tokenDrag = null;
+        if (this.tokenMoveResolver) {
+            let result = null;
+            try {
+                result = await this.tokenMoveResolver({ token, from: { x: drag.originX, y: drag.originY }, requestedPoint, drag, event });
+            } catch (error) {
+                result = { valid: false, reason: error?.message || 'MOVEMENT_RESOLVER_FAILED' };
+            }
+            if (result?.valid) {
+                const traversed = await this.animateTokenPath(token, result.path || [], { actionMode: result.actionMode });
+                if (traversed.valid) this.finalizeTokenMove(token, drag, result);
+            } else {
+                token.x = drag.originX;
+                token.y = drag.originY;
+                token.zLayer = drag.originZ;
+                token.z = [drag.originZ];
+                token.elevationFt = drag.originElevationFt;
+                this.canvas.dispatchEvent(new CustomEvent('vtt:movement-order-rejected', { detail: { tokenId: token.id, reason: result?.reason || 'NO_PATH', requestedPoint } }));
+            }
+            this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
+            return;
+        }
+        const rules = this.tokenRules;
+        const result = rules?.resolveDrop?.(token, { x: drag.originX, y: drag.originY }, requestedPoint, this.mapData) || { valid: false, reason: 'TOKEN_RULES_UNAVAILABLE' };
+        if (result.valid) {
+            token.x = result.x;
+            token.y = result.y;
+            this.finalizeTokenMove(token, drag, result);
+        } else {
+            token.x = drag.originX;
+            token.y = drag.originY;
+            token.zLayer = drag.originZ;
+            token.z = [drag.originZ];
+            token.elevationFt = drag.originElevationFt;
+            this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', { detail: { tokenId: token.id, x: token.x, y: token.y, z: drag.originZ, reverted: true } }));
+        }
+        this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
     }
 
     finalizeTokenMove(token, drag, result = {}) {
@@ -192,53 +219,6 @@ export class Engine {
             },
         }));
         if (transition.valid) this.canvas.dispatchEvent(new CustomEvent('vtt:token-z-transition', { detail: { tokenId: token.id, ...transition } }));
-    }
-
-    async handleTokenMouseUp(event) {
-        if (!this.tokenDrag || event.button !== 0) return;
-        const drag = this.tokenDrag;
-        const token = drag.token;
-        const worldPoint = this.eventWorldPoint(event);
-        const requestedPoint = { x: worldPoint.x - drag.grabOffsetX, y: worldPoint.y - drag.grabOffsetY };
-        this.tokenDrag = null;
-
-        if (this.tokenMoveResolver) {
-            let result = null;
-            try {
-                result = await this.tokenMoveResolver({ token, from: { x: drag.originX, y: drag.originY }, requestedPoint, drag, event });
-            } catch (error) {
-                result = { valid: false, reason: error?.message || 'MOVEMENT_RESOLVER_FAILED' };
-            }
-            if (result?.valid) {
-                const traversed = await this.animateTokenPath(token, result.path || [], { actionMode: result.actionMode });
-                if (traversed.valid) this.finalizeTokenMove(token, drag, result);
-            } else {
-                token.x = drag.originX;
-                token.y = drag.originY;
-                token.zLayer = drag.originZ;
-                token.z = [drag.originZ];
-                token.elevationFt = drag.originElevationFt;
-                this.canvas.dispatchEvent(new CustomEvent('vtt:movement-order-rejected', { detail: { tokenId: token.id, reason: result?.reason || 'NO_PATH', requestedPoint } }));
-            }
-            this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
-            return;
-        }
-
-        const rules = this.tokenRules;
-        const result = rules?.resolveDrop?.(token, { x: drag.originX, y: drag.originY }, requestedPoint, this.mapData) || { valid: false, reason: 'TOKEN_RULES_UNAVAILABLE' };
-        if (result.valid) {
-            token.x = result.x;
-            token.y = result.y;
-            this.finalizeTokenMove(token, drag, result);
-        } else {
-            token.x = drag.originX;
-            token.y = drag.originY;
-            token.zLayer = drag.originZ;
-            token.z = [drag.originZ];
-            token.elevationFt = drag.originElevationFt;
-            this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', { detail: { tokenId: token.id, x: token.x, y: token.y, z: drag.originZ, reverted: true } }));
-        }
-        this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
     }
 
     centerCamera() {
