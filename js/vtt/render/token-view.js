@@ -14,9 +14,10 @@ function tokenZLayer(token = {}, fallback = 0) {
  * Canonical x/y/zLayer are synchronized from token-state. Step 3 adds a separate
  * transient preview position for drag/realtime visuals so pointer feedback never
  * mutates the canonical token or writes back to Firebase before validation.
+ * Step 6 keeps hover/selection/targeting equally transient and render-side only.
  */
 export class TokenView {
-    constructor(token, { onPositionChange = null, onPreviewChange = null } = {}) {
+    constructor(token, { onPositionChange = null, onPreviewChange = null, onInteractionChange = null } = {}) {
         const id = cleanId(token?.id);
         if (!id) throw new Error('TOKEN_VIEW_ID_REQUIRED');
 
@@ -26,12 +27,14 @@ export class TokenView {
         this.y = finite(token?.y);
         this.zLayer = tokenZLayer(token);
         this.previewPosition = null;
+        this.interaction = Object.freeze({ hovered: false, selected: false, targeted: false });
         this.visible = token?.visible !== false;
         this.destroyed = false;
         this.revision = 0;
         this.resources = new Map();
         this.onPositionChange = typeof onPositionChange === 'function' ? onPositionChange : null;
         this.onPreviewChange = typeof onPreviewChange === 'function' ? onPreviewChange : null;
+        this.onInteractionChange = typeof onInteractionChange === 'function' ? onInteractionChange : null;
     }
 
     get hasPreview() {
@@ -48,6 +51,18 @@ export class TokenView {
 
     get renderZLayer() {
         return this.previewPosition?.zLayer ?? this.zLayer;
+    }
+
+    get hovered() {
+        return this.interaction.hovered;
+    }
+
+    get selected() {
+        return this.interaction.selected;
+    }
+
+    get targeted() {
+        return this.interaction.targeted;
     }
 
     setPosition(x, y, zLayer = this.zLayer) {
@@ -86,6 +101,25 @@ export class TokenView {
         this.revision += 1;
         this.onPreviewChange?.(this, 'clear');
         return true;
+    }
+
+    setInteractionState(patch = {}) {
+        if (this.destroyed || !patch || typeof patch !== 'object') return false;
+        const current = this.interaction;
+        const next = {
+            hovered: patch.hovered == null ? current.hovered : Boolean(patch.hovered),
+            selected: patch.selected == null ? current.selected : Boolean(patch.selected),
+            targeted: patch.targeted == null ? current.targeted : Boolean(patch.targeted),
+        };
+        if (next.hovered === current.hovered && next.selected === current.selected && next.targeted === current.targeted) return false;
+        this.interaction = Object.freeze(next);
+        this.revision += 1;
+        this.onInteractionChange?.(this, current, this.interaction);
+        return true;
+    }
+
+    clearInteractionState() {
+        return this.setInteractionState({ hovered: false, selected: false, targeted: false });
     }
 
     setVisible(visible) {
@@ -134,10 +168,12 @@ export class TokenView {
         if (this.destroyed) return false;
         for (const key of [...this.resources.keys()]) this.releaseResource(key);
         this.previewPosition = null;
+        this.interaction = Object.freeze({ hovered: false, selected: false, targeted: false });
         this.destroyed = true;
         this.token = null;
         this.onPositionChange = null;
         this.onPreviewChange = null;
+        this.onInteractionChange = null;
         return true;
     }
 }
