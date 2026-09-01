@@ -7,6 +7,8 @@
 
     const REQUEST_ROOT = 'vtt_world_object_action_requests';
     const DIRECT_ACTIONS = Object.freeze(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
+    const CHECK_ACTIONS = Object.freeze(['pick_lock', 'force']);
+    const VALIDATED_ACTIONS = Object.freeze([...DIRECT_ACTIONS, ...CHECK_ACTIONS]);
     const clean = (value) => String(value ?? '').trim();
 
     function actorOwnership(token = {}, request = {}) {
@@ -78,7 +80,7 @@
         }
 
         async function validateRequest(request = {}) {
-            if (!DIRECT_ACTIONS.includes(request.action)) return { valid: false, reason: 'ACTION_NOT_ALLOWED' };
+            if (!VALIDATED_ACTIONS.includes(request.action)) return { valid: false, reason: 'ACTION_NOT_ALLOWED' };
             if (request.targetKind !== 'topology') return { valid: false, reason: 'TARGET_KIND_NOT_SUPPORTED' };
             const element = elementById(request.targetId);
             const actorToken = tokenById(request.actorTokenId);
@@ -100,13 +102,21 @@
             const candidate = interactions.actionsFor(normalized, facts).find((entry) => entry.id === request.action);
             if (!candidate) return { valid: false, reason: 'ACTION_NOT_AVAILABLE' };
             if (!candidate.enabled) return { valid: false, reason: candidate.reason || 'ACTION_DENIED' };
-            return { valid: true, reason: null, element: normalized, facts };
+            return { valid: true, reason: null, element: normalized, facts, ownership };
         }
 
         async function decide(snapshot) {
             if (!isDm || !db) return;
             const request = snapshot.val() || {};
             if (request.status !== 'pending' || request.targetKind !== 'topology' || clean(request.mapId) !== mapId) return;
+            if (!DIRECT_ACTIONS.includes(request.action)) {
+                await snapshot.ref.update({
+                    status: 'denied',
+                    reason: 'ACTION_NOT_ALLOWED',
+                    decidedAt: firebase.database.ServerValue.TIMESTAMP,
+                });
+                return;
+            }
             const validation = await validateRequest(request);
             let result = validation;
             if (validation.valid) result = await stateBridge.applyCanonicalAction(request.targetId, request.action);
@@ -173,5 +183,5 @@
         return Object.freeze({ mapId, isDm, start, stop, requestAction, validateRequest });
     }
 
-    return Object.freeze({ REQUEST_ROOT, DIRECT_ACTIONS, actorOwnership, createAuthority });
+    return Object.freeze({ REQUEST_ROOT, DIRECT_ACTIONS, CHECK_ACTIONS, VALIDATED_ACTIONS, actorOwnership, createAuthority });
 });
