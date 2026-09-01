@@ -5,7 +5,7 @@ const path = require('node:path');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const tokenRules = require('../js/vtt/token-interaction.js');
 const engineSource = read('js/vtt/engine.js');
-const rendererSource = read('js/vtt/renderer.js');
+const rendererSource = read('js/vtt/render/canvas2d-renderer.js');
 const cameraSource = read('js/vtt/camera.js');
 const movementBootstrapSource = read('js/vtt/movement-bootstrap.js');
 const htmlSource = read('vtt.html');
@@ -64,7 +64,7 @@ test('valid drops return canonical grid coordinates', () => {
 test('VTT loads token interaction before the module engine and uses drag instead of WASD movement', () => {
     expect(htmlSource).toContain('<script src="js/vtt/token-interaction.js"></script>');
     expect(engineSource).toContain("this.canvas.addEventListener('mousedown', this.handleTokenMouseDown)");
-    expect(engineSource).toContain("new CustomEvent('vtt:token-moved'");
+    expect(engineSource).toContain("emitSemanticEvent('vtt:token-moved'");
     expect(engineSource).not.toContain('playerSpeed = 4');
     expect(engineSource).not.toContain('this.keys = { w: false');
 });
@@ -80,7 +80,7 @@ test('movement interactions resolve at the traversal threshold and irreversible 
     expect(movementBootstrapSource).toContain("runtime.bridge.requestDirectAction(door.id, 'open')");
 });
 
-test('camera drag yields to draggable tokens and renderer draws round person tokens', () => {
+test('camera drag yields to draggable tokens and Canvas2D fallback draws round person tokens', () => {
     expect(cameraSource).toContain('setDragGuard(guard)');
     expect(rendererSource).toContain('drawPersonIcon(token, radius)');
     expect(rendererSource).toContain("(token.icon || 'person') === 'person'");
