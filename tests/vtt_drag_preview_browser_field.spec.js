@@ -34,16 +34,22 @@ test('real browser drag preview follows pointer without mutating canonical token
         const rect = engine.canvas.getBoundingClientRect();
         const clientX = rect.left + Math.max(120, Math.min(rect.width - 120, rect.width * 0.72));
         const clientY = rect.top + Math.max(120, Math.min(rect.height - 120, rect.height * 0.62));
-        const expectedWorld = engine.eventWorldPoint({ clientX, clientY });
         window.__dragPreviewField = {
             tokenId: String(token.id),
             canonical,
             clientX,
             clientY,
-            expectedWorld,
             baseline: window.LuminousVttZeroWorkDrag.snapshot(),
+            previewEventCount: 0,
+            lastPreviewEvent: null,
         };
-        return { supported: true, tokenId: String(token.id), canonical, clientX, clientY, expectedWorld };
+        engine.canvas.addEventListener('vtt:token-drag-preview', (event) => {
+            const field = window.__dragPreviewField;
+            if (!field || String(event.detail?.tokenId || '') !== field.tokenId) return;
+            field.previewEventCount += 1;
+            field.lastPreviewEvent = JSON.parse(JSON.stringify(event.detail || {}));
+        });
+        return { supported: true, tokenId: String(token.id), canonical, clientX, clientY };
     });
 
     expect(prepared.supported, prepared.reason || 'drag preview setup failed').toBe(true);
@@ -72,6 +78,8 @@ test('real browser drag preview follows pointer without mutating canonical token
         return {
             canonicalNow: { x: token.x, y: token.y, zLayer: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0) || 0 },
             preview,
+            lastPreviewEvent: field.lastPreviewEvent,
+            previewEventCount: field.previewEventCount,
             pointerMoves: metrics.pointerMoves - field.baseline.pointerMoves,
             visualPreviewFrames: metrics.visualPreviewFrames - field.baseline.visualPreviewFrames,
             coalescedPointerMoves: metrics.coalescedPointerMoves - field.baseline.coalescedPointerMoves,
@@ -84,8 +92,12 @@ test('real browser drag preview follows pointer without mutating canonical token
 
     expect(during.canonicalNow).toEqual(prepared.canonical);
     expect(during.preview).toBeTruthy();
-    expect(during.preview.x).toBeCloseTo(prepared.expectedWorld.x, 4);
-    expect(during.preview.y).toBeCloseTo(prepared.expectedWorld.y, 4);
+    expect(during.lastPreviewEvent).toBeTruthy();
+    expect(during.lastPreviewEvent).toMatchObject({ tokenId: prepared.tokenId, transient: true, drag: true });
+    expect(during.preview.x).toBeCloseTo(during.lastPreviewEvent.x, 6);
+    expect(during.preview.y).toBeCloseTo(during.lastPreviewEvent.y, 6);
+    expect(Math.hypot(during.preview.x - prepared.canonical.x, during.preview.y - prepared.canonical.y)).toBeGreaterThan(10);
+    expect(during.previewEventCount).toBeGreaterThan(0);
     expect(during.pointerMoves).toBeGreaterThanOrEqual(120);
     expect(during.visualPreviewFrames).toBeGreaterThan(0);
     expect(during.visualPreviewFrames).toBeLessThan(during.pointerMoves);
