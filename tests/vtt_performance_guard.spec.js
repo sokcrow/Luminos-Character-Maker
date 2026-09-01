@@ -57,7 +57,7 @@ async function withFakeClock(run) {
   }
 }
 
-test('legacy token event is translated once into canonical dirty state', async () => {
+test('direct canonical token dirty invalidates without using the legacy bridge', async () => {
   await withFakeClock(async () => {
     const { mod, tmp } = await loadGuard();
     try {
@@ -74,14 +74,14 @@ test('legacy token event is translated once into canonical dirty state', async (
       expect(api.snapshot().fallbackScans).toBe(1);
 
       mapData.tokens[0].x += 70;
-      canvas.emit('vtt:token-moved', { tokenId: 'p1' });
+      sceneDirty.emit(canvas, { reason: 'token', render: true, vision: true, tokenId: 'p1', sourceEvent: 'vtt:token-moved' });
       renderer.render();
       const stats = api.snapshot();
       expect(renders).toBe(2);
       expect(stats.canonicalInvalidations).toBe(1);
       expect(stats.visionInvalidations).toBe(1);
       expect(stats.dirtyByReason.token).toBe(1);
-      expect(stats.sceneDirtyBridge.bridgedEvents).toBe(1);
+      expect(stats.sceneDirtyBridge.bridgedEvents).toBe(0);
       api.stop();
     } finally { fs.unlinkSync(tmp); }
   });
@@ -152,7 +152,7 @@ test('slow fallback still detects silent legacy in-place mutations', async () =>
   });
 });
 
-test('active token traversal keeps 20 Hz guard budget through canonical bridge', async () => {
+test('active token traversal keeps 20 Hz guard budget through direct canonical dirty events', async () => {
   const { mod, tmp } = await loadGuard();
   try {
     let renders = 0;
@@ -168,7 +168,7 @@ test('active token traversal keeps 20 Hz guard budget through canonical bridge',
     const api = mod.installPerformanceGuard({ runtime: { engine, bridge: { isDm: false } } });
     for (let frame = 0; frame < 120; frame += 1) {
       mapData.tokens[0].x += 0.5;
-      canvas.emit('vtt:token-preview-moved', { tokenId: 'p1', traversing: true });
+      sceneDirty.emit(canvas, { reason: 'token', render: true, vision: true, active: true, tokenId: 'p1', sourceEvent: 'vtt:token-preview-moved' });
       engine.calculateVision();
       renderer.render();
     }
@@ -178,6 +178,7 @@ test('active token traversal keeps 20 Hz guard budget through canonical bridge',
     expect(stats.movementFrameMs).toBeCloseTo(50, 4);
     expect(stats.fallbackScans).toBe(0);
     expect(stats.canonicalInvalidations).toBe(120);
+    expect(stats.sceneDirtyBridge.bridgedEvents).toBe(0);
     api.stop();
   } finally { fs.unlinkSync(tmp); }
 });
@@ -252,12 +253,14 @@ test('performance guard owns one canonical dirty listener instead of raw input l
 test('scene dirty loads before main and performance guard after lighting/fog', () => {
   const html = read('vtt.html');
   const dirty = html.indexOf('js/vtt/scene-dirty.js');
+  const tokenPatch = html.indexOf('js/vtt/scene-dirty-token-state-patch.js');
   const main = html.indexOf('js/vtt/main.js');
   const lighting = html.indexOf('js/vtt/dynamic-lighting-bootstrap.js');
   const fog = html.indexOf('js/vtt/fog-memory-bootstrap.js');
   const guard = html.indexOf('js/vtt/performance-guard.js');
   expect(dirty).toBeGreaterThan(0);
-  expect(main).toBeGreaterThan(dirty);
+  expect(tokenPatch).toBeGreaterThan(dirty);
+  expect(main).toBeGreaterThan(tokenPatch);
   expect(lighting).toBeGreaterThan(main);
   expect(fog).toBeGreaterThan(lighting);
   expect(guard).toBeGreaterThan(fog);

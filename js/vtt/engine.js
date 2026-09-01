@@ -35,6 +35,17 @@ export class Engine {
     setTokenMoveResolver(resolver) { this.tokenMoveResolver = typeof resolver === 'function' ? resolver : null; }
     setMovementInteractionResolver(resolver) { this.movementInteractionResolver = typeof resolver === 'function' ? resolver : null; }
 
+    emitSemanticEvent(type, detail = {}, dirty = null) {
+        this.canvas.dispatchEvent(new CustomEvent(type, { detail }));
+        if (!dirty) return;
+        globalThis.LuminousVttSceneDirty?.emit?.(this.canvas, {
+            ...dirty,
+            sourceEvent: type,
+            tokenId: detail?.tokenId ?? dirty.tokenId ?? null,
+            meta: detail,
+        });
+    }
+
     init() {
         window.addEventListener('resize', this.handleResize);
         this.canvas.addEventListener('mousedown', this.handleTokenMouseDown);
@@ -89,16 +100,18 @@ export class Engine {
         const target = { x: worldPoint.x - this.tokenDrag.grabOffsetX, y: worldPoint.y - this.tokenDrag.grabOffsetY };
         this.canvas.style.cursor = 'grabbing';
         if (this.tokenMoveResolver) {
-            this.canvas.dispatchEvent(new CustomEvent('vtt:movement-destination-preview', {
-                detail: { tokenId: token.id, from: { x: this.tokenDrag.originX, y: this.tokenDrag.originY, z: this.tokenDrag.originZ }, target },
-            }));
+            const detail = { tokenId: token.id, from: { x: this.tokenDrag.originX, y: this.tokenDrag.originY, z: this.tokenDrag.originZ }, target };
+            this.emitSemanticEvent('vtt:movement-destination-preview', detail, {
+                reason: 'token', render: true, vision: false, active: true,
+            });
             return;
         }
         token.x = target.x;
         token.y = target.y;
-        this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
-            detail: { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0) },
-        }));
+        const detail = { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0) };
+        this.emitSemanticEvent('vtt:token-preview-moved', detail, {
+            reason: 'token', render: true, vision: true, active: true,
+        });
     }
 
     async animateTokenPath(token, path = [], options = {}) {
@@ -125,9 +138,10 @@ export class Engine {
                 const t = Math.min(1, elapsed / durationMs);
                 token.x = Number(from.x) + ((Number(to.x) - Number(from.x)) * t);
                 token.y = Number(from.y) + ((Number(to.y) - Number(from.y)) * t);
-                this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', {
-                    detail: { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0), traversing: true, actionMode: mode },
-                }));
+                const detail = { tokenId: token.id, x: token.x, y: token.y, z: Number(token.zLayer ?? token.gridPosition?.z ?? token.z?.[0] ?? 0), traversing: true, actionMode: mode };
+                this.emitSemanticEvent('vtt:token-preview-moved', detail, {
+                    reason: 'token', render: true, vision: true, active: true,
+                });
                 if (t >= 1) return resolve(true);
                 motion.frameId = raf(step);
             };
@@ -171,9 +185,10 @@ export class Engine {
                         }
                         if (resolution?.irreversible === true) motion.irreversible = true;
                     }
-                    this.canvas.dispatchEvent(new CustomEvent('vtt:movement-interaction', {
-                        detail: { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...resolvedInteraction },
-                    }));
+                    const interactionDetail = { tokenId: token.id, x: token.x, y: token.y, actionMode: mode, ...resolvedInteraction };
+                    this.emitSemanticEvent('vtt:movement-interaction', interactionDetail, {
+                        reason: 'topology', render: true, vision: true, active: false,
+                    });
                     if (resolvedInteraction.soundEvent) {
                         this.canvas.dispatchEvent(new CustomEvent('vtt:sound-event', {
                             detail: {
@@ -248,7 +263,10 @@ export class Engine {
             token.zLayer = drag.originZ;
             token.z = [drag.originZ];
             token.elevationFt = drag.originElevationFt;
-            this.canvas.dispatchEvent(new CustomEvent('vtt:token-preview-moved', { detail: { tokenId: token.id, x: token.x, y: token.y, z: drag.originZ, reverted: true } }));
+            const detail = { tokenId: token.id, x: token.x, y: token.y, z: drag.originZ, reverted: true };
+            this.emitSemanticEvent('vtt:token-preview-moved', detail, {
+                reason: 'token', render: true, vision: true, active: true,
+            });
         }
         this.canvas.style.cursor = this.tokenAtEvent(event) ? 'grab' : 'default';
     }
@@ -267,25 +285,31 @@ export class Engine {
         };
         const transition = this.verticalMovementRules?.transitionOnDrop?.(token, { x: token.x, y: token.y }, this.mapData) || { valid: false, reason: 'NO_VERTICAL_TRANSITION' };
         if (transition.valid && transition.complete && token.viewer === true) this.setZLayer(transition.targetZ);
-        this.canvas.dispatchEvent(new CustomEvent('vtt:token-moved', {
-            detail: {
-                tokenId: token.id,
-                from: { x: drag.originX, y: drag.originY, z: drag.originZ, elevationFt: drag.originElevationFt },
-                to: { x: token.x, y: token.y, ...token.gridPosition, elevationFt: token.elevationFt ?? 0, verticalMovement: token.verticalMovement || null },
-                path: Array.isArray(result.path) ? result.path : [],
-                routeCostFt: result.routeCostFt ?? result.costFt ?? null,
-                movementCostFt: result.movementCostFt ?? result.costFt ?? null,
-                movementMode: result.movementMode || result.mode || null,
-                actionMode: result.actionMode || null,
-                transition: transition.valid ? { routeId: transition.route?.id || null, complete: Boolean(transition.complete), targetZ: transition.targetZ, costSpentFt: transition.costSpentFt ?? null } : null,
-            },
-        }));
+        const moveDetail = {
+            tokenId: token.id,
+            from: { x: drag.originX, y: drag.originY, z: drag.originZ, elevationFt: drag.originElevationFt },
+            to: { x: token.x, y: token.y, ...token.gridPosition, elevationFt: token.elevationFt ?? 0, verticalMovement: token.verticalMovement || null },
+            path: Array.isArray(result.path) ? result.path : [],
+            routeCostFt: result.routeCostFt ?? result.costFt ?? null,
+            movementCostFt: result.movementCostFt ?? result.costFt ?? null,
+            movementMode: result.movementMode || result.mode || null,
+            actionMode: result.actionMode || null,
+            transition: transition.valid ? { routeId: transition.route?.id || null, complete: Boolean(transition.complete), targetZ: transition.targetZ, costSpentFt: transition.costSpentFt ?? null } : null,
+        };
+        this.emitSemanticEvent('vtt:token-moved', moveDetail, {
+            reason: 'token', render: true, vision: true, active: false,
+        });
         if (result.stopAtDoor) {
             this.canvas.dispatchEvent(new CustomEvent('vtt:movement-stopped-at-door', {
                 detail: { tokenId: token.id, x: token.x, y: token.y, z: token.zLayer, ...result.stopAtDoor },
             }));
         }
-        if (transition.valid) this.canvas.dispatchEvent(new CustomEvent('vtt:token-z-transition', { detail: { tokenId: token.id, ...transition } }));
+        if (transition.valid) {
+            const transitionDetail = { tokenId: token.id, ...transition };
+            this.emitSemanticEvent('vtt:token-z-transition', transitionDetail, {
+                reason: 'token', render: true, vision: true, active: false,
+            });
+        }
     }
 
     centerCamera() {
