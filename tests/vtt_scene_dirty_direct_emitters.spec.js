@@ -38,13 +38,14 @@ test('movement engine preserves semantic events and emits direct dirty semantics
   expect(source).toContain('LuminousVttSceneDirty?.emit');
 });
 
-test('procedural chunk streaming keeps domain events and emits one chunk dirty per loaded/transition action', () => {
+test('procedural chunk streaming coalesces transition invalidation through the loaded chunk dirty', () => {
   const source = read('js/vtt/procedural-chunk-streaming-runtime.js');
   expect(source).toContain("emitSemantic('vtt:token-moved',moveDetail)");
   expect(source).toContain("emitSemantic('vtt:procedural-chunk-transition',transitionDetail)");
-  expect(source).toContain("emitDirty('vtt:procedural-chunk-transition',transitionDetail)");
+  expect(source).not.toContain("emitDirty('vtt:procedural-chunk-transition',transitionDetail)");
   expect(source).toContain("emitSemantic('vtt:procedural-chunk-loaded',loadedDetail)");
   expect(source).toContain("emitDirty('vtt:procedural-chunk-loaded',loadedDetail)");
+  expect(source).toContain("emitDirty('procedural-stream-created',createdDetail)");
   expect(source).toContain("reason:'chunk',render:true,vision:true");
 });
 
