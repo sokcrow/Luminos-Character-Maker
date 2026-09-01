@@ -20,6 +20,7 @@ if (dirty && current?.createBridge && !current.__sceneDirtyWrapped) {
             render: true,
             vision: true,
             active: false,
+            tokenId: change?.tokenId ?? null,
             sourceEvent: 'LuminousVttTokenState:onTokensChanged',
             meta: change && typeof change === 'object' ? change : null,
           });
