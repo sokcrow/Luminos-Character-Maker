@@ -50,6 +50,12 @@
     return 0;
   }
 
+  function normalizeDestination(value = null, fallbackZ = 0) {
+    if (!value || !Number.isFinite(Number(value.x)) || !Number.isFinite(Number(value.y))) return null;
+    const z = Number.isFinite(Number(value.zLayer ?? value.z)) ? Number(value.zLayer ?? value.z) : Number(fallbackZ) || 0;
+    return { x: Number(value.x), y: Number(value.y), zLayer: z };
+  }
+
   function playerKeyForToken(token = {}, current = {}) {
     return clean(token.canonicalPlayerKey || token.playerId || (token.characterLink?.mode === 'current_player' ? current.playerId : ''));
   }
@@ -98,7 +104,7 @@
     const current = meta.current || {};
     const playerKey = playerKeyForToken(token, current);
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       scope: isPlayerToken(token, current) ? 'player' : 'world',
       tokenId: clean(token.id) || null,
       playerKey: playerKey || null,
@@ -106,6 +112,9 @@
       y: finite(token.y),
       zLayer: tokenLayer(token),
       elevationFt: finite(token.elevationFt),
+      destination: normalizeDestination(meta.destination, tokenLayer(token)),
+      aiming: Boolean(meta.aiming),
+      traversing: Boolean(meta.traversing),
       sequence: Math.max(0, Math.trunc(finite(meta.sequence))),
       committed: Boolean(meta.committed),
       sessionId: clean(meta.sessionId) || null,
@@ -204,6 +213,9 @@
           scope: preview?.scope || null,
           playerKey: preview?.playerKey || null,
           sequence: preview?.sequence ?? null,
+          destination: normalizeDestination(preview?.destination, tokenLayer(token)),
+          aiming: Boolean(preview?.aiming),
+          traversing: Boolean(preview?.traversing),
           ...detail,
         },
       }));
@@ -221,12 +233,13 @@
       if (active.preview?.committed) {
         activeRemotePreviews.delete(key);
         clearExpiry(key);
+        dispatchPreview(active.token, active.preview, { expired: true, cleared: true, destination: null });
         return;
       }
       restoreCanonical(active.token);
       activeRemotePreviews.delete(key);
       clearExpiry(key);
-      dispatchPreview(active.token, active.preview, { expired: true, reverted: true });
+      dispatchPreview(active.token, active.preview, { expired: true, reverted: true, destination: null });
     }
 
     function armExpiry(key, preview, token) {
@@ -248,7 +261,9 @@
       activeRemotePreviews.delete(key);
       if (!active.preview?.committed) {
         restoreCanonical(active.token);
-        dispatchPreview(active.token, active.preview, { reverted: true, cleared: true });
+        dispatchPreview(active.token, active.preview, { reverted: true, cleared: true, destination: null });
+      } else {
+        dispatchPreview(active.token, active.preview, { committed: true, cleared: true, destination: null });
       }
     }
 
@@ -266,7 +281,14 @@
         droppedStale += 1;
         return;
       }
-      const normalized = { ...preview, scope, playerKey: playerKey || preview.playerKey || null };
+      const normalized = {
+        ...preview,
+        scope,
+        playerKey: playerKey || preview.playerKey || null,
+        destination: normalizeDestination(preview.destination, preview.zLayer),
+        aiming: Boolean(preview.aiming),
+        traversing: Boolean(preview.traversing),
+      };
       const token = tokenForPreview(normalized, playerKey);
       if (!token) {
         activeRemotePreviews.set(key, { token: null, preview: normalized });
@@ -279,7 +301,12 @@
       applyPreview(token, normalized);
       activeRemotePreviews.set(key, { token, preview: normalized });
       armExpiry(key, normalized, token);
-      dispatchPreview(token, normalized, { committed: Boolean(normalized.committed) });
+      dispatchPreview(token, normalized, {
+        committed: Boolean(normalized.committed),
+        destination: normalized.destination,
+        aiming: normalized.aiming,
+        traversing: normalized.traversing,
+      });
     }
 
     function subscribe(ref, event, handler) {
@@ -328,7 +355,12 @@
         if (!token) continue;
         active.token = token;
         applyPreview(token, active.preview);
-        dispatchPreview(token, active.preview, { canonicalRefresh: true });
+        dispatchPreview(token, active.preview, {
+          canonicalRefresh: true,
+          destination: active.preview?.destination || null,
+          aiming: Boolean(active.preview?.aiming),
+          traversing: Boolean(active.preview?.traversing),
+        });
         activeRemotePreviews.set(key, active);
       }
     }
@@ -359,7 +391,7 @@
       return tracked;
     }
 
-    function writePayload(token, { committed = false } = {}) {
+    function writePayload(token, { committed = false, destination = null, aiming = false, traversing = false } = {}) {
       const target = previewRefForToken(token);
       if (!target?.ref?.set) return Promise.resolve({ valid: false, reason: 'PREVIEW_WRITE_UNAVAILABLE' });
       const sentAtMs = Math.max(0, Math.trunc(now()));
@@ -368,6 +400,9 @@
         current,
         sequence: ++sequence,
         committed,
+        destination,
+        aiming,
+        traversing,
         sessionId,
         sentAtMs,
         expiresAtMs: committed ? 0 : sentAtMs + previewTtlMs,
@@ -394,34 +429,44 @@
 
     function cancelPending(token) {
       const key = logicalTokenKey(token, current);
-      if (!key) return;
-      const state = pending.get(key);
+      if (!key) return null;
+      const state = pending.get(key) || null;
       if (state?.timer != null) clearTimeoutFn(state.timer);
       pending.delete(key);
+      return state;
     }
 
     function sendNow(token) {
       const key = logicalTokenKey(token, current);
       if (!key) return Promise.resolve({ valid: false, reason: 'TOKEN_KEY_REQUIRED' });
-      const state = pending.get(key) || { lastSentAt: -Infinity, timer: null, token };
+      const state = pending.get(key) || { lastSentAt: -Infinity, timer: null, token, destination: null, aiming: false, traversing: false };
       if (state.timer != null) clearTimeoutFn(state.timer);
       state.timer = null;
       state.lastSentAt = now();
       state.token = token;
       pending.set(key, state);
-      return writePayload(token);
+      return writePayload(token, {
+        destination: state.destination,
+        aiming: state.aiming,
+        traversing: state.traversing,
+      });
     }
 
-    function schedulePreview(token) {
+    function schedulePreview(token, meta = {}) {
       const key = logicalTokenKey(token, current);
-      if (!key || !previewRefForToken(token)) return;
-      const state = pending.get(key) || { lastSentAt: -Infinity, timer: null, token };
+      if (!key || !previewRefForToken(token)) return false;
+      const state = pending.get(key) || { lastSentAt: -Infinity, timer: null, token, destination: null, aiming: false, traversing: false };
       state.token = token;
+      if (Object.prototype.hasOwnProperty.call(meta, 'destination')) {
+        state.destination = normalizeDestination(meta.destination, tokenLayer(token));
+      }
+      if (Object.prototype.hasOwnProperty.call(meta, 'aiming')) state.aiming = Boolean(meta.aiming);
+      if (Object.prototype.hasOwnProperty.call(meta, 'traversing')) state.traversing = Boolean(meta.traversing);
       const elapsed = now() - finite(state.lastSentAt, -Infinity);
       if (elapsed >= throttleMs && state.timer == null) {
         pending.set(key, state);
         void sendNow(token).catch((error) => console.error('VTT realtime movement preview failed:', error));
-        return;
+        return true;
       }
       if (state.timer == null) {
         const delay = Math.max(0, throttleMs - Math.max(0, elapsed));
@@ -433,19 +478,48 @@
         }, delay);
       }
       pending.set(key, state);
+      return true;
+    }
+
+    function tokenFromEvent(event) {
+      const tokenId = clean(event?.detail?.tokenId);
+      return (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId) || null;
+    }
+
+    function handleDestinationPreview(event) {
+      if (stopped || event?.detail?.remote) return;
+      const token = tokenFromEvent(event);
+      if (!token) return;
+      schedulePreview(token, {
+        destination: event?.detail?.target || null,
+        aiming: true,
+        traversing: false,
+      });
     }
 
     function handleLocalPreview(event) {
       if (stopped || event?.detail?.remote) return;
-      const tokenId = clean(event?.detail?.tokenId);
-      const token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
+      const token = tokenFromEvent(event);
       if (!token) return;
       if (event?.detail?.reverted) {
         cancelPending(token);
         void clearPayload(token).catch((error) => console.error('VTT realtime movement rollback failed:', error));
         return;
       }
-      schedulePreview(token);
+      const meta = {
+        aiming: false,
+        traversing: event?.detail?.traversing === true,
+      };
+      if (Object.prototype.hasOwnProperty.call(event?.detail || {}, 'destination')) meta.destination = event.detail.destination;
+      schedulePreview(token, meta);
+    }
+
+    function handleMovementRejected(event) {
+      if (stopped || event?.detail?.remote) return;
+      const token = tokenFromEvent(event);
+      if (!token) return;
+      cancelPending(token);
+      void clearPayload(token).catch((error) => console.error('VTT realtime movement rejection cleanup failed:', error));
     }
 
     function handleCanonicalSync() {
@@ -456,14 +530,17 @@
 
     async function finalizeToken(token, saveCanonical) {
       if (!token || typeof saveCanonical !== 'function') throw new Error('MOVEMENT_FINALIZER_REQUIRED');
+      const key = logicalTokenKey(token, current);
+      const pendingState = key ? pending.get(key) : null;
+      const destination = normalizeDestination(pendingState?.destination, tokenLayer(token));
       cancelPending(token);
       const previewTarget = previewRefForToken(token);
       if (!previewTarget) return saveCanonical();
-      await writePayload(token);
+      await writePayload(token, { destination, aiming: false, traversing: false });
       try {
         const result = await saveCanonical();
         cacheCanonical(token);
-        await writePayload(token, { committed: true });
+        await writePayload(token, { committed: true, destination, aiming: false, traversing: false });
         await clearPayload(token);
         return result;
       } catch (error) {
@@ -482,7 +559,9 @@
         subscribe(worldPreviewRoot(), 'child_changed', (snapshot) => handleIncoming(snapshot?.val?.() || null));
         subscribe(worldPreviewRoot(), 'child_removed', (snapshot) => clearIncoming(snapshot?.val?.() || { tokenId: snapshot?.key || null }));
       }
+      canvas?.addEventListener?.('vtt:movement-destination-preview', handleDestinationPreview);
       canvas?.addEventListener?.('vtt:token-preview-moved', handleLocalPreview);
+      canvas?.addEventListener?.('vtt:movement-order-rejected', handleMovementRejected);
       canvas?.addEventListener?.('vtt:canonical-tokens-synced', handleCanonicalSync);
       Promise.resolve().then(reconcilePlayerSubscriptions);
       return snapshot();
@@ -498,7 +577,9 @@
       for (const off of rootSubscriptions.splice(0)) off();
       for (const off of playerSubscriptions.values()) off();
       playerSubscriptions.clear();
+      canvas?.removeEventListener?.('vtt:movement-destination-preview', handleDestinationPreview);
       canvas?.removeEventListener?.('vtt:token-preview-moved', handleLocalPreview);
+      canvas?.removeEventListener?.('vtt:movement-order-rejected', handleMovementRejected);
       canvas?.removeEventListener?.('vtt:canonical-tokens-synced', handleCanonicalSync);
     }
 
@@ -542,6 +623,7 @@
     firebaseKey,
     identity,
     tokenLayer,
+    normalizeDestination,
     playerKeyForToken,
     isPlayerToken,
     logicalTokenKey,

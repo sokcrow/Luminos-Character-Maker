@@ -1,0 +1,44 @@
+name: VTT Navigation Polish
+
+on:
+  pull_request:
+    paths:
+      - 'js/vtt/pathfinding.js'
+      - 'js/vtt/movement-navigation-polish.js'
+      - 'js/vtt/movement-realtime.js'
+      - 'js/vtt/movement-connectivity.js'
+      - 'tests/vtt_navigation_polish.spec.js'
+      - 'tests/vtt_movement_destination_realtime.spec.js'
+      - '.github/workflows/vtt-navigation-polish.yml'
+  push:
+    paths:
+      - 'js/vtt/pathfinding.js'
+      - 'js/vtt/movement-navigation-polish.js'
+      - 'js/vtt/movement-realtime.js'
+      - 'js/vtt/movement-connectivity.js'
+      - 'tests/vtt_navigation_polish.spec.js'
+      - 'tests/vtt_movement_destination_realtime.spec.js'
+      - '.github/workflows/vtt-navigation-polish.yml'
+
+jobs:
+  navigation-polish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --input-type=module --check < js/vtt/movement-navigation-polish.js
+          node --input-type=module --check < js/vtt/movement-realtime.js
+          node --input-type=module --check < js/vtt/movement-connectivity.js
+          node --check tests/vtt_navigation_polish.spec.js
+          node --check tests/vtt_movement_destination_realtime.spec.js
+      - name: Focused navigation contracts
+        run: npx playwright test --workers=1 tests/vtt_navigation_polish.spec.js tests/vtt_movement_destination_realtime.spec.js
