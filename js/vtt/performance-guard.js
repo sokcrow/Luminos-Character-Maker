@@ -5,6 +5,7 @@ const STATIC_SIGNATURE_TTL_MS = 100;
 
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const clean = (value) => String(value ?? '');
+const clockNow = () => globalThis.performance?.now?.() ?? Date.now();
 
 function tokenSignature(tokens = []) {
   return (Array.isArray(tokens) ? tokens : []).map((token) => [
@@ -95,15 +96,16 @@ function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, mo
   return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
 }
 
-export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL_MS) {
+export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL_MS, onScan = null) {
   let at = -Infinity;
   let value = '';
   let forceSerial = 0;
   return Object.freeze({
     invalidate() { forceSerial += 1; at = -Infinity; },
-    value(now = performance.now()) {
+    value(now = clockNow()) {
       if ((now - at) < ttlMs) return value;
       at = now;
+      const scanStartedAt = clockNow();
       const scene = mapData.lighting?.scene || {};
       value = JSON.stringify({
         serial: forceSerial,
@@ -121,6 +123,9 @@ export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL
         chunk: mapData.procedural?.activeChunkSignature || mapData.procedural?.streaming?.activeChunk || null,
         edit: Boolean(mapData.dmEditMode?.active),
       });
+      if (typeof onScan === 'function') {
+        try { onScan(Math.max(0, clockNow() - scanStartedAt)); } catch (_) {}
+      }
       return value;
     },
   });
@@ -153,7 +158,6 @@ export function installPerformanceGuard({
 
   const originalRender = renderer.render.bind(renderer);
   const originalCalculateVision = typeof engine.calculateVision === 'function' ? engine.calculateVision.bind(engine) : null;
-  const signatureCache = createStaticSignatureCache(mapData);
   const metrics = {
     calls: 0,
     rendered: 0,
@@ -164,7 +168,19 @@ export function installPerformanceGuard({
     visionComputed: 0,
     visionSkipped: 0,
     dmVisionBypassed: 0,
+    staticSignatureRequests: 0,
+    staticSignatureScans: 0,
+    staticSignatureDurationMs: 0,
+    maxStaticSignatureDurationMs: 0,
+    fingerprintCalls: 0,
+    fingerprintDurationMs: 0,
+    maxFingerprintDurationMs: 0,
   };
+  const signatureCache = createStaticSignatureCache(mapData, STATIC_SIGNATURE_TTL_MS, (durationMs) => {
+    metrics.staticSignatureScans += 1;
+    metrics.staticSignatureDurationMs += durationMs;
+    metrics.maxStaticSignatureDurationMs = Math.max(metrics.maxStaticSignatureDurationMs, durationMs);
+  });
   let lastFingerprint = '';
   let lastRenderAt = -Infinity;
   let lastIdleScanAt = -Infinity;
@@ -214,7 +230,7 @@ export function installPerformanceGuard({
         return visionCache;
       }
 
-      const perfNow = globalThis.performance?.now?.() ?? Date.now();
+      const perfNow = clockNow();
       const wallNow = Date.now();
       const active = visualAnimationActive(engine, mapData, wallNow);
       const minimumInterval = active
@@ -240,7 +256,7 @@ export function installPerformanceGuard({
 
   renderer.render = function guardedRender(...args) {
     metrics.calls += 1;
-    const perfNow = globalThis.performance?.now?.() ?? Date.now();
+    const perfNow = clockNow();
     const wallNow = Date.now();
     const active = visualAnimationActive(engine, mapData, wallNow);
     const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
@@ -258,7 +274,14 @@ export function installPerformanceGuard({
     }
 
     lastIdleScanAt = perfNow;
-    const fingerprint = frameFingerprint({ engine, mapData, now: wallNow, staticSignature: signatureCache.value(perfNow) });
+    metrics.staticSignatureRequests += 1;
+    const staticSignature = signatureCache.value(perfNow);
+    const fingerprintStartedAt = clockNow();
+    const fingerprint = frameFingerprint({ engine, mapData, now: wallNow, staticSignature });
+    const fingerprintDurationMs = Math.max(0, clockNow() - fingerprintStartedAt);
+    metrics.fingerprintCalls += 1;
+    metrics.fingerprintDurationMs += fingerprintDurationMs;
+    metrics.maxFingerprintDurationMs = Math.max(metrics.maxFingerprintDurationMs, fingerprintDurationMs);
     const changed = renderDirty || fingerprint !== lastFingerprint;
     if (!changed && !active) {
       metrics.skipped += 1;
@@ -282,6 +305,15 @@ export function installPerformanceGuard({
       visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
       activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
       movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
+      avgStaticSignatureDurationMs: metrics.staticSignatureScans > 0
+        ? metrics.staticSignatureDurationMs / metrics.staticSignatureScans
+        : 0,
+      avgFingerprintDurationMs: metrics.fingerprintCalls > 0
+        ? metrics.fingerprintDurationMs / metrics.fingerprintCalls
+        : 0,
+      input: typeof engine.getInputPerformanceStats === 'function'
+        ? engine.getInputPerformanceStats()
+        : null,
     }),
     resetMetrics() {
       metrics.calls = 0;
@@ -293,6 +325,13 @@ export function installPerformanceGuard({
       metrics.visionComputed = 0;
       metrics.visionSkipped = 0;
       metrics.dmVisionBypassed = 0;
+      metrics.staticSignatureRequests = 0;
+      metrics.staticSignatureScans = 0;
+      metrics.staticSignatureDurationMs = 0;
+      metrics.maxStaticSignatureDurationMs = 0;
+      metrics.fingerprintCalls = 0;
+      metrics.fingerprintDurationMs = 0;
+      metrics.maxFingerprintDurationMs = 0;
     },
     stop() {
       if (stopped) return;
