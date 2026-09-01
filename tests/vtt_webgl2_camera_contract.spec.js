@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { Camera } from '../js/vtt/camera.js';
 import { WebGLWorldTransform } from '../js/vtt/render/world-transform.js';
 import { WebGL2Renderer } from '../js/vtt/render/webgl2-renderer.js';
+import '../js/vtt/camera-follow.js';
+import '../js/vtt/dm-observer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
@@ -21,8 +23,18 @@ function eventTarget() {
     removeEventListener(type, handler) {
       listeners.get(type)?.delete(handler);
     },
-    dispatchEvent() {},
+    dispatchEvent(event) {
+      for (const handler of [...(listeners.get(event?.type) || [])]) handler(event);
+      return true;
+    },
   };
+}
+
+class TestCustomEvent {
+  constructor(type, options = {}) {
+    this.type = type;
+    this.detail = options.detail;
+  }
 }
 
 function makeCanvas({ logicalWidth = 1920, logicalHeight = 1080, dpr = 2, left = 100, top = 50 } = {}) {
@@ -42,8 +54,14 @@ function makeCanvas({ logicalWidth = 1920, logicalHeight = 1080, dpr = 2, left =
 
 function installDomStubs() {
   const win = eventTarget();
+  win.CustomEvent = TestCustomEvent;
+  win.setTimeout = (callback) => { callback(); return 1; };
+  win.clearTimeout = () => {};
+  win.requestAnimationFrame = (callback) => { callback(0); return 1; };
+  win.cancelAnimationFrame = () => {};
   globalThis.window = win;
   globalThis.document = { body: {} };
+  globalThis.CustomEvent = TestCustomEvent;
   return win;
 }
 
@@ -60,6 +78,28 @@ test('CAM-01/02 worldToScreen y screenToWorld son inversas', () => {
 
   expect(roundTrip.x).toBeCloseTo(world.x, 10);
   expect(roundTrip.y).toBeCloseTo(world.y, 10);
+  camera.destroy();
+});
+
+test('CAM-04/05 pan conserva desplazamiento visual bajo distintos zoom', () => {
+  installDomStubs();
+  const camera = new Camera(makeCanvas({ logicalWidth: 1600, logicalHeight: 900, dpr: 1 }));
+  camera.zoom = 2;
+  const point = { x: 500, y: 300 };
+  const before = camera.worldToScreen(point.x, point.y);
+  let manualPanCalls = 0;
+  camera.setManualPanListener(() => { manualPanCalls += 1; });
+
+  camera.onMouseDown({ button: 1, clientX: 100, clientY: 100, preventDefault() {} });
+  camera.onMouseMove({ clientX: 200, clientY: 160 });
+  camera.onMouseUp();
+
+  const after = camera.worldToScreen(point.x, point.y);
+  expect(camera.x).toBeCloseTo(50, 10);
+  expect(camera.y).toBeCloseTo(30, 10);
+  expect(after.x - before.x).toBeCloseTo(100, 10);
+  expect(after.y - before.y).toBeCloseTo(60, 10);
+  expect(manualPanCalls).toBe(1);
   camera.destroy();
 });
 
@@ -203,30 +243,92 @@ test('CAM-05/08 Engine delega mouse, centrado y resize al contrato de Camera', (
   expect(engine).toContain('this.camera.centerOnWorldPoint(centerBefore);');
 });
 
-test('CAM-11/12/13 Camera Follow conserva follow, manual look y hotkeys Legacy', () => {
-  const follow = read('js/vtt/camera-follow.js');
+test('CAM-11/12 Camera Follow centra y libera follow al hacer pan manual', () => {
+  const host = installDomStubs();
+  const canvas = makeCanvas({ logicalWidth: 1600, logicalHeight: 900, dpr: 1 });
+  const camera = new Camera(canvas);
+  const token = { id: 'player-1', x: 720, y: 410, viewer: true, zLayer: 0 };
+  const mapData = { tokens: [token], grid: { size: 70, distancePerCell: 5 }, lighting: {} };
+  const runtime = { engine: { camera, canvas, mapData }, bridge: { isDm: false } };
+  const api = globalThis.LuminousVttCameraFollow;
+  const controller = api.createController({ runtime, mapData, root: host });
 
-  expect(follow).toContain("camera.centerOnWorldPoint?.({ x: token.x, y: token.y }) === true");
-  expect(follow).toContain('camera.setManualPanListener?.(onManualPan);');
-  expect(follow).toContain("emit(policy.active ? 'look-around' : 'manual-pan');");
-  expect(follow).toContain("event.code === 'KeyF'");
-  expect(follow).toContain("event.code === 'Home'");
+  controller.setEnabled(true, { reason: 'test', centerNow: true });
+  const centered = camera.worldToScreen(token.x, token.y);
+  expect(centered.x).toBeCloseTo(800, 8);
+  expect(centered.y).toBeCloseTo(450, 8);
+  expect(controller.state().enabled).toBe(true);
+
+  camera.manualPanListener?.({ dx: 10, dy: 0 });
+  expect(controller.state().enabled).toBe(false);
+
+  controller.stop();
+  camera.destroy();
 });
 
-test('CAM-14 drag preview no arrastra cámara; traversal confirmado sí puede seguir', () => {
+test('CAM-13/14 Camera Follow conserva hotkeys y evita seguir drag preview no confirmado', () => {
   const follow = read('js/vtt/camera-follow.js');
 
+  expect(follow).toContain("event.code === 'KeyF'");
+  expect(follow).toContain("event.code === 'Home'");
   expect(follow).toContain("if (event?.type === 'vtt:token-preview-moved')");
   expect(follow).toContain('if (!isConfirmedTraversalPreview(event.detail || {})) return;');
   expect(follow).toContain("queueTraversalSync(event?.detail?.remote ? 'remote-token-traversal' : 'token-traversal');");
 });
 
-test('CAM-16/17/18 DM Observer mantiene selección explícita y VIEW AS solo para Player', () => {
-  const observer = read('js/vtt/dm-observer.js');
+test('CAM-16/17/18 DM Observer solo consume click cuando FOLLOW/VIEW AS están armados', () => {
+  const host = installDomStubs();
+  const canvas = makeCanvas({ logicalWidth: 1280, logicalHeight: 720, dpr: 1 });
+  const player = { id: 'p1', x: 400, y: 300, viewer: true, canonicalScope: 'player', zLayer: 0 };
+  const npc = { id: 'npc1', x: 700, y: 300, canonicalScope: 'npc', zLayer: 0 };
+  const mapData = { tokens: [player, npc], grid: { size: 70 }, lighting: {} };
+  const calls = [];
+  const cameraFollow = {
+    setEnabled(value) { calls.push(['enabled', value]); },
+    clearTarget() { calls.push(['clear']); },
+    setTarget(id) { calls.push(['target', id]); },
+  };
+  const engine = {
+    canvas,
+    mapData,
+    camera: {},
+    tokenAtEvent: (event) => event.hitToken || null,
+    setZLayer() {},
+  };
+  const runtime = { engine, bridge: { isDm: true } };
+  const api = globalThis.LuminousVttDmObserver;
+  const controller = api.createController({ runtime, mapData, cameraFollow, root: host });
 
-  expect(observer).toContain("if (!selectingMode || event.button !== 0 || mapData.dmEditMode?.active) return;");
-  expect(observer).toContain('if (selectingMode === MODES.VIEW_AS && !isPlayerToken(token)) return;');
-  expect(observer).toContain('mapData.lighting.dmPreviewTokenId = mode === MODES.VIEW_AS ? clean(token.id) : null;');
+  let consumed = false;
+  canvas.dispatchEvent({
+    type: 'click', button: 0, hitToken: player,
+    preventDefault() { consumed = true; }, stopPropagation() {}, stopImmediatePropagation() {},
+  });
+  expect(consumed).toBe(false);
+
+  controller.select(api.MODES.FOLLOW);
+  canvas.dispatchEvent({
+    type: 'click', button: 0, hitToken: npc,
+    preventDefault() { consumed = true; }, stopPropagation() {}, stopImmediatePropagation() {},
+  });
+  expect(calls.some(([kind, id]) => kind === 'target' && id === 'npc1')).toBe(true);
+
+  const callCount = calls.length;
+  controller.select(api.MODES.VIEW_AS);
+  canvas.dispatchEvent({
+    type: 'click', button: 0, hitToken: npc,
+    preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  });
+  expect(calls.length).toBe(callCount);
+
+  controller.select(api.MODES.VIEW_AS);
+  canvas.dispatchEvent({
+    type: 'click', button: 0, hitToken: player,
+    preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  });
+  expect(mapData.lighting.dmPreviewTokenId).toBe('p1');
+
+  controller.stop();
 });
 
 test('CAM-20 lifecycle destruye renderer y camera para evitar listeners/contextos duplicados', () => {
