@@ -11,11 +11,12 @@ function tokenZLayer(token = {}, fallback = 0) {
 /**
  * Persistent render-side identity for one tactical token.
  *
- * Step 1 intentionally owns no texture/program yet. GPU resources can be attached
- * later without changing the TokenView identity used by selection, hover or drag.
+ * Canonical x/y/zLayer are synchronized from token-state. Step 3 adds a separate
+ * transient preview position for drag/realtime visuals so pointer feedback never
+ * mutates the canonical token or writes back to Firebase before validation.
  */
 export class TokenView {
-    constructor(token, { onPositionChange = null } = {}) {
+    constructor(token, { onPositionChange = null, onPreviewChange = null } = {}) {
         const id = cleanId(token?.id);
         if (!id) throw new Error('TOKEN_VIEW_ID_REQUIRED');
 
@@ -24,11 +25,29 @@ export class TokenView {
         this.x = finite(token?.x);
         this.y = finite(token?.y);
         this.zLayer = tokenZLayer(token);
+        this.previewPosition = null;
         this.visible = token?.visible !== false;
         this.destroyed = false;
         this.revision = 0;
         this.resources = new Map();
         this.onPositionChange = typeof onPositionChange === 'function' ? onPositionChange : null;
+        this.onPreviewChange = typeof onPreviewChange === 'function' ? onPreviewChange : null;
+    }
+
+    get hasPreview() {
+        return Boolean(this.previewPosition);
+    }
+
+    get renderX() {
+        return this.previewPosition?.x ?? this.x;
+    }
+
+    get renderY() {
+        return this.previewPosition?.y ?? this.y;
+    }
+
+    get renderZLayer() {
+        return this.previewPosition?.zLayer ?? this.zLayer;
     }
 
     setPosition(x, y, zLayer = this.zLayer) {
@@ -43,6 +62,29 @@ export class TokenView {
         this.zLayer = nextZ;
         this.revision += 1;
         this.onPositionChange?.(this);
+        return true;
+    }
+
+    setPreviewPosition(x, y, zLayer = this.zLayer) {
+        if (this.destroyed) return false;
+        const next = {
+            x: finite(x, this.renderX),
+            y: finite(y, this.renderY),
+            zLayer: finite(zLayer, this.renderZLayer),
+        };
+        const current = this.previewPosition;
+        if (current && next.x === current.x && next.y === current.y && next.zLayer === current.zLayer) return false;
+        this.previewPosition = next;
+        this.revision += 1;
+        this.onPreviewChange?.(this, 'set');
+        return true;
+    }
+
+    clearPreviewPosition() {
+        if (this.destroyed || !this.previewPosition) return false;
+        this.previewPosition = null;
+        this.revision += 1;
+        this.onPreviewChange?.(this, 'clear');
         return true;
     }
 
@@ -91,9 +133,11 @@ export class TokenView {
     destroy() {
         if (this.destroyed) return false;
         for (const key of [...this.resources.keys()]) this.releaseResource(key);
+        this.previewPosition = null;
         this.destroyed = true;
         this.token = null;
         this.onPositionChange = null;
+        this.onPreviewChange = null;
         return true;
     }
 }
