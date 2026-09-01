@@ -186,8 +186,6 @@ function directRoute(host, pathfinding, interaction, options = {}, metrics = nul
   let current = { ...startCell };
   let costFt = 0;
 
-  // Validate terrain/cost once per crossed grid cell. This is dictionary work only;
-  // it deliberately avoids edgePassable/isPathClear and their legacy nested sampling.
   for (let index = 0; index < steps; index += 1) {
     const next = { col: current.col + stepCol, row: current.row + stepRow };
     const terrain = pathfinding.terrainRecord?.(mapData, zLayer, next.col, next.row) || { multiplier: 1 };
@@ -227,9 +225,11 @@ export function installDirectRouteHotfix(host = globalThis) {
 
   let stopped = false;
   let wrapped = null;
+  let wrappedFindPath = null;
   let base = null;
   const metrics = {
     ensureCalls: 0,
+    inheritedMarkerRepairs: 0,
     findPathCalls: 0,
     directAttempts: 0,
     directHits: 0,
@@ -243,55 +243,65 @@ export function installDirectRouteHotfix(host = globalThis) {
     fallbackMaxMs: 0,
   };
 
+  function isOwned(current) {
+    return Boolean(current
+      && typeof current.findPath === 'function'
+      && typeof current.__directCorridorFindPath === 'function'
+      && current.findPath === current.__directCorridorFindPath);
+  }
+
   function ensure() {
     if (stopped) return null;
     metrics.ensureCalls += 1;
     const current = host?.LuminousVttPathfinding;
     if (!current?.findPath) return null;
-    if (current === wrapped) return wrapped;
-    if (current.__directCorridorHotfixV1 && current.__directCorridorBase) {
+    if (current === wrapped && current.findPath === wrappedFindPath) return wrapped;
+    if (isOwned(current)) {
       wrapped = current;
-      base = current.__directCorridorBase;
+      wrappedFindPath = current.findPath;
+      base = current.__directCorridorBase || null;
       return current;
     }
+    if (current.__directCorridorHotfixV1 === true) metrics.inheritedMarkerRepairs += 1;
 
     base = current;
+    const directFindPath = function directCorridorFindPath(options = {}) {
+      metrics.findPathCalls += 1;
+      const interaction = host?.LuminousVttTokenInteraction;
+      const startedAt = host?.performance?.now?.() ?? Date.now();
+      metrics.directAttempts += 1;
+      const direct = interaction ? directRoute(host, current, interaction, options, metrics) : null;
+      const directMs = Math.max(0, (host?.performance?.now?.() ?? Date.now()) - startedAt);
+      metrics.directTotalMs += directMs;
+      metrics.directMaxMs = Math.max(metrics.directMaxMs, directMs);
+      if (direct) {
+        metrics.directHits += 1;
+        return direct;
+      }
+      metrics.fallbackCalls += 1;
+      const fallbackAt = host?.performance?.now?.() ?? Date.now();
+      const result = current.findPath(options);
+      const fallbackMs = Math.max(0, (host?.performance?.now?.() ?? Date.now()) - fallbackAt);
+      metrics.fallbackTotalMs += fallbackMs;
+      metrics.fallbackMaxMs = Math.max(metrics.fallbackMaxMs, fallbackMs);
+      return result;
+    };
+
     const next = Object.freeze({
       ...current,
       __directCorridorHotfixV1: true,
       __directCorridorBase: current,
-      findPath(options = {}) {
-        metrics.findPathCalls += 1;
-        const interaction = host?.LuminousVttTokenInteraction;
-        const start = host?.performance?.now?.() ?? Date.now();
-        metrics.directAttempts += 1;
-        const direct = interaction ? directRoute(host, current, interaction, options, metrics) : null;
-        const directMs = Math.max(0, (host?.performance?.now?.() ?? Date.now()) - start);
-        metrics.directTotalMs += directMs;
-        metrics.directMaxMs = Math.max(metrics.directMaxMs, directMs);
-        if (direct) {
-          metrics.directHits += 1;
-          return direct;
-        }
-        metrics.fallbackCalls += 1;
-        const fallbackAt = host?.performance?.now?.() ?? Date.now();
-        const result = current.findPath(options);
-        const fallbackMs = Math.max(0, (host?.performance?.now?.() ?? Date.now()) - fallbackAt);
-        metrics.fallbackTotalMs += fallbackMs;
-        metrics.fallbackMaxMs = Math.max(metrics.fallbackMaxMs, fallbackMs);
-        return result;
-      },
+      __directCorridorFindPath: directFindPath,
+      findPath: directFindPath,
     });
     host.LuminousVttPathfinding = next;
     wrapped = next;
+    wrappedFindPath = directFindPath;
     return next;
   }
 
   const refresh = () => ensure();
   host?.addEventListener?.('mousedown', refresh, true);
-  // This runs after movement-long-drag-hotfix's capture listener because this module
-  // is imported second. It therefore wraps the final pathfinder immediately before
-  // Engine's bubble-phase mouseup resolver executes.
   host?.addEventListener?.('mouseup', refresh, true);
   host?.addEventListener?.('vtt:topology-changed', refresh);
   host?.setTimeout?.(refresh, 0);
@@ -302,12 +312,14 @@ export function installDirectRouteHotfix(host = globalThis) {
     __v1: true,
     ensure,
     snapshot() {
+      const current = host?.LuminousVttPathfinding;
       return Object.freeze({
         ...metrics,
         avgContextBuildMs: metrics.contexts ? metrics.contextBuildTotalMs / metrics.contexts : 0,
         avgDirectMs: metrics.directAttempts ? metrics.directTotalMs / metrics.directAttempts : 0,
         avgFallbackMs: metrics.fallbackCalls ? metrics.fallbackTotalMs / metrics.fallbackCalls : 0,
-        installed: host?.LuminousVttPathfinding?.__directCorridorHotfixV1 === true,
+        installed: isOwned(current),
+        currentFindPathOwned: isOwned(current),
       });
     },
     stop() {
