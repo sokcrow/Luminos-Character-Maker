@@ -32,6 +32,9 @@ uniform float u_hasTexture;
 uniform float u_borderWidth;
 uniform float u_personIcon;
 uniform float u_alpha;
+uniform float u_facingDeg;
+uniform float u_showFacing;
+uniform float u_moving;
 out vec4 outColor;
 
 void main() {
@@ -51,6 +54,22 @@ void main() {
     }
 
     if (distanceFromCenter >= 1.0 - u_borderWidth) color = u_border;
+
+    // Motion is deliberately a render-only accent. It communicates that the
+    // position is transient without becoming a rule, collider, or network field.
+    if (u_moving > 0.5 && distanceFromCenter > 0.78 && distanceFromCenter < 0.83) {
+        color = mix(color, u_icon, 0.35);
+    }
+
+    // Facing is a small radial indicator rather than portrait rotation. Actor
+    // artwork therefore stays upright while POV/orientation remains legible.
+    if (u_showFacing > 0.5 && distanceFromCenter > 0.62 && distanceFromCenter < 0.94) {
+        float facingRad = radians(u_facingDeg);
+        vec2 facingDirection = vec2(cos(facingRad), sin(facingRad));
+        vec2 localDirection = distanceFromCenter > 0.001 ? v_local / distanceFromCenter : vec2(1.0, 0.0);
+        if (dot(localDirection, facingDirection) > 0.985) color = u_icon;
+    }
+
     outColor = vec4(color.rgb, color.a * u_alpha);
 }`;
 
@@ -133,11 +152,16 @@ export function installWebGL2TokenLayer(renderer) {
         frames: 0,
         drawCalls: 0,
         visibleLastFrame: 0,
+        candidatesLastFrame: 0,
         resourcesCreated: 0,
         resourcesReleased: 0,
+        resourcesCreatedLastFrame: 0,
         materialUpdates: 0,
         textureChanges: 0,
         culledLastFrame: 0,
+        lazySkippedLastFrame: 0,
+        movingLastFrame: 0,
+        facingIndicatorsLastFrame: 0,
     };
     const textureCache = createWebGL2TokenTextureCache(renderer);
     renderer.tokenTextureCache = textureCache;
@@ -184,6 +208,9 @@ export function installWebGL2TokenLayer(renderer) {
             borderWidth: gl.getUniformLocation(program, 'u_borderWidth'),
             personIcon: gl.getUniformLocation(program, 'u_personIcon'),
             alpha: gl.getUniformLocation(program, 'u_alpha'),
+            facingDeg: gl.getUniformLocation(program, 'u_facingDeg'),
+            showFacing: gl.getUniformLocation(program, 'u_showFacing'),
+            moving: gl.getUniformLocation(program, 'u_moving'),
         };
         return true;
     };
@@ -260,17 +287,29 @@ export function installWebGL2TokenLayer(renderer) {
         gl.uniform1i?.(locations.texture, 0);
 
         let drawn = 0;
+        let candidates = 0;
         let culled = 0;
+        let lazySkipped = 0;
+        let moving = 0;
+        let facingIndicators = 0;
+        const createdBefore = stats.resourcesCreated;
+
         for (const view of renderer.tokenViews.views.values()) {
             if (!view || view.destroyed || view.visible === false || !viewOnActiveLayer(view, activeZ)) continue;
-            const visual = ensureVisual(view);
-            if (!visual) continue;
-            const descriptor = visual.descriptor;
-            if (!viewInViewport(view, descriptor.radius, camera)) {
+            candidates += 1;
+
+            // Cheap radius + viewport rejection happens before material/texture work.
+            // Offscreen tokens therefore do not allocate GPU-side visual resources.
+            const radius = tokenRadiusForView(view, renderer.mapData);
+            if (!viewInViewport(view, radius, camera)) {
                 culled += 1;
+                if (!view.resources.has(RESOURCE_KEY)) lazySkipped += 1;
                 continue;
             }
 
+            const visual = ensureVisual(view);
+            if (!visual) continue;
+            const descriptor = visual.descriptor;
             const textureEntry = visual.textureEntry;
             const hasTexture = Boolean(textureEntry?.ready && textureEntry.texture && !textureEntry.failed);
             if (hasTexture) {
@@ -278,6 +317,8 @@ export function installWebGL2TokenLayer(renderer) {
                 gl.bindTexture?.(gl.TEXTURE_2D, textureEntry.texture);
             }
 
+            const showFacing = view.token?.showFacing !== false;
+            const isMoving = view.isMoving === true;
             gl.uniform2f(locations.center, view.renderX, view.renderY);
             gl.uniform1f(locations.radius, descriptor.radius);
             gl.uniform4fv(locations.background, visual.background);
@@ -288,14 +329,24 @@ export function installWebGL2TokenLayer(renderer) {
             gl.uniform1f(locations.borderWidth, descriptor.borderWidth);
             gl.uniform1f(locations.personIcon, descriptor.personIcon ? 1 : 0);
             gl.uniform1f(locations.alpha, descriptor.verticalAlpha);
+            gl.uniform1f(locations.facingDeg, finite(view.renderFacingDeg));
+            gl.uniform1f(locations.showFacing, showFacing ? 1 : 0);
+            gl.uniform1f(locations.moving, isMoving ? 1 : 0);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             drawn += 1;
+            if (isMoving) moving += 1;
+            if (showFacing) facingIndicators += 1;
         }
 
         stats.frames += 1;
         stats.drawCalls += drawn;
         stats.visibleLastFrame = drawn;
+        stats.candidatesLastFrame = candidates;
         stats.culledLastFrame = culled;
+        stats.lazySkippedLastFrame = lazySkipped;
+        stats.resourcesCreatedLastFrame = stats.resourcesCreated - createdBefore;
+        stats.movingLastFrame = moving;
+        stats.facingIndicatorsLastFrame = facingIndicators;
         if (layer) layer.dirty = false;
         return drawn;
     };
@@ -311,26 +362,9 @@ export function installWebGL2TokenLayer(renderer) {
         return result;
     };
 
-    const originalSyncTokenView = renderer.syncTokenView?.bind(renderer);
-    if (originalSyncTokenView) {
-        renderer.syncTokenView = (tokenId) => {
-            const result = originalSyncTokenView(tokenId);
-            const view = renderer.tokenViews.get(tokenId);
-            if (view) ensureVisual(view);
-            return result;
-        };
-    }
-
-    const originalSyncTokenViews = renderer.syncTokenViews?.bind(renderer);
-    if (originalSyncTokenViews) {
-        renderer.syncTokenViews = (...args) => {
-            const result = originalSyncTokenViews(...args);
-            for (const view of renderer.tokenViews.views.values()) ensureVisual(view);
-            return result;
-        };
-    }
-
-    for (const view of renderer.tokenViews.views.values()) ensureVisual(view);
+    // Step 9 intentionally does not materialize visuals during token-state sync.
+    // A dirty offscreen token stays state-only until it becomes drawable. Visible
+    // tokens refresh their descriptor on the next render without losing TokenView.
 
     const handleContextRestored = () => {
         if (!renderer.destroyed) {
