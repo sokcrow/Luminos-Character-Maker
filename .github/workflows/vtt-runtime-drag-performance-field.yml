@@ -5,14 +5,14 @@ on:
     paths:
       - 'js/vtt/**'
       - 'vtt.html'
-      - 'tests/vtt_runtime_drag_performance_field.spec.js'
+      - 'tests/vtt_realtime_traversal_simplification.spec.js'
       - 'playwright.config.cjs'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
   push:
     paths:
       - 'js/vtt/**'
       - 'vtt.html'
-      - 'tests/vtt_runtime_drag_performance_field.spec.js'
+      - 'tests/vtt_realtime_traversal_simplification.spec.js'
       - 'playwright.config.cjs'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
 
@@ -48,10 +48,10 @@ jobs:
           done
           cat /tmp/vtt-field-server.log
           exit 1
-      - name: Real canvas drag performance trace
+      - name: Integrated realtime movement field trace
         env:
           VTT_FIELD_URL: http://127.0.0.1:4173/vtt.html
-        run: npx playwright test --config=playwright.config.cjs --workers=1 tests/vtt_runtime_drag_performance_field.spec.js --reporter=line
+        run: npx playwright test --config=playwright.config.cjs --workers=1 tests/vtt_realtime_traversal_simplification.spec.js --reporter=line
       - name: Server log on failure
         if: failure()
         run: cat /tmp/vtt-field-server.log || true
