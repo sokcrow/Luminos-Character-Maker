@@ -152,12 +152,15 @@ test('Fog memory renderer never samples the live scene image for remembered area
   expect(renderer).toContain('MINIMAP');
 });
 
-test('runtime integrates PoV observation, last-known memory, minimap and DM controls after dynamic lighting', () => {
+test('runtime integrates shared PoV visibility, last-known memory, minimap and DM controls after dynamic lighting', () => {
   const html = read('vtt.html');
   const bootstrap = read('js/vtt/fog-memory-bootstrap.js');
   const topologyController = read('js/vtt/topology-controller.js');
   expect(html.indexOf('dynamic-lighting-bootstrap.js')).toBeLessThan(html.indexOf('fog-memory-bootstrap.js'));
-  expect(bootstrap).toContain('runtime.pov.lookUpPerceptionAtPoint');
+  expect(bootstrap).toContain('runtime.lighting.visibilityMask');
+  expect(bootstrap).toContain('visibility.cellsFromTiles');
+  expect(bootstrap).toContain('{ lookUp, now: Date.now() }');
+  expect(bootstrap).not.toContain('runtime.pov.lookUpPerceptionAtPoint');
   expect(bootstrap).toContain('memory.observeDungeon');
   expect(bootstrap).toContain('rememberKeyDoorRelation');
   expect(bootstrap).toContain('rememberWorldPlace');
