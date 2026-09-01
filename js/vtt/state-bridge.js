@@ -149,9 +149,7 @@
         };
 
         const elementById = (id) => (mapData.topology || []).find((element) => String(element.id) === String(id)) || null;
-
         const topologyRef = () => db?.ref(`${TOPOLOGY_ROOT}/${mapId}/elements`);
-        const actionRootRef = () => db?.ref(`${ACTION_REQUEST_ROOT}/${mapId}`);
 
         async function seedIfNeeded(snapshot) {
             if (seedAttempted) return;
@@ -202,54 +200,11 @@
             return result;
         }
 
-        async function processDirectActionRequest(snapshot) {
-            if (!dm) return;
-            const request = snapshot.val() || {};
-            if (request.status !== 'pending' || String(request.mapId || '') !== mapId) return;
-            let result;
-            if (!['open', 'close'].includes(request.action)) {
-                result = { valid: false, reason: 'ACTION_NOT_ALLOWED' };
-            } else {
-                result = await applyCanonicalAction(request.elementId, request.action);
-            }
-            await snapshot.ref.update({
-                status: result.valid ? 'applied' : 'denied',
-                reason: result.reason || null,
-                decidedAt: firebase.database.ServerValue.TIMESTAMP,
-            });
-        }
-
-        async function requestDirectAction(elementId, action) {
-            if (!db) return applyCanonicalAction(elementId, action);
-            if (dm) return applyCanonicalAction(elementId, action);
-            const identity = playerIdentity(root);
-            if (!identity.uid) throw new Error('AUTH_NOT_READY');
-            const requestRef = actionRootRef().push();
-            await requestRef.set({
-                schemaVersion: 1,
-                requesterUid: identity.uid,
-                playerId: identity.playerId || null,
-                actorId: identity.actorId || null,
-                mapId,
-                elementId: String(elementId),
-                action,
-                status: 'pending',
-                clientCreatedAt: Date.now(),
-                createdAt: firebase.database.ServerValue.TIMESTAMP,
-            });
-            emitNotice(action === 'open' ? 'Solicitud para abrir enviada.' : 'Solicitud para cerrar enviada.', 'pending');
-            const handler = (snapshot) => {
-                const value = snapshot.val() || {};
-                if (value.status === 'applied') {
-                    emitNotice(action === 'open' ? 'Abierto.' : 'Cerrado.', 'success');
-                    requestRef.off('value', handler);
-                } else if (value.status === 'denied') {
-                    emitNotice('La interacción fue rechazada.', 'error');
-                    requestRef.off('value', handler);
-                }
-            };
-            requestRef.on('value', handler);
-            return { valid: true, pending: true, requestId: requestRef.key };
+        async function requestDirectAction(elementId, action, actorTokenId) {
+            if (!db || dm) return applyCanonicalAction(elementId, action);
+            const authority = root?.LuminousVttTopologyInteractionAuthorityRuntime?.authority;
+            if (!authority?.requestAction) return { valid: false, reason: 'INTERACTION_AUTHORITY_NOT_READY' };
+            return authority.requestAction(elementId, action, actorTokenId);
         }
 
         async function playerData() {
@@ -457,12 +412,7 @@
                 replaceTopology(elementsFromRecord(snapshot.val(), topology));
             });
 
-            if (dm) {
-                subscribe(actionRootRef(), 'child_added', (snapshot) => {
-                    processDirectActionRequest(snapshot).catch((error) => console.error('VTT action request failed:', error));
-                });
-                subscribe(db.ref(CHECK_REQUEST_ROOT), 'value', processCheckRequests);
-            }
+            if (dm) subscribe(db.ref(CHECK_REQUEST_ROOT), 'value', processCheckRequests);
             return true;
         }
 
