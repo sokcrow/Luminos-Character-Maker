@@ -175,5 +175,5 @@ test('new stair/edit runtimes parse and VTT modules keep ES-module wiring', () =
   }
   expect(read('js/vtt/main.js')).toContain("import { Engine } from './engine.js';");
   expect(read('js/vtt/engine.js')).toContain("import { Camera } from './camera.js';");
-  expect(read('js/vtt/renderer.js')).toContain('drawStairRouteGuide');
+  expect(read('js/vtt/render/canvas2d-renderer.js')).toContain('drawStairRouteGuide');
 });
