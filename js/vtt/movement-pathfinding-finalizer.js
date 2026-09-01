@@ -26,15 +26,74 @@ function finalizePathfinding(host = globalThis) {
   return finalized;
 }
 
+function installPreviewCellDedupe(host = globalThis, engine = host?.LuminousVttRuntime?.engine) {
+  if (!engine?.canvas || engine.__movementPreviewCellDedupe) return engine?.__movementPreviewCellDedupe || null;
+
+  const canvas = engine.canvas;
+  let lastKey = null;
+
+  const reset = () => { lastKey = null; };
+  const onPreview = (event) => {
+    const detail = event?.detail || {};
+    const pathfinding = host?.LuminousVttPathfinding;
+    const target = detail.target;
+    if (!pathfinding?.cellFromPoint || !target) return;
+
+    const cell = pathfinding.cellFromPoint(target, engine.mapData);
+    if (!cell || !Number.isFinite(Number(cell.col)) || !Number.isFinite(Number(cell.row))) return;
+
+    const from = detail.from || {};
+    const key = [
+      String(detail.tokenId || ''),
+      Number(from.x) || 0,
+      Number(from.y) || 0,
+      Number(from.z ?? engine.activeZ) || 0,
+      Number(cell.col),
+      Number(cell.row),
+    ].join(':');
+
+    if (key === lastKey) {
+      event.stopImmediatePropagation();
+      return;
+    }
+    lastKey = key;
+  };
+
+  // Capture phase lets this run before the existing preview planners on the canvas,
+  // even though the finalizer is loaded after main.js.
+  canvas.addEventListener('vtt:movement-destination-preview', onPreview, true);
+  host.addEventListener?.('mousedown', reset, true);
+  host.addEventListener?.('mouseup', reset, true);
+  host.addEventListener?.('blur', reset, true);
+
+  const api = Object.freeze({
+    reset,
+    stop() {
+      canvas.removeEventListener('vtt:movement-destination-preview', onPreview, true);
+      host.removeEventListener?.('mousedown', reset, true);
+      host.removeEventListener?.('mouseup', reset, true);
+      host.removeEventListener?.('blur', reset, true);
+      if (engine.__movementPreviewCellDedupe === api) delete engine.__movementPreviewCellDedupe;
+      if (host.LuminousVttMovementPreviewDedupe === api) delete host.LuminousVttMovementPreviewDedupe;
+    },
+  });
+
+  engine.__movementPreviewCellDedupe = api;
+  host.LuminousVttMovementPreviewDedupe = api;
+  return api;
+}
+
 export function startPathfindingFinalizer(host = globalThis) {
   let attempts = 0;
   let stopped = false;
+  let previewDedupe = null;
 
   const tick = () => {
     if (stopped) return;
     const engine = host?.LuminousVttRuntime?.engine;
     if (engine?.tokenMoveResolver && host?.LuminousVttPathfinding) {
       finalizePathfinding(host);
+      previewDedupe = installPreviewCellDedupe(host, engine);
       return;
     }
     attempts += 1;
@@ -43,8 +102,16 @@ export function startPathfindingFinalizer(host = globalThis) {
 
   tick();
   return Object.freeze({
-    stop() { stopped = true; },
-    finalize() { return finalizePathfinding(host); },
+    stop() {
+      stopped = true;
+      previewDedupe?.stop?.();
+    },
+    finalize() {
+      const result = finalizePathfinding(host);
+      const engine = host?.LuminousVttRuntime?.engine;
+      if (engine) previewDedupe = installPreviewCellDedupe(host, engine);
+      return result;
+    },
   });
 }
 
