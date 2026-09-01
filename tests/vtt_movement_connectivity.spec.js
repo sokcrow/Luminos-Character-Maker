@@ -79,14 +79,18 @@ test('turn origin and Dash action metadata survive a canonical round-trip', () =
   expect(restored.movementTurnStart.x).toBe(35);
 });
 
-test('movement bootstrap gates plans, Dash, reset, round controls and turn persistence on connectivity', () => {
+test('movement bootstrap allows local planning offline while shared mutations remain connectivity-gated', () => {
   const source = read('js/vtt/movement-bootstrap.js');
   expect(source).toContain("import './movement-connectivity.js'");
   expect(source).toContain('installRealtime?.(window)');
   expect(source).toContain("reason: 'VTT_OFFLINE_NO_UPDATE'");
-  expect(source).toContain('if (!movementOnline()) return offlineResult()');
+  expect(source).not.toContain('if (!movementOnline()) return offlineResult();\n    const plan = planFor(token, from, requestedPoint);');
+  expect(source).not.toContain('function planFor(token, start, target) {\n    if (!movementOnline()) return offlineResult();');
+  expect(source).toContain("return 'WORLD · OFFLINE · LOCAL MOVEMENT'");
+  expect(source).toContain('if (!movementOnline()) {\n      delete token.pendingMovementClaim;\n      return { valid: true, skipped: true, offline: true };');
+  expect(source).toContain('if (!movementOnline() && Array.isArray(plan.doorInteractions) && plan.doorInteractions.length) return offlineResult();');
+  expect(source).toContain('plan: (options) => movement.planMove({ ...options, mapData, worldState: worldState() })');
   expect(source).toContain('assertMovementOnline()');
   expect(source).toContain("'position/movementTurnStart'");
   expect(source).toContain("'position/dashActionType'");
-  expect(source).toContain('WORLD · OFFLINE · MOVEMENT LOCKED');
 });
