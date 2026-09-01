@@ -167,7 +167,7 @@ test('hardening: drag preview is local-only and persistence commit exists only a
   expect(moveSection).toContain("'vtt:token-preview-moved'");
   expect(moveSection).not.toContain("'vtt:token-moved'");
   expect(upSection).toContain('this.finalizeTokenMove(token, drag, result)');
-  expect(upSection).not.toContain("new CustomEvent('vtt:token-moved'");
+  expect(upSection).not.toContain("emitSemanticEvent('vtt:token-moved'");
   expect((finalizeSection.match(/'vtt:token-moved'/g) || [])).toHaveLength(1);
 
   const observer = read('js/vtt/dm-observer.js');
@@ -185,8 +185,8 @@ test('hardening: live procedural runtime is physically capped to one 40x40 chunk
   expect(zoneCore).toMatch(/40/);
 });
 
-test('hardening: renderer culls world geometry and tokens by viewport but export disables culling', () => {
-  const source = read('js/vtt/renderer.js');
+test('hardening: Canvas2D fallback culls world geometry and tokens by viewport but export disables culling', () => {
+  const source = read('js/vtt/render/canvas2d-renderer.js');
   expect(source).toContain('viewportBounds(camera');
   expect(source).toContain('this.visibleBounds = isExporting ? null');
   expect(source).toContain('if (!this.segmentVisible(wall.x1, wall.y1, wall.x2, wall.y2');
