@@ -238,16 +238,22 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
   function setMarker(tokenId, point, phase = 'committed') {
     const id = clean(tokenId);
     if (!id || !Number.isFinite(Number(point?.x)) || !Number.isFinite(Number(point?.y))) return false;
-    const marker = {
+    const next = {
       tokenId: id,
       x: Number(point.x),
       y: Number(point.y),
       zLayer: Number(point.zLayer ?? point.z ?? engine.activeZ) || 0,
       phase,
     };
-    markers.set(id, marker);
+    const previous = markers.get(id);
+    if (previous
+      && Math.abs(previous.x - next.x) < 0.01
+      && Math.abs(previous.y - next.y) < 0.01
+      && previous.zLayer === next.zLayer
+      && previous.phase === next.phase) return previous;
+    markers.set(id, next);
     emitDirty(host, engine, id, 'navigation-target-marker:set');
-    return marker;
+    return next;
   }
 
   function clearMarker(tokenId) {
@@ -285,12 +291,14 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
   function onRejected(event) { clearMarker(event?.detail?.tokenId); }
   function onMoved(event) { clearMarker(event?.detail?.tokenId); }
 
-  engine.animateTokenPath = async function polishedAnimateTokenPath(token, path = [], options = {}) {
+  const patchedAnimate = async function polishedAnimateTokenPath(token, path = [], options = {}) {
     const points = normalizedPoints(path);
     const interactions = Array.isArray(options.doorInteractions) ? options.doorInteractions : [];
     if (!token || points.length < 2 || interactions.length) {
       if (token && points.length) setMarker(token.id, points[points.length - 1], 'committed');
-      return originalAnimate(token, path, options);
+      const result = await originalAnimate(token, path, options);
+      if (token && result?.valid === false) clearMarker(token.id);
+      return result;
     }
 
     const metrics = polylineMetrics(points);
@@ -340,6 +348,7 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
         };
         motion.frameId = raf(step);
       });
+      if (!complete) clearMarker(token.id);
       return complete
         ? { valid: true, complete: true, irreversible: false }
         : { valid: false, reason: 'MOVEMENT_CANCELLED', complete: false };
@@ -348,6 +357,7 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
       if (engine.tokenMotion === motion) engine.tokenMotion = null;
     }
   };
+  engine.animateTokenPath = patchedAnimate;
 
   renderer.render = function navigationMarkerRender(...args) {
     const result = originalRender(...args);
@@ -377,12 +387,11 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
       canvas.removeEventListener('vtt:token-preview-moved', onTokenPreview);
       canvas.removeEventListener('vtt:movement-order-rejected', onRejected);
       canvas.removeEventListener('vtt:token-moved', onMoved);
-      if (engine.animateTokenPath === polishedAnimateTokenPath) engine.animateTokenPath = originalAnimate;
+      if (engine.animateTokenPath === patchedAnimate) engine.animateTokenPath = originalAnimate;
       return true;
     },
   });
 
-  // Keep a stable lifecycle seam without mutating the frozen top-level runtime object.
   engine.__navigationPolishRuntime = api;
   host.LuminousVttNavigationPolishRuntime = api;
   return api;
