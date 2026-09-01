@@ -103,7 +103,7 @@ test('DM vertical editor UI exposes tools, Z target, persistence and edit-mode-o
   const html = read('vtt.html');
   const main = read('js/vtt/main.js');
   const controller = read('js/vtt/vertical-portal-controller.js');
-  const renderer = read('js/vtt/renderer.js');
+  const renderer = read('js/vtt/render/canvas2d-renderer.js');
   const state = read('js/vtt/vertical-portal-state.js');
 
   expect(html).toContain('id="vtt-dm-edit-toggle"');
