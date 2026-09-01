@@ -8,6 +8,9 @@ on:
       - 'js/vtt/map-hud-bootstrap.js'
       - 'js/vtt/main.js'
       - 'js/vtt/lighting-engine.js'
+      - 'js/vtt/dynamic-lighting-bootstrap.js'
+      - 'js/vtt/fog-memory-bootstrap.js'
+      - 'js/vtt/visibility-mask-core.js'
       - 'js/vtt/pov-*.js'
       - 'js/vtt/token-state.js'
       - 'js/vtt/player-discovery-*.js'
@@ -30,7 +33,12 @@ on:
       - 'js/vtt/dm-observer.js'
       - 'js/vtt/map-hud-bootstrap.js'
       - 'js/vtt/main.js'
+      - 'js/vtt/dynamic-lighting-bootstrap.js'
+      - 'js/vtt/fog-memory-bootstrap.js'
+      - 'js/vtt/visibility-mask-core.js'
+      - 'js/vtt/pov-*.js'
       - 'tests/vtt_camera*.spec.js'
+      - 'tests/vtt_*pov*.spec.js'
       - '.github/workflows/vtt-camera-pov-observer.yml'
 
 permissions:
@@ -53,8 +61,14 @@ jobs:
         run: |
           node --check js/vtt/camera-follow.js
           node --check js/vtt/dm-observer.js
+          node --check js/vtt/visibility-mask-core.js
+          node --check js/vtt/pov-controller.js
+          node --check js/vtt/pov-renderer.js
+          node --input-type=module --check < js/vtt/dynamic-lighting-bootstrap.js
+          node --input-type=module --check < js/vtt/fog-memory-bootstrap.js
           node --input-type=module --check < js/vtt/map-hud-bootstrap.js
           node --input-type=module --check < js/vtt/main.js
+          node --check tests/vtt_pov_visibility_mask.spec.js
           node --check tests/vtt_camera_pov_observer_field.spec.js
           node --check tests/vtt_camera_pov_observer_realtime.spec.js
       - name: Install Chromium
@@ -62,6 +76,7 @@ jobs:
       - name: Focused camera POV observer field and realtime contracts
         run: >-
           npx playwright test --workers=1
+          tests/vtt_pov_visibility_mask.spec.js
           tests/vtt_camera_pov_observer_field.spec.js
           tests/vtt_camera_pov_observer_realtime.spec.js
           tests/vtt_camera_perception.spec.js

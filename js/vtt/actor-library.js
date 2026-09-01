@@ -23,11 +23,15 @@
     return 'npc';
   }
 
+  // VTT tokens use the Actor Studio icon only. Theatre sprites, portraits and
+  // generic image fields are intentionally excluded from this resolver.
   function imageFor(data = {}) {
     return clean(
-      data.icono || data.icono_jugador || data.iconUrl || data.icon_url
-      || data.tokenImage || data.token_image || data.tokenUrl || data.token_url
-      || data.portrait || data.portraitUrl || data.imagen || data.image,
+      data.icono
+      || data.icono_jugador
+      || data.iconUrl
+      || data.icon_url
+      || '',
     ) || '';
   }
 
@@ -143,9 +147,9 @@
       backgroundColor: actor.backgroundColor,
       iconColor: actor.iconColor,
       icon: 'person',
-      icono: actor.icono || actor.tokenImage || null,
-      tokenImage: actor.tokenImage || null,
-      portrait: actor.portrait || null,
+      icono: actor.icono || null,
+      tokenImage: actor.icono || null,
+      portrait: actor.icono || null,
       size: actor.size || null,
       speedFt: actor.speedFt || 30,
       movement: clone(actor.movement),

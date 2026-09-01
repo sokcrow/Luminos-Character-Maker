@@ -12,6 +12,7 @@ class MockCustomEvent {
     this.button = init.button ?? 0;
     this.clientX = init.clientX ?? init.detail?.clientX ?? 0;
     this.clientY = init.clientY ?? init.detail?.clientY ?? 0;
+    this.defaultPrevented = false;
   }
   preventDefault() { this.defaultPrevented = true; }
   stopPropagation() { this.propagationStopped = true; }
@@ -101,7 +102,7 @@ test('hardening: a player-linked actor exists once even across actors, NPC migra
   }
 });
 
-test('hardening: DM drag cannot accidentally enter View As, while a real click enters 120 degree POV', () => {
+test('hardening: DM drag and normal clicks remain FREE, while explicit View As enters 120 degree POV', () => {
   delete require.cache[require.resolve('../js/vtt/dm-observer.js')];
   const observerApi = require('../js/vtt/dm-observer.js');
   const canvas = new MockTarget();
@@ -131,11 +132,18 @@ test('hardening: DM drag cannot accidentally enter View As, while a real click e
   canvas.dispatchEvent(syntheticClick);
   expect(observer.state().mode).toBe('free');
   expect(mapData.lighting.dmPreviewTokenId).toBe(null);
-  expect(syntheticClick.defaultPrevented).toBe(true);
+  expect(syntheticClick.defaultPrevented).toBe(false);
 
-  canvas.dispatchEvent(new MockCustomEvent('mousedown', { clientX: 132, clientY: 100, button: 0 }));
-  canvas.dispatchEvent(new MockCustomEvent('mouseup', { clientX: 132, clientY: 100, button: 0 }));
-  canvas.dispatchEvent(new MockCustomEvent('click', { clientX: 132, clientY: 100, button: 0 }));
+  const normalClick = new MockCustomEvent('click', { clientX: 132, clientY: 100, button: 0 });
+  canvas.dispatchEvent(normalClick);
+  expect(observer.state().mode).toBe('free');
+  expect(mapData.lighting.dmPreviewTokenId).toBe(null);
+  expect(normalClick.defaultPrevented).toBe(false);
+
+  observer.select(observerApi.MODES.VIEW_AS);
+  const viewAsClick = new MockCustomEvent('click', { clientX: 132, clientY: 100, button: 0 });
+  canvas.dispatchEvent(viewAsClick);
+  expect(viewAsClick.defaultPrevented).toBe(true);
   expect(observer.state().mode).toBe('view_as');
   expect(mapData.lighting.dmPreviewTokenId).toBe('p4');
   observer.stop();
