@@ -1,3 +1,6 @@
+import './movement-zero-work-drag.js';
+import './movement-long-drag-hotfix.js';
+import './movement-direct-route-hotfix.js';
 import { installStraightPathfinding } from './movement-navigation-polish.js';
 
 const EPS = 1e-9;
@@ -8,10 +11,6 @@ function finalizePathfinding(host = globalThis) {
   if (!current || typeof current.findPath !== 'function') return null;
   if (current.__runtimeFinalizedPathfindingV3 === true) return current;
 
-  // Several legacy movement wrappers spread the pathfinder object and then replace
-  // findPath. That accidentally preserves the V2 flags even though the V2 function
-  // itself is gone. Clear only those ownership flags, then install V2 around the
-  // final rule-aware surface (terrain + occupancy + edge legality).
   host.LuminousVttPathfinding = Object.freeze({
     ...current,
     __straightRouteTieBreakPatch: false,
@@ -71,10 +70,6 @@ function installPreviewCellGate(host = globalThis, engine = host?.LuminousVttRun
     lastKey = key;
   };
 
-  // Movement preview currently has two mousemove consumers: Engine emits the
-  // semantic destination-preview event, while movement-bootstrap also plans from
-  // window.mousemove. Capture-phase gating removes duplicate same-cell work before
-  // either consumer runs, without touching the final mouseup resolver.
   host.addEventListener?.('mousemove', onMouseMove, true);
   host.addEventListener?.('mousedown', reset, true);
   host.addEventListener?.('mouseup', reset, true);
@@ -152,9 +147,6 @@ function installRealtimeTraversalSimplifier(host = globalThis, engine = host?.Lu
   const patchedAnimate = async function realtimeAnimateTokenPath(token, path = [], options = {}) {
     const points = normalizedPoints(path);
     const interactions = Array.isArray(options.doorInteractions) ? options.doorInteractions : [];
-
-    // Door and other interaction routes keep the authoritative segmented traversal.
-    // Those pauses have gameplay meaning and must not be hidden by the fast visual path.
     if (!token || points.length < 2 || interactions.length) {
       return originalAnimate.call(engine, token, path, options);
     }
@@ -167,9 +159,6 @@ function installRealtimeTraversalSimplifier(host = globalThis, engine = host?.Lu
     const running = mode === 'dash' || mode === 'run';
     const gridSize = Math.max(1, finite(mapData.grid?.size, 70));
     const cells = metrics.total / gridSize;
-
-    // Visual traversal is intentionally short and capped. Distance/cost rules remain
-    // untouched; this controls presentation latency only.
     const defaultPerCell = running ? 9 : 14;
     const defaultMinMs = running ? 55 : 70;
     const defaultMaxMs = running ? 120 : 180;
@@ -220,8 +209,6 @@ function installRealtimeTraversalSimplifier(host = globalThis, engine = host?.Lu
             destination,
             realtimeVisual: true,
           }, {
-            // Rendering follows the RAF, but expensive FOV/fog invalidation waits for
-            // the canonical vtt:token-moved emitted immediately after this completes.
             reason: 'token',
             render: true,
             vision: false,
@@ -271,6 +258,7 @@ export function startPathfindingFinalizer(host = globalThis) {
     const engine = host?.LuminousVttRuntime?.engine;
     if (engine?.tokenMoveResolver && host?.LuminousVttPathfinding) {
       finalizePathfinding(host);
+      host?.LuminousVttDirectRouteHotfix?.ensure?.();
       previewGate = installPreviewCellGate(host, engine);
       traversalSimplifier = installRealtimeTraversalSimplifier(host, engine);
       return;
@@ -288,6 +276,7 @@ export function startPathfindingFinalizer(host = globalThis) {
     },
     finalize() {
       const result = finalizePathfinding(host);
+      host?.LuminousVttDirectRouteHotfix?.ensure?.();
       const engine = host?.LuminousVttRuntime?.engine;
       if (engine) {
         previewGate = installPreviewCellGate(host, engine);
