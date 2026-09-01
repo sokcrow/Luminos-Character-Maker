@@ -10,6 +10,7 @@ on:
       - 'js/vtt/engine.js'
       - 'js/vtt/token-state.js'
       - 'js/vtt/token-state-dynamic-patch.js'
+      - 'js/vtt/movement-zero-work-drag.js'
       - 'js/vtt/render/**'
       - 'js/vtt/procedural-chunk-streaming-runtime.js'
       - 'js/vtt/scene-dirty.js'
@@ -29,6 +30,8 @@ on:
       - 'tests/vtt_token_view_registry.spec.js'
       - 'tests/vtt_persistent_token_views.spec.js'
       - 'tests/vtt_token_state_incremental.spec.js'
+      - 'tests/vtt_drag_preview_incremental.spec.js'
+      - 'tests/vtt_drag_preview_raf.spec.js'
       - 'tests/vtt_scene_dirty.spec.js'
       - 'tests/vtt_scene_dirty_bridges.spec.js'
       - 'tests/vtt_scene_dirty_direct_emitters.spec.js'
@@ -65,12 +68,14 @@ jobs:
           node --check js/vtt/camera-follow.js
           node --check js/vtt/dm-observer.js
           node --input-type=module --check < js/vtt/engine.js
+          node --input-type=module --check < js/vtt/movement-zero-work-drag.js
           node --input-type=module --check < js/vtt/render/world-transform.js
           node --input-type=module --check < js/vtt/render/webgl2-renderer.js
           node --input-type=module --check < js/vtt/render/dm-observer-overlay.js
           node --input-type=module --check < js/vtt/render/token-view.js
           node --input-type=module --check < js/vtt/render/token-view-registry.js
           node --input-type=module --check < js/vtt/render/persistent-token-views.js
+          node --input-type=module --check < js/vtt/render/transient-token-preview.js
           node --input-type=module --check < js/vtt/render/renderer-factory.js
           node --input-type=module --check < js/vtt/procedural-chunk-streaming-runtime.js
           node --check js/vtt/runtime-lifecycle.js
@@ -85,12 +90,16 @@ jobs:
           node --input-type=module --check < tests/vtt_token_view_registry.spec.js
           node --input-type=module --check < tests/vtt_persistent_token_views.spec.js
           node --input-type=module --check < tests/vtt_token_state_incremental.spec.js
-      - name: Persistent TokenView and incremental token-state contracts
+          node --input-type=module --check < tests/vtt_drag_preview_incremental.spec.js
+          node --input-type=module --check < tests/vtt_drag_preview_raf.spec.js
+      - name: Persistent TokenView, incremental state, and drag preview contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_token_view_registry.spec.js
           tests/vtt_persistent_token_views.spec.js
           tests/vtt_token_state_incremental.spec.js
+          tests/vtt_drag_preview_incremental.spec.js
+          tests/vtt_drag_preview_raf.spec.js
       - name: WebGL2 camera and DM observer contracts
         run: npx playwright test --workers=1 tests/vtt_webgl2_camera_contract.spec.js
       - name: Canonical scene dirty contracts
