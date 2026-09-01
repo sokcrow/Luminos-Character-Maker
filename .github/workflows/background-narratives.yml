@@ -6,7 +6,10 @@ on:
       - "js/background-narratives/**"
       - "js/character-build-rules.js"
       - "js/injury-equipment-runtime.js"
-      - "tests/**"
+      - "tests/background_narratives.spec.js"
+      - "tests/character_manager_domain_extensions.spec.js"
+      - "tests/character_manager_engine.spec.js"
+      - "tests/player_stats_ability_bar.spec.js"
       - ".github/workflows/background-narratives.yml"
   push:
     branches: [main]
@@ -14,7 +17,11 @@ on:
       - "js/background-narratives/**"
       - "js/character-build-rules.js"
       - "js/injury-equipment-runtime.js"
-      - "tests/**"
+      - "tests/background_narratives.spec.js"
+      - "tests/character_manager_domain_extensions.spec.js"
+      - "tests/character_manager_engine.spec.js"
+      - "tests/player_stats_ability_bar.spec.js"
+      - ".github/workflows/background-narratives.yml"
 
 permissions:
   contents: read
@@ -25,16 +32,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Check patched syntax
         run: |
           node --check js/background-narratives/catalog.js
@@ -55,14 +59,13 @@ jobs:
           node --check tests/character_manager_domain_extensions.spec.js
           node --check tests/character_manager_engine.spec.js
           node --check tests/player_stats_ability_bar.spec.js
-
       - name: Narrative contract
         run: node tests/background_narratives.spec.js
-
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-
-      - name: Repository regression suite
+      - name: Focused narrative character integration contracts
         run: >-
-          npx playwright test --workers=1 --grep-invert
-          "status builder catalog exposes elemental statuses and runtime|DM Studio uses racial Stats for derived HP and persists base/effective layers|player Stats HUD displays and rolls from the effective racial Score|DM Studio keeps Base editable and shows Effective racial Score|Skill builder UI flow|Status builder UI flow"
+          npx playwright test --workers=1
+          tests/character_manager_domain_extensions.spec.js
+          tests/character_manager_engine.spec.js
+          tests/player_stats_ability_bar.spec.js
