@@ -1,4 +1,6 @@
 const clean = (value) => String(value ?? '').trim();
+const eventHits = new WeakMap();
+const enginePatches = new WeakMap();
 
 /**
  * Pointer-side interaction state for tactical tokens.
@@ -22,6 +24,7 @@ export function installTokenInteractionRuntime(host = globalThis) {
         ignoredDuringDrag: 0,
         ignoredOutsideCanvas: 0,
         hitTests: 0,
+        reusedHitTests: 0,
         semanticEvents: 0,
     };
 
@@ -94,8 +97,36 @@ export function installTokenInteractionRuntime(host = globalThis) {
         return true;
     }
 
+    function ensureHitTestCache(engine) {
+        if (!engine || typeof engine.tokenAtEvent !== 'function' || enginePatches.has(engine)) return;
+        const original = engine.tokenAtEvent;
+        const wrapped = function cachedTokenAtEvent(event) {
+            if (event && typeof event === 'object') {
+                const cached = eventHits.get(event);
+                if (cached?.engine === this) {
+                    metrics.reusedHitTests += 1;
+                    return cached.token;
+                }
+            }
+            const token = original.call(this, event) || null;
+            if (event && typeof event === 'object') eventHits.set(event, { engine: this, token });
+            return token;
+        };
+        engine.tokenAtEvent = wrapped;
+        enginePatches.set(engine, { original, wrapped });
+    }
+
+    function restoreHitTestCache(engine) {
+        const patch = engine && enginePatches.get(engine);
+        if (!patch) return false;
+        if (engine.tokenAtEvent === patch.wrapped) engine.tokenAtEvent = patch.original;
+        enginePatches.delete(engine);
+        return true;
+    }
+
     function hitTest(engine, event) {
         if (!engine || typeof engine.tokenAtEvent !== 'function') return null;
+        ensureHitTestCache(engine);
         metrics.hitTests += 1;
         try {
             return engine.tokenAtEvent(event) || null;
@@ -178,6 +209,7 @@ export function installTokenInteractionRuntime(host = globalThis) {
             if (engine) {
                 setHovered(engine, null);
                 setSelected(engine, null);
+                restoreHitTestCache(engine);
             }
             if (host.LuminousVttTokenInteractionRuntime === api) delete host.LuminousVttTokenInteractionRuntime;
             return true;
