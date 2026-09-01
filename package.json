@@ -1,15 +1,8 @@
 {
-  "devDependencies": {
-    "@playwright/test": "^1.62.1",
-    "playwright": "^1.61.1"
-  },
   "name": "app",
   "version": "1.0.0",
-  "description": "Test character creation.",
+  "description": "Luminous Character Maker.",
   "main": "hoja_personaje.js",
-  "scripts": {
-    "test": "playwright test"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sokcrow/Luminos-Character-Maker.git"
