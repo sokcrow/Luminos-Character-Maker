@@ -231,8 +231,8 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
   if (engine.__navigationPolishRuntime) return engine.__navigationPolishRuntime;
 
   const markers = new Map();
-  const originalAnimate = engine.animateTokenPath.bind(engine);
-  const originalRender = renderer.render.bind(renderer);
+  const originalAnimate = engine.animateTokenPath;
+  const originalRender = renderer.render;
   let stopped = false;
 
   function setMarker(tokenId, point, phase = 'committed') {
@@ -298,7 +298,7 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
     const interactions = Array.isArray(options.doorInteractions) ? options.doorInteractions : [];
     if (!token || points.length < 2 || interactions.length) {
       if (token && points.length) setMarker(token.id, points[points.length - 1], 'committed');
-      const result = await originalAnimate(token, path, options);
+      const result = await originalAnimate.call(engine, token, path, options);
       if (token && result?.valid === false) clearMarker(token.id);
       return result;
     }
@@ -361,8 +361,8 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
   };
   engine.animateTokenPath = patchedAnimate;
 
-  renderer.render = function navigationMarkerRender(...args) {
-    const result = originalRender(...args);
+  const patchedRender = function navigationMarkerRender(...args) {
+    const result = originalRender.apply(renderer, args);
     if (stopped || !markers.size) return result;
     const visible = [...markers.values()].filter((marker) => Number(marker.zLayer) === Number(engine.activeZ));
     for (const marker of visible) {
@@ -371,6 +371,7 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
     }
     return result;
   };
+  renderer.render = patchedRender;
 
   canvas.addEventListener('vtt:movement-destination-preview', onDestinationPreview);
   canvas.addEventListener('vtt:token-preview-moved', onTokenPreview);
@@ -390,6 +391,9 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
       canvas.removeEventListener('vtt:movement-order-rejected', onRejected);
       canvas.removeEventListener('vtt:token-moved', onMoved);
       if (engine.animateTokenPath === patchedAnimate) engine.animateTokenPath = originalAnimate;
+      if (renderer.render === patchedRender) renderer.render = originalRender;
+      if (engine.__navigationPolishRuntime === api) delete engine.__navigationPolishRuntime;
+      if (host.LuminousVttNavigationPolishRuntime === api) delete host.LuminousVttNavigationPolishRuntime;
       return true;
     },
   });
