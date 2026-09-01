@@ -9,18 +9,11 @@
   const installed = new WeakMap();
   const clean = (value) => String(value ?? '').trim();
 
-  // Actor Studio contract: `icono` is the compact log/HUD/token image.
-  // Theatre sprites/portraits/images must never be used as tactical tokens.
-  // Keep this resolver deliberately strict so legacy `tokenImage` values that
-  // were previously populated from a sprite cannot leak back into the VTT.
+  // Tactical image authority is the assigned Actor's `icono`, copied onto the
+  // token by actor-library. Player-record image aliases and Theatre sprites are
+  // deliberately ignored here.
   function imageSource(token = {}) {
-    return clean(
-      token.icono
-      || token.icono_jugador
-      || token.iconUrl
-      || token.icon_url
-      || '',
-    );
+    return clean(token?.icono || '');
   }
 
   function coverRect(imageWidth, imageHeight, centerX, centerY, diameter) {
