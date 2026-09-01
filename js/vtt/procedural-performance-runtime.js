@@ -1,5 +1,10 @@
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
 
+function proceduralScene(mapData){
+  const state=mapData?.procedural;
+  return Boolean(state&&(state.signature||state.generatorVersion||state.streaming||state.activeChunkSignature));
+}
+
 function pointFrom(value,size=70){
   if(!value||typeof value!=='object')return null;
   if(Number.isFinite(Number(value.x))&&Number.isFinite(Number(value.y)))return{x:Number(value.x),y:Number(value.y)};
@@ -94,9 +99,9 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
   let wrappedVisionWalls=null;
   if(originalVisionWalls){
     wrappedVisionWalls=function proceduralVisionWalls(zLayer){
-      const started=performance.now();
       const all=originalVisionWalls(zLayer)||[];
-      if(!enabled||all.length<32){metrics.lastVisionTotal=all.length;metrics.lastVisionCandidates=all.length;return all;}
+      if(!enabled||!proceduralScene(mapData)||all.length<32){metrics.lastVisionTotal=all.length;metrics.lastVisionCandidates=all.length;return all;}
+      const started=performance.now();
       const viewer=engine.viewerToken?.();
       if(!viewer){metrics.lastVisionTotal=all.length;metrics.lastVisionCandidates=all.length;return all;}
       const profile=engine.visionProfile?.(viewer);
@@ -114,7 +119,7 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
   let wrappedRender=null;
   if(originalRender){
     wrappedRender=function proceduralCulledRender(camera,activeZ,renderData,isExporting=false){
-      if(!enabled||isExporting)return originalRender(camera,activeZ,renderData,isExporting);
+      if(!enabled||!proceduralScene(mapData)||isExporting)return originalRender(camera,activeZ,renderData,isExporting);
       const bounds=cameraBounds(engine,camera,2);
       if(!bounds)return originalRender(camera,activeZ,renderData,isExporting);
       const frameStarted=performance.now(),prepStarted=frameStarted,originals={
@@ -143,8 +148,9 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
     __v1:true,
     setEnabled(value){enabled=Boolean(value);return enabled;},
     get enabled(){return enabled;},
+    get active(){return enabled&&proceduralScene(mapData);},
     bounds:()=>cameraBounds(engine,engine.camera,2),
-    snapshot(){return Object.freeze({...metrics,avgCullPrepMs:metrics.renderFrames?metrics.cullPrepTotalMs/metrics.renderFrames:0,avgFrameMs:metrics.renderFrames?metrics.frameTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,enabled});},
+    snapshot(){return Object.freeze({...metrics,avgCullPrepMs:metrics.renderFrames?metrics.cullPrepTotalMs/metrics.renderFrames:0,avgFrameMs:metrics.renderFrames?metrics.frameTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,enabled,active:enabled&&proceduralScene(mapData)});},
     stop(){
       if(stopped)return false;stopped=true;
       if(wrappedVisionWalls&&engine.visionWallsForLayer===wrappedVisionWalls)engine.visionWallsForLayer=originalVisionWalls;
