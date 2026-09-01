@@ -1,47 +1,10 @@
 const DEFAULT_ACTIVE_FRAME_MS = 1000 / 30;
 const DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20;
-const DEFAULT_IDLE_SCAN_MS = 1000 / 15;
-const STATIC_SIGNATURE_TTL_MS = 100;
+const DEFAULT_IDLE_FALLBACK_MS = 500;
 
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const clean = (value) => String(value ?? '');
 const clockNow = () => globalThis.performance?.now?.() ?? Date.now();
-
-function tokenSignature(tokens = []) {
-  return (Array.isArray(tokens) ? tokens : []).map((token) => [
-    token?.id,
-    numberOr(token?.x),
-    numberOr(token?.y),
-    numberOr(token?.zLayer ?? token?.gridPosition?.z ?? token?.z?.[0]),
-    numberOr(token?.elevationFt),
-    numberOr(token?.lookDeg ?? token?.facingDeg),
-    numberOr(token?.visionConeDeg),
-    Boolean(token?.verticalMovement),
-  ]);
-}
-
-function topologySignature(mapData = {}) {
-  return (Array.isArray(mapData.topology) ? mapData.topology : []).map((element) => [
-    element?.id,
-    element?.type,
-    element?.state,
-    element?.zLayer ?? element?.z,
-    element?.a?.col ?? element?.x1,
-    element?.a?.row ?? element?.y1,
-    element?.b?.col ?? element?.x2,
-    element?.b?.row ?? element?.y2,
-  ]);
-}
-
-function portalSignature(mapData = {}) {
-  return (Array.isArray(mapData.verticalPortals) ? mapData.verticalPortals : []).map((portal) => [
-    portal?.id,
-    portal?.type,
-    portal?.from?.z ?? portal?.fromZ,
-    portal?.to?.z ?? portal?.toZ,
-    portal?.state,
-  ]);
-}
 
 function hasActiveLightingAnimation(mapData = {}, now = Date.now()) {
   const sources = mapData.lighting?.scene?.sources || [];
@@ -97,52 +60,63 @@ function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, mo
   return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
 }
 
-export function createStaticSignatureCache(mapData, ttlMs = STATIC_SIGNATURE_TTL_MS, onScan = null) {
-  let at = -Infinity;
-  let value = '';
-  let forceSerial = 0;
-  return Object.freeze({
-    invalidate() { forceSerial += 1; at = -Infinity; },
-    value(now = clockNow()) {
-      if ((now - at) < ttlMs) return value;
-      at = now;
-      const scanStartedAt = clockNow();
-      const scene = mapData.lighting?.scene || {};
-      value = JSON.stringify({
-        serial: forceSerial,
-        grid: [mapData.grid?.cols, mapData.grid?.rows, mapData.grid?.size, mapData.grid?.distancePerCell],
-        topology: topologySignature(mapData),
-        walls: (mapData.walls || []).map((wall) => [wall.id, wall.x1, wall.y1, wall.x2, wall.y2, wall.z, wall.blocksVision, wall.blocksMovement]),
-        portals: portalSignature(mapData),
-        lights: (scene.sources || []).map((source) => [source.id, source.x, source.y, source.zLayer, source.elevationFt, source.enabled, source.functional, source.brightFt, source.dimAdditionalFt, source.directionDeg, source.coneDeg, source.shape, source.color, source.motion?.startedAt, source.motion?.durationMs]),
-        interiors: (scene.interiors || []).map((zone) => [zone.id, zone.x, zone.y, zone.w, zone.h, zone.zLayer, zone.roof, zone.transparent]),
-        roofs: (scene.roofs || []).map((roof) => [roof.id, roof.x, roof.y, roof.w, roof.h, roof.zLayer, roof.elevationFt, roof.transparent]),
-        switches: (scene.switches || []).map((entry) => [entry.id, entry.enabled, entry.state, entry.circuitId]),
-        transformers: (scene.transformers || []).map((entry) => [entry.id, entry.enabled, entry.functional]),
-        environment: mapData.lighting?.environment?.state || mapData.ambientLight || null,
-        preview: [mapData.lighting?.dmPreviewTokenId || null, mapData.topologyPreview || null, mapData.verticalPortalEditor?.preview || null],
-        chunk: mapData.procedural?.activeChunkSignature || mapData.procedural?.streaming?.activeChunk || null,
-        edit: Boolean(mapData.dmEditMode?.active),
-      });
-      if (typeof onScan === 'function') {
-        try { onScan(Math.max(0, clockNow() - scanStartedAt)); } catch (_) {}
-      }
-      return value;
-    },
-  });
-}
-
-export function frameFingerprint({ engine, mapData, now = Date.now(), staticSignature = '' } = {}) {
-  const camera = engine?.camera || {};
-  const activeZ = numberOr(engine?.activeZ);
-  const animated = hasActiveLightingAnimation(mapData, now);
+// Slow compatibility fallback for legacy mutations that do not yet emit a canonical VTT event.
+// The normal render path never builds this signature.
+export function legacyVisualSignature({ engine = {}, mapData = {} } = {}) {
+  const scene = mapData.lighting?.scene || {};
+  const camera = engine.camera || {};
   return JSON.stringify({
     camera: [numberOr(camera.x), numberOr(camera.y), numberOr(camera.zoom, 1)],
-    canvas: [engine?.canvas?.width || 0, engine?.canvas?.height || 0],
-    z: activeZ,
-    tokens: tokenSignature(mapData?.tokens),
-    staticSignature,
-    animationTick: animated ? Math.floor(now / DEFAULT_ACTIVE_FRAME_MS) : 0,
+    canvas: [engine.canvas?.width || 0, engine.canvas?.height || 0],
+    z: numberOr(engine.activeZ),
+    grid: [mapData.grid?.cols, mapData.grid?.rows, mapData.grid?.size, mapData.grid?.distancePerCell],
+    tokens: (mapData.tokens || []).map((token) => [
+      token?.id,
+      numberOr(token?.x),
+      numberOr(token?.y),
+      numberOr(token?.zLayer ?? token?.gridPosition?.z ?? token?.z?.[0]),
+      numberOr(token?.elevationFt),
+      numberOr(token?.lookDeg ?? token?.facingDeg),
+      numberOr(token?.visionConeDeg),
+      Boolean(token?.verticalMovement),
+    ]),
+    topology: (mapData.topology || []).map((element) => [
+      element?.id,
+      element?.type,
+      element?.state,
+      element?.zLayer ?? element?.z,
+      element?.a?.col ?? element?.x1,
+      element?.a?.row ?? element?.y1,
+      element?.b?.col ?? element?.x2,
+      element?.b?.row ?? element?.y2,
+    ]),
+    walls: (mapData.walls || []).map((wall) => [
+      wall?.id, wall?.x1, wall?.y1, wall?.x2, wall?.y2, wall?.z, wall?.blocksVision, wall?.blocksMovement,
+    ]),
+    portals: (mapData.verticalPortals || []).map((portal) => [
+      portal?.id, portal?.type, portal?.from?.z ?? portal?.fromZ, portal?.to?.z ?? portal?.toZ, portal?.state,
+    ]),
+    lights: (scene.sources || []).map((source) => [
+      source?.id, source?.x, source?.y, source?.zLayer, source?.elevationFt, source?.enabled,
+      source?.functional, source?.brightFt, source?.dimAdditionalFt, source?.directionDeg,
+      source?.coneDeg, source?.shape, source?.color, source?.motion?.startedAt, source?.motion?.durationMs,
+    ]),
+    interiors: (scene.interiors || []).map((zone) => [
+      zone?.id, zone?.x, zone?.y, zone?.w, zone?.h, zone?.zLayer, zone?.roof, zone?.transparent,
+    ]),
+    roofs: (scene.roofs || []).map((roof) => [
+      roof?.id, roof?.x, roof?.y, roof?.w, roof?.h, roof?.zLayer, roof?.elevationFt, roof?.transparent,
+    ]),
+    switches: (scene.switches || []).map((entry) => [entry?.id, entry?.enabled, entry?.state, entry?.circuitId]),
+    transformers: (scene.transformers || []).map((entry) => [entry?.id, entry?.enabled, entry?.functional]),
+    environment: mapData.lighting?.environment?.state || mapData.ambientLight || null,
+    preview: [
+      mapData.lighting?.dmPreviewTokenId || null,
+      mapData.topologyPreview || null,
+      mapData.verticalPortalEditor?.preview || null,
+    ],
+    chunk: mapData.procedural?.activeChunkSignature || mapData.procedural?.streaming?.activeChunk || null,
+    edit: Boolean(mapData.dmEditMode?.active),
   });
 }
 
@@ -150,7 +124,7 @@ export function installPerformanceGuard({
   runtime = globalThis.LuminousVttRuntime,
   activeFrameMs = DEFAULT_ACTIVE_FRAME_MS,
   movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS,
-  idleScanMs = DEFAULT_IDLE_SCAN_MS,
+  idleFallbackMs = DEFAULT_IDLE_FALLBACK_MS,
 } = {}) {
   const engine = runtime?.engine;
   const renderer = engine?.renderer;
@@ -161,8 +135,9 @@ export function installPerformanceGuard({
   const originalCalculateVision = typeof engine.calculateVision === 'function' ? engine.calculateVision.bind(engine) : null;
   const idleInterval = Math.max(
     Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
-    Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS,
+    Number(idleFallbackMs) || DEFAULT_IDLE_FALLBACK_MS,
   );
+
   const metrics = {
     calls: 0,
     rendered: 0,
@@ -173,28 +148,33 @@ export function installPerformanceGuard({
     visionComputed: 0,
     visionSkipped: 0,
     dmVisionBypassed: 0,
-    staticSignatureRequests: 0,
-    staticSignatureScans: 0,
-    staticSignatureDurationMs: 0,
-    maxStaticSignatureDurationMs: 0,
-    fingerprintCalls: 0,
-    fingerprintDurationMs: 0,
-    maxFingerprintDurationMs: 0,
+    explicitInvalidations: 0,
+    idleCleanSkips: 0,
+    fallbackScans: 0,
+    fallbackChanges: 0,
+    fallbackDurationMs: 0,
+    maxFallbackDurationMs: 0,
   };
-  const signatureCache = createStaticSignatureCache(mapData, STATIC_SIGNATURE_TTL_MS, (durationMs) => {
-    metrics.staticSignatureScans += 1;
-    metrics.staticSignatureDurationMs += durationMs;
-    metrics.maxStaticSignatureDurationMs = Math.max(metrics.maxStaticSignatureDurationMs, durationMs);
-  });
-  let lastFingerprint = '';
+
   let lastRenderAt = -Infinity;
-  let lastIdleScanAt = -Infinity;
+  let lastFallbackScanAt = -Infinity;
+  let lastFallbackSignature = '';
   let lastVisionAt = -Infinity;
   let visionCache = null;
   let hasVisionCache = false;
   let renderDirty = true;
   let visionDirty = true;
   let stopped = false;
+
+  const scanFallback = () => {
+    const startedAt = clockNow();
+    const signature = legacyVisualSignature({ engine, mapData });
+    const durationMs = Math.max(0, clockNow() - startedAt);
+    metrics.fallbackScans += 1;
+    metrics.fallbackDurationMs += durationMs;
+    metrics.maxFallbackDurationMs = Math.max(metrics.maxFallbackDurationMs, durationMs);
+    return signature;
+  };
 
   const nextFrameDelayMs = () => {
     if (stopped) return 0;
@@ -215,7 +195,7 @@ export function installPerformanceGuard({
   const invalidate = () => {
     renderDirty = true;
     visionDirty = true;
-    signatureCache.invalidate();
+    metrics.explicitInvalidations += 1;
     wakeFrame();
   };
 
@@ -258,12 +238,12 @@ export function installPerformanceGuard({
       const active = visualAnimationActive(engine, mapData, wallNow);
       const minimumInterval = active
         ? activeFrameInterval(engine, activeFrameMs, movementFrameMs)
-        : Math.max(1, Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
-      if (hasVisionCache && (perfNow - lastVisionAt) < minimumInterval) {
+        : idleInterval;
+      if (hasVisionCache && active && (perfNow - lastVisionAt) < minimumInterval) {
         metrics.visionSkipped += 1;
         return visionCache;
       }
-      if (hasVisionCache && !visionDirty && !active) {
+      if (hasVisionCache && !active && !visionDirty) {
         metrics.visionSkipped += 1;
         return visionCache;
       }
@@ -284,38 +264,45 @@ export function installPerformanceGuard({
     const active = visualAnimationActive(engine, mapData, wallNow);
     const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
 
-    // The lifecycle scheduler already targets these cadences. Keep these checks as a safety net
-    // for explicit wakeups and runtimes that do not expose the adaptive scheduler yet.
+    // Active visuals remain cadence-limited. Idle visuals are event-driven; the slow fallback
+    // only protects legacy mutations that still bypass canonical VTT events.
     if (active && (perfNow - lastRenderAt) < activeInterval) {
       metrics.throttled += 1;
       return;
     }
-    if (!active && !renderDirty && (perfNow - lastIdleScanAt) < idleInterval) {
+
+    if (!active && !renderDirty) {
+      if ((perfNow - lastFallbackScanAt) < idleInterval) {
+        metrics.skipped += 1;
+        metrics.idleCleanSkips += 1;
+        return;
+      }
+
+      lastFallbackScanAt = perfNow;
+      const fallbackSignature = scanFallback();
+      if (fallbackSignature === lastFallbackSignature) {
+        metrics.skipped += 1;
+        metrics.idleCleanSkips += 1;
+        return;
+      }
+
+      lastFallbackSignature = fallbackSignature;
+      metrics.fallbackChanges += 1;
+      renderDirty = true;
+      visionDirty = true;
+      wakeFrame();
       metrics.skipped += 1;
       return;
     }
 
-    lastIdleScanAt = perfNow;
-    metrics.staticSignatureRequests += 1;
-    const staticSignature = signatureCache.value(perfNow);
-    const fingerprintStartedAt = clockNow();
-    const fingerprint = frameFingerprint({ engine, mapData, now: wallNow, staticSignature });
-    const fingerprintDurationMs = Math.max(0, clockNow() - fingerprintStartedAt);
-    metrics.fingerprintCalls += 1;
-    metrics.fingerprintDurationMs += fingerprintDurationMs;
-    metrics.maxFingerprintDurationMs = Math.max(metrics.maxFingerprintDurationMs, fingerprintDurationMs);
-    const changed = renderDirty || fingerprint !== lastFingerprint;
-    if (!changed && !active) {
-      metrics.skipped += 1;
-      return;
-    }
-
-    lastFingerprint = fingerprint;
     lastRenderAt = perfNow;
+    if (!active) lastFallbackScanAt = perfNow;
     metrics.lastRenderAt = perfNow;
     metrics.rendered += 1;
     renderDirty = false;
-    return originalRender(...args);
+    const result = originalRender(...args);
+    if (!active && !lastFallbackSignature) lastFallbackSignature = scanFallback();
+    return result;
   };
   renderer.__performanceGuardInstalled = true;
 
@@ -329,11 +316,9 @@ export function installPerformanceGuard({
       activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
       movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
       idleFrameMs: idleInterval,
-      avgStaticSignatureDurationMs: metrics.staticSignatureScans > 0
-        ? metrics.staticSignatureDurationMs / metrics.staticSignatureScans
-        : 0,
-      avgFingerprintDurationMs: metrics.fingerprintCalls > 0
-        ? metrics.fingerprintDurationMs / metrics.fingerprintCalls
+      fallbackScanMs: idleInterval,
+      avgFallbackDurationMs: metrics.fallbackScans > 0
+        ? metrics.fallbackDurationMs / metrics.fallbackScans
         : 0,
       input: typeof engine.getInputPerformanceStats === 'function'
         ? engine.getInputPerformanceStats()
@@ -352,13 +337,12 @@ export function installPerformanceGuard({
       metrics.visionComputed = 0;
       metrics.visionSkipped = 0;
       metrics.dmVisionBypassed = 0;
-      metrics.staticSignatureRequests = 0;
-      metrics.staticSignatureScans = 0;
-      metrics.staticSignatureDurationMs = 0;
-      metrics.maxStaticSignatureDurationMs = 0;
-      metrics.fingerprintCalls = 0;
-      metrics.fingerprintDurationMs = 0;
-      metrics.maxFingerprintDurationMs = 0;
+      metrics.explicitInvalidations = 0;
+      metrics.idleCleanSkips = 0;
+      metrics.fallbackScans = 0;
+      metrics.fallbackChanges = 0;
+      metrics.fallbackDurationMs = 0;
+      metrics.maxFallbackDurationMs = 0;
     },
     stop() {
       if (stopped) return;
@@ -375,6 +359,7 @@ export function installPerformanceGuard({
       globalThis.removeEventListener?.('mousemove', interactionInvalidate);
     },
   });
+
   globalThis.LuminousVttPerformanceGuard = api;
   return api;
 }
