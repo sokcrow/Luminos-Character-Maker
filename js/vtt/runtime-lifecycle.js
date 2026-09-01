@@ -6,17 +6,142 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
 
+  const requestFrame = (callback) => (
+    globalThis.requestAnimationFrame
+      ? globalThis.requestAnimationFrame(callback)
+      : globalThis.setTimeout?.(() => callback(Date.now()), 16)
+  );
+
+  const cancelFrame = (frameId) => {
+    if (frameId == null) return;
+    if (globalThis.cancelAnimationFrame) globalThis.cancelAnimationFrame(frameId);
+    else globalThis.clearTimeout?.(frameId);
+  };
+
+  function hardenEngineRuntime(engine, { log = console, isDisposed = () => false } = {}) {
+    if (!engine || engine.__lifecycleHardened) return engine || null;
+
+    const wasRunning = Boolean(engine.isRunning);
+    engine.isRunning = false;
+    engine.frameId = null;
+    engine.destroyed = false;
+    engine.__lifecycleHardened = true;
+
+    let handoffFrameId = null;
+
+    engine.start = function startLifecycleHardenedEngine() {
+      if (engine.destroyed || isDisposed() || engine.isRunning || engine.frameId != null) return false;
+      engine.isRunning = true;
+      engine.frameId = requestFrame(engine.loop);
+      return true;
+    };
+
+    engine.stop = function stopLifecycleHardenedEngine() {
+      engine.cancelTokenMotion?.();
+      engine.isRunning = false;
+
+      if (handoffFrameId != null) {
+        cancelFrame(handoffFrameId);
+        handoffFrameId = null;
+      }
+      if (engine.frameId != null) {
+        cancelFrame(engine.frameId);
+        engine.frameId = null;
+      }
+
+      engine.tokenDrag = null;
+      if (engine.canvas?.style) engine.canvas.style.cursor = 'default';
+      return true;
+    };
+
+    engine.loop = function lifecycleHardenedLoop() {
+      engine.frameId = null;
+      if (!engine.isRunning || engine.destroyed || isDisposed()) return;
+
+      const renderData = engine.calculateVision();
+      if (!engine.isExporting) {
+        engine.renderer.render(engine.camera, engine.activeZ, renderData, engine.isExporting);
+      }
+
+      if (engine.isRunning && !engine.destroyed && !isDisposed()) {
+        engine.frameId = requestFrame(engine.loop);
+      }
+    };
+
+    engine.destroy = function destroyLifecycleHardenedEngine() {
+      if (engine.destroyed) return false;
+      engine.destroyed = true;
+      engine.stop();
+
+      try { globalThis.removeEventListener?.('resize', engine.handleResize); } catch (_) {}
+      try { engine.canvas?.removeEventListener?.('mousedown', engine.handleTokenMouseDown); } catch (_) {}
+      try { globalThis.removeEventListener?.('mousemove', engine.handleTokenMouseMove); } catch (_) {}
+      try { globalThis.removeEventListener?.('mouseup', engine.handleTokenMouseUp); } catch (_) {}
+      try { engine.camera?.destroy?.(); }
+      catch (error) { log?.warn?.('VTT camera destroy failed.', error); }
+
+      engine.tokenDrag = null;
+      engine.tokenControlResolver = null;
+      engine.tokenMoveResolver = null;
+      engine.movementInteractionResolver = null;
+      engine.tokenMotion = null;
+      return true;
+    };
+
+    // main.js can schedule the legacy bound RAF before LuminousVttRuntime is published.
+    // Keep isRunning=false until that old callback drains, then restart with the owned RAF loop.
+    if (wasRunning && !isDisposed()) {
+      handoffFrameId = requestFrame(() => {
+        handoffFrameId = null;
+        if (!engine.destroyed && !isDisposed()) engine.start();
+      });
+    }
+
+    return engine;
+  }
+
   function createLifecycle({ log = console } = {}) {
     let disposed = false;
     let reason = '';
+    let attachTimer = null;
 
     const isDisposed = () => disposed;
     const getReason = () => reason;
+
+    function attachEngineHardening() {
+      let attempts = 0;
+      const tryAttach = () => {
+        attachTimer = null;
+        if (disposed) return;
+
+        const runtime = globalThis.LuminousVttRuntime;
+        if (runtime?.engine) {
+          hardenEngineRuntime(runtime.engine, { log, isDisposed });
+          return;
+        }
+
+        attempts += 1;
+        if (attempts < 80) attachTimer = globalThis.setTimeout?.(tryAttach, 25) ?? null;
+      };
+      queueMicrotask(tryAttach);
+    }
 
     function dispose(nextReason = 'runtime-disposed') {
       if (disposed) return false;
       disposed = true;
       reason = String(nextReason || 'runtime-disposed');
+
+      if (attachTimer != null) {
+        globalThis.clearTimeout?.(attachTimer);
+        attachTimer = null;
+      }
+
+      try { globalThis.LuminousVttPerformanceGuard?.stop?.(); }
+      catch (error) { log?.warn?.('VTT performance guard teardown failed.', error); }
+
+      try { globalThis.LuminousVttRuntime?.engine?.destroy?.(); }
+      catch (error) { log?.warn?.('VTT engine teardown failed.', error); }
+
       return true;
     }
 
@@ -54,8 +179,9 @@
       return { status: 'started', label: taskLabel, runtime };
     }
 
+    attachEngineHardening();
     return Object.freeze({ dispose, getReason, isDisposed, run });
   }
 
-  return Object.freeze({ createLifecycle });
+  return Object.freeze({ createLifecycle, hardenEngineRuntime });
 });
