@@ -151,6 +151,7 @@ test('VTT loads radial UI, structural authoring and DM-validated interaction aut
   expect(controller).toContain('handlePointerDown');
   expect(radial).toContain('PAGE_SIZE = 8');
   expect(css).toContain('.vtt-radial-action');
+  expect(authority.REQUEST_ROOT).toBe('vtt_topology_action_requests');
   expect(authority.DIRECT_ACTIONS).toEqual(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
   expect(authority.CHECK_ACTIONS).toEqual(['pick_lock', 'force']);
   expect(authoritySource).toContain('validateRequest');
@@ -158,6 +159,9 @@ test('VTT loads radial UI, structural authoring and DM-validated interaction aut
   expect(authoritySource).toContain('actorOwnership');
   expect(authorityBootstrap).toContain("pick_lock: 'lockpick'");
   expect(authorityBootstrap).toContain('actorTokenId');
+  expect(stateBridge).toContain("ACTION_REQUEST_ROOT = 'vtt_topology_action_requests'");
+  expect(stateBridge).not.toContain('processDirectActionRequest');
+  expect(stateBridge).toContain('INTERACTION_AUTHORITY_NOT_READY');
   expect(stateBridge).toContain('validateTopologyCheckRequest');
   expect(stateBridge).toContain('actorTokenId: safeActorTokenId');
   expect(stateBridge).toContain('vttValidationReason');
