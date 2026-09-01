@@ -4,11 +4,21 @@ on:
   pull_request:
     paths:
       - 'vtt.html'
+      - 'js/vtt/camera.js'
+      - 'js/vtt/scene-dirty.js'
+      - 'js/vtt/scene-dirty-lighting-patch.js'
+      - 'js/vtt/scene-dirty-memory-patch.js'
       - 'js/vtt/runtime-lifecycle.js'
       - 'js/vtt/performance-guard.js'
       - 'js/vtt/lighting-engine.js'
       - 'js/vtt/lighting-defaults-patch.js'
+      - 'js/vtt/lighting-state.js'
+      - 'js/vtt/environment-light-bridge.js'
       - 'js/vtt/pov-engine.js'
+      - 'js/vtt/pov-state.js'
+      - 'js/vtt/memory-state.js'
+      - 'tests/vtt_scene_dirty.spec.js'
+      - 'tests/vtt_scene_dirty_bridges.spec.js'
       - 'tests/vtt_runtime_performance_phase1.spec.js'
       - 'tests/vtt_runtime_frame_scheduler.spec.js'
       - 'tests/vtt_performance_guard.spec.js'
@@ -32,10 +42,21 @@ jobs:
       - run: npm ci
       - name: Syntax
         run: |
+          node --check js/vtt/scene-dirty.js
+          node --input-type=module --check < js/vtt/scene-dirty-lighting-patch.js
+          node --input-type=module --check < js/vtt/scene-dirty-memory-patch.js
+          node --input-type=module --check < js/vtt/camera.js
           node --check js/vtt/runtime-lifecycle.js
           node --input-type=module --check < js/vtt/performance-guard.js
+          node --check tests/vtt_scene_dirty.spec.js
+          node --check tests/vtt_scene_dirty_bridges.spec.js
           node --check tests/vtt_runtime_performance_phase1.spec.js
           node --check tests/vtt_runtime_frame_scheduler.spec.js
+      - name: Canonical scene dirty contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_scene_dirty.spec.js
+          tests/vtt_scene_dirty_bridges.spec.js
       - name: Frame-coalesced input and adaptive scheduler contracts
         run: >-
           npx playwright test --workers=1

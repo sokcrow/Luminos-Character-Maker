@@ -50,6 +50,17 @@ export class Camera {
         this.isDragging = false;
     }
 
+    notifyVisualChange(kind, active = false, meta = null) {
+        globalThis.LuminousVttSceneDirty?.emit?.(this.canvas, {
+            reason: 'camera',
+            render: true,
+            vision: false,
+            active: Boolean(active),
+            sourceEvent: `camera:${String(kind || 'change')}`,
+            meta: meta && typeof meta === 'object' ? meta : null,
+        });
+    }
+
     setDragGuard(guard) {
         this.dragGuard = typeof guard === 'function' ? guard : null;
     }
@@ -60,17 +71,19 @@ export class Camera {
 
     setCenterConstraint(constraint) {
         this.centerConstraint = typeof constraint === 'function' ? constraint : null;
-        this.enforceCenterConstraint();
+        if (this.enforceCenterConstraint()) this.notifyVisualChange('constraint');
     }
 
     setZoomBounds(minZoom = 0.1, maxZoom = 5) {
         const min = Number.isFinite(Number(minZoom)) ? Math.max(0.01, Number(minZoom)) : 0.1;
         const max = Number.isFinite(Number(maxZoom)) ? Math.max(min, Number(maxZoom)) : Math.max(min, 5);
         const center = this.centerWorldPoint();
+        const previousZoom = this.zoom;
         this.minZoom = min;
         this.maxZoom = max;
         this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom));
         this.centerOnWorldPoint(center);
+        if (Math.abs(this.zoom - previousZoom) > 1e-12) this.notifyVisualChange('zoom-bounds');
         return { minZoom: this.minZoom, maxZoom: this.maxZoom, zoom: this.zoom };
     }
 
@@ -146,7 +159,9 @@ export class Camera {
 
         this.lastMouseX = e.clientX;
         this.lastMouseY = e.clientY;
-        this.manualPanListener?.({ dx, dy, x: this.x, y: this.y, zoom: this.zoom, clamped, center: this.centerWorldPoint() });
+        const detail = { dx, dy, x: this.x, y: this.y, zoom: this.zoom, clamped, center: this.centerWorldPoint() };
+        this.manualPanListener?.(detail);
+        this.notifyVisualChange('pan', true, detail);
     }
 
     onMouseUp() {
@@ -170,14 +185,20 @@ export class Camera {
 
         this.x = (mouseX / this.zoom) - worldX;
         this.y = (mouseY / this.zoom) - worldY;
-        this.enforceCenterConstraint();
+        const clamped = this.enforceCenterConstraint();
+        this.notifyVisualChange('zoom', true, { previousZoom, zoom: this.zoom, clamped });
     }
 
     centerOnWorldPoint(point = {}) {
         const constrained = this.constrainedCenter(point);
         if (!constrained) return false;
+        const previousX = this.x;
+        const previousY = this.y;
         this.x = (this.canvas.width / (2 * this.zoom)) - constrained.x;
         this.y = (this.canvas.height / (2 * this.zoom)) - constrained.y;
+        if (Math.abs(this.x - previousX) > 1e-7 || Math.abs(this.y - previousY) > 1e-7) {
+            this.notifyVisualChange('center', false, { center: constrained, zoom: this.zoom });
+        }
         return true;
     }
 
