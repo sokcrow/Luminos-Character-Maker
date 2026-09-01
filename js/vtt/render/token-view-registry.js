@@ -7,6 +7,8 @@ export class TokenViewRegistry {
             created: 0,
             destroyed: 0,
             positionUpdates: 0,
+            targetedSyncs: 0,
+            fullSyncs: 0,
         };
     }
 
@@ -34,6 +36,11 @@ export class TokenViewRegistry {
         return view;
     }
 
+    syncToken(token) {
+        this.stats.targetedSyncs += 1;
+        return this.ensure(token);
+    }
+
     get(tokenId) {
         return this.views.get(String(tokenId ?? '').trim());
     }
@@ -49,6 +56,7 @@ export class TokenViewRegistry {
     }
 
     sync(tokens = []) {
+        this.stats.fullSyncs += 1;
         const seen = new Set();
         for (const token of Array.isArray(tokens) ? tokens : []) {
             const id = tokenViewId(token);
