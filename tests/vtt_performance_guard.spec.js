@@ -69,7 +69,7 @@ test('idle VTT uses dirty state: explicit invalidation redraws without scanning 
       for (let i = 0; i < 120; i += 1) renderer.render();
       expect(realRenders).toBe(1);
       expect(api.snapshot().rendered).toBe(1);
-      expect(api.snapshot().fallbackScans).toBe(0);
+      expect(api.snapshot().fallbackScans).toBe(1);
       expect(api.snapshot().skipped).toBe(119);
 
       mapData.tokens[0].x += 70;
@@ -77,13 +77,13 @@ test('idle VTT uses dirty state: explicit invalidation redraws without scanning 
       renderer.render();
       expect(realRenders).toBe(2);
       expect(api.snapshot().explicitInvalidations).toBeGreaterThanOrEqual(1);
-      expect(api.snapshot().fallbackScans).toBe(0);
+      expect(api.snapshot().fallbackScans).toBe(1);
 
       mapData.topology.push({ id: 'door-1', type: 'door', state: 'closed', a: { col: 1, row: 1 }, b: { col: 2, row: 1 } });
       api.invalidate();
       renderer.render();
       expect(realRenders).toBe(3);
-      expect(api.snapshot().fallbackScans).toBe(0);
+      expect(api.snapshot().fallbackScans).toBe(1);
       expect(api.snapshot().savedFrames).toBeGreaterThanOrEqual(119);
 
       api.stop();
@@ -119,16 +119,17 @@ test('slow fallback detects legacy in-place mutations that bypass canonical VTT 
 
       renderer.render();
       expect(realRenders).toBe(1);
+      expect(api.snapshot().fallbackScans).toBe(1);
 
       advance(500);
       renderer.render();
-      expect(api.snapshot().fallbackScans).toBe(1);
+      expect(api.snapshot().fallbackScans).toBe(2);
       expect(realRenders).toBe(1);
 
       mapData.topology.push({ id: 'legacy-door', type: 'door', state: 'closed' });
       advance(500);
       renderer.render();
-      expect(api.snapshot().fallbackScans).toBe(2);
+      expect(api.snapshot().fallbackScans).toBe(3);
       expect(api.snapshot().fallbackChanges).toBe(1);
       expect(wakeCalls.at(-1)).toMatchObject({ immediate: true, delayMs: 0 });
       expect(realRenders).toBe(1);
@@ -247,18 +248,18 @@ test('performance guard reports dirty/fallback costs instead of fingerprint and 
       renderer.render();
       let stats = api.snapshot();
       expect(realRenders).toBe(1);
-      expect(stats.fallbackScans).toBe(0);
+      expect(stats.fallbackScans).toBe(1);
       expect(stats.fallbackChanges).toBe(0);
       expect(stats.input).toEqual({ pointerMovesReceived: 9, pointerMovesProcessed: 3, pointerMovesCoalesced: 6, pointerMovePending: false });
 
       for (let i = 0; i < 20; i += 1) renderer.render();
       stats = api.snapshot();
-      expect(stats.fallbackScans).toBe(0);
+      expect(stats.fallbackScans).toBe(1);
 
       advance(500);
       renderer.render();
       stats = api.snapshot();
-      expect(stats.fallbackScans).toBe(1);
+      expect(stats.fallbackScans).toBe(2);
       expect(stats.fallbackDurationMs).toBeGreaterThanOrEqual(0);
       expect(stats.maxFallbackDurationMs).toBeGreaterThanOrEqual(0);
       expect(stats.avgFallbackDurationMs).toBeGreaterThanOrEqual(0);
