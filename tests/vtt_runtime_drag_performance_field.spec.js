@@ -30,6 +30,7 @@ function metrics(cells = []) {
 async function boot(page) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.tokenMoveResolver), null, { timeout: 15000 });
+  await page.waitForFunction(() => Boolean(window.LuminousVttPathfinding?.__runtimeFinalizedPathfindingV3), null, { timeout: 5000 });
   await page.evaluate(() => {
     const engine = window.LuminousVttRuntime.engine;
     const map = engine.mapData;
@@ -62,6 +63,7 @@ async function boot(page) {
         v2: Boolean(pathfinder?.__straightRouteTieBreakPatchV2),
         straight: Boolean(pathfinder?.__straightRouteTieBreakPatch),
         cheapTerrain: Boolean(pathfinder?.__cheapTerrainHeuristicPatch),
+        runtimeFinalized: Boolean(pathfinder?.__runtimeFinalizedPathfindingV3),
       },
       events: [],
       plans: [],
@@ -226,7 +228,7 @@ async function drag(page) {
   });
 }
 
-test('real canvas drag traces planning, resolver, traversal and terminal outcome', async ({ page }) => {
+test('real canvas drag stays straight and within the navigation performance budget', async ({ page }) => {
   test.setTimeout(30000);
   await page.setViewportSize({ width: 1920, height: 900 });
   await boot(page);
@@ -234,7 +236,26 @@ test('real canvas drag traces planning, resolver, traversal and terminal outcome
   result.route = metrics(result.finalPath);
   console.log('VTT_FIELD_TRACE=' + JSON.stringify(result));
 
+  expect(result.pathfinderFlags.runtimeFinalized).toBe(true);
+  expect(result.pathfinderFlags.v2).toBe(true);
   expect(result.mouse.dragAcquired, 'real mouse down must actually acquire the token').toBe(true);
-  expect(result.resolver.calls, 'mouseup must enter the real movement resolver').toBeGreaterThan(0);
-  expect(result.moved || result.rejected, 'movement must reach a terminal moved/rejected event within 5s').toBeTruthy();
+  expect(result.resolver.calls, 'mouseup must enter the real movement resolver').toBe(1);
+  expect(result.rejected).toBeNull();
+  expect(result.moved, 'movement must reach vtt:token-moved within 5s').toBeTruthy();
+
+  expect(result.route.cells).toBe(15);
+  expect(result.route.rowExcursion, 'horizontal drag must never leave its source row').toBe(0);
+  expect(result.route.reversalsY, 'horizontal drag must not reverse vertically').toBe(0);
+  expect(result.route.turns, 'horizontal drag must have one constant direction').toBe(0);
+
+  const routedPlans = result.plans.filter((plan) => plan.cells.length > 1);
+  expect(routedPlans.length).toBeGreaterThan(0);
+  expect(routedPlans.every((plan) => plan.fastPath === 'aligned')).toBe(true);
+  expect(Math.max(...routedPlans.map((plan) => plan.visited))).toBe(0);
+  expect(result.planningMaxMs, 'single plan should stay below 10ms on the clean aligned field case').toBeLessThan(10);
+  expect(result.planningTotalMs, 'all drag planning should stay below 50ms on the clean aligned field case').toBeLessThan(50);
+
+  const resolverMs = result.resolver.end - result.resolver.start;
+  expect(resolverMs, 'drop resolver should stay below 50ms in the clean field case').toBeLessThan(50);
+  expect(result.frameIntervalP95Ms, 'traversal should remain visually near 60Hz').toBeLessThan(35);
 });
