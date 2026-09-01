@@ -31,6 +31,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         let camera;
         try {
             renderer = createRenderer(canvas, mapData, { backend: RENDERER_BACKENDS.WEBGL_2 });
+            renderer.resize(320, 180);
             camera = new Camera(canvas);
             camera.zoom = 1;
             camera.centerOnWorldPoint({ x: agatha.x, y: agatha.y });
@@ -48,8 +49,6 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
             offscreen: renderer.tokenViews.get('offscreen').resources.has('webgl2-token-visual'),
         };
 
-        // Production entrypoint + real VTT Camera centered on the visible actor:
-        // world transform and viewport culling use the actual map runtime contract.
         renderer.render(camera, 0, null, false);
         const visual = view.resources.get('webgl2-token-visual')?.resource || null;
         const first = renderer.diagnostics().tokenGpu;
