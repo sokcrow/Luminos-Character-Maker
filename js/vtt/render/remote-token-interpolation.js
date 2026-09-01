@@ -324,20 +324,23 @@ export function installRemoteTokenInterpolation(renderer, options = {}) {
         }
 
         const sequence = Number.isFinite(Number(detail.sequence)) ? Number(detail.sequence) : null;
-        if (sequence != null && track.lastSequence != null && sequence <= track.lastSequence
-            && at - finite(track.lastAcceptedAt, at) < sequenceRestartMs) {
-            stats.droppedOutOfOrder += 1;
-            return;
-        }
 
-        if (detail.canonicalRefresh === true && sequence != null && track.lastSequence === sequence) return;
-
+        // Clear/revert events intentionally reuse the final snapshot sequence.
+        // They must be handled before duplicate/out-of-order suppression.
         if (detail.cleared === true) {
             if (detail.committed === true) {
                 holdUntilCanonical(id, track);
                 return;
             }
             releaseToCanonical(id, detail.reverted || detail.expired ? 'revert' : 'clear');
+            return;
+        }
+
+        if (detail.canonicalRefresh === true && sequence != null && track.lastSequence === sequence) return;
+
+        if (sequence != null && track.lastSequence != null && sequence <= track.lastSequence
+            && at - finite(track.lastAcceptedAt, at) < sequenceRestartMs) {
+            stats.droppedOutOfOrder += 1;
             return;
         }
 
