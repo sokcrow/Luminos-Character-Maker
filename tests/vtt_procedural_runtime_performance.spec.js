@@ -2,15 +2,6 @@ const { test, expect } = require('@playwright/test');
 
 const URL = process.env.VTT_FIELD_URL || 'http://127.0.0.1:4173/vtt.html';
 
-const countScene = (map, z = 0) => ({
-  topology: Array.isArray(map.topology) ? map.topology.length : 0,
-  walls: Array.isArray(map.walls) ? map.walls.length : 0,
-  structures: Array.isArray(map.structures) ? map.structures.length : 0,
-  worldObjects: Array.isArray(map.worldObjects) ? map.worldObjects.length : 0,
-  horizontalPlanes: Array.isArray(map.horizontalPlanes) ? map.horizontalPlanes.length : 0,
-  surfaces: Object.keys(map.surfaceLayers?.[String(Number(z) || 0)] || {}).length,
-});
-
 test('real procedural chunk culls render collections and localizes FOV wall work', async ({ page }) => {
   test.setTimeout(45000);
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -66,7 +57,14 @@ test('real procedural chunk culls render collections and localizes FOV wall work
       validation: JSON.parse(JSON.stringify(plan.validation || {})),
       signature: plan.signature,
       grid: { cols, rows, size },
-      totals: countScene(map, 0),
+      totals: {
+        topology: Array.isArray(map.topology) ? map.topology.length : 0,
+        walls: Array.isArray(map.walls) ? map.walls.length : 0,
+        structures: Array.isArray(map.structures) ? map.structures.length : 0,
+        worldObjects: Array.isArray(map.worldObjects) ? map.worldObjects.length : 0,
+        horizontalPlanes: Array.isArray(map.horizontalPlanes) ? map.horizontalPlanes.length : 0,
+        surfaces: Object.keys(map.surfaceLayers?.['0'] || {}).length,
+      },
       renderer: engine.renderer?.backend || null,
     };
   });
