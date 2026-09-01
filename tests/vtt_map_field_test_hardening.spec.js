@@ -12,6 +12,7 @@ class MockCustomEvent {
     this.button = init.button ?? 0;
     this.clientX = init.clientX ?? init.detail?.clientX ?? 0;
     this.clientY = init.clientY ?? init.detail?.clientY ?? 0;
+    this.defaultPrevented = false;
   }
   preventDefault() { this.defaultPrevented = true; }
   stopPropagation() { this.propagationStopped = true; }
