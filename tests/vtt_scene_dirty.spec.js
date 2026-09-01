@@ -33,16 +33,30 @@ test('scene dirty normalizes render and vision independently', () => {
   });
 });
 
-test('legacy semantic token event becomes one canonical scene dirty event', () => {
+test('migrated token and chunk events no longer pass through the legacy bridge', () => {
   const canvas = eventTargetStub();
   const host = eventTargetStub();
   const seen = [];
   canvas.addEventListener(sceneDirty.EVENT_NAME, (event) => seen.push(event.detail));
   const bridge = sceneDirty.installLegacyBridge({ canvas, mapData: { dmEditMode: { active: false } }, host });
 
-  canvas.emit('vtt:token-moved', { tokenId: 'p1' });
+  const migrated = [
+    'vtt:token-preview-moved',
+    'vtt:movement-destination-preview',
+    'vtt:token-moved',
+    'vtt:token-z-transition',
+    'vtt:canonical-tokens-synced',
+    'vtt:movement-interaction',
+    'vtt:procedural-chunk-loaded',
+    'vtt:procedural-chunk-transition',
+  ];
+  migrated.forEach((name) => canvas.emit(name, { tokenId: 'p1' }));
+  expect(seen).toHaveLength(0);
+  expect(bridge.snapshot().bridgedEvents).toBe(0);
+
+  canvas.emit('vtt:camera-follow-changed', { tokenId: 'p1' });
   expect(seen).toHaveLength(1);
-  expect(seen[0]).toMatchObject({ reason: 'token', render: true, vision: true, active: false, sourceEvent: 'vtt:token-moved', tokenId: 'p1' });
+  expect(seen[0]).toMatchObject({ reason: 'camera', render: true, vision: false, sourceEvent: 'vtt:camera-follow-changed', tokenId: 'p1' });
   expect(bridge.snapshot().bridgedEvents).toBe(1);
   bridge.stop();
 });
@@ -90,12 +104,14 @@ test('camera owns canonical render-only invalidation instead of performance guar
   expect(guard).not.toContain("globalThis.addEventListener?.('mousemove'");
 });
 
-test('scene dirty contract loads before main runtime', () => {
+test('scene dirty token state patch loads before main runtime', () => {
   const html = read('vtt.html');
   const dirty = html.indexOf('js/vtt/scene-dirty.js');
+  const tokenPatch = html.indexOf('js/vtt/scene-dirty-token-state-patch.js');
   const main = html.indexOf('js/vtt/main.js');
   expect(dirty).toBeGreaterThan(0);
-  expect(main).toBeGreaterThan(dirty);
+  expect(tokenPatch).toBeGreaterThan(dirty);
+  expect(main).toBeGreaterThan(tokenPatch);
 });
 
 test('scene dirty and camera parse cleanly', () => {
