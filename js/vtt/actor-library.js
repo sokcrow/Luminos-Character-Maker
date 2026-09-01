@@ -23,21 +23,26 @@
     return 'npc';
   }
 
-  // VTT tokens use the Actor Studio icon only. Theatre sprites, portraits and
-  // generic image fields are intentionally excluded from this resolver.
+  // Canonical tactical image: the Actor Studio `icono` field only.
+  // Player records, Theatre sprites/portraits and generic image fields are not
+  // valid tactical token sources.
   function imageFor(data = {}) {
-    return clean(
-      data.icono
-      || data.icono_jugador
-      || data.iconUrl
-      || data.icon_url
-      || '',
-    ) || '';
+    return clean(data?.icono || '');
   }
 
   function actorIdentity(scope, id, data = {}) {
     if (scope === 'players') return clean(data.actorId || data.vinculo_jugador || data.actor?.id || data.actorRef?.id) || null;
     return clean(data.actorId || data.id || id) || null;
+  }
+
+  function assignedActorRecord(player = {}, actors = {}) {
+    const actorId = actorIdentity('players', player?.playerId || player?.id || '', player);
+    if (!actorId) return null;
+    if (actors && typeof actors === 'object' && actors[actorId]) return actors[actorId];
+    for (const [id, data] of Object.entries(actors || {})) {
+      if (clean(actorIdentity('actors', id, data || {})) === actorId) return data || null;
+    }
+    return null;
   }
 
   function normalizeActor(scope, id, data = {}) {
@@ -71,10 +76,29 @@
     };
   }
 
+  function normalizePlayerActor(id, player = {}, actors = {}) {
+    const linkedActorId = actorIdentity('players', id, player || {});
+    const assignedActor = assignedActorRecord({ ...player, id }, actors);
+    const actorImage = assignedActor ? imageFor(assignedActor) : '';
+    const source = {
+      ...(assignedActor || {}),
+      ...(player || {}),
+      actorId: linkedActorId || undefined,
+      playerId: clean(player?.playerId || player?.id || id),
+      uid: player?.uid,
+      // Image authority is always the assigned Actor, never the player record.
+      icono: actorImage,
+    };
+    delete source.icono_jugador;
+    delete source.iconUrl;
+    delete source.icon_url;
+    return normalizeActor('players', id, source);
+  }
+
   function mergeCollections({ players = {}, actors = {}, npcs = {} } = {}) {
     const result = [];
     const assignedActorIds = new Set();
-    const playerEntries = Object.entries(players || {}).map(([id, data]) => normalizeActor('players', id, data || {}));
+    const playerEntries = Object.entries(players || {}).map(([id, data]) => normalizePlayerActor(id, data || {}, actors || {}));
     playerEntries.forEach((actor) => {
       result.push(actor);
       if (actor.linkedActorId) assignedActorIds.add(clean(actor.linkedActorId));
@@ -84,9 +108,8 @@
     const addPersistent = (scope, id, data) => {
       const actor = normalizeActor(scope, id, data || {});
       const identity = clean(actor.actorId || actor.sourceId);
-      // A Theatre actor assigned to a player is represented by the player token only.
+      // An Actor assigned to a player is represented by the player token only.
       if (identity && assignedActorIds.has(identity)) return;
-      // Same persistent actor can exist in legacy + principal databases during migration.
       if (identity && seenPersistent.has(identity)) return;
       if (identity) seenPersistent.add(identity);
       result.push(actor);
@@ -158,5 +181,5 @@
     };
   }
 
-  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, actorIdentity, normalizeActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
+  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
 });
