@@ -8,6 +8,7 @@ on:
       - 'tests/vtt_realtime_traversal_simplification.spec.js'
       - 'tests/vtt_procedural_runtime_performance.spec.js'
       - 'tests/vtt_token_view_browser_field.spec.js'
+      - 'tests/vtt_drag_preview_browser_field.spec.js'
       - 'playwright.config.cjs'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
   push:
@@ -17,6 +18,7 @@ on:
       - 'tests/vtt_realtime_traversal_simplification.spec.js'
       - 'tests/vtt_procedural_runtime_performance.spec.js'
       - 'tests/vtt_token_view_browser_field.spec.js'
+      - 'tests/vtt_drag_preview_browser_field.spec.js'
       - 'playwright.config.cjs'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
 
@@ -52,10 +54,10 @@ jobs:
           done
           cat /tmp/vtt-field-server.log
           exit 1
-      - name: Persistent TokenView browser field
+      - name: Persistent TokenView and drag preview browser field
         env:
           VTT_FIELD_URL: http://127.0.0.1:4173/vtt.html
-        run: npx playwright test --config=playwright.config.cjs --workers=1 tests/vtt_token_view_browser_field.spec.js --reporter=line
+        run: npx playwright test --config=playwright.config.cjs --workers=1 tests/vtt_token_view_browser_field.spec.js tests/vtt_drag_preview_browser_field.spec.js --reporter=line
       - name: Integrated realtime movement and procedural performance field trace
         env:
           VTT_FIELD_URL: http://127.0.0.1:4173/vtt.html
