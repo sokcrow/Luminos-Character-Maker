@@ -9,5 +9,6 @@ export function createRenderer(canvas, mapData, { backend = RENDERER_BACKENDS.CA
         ? new WebGL2Renderer(canvas, mapData)
         : new Canvas2DRenderer(canvas, mapData);
 
-    return installDmObserverOverlay(installPersistentTokenViews(renderer));
+    installPersistentTokenViews(renderer);
+    return installDmObserverOverlay(renderer);
 }
