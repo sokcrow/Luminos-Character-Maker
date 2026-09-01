@@ -28,12 +28,15 @@ test('real WebGL2 hover and selection overlay preserves TokenView, texture, and 
             return { supported: false, error: String(error?.message || error) };
         }
 
+        const view = renderer.tokenViews.get('agatha');
+        const lazyBeforeDraw = view.resources.has('webgl2-token-visual');
+        renderer.render(null, 0, null, false);
+
         const deadline = performance.now() + 2500;
         while (performance.now() < deadline && renderer.diagnostics().tokenTextures?.readyEntries !== 1) {
             await new Promise((resolve) => setTimeout(resolve, 20));
         }
 
-        const view = renderer.tokenViews.get('agatha');
         const visual = view.resources.get('webgl2-token-visual')?.resource;
         const canonicalBefore = { x: agatha.x, y: agatha.y, zLayer: agatha.zLayer, icono: agatha.icono };
 
@@ -81,10 +84,11 @@ test('real WebGL2 hover and selection overlay preserves TokenView, texture, and 
 
         renderer.destroy();
         canvas.remove();
-        return { supported: true, canonicalBefore, hover, selected, afterStress, afterRemove };
+        return { supported: true, lazyBeforeDraw, canonicalBefore, hover, selected, afterStress, afterRemove };
     });
 
     expect(result.supported, result.error || 'WebGL2 unavailable').toBe(true);
+    expect(result.lazyBeforeDraw).toBe(false);
     expect(result.hover.interaction).toEqual({ hovered: true, selected: false, targeted: false });
     expect(result.hover.gpu).toMatchObject({ visibleLastFrame: 1, hoveredLastFrame: 1 });
     expect(result.selected.interaction).toEqual({ hovered: true, selected: true, targeted: false });
