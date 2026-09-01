@@ -147,6 +147,62 @@ test('DM FREE gets an omniscient render frame without invoking Player FOV calcul
   }
 });
 
+test('performance guard reports fingerprint, static scan, and input costs without changing render decisions', async () => {
+  const { mod, tmp } = await loadGuard();
+  try {
+    let realRenders = 0;
+    const canvas = canvasStub();
+    const renderer = { render() { realRenders += 1; } };
+    const mapData = mapStub();
+    const engine = {
+      renderer,
+      mapData,
+      canvas,
+      camera: { x: 0, y: 0, zoom: 1 },
+      activeZ: 0,
+      tokenDrag: null,
+      tokenMotion: null,
+      getInputPerformanceStats() {
+        return { pointerMovesReceived: 9, pointerMovesProcessed: 3, pointerMovesCoalesced: 6, pointerMovePending: false };
+      },
+    };
+    const api = mod.installPerformanceGuard({ runtime: { engine, bridge: { isDm: false } } });
+
+    renderer.render();
+    let stats = api.snapshot();
+    expect(realRenders).toBe(1);
+    expect(stats.staticSignatureRequests).toBe(1);
+    expect(stats.staticSignatureScans).toBe(1);
+    expect(stats.fingerprintCalls).toBe(1);
+    expect(stats.staticSignatureDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.maxStaticSignatureDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.avgStaticSignatureDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.fingerprintDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.maxFingerprintDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.avgFingerprintDurationMs).toBeGreaterThanOrEqual(0);
+    expect(stats.input).toEqual({ pointerMovesReceived: 9, pointerMovesProcessed: 3, pointerMovesCoalesced: 6, pointerMovePending: false });
+
+    api.invalidate();
+    renderer.render();
+    stats = api.snapshot();
+    expect(realRenders).toBe(2);
+    expect(stats.staticSignatureRequests).toBe(2);
+    expect(stats.staticSignatureScans).toBe(2);
+    expect(stats.fingerprintCalls).toBe(2);
+
+    api.resetMetrics();
+    stats = api.snapshot();
+    expect(stats.staticSignatureRequests).toBe(0);
+    expect(stats.staticSignatureScans).toBe(0);
+    expect(stats.fingerprintCalls).toBe(0);
+    expect(stats.staticSignatureDurationMs).toBe(0);
+    expect(stats.fingerprintDurationMs).toBe(0);
+    api.stop();
+  } finally {
+    fs.unlinkSync(tmp);
+  }
+});
+
 test('performance guard loads after Dynamic Lighting and Fog Memory', () => {
   const html = read('vtt.html');
   const lighting = html.indexOf('js/vtt/dynamic-lighting-bootstrap.js');
