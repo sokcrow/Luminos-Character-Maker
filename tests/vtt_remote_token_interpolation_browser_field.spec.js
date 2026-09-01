@@ -31,12 +31,15 @@ test('real WebGL2 remote movement interpolates one persistent TokenView without 
             return { supported: false, error: String(error?.message || error) };
         }
 
+        const view = renderer.tokenViews.get('agatha');
+        const lazyBeforeDraw = view.resources.has('webgl2-token-visual');
+        renderer.render(null, 0, null, false);
+
         const textureDeadline = performance.now() + 2500;
         while (performance.now() < textureDeadline && renderer.diagnostics().tokenTextures?.readyEntries !== 1) {
             await new Promise((resolve) => setTimeout(resolve, 20));
         }
 
-        const view = renderer.tokenViews.get('agatha');
         const visual = view.resources.get('webgl2-token-visual')?.resource;
         const canonicalStart = { x: agatha.x, y: agatha.y, zLayer: agatha.zLayer };
 
@@ -110,6 +113,7 @@ test('real WebGL2 remote movement interpolates one persistent TokenView without 
         canvas.remove();
         return {
             supported: true,
+            lazyBeforeDraw,
             canonicalStart,
             immediatelyAfterRemote,
             afterInterpolation,
@@ -120,6 +124,7 @@ test('real WebGL2 remote movement interpolates one persistent TokenView without 
     });
 
     expect(result.supported, result.error || 'WebGL2 unavailable').toBe(true);
+    expect(result.lazyBeforeDraw).toBe(false);
     expect(result.immediatelyAfterRemote.canonical).toEqual(result.canonicalStart);
     expect(result.immediatelyAfterRemote.renderX).toBe(result.canonicalStart.x);
     expect(result.afterInterpolation.canonical).toEqual(result.canonicalStart);
