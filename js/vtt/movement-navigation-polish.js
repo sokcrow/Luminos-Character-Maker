@@ -285,7 +285,9 @@ export function installRuntimeNavigationPolish({ host = globalThis, runtime = ho
       clearMarker(detail.tokenId);
       return;
     }
-    if (detail.destination && detail.traversing) setMarker(detail.tokenId, detail.destination, 'committed');
+    if (detail.destination) {
+      setMarker(detail.tokenId, detail.destination, detail.traversing ? 'committed' : 'preview');
+    }
   }
 
   function onRejected(event) { clearMarker(event?.detail?.tokenId); }
