@@ -5,7 +5,7 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (browserRoot) {
     'use strict';
 
-    const REQUEST_ROOT = 'vtt_world_object_action_requests';
+    const REQUEST_ROOT = 'vtt_topology_action_requests';
     const DIRECT_ACTIONS = Object.freeze(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
     const CHECK_ACTIONS = Object.freeze(['pick_lock', 'force']);
     const VALIDATED_ACTIONS = Object.freeze([...DIRECT_ACTIONS, ...CHECK_ACTIONS]);
