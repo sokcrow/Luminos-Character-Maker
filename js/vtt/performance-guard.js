@@ -60,8 +60,8 @@ function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, mo
   return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
 }
 
-// Slow compatibility fallback for legacy mutations that do not yet emit a canonical VTT event.
-// The normal render path never builds this signature.
+// Slow compatibility fallback for legacy mutations that do not yet emit vtt:scene-dirty.
+// The normal dirty path never builds this signature.
 export function legacyVisualSignature({ engine = {}, mapData = {} } = {}) {
   const scene = mapData.lighting?.scene || {};
   const camera = engine.camera || {};
@@ -131,6 +131,8 @@ export function installPerformanceGuard({
   const mapData = engine?.mapData;
   if (!engine || !renderer || !mapData || renderer.__performanceGuardInstalled) return null;
 
+  const sceneDirtyApi = globalThis.LuminousVttSceneDirty || null;
+  const sceneDirtyEvent = sceneDirtyApi?.EVENT_NAME || 'vtt:scene-dirty';
   const originalRender = renderer.render.bind(renderer);
   const originalCalculateVision = typeof engine.calculateVision === 'function' ? engine.calculateVision.bind(engine) : null;
   const idleInterval = Math.max(
@@ -149,12 +151,16 @@ export function installPerformanceGuard({
     visionSkipped: 0,
     dmVisionBypassed: 0,
     explicitInvalidations: 0,
+    canonicalInvalidations: 0,
+    renderOnlyInvalidations: 0,
+    visionInvalidations: 0,
     idleCleanSkips: 0,
     fallbackScans: 0,
     fallbackChanges: 0,
     fallbackDurationMs: 0,
     maxFallbackDurationMs: 0,
   };
+  const dirtyByReason = Object.create(null);
 
   let lastRenderAt = -Infinity;
   let lastFallbackScanAt = -Infinity;
@@ -184,42 +190,38 @@ export function installPerformanceGuard({
     return idleInterval;
   };
 
-  const wakeFrame = () => {
-    const active = visualAnimationActive(engine, mapData, Date.now());
+  const wakeFrame = (activeHint = false) => {
+    const active = Boolean(activeHint) || visualAnimationActive(engine, mapData, Date.now());
     engine.requestFrame?.({
       immediate: !active,
       delayMs: active ? activeFrameInterval(engine, activeFrameMs, movementFrameMs) : 0,
     });
   };
 
-  const invalidate = () => {
-    renderDirty = true;
-    visionDirty = true;
+  const markDirty = (detail = {}, { canonical = false } = {}) => {
+    const reason = clean(detail.reason) || 'unknown';
+    const render = detail.render !== false;
+    const vision = detail.vision === true;
+    if (render) renderDirty = true;
+    if (vision) visionDirty = true;
     metrics.explicitInvalidations += 1;
-    wakeFrame();
+    if (canonical) metrics.canonicalInvalidations += 1;
+    if (vision) metrics.visionInvalidations += 1;
+    else if (render) metrics.renderOnlyInvalidations += 1;
+    dirtyByReason[reason] = (dirtyByReason[reason] || 0) + 1;
+    wakeFrame(detail.active === true);
   };
 
-  const interactionInvalidate = () => {
-    if (engine.tokenDrag || engine.tokenMotion || engine.camera?.isDragging || mapData.dmEditMode?.active) invalidate();
-  };
+  const handleSceneDirty = (event) => markDirty(event?.detail || {}, { canonical: true });
+  const invalidate = (detail = {}) => markDirty({
+    reason: detail.reason || 'manual',
+    render: detail.render !== false,
+    vision: detail.vision !== false,
+    active: detail.active === true,
+  });
 
-  const events = [
-    'vtt:token-preview-moved',
-    'vtt:token-moved',
-    'vtt:token-z-transition',
-    'vtt:canonical-tokens-synced',
-    'vtt:camera-follow-changed',
-    'vtt:dm-observer-changed',
-    'vtt:procedural-chunk-loaded',
-    'vtt:procedural-chunk-transition',
-    'vtt:memory-learn',
-  ];
-  events.forEach((name) => engine.canvas?.addEventListener?.(name, invalidate));
-  globalThis.addEventListener?.('resize', invalidate);
-  globalThis.addEventListener?.('wheel', invalidate, { passive: true });
-  globalThis.addEventListener?.('keydown', invalidate);
-  globalThis.addEventListener?.('keyup', invalidate);
-  globalThis.addEventListener?.('mousemove', interactionInvalidate, { passive: true });
+  engine.canvas?.addEventListener?.(sceneDirtyEvent, handleSceneDirty);
+  const legacyBridge = sceneDirtyApi?.installLegacyBridge?.({ canvas: engine.canvas, mapData, host: globalThis }) || null;
   engine.setFrameDelayResolver?.(nextFrameDelayMs);
 
   if (originalCalculateVision) {
@@ -264,8 +266,6 @@ export function installPerformanceGuard({
     const active = visualAnimationActive(engine, mapData, wallNow);
     const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
 
-    // Active visuals remain cadence-limited. Idle visuals are event-driven; the slow fallback
-    // only protects legacy mutations that still bypass canonical VTT events.
     if (active && (perfNow - lastRenderAt) < activeInterval) {
       metrics.throttled += 1;
       return;
@@ -290,7 +290,7 @@ export function installPerformanceGuard({
       metrics.fallbackChanges += 1;
       renderDirty = true;
       visionDirty = true;
-      wakeFrame();
+      wakeFrame(false);
       metrics.skipped += 1;
       return;
     }
@@ -311,6 +311,7 @@ export function installPerformanceGuard({
     nextFrameDelayMs,
     snapshot: () => ({
       ...metrics,
+      dirtyByReason: { ...dirtyByReason },
       savedFrames: metrics.skipped + metrics.throttled,
       visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
       activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
@@ -326,6 +327,7 @@ export function installPerformanceGuard({
       scheduler: typeof engine.getFrameSchedulerStats === 'function'
         ? engine.getFrameSchedulerStats()
         : null,
+      sceneDirtyBridge: legacyBridge?.snapshot?.() || null,
     }),
     resetMetrics() {
       metrics.calls = 0;
@@ -338,11 +340,15 @@ export function installPerformanceGuard({
       metrics.visionSkipped = 0;
       metrics.dmVisionBypassed = 0;
       metrics.explicitInvalidations = 0;
+      metrics.canonicalInvalidations = 0;
+      metrics.renderOnlyInvalidations = 0;
+      metrics.visionInvalidations = 0;
       metrics.idleCleanSkips = 0;
       metrics.fallbackScans = 0;
       metrics.fallbackChanges = 0;
       metrics.fallbackDurationMs = 0;
       metrics.maxFallbackDurationMs = 0;
+      Object.keys(dirtyByReason).forEach((key) => { delete dirtyByReason[key]; });
     },
     stop() {
       if (stopped) return;
@@ -351,12 +357,8 @@ export function installPerformanceGuard({
       renderer.__performanceGuardInstalled = false;
       if (originalCalculateVision) engine.calculateVision = originalCalculateVision;
       engine.setFrameDelayResolver?.(null);
-      events.forEach((name) => engine.canvas?.removeEventListener?.(name, invalidate));
-      globalThis.removeEventListener?.('resize', invalidate);
-      globalThis.removeEventListener?.('wheel', invalidate);
-      globalThis.removeEventListener?.('keydown', invalidate);
-      globalThis.removeEventListener?.('keyup', invalidate);
-      globalThis.removeEventListener?.('mousemove', interactionInvalidate);
+      engine.canvas?.removeEventListener?.(sceneDirtyEvent, handleSceneDirty);
+      legacyBridge?.stop?.();
     },
   });
 
