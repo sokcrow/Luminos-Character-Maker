@@ -53,7 +53,8 @@ test('dynamic token patch persists full token snapshots and can create or delete
 test('DM actor UI supports drag onto canvas, token images and right-click removal', () => {
   const source = read('js/vtt/actor-library-bootstrap.js');
   expect(source).toContain('ACTOR / TOKEN LIBRARY');
-  expect(source).toContain('draggable="true"');
+  expect(source).toContain('card.draggable = true');
+  expect(source).toContain("card.addEventListener('dragstart'");
   expect(source).toContain("addEventListener('drop'");
   expect(source).toContain('createWorldToken');
   expect(source).toContain('deleteWorldToken');
