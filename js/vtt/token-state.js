@@ -186,27 +186,60 @@
             return Boolean(uidMatch || playerMatch);
         }
 
-        function emitPlayerChange() {
-            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'players', tokens: mapData.tokens });
+        function emitPlayerChange(change = {}) {
+            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'players', tokens: mapData.tokens, ...change });
         }
 
-        function emitWorldChange() {
-            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'world', tokens: mapData.tokens });
+        function emitWorldChange(change = {}) {
+            if (typeof onTokensChanged === 'function') onTokensChanged({ scope: 'world', tokens: mapData.tokens, ...change });
+        }
+
+        function incrementalChange(type, token = null, changes = {}) {
+            return {
+                type,
+                source: 'remote',
+                tokenId: clean(token?.id) || null,
+                token,
+                changes,
+            };
+        }
+
+        function batchChange(changes = {}) {
+            return {
+                type: 'token-batch',
+                source: 'remote',
+                tokenId: null,
+                token: null,
+                changes,
+            };
         }
 
         function removePlayerRecord(playerKey, { emit = true } = {}) {
             const key = clean(playerKey);
             if (!key) return false;
             const ownTemplate = !isDm ? (mapData.tokens || []).find(isCurrentPlayerTemplate) : null;
+            const removedIds = [];
             const before = (mapData.tokens || []).length;
             mapData.tokens = (mapData.tokens || []).filter((token) => {
                 if (token === ownTemplate) return true;
                 if (fixedTokenIds.has(clean(token.id))) return true;
                 if (token.canonicalScope !== 'player') return true;
-                return clean(token.canonicalPlayerKey || token.playerId) !== key;
+                const remove = clean(token.canonicalPlayerKey || token.playerId) === key;
+                if (remove && clean(token.id)) removedIds.push(clean(token.id));
+                return !remove;
             });
-            if (emit && before !== mapData.tokens.length) emitPlayerChange();
-            return before !== mapData.tokens.length;
+            const changed = before !== mapData.tokens.length;
+            if (emit && changed) {
+                if (removedIds.length === 1) emitPlayerChange({
+                    type: 'token-remove',
+                    source: 'remote',
+                    tokenId: removedIds[0],
+                    token: null,
+                    changes: { removed: true },
+                });
+                else emitPlayerChange(batchChange({ removed: true }));
+            }
+            return changed;
         }
 
         function syncSinglePlayerRecord(playerKey, record = null, { emit = true } = {}) {
@@ -217,6 +250,7 @@
             const ownTemplate = !isDm ? (mapData.tokens || []).find(isCurrentPlayerTemplate) : null;
 
             if (!isDm && isOwnRecord(record, key) && ownTemplate) {
+                const beforeLength = (mapData.tokens || []).length;
                 ownTemplate.ownerUid = ownerUid || ownTemplate.ownerUid || null;
                 ownTemplate.playerId = playerId || ownTemplate.playerId || current.playerId || null;
                 ownTemplate.actorId = clean(record.actorId) || ownTemplate.actorId || null;
@@ -226,16 +260,22 @@
                 ownTemplate.viewer = true;
                 applyPosition(ownTemplate, record.position);
                 mapData.tokens = (mapData.tokens || []).filter((token) => token === ownTemplate || clean(token.canonicalPlayerKey) !== ownTemplate.canonicalPlayerKey);
-                if (emit) emitPlayerChange();
+                if (emit) {
+                    const removedDuplicate = beforeLength !== mapData.tokens.length;
+                    if (removedDuplicate) emitPlayerChange(batchChange({ position: true, deduplicated: true }));
+                    else emitPlayerChange(incrementalChange('token-update', ownTemplate, { position: true }));
+                }
                 return ownTemplate;
             }
 
             const id = `player:${firebaseKey(playerId || ownerUid || key, 'unknown')}`;
             let token = (mapData.tokens || []).find((entry) => clean(entry.id) === id || (entry.canonicalScope === 'player' && clean(entry.canonicalPlayerKey) === key));
+            let created = false;
             if (!token) {
                 token = playerTokenFromRecord(template || ownTemplate || {}, key, record, current);
                 mapData.tokens ||= [];
                 mapData.tokens.push(token);
+                created = true;
             } else {
                 token.id = id;
                 token.ownerUid = ownerUid || null;
@@ -248,7 +288,7 @@
                 token.viewer = Boolean(!isDm && isOwnRecord(record, key));
                 applyPosition(token, record.position);
             }
-            if (emit) emitPlayerChange();
+            if (emit) emitPlayerChange(incrementalChange('token-update', token, { position: true, created }));
             return token;
         }
 
@@ -263,7 +303,7 @@
                 if (token.canonicalScope === 'player') return keepKeys.has(clean(token.canonicalPlayerKey || token.playerId));
                 return true;
             });
-            emitPlayerChange();
+            emitPlayerChange(batchChange({ bootstrap: true }));
         }
 
         function syncSingleWorldRecord(worldKey, record = null, { emit = true } = {}) {
@@ -275,13 +315,13 @@
             token.canonicalScope = 'world';
             token.canonicalTokenKey = firebaseKey(tokenId);
             applyPosition(token, record.position);
-            if (emit) emitWorldChange();
+            if (emit) emitWorldChange(incrementalChange('token-update', token, { position: true }));
             return token;
         }
 
         function syncWorldRecords(rawRecord = {}) {
             Object.entries(rawRecord || {}).forEach(([key, record]) => syncSingleWorldRecord(key, record, { emit: false }));
-            emitWorldChange();
+            emitWorldChange(batchChange({ bootstrap: true }));
         }
 
         function unwatchPlayerState(playerKey) {
