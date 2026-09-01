@@ -1,16 +1,27 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const path = require('node:path');
-require('../js/vtt/topology.js');
-require('../js/vtt/token-interaction.js');
-require('../js/vtt/pathfinding.js');
-require('../js/vtt/movement-engine.js');
-require('../js/vtt/token-state.js');
-require('../js/vtt/token-state-dynamic-patch.js');
-require('../js/vtt/movement-integration-patch.js');
+
+const previousWindow = globalThis.window;
+delete globalThis.window;
+function freshRequire(relativePath) {
+  const resolved = require.resolve(relativePath);
+  delete require.cache[resolved];
+  return require(relativePath);
+}
+
+globalThis.LuminousVttTopology = freshRequire('../js/vtt/topology.js');
+globalThis.LuminousVttTokenInteraction = freshRequire('../js/vtt/token-interaction.js');
+globalThis.LuminousVttPathfinding = freshRequire('../js/vtt/pathfinding.js');
+globalThis.LuminousVttMovementEngine = freshRequire('../js/vtt/movement-engine.js');
+globalThis.LuminousVttTokenState = freshRequire('../js/vtt/token-state.js');
+freshRequire('../js/vtt/token-state-dynamic-patch.js');
+freshRequire('../js/vtt/movement-integration-patch.js');
 const pathfinding = globalThis.LuminousVttPathfinding;
 const movement = globalThis.LuminousVttMovementEngine;
 const tokenState = globalThis.LuminousVttTokenState;
+if (previousWindow === undefined) delete globalThis.window;
+else globalThis.window = previousWindow;
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const token = (patch = {}) => ({ id: 'mover', x: 35, y: 175, zLayer: 0, z: [0], radius: 8, speedFt: 30, gridPosition: { col: 0, row: 2, z: 0 }, ...patch });
