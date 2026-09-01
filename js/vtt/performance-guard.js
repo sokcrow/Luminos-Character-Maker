@@ -159,7 +159,6 @@ export function installPerformanceGuard({
   let lastRenderAt = -Infinity;
   let lastFallbackScanAt = -Infinity;
   let lastFallbackSignature = '';
-  let fallbackNeedsRebase = true;
   let lastVisionAt = -Infinity;
   let visionCache = null;
   let hasVisionCache = false;
@@ -196,7 +195,6 @@ export function installPerformanceGuard({
   const invalidate = () => {
     renderDirty = true;
     visionDirty = true;
-    fallbackNeedsRebase = true;
     metrics.explicitInvalidations += 1;
     wakeFrame();
   };
@@ -282,14 +280,6 @@ export function installPerformanceGuard({
 
       lastFallbackScanAt = perfNow;
       const fallbackSignature = scanFallback();
-      if (fallbackNeedsRebase || !lastFallbackSignature) {
-        lastFallbackSignature = fallbackSignature;
-        fallbackNeedsRebase = false;
-        metrics.skipped += 1;
-        metrics.idleCleanSkips += 1;
-        return;
-      }
-
       if (fallbackSignature === lastFallbackSignature) {
         metrics.skipped += 1;
         metrics.idleCleanSkips += 1;
@@ -310,7 +300,9 @@ export function installPerformanceGuard({
     metrics.lastRenderAt = perfNow;
     metrics.rendered += 1;
     renderDirty = false;
-    return originalRender(...args);
+    const result = originalRender(...args);
+    if (!active && !lastFallbackSignature) lastFallbackSignature = scanFallback();
+    return result;
   };
   renderer.__performanceGuardInstalled = true;
 
