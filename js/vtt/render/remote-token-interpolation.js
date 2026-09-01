@@ -362,6 +362,7 @@ export function installRemoteTokenInterpolation(renderer, options = {}) {
             };
             if (track.awaitingCanonical && positionsNear(track.canonical, track.target)) {
                 cancelHold(track);
+                renderer.syncTokenView?.(id);
                 renderer.clearTokenPreview?.(id);
                 emitRender(id);
                 tracks.delete(id);
