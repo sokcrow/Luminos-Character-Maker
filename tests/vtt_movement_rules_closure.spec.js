@@ -254,7 +254,7 @@ test('runtime drag contract keeps token stationary until release and then animat
   const bootstrapSource = read('js/vtt/movement-bootstrap.js');
   const mainSource = read('js/vtt/main.js');
   expect(engineSource).toContain('if (this.tokenMoveResolver)');
-  expect(engineSource).toContain("CustomEvent('vtt:movement-destination-preview'");
+  expect(engineSource).toContain("emitSemanticEvent('vtt:movement-destination-preview'");
   expect(engineSource).toContain('await this.tokenMoveResolver');
   expect(engineSource).toContain('await this.animateTokenPath');
   expect(engineSource).toContain("traversing: true");
