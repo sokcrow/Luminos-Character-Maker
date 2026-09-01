@@ -41,9 +41,10 @@ test('real WebGL2 token uses assigned Actor texture without recreating TokenView
         };
 
         const view = renderer.tokenViews.get('agatha');
+        const lazyBeforeDraw = view.resources.has('webgl2-token-visual');
+        renderer.render(null, 0, null, false);
         const visual = view.resources.get('webgl2-token-visual')?.resource;
         const firstReady = await waitReady(1);
-        renderer.render(null, 0, null, false);
 
         for (let i = 0; i < 1000; i += 1) renderer.previewToken('agatha', { x: 90 + (i % 80), y: 90 + (i % 40), zLayer: 0 });
         renderer.render(null, 0, null, false);
@@ -53,8 +54,8 @@ test('real WebGL2 token uses assigned Actor texture without recreating TokenView
         renderer.clearTokenPreview('agatha');
         agatha.icono = secondIcon;
         canvas.dispatchEvent(new CustomEvent('vtt:scene-dirty', { detail: { reason: 'token', tokenId: 'agatha', render: true, vision: false } }));
-        const secondReady = await waitReady(2);
         renderer.render(null, 0, null, false);
+        const secondReady = await waitReady(2);
         const sameAfterTextureChange = view.resources.get('webgl2-token-visual')?.resource === visual;
         const diagnostics = renderer.diagnostics();
 
@@ -62,6 +63,7 @@ test('real WebGL2 token uses assigned Actor texture without recreating TokenView
         canvas.remove();
         return {
             supported: true,
+            lazyBeforeDraw,
             sameAfterPreview,
             sameAfterTextureChange,
             canonicalAfterPreview,
@@ -73,6 +75,7 @@ test('real WebGL2 token uses assigned Actor texture without recreating TokenView
     });
 
     expect(result.supported, result.error || 'WebGL2 unavailable').toBe(true);
+    expect(result.lazyBeforeDraw).toBe(false);
     expect(result.sameAfterPreview).toBe(true);
     expect(result.sameAfterTextureChange).toBe(true);
     expect(result.canonicalAfterPreview).toEqual({ x: 90, y: 90 });
@@ -80,5 +83,5 @@ test('real WebGL2 token uses assigned Actor texture without recreating TokenView
     expect(result.secondReady).toMatchObject({ loads: 2, activeEntries: 1, activeReferences: 1, readyEntries: 1 });
     expect(result.tokenTextures).toMatchObject({ loads: 2, activeEntries: 1, activeReferences: 1, readyEntries: 1 });
     expect(result.tokenGpu).toMatchObject({ activeResources: 1 });
-    expect(result.tokenGpu.drawCalls).toBeGreaterThanOrEqual(2);
+    expect(result.tokenGpu.drawCalls).toBeGreaterThanOrEqual(3);
 });
