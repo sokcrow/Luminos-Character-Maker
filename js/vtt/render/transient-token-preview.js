@@ -24,30 +24,51 @@ function previewTokenClone(token, preview) {
 /**
  * Renderer-wide transient token preview API.
  *
- * The canonical token object never changes. WebGL2 stores preview coordinates on
- * its persistent TokenView. Canvas2D swaps a shallow preview clone into the token
- * array only for the synchronous drawTokens call and restores the original entry
- * immediately afterwards.
+ * Canonical token objects never change. WebGL2 stores preview coordinates on its
+ * persistent TokenView. Canvas2D swaps one shallow preview clone into the token
+ * array only for synchronous drawTokens and restores the canonical entry in a
+ * finally block. Token lookup is cached after the first preview so each later
+ * drag frame stays O(1).
  */
 export function installTransientTokenPreview(renderer) {
     if (!renderer || renderer.__transientTokenPreviewInstalled) return renderer;
 
     const previews = new Map();
-    const stats = { updates: 0, clears: 0 };
+    const stats = { updates: 0, clears: 0, cacheMisses: 0 };
     renderer.__transientTokenPreviewInstalled = true;
+
+    function resolveToken(id, current = null) {
+        const tokens = renderer.mapData?.tokens;
+        if (!Array.isArray(tokens)) return null;
+        if (current?.token && current.index >= 0 && tokens[current.index] === current.token) return current;
+
+        const viewToken = renderer.tokenViews?.get?.(id)?.token || null;
+        if (viewToken) {
+            const index = tokens.indexOf(viewToken);
+            if (index >= 0) return { token: viewToken, index };
+        }
+
+        const index = tokens.findIndex((entry) => cleanId(entry?.id) === id);
+        if (index < 0) return null;
+        stats.cacheMisses += 1;
+        return { token: tokens[index], index };
+    }
 
     renderer.previewToken = (tokenId, position = {}) => {
         if (renderer.destroyed) return false;
         const id = cleanId(tokenId);
         if (!id) return false;
-        const token = (renderer.mapData?.tokens || []).find((entry) => cleanId(entry?.id) === id);
-        if (!token) return false;
+        const current = previews.get(id) || null;
+        const resolved = resolveToken(id, current);
+        if (!resolved?.token) return false;
+        const token = resolved.token;
         const next = {
+            token,
+            index: resolved.index,
             x: finite(position.x, token.x),
             y: finite(position.y, token.y),
             zLayer: finite(position.zLayer, layerOf(token)),
         };
-        const current = previews.get(id);
         if (current && current.x === next.x && current.y === next.y && current.zLayer === next.zLayer) return false;
         previews.set(id, next);
         renderer.tokenViews?.setPreview?.(id, next);
@@ -72,7 +93,11 @@ export function installTransientTokenPreview(renderer) {
         return cleared;
     };
 
-    renderer.tokenPreview = (tokenId) => previews.get(cleanId(tokenId)) || null;
+    renderer.tokenPreview = (tokenId) => {
+        const preview = previews.get(cleanId(tokenId));
+        if (!preview) return null;
+        return { x: preview.x, y: preview.y, zLayer: preview.zLayer };
+    };
 
     if (renderer.backend === 'canvas2d' && typeof renderer.drawTokens === 'function') {
         const drawTokens = renderer.drawTokens.bind(renderer);
@@ -83,11 +108,15 @@ export function installTransientTokenPreview(renderer) {
 
             const swaps = [];
             for (const [id, preview] of previews) {
-                const index = tokens.findIndex((token) => cleanId(token?.id) === id);
-                if (index < 0) continue;
-                const canonical = tokens[index];
-                swaps.push([index, canonical]);
-                tokens[index] = previewTokenClone(canonical, preview);
+                const resolved = resolveToken(id, preview);
+                if (!resolved?.token) continue;
+                if (resolved.index !== preview.index || resolved.token !== preview.token) {
+                    preview.index = resolved.index;
+                    preview.token = resolved.token;
+                }
+                const canonical = resolved.token;
+                swaps.push([resolved.index, canonical]);
+                tokens[resolved.index] = previewTokenClone(canonical, preview);
             }
 
             try {
