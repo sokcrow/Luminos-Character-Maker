@@ -71,15 +71,16 @@ test('single remote player update creates and then targets the canonical player 
 
 test('single remote player removal identifies the view that must be destroyed', () => {
     const api = baseApi;
-    const player = {
-        id: 'player:player-one',
-        playerId: 'player-one',
-        canonicalPlayerKey: 'player-one',
-        canonicalScope: 'player',
-    };
-    const mapData = { id: 'map', tokens: [player] };
+    const mapData = { id: 'map', tokens: [] };
     const changes = [];
     const bridge = api.createBridge({ mapData, isDm: true, root: {}, onTokensChanged: (change) => changes.push(change) });
+
+    bridge.syncSinglePlayerRecord('player-one', {
+        playerId: 'player-one',
+        actorId: 'actor-one',
+        position: position(70, 140),
+    });
+    changes.length = 0;
 
     expect(bridge.removePlayerRecord('player-one')).toBe(true);
     expect(mapData.tokens).toHaveLength(0);
