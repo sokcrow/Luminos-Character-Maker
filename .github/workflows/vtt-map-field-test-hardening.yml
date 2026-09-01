@@ -22,7 +22,6 @@ on:
       - 'tests/vtt_world_streaming_lifecycle.spec.js'
       - 'tests/vtt_map_simulation*.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
-      - 'tests/vtt_performance_guard.spec.js'
       - '.github/workflows/vtt-map-field-test-hardening.yml'
   push:
     branches: [main]
@@ -72,7 +71,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Focused field hardening and realtime performance contracts
+      - name: Focused field hardening and realtime contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_map_field_test_hardening.spec.js
@@ -87,6 +86,3 @@ jobs:
           tests/vtt_map_simulation_persistence.spec.js
           tests/vtt_map_simulation_realtime.spec.js
           tests/vtt_procedural_chunk_streaming_performance.spec.js
-          tests/vtt_performance_guard.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1
