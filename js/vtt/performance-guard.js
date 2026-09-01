@@ -239,11 +239,11 @@ export function installPerformanceGuard({
       const minimumInterval = active
         ? activeFrameInterval(engine, activeFrameMs, movementFrameMs)
         : idleInterval;
-      if (hasVisionCache && (perfNow - lastVisionAt) < minimumInterval) {
+      if (hasVisionCache && active && (perfNow - lastVisionAt) < minimumInterval) {
         metrics.visionSkipped += 1;
         return visionCache;
       }
-      if (hasVisionCache && !visionDirty && !active) {
+      if (hasVisionCache && !active && !visionDirty) {
         metrics.visionSkipped += 1;
         return visionCache;
       }
