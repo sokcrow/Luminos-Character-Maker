@@ -67,3 +67,20 @@ test('lighting adapter wraps scene, environment, and POV state before Dynamic Li
   expect(lighting).toBeGreaterThan(lightingPatch);
   expect(guard).toBeGreaterThan(lighting);
 });
+
+test('fog memory adapter is render-only and loads before Fog Memory starts', () => {
+  const patch = read('js/vtt/scene-dirty-memory-patch.js');
+  expect(patch).toContain('LuminousVttMemoryState');
+  expect(patch).toContain("reason: 'fog'");
+  expect(patch).toContain('render: true');
+  expect(patch).toContain('vision: false');
+
+  const html = read('vtt.html');
+  const dirty = html.indexOf('js/vtt/scene-dirty.js');
+  const memoryPatch = html.indexOf('js/vtt/scene-dirty-memory-patch.js');
+  const fog = html.indexOf('js/vtt/fog-memory-bootstrap.js');
+  const guard = html.indexOf('js/vtt/performance-guard.js');
+  expect(memoryPatch).toBeGreaterThan(dirty);
+  expect(fog).toBeGreaterThan(memoryPatch);
+  expect(guard).toBeGreaterThan(fog);
+});
