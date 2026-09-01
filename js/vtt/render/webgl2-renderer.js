@@ -20,11 +20,19 @@ void main() {
     gl_Position = vec4(clip.xy, 0.0, 1.0);
 }`;
 
-const FRAGMENT_SHADER_SOURCE = `#version 300 es
+const GRID_FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision mediump float;
 out vec4 outColor;
 void main() {
     outColor = vec4(1.0, 1.0, 1.0, 0.22);
+}`;
+
+const OVERLAY_FRAGMENT_SHADER_SOURCE = `#version 300 es
+precision mediump float;
+uniform vec4 u_color;
+out vec4 outColor;
+void main() {
+    outColor = u_color;
 }`;
 
 function createLegacyCanvas2DShim() {
@@ -64,6 +72,32 @@ function createLegacyCanvas2DShim() {
 }
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+function rgba(color, alpha = 1) {
+    const text = String(color || '#d7b151').trim();
+    const short = /^#([0-9a-f]{3})$/i.exec(text);
+    const full = /^#([0-9a-f]{6})$/i.exec(text);
+    let r = 215;
+    let g = 177;
+    let b = 81;
+
+    if (short) {
+        r = parseInt(short[1][0] + short[1][0], 16);
+        g = parseInt(short[1][1] + short[1][1], 16);
+        b = parseInt(short[1][2] + short[1][2], 16);
+    } else if (full) {
+        r = parseInt(full[1].slice(0, 2), 16);
+        g = parseInt(full[1].slice(2, 4), 16);
+        b = parseInt(full[1].slice(4, 6), 16);
+    }
+
+    return new Float32Array([
+        r / 255,
+        g / 255,
+        b / 255,
+        Math.max(0, Math.min(1, finite(alpha, 1))),
+    ]);
+}
 
 export class WebGL2Renderer {
     constructor(canvas, mapData) {
@@ -109,6 +143,7 @@ export class WebGL2Renderer {
 
         this.configureContext();
         this.createGridPipeline();
+        this.createObserverOverlayPipeline();
         this.resize();
     }
 
@@ -126,17 +161,15 @@ export class WebGL2Renderer {
         return shader;
     }
 
-    createGridPipeline() {
+    createProgram(fragmentSource) {
         const gl = this.gl;
-        if (!gl || this.destroyed || this.contextLost) return;
-
         const vertexShader = this.compileShader(gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
-        const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
+        const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, fragmentSource);
         const program = gl.createProgram();
         if (!program) {
             gl.deleteShader(vertexShader);
             gl.deleteShader(fragmentShader);
-            throw new Error('Unable to allocate WebGL2 grid program.');
+            throw new Error('Unable to allocate WebGL2 program.');
         }
 
         gl.attachShader(program, vertexShader);
@@ -150,7 +183,14 @@ export class WebGL2Renderer {
             gl.deleteProgram(program);
             throw new Error(message);
         }
+        return program;
+    }
 
+    createGridPipeline() {
+        const gl = this.gl;
+        if (!gl || this.destroyed || this.contextLost) return;
+
+        const program = this.createProgram(GRID_FRAGMENT_SHADER_SOURCE);
         this.gridProgram = program;
         this.gridBuffer = gl.createBuffer();
         this.gridLocations = {
@@ -159,6 +199,20 @@ export class WebGL2Renderer {
         };
         this.gridSignature = '';
         this.gridVertexCount = 0;
+    }
+
+    createObserverOverlayPipeline() {
+        const gl = this.gl;
+        if (!gl || this.destroyed || this.contextLost) return;
+
+        const program = this.createProgram(OVERLAY_FRAGMENT_SHADER_SOURCE);
+        this.observerOverlayProgram = program;
+        this.observerOverlayBuffer = gl.createBuffer();
+        this.observerOverlayLocations = {
+            position: gl.getAttribLocation(program, 'a_position'),
+            world: gl.getUniformLocation(program, 'u_world'),
+            color: gl.getUniformLocation(program, 'u_color'),
+        };
     }
 
     configureContext() {
@@ -180,6 +234,7 @@ export class WebGL2Renderer {
         this.contextLost = false;
         this.configureContext();
         this.createGridPipeline();
+        this.createObserverOverlayPipeline();
         this.resize();
         this.markAllLayersDirty();
     }
@@ -216,10 +271,31 @@ export class WebGL2Renderer {
         return { width: Math.max(1, width), height: Math.max(1, height) };
     }
 
-    resize(camera = null) {
+    resize(cameraOrWidth = null, requestedHeight = null) {
         if (this.destroyed || !this.gl || this.contextLost) return this.logicalViewport;
-        this.logicalViewport = this.viewportSize(camera);
+
+        const explicitSize = Number.isFinite(Number(cameraOrWidth)) && Number.isFinite(Number(requestedHeight));
+        const camera = explicitSize ? null : cameraOrWidth;
+        this.logicalViewport = explicitSize
+            ? {
+                width: Math.max(1, finite(cameraOrWidth, 1)),
+                height: Math.max(1, finite(requestedHeight, 1)),
+            }
+            : this.viewportSize(camera);
+
         this.devicePixelRatio = Math.max(1, finite(globalThis.devicePixelRatio, 1));
+        const framebufferWidth = Math.max(1, Math.round(this.logicalViewport.width * this.devicePixelRatio));
+        const framebufferHeight = Math.max(1, Math.round(this.logicalViewport.height * this.devicePixelRatio));
+
+        // Width/height are framebuffer pixels. CSS dimensions remain logical pixels,
+        // so Camera and pointer math are independent from devicePixelRatio.
+        if (explicitSize && this.canvas?.style) {
+            this.canvas.style.width = `${this.logicalViewport.width}px`;
+            this.canvas.style.height = `${this.logicalViewport.height}px`;
+        }
+        if (this.canvas.width !== framebufferWidth) this.canvas.width = framebufferWidth;
+        if (this.canvas.height !== framebufferHeight) this.canvas.height = framebufferHeight;
+
         this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
         return this.logicalViewport;
     }
@@ -287,6 +363,50 @@ export class WebGL2Renderer {
         layer.dirty = false;
     }
 
+    observerConeVertices(raw = {}) {
+        const x = finite(raw.x);
+        const y = finite(raw.y);
+        const radius = Math.max(0, finite(raw.radius));
+        if (!(radius > 0)) return new Float32Array();
+
+        const cone = Math.max(0, Math.min(360, finite(raw.coneDeg, 120)));
+        const facing = finite(raw.facingDeg);
+        const start = (facing - (cone / 2)) * Math.PI / 180;
+        const sweep = cone * Math.PI / 180;
+        const segments = Math.max(12, Math.ceil(cone / 6));
+        const vertices = [x, y];
+
+        for (let index = 0; index <= segments; index += 1) {
+            const angle = start + (sweep * index / segments);
+            vertices.push(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+        }
+        vertices.push(x, y);
+        return new Float32Array(vertices);
+    }
+
+    drawDmObserverOutlines(outlines = [], camera = null) {
+        if (this.destroyed || !this.gl || this.contextLost || !this.observerOverlayProgram || !this.observerOverlayBuffer) return 0;
+        if (camera) this.syncWorld(camera);
+
+        const gl = this.gl;
+        gl.useProgram(this.observerOverlayProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.observerOverlayBuffer);
+        gl.enableVertexAttribArray(this.observerOverlayLocations.position);
+        gl.vertexAttribPointer(this.observerOverlayLocations.position, 2, gl.FLOAT, false, 0, 0);
+        gl.uniformMatrix3fv(this.observerOverlayLocations.world, false, this.world.matrix);
+
+        let drawn = 0;
+        for (const raw of Array.isArray(outlines) ? outlines : []) {
+            const vertices = this.observerConeVertices(raw);
+            if (vertices.length < 6) continue;
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+            gl.uniform4fv(this.observerOverlayLocations.color, rgba(raw?.color, raw?.selected ? 0.85 : 0.45));
+            gl.drawArrays(gl.LINE_STRIP, 0, vertices.length / 2);
+            drawn += 1;
+        }
+        return drawn;
+    }
+
     topologyStyle(element, preview = false) {
         if (preview) return { stroke: '#ffffff', width: 4, dash: [8, 5], label: '' };
         const state = element?.state;
@@ -348,6 +468,7 @@ export class WebGL2Renderer {
             devicePixelRatio: this.devicePixelRatio,
             world: this.world.snapshot(),
             gridVertexCount: this.gridVertexCount,
+            observerOverlayReady: Boolean(this.observerOverlayProgram && this.observerOverlayBuffer),
             layers: [...this.layers.values()].map((layer) => ({ ...layer })),
         };
     }
@@ -363,6 +484,8 @@ export class WebGL2Renderer {
         if (gl && !this.contextLost) {
             if (this.gridBuffer) gl.deleteBuffer(this.gridBuffer);
             if (this.gridProgram) gl.deleteProgram(this.gridProgram);
+            if (this.observerOverlayBuffer) gl.deleteBuffer(this.observerOverlayBuffer);
+            if (this.observerOverlayProgram) gl.deleteProgram(this.observerOverlayProgram);
             const loseContext = gl.getExtension('WEBGL_lose_context');
             loseContext?.loseContext?.();
         }
@@ -374,6 +497,9 @@ export class WebGL2Renderer {
         this.gridLocations = null;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.observerOverlayBuffer = null;
+        this.observerOverlayProgram = null;
+        this.observerOverlayLocations = null;
         this.world = null;
         this.ctx = null;
         this.legacyCanvas2DShim = false;
