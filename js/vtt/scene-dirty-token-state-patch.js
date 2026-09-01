@@ -1,3 +1,5 @@
+import './token-state-dynamic-patch.js';
+
 const dirty = globalThis.LuminousVttSceneDirty;
 const current = globalThis.LuminousVttTokenState;
 
