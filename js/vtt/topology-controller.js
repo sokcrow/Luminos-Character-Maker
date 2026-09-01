@@ -5,15 +5,29 @@ export class TopologyController {
         this.mapData = mapData;
         this.stateBridge = stateBridge;
         this.topology = globalThis.LuminousVttTopology;
+        this.interactions = globalThis.LuminousVttTopologyInteraction;
         this.isDm = Boolean(stateBridge?.isDm);
         this.tool = 'select';
         this.drawStart = null;
         this.selectedId = null;
+        this.longPressTimer = null;
+        this.longPressTriggered = false;
 
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
+        this.handleContextMenu = this.handleContextMenu.bind(this);
+        this.handlePointerDown = this.handlePointerDown.bind(this);
+        this.clearLongPress = this.clearLongPress.bind(this);
         this.handleDocumentClick = this.handleDocumentClick.bind(this);
+
+        const radialHost = document.getElementById('vtt-context-menu');
+        this.radial = radialHost && globalThis.LuminousVttInteractionRadial?.createRadialMenu
+            ? globalThis.LuminousVttInteractionRadial.createRadialMenu({
+                host: radialHost,
+                onAction: (action, model) => this.executeInteractionAction(action, model),
+            })
+            : null;
 
         this.bindCanvas();
         this.bindUi();
@@ -21,9 +35,20 @@ export class TopologyController {
     }
 
     editActive() { return Boolean(this.isDm && this.mapData.dmEditMode?.active); }
+    interactionMode() { return !this.editActive(); }
 
     bindCanvas() {
         this.canvas.addEventListener('mousedown', this.handleMouseDown, true);
+        this.canvas.addEventListener('contextmenu', this.handleContextMenu, true);
+        this.canvas.addEventListener('pointerdown', this.handlePointerDown, true);
+        this.canvas.addEventListener('pointerup', this.clearLongPress, true);
+        this.canvas.addEventListener('pointercancel', this.clearLongPress, true);
+        this.canvas.addEventListener('pointermove', (event) => {
+            if (!this.longPressTimer) return;
+            const dx = Number(event.clientX) - Number(this.longPressOrigin?.x || 0);
+            const dy = Number(event.clientY) - Number(this.longPressOrigin?.y || 0);
+            if (Math.hypot(dx, dy) > 12) this.clearLongPress();
+        }, true);
         window.addEventListener('mousemove', this.handleMouseMove, true);
         window.addEventListener('mouseup', this.handleMouseUp, true);
         document.addEventListener('click', this.handleDocumentClick);
@@ -33,9 +58,18 @@ export class TopologyController {
         document.querySelectorAll('[data-vtt-tool]').forEach((button) => {
             button.addEventListener('click', () => this.setTool(button.dataset.vttTool));
         });
-        document.getElementById('vtt-topology-state')?.addEventListener('change', (event) => this.updateSelected({ state: event.target.value }));
+        document.getElementById('vtt-topology-open-state')?.addEventListener('change', (event) => this.updateSelected({ openState: event.target.value }));
+        document.getElementById('vtt-topology-lock-state')?.addEventListener('change', (event) => this.updateSelected({ lockState: event.target.value }));
+        document.getElementById('vtt-topology-condition')?.addEventListener('change', (event) => this.updateSelected({ condition: event.target.value }));
+        document.getElementById('vtt-topology-hardness')?.addEventListener('change', (event) => this.updateSelectedStructural('hardness', event.target.value, 0, 10));
+        document.getElementById('vtt-topology-damaged')?.addEventListener('change', (event) => this.updateSelectedStructural('damaged', event.target.value, 0, 20));
+        document.getElementById('vtt-topology-profile')?.addEventListener('change', (event) => this.updateSelectedStructural('profile', event.target.value));
         document.getElementById('vtt-topology-lockpick')?.addEventListener('change', (event) => this.updateSelectedThreshold('lockpick', event.target.value));
-        document.getElementById('vtt-topology-break')?.addEventListener('change', (event) => this.updateSelectedThreshold('break', event.target.value));
+        document.getElementById('vtt-topology-interior-side')?.addEventListener('change', (event) => this.updateSelectedInteraction('interiorSide', event.target.value));
+        document.getElementById('vtt-topology-lock-side')?.addEventListener('change', (event) => this.updateSelectedInteraction('lockSide', event.target.value));
+        document.getElementById('vtt-topology-key-id')?.addEventListener('change', (event) => this.updateSelectedInteraction('keyId', event.target.value.trim() || null));
+        document.getElementById('vtt-topology-traversable')?.addEventListener('change', (event) => this.updateSelected({ traversable: Boolean(event.target.checked) }));
+        document.getElementById('vtt-topology-curtain-state')?.addEventListener('change', (event) => this.updateSelected({ curtainState: event.target.value }));
         document.getElementById('vtt-topology-thickness')?.addEventListener('change', (event) => {
             this.updateSelected({ thicknessFt: Math.max(0.1, Number(event.target.value) || 0.5) });
         });
@@ -90,17 +124,25 @@ export class TopologyController {
 
     handleMouseDown(event) {
         if (event.button !== 0) return;
+        if (this.longPressTriggered) {
+            this.longPressTriggered = false;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
         if (this.engine.tokenAtEvent(event)) return;
 
         const hit = this.topologyAtEvent(event);
-        if (!this.isDm) {
-            if (!hit || hit.type === 'wall') return;
+        if (this.interactionMode()) {
+            if (!hit || hit.type === 'wall') {
+                this.hideContextMenu();
+                return;
+            }
             event.preventDefault();
             event.stopImmediatePropagation();
             this.openPlayerMenu(hit, event.clientX, event.clientY);
             return;
         }
-        if (!this.editActive()) return;
 
         if (this.tool === 'select') {
             if (!hit) return;
@@ -123,6 +165,33 @@ export class TopologyController {
 
         this.drawStart = this.topology.snapPointToVertex(this.worldPoint(event), this.mapData.grid);
         this.mapData.topologyPreview = { type: this.tool, from: this.drawStart, to: this.drawStart, z: [this.engine.activeZ] };
+    }
+
+    handleContextMenu(event) {
+        if (!this.interactionMode() || this.engine.tokenAtEvent(event)) return;
+        const hit = this.topologyAtEvent(event);
+        if (!hit || hit.type === 'wall') return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.openPlayerMenu(hit, event.clientX, event.clientY);
+    }
+
+    handlePointerDown(event) {
+        if (!this.interactionMode() || event.pointerType === 'mouse' || this.engine.tokenAtEvent(event)) return;
+        const hit = this.topologyAtEvent(event);
+        if (!hit || hit.type === 'wall') return;
+        this.clearLongPress();
+        this.longPressOrigin = { x: event.clientX, y: event.clientY };
+        this.longPressTimer = window.setTimeout(() => {
+            this.longPressTimer = null;
+            this.longPressTriggered = true;
+            this.openPlayerMenu(hit, event.clientX, event.clientY);
+        }, 460);
+    }
+
+    clearLongPress() {
+        if (this.longPressTimer) window.clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
     }
 
     handleMouseMove(event) {
@@ -162,91 +231,124 @@ export class TopologyController {
         this.hideContextMenu();
     }
 
-    currentPlayerToken() {
-        return (this.mapData.tokens || []).find((token) => {
-            if (!token || token.draggable === false) return false;
-            const layers = Array.isArray(token.z) ? token.z.map(Number) : [Number(token.z) || 0];
-            return layers.includes(Number(this.engine.activeZ));
-        }) || this.mapData.tokens?.[0] || null;
+    tokenOnActiveLayer(token) {
+        const layers = Array.isArray(token?.z) ? token.z.map(Number) : [Number(token?.zLayer ?? token?.z) || 0];
+        return layers.includes(Number(this.engine.activeZ));
     }
 
-    canReach(element) {
-        const token = this.currentPlayerToken();
-        if (!token) return false;
+    currentPlayerToken() {
+        const tokens = (this.mapData.tokens || []).filter((token) => token && this.tokenOnActiveLayer(token));
+        return tokens.find((token) => token.viewer === true || token.controlled === true || token.isControlled === true)
+            || tokens.find((token) => token.characterLink?.mode === 'current_player' || token.characterLink?.mode === 'current-player')
+            || tokens.find((token) => token.canonicalScope === 'player' && token.draggable !== false)
+            || tokens.find((token) => token.draggable !== false)
+            || tokens[0]
+            || null;
+    }
+
+    closingBlocked(element) {
+        if (element.openState !== 'open') return false;
         const line = this.topology.segment(element, this.mapData.grid);
-        const distance = this.topology.pointToSegmentDistance({ x: token.x, y: token.y }, { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 });
-        return distance <= (this.mapData.grid.size * 0.8);
+        return (this.mapData.tokens || []).some((token) => {
+            if (!token || !this.tokenOnActiveLayer(token)) return false;
+            const radius = this.interactions?.tokenRadiusPx(token, this.mapData.grid) || Number(token.radius) || 0;
+            const distance = this.topology.pointToSegmentDistance(
+                { x: Number(token.x) || 0, y: Number(token.y) || 0 },
+                { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 },
+            );
+            return distance < Math.max(4, radius * 0.9);
+        });
     }
 
     learnMemoryFact(detail) {
         try { window.dispatchEvent(new CustomEvent('vtt:memory-learn', { detail })); } catch (_) {}
     }
 
+    async interactionFacts(element) {
+        const token = this.currentPlayerToken();
+        if (!token || !this.interactions) return null;
+        const hasLockpick = await this.stateBridge.hasItem('lockpick').catch(() => false);
+        const keyId = element.interaction?.keyId;
+        const hasKey = keyId ? await this.stateBridge.hasItem(keyId).catch(() => false) : false;
+        return this.interactions.factsFor(element, token, this.mapData, {
+            hasLockpick,
+            hasKey,
+            blockedByOccupant: this.closingBlocked(element),
+        });
+    }
+
     async openPlayerMenu(rawElement, clientX, clientY) {
+        if (!this.radial || !this.interactions) return;
         const element = this.topology.normalizeElement(rawElement);
-        if (!this.canReach(element)) {
-            this.notify('Acércate a la puerta o ventana para interactuar.', 'error');
+        const facts = await this.interactionFacts(element);
+        if (!facts) {
+            this.notify('No hay una ficha controlada disponible para interactuar.', 'error');
             return;
         }
+        if (element.lockState === 'locked') this.learnMemoryFact({ kind: 'lock_state', elementId: element.id, type: element.type, locked: true });
+        const actions = this.interactions.actionsFor(element, facts);
+        const stats = this.topology.structuralStats(element);
+        this.radial.open({
+            x: clientX,
+            y: clientY,
+            eyebrow: facts.isInterior ? 'INTERIOR · 5 FT' : 'EXTERIOR · 5 FT',
+            title: this.interactions.TYPE_LABELS[element.type] || 'OBJETO',
+            subtitle: this.interactions.stateLabel(element),
+            detail: `DUREZA ${stats.hardness} · DAMAGED ${stats.damaged}/20 · DC STR ${stats.strengthThreshold}`,
+            actions,
+            elementId: element.id,
+            actorTokenId: facts.actorToken?.id || null,
+            facts,
+        });
+    }
 
-        const menu = document.getElementById('vtt-context-menu');
-        const title = document.getElementById('vtt-context-title');
-        const state = document.getElementById('vtt-context-state');
-        const actions = document.getElementById('vtt-context-actions');
-        if (!menu || !title || !state || !actions) return;
-
-        const typeLabels = { door: 'PUERTA', window: 'VENTANA', curtain_window: 'VENTANA CON CORTINA' };
-        title.textContent = typeLabels[element.type] || 'OBJETO';
-        state.textContent = element.state === 'locked' ? 'CERRADA' : String(element.state || '').toUpperCase();
-        actions.replaceChildren();
-
-        const addButton = (label, handler, disabled = false, hint = '') => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'vtt-context-action';
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = label;
-            button.disabled = disabled;
-            button.addEventListener('click', async () => {
-                this.hideContextMenu();
-                try { await handler(); } catch (error) { this.notify(String(error.message || error), 'error'); }
-            });
-            wrapper.appendChild(button);
-            if (hint) {
-                const small = document.createElement('small');
-                small.textContent = hint;
-                wrapper.appendChild(small);
+    async executeInteractionAction(action, model) {
+        const element = (this.mapData.topology || []).find((entry) => String(entry.id) === String(model?.elementId));
+        if (!element) {
+            this.notify('El objeto ya no está disponible.', 'error');
+            return;
+        }
+        try {
+            if (['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain'].includes(action.id)) {
+                await this.stateBridge.requestDirectAction(element.id, action.id);
+                return;
             }
-            actions.appendChild(wrapper);
-        };
-
-        const direct = this.topology.directActions(element);
-        if (direct.includes('open')) addButton('ABRIR', () => this.stateBridge.requestDirectAction(element.id, 'open'));
-        if (direct.includes('close')) addButton('CERRAR', () => this.stateBridge.requestDirectAction(element.id, 'close'));
-
-        if (element.state === 'locked') {
-            this.learnMemoryFact({ kind: 'lock_state', elementId: element.id, type: element.type, locked: true });
-            const hasLockpick = await this.stateBridge.hasItem('lockpick');
-            addButton('JUEGO DE MANOS', () => this.stateBridge.requestTopologyCheck(element.id, 'lockpick'), !hasLockpick, hasLockpick ? 'Requiere Ganzúa' : 'No tienes Ganzúa');
-            addButton('ROMPER · STRENGTH', () => this.stateBridge.requestTopologyCheck(element.id, 'strength'));
-            addButton('ROMPER · ATHLETICS', () => this.stateBridge.requestTopologyCheck(element.id, 'athletics'));
+            if (action.id === 'pick_lock') {
+                await this.stateBridge.requestTopologyCheck(element.id, 'lockpick');
+                return;
+            }
+            if (action.id === 'force') {
+                await this.stateBridge.requestTopologyCheck(element.id, 'strength');
+                return;
+            }
+            if (action.id === 'attack') {
+                window.dispatchEvent(new CustomEvent('vtt:structure-attack-requested', {
+                    detail: {
+                        mapId: this.stateBridge.mapId,
+                        elementId: element.id,
+                        actorTokenId: model?.actorTokenId || null,
+                        structural: this.topology.structuralStats(element),
+                    },
+                }));
+                this.notify('Estructura seleccionada como objetivo de ataque.', 'success');
+                return;
+            }
+            if (action.id === 'inspect') {
+                const text = this.interactions.inspectText(element);
+                this.learnMemoryFact({ kind: 'structure_inspected', elementId: element.id, type: element.type, summary: text });
+                this.notify(text, 'info');
+            }
+        } catch (error) {
+            this.notify(String(error.message || error), 'error');
         }
-
-        if (element.state === 'broken') {
-            const note = document.createElement('div');
-            note.className = 'vtt-context-note';
-            note.textContent = 'ESTÁ ROTA · PASO LIBRE';
-            actions.appendChild(note);
-        }
-
-        menu.style.left = `${Math.min(window.innerWidth - 280, Math.max(12, clientX + 12))}px`;
-        menu.style.top = `${Math.min(window.innerHeight - 260, Math.max(12, clientY + 12))}px`;
-        menu.hidden = false;
     }
 
     hideContextMenu() {
-        const menu = document.getElementById('vtt-context-menu');
-        if (menu) menu.hidden = true;
+        if (this.radial) this.radial.close('controller');
+        else {
+            const menu = document.getElementById('vtt-context-menu');
+            if (menu) menu.hidden = true;
+        }
     }
 
     selectedElement() {
@@ -267,28 +369,40 @@ export class TopologyController {
         const normalized = this.topology.normalizeElement(element);
         document.getElementById('vtt-topology-id').textContent = normalized.id;
         document.getElementById('vtt-topology-type').textContent = normalized.type.toUpperCase().replace('_', ' ');
-        const stateField = document.getElementById('vtt-topology-state-field');
-        const thresholdFields = document.getElementById('vtt-topology-threshold-fields');
-        const thicknessField = document.getElementById('vtt-topology-thickness-field');
-        const state = document.getElementById('vtt-topology-state');
-        const lockpick = document.getElementById('vtt-topology-lockpick');
-        const breakThreshold = document.getElementById('vtt-topology-break');
-        const thickness = document.getElementById('vtt-topology-thickness');
-
         const interactive = normalized.type !== 'wall';
-        if (stateField) stateField.hidden = !interactive;
-        if (thresholdFields) thresholdFields.hidden = !interactive;
-        if (thicknessField) thicknessField.hidden = interactive;
-        if (state && interactive) state.value = normalized.state;
-        if (lockpick && interactive) lockpick.value = normalized.thresholds.lockpick;
-        if (breakThreshold && interactive) breakThreshold.value = normalized.thresholds.break;
-        if (thickness && !interactive) thickness.value = normalized.thicknessFt;
+        document.getElementById('vtt-topology-interaction-fields').hidden = !interactive;
+        document.getElementById('vtt-topology-thickness-field').hidden = interactive;
+        if (!interactive) {
+            document.getElementById('vtt-topology-thickness').value = normalized.thicknessFt;
+            return;
+        }
+
+        const stats = this.topology.structuralStats(normalized);
+        document.getElementById('vtt-topology-open-state').value = normalized.openState;
+        document.getElementById('vtt-topology-lock-state').value = normalized.lockState;
+        document.getElementById('vtt-topology-condition').value = normalized.condition;
+        document.getElementById('vtt-topology-hardness').value = stats.hardness;
+        document.getElementById('vtt-topology-damaged').value = stats.damaged;
+        document.getElementById('vtt-topology-profile').value = stats.profile;
+        document.getElementById('vtt-topology-strength-dc').textContent = String(stats.strengthThreshold);
+        document.getElementById('vtt-topology-shield').textContent = String(stats.currentMaxShield);
+        document.getElementById('vtt-topology-lockpick').value = normalized.thresholds.lockpick;
+        document.getElementById('vtt-topology-interior-side').value = normalized.interaction.interiorSide;
+        document.getElementById('vtt-topology-lock-side').value = normalized.interaction.lockSide;
+        document.getElementById('vtt-topology-key-id').value = normalized.interaction.keyId || '';
+        const traversableField = document.getElementById('vtt-topology-traversable-field');
+        const curtainField = document.getElementById('vtt-topology-curtain-field');
+        if (traversableField) traversableField.hidden = !['window', 'curtain_window'].includes(normalized.type);
+        if (curtainField) curtainField.hidden = normalized.type !== 'curtain_window';
+        if (['window', 'curtain_window'].includes(normalized.type)) document.getElementById('vtt-topology-traversable').checked = normalized.traversable;
+        if (normalized.type === 'curtain_window') document.getElementById('vtt-topology-curtain-state').value = normalized.curtainState;
     }
 
     updateSelected(patch) {
         const element = this.selectedElement();
         if (!element || !this.editActive()) return;
         this.stateBridge.saveElement(this.topology.normalizeElement({ ...element, ...patch }))
+            .then(() => this.renderEditor())
             .catch((error) => this.notify(String(error.message || error), 'error'));
     }
 
@@ -299,8 +413,24 @@ export class TopologyController {
         this.updateSelected({ thresholds });
     }
 
+    updateSelectedStructural(key, value, min = null, max = null) {
+        const element = this.selectedElement();
+        if (!element || element.type === 'wall' || !this.editActive()) return;
+        const structural = { ...this.topology.normalizeElement(element).structural };
+        structural[key] = min == null ? value : Math.max(min, Math.min(max, Math.trunc(Number(value) || 0)));
+        this.updateSelected({ structural });
+    }
+
+    updateSelectedInteraction(key, value) {
+        const element = this.selectedElement();
+        if (!element || element.type === 'wall' || !this.editActive()) return;
+        const interaction = { ...this.topology.normalizeElement(element).interaction, [key]: value };
+        this.updateSelected({ interaction });
+    }
+
     handleTopologyChanged() {
         if (this.selectedId && !this.selectedElement()) this.selectedId = null;
+        if (this.radial?.isOpen()) this.hideContextMenu();
         this.renderEditor();
     }
 
@@ -311,6 +441,6 @@ export class TopologyController {
         node.dataset.mode = mode;
         node.hidden = false;
         window.clearTimeout(this.noticeTimer);
-        this.noticeTimer = window.setTimeout(() => { node.hidden = true; }, 3200);
+        this.noticeTimer = window.setTimeout(() => { node.hidden = true; }, 4200);
     }
 }

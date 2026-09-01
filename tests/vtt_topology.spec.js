@@ -20,41 +20,28 @@ const element = (type, state, thresholds) => topology.normalizeElement({
     ...verticalEdge,
 });
 
-test('door and window thresholds use the agreed base values', () => {
+test('legacy threshold defaults remain readable while structural Strength derives from Hardness', () => {
     expect(topology.defaultThresholds('door')).toEqual({ lockpick: 15, break: 15 });
     expect(topology.defaultThresholds('window')).toEqual({ lockpick: 12, break: 10 });
     expect(topology.defaultThresholds('curtain_window')).toEqual({ lockpick: 12, break: 10 });
+    expect(topology.strengthThreshold(topology.createElement({ type:'door', from:verticalEdge.from, to:verticalEdge.to }))).toBe(16);
+    expect(topology.strengthThreshold(topology.createElement({ type:'window', from:verticalEdge.from, to:verticalEdge.to }))).toBe(15);
 });
 
 test('closed topology has the correct movement and vision behavior', () => {
-    expect(topology.effectiveFlags(element('door', 'locked'))).toEqual({
-        blocksMovement: true,
-        blocksVision: true,
-    });
-    expect(topology.effectiveFlags(element('window', 'locked'))).toEqual({
-        blocksMovement: true,
-        blocksVision: false,
-    });
-    expect(topology.effectiveFlags(element('curtain_window', 'closed'))).toEqual({
-        blocksMovement: true,
-        blocksVision: true,
-    });
+    expect(topology.effectiveFlags(element('door', 'locked'))).toEqual({ blocksMovement: true, blocksVision: true });
+    expect(topology.effectiveFlags(element('window', 'locked'))).toEqual({ blocksMovement: true, blocksVision: false });
+    expect(topology.effectiveFlags(element('curtain_window', 'closed'))).toEqual({ blocksMovement: true, blocksVision: true });
 });
 
-test('open and broken doors or windows stop blocking movement and vision', () => {
+test('legacy open and broken topology remains passable after state-axis migration', () => {
     for (const type of ['door', 'window', 'curtain_window']) {
-        expect(topology.effectiveFlags(element(type, 'open'))).toEqual({
-            blocksMovement: false,
-            blocksVision: false,
-        });
-        expect(topology.effectiveFlags(element(type, 'broken'))).toEqual({
-            blocksMovement: false,
-            blocksVision: false,
-        });
+        expect(topology.effectiveFlags(element(type, 'open'))).toEqual({ blocksMovement: false, blocksVision: false });
+        expect(topology.effectiveFlags(element(type, 'broken'))).toEqual({ blocksMovement: false, blocksVision: false });
     }
 });
 
-test('locked interactions generate the canonical D&D checks', () => {
+test('locked interactions generate canonical checks and Strength resolves through force', () => {
     const door = element('door', 'locked', { lockpick: 19, break: 21 });
     expect(topology.checkDescriptor(door, 'lockpick')).toMatchObject({
         action: 'unlock',
@@ -63,30 +50,30 @@ test('locked interactions generate the canonical D&D checks', () => {
         rollSpec: { kind: 'skill', abilityId: 'dex', skillId: 'sleight_of_hand' },
     });
     expect(topology.checkDescriptor(door, 'strength')).toMatchObject({
-        action: 'break',
+        action: 'force',
         threshold: 21,
         rollSpec: { kind: 'ability', abilityId: 'str', skillId: null },
     });
     expect(topology.checkDescriptor(door, 'athletics')).toMatchObject({
-        action: 'break',
+        action: 'force',
         threshold: 21,
         rollSpec: { kind: 'skill', abilityId: 'str', skillId: 'athletics' },
     });
 });
 
-test('successful topology actions change state without inventing a second dice system', () => {
+test('successful topology actions preserve independent lock/open/condition state', () => {
     const lockedDoor = element('door', 'locked');
     expect(topology.applyAction(lockedDoor, 'unlock')).toMatchObject({
         valid: true,
-        element: { state: 'open' },
+        element: { state: 'closed', openState: 'closed', lockState: 'unlocked' },
     });
     expect(topology.applyAction(lockedDoor, 'break')).toMatchObject({
         valid: true,
-        element: { state: 'broken' },
+        element: { state: 'broken', condition: 'broken', openState: 'open' },
     });
     expect(topology.applyAction(element('door', 'open'), 'close')).toMatchObject({
         valid: true,
-        element: { state: 'closed' },
+        element: { state: 'closed', openState: 'closed' },
     });
 });
 
@@ -106,19 +93,11 @@ test('token movement is blocked by closed topology and allowed after opening', (
         z: [0],
         thresholds: { lockpick: 15, break: 15 },
     };
-    const blocked = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: 245, y: 105 }, {
-        grid,
-        walls: [],
-        topology: [closedDoor],
-    });
+    const blocked = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: 245, y: 105 }, { grid, walls: [], topology: [closedDoor] });
     expect(blocked.valid).toBe(false);
     expect(blocked.reason).toBe('BLOCKED_BY_WALL');
 
-    const open = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: 245, y: 105 }, {
-        grid,
-        walls: [],
-        topology: [{ ...closedDoor, state: 'open' }],
-    });
+    const open = tokenRules.resolveDrop(token, { x: 105, y: 105 }, { x: 245, y: 105 }, { grid, walls: [], topology: [{ ...closedDoor, state: 'open' }] });
     expect(open.valid).toBe(true);
 });
 
@@ -146,19 +125,21 @@ test('VTT wiring exposes DM topology tools and routes checks through existing co
     expect(bridge).toContain("const CHECK_COMMAND_ROOT = 'theatre_check_commands'");
     expect(bridge).toContain("const CHECK_LIVE_ROOT = 'theatre_check_live'");
     expect(bridge).toContain("live.outcome === 'passed'");
-    expect(portal).toContain("#theatre-check-command-prompt");
+    expect(portal).toContain('#theatre-check-command-prompt');
 });
 
 test('new and modified VTT JavaScript files pass Node syntax parsing', () => {
     const commonJsCompatible = [
         'js/vtt/topology.js',
+        'js/vtt/topology-interaction.js',
+        'js/vtt/interaction-radial.js',
+        'js/vtt/topology-interaction-authority.js',
+        'js/vtt/topology-interaction-authority-bootstrap.js',
         'js/vtt/state-bridge.js',
         'js/vtt/check-portal.js',
         'js/vtt/token-interaction.js',
     ];
-    for (const file of commonJsCompatible) {
-        execFileSync(process.execPath, ['--check', path.join(__dirname, '..', file)], { stdio: 'pipe' });
-    }
+    for (const file of commonJsCompatible) execFileSync(process.execPath, ['--check', path.join(__dirname, '..', file)], { stdio: 'pipe' });
 
     const esModules = [
         'js/vtt/topology-controller.js',

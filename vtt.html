@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luminous VTT Map</title>
     <link rel="stylesheet" href="css/vtt.css">
+    <link rel="stylesheet" href="css/vtt-interactions.css">
     <link rel="stylesheet" href="css/global-map.css">
 </head>
 <body>
@@ -44,29 +45,97 @@
             <strong id="vtt-topology-type">TOPOLOGY</strong>
             <small id="vtt-topology-id"></small>
         </header>
-        <label id="vtt-topology-state-field">
-            <span>ESTADO</span>
-            <select id="vtt-topology-state">
-                <option value="open">OPEN</option>
-                <option value="closed">CLOSED</option>
-                <option value="locked">LOCKED</option>
-                <option value="broken">BROKEN</option>
-            </select>
-        </label>
+        <div id="vtt-topology-interaction-fields">
+            <div class="vtt-structural-grid">
+                <label>
+                    <span>APERTURA</span>
+                    <select id="vtt-topology-open-state">
+                        <option value="open">OPEN</option>
+                        <option value="closed">CLOSED</option>
+                    </select>
+                </label>
+                <label>
+                    <span>SEGURO</span>
+                    <select id="vtt-topology-lock-state">
+                        <option value="unlocked">UNLOCKED</option>
+                        <option value="locked">LOCKED</option>
+                    </select>
+                </label>
+            </div>
+            <label>
+                <span>CONDICIÓN</span>
+                <select id="vtt-topology-condition">
+                    <option value="normal">NORMAL</option>
+                    <option value="jammed">JAMMED</option>
+                    <option value="broken">BROKEN</option>
+                    <option value="destroyed">DESTROYED</option>
+                </select>
+            </label>
+            <div class="vtt-structural-grid">
+                <label>
+                    <span>DUREZA · 0–10</span>
+                    <input id="vtt-topology-hardness" type="number" min="0" max="10" step="1">
+                </label>
+                <label>
+                    <span>DAMAGED · 0–20</span>
+                    <input id="vtt-topology-damaged" type="number" min="0" max="20" step="1">
+                </label>
+            </div>
+            <label>
+                <span>PERFIL ESTRUCTURAL</span>
+                <select id="vtt-topology-profile">
+                    <option value="normal">NORMAL · BLUNT ×1.5</option>
+                    <option value="thick">THICK · SIN DEBILIDAD</option>
+                    <option value="reinforced">REINFORCED · DAMAGE ×0.75</option>
+                </select>
+            </label>
+            <div class="vtt-structural-readout">
+                <div><span>DC STR</span><strong id="vtt-topology-strength-dc">15</strong></div>
+                <div><span>MAX SHIELD</span><strong id="vtt-topology-shield">0</strong></div>
+            </div>
+            <label>
+                <span>JUEGO DE MANOS · DC</span>
+                <input id="vtt-topology-lockpick" type="number" min="0" step="1">
+            </label>
+            <div class="vtt-interaction-config-grid">
+                <label>
+                    <span>LADO INTERIOR</span>
+                    <select id="vtt-topology-interior-side">
+                        <option value="left">LEFT</option>
+                        <option value="right">RIGHT</option>
+                    </select>
+                </label>
+                <label>
+                    <span>LADO DEL SEGURO</span>
+                    <select id="vtt-topology-lock-side">
+                        <option value="interior">INTERIOR</option>
+                        <option value="exterior">EXTERIOR</option>
+                        <option value="both">BOTH</option>
+                        <option value="left">LEFT</option>
+                        <option value="right">RIGHT</option>
+                    </select>
+                </label>
+            </div>
+            <label>
+                <span>KEY ID · OPCIONAL</span>
+                <input id="vtt-topology-key-id" type="text" placeholder="ej. llave_torre_norte">
+            </label>
+            <label id="vtt-topology-traversable-field" class="vtt-checkbox-field" hidden>
+                <span>SE PUEDE ATRAVESAR</span>
+                <input id="vtt-topology-traversable" type="checkbox" checked>
+            </label>
+            <label id="vtt-topology-curtain-field" hidden>
+                <span>CORTINA</span>
+                <select id="vtt-topology-curtain-state">
+                    <option value="closed">CLOSED</option>
+                    <option value="open">OPEN</option>
+                </select>
+            </label>
+        </div>
         <label id="vtt-topology-thickness-field" hidden>
             <span>GROSOR DEL MURO · FT</span>
             <input id="vtt-topology-thickness" type="number" min="0.1" step="0.1" value="0.5">
         </label>
-        <div id="vtt-topology-threshold-fields" class="vtt-threshold-grid">
-            <label>
-                <span>JUEGO DE MANOS</span>
-                <input id="vtt-topology-lockpick" type="number" min="0" step="1">
-            </label>
-            <label>
-                <span>ROMPER · STR / ATHLETICS</span>
-                <input id="vtt-topology-break" type="number" min="0" step="1">
-            </label>
-        </div>
         <button id="vtt-topology-delete" type="button" class="vtt-danger-button">BORRAR ELEMENTO</button>
     </aside>
 
@@ -107,13 +176,7 @@
         <button id="vtt-vertical-delete" type="button" class="vtt-danger-button">BORRAR CONEXIÓN VERTICAL</button>
     </aside>
 
-    <section id="vtt-context-menu" class="vtt-context-menu" hidden>
-        <header>
-            <strong id="vtt-context-title">OBJETO</strong>
-            <span id="vtt-context-state"></span>
-        </header>
-        <div id="vtt-context-actions"></div>
-    </section>
+    <section id="vtt-context-menu" class="vtt-context-menu vtt-interaction-radial" hidden aria-label="Interacciones con el mundo"></section>
 
     <div id="vtt-notice" class="vtt-notice" hidden role="status" aria-live="polite"></div>
 
@@ -132,6 +195,9 @@
     <script src="js/vtt/elevator-state-patch.js"></script>
     <script src="js/vtt/character-vision-bridge.js"></script>
     <script src="js/vtt/topology.js"></script>
+    <script src="js/vtt/topology-interaction.js"></script>
+    <script src="js/vtt/interaction-radial.js"></script>
+    <script src="js/vtt/topology-interaction-authority.js"></script>
     <script src="js/vtt/building-physics-core.js"></script>
     <script src="js/vtt/state-bridge.js"></script>
     <script src="js/vtt/token-interaction.js"></script>
@@ -142,6 +208,7 @@
     <script src="js/vtt/multiplayer-senses-bridge.js"></script>
     <script type="module" src="js/vtt/horizontal-plane-preload.js"></script>
     <script type="module" src="js/vtt/main.js"></script>
+    <script src="js/vtt/topology-interaction-authority-bootstrap.js"></script>
     <script type="module" src="js/vtt/building-physics-bootstrap.js"></script>
     <script type="module" src="js/vtt/elevator-autostart.js"></script>
     <script type="module" src="js/vtt/elevator-authoring-bootstrap.js"></script>
