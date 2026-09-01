@@ -8,7 +8,7 @@ const traitEngine = require("../js/trait-engine.js");
 const integration = require("../js/class-milestone-trait-integration.js");
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
-test("proxy player switches emit change without patching general select assignments", () => {
+test("proxy player switches emit change and load milestone integration assets", () => {
   class FakeEvent {
     constructor(type, options = {}) {
       this.type = type;
@@ -17,6 +17,7 @@ test("proxy player switches emit change without patching general select assignme
   }
 
   const listeners = {};
+  const appended = [];
   const select = {
     value: "player-a",
     events: [],
@@ -34,8 +35,9 @@ test("proxy player switches emit change without patching general select assignme
     getElementById(id) {
       return id === "dm-player-dnd-select" ? select : null;
     },
-    createElement() {
+    createElement(tagName) {
       return {
+        tagName,
         addEventListener() {},
         dataset: {},
       };
@@ -43,12 +45,23 @@ test("proxy player switches emit change without patching general select assignme
     addEventListener(type, handler) {
       listeners[type] = handler;
     },
-    head: { appendChild() {} },
+    head: {
+      appendChild(node) {
+        appended.push(node);
+      },
+    },
   };
   const window = { document, Event: FakeEvent };
   window.window = window;
 
   vm.runInNewContext(read("js/dm-player-dnd-studio-hotfix.js"), { window, console });
+
+  expect(appended).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      id: "class-milestone-trait-integration-script",
+      src: "js/class-milestone-trait-integration.js",
+    }),
+  ]));
 
   select.value = "player-a";
   expect(select.events).toEqual([]);
@@ -128,14 +141,4 @@ test("milestone trait integration deduplicates a trait already resolved by Grant
 
   const wrapped = integration.wrapLibrary(library, milestones, traitEngine);
   expect(wrapped.resolveForCharacter(character).map((trait) => trait.id)).toEqual(["iron_will"]);
-});
-
-test("hotfix loads runtime integration and limits change dispatch to proxy clicks", () => {
-  const source = read("js/dm-player-dnd-studio-hotfix.js");
-  expect(source).toContain("class-milestone-trait-integration-script");
-  expect(source).toContain("js/class-milestone-trait-integration.js");
-  expect(source).toContain("installPlayerProxyMilestoneSync");
-  expect(source).toContain('doc.addEventListener("click"');
-  expect(source).toContain('new EventCtor("change", { bubbles: true })');
-  expect(source).not.toContain('Object.defineProperty(Select.prototype, "value"');
 });
