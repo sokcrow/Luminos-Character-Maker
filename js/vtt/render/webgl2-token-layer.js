@@ -1,4 +1,7 @@
+import { createWebGL2TokenTextureCache } from './webgl2-token-texture-cache.js';
+
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+const clean = (value) => String(value ?? '').trim();
 const RESOURCE_KEY = 'webgl2-token-visual';
 
 const TOKEN_VERTEX_SHADER = `#version 300 es
@@ -7,8 +10,10 @@ uniform mat3 u_world;
 uniform vec2 u_center;
 uniform float u_radius;
 out vec2 v_local;
+out vec2 v_uv;
 void main() {
     v_local = a_unit;
+    v_uv = (a_unit * 0.5) + 0.5;
     vec2 worldPosition = u_center + (a_unit * u_radius);
     vec3 clip = u_world * vec3(worldPosition, 1.0);
     gl_Position = vec4(clip.xy, 0.0, 1.0);
@@ -17,9 +22,13 @@ void main() {
 const TOKEN_FRAGMENT_SHADER = `#version 300 es
 precision mediump float;
 in vec2 v_local;
+in vec2 v_uv;
 uniform vec4 u_background;
 uniform vec4 u_border;
 uniform vec4 u_icon;
+uniform vec4 u_uvRect;
+uniform sampler2D u_texture;
+uniform float u_hasTexture;
 uniform float u_borderWidth;
 uniform float u_personIcon;
 uniform float u_alpha;
@@ -30,7 +39,11 @@ void main() {
     if (distanceFromCenter > 1.0) discard;
 
     vec4 color = u_background;
-    if (u_personIcon > 0.5) {
+    if (u_hasTexture > 0.5) {
+        vec2 uv = mix(u_uvRect.xy, u_uvRect.zw, v_uv);
+        vec4 sampled = texture(u_texture, uv);
+        color = mix(u_background, sampled, sampled.a);
+    } else if (u_personIcon > 0.5) {
         float head = step(length(v_local - vec2(0.0, -0.24)), 0.22);
         vec2 bodyPoint = vec2(v_local.x / 0.47, (v_local.y - 0.34) / 0.42);
         float body = step(dot(bodyPoint, bodyPoint), 1.0) * step(0.02, v_local.y);
@@ -68,6 +81,7 @@ export function tokenVisualDescriptor(view, mapData = {}) {
     const token = view?.token || {};
     const radius = tokenRadiusForView(view, mapData);
     const icon = String(token.icon || 'person').toLowerCase();
+    const imageSource = clean(token.icono);
     const verticalAlpha = token.verticalMovement ? 0.82 : 1;
     const borderWidth = Math.max(0.03, Math.min(0.35, Math.max(2, radius * 0.08) / radius));
     const backgroundColor = token.backgroundColor || '#20242a';
@@ -76,13 +90,14 @@ export function tokenVisualDescriptor(view, mapData = {}) {
     return {
         radius,
         icon,
+        imageSource,
         personIcon: icon === 'person',
         verticalAlpha,
         borderWidth,
         backgroundColor,
         borderColor,
         iconColor,
-        signature: [radius, icon, verticalAlpha, borderWidth, backgroundColor, borderColor, iconColor].join('|'),
+        signature: [radius, icon, imageSource, verticalAlpha, borderWidth, backgroundColor, borderColor, iconColor].join('|'),
     };
 }
 
@@ -121,8 +136,11 @@ export function installWebGL2TokenLayer(renderer) {
         resourcesCreated: 0,
         resourcesReleased: 0,
         materialUpdates: 0,
+        textureChanges: 0,
         culledLastFrame: 0,
     };
+    const textureCache = createWebGL2TokenTextureCache(renderer);
+    renderer.tokenTextureCache = textureCache;
 
     let program = null;
     let quadBuffer = null;
@@ -160,10 +178,24 @@ export function installWebGL2TokenLayer(renderer) {
             background: gl.getUniformLocation(program, 'u_background'),
             border: gl.getUniformLocation(program, 'u_border'),
             icon: gl.getUniformLocation(program, 'u_icon'),
+            uvRect: gl.getUniformLocation(program, 'u_uvRect'),
+            texture: gl.getUniformLocation(program, 'u_texture'),
+            hasTexture: gl.getUniformLocation(program, 'u_hasTexture'),
             borderWidth: gl.getUniformLocation(program, 'u_borderWidth'),
             personIcon: gl.getUniformLocation(program, 'u_personIcon'),
             alpha: gl.getUniformLocation(program, 'u_alpha'),
         };
+        return true;
+    };
+
+    const setVisualTexture = (visual, imageSource) => {
+        const nextSource = clean(imageSource);
+        const previousSource = clean(visual?.textureSource);
+        if (nextSource === previousSource) return false;
+        if (visual?.textureEntry) textureCache.release(visual.textureEntry);
+        visual.textureSource = nextSource;
+        visual.textureEntry = nextSource ? textureCache.acquire(nextSource) : null;
+        stats.textureChanges += 1;
         return true;
     };
 
@@ -177,18 +209,25 @@ export function installWebGL2TokenLayer(renderer) {
                 background: rgba(descriptor.backgroundColor, '#20242a'),
                 border: rgba(descriptor.borderColor, '#ffffff'),
                 icon: rgba(descriptor.iconColor, '#ffffff'),
+                textureSource: '',
+                textureEntry: null,
             };
-            view.attachResource(RESOURCE_KEY, visual, () => {
+            setVisualTexture(visual, descriptor.imageSource);
+            view.attachResource(RESOURCE_KEY, visual, (resource) => {
+                if (resource?.textureEntry) textureCache.release(resource.textureEntry);
+                resource.textureEntry = null;
                 stats.resourcesReleased += 1;
             });
             stats.resourcesCreated += 1;
             return visual;
         }
         if (visual.descriptor.signature !== descriptor.signature) {
+            const imageChanged = visual.descriptor.imageSource !== descriptor.imageSource;
             visual.descriptor = descriptor;
             visual.background = rgba(descriptor.backgroundColor, '#20242a');
             visual.border = rgba(descriptor.borderColor, '#ffffff');
             visual.icon = rgba(descriptor.iconColor, '#ffffff');
+            if (imageChanged) setVisualTexture(visual, descriptor.imageSource);
             stats.materialUpdates += 1;
         }
         return visual;
@@ -218,6 +257,7 @@ export function installWebGL2TokenLayer(renderer) {
         gl.enableVertexAttribArray(locations.unit);
         gl.vertexAttribPointer(locations.unit, 2, gl.FLOAT, false, 0, 0);
         gl.uniformMatrix3fv(locations.world, false, renderer.world.matrix);
+        gl.uniform1i?.(locations.texture, 0);
 
         let drawn = 0;
         let culled = 0;
@@ -231,11 +271,20 @@ export function installWebGL2TokenLayer(renderer) {
                 continue;
             }
 
+            const textureEntry = visual.textureEntry;
+            const hasTexture = Boolean(textureEntry?.ready && textureEntry.texture && !textureEntry.failed);
+            if (hasTexture) {
+                gl.activeTexture?.(gl.TEXTURE0);
+                gl.bindTexture?.(gl.TEXTURE_2D, textureEntry.texture);
+            }
+
             gl.uniform2f(locations.center, view.renderX, view.renderY);
             gl.uniform1f(locations.radius, descriptor.radius);
             gl.uniform4fv(locations.background, visual.background);
             gl.uniform4fv(locations.border, visual.border);
             gl.uniform4fv(locations.icon, visual.icon);
+            gl.uniform4fv(locations.uvRect, textureEntry?.uvRect || new Float32Array([0, 0, 1, 1]));
+            gl.uniform1f(locations.hasTexture, hasTexture ? 1 : 0);
             gl.uniform1f(locations.borderWidth, descriptor.borderWidth);
             gl.uniform1f(locations.personIcon, descriptor.personIcon ? 1 : 0);
             gl.uniform1f(locations.alpha, descriptor.verticalAlpha);
@@ -284,7 +333,10 @@ export function installWebGL2TokenLayer(renderer) {
     for (const view of renderer.tokenViews.views.values()) ensureVisual(view);
 
     const handleContextRestored = () => {
-        if (!renderer.destroyed) createPipeline();
+        if (!renderer.destroyed) {
+            createPipeline();
+            textureCache.restore();
+        }
     };
     renderer.canvas?.addEventListener?.('webglcontextrestored', handleContextRestored, false);
 
@@ -296,6 +348,7 @@ export function installWebGL2TokenLayer(renderer) {
                 ...stats,
                 activeResources: [...renderer.tokenViews.views.values()].filter((view) => view.resources.has(RESOURCE_KEY)).length,
             },
+            tokenTextures: textureCache.diagnostics(),
         });
     }
 
@@ -304,6 +357,7 @@ export function installWebGL2TokenLayer(renderer) {
         renderer.destroy = (...args) => {
             renderer.canvas?.removeEventListener?.('webglcontextrestored', handleContextRestored, false);
             releasePipeline();
+            textureCache.destroy();
             return destroy(...args);
         };
     }
