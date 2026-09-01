@@ -28,6 +28,42 @@ void main() {
     outColor = vec4(1.0, 1.0, 1.0, 0.22);
 }`;
 
+function createLegacyCanvas2DShim() {
+    const noop = () => {};
+    return {
+        save: noop,
+        restore: noop,
+        clearRect: noop,
+        fillRect: noop,
+        strokeRect: noop,
+        beginPath: noop,
+        closePath: noop,
+        moveTo: noop,
+        lineTo: noop,
+        stroke: noop,
+        fill: noop,
+        arc: noop,
+        translate: noop,
+        rotate: noop,
+        scale: noop,
+        clip: noop,
+        drawImage: noop,
+        fillText: noop,
+        setLineDash: noop,
+        measureText: (text) => ({ width: String(text ?? '').length * 6 }),
+        globalAlpha: 1,
+        fillStyle: '#000000',
+        strokeStyle: '#ffffff',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter',
+        font: '10px sans-serif',
+        textAlign: 'start',
+        textBaseline: 'alphabetic',
+        filter: 'none',
+    };
+}
+
 export class WebGL2Renderer {
     constructor(canvas, mapData) {
         this.canvas = canvas;
@@ -44,6 +80,13 @@ export class WebGL2Renderer {
             visible: true,
             dirty: true,
         }]));
+
+        // Migration bridge only. Existing Canvas-only authoring/render patches may
+        // probe renderer.ctx or wrap drawTopology/drawTokens while their GPU layers
+        // have not been migrated yet. This shim intentionally performs no drawing;
+        // it prevents those legacy hooks from crashing the WebGL2 foundation.
+        this.ctx = createLegacyCanvas2DShim();
+        this.legacyCanvas2DShim = true;
 
         this.handleContextLost = this.handleContextLost.bind(this);
         this.handleContextRestored = this.handleContextRestored.bind(this);
@@ -217,6 +260,27 @@ export class WebGL2Renderer {
         layer.dirty = false;
     }
 
+    topologyStyle(element, preview = false) {
+        if (preview) return { stroke: '#ffffff', width: 4, dash: [8, 5], label: '' };
+        const state = element?.state;
+        const broken = state === 'broken';
+        const open = state === 'open';
+        const styles = {
+            wall: { stroke: '#ff3030', width: 4, label: 'WALL' },
+            door: { stroke: '#ffb000', width: 7, label: state === 'locked' ? 'D·LOCK' : 'DOOR' },
+            window: { stroke: '#00cfff', width: 6, label: state === 'locked' ? 'W·LOCK' : 'WINDOW' },
+            curtain_window: { stroke: '#b784ff', width: 7, label: state === 'locked' ? 'C·LOCK' : 'CURTAIN' },
+        };
+        const base = styles[element?.type] || styles.wall;
+        return { ...base, dash: broken ? [5, 7] : open ? [12, 9] : [] };
+    }
+
+    // Legacy extension seams retained only so existing Canvas-oriented bootstraps
+    // can initialize during the staged migration. GPU implementations land in
+    // their dedicated branches and will replace these no-op methods.
+    drawTopology() { return 0; }
+    drawTokens() { return 0; }
+
     render(camera, _activeZ, _renderData, _isExporting = false) {
         if (this.destroyed || !this.gl || this.contextLost) return;
         this.resize();
@@ -237,6 +301,7 @@ export class WebGL2Renderer {
                 available: false,
                 destroyed: this.destroyed,
                 contextLost: this.contextLost,
+                legacyCanvas2DShim: this.legacyCanvas2DShim,
             };
         }
         return {
@@ -244,6 +309,7 @@ export class WebGL2Renderer {
             available: !this.destroyed && !this.contextLost,
             destroyed: this.destroyed,
             contextLost: this.contextLost,
+            legacyCanvas2DShim: this.legacyCanvas2DShim,
             version: this.gl.getParameter(this.gl.VERSION),
             renderer: this.gl.getParameter(this.gl.RENDERER),
             drawingBuffer: {
@@ -277,6 +343,8 @@ export class WebGL2Renderer {
         this.gridLocations = null;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.ctx = null;
+        this.legacyCanvas2DShim = false;
         this.gl = null;
         return true;
     }
