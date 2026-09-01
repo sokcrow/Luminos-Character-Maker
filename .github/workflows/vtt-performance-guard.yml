@@ -39,6 +39,7 @@ on:
       - 'tests/vtt_token_state_incremental.spec.js'
       - 'tests/vtt_drag_preview_incremental.spec.js'
       - 'tests/vtt_drag_preview_raf.spec.js'
+      - 'tests/vtt_remote_token_interpolation.spec.js'
       - 'tests/vtt_token_interaction_view.spec.js'
       - 'tests/vtt_token_interaction_runtime.spec.js'
       - 'tests/vtt_scene_dirty.spec.js'
@@ -92,6 +93,7 @@ jobs:
           node --input-type=module --check < js/vtt/render/token-interaction-view.js
           node --input-type=module --check < js/vtt/render/persistent-token-views.js
           node --input-type=module --check < js/vtt/render/transient-token-preview.js
+          node --input-type=module --check < js/vtt/render/remote-token-interpolation.js
           node --input-type=module --check < js/vtt/render/renderer-factory.js
           node --input-type=module --check < js/vtt/procedural-chunk-streaming-runtime.js
           node --check js/vtt/runtime-lifecycle.js
@@ -112,9 +114,10 @@ jobs:
           node --input-type=module --check < tests/vtt_token_state_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_raf.spec.js
+          node --input-type=module --check < tests/vtt_remote_token_interpolation.spec.js
           node --input-type=module --check < tests/vtt_token_interaction_view.spec.js
           node --input-type=module --check < tests/vtt_token_interaction_runtime.spec.js
-      - name: Persistent TokenView, state, drag, GPU, Actor texture, and interaction contracts
+      - name: Persistent TokenView, state, drag, GPU, Actor texture, interaction, and remote interpolation contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_token_view_registry.spec.js
@@ -122,6 +125,7 @@ jobs:
           tests/vtt_token_state_incremental.spec.js
           tests/vtt_drag_preview_incremental.spec.js
           tests/vtt_drag_preview_raf.spec.js
+          tests/vtt_remote_token_interpolation.spec.js
           tests/vtt_webgl2_token_layer.spec.js
           tests/vtt_webgl2_token_texture_cache.spec.js
           tests/vtt_actor_token_image_source.spec.js
