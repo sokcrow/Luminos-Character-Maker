@@ -1,3 +1,5 @@
+import { WebGLWorldTransform } from './world-transform.js';
+
 export const WEBGL2_LAYER_ORDER = Object.freeze([
     'terrain',
     'grid',
@@ -12,20 +14,25 @@ export const WEBGL2_LAYER_ORDER = Object.freeze([
 
 const VERTEX_SHADER_SOURCE = `#version 300 es
 in vec2 a_position;
-uniform vec2 u_resolution;
-uniform vec2 u_camera;
-uniform float u_zoom;
+uniform mat3 u_world;
 void main() {
-    vec2 screen = (a_position + u_camera) * u_zoom;
-    vec2 clip = (screen / u_resolution) * 2.0 - 1.0;
-    gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+    vec3 clip = u_world * vec3(a_position, 1.0);
+    gl_Position = vec4(clip.xy, 0.0, 1.0);
 }`;
 
-const FRAGMENT_SHADER_SOURCE = `#version 300 es
+const GRID_FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision mediump float;
 out vec4 outColor;
 void main() {
     outColor = vec4(1.0, 1.0, 1.0, 0.22);
+}`;
+
+const OVERLAY_FRAGMENT_SHADER_SOURCE = `#version 300 es
+precision mediump float;
+uniform vec4 u_color;
+out vec4 outColor;
+void main() {
+    outColor = u_color;
 }`;
 
 function createLegacyCanvas2DShim() {
@@ -64,6 +71,34 @@ function createLegacyCanvas2DShim() {
     };
 }
 
+const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+function rgba(color, alpha = 1) {
+    const text = String(color || '#d7b151').trim();
+    const short = /^#([0-9a-f]{3})$/i.exec(text);
+    const full = /^#([0-9a-f]{6})$/i.exec(text);
+    let r = 215;
+    let g = 177;
+    let b = 81;
+
+    if (short) {
+        r = parseInt(short[1][0] + short[1][0], 16);
+        g = parseInt(short[1][1] + short[1][1], 16);
+        b = parseInt(short[1][2] + short[1][2], 16);
+    } else if (full) {
+        r = parseInt(full[1].slice(0, 2), 16);
+        g = parseInt(full[1].slice(2, 4), 16);
+        b = parseInt(full[1].slice(4, 6), 16);
+    }
+
+    return new Float32Array([
+        r / 255,
+        g / 255,
+        b / 255,
+        Math.max(0, Math.min(1, finite(alpha, 1))),
+    ]);
+}
+
 export class WebGL2Renderer {
     constructor(canvas, mapData) {
         this.canvas = canvas;
@@ -74,6 +109,9 @@ export class WebGL2Renderer {
         this.contextLost = false;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.world = new WebGLWorldTransform();
+        this.logicalViewport = { width: Math.max(1, Number(canvas?.width) || 1), height: Math.max(1, Number(canvas?.height) || 1) };
+        this.devicePixelRatio = 1;
         this.layers = new Map(WEBGL2_LAYER_ORDER.map((name, index) => [name, {
             name,
             order: index,
@@ -105,6 +143,7 @@ export class WebGL2Renderer {
 
         this.configureContext();
         this.createGridPipeline();
+        this.createObserverOverlayPipeline();
         this.resize();
     }
 
@@ -122,17 +161,15 @@ export class WebGL2Renderer {
         return shader;
     }
 
-    createGridPipeline() {
+    createProgram(fragmentSource) {
         const gl = this.gl;
-        if (!gl || this.destroyed || this.contextLost) return;
-
         const vertexShader = this.compileShader(gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
-        const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
+        const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, fragmentSource);
         const program = gl.createProgram();
         if (!program) {
             gl.deleteShader(vertexShader);
             gl.deleteShader(fragmentShader);
-            throw new Error('Unable to allocate WebGL2 grid program.');
+            throw new Error('Unable to allocate WebGL2 program.');
         }
 
         gl.attachShader(program, vertexShader);
@@ -146,17 +183,36 @@ export class WebGL2Renderer {
             gl.deleteProgram(program);
             throw new Error(message);
         }
+        return program;
+    }
 
+    createGridPipeline() {
+        const gl = this.gl;
+        if (!gl || this.destroyed || this.contextLost) return;
+
+        const program = this.createProgram(GRID_FRAGMENT_SHADER_SOURCE);
         this.gridProgram = program;
         this.gridBuffer = gl.createBuffer();
         this.gridLocations = {
             position: gl.getAttribLocation(program, 'a_position'),
-            resolution: gl.getUniformLocation(program, 'u_resolution'),
-            camera: gl.getUniformLocation(program, 'u_camera'),
-            zoom: gl.getUniformLocation(program, 'u_zoom'),
+            world: gl.getUniformLocation(program, 'u_world'),
         };
         this.gridSignature = '';
         this.gridVertexCount = 0;
+    }
+
+    createObserverOverlayPipeline() {
+        const gl = this.gl;
+        if (!gl || this.destroyed || this.contextLost) return;
+
+        const program = this.createProgram(OVERLAY_FRAGMENT_SHADER_SOURCE);
+        this.observerOverlayProgram = program;
+        this.observerOverlayBuffer = gl.createBuffer();
+        this.observerOverlayLocations = {
+            position: gl.getAttribLocation(program, 'a_position'),
+            world: gl.getUniformLocation(program, 'u_world'),
+            color: gl.getUniformLocation(program, 'u_color'),
+        };
     }
 
     configureContext() {
@@ -178,6 +234,7 @@ export class WebGL2Renderer {
         this.contextLost = false;
         this.configureContext();
         this.createGridPipeline();
+        this.createObserverOverlayPipeline();
         this.resize();
         this.markAllLayersDirty();
     }
@@ -203,9 +260,58 @@ export class WebGL2Renderer {
         return true;
     }
 
-    resize() {
-        if (this.destroyed || !this.gl || this.contextLost) return;
+    viewportSize(camera = null) {
+        const cameraViewport = camera?.viewportSize?.();
+        if (finite(cameraViewport?.width) > 0 && finite(cameraViewport?.height) > 0) {
+            return { width: finite(cameraViewport.width), height: finite(cameraViewport.height) };
+        }
+        const rect = this.canvas?.getBoundingClientRect?.();
+        const width = finite(rect?.width) || finite(this.canvas?.clientWidth) || finite(this.canvas?.width, 1);
+        const height = finite(rect?.height) || finite(this.canvas?.clientHeight) || finite(this.canvas?.height, 1);
+        return { width: Math.max(1, width), height: Math.max(1, height) };
+    }
+
+    resize(cameraOrWidth = null, requestedHeight = null) {
+        if (this.destroyed || !this.gl || this.contextLost) return this.logicalViewport;
+
+        const explicitSize = Number.isFinite(Number(cameraOrWidth)) && Number.isFinite(Number(requestedHeight));
+        const camera = explicitSize ? null : cameraOrWidth;
+        this.logicalViewport = explicitSize
+            ? {
+                width: Math.max(1, finite(cameraOrWidth, 1)),
+                height: Math.max(1, finite(requestedHeight, 1)),
+            }
+            : this.viewportSize(camera);
+
+        this.devicePixelRatio = Math.max(1, finite(globalThis.devicePixelRatio, 1));
+        const framebufferWidth = Math.max(1, Math.round(this.logicalViewport.width * this.devicePixelRatio));
+        const framebufferHeight = Math.max(1, Math.round(this.logicalViewport.height * this.devicePixelRatio));
+
+        // Width/height are framebuffer pixels. CSS dimensions remain logical pixels,
+        // so Camera and pointer math are independent from devicePixelRatio.
+        if (explicitSize && this.canvas?.style) {
+            this.canvas.style.width = `${this.logicalViewport.width}px`;
+            this.canvas.style.height = `${this.logicalViewport.height}px`;
+        }
+        if (this.canvas.width !== framebufferWidth) this.canvas.width = framebufferWidth;
+        if (this.canvas.height !== framebufferHeight) this.canvas.height = framebufferHeight;
+
         this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+        return this.logicalViewport;
+    }
+
+    syncWorld(camera) {
+        const viewport = this.resize(camera);
+        this.world.sync(camera, viewport);
+        return this.world;
+    }
+
+    worldToScreen(worldX, worldY) {
+        return this.world.worldToScreen(worldX, worldY);
+    }
+
+    screenToWorld(screenX, screenY) {
+        return this.world.screenToWorld(screenX, screenY);
     }
 
     gridVertices() {
@@ -242,7 +348,7 @@ export class WebGL2Renderer {
         this.markLayerDirty('grid');
     }
 
-    drawGrid(camera) {
+    drawGrid() {
         const gl = this.gl;
         const layer = this.layers.get('grid');
         if (!gl || !layer?.visible || !this.gridProgram || !this.gridBuffer) return;
@@ -252,12 +358,53 @@ export class WebGL2Renderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.gridBuffer);
         gl.enableVertexAttribArray(this.gridLocations.position);
         gl.vertexAttribPointer(this.gridLocations.position, 2, gl.FLOAT, false, 0, 0);
-
-        gl.uniform2f(this.gridLocations.resolution, gl.drawingBufferWidth, gl.drawingBufferHeight);
-        gl.uniform2f(this.gridLocations.camera, Number(camera?.x) || 0, Number(camera?.y) || 0);
-        gl.uniform1f(this.gridLocations.zoom, Math.max(0.0001, Number(camera?.zoom) || 1));
+        gl.uniformMatrix3fv(this.gridLocations.world, false, this.world.matrix);
         gl.drawArrays(gl.LINES, 0, this.gridVertexCount);
         layer.dirty = false;
+    }
+
+    observerConeVertices(raw = {}) {
+        const x = finite(raw.x);
+        const y = finite(raw.y);
+        const radius = Math.max(0, finite(raw.radius));
+        if (!(radius > 0)) return new Float32Array();
+
+        const cone = Math.max(0, Math.min(360, finite(raw.coneDeg, 120)));
+        const facing = finite(raw.facingDeg);
+        const start = (facing - (cone / 2)) * Math.PI / 180;
+        const sweep = cone * Math.PI / 180;
+        const segments = Math.max(12, Math.ceil(cone / 6));
+        const vertices = [x, y];
+
+        for (let index = 0; index <= segments; index += 1) {
+            const angle = start + (sweep * index / segments);
+            vertices.push(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+        }
+        vertices.push(x, y);
+        return new Float32Array(vertices);
+    }
+
+    drawDmObserverOutlines(outlines = [], camera = null) {
+        if (this.destroyed || !this.gl || this.contextLost || !this.observerOverlayProgram || !this.observerOverlayBuffer) return 0;
+        if (camera) this.syncWorld(camera);
+
+        const gl = this.gl;
+        gl.useProgram(this.observerOverlayProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.observerOverlayBuffer);
+        gl.enableVertexAttribArray(this.observerOverlayLocations.position);
+        gl.vertexAttribPointer(this.observerOverlayLocations.position, 2, gl.FLOAT, false, 0, 0);
+        gl.uniformMatrix3fv(this.observerOverlayLocations.world, false, this.world.matrix);
+
+        let drawn = 0;
+        for (const raw of Array.isArray(outlines) ? outlines : []) {
+            const vertices = this.observerConeVertices(raw);
+            if (vertices.length < 6) continue;
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+            gl.uniform4fv(this.observerOverlayLocations.color, rgba(raw?.color, raw?.selected ? 0.85 : 0.45));
+            gl.drawArrays(gl.LINE_STRIP, 0, vertices.length / 2);
+            drawn += 1;
+        }
+        return drawn;
     }
 
     topologyStyle(element, preview = false) {
@@ -283,11 +430,12 @@ export class WebGL2Renderer {
 
     render(camera, _activeZ, _renderData, _isExporting = false) {
         if (this.destroyed || !this.gl || this.contextLost) return;
-        this.resize();
+        this.syncWorld(camera);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.STENCIL_BUFFER_BIT);
 
-        // Rama 1 proof-of-life: black GPU surface + camera-aware grid only.
-        this.drawGrid(camera);
+        // All GPU world layers consume this renderer-owned transform. The grid is
+        // the first migrated pipeline; later layers must not read camera directly.
+        this.drawGrid();
 
         for (const [name, layer] of this.layers) {
             if (name !== 'grid') layer.dirty = false;
@@ -316,7 +464,11 @@ export class WebGL2Renderer {
                 width: this.gl.drawingBufferWidth,
                 height: this.gl.drawingBufferHeight,
             },
+            logicalViewport: { ...this.logicalViewport },
+            devicePixelRatio: this.devicePixelRatio,
+            world: this.world.snapshot(),
             gridVertexCount: this.gridVertexCount,
+            observerOverlayReady: Boolean(this.observerOverlayProgram && this.observerOverlayBuffer),
             layers: [...this.layers.values()].map((layer) => ({ ...layer })),
         };
     }
@@ -332,6 +484,8 @@ export class WebGL2Renderer {
         if (gl && !this.contextLost) {
             if (this.gridBuffer) gl.deleteBuffer(this.gridBuffer);
             if (this.gridProgram) gl.deleteProgram(this.gridProgram);
+            if (this.observerOverlayBuffer) gl.deleteBuffer(this.observerOverlayBuffer);
+            if (this.observerOverlayProgram) gl.deleteProgram(this.observerOverlayProgram);
             const loseContext = gl.getExtension('WEBGL_lose_context');
             loseContext?.loseContext?.();
         }
@@ -343,6 +497,10 @@ export class WebGL2Renderer {
         this.gridLocations = null;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.observerOverlayBuffer = null;
+        this.observerOverlayProgram = null;
+        this.observerOverlayLocations = null;
+        this.world = null;
         this.ctx = null;
         this.legacyCanvas2DShim = false;
         this.gl = null;

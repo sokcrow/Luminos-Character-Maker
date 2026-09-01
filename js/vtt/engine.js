@@ -56,8 +56,7 @@ export class Engine {
     }
 
     eventWorldPoint(event) {
-        const rect = this.canvas.getBoundingClientRect();
-        return this.camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+        return this.camera.eventToWorld(event);
     }
 
     tokenAtEvent(event) {
@@ -314,11 +313,36 @@ export class Engine {
 
     centerCamera() {
         const { cols, rows, size } = this.mapData.grid;
-        const mapWidth = cols * size, mapHeight = rows * size;
-        this.camera.x = (this.canvas.width / 2) - (mapWidth / 2);
-        this.camera.y = (this.canvas.height / 2) - (mapHeight / 2);
+        const mapWidth = cols * size;
+        const mapHeight = rows * size;
+        this.camera.centerOnWorldPoint(mapWidth / 2, mapHeight / 2);
     }
-    handleResize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
+
+    handleResize() {
+        const centerBefore = this.camera.centerWorldPoint();
+        const currentViewport = this.camera.viewportSize();
+        const width = Math.max(1, Number(window.innerWidth) || currentViewport.width || 1);
+        const height = Math.max(1, Number(window.innerHeight) || currentViewport.height || 1);
+
+        if (this.renderer?.backend === 'webgl2') {
+            this.renderer.resize?.(width, height);
+        } else {
+            this.canvas.width = width;
+            this.canvas.height = height;
+            this.renderer?.resize?.(width, height);
+        }
+
+        this.camera.centerOnWorldPoint(centerBefore);
+        globalThis.LuminousVttSceneDirty?.emit?.(this.canvas, {
+            reason: 'resize',
+            render: true,
+            vision: false,
+            active: false,
+            sourceEvent: 'engine:resize',
+            meta: { width, height },
+        });
+    }
+
     start() { if (!this.isRunning) { this.isRunning = true; requestAnimationFrame(this.loop); } }
     stop() { this.cancelTokenMotion(); this.isRunning = false; }
     loop() {

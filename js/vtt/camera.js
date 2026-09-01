@@ -74,6 +74,46 @@ export class Camera {
         if (this.enforceCenterConstraint()) this.notifyVisualChange('constraint');
     }
 
+    viewportRect() {
+        const rect = this.canvas?.getBoundingClientRect?.() || null;
+        const rectWidth = Number(rect?.width);
+        const rectHeight = Number(rect?.height);
+        const clientWidth = Number(this.canvas?.clientWidth);
+        const clientHeight = Number(this.canvas?.clientHeight);
+        const backingWidth = Number(this.canvas?.width);
+        const backingHeight = Number(this.canvas?.height);
+        const width = rectWidth > 0 ? rectWidth : clientWidth > 0 ? clientWidth : backingWidth > 0 ? backingWidth : 1;
+        const height = rectHeight > 0 ? rectHeight : clientHeight > 0 ? clientHeight : backingHeight > 0 ? backingHeight : 1;
+        return {
+            left: Number(rect?.left) || 0,
+            top: Number(rect?.top) || 0,
+            width,
+            height,
+        };
+    }
+
+    viewportSize() {
+        const { width, height } = this.viewportRect();
+        return { width, height };
+    }
+
+    clientToScreen(clientX, clientY) {
+        const rect = this.viewportRect();
+        return {
+            x: Number(clientX) - rect.left,
+            y: Number(clientY) - rect.top,
+        };
+    }
+
+    eventToScreen(event = {}) {
+        return this.clientToScreen(event.clientX, event.clientY);
+    }
+
+    eventToWorld(event = {}) {
+        const point = this.eventToScreen(event);
+        return this.screenToWorld(point.x, point.y);
+    }
+
     setZoomBounds(minZoom = 0.1, maxZoom = 5) {
         const min = Number.isFinite(Number(minZoom)) ? Math.max(0.01, Number(minZoom)) : 0.1;
         const max = Number.isFinite(Number(maxZoom)) ? Math.max(min, Number(maxZoom)) : Math.max(min, 5);
@@ -88,9 +128,10 @@ export class Camera {
     }
 
     centerWorldPoint() {
+        const { width, height } = this.viewportSize();
         return {
-            x: (this.canvas.width / (2 * this.zoom)) - this.x,
-            y: (this.canvas.height / (2 * this.zoom)) - this.y,
+            x: (width / (2 * this.zoom)) - this.x,
+            y: (height / (2 * this.zoom)) - this.y,
         };
     }
 
@@ -109,8 +150,9 @@ export class Camera {
         if (!constrained) return false;
         const changed = Math.abs(constrained.x - current.x) > 1e-7 || Math.abs(constrained.y - current.y) > 1e-7;
         if (changed) {
-            this.x = (this.canvas.width / (2 * this.zoom)) - constrained.x;
-            this.y = (this.canvas.height / (2 * this.zoom)) - constrained.y;
+            const { width, height } = this.viewportSize();
+            this.x = (width / (2 * this.zoom)) - constrained.x;
+            this.y = (height / (2 * this.zoom)) - constrained.y;
         }
         return changed;
     }
@@ -177,25 +219,27 @@ export class Camera {
         this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, proposed));
         if (Math.abs(this.zoom - previousZoom) < 1e-12) return;
 
-        const rect = this.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const worldX = (mouseX / previousZoom) - this.x;
-        const worldY = (mouseY / previousZoom) - this.y;
+        const mouse = this.eventToScreen(e);
+        const worldX = (mouse.x / previousZoom) - this.x;
+        const worldY = (mouse.y / previousZoom) - this.y;
 
-        this.x = (mouseX / this.zoom) - worldX;
-        this.y = (mouseY / this.zoom) - worldY;
+        this.x = (mouse.x / this.zoom) - worldX;
+        this.y = (mouse.y / this.zoom) - worldY;
         const clamped = this.enforceCenterConstraint();
         this.notifyVisualChange('zoom', true, { previousZoom, zoom: this.zoom, clamped });
     }
 
-    centerOnWorldPoint(point = {}) {
+    centerOnWorldPoint(pointOrX = {}, worldY = undefined) {
+        const point = typeof pointOrX === 'object' && pointOrX !== null
+            ? pointOrX
+            : { x: pointOrX, y: worldY };
         const constrained = this.constrainedCenter(point);
         if (!constrained) return false;
         const previousX = this.x;
         const previousY = this.y;
-        this.x = (this.canvas.width / (2 * this.zoom)) - constrained.x;
-        this.y = (this.canvas.height / (2 * this.zoom)) - constrained.y;
+        const { width, height } = this.viewportSize();
+        this.x = (width / (2 * this.zoom)) - constrained.x;
+        this.y = (height / (2 * this.zoom)) - constrained.y;
         if (Math.abs(this.x - previousX) > 1e-7 || Math.abs(this.y - previousY) > 1e-7) {
             this.notifyVisualChange('center', false, { center: constrained, zoom: this.zoom });
         }
@@ -210,12 +254,13 @@ export class Camera {
     }
 
     applyTransform(ctx) {
-        ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+        const { width, height } = this.viewportSize();
+        ctx.translate(width / 2, height / 2);
         ctx.scale(this.zoom, this.zoom);
-        ctx.translate(-this.canvas.width / 2, -this.canvas.height / 2);
+        ctx.translate(-width / 2, -height / 2);
 
-        ctx.translate(this.x + this.canvas.width / (2 * this.zoom) - this.canvas.width / 2,
-                      this.y + this.canvas.height / (2 * this.zoom) - this.canvas.height / 2);
+        ctx.translate(this.x + width / (2 * this.zoom) - width / 2,
+                      this.y + height / (2 * this.zoom) - height / 2);
     }
 
     applyTransformSimple(ctx) {
@@ -225,8 +270,8 @@ export class Camera {
 
     screenToWorld(screenX, screenY) {
         return {
-            x: (screenX / this.zoom) - this.x,
-            y: (screenY / this.zoom) - this.y,
+            x: (Number(screenX) / this.zoom) - this.x,
+            y: (Number(screenY) / this.zoom) - this.y,
         };
     }
 }

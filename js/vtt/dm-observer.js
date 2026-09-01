@@ -228,31 +228,25 @@
       return Math.max(Number(mapData.grid?.size) || 70, Number(profile?.radiusPx) || 0);
     }
 
-    function drawOutlines() {
-      if (mode === MODES.VIEW_AS || stopped) return;
-      const renderer = engine.renderer;
-      const ctx = renderer?.ctx;
-      const camera = engine.camera;
-      if (!ctx || !camera) return;
+    function outlineData() {
       const lighting = host?.LuminousVttLightingEngine || root?.LuminousVttLightingEngine;
-      ctx.save();
-      camera.applyTransformSimple?.(ctx);
-      for (const token of playerTokensOnLayer()) {
-        const cone = Number(lighting?.visionConeDeg?.(token)) || 120;
-        const facing = Number(token.lookState?.yawDeg ?? lighting?.facingDeg?.(token) ?? token.facingDeg) || 0;
-        const radius = outlineRadius(token);
-        const half = Math.min(180, cone / 2) * Math.PI / 180;
-        const center = facing * Math.PI / 180;
-        ctx.beginPath();
-        ctx.moveTo(Number(token.x) || 0, Number(token.y) || 0);
-        ctx.arc(Number(token.x) || 0, Number(token.y) || 0, radius, center - half, center + half);
-        ctx.closePath();
-        ctx.globalAlpha = clean(token.id) === clean(targetId) ? 0.85 : 0.45;
-        ctx.strokeStyle = token.color || '#d7b151';
-        ctx.lineWidth = clean(token.id) === clean(targetId) ? 3 : 2;
-        ctx.stroke();
-      }
-      ctx.restore();
+      return playerTokensOnLayer().map((token) => ({
+        tokenId: clean(token.id),
+        x: Number(token.x) || 0,
+        y: Number(token.y) || 0,
+        radius: outlineRadius(token),
+        coneDeg: Number(lighting?.visionConeDeg?.(token)) || 120,
+        facingDeg: Number(token.lookState?.yawDeg ?? lighting?.facingDeg?.(token) ?? token.facingDeg) || 0,
+        color: token.color || '#d7b151',
+        selected: clean(token.id) === clean(targetId),
+      }));
+    }
+
+    function drawOutlines() {
+      if (mode === MODES.VIEW_AS || stopped) return 0;
+      const renderer = engine.renderer;
+      if (!renderer || typeof renderer.drawDmObserverOutlines !== 'function') return 0;
+      return renderer.drawDmObserverOutlines(outlineData(), engine.camera) || 0;
     }
 
     function installOutlineRenderer() {
