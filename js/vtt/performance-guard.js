@@ -1,5 +1,6 @@
 const DEFAULT_ACTIVE_FRAME_MS = 1000 / 30;
 const DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20;
+const DEFAULT_FOLLOW_MOVEMENT_FRAME_MS = 1000 / 60;
 const DEFAULT_IDLE_FALLBACK_MS = 500;
 
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -55,9 +56,24 @@ function visualAnimationActive(engine, mapData, now = Date.now()) {
     || hasActiveLightingAnimation(mapData, now);
 }
 
+// Expensive vision keeps the conservative cadence that existed before WEBGL-02.
 function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS) {
   if (engine?.tokenMotion) return Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS);
   return Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS);
+}
+
+// Rendering a followed token is cheap enough in WebGL2 to track the traversal RAF.
+// Only this visual path gets 60 Hz; ordinary movement retains the existing 20 Hz budget.
+function renderFrameInterval(
+  engine,
+  activeFrameMs = DEFAULT_ACTIVE_FRAME_MS,
+  movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS,
+  followMovementFrameMs = DEFAULT_FOLLOW_MOVEMENT_FRAME_MS,
+) {
+  if (engine?.tokenMotion && engine?.cameraFollowActive === true) {
+    return Math.max(1, Number(followMovementFrameMs) || DEFAULT_FOLLOW_MOVEMENT_FRAME_MS);
+  }
+  return activeFrameInterval(engine, activeFrameMs, movementFrameMs);
 }
 
 // Slow compatibility fallback for legacy mutations that do not yet emit vtt:scene-dirty.
@@ -124,6 +140,7 @@ export function installPerformanceGuard({
   runtime = globalThis.LuminousVttRuntime,
   activeFrameMs = DEFAULT_ACTIVE_FRAME_MS,
   movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS,
+  followMovementFrameMs = DEFAULT_FOLLOW_MOVEMENT_FRAME_MS,
   idleFallbackMs = DEFAULT_IDLE_FALLBACK_MS,
 } = {}) {
   const engine = runtime?.engine;
@@ -182,10 +199,17 @@ export function installPerformanceGuard({
     return signature;
   };
 
+  const currentRenderInterval = () => renderFrameInterval(
+    engine,
+    activeFrameMs,
+    movementFrameMs,
+    followMovementFrameMs,
+  );
+
   const nextFrameDelayMs = () => {
     if (stopped) return 0;
     const active = visualAnimationActive(engine, mapData, Date.now());
-    if (active) return activeFrameInterval(engine, activeFrameMs, movementFrameMs);
+    if (active) return currentRenderInterval();
     if (renderDirty || visionDirty) return 0;
     return idleInterval;
   };
@@ -194,7 +218,7 @@ export function installPerformanceGuard({
     const active = Boolean(activeHint) || visualAnimationActive(engine, mapData, Date.now());
     engine.requestFrame?.({
       immediate: !active,
-      delayMs: active ? activeFrameInterval(engine, activeFrameMs, movementFrameMs) : 0,
+      delayMs: active ? currentRenderInterval() : 0,
     });
   };
 
@@ -238,6 +262,8 @@ export function installPerformanceGuard({
       const perfNow = clockNow();
       const wallNow = Date.now();
       const active = visualAnimationActive(engine, mapData, wallNow);
+      // Vision deliberately remains at the conservative movement cadence even
+      // while WebGL2 rendering follows the token at display cadence.
       const minimumInterval = active
         ? activeFrameInterval(engine, activeFrameMs, movementFrameMs)
         : idleInterval;
@@ -264,7 +290,7 @@ export function installPerformanceGuard({
     const perfNow = clockNow();
     const wallNow = Date.now();
     const active = visualAnimationActive(engine, mapData, wallNow);
-    const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
+    const activeInterval = currentRenderInterval();
 
     if (active && (perfNow - lastRenderAt) < activeInterval) {
       metrics.throttled += 1;
@@ -316,6 +342,7 @@ export function installPerformanceGuard({
       visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
       activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
       movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
+      followMovementFrameMs: Math.max(1, Number(followMovementFrameMs) || DEFAULT_FOLLOW_MOVEMENT_FRAME_MS),
       idleFrameMs: idleInterval,
       fallbackScanMs: idleInterval,
       avgFallbackDurationMs: metrics.fallbackScans > 0

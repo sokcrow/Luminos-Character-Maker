@@ -156,6 +156,12 @@
     const raf = host?.requestAnimationFrame?.bind(host) || ((fn) => host?.setTimeout?.(() => fn(Date.now()), 16));
     const caf = host?.cancelAnimationFrame?.bind(host) || host?.clearTimeout?.bind(host);
 
+    function syncPerformanceHint() {
+      const active = Boolean(!stopped && enabled && target());
+      engine.cameraFollowActive = active;
+      return active;
+    }
+
     function policyState() {
       const token = target();
       const active = tokenRulesActive({ isDm, mapData, token });
@@ -206,6 +212,7 @@
     }
 
     const emit = (reason = 'sync') => {
+      syncPerformanceHint();
       const detail = { ...state(), reason };
       const EventCtor = host?.CustomEvent || root?.CustomEvent || globalThis.CustomEvent;
       if (typeof EventCtor === 'function') canvas.dispatchEvent(new EventCtor('vtt:camera-follow-changed', { detail }));
@@ -217,32 +224,40 @@
       return [clean(token.id), Number(token.x) || 0, Number(token.y) || 0, layerOf(token)].join('|');
     }
 
-    function center(reason = 'follow') {
+    function center(reason = 'follow', { emitChange = true } = {}) {
       if (!enabled || stopped) return false;
       const token = target();
-      if (!token) return false;
+      if (!token) {
+        syncPerformanceHint();
+        return false;
+      }
       applyPolicy();
       const nextSignature = signature(token);
-      if (nextSignature === lastSignature) return false;
+      if (nextSignature === lastSignature) {
+        syncPerformanceHint();
+        return false;
+      }
       const ok = camera.centerOnWorldPoint?.({ x: token.x, y: token.y }) === true;
       if (ok) {
         lastSignature = nextSignature;
-        emit(reason);
+        if (emitChange) emit(reason);
+        else syncPerformanceHint();
       }
       return ok;
     }
 
-    function sync(reason = 'state-sync', { forceCenter = false } = {}) {
+    function sync(reason = 'state-sync', { forceCenter = false, emitChange = true } = {}) {
       if (stopped) return state();
       const token = target();
       applyPolicy();
+      syncPerformanceHint();
       if (!token) {
         lastSignature = '';
-        emit(reason);
+        if (emitChange) emit(reason);
         return state();
       }
-      if (enabled && (forceCenter || signature(token) !== lastSignature)) center(reason);
-      else if (!enabled && camera.enforceCenterConstraint?.()) emit('look-clamped');
+      if (enabled && (forceCenter || signature(token) !== lastSignature)) center(reason, { emitChange });
+      else if (!enabled && camera.enforceCenterConstraint?.() && emitChange) emit('look-clamped');
       return state();
     }
 
@@ -253,7 +268,9 @@
         followFrame = null;
         const nextReason = pendingFollowReason || 'token-traversal';
         pendingFollowReason = null;
-        sync(nextReason);
+        // Camera.centerOnWorldPoint already emits canonical render-only scene dirty.
+        // Do not also emit the legacy state-change event for every traversal frame.
+        sync(nextReason, { emitChange: false });
       });
     }
 
@@ -262,10 +279,12 @@
       const next = Boolean(value) && Boolean(token);
       if (enabled === next) {
         applyPolicy();
+        syncPerformanceHint();
         if (next && centerNow) center(reason);
         return state();
       }
       enabled = next;
+      syncPerformanceHint();
       applyPolicy(true);
       if (enabled && centerNow) center(reason);
       else emit(reason);
@@ -280,6 +299,7 @@
       targetId = clean(id) || null;
       if (follow && target()) enabled = true;
       lastSignature = '';
+      syncPerformanceHint();
       applyPolicy(true);
       if (enabled) center('target');
       else emit('target');
@@ -289,6 +309,7 @@
     function clearTarget() {
       targetId = null;
       lastSignature = '';
+      syncPerformanceHint();
       applyPolicy(true);
       if (enabled) center('target-clear');
       else emit('target-clear');
@@ -299,6 +320,7 @@
       if (!target()) return false;
       enabled = true;
       lastSignature = '';
+      syncPerformanceHint();
       applyPolicy(true);
       return center('recenter');
     }
@@ -307,13 +329,17 @@
       const policy = applyPolicy();
       if (enabled) {
         enabled = false;
+        syncPerformanceHint();
         emit(policy.active ? 'look-around' : 'manual-pan');
       }
     };
 
     const onTokenMoved = (event) => {
       const token = target();
-      if (!token) return;
+      if (!token) {
+        syncPerformanceHint();
+        return;
+      }
       if (event?.detail?.tokenId != null && clean(event.detail.tokenId) !== clean(token.id)) return;
       if (event?.type === 'vtt:token-preview-moved') {
         // Drag previews never move the camera. Only a confirmed traversal after drop may follow.
@@ -346,11 +372,13 @@
     canvas.addEventListener('vtt:procedural-chunk-loaded', onWorldTransition);
     host?.addEventListener?.('keydown', onKeyDown);
     applyPolicy(true);
+    syncPerformanceHint();
     if (enabled) host?.setTimeout?.(() => sync('initial', { forceCenter: true }), 0);
 
     function stop() {
       if (stopped) return;
       stopped = true;
+      engine.cameraFollowActive = false;
       if (followFrame != null) caf?.(followFrame);
       followFrame = null;
       pendingFollowReason = null;
