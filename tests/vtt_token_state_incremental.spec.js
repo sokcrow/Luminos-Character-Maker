@@ -1,16 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
+import '../js/vtt/token-state.js';
 
-const tokenStateSource = readFileSync(new URL('../js/vtt/token-state.js', import.meta.url), 'utf8');
-const dynamicPatchSource = readFileSync(new URL('../js/vtt/token-state-dynamic-patch.js', import.meta.url), 'utf8');
-
-function loadTokenState({ dynamic = false } = {}) {
-    const context = vm.createContext({ console });
-    vm.runInContext(tokenStateSource, context, { filename: 'token-state.js' });
-    if (dynamic) vm.runInContext(dynamicPatchSource, context, { filename: 'token-state-dynamic-patch.js' });
-    return context.LuminousVttTokenState;
-}
+const baseApi = globalThis.LuminousVttTokenState;
 
 function position(x, y, zLayer = 0) {
     return {
@@ -23,7 +14,7 @@ function position(x, y, zLayer = 0) {
 }
 
 test('single canonical world update identifies exactly one token', () => {
-    const api = loadTokenState();
+    const api = baseApi;
     const goblin = { id: 'goblin', x: 0, y: 0, zLayer: 0 };
     const mapData = { id: 'map', tokens: [goblin] };
     const changes = [];
@@ -45,7 +36,7 @@ test('single canonical world update identifies exactly one token', () => {
 });
 
 test('single remote player update creates and then targets the canonical player token', () => {
-    const api = loadTokenState();
+    const api = baseApi;
     const mapData = { id: 'map', tokens: [] };
     const changes = [];
     const bridge = api.createBridge({ mapData, isDm: true, root: {}, onTokensChanged: (change) => changes.push(change) });
@@ -79,7 +70,7 @@ test('single remote player update creates and then targets the canonical player 
 });
 
 test('single remote player removal identifies the view that must be destroyed', () => {
-    const api = loadTokenState();
+    const api = baseApi;
     const player = {
         id: 'player:player-one',
         playerId: 'player-one',
@@ -102,7 +93,7 @@ test('single remote player removal identifies the view that must be destroyed', 
 });
 
 test('bootstrap records remain an explicit batch fallback', () => {
-    const api = loadTokenState();
+    const api = baseApi;
     const a = { id: 'a', x: 0, y: 0 };
     const b = { id: 'b', x: 0, y: 0 };
     const mapData = { id: 'map', tokens: [a, b] };
@@ -124,8 +115,9 @@ test('bootstrap records remain an explicit batch fallback', () => {
     });
 });
 
-test('dynamic world token updates and removals preserve their token id', () => {
-    const api = loadTokenState({ dynamic: true });
+test('dynamic world token updates and removals preserve their token id', async () => {
+    await import('../js/vtt/token-state-dynamic-patch.js');
+    const api = globalThis.LuminousVttTokenState;
     const mapData = { id: 'map', tokens: [] };
     const changes = [];
     const bridge = api.createBridge({ mapData, isDm: true, root: {}, onTokensChanged: (change) => changes.push(change) });
