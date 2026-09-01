@@ -29,6 +29,7 @@ async function bootLoadedMap(page) {
   await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.tokenMoveResolver), null, { timeout: 15000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttPathfinding?.__runtimeFinalizedPathfindingV3), null, { timeout: 5000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttLongDragHotfix?.__v1), null, { timeout: 5000 });
+  await page.waitForFunction(() => Boolean(window.LuminousVttDirectRouteHotfix?.__v1), null, { timeout: 5000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.__realtimeTraversalSimplifierV1), null, { timeout: 5000 });
 
   await page.evaluate(() => {
@@ -82,9 +83,12 @@ async function bootLoadedMap(page) {
     engine.camera.centerOnWorldPoint({ x: 36.5 * size, y: 10.5 * size });
 
     window.LuminousVttLongDragHotfix.ensure();
-    const baseline = window.LuminousVttLongDragHotfix.snapshot();
+    window.LuminousVttDirectRouteHotfix.ensure();
+    const baselineLong = window.LuminousVttLongDragHotfix.snapshot();
+    const baselineDirect = window.LuminousVttDirectRouteHotfix.snapshot();
     window.__longDragProbe = {
-      baseline,
+      baselineLong,
+      baselineDirect,
       mouseUpAt: null,
       movedAt: null,
       firstFrameAt: null,
@@ -139,7 +143,8 @@ async function dragToColumn(page, targetCol = 70) {
   const dragElapsedMs = Date.now() - dragStarted;
 
   const beforeDrop = await page.evaluate(() => ({
-    metrics: window.LuminousVttLongDragHotfix.snapshot(),
+    long: window.LuminousVttLongDragHotfix.snapshot(),
+    direct: window.LuminousVttDirectRouteHotfix.snapshot(),
     hudVisible: !document.getElementById('vtt-fast-drag-hud')?.hidden,
     hudText: document.getElementById('vtt-fast-drag-hud')?.textContent || '',
   }));
@@ -149,14 +154,18 @@ async function dragToColumn(page, targetCol = 70) {
 
   return page.evaluate(({ dragElapsedMs, beforeDrop }) => {
     const probe = window.__longDragProbe;
-    const after = window.LuminousVttLongDragHotfix.snapshot();
+    const afterLong = window.LuminousVttLongDragHotfix.snapshot();
+    const afterDirect = window.LuminousVttDirectRouteHotfix.snapshot();
     return {
       dragElapsedMs,
       beforeDrop,
-      after,
-      pathCallsDuringDrag: beforeDrop.metrics.pathCalls - probe.baseline.pathCalls,
-      totalPathCalls: after.pathCalls - probe.baseline.pathCalls,
-      directPaths: after.alignedDirectPaths - probe.baseline.alignedDirectPaths,
+      afterLong,
+      afterDirect,
+      longPathCallsDuringDrag: beforeDrop.long.pathCalls - probe.baselineLong.pathCalls,
+      directPathCallsDuringDrag: beforeDrop.direct.findPathCalls - probe.baselineDirect.findPathCalls,
+      directFindPathCalls: afterDirect.findPathCalls - probe.baselineDirect.findPathCalls,
+      directHits: afterDirect.directHits - probe.baselineDirect.directHits,
+      fallbackCalls: afterDirect.fallbackCalls - probe.baselineDirect.fallbackCalls,
       mouseUpToFirstFrameMs: probe.firstFrameAt - probe.mouseUpAt,
       mouseUpToMovedMs: probe.movedAt - probe.mouseUpAt,
       traversalFrames: probe.traversalFrames,
@@ -174,18 +183,21 @@ test('loaded 120x120 long drag does no pathfinding until drop and does not stall
   result.route = routeMetrics(result.moved?.path || []);
   console.log('VTT_LONG_DRAG=' + JSON.stringify(result));
 
-  expect(result.beforeDrop.metrics.pathfindingInstalled).toBe(true);
-  expect(result.beforeDrop.metrics.collisionBroadphaseInstalled).toBe(true);
-  expect(result.pathCallsDuringDrag, 'mousemove must never run full pathfinding').toBe(0);
+  expect(result.beforeDrop.long.pathfindingInstalled).toBe(true);
+  expect(result.beforeDrop.long.collisionBroadphaseInstalled).toBe(true);
+  expect(result.beforeDrop.direct.installed).toBe(true);
+  expect(result.longPathCallsDuringDrag, 'mousemove must never run legacy/full pathfinding').toBe(0);
+  expect(result.directPathCallsDuringDrag, 'mousemove must never run direct drop validation either').toBe(0);
   expect(result.beforeDrop.hudVisible, 'cheap drag HUD should remain responsive').toBe(true);
   expect(result.beforeDrop.hudText).toContain('ft');
   expect(result.dragElapsedMs, '90 pointer updates on a loaded map must stay interactive').toBeLessThan(1800);
 
   expect(result.rejected).toBeNull();
   expect(result.moved).toBeTruthy();
-  expect(result.totalPathCalls).toBeGreaterThan(0);
-  expect(result.directPaths, 'legal aligned movement should bypass A* even when terrain overrides exist').toBeGreaterThan(0);
-  expect(result.after.collisionBuildMaxMs, 'collision broadphase should build quickly').toBeLessThan(120);
+  expect(result.directFindPathCalls).toBeGreaterThan(0);
+  expect(result.directHits, 'legal aligned movement should use the direct corridor').toBeGreaterThan(0);
+  expect(result.fallbackCalls, 'clear straight movement must never enter A*').toBe(0);
+  expect(result.afterDirect.contextBuildMaxMs, 'direct collision index should build quickly').toBeLessThan(120);
 
   expect(result.route.startCol).toBe(3);
   expect(result.route.endCol).toBe(70);
