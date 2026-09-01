@@ -6,12 +6,14 @@ on:
       - 'js/vtt/**'
       - 'vtt.html'
       - 'tests/vtt_runtime_drag_performance_field.spec.js'
+      - 'playwright.config.js'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
   push:
     paths:
       - 'js/vtt/**'
       - 'vtt.html'
       - 'tests/vtt_runtime_drag_performance_field.spec.js'
+      - 'playwright.config.js'
       - '.github/workflows/vtt-runtime-drag-performance-field.yml'
 
 permissions:
@@ -30,8 +32,12 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Install Chromium
-        run: npx playwright install chromium
+      - name: Use preinstalled Chrome
+        run: |
+          CHROME="$(command -v google-chrome-stable || command -v google-chrome || command -v chromium || true)"
+          test -n "$CHROME"
+          echo "CHROMIUM_PATH=$CHROME" >> "$GITHUB_ENV"
+          "$CHROME" --version
       - name: Start static VTT server
         run: |
           python3 -m http.server 4173 > /tmp/vtt-field-server.log 2>&1 &
