@@ -28,6 +28,25 @@ test("+2 a un Stat es válido mientras no supere 20", () => {
   expect(invalid.errors.join(" ")).toContain("20");
 });
 
+test("Stats asignados rechazan valores faltantes, vacíos o no numéricos", () => {
+  const choice = { type: "stats", allocation: { fuerza: 2 } };
+
+  expect(milestones.validateChoice(choice, {}).valid).toBe(false);
+  expect(milestones.validateChoice(choice, { fuerza: "" }).valid).toBe(false);
+  expect(milestones.validateChoice(choice, { fuerza: "abc" }).valid).toBe(false);
+  expect(milestones.validateChoice(choice, { fuerza: 18 }).valid).toBe(true);
+});
+
+test("Stats asignados rechazan valores decimales", () => {
+  const invalid = milestones.validateChoice(
+    { type: "stats", allocation: { fuerza: 2 } },
+    { fuerza: "18.5" },
+  );
+
+  expect(invalid.valid).toBe(false);
+  expect(invalid.errors.join(" ")).toContain("entero válido");
+});
+
 test("+1/+1 exige dos Stats diferentes y respeta el cap 20", () => {
   expect(milestones.validateChoice({ type: "stats", allocation: { fuerza: 1, destreza: 1 } }, { fuerza: 19, destreza: 19 }).valid).toBe(true);
   expect(milestones.validateChoice({ type: "stats", allocation: { fuerza: 1 } }, { fuerza: 18 }).valid).toBe(false);
