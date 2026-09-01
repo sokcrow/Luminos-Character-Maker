@@ -8,6 +8,8 @@ on:
       - 'js/vtt/camera-follow.js'
       - 'js/vtt/dm-observer.js'
       - 'js/vtt/engine.js'
+      - 'js/vtt/token-state.js'
+      - 'js/vtt/token-state-dynamic-patch.js'
       - 'js/vtt/render/**'
       - 'js/vtt/procedural-chunk-streaming-runtime.js'
       - 'js/vtt/scene-dirty.js'
@@ -26,6 +28,7 @@ on:
       - 'tests/vtt_webgl2_camera_contract.spec.js'
       - 'tests/vtt_token_view_registry.spec.js'
       - 'tests/vtt_persistent_token_views.spec.js'
+      - 'tests/vtt_token_state_incremental.spec.js'
       - 'tests/vtt_scene_dirty.spec.js'
       - 'tests/vtt_scene_dirty_bridges.spec.js'
       - 'tests/vtt_scene_dirty_direct_emitters.spec.js'
@@ -52,6 +55,8 @@ jobs:
       - run: npm ci
       - name: Syntax
         run: |
+          node --check js/vtt/token-state.js
+          node --check js/vtt/token-state-dynamic-patch.js
           node --check js/vtt/scene-dirty.js
           node --input-type=module --check < js/vtt/scene-dirty-token-state-patch.js
           node --input-type=module --check < js/vtt/scene-dirty-lighting-patch.js
@@ -79,11 +84,13 @@ jobs:
           node --input-type=module --check < tests/vtt_webgl2_camera_contract.spec.js
           node --input-type=module --check < tests/vtt_token_view_registry.spec.js
           node --input-type=module --check < tests/vtt_persistent_token_views.spec.js
-      - name: Persistent TokenView lifecycle contracts
+          node --input-type=module --check < tests/vtt_token_state_incremental.spec.js
+      - name: Persistent TokenView and incremental token-state contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_token_view_registry.spec.js
           tests/vtt_persistent_token_views.spec.js
+          tests/vtt_token_state_incremental.spec.js
       - name: WebGL2 camera and DM observer contracts
         run: npx playwright test --workers=1 tests/vtt_webgl2_camera_contract.spec.js
       - name: Canonical scene dirty contracts
