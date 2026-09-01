@@ -42,7 +42,7 @@ test('Engine reaches the door threshold, resolves the canonical interaction, emi
   expect(animateBody).toContain('await this.movementInteractionResolver');
   expect(animateBody).toContain('resolvedInteraction = { ...interaction, ...resolution.interaction }');
   expect(animateBody).toContain('if (resolution?.irreversible === true) motion.irreversible = true');
-  expect(animateBody).toContain("CustomEvent('vtt:movement-interaction'");
+  expect(animateBody).toContain("emitSemanticEvent('vtt:movement-interaction'");
   expect(animateBody).toContain("CustomEvent('vtt:sound-event'");
   expect(animateBody).toContain('event: resolvedInteraction.soundEvent');
   expect(animateBody).toContain('await pause(resolvedInteraction.pauseMs)');
