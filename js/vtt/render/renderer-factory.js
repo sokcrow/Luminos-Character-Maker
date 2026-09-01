@@ -1,3 +1,4 @@
+import '../movement-zero-work-drag.js';
 import { Canvas2DRenderer } from './canvas2d-renderer.js';
 import { installDmObserverOverlay } from './dm-observer-overlay.js';
 import { installPersistentTokenViews } from './persistent-token-views.js';
