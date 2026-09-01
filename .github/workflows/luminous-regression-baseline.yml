@@ -1,3 +1,4 @@
+# CI policy: subsystem workflows own focused contracts; this workflow owns the single full-suite safety net.
 name: Luminous Regression Baseline
 
 on:
