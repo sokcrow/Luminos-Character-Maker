@@ -4,6 +4,9 @@
   if (root) {
     root.LuminousVttMovementConnectivity = api;
     api.installTokenState(root);
+    if (typeof window !== 'undefined') {
+      import('./movement-navigation-polish.js').catch((error) => console.error('VTT navigation polish failed to load:', error));
+    }
   }
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
