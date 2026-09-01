@@ -8,6 +8,8 @@ on:
       - 'js/vtt/camera-follow.js'
       - 'js/vtt/dm-observer.js'
       - 'js/vtt/engine.js'
+      - 'js/vtt/actor-library.js'
+      - 'js/vtt/token-appearance.js'
       - 'js/vtt/token-state.js'
       - 'js/vtt/token-state-dynamic-patch.js'
       - 'js/vtt/movement-zero-work-drag.js'
@@ -28,6 +30,8 @@ on:
       - 'js/vtt/memory-state.js'
       - 'tests/vtt_webgl2_camera_contract.spec.js'
       - 'tests/vtt_webgl2_token_layer.spec.js'
+      - 'tests/vtt_webgl2_token_texture_cache.spec.js'
+      - 'tests/vtt_actor_token_image_source.spec.js'
       - 'tests/vtt_token_view_registry.spec.js'
       - 'tests/vtt_persistent_token_views.spec.js'
       - 'tests/vtt_token_state_incremental.spec.js'
@@ -59,6 +63,8 @@ jobs:
       - run: npm ci
       - name: Syntax
         run: |
+          node --check js/vtt/actor-library.js
+          node --check js/vtt/token-appearance.js
           node --check js/vtt/token-state.js
           node --check js/vtt/token-state-dynamic-patch.js
           node --check js/vtt/scene-dirty.js
@@ -73,6 +79,7 @@ jobs:
           node --input-type=module --check < js/vtt/render/world-transform.js
           node --input-type=module --check < js/vtt/render/webgl2-renderer.js
           node --input-type=module --check < js/vtt/render/webgl2-token-layer.js
+          node --input-type=module --check < js/vtt/render/webgl2-token-texture-cache.js
           node --input-type=module --check < js/vtt/render/dm-observer-overlay.js
           node --input-type=module --check < js/vtt/render/token-view.js
           node --input-type=module --check < js/vtt/render/token-view-registry.js
@@ -90,12 +97,14 @@ jobs:
           node --check tests/vtt_performance_guard.spec.js
           node --input-type=module --check < tests/vtt_webgl2_camera_contract.spec.js
           node --input-type=module --check < tests/vtt_webgl2_token_layer.spec.js
+          node --input-type=module --check < tests/vtt_webgl2_token_texture_cache.spec.js
+          node --input-type=module --check < tests/vtt_actor_token_image_source.spec.js
           node --input-type=module --check < tests/vtt_token_view_registry.spec.js
           node --input-type=module --check < tests/vtt_persistent_token_views.spec.js
           node --input-type=module --check < tests/vtt_token_state_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_raf.spec.js
-      - name: Persistent TokenView, incremental state, drag preview, and GPU token layer contracts
+      - name: Persistent TokenView, state, drag, GPU, and Actor texture contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_token_view_registry.spec.js
@@ -104,6 +113,8 @@ jobs:
           tests/vtt_drag_preview_incremental.spec.js
           tests/vtt_drag_preview_raf.spec.js
           tests/vtt_webgl2_token_layer.spec.js
+          tests/vtt_webgl2_token_texture_cache.spec.js
+          tests/vtt_actor_token_image_source.spec.js
       - name: WebGL2 camera and DM observer contracts
         run: npx playwright test --workers=1 tests/vtt_webgl2_camera_contract.spec.js
       - name: Canonical scene dirty contracts
