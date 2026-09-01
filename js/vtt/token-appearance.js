@@ -10,22 +10,15 @@
   const clean = (value) => String(value ?? '').trim();
 
   // Actor Studio contract: `icono` is the compact log/HUD/token image.
-  // `sprite` belongs exclusively to Theatre scene rendering and MUST NOT be
-  // used to fill a tactical token container.
+  // Theatre sprites/portraits/images must never be used as tactical tokens.
+  // Keep this resolver deliberately strict so legacy `tokenImage` values that
+  // were previously populated from a sprite cannot leak back into the VTT.
   function imageSource(token = {}) {
     return clean(
       token.icono
       || token.icono_jugador
       || token.iconUrl
       || token.icon_url
-      || token.tokenImage
-      || token.token_image
-      || token.tokenUrl
-      || token.token_url
-      || token.portrait
-      || token.portraitUrl
-      || token.imagen
-      || token.image
       || '',
     );
   }
