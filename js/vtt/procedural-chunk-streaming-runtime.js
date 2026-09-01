@@ -77,7 +77,6 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     const transitionDetail={tokenId:token.id,from:transition.from,to:next.activeChunk,edges:transition.exit.edges};
     emitSemantic('vtt:token-moved',moveDetail);
     emitSemantic('vtt:procedural-chunk-transition',transitionDetail);
-    emitDirty('vtt:procedural-chunk-transition',transitionDetail);
   }
 
   async function activateChunk(desc,coord,{tokenId=null,requestedPoint=null,exit=null,persist=isDm,publish=isDm,center=true}={}){
@@ -104,7 +103,9 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     transitioning=true;
     try{
       let desc=buildDescriptor(previewPlan,size);desc=core.withChunkSeed(desc,{col:0,row:0},previewPlan.seed);desc=core.withActiveChunk(desc,{col:0,row:0});
-      procedural.apply(previewPlan,{replaceScene:true,persist:false});writeStreamingMetadata(desc,previewPlan);activePlan=previewPlan;engine.centerCamera?.();redraw('procedural-stream-created');await persistChunk(previewPlan);await publishChunkState(desc,previewPlan);
+      procedural.apply(previewPlan,{replaceScene:true,persist:false});writeStreamingMetadata(desc,previewPlan);activePlan=previewPlan;engine.centerCamera?.();redraw('procedural-stream-created');
+      const createdDetail={chunk:clone(desc.activeChunk),logical:{cols:desc.chunkCols,rows:desc.chunkRows},signature:previewPlan.signature};emitDirty('procedural-stream-created',createdDetail);
+      await persistChunk(previewPlan);await publishChunkState(desc,previewPlan);
       mapData.proceduralEditor&&(mapData.proceduralEditor.previewPlan=null);if(mapData.proceduralEditor)mapData.proceduralEditor.previewGenerationError=null;
       doc.getElementById(PANEL_ID)?.querySelector('[data-proc-close]')?.click();notify(`Zona ${size}×${size} creada en streaming · activo 40×40 · chunk 1,1`,'success');
       return{descriptor:desc,plan:previewPlan,token:null};
