@@ -98,7 +98,8 @@ test('VTT wiring loads linked racial senses, feet grid, grayscale rendering and 
   const html = read('vtt.html');
   const main = read('js/vtt/main.js');
   const engine = read('js/vtt/engine.js');
-  const renderer = read('js/vtt/renderer.js');
+  const canvasRenderer = read('js/vtt/render/canvas2d-renderer.js');
+  const rendererFactory = read('js/vtt/renderer.js');
   const mapData = read('js/vtt/mapData.js');
 
   expect(html).toContain('js/racial-sense-runtime.js');
@@ -107,7 +108,8 @@ test('VTT wiring loads linked racial senses, feet grid, grayscale rendering and 
   expect(main).toContain('LuminousVttCharacterVisionBridge');
   expect(engine).toContain('horizontalRadiusPxForRange');
   expect(engine).toContain("canTraverseLayers(player, closestIntersect, this.activeZ, this.mapData, 'vision')");
-  expect(renderer).toContain("this.ctx.filter = 'grayscale(1)'");
+  expect(canvasRenderer).toContain("this.ctx.filter = 'grayscale(1)'");
+  expect(rendererFactory).toContain('resolveRendererBackend()');
   expect(mapData).toContain("distancePerCell: 5");
   expect(mapData).toContain('verticalPortals');
   expect(mapData).toContain("characterLink: { mode: 'current_player' }");
@@ -124,7 +126,7 @@ test('new UMD runtimes parse and VTT files keep their ES module contracts', () =
   }
 
   expect(read('js/vtt/engine.js')).toMatch(/^import\s+\{\s*Camera\s*\}/);
-  expect(read('js/vtt/renderer.js')).toMatch(/^export\s+class\s+Renderer/);
+  expect(read('js/vtt/renderer.js')).toMatch(/export\s+class\s+Renderer/);
   expect(read('js/vtt/main.js')).toMatch(/^import\s+\{\s*Engine\s*\}/);
   expect(read('js/vtt/mapData.js')).toMatch(/^export\s+const\s+mockMapData/);
 });
