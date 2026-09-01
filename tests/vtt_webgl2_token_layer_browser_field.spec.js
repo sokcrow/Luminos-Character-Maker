@@ -41,7 +41,9 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
             offscreen: renderer.tokenViews.get('offscreen').resources.has('webgl2-token-visual'),
         };
 
-        renderer.drawTokens(0, { zoom: 1 }, null, false);
+        // Use the production render entrypoint so world/camera transforms are
+        // synchronized before viewport culling runs.
+        renderer.render(null, 0, null, false);
         const visual = view.resources.get('webgl2-token-visual')?.resource || null;
         const first = renderer.diagnostics().tokenGpu;
         const afterFirstResources = {
@@ -51,7 +53,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         };
 
         renderer.previewToken('agatha', { x: 170, y: 80, zLayer: 0 });
-        renderer.drawTokens(0, { zoom: 1 }, null, false);
+        renderer.render(null, 0, null, false);
         const preview = {
             canonical: { x: agatha.x, y: agatha.y, facingDeg: agatha.facingDeg },
             render: { x: view.renderX, y: view.renderY, facingDeg: view.renderFacingDeg },
@@ -66,7 +68,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         canvas.dispatchEvent(new CustomEvent('vtt:scene-dirty', {
             detail: { reason: 'token', tokenId: 'agatha', render: true, vision: false },
         }));
-        renderer.drawTokens(0, { zoom: 1 }, null, false);
+        renderer.render(null, 0, null, false);
         const material = renderer.diagnostics().tokenGpu;
 
         mapData.tokens = [upper, offscreen];
