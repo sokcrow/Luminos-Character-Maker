@@ -8,6 +8,7 @@ on:
       - 'js/vtt/movement-realtime.js'
       - 'js/vtt/movement-connectivity.js'
       - 'tests/vtt_navigation_polish.spec.js'
+      - 'tests/vtt_navigation_equal_cost_regression.spec.js'
       - 'tests/vtt_movement_destination_realtime.spec.js'
       - '.github/workflows/vtt-navigation-polish.yml'
   push:
@@ -17,6 +18,7 @@ on:
       - 'js/vtt/movement-realtime.js'
       - 'js/vtt/movement-connectivity.js'
       - 'tests/vtt_navigation_polish.spec.js'
+      - 'tests/vtt_navigation_equal_cost_regression.spec.js'
       - 'tests/vtt_movement_destination_realtime.spec.js'
       - '.github/workflows/vtt-navigation-polish.yml'
 
@@ -39,6 +41,7 @@ jobs:
           node --input-type=module --check < js/vtt/movement-realtime.js
           node --input-type=module --check < js/vtt/movement-connectivity.js
           node --check tests/vtt_navigation_polish.spec.js
+          node --check tests/vtt_navigation_equal_cost_regression.spec.js
           node --check tests/vtt_movement_destination_realtime.spec.js
       - name: Focused navigation contracts
-        run: npx playwright test --workers=1 tests/vtt_navigation_polish.spec.js tests/vtt_movement_destination_realtime.spec.js
+        run: npx playwright test --workers=1 tests/vtt_navigation_polish.spec.js tests/vtt_navigation_equal_cost_regression.spec.js tests/vtt_movement_destination_realtime.spec.js
