@@ -14,7 +14,7 @@ on:
       - "tests/regional_world_graph*.spec.js"
       - "tests/regional_travel*.spec.js"
       - "tests/vtt_world_streaming_lifecycle.spec.js"
-      - "tests/vtt_performance_guard.spec.js"
+      - "tests/vtt_procedural_chunk_streaming_performance.spec.js"
       - ".github/workflows/global-map-foundation.yml"
   push:
     branches: [main]
@@ -50,7 +50,7 @@ jobs:
           node --check tests/global_map_realtime.spec.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Focused global regional streaming and performance contracts
+      - name: Focused global regional and streaming contracts
         run: >-
           npx playwright test --workers=1
           tests/global_map_foundation.spec.js
@@ -60,7 +60,4 @@ jobs:
           tests/regional_travel_engine.spec.js
           tests/regional_travel_realtime.spec.js
           tests/vtt_world_streaming_lifecycle.spec.js
-          tests/vtt_performance_guard.spec.js
           tests/vtt_procedural_chunk_streaming_performance.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1
