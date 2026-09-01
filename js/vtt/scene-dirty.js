@@ -91,17 +91,11 @@
     return true;
   }
 
+  // Compatibility only for subsystems that have not yet migrated to vtt:scene-dirty.
+  // Token movement/sync and procedural chunk streaming now emit the canonical contract directly.
   const LEGACY_EVENT_MAP = Object.freeze([
-    ['vtt:token-preview-moved', REASONS.TOKEN, true, true],
-    ['vtt:movement-destination-preview', REASONS.TOKEN, false, true],
-    ['vtt:token-moved', REASONS.TOKEN, true, false],
-    ['vtt:token-z-transition', REASONS.TOKEN, true, false],
-    ['vtt:canonical-tokens-synced', REASONS.TOKEN, true, false],
-    ['vtt:movement-interaction', REASONS.TOPOLOGY, true, false],
     ['vtt:camera-follow-changed', REASONS.CAMERA, false, false],
     ['vtt:dm-observer-changed', REASONS.CAMERA, true, false],
-    ['vtt:procedural-chunk-loaded', REASONS.CHUNK, true, false],
-    ['vtt:procedural-chunk-transition', REASONS.CHUNK, true, false],
     ['vtt:memory-learn', REASONS.MEMORY, false, false],
     ['vtt:lighting-changed', REASONS.LIGHTING, true, false],
     ['vtt:fog-changed', REASONS.FOG, false, false],
