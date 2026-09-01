@@ -18,6 +18,8 @@
     else globalThis.clearTimeout?.(frameId);
   };
 
+  const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
+
   function hardenEngineRuntime(engine, { log = console, isDisposed = () => false } = {}) {
     if (!engine || engine.__lifecycleHardened) return engine || null;
 
@@ -31,17 +33,92 @@
     let handoffFrameId = null;
     let pointerFrameId = null;
     let pendingPointerMove = null;
+    let frameDelayTimerId = null;
+    let frameDelayDueAt = Infinity;
+    let frameDelayResolver = null;
 
     const inputPerformanceStats = {
       pointerMovesReceived: 0,
       pointerMovesProcessed: 0,
       pointerMovesCoalesced: 0,
     };
+    const schedulerStats = {
+      framesScheduled: 0,
+      framesExecuted: 0,
+      delayedFramesScheduled: 0,
+      immediateWakeups: 0,
+      delayedWakeupsPulledForward: 0,
+    };
 
     engine.getInputPerformanceStats = () => ({
       ...inputPerformanceStats,
       pointerMovePending: pointerFrameId != null,
     });
+
+    engine.getFrameSchedulerStats = () => ({
+      ...schedulerStats,
+      framePending: engine.frameId != null,
+      delayedWakePending: frameDelayTimerId != null,
+      nextDelayedWakeInMs: frameDelayTimerId != null
+        ? Math.max(0, frameDelayDueAt - nowMs())
+        : null,
+    });
+
+    const clearDelayedFrame = () => {
+      if (frameDelayTimerId == null) return false;
+      globalThis.clearTimeout?.(frameDelayTimerId);
+      frameDelayTimerId = null;
+      frameDelayDueAt = Infinity;
+      return true;
+    };
+
+    const scheduleFrame = (delayMs = 0) => {
+      if (engine.destroyed || isDisposed() || !engine.isRunning || engine.frameId != null) return false;
+      const delay = Math.max(0, Number(delayMs) || 0);
+      const targetDueAt = nowMs() + delay;
+
+      if (frameDelayTimerId != null) {
+        if (frameDelayDueAt <= targetDueAt + 1) return false;
+        clearDelayedFrame();
+        schedulerStats.delayedWakeupsPulledForward += 1;
+      }
+
+      if (delay <= 1) {
+        schedulerStats.framesScheduled += 1;
+        engine.frameId = requestFrame(engine.loop);
+        return true;
+      }
+
+      schedulerStats.framesScheduled += 1;
+      schedulerStats.delayedFramesScheduled += 1;
+      frameDelayDueAt = targetDueAt;
+      frameDelayTimerId = globalThis.setTimeout?.(() => {
+        frameDelayTimerId = null;
+        frameDelayDueAt = Infinity;
+        if (engine.destroyed || isDisposed() || !engine.isRunning || engine.frameId != null) return;
+        engine.frameId = requestFrame(engine.loop);
+      }, delay) ?? null;
+      return frameDelayTimerId != null;
+    };
+
+    engine.setFrameDelayResolver = function setFrameDelayResolver(resolver) {
+      frameDelayResolver = typeof resolver === 'function' ? resolver : null;
+      engine.requestFrame?.({ immediate: true });
+      return Boolean(frameDelayResolver);
+    };
+
+    engine.requestFrame = function requestLifecycleFrame(options = {}) {
+      if (engine.destroyed || isDisposed() || !engine.isRunning || engine.frameId != null) return false;
+      const immediate = options?.immediate !== false;
+      const requestedDelay = Number(options?.delayMs);
+      const delay = immediate
+        ? 0
+        : (Number.isFinite(requestedDelay)
+          ? Math.max(0, requestedDelay)
+          : Math.max(0, Number(frameDelayResolver?.()) || 0));
+      if (immediate && clearDelayedFrame()) schedulerStats.immediateWakeups += 1;
+      return scheduleFrame(delay);
+    };
 
     if (typeof originalTokenMouseMove === 'function') {
       try { globalThis.removeEventListener?.('mousemove', originalTokenMouseMove); } catch (_) {}
@@ -67,10 +144,9 @@
     }
 
     engine.start = function startLifecycleHardenedEngine() {
-      if (engine.destroyed || isDisposed() || engine.isRunning || engine.frameId != null) return false;
+      if (engine.destroyed || isDisposed() || engine.isRunning || engine.frameId != null || frameDelayTimerId != null) return false;
       engine.isRunning = true;
-      engine.frameId = requestFrame(engine.loop);
-      return true;
+      return scheduleFrame(0);
     };
 
     engine.stop = function stopLifecycleHardenedEngine() {
@@ -85,6 +161,7 @@
         cancelFrame(engine.frameId);
         engine.frameId = null;
       }
+      clearDelayedFrame();
       if (pointerFrameId != null) {
         cancelFrame(pointerFrameId);
         pointerFrameId = null;
@@ -99,6 +176,7 @@
     engine.loop = function lifecycleHardenedLoop() {
       engine.frameId = null;
       if (!engine.isRunning || engine.destroyed || isDisposed()) return;
+      schedulerStats.framesExecuted += 1;
 
       const renderData = engine.calculateVision();
       if (!engine.isExporting) {
@@ -106,7 +184,8 @@
       }
 
       if (engine.isRunning && !engine.destroyed && !isDisposed()) {
-        engine.frameId = requestFrame(engine.loop);
+        const nextDelay = Math.max(0, Number(frameDelayResolver?.()) || 0);
+        scheduleFrame(nextDelay);
       }
     };
 
@@ -122,6 +201,7 @@
       try { engine.camera?.destroy?.(); }
       catch (error) { log?.warn?.('VTT camera destroy failed.', error); }
 
+      frameDelayResolver = null;
       engine.tokenDrag = null;
       engine.tokenControlResolver = null;
       engine.tokenMoveResolver = null;
@@ -131,7 +211,7 @@
     };
 
     // main.js can schedule the legacy bound RAF before LuminousVttRuntime is published.
-    // Keep isRunning=false until that old callback drains, then restart with the owned RAF loop.
+    // Keep isRunning=false until that old callback drains, then restart with the owned scheduler.
     if (wasRunning && !isDisposed()) {
       handoffFrameId = requestFrame(() => {
         handoffFrameId = null;
