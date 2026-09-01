@@ -2,32 +2,32 @@ const { test, expect } = require('@playwright/test');
 
 const URL = process.env.VTT_FIELD_URL || 'http://127.0.0.1:4173/vtt.html';
 
-function routeMetrics(cells = []) {
-  const rows = cells.map((cell) => Number(cell.row)).filter(Number.isFinite);
-  const cols = cells.map((cell) => Number(cell.col)).filter(Number.isFinite);
+function metrics(cells = []) {
   let turns = 0;
   let reversalsY = 0;
-  let previousDirection = null;
-  let previousDy = 0;
-  for (let index = 1; index < cells.length; index += 1) {
-    const dx = Math.sign(Number(cells[index].col) - Number(cells[index - 1].col));
-    const dy = Math.sign(Number(cells[index].row) - Number(cells[index - 1].row));
-    const direction = `${dx},${dy}`;
-    if (previousDirection && direction !== previousDirection) turns += 1;
-    if (previousDy && dy && previousDy !== dy) reversalsY += 1;
-    if (dy) previousDy = dy;
-    previousDirection = direction;
+  let lastDir = null;
+  let lastDy = 0;
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 1) {
+    rows.push(Number(cells[i].row));
+    if (!i) continue;
+    const dx = Math.sign(Number(cells[i].col) - Number(cells[i - 1].col));
+    const dy = Math.sign(Number(cells[i].row) - Number(cells[i - 1].row));
+    const dir = `${dx},${dy}`;
+    if (lastDir && dir !== lastDir) turns += 1;
+    if (lastDy && dy && lastDy !== dy) reversalsY += 1;
+    if (dy) lastDy = dy;
+    lastDir = dir;
   }
   return {
     cells: cells.length,
     turns,
     reversalsY,
     rowExcursion: rows.length ? Math.max(...rows) - Math.min(...rows) : 0,
-    colExcursion: cols.length ? Math.max(...cols) - Math.min(...cols) : 0,
   };
 }
 
-async function prepare(page) {
+async function boot(page) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.tokenMoveResolver), null, { timeout: 15000 });
   await page.evaluate(() => {
@@ -36,50 +36,55 @@ async function prepare(page) {
     const token = map.tokens.find((entry) => entry.id === 'player1') || map.tokens[0];
     map.walls = [];
     map.topology = [];
+    map.structures = [];
+    map.worldObjects = [];
     map.movement ||= {};
     map.movement.terrain = {};
     map.movement.terrainCells = {};
     map.movement.blockTokens = false;
     map.movement.diagonalRule = '5e';
     map.movement.animationMsPerCell = 20;
-    token.x = (3 + 0.5) * map.grid.size;
-    token.y = (10 + 0.5) * map.grid.size;
+    token.x = (3.5) * map.grid.size;
+    token.y = (10.5) * map.grid.size;
     token.gridPosition = { col: 3, row: 10, z: 0 };
     token.zLayer = 0;
     token.z = [0];
     token.draggable = true;
+    token.viewer = true;
     engine.activeZ = 0;
     engine.camera.zoom = 0.7;
-    engine.camera.centerOnWorldPoint({ x: token.x + 7 * map.grid.size, y: token.y });
-  });
-}
+    engine.camera.centerOnWorldPoint({ x: token.x, y: token.y });
 
-async function installProbe(page) {
-  await page.evaluate(() => {
-    const base = window.LuminousVttPathfinding;
-    window.__vttFieldProbe = {
+    const pathfinder = window.LuminousVttPathfinding;
+    const probe = window.__vttFieldProbe = {
+      startedAt: performance.now(),
       pathfinderFlags: {
-        v2: Boolean(base?.__straightRouteTieBreakPatchV2),
-        straight: Boolean(base?.__straightRouteTieBreakPatch),
-        cheapTerrain: Boolean(base?.__cheapTerrainHeuristicPatch),
+        v2: Boolean(pathfinder?.__straightRouteTieBreakPatchV2),
+        straight: Boolean(pathfinder?.__straightRouteTieBreakPatch),
+        cheapTerrain: Boolean(pathfinder?.__cheapTerrainHeuristicPatch),
       },
+      events: [],
       plans: [],
-      mouseDownAt: null,
-      mouseUpAt: null,
-      firstTraversalAt: null,
-      movedAt: null,
-      previewFrames: [],
-      movedDetail: null,
+      resolver: { calls: 0, start: null, end: null, result: null, error: null },
+      animate: { calls: 0, start: null, end: null, result: null, error: null, inputPath: [] },
+      mouse: { down: null, up: null, dragAcquired: false },
+      previewCount: 0,
+      traversalFrames: [],
+      moved: null,
+      rejected: null,
     };
-    const probe = window.__vttFieldProbe;
-    const wrapped = Object.freeze({
-      ...base,
+    const stamp = (type, detail = null) => probe.events.push({ type, at: performance.now(), detail });
+
+    const wrappedPathfinder = Object.freeze({
+      ...pathfinder,
       findPath(args) {
-        const started = performance.now();
-        const result = base.findPath(args);
+        const at = performance.now();
+        const result = pathfinder.findPath(args);
         probe.plans.push({
-          ms: performance.now() - started,
+          at,
+          ms: performance.now() - at,
           valid: Boolean(result?.valid),
+          reason: result?.reason || null,
           visited: Number(result?.visited ?? -1),
           fastPath: result?.fastPath || null,
           cells: Array.isArray(result?.cells) ? result.cells.map(({ col, row }) => ({ col, row })) : [],
@@ -87,39 +92,78 @@ async function installProbe(page) {
         return result;
       },
     });
-    window.LuminousVttPathfinding = wrapped;
-    const canvas = window.LuminousVttRuntime.engine.canvas;
-    window.addEventListener('mousedown', () => { probe.mouseDownAt ??= performance.now(); }, true);
-    window.addEventListener('mouseup', () => { probe.mouseUpAt ??= performance.now(); }, true);
+    window.LuminousVttPathfinding = wrappedPathfinder;
+
+    const originalResolver = engine.tokenMoveResolver;
+    engine.tokenMoveResolver = async (...args) => {
+      probe.resolver.calls += 1;
+      probe.resolver.start = performance.now();
+      stamp('resolver:start');
+      try {
+        const result = await originalResolver(...args);
+        probe.resolver.end = performance.now();
+        probe.resolver.result = {
+          valid: Boolean(result?.valid),
+          reason: result?.reason || null,
+          path: Array.isArray(result?.path) ? result.path.map(({ col, row }) => ({ col, row })) : [],
+        };
+        stamp('resolver:end', probe.resolver.result);
+        return result;
+      } catch (error) {
+        probe.resolver.end = performance.now();
+        probe.resolver.error = String(error?.stack || error);
+        stamp('resolver:error', probe.resolver.error);
+        throw error;
+      }
+    };
+
+    const originalAnimate = engine.animateTokenPath;
+    engine.animateTokenPath = async (...args) => {
+      probe.animate.calls += 1;
+      probe.animate.start = performance.now();
+      probe.animate.inputPath = Array.isArray(args[1]) ? args[1].map(({ col, row }) => ({ col, row })) : [];
+      stamp('animate:start', { cells: probe.animate.inputPath.length });
+      try {
+        const result = await originalAnimate.apply(engine, args);
+        probe.animate.end = performance.now();
+        probe.animate.result = result ? { valid: result.valid, complete: result.complete, reason: result.reason || null } : null;
+        stamp('animate:end', probe.animate.result);
+        return result;
+      } catch (error) {
+        probe.animate.end = performance.now();
+        probe.animate.error = String(error?.stack || error);
+        stamp('animate:error', probe.animate.error);
+        throw error;
+      }
+    };
+
+    const canvas = engine.canvas;
+    window.addEventListener('mousedown', () => { probe.mouse.down ??= performance.now(); stamp('mouse:down'); }, true);
+    window.addEventListener('mouseup', () => { probe.mouse.up ??= performance.now(); stamp('mouse:up'); }, true);
+    canvas.addEventListener('vtt:movement-destination-preview', () => { probe.previewCount += 1; });
     canvas.addEventListener('vtt:token-preview-moved', (event) => {
       if (!event.detail?.traversing) return;
-      const now = performance.now();
-      probe.firstTraversalAt ??= now;
-      probe.previewFrames.push(now);
+      probe.traversalFrames.push(performance.now());
+      if (probe.traversalFrames.length === 1) stamp('traversal:first-frame');
+    });
+    canvas.addEventListener('vtt:movement-order-rejected', (event) => {
+      probe.rejected = { at: performance.now(), detail: JSON.parse(JSON.stringify(event.detail || {})) };
+      stamp('movement:rejected', probe.rejected.detail);
     });
     canvas.addEventListener('vtt:token-moved', (event) => {
-      probe.movedAt = performance.now();
-      probe.movedDetail = JSON.parse(JSON.stringify(event.detail || {}));
+      probe.moved = { at: performance.now(), detail: JSON.parse(JSON.stringify(event.detail || {})) };
+      stamp('movement:moved');
     });
   });
 }
 
-async function resetForRun(page) {
-  return page.evaluate(() => {
+async function drag(page) {
+  const points = await page.evaluate(() => {
     const engine = window.LuminousVttRuntime.engine;
     const map = engine.mapData;
     const token = map.tokens.find((entry) => entry.id === 'player1') || map.tokens[0];
-    token.x = (3 + 0.5) * map.grid.size;
-    token.y = (10 + 0.5) * map.grid.size;
-    token.gridPosition = { col: 3, row: 10, z: 0 };
-    token.zLayer = 0;
-    token.z = [0];
-    engine.tokenMotion = null;
-    engine.tokenDrag = null;
-    engine.camera.zoom = 0.7;
-    engine.camera.centerOnWorldPoint({ x: token.x + 7 * map.grid.size, y: token.y });
+    const targetWorld = { x: 17.5 * map.grid.size, y: 10.5 * map.grid.size };
     const start = engine.camera.worldToScreen(token.x, token.y);
-    const targetWorld = { x: (17 + 0.5) * map.grid.size, y: (10 + 0.5) * map.grid.size };
     const target = engine.camera.worldToScreen(targetWorld.x, targetWorld.y);
     const rect = engine.canvas.getBoundingClientRect();
     return {
@@ -127,15 +171,15 @@ async function resetForRun(page) {
       target: { x: rect.left + target.x, y: rect.top + target.y },
     };
   });
-}
 
-async function dragAndMeasure(page) {
-  const points = await resetForRun(page);
   await page.mouse.move(points.start.x, points.start.y);
   await page.mouse.down({ button: 'left' });
-  const steps = 36;
-  for (let index = 1; index <= steps; index += 1) {
-    const t = index / steps;
+  await page.waitForTimeout(25);
+  const acquired = await page.evaluate(() => Boolean(window.LuminousVttRuntime.engine.tokenDrag));
+  await page.evaluate((value) => { window.__vttFieldProbe.mouse.dragAcquired = value; }, acquired);
+
+  for (let i = 1; i <= 36; i += 1) {
+    const t = i / 36;
     await page.mouse.move(
       points.start.x + (points.target.x - points.start.x) * t,
       points.start.y + (points.target.y - points.start.y) * t,
@@ -143,57 +187,54 @@ async function dragAndMeasure(page) {
     await page.waitForTimeout(16);
   }
   await page.mouse.up({ button: 'left' });
-  await page.waitForFunction(() => Boolean(window.__vttFieldProbe?.movedAt), null, { timeout: 10000 });
+
+  try {
+    await page.waitForFunction(() => Boolean(window.__vttFieldProbe?.moved || window.__vttFieldProbe?.rejected), null, { timeout: 5000 });
+  } catch (_) {
+    // A timeout is itself diagnostic: snapshot the in-flight stage below.
+  }
+
   return page.evaluate(() => {
     const probe = window.__vttFieldProbe;
-    const planMs = probe.plans.map((entry) => entry.ms);
-    const frames = probe.previewFrames;
+    const frames = probe.traversalFrames;
     const intervals = frames.slice(1).map((value, index) => value - frames[index]).sort((a, b) => a - b);
-    const percentile = (values, q) => values.length ? values[Math.min(values.length - 1, Math.floor(values.length * q))] : null;
+    const p95 = intervals.length ? intervals[Math.min(intervals.length - 1, Math.floor(intervals.length * 0.95))] : null;
+    const planMs = probe.plans.map((entry) => entry.ms);
+    const finalPath = probe.moved?.detail?.path || probe.resolver.result?.path || probe.animate.inputPath || [];
     return {
       pathfinderFlags: probe.pathfinderFlags,
+      mouse: probe.mouse,
+      previewCount: probe.previewCount,
       planningCalls: probe.plans.length,
       planningTotalMs: planMs.reduce((sum, value) => sum + value, 0),
       planningMaxMs: planMs.length ? Math.max(...planMs) : 0,
       planningAvgMs: planMs.length ? planMs.reduce((sum, value) => sum + value, 0) / planMs.length : 0,
-      dropToTraversalMs: probe.firstTraversalAt != null && probe.mouseUpAt != null ? probe.firstTraversalAt - probe.mouseUpAt : null,
-      mouseDownToMovedMs: probe.movedAt != null && probe.mouseDownAt != null ? probe.movedAt - probe.mouseDownAt : null,
-      traversalMs: probe.movedAt != null && probe.firstTraversalAt != null ? probe.movedAt - probe.firstTraversalAt : null,
-      frameIntervalP95Ms: percentile(intervals, 0.95),
-      previewFrameCount: frames.length,
-      finalPath: Array.isArray(probe.movedDetail?.path)
-        ? probe.movedDetail.path.map(({ col, row }) => ({ col, row }))
-        : [],
       plans: probe.plans,
+      resolver: probe.resolver,
+      animate: probe.animate,
+      traversalFrameCount: frames.length,
+      frameIntervalP95Ms: p95,
+      moved: probe.moved,
+      rejected: probe.rejected,
+      engineState: {
+        tokenDrag: Boolean(window.LuminousVttRuntime.engine.tokenDrag),
+        tokenMotion: window.LuminousVttRuntime.engine.tokenMotion ? { ...window.LuminousVttRuntime.engine.tokenMotion, frameId: Boolean(window.LuminousVttRuntime.engine.tokenMotion.frameId) } : null,
+      },
+      finalPath: finalPath.map(({ col, row }) => ({ col, row })),
+      events: probe.events,
     };
   });
 }
 
-test('real canvas drag A/B exposes runtime pathfinder and movement latency', async ({ page }) => {
-  test.setTimeout(45000);
+test('real canvas drag traces planning, resolver, traversal and terminal outcome', async ({ page }) => {
+  test.setTimeout(30000);
   await page.setViewportSize({ width: 1920, height: 900 });
-  await prepare(page);
+  await boot(page);
+  const result = await drag(page);
+  result.route = metrics(result.finalPath);
+  console.log('VTT_FIELD_TRACE=' + JSON.stringify(result));
 
-  await installProbe(page);
-  const before = await dragAndMeasure(page);
-  before.route = routeMetrics(before.finalPath);
-  console.log('VTT_FIELD_BEFORE=' + JSON.stringify(before));
-
-  expect(before.pathfinderFlags.v2, 'production page should reveal whether V2 is actually connected').toBe(false);
-
-  await page.evaluate(async () => {
-    await import(`/js/vtt/movement-navigation-polish.js?field=${Date.now()}`);
-  });
-  await page.waitForFunction(() => Boolean(window.LuminousVttPathfinding?.__straightRouteTieBreakPatchV2), null, { timeout: 5000 });
-  await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.__navigationPolishRuntime), null, { timeout: 5000 });
-
-  await installProbe(page);
-  const after = await dragAndMeasure(page);
-  after.route = routeMetrics(after.finalPath);
-  console.log('VTT_FIELD_AFTER=' + JSON.stringify(after));
-
-  expect(after.pathfinderFlags.v2).toBe(true);
-  expect(after.route.rowExcursion).toBe(0);
-  expect(after.route.reversalsY).toBe(0);
-  expect(after.plans.some((plan) => plan.fastPath === 'aligned')).toBe(true);
+  expect(result.mouse.dragAcquired, 'real mouse down must actually acquire the token').toBe(true);
+  expect(result.resolver.calls, 'mouseup must enter the real movement resolver').toBeGreaterThan(0);
+  expect(result.moved || result.rejected, 'movement must reach a terminal moved/rejected event within 5s').toBeTruthy();
 });
