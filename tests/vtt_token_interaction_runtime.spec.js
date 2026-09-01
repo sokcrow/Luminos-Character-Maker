@@ -38,7 +38,9 @@ class FakeHost {
         this.listeners.get(type)?.delete(handler);
     }
     dispatch(type, event = {}) {
-        for (const handler of this.listeners.get(type) || []) handler({ type, ...event });
+        const payload = { type, ...event };
+        for (const handler of this.listeners.get(type) || []) handler(payload);
+        return payload;
     }
 }
 
@@ -66,7 +68,7 @@ test('mousemove hover delegates hit-testing to Engine.tokenAtEvent and emits tra
     const { host, canvas, engine, agatha, runtime } = setup();
     const before = JSON.stringify(agatha);
 
-    host.dispatch('mousemove', { target: canvas, token: agatha });
+    const event = host.dispatch('mousemove', { target: canvas, token: agatha });
 
     expect(engine.hitTests).toBe(1);
     expect(runtime.snapshot()).toMatchObject({ hoveredTokenId: 'agatha', hoverChanges: 1 });
@@ -76,6 +78,11 @@ test('mousemove hover delegates hit-testing to Engine.tokenAtEvent and emits tra
     });
     expect(host.dirty.at(-1)).toMatchObject({ reason: 'interaction', render: true, vision: false, tokenId: 'agatha' });
     expect(JSON.stringify(agatha)).toBe(before);
+
+    // Engine's later cursor handling sees the same event and reuses the cached hit.
+    expect(engine.tokenAtEvent(event)).toBe(agatha);
+    expect(engine.hitTests).toBe(1);
+    expect(runtime.snapshot().reusedHitTests).toBe(1);
 });
 
 test('left click selection uses the same permission-aware Engine.tokenAtEvent boundary', () => {
