@@ -1,5 +1,4 @@
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
-const clean=value=>String(value??'').trim();
 
 function pointFrom(value,size=70){
   if(!value||typeof value!=='object')return null;
@@ -89,11 +88,12 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
   if(globalThis.LuminousVttProceduralPerformance?.__v1)return globalThis.LuminousVttProceduralPerformance;
   const engine=runtime.engine,renderer=engine.renderer,size=Math.max(1,finite(mapData.grid?.size,70));
   let enabled=true,stopped=false;
-  const metrics={renderFrames:0,cullTotalMs:0,cullMaxMs:0,visionCalls:0,visionFilterTotalMs:0,visionFilterMaxMs:0,lastTotals:null,lastVisible:null,lastVisionTotal:0,lastVisionCandidates:0};
+  const metrics={renderFrames:0,cullPrepTotalMs:0,cullPrepMaxMs:0,frameTotalMs:0,frameMaxMs:0,visionCalls:0,visionFilterTotalMs:0,visionFilterMaxMs:0,lastTotals:null,lastVisible:null,lastVisionTotal:0,lastVisionCandidates:0};
 
   const originalVisionWalls=engine.visionWallsForLayer?.bind(engine);
+  let wrappedVisionWalls=null;
   if(originalVisionWalls){
-    engine.visionWallsForLayer=function proceduralVisionWalls(zLayer){
+    wrappedVisionWalls=function proceduralVisionWalls(zLayer){
       const started=performance.now();
       const all=originalVisionWalls(zLayer)||[];
       if(!enabled||all.length<32){metrics.lastVisionTotal=all.length;metrics.lastVisionCandidates=all.length;return all;}
@@ -107,6 +107,7 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
       metrics.visionCalls+=1;metrics.visionFilterTotalMs+=elapsed;metrics.visionFilterMaxMs=Math.max(metrics.visionFilterMaxMs,elapsed);metrics.lastVisionTotal=all.length;metrics.lastVisionCandidates=filtered.length;
       return filtered;
     };
+    engine.visionWallsForLayer=wrappedVisionWalls;
   }
 
   const originalRender=renderer?.render?.bind(renderer);
@@ -116,7 +117,7 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
       if(!enabled||isExporting)return originalRender(camera,activeZ,renderData,isExporting);
       const bounds=cameraBounds(engine,camera,2);
       if(!bounds)return originalRender(camera,activeZ,renderData,isExporting);
-      const started=performance.now(),originals={
+      const frameStarted=performance.now(),prepStarted=frameStarted,originals={
         topology:mapData.topology,walls:mapData.walls,structures:mapData.structures,worldObjects:mapData.worldObjects,horizontalPlanes:mapData.horizontalPlanes,surfaceLayers:mapData.surfaceLayers,
       };
       const totals=sceneCounts(mapData,activeZ);
@@ -128,10 +129,11 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
         if(Array.isArray(originals.horizontalPlanes))mapData.horizontalPlanes=originals.horizontalPlanes.filter(item=>planeVisible(item,bounds,size));
         if(originals.surfaceLayers)mapData.surfaceLayers=surfaceLayerInBounds(mapData,activeZ,bounds);
         metrics.lastTotals=totals;metrics.lastVisible=sceneCounts(mapData,activeZ);
+        const prepElapsed=performance.now()-prepStarted;metrics.cullPrepTotalMs+=prepElapsed;metrics.cullPrepMaxMs=Math.max(metrics.cullPrepMaxMs,prepElapsed);
         return originalRender(camera,activeZ,renderData,isExporting);
       }finally{
         mapData.topology=originals.topology;mapData.walls=originals.walls;mapData.structures=originals.structures;mapData.worldObjects=originals.worldObjects;mapData.horizontalPlanes=originals.horizontalPlanes;mapData.surfaceLayers=originals.surfaceLayers;
-        const elapsed=performance.now()-started;metrics.renderFrames+=1;metrics.cullTotalMs+=elapsed;metrics.cullMaxMs=Math.max(metrics.cullMaxMs,elapsed);
+        const frameElapsed=performance.now()-frameStarted;metrics.renderFrames+=1;metrics.frameTotalMs+=frameElapsed;metrics.frameMaxMs=Math.max(metrics.frameMaxMs,frameElapsed);
       }
     };
     renderer.render=wrappedRender;
@@ -142,10 +144,10 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
     setEnabled(value){enabled=Boolean(value);return enabled;},
     get enabled(){return enabled;},
     bounds:()=>cameraBounds(engine,engine.camera,2),
-    snapshot(){return Object.freeze({...metrics,avgCullMs:metrics.renderFrames?metrics.cullTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,enabled});},
+    snapshot(){return Object.freeze({...metrics,avgCullPrepMs:metrics.renderFrames?metrics.cullPrepTotalMs/metrics.renderFrames:0,avgFrameMs:metrics.renderFrames?metrics.frameTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,enabled});},
     stop(){
       if(stopped)return false;stopped=true;
-      if(originalVisionWalls&&engine.visionWallsForLayer!==originalVisionWalls)engine.visionWallsForLayer=originalVisionWalls;
+      if(wrappedVisionWalls&&engine.visionWallsForLayer===wrappedVisionWalls)engine.visionWallsForLayer=originalVisionWalls;
       if(wrappedRender&&renderer.render===wrappedRender)renderer.render=originalRender;
       if(globalThis.LuminousVttProceduralPerformance===api)delete globalThis.LuminousVttProceduralPerformance;
       return true;
