@@ -10,6 +10,7 @@ on:
       - 'js/vtt/lighting-defaults-patch.js'
       - 'js/vtt/pov-engine.js'
       - 'tests/vtt_runtime_performance_phase1.spec.js'
+      - 'tests/vtt_runtime_frame_scheduler.spec.js'
       - 'tests/vtt_performance_guard.spec.js'
       - 'tests/vtt_vision_cone_runtime.spec.js'
       - '.github/workflows/vtt-performance-guard.yml'
@@ -34,15 +35,19 @@ jobs:
           node --check js/vtt/runtime-lifecycle.js
           node --input-type=module --check < js/vtt/performance-guard.js
           node --check tests/vtt_runtime_performance_phase1.spec.js
-      - name: Frame-coalesced input contract
-        run: npx playwright test tests/vtt_runtime_performance_phase1.spec.js
+          node --check tests/vtt_runtime_frame_scheduler.spec.js
+      - name: Frame-coalesced input and adaptive scheduler contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_runtime_performance_phase1.spec.js
+          tests/vtt_runtime_frame_scheduler.spec.js
       - name: Vision cone 120 degree regression
         run: npx playwright test tests/vtt_vision_cone_runtime.spec.js
-      - name: Idle render and instrumentation budget
+      - name: Idle render scheduler and instrumentation budget
         run: npx playwright test tests/vtt_performance_guard.spec.js
       - name: Lighting/Fog focused regression
         run: >-
-          npx playwright test
+          npx playwright test --workers=1
           tests/vtt_dynamic_lighting.spec.js
           tests/vtt_dynamic_lighting_runtime.spec.js
           tests/vtt_pov*.spec.js

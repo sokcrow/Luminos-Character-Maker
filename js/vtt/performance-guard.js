@@ -88,7 +88,8 @@ export function dmOmniscientVision(mapData = {}) {
 }
 
 function visualAnimationActive(engine, mapData, now = Date.now()) {
-  return Boolean(engine?.tokenMotion || engine?.tokenDrag) || hasActiveLightingAnimation(mapData, now);
+  return Boolean(engine?.tokenMotion || engine?.tokenDrag || engine?.camera?.isDragging)
+    || hasActiveLightingAnimation(mapData, now);
 }
 
 function activeFrameInterval(engine, activeFrameMs = DEFAULT_ACTIVE_FRAME_MS, movementFrameMs = DEFAULT_MOVEMENT_FRAME_MS) {
@@ -158,6 +159,10 @@ export function installPerformanceGuard({
 
   const originalRender = renderer.render.bind(renderer);
   const originalCalculateVision = typeof engine.calculateVision === 'function' ? engine.calculateVision.bind(engine) : null;
+  const idleInterval = Math.max(
+    Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
+    Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS,
+  );
   const metrics = {
     calls: 0,
     rendered: 0,
@@ -191,14 +196,31 @@ export function installPerformanceGuard({
   let visionDirty = true;
   let stopped = false;
 
+  const nextFrameDelayMs = () => {
+    if (stopped) return 0;
+    const active = visualAnimationActive(engine, mapData, Date.now());
+    if (active) return activeFrameInterval(engine, activeFrameMs, movementFrameMs);
+    if (renderDirty || visionDirty) return 0;
+    return idleInterval;
+  };
+
+  const wakeFrame = () => {
+    const active = visualAnimationActive(engine, mapData, Date.now());
+    engine.requestFrame?.({
+      immediate: !active,
+      delayMs: active ? activeFrameInterval(engine, activeFrameMs, movementFrameMs) : 0,
+    });
+  };
+
   const invalidate = () => {
     renderDirty = true;
     visionDirty = true;
     signatureCache.invalidate();
+    wakeFrame();
   };
 
   const interactionInvalidate = () => {
-    if (engine.tokenDrag || engine.tokenMotion || mapData.dmEditMode?.active) invalidate();
+    if (engine.tokenDrag || engine.tokenMotion || engine.camera?.isDragging || mapData.dmEditMode?.active) invalidate();
   };
 
   const events = [
@@ -218,6 +240,7 @@ export function installPerformanceGuard({
   globalThis.addEventListener?.('keydown', invalidate);
   globalThis.addEventListener?.('keyup', invalidate);
   globalThis.addEventListener?.('mousemove', interactionInvalidate, { passive: true });
+  engine.setFrameDelayResolver?.(nextFrameDelayMs);
 
   if (originalCalculateVision) {
     engine.calculateVision = function guardedCalculateVision(...args) {
@@ -260,10 +283,9 @@ export function installPerformanceGuard({
     const wallNow = Date.now();
     const active = visualAnimationActive(engine, mapData, wallNow);
     const activeInterval = activeFrameInterval(engine, activeFrameMs, movementFrameMs);
-    const idleInterval = Math.max(Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS), Number(idleScanMs) || DEFAULT_IDLE_SCAN_MS);
 
-    // Important: reject excess animation frames before building token/topology JSON signatures.
-    // Token interpolation stays RAF-smooth, but Dynamic Lighting/Fog heavy work is capped at 20 Hz during tokenMotion.
+    // The lifecycle scheduler already targets these cadences. Keep these checks as a safety net
+    // for explicit wakeups and runtimes that do not expose the adaptive scheduler yet.
     if (active && (perfNow - lastRenderAt) < activeInterval) {
       metrics.throttled += 1;
       return;
@@ -299,12 +321,14 @@ export function installPerformanceGuard({
 
   const api = Object.freeze({
     invalidate,
+    nextFrameDelayMs,
     snapshot: () => ({
       ...metrics,
       savedFrames: metrics.skipped + metrics.throttled,
       visionSaved: metrics.visionSkipped + metrics.dmVisionBypassed,
       activeFrameMs: Math.max(1, Number(activeFrameMs) || DEFAULT_ACTIVE_FRAME_MS),
       movementFrameMs: Math.max(1, Number(movementFrameMs) || DEFAULT_MOVEMENT_FRAME_MS),
+      idleFrameMs: idleInterval,
       avgStaticSignatureDurationMs: metrics.staticSignatureScans > 0
         ? metrics.staticSignatureDurationMs / metrics.staticSignatureScans
         : 0,
@@ -313,6 +337,9 @@ export function installPerformanceGuard({
         : 0,
       input: typeof engine.getInputPerformanceStats === 'function'
         ? engine.getInputPerformanceStats()
+        : null,
+      scheduler: typeof engine.getFrameSchedulerStats === 'function'
+        ? engine.getFrameSchedulerStats()
         : null,
     }),
     resetMetrics() {
@@ -339,6 +366,7 @@ export function installPerformanceGuard({
       renderer.render = originalRender;
       renderer.__performanceGuardInstalled = false;
       if (originalCalculateVision) engine.calculateVision = originalCalculateVision;
+      engine.setFrameDelayResolver?.(null);
       events.forEach((name) => engine.canvas?.removeEventListener?.(name, invalidate));
       globalThis.removeEventListener?.('resize', invalidate);
       globalThis.removeEventListener?.('wheel', invalidate);

@@ -203,6 +203,56 @@ test('performance guard reports fingerprint, static scan, and input costs withou
   }
 });
 
+test('performance guard publishes adaptive frame cadence and scheduler metrics', async () => {
+  const { mod, tmp } = await loadGuard();
+  try {
+    const canvas = canvasStub();
+    const renderer = { render() {} };
+    const mapData = mapStub();
+    let resolver = null;
+    const wakeCalls = [];
+    const engine = {
+      renderer,
+      mapData,
+      canvas,
+      camera: { x: 0, y: 0, zoom: 1, isDragging: false },
+      activeZ: 0,
+      tokenDrag: null,
+      tokenMotion: null,
+      calculateVision() { return { visible: true }; },
+      setFrameDelayResolver(next) { resolver = typeof next === 'function' ? next : null; return Boolean(resolver); },
+      requestFrame(options) { wakeCalls.push(options); return true; },
+      getFrameSchedulerStats() { return { framesScheduled: 8, framesExecuted: 6, delayedWakePending: true }; },
+    };
+    const api = mod.installPerformanceGuard({ runtime: { engine, bridge: { isDm: false } } });
+    expect(resolver).toBeTruthy();
+
+    engine.calculateVision();
+    renderer.render();
+    expect(api.nextFrameDelayMs()).toBeCloseTo(1000 / 15, 4);
+
+    engine.camera.isDragging = true;
+    expect(api.nextFrameDelayMs()).toBeCloseTo(1000 / 30, 4);
+
+    engine.tokenMotion = { tokenId: 'p1' };
+    expect(api.nextFrameDelayMs()).toBeCloseTo(1000 / 20, 4);
+
+    engine.tokenMotion = null;
+    engine.camera.isDragging = false;
+    api.invalidate();
+    expect(wakeCalls.at(-1)).toMatchObject({ immediate: true, delayMs: 0 });
+
+    const stats = api.snapshot();
+    expect(stats.idleFrameMs).toBeCloseTo(1000 / 15, 4);
+    expect(stats.scheduler).toMatchObject({ framesScheduled: 8, framesExecuted: 6, delayedWakePending: true });
+
+    api.stop();
+    expect(resolver).toBeNull();
+  } finally {
+    fs.unlinkSync(tmp);
+  }
+});
+
 test('performance guard loads after Dynamic Lighting and Fog Memory', () => {
   const html = read('vtt.html');
   const lighting = html.indexOf('js/vtt/dynamic-lighting-bootstrap.js');
@@ -222,10 +272,11 @@ test('performance guard keeps visual rule inputs and caps active movement before
   expect(source).toContain('DEFAULT_ACTIVE_FRAME_MS = 1000 / 30');
   expect(source).toContain('DEFAULT_MOVEMENT_FRAME_MS = 1000 / 20');
   expect(source).toContain('DEFAULT_IDLE_SCAN_MS = 1000 / 15');
-  expect(source).toContain('engine?.tokenMotion || engine?.tokenDrag');
+  expect(source).toContain('engine?.tokenMotion || engine?.tokenDrag || engine?.camera?.isDragging');
   expect(source).toContain('if (engine?.tokenMotion)');
-  expect(source).toContain('Dynamic Lighting/Fog heavy work is capped at 20 Hz during tokenMotion');
-  expect(source).toContain('reject excess animation frames before building token/topology JSON signatures');
+  expect(source).toContain('engine.setFrameDelayResolver?.(nextFrameDelayMs)');
+  expect(source).toContain('engine.requestFrame?.({');
+  expect(source).toContain('The lifecycle scheduler already targets these cadences');
 });
 
 test('performance guard parses as an ES module', () => {
