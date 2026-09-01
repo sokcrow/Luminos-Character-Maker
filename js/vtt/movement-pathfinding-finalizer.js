@@ -1,4 +1,5 @@
 import './movement-long-drag-hotfix.js';
+import './movement-direct-route-hotfix.js';
 import { installStraightPathfinding } from './movement-navigation-polish.js';
 
 const EPS = 1e-9;
@@ -272,6 +273,7 @@ export function startPathfindingFinalizer(host = globalThis) {
     const engine = host?.LuminousVttRuntime?.engine;
     if (engine?.tokenMoveResolver && host?.LuminousVttPathfinding) {
       finalizePathfinding(host);
+      host?.LuminousVttDirectRouteHotfix?.ensure?.();
       previewGate = installPreviewCellGate(host, engine);
       traversalSimplifier = installRealtimeTraversalSimplifier(host, engine);
       return;
@@ -289,6 +291,7 @@ export function startPathfindingFinalizer(host = globalThis) {
     },
     finalize() {
       const result = finalizePathfinding(host);
+      host?.LuminousVttDirectRouteHotfix?.ensure?.();
       const engine = host?.LuminousVttRuntime?.engine;
       if (engine) {
         previewGate = installPreviewCellGate(host, engine);
