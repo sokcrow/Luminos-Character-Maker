@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Camera } from '../js/vtt/camera.js';
 import { WebGLWorldTransform } from '../js/vtt/render/world-transform.js';
 import { WebGL2Renderer } from '../js/vtt/render/webgl2-renderer.js';
 import '../js/vtt/camera-follow.js';
 import '../js/vtt/dm-observer.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+const repoRoot = process.cwd();
+const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8');
 
 function eventTarget() {
   const listeners = new Map();
