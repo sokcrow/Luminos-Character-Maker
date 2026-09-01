@@ -69,6 +69,39 @@ test('interaction range measures from token edge and reports interior/exterior s
   expect(far.withinRange).toBe(false);
 });
 
+test('DM authority rejects actor-token spoofing and accepts the canonical owner', async () => {
+  const door = topology.createElement({ id:'owned-door', type:'door', from:edge.from, to:edge.to, zLayer:0 });
+  const actor = {
+    id:'player:p1', x:70, y:35, radius:20, z:[0],
+    ownerUid:'uid-p1', canonicalOwnerUid:'uid-p1', playerId:'p1', actorId:'actor-p1', canonicalScope:'player',
+  };
+  const mapData = { id:'ownership-map', grid, topology:[door], tokens:[actor] };
+  const root = {
+    LuminousVttStateBridge: {
+      hostWindow: () => ({}),
+      inventoryHasItem: () => false,
+    },
+    LuminousVttTopology: topology,
+    LuminousVttTopologyInteraction: interactions,
+  };
+  const runtime = authority.createAuthority({
+    mapData,
+    stateBridge: { mapId:'ownership-map', isDm:true, applyCanonicalAction: async () => ({ valid:true }) },
+    root,
+  });
+
+  const base = {
+    targetKind:'topology', targetId:'owned-door', actorTokenId:'player:p1', action:'open',
+    playerId:'p1', actorId:'actor-p1',
+  };
+  await expect(runtime.validateRequest({ ...base, requesterUid:'uid-attacker' })).resolves.toMatchObject({ valid:false, reason:'ACTOR_NOT_OWNED' });
+  await expect(runtime.validateRequest({ ...base, requesterUid:'uid-p1' })).resolves.toMatchObject({ valid:true });
+  await expect(runtime.validateRequest({ ...base, requesterUid:'uid-p1', playerId:'victim' })).resolves.toMatchObject({ valid:false, reason:'ACTOR_NOT_OWNED' });
+
+  expect(authority.actorOwnership({ id:'npc', playerId:'p1' }, { requesterUid:'uid-p1', playerId:'p1' }))
+    .toMatchObject({ valid:false, reason:'ACTOR_OWNERSHIP_UNVERIFIED' });
+});
+
 test('radial affordances keep unavailable actions visible with an understandable reason', () => {
   const door = topology.normalizeElement({ id:'locked-door', type:'door', state:'locked', ...edge, interaction:{ rangeFt:5, interiorSide:'left', lockSide:'interior', keyId:'tower-key' } });
   const actor = { id:'player', x:210, y:35, radius:20, z:[0] };
@@ -113,4 +146,5 @@ test('VTT loads radial UI, structural authoring and DM-validated interaction aut
   expect(authority.DIRECT_ACTIONS).toEqual(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
   expect(authoritySource).toContain('validateRequest');
   expect(authoritySource).toContain('requesterInventory');
+  expect(authoritySource).toContain('actorOwnership');
 });
