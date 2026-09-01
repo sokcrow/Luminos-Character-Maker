@@ -7,6 +7,8 @@ export class TokenViewRegistry {
             created: 0,
             destroyed: 0,
             positionUpdates: 0,
+            previewUpdates: 0,
+            previewClears: 0,
             targetedSyncs: 0,
             fullSyncs: 0,
         };
@@ -30,6 +32,10 @@ export class TokenViewRegistry {
             onPositionChange: () => {
                 this.stats.positionUpdates += 1;
             },
+            onPreviewChange: (_view, kind) => {
+                if (kind === 'clear') this.stats.previewClears += 1;
+                else this.stats.previewUpdates += 1;
+            },
         });
         this.views.set(id, view);
         this.stats.created += 1;
@@ -43,6 +49,26 @@ export class TokenViewRegistry {
 
     get(tokenId) {
         return this.views.get(String(tokenId ?? '').trim());
+    }
+
+    setPreview(tokenId, position = {}) {
+        const view = this.get(tokenId);
+        if (!view) return false;
+        return view.setPreviewPosition(position.x, position.y, position.zLayer ?? view.zLayer);
+    }
+
+    clearPreview(tokenId) {
+        const view = this.get(tokenId);
+        if (!view) return false;
+        return view.clearPreviewPosition();
+    }
+
+    clearPreviews() {
+        let changed = 0;
+        for (const view of this.views.values()) {
+            if (view.clearPreviewPosition()) changed += 1;
+        }
+        return changed;
     }
 
     remove(tokenId) {
@@ -80,6 +106,7 @@ export class TokenViewRegistry {
         return {
             ...this.stats,
             active: this.views.size,
+            previewing: [...this.views.values()].filter((view) => view.hasPreview).length,
         };
     }
 }
