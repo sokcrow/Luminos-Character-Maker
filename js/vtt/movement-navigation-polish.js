@@ -15,32 +15,117 @@ function goalDistance(cell = {}, target = {}) {
   return Math.hypot(finite(target.col) - finite(cell.col), finite(target.row) - finite(cell.row));
 }
 
-function preferCandidate(base, candidate, current, start, target, f) {
-  if (!current) return true;
-  const candidateKey = base.cellKey(candidate.col, candidate.row);
-  const currentKey = base.cellKey(current.col, current.row);
-  const candidateF = f.get(candidateKey) ?? Infinity;
-  const currentF = f.get(currentKey) ?? Infinity;
-  if (candidateF < currentF - EPS) return true;
-  if (candidateF > currentF + EPS) return false;
+function compareQuality(a = {}, b = {}) {
+  const deviationA = finite(a.deviation, Infinity);
+  const deviationB = finite(b.deviation, Infinity);
+  if (deviationA < deviationB - EPS) return -1;
+  if (deviationA > deviationB + EPS) return 1;
+  const turnsA = finite(a.turns, Infinity);
+  const turnsB = finite(b.turns, Infinity);
+  if (turnsA < turnsB) return -1;
+  if (turnsA > turnsB) return 1;
+  return 0;
+}
 
-  const candidateDeviation = lineDeviation(candidate, start, target);
-  const currentDeviation = lineDeviation(current, start, target);
-  if (candidateDeviation < currentDeviation - EPS) return true;
-  if (candidateDeviation > currentDeviation + EPS) return false;
+function nextQuality(parent = {}, current = {}, next = {}, start = {}, target = {}) {
+  const dx = Math.sign(finite(next.col) - finite(current.col));
+  const dy = Math.sign(finite(next.row) - finite(current.row));
+  const hasDirection = Number.isFinite(Number(parent.lastDx)) && Number.isFinite(Number(parent.lastDy));
+  const changedDirection = hasDirection && (Number(parent.lastDx) !== dx || Number(parent.lastDy) !== dy);
+  return {
+    deviation: finite(parent.deviation) + lineDeviation(next, start, target),
+    turns: Math.max(0, Math.trunc(finite(parent.turns))) + (changedDirection ? 1 : 0),
+    lastDx: dx,
+    lastDy: dy,
+  };
+}
 
-  const candidateGoal = goalDistance(candidate, target);
-  const currentGoal = goalDistance(current, target);
-  if (candidateGoal < currentGoal - EPS) return true;
-  if (candidateGoal > currentGoal + EPS) return false;
+class MinHeap {
+  constructor(compare) {
+    this.items = [];
+    this.compare = compare;
+  }
 
-  if (candidate.row !== current.row) return candidate.row < current.row;
-  return candidate.col < current.col;
+  get size() { return this.items.length; }
+
+  push(value) {
+    const items = this.items;
+    items.push(value);
+    let index = items.length - 1;
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2);
+      if (this.compare(items[parent], items[index]) <= 0) break;
+      [items[parent], items[index]] = [items[index], items[parent]];
+      index = parent;
+    }
+  }
+
+  pop() {
+    const items = this.items;
+    if (!items.length) return null;
+    const first = items[0];
+    const last = items.pop();
+    if (items.length && last) {
+      items[0] = last;
+      let index = 0;
+      while (true) {
+        const left = index * 2 + 1;
+        const right = left + 1;
+        let smallest = index;
+        if (left < items.length && this.compare(items[left], items[smallest]) < 0) smallest = left;
+        if (right < items.length && this.compare(items[right], items[smallest]) < 0) smallest = right;
+        if (smallest === index) break;
+        [items[index], items[smallest]] = [items[smallest], items[index]];
+        index = smallest;
+      }
+    }
+    return first;
+  }
+}
+
+function hasTerrainOverrides(mapData = {}) {
+  const movement = mapData.movement || {};
+  const hasEntries = (value) => Boolean(value && typeof value === 'object' && Object.keys(value).length);
+  return hasEntries(movement.terrain) || hasEntries(movement.terrainCells);
+}
+
+function alignedDirectPath(base, { token, startCell, targetCell, mapData, zLayer, options }) {
+  if (hasTerrainOverrides(mapData)) return null;
+  const dc = targetCell.col - startCell.col;
+  const dr = targetCell.row - startCell.row;
+  const aligned = dc === 0 || dr === 0 || Math.abs(dc) === Math.abs(dr);
+  if (!aligned) return null;
+
+  const stepCol = Math.sign(dc);
+  const stepRow = Math.sign(dr);
+  const steps = Math.max(Math.abs(dc), Math.abs(dr));
+  const cells = [{ ...startCell }];
+  let current = { ...startCell };
+  let costFt = 0;
+
+  for (let index = 0; index < steps; index += 1) {
+    const next = { col: current.col + stepCol, row: current.row + stepRow };
+    const edge = base.edgePassable(token, current, next, mapData, zLayer, options);
+    if (!edge.valid) return null;
+    costFt += base.stepCostFt(current, next, mapData, zLayer, options);
+    cells.push(next);
+    current = next;
+  }
+
+  return {
+    valid: true,
+    reason: null,
+    path: cells.map((cell) => base.pointForCell(cell, mapData, zLayer)),
+    cells,
+    costFt,
+    visited: 0,
+    fastPath: 'aligned',
+  };
 }
 
 export function installStraightPathfinding(host = globalThis) {
   const base = host?.LuminousVttPathfinding;
-  if (!base || base.__straightRouteTieBreakPatch) return base || null;
+  if (!base || base.__straightRouteTieBreakPatchV2) return base || null;
 
   function reconstruct(cameFrom, nodes, endKey, mapData, zLayer) {
     const cells = [];
@@ -74,25 +159,48 @@ export function installStraightPathfinding(host = globalThis) {
       return { valid: true, reason: null, path: [base.pointForCell(startCell, mapData, zLayer)], cells: [startCell], costFt: 0, visited: 0 };
     }
 
-    const open = new Set([startKey]);
+    const direct = alignedDirectPath(base, { token, startCell, targetCell, mapData, zLayer, options });
+    if (direct) return direct;
+
+    let sequence = 0;
+    const compareEntries = (a, b) => {
+      if (a.f < b.f - EPS) return -1;
+      if (a.f > b.f + EPS) return 1;
+      const qualityOrder = compareQuality(a.quality, b.quality);
+      if (qualityOrder) return qualityOrder;
+      if (a.goal < b.goal - EPS) return -1;
+      if (a.goal > b.goal + EPS) return 1;
+      if (a.cell.row !== b.cell.row) return a.cell.row - b.cell.row;
+      if (a.cell.col !== b.cell.col) return a.cell.col - b.cell.col;
+      return a.sequence - b.sequence;
+    };
+
+    const heap = new MinHeap(compareEntries);
     const nodes = new Map([[startKey, startCell]]);
     const cameFrom = new Map();
     const g = new Map([[startKey, 0]]);
-    const f = new Map([[startKey, base.heuristicFt(startCell, targetCell, mapData, options)]]);
+    const qualities = new Map([[startKey, { deviation: 0, turns: 0, lastDx: null, lastDy: null }]]);
+    const versions = new Map([[startKey, 1]]);
+    heap.push({
+      key: startKey,
+      cell: startCell,
+      g: 0,
+      f: base.heuristicFt(startCell, targetCell, mapData, options),
+      quality: qualities.get(startKey),
+      goal: goalDistance(startCell, targetCell),
+      version: 1,
+      sequence: sequence += 1,
+    });
+
     const limit = Math.max(1, Math.trunc(finite(maxVisited, 20000)));
     let visited = 0;
 
-    while (open.size && visited < limit) {
-      let currentKey = null;
-      let current = null;
-      for (const key of open) {
-        const candidate = nodes.get(key);
-        if (candidate && preferCandidate(base, candidate, current, startCell, targetCell, f)) {
-          current = candidate;
-          currentKey = key;
-        }
-      }
-      if (!currentKey || !current) break;
+    while (heap.size && visited < limit) {
+      const entry = heap.pop();
+      if (!entry || versions.get(entry.key) !== entry.version) continue;
+      const currentKey = entry.key;
+      const current = entry.cell;
+
       if (currentKey === goalKey) {
         const path = reconstruct(cameFrom, nodes, currentKey, mapData, zLayer);
         return {
@@ -105,19 +213,37 @@ export function installStraightPathfinding(host = globalThis) {
         };
       }
 
-      open.delete(currentKey);
       visited += 1;
+      const currentQuality = qualities.get(currentKey) || { deviation: 0, turns: 0, lastDx: null, lastDy: null };
       for (const next of base.neighbors(current, mapData)) {
         const edge = base.edgePassable(token, current, next, mapData, zLayer, options);
         if (!edge.valid) continue;
         const nextKey = base.cellKey(next.col, next.row);
         const tentative = (g.get(currentKey) ?? Infinity) + base.stepCostFt(current, next, mapData, zLayer, options);
-        if (tentative + EPS >= (g.get(nextKey) ?? Infinity)) continue;
+        const existingG = g.get(nextKey) ?? Infinity;
+        const candidateQuality = nextQuality(currentQuality, current, next, startCell, targetCell);
+        const existingQuality = qualities.get(nextKey);
+        const cheaper = tentative < existingG - EPS;
+        const equalButStraighter = Math.abs(tentative - existingG) <= EPS
+          && (!existingQuality || compareQuality(candidateQuality, existingQuality) < 0);
+        if (!cheaper && !equalButStraighter) continue;
+
         cameFrom.set(nextKey, currentKey);
         nodes.set(nextKey, next);
         g.set(nextKey, tentative);
-        f.set(nextKey, tentative + base.heuristicFt(next, targetCell, mapData, options));
-        open.add(nextKey);
+        qualities.set(nextKey, candidateQuality);
+        const version = (versions.get(nextKey) || 0) + 1;
+        versions.set(nextKey, version);
+        heap.push({
+          key: nextKey,
+          cell: next,
+          g: tentative,
+          f: tentative + base.heuristicFt(next, targetCell, mapData, options),
+          quality: candidateQuality,
+          goal: goalDistance(next, targetCell),
+          version,
+          sequence: sequence += 1,
+        });
       }
     }
 
@@ -127,6 +253,7 @@ export function installStraightPathfinding(host = globalThis) {
   const patched = Object.freeze({
     ...base,
     __straightRouteTieBreakPatch: true,
+    __straightRouteTieBreakPatchV2: true,
     findPath,
   });
   host.LuminousVttPathfinding = patched;
