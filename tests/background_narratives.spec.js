@@ -1,8 +1,11 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const rules = require("../js/character-build-rules.js");
+const rulesModule = require("../js/character-build-rules.js");
+const rules = rulesModule?.BACKGROUNDS ? rulesModule : globalThis.LuminousCharacterBuildRules;
 const catalog = require("../js/background-narratives/catalog.js");
+
+assert.ok(rules?.BACKGROUNDS, "character-build-rules debe exponer su API por CommonJS o globalThis");
 
 require("../js/background-narratives/templates-meta.js");
 require("../js/background-narratives/templates-ideal.js");
