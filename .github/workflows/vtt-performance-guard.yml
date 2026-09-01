@@ -16,6 +16,7 @@ on:
       - 'js/vtt/pov-engine.js'
       - 'js/vtt/pov-state.js'
       - 'tests/vtt_scene_dirty.spec.js'
+      - 'tests/vtt_scene_dirty_bridges.spec.js'
       - 'tests/vtt_runtime_performance_phase1.spec.js'
       - 'tests/vtt_runtime_frame_scheduler.spec.js'
       - 'tests/vtt_performance_guard.spec.js'
@@ -45,10 +46,14 @@ jobs:
           node --check js/vtt/runtime-lifecycle.js
           node --input-type=module --check < js/vtt/performance-guard.js
           node --check tests/vtt_scene_dirty.spec.js
+          node --check tests/vtt_scene_dirty_bridges.spec.js
           node --check tests/vtt_runtime_performance_phase1.spec.js
           node --check tests/vtt_runtime_frame_scheduler.spec.js
       - name: Canonical scene dirty contracts
-        run: npx playwright test --workers=1 tests/vtt_scene_dirty.spec.js
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_scene_dirty.spec.js
+          tests/vtt_scene_dirty_bridges.spec.js
       - name: Frame-coalesced input and adaptive scheduler contracts
         run: >-
           npx playwright test --workers=1
