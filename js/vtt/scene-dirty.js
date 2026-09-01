@@ -61,6 +61,36 @@
     return () => target.removeEventListener?.(eventName, handler);
   }
 
+  function canvasFor(host = root) {
+    return host?.document?.getElementById?.('vtt-canvas') || null;
+  }
+
+  function wrapStateBridgeApi(apiName, callbackName, detail = {}) {
+    const current = root?.[apiName];
+    if (!current?.createBridge || current.__sceneDirtyWrapped) return false;
+    const originalCreateBridge = current.createBridge;
+    const wrapped = {
+      ...current,
+      __sceneDirtyWrapped: true,
+      createBridge(options = {}) {
+        const originalCallback = options?.[callbackName];
+        return originalCreateBridge({
+          ...options,
+          [callbackName](...args) {
+            if (typeof originalCallback === 'function') originalCallback(...args);
+            emit(canvasFor(root), {
+              ...detail,
+              sourceEvent: `${apiName}:${callbackName}`,
+              meta: args[0] && typeof args[0] === 'object' ? args[0] : null,
+            });
+          },
+        });
+      },
+    };
+    root[apiName] = Object.freeze(wrapped);
+    return true;
+  }
+
   const LEGACY_EVENT_MAP = Object.freeze([
     ['vtt:token-preview-moved', REASONS.TOKEN, true, true],
     ['vtt:movement-destination-preview', REASONS.TOKEN, false, true],
@@ -76,8 +106,6 @@
     ['vtt:lighting-changed', REASONS.LIGHTING, true, false],
     ['vtt:fog-changed', REASONS.FOG, false, false],
     ['vtt:pov-changed', REASONS.LIGHTING, true, false],
-    ['vtt:topology-changed', REASONS.TOPOLOGY, true, false],
-    ['vtt:vertical-portals-changed', REASONS.TOPOLOGY, true, false],
     ['vtt:dm-edit-changed', REASONS.EDIT, true, false],
   ]);
 
@@ -141,5 +169,22 @@
     });
   }
 
-  return Object.freeze({ EVENT_NAME, REASONS, LEGACY_EVENT_MAP, normalize, emit, bridge, installLegacyBridge });
+  wrapStateBridgeApi('LuminousVttStateBridge', 'onTopologyChanged', {
+    reason: REASONS.TOPOLOGY, render: true, vision: true,
+  });
+  wrapStateBridgeApi('LuminousVttVerticalPortalState', 'onChanged', {
+    reason: REASONS.TOPOLOGY, render: true, vision: true,
+  });
+
+  return Object.freeze({
+    EVENT_NAME,
+    REASONS,
+    LEGACY_EVENT_MAP,
+    normalize,
+    emit,
+    bridge,
+    canvasFor,
+    wrapStateBridgeApi,
+    installLegacyBridge,
+  });
 });
