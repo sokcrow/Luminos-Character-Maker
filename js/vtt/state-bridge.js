@@ -270,11 +270,33 @@
             return inventoryHasItem(data, itemId);
         }
 
-        async function requestTopologyCheck(elementId, method) {
+        async function validateTopologyCheckRequest(request = {}) {
+            const authority = root?.LuminousVttTopologyInteractionAuthorityRuntime?.authority;
+            if (!authority?.validateRequest) return { valid: false, reason: 'INTERACTION_AUTHORITY_NOT_READY' };
+            const method = safeString(request.vttContext?.method);
+            const action = method === 'lockpick' ? 'pick_lock' : (method === 'strength' || method === 'athletics' ? 'force' : '');
+            if (!action) return { valid: false, reason: 'CHECK_NOT_AVAILABLE' };
+            return authority.validateRequest({
+                requesterUid: request.requesterUid,
+                playerId: request.playerId,
+                actorId: request.actorId,
+                targetKind: 'topology',
+                targetId: request.vttContext?.elementId,
+                actorTokenId: request.vttContext?.actorTokenId,
+                action,
+            });
+        }
+
+        async function requestTopologyCheck(elementId, method, actorTokenId) {
             const element = elementById(elementId);
             if (!element) throw new Error('ELEMENT_NOT_FOUND');
             const descriptor = topology.checkDescriptor(element, method);
             if (!descriptor) throw new Error('CHECK_NOT_AVAILABLE');
+            const safeActorTokenId = safeString(actorTokenId);
+            if (!safeActorTokenId) {
+                emitNotice('No hay una ficha controlada disponible para interactuar.', 'error');
+                return { valid: false, reason: 'ACTOR_TOKEN_REQUIRED' };
+            }
             if (descriptor.requiredItem && !(await hasItem(descriptor.requiredItem))) {
                 emitNotice('Necesitas una Ganzúa para intentar Juego de Manos.', 'error');
                 return { valid: false, reason: 'REQUIRED_ITEM_MISSING' };
@@ -305,6 +327,7 @@
                 vttContext: {
                     mapId,
                     elementId: String(elementId),
+                    actorTokenId: safeActorTokenId,
                     method: descriptor.method,
                     action: descriptor.action,
                 },
@@ -315,7 +338,7 @@
             const handler = (snapshot) => {
                 const value = snapshot.val() || {};
                 if (value.status === 'approved') emitNotice('Check aprobado. Realiza la tirada.', 'success');
-                else if (value.status === 'denied') emitNotice('El Check fue rechazado.', 'error');
+                else if (value.status === 'denied') emitNotice(value.reason ? `El Check fue rechazado: ${value.reason}` : 'El Check fue rechazado.', 'error');
                 if (value.status === 'approved' || value.status === 'denied') requestRef.off('value', handler);
             };
             requestRef.on('value', handler);
@@ -333,13 +356,21 @@
                 watchedChecks.delete(requestId);
                 const passed = live.outcome === 'passed';
                 let applied = false;
+                let validationReason = null;
                 if (passed) {
-                    const result = await applyCanonicalAction(request.vttContext.elementId, request.vttContext.action);
-                    applied = Boolean(result.valid);
+                    const validation = await validateTopologyCheckRequest(request);
+                    if (validation.valid) {
+                        const result = await applyCanonicalAction(request.vttContext.elementId, request.vttContext.action);
+                        applied = Boolean(result.valid);
+                        validationReason = result.reason || null;
+                    } else {
+                        validationReason = validation.reason || 'ACTION_DENIED';
+                    }
                 }
                 await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({
                     vttResolved: passed ? 'passed' : 'failed',
                     vttApplied: applied,
+                    vttValidationReason: validationReason,
                     vttResolvedAt: firebase.database.ServerValue.TIMESTAMP,
                 });
             };
@@ -358,9 +389,13 @@
 
                 const element = elementById(freshRequest.vttContext?.elementId);
                 const descriptor = topology.checkDescriptor(element, freshRequest.vttContext?.method);
-                if (!descriptor || freshRequest.requesterUid == null) {
+                const validation = descriptor && freshRequest.requesterUid != null
+                    ? await validateTopologyCheckRequest(freshRequest)
+                    : { valid: false, reason: descriptor ? 'REQUESTER_UID_REQUIRED' : 'CHECK_NOT_AVAILABLE' };
+                if (!descriptor || freshRequest.requesterUid == null || !validation.valid) {
                     await db.ref(`${CHECK_REQUEST_ROOT}/${requestId}`).update({
                         status: 'denied',
+                        reason: validation.reason || 'ACTION_DENIED',
                         decidedAt: firebase.database.ServerValue.TIMESTAMP,
                     });
                     return;
@@ -370,7 +405,7 @@
                 const command = {
                     schemaVersion: 1,
                     targetUid: freshRequest.requesterUid,
-                    targetPlayerId: freshRequest.playerId || null,
+                    targetPlayerId: validation.ownership?.playerId || freshRequest.playerId || null,
                     targetName: freshRequest.playerName || 'PLAYER',
                     roomKey: freshRequest.roomKey || roomKey(root),
                     requestedBy: 'player',
