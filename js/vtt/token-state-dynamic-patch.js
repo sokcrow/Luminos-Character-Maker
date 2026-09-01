@@ -66,8 +66,18 @@
       return ids;
     }
 
-    function emitDynamicChange() {
-      options.onTokensChanged?.({ scope: 'world-dynamic', tokens: mapData.tokens });
+    function emitDynamicChange(change = {}) {
+      options.onTokensChanged?.({ scope: 'world-dynamic', tokens: mapData.tokens, ...change });
+    }
+
+    function targetChange(type, tokenId, token = null, changes = {}) {
+      return {
+        type,
+        source: 'remote',
+        tokenId: clean(tokenId) || null,
+        token,
+        changes,
+      };
     }
 
     function removeDynamicRecord(keyOrTokenId, record = null, { emit = true } = {}) {
@@ -80,7 +90,7 @@
         return clean(token.id) !== tokenId && tokenKey !== base.firebaseKey(key);
       });
       const changed = before !== mapData.tokens.length;
-      if (emit && changed) emitDynamicChange();
+      if (emit && changed) emitDynamicChange(targetChange('token-remove', tokenId, null, { removed: true }));
       return changed;
     }
 
@@ -96,10 +106,12 @@
         return null;
       }
       let token = (mapData.tokens || []).find((entry) => clean(entry.id) === tokenId);
+      let created = false;
       if (!token) {
         token = { ...clone(record.token), id: tokenId };
         mapData.tokens ||= [];
         mapData.tokens.push(token);
+        created = true;
       } else if (token.dynamicActorToken || token.actorRef) {
         Object.assign(token, clone(record.token), { id: tokenId });
       } else {
@@ -109,7 +121,7 @@
       token.canonicalTokenKey = base.firebaseKey(recordKey || tokenId);
       token.dynamicActorToken = true;
       base.applyPosition(token, record.position);
-      if (emit) emitDynamicChange();
+      if (emit) emitDynamicChange(targetChange('token-update', tokenId, token, { position: true, appearance: true, created }));
       return token;
     }
 
@@ -127,7 +139,7 @@
         if (actorId && assignedActors.has(actorId)) return false;
         return keep.has(clean(token.id));
       });
-      emitDynamicChange();
+      emitDynamicChange({ type: 'token-batch', source: 'remote', tokenId: null, token: null, changes: { bootstrap: true } });
     }
 
     function listen(event, handler) {
@@ -189,7 +201,7 @@
       if (!id) throw new Error('TOKEN_ID_REQUIRED');
       mapData.tokens = (mapData.tokens || []).filter((token) => clean(token.id) !== id);
       if (db) await db.ref(worldPath).child(base.firebaseKey(id)).remove();
-      emitDynamicChange();
+      emitDynamicChange(targetChange('token-remove', id, null, { removed: true }));
       return true;
     }
 
