@@ -69,7 +69,7 @@ test('interaction range measures from token edge and reports interior/exterior s
   expect(far.withinRange).toBe(false);
 });
 
-test('DM authority rejects actor-token spoofing and accepts the canonical owner', async () => {
+test('DM authority rejects actor-token spoofing and revalidates physical checks', async () => {
   const door = topology.createElement({ id:'owned-door', type:'door', from:edge.from, to:edge.to, zLayer:0 });
   const actor = {
     id:'player:p1', x:70, y:35, radius:20, z:[0],
@@ -97,6 +97,12 @@ test('DM authority rejects actor-token spoofing and accepts the canonical owner'
   await expect(runtime.validateRequest({ ...base, requesterUid:'uid-attacker' })).resolves.toMatchObject({ valid:false, reason:'ACTOR_NOT_OWNED' });
   await expect(runtime.validateRequest({ ...base, requesterUid:'uid-p1' })).resolves.toMatchObject({ valid:true });
   await expect(runtime.validateRequest({ ...base, requesterUid:'uid-p1', playerId:'victim' })).resolves.toMatchObject({ valid:false, reason:'ACTOR_NOT_OWNED' });
+  await expect(runtime.validateRequest({ ...base, action:'force', requesterUid:'uid-p1' })).resolves.toMatchObject({ valid:true });
+
+  actor.x = -20;
+  const outOfRange = await runtime.validateRequest({ ...base, action:'force', requesterUid:'uid-p1' });
+  expect(outOfRange.valid).toBe(false);
+  expect(outOfRange.reason).toBe('Debes estar a 5 ft o menos.');
 
   expect(authority.actorOwnership({ id:'npc', playerId:'p1' }, { requesterUid:'uid-p1', playerId:'p1' }))
     .toMatchObject({ valid:false, reason:'ACTOR_OWNERSHIP_UNVERIFIED' });
@@ -132,6 +138,8 @@ test('VTT loads radial UI, structural authoring and DM-validated interaction aut
   const controller = read('js/vtt/topology-controller.js');
   const radial = read('js/vtt/interaction-radial.js');
   const authoritySource = read('js/vtt/topology-interaction-authority.js');
+  const authorityBootstrap = read('js/vtt/topology-interaction-authority-bootstrap.js');
+  const stateBridge = read('js/vtt/state-bridge.js');
   const css = read('css/vtt-interactions.css');
   expect(html).toContain('css/vtt-interactions.css');
   expect(html).toContain('js/vtt/topology-interaction.js');
@@ -144,7 +152,13 @@ test('VTT loads radial UI, structural authoring and DM-validated interaction aut
   expect(radial).toContain('PAGE_SIZE = 8');
   expect(css).toContain('.vtt-radial-action');
   expect(authority.DIRECT_ACTIONS).toEqual(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
+  expect(authority.CHECK_ACTIONS).toEqual(['pick_lock', 'force']);
   expect(authoritySource).toContain('validateRequest');
   expect(authoritySource).toContain('requesterInventory');
   expect(authoritySource).toContain('actorOwnership');
+  expect(authorityBootstrap).toContain("pick_lock: 'lockpick'");
+  expect(authorityBootstrap).toContain('actorTokenId');
+  expect(stateBridge).toContain('validateTopologyCheckRequest');
+  expect(stateBridge).toContain('actorTokenId: safeActorTokenId');
+  expect(stateBridge).toContain('vttValidationReason');
 });
