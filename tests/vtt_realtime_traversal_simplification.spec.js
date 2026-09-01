@@ -30,6 +30,7 @@ async function bootLoadedMap(page) {
   await page.waitForFunction(() => Boolean(window.LuminousVttPathfinding?.__runtimeFinalizedPathfindingV3), null, { timeout: 5000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttLongDragHotfix?.__v1), null, { timeout: 5000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttDirectRouteHotfix?.__v1), null, { timeout: 5000 });
+  await page.waitForFunction(() => Boolean(window.LuminousVttZeroWorkDrag?.__v1), null, { timeout: 5000 });
   await page.waitForFunction(() => Boolean(window.LuminousVttRuntime?.engine?.__realtimeTraversalSimplifierV1), null, { timeout: 5000 });
 
   await page.evaluate(() => {
@@ -53,8 +54,6 @@ async function bootLoadedMap(page) {
     delete map.movement.realtimeAnimationMinMs;
     delete map.movement.realtimeAnimationMaxMs;
 
-    // Hundreds of topology records reproduce the real loaded-map cost without
-    // blocking the horizontal test corridor on row 10.
     map.topology = Array.from({ length: 900 }, (_, index) => {
       const row = 40 + (index % 70);
       const col = 1 + ((index * 7) % 115);
@@ -86,20 +85,26 @@ async function bootLoadedMap(page) {
     window.LuminousVttDirectRouteHotfix.ensure();
     const baselineLong = window.LuminousVttLongDragHotfix.snapshot();
     const baselineDirect = window.LuminousVttDirectRouteHotfix.snapshot();
+    const baselineZero = window.LuminousVttZeroWorkDrag.snapshot();
     window.__longDragProbe = {
       baselineLong,
       baselineDirect,
+      baselineZero,
       mouseUpAt: null,
       movedAt: null,
       firstFrameAt: null,
       moved: null,
       rejected: null,
       traversalFrames: 0,
+      destinationPreviewEvents: 0,
     };
 
     window.addEventListener('mouseup', () => {
       window.__longDragProbe.mouseUpAt ??= performance.now();
     }, true);
+    engine.canvas.addEventListener('vtt:movement-destination-preview', () => {
+      window.__longDragProbe.destinationPreviewEvents += 1;
+    });
     engine.canvas.addEventListener('vtt:token-preview-moved', (event) => {
       if (!event.detail?.traversing) return;
       window.__longDragProbe.firstFrameAt ??= performance.now();
@@ -131,20 +136,32 @@ async function dragToColumn(page, targetCol = 70) {
 
   await page.mouse.move(points.start.x, points.start.y);
   await page.mouse.down({ button: 'left' });
-  const dragStarted = Date.now();
-  for (let index = 1; index <= 90; index += 1) {
-    const t = index / 90;
-    await page.mouse.move(
-      points.start.x + ((points.target.x - points.start.x) * t),
-      points.start.y + ((points.target.y - points.start.y) * t),
-    );
-    await page.waitForTimeout(6);
-  }
-  const dragElapsedMs = Date.now() - dragStarted;
+
+  // Generate the stress sweep inside Chrome. Measuring 90 page.mouse.move calls
+  // measures DevTools protocol round-trips, not the browser's drag CPU cost.
+  const syntheticDispatchMs = await page.evaluate(({ start, target }) => {
+    const startedAt = performance.now();
+    for (let index = 1; index <= 90; index += 1) {
+      const t = index / 90;
+      window.dispatchEvent(new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: start.x + ((target.x - start.x) * t),
+        clientY: start.y + ((target.y - start.y) * t),
+        buttons: 1,
+      }));
+    }
+    return performance.now() - startedAt;
+  }, points);
+
+  // Put Chromium's real pointer at the same final coordinate before mouseup.
+  await page.mouse.move(points.target.x, points.target.y);
 
   const beforeDrop = await page.evaluate(() => ({
     long: window.LuminousVttLongDragHotfix.snapshot(),
     direct: window.LuminousVttDirectRouteHotfix.snapshot(),
+    zero: window.LuminousVttZeroWorkDrag.snapshot(),
+    destinationPreviewEvents: window.__longDragProbe.destinationPreviewEvents,
     hudVisible: !document.getElementById('vtt-fast-drag-hud')?.hidden,
     hudText: document.getElementById('vtt-fast-drag-hud')?.textContent || '',
   }));
@@ -152,15 +169,21 @@ async function dragToColumn(page, targetCol = 70) {
   await page.mouse.up({ button: 'left' });
   await page.waitForFunction(() => Boolean(window.__longDragProbe?.moved || window.__longDragProbe?.rejected), null, { timeout: 3000 });
 
-  return page.evaluate(({ dragElapsedMs, beforeDrop }) => {
+  return page.evaluate(({ syntheticDispatchMs, beforeDrop }) => {
     const probe = window.__longDragProbe;
     const afterLong = window.LuminousVttLongDragHotfix.snapshot();
     const afterDirect = window.LuminousVttDirectRouteHotfix.snapshot();
+    const afterZero = window.LuminousVttZeroWorkDrag.snapshot();
     return {
-      dragElapsedMs,
+      syntheticDispatchMs,
       beforeDrop,
       afterLong,
       afterDirect,
+      afterZero,
+      zeroPointerMoves: beforeDrop.zero.pointerMoves - probe.baselineZero.pointerMoves,
+      zeroCellChanges: beforeDrop.zero.cellChanges - probe.baselineZero.cellChanges,
+      zeroHandlerTotalMs: beforeDrop.zero.handlerTotalMs - probe.baselineZero.handlerTotalMs,
+      zeroHandlerMaxMs: beforeDrop.zero.handlerMaxMs,
       longPathCallsDuringDrag: beforeDrop.long.pathCalls - probe.baselineLong.pathCalls,
       directPathCallsDuringDrag: beforeDrop.direct.findPathCalls - probe.baselineDirect.findPathCalls,
       directFindPathCalls: afterDirect.findPathCalls - probe.baselineDirect.findPathCalls,
@@ -172,10 +195,10 @@ async function dragToColumn(page, targetCol = 70) {
       moved: probe.moved,
       rejected: probe.rejected,
     };
-  }, { dragElapsedMs, beforeDrop });
+  }, { syntheticDispatchMs, beforeDrop });
 }
 
-test('loaded 120x120 long drag does no pathfinding until drop and does not stall the browser', async ({ page }) => {
+test('loaded 120x120 long drag does no world work until drop and does not stall the browser', async ({ page }) => {
   test.setTimeout(30000);
   await page.setViewportSize({ width: 1920, height: 900 });
   await bootLoadedMap(page);
@@ -186,11 +209,18 @@ test('loaded 120x120 long drag does no pathfinding until drop and does not stall
   expect(result.beforeDrop.long.pathfindingInstalled).toBe(true);
   expect(result.beforeDrop.long.collisionBroadphaseInstalled).toBe(true);
   expect(result.beforeDrop.direct.installed).toBe(true);
+  expect(result.zeroPointerMoves).toBeGreaterThanOrEqual(90);
+  expect(result.zeroCellChanges).toBeGreaterThan(20);
+  expect(result.beforeDrop.destinationPreviewEvents, 'Engine world preview must be completely suppressed while dragging').toBe(0);
   expect(result.longPathCallsDuringDrag, 'mousemove must never run legacy/full pathfinding').toBe(0);
   expect(result.directPathCallsDuringDrag, 'mousemove must never run direct drop validation either').toBe(0);
+  expect(result.beforeDrop.zero.worldPreviewCalls).toBe(0);
+  expect(result.beforeDrop.zero.pathfindingCalls).toBe(0);
   expect(result.beforeDrop.hudVisible, 'cheap drag HUD should remain responsive').toBe(true);
   expect(result.beforeDrop.hudText).toContain('ft');
-  expect(result.dragElapsedMs, '90 pointer updates on a loaded map must stay interactive').toBeLessThan(1800);
+  expect(result.syntheticDispatchMs, '90 in-browser drag events must not block the main thread').toBeLessThan(250);
+  expect(result.zeroHandlerTotalMs, 'all 90+ drag handlers should be tiny in aggregate').toBeLessThan(150);
+  expect(result.zeroHandlerMaxMs, 'one drag handler must never create a visible hitch').toBeLessThan(25);
 
   expect(result.rejected).toBeNull();
   expect(result.moved).toBeTruthy();
