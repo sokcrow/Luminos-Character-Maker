@@ -149,6 +149,44 @@
     return Math.max(dx, dy) * feetPerCell;
   }
 
+  // A* can have many equal-cost routes under the 5e rule because a diagonal costs
+  // the same as an orthogonal step. This score is deliberately NOT added to g/f:
+  // it only breaks exact cost ties so movement accounting remains byte-for-byte 5e.
+  function directLineDeviation(cell = {}, start = {}, target = {}) {
+    const routeDx = finite(target.col) - finite(start.col);
+    const routeDy = finite(target.row) - finite(start.row);
+    if (Math.abs(routeDx) < EPS && Math.abs(routeDy) < EPS) return 0;
+    const cellDx = finite(cell.col) - finite(start.col);
+    const cellDy = finite(cell.row) - finite(start.row);
+    return Math.abs((cellDx * routeDy) - (cellDy * routeDx)) / Math.max(1, Math.hypot(routeDx, routeDy));
+  }
+
+  function goalDistance(cell = {}, target = {}) {
+    return Math.hypot(finite(target.col) - finite(cell.col), finite(target.row) - finite(cell.row));
+  }
+
+  function preferOpenCandidate(candidate, current, start, target, f) {
+    if (!current) return true;
+    const candidateF = f.get(cellKey(candidate.col, candidate.row)) ?? Infinity;
+    const currentF = f.get(cellKey(current.col, current.row)) ?? Infinity;
+    if (candidateF < currentF - EPS) return true;
+    if (candidateF > currentF + EPS) return false;
+
+    const candidateDeviation = directLineDeviation(candidate, start, target);
+    const currentDeviation = directLineDeviation(current, start, target);
+    if (candidateDeviation < currentDeviation - EPS) return true;
+    if (candidateDeviation > currentDeviation + EPS) return false;
+
+    const candidateGoalDistance = goalDistance(candidate, target);
+    const currentGoalDistance = goalDistance(current, target);
+    if (candidateGoalDistance < currentGoalDistance - EPS) return true;
+    if (candidateGoalDistance > currentGoalDistance + EPS) return false;
+
+    // Final deterministic tie-break. It does not affect cost or route legality.
+    if (candidate.row !== current.row) return candidate.row < current.row;
+    return candidate.col < current.col;
+  }
+
   function neighbors(cell, mapData = {}) {
     const { cols, rows } = gridBounds(mapData);
     const result = [];
@@ -195,13 +233,16 @@
     let visited = 0;
 
     while (open.size && visited < Math.max(1, Math.trunc(finite(maxVisited, 20000)))) {
-      let currentKey = null, currentScore = Infinity;
+      let currentKey = null;
+      let current = null;
       for (const key of open) {
-        const score = f.get(key) ?? Infinity;
-        if (score < currentScore) { currentScore = score; currentKey = key; }
+        const candidate = nodes.get(key);
+        if (candidate && preferOpenCandidate(candidate, current, startCell, targetCell, f)) {
+          current = candidate;
+          currentKey = key;
+        }
       }
-      if (!currentKey) break;
-      const current = nodes.get(currentKey);
+      if (!currentKey || !current) break;
       if (currentKey === goalKey) {
         const path = reconstruct(cameFrom, nodes, currentKey, mapData, zLayer);
         return { valid: true, reason: null, path, cells: path.map((point) => ({ col: point.col, row: point.row })), costFt: g.get(currentKey) || 0, visited };
@@ -237,6 +278,7 @@
 
   return Object.freeze({
     gridBounds, cellKey, cellFromPoint, pointForCell, tokenLayer, terrainRecord, terrainAllows, pointPassable,
-    edgePassable, diagonalRule, baseStepCostFt, stepCostFt, heuristicFt, neighbors, findPath, pathCostFt,
+    edgePassable, diagonalRule, baseStepCostFt, stepCostFt, heuristicFt, directLineDeviation, goalDistance,
+    neighbors, findPath, pathCostFt,
   });
 });
