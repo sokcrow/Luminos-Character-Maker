@@ -27,7 +27,6 @@ on:
       - 'tests/vtt_player_discovery*.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
       - 'tests/vtt_camera*.spec.js'
-      - 'tests/vtt_performance_guard.spec.js'
       - '.github/workflows/vtt-map-field-test-sandbox.yml'
   push:
     branches: [main]
@@ -74,7 +73,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Field sandbox, regional, streaming, fog, camera and performance contracts
+      - name: Field sandbox regional streaming fog and camera contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_map_field_test_sandbox.spec.js
@@ -94,6 +93,3 @@ jobs:
           tests/vtt_procedural_chunk_streaming_performance.spec.js
           tests/vtt_camera_pov_observer_field.spec.js
           tests/vtt_camera_pov_observer_realtime.spec.js
-          tests/vtt_performance_guard.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1

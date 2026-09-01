@@ -22,12 +22,49 @@
     if (!engine || engine.__lifecycleHardened) return engine || null;
 
     const wasRunning = Boolean(engine.isRunning);
+    const originalTokenMouseMove = engine.handleTokenMouseMove;
     engine.isRunning = false;
     engine.frameId = null;
     engine.destroyed = false;
     engine.__lifecycleHardened = true;
 
     let handoffFrameId = null;
+    let pointerFrameId = null;
+    let pendingPointerMove = null;
+
+    const inputPerformanceStats = {
+      pointerMovesReceived: 0,
+      pointerMovesProcessed: 0,
+      pointerMovesCoalesced: 0,
+    };
+
+    engine.getInputPerformanceStats = () => ({
+      ...inputPerformanceStats,
+      pointerMovePending: pointerFrameId != null,
+    });
+
+    if (typeof originalTokenMouseMove === 'function') {
+      try { globalThis.removeEventListener?.('mousemove', originalTokenMouseMove); } catch (_) {}
+
+      engine.handleTokenMouseMove = function frameCoalescedTokenMouseMove(event) {
+        if (engine.destroyed || isDisposed()) return;
+        inputPerformanceStats.pointerMovesReceived += 1;
+        if (pendingPointerMove != null) inputPerformanceStats.pointerMovesCoalesced += 1;
+        pendingPointerMove = event;
+        if (pointerFrameId != null) return;
+
+        pointerFrameId = requestFrame(() => {
+          pointerFrameId = null;
+          const next = pendingPointerMove;
+          pendingPointerMove = null;
+          if (!next || engine.destroyed || isDisposed()) return;
+          inputPerformanceStats.pointerMovesProcessed += 1;
+          originalTokenMouseMove(next);
+        });
+      };
+
+      globalThis.addEventListener?.('mousemove', engine.handleTokenMouseMove);
+    }
 
     engine.start = function startLifecycleHardenedEngine() {
       if (engine.destroyed || isDisposed() || engine.isRunning || engine.frameId != null) return false;
@@ -48,6 +85,11 @@
         cancelFrame(engine.frameId);
         engine.frameId = null;
       }
+      if (pointerFrameId != null) {
+        cancelFrame(pointerFrameId);
+        pointerFrameId = null;
+      }
+      pendingPointerMove = null;
 
       engine.tokenDrag = null;
       if (engine.canvas?.style) engine.canvas.style.cursor = 'default';

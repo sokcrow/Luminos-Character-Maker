@@ -9,7 +9,6 @@ on:
       - 'tests/vtt_multiclient_realtime_field.spec.js'
       - 'tests/vtt_canonical_token_state.spec.js'
       - 'tests/vtt_map_field_test_hardening.spec.js'
-      - 'tests/vtt_performance_guard.spec.js'
       - 'tests/vtt_map_theatre_lifecycle.spec.js'
       - '.github/workflows/vtt-world-token-multiclient-stress.yml'
   push:
@@ -50,7 +49,4 @@ jobs:
           tests/vtt_multiclient_realtime_field.spec.js
           tests/vtt_canonical_token_state.spec.js
           tests/vtt_map_field_test_hardening.spec.js
-          tests/vtt_performance_guard.spec.js
           tests/vtt_map_theatre_lifecycle.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1

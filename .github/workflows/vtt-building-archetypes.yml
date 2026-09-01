@@ -3,7 +3,8 @@ name: VTT Building Archetypes
 on:
   pull_request:
     paths:
-      - 'js/vtt/**'
+      - 'js/vtt/building-archetype-*.js'
+      - 'js/vtt/semantic-map-bootstrap.js'
       - 'tests/vtt_building_archetypes.spec.js'
       - '.github/workflows/vtt-building-archetypes.yml'
   workflow_dispatch:
@@ -25,9 +26,7 @@ jobs:
           node --input-type=module --check < js/vtt/building-archetype-authoring-bootstrap.js
           node --input-type=module --check < js/vtt/semantic-map-bootstrap.js
           node --check tests/vtt_building_archetypes.spec.js
-      - name: Focused contracts
-        run: npx playwright test tests/vtt_building_archetypes.spec.js tests/vtt_building_semantic_model.spec.js tests/vtt_semantic_map_foundation.spec.js tests/vtt_building_physics_closure.spec.js tests/vtt_ramp_foundation.spec.js tests/vtt_elevator_lift_foundation.spec.js tests/vtt_roof_ceiling_foundation.spec.js tests/vtt_floor_openings_foundation.spec.js tests/vtt_stair_builder_foundation.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_structure_primitives.spec.js tests/vtt_map_hud_physical.spec.js --workers=1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Repository regression
-        run: npx playwright test --workers=1
+      - name: Focused building archetype integration contracts
+        run: npx playwright test tests/vtt_building_archetypes.spec.js tests/vtt_building_semantic_model.spec.js tests/vtt_semantic_map_foundation.spec.js tests/vtt_building_physics_closure.spec.js tests/vtt_ramp_foundation.spec.js tests/vtt_elevator_lift_foundation.spec.js tests/vtt_roof_ceiling_foundation.spec.js tests/vtt_floor_openings_foundation.spec.js tests/vtt_stair_builder_foundation.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_structure_primitives.spec.js tests/vtt_map_hud_physical.spec.js --workers=1

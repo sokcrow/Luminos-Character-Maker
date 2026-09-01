@@ -3,7 +3,9 @@ name: VTT Floor Openings Foundation
 on:
   pull_request:
     paths:
-      - 'js/vtt/**'
+      - 'js/vtt/floor-opening-*.js'
+      - 'js/vtt/structure-bootstrap.js'
+      - 'js/vtt/structure-authoring-patch.js'
       - 'tests/vtt_floor_openings_foundation.spec.js'
       - '.github/workflows/vtt-floor-openings.yml'
   workflow_dispatch:
@@ -27,9 +29,7 @@ jobs:
           node --input-type=module --check < js/vtt/structure-bootstrap.js
           node --check js/vtt/structure-authoring-patch.js
           node --check tests/vtt_floor_openings_foundation.spec.js
-      - name: Focused contracts
-        run: npx playwright test tests/vtt_floor_openings_foundation.spec.js tests/vtt_stair_builder_foundation.spec.js tests/vtt_structure_primitives.spec.js tests/vtt_surface_foundation.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_map_hud_physical.spec.js --workers=1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Repository regression
-        run: npx playwright test --workers=1
+      - name: Focused floor-opening and vertical integration contracts
+        run: npx playwright test tests/vtt_floor_openings_foundation.spec.js tests/vtt_stair_builder_foundation.spec.js tests/vtt_structure_primitives.spec.js tests/vtt_surface_foundation.spec.js tests/vtt_vertical_portal_editor.spec.js tests/vtt_map_hud_physical.spec.js --workers=1

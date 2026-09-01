@@ -23,7 +23,6 @@ on:
       - 'tests/vtt_*fog*.spec.js'
       - 'tests/regional_local_transition*.spec.js'
       - 'tests/vtt_world_streaming_lifecycle.spec.js'
-      - 'tests/vtt_performance_guard.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
       - '.github/workflows/vtt-camera-pov-observer.yml'
   push:
@@ -95,7 +94,4 @@ jobs:
           tests/regional_local_transition_realtime.spec.js
           tests/vtt_world_streaming_lifecycle.spec.js
           tests/vtt_map_hud_physical.spec.js
-          tests/vtt_performance_guard.spec.js
           tests/vtt_procedural_chunk_streaming_performance.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1

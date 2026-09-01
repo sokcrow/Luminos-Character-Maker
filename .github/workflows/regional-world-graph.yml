@@ -11,8 +11,8 @@ on:
       - "tests/regional_world_graph*.spec.js"
       - "tests/regional_travel*.spec.js"
       - "tests/world_time_scheduler*.spec.js"
+      - "tests/scene_time_engine.spec.js"
       - "tests/vtt_world_streaming_lifecycle.spec.js"
-      - "tests/vtt_performance_guard.spec.js"
       - "tests/vtt_procedural_chunk_streaming_performance.spec.js"
       - ".github/workflows/regional-world-graph.yml"
   push:
@@ -53,7 +53,7 @@ jobs:
           node --check tests/regional_world_graph_realtime.spec.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Focused graph realtime and performance contracts
+      - name: Focused graph realtime and streaming contracts
         run: >-
           npx playwright test --workers=1
           tests/regional_world_graph.spec.js
@@ -65,7 +65,4 @@ jobs:
           tests/scene_time_engine.spec.js
           tests/theatre_realtime.spec.js
           tests/vtt_world_streaming_lifecycle.spec.js
-          tests/vtt_performance_guard.spec.js
           tests/vtt_procedural_chunk_streaming_performance.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1

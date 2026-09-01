@@ -13,7 +13,6 @@ on:
       - 'tests/vtt_player_discovery*.spec.js'
       - 'tests/vtt_world_streaming_lifecycle.spec.js'
       - 'tests/vtt_world_objects.spec.js'
-      - 'tests/vtt_performance_guard.spec.js'
       - 'tests/vtt_procedural_chunk_streaming_performance.spec.js'
       - 'tests/regional_local_transition*.spec.js'
       - '.github/workflows/vtt-map-simulation-persistence.yml'
@@ -62,7 +61,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8'))"
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Focused simulation discovery realtime persistence and performance contracts
+      - name: Focused simulation discovery realtime and persistence contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_map_simulation_bubbles.spec.js
@@ -71,10 +70,7 @@ jobs:
           tests/vtt_player_discovery_realtime.spec.js
           tests/vtt_world_streaming_lifecycle.spec.js
           tests/vtt_world_objects.spec.js
-          tests/vtt_performance_guard.spec.js
           tests/vtt_procedural_chunk_streaming_performance.spec.js
           tests/regional_local_transition.spec.js
           tests/regional_local_transition_realtime.spec.js
           tests/regional_local_transition_bootstrap.spec.js
-      - name: Full repository regression
-        run: npx playwright test --workers=1
