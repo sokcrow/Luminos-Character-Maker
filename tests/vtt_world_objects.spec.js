@@ -62,29 +62,45 @@ test('use toggles canonical electrical component state', async () => {
 });
 
 test('world objects block token collision and A star until destroyed', async () => {
-  const core = require('../js/vtt/world-object-core.js');
-  global.LuminousVttWorldObjectCore = core;
-  delete require.cache[require.resolve('../js/vtt/world-object-catalog.js')];
-  const catalog = require('../js/vtt/world-object-catalog.js');
-  global.LuminousVttWorldObjectCatalog = catalog;
-  delete require.cache[require.resolve('../js/vtt/token-interaction.js')];
-  global.LuminousVttTokenInteraction = require('../js/vtt/token-interaction.js');
-  delete require.cache[require.resolve('../js/vtt/world-object-movement-patch.js')];
-  require('../js/vtt/world-object-movement-patch.js');
-  delete require.cache[require.resolve('../js/vtt/pathfinding.js')];
-  const pf = require('../js/vtt/pathfinding.js');
-  const def = catalog.get('crate_wooden');
-  const blocker = core.createInstance(def,{instanceId:'crate_a',position:{x:175,y:105,zLayer:0}});
-  const mapData={grid:{cols:5,rows:3,size:70,distancePerCell:5},walls:[],topology:[],tokens:[],worldObjects:[blocker],worldObjectDefinitions:{}};
-  const token={id:'p1',x:35,y:105,zLayer:0,radius:20};
-  const gate=global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData);
-  expect(gate.valid).toBe(false);
-  expect(gate.reason).toBe('BLOCKED_BY_WORLD_OBJECT');
-  const route=pf.findPath({token,start:{x:35,y:105},target:{x:315,y:105},mapData,blockTokens:false});
-  expect(route.valid).toBe(true);
-  expect(route.cells.some(c=>c.col===2&&c.row===1)).toBe(false);
-  blocker.state.destroyed=true;
-  expect(global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData).valid).toBe(true);
+  const previousWindow = global.window;
+  const previousCore = global.LuminousVttWorldObjectCore;
+  const previousCatalog = global.LuminousVttWorldObjectCatalog;
+  const previousInteraction = global.LuminousVttTokenInteraction;
+  const previousPathfinding = global.LuminousVttPathfinding;
+  try {
+    delete global.window;
+    delete require.cache[require.resolve('../js/vtt/world-object-core.js')];
+    const core = require('../js/vtt/world-object-core.js');
+    global.LuminousVttWorldObjectCore = core;
+    delete require.cache[require.resolve('../js/vtt/world-object-catalog.js')];
+    const catalog = require('../js/vtt/world-object-catalog.js');
+    global.LuminousVttWorldObjectCatalog = catalog;
+    delete require.cache[require.resolve('../js/vtt/token-interaction.js')];
+    global.LuminousVttTokenInteraction = require('../js/vtt/token-interaction.js');
+    delete require.cache[require.resolve('../js/vtt/world-object-movement-patch.js')];
+    require('../js/vtt/world-object-movement-patch.js');
+    delete require.cache[require.resolve('../js/vtt/pathfinding.js')];
+    const pf = require('../js/vtt/pathfinding.js');
+    const def = catalog.get('crate_wooden');
+    const blocker = core.createInstance(def,{instanceId:'crate_a',position:{x:175,y:105,zLayer:0}});
+    const mapData={grid:{cols:5,rows:3,size:70,distancePerCell:5},walls:[],topology:[],tokens:[],worldObjects:[blocker],worldObjectDefinitions:{}};
+    const token={id:'p1',x:35,y:105,zLayer:0,radius:20};
+    const gate=global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData);
+    expect(gate.valid).toBe(false);
+    expect(gate.reason).toBe('BLOCKED_BY_WORLD_OBJECT');
+    const route=pf.findPath({token,start:{x:35,y:105},target:{x:315,y:105},mapData,blockTokens:false});
+    expect(route.valid).toBe(true);
+    expect(route.cells.some(c=>c.col===2&&c.row===1)).toBe(false);
+    blocker.state.destroyed=true;
+    expect(global.LuminousVttTokenInteraction.canOccupy(token,{x:175,y:105},mapData).valid).toBe(true);
+  } finally {
+    if (previousWindow === undefined) delete global.window;
+    else global.window = previousWindow;
+    global.LuminousVttWorldObjectCore = previousCore;
+    global.LuminousVttWorldObjectCatalog = previousCatalog;
+    global.LuminousVttTokenInteraction = previousInteraction;
+    global.LuminousVttPathfinding = previousPathfinding;
+  }
 });
 
 test('mainline world-object patch preserves movement resolveDrop and prior path blockers', async () => {
