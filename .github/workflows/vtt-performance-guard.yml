@@ -24,6 +24,8 @@ on:
       - 'js/vtt/pov-state.js'
       - 'js/vtt/memory-state.js'
       - 'tests/vtt_webgl2_camera_contract.spec.js'
+      - 'tests/vtt_token_view_registry.spec.js'
+      - 'tests/vtt_persistent_token_views.spec.js'
       - 'tests/vtt_scene_dirty.spec.js'
       - 'tests/vtt_scene_dirty_bridges.spec.js'
       - 'tests/vtt_scene_dirty_direct_emitters.spec.js'
@@ -61,6 +63,9 @@ jobs:
           node --input-type=module --check < js/vtt/render/world-transform.js
           node --input-type=module --check < js/vtt/render/webgl2-renderer.js
           node --input-type=module --check < js/vtt/render/dm-observer-overlay.js
+          node --input-type=module --check < js/vtt/render/token-view.js
+          node --input-type=module --check < js/vtt/render/token-view-registry.js
+          node --input-type=module --check < js/vtt/render/persistent-token-views.js
           node --input-type=module --check < js/vtt/render/renderer-factory.js
           node --input-type=module --check < js/vtt/procedural-chunk-streaming-runtime.js
           node --check js/vtt/runtime-lifecycle.js
@@ -72,6 +77,13 @@ jobs:
           node --check tests/vtt_runtime_frame_scheduler.spec.js
           node --check tests/vtt_performance_guard.spec.js
           node --input-type=module --check < tests/vtt_webgl2_camera_contract.spec.js
+          node --input-type=module --check < tests/vtt_token_view_registry.spec.js
+          node --input-type=module --check < tests/vtt_persistent_token_views.spec.js
+      - name: Persistent TokenView lifecycle contracts
+        run: >-
+          npx playwright test --workers=1
+          tests/vtt_token_view_registry.spec.js
+          tests/vtt_persistent_token_views.spec.js
       - name: WebGL2 camera and DM observer contracts
         run: npx playwright test --workers=1 tests/vtt_webgl2_camera_contract.spec.js
       - name: Canonical scene dirty contracts
