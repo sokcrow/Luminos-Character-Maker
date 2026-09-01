@@ -95,7 +95,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function statusText() {
-    if (!movementOnline()) return 'WORLD · OFFLINE · MOVEMENT LOCKED';
+    if (!movementOnline()) return 'WORLD · OFFLINE · LOCAL MOVEMENT';
     const state = worldState();
     if (state.mode !== 'round') return 'WORLD · FREE EXPLORATION';
     const token = controlledToken();
@@ -168,7 +168,6 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   function planFor(token, start, target) {
-    if (!movementOnline()) return offlineResult();
     return movement.planMove({
       token,
       start,
@@ -249,6 +248,10 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
 
   async function reserveDestination(token) {
     if (!token?.pendingMovementClaim) return { valid: true, skipped: true };
+    if (!movementOnline()) {
+      delete token.pendingMovementClaim;
+      return { valid: true, skipped: true, offline: true };
+    }
     const bridge = runtime.tokenStateBridge;
     if (typeof bridge?.reserveMovementDestinationClaim !== 'function') return { valid: false, reason: 'MOVEMENT_CLAIM_BRIDGE_UNAVAILABLE' };
     try {
@@ -315,9 +318,10 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   async function resolveMovementOrder({ token, from, requestedPoint }) {
-    if (!movementOnline()) return offlineResult();
     const plan = planFor(token, from, requestedPoint);
     if (!plan.valid) return plan;
+
+    if (!movementOnline() && Array.isArray(plan.doorInteractions) && plan.doorInteractions.length) return offlineResult();
 
     const doors = validateDoorInteractions(plan);
     if (!doors.valid) return { ...plan, valid: false, reason: doors.reason || 'DOOR_INTERACTION_FAILED' };
@@ -559,7 +563,7 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     prone: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.setProne(token, true); updateUi(); return result; },
     stand: (token) => { if (!movementOnline()) return { valid: false, reason: 'VTT_OFFLINE_NO_UPDATE' }; const result = movement.standUp(token, worldState()); updateUi(); return result; },
     setMovementMode: (token, mode) => { if (!movementOnline()) throw new Error('VTT_OFFLINE_NO_UPDATE'); return movement.setMovementMode(token, mode, worldState()); },
-    plan: (options) => movementOnline() ? movement.planMove({ ...options, mapData, worldState: worldState() }) : offlineResult(),
+    plan: (options) => movement.planMove({ ...options, mapData, worldState: worldState() }),
     stop() {
       clearTimeout(noticeTimer);
       engine.cancelTokenMotion?.();
