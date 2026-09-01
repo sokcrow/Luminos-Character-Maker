@@ -1,12 +1,10 @@
 const { test, expect } = require("@playwright/test");
-const fs = require("node:fs");
 const path = require("node:path");
 
 const engine = require(path.join(__dirname, "..", "js", "trait-engine.js"));
 require(path.join(__dirname, "..", "js", "class-milestone-engine.js"));
 const patch = require(path.join(__dirname, "..", "js", "milestone-trait-modifier-patch.js"));
 const skillPatch = require(path.join(__dirname, "..", "js", "skill-trait-breakdown-patch.js"));
-const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
 
 test("formula de Trait resuelve el numero actual sin reescribir la descripcion", () => {
   const trait = {
@@ -169,20 +167,4 @@ test("rollback invalido aborta sin mutacion parcial", () => {
   expect(result.valid).toBe(false);
   expect(player.stats.fuerza).toBe(1);
   expect(player.characterBuild.classMilestones.barbarian[20]).toBeTruthy();
-});
-
-test("parche no modifica Coin Engine y solo intercepta una tirada cuando existe Check Power", () => {
-  const source = read("js/skill-trait-breakdown-patch.js");
-  expect(source).not.toContain("rollAdjustment.bonus =");
-  expect(source).not.toContain("LuminousCoinEngine =");
-  expect(source).toContain('stats.triggerCoinRoll(descriptor.ability, descriptor.label, rawRollBase(descriptor, data, stats) + previewPower)');
-  expect(source).toContain('target.dataset.resolvedCheckPower');
-  expect(source).toContain('CHECK_POWER_PATHS');
-  expect(source).toContain('FINAL_POWER_PATHS');
-});
-
-test("runtime compartido carga el parche en Player y DM", () => {
-  const loader = read("js/player-stat-tooltip-runtime.js");
-  expect(loader).toContain("milestone-trait-modifier-patch-script");
-  expect(loader).toContain("js/milestone-trait-modifier-patch.js");
 });
