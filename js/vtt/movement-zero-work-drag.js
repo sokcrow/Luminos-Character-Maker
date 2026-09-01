@@ -13,9 +13,12 @@ export function installZeroWorkDrag(host = globalThis) {
     blockedLegacyMouseMoves: 0,
     worldPreviewCalls: 0,
     pathfindingCalls: 0,
+    handlerTotalMs: 0,
+    handlerMaxMs: 0,
   };
 
   const runtime = () => host?.LuminousVttRuntime || null;
+  const now = () => host?.performance?.now?.() ?? Date.now();
 
   function ensureHud() {
     if (hud?.isConnected) return hud;
@@ -54,33 +57,40 @@ export function installZeroWorkDrag(host = globalThis) {
     const drag = engine?.tokenDrag;
     if (!engine || !drag?.token || typeof engine.eventWorldPoint !== 'function') return;
 
-    metrics.pointerMoves += 1;
-    const pathfinding = host?.LuminousVttPathfinding;
-    if (!pathfinding?.cellFromPoint) return;
-    const world = engine.eventWorldPoint(event);
-    const target = {
-      x: finite(world?.x) - finite(drag.grabOffsetX),
-      y: finite(world?.y) - finite(drag.grabOffsetY),
-    };
-    const cell = pathfinding.cellFromPoint(target, engine.mapData || {});
-    const key = `${clean(drag.token.id)}:${cell.col}:${cell.row}`;
-    const node = ensureHud();
-    if (node) {
-      node.style.left = `${Math.round(finite(event.clientX))}px`;
-      node.style.top = `${Math.round(finite(event.clientY))}px`;
-      if (key !== lastCellKey) {
-        node.textContent = `${Math.round(distanceFt(engine, drag, cell))} ft`;
-        metrics.cellChanges += 1;
-        lastCellKey = key;
+    const startedAt = now();
+    try {
+      metrics.pointerMoves += 1;
+      const pathfinding = host?.LuminousVttPathfinding;
+      if (!pathfinding?.cellFromPoint) return;
+      const world = engine.eventWorldPoint(event);
+      const target = {
+        x: finite(world?.x) - finite(drag.grabOffsetX),
+        y: finite(world?.y) - finite(drag.grabOffsetY),
+      };
+      const cell = pathfinding.cellFromPoint(target, engine.mapData || {});
+      const key = `${clean(drag.token.id)}:${cell.col}:${cell.row}`;
+      const node = ensureHud();
+      if (node) {
+        node.style.left = `${Math.round(finite(event.clientX))}px`;
+        node.style.top = `${Math.round(finite(event.clientY))}px`;
+        if (key !== lastCellKey) {
+          node.textContent = `${Math.round(distanceFt(engine, drag, cell))} ft`;
+          metrics.cellChanges += 1;
+          lastCellKey = key;
+        }
+        node.hidden = false;
       }
-      node.hidden = false;
-    }
 
-    // Intentionally kill every downstream token-drag mousemove consumer.
-    // Final validation still runs on mouseup. During drag we need cursor feedback,
-    // not pathfinding, world render, FOV, scene-dirty, or route reconstruction.
-    metrics.blockedLegacyMouseMoves += 1;
-    event.stopImmediatePropagation?.();
+      // Intentionally kill every downstream token-drag mousemove consumer.
+      // Final validation still runs on mouseup. During drag we need cursor feedback,
+      // not pathfinding, world render, FOV, scene-dirty, or route reconstruction.
+      metrics.blockedLegacyMouseMoves += 1;
+      event.stopImmediatePropagation?.();
+    } finally {
+      const elapsed = Math.max(0, now() - startedAt);
+      metrics.handlerTotalMs += elapsed;
+      metrics.handlerMaxMs = Math.max(metrics.handlerMaxMs, elapsed);
+    }
   }
 
   function reset() {
@@ -99,6 +109,7 @@ export function installZeroWorkDrag(host = globalThis) {
     snapshot() {
       return Object.freeze({
         ...metrics,
+        handlerAvgMs: metrics.pointerMoves ? metrics.handlerTotalMs / metrics.pointerMoves : 0,
         active: Boolean(runtime()?.engine?.tokenDrag),
         hudVisible: Boolean(hud && !hud.hidden),
       });
