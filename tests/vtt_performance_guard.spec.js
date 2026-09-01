@@ -220,6 +220,49 @@ test('DM FREE gets an omniscient render frame without invoking Player FOV calcul
   }
 });
 
+test('idle dirty invalidation recomputes FOV immediately instead of waiting for the fallback interval', async () => {
+  await withFakeClock(async ({ advance }) => {
+    const { mod, tmp } = await loadGuard();
+    try {
+      let realVision = 0;
+      const canvas = canvasStub();
+      const renderer = { render() {} };
+      const mapData = mapStub();
+      const engine = {
+        renderer,
+        mapData,
+        canvas,
+        camera: { x: 0, y: 0, zoom: 1 },
+        activeZ: 0,
+        tokenDrag: null,
+        tokenMotion: null,
+        calculateVision() {
+          realVision += 1;
+          return { visible: true, generation: realVision };
+        },
+      };
+      const api = mod.installPerformanceGuard({
+        runtime: { engine, bridge: { isDm: false } },
+        idleFallbackMs: 500,
+      });
+
+      const first = engine.calculateVision();
+      expect(realVision).toBe(1);
+      expect(first.generation).toBe(1);
+
+      advance(10);
+      api.invalidate();
+      const second = engine.calculateVision();
+      expect(realVision).toBe(2);
+      expect(second.generation).toBe(2);
+
+      api.stop();
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+});
+
 test('performance guard reports dirty/fallback costs instead of fingerprint and static-signature churn', async () => {
   await withFakeClock(async ({ advance }) => {
     const { mod, tmp } = await loadGuard();
