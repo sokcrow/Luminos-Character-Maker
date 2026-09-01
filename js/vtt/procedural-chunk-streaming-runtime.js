@@ -42,6 +42,12 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   function stateRef(){return db?.ref?.(`${STATE_ROOT}/${mapId}`)||null;}
   function requestRootRef(){return db?.ref?.(`${REQUEST_ROOT}/${mapId}`)||null;}
   function subscribe(ref,event,handler){if(!ref?.on)return;ref.on(event,handler);subscriptions.push(()=>ref.off(event,handler));}
+  function emitSemantic(type,detail){engine.canvas?.dispatchEvent?.(new CustomEvent(type,{detail}));}
+  function emitDirty(sourceEvent,detail={}){
+    window.LuminousVttSceneDirty?.emit?.(engine.canvas,{
+      reason:'chunk',render:true,vision:true,active:false,sourceEvent,tokenId:detail?.tokenId??null,meta:detail,
+    });
+  }
 
   async function publishChunkState(desc,plan){
     if(!isDm||!stateRef())return false;
@@ -67,8 +73,11 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
 
   function dispatchTransitionMove(token,from,transition,next){
     if(!token)return;
-    engine.canvas?.dispatchEvent?.(new CustomEvent('vtt:token-moved',{detail:{tokenId:token.id,from,to:{x:token.x,y:token.y,...token.gridPosition,elevationFt:token.elevationFt??0},chunkTransition:{from:transition.from,to:next.activeChunk,edges:transition.exit.edges}}}));
-    engine.canvas?.dispatchEvent?.(new CustomEvent('vtt:procedural-chunk-transition',{detail:{tokenId:token.id,from:transition.from,to:next.activeChunk,edges:transition.exit.edges}}));
+    const moveDetail={tokenId:token.id,from,to:{x:token.x,y:token.y,...token.gridPosition,elevationFt:token.elevationFt??0},chunkTransition:{from:transition.from,to:next.activeChunk,edges:transition.exit.edges}};
+    const transitionDetail={tokenId:token.id,from:transition.from,to:next.activeChunk,edges:transition.exit.edges};
+    emitSemantic('vtt:token-moved',moveDetail);
+    emitSemantic('vtt:procedural-chunk-transition',transitionDetail);
+    emitDirty('vtt:procedural-chunk-transition',transitionDetail);
   }
 
   async function activateChunk(desc,coord,{tokenId=null,requestedPoint=null,exit=null,persist=isDm,publish=isDm,center=true}={}){
@@ -83,7 +92,9 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
         token.x=safe.x;token.y=safe.y;const z=Number(token.zLayer??token.gridPosition?.z??token.z?.[0]??0);token.zLayer=z;token.z=[z];token.gridPosition={col:safe.col,row:safe.row,z};if(center)centerOnToken(token);
       }else if(center)engine.centerCamera?.();
       redraw();if(persist)await persistChunk(plan);if(publish)await publishChunkState(next,plan);
-      engine.canvas?.dispatchEvent?.(new CustomEvent('vtt:procedural-chunk-loaded',{detail:{chunk:clone(next.activeChunk),logical:{cols:next.chunkCols,rows:next.chunkRows},signature:plan.signature}}));
+      const loadedDetail={chunk:clone(next.activeChunk),logical:{cols:next.chunkCols,rows:next.chunkRows},signature:plan.signature};
+      emitSemantic('vtt:procedural-chunk-loaded',loadedDetail);
+      emitDirty('vtt:procedural-chunk-loaded',loadedDetail);
       return{descriptor:next,plan,token};
     }finally{transitioning=false;}
   }
