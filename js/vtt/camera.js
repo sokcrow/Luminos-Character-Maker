@@ -229,7 +229,10 @@ export class Camera {
         this.notifyVisualChange('zoom', true, { previousZoom, zoom: this.zoom, clamped });
     }
 
-    centerOnWorldPoint(point = {}) {
+    centerOnWorldPoint(pointOrX = {}, worldY = undefined) {
+        const point = typeof pointOrX === 'object' && pointOrX !== null
+            ? pointOrX
+            : { x: pointOrX, y: worldY };
         const constrained = this.constrainedCenter(point);
         if (!constrained) return false;
         const previousX = this.x;
