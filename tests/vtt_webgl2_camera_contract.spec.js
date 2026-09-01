@@ -191,3 +191,49 @@ test('CAM-20 Camera.destroy retira listeners registrados', () => {
   expect(win.listeners.get('mousemove')?.size || 0).toBe(0);
   expect(win.listeners.get('mouseup')?.size || 0).toBe(0);
 });
+
+test('CAM-05/08 Engine delega mouse, centrado y resize al contrato de Camera', () => {
+  const engine = read('js/vtt/engine.js');
+
+  expect(engine).toContain('return this.camera.eventToWorld(event);');
+  expect(engine).not.toContain('return this.camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);');
+  expect(engine).toContain('this.camera.centerOnWorldPoint(mapWidth / 2, mapHeight / 2);');
+  expect(engine).toContain("if (this.renderer?.backend === 'webgl2')");
+  expect(engine).toContain('this.renderer.resize?.(width, height);');
+  expect(engine).toContain('this.camera.centerOnWorldPoint(centerBefore);');
+});
+
+test('CAM-11/12/13 Camera Follow conserva follow, manual look y hotkeys Legacy', () => {
+  const follow = read('js/vtt/camera-follow.js');
+
+  expect(follow).toContain("camera.centerOnWorldPoint?.({ x: token.x, y: token.y }) === true");
+  expect(follow).toContain('camera.setManualPanListener?.(onManualPan);');
+  expect(follow).toContain("emit(policy.active ? 'look-around' : 'manual-pan');");
+  expect(follow).toContain("event.code === 'KeyF'");
+  expect(follow).toContain("event.code === 'Home'");
+});
+
+test('CAM-14 drag preview no arrastra cámara; traversal confirmado sí puede seguir', () => {
+  const follow = read('js/vtt/camera-follow.js');
+
+  expect(follow).toContain("if (event?.type === 'vtt:token-preview-moved')");
+  expect(follow).toContain('if (!isConfirmedTraversalPreview(event.detail || {})) return;');
+  expect(follow).toContain("queueTraversalSync(event?.detail?.remote ? 'remote-token-traversal' : 'token-traversal');");
+});
+
+test('CAM-16/17/18 DM Observer mantiene selección explícita y VIEW AS solo para Player', () => {
+  const observer = read('js/vtt/dm-observer.js');
+
+  expect(observer).toContain("if (!selectingMode || event.button !== 0 || mapData.dmEditMode?.active) return;");
+  expect(observer).toContain('if (selectingMode === MODES.VIEW_AS && !isPlayerToken(token)) return;');
+  expect(observer).toContain('mapData.lighting.dmPreviewTokenId = mode === MODES.VIEW_AS ? clean(token.id) : null;');
+});
+
+test('CAM-20 lifecycle destruye renderer y camera para evitar listeners/contextos duplicados', () => {
+  const lifecycle = read('js/vtt/runtime-lifecycle.js');
+
+  expect(lifecycle).toContain("globalThis.removeEventListener?.('resize', engine.handleResize)");
+  expect(lifecycle).toContain("engine.canvas?.removeEventListener?.('mousedown', engine.handleTokenMouseDown)");
+  expect(lifecycle).toContain('engine.renderer?.destroy?.();');
+  expect(lifecycle).toContain('engine.camera?.destroy?.();');
+});
