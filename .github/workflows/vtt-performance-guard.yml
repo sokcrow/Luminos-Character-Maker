@@ -6,11 +6,15 @@ on:
       - 'vtt.html'
       - 'js/vtt/camera.js'
       - 'js/vtt/scene-dirty.js'
+      - 'js/vtt/scene-dirty-lighting-patch.js'
       - 'js/vtt/runtime-lifecycle.js'
       - 'js/vtt/performance-guard.js'
       - 'js/vtt/lighting-engine.js'
       - 'js/vtt/lighting-defaults-patch.js'
+      - 'js/vtt/lighting-state.js'
+      - 'js/vtt/environment-light-bridge.js'
       - 'js/vtt/pov-engine.js'
+      - 'js/vtt/pov-state.js'
       - 'tests/vtt_scene_dirty.spec.js'
       - 'tests/vtt_runtime_performance_phase1.spec.js'
       - 'tests/vtt_runtime_frame_scheduler.spec.js'
@@ -36,6 +40,7 @@ jobs:
       - name: Syntax
         run: |
           node --check js/vtt/scene-dirty.js
+          node --input-type=module --check < js/vtt/scene-dirty-lighting-patch.js
           node --input-type=module --check < js/vtt/camera.js
           node --check js/vtt/runtime-lifecycle.js
           node --input-type=module --check < js/vtt/performance-guard.js
