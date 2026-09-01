@@ -27,6 +27,7 @@ on:
       - 'js/vtt/pov-state.js'
       - 'js/vtt/memory-state.js'
       - 'tests/vtt_webgl2_camera_contract.spec.js'
+      - 'tests/vtt_webgl2_token_layer.spec.js'
       - 'tests/vtt_token_view_registry.spec.js'
       - 'tests/vtt_persistent_token_views.spec.js'
       - 'tests/vtt_token_state_incremental.spec.js'
@@ -71,6 +72,7 @@ jobs:
           node --input-type=module --check < js/vtt/movement-zero-work-drag.js
           node --input-type=module --check < js/vtt/render/world-transform.js
           node --input-type=module --check < js/vtt/render/webgl2-renderer.js
+          node --input-type=module --check < js/vtt/render/webgl2-token-layer.js
           node --input-type=module --check < js/vtt/render/dm-observer-overlay.js
           node --input-type=module --check < js/vtt/render/token-view.js
           node --input-type=module --check < js/vtt/render/token-view-registry.js
@@ -87,12 +89,13 @@ jobs:
           node --check tests/vtt_runtime_frame_scheduler.spec.js
           node --check tests/vtt_performance_guard.spec.js
           node --input-type=module --check < tests/vtt_webgl2_camera_contract.spec.js
+          node --input-type=module --check < tests/vtt_webgl2_token_layer.spec.js
           node --input-type=module --check < tests/vtt_token_view_registry.spec.js
           node --input-type=module --check < tests/vtt_persistent_token_views.spec.js
           node --input-type=module --check < tests/vtt_token_state_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_incremental.spec.js
           node --input-type=module --check < tests/vtt_drag_preview_raf.spec.js
-      - name: Persistent TokenView, incremental state, and drag preview contracts
+      - name: Persistent TokenView, incremental state, drag preview, and GPU token layer contracts
         run: >-
           npx playwright test --workers=1
           tests/vtt_token_view_registry.spec.js
@@ -100,6 +103,7 @@ jobs:
           tests/vtt_token_state_incremental.spec.js
           tests/vtt_drag_preview_incremental.spec.js
           tests/vtt_drag_preview_raf.spec.js
+          tests/vtt_webgl2_token_layer.spec.js
       - name: WebGL2 camera and DM observer contracts
         run: npx playwright test --workers=1 tests/vtt_webgl2_camera_contract.spec.js
       - name: Canonical scene dirty contracts
