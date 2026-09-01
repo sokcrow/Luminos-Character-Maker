@@ -39,9 +39,12 @@
 
   function emit(target, detail = {}) {
     if (!target?.dispatchEvent) return false;
+    const normalized = normalize(detail);
     const EventCtor = eventCtorFor(target);
-    if (typeof EventCtor !== 'function') return false;
-    target.dispatchEvent(new EventCtor(EVENT_NAME, { detail: normalize(detail) }));
+    const event = typeof EventCtor === 'function'
+      ? new EventCtor(EVENT_NAME, { detail: normalized })
+      : { type: EVENT_NAME, detail: normalized };
+    target.dispatchEvent(event);
     return true;
   }
 
