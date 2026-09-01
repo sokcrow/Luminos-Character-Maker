@@ -267,7 +267,7 @@
         stop,
         snapshot,
         finalizeToken: (token, saveCanonical) => requireOnline().finalizeToken(token, saveCanonical),
-        schedulePreview: (token) => connected && inner ? inner.schedulePreview(token) : false,
+        schedulePreview: (token, meta) => connected && inner ? inner.schedulePreview(token, meta) : false,
         handleIncoming: (...args) => connected && inner ? inner.handleIncoming(...args) : false,
         clearIncoming: (...args) => connected && inner ? inner.clearIncoming(...args) : false,
         handleCanonicalSync: (...args) => connected && inner ? inner.handleCanonicalSync(...args) : false,
