@@ -9,6 +9,29 @@
     const DIRECT_ACTIONS = Object.freeze(['open', 'close', 'lock', 'unlock', 'open_curtain', 'close_curtain']);
     const clean = (value) => String(value ?? '').trim();
 
+    function actorOwnership(token = {}, request = {}) {
+        const requesterUid = clean(request.requesterUid);
+        const requestedPlayerId = clean(request.playerId);
+        const requestedActorId = clean(request.actorId);
+        const ownerUid = clean(token.canonicalOwnerUid || token.ownerUid || token.characterLink?.uid);
+        const playerId = clean(token.playerId || token.canonicalPlayerKey || token.characterLink?.playerId);
+        const actorId = clean(token.actorId || token.characterLink?.actorId);
+
+        if (!requesterUid) return { valid: false, reason: 'REQUESTER_UID_REQUIRED' };
+        if (!ownerUid) return { valid: false, reason: 'ACTOR_OWNERSHIP_UNVERIFIED' };
+        if (ownerUid !== requesterUid) return { valid: false, reason: 'ACTOR_NOT_OWNED' };
+        if (playerId && requestedPlayerId && playerId !== requestedPlayerId) return { valid: false, reason: 'ACTOR_NOT_OWNED' };
+        if (actorId && requestedActorId && actorId !== requestedActorId) return { valid: false, reason: 'ACTOR_NOT_OWNED' };
+
+        return {
+            valid: true,
+            reason: null,
+            ownerUid,
+            playerId: playerId || null,
+            actorId: actorId || null,
+        };
+    }
+
     function createAuthority({ mapData, stateBridge, notify, root = browserRoot } = {}) {
         if (!mapData || !stateBridge) throw new Error('TOPOLOGY_INTERACTION_AUTHORITY_REQUIRES_RUNTIME');
         const stateApi = root?.LuminousVttStateBridge;
@@ -45,10 +68,11 @@
             });
         }
 
-        async function requesterInventory(request = {}) {
-            if (!db || !request.playerId) return {};
+        async function requesterInventory(playerId) {
+            const canonicalPlayerId = clean(playerId);
+            if (!db || !canonicalPlayerId) return {};
             try {
-                const snapshot = await db.ref(`campaña/jugadores/${request.playerId}`).once('value');
+                const snapshot = await db.ref(`campaña/jugadores/${canonicalPlayerId}`).once('value');
                 return snapshot.val() || {};
             } catch (_) { return {}; }
         }
@@ -61,8 +85,11 @@
             if (!element) return { valid: false, reason: 'ELEMENT_NOT_FOUND' };
             if (!actorToken) return { valid: false, reason: 'ACTOR_TOKEN_NOT_FOUND' };
 
+            const ownership = actorOwnership(actorToken, request);
+            if (!ownership.valid) return ownership;
+
             const normalized = topology.normalizeElement(element);
-            const inventory = await requesterInventory(request);
+            const inventory = await requesterInventory(ownership.playerId);
             const keyId = normalized.interaction?.keyId;
             const hasKey = keyId ? stateApi.inventoryHasItem(inventory, keyId) : false;
             const facts = interactions.factsFor(normalized, actorToken, mapData, {
@@ -96,7 +123,7 @@
             const identity = stateApi.playerIdentity(root);
             if (!identity.uid) throw new Error('AUTH_NOT_READY');
             const requestRef = rootRef().push();
-            const safeActorTokenId = clean(actorTokenId || identity.actorId);
+            const safeActorTokenId = clean(actorTokenId);
             if (!safeActorTokenId) return { valid: false, reason: 'ACTOR_TOKEN_REQUIRED' };
             await requestRef.set({
                 schemaVersion: 1,
@@ -146,5 +173,5 @@
         return Object.freeze({ mapId, isDm, start, stop, requestAction, validateRequest });
     }
 
-    return Object.freeze({ REQUEST_ROOT, DIRECT_ACTIONS, createAuthority });
+    return Object.freeze({ REQUEST_ROOT, DIRECT_ACTIONS, actorOwnership, createAuthority });
 });
