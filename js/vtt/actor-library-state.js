@@ -20,37 +20,88 @@
     return null;
   }
 
+  function actorLibrarySignature(list = []) {
+    return JSON.stringify((list || []).map((actor) => ({
+      key: actor.key,
+      scope: actor.scope,
+      sourceId: actor.sourceId,
+      actorId: actor.actorId,
+      linkedActorId: actor.linkedActorId,
+      playerId: actor.playerId,
+      ownerUid: actor.ownerUid,
+      name: actor.name,
+      category: actor.category,
+      portrait: actor.portrait,
+      tokenImage: actor.tokenImage,
+      icono: actor.icono,
+      color: actor.color,
+      backgroundColor: actor.backgroundColor,
+      iconColor: actor.iconColor,
+      size: actor.size,
+      radius: actor.radius,
+      speedFt: actor.speedFt,
+      movement: actor.movement,
+      senses: actor.senses,
+    })));
+  }
+
   function createBridge({ onChanged, root = browserRoot } = {}) {
     const actorRuntime = runtime(root);
     if (!actorRuntime) throw new Error('ACTOR_LIBRARY_RUNTIME_REQUIRED');
     const db = hostFirebase(root)?.database?.() || null;
     const subscriptions = [];
     let players = {}, actors = {}, npcs = {}, started = false;
-
-    function subscribe(path, assign) {
-      if (!db) return;
-      const ref = db.ref(path);
-      const handler = (snapshot) => { assign(snapshot.val() || {}); if (typeof onChanged === 'function') onChanged(list()); };
-      ref.on('value', handler);
-      subscriptions.push(() => ref.off('value', handler));
-    }
+    let lastSignature = null;
 
     function list() { return actorRuntime.mergeCollections({ players, actors, npcs }); }
     function get(key) { return list().find((actor) => actor.key === key) || null; }
 
+    function emitIfChanged() {
+      const current = list();
+      const signature = actorLibrarySignature(current);
+      if (signature === lastSignature) return false;
+      lastSignature = signature;
+      if (typeof onChanged === 'function') onChanged(current);
+      return true;
+    }
+
+    function subscribe(path, assign) {
+      if (!db) return;
+      const ref = db.ref(path);
+      const handler = (snapshot) => {
+        assign(snapshot.val() || {});
+        emitIfChanged();
+      };
+      ref.on('value', handler);
+      subscriptions.push(() => ref.off('value', handler));
+    }
+
     function start() {
       if (started) return true;
       started = true;
+      lastSignature = null;
       if (!db) return false;
       subscribe(PLAYERS_ROOT, (value) => { players = value; });
       subscribe(ACTORS_ROOT, (value) => { actors = value; });
       subscribe(NPCS_ROOT, (value) => { npcs = value; });
       return true;
     }
-    function stop() { subscriptions.splice(0).forEach((unsubscribe) => unsubscribe()); started = false; }
+    function stop() {
+      subscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
+      started = false;
+      lastSignature = null;
+    }
 
-    return Object.freeze({ start, stop, list, get, applyPlayers: (value) => { players = value || {}; }, applyActors: (value) => { actors = value || {}; }, applyNpcs: (value) => { npcs = value || {}; } });
+    return Object.freeze({
+      start,
+      stop,
+      list,
+      get,
+      applyPlayers: (value) => { players = value || {}; },
+      applyActors: (value) => { actors = value || {}; },
+      applyNpcs: (value) => { npcs = value || {}; },
+    });
   }
 
-  return Object.freeze({ PLAYERS_ROOT, ACTORS_ROOT, NPCS_ROOT, hostWindow, hostFirebase, createBridge });
+  return Object.freeze({ PLAYERS_ROOT, ACTORS_ROOT, NPCS_ROOT, hostWindow, hostFirebase, actorLibrarySignature, createBridge });
 });

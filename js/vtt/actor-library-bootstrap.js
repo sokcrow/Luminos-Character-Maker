@@ -7,10 +7,12 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   const engine = runtime.engine;
   const tokenBridge = runtime.tokenStateBridge;
   const imageCache = new Map();
-  const libraryBridge = stateApi.createBridge({ onChanged: () => renderList() });
+  const cardNodes = new Map();
   let filter = 'all';
   let search = '';
   let selectedActorKey = '';
+  let lastListSignature = '';
+  const libraryBridge = stateApi.createBridge({ onChanged: (list) => renderList(list) });
 
   function tokenImage(token) {
     const url = String(token?.tokenImage || token?.portrait || '').trim();
@@ -66,25 +68,122 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
     panel.querySelector('[data-actor-filter]')?.addEventListener('change', (event) => { filter = event.target.value; renderList(); });
   }
 
-  function actorsVisible() {
-    return libraryBridge.list().filter((actor) => {
+  function actorsVisible(source = libraryBridge.list()) {
+    return (source || []).filter((actor) => {
       if (filter !== 'all' && actor.category !== filter) return false;
       if (search && !`${actor.name} ${actor.actorId} ${actor.category}`.toLowerCase().includes(search)) return false;
       return true;
     });
   }
 
-  function renderList() {
+  function actorCardSignature(actor) {
+    return JSON.stringify([actor.key, actor.name, actor.category, actor.scope, actor.portrait || '']);
+  }
+
+  function listSignature(list = []) {
+    return JSON.stringify((list || []).map((actor) => actorCardSignature(actor)));
+  }
+
+  function makeThumb(actor) {
+    if (actor.portrait) {
+      const image = document.createElement('img');
+      image.className = 'vtt-actor-thumb';
+      image.alt = '';
+      image.dataset.actorThumb = '1';
+      image.dataset.actorSrc = actor.portrait;
+      image.src = actor.portrait;
+      return image;
+    }
+    const fallback = document.createElement('div');
+    fallback.className = 'vtt-actor-thumb';
+    fallback.dataset.actorThumb = '1';
+    return fallback;
+  }
+
+  function createActorCard(actor) {
+    const card = document.createElement('article');
+    card.className = 'vtt-actor-card';
+    card.draggable = true;
+    card.dataset.actorKey = actor.key;
+    card.appendChild(makeThumb(actor));
+
+    const info = document.createElement('div');
+    const name = document.createElement('strong');
+    name.dataset.actorName = '1';
+    const br = document.createElement('br');
+    const meta = document.createElement('small');
+    meta.dataset.actorMeta = '1';
+    info.append(name, br, meta);
+    card.appendChild(info);
+
+    card.addEventListener('dragstart', (event) => {
+      selectedActorKey = card.dataset.actorKey;
+      event.dataTransfer?.setData('text/x-luminous-actor', selectedActorKey);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    });
+    cardNodes.set(actor.key, card);
+    return card;
+  }
+
+  function updateActorCard(card, actor) {
+    card.dataset.actorKey = actor.key;
+    const name = card.querySelector('[data-actor-name]');
+    const meta = card.querySelector('[data-actor-meta]');
+    if (name && name.textContent !== actor.name) name.textContent = actor.name;
+    const metaText = `${actor.category.toUpperCase()} · ${actor.scope}`;
+    if (meta && meta.textContent !== metaText) meta.textContent = metaText;
+
+    let thumb = card.querySelector('[data-actor-thumb]');
+    if (actor.portrait) {
+      if (!(thumb instanceof HTMLImageElement)) {
+        const replacement = makeThumb(actor);
+        thumb?.replaceWith(replacement);
+        thumb = replacement;
+      } else if (thumb.dataset.actorSrc !== actor.portrait) {
+        thumb.dataset.actorSrc = actor.portrait;
+        thumb.src = actor.portrait;
+      }
+    } else if (thumb instanceof HTMLImageElement) {
+      const replacement = makeThumb(actor);
+      thumb.replaceWith(replacement);
+    }
+    card.dataset.actorRender = actorCardSignature(actor);
+  }
+
+  function renderList(source = libraryBridge.list()) {
     const node = document.getElementById('vtt-actor-list');
     if (!node) return;
-    const list = actorsVisible();
-    node.innerHTML = list.length ? list.map((actor) => `<article class="vtt-actor-card" draggable="true" data-actor-key="${actor.key}">${actor.portrait ? `<img class="vtt-actor-thumb" src="${actor.portrait}" alt="">` : '<div class="vtt-actor-thumb"></div>'}<div><strong>${actor.name}</strong><br><small>${actor.category.toUpperCase()} · ${actor.scope}</small></div></article>`).join('') : '<div class="vtt-actor-empty">No actors match this filter.</div>';
-    node.querySelectorAll('[data-actor-key]').forEach((card) => {
-      card.addEventListener('dragstart', (event) => {
-        selectedActorKey = card.dataset.actorKey;
-        event.dataTransfer?.setData('text/x-luminous-actor', selectedActorKey);
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-      });
+    const list = actorsVisible(source);
+    const signature = listSignature(list);
+    if (signature === lastListSignature) return;
+    lastListSignature = signature;
+
+    const wanted = new Set(list.map((actor) => actor.key));
+    for (const [key, card] of [...cardNodes.entries()]) {
+      if (wanted.has(key)) continue;
+      card.remove();
+      cardNodes.delete(key);
+    }
+
+    let empty = node.querySelector('[data-actor-empty]');
+    if (!list.length) {
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'vtt-actor-empty';
+        empty.dataset.actorEmpty = '1';
+        empty.textContent = 'No actors match this filter.';
+        node.appendChild(empty);
+      }
+      return;
+    }
+    empty?.remove();
+
+    list.forEach((actor, index) => {
+      let card = cardNodes.get(actor.key);
+      if (!card) card = createActorCard(actor);
+      if (card.dataset.actorRender !== actorCardSignature(actor)) updateActorCard(card, actor);
+      const expected = node.children[index] || null;
+      if (expected !== card) node.insertBefore(card, expected);
     });
   }
 
@@ -137,8 +236,6 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   async function onContextMenu(event) {
-    // The VTT owns right-click interaction on its canvas. Prevent the browser's
-    // native image/canvas menu first, even when the token itself is not removable.
     event.preventDefault();
     event.stopPropagation();
 
@@ -165,6 +262,8 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
       engine.canvas.removeEventListener('drop', onDrop);
       engine.canvas.removeEventListener('contextmenu', onContextMenu);
       engine.renderer.drawPersonIcon = originalPersonIcon;
+      cardNodes.clear();
+      lastListSignature = '';
       document.getElementById('vtt-actor-library-toggle')?.remove();
       document.getElementById('vtt-actor-library-panel')?.remove();
       document.getElementById('vtt-actor-library-style')?.remove();
