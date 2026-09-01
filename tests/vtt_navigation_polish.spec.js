@@ -215,3 +215,55 @@ test('destination marker snaps during drag, clears on rejection, and door intera
     fs.unlinkSync(tmp);
   }
 });
+
+test('navigation polish stop restores exact engine and renderer functions and permits clean reinstall', async () => {
+  installRuntimePathfinding();
+  const { mod, tmp } = await loadPolish();
+  try {
+    mod.installStraightPathfinding(global);
+    const canvas = canvasStub();
+    const map = mapData();
+    const host = {
+      LuminousVttPathfinding: global.LuminousVttPathfinding,
+      LuminousVttSceneDirty: { emit() {} },
+      setTimeout,
+      clearTimeout,
+    };
+    const originalRender = function originalRender() { return 'rendered'; };
+    const originalAnimate = async function originalAnimate() { return { valid: true, complete: true }; };
+    const renderer = { backend: 'webgl2', render: originalRender, drawDmObserverOutlines() {} };
+    const engine = {
+      mapData: map,
+      canvas,
+      renderer,
+      camera: { zoom: 1 },
+      activeZ: 0,
+      tokenMotion: null,
+      tokenDrag: null,
+      animateTokenPath: originalAnimate,
+    };
+
+    const first = mod.installRuntimeNavigationPolish({ host, runtime: { engine } });
+    expect(engine.animateTokenPath).not.toBe(originalAnimate);
+    expect(renderer.render).not.toBe(originalRender);
+    expect(engine.__navigationPolishRuntime).toBe(first);
+    expect(host.LuminousVttNavigationPolishRuntime).toBe(first);
+
+    expect(first.stop()).toBe(true);
+    expect(engine.animateTokenPath).toBe(originalAnimate);
+    expect(renderer.render).toBe(originalRender);
+    expect(engine.__navigationPolishRuntime).toBeUndefined();
+    expect(host.LuminousVttNavigationPolishRuntime).toBeUndefined();
+    for (const listeners of canvas.listeners.values()) expect(listeners.size).toBe(0);
+
+    const second = mod.installRuntimeNavigationPolish({ host, runtime: { engine } });
+    expect(second).not.toBe(first);
+    expect(engine.animateTokenPath).not.toBe(originalAnimate);
+    expect(renderer.render).not.toBe(originalRender);
+    expect(second.stop()).toBe(true);
+    expect(engine.animateTokenPath).toBe(originalAnimate);
+    expect(renderer.render).toBe(originalRender);
+  } finally {
+    fs.unlinkSync(tmp);
+  }
+});
