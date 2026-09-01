@@ -1,3 +1,4 @@
+import './movement-long-drag-hotfix.js';
 import { installStraightPathfinding } from './movement-navigation-polish.js';
 
 const EPS = 1e-9;
