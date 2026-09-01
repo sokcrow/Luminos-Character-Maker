@@ -40,7 +40,7 @@ test('Canvas2D draws a transient token preview without mutating canonical token 
     expect(renderer.clearTokenPreview('agatha')).toBe(true);
     renderer.drawTokens(0);
     expect(renderer.drawSnapshots[1]).toMatchObject({ x: 70, y: 140, transientPreview: false });
-    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1, clears: 1, active: 0 });
+    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1, clears: 1, cacheMisses: 1, active: 0 });
 });
 
 test('WebGL2 TokenView keeps canonical and render positions separate during drag preview', () => {
@@ -73,7 +73,7 @@ test('WebGL2 TokenView keeps canonical and render positions separate during drag
     expect(view.hasPreview).toBe(false);
     expect(view.renderX).toBe(10);
     expect(view.renderY).toBe(20);
-    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1000, clears: 1, active: 0 });
+    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1000, clears: 1, cacheMisses: 0, active: 0 });
 });
 
 test('duplicate preview coordinates do not create redundant renderer updates', () => {
@@ -85,5 +85,5 @@ test('duplicate preview coordinates do not create redundant renderer updates', (
         expect(renderer.previewToken('agatha', { x: 100, y: 200, zLayer: 0 })).toBe(false);
     }
 
-    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1, clears: 0, active: 1 });
+    expect(renderer.diagnostics().transientTokenPreview).toEqual({ updates: 1, clears: 0, cacheMisses: 1, active: 1 });
 });
