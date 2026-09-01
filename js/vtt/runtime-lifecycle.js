@@ -198,6 +198,8 @@
       try { engine.canvas?.removeEventListener?.('mousedown', engine.handleTokenMouseDown); } catch (_) {}
       try { globalThis.removeEventListener?.('mousemove', engine.handleTokenMouseMove); } catch (_) {}
       try { globalThis.removeEventListener?.('mouseup', engine.handleTokenMouseUp); } catch (_) {}
+      try { engine.renderer?.destroy?.(); }
+      catch (error) { log?.warn?.('VTT renderer destroy failed.', error); }
       try { engine.camera?.destroy?.(); }
       catch (error) { log?.warn?.('VTT camera destroy failed.', error); }
 
