@@ -1,3 +1,5 @@
+import { WebGLWorldTransform } from './world-transform.js';
+
 export const WEBGL2_LAYER_ORDER = Object.freeze([
     'terrain',
     'grid',
@@ -12,13 +14,10 @@ export const WEBGL2_LAYER_ORDER = Object.freeze([
 
 const VERTEX_SHADER_SOURCE = `#version 300 es
 in vec2 a_position;
-uniform vec2 u_resolution;
-uniform vec2 u_camera;
-uniform float u_zoom;
+uniform mat3 u_world;
 void main() {
-    vec2 screen = (a_position + u_camera) * u_zoom;
-    vec2 clip = (screen / u_resolution) * 2.0 - 1.0;
-    gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+    vec3 clip = u_world * vec3(a_position, 1.0);
+    gl_Position = vec4(clip.xy, 0.0, 1.0);
 }`;
 
 const FRAGMENT_SHADER_SOURCE = `#version 300 es
@@ -64,6 +63,8 @@ function createLegacyCanvas2DShim() {
     };
 }
 
+const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
 export class WebGL2Renderer {
     constructor(canvas, mapData) {
         this.canvas = canvas;
@@ -74,6 +75,9 @@ export class WebGL2Renderer {
         this.contextLost = false;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.world = new WebGLWorldTransform();
+        this.logicalViewport = { width: Math.max(1, Number(canvas?.width) || 1), height: Math.max(1, Number(canvas?.height) || 1) };
+        this.devicePixelRatio = 1;
         this.layers = new Map(WEBGL2_LAYER_ORDER.map((name, index) => [name, {
             name,
             order: index,
@@ -151,9 +155,7 @@ export class WebGL2Renderer {
         this.gridBuffer = gl.createBuffer();
         this.gridLocations = {
             position: gl.getAttribLocation(program, 'a_position'),
-            resolution: gl.getUniformLocation(program, 'u_resolution'),
-            camera: gl.getUniformLocation(program, 'u_camera'),
-            zoom: gl.getUniformLocation(program, 'u_zoom'),
+            world: gl.getUniformLocation(program, 'u_world'),
         };
         this.gridSignature = '';
         this.gridVertexCount = 0;
@@ -203,9 +205,37 @@ export class WebGL2Renderer {
         return true;
     }
 
-    resize() {
-        if (this.destroyed || !this.gl || this.contextLost) return;
+    viewportSize(camera = null) {
+        const cameraViewport = camera?.viewportSize?.();
+        if (finite(cameraViewport?.width) > 0 && finite(cameraViewport?.height) > 0) {
+            return { width: finite(cameraViewport.width), height: finite(cameraViewport.height) };
+        }
+        const rect = this.canvas?.getBoundingClientRect?.();
+        const width = finite(rect?.width) || finite(this.canvas?.clientWidth) || finite(this.canvas?.width, 1);
+        const height = finite(rect?.height) || finite(this.canvas?.clientHeight) || finite(this.canvas?.height, 1);
+        return { width: Math.max(1, width), height: Math.max(1, height) };
+    }
+
+    resize(camera = null) {
+        if (this.destroyed || !this.gl || this.contextLost) return this.logicalViewport;
+        this.logicalViewport = this.viewportSize(camera);
+        this.devicePixelRatio = Math.max(1, finite(globalThis.devicePixelRatio, 1));
         this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+        return this.logicalViewport;
+    }
+
+    syncWorld(camera) {
+        const viewport = this.resize(camera);
+        this.world.sync(camera, viewport);
+        return this.world;
+    }
+
+    worldToScreen(worldX, worldY) {
+        return this.world.worldToScreen(worldX, worldY);
+    }
+
+    screenToWorld(screenX, screenY) {
+        return this.world.screenToWorld(screenX, screenY);
     }
 
     gridVertices() {
@@ -242,7 +272,7 @@ export class WebGL2Renderer {
         this.markLayerDirty('grid');
     }
 
-    drawGrid(camera) {
+    drawGrid() {
         const gl = this.gl;
         const layer = this.layers.get('grid');
         if (!gl || !layer?.visible || !this.gridProgram || !this.gridBuffer) return;
@@ -252,10 +282,7 @@ export class WebGL2Renderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.gridBuffer);
         gl.enableVertexAttribArray(this.gridLocations.position);
         gl.vertexAttribPointer(this.gridLocations.position, 2, gl.FLOAT, false, 0, 0);
-
-        gl.uniform2f(this.gridLocations.resolution, gl.drawingBufferWidth, gl.drawingBufferHeight);
-        gl.uniform2f(this.gridLocations.camera, Number(camera?.x) || 0, Number(camera?.y) || 0);
-        gl.uniform1f(this.gridLocations.zoom, Math.max(0.0001, Number(camera?.zoom) || 1));
+        gl.uniformMatrix3fv(this.gridLocations.world, false, this.world.matrix);
         gl.drawArrays(gl.LINES, 0, this.gridVertexCount);
         layer.dirty = false;
     }
@@ -283,11 +310,12 @@ export class WebGL2Renderer {
 
     render(camera, _activeZ, _renderData, _isExporting = false) {
         if (this.destroyed || !this.gl || this.contextLost) return;
-        this.resize();
+        this.syncWorld(camera);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.STENCIL_BUFFER_BIT);
 
-        // Rama 1 proof-of-life: black GPU surface + camera-aware grid only.
-        this.drawGrid(camera);
+        // All GPU world layers consume this renderer-owned transform. The grid is
+        // the first migrated pipeline; later layers must not read camera directly.
+        this.drawGrid();
 
         for (const [name, layer] of this.layers) {
             if (name !== 'grid') layer.dirty = false;
@@ -316,6 +344,9 @@ export class WebGL2Renderer {
                 width: this.gl.drawingBufferWidth,
                 height: this.gl.drawingBufferHeight,
             },
+            logicalViewport: { ...this.logicalViewport },
+            devicePixelRatio: this.devicePixelRatio,
+            world: this.world.snapshot(),
             gridVertexCount: this.gridVertexCount,
             layers: [...this.layers.values()].map((layer) => ({ ...layer })),
         };
@@ -343,6 +374,7 @@ export class WebGL2Renderer {
         this.gridLocations = null;
         this.gridSignature = '';
         this.gridVertexCount = 0;
+        this.world = null;
         this.ctx = null;
         this.legacyCanvas2DShim = false;
         this.gl = null;
