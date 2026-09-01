@@ -6,9 +6,10 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
     await page.goto(FIELD_URL, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(async () => {
-        const [{ createRenderer }, { RENDERER_BACKENDS }] = await Promise.all([
+        const [{ createRenderer }, { RENDERER_BACKENDS }, { Camera }] = await Promise.all([
             import('/js/vtt/render/renderer-factory.js'),
             import('/js/vtt/render/renderer-backend.js'),
+            import('/js/vtt/camera.js'),
         ]);
 
         const canvas = document.createElement('canvas');
@@ -27,9 +28,16 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         const mapData = { grid: { cols: 80, rows: 80, size: 70 }, tokens: [agatha, upper, offscreen] };
 
         let renderer;
+        let camera;
         try {
             renderer = createRenderer(canvas, mapData, { backend: RENDERER_BACKENDS.WEBGL_2 });
+            camera = new Camera(canvas);
+            camera.x = 0;
+            camera.y = 0;
+            camera.zoom = 1;
         } catch (error) {
+            camera?.destroy?.();
+            renderer?.destroy?.();
             canvas.remove();
             return { supported: false, error: String(error?.message || error) };
         }
@@ -41,9 +49,9 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
             offscreen: renderer.tokenViews.get('offscreen').resources.has('webgl2-token-visual'),
         };
 
-        // Use the production render entrypoint so world/camera transforms are
-        // synchronized before viewport culling runs.
-        renderer.render(null, 0, null, false);
+        // Production entrypoint + real VTT Camera: world transform and viewport
+        // culling use the same contract as the actual map runtime.
+        renderer.render(camera, 0, null, false);
         const visual = view.resources.get('webgl2-token-visual')?.resource || null;
         const first = renderer.diagnostics().tokenGpu;
         const afterFirstResources = {
@@ -53,7 +61,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         };
 
         renderer.previewToken('agatha', { x: 170, y: 80, zLayer: 0 });
-        renderer.render(null, 0, null, false);
+        renderer.render(camera, 0, null, false);
         const preview = {
             canonical: { x: agatha.x, y: agatha.y, facingDeg: agatha.facingDeg },
             render: { x: view.renderX, y: view.renderY, facingDeg: view.renderFacingDeg },
@@ -68,7 +76,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         canvas.dispatchEvent(new CustomEvent('vtt:scene-dirty', {
             detail: { reason: 'token', tokenId: 'agatha', render: true, vision: false },
         }));
-        renderer.render(null, 0, null, false);
+        renderer.render(camera, 0, null, false);
         const material = renderer.diagnostics().tokenGpu;
 
         mapData.tokens = [upper, offscreen];
@@ -78,6 +86,7 @@ test('real WebGL2 token layer keeps orientation render-side and materializes onl
         const afterPrune = renderer.diagnostics().tokenGpu;
         const prunedDestroyed = view.destroyed === true;
 
+        camera.destroy();
         renderer.destroy();
         const afterDestroy = renderer.diagnostics().tokenGpu;
         canvas.remove();
