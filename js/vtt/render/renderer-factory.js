@@ -1,4 +1,4 @@
-import { Renderer as Canvas2DRenderer } from '../renderer.js';
+import { Canvas2DRenderer } from './canvas2d-renderer.js';
 import { RENDERER_BACKENDS } from './renderer-backend.js';
 import { WebGL2Renderer } from './webgl2-renderer.js';
 
