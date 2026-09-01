@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Start static VTT server
         run: |
           python3 -m http.server 4173 > /tmp/vtt-field-server.log 2>&1 &
@@ -42,7 +42,7 @@ jobs:
           done
           cat /tmp/vtt-field-server.log
           exit 1
-      - name: Real canvas drag performance A/B
+      - name: Real canvas drag performance trace
         env:
           VTT_FIELD_URL: http://127.0.0.1:4173/vtt.html
         run: npx playwright test --workers=1 tests/vtt_runtime_drag_performance_field.spec.js --reporter=line
