@@ -16,7 +16,7 @@ function normalizeAngleDeg(value, fallback = 0) {
 }
 
 function explicitFacingDeg(token = {}) {
-    const raw = token?.lookState?.yawDeg ?? token?.facingDeg;
+    const raw = token?.lookState?.yawDeg ?? token?.facingDeg ?? token?.rotationDeg;
     return Number.isFinite(Number(raw)) ? normalizeAngleDeg(raw) : null;
 }
 
