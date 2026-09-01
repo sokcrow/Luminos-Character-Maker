@@ -10,8 +10,9 @@ const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 const mainSource = read('js/vtt/main.js');
 const verticalControllerSource = read('js/vtt/vertical-portal-controller.js');
 
-test('fichas prefer the Actor image and compute a centered cover crop', () => {
-    expect(appearance.imageSource({ tokenImage: 'actor-token.png', portrait: 'portrait.png' })).toBe('actor-token.png');
+test('fichas prefer the Actor icon and compute a centered cover crop', () => {
+    expect(appearance.imageSource({ icono: 'actor-token.png', tokenImage: 'sprite.png', portrait: 'portrait.png' })).toBe('actor-token.png');
+    expect(appearance.imageSource({ tokenImage: 'sprite.png', portrait: 'portrait.png' })).toBe('');
 
     const wide = appearance.coverRect(400, 200, 100, 120, 56);
     expect(wide.x).toBeCloseTo(44, 10);
