@@ -137,9 +137,13 @@ export function start({ runtime = window.LuminousVttRuntime, mapData = runtime?.
   }
 
   async function onContextMenu(event) {
+    // The VTT owns right-click interaction on its canvas. Prevent the browser's
+    // native image/canvas menu first, even when the token itself is not removable.
+    event.preventDefault();
+    event.stopPropagation();
+
     const token = engine.tokenAtEvent(event);
     if (!token?.dynamicActorToken || token.canonicalScope !== 'world') return;
-    event.preventDefault();
     if (!window.confirm(`Remove ${token.name || token.id} from this map?`)) return;
     try { await tokenBridge.deleteWorldToken(token.id); runtime.controller?.notify?.('Token removed.', 'success'); }
     catch (error) { runtime.controller?.notify?.(String(error.message || error), 'error'); }
