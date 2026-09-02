@@ -100,4 +100,31 @@ const checkResult = resolver.resolveCombatAction(checkAction, { ...common, check
 assert.equal(checkResult.resolved, true);
 assert.equal(checkResult.resolution.result.pass, true);
 
+// A clash that degrades to unopposed must still validate and consume the active action's resources.
+attackCalls = 0;
+let allowFallbackResource = false;
+let fallbackConsumes = 0;
+const guardedHandlers = {
+  trait_use: {
+    validate: () => ({ available: allowFallbackResource, reason: allowFallbackResource ? null : 'no_resource' }),
+    consume: () => { fallbackConsumes++; return { consumed:true }; },
+  },
+};
+const fallbackA = adapters.compileSkillToCombatAction(a, { id:'fallback_a', basePower:4, coinAmount:1, resourceCosts:[{type:'trait_use',id:'fallback_cost',amount:1}] }, { targetId:'b' });
+const fallbackB = adapters.compileSkillToCombatAction(b, { id:'fallback_b', basePower:3, coinAmount:1 }, { targetId:'a', isAi:true });
+fallbackB.state = 'cancelled';
+const blockedFallback = resolver.resolveCombatAction(fallbackA, { ...common, resourceHandlers:guardedHandlers, opposingAction:fallbackB });
+assert.equal(blockedFallback.resolved, false);
+assert.equal(blockedFallback.reason, 'no_resource');
+assert.equal(attackCalls, 0);
+assert.equal(fallbackConsumes, 0);
+
+allowFallbackResource = true;
+const fallbackA2 = adapters.compileSkillToCombatAction(a, { id:'fallback_a2', basePower:4, coinAmount:1, resourceCosts:[{type:'trait_use',id:'fallback_cost_2',amount:1}] }, { targetId:'b' });
+const allowedFallback = resolver.resolveCombatAction(fallbackA2, { ...common, resourceHandlers:guardedHandlers, opposingAction:fallbackB });
+assert.equal(allowedFallback.resolved, true);
+assert.equal(allowedFallback.type, 'unopposed');
+assert.equal(fallbackConsumes, 1);
+assert.equal(attackCalls, 1);
+
 console.log('combat-action-resolver smoke: ok');
