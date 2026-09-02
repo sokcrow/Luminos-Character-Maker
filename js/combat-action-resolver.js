@@ -191,6 +191,37 @@
     return { resolved: true, results };
   }
 
+  function resolvePreparedUnopposed(action, actor, targets, context = {}, options = {}) {
+    if (terminal(action)) return { resolved: action.state === "resolved", reason: "terminal_state", action };
+    if (isStaggered(actor)) {
+      const cancelled = schema.cancelCombatAction(action, { type: "stagger" }).action;
+      return { resolved: false, cancelled: true, reason: "stagger", action: cancelled };
+    }
+
+    const resourceGate = validateResources(action, actor, context);
+    if (!resourceGate.available) return { resolved: false, reason: resourceGate.reason, resourceGate, action };
+
+    const economy = consumeEconomy(action, actor, context);
+    if (economy.consumed === false) return { resolved: false, reason: economy.reason || "economy_unavailable", economy, resourceGate, action };
+
+    const resources = consumeResources(action, actor, context);
+    if (!resources.consumed) return { resolved: false, reason: resources.reason, resources, economy, resourceGate, action };
+
+    action.state = "resolving";
+    const attack = resolveDirectAttack(action, actor, targets, context, options);
+    action.state = attack.resolved ? "resolved" : "locked";
+    return {
+      resolved: Boolean(attack.resolved),
+      reason: attack.resolved ? null : attack.reason,
+      attack,
+      resources,
+      economy,
+      resourceGate,
+      action,
+      resolvedActionIds: attack.resolved ? [action.id] : [],
+    };
+  }
+
   function resolveClashPair(actionInput, opposingInput, context = {}) {
     const engine = context.engine || global.CombatEngine;
     if (!engine?.resolveStandardClash) return { resolved: false, reason: "clash_resolver_unavailable" };
@@ -202,13 +233,22 @@
     const unitB = unitById(context, actionB.actorId);
     if (!unitA || !unitB) return { resolved: false, reason: "clash_actor_missing", actions: [actionA, actionB] };
 
+    if (isStaggered(unitA)) {
+      const cancelled = schema.cancelCombatAction(actionA, { type: "stagger" }).action;
+      return { resolved: false, cancelled: true, reason: "stagger", actions: [cancelled, actionB], resolvedActionIds: [cancelled.id] };
+    }
+
     const gateB = phaseGate(actionB, context);
     if (!gateB.allowed || terminal(actionB)) {
       const targetResolution = resolveTargets(actionA, context);
       const targets = targetResolution.targets.length ? targetResolution.targets : [unitB];
-      const attack = resolveDirectAttack(actionA, unitA, targets, context, { skill: definitionForEngine(actionA) });
-      actionA.state = attack.resolved ? "resolved" : "locked";
-      return { resolved: Boolean(attack.resolved), type: "unopposed", reason: gateB.reason || "opposing_action_unavailable", attack, actions: [actionA, actionB], resolvedActionIds: attack.resolved ? [actionA.id] : [] };
+      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA) });
+      return {
+        ...prepared,
+        type: "unopposed",
+        reason: prepared.resolved ? (gateB.reason || "opposing_action_unavailable") : prepared.reason,
+        actions: [prepared.action || actionA, actionB],
+      };
     }
 
     if (isStaggered(unitB)) {
@@ -216,9 +256,15 @@
       const targetResolution = resolveTargets(actionA, context);
       let targets = targetResolution.targets;
       if (!targets.some((target) => entityId(target) === entityId(unitB))) targets.unshift(unitB);
-      const attack = resolveDirectAttack(actionA, unitA, targets.slice(0, Math.max(1, actionA.targeting.attackWeight)), context, { skill: definitionForEngine(actionA) });
-      actionA.state = attack.resolved ? "resolved" : "locked";
-      return { resolved: Boolean(attack.resolved), type: "unopposed", reason: "opposing_action_cancelled_by_stagger", attack, actions: [actionA, cancelled], resolvedActionIds: attack.resolved ? [actionA.id, cancelled.id] : [cancelled.id] };
+      targets = targets.slice(0, Math.max(1, actionA.targeting.attackWeight));
+      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA) });
+      return {
+        ...prepared,
+        type: "unopposed",
+        reason: prepared.resolved ? "opposing_action_cancelled_by_stagger" : prepared.reason,
+        actions: [prepared.action || actionA, cancelled],
+        resolvedActionIds: prepared.resolved ? [actionA.id, cancelled.id] : [cancelled.id],
+      };
     }
 
     const resourcesA = validateResources(actionA, unitA, context);
@@ -412,6 +458,7 @@
     consumeResources,
     resolveTargets,
     resolveDirectAttack,
+    resolvePreparedUnopposed,
     resolveClashPair,
     resolveSave,
     resolveCheck,
