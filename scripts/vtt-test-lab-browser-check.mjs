@@ -6,7 +6,7 @@ try{
   const page=await browser.newPage({viewport:{width:1280,height:720}});
   page.on('console',message=>console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror',error=>console.error('[browser:pageerror]',error));
-  await page.goto(`${base}/tests/vtt_rama4_test_lab_performance.html`,{waitUntil:'load',timeout:30000});
+  await page.goto(`${base}/tests/vtt_rama4_test_lab_performance.html?renderer=webgl2`,{waitUntil:'load',timeout:30000});
   await page.waitForFunction(()=>{
     const node=document.getElementById('rama4-test-lab-result');
     return node&&['pass','fail'].includes(node.dataset.status);
