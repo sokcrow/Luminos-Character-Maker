@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { installFieldStabilityHotfix } from '../js/vtt/field-stability-hotfix.js';
+import { tokenInteractionStyle } from '../js/vtt/render/webgl2-token-interaction-layer.js';
 
 class Host extends EventTarget {
   constructor() {
@@ -125,6 +127,21 @@ assert.equal(engine.mapData.tokens[0].icono, 'actor-a.png');
 assert.equal(engine.mapData.tokens[0].tokenImage, 'actor-a.png');
 assert.equal(engine.mapData.tokens[0].portrait, 'actor-a.png');
 assert.ok(syncCalls.includes('player:p1'));
+
+// Field feedback must be visually unmistakable, not a subtle tint of token color.
+const hover = tokenInteractionStyle({ interaction: { hovered: true }, token: { color: '#111111' } });
+const selected = tokenInteractionStyle({ interaction: { selected: true }, token: { color: '#111111' } });
+const targeted = tokenInteractionStyle({ interaction: { targeted: true }, token: { color: '#111111' } });
+assert.deepEqual(Array.from(hover.color), [1, 1, 1, 0.9599999785423279]);
+assert.ok(selected.color[1] > 0.8 && selected.color[2] > 0.9, 'selection ring must be high-contrast cyan');
+assert.ok(targeted.color[0] > 0.9 && targeted.color[1] < 0.3, 'target ring must be high-contrast red');
+assert.ok(selected.radiusScale > hover.radiusScale);
+
+// Remote movement should be visible long enough to read as interpolation rather than teleport.
+const factorySource = await readFile(new URL('../js/vtt/render/renderer-factory.js', import.meta.url), 'utf8');
+assert.match(factorySource, /minDurationMs:\s*120/);
+assert.match(factorySource, /defaultDurationMs:\s*160/);
+assert.match(factorySource, /maxDurationMs:\s*240/);
 
 const snapshot = hotfix.snapshot();
 assert.ok(snapshot.visionCacheHits >= 100);
