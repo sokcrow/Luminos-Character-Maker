@@ -157,16 +157,15 @@ export function installTestLabRuntime(root=globalThis,engine=root?.LuminousVttRu
 }
 
 export function startTestLabRuntime(root=globalThis){
-  let attempts=0,stopped=false,installed=null;
+  let stopped=false,installed=null,timer=0;
   const tick=()=>{
     if(stopped||installed)return;
     const engine=root?.LuminousVttRuntime?.engine;
-    if(engine){installed=installTestLabRuntime(root,engine);if(!isLabMap(engine.mapData))return;}
-    attempts+=1;
-    if(!installed&&attempts<240)root?.setTimeout?.(tick,25);
+    if(engine)installed=installTestLabRuntime(root,engine);
+    if(!installed)timer=root?.setTimeout?.(tick,500)||0;
   };
   tick();
-  return Object.freeze({stop(){stopped=true;installed?.stop?.();}});
+  return Object.freeze({stop(){stopped=true;if(timer)root?.clearTimeout?.(timer);installed?.stop?.();}});
 }
 
 if(typeof window!=='undefined')window.LuminousVttTestLabMechanicBootstrap=startTestLabRuntime(window);
