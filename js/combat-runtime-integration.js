@@ -58,12 +58,7 @@
     };
   }
 
-  function record(runtime, type, payload = {}) {
-    const entry = { round: runtime.round, phase: runtime.phase, type, ...payload };
-    runtime.history.push(entry);
-    return entry;
-  }
-
+  function record(runtime, type, payload = {}) { const entry = { round: runtime.round, phase: runtime.phase, type, ...payload }; runtime.history.push(entry); return entry; }
   function setPhase(runtime, phase) { runtime.phase = schema.normalizePhase(phase, phase); return runtime.phase; }
 
   function resetLocalEconomy(runtime) {
@@ -106,14 +101,9 @@
 
   function resolverContext(runtime, context = {}, phase = runtime.phase, extra = {}) {
     return {
-      ...context,
-      ...extra,
-      phase,
-      units: activeUnits(runtime),
-      encounter: runtime.encounter,
-      teamEconomy: context.teamEconomy || teamEconomy,
-      actionMap: runtime.actionMap,
-      random: runtime.random,
+      ...context, ...extra, phase,
+      units: activeUnits(runtime), encounter: runtime.encounter, teamEconomy: context.teamEconomy || teamEconomy,
+      actionMap: runtime.actionMap, random: runtime.random,
       coinwiseResolution: context.coinwiseResolution !== false,
       combatActionQueue: context.combatActionQueue || queueApi,
       isTargetAvailable: (target) => runtimeTargetAvailable(runtime, target, context),
@@ -125,13 +115,8 @@
 
   function beginTurn(runtime, options = {}) {
     setPhase(runtime, schema.PHASES.ON_TURN_START);
-    runtime.playerReady = false;
-    runtime.aiReady = false;
-    runtime.queue = null;
-    runtime.resolvedActionIds = new Set();
-    runtime.actions = [];
-    runtime.actionMap = {};
-    runtime.preparedReactions = [];
+    runtime.playerReady = false; runtime.aiReady = false; runtime.queue = null; runtime.resolvedActionIds = new Set();
+    runtime.actions = []; runtime.actionMap = {}; runtime.preparedReactions = [];
     resetLocalEconomy(runtime);
     if (typeof options.onTurnStart === "function") for (const unit of activeUnits(runtime)) options.onTurnStart({ unit, runtime });
     runtime.speedSnapshot = queueApi.snapshotSpeedSources(activeUnits(runtime), { random: runtime.random });
@@ -181,16 +166,13 @@
 
     if (normalized.economy.cost === schema.ECONOMY_COSTS.REACTION && normalizeId(normalized.reaction?.mode) === "prepared") {
       if (runtime.phase !== expectedPlanning) return { registered: false, reason: "prepared_reaction_planning_only", action: normalized };
-      normalized.state = "locked";
-      runtime.preparedReactions.push(normalized);
-      runtime.actionMap[normalized.id] = normalized;
+      normalized.state = "locked"; runtime.preparedReactions.push(normalized); runtime.actionMap[normalized.id] = normalized;
       record(runtime, "prepared_reaction", { actionId: normalized.id, actorId: normalized.actorId });
       return { registered: true, preparedReaction: true, action: normalized };
     }
 
     if (normalized.economy.cost === schema.ECONOMY_COSTS.QUICK_ACTION) {
-      normalized.phase.selectedAt = runtime.phase;
-      normalized.phase.executesAt = runtime.phase;
+      normalized.phase.selectedAt = runtime.phase; normalized.phase.executesAt = runtime.phase;
       const result = resolver.resolveCombatAction(normalized, resolverContext(runtime, options.context || {}, runtime.phase));
       runtime.actionMap[normalized.id] = result.action || normalized;
       asArray(result.resolvedActionIds).forEach((id) => runtime.resolvedActionIds.add(String(id)));
@@ -200,8 +182,7 @@
 
     const slotGate = validateActionSlot(runtime, normalized);
     if (!slotGate.valid) return { registered: false, ...slotGate, action: normalized };
-    runtime.actions.push(normalized);
-    runtime.actionMap[normalized.id] = normalized;
+    runtime.actions.push(normalized); runtime.actionMap[normalized.id] = normalized;
     record(runtime, "action_registered", { actionId: normalized.id, actorId: normalized.actorId, side, actionSlotId: normalized.actionSlotId });
     return { registered: true, action: normalized };
   }
@@ -221,8 +202,7 @@
     const lockedActionIds = lockActionsForSide(runtime, queueApi.SIDE_A);
     runtime.playerReady = true;
     if (runtime.encounter && teamEconomy?.playerReady) teamEconomy.playerReady(runtime.encounter);
-    setPhase(runtime, schema.PHASES.PLANNING_PHASE_AI);
-    record(runtime, "player_ready", { lockedActionIds });
+    setPhase(runtime, schema.PHASES.PLANNING_PHASE_AI); record(runtime, "player_ready", { lockedActionIds });
     let aiActions = [];
     if (typeof options.aiPlanner === "function") aiActions = asArray(options.aiPlanner({ runtime, units: activeUnits(runtime), actions: runtime.actions }));
     const registeredAi = aiActions.map((action) => registerAction(runtime, action, { context: options.context })).filter((entry) => entry.registered);
@@ -234,18 +214,14 @@
     const lockedActionIds = lockActionsForSide(runtime, queueApi.SIDE_B);
     runtime.aiReady = true;
     if (runtime.encounter && teamEconomy?.aiReady) teamEconomy.aiReady(runtime.encounter);
-    setPhase(runtime, schema.PHASES.COMBAT_START);
-    record(runtime, "ai_ready", { lockedActionIds });
+    setPhase(runtime, schema.PHASES.COMBAT_START); record(runtime, "ai_ready", { lockedActionIds });
     return { ready: true, phase: runtime.phase, lockedActionIds };
   }
 
-  function previewQueue(runtime) {
-    return queueApi.buildRoundOrder({ units: activeUnits(runtime), actions: runtime.actions.filter((action) => action.economy.cost !== schema.ECONOMY_COSTS.REACTION), speedSnapshot: runtime.speedSnapshot, random: runtime.random });
-  }
+  function previewQueue(runtime) { return queueApi.buildRoundOrder({ units: activeUnits(runtime), actions: runtime.actions.filter((action) => action.economy.cost !== schema.ECONOMY_COSTS.REACTION), speedSnapshot: runtime.speedSnapshot, random: runtime.random }); }
 
   function unlinkClash(runtime, action) {
-    const otherId = action?.metadata?.opposingActionId;
-    if (!otherId) return;
+    const otherId = action?.metadata?.opposingActionId; if (!otherId) return;
     const other = runtime.actionMap[otherId];
     if (other?.metadata?.opposingActionId === action.id) delete other.metadata.opposingActionId;
     if (other?.metadata?.clashedByActionId === action.id) delete other.metadata.clashedByActionId;
@@ -253,13 +229,10 @@
   }
 
   function linkClash(runtime, interceptorActionId, targetActionId) {
-    const interceptor = runtime.actionMap[String(interceptorActionId)];
-    const target = runtime.actionMap[String(targetActionId)];
+    const interceptor = runtime.actionMap[String(interceptorActionId)], target = runtime.actionMap[String(targetActionId)];
     if (!interceptor || !target) return { linked: false, reason: "action_missing" };
     if (interceptor.resolution.type !== "clash" || target.resolution.type !== "clash") return { linked: false, reason: "clash_action_required" };
-    const preview = previewQueue(runtime);
-    const interceptorEntry = preview.getEntry(interceptor.id);
-    const targetEntry = preview.getEntry(target.id);
+    const preview = previewQueue(runtime), interceptorEntry = preview.getEntry(interceptor.id), targetEntry = preview.getEntry(target.id);
     if (!interceptorEntry || !targetEntry) return { linked: false, reason: "queue_entry_missing" };
     if (interceptorEntry.side === targetEntry.side) return { linked: false, reason: "opposing_side_required" };
     if (!queueApi.canForceClash({ interceptorEntry, targetEntry })) return { linked: false, reason: "insufficient_speed_to_force_clash", interceptorSpeed: interceptorEntry.speed, targetSpeed: targetEntry.speed };
@@ -273,11 +246,9 @@
   function beginCombatPhase(runtime, context = {}) {
     if (!runtime.playerReady || !runtime.aiReady) return { started: false, reason: "planning_not_ready" };
     if (runtime.phase !== schema.PHASES.COMBAT_START) return { started: false, reason: "combat_start_required", phase: runtime.phase };
-    runtime.queue = previewQueue(runtime);
-    record(runtime, "combat_start", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
+    runtime.queue = previewQueue(runtime); record(runtime, "combat_start", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
     if (typeof context.onCombatStart === "function") context.onCombatStart({ runtime, queue: runtime.queue });
-    setPhase(runtime, schema.PHASES.COMBAT_PHASE);
-    record(runtime, "combat_phase_started", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
+    setPhase(runtime, schema.PHASES.COMBAT_PHASE); record(runtime, "combat_phase_started", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
     return { started: true, phase: runtime.phase, queue: runtime.queue };
   }
 
@@ -286,10 +257,8 @@
     for (const action of asArray(result.actions).concat(result.action ? [result.action] : [])) {
       if (!action?.id) continue;
       runtime.actionMap[action.id] = action;
-      const index = runtime.actions.findIndex((entry) => entry.id === action.id);
-      if (index >= 0) runtime.actions[index] = action;
-      const reactionIndex = runtime.preparedReactions.findIndex((entry) => entry.id === action.id);
-      if (reactionIndex >= 0) runtime.preparedReactions[reactionIndex] = action;
+      const index = runtime.actions.findIndex((entry) => entry.id === action.id); if (index >= 0) runtime.actions[index] = action;
+      const reactionIndex = runtime.preparedReactions.findIndex((entry) => entry.id === action.id); if (reactionIndex >= 0) runtime.preparedReactions[reactionIndex] = action;
       if (runtime.queue) { const entry = runtime.queue.getEntry(action.id); if (entry) entry.action = action; }
       updates.push(action.id);
     }
@@ -309,8 +278,7 @@
     const cancelled = [];
     for (const unit of activeUnits(runtime)) {
       const blocked = isStaggered(unit) || (typeof context.isActionBlocked === "function" && context.isActionBlocked({ unit, runtime }) === true);
-      if (!blocked) continue;
-      cancelled.push(...cancelActorPending(runtime, entityId(unit), isStaggered(unit) ? { type: "stagger" } : { type: "action_blocked" }));
+      if (blocked) cancelled.push(...cancelActorPending(runtime, entityId(unit), isStaggered(unit) ? { type: "stagger" } : { type: "action_blocked" }));
     }
     return cancelled;
   }
@@ -318,48 +286,37 @@
   function applyRetarget(runtime, action, context = {}) {
     const status = queueApi.retargetStatus(action, activeUnits(runtime), { isAvailable: (target) => runtimeTargetAvailable(runtime, target, context) });
     if (status.executable) return { ready: true, action };
-    if (!status.requiresRetarget) {
-      action.state = "cancelled"; action.cancelReason = { type: status.reason || "target_unavailable" }; runtime.resolvedActionIds.add(action.id);
-      return { ready: false, cancelled: true, reason: status.reason || "target_unavailable", action };
-    }
+    if (!status.requiresRetarget) { action.state = "cancelled"; action.cancelReason = { type: status.reason || "target_unavailable" }; runtime.resolvedActionIds.add(action.id); return { ready: false, cancelled: true, reason: status.reason || "target_unavailable", action }; }
     if (typeof context.chooseRetarget !== "function") return { ready: false, pending: true, reason: "retarget_required", candidates: status.candidates, action };
     const targetId = context.chooseRetarget({ action, candidates: status.candidates, runtime });
     if (!targetId || !status.candidates.includes(String(targetId))) return { ready: false, pending: true, reason: "retarget_required", candidates: status.candidates, action };
     const previous = asArray(action.targeting.targetIds).map(String).filter((id) => id !== String(action.targeting.mainTargetId || ""));
-    action.targeting.mainTargetId = String(targetId);
-    action.targeting.targetIds = [String(targetId), ...previous.filter((id) => id !== String(targetId))].slice(0, Math.max(1, Number(action.targeting.attackWeight || 1)));
+    action.targeting.mainTargetId = String(targetId); action.targeting.targetIds = [String(targetId), ...previous.filter((id) => id !== String(targetId))].slice(0, Math.max(1, Number(action.targeting.attackWeight || 1)));
     record(runtime, "action_retargeted", { actionId: action.id, targetId: String(targetId) });
     return { ready: true, retargeted: true, action };
   }
 
   function defaultTriggerMatch(trigger, event) {
     if (!trigger || !event) return false;
-    const triggerType = normalizeId(trigger.type || trigger.event || trigger.trigger);
-    const eventType = normalizeId(event.type || event.event);
+    const triggerType = normalizeId(trigger.type || trigger.event || trigger.trigger), eventType = normalizeId(event.type || event.event);
     return Boolean(triggerType && eventType && triggerType === eventType);
   }
 
   function triggerReactions(runtime, event = {}, context = {}) {
     if (runtime.phase !== schema.PHASES.COMBAT_PHASE) return [];
-    const results = [];
-    const matcher = typeof context.reactionTriggerMatcher === "function" ? context.reactionTriggerMatcher : defaultTriggerMatch;
+    const results = [], matcher = typeof context.reactionTriggerMatcher === "function" ? context.reactionTriggerMatcher : defaultTriggerMatch;
     for (const stored of runtime.preparedReactions) {
       const reaction = runtime.actionMap[stored.id] || stored;
       if (terminal(reaction) || !matcher(reaction.reaction?.trigger, event, reaction, runtime)) continue;
-      const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE));
-      syncResultActions(runtime, result);
+      const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE)); syncResultActions(runtime, result);
       results.push({ mode: "prepared", actionId: reaction.id, result });
     }
     if (typeof context.getAdaptiveReactions === "function") {
       for (const raw of asArray(context.getAdaptiveReactions({ event, runtime }))) {
         const reaction = schema.normalizeCombatAction(raw);
-        reaction.economy.cost = schema.ECONOMY_COSTS.REACTION;
-        reaction.phase.selectedAt = schema.PHASES.COMBAT_PHASE;
-        reaction.phase.executesAt = schema.PHASES.COMBAT_PHASE;
-        reaction.reaction = { ...(reaction.reaction || {}), mode: "adaptive" };
+        reaction.economy.cost = schema.ECONOMY_COSTS.REACTION; reaction.phase.selectedAt = schema.PHASES.COMBAT_PHASE; reaction.phase.executesAt = schema.PHASES.COMBAT_PHASE; reaction.reaction = { ...(reaction.reaction || {}), mode: "adaptive" };
         runtime.actionMap[reaction.id] = reaction;
-        const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE));
-        syncResultActions(runtime, result);
+        const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE)); syncResultActions(runtime, result);
         results.push({ mode: "adaptive", actionId: reaction.id, result });
       }
     }
@@ -376,14 +333,9 @@
 
   function applyGrappleOutcome(runtime, action, result = {}) {
     if (!grappleSucceeded(action, result)) return null;
-    const targetId = String(action.targeting?.mainTargetId || action.targeting?.targetIds?.[0] || "");
-    if (!targetId) return null;
-    const cancelledActionIds = cancelActorPending(runtime, targetId, { type: "grapple" });
-    const locks = [];
-    if (runtime.encounter && teamEconomy?.lockUnitSlots) {
-      locks.push(teamEconomy.lockUnitSlots(runtime.encounter, action.actorId, 1, "grapple"));
-      locks.push(teamEconomy.lockUnitSlots(runtime.encounter, targetId, 1, "grapple"));
-    }
+    const targetId = String(action.targeting?.mainTargetId || action.targeting?.targetIds?.[0] || ""); if (!targetId) return null;
+    const cancelledActionIds = cancelActorPending(runtime, targetId, { type: "grapple" }), locks = [];
+    if (runtime.encounter && teamEconomy?.lockUnitSlots) { locks.push(teamEconomy.lockUnitSlots(runtime.encounter, action.actorId, 1, "grapple")); locks.push(teamEconomy.lockUnitSlots(runtime.encounter, targetId, 1, "grapple")); }
     record(runtime, "grapple_applied", { actorId: action.actorId, targetId, cancelledActionIds });
     return { targetId, cancelledActionIds, locks };
   }
@@ -391,18 +343,13 @@
   function resolveQueueEntry(runtime, entry, context = {}) {
     let action = runtime.actionMap[entry.actionId] || entry.action;
     if (!action || terminal(action) || runtime.resolvedActionIds.has(action.id)) return { skipped: true, reason: "already_terminal", action };
-    applyBlockingStates(runtime, context);
-    action = runtime.actionMap[entry.actionId] || entry.action;
+    applyBlockingStates(runtime, context); action = runtime.actionMap[entry.actionId] || entry.action;
     if (terminal(action) || runtime.resolvedActionIds.has(action.id)) return { skipped: true, reason: "cancelled_before_resolution", action };
-    const retarget = applyRetarget(runtime, action, context);
-    if (!retarget.ready) return retarget;
-    const opposingId = action.metadata?.opposingActionId;
-    const opposingAction = opposingId ? runtime.actionMap[opposingId] || null : null;
+    const retarget = applyRetarget(runtime, action, context); if (!retarget.ready) return retarget;
+    const opposingId = action.metadata?.opposingActionId, opposingAction = opposingId ? runtime.actionMap[opposingId] || null : null;
     triggerReactions(runtime, { type: "before_action", actionId: action.id, actorId: action.actorId }, context);
-    const result = resolver.resolveCombatAction(action, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE, { opposingAction }));
-    syncResultActions(runtime, result);
-    const grapple = applyGrappleOutcome(runtime, result.action || action, result);
-    applyBlockingStates(runtime, context);
+    const result = resolver.resolveCombatAction(action, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE, { opposingAction })); syncResultActions(runtime, result);
+    const grapple = applyGrappleOutcome(runtime, result.action || action, result); applyBlockingStates(runtime, context);
     triggerReactions(runtime, { type: "after_action", actionId: action.id, actorId: action.actorId, result }, context);
     record(runtime, "action_resolved", { actionId: action.id, resolved: result.resolved, reason: result.reason || null, type: result.type || result.resolution?.type || action.resolution.type });
     return grapple ? { ...result, grapple } : result;
@@ -412,12 +359,10 @@
     if (runtime.phase !== schema.PHASES.COMBAT_PHASE || !runtime.queue) return { completed: false, reason: "combat_phase_required" };
     const results = [];
     for (const entry of runtime.queue.entries) {
-      const result = resolveQueueEntry(runtime, entry, context);
-      results.push({ actionId: entry.actionId, result });
+      const result = resolveQueueEntry(runtime, entry, context); results.push({ actionId: entry.actionId, result });
       if (result?.pending && result.reason === "retarget_required") return { completed: false, pending: true, reason: "retarget_required", actionId: entry.actionId, candidates: result.candidates, results };
     }
-    setPhase(runtime, schema.PHASES.COMBAT_END);
-    record(runtime, "combat_end", { resolvedActionIds: [...runtime.resolvedActionIds] });
+    setPhase(runtime, schema.PHASES.COMBAT_END); record(runtime, "combat_end", { resolvedActionIds: [...runtime.resolvedActionIds] });
     if (typeof context.onCombatEnd === "function") context.onCombatEnd({ runtime, results });
     return { completed: true, phase: runtime.phase, results };
   }
@@ -425,24 +370,43 @@
   function teamForUnit(runtime, unit) { return !runtime.encounter || !teamEconomy?.teamForSide ? null : teamEconomy.teamForSide(runtime.encounter, queueApi.sideOf(unit)); }
   function replaceRuntimeUnit(runtime, outgoing, incoming) { const index = runtime.units.indexOf(outgoing); if (index >= 0) runtime.units.splice(index, 1, incoming); else runtime.units.push(incoming); }
 
+  function reserveRetreatProfile(runtime, team, profile, actor) {
+    const index = team.active.indexOf(profile); if (index >= 0) team.active.splice(index, 1);
+    runtime.retreatReserve.push({ unitId: entityId(actor), side: team.side, profile, returnRound: runtime.round + 2 });
+    actor.combatAbsentThroughRound = runtime.round + 1;
+    teamEconomy?.syncEncounter?.(runtime.encounter);
+  }
+
+  function restoreRetreatReserve(runtime, targetRound) {
+    if (!runtime.encounter || !teamEconomy?.teamForSide || !runtime.retreatReserve.length) return [];
+    const restored = [], pending = [];
+    for (const entry of runtime.retreatReserve) {
+      if (entry.returnRound > targetRound) { pending.push(entry); continue; }
+      const team = teamEconomy.teamForSide(runtime.encounter, entry.side);
+      if (!team.active.some((profile) => profile.id === entry.profile.id)) team.active.push(entry.profile);
+      const unit = unitById(runtime, entry.unitId); if (unit) delete unit.combatAbsentThroughRound;
+      restored.push(entry.unitId);
+    }
+    runtime.retreatReserve = pending;
+    if (restored.length) teamEconomy.syncEncounter?.(runtime.encounter);
+    return restored;
+  }
+
   function defaultRetreat(runtime, actor, effect = {}) {
-    const side = queueApi.sideOf(actor);
-    const team = teamForUnit(runtime, actor);
+    const side = queueApi.sideOf(actor), team = teamForUnit(runtime, actor);
     if (team && teamEconomy?.profileForUnit) {
       const found = teamEconomy.profileForUnit(runtime.encounter, actor);
-      if (team.backups?.length) {
-        const backupProfile = team.backups.shift();
-        const incomingUnit = backupProfile.unit;
+      if (found?.profile && team.backups?.length) {
+        const backupProfile = team.backups.shift(), incomingUnit = backupProfile.unit;
         const incoming = teamEconomy.inheritReplacementSlots ? teamEconomy.inheritReplacementSlots(runtime.encounter, side, actor, incomingUnit, { cap: effect.inheritActionSlotsCap || 2 }) : backupProfile;
-        const activeIndex = team.active.indexOf(found.profile);
-        if (activeIndex >= 0) team.active.splice(activeIndex, 1, incoming);
+        const activeIndex = team.active.indexOf(found.profile); if (activeIndex >= 0) team.active.splice(activeIndex, 1, incoming);
         found.profile.statusLockedSlots = 0; found.profile.usableActionSlots = 0; team.backups.push(found.profile);
-        replaceRuntimeUnit(runtime, actor, incomingUnit);
-        teamEconomy.syncEncounter?.(runtime.encounter);
+        replaceRuntimeUnit(runtime, actor, incomingUnit); teamEconomy.syncEncounter?.(runtime.encounter);
         return { retreated: true, replaced: true, outgoingUnitId: entityId(actor), incomingUnitId: entityId(incomingUnit), inheritedSlots: incoming.currentActionSlots };
       }
-    }
-    actor.combatAbsentThroughRound = runtime.round + 1;
+      if (found?.profile) reserveRetreatProfile(runtime, team, found.profile, actor);
+      else actor.combatAbsentThroughRound = runtime.round + 1;
+    } else actor.combatAbsentThroughRound = runtime.round + 1;
     return { retreated: true, replaced: false, absentThroughRound: actor.combatAbsentThroughRound };
   }
 
@@ -453,25 +417,20 @@
       const found = teamEconomy.profileForUnit(runtime.encounter, actor);
       if (found?.profile) {
         const index = team.active.indexOf(found.profile); if (index >= 0) team.active.splice(index, 1);
-        teamEconomy.registerVacatedSlots?.(runtime.encounter, team.side, found.profile.currentActionSlots || 1, { hasBackup: team.backups?.length > 0 });
-        teamEconomy.syncEncounter?.(runtime.encounter);
+        teamEconomy.registerVacatedSlots?.(runtime.encounter, team.side, found.profile.currentActionSlots || 1, { hasBackup: team.backups?.length > 0 }); teamEconomy.syncEncounter?.(runtime.encounter);
       }
     }
     return { escaped: true, unitId: entityId(actor), eligibleForXp: false };
   }
 
-  function turnEndEffectHandlers(runtime, context = {}) {
-    return { ...(context.effectHandlers || {}), retreat: context.effectHandlers?.retreat || (({ actor, effect }) => defaultRetreat(runtime, actor, effect)), escape: context.effectHandlers?.escape || (({ actor }) => defaultEscape(runtime, actor)) };
-  }
+  function turnEndEffectHandlers(runtime, context = {}) { return { ...(context.effectHandlers || {}), retreat: context.effectHandlers?.retreat || (({ actor, effect }) => defaultRetreat(runtime, actor, effect)), escape: context.effectHandlers?.escape || (({ actor }) => defaultEscape(runtime, actor)) }; }
 
   function resolveTurnEnd(runtime, context = {}) {
     if (runtime.phase !== schema.PHASES.COMBAT_END && runtime.phase !== schema.PHASES.ON_TURN_END) return { completed: false, reason: "combat_end_required" };
     setPhase(runtime, schema.PHASES.ON_TURN_END);
-    const results = [];
-    const turnEndActions = runtime.actions.filter((action) => action.phase.executesAt === schema.PHASES.ON_TURN_END && !terminal(action));
+    const results = [], turnEndActions = runtime.actions.filter((action) => action.phase.executesAt === schema.PHASES.ON_TURN_END && !terminal(action));
     const ordered = [...turnEndActions].sort((a, b) => {
-      const aSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(a.actorId, queueApi.partIdOf(a))];
-      const bSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(b.actorId, queueApi.partIdOf(b))];
+      const aSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(a.actorId, queueApi.partIdOf(a))], bSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(b.actorId, queueApi.partIdOf(b))];
       return (Number(bSource?.speed || 0) - Number(aSource?.speed || 0)) || (Number(aSource?.tieRoll || 0) - Number(bSource?.tieRoll || 0));
     });
     const effectHandlers = turnEndEffectHandlers(runtime, context);
@@ -479,13 +438,10 @@
       const unit = unitById(runtime, action.actorId);
       const blocked = !unit || !isUnitActive(runtime, unit) || isStaggered(unit) || (typeof context.isTurnEndBlocked === "function" && context.isTurnEndBlocked({ action, unit, runtime }) === true);
       if (blocked) {
-        action.state = "cancelled"; action.cancelReason = { type: !unit ? "actor_missing" : (isStaggered(unit) ? "stagger" : "turn_end_blocked") };
-        runtime.actionMap[action.id] = action; runtime.resolvedActionIds.add(action.id);
-        results.push({ actionId: action.id, resolved: false, cancelled: true, reason: action.cancelReason.type });
-        continue;
+        action.state = "cancelled"; action.cancelReason = { type: !unit ? "actor_missing" : (isStaggered(unit) ? "stagger" : "turn_end_blocked") }; runtime.actionMap[action.id] = action; runtime.resolvedActionIds.add(action.id);
+        results.push({ actionId: action.id, resolved: false, cancelled: true, reason: action.cancelReason.type }); continue;
       }
-      const result = resolver.resolveCombatAction(action, resolverContext(runtime, { ...context, effectHandlers }, schema.PHASES.ON_TURN_END));
-      syncResultActions(runtime, result); results.push({ actionId: action.id, ...result });
+      const result = resolver.resolveCombatAction(action, resolverContext(runtime, { ...context, effectHandlers }, schema.PHASES.ON_TURN_END)); syncResultActions(runtime, result); results.push({ actionId: action.id, ...result });
     }
     record(runtime, "turn_end_complete", { actionIds: results.map((entry) => entry.actionId) });
     return { completed: true, phase: runtime.phase, results };
@@ -493,17 +449,19 @@
 
   function nextRound(runtime, options = {}) {
     if (runtime.phase !== schema.PHASES.ON_TURN_END) return { started: false, reason: "turn_end_required" };
+    const targetRound = (runtime.encounter?.round || runtime.round) + 1;
+    const restored = restoreRetreatReserve(runtime, targetRound);
     runtime.round += 1;
     if (runtime.encounter && teamEconomy?.beginNextRound) { teamEconomy.beginNextRound(runtime.encounter); runtime.round = runtime.encounter.round; }
     beginTurn(runtime, options);
-    return { started: true, round: runtime.round, phase: runtime.phase, speedSnapshot: runtime.speedSnapshot };
+    return { started: true, round: runtime.round, phase: runtime.phase, speedSnapshot: runtime.speedSnapshot, restoredUnitIds: restored };
   }
 
   const api = Object.freeze({
     createRuntime, activeUnits, isUnitActive, beginTurn, availableSlotCount, validateActionSlot, registerAction,
     playerPlanningReady, aiPlanningReady, previewQueue, linkClash, beginCombatPhase, cancelActorPending,
     triggerReactions, applyGrappleOutcome, resolveQueueEntry, resolveCombatPhase, defaultRetreat, defaultEscape,
-    resolveTurnEnd, nextRound,
+    restoreRetreatReserve, resolveTurnEnd, nextRound,
   });
 
   global.LuminousCombatRuntimeIntegration = api;
