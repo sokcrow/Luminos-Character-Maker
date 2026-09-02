@@ -1,21 +1,26 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const schema = require('../js/combat-action-schema.js');
-globalThis.LuminousCombatAction = schema;
-const adapters = require('../js/combat-action-adapters.js');
-globalThis.LuminousCombatActionAdapters = adapters;
-const bridge = require('../js/combat-action-engine-bridge.js');
-globalThis.LuminousCombatActionEngineBridge = bridge;
-const resolver = require('../js/combat-action-resolver.js');
+
+await import('../js/combat-action-schema.js');
+const schema = globalThis.LuminousCombatAction;
+await import('../js/combat-action-adapters.js');
+const adapters = globalThis.LuminousCombatActionAdapters;
+await import('../js/combat-action-engine-bridge.js');
+const bridge = globalThis.LuminousCombatActionEngineBridge;
+await import('../js/combat-action-queue.js');
+const queue = globalThis.LuminousCombatActionQueue;
+await import('../js/combat-action-resolver.js');
+const resolver = globalThis.LuminousCombatActionResolver;
+if (!schema || !adapters || !bridge || !queue || !resolver) throw new Error('Combat resolver modules were not initialized.');
 
 let clashCalls = 0;
 let attackCalls = 0;
+const attackTargetLog = [];
 const engine = {
   calculateFinalPower(skill, heads) { return Number(skill.basePower || 0) + Number(heads || 0); },
   resolveStandardClash() { clashCalls++; return { winner: 'A', clashLogs: [{}, {}], mitigationPenalty: 0 }; },
   resolveUnilateralWithCounter(attacker, skill, defender, counter, options) {
     attackCalls++;
+    attackTargetLog.push(defender.id);
     defender.hp = (defender.hp ?? 20) - 3;
     return { damageTaken: 3, attackLogs: [{ target: defender.id }], options, bonus: skill.__combatActionFinalPowerBonus || 0 };
   },
@@ -34,7 +39,7 @@ const resourceHandlers = {
     consume: ({resource}) => { resourceLog.push(resource.id); return { consumed:true }; },
   }
 };
-const common = { phase:'combat_phase', units, engine, resourceHandlers, random: () => 0 };
+const common = { phase:'combat_phase', units, engine, resourceHandlers, random: () => 0, combatActionQueue:queue };
 
 bridge.installCombatActionPowerBridge(engine);
 assert.equal(engine.calculateFinalPower({basePower:4,__combatActionFinalPowerBonus:1}, 2), 7);
@@ -50,7 +55,7 @@ assert.equal(clashCalls, 1);
 assert.equal(attackCalls, 2);
 assert.deepEqual(clash.resolvedActionIds.sort(), [actionA.id, actionB.id].sort());
 
-clashCalls = 0; attackCalls = 0;
+clashCalls = 0; attackCalls = 0; attackTargetLog.length = 0;
 b.isStaggered = true;
 const staggerA = adapters.compileSkillToCombatAction(a, { id:'s2', basePower:4, coinAmount:1, attackWeight:1, isClashable:true }, { targetId:'b' });
 const staggerB = adapters.compileSkillToCombatAction(b, { id:'s3', basePower:4, coinAmount:1, isClashable:true }, { targetId:'a', isAi:true });
@@ -101,7 +106,7 @@ assert.equal(checkResult.resolved, true);
 assert.equal(checkResult.resolution.result.pass, true);
 
 // A clash that degrades to unopposed must still validate and consume the active action's resources.
-attackCalls = 0;
+attackCalls = 0; attackTargetLog.length = 0;
 let allowFallbackResource = false;
 let fallbackConsumes = 0;
 const guardedHandlers = {
@@ -126,5 +131,32 @@ assert.equal(allowedFallback.resolved, true);
 assert.equal(allowedFallback.type, 'unopposed');
 assert.equal(fallbackConsumes, 1);
 assert.equal(attackCalls, 1);
+
+// Unfocused Volley resolves every Coin independently and avoids the previous target when another marked/valid target exists.
+attackCalls = 0; attackTargetLog.length = 0;
+b.hp = 20; e2.hp = 20;
+const unfocused = adapters.compileSkillToCombatAction(a, {
+  id:'unfocused_three', basePower:3, coinPower:1, coinAmount:3, attackWeight:1,
+  targetingType:'Unfocused Volley', coins:[{},{},{}], isClashable:false,
+}, { targetId:'b' });
+const unfocusedResult = resolver.resolveCombatAction(unfocused, { ...common, coinwiseResolution:true, random:()=>0 });
+assert.equal(unfocusedResult.resolved, true);
+assert.equal(unfocusedResult.resolution.coinwise, true);
+assert.deepEqual(attackTargetLog, ['b','e2','b']);
+assert.equal(attackCalls, 3);
+
+// Focused Volley stops remaining Coins if its focused target dies.
+attackCalls = 0; attackTargetLog.length = 0;
+b.hp = 2; e2.hp = 20;
+const focused = adapters.compileSkillToCombatAction(a, {
+  id:'focused_three', basePower:3, coinPower:1, coinAmount:3, attackWeight:1,
+  targetingType:'Focused Volley', coins:[{},{},{}], isClashable:false,
+}, { targetId:'b' });
+const focusedResult = resolver.resolveCombatAction(focused, { ...common, coinwiseResolution:true });
+assert.equal(focusedResult.cancelled, true);
+assert.equal(focusedResult.action.state, 'cancelled');
+assert.equal(focusedResult.resolution.partial, true);
+assert.equal(attackCalls, 1);
+assert.deepEqual(attackTargetLog, ['b']);
 
 console.log('combat-action-resolver smoke: ok');
