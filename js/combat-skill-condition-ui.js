@@ -4,7 +4,9 @@
     const Schema = global.CombatSkillSchema;
     if (!Schema || typeof document === 'undefined') return;
 
-    const KNOWN_STATS = Schema.CONDITION_STATS || [];
+    // SP in the creator follows Luminous/Limbus semantics: only Current SP is authored.
+    // Legacy sp_percent/sp_max remain readable by the schema, but are intentionally hidden here.
+    const KNOWN_STATS = (Schema.CONDITION_STATS || []).filter(item => !['sp_percent', 'sp_max'].includes(item.value));
     const KNOWN_VALUES = new Set(KNOWN_STATS.map(item => item.value));
 
     function operatorLabel(value) {
@@ -25,6 +27,16 @@
         });
     }
 
+    function clampCurrentSpValue(box) {
+        const rawInput = box.querySelector('input[data-cond="stat"]');
+        const valueInput = box.querySelector('input[data-cond="value"]');
+        if (!rawInput || !valueInput) return;
+        if (Schema.normalizeConditionStat(rawInput.value) !== 'sp_current') return;
+        const value = Number(valueInput.value);
+        if (!Number.isFinite(value)) return;
+        valueInput.value = String(Math.max(-45, Math.min(45, value)));
+    }
+
     function updateValueMetadata(box, stat) {
         const valueInput = box.querySelector('input[data-cond="value"]');
         if (!valueInput) return;
@@ -34,18 +46,22 @@
         valueInput.placeholder = '';
         valueInput.title = '';
 
-        if (canonical === 'hp_percent' || canonical === 'sp_percent') {
+        if (canonical === 'hp_percent') {
             valueInput.min = '0';
             valueInput.max = '100';
             valueInput.step = '1';
             valueInput.placeholder = '0–100%';
-            valueInput.title = 'Percentage of the current value compared with its maximum.';
+            valueInput.title = 'Current HP as a percentage of Max HP.';
         } else if (canonical === 'hp_current' || canonical === 'hp_max') {
             valueInput.step = '1';
             valueInput.placeholder = 'HP';
-        } else if (canonical === 'sp_current' || canonical === 'sp_max') {
+        } else if (canonical === 'sp_current') {
+            valueInput.min = '-45';
+            valueInput.max = '45';
             valueInput.step = '1';
-            valueInput.placeholder = 'SP';
+            valueInput.placeholder = '-45–45 SP';
+            valueInput.title = 'Current SP. Luminous combat SP ranges from -45 to 45.';
+            clampCurrentSpValue(box);
         }
     }
 
@@ -90,6 +106,7 @@
     function upgradeConditionBox(box) {
         if (!box || box.dataset.canonicalConditionUi === 'true') return;
         const rawInput = box.querySelector('input[data-cond="stat"]');
+        const valueInput = box.querySelector('input[data-cond="value"]');
         if (!rawInput) return;
 
         box.dataset.canonicalConditionUi = 'true';
@@ -114,6 +131,11 @@
         rawInput.addEventListener('change', () => {
             syncPickerFromRaw(box, picker, rawInput);
         });
+
+        if (valueInput) {
+            valueInput.addEventListener('input', () => clampCurrentSpValue(box));
+            valueInput.addEventListener('change', () => clampCurrentSpValue(box));
+        }
     }
 
     function upgradeAllConditions(root) {
