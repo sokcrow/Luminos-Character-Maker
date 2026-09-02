@@ -5,6 +5,7 @@ import './building-physics-core.js';
 import './procedural-zone-core.js';
 import './urban-fabric-core.js';
 import './procedural-building-generator.js';
+import './procedural-topology-optimizer.js';
 import './procedural-building-mix-patch.js';
 import './procedural-generator-core.js';
 import './procedural-map-authoring-patch.js';
