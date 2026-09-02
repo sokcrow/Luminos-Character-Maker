@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rama 4 Test Lab WebGL2 Performance</title>
+  <style>html,body{margin:0;background:#0d1014;color:#e9eef5;font:13px monospace}canvas{position:fixed;inset:0;width:960px;height:540px}#rama4-test-lab-result{position:relative;z-index:5;margin:12px;padding:12px;max-width:920px;max-height:500px;overflow:auto;background:rgba(0,0,0,.8);white-space:pre-wrap}</style>
+</head>
+<body>
+  <canvas id="vtt-test-lab-performance" width="960" height="540"></canvas>
+  <pre id="rama4-test-lab-result" data-status="running">Test Lab WebGL2 performance running…</pre>
+  <script type="module">
+    const output=document.getElementById('rama4-test-lab-result');
+    const canvas=document.getElementById('vtt-test-lab-performance');
+    const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+    const frame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+    const frames=async count=>{for(let i=0;i<count;i++)await frame();};
+    const round=(value,digits=2)=>Number(Number(value||0).toFixed(digits));
+    const fail=(error)=>{output.dataset.status='fail';output.textContent=JSON.stringify({status:'FAIL',message:String(error?.stack||error?.message||error)},null,2);};
+
+    try{
+      await import('../js/vtt/scene-dirty.js');
+      await import('../js/vtt/topology.js');
+      await import('../js/vtt/token-interaction.js');
+      await import('../js/vtt/pathfinding.js');
+      await import('../js/vtt/surface-core.js');
+      await import('../js/vtt/horizontal-plane-core.js');
+      await import('../js/vtt/building-physics-core.js');
+      await import('../js/vtt/semantic-map-core.js');
+
+      const [{Engine},{installPerceptionSchedulerRuntime},{installRama4FieldStabilityCompat},{installTestLabTelemetry}]=await Promise.all([
+        import('../js/vtt/engine.js'),
+        import('../js/vtt/perception-scheduler-runtime.js'),
+        import('../js/vtt/rama4-field-stability-compat.js'),
+        import('../js/vtt/map-test-lab-telemetry.js'),
+      ]);
+
+      const size=70,cols=40,rows=40;
+      const topology=[];
+      for(let row=2;row<rows;row+=4){
+        topology.push({id:`wall:h:${row}:a`,type:'wall',from:{col:1,row},to:{col:16,row},z:[0]});
+        topology.push({id:`wall:h:${row}:b`,type:'wall',from:{col:24,row},to:{col:39,row},z:[0]});
+      }
+      for(let col=2;col<cols;col+=4){
+        topology.push({id:`wall:v:${col}:a`,type:'wall',from:{col,row:1},to:{col,row:15},z:[0]});
+        topology.push({id:`wall:v:${col}:b`,type:'wall',from:{col,row:25},to:{col,row:39},z:[0]});
+      }
+      const token={id:'player:test-lab-browser',name:'TEST PLAYER',viewer:true,canonicalScope:'player',actorCategory:'player',x:5.5*size,y:20.5*size,zLayer:0,z:[0],gridPosition:{col:5,row:20,z:0},radius:14,draggable:true,color:'#56b4ff',facingDeg:0,senses:{darkvisionFt:0}};
+      const map={
+        id:'luminous_test_lab',name:'LUMINOUS TEST LAB / WEBGL2 PERFORMANCE',
+        grid:{cols,rows,size,distancePerCell:5,distanceUnit:'ft'},
+        topology,walls:[],tokens:[token],verticalPortals:[],structures:[],worldObjects:[],horizontalPlanes:[],surfaceLayers:{'0':{}},
+        ambientLight:{level:'bright'},movement:{blockTokens:false},zLevels:{'0':{zLayer:0,elevationFt:0}},
+      };
+
+      const engine=new Engine(canvas,map);
+      window.LuminousVttRuntime={engine};
+      installRama4FieldStabilityCompat(window)?.ensure?.();
+      const perception=installPerceptionSchedulerRuntime({runtime:window.LuminousVttRuntime});
+      const telemetry=installTestLabTelemetry(window,engine);
+      assert(engine.renderer?.backend==='webgl2','Test Lab did not acquire production WebGL2 renderer');
+      assert(telemetry,'Test Lab telemetry did not install');
+
+      engine.start();
+      await frames(6);
+      telemetry.reset();
+      const start={x:5.5*size,y:20.5*size};
+      const end={x:34.5*size,y:20.5*size};
+      for(let i=0;i<240;i++){
+        const t=(i+1)/240;
+        const x=start.x+(end.x-start.x)*t;
+        const y=start.y+Math.sin(t*Math.PI*4)*size*1.25;
+        token.x=x;token.y=y;token.gridPosition={col:Math.floor(x/size),row:Math.floor(y/size),z:0};
+        engine.emitSemanticEvent('vtt:token-preview-moved',{tokenId:token.id,x,y,traversing:true,progress:t},{reason:'token',render:true,vision:true,active:true});
+        engine.camera?.centerOnWorldPoint?.(x,y);
+        await frame();
+      }
+      await frames(2);
+      const during=telemetry.snapshot();
+      assert(during.movement.previewFrames===240,`expected 240 real preview frames, got ${during.movement.previewFrames}`);
+      assert(during.perception.visionRecomputes===0,`preview movement recomputed FOV ${during.perception.visionRecomputes} times`);
+      assert(during.perception.visionInvalidations===0,`preview movement invalidated FOV ${during.perception.visionInvalidations} times`);
+      assert(during.frame.renderedFrames>=220,`renderer skipped too many active visual frames: ${during.frame.renderedFrames}/240`);
+      assert(during.renderer.webgl2===true,'telemetry did not identify WebGL2 backend');
+      assert(during.workingSet.player120.total<during.workingSet.world.total,'POV working set did not reject any Test Lab candidates');
+      assert(during.workingSet.viewport.total<during.workingSet.world.total,'viewport working set did not reject any Test Lab candidates');
+
+      token.x=end.x;token.y=end.y;token.gridPosition={col:34,row:20,z:0};
+      engine.emitSemanticEvent('vtt:token-moved',{tokenId:token.id,x:token.x,y:token.y,traversing:false},{reason:'token',render:true,vision:true,active:false});
+      await frames(4);
+      const after=telemetry.snapshot();
+      assert(after.perception.visionRecomputes===1,`endpoint must recompute FOV exactly once, got ${after.perception.visionRecomputes}`);
+      assert(after.perception.visionCacheHits>=during.perception.visionCacheHits,'endpoint must preserve traversal cache accounting');
+
+      const result={
+        status:'PASS',
+        renderer:after.renderer,
+        movement:{previewFrames:during.movement.previewFrames,renderedFrames:during.frame.renderedFrames},
+        perception:{
+          previewVisionRecomputes:during.perception.visionRecomputes,
+          previewVisionInvalidations:during.perception.visionInvalidations,
+          endpointVisionRecomputes:after.perception.visionRecomputes,
+          cacheHits:after.perception.visionCacheHits,
+          cameraDirtyEvents:after.perception.cameraDirtyEvents,
+          cameraRenderCoalesces:after.perception.cameraRenderCoalesces,
+        },
+        frame:{fpsHeadless:round(after.frame.fps),avgMs:round(after.frame.avgMs),maxMs:round(after.frame.maxMs)},
+        workingSet:{
+          world:after.workingSet.world.total,
+          viewport:after.workingSet.viewport.total,
+          player120:after.workingSet.player120.total,
+          dmDrawUnits:after.workingSet.dmSimplified.drawUnits.total,
+          playerPercentOfWorld:round(after.workingSet.player120.percentOfWorld),
+        },
+        note:'Headless browser FPS is diagnostic; pass/fail is based on WebGL2 backend, 240 visual previews, endpoint-only exact perception, and working-set reduction.',
+      };
+      output.dataset.status='pass';
+      output.textContent=JSON.stringify(result,null,2);
+      telemetry.stop();perception.stop();engine.stop();engine.camera?.destroy?.();engine.renderer?.destroy?.();delete window.LuminousVttRuntime;
+    }catch(error){console.error(error);fail(error);}
+  </script>
+</body>
+</html>
