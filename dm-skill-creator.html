@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminous · Skill Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #070707;
+            --panel: #11110f;
+            --panel-2: #171713;
+            --panel-3: #0c0c0a;
+            --border: #403728;
+            --border-soft: #2a271f;
+            --gold: #c9a45c;
+            --gold-bright: #f0cf7c;
+            --text: #e9e3d5;
+            --muted: #858074;
+            --danger: #9f2d25;
+            --ok: #597b4d;
+            --cyan: #65c9d2;
+            --shadow: rgba(0,0,0,.55);
+        }
+
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% -20%, rgba(201,164,92,.10), transparent 35%),
+                linear-gradient(180deg, #0a0a09 0%, #050505 100%);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        button, input, select { font: inherit; }
+        button { cursor: pointer; }
+
+        .app {
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 64px minmax(0, 1fr);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 18px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(9,9,8,.96);
+            box-shadow: 0 8px 24px var(--shadow);
+            z-index: 10;
+        }
+
+        .brand { min-width: 250px; }
+        .brand h1 {
+            margin: 0;
+            font: 30px/1 'Bebas Neue', sans-serif;
+            letter-spacing: 1.5px;
+            color: var(--gold-bright);
+        }
+        .brand small { color: var(--muted); font: 11px/1.2 'Cinzel', serif; }
+
+        .compat {
+            border: 1px solid #385e58;
+            color: #9ad8cf;
+            background: #0d1b19;
+            padding: 7px 10px;
+            font: 10px 'Cinzel', serif;
+            letter-spacing: .35px;
+        }
+
+        .toolbar {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            border: 1px solid var(--border);
+            background: #17150f;
+            color: var(--text);
+            padding: 9px 14px;
+            font: 14px 'Bebas Neue', sans-serif;
+            letter-spacing: .8px;
+        }
+        .btn:hover { border-color: var(--gold); color: var(--gold-bright); }
+        .btn.primary { background: var(--gold); color: #100e09; border-color: var(--gold-bright); }
+        .btn.primary:hover { filter: brightness(1.08); color: #000; }
+        .btn.ghost { background: transparent; }
+
+        .workspace {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 280px minmax(520px, 1fr) 380px;
+        }
+
+        .pane {
+            min-height: 0;
+            background: rgba(13,13,11,.93);
+            border-right: 1px solid var(--border-soft);
+        }
+        .pane:last-child { border-right: 0; border-left: 1px solid var(--border-soft); }
+
+        .pane-header {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--border-soft);
+            background: #0b0b09;
+        }
+        .pane-header h2 {
+            margin: 0;
+            font: 18px 'Bebas Neue', sans-serif;
+            letter-spacing: 1px;
+            color: var(--gold-bright);
+        }
+        .count { color: var(--muted); font-size: 11px; }
+
+        .directory {
+            height: 100%;
+            display: grid;
+            grid-template-rows: 48px 54px minmax(0, 1fr);
+        }
+        .search-wrap { padding: 8px; border-bottom: 1px solid var(--border-soft); }
+        .search-wrap input { width: 100%; }
+        .skill-list { overflow: auto; padding: 8px; }
+
+        .skill-row {
+            width: 100%;
+            text-align: left;
+            border: 1px solid transparent;
+            border-bottom-color: #26231c;
+            background: transparent;
+            color: var(--text);
+            padding: 9px 8px;
+            display: grid;
+            grid-template-columns: 6px minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .skill-row:hover { background: #17150f; border-color: #332e23; }
+        .skill-row.active { background: #211c12; border-color: #665435; }
+        .sin-mark { width: 6px; height: 34px; background: var(--sin-color, #555); }
+        .skill-row strong { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .skill-row small { color: var(--muted); font-size: 10px; }
+        .row-tier { color: var(--gold); font: 12px 'Bebas Neue', sans-serif; }
+
+        .editor {
+            height: 100%;
+            display: grid;
+            grid-template-rows: 48px minmax(0,1fr) 42px;
+        }
+        .editor-scroll { overflow: auto; padding: 14px 16px 30px; }
+        .editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            border-top: 1px solid var(--border-soft);
+            background: #0a0a08;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .section {
+            border: 1px solid var(--border-soft);
+            background: linear-gradient(180deg, rgba(24,23,18,.95), rgba(14,14,12,.95));
+            margin-bottom: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,.18);
+        }
+        .section-title {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-soft);
+            color: var(--gold-bright);
+            background: #11100d;
+            font: 13px 'Cinzel', serif;
+            letter-spacing: .5px;
+        }
+        .section-body { padding: 12px; }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+
+        label.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+        .field-name { color: #bdb6a7; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+        .hint { color: #68645b; font-size: 9px; line-height: 1.25; }
+
+        input, select {
+            min-width: 0;
+            width: 100%;
+            border: 1px solid #474238;
+            background: #090909;
+            color: var(--text);
+            padding: 8px 9px;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(201,164,92,.22); }
+        input[readonly] { color: #777268; background: #111; }
+
+        .segmented { display: flex; flex-wrap: wrap; gap: 5px; }
+        .chip {
+            position: relative;
+            border: 1px solid #413c32;
+            background: #0d0d0b;
+            color: #aaa497;
+            padding: 7px 9px;
+            font-size: 10px;
+            user-select: none;
+        }
+        .chip input { position: absolute; opacity: 0; pointer-events: none; }
+        .chip:has(input:checked) {
+            border-color: var(--gold);
+            background: #241d10;
+            color: var(--gold-bright);
+        }
+
+        .sins .chip:has(input:checked) { box-shadow: inset 4px 0 var(--chip-color, var(--gold)); }
+
+        .coin-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .coin-editor {
+            width: 116px;
+            border: 1px solid #38342c;
+            background: #0d0d0b;
+            padding: 8px;
+        }
+        .coin-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 7px;
+            color: var(--gold-bright);
+            font: 12px 'Bebas Neue', sans-serif;
+        }
+        .coin-token {
+            width: 26px;
+            height: 26px;
+            display: grid;
+            place-items: center;
+            clip-path: polygon(50% 100%,10% 78%,0 35%,25% 0,75% 0,100% 35%,90% 78%);
+            background: #d9d9d9;
+            color: #0a0a0a;
+            font-weight: 900;
+        }
+        .coin-token.unbreakable { background: #d24436; color: #fff; }
+        .coin-editor select { padding: 5px; font-size: 10px; }
+        .coin-effect-count { margin-top: 6px; color: #706b60; font-size: 9px; }
+
+        .flags { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+        .flag {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid #353229;
+            padding: 7px 8px;
+            background: #0c0c0a;
+            color: #aaa497;
+            font-size: 10px;
+        }
+        .flag input { width: auto; }
+
+        .preview-pane {
+            height: 100%;
+            display: grid;
+            grid-template-rows: 48px minmax(0,1fr);
+            background: #080807;
+        }
+        .preview-body { overflow: auto; padding: 18px; }
+
+        .skill-card {
+            --sin: #777;
+            border: 1px solid #353128;
+            background: #030303;
+            box-shadow: 0 18px 35px rgba(0,0,0,.45);
+            min-height: 260px;
+        }
+        .card-band {
+            height: 7px;
+            background: var(--sin);
+            box-shadow: 0 0 15px color-mix(in srgb, var(--sin) 55%, transparent);
+        }
+        .card-main { padding: 14px; }
+        .card-top { display: grid; grid-template-columns: 78px 1fr; gap: 12px; }
+        .sin-hept {
+            width: 70px;
+            height: 70px;
+            clip-path: polygon(50% 100%,10% 78%,0 35%,25% 0,75% 0,100% 35%,90% 78%);
+            background: var(--sin);
+            display: grid;
+            place-items: center;
+        }
+        .sin-hept::after {
+            content: attr(data-label);
+            width: 60px;
+            height: 60px;
+            clip-path: inherit;
+            background: #070707;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font: 13px 'Bebas Neue', sans-serif;
+        }
+        .card-kicker { color: var(--muted); font-size: 9px; text-transform: uppercase; }
+        .card-name {
+            margin: 3px 0 5px;
+            padding: 5px 8px;
+            background: var(--sin);
+            color: #fff;
+            font: 22px 'Bebas Neue', sans-serif;
+            letter-spacing: .8px;
+            text-shadow: 1px 1px #000;
+            clip-path: polygon(0 0,100% 0,94% 100%,0 100%);
+        }
+        .power-line { display: flex; align-items: baseline; gap: 7px; }
+        .power-main { color: #fff; font: 36px 'Bebas Neue', sans-serif; }
+        .power-coin { color: var(--gold-bright); font: 22px 'Bebas Neue', sans-serif; }
+        .power-max { margin-left: auto; color: #777; font-size: 10px; }
+
+        .preview-coins { display: flex; gap: 4px; margin: 13px 0 8px; }
+        .preview-coin {
+            width: 23px; height: 23px;
+            clip-path: polygon(50% 100%,10% 78%,0 35%,25% 0,75% 0,100% 35%,90% 78%);
+            background: #d8d8d8;
+        }
+        .preview-coin.unbreakable { background: #c94035; }
+
+        .statline {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap: 6px;
+            border-top: 1px solid #28251e;
+            border-bottom: 1px solid #28251e;
+            padding: 8px 0;
+            color: #b9b3a8;
+            font-size: 10px;
+        }
+        .statline strong { display: block; color: var(--gold-bright); font: 16px 'Bebas Neue', sans-serif; }
+
+        .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .badge { border: 1px solid #413b30; padding: 4px 6px; color: #a7a092; font-size: 9px; background: #11100d; }
+        .badge.hot { border-color: #7c4934; color: #e0a17d; }
+        .badge.def { border-color: #3d6670; color: #8fd2d9; }
+
+        .preserved {
+            margin-top: 14px;
+            border: 1px solid #2f2b23;
+            background: #0b0b09;
+            padding: 10px;
+            color: #777268;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        .status {
+            min-height: 20px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+        .status.ok { color: #91c486; }
+        .status.error { color: #e67b70; }
+
+        @media (max-width: 1200px) {
+            .workspace { grid-template-columns: 230px minmax(480px,1fr) 320px; }
+            .grid-4 { grid-template-columns: repeat(2,1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="topbar">
+        <div class="brand">
+            <h1>Skill Creation HUD</h1>
+            <small>Combat Skill Definition · schema v2</small>
+        </div>
+        <div class="compat">CANONICAL V2 · GUARDA ALIASES LEGACY PARA NO ROMPER EL MOTOR ACTUAL</div>
+        <div class="toolbar">
+            <button class="btn ghost" id="btnDuplicate">DUPLICAR</button>
+            <button class="btn" id="btnNew">NUEVA SKILL</button>
+            <button class="btn primary" id="btnSave">GUARDAR SKILL</button>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <aside class="pane directory">
+            <div class="pane-header">
+                <h2>Directorio</h2>
+                <span class="count" id="skillCount">0</span>
+            </div>
+            <div class="search-wrap">
+                <input id="search" type="search" placeholder="Buscar Skill...">
+            </div>
+            <div class="skill-list" id="skillList"></div>
+        </aside>
+
+        <section class="pane editor">
+            <div class="pane-header">
+                <h2 id="editorTitle">Nueva Skill</h2>
+                <span class="count" id="schemaBadge">schemaVersion: 2</span>
+            </div>
+
+            <div class="editor-scroll" id="editorScroll">
+                <section class="section">
+                    <div class="section-title">01 · Identidad</div>
+                    <div class="section-body grid-2">
+                        <label class="field">
+                            <span class="field-name">ID de Skill</span>
+                            <input id="f-id" type="text" placeholder="db_skill_...">
+                            <span class="hint">Se genera automáticamente si queda vacío.</span>
+                        </label>
+                        <label class="field">
+                            <span class="field-name">Nombre</span>
+                            <input id="f-name" type="text" placeholder="Nombre de la Skill">
+                            <span class="hint">Campo obligatorio.</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">02 · Poder y Coins</div>
+                    <div class="section-body">
+                        <div class="grid-4">
+                            <label class="field">
+                                <span class="field-name">Base Power</span>
+                                <input id="f-base" type="number" value="4">
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Coin Power</span>
+                                <input id="f-coin-power" type="number" value="4">
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Coin Amount</span>
+                                <input id="f-coin-amount" type="number" min="1" max="12" value="1">
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Skill Amount</span>
+                                <input id="f-skill-amount" type="number" min="1" value="1">
+                                <span class="hint">Copias que el Deck recibe de esta Skill.</span>
+                            </label>
+                        </div>
+                        <div class="coin-strip" id="coinStrip"></div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">03 · Perfil de Combate</div>
+                    <div class="section-body">
+                        <div class="grid-4">
+                            <label class="field">
+                                <span class="field-name">Tier</span>
+                                <select id="f-tier">
+                                    <option value="1">Tier I</option>
+                                    <option value="2">Tier II</option>
+                                    <option value="3">Tier III</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Attack Weight</span>
+                                <input id="f-weight" type="number" min="1" value="1">
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Range</span>
+                                <input id="f-range" type="number" min="1" value="1">
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Type</span>
+                                <select id="f-type">
+                                    <option value="Attack">Attack</option>
+                                    <option value="Defense">Defense</option>
+                                    <option value="Spell">Spell</option>
+                                    <option value="Save">Save</option>
+                                    <option value="Roll">Roll</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div style="height:10px"></div>
+                        <div class="grid-3">
+                            <label class="field">
+                                <span class="field-name">Damage Type</span>
+                                <select id="f-damage">
+                                    <option value="contundente">Contundente</option>
+                                    <option value="cortante">Cortante</option>
+                                    <option value="perforante">Perforante</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Scaling Stat</span>
+                                <select id="f-scaling">
+                                    <option>Fuerza</option>
+                                    <option>Destreza</option>
+                                    <option>Constitución</option>
+                                    <option>Inteligencia</option>
+                                    <option>Sabiduría</option>
+                                    <option>Carisma</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Skill Used</span>
+                                <input id="f-skill-used" type="text" placeholder="Athletics, Arcana...">
+                            </label>
+                        </div>
+
+                        <div style="height:10px"></div>
+                        <span class="field-name">Sin Affinity</span>
+                        <div class="segmented sins" id="sinSelector"></div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">04 · Targeting</div>
+                    <div class="section-body grid-3">
+                        <label class="field">
+                            <span class="field-name">Targeting Type</span>
+                            <select id="f-targeting">
+                                <option>Focused Attack</option>
+                                <option>Focused Volley</option>
+                                <option>Unfocused Volley</option>
+                                <option>Indiscriminate</option>
+                                <option>AoE</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span class="field-name">AoE Pattern</span>
+                            <select id="f-aoe">
+                                <option>Self</option>
+                                <option>Circle</option>
+                                <option>Cone</option>
+                                <option>Line</option>
+                            </select>
+                            <span class="hint">Sólo entra en resolución cuando Targeting Type = AoE.</span>
+                        </label>
+                        <label class="field">
+                            <span class="field-name">Stat Used</span>
+                            <input id="f-stat-used" type="text" placeholder="Opcional / Save / Roll">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">05 · Defensa y Flags</div>
+                    <div class="section-body">
+                        <div class="grid-2">
+                            <label class="field">
+                                <span class="field-name">Defense Subtype</span>
+                                <select id="f-defense-subtype">
+                                    <option value="">No aplica</option>
+                                    <option value="Guard">Guard</option>
+                                    <option value="Evade">Evade</option>
+                                    <option value="Counter">Counter</option>
+                                    <option value="ClashableGuard">Clashable Guard</option>
+                                    <option value="ClashableCounter">Clashable Counter</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span class="field-name">Source</span>
+                                <div class="grid-2">
+                                    <select id="f-source-type">
+                                        <option value="skill">Skill</option>
+                                        <option value="item">Item</option>
+                                        <option value="spell">Spell</option>
+                                        <option value="trait">Trait</option>
+                                        <option value="unit">Unit</option>
+                                        <option value="abnormality_part">Abnormality Part</option>
+                                    </select>
+                                    <input id="f-source-id" type="text" placeholder="sourceId">
+                                </div>
+                            </label>
+                        </div>
+                        <div style="height:10px"></div>
+                        <div class="flags">
+                            <label class="flag"><input id="f-defense" type="checkbox"> Defense Skill</label>
+                            <label class="flag"><input id="f-item" type="checkbox"> Item Skill</label>
+                            <label class="flag"><input id="f-clashable" type="checkbox" checked> Clashable</label>
+                            <label class="flag"><input id="f-unclashable" type="checkbox"> Unclashable</label>
+                            <label class="flag"><input id="f-indiscriminate" type="checkbox"> Indiscriminate</label>
+                            <label class="flag"><input id="f-fixed" type="checkbox"> Target Fixed</label>
+                            <label class="flag"><input id="f-unlock" type="checkbox"> Requires Unlock</label>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">06 · Effects</div>
+                    <div class="section-body">
+                        <div class="preserved">
+                            En esta primera pasada el nuevo HUD <strong>preserva</strong> los <code>effects[]</code>, efectos de Coins y <code>evolution_chain</code> de Skills existentes sin alterarlos. El editor visual de Triggers/Effects del creador actual se conectará después de estabilizar el contrato canónico.
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="editor-footer">
+                <div id="status" class="status">Listo.</div>
+                <div id="editMeta">Sin guardar</div>
+            </footer>
+        </section>
+
+        <aside class="pane preview-pane">
+            <div class="pane-header">
+                <h2>Preview</h2>
+                <span class="count">Live</span>
+            </div>
+            <div class="preview-body">
+                <div class="skill-card" id="previewCard">
+                    <div class="card-band"></div>
+                    <div class="card-main">
+                        <div class="card-top">
+                            <div class="sin-hept" id="previewSin" data-label="NONE"></div>
+                            <div>
+                                <div class="card-kicker" id="previewType">Attack · Tier I</div>
+                                <div class="card-name" id="previewName">Unnamed Skill</div>
+                                <div class="power-line">
+                                    <span class="power-main" id="previewBase">4</span>
+                                    <span class="power-coin" id="previewCoinPower">+4</span>
+                                    <span class="power-max" id="previewMax">MAX 8</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="preview-coins" id="previewCoins"></div>
+                        <div class="statline">
+                            <div><span>ATK WEIGHT</span><strong id="previewWeight">1</strong></div>
+                            <div><span>RANGE</span><strong id="previewRange">1</strong></div>
+                            <div><span>DECK COPIES</span><strong id="previewAmount">1</strong></div>
+                        </div>
+                        <div class="badges" id="previewBadges"></div>
+                        <div class="preserved" id="previewLegacy">Canonical v2. Legacy aliases se generan al guardar.</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/combat-skill-schema.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+        authDomain: "luminous-system.firebaseapp.com",
+        databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+        projectId: "luminous-system",
+        storageBucket: "luminous-system.firebasestorage.app",
+        messagingSenderId: "330473029689",
+        appId: "1:330473029689:web:44a05e870d493a3b294de8",
+        measurementId: "G-X775P4YS7W"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const SKILL_PATH = 'campaña/base_datos_skills';
+
+    const SIN_DATA = {
+        wrath:     { label: 'WRATH', color: '#c13d2f' },
+        lust:      { label: 'LUST', color: '#d76834' },
+        sloth:     { label: 'SLOTH', color: '#b69b37' },
+        gluttony:  { label: 'GLUTTONY', color: '#6d9e42' },
+        gloom:     { label: 'GLOOM', color: '#477e99' },
+        pride:     { label: 'PRIDE', color: '#496aa6' },
+        envy:      { label: 'ENVY', color: '#7b4b91' },
+        sinless:   { label: 'NONE', color: '#686868' }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    let allSkills = {};
+    let currentId = '';
+    let originalSkill = {};
+    let coinState = [];
+
+    function setStatus(text, kind) {
+        const el = $('status');
+        el.textContent = text;
+        el.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    function createId() {
+        return 'db_skill_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    function buildSinSelector() {
+        $('sinSelector').innerHTML = Object.entries(SIN_DATA).map(([value, data]) => `
+            <label class="chip" style="--chip-color:${data.color}">
+                <input type="radio" name="sin" value="${value}" ${value === 'sinless' ? 'checked' : ''}>
+                ${data.label}
+            </label>
+        `).join('');
+    }
+
+    function selectedSin() {
+        return document.querySelector('input[name="sin"]:checked')?.value || 'sinless';
+    }
+
+    function setSelectedSin(value) {
+        const radio = document.querySelector(`input[name="sin"][value="${CSS.escape(value || 'sinless')}"]`)
+            || document.querySelector('input[name="sin"][value="sinless"]');
+        if (radio) radio.checked = true;
+    }
+
+    function syncCoinState(amount) {
+        const count = Math.max(1, Number(amount) || 1);
+        coinState = Array.from({ length: count }, (_, index) => {
+            const old = coinState[index] || {};
+            return {
+                ...old,
+                index,
+                type: old.type || 'normal',
+                effects: Array.isArray(old.effects) ? old.effects : []
+            };
+        });
+        renderCoinEditors();
+    }
+
+    function renderCoinEditors() {
+        $('coinStrip').innerHTML = coinState.map((coin, index) => `
+            <div class="coin-editor" data-index="${index}">
+                <div class="coin-head">
+                    COIN ${index + 1}
+                    <span class="coin-token ${coin.type === 'unbreakable' ? 'unbreakable' : ''}">${index + 1}</span>
+                </div>
+                <select class="coin-type">
+                    <option value="normal" ${coin.type !== 'unbreakable' ? 'selected' : ''}>Normal</option>
+                    <option value="unbreakable" ${coin.type === 'unbreakable' ? 'selected' : ''}>Unbreakable</option>
+                </select>
+                <div class="coin-effect-count">${coin.effects.length} effect(s) preservados</div>
+            </div>
+        `).join('');
+
+        document.querySelectorAll('.coin-editor').forEach((card) => {
+            card.querySelector('.coin-type').addEventListener('change', (event) => {
+                const index = Number(card.dataset.index);
+                coinState[index].type = event.target.value;
+                renderPreview();
+                renderCoinEditors();
+            });
+        });
+    }
+
+    function readForm() {
+        const raw = {
+            ...originalSkill,
+            id: $('f-id').value.trim(),
+            name: $('f-name').value.trim(),
+            type: $('f-type').value,
+            tier: Number($('f-tier').value),
+            basePower: Number($('f-base').value),
+            coinPower: Number($('f-coin-power').value),
+            coinAmount: Math.max(1, Number($('f-coin-amount').value) || 1),
+            attackWeight: Math.max(1, Number($('f-weight').value) || 1),
+            skillRange: Math.max(1, Number($('f-range').value) || 1),
+            skillAmount: Math.max(1, Number($('f-skill-amount').value) || 1),
+            damageType: $('f-damage').value,
+            sinAffinity: selectedSin(),
+            scalingStat: $('f-scaling').value,
+            statUsed: $('f-stat-used').value.trim(),
+            skillUsed: $('f-skill-used').value.trim(),
+            targetingType: $('f-targeting').value,
+            aoePattern: $('f-aoe').value,
+            sourceType: $('f-source-type').value,
+            sourceId: $('f-source-id').value.trim(),
+            isDefense: $('f-defense').checked,
+            isItemSkill: $('f-item').checked,
+            isClashable: $('f-clashable').checked,
+            isUnclashable: $('f-unclashable').checked,
+            isIndiscriminate: $('f-indiscriminate').checked,
+            isTargetFixed: $('f-fixed').checked,
+            requiresUnlock: $('f-unlock').checked,
+            defenseSubtype: $('f-defense-subtype').value,
+            effects: Array.isArray(originalSkill.effects) ? originalSkill.effects : [],
+            evolutionChain: originalSkill.evolutionChain ?? originalSkill.evolution_chain ?? null,
+            coins: coinState
+        };
+
+        return CombatSkillSchema.normalizeCombatSkill(raw);
+    }
+
+    function fillForm(rawSkill) {
+        const skill = CombatSkillSchema.normalizeCombatSkill(rawSkill || {});
+        originalSkill = { ...(rawSkill || {}) };
+        currentId = skill.id || '';
+
+        $('f-id').value = skill.id || '';
+        $('f-name').value = skill.name || '';
+        $('f-type').value = skill.type || 'Attack';
+        $('f-tier').value = String(skill.tier || 1);
+        $('f-base').value = skill.basePower;
+        $('f-coin-power').value = skill.coinPower;
+        $('f-coin-amount').value = skill.coinAmount;
+        $('f-weight').value = skill.attackWeight;
+        $('f-range').value = skill.skillRange;
+        $('f-skill-amount').value = skill.skillAmount;
+        $('f-damage').value = skill.damageType || 'contundente';
+        $('f-scaling').value = skill.scalingStat || 'Fuerza';
+        $('f-stat-used').value = skill.statUsed || '';
+        $('f-skill-used').value = skill.skillUsed || '';
+        $('f-targeting').value = skill.targetingType || 'Focused Attack';
+        $('f-aoe').value = skill.aoePattern || 'Self';
+        $('f-source-type').value = skill.sourceType || 'skill';
+        $('f-source-id').value = skill.sourceId || '';
+        $('f-defense').checked = !!skill.isDefense;
+        $('f-item').checked = !!skill.isItemSkill;
+        $('f-clashable').checked = !!skill.isClashable;
+        $('f-unclashable').checked = !!skill.isUnclashable;
+        $('f-indiscriminate').checked = !!skill.isIndiscriminate;
+        $('f-fixed').checked = !!skill.isTargetFixed;
+        $('f-unlock').checked = !!skill.requiresUnlock;
+        $('f-defense-subtype').value = skill.defenseSubtype || '';
+        setSelectedSin(skill.sinAffinity);
+
+        coinState = skill.coins.map((coin) => ({ ...coin, effects: Array.isArray(coin.effects) ? coin.effects : [] }));
+        syncCoinState(skill.coinAmount);
+        syncConditionalFields();
+        renderPreview();
+
+        $('editorTitle').textContent = skill.id ? 'Editar Skill' : 'Nueva Skill';
+        $('editMeta').textContent = skill.id ? `Editando ${skill.id}` : 'Sin guardar';
+    }
+
+    function newSkill() {
+        currentId = '';
+        originalSkill = {};
+        fillForm(CombatSkillSchema.DEFAULTS);
+        $('f-id').value = '';
+        $('f-name').focus();
+        setStatus('Nueva Skill lista.', 'ok');
+        renderDirectory();
+    }
+
+    function duplicateSkill() {
+        const copy = readForm();
+        originalSkill = { ...copy, id: '' };
+        currentId = '';
+        fillForm(originalSkill);
+        $('f-id').value = '';
+        $('f-name').value = (copy.name || 'Skill') + ' Copy';
+        $('editorTitle').textContent = 'Duplicar Skill';
+        $('editMeta').textContent = 'Copia sin guardar';
+        renderPreview();
+        setStatus('Copia creada. Se guardará con un ID nuevo.', 'ok');
+    }
+
+    function syncConditionalFields() {
+        const isDefense = $('f-defense').checked || $('f-type').value === 'Defense';
+        $('f-defense-subtype').disabled = !isDefense;
+        if (isDefense && !$('f-defense-subtype').value) $('f-defense-subtype').value = 'Guard';
+        if (!isDefense) $('f-defense-subtype').value = '';
+
+        const isAoe = $('f-targeting').value === 'AoE';
+        $('f-aoe').disabled = !isAoe;
+
+        if ($('f-unclashable').checked) $('f-clashable').checked = false;
+    }
+
+    function renderPreview() {
+        syncConditionalFields();
+        const skill = readForm();
+        const sin = SIN_DATA[skill.sinAffinity] || SIN_DATA.sinless;
+        const maxPower = skill.basePower + (skill.coinPower * skill.coinAmount);
+
+        $('previewCard').style.setProperty('--sin', sin.color);
+        $('previewSin').dataset.label = sin.label;
+        $('previewType').textContent = `${skill.type} · Tier ${['I','II','III'][skill.tier - 1] || skill.tier}`;
+        $('previewName').textContent = skill.name || 'Unnamed Skill';
+        $('previewBase').textContent = skill.basePower;
+        $('previewCoinPower').textContent = `${skill.coinPower >= 0 ? '+' : ''}${skill.coinPower}`;
+        $('previewMax').textContent = `MAX ${maxPower}`;
+        $('previewWeight').textContent = skill.attackWeight;
+        $('previewRange').textContent = skill.skillRange;
+        $('previewAmount').textContent = skill.skillAmount;
+
+        $('previewCoins').innerHTML = skill.coins.map((coin) =>
+            `<span class="preview-coin ${coin.type === 'unbreakable' ? 'unbreakable' : ''}"></span>`
+        ).join('');
+
+        const badges = [
+            skill.damageType,
+            skill.scalingStat,
+            skill.targetingType,
+            skill.targetingType === 'AoE' ? skill.aoePattern : null,
+            skill.isDefense ? skill.defenseSubtype : null,
+            skill.isUnclashable ? 'UNCLASHABLE' : null,
+            skill.isIndiscriminate ? 'INDISCRIMINATE' : null,
+            skill.isTargetFixed ? 'TARGET FIXED' : null,
+            skill.isItemSkill ? 'ITEM SKILL' : null,
+            skill.requiresUnlock ? 'REQUIRES UNLOCK' : null
+        ].filter(Boolean);
+
+        $('previewBadges').innerHTML = badges.map((value) => {
+            const klass = String(value).includes('Guard') || String(value).includes('Defense') ? 'badge def' : 'badge';
+            return `<span class="${klass}">${escapeHtml(value)}</span>`;
+        }).join('');
+
+        const preservedEffects = Array.isArray(skill.effects) ? skill.effects.length : 0;
+        const preservedCoinEffects = skill.coins.reduce((sum, coin) => sum + (Array.isArray(coin.effects) ? coin.effects.length : 0), 0);
+        $('previewLegacy').textContent = `Effects preservados: ${preservedEffects} global(es), ${preservedCoinEffects} en Coins. Guardado: canonical v2 + aliases legacy.`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    async function saveSkill() {
+        try {
+            let skill = readForm();
+            if (!skill.id) {
+                skill.id = createId();
+                $('f-id').value = skill.id;
+            }
+
+            const validation = CombatSkillSchema.validateCombatSkill(skill);
+            if (!validation.valid) {
+                setStatus(validation.errors.join(' · '), 'error');
+                return;
+            }
+
+            const payload = CombatSkillSchema.serializeCombatSkill({ ...validation.skill, id: skill.id }, { includeLegacyAliases: true });
+            await db.ref(`${SKILL_PATH}/${skill.id}`).set(payload);
+
+            currentId = skill.id;
+            originalSkill = payload;
+            $('editorTitle').textContent = 'Editar Skill';
+            $('editMeta').textContent = `Guardado ${new Date().toLocaleTimeString()}`;
+            setStatus(validation.warnings.length ? `Guardado. ${validation.warnings.join(' ')}` : 'Skill guardada correctamente.', 'ok');
+        } catch (error) {
+            console.error(error);
+            setStatus(`Error al guardar: ${error.message}`, 'error');
+        }
+    }
+
+    function renderDirectory() {
+        const query = $('search').value.trim().toLowerCase();
+        const entries = Object.entries(allSkills)
+            .map(([id, raw]) => [id, CombatSkillSchema.normalizeCombatSkill({ ...raw, id: raw?.id || id })])
+            .filter(([, skill]) => !query || skill.name.toLowerCase().includes(query) || skill.id.toLowerCase().includes(query))
+            .sort((a, b) => a[1].name.localeCompare(b[1].name));
+
+        $('skillCount').textContent = `${entries.length} / ${Object.keys(allSkills).length}`;
+        $('skillList').innerHTML = entries.map(([id, skill]) => {
+            const sin = SIN_DATA[skill.sinAffinity] || SIN_DATA.sinless;
+            return `
+                <button class="skill-row ${currentId === id ? 'active' : ''}" data-id="${escapeHtml(id)}">
+                    <span class="sin-mark" style="--sin-color:${sin.color}"></span>
+                    <span>
+                        <strong>${escapeHtml(skill.name || id)}</strong>
+                        <small>${escapeHtml(skill.type)} · W${skill.attackWeight} · R${skill.skillRange}</small>
+                    </span>
+                    <span class="row-tier">T${skill.tier}</span>
+                </button>
+            `;
+        }).join('') || '<div style="padding:12px;color:#6f6a60;font-size:11px;">No hay Skills para este filtro.</div>';
+
+        document.querySelectorAll('.skill-row').forEach((row) => {
+            row.addEventListener('click', () => {
+                const id = row.dataset.id;
+                const raw = allSkills[id];
+                if (!raw) return;
+                fillForm({ ...raw, id: raw.id || id });
+                renderDirectory();
+                setStatus(`Skill cargada: ${raw.name || id}`, 'ok');
+            });
+        });
+    }
+
+    function bindEvents() {
+        $('btnNew').addEventListener('click', newSkill);
+        $('btnDuplicate').addEventListener('click', duplicateSkill);
+        $('btnSave').addEventListener('click', saveSkill);
+        $('search').addEventListener('input', renderDirectory);
+        $('f-coin-amount').addEventListener('input', () => {
+            syncCoinState($('f-coin-amount').value);
+            renderPreview();
+        });
+        $('f-targeting').addEventListener('change', renderPreview);
+        $('f-type').addEventListener('change', () => {
+            if ($('f-type').value === 'Defense') $('f-defense').checked = true;
+            renderPreview();
+        });
+        $('f-defense').addEventListener('change', renderPreview);
+        $('f-unclashable').addEventListener('change', renderPreview);
+
+        $('editorScroll').addEventListener('input', (event) => {
+            if (event.target.id === 'f-coin-amount') return;
+            renderPreview();
+        });
+        $('editorScroll').addEventListener('change', renderPreview);
+    }
+
+    function listenSkills() {
+        db.ref(SKILL_PATH).on('value', (snapshot) => {
+            allSkills = snapshot.val() || {};
+            renderDirectory();
+        }, (error) => {
+            console.error(error);
+            setStatus(`No se pudo leer Skills DB: ${error.message}`, 'error');
+        });
+    }
+
+    buildSinSelector();
+    bindEvents();
+    newSkill();
+    listenSkills();
+})();
+</script>
+</body>
+</html>
