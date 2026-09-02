@@ -54,6 +54,19 @@ Examples of effects that need explicit handling:
 - Toggle/activate a device.
 - Apply an effect whose meaning cannot be represented at 50%.
 
+### Scheduled use must be exactly-once
+A scheduled Item use is a single committed combat action. Re-delivering the same scheduled entry must never apply its effects or inventory cost twice.
+
+The runtime must therefore treat a scheduled-use identifier as idempotent across the **entire resolution**, not just consumption:
+- validate Item availability before applying HP/SP/Status/effects;
+- if quantity/charges are insufficient, apply **no effect**;
+- mark a scheduled entry resolved only after successful commit;
+- replaying an already-resolved entry returns the previous resolution / an `already_resolved` result without applying effects again;
+- a cancelled scheduled entry consumes nothing and applies nothing;
+- effects and quantity/charge changes commit together from the caller's perspective.
+
+This requirement exists because the current legacy path can apply effects before discovering insufficient quantity and can replay the same planned entry more than once. The completion work must remove both failure modes.
+
 ### Throw
 Throw will use a Skill rather than a separate damage formula.
 
@@ -95,9 +108,11 @@ Do not create a second Throw combat formula inside ItemRuntime.
 - [ ] Quick Action use resolves the configured quick-use behavior, normally 50%.
 - [ ] Quick use must reject Items that do not explicitly allow it.
 - [ ] Quick use must support explicit overrides for binary effects.
+- [ ] Validate quantity/charges before applying any effect.
 - [ ] Item consumption/quantity/charges happen only after a valid execution path is confirmed.
-- [ ] Cancelled scheduled Item Actions must not consume the Item.
-- [ ] Prevent double consumption when the same scheduled action is resolved more than once.
+- [ ] Cancelled scheduled Item Actions apply no effect and consume nothing.
+- [ ] Make scheduled resolution idempotent: the same action ID can resolve successfully at most once.
+- [ ] Replayed scheduled entries must not duplicate HP/SP/Status/effects or inventory mutations.
 
 ### P0 — Targeting and effect ownership
 - [ ] Normalize Self / Ally / Enemy / Target use modes.
@@ -147,8 +162,10 @@ Do not create a second Throw combat formula inside ItemRuntime.
 - [ ] Full Action consumable = 100% effect.
 - [ ] Quick Action consumable = configured 50% effect.
 - [ ] Binary Item rejects Quick Action when no override exists.
-- [ ] Cancelled scheduled use does not consume quantity/charges.
-- [ ] Successful scheduled use consumes exactly once.
+- [ ] Cancelled scheduled use applies no effect and consumes no quantity/charges.
+- [ ] Insufficient quantity/charges applies no effect.
+- [ ] Successful scheduled use applies effects and consumes inventory exactly once.
+- [ ] Replaying the same scheduled action ID is a no-op for both effects and inventory.
 - [ ] Weapon resolves valid `base_skill_id`.
 - [ ] Shield resolves valid `clashable_guard_skill_id`.
 - [ ] Throwable Item resolves its linked Skill.
