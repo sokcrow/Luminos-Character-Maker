@@ -1,12 +1,13 @@
 import { TEST_LAB_ID, ensureTestLab } from './map-test-lab.js';
 
+const browserRoot=typeof window!=='undefined'?window:null;
 const BODY_ID='vtt-map-authoring-body';
 const TEST_BUTTON='[data-map-test-lab]';
 const DELETE_BUTTON='[data-map-delete]';
 
 function clean(value){return String(value??'').trim();}
 
-function context(root=window){
+function context(root=browserRoot){
   return{
     runtime:root?.LuminousVttRuntime||null,
     authoring:root?.LuminousVttMapAuthoring||null,
@@ -33,7 +34,7 @@ function selectMap(root,mapId){
   return true;
 }
 
-async function openTestLab(root=window){
+async function openTestLab(root=browserRoot){
   const {bridge,authoring}=context(root);
   if(!bridge||!authoring)throw new Error('MAP_AUTHORING_RUNTIME_REQUIRED');
   const lab=await ensureTestLab({bridge,authoring});
@@ -43,7 +44,7 @@ async function openTestLab(root=window){
   return lab;
 }
 
-async function deleteSelectedMap(root=window){
+async function deleteSelectedMap(root=browserRoot){
   const {bridge,documentRef}=context(root);
   if(!bridge||!documentRef)throw new Error('MAP_AUTHORING_RUNTIME_REQUIRED');
   const mapId=clean(documentRef.querySelector?.('[data-map-select]')?.value);
@@ -52,7 +53,7 @@ async function deleteSelectedMap(root=window){
   if(!definition)throw new Error('MAP_NOT_FOUND');
   if(bridge.activeMapId?.()===mapId)throw new Error('ACTIVE_MAP_CANNOT_BE_DELETED');
 
-  const confirmed=root.confirm?.(`Delete map "${definition.name}"? This cannot be undone.`);
+  const confirmed=root?.confirm?.(`Delete map "${definition.name}"? This cannot be undone.`);
   if(confirmed===false)return false;
 
   await bridge.deleteDefinition(mapId);
@@ -63,7 +64,7 @@ async function deleteSelectedMap(root=window){
   return true;
 }
 
-function refreshDeleteState(root=window){
+function refreshDeleteState(root=browserRoot){
   const {bridge,documentRef}=context(root);
   const button=documentRef?.querySelector?.(DELETE_BUTTON);
   if(!button||!bridge)return false;
@@ -75,7 +76,7 @@ function refreshDeleteState(root=window){
   return true;
 }
 
-function mountControls(root=window){
+function mountControls(root=browserRoot){
   const {bridge,documentRef}=context(root);
   if(!bridge||!documentRef)return false;
   const body=documentRef.getElementById?.(BODY_ID);
@@ -122,9 +123,9 @@ function mountControls(root=window){
   return true;
 }
 
-export function install({root=window}={}){
+export function install({root=browserRoot}={}){
   const documentRef=root?.document;
-  if(!documentRef||root.__luminousMapLibraryTestControls)return root.__luminousMapLibraryTestControls||null;
+  if(!documentRef||root.__luminousMapLibraryTestControls)return root?.__luminousMapLibraryTestControls||null;
   let stopped=false;
   let scheduled=false;
   const sync=()=>{
@@ -157,9 +158,10 @@ export function install({root=window}={}){
   return api;
 }
 
-function autoStart(root=window){
+function autoStart(root=browserRoot){
+  if(!root?.document)return;
   const run=()=>install({root});
-  if(root?.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',run,{once:true});
+  if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',run,{once:true});
   else run();
 }
 
