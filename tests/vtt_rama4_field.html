@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VTT Rama 4 Field Harness</title>
+  <style>
+    html,body{margin:0;background:#101318;color:#e7edf5;font:14px/1.4 monospace}
+    #stage{position:fixed;inset:0;overflow:hidden}
+    canvas{position:absolute;inset:0;width:960px;height:540px}
+    #rama4-result{position:relative;z-index:5;margin:12px;padding:12px;max-width:920px;max-height:500px;overflow:auto;background:rgba(0,0,0,.78);white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <pre id="rama4-result" data-status="running">Rama 4 field harness running…</pre>
+  <script type="module">
+    const output=document.getElementById('rama4-result');
+    const stage=document.getElementById('stage');
+    const fail=(message,data=null)=>{
+      output.dataset.status='fail';
+      output.textContent=JSON.stringify({status:'FAIL',message:String(message),data},null,2);
+    };
+    const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+    const round=(value,digits=2)=>Number(Number(value||0).toFixed(digits));
+    const average=(values)=>values.length?values.reduce((sum,value)=>sum+value,0)/values.length:0;
+    const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+    const frames=async(count)=>{for(let i=0;i<count;i+=1)await nextFrame();};
+
+    try{
+      await import('../js/vtt/scene-dirty.js');
+      await import('../js/vtt/topology.js');
+      await import('../js/vtt/token-interaction.js');
+      await import('../js/vtt/pathfinding.js');
+      await import('../js/vtt/surface-core.js');
+      await import('../js/vtt/horizontal-plane-core.js');
+      await import('../js/vtt/building-physics-core.js');
+      await import('../js/vtt/semantic-map-core.js');
+      await import('../js/vtt/building-semantic-core.js');
+      await import('../js/vtt/building-archetype-core.js');
+      await import('../js/vtt/vertical-portal.js');
+      await import('../js/vtt/building-navigation-core.js');
+      await import('../js/vtt/procedural-zone-core.js');
+      await import('../js/vtt/urban-fabric-core.js');
+      await import('../js/vtt/procedural-building-generator.js');
+      await import('../js/vtt/procedural-topology-optimizer.js');
+      await import('../js/vtt/procedural-building-mix-patch.js');
+      await import('../js/vtt/procedural-generator-core.js');
+
+      const [{Engine},{installPerceptionSchedulerRuntime},{installProceduralPerformanceRuntime},{installRama4FieldStabilityCompat}]=await Promise.all([
+        import('../js/vtt/engine.js'),
+        import('../js/vtt/perception-scheduler-runtime.js'),
+        import('../js/vtt/procedural-performance-runtime.js'),
+        import('../js/vtt/rama4-field-stability-compat.js'),
+      ]);
+
+      const generator=window.LuminousVttProceduralGenerator;
+      const pathfinding=window.LuminousVttPathfinding;
+      const interaction=window.LuminousVttTokenInteraction;
+      assert(generator?.generateZone,'production procedural generator did not load');
+      assert(pathfinding?.findPath&&interaction?.canOccupy,'production movement/pathfinding did not load');
+
+      function lightMap(){
+        return {
+          id:'rama4-light',name:'Rama 4 Light Field',
+          grid:{cols:40,rows:40,size:70,distancePerCell:5},
+          topology:[],walls:[],tokens:[],verticalPortals:[],structures:[],worldObjects:[],horizontalPlanes:[],surfaceLayers:{'0':{}},
+          ambientLight:{level:'bright'},movement:{blockTokens:false},semantics:{buildings:[]},
+        };
+      }
+
+      function proceduralMap(){
+        const plan=generator.generateZone({zoneId:'zone_rama4_field_browser',seed:'rama4-field-a',profileId:'mixed_urban',gridSize:70,chunkCols:1,chunkRows:1,maxAttempts:12,minBuildings:4});
+        assert(plan?.validation?.valid===true,'representative procedural field plan failed validation');
+        const map=structuredClone(plan.mapData);
+        map.id='rama4-procedural';
+        map.name='Rama 4 Procedural Field';
+        map.tokens=[];
+        map.walls=Array.isArray(map.walls)?map.walls:[];
+        map.verticalPortals=Array.isArray(map.verticalPortals)?map.verticalPortals:[];
+        map.structures=Array.isArray(map.structures)?map.structures:[];
+        map.worldObjects=Array.isArray(map.worldObjects)?map.worldObjects:[];
+        map.horizontalPlanes=Array.isArray(map.horizontalPlanes)?map.horizontalPlanes:[];
+        map.surfaceLayers=map.surfaceLayers||{'0':{}};
+        map.ambientLight=map.ambientLight||{level:'bright'};
+        map.movement={...(map.movement||{}),blockTokens:false};
+        map.procedural={...(map.procedural||{}),signature:plan.signature||'rama4-field-a',geometryDiagnostics:structuredClone(plan.generated?.geometryDiagnostics||null),topologySourceIdMap:{...(plan.generated?.topologySourceIdMap||{})}};
+        return map;
+      }
+
+      function pointForCell(map,col,row){
+        const size=Number(map.grid.size)||70;
+        return{x:(col+.5)*size,y:(row+.5)*size,col,row,z:0,zLayer:0};
+      }
+
+      function findTraversal(map,token){
+        const candidates=[];
+        for(let row=1;row<map.grid.rows-1;row+=1){
+          for(let col=1;col<map.grid.cols-1;col+=1){
+            const point=pointForCell(map,col,row);
+            if(interaction.canOccupy(token,point,map).valid)candidates.push(point);
+          }
+        }
+        assert(candidates.length>20,'not enough passable cells in field map');
+        const start=candidates[0];
+        token.x=start.x;token.y=start.y;token.gridPosition={col:start.col,row:start.row,z:0};
+        const far=[...candidates].sort((a,b)=>Math.hypot(b.x-start.x,b.y-start.y)-Math.hypot(a.x-start.x,a.y-start.y));
+        for(const target of far.slice(0,80)){
+          const result=pathfinding.findPath({token,start,target,mapData:map,zLayer:0,blockTokens:false,maxVisited:10000});
+          if(result.valid&&Array.isArray(result.path)&&result.path.length>=8)return result;
+        }
+        throw new Error('could not resolve a representative traversal path');
+      }
+
+      async function runScenario(name,map){
+        const canvas=document.createElement('canvas');
+        canvas.id=`vtt-canvas-${name}`;
+        canvas.width=960;canvas.height=540;
+        canvas.style.width='960px';canvas.style.height='540px';
+        stage.appendChild(canvas);
+
+        const token={id:`player:${name}`,viewer:true,canonicalScope:'player',actorCategory:'player',x:105,y:105,zLayer:0,z:[0],radius:14,draggable:true,color:'#56b4ff',senses:{darkvisionFt:0}};
+        map.tokens=[token];
+        const route=findTraversal(map,token);
+        const traversalPath=route.path.slice(0,Math.min(route.path.length,16));
+        assert(traversalPath.length>=8,'field traversal must contain enough cells to expose progressive work');
+
+        const engine=new Engine(canvas,map);
+        window.LuminousVttRuntime={engine};
+        const compat=installRama4FieldStabilityCompat(window);compat.ensure();
+        const perception=installPerceptionSchedulerRuntime({runtime:window.LuminousVttRuntime});
+        const performanceRuntime=installProceduralPerformanceRuntime({runtime:window.LuminousVttRuntime,mapData:map});
+        assert(engine.renderer?.backend==='webgl2',`scenario ${name} did not acquire production WebGL2 renderer`);
+        assert(performanceRuntime.spatialFilteringEnabled===false,'spatial filtering must remain disabled for the pre-spatial field gate');
+        assert(performanceRuntime.renderCullingEnabled===false,'render culling must remain disabled for the pre-spatial field gate');
+
+        const previewTimes=[];
+        const previewPoints=[];
+        const onPreview=(event)=>{
+          const detail=event.detail||{};
+          if(!detail.traversing)return;
+          previewTimes.push(performance.now());
+          previewPoints.push({x:Number(detail.x),y:Number(detail.y)});
+          engine.camera.centerOnWorldPoint(detail.x,detail.y);
+        };
+        canvas.addEventListener('vtt:token-preview-moved',onPreview);
+
+        engine.start();
+        await frames(4);
+        const before=performanceRuntime.snapshot();
+        const drag={originX:token.x,originY:token.y,originZ:0,originElevationFt:0};
+        const traversal=await engine.animateTokenPath(token,traversalPath,{actionMode:'walk'});
+        assert(traversal.valid===true&&traversal.complete===true,`scenario ${name} traversal failed`);
+        await frames(2);
+        const during=performanceRuntime.snapshot();
+        const traversalVisionDelta=during.visionRecomputes-before.visionRecomputes;
+        assert(traversalVisionDelta===0,`scenario ${name} recomputed FOV during traversal frames`);
+
+        engine.finalizeTokenMove(token,drag,{path:traversalPath,costFt:route.costFt,routeCostFt:route.costFt,movementCostFt:route.costFt,actionMode:'walk'});
+        await frames(4);
+        const after=performanceRuntime.snapshot();
+        const endpointVisionDelta=after.visionRecomputes-during.visionRecomputes;
+        assert(endpointVisionDelta===1,`scenario ${name} endpoint must produce exactly one FOV recompute, got ${endpointVisionDelta}`);
+        assert(after.tokenPreviewFrames>=8,`scenario ${name} did not produce enough smooth preview frames`);
+
+        const previewIntervals=previewTimes.slice(1).map((value,index)=>Math.max(0,value-previewTimes[index]));
+        const midpoint=Math.max(1,Math.floor(previewIntervals.length/2));
+        const firstHalfAvg=average(previewIntervals.slice(0,midpoint));
+        const secondHalfAvg=average(previewIntervals.slice(midpoint));
+        assert(secondHalfAvg<=Math.max(45,(firstHalfAvg*2.5)+5),`scenario ${name} shows progressive animation snowball`);
+        let maxPreviewJump=0;
+        for(let i=1;i<previewPoints.length;i+=1)maxPreviewJump=Math.max(maxPreviewJump,Math.hypot(previewPoints[i].x-previewPoints[i-1].x,previewPoints[i].y-previewPoints[i-1].y));
+        assert(maxPreviewJump<=map.grid.size*1.55,`scenario ${name} movement ceased to be visually smooth`);
+
+        const geometry=after.geometry;
+        if(name==='procedural'){
+          assert(geometry.rawWallSegments>geometry.optimizedWallSegments,'procedural field map did not reduce wall geometry');
+          assert(geometry.absoluteReduction>0&&geometry.reductionPercent>0,'procedural geometry reduction was not measurable');
+          assert(after.topologyCandidates===geometry.visionBlockingSegments,'pre-spatial FOV must inspect all optimized vision blockers');
+        }
+
+        const summary={
+          name,
+          backend:engine.renderer.backend,
+          routeCells:traversalPath.length,
+          pathfindingVisited:route.visited,
+          previewFrames:after.tokenPreviewFrames,
+          maxPreviewJumpPx:round(maxPreviewJump),
+          firstHalfPreviewIntervalMs:round(firstHalfAvg),
+          secondHalfPreviewIntervalMs:round(secondHalfAvg),
+          traversalVisionRecomputes:traversalVisionDelta,
+          endpointVisionRecomputes:endpointVisionDelta,
+          visionRecomputes:after.visionRecomputes,
+          visionCacheHits:after.visionCacheHits,
+          topologyCandidates:after.topologyCandidates,
+          renderRequests:after.renderRequests,
+          cameraDirtyEvents:after.cameraDirtyEvents,
+          cameraRenderCoalesces:perception.snapshot().cameraRenderCoalesces,
+          activeFpsHeadless:round(after.activeFps),
+          activeFrameTimeAvgMs:round(after.activeFrameTimeAvgMs),
+          activeFrameTimeMaxMs:round(after.activeFrameTimeMaxMs),
+          renderFrameAvgMs:round(after.avgFrameMs),
+          renderFrameMaxMs:round(after.frameMaxMs),
+          geometry:{
+            buildings:geometry.buildings,
+            rawTopologyElements:geometry.rawTopologyElements,
+            rawWalls:geometry.rawWallSegments,
+            optimizedWalls:geometry.optimizedWallSegments,
+            doors:geometry.doors,
+            windows:geometry.windows,
+            visionBlockingSegments:geometry.visionBlockingSegments,
+            absoluteReduction:geometry.absoluteReduction,
+            reductionPercent:round(geometry.reductionPercent,1),
+          },
+          experimental:after.experimental,
+        };
+
+        canvas.removeEventListener('vtt:token-preview-moved',onPreview);
+        engine.stop();
+        performanceRuntime.stop();
+        perception.stop();
+        engine.camera?.destroy?.();
+        engine.renderer?.destroy?.();
+        canvas.remove();
+        delete window.LuminousVttRuntime;
+        return summary;
+      }
+
+      const light=await runScenario('light',lightMap());
+      const procedural=await runScenario('procedural',proceduralMap());
+      assert(light.traversalVisionRecomputes===0&&procedural.traversalVisionRecomputes===0,'map complexity must not multiply perception work per traversal frame');
+      assert(light.endpointVisionRecomputes===1&&procedural.endpointVisionRecomputes===1,'both scenarios must keep endpoint-only exact perception');
+      assert(procedural.previewFrames>procedural.endpointVisionRecomputes*5,'procedural animation did not separate visual frames from perception work');
+      assert(procedural.experimental.spatialFilteringEnabled===false&&procedural.experimental.renderCullingEnabled===false,'field result was contaminated by experimental spatial optimizations');
+
+      window.LuminousVttRama4FieldStabilityCompat?.stop?.();
+      const result={
+        status:'PASS',
+        renderer:'production WebGL2',
+        note:'Headless SwiftShader FPS is diagnostic only; pass/fail is based on geometry, endpoint perception, smoothness, and no-snowball invariants.',
+        light,
+        procedural,
+        comparison:{
+          perceptionFrameMultiplier:procedural.traversalVisionRecomputes-light.traversalVisionRecomputes,
+          rawWallIncrease:procedural.geometry.rawWalls-light.geometry.rawWalls,
+          optimizedWallIncrease:procedural.geometry.optimizedWalls-light.geometry.optimizedWalls,
+          proceduralReductionPercent:procedural.geometry.reductionPercent,
+        },
+      };
+      output.dataset.status='pass';
+      output.textContent=JSON.stringify(result,null,2);
+    }catch(error){
+      console.error(error);
+      fail(error?.stack||error?.message||error);
+    }
+  </script>
+</body>
+</html>
