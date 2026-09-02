@@ -9,12 +9,14 @@ import './procedural-topology-optimizer.js';
 import './procedural-building-mix-patch.js';
 import './procedural-generator-core.js';
 import './procedural-map-authoring-patch.js';
+import { installPerceptionSchedulerRuntime } from './perception-scheduler-runtime.js';
 import { installProceduralPerformanceRuntime } from './procedural-performance-runtime.js';
 
 export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
   if(!runtime?.engine||!mapData)return null;
   if(window.LuminousVttProceduralGeneratorRuntime?.api)return window.LuminousVttProceduralGeneratorRuntime.api;
   window.LuminousVttProceduralMapAuthoringPatch?.install?.();
+  const perceptionRuntime=installPerceptionSchedulerRuntime({runtime});
   const performanceRuntime=installProceduralPerformanceRuntime({runtime,mapData});
   const core=window.LuminousVttProceduralGenerator,zoneCore=window.LuminousVttProceduralZone,fabric=window.LuminousVttUrbanFabric,buildings=window.LuminousVttProceduralBuildings;
   if(!core||!zoneCore||!fabric||!buildings)throw new Error('PROCEDURAL_GENERATOR_RUNTIME_REQUIRED');
@@ -74,13 +76,13 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
   }
   async function createZone(options={},applyOptions={}){const plan=await previewAsync(options);apply(plan,{...applyOptions,persist:false});await persist(plan);return plan;}
   const api=Object.freeze({
-    core,zoneCore,fabric,buildings,performance:performanceRuntime,
+    core,zoneCore,fabric,buildings,perception:perceptionRuntime,performance:performanceRuntime,
     profiles:()=>Object.values(fabric.PROFILES).map(x=>({...x})),
     profile:(id='mixed_urban')=>({...fabric.normalizeProfile(id)}),
     buildingMix:(id='mixed_urban')=>({...buildings.normalizeBuildingMix?.(buildings.WEIGHTS?.[id]||buildings.WEIGHTS?.mixed_urban,id)}),
     preview,previewAsync,apply,persist,createZone,generateAndApply:createZone,getLastPlan:()=>lastPlan,currentMetadata:()=>mapData.procedural||null,
     continuationRequirements:(zone=lastPlan?.zone||mapData.procedural?.zone)=>zone?zoneCore.continuationRequirements(zone):[],validatePlan:(plan=lastPlan)=>plan?.validation||null,
-    stop(){lastPlan=null;for(const request of pendingWorkerRequests.values())request.reject(new Error('PROCEDURAL_GENERATOR_STOPPED'));pendingWorkerRequests.clear();try{worker?.terminate?.();}catch(_){}worker=null;performanceRuntime?.stop?.();},
+    stop(){lastPlan=null;for(const request of pendingWorkerRequests.values())request.reject(new Error('PROCEDURAL_GENERATOR_STOPPED'));pendingWorkerRequests.clear();try{worker?.terminate?.();}catch(_){}worker=null;performanceRuntime?.stop?.();perceptionRuntime?.stop?.();},
   });
   window.LuminousVttProceduralGeneratorRuntime={api};window.LuminousVttRuntime=Object.freeze({...window.LuminousVttRuntime,procedural:api});return api;
 }
