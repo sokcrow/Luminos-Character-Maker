@@ -1,0 +1,62 @@
+name: VTT Rama 4 Topology and Perception
+
+on:
+  push:
+    branches:
+      - rama4-grid-topology-verticality
+    paths:
+      - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/procedural-topology-optimizer.js'
+      - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/procedural-generator-bootstrap.js'
+      - 'js/vtt/procedural-generator-worker.js'
+      - 'js/vtt/procedural-performance-runtime.js'
+      - 'scripts/vtt-*.mjs'
+      - '.github/workflows/vtt-rama4-topology-perception.yml'
+  pull_request:
+    paths:
+      - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/procedural-topology-optimizer.js'
+      - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/procedural-generator-bootstrap.js'
+      - 'js/vtt/procedural-generator-worker.js'
+      - 'js/vtt/procedural-performance-runtime.js'
+      - 'scripts/vtt-*.mjs'
+      - '.github/workflows/vtt-rama4-topology-perception.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rama4-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --input-type=module --check < js/vtt/perception-scheduler.js
+          node --input-type=module --check < js/vtt/perception-scheduler-runtime.js
+          node --input-type=module --check < js/vtt/procedural-topology-optimizer.js
+          node --input-type=module --check < js/vtt/procedural-building-mix-patch.js
+          node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
+          node --input-type=module --check < js/vtt/procedural-performance-runtime.js
+      - name: Topology optimizer unit checks
+        run: node scripts/vtt-procedural-topology-optimizer-check.mjs
+      - name: Topology runtime semantics
+        run: node scripts/vtt-procedural-topology-runtime-check.mjs
+      - name: Procedural generator geometry
+        run: node scripts/vtt-procedural-generator-geometry-check.mjs
+      - name: Perception scheduler
+        run: node scripts/vtt-perception-scheduler-check.mjs
+      - name: Perception dirty contract
+        run: node scripts/vtt-perception-dirty-contract-check.mjs
+      - name: Perception runtime integration
+        run: node scripts/vtt-perception-runtime-check.mjs
+      - name: Preserve Rama 3 field stability invariants
+        run: node scripts/vtt-field-stability-check.mjs
