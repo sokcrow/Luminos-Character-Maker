@@ -79,17 +79,19 @@ const index=createChunkSpatialIndex(scene,{gridSize:GRID_SIZE,bucketCells:4});
 assert.equal(index.totals.surfaces,1600,'single simulated production chunk must contain 40x40 surface cells');
 assert.ok(world.total>2500,'simulated chunk must be dense enough to expose culling differences');
 
+// Approximate a 16:9 tactical camera footprint while keeping a safety margin around the player.
 const viewport={
-  minX:10*GRID_SIZE,
+  minX:8*GRID_SIZE,
   minY:13*GRID_SIZE,
-  maxX:30*GRID_SIZE,
+  maxX:32*GRID_SIZE,
   maxY:27*GRID_SIZE,
 };
 const viewportSet=queryChunkRect(index,viewport);
 const viewportCounts=workingSetCounts(viewportSet);
 
+// The 120-degree cone is authoritative; two extra cells are retained as preload to avoid pop-in.
 const player={x:20*GRID_SIZE,y:20*GRID_SIZE,facingDeg:0};
-const playerSet=queryPlayerPov(index,player,{fovDeg:120,rangePx:13*GRID_SIZE,preloadPx:2*GRID_SIZE});
+const playerSet=queryPlayerPov(index,player,{fovDeg:120,rangePx:11*GRID_SIZE,preloadPx:2*GRID_SIZE});
 const playerCounts=workingSetCounts(playerSet);
 
 const dmSet=queryDmSimplified(index,viewport,{groupCells:4});
@@ -109,13 +111,13 @@ const playerMovement=measure('player-120-pov',movementFrames,(frame)=>{
     y:(20+Math.sin(t*Math.PI*4)*4)*GRID_SIZE,
     facingDeg:Math.sin(t*Math.PI*2)*35,
   };
-  return workingSetCounts(queryPlayerPov(index,moving,{fovDeg:120,rangePx:13*GRID_SIZE,preloadPx:2*GRID_SIZE})).total;
+  return workingSetCounts(queryPlayerPov(index,moving,{fovDeg:120,rangePx:11*GRID_SIZE,preloadPx:2*GRID_SIZE})).total;
 });
 
 const dmMovement=measure('dm-simplified',movementFrames,(frame)=>{
   const t=frame/(movementFrames-1);
   const centerX=(10+20*t)*GRID_SIZE;
-  const bounds={minX:centerX-10*GRID_SIZE,minY:13*GRID_SIZE,maxX:centerX+10*GRID_SIZE,maxY:27*GRID_SIZE};
+  const bounds={minX:centerX-12*GRID_SIZE,minY:13*GRID_SIZE,maxX:centerX+12*GRID_SIZE,maxY:27*GRID_SIZE};
   return drawUnitCounts(queryDmSimplified(index,bounds,{groupCells:4}).drawUnits).total;
 });
 
