@@ -35,6 +35,7 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
     ?globalThis.requestAnimationFrame.bind(globalThis)
     :(callback)=>globalThis.setTimeout(()=>callback(globalThis.performance?.now?.()||Date.now()),16);
   const timing={activeIntervals:0,activeIntervalTotalMs:0,activeIntervalMaxMs:0,lastActiveRenderAt:null};
+  let cameraRenderCoalesces=0;
   let stopped=false;
 
   function calculateVisionScheduled(...args){
@@ -53,14 +54,14 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
     const renderData=scheduler.consumeVision(()=>exactCalculateVision());
     if(!engine.isExporting&&scheduler.shouldRender()){
       const active=Boolean(scheduler.animationActive||scheduler.cameraActive);
-      const now=globalThis.performance?.now?.()||Date.now();
+      const timestamp=globalThis.performance?.now?.()||Date.now();
       if(active&&timing.lastActiveRenderAt!=null){
-        const interval=Math.max(0,now-timing.lastActiveRenderAt);
+        const interval=Math.max(0,timestamp-timing.lastActiveRenderAt);
         timing.activeIntervals+=1;
         timing.activeIntervalTotalMs+=interval;
         timing.activeIntervalMaxMs=Math.max(timing.activeIntervalMaxMs,interval);
       }
-      timing.lastActiveRenderAt=active?now:null;
+      timing.lastActiveRenderAt=active?timestamp:null;
       engine.renderer?.render?.(engine.camera,engine.activeZ,renderData,engine.isExporting);
       scheduler.didRender();
     }
@@ -68,9 +69,13 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
   }
 
   function onSceneDirty(event){
-    const detail=normalizePerceptionDirty(event?.detail||{});
+    let detail=normalizePerceptionDirty(event?.detail||{});
     if(detail.meta?.traversing)scheduler.setAnimationActive(detail.active!==false);
     else if(detail.reason==='token'&&detail.active===false)scheduler.setAnimationActive(false);
+    if(detail.reason==='camera'&&scheduler.animationActive&&detail.render!==false){
+      cameraRenderCoalesces+=1;
+      detail={...detail,render:false};
+    }
     scheduler.markSceneDirty(detail);
   }
 
@@ -91,6 +96,7 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
       const activeFrameTimeAvgMs=timing.activeIntervals?timing.activeIntervalTotalMs/timing.activeIntervals:0;
       return Object.freeze({
         ...base,
+        cameraRenderCoalesces,
         activeFrameTimeAvgMs,
         activeFrameTimeMaxMs:timing.activeIntervalMaxMs,
         activeFps:activeFrameTimeAvgMs>0?1000/activeFrameTimeAvgMs:0,
