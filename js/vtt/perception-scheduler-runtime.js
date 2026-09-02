@@ -51,8 +51,8 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
 
   function scheduledLoop(){
     if(stopped||!engine.isRunning)return;
-    const renderData=scheduler.consumeVision(()=>exactCalculateVision());
     if(!engine.isExporting&&scheduler.shouldRender()){
+      const renderData=scheduler.consumeVision(()=>exactCalculateVision());
       const active=Boolean(scheduler.animationActive||scheduler.cameraActive);
       const timestamp=globalThis.performance?.now?.()||Date.now();
       if(active&&timing.lastActiveRenderAt!=null){
@@ -64,6 +64,8 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
       timing.lastActiveRenderAt=active?timestamp:null;
       engine.renderer?.render?.(engine.camera,engine.activeZ,renderData,engine.isExporting);
       scheduler.didRender();
+    }else{
+      timing.lastActiveRenderAt=null;
     }
     raf(engine.loop);
   }
