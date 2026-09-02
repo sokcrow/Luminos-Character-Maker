@@ -52,6 +52,8 @@ jobs:
         run: node scripts/vtt-procedural-topology-runtime-check.mjs
       - name: Procedural generator geometry
         run: node scripts/vtt-procedural-generator-geometry-check.mjs
+      - name: Pre-spatial performance baseline
+        run: node scripts/vtt-procedural-performance-baseline-check.mjs
       - name: Perception scheduler
         run: node scripts/vtt-perception-scheduler-check.mjs
       - name: Perception dirty contract
