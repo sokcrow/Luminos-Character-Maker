@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
-const economy = require('../js/team-action-economy.js');
+await import('../js/team-action-economy.js');
+const economy = globalThis.LuminousTeamActionEconomy;
+if (!economy?.createEncounter) throw new Error('LuminousTeamActionEconomy was not initialized.');
 
-globalThis.LuminousTeamActionEconomy = economy;
 globalThis.LuminousActionEconomy = {
   beginPlanning(unit) { unit.__planningCount = (unit.__planningCount || 0) + 1; },
   beginCombat(unit) { unit.__combatCount = (unit.__combatCount || 0) + 1; },
 };
 
-const bridge = require('../js/combat-team-economy-bridge.js');
+await import('../js/combat-team-economy-bridge.js');
+const bridge = globalThis.LuminousCombatTeamEconomyBridge;
 
 // Allied side: 12 total Actions, distributed by Speed; only the two fastest may reach 3.
 const allies = Array.from({ length: 8 }, (_, index) => ({
