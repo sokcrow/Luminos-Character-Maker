@@ -5,6 +5,6 @@ import './structure-core.js';
 import './structure-authoring-patch.js';
 import './horizontal-plane-core.js';
 import './horizontal-plane-authoring-patch.js';
-import './map-library-test-controls.js';
+import './vertical-transition-animation-runtime.js';
 
 globalThis.LuminousVttHorizontalPlaneAuthoringPatch?.install?.();
