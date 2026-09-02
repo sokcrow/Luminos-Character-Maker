@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const schema = require('../js/combat-action-schema.js');
-const adapters = require('../js/combat-action-adapters.js');
+
+await import('../js/combat-action-schema.js');
+const schema = globalThis.LuminousCombatAction;
+await import('../js/combat-action-adapters.js');
+const adapters = globalThis.LuminousCombatActionAdapters;
+if (!schema || !adapters) throw new Error('CombatAction modules were not initialized.');
 
 const actor = { id: 'a1' };
 const skill = {
