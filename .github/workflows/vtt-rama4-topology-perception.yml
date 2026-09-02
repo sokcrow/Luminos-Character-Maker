@@ -7,6 +7,8 @@ on:
     paths:
       - 'js/vtt/perception-scheduler.js'
       - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/rama4-field-stability-compat.js'
+      - 'js/vtt/render/renderer-factory.js'
       - 'js/vtt/procedural-topology-optimizer.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/procedural-generator-bootstrap.js'
@@ -18,6 +20,8 @@ on:
     paths:
       - 'js/vtt/perception-scheduler.js'
       - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/rama4-field-stability-compat.js'
+      - 'js/vtt/render/renderer-factory.js'
       - 'js/vtt/procedural-topology-optimizer.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/procedural-generator-bootstrap.js'
@@ -42,6 +46,8 @@ jobs:
         run: |
           node --input-type=module --check < js/vtt/perception-scheduler.js
           node --input-type=module --check < js/vtt/perception-scheduler-runtime.js
+          node --input-type=module --check < js/vtt/rama4-field-stability-compat.js
+          node --input-type=module --check < js/vtt/render/renderer-factory.js
           node --input-type=module --check < js/vtt/procedural-topology-optimizer.js
           node --input-type=module --check < js/vtt/procedural-building-mix-patch.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
@@ -60,5 +66,7 @@ jobs:
         run: node scripts/vtt-perception-dirty-contract-check.mjs
       - name: Perception runtime integration
         run: node scripts/vtt-perception-runtime-check.mjs
+      - name: Rama 4 stability compatibility
+        run: node scripts/vtt-rama4-stability-compat-check.mjs
       - name: Preserve Rama 3 field stability invariants
         run: node scripts/vtt-field-stability-check.mjs
