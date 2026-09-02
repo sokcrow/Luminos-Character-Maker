@@ -205,9 +205,23 @@
     async function deleteDefinition(mapId) {
       if (!dm) throw new Error('DM_REQUIRED');
       const key = authoring.firebaseKey(mapId, 'default');
+      const previous = maps[key];
+      if (previous === undefined) throw new Error('MAP_NOT_FOUND');
       if (activeMapId() === key) throw new Error('ACTIVE_MAP_CANNOT_BE_DELETED');
+
       delete maps[key];
-      if (db) await mapsRef().child(key).remove();
+      try {
+        if (db) {
+          const ref = mapsRef()?.child?.(key);
+          if (!ref?.remove) throw new Error('MAP_DELETE_STORAGE_UNAVAILABLE');
+          await ref.remove();
+        }
+      } catch (error) {
+        maps[key] = previous;
+        notifyMapsChanged();
+        throw error;
+      }
+
       notifyMapsChanged();
       return true;
     }
