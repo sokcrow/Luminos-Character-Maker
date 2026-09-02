@@ -13,6 +13,7 @@ importScripts(
   './procedural-zone-core.js',
   './urban-fabric-core.js',
   './procedural-building-generator.js',
+  './procedural-topology-optimizer.js',
   './procedural-building-mix-patch.js',
   './procedural-generator-core.js',
 );
