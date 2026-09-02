@@ -1,5 +1,6 @@
 import '../movement-zero-work-drag.js';
 import '../token-interaction-runtime.js';
+import '../field-stability-hotfix.js';
 import { Canvas2DRenderer } from './canvas2d-renderer.js';
 import { installDmObserverOverlay } from './dm-observer-overlay.js';
 import { installPersistentTokenViews } from './persistent-token-views.js';
@@ -18,7 +19,11 @@ export function createRenderer(canvas, mapData, { backend = RENDERER_BACKENDS.CA
 
     installPersistentTokenViews(renderer);
     installTransientTokenPreview(renderer);
-    installRemoteTokenInterpolation(renderer);
+    installRemoteTokenInterpolation(renderer, {
+        minDurationMs: 120,
+        defaultDurationMs: 160,
+        maxDurationMs: 240,
+    });
     installTokenInteractionViews(renderer);
     installWebGL2TokenLayer(renderer);
     installWebGL2TokenInteractionLayer(renderer);

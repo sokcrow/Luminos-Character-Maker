@@ -27,50 +27,36 @@ void main() {
     outColor = u_color;
 }`;
 
-function rgb(color, fallback = '#ffffff') {
-    const text = String(color || fallback).trim();
-    const short = /^#([0-9a-f]{3})$/i.exec(text);
-    const full = /^#([0-9a-f]{6})$/i.exec(text);
-    let hex = String(fallback || '#ffffff').replace('#', '');
-    if (short) hex = short[1].split('').map((entry) => entry + entry).join('');
-    else if (full) hex = full[1];
-    if (!/^[0-9a-f]{6}$/i.test(hex)) hex = 'ffffff';
-    return [
-        parseInt(hex.slice(0, 2), 16) / 255,
-        parseInt(hex.slice(2, 4), 16) / 255,
-        parseInt(hex.slice(4, 6), 16) / 255,
-    ];
-}
-
-function brighten(base, amount) {
-    return base.map((channel) => Math.min(1, channel + ((1 - channel) * amount)));
-}
-
+/**
+ * Interaction feedback intentionally uses fixed high-contrast colors instead of
+ * deriving the ring from the token/faction color. Field testing showed the old
+ * brightened-token-color treatment was often indistinguishable from the normal
+ * token border, especially on dark maps.
+ */
 export function tokenInteractionStyle(view) {
     const interaction = view?.interaction || {};
     if (!interaction.hovered && !interaction.selected && !interaction.targeted) return null;
 
-    const base = rgb(view?.token?.color, '#ffffff');
     if (interaction.targeted) {
         return {
-            radiusScale: 1.18,
-            innerRadius: 0.74,
-            color: new Float32Array([...brighten(base, 0.45), 1]),
+            radiusScale: 1.26,
+            innerRadius: 0.62,
+            color: new Float32Array([1.0, 0.18, 0.14, 1.0]),
             state: 'targeted',
         };
     }
     if (interaction.selected) {
         return {
-            radiusScale: 1.14,
-            innerRadius: 0.80,
-            color: new Float32Array([...brighten(base, 0.65), 1]),
+            radiusScale: 1.22,
+            innerRadius: 0.66,
+            color: new Float32Array([0.10, 0.88, 1.0, 1.0]),
             state: 'selected',
         };
     }
     return {
-        radiusScale: 1.08,
-        innerRadius: 0.88,
-        color: new Float32Array([...brighten(base, 0.28), 1]),
+        radiusScale: 1.14,
+        innerRadius: 0.76,
+        color: new Float32Array([1.0, 1.0, 1.0, 0.96]),
         state: 'hovered',
     };
 }
