@@ -1,0 +1,32 @@
+name: Combat Runtime Smoke
+
+on:
+  push:
+    branches:
+      - feature/combat-runtime-integration
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  combat-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Combat Skill schema smoke
+        run: node tests/combat-skill-schema-smoke.mjs
+      - name: Team action economy smoke
+        run: node tests/team-action-economy-smoke.mjs
+      - name: CombatAction schema smoke
+        run: node tests/combat-action-smoke.mjs
+      - name: CombatAction resolver smoke
+        run: node tests/combat-action-resolver-smoke.mjs
+      - name: Combat Action Queue smoke
+        run: node tests/combat-action-queue-smoke.mjs
+      - name: Combat Runtime Integration smoke
+        run: node tests/combat-runtime-integration-smoke.mjs
