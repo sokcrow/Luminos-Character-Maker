@@ -1,0 +1,45 @@
+name: VTT Rama 4 Procedural ID P0
+
+on:
+  push:
+    branches:
+      - rama4-grid-topology-verticality
+    paths:
+      - 'js/vtt/procedural-id-auditor.js'
+      - 'js/vtt/procedural-generator-core.js'
+      - 'js/vtt/procedural-building-generator.js'
+      - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/urban-fabric-core.js'
+      - 'js/vtt/procedural-zone-core.js'
+      - 'scripts/vtt-procedural-id-regression-check.mjs'
+      - '.github/workflows/vtt-rama4-procedural-id-p0.yml'
+  pull_request:
+    paths:
+      - 'js/vtt/procedural-id-auditor.js'
+      - 'js/vtt/procedural-generator-core.js'
+      - 'js/vtt/procedural-building-generator.js'
+      - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/urban-fabric-core.js'
+      - 'js/vtt/procedural-zone-core.js'
+      - 'scripts/vtt-procedural-id-regression-check.mjs'
+      - '.github/workflows/vtt-rama4-procedural-id-p0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  procedural-id-p0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --input-type=module --check < js/vtt/procedural-id-auditor.js
+          node --check scripts/vtt-procedural-id-regression-check.mjs
+      - name: Procedural ID regression matrix
+        run: node scripts/vtt-procedural-id-regression-check.mjs
