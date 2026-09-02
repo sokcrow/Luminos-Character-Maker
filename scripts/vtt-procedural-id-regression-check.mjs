@@ -12,7 +12,8 @@ await import('../js/vtt/building-navigation-core.js');
 await import('../js/vtt/procedural-zone-core.js');
 await import('../js/vtt/urban-fabric-core.js');
 await import('../js/vtt/procedural-building-generator.js');
-await import('../js/vtt/procedural-topology-optimizer.js');
+// Deliberately do not load procedural-topology-optimizer here. ID allocation must be
+// testable independently from geometry compaction/performance work.
 await import('../js/vtt/procedural-building-mix-patch.js');
 await import('../js/vtt/procedural-id-auditor.js');
 await import('../js/vtt/procedural-generator-core.js');
