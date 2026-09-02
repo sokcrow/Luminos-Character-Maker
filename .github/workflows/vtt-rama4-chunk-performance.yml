@@ -1,0 +1,34 @@
+name: VTT Rama 4 Simulated Chunk Performance
+
+on:
+  push:
+    branches:
+      - rama4-grid-topology-verticality
+    paths:
+      - 'js/vtt/visibility-working-set.js'
+      - 'scripts/vtt-chunk-visibility-performance-check.mjs'
+      - '.github/workflows/vtt-rama4-chunk-performance.yml'
+  pull_request:
+    paths:
+      - 'js/vtt/visibility-working-set.js'
+      - 'scripts/vtt-chunk-visibility-performance-check.mjs'
+      - '.github/workflows/vtt-rama4-chunk-performance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chunk-performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --input-type=module --check < js/vtt/visibility-working-set.js
+          node --check scripts/vtt-chunk-visibility-performance-check.mjs
+      - name: Simulated 40x40 chunk working-set benchmark
+        run: node scripts/vtt-chunk-visibility-performance-check.mjs
