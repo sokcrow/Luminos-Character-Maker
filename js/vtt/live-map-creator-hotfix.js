@@ -48,19 +48,20 @@ export async function createMapSafely(root=window,button=null){
     const bridge=runtime?.mapAuthoring?.bridge;
     const doc=root?.document;
     if(!runtime?.engine||!authoring||!bridge||!doc)throw new Error('MAP_AUTHORING_RUNTIME_REQUIRED');
+    if(typeof bridge.createDefinition!=='function')throw new Error('MAP_CREATE_ONLY_RUNTIME_REQUIRED');
     const name=clean(root.prompt?.('Map name','New Map'));
     if(!name)return null;
     const selectedId=clean(doc.querySelector?.('[data-map-select]')?.value);
     const selected=bridge.get?.(selectedId)||authoring.definitionFromMapData(runtime.engine.mapData);
     if(!selected)throw new Error('MAP_TEMPLATE_REQUIRED');
     const id=authoring.firebaseKey(`${name}_${Date.now().toString(36)}`);
-    const created=authoring.createDefinition({
+    const template=authoring.createDefinition({
       id,name,
       grid:selected.grid,
       environmentTags:selected.environmentTags,
       defaultZStepFt:selected.defaultZStepFt,
     });
-    await bridge.saveDefinition(created);
+    const created=await bridge.createDefinition(template);
     await Promise.resolve();
     const select=doc.querySelector?.('[data-map-select]');
     if(select){
