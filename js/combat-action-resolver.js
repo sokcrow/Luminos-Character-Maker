@@ -3,6 +3,7 @@
 
   const schema = global.LuminousCombatAction || (typeof require === "function" ? require("./combat-action-schema.js") : null);
   const bridge = global.LuminousCombatActionEngineBridge || (typeof require === "function" ? require("./combat-action-engine-bridge.js") : null);
+  const queueApi = global.LuminousCombatActionQueue || (typeof require === "function" ? (() => { try { return require("./combat-action-queue.js"); } catch (_) { return null; } })() : null);
   if (!schema) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -170,11 +171,89 @@
     return next;
   }
 
+  function coinDefinitions(skill = {}) {
+    if (Array.isArray(skill.coins) && skill.coins.length) return skill.coins.map((coin) => ({ ...coin }));
+    const count = Math.max(0, Math.trunc(Number(skill.coinAmount ?? skill.coin_count ?? skill.coinCount ?? 0)));
+    return Array.from({ length: count }, (_, index) => ({ index }));
+  }
+
+  function skillForCoin(baseSkill = {}, coin = {}, index = 0) {
+    const skill = cloneAttackSkill(baseSkill);
+    skill.coins = [{ ...coin, index: 0, originalIndex: coin.originalIndex ?? coin.index ?? index }];
+    skill.coinAmount = 1;
+    skill.coin_count = 1;
+    skill.coinCount = 1;
+    skill.__combatActionCoinIndex = index;
+    return skill;
+  }
+
+  function resolveCoinwiseAttack(action, actor, context = {}, options = {}, baseSkill = {}) {
+    const engine = context.engine || global.CombatEngine;
+    const q = context.combatActionQueue || queueApi;
+    if (!engine?.resolveUnilateralWithCounter || !q?.selectCoinTarget) return null;
+    const coins = coinDefinitions(baseSkill);
+    if (!coins.length) return null;
+
+    let state = {};
+    const results = [];
+    for (let index = 0; index < coins.length; index++) {
+      if (isStaggered(actor)) {
+        return { resolved: false, cancelled: true, partial: results.length > 0, reason: "stagger", results, remainingCoins: coins.length - index };
+      }
+
+      const selected = q.selectCoinTarget(action, context.units || Object.values(context.combatData || {}), state, {
+        random: context.random,
+        isAvailable: context.isTargetAvailable,
+      });
+      state = selected.state || state;
+      if (selected.cancelled || !selected.targetId) {
+        return {
+          resolved: false,
+          cancelled: true,
+          partial: results.length > 0,
+          reason: selected.reason || "target_unavailable",
+          results,
+          remainingCoins: coins.length - index,
+        };
+      }
+
+      const target = unitById(context, selected.targetId);
+      if (!target) {
+        return { resolved: false, cancelled: true, partial: results.length > 0, reason: "target_missing", results, remainingCoins: coins.length - index };
+      }
+
+      const skill = skillForCoin(baseSkill, coins[index], index);
+      const result = engine.resolveUnilateralWithCounter(actor, skill, target, null, {
+        skipUseHooks: options.skipUseHooks === true || index > 0,
+        clashResult: options.clashResult || null,
+        clashCount: options.clashCount || 0,
+        mitigationPenalty: options.mitigationPenalty,
+        combatants: context.units || Object.values(context.combatData || {}),
+        combatActionCoinIndex: index,
+      });
+      results.push({ targetId: entityId(target), coinIndex: index, result });
+
+      if (isStaggered(actor)) {
+        return { resolved: false, cancelled: true, partial: true, reason: "stagger", results, remainingCoins: coins.length - index - 1 };
+      }
+    }
+    return { resolved: true, coinwise: true, results, remainingCoins: 0 };
+  }
+
   function resolveDirectAttack(action, actor, targets, context = {}, options = {}) {
     const engine = context.engine || global.CombatEngine;
     if (!engine?.resolveUnilateralWithCounter) return { resolved: false, reason: "unilateral_resolver_unavailable", results: [] };
     bridge?.installCombatActionPowerBridge?.(engine);
     const baseSkill = options.skill || definitionForEngine(action);
+    const q = context.combatActionQueue || queueApi;
+    const volley = q?.volleyMode ? q.volleyMode(action) : "focused";
+    const attackWeight = Math.max(1, Number(action.targeting?.attackWeight || 1));
+    const coinwiseAllowed = context.coinwiseResolution === true && q?.selectCoinTarget && (volley === "unfocused" || (volley === "focused" && attackWeight === 1 && targets.length <= 1));
+    if (coinwiseAllowed) {
+      const coinwise = resolveCoinwiseAttack(action, actor, context, options, baseSkill);
+      if (coinwise) return coinwise;
+    }
+
     const results = [];
     for (let index = 0; index < targets.length; index++) {
       const target = targets[index];
@@ -187,6 +266,7 @@
         combatants: context.units || Object.values(context.combatData || {}),
       });
       results.push({ targetId: entityId(target), result });
+      if (isStaggered(actor)) return { resolved: false, cancelled: true, partial: true, reason: "stagger", results };
     }
     return { resolved: true, results };
   }
@@ -195,7 +275,7 @@
     if (terminal(action)) return { resolved: action.state === "resolved", reason: "terminal_state", action };
     if (isStaggered(actor)) {
       const cancelled = schema.cancelCombatAction(action, { type: "stagger" }).action;
-      return { resolved: false, cancelled: true, reason: "stagger", action: cancelled };
+      return { resolved: false, cancelled: true, reason: "stagger", action: cancelled, resolvedActionIds: [cancelled.id] };
     }
 
     const resourceGate = validateResources(action, actor, context);
@@ -209,6 +289,11 @@
 
     action.state = "resolving";
     const attack = resolveDirectAttack(action, actor, targets, context, options);
+    if (attack.cancelled) {
+      action.state = "cancelled";
+      action.cancelReason = { type: attack.reason || "cancelled_during_resolution" };
+      return { resolved: false, cancelled: true, partial: attack.partial === true, reason: attack.reason, attack, resources, economy, resourceGate, action, resolvedActionIds: [action.id] };
+    }
     action.state = attack.resolved ? "resolved" : "locked";
     return {
       resolved: Boolean(attack.resolved),
@@ -263,7 +348,7 @@
         type: "unopposed",
         reason: prepared.resolved ? "opposing_action_cancelled_by_stagger" : prepared.reason,
         actions: [prepared.action || actionA, cancelled],
-        resolvedActionIds: prepared.resolved ? [actionA.id, cancelled.id] : [cancelled.id],
+        resolvedActionIds: [...new Set([...(prepared.resolvedActionIds || []), cancelled.id])],
       };
     }
 
@@ -317,6 +402,10 @@
 
     actionA.state = "resolved";
     actionB.state = "resolved";
+    if (attack?.cancelled && winningAction) {
+      winningAction.state = "cancelled";
+      winningAction.cancelReason = { type: attack.reason || "cancelled_during_resolution" };
+    }
     return {
       resolved: true,
       type: "clash",
@@ -410,7 +499,7 @@
     if (!actor) return { resolved: false, reason: "actor_missing", action };
     if (isStaggered(actor)) {
       const cancelled = schema.cancelCombatAction(action, { type: "stagger" });
-      return { resolved: false, cancelled: true, reason: "stagger", action: cancelled.action };
+      return { resolved: false, cancelled: true, reason: "stagger", action: cancelled.action, resolvedActionIds: [cancelled.action.id] };
     }
 
     if (action.resolution.type === "clash" && context.opposingAction) {
@@ -443,6 +532,11 @@
       resolution = resolveAutomatic(action, actor, targets, context);
     }
 
+    if (resolution?.cancelled) {
+      action.state = "cancelled";
+      action.cancelReason = { type: resolution.reason || "cancelled_during_resolution" };
+      return { resolved: false, cancelled: true, partial: resolution.partial === true, reason: resolution.reason, resolution, resources, economy, action, targetResolution, resolvedActionIds: [action.id] };
+    }
     if (resolution?.resolved === false) {
       action.state = "locked";
       return { resolved: false, reason: resolution.reason || "resolution_failed", resolution, resources, economy, action };
@@ -458,6 +552,7 @@
     consumeResources,
     resolveTargets,
     resolveDirectAttack,
+    resolveCoinwiseAttack,
     resolvePreparedUnopposed,
     resolveClashPair,
     resolveSave,
