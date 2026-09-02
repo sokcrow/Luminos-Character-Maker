@@ -88,12 +88,50 @@ function sceneCounts(mapData,zLayer){
   };
 }
 
+function topologyBlocksVision(element={}){
+  const core=globalThis.LuminousVttTopology;
+  if(core?.effectiveFlags)return Boolean(core.effectiveFlags(element)?.blocksVision);
+  const type=String(element.type||'wall'),state=String(element.state||'closed');
+  if(type==='wall')return true;
+  if(state==='open'||state==='broken')return false;
+  return type!=='window';
+}
+
+function geometrySnapshot(mapData={}){
+  const topology=Array.isArray(mapData.topology)?mapData.topology:[];
+  const proceduralDiagnostics=mapData.procedural?.geometryDiagnostics||mapData.procedural?.geometryBudget||null;
+  const currentWalls=topology.filter(x=>x?.type==='wall').length;
+  const buildings=Array.isArray(mapData.semantics?.buildings)?mapData.semantics.buildings.length:(Array.isArray(mapData.buildings)?mapData.buildings.length:0);
+  const rawTopologyElements=Math.max(topology.length,finite(proceduralDiagnostics?.rawTopologyElements,topology.length));
+  const rawWallSegments=Math.max(currentWalls,finite(proceduralDiagnostics?.rawWallSegments,currentWalls));
+  const optimizedWallSegments=currentWalls;
+  const absoluteReduction=Math.max(0,rawWallSegments-optimizedWallSegments);
+  const reductionPercent=rawWallSegments>0?(absoluteReduction/rawWallSegments)*100:0;
+  const doors=topology.filter(x=>x?.type==='door').length;
+  const windows=topology.filter(x=>x?.type==='window').length;
+  const curtainWindows=topology.filter(x=>x?.type==='curtain_window').length;
+  const openings=topology.filter(x=>x?.type==='opening').length;
+  const visionBlockingSegments=topology.filter(topologyBlocksVision).length;
+  const warnings=[];
+  const diagnosticHigh=Math.max(256,Math.max(1,buildings)*64);
+  if(rawWallSegments>=diagnosticHigh)warnings.push({code:'PROCEDURAL_GEOMETRY_HIGH',rawWallSegments,buildings,diagnosticThreshold:diagnosticHigh,gameplayLimit:false});
+  return Object.freeze({buildings,rawTopologyElements,rawWallSegments,optimizedWallSegments,doors,windows,curtainWindows,openings,visionBlockingSegments,absoluteReduction,reductionPercent,warnings});
+}
+
 export function installProceduralPerformanceRuntime({runtime=globalThis.LuminousVttRuntime,mapData=runtime?.engine?.mapData}={}){
   if(!runtime?.engine||!mapData)return null;
   if(globalThis.LuminousVttProceduralPerformance?.__v1)return globalThis.LuminousVttProceduralPerformance;
   const engine=runtime.engine,renderer=engine.renderer,size=Math.max(1,finite(mapData.grid?.size,70));
   let enabled=true,stopped=false;
-  const metrics={renderFrames:0,cullPrepTotalMs:0,cullPrepMaxMs:0,frameTotalMs:0,frameMaxMs:0,visionCalls:0,visionFilterTotalMs:0,visionFilterMaxMs:0,lastTotals:null,lastVisible:null,lastVisionTotal:0,lastVisionCandidates:0};
+  const metrics={renderFrames:0,renderRequests:0,cameraDirtyEvents:0,tokenPreviewFrames:0,cullPrepTotalMs:0,cullPrepMaxMs:0,frameTotalMs:0,frameMaxMs:0,visionCalls:0,visionFilterTotalMs:0,visionFilterMaxMs:0,lastTotals:null,lastVisible:null,lastVisionTotal:0,lastVisionCandidates:0};
+
+  const onSceneDirty=(event)=>{
+    metrics.renderRequests+=event?.detail?.render===false?0:1;
+    if(event?.detail?.reason==='camera')metrics.cameraDirtyEvents+=1;
+  };
+  const onTokenPreview=()=>{metrics.tokenPreviewFrames+=1;};
+  engine.canvas?.addEventListener?.('vtt:scene-dirty',onSceneDirty);
+  engine.canvas?.addEventListener?.('vtt:token-preview-moved',onTokenPreview);
 
   const originalVisionWalls=engine.visionWallsForLayer?.bind(engine);
   let wrappedVisionWalls=null;
@@ -150,9 +188,15 @@ export function installProceduralPerformanceRuntime({runtime=globalThis.Luminous
     get enabled(){return enabled;},
     get active(){return enabled&&proceduralScene(mapData);},
     bounds:()=>cameraBounds(engine,engine.camera,2),
-    snapshot(){return Object.freeze({...metrics,avgCullPrepMs:metrics.renderFrames?metrics.cullPrepTotalMs/metrics.renderFrames:0,avgFrameMs:metrics.renderFrames?metrics.frameTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,enabled,active:enabled&&proceduralScene(mapData)});},
+    geometry:()=>geometrySnapshot(mapData),
+    snapshot(){
+      const field=globalThis.LuminousVttFieldStabilityHotfix?.snapshot?.()||{};
+      return Object.freeze({...metrics,avgCullPrepMs:metrics.renderFrames?metrics.cullPrepTotalMs/metrics.renderFrames:0,avgFrameMs:metrics.renderFrames?metrics.frameTotalMs/metrics.renderFrames:0,avgVisionFilterMs:metrics.visionCalls?metrics.visionFilterTotalMs/metrics.visionCalls:0,visionRecomputes:finite(field.visionRecomputes,0),visionCacheHits:finite(field.visionCacheHits,0),topologyCandidates:metrics.lastVisionCandidates,geometry:geometrySnapshot(mapData),enabled,active:enabled&&proceduralScene(mapData)});
+    },
     stop(){
       if(stopped)return false;stopped=true;
+      engine.canvas?.removeEventListener?.('vtt:scene-dirty',onSceneDirty);
+      engine.canvas?.removeEventListener?.('vtt:token-preview-moved',onTokenPreview);
       if(wrappedVisionWalls&&engine.visionWallsForLayer===wrappedVisionWalls)engine.visionWallsForLayer=originalVisionWalls;
       if(wrappedRender&&renderer.render===wrappedRender)renderer.render=originalRender;
       if(globalThis.LuminousVttProceduralPerformance===api)delete globalThis.LuminousVttProceduralPerformance;
