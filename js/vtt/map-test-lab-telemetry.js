@@ -186,15 +186,15 @@ export function mountTestLabTelemetry(root=globalThis,engine=root?.LuminousVttRu
 }
 
 export function startTestLabTelemetry(root=globalThis){
-  let attempts=0,installed=null,stopped=false;
+  let installed=null,stopped=false,timer=0;
   const tick=()=>{
     if(stopped||installed)return;
     const engine=root?.LuminousVttRuntime?.engine;
     if(engine&&isLab(engine))installed=mountTestLabTelemetry(root,engine);
-    if(!installed&&++attempts<240)root?.setTimeout?.(tick,25);
+    if(!installed)timer=root?.setTimeout?.(tick,500)||0;
   };
   tick();
-  return Object.freeze({stop(){stopped=true;installed?.stop?.();}});
+  return Object.freeze({stop(){stopped=true;if(timer)root?.clearTimeout?.(timer);installed?.stop?.();}});
 }
 
 if(typeof window!=='undefined')window.LuminousVttTestLabTelemetryBootstrap=startTestLabTelemetry(window);
