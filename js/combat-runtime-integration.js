@@ -35,6 +35,17 @@
     return action.state === "resolved" || action.state === "cancelled";
   }
 
+  function isUnitActive(runtime, unit = {}) {
+    if (!unit || !entityId(unit)) return false;
+    if (unit.defeated === true || unit.dead === true || unit.removed === true || unit.escaped === true) return false;
+    const absentThrough = Number(unit.combatAbsentThroughRound ?? unit.absentThroughRound ?? -1);
+    return !Number.isFinite(absentThrough) || runtime.round > absentThrough;
+  }
+
+  function activeUnits(runtime) {
+    return runtime.units.filter((unit) => isUnitActive(runtime, unit));
+  }
+
   function createRuntime(config = {}) {
     const units = asArray(config.units).filter(Boolean);
     return {
@@ -67,6 +78,28 @@
     return runtime.phase;
   }
 
+  function runtimeTargetAvailable(runtime, target, context = {}) {
+    if (!isUnitActive(runtime, target)) return false;
+    if (typeof context.isTargetAvailable === "function") return context.isTargetAvailable(target, runtime) !== false;
+    return queueApi.isTargetAvailable(target);
+  }
+
+  function resolverContext(runtime, context = {}, phase = runtime.phase, extra = {}) {
+    return {
+      ...context,
+      ...extra,
+      phase,
+      units: activeUnits(runtime),
+      encounter: runtime.encounter,
+      teamEconomy: context.teamEconomy || teamEconomy,
+      actionMap: runtime.actionMap,
+      random: runtime.random,
+      coinwiseResolution: context.coinwiseResolution !== false,
+      combatActionQueue: context.combatActionQueue || queueApi,
+      isTargetAvailable: (target) => runtimeTargetAvailable(runtime, target, context),
+    };
+  }
+
   function beginTurn(runtime, options = {}) {
     setPhase(runtime, schema.PHASES.ON_TURN_START);
     runtime.playerReady = false;
@@ -78,10 +111,10 @@
     runtime.preparedReactions = [];
 
     if (typeof options.onTurnStart === "function") {
-      for (const unit of runtime.units) options.onTurnStart({ unit, runtime });
+      for (const unit of activeUnits(runtime)) options.onTurnStart({ unit, runtime });
     }
 
-    runtime.speedSnapshot = queueApi.snapshotSpeedSources(runtime.units, { random: runtime.random });
+    runtime.speedSnapshot = queueApi.snapshotSpeedSources(activeUnits(runtime), { random: runtime.random });
     record(runtime, "speed_snapshot", { speedSnapshot: runtime.speedSnapshot });
     setPhase(runtime, schema.PHASES.PLANNING_PHASE_PLAYER);
     if (runtime.encounter) runtime.encounter.phase = teamEconomy?.PHASES?.PLANNING_PLAYER || "planning_player";
@@ -97,11 +130,42 @@
     return side === queueApi.SIDE_B ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER;
   }
 
+  function availableSlotCount(runtime, actorId) {
+    if (runtime.encounter && teamEconomy?.profileForUnit) {
+      const found = teamEconomy.profileForUnit(runtime.encounter, actorId);
+      if (found?.profile) return Math.max(0, Number(found.profile.usableActionSlots ?? found.profile.currentActionSlots ?? 0));
+    }
+    const unit = unitById(runtime, actorId);
+    if (!unit) return 0;
+    const values = [unit.actionSlotState?.usable, unit.activeSlots, unit.currentActionSlots, unit.actionSlotState?.current];
+    const found = values.map(Number).find(Number.isFinite);
+    return found == null ? Infinity : Math.max(0, found);
+  }
+
+  function validateActionSlot(runtime, action) {
+    if (action.economy.cost !== schema.ECONOMY_COSTS.ACTION) return { valid: true };
+    if (!action.actionSlotId) return { valid: false, reason: "action_slot_required" };
+    const duplicate = runtime.actions.find((entry) =>
+      entry.actorId === action.actorId &&
+      entry.economy.cost === schema.ECONOMY_COSTS.ACTION &&
+      entry.actionSlotId === action.actionSlotId &&
+      !terminal(entry)
+    );
+    if (duplicate) return { valid: false, reason: "action_slot_already_used", conflictingActionId: duplicate.id };
+    const used = runtime.actions.filter((entry) => entry.actorId === action.actorId && entry.economy.cost === schema.ECONOMY_COSTS.ACTION && !terminal(entry)).length;
+    const available = availableSlotCount(runtime, action.actorId);
+    if (Number.isFinite(available) && used >= available) return { valid: false, reason: "no_usable_action_slots", available, used };
+    return { valid: true, available, used };
+  }
+
   function registerAction(runtime, input = {}, options = {}) {
     const action = schema.normalizeCombatAction(input);
     const validation = schema.validateCombatAction(action);
     if (!validation.valid) return { registered: false, reason: "invalid_action", errors: validation.errors, action };
     const normalized = validation.action;
+    const actor = unitById(runtime, normalized.actorId);
+    if (!actor) return { registered: false, reason: "actor_missing", action: normalized };
+    if (!isUnitActive(runtime, actor)) return { registered: false, reason: "actor_inactive", action: normalized };
     const side = sideForAction(runtime, normalized);
     const expectedPlanning = planningPhaseForSide(side);
 
@@ -121,24 +185,19 @@
     if (normalized.economy.cost === schema.ECONOMY_COSTS.QUICK_ACTION) {
       normalized.phase.selectedAt = runtime.phase;
       normalized.phase.executesAt = runtime.phase;
-      const result = resolver.resolveCombatAction(normalized, {
-        ...options.context,
-        phase: runtime.phase,
-        units: runtime.units,
-        encounter: runtime.encounter,
-        teamEconomy: options.context?.teamEconomy || teamEconomy,
-        actionMap: runtime.actionMap,
-        random: runtime.random,
-      });
+      const result = resolver.resolveCombatAction(normalized, resolverContext(runtime, options.context || {}, runtime.phase));
       runtime.actionMap[normalized.id] = result.action || normalized;
       asArray(result.resolvedActionIds).forEach((id) => runtime.resolvedActionIds.add(String(id)));
       record(runtime, "quick_action", { actionId: normalized.id, resolved: result.resolved, reason: result.reason || null });
       return { registered: Boolean(result.resolved), immediate: true, action: result.action || normalized, result };
     }
 
+    const slotGate = validateActionSlot(runtime, normalized);
+    if (!slotGate.valid) return { registered: false, ...slotGate, action: normalized };
+
     runtime.actions.push(normalized);
     runtime.actionMap[normalized.id] = normalized;
-    record(runtime, "action_registered", { actionId: normalized.id, actorId: normalized.actorId, side });
+    record(runtime, "action_registered", { actionId: normalized.id, actorId: normalized.actorId, side, actionSlotId: normalized.actionSlotId });
     return { registered: true, action: normalized };
   }
 
@@ -161,7 +220,7 @@
     record(runtime, "player_ready", { lockedActionIds });
 
     let aiActions = [];
-    if (typeof options.aiPlanner === "function") aiActions = asArray(options.aiPlanner({ runtime, units: runtime.units, actions: runtime.actions }));
+    if (typeof options.aiPlanner === "function") aiActions = asArray(options.aiPlanner({ runtime, units: activeUnits(runtime), actions: runtime.actions }));
     const registeredAi = aiActions.map((action) => registerAction(runtime, action, { context: options.context })).filter((entry) => entry.registered);
     return { ready: true, phase: runtime.phase, lockedActionIds, registeredAi };
   }
@@ -178,7 +237,7 @@
 
   function previewQueue(runtime) {
     return queueApi.buildRoundOrder({
-      units: runtime.units,
+      units: activeUnits(runtime),
       actions: runtime.actions.filter((action) => action.economy.cost !== schema.ECONOMY_COSTS.REACTION),
       speedSnapshot: runtime.speedSnapshot,
       random: runtime.random,
@@ -217,10 +276,12 @@
     return { linked: true, interceptorActionId: interceptor.id, targetActionId: target.id };
   }
 
-  function beginCombatPhase(runtime) {
+  function beginCombatPhase(runtime, context = {}) {
     if (!runtime.playerReady || !runtime.aiReady) return { started: false, reason: "planning_not_ready" };
     if (runtime.phase !== schema.PHASES.COMBAT_START) return { started: false, reason: "combat_start_required", phase: runtime.phase };
     runtime.queue = previewQueue(runtime);
+    record(runtime, "combat_start", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
+    if (typeof context.onCombatStart === "function") context.onCombatStart({ runtime, queue: runtime.queue });
     setPhase(runtime, schema.PHASES.COMBAT_PHASE);
     record(runtime, "combat_phase_started", { queue: runtime.queue.entries.map((entry) => entry.actionId) });
     return { started: true, phase: runtime.phase, queue: runtime.queue };
@@ -257,7 +318,7 @@
 
   function applyBlockingStates(runtime, context = {}) {
     const cancelled = [];
-    for (const unit of runtime.units) {
+    for (const unit of activeUnits(runtime)) {
       const blocked = isStaggered(unit) || (typeof context.isActionBlocked === "function" && context.isActionBlocked({ unit, runtime }) === true);
       if (!blocked) continue;
       const reason = isStaggered(unit) ? { type: "stagger" } : { type: "action_blocked" };
@@ -267,7 +328,7 @@
   }
 
   function applyRetarget(runtime, action, context = {}) {
-    const status = queueApi.retargetStatus(action, runtime.units, { isAvailable: context.isTargetAvailable });
+    const status = queueApi.retargetStatus(action, activeUnits(runtime), { isAvailable: (target) => runtimeTargetAvailable(runtime, target, context) });
     if (status.executable) return { ready: true, action };
     if (!status.requiresRetarget) {
       action.state = "cancelled";
@@ -305,14 +366,7 @@
 
     for (const reaction of runtime.preparedReactions) {
       if (terminal(reaction) || !matcher(reaction.reaction?.trigger, event, reaction, runtime)) continue;
-      const result = resolver.resolveCombatAction(reaction, {
-        ...context,
-        phase: schema.PHASES.COMBAT_PHASE,
-        units: runtime.units,
-        encounter: runtime.encounter,
-        actionMap: runtime.actionMap,
-        random: runtime.random,
-      });
+      const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE));
       syncResultActions(runtime, result);
       results.push({ mode: "prepared", actionId: reaction.id, result });
     }
@@ -326,14 +380,7 @@
         reaction.phase.executesAt = schema.PHASES.COMBAT_PHASE;
         reaction.reaction = { ...(reaction.reaction || {}), mode: "adaptive" };
         runtime.actionMap[reaction.id] = reaction;
-        const result = resolver.resolveCombatAction(reaction, {
-          ...context,
-          phase: schema.PHASES.COMBAT_PHASE,
-          units: runtime.units,
-          encounter: runtime.encounter,
-          actionMap: runtime.actionMap,
-          random: runtime.random,
-        });
+        const result = resolver.resolveCombatAction(reaction, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE));
         syncResultActions(runtime, result);
         results.push({ mode: "adaptive", actionId: reaction.id, result });
       }
@@ -341,6 +388,29 @@
 
     if (results.length) record(runtime, "reactions_resolved", { eventType: event.type || null, actionIds: results.map((entry) => entry.actionId) });
     return results;
+  }
+
+  function grappleSucceeded(action, result = {}) {
+    if (action.source?.type !== "universal" || normalizeId(action.source?.id) !== "grapple") return false;
+    const payload = result.resolution?.result ?? result.result ?? {};
+    if (payload === true) return true;
+    if (payload?.success === true || payload?.succeeded === true || payload?.attackerWon === true || payload?.grappled === true) return true;
+    const winner = normalizeId(payload?.winner || payload?.result);
+    return ["attacker", "a", "success", "win", "won"].includes(winner);
+  }
+
+  function applyGrappleOutcome(runtime, action, result = {}) {
+    if (!grappleSucceeded(action, result)) return null;
+    const targetId = String(action.targeting?.mainTargetId || action.targeting?.targetIds?.[0] || "");
+    if (!targetId) return null;
+    const cancelledActionIds = cancelActorPending(runtime, targetId, { type: "grapple" });
+    const locks = [];
+    if (runtime.encounter && teamEconomy?.lockUnitSlots) {
+      locks.push(teamEconomy.lockUnitSlots(runtime.encounter, action.actorId, 1, "grapple"));
+      locks.push(teamEconomy.lockUnitSlots(runtime.encounter, targetId, 1, "grapple"));
+    }
+    record(runtime, "grapple_applied", { actorId: action.actorId, targetId, cancelledActionIds });
+    return { targetId, cancelledActionIds, locks };
   }
 
   function resolveQueueEntry(runtime, entry, context = {}) {
@@ -358,20 +428,13 @@
     const opposingAction = opposingId ? runtime.actionMap[opposingId] || null : null;
     triggerReactions(runtime, { type: "before_action", actionId: action.id, actorId: action.actorId }, context);
 
-    const result = resolver.resolveCombatAction(action, {
-      ...context,
-      phase: schema.PHASES.COMBAT_PHASE,
-      units: runtime.units,
-      encounter: runtime.encounter,
-      actionMap: runtime.actionMap,
-      opposingAction,
-      random: runtime.random,
-    });
+    const result = resolver.resolveCombatAction(action, resolverContext(runtime, context, schema.PHASES.COMBAT_PHASE, { opposingAction }));
     syncResultActions(runtime, result);
+    const grapple = applyGrappleOutcome(runtime, result.action || action, result);
     applyBlockingStates(runtime, context);
     triggerReactions(runtime, { type: "after_action", actionId: action.id, actorId: action.actorId, result }, context);
     record(runtime, "action_resolved", { actionId: action.id, resolved: result.resolved, reason: result.reason || null, type: result.type || result.resolution?.type || action.resolution.type });
-    return result;
+    return grapple ? { ...result, grapple } : result;
   }
 
   function resolveCombatPhase(runtime, context = {}) {
@@ -385,8 +448,70 @@
       }
     }
     setPhase(runtime, schema.PHASES.COMBAT_END);
-    record(runtime, "combat_phase_complete", { resolvedActionIds: [...runtime.resolvedActionIds] });
+    record(runtime, "combat_end", { resolvedActionIds: [...runtime.resolvedActionIds] });
+    if (typeof context.onCombatEnd === "function") context.onCombatEnd({ runtime, results });
     return { completed: true, phase: runtime.phase, results };
+  }
+
+  function teamForUnit(runtime, unit) {
+    if (!runtime.encounter || !teamEconomy?.teamForSide) return null;
+    return teamEconomy.teamForSide(runtime.encounter, queueApi.sideOf(unit));
+  }
+
+  function replaceRuntimeUnit(runtime, outgoing, incoming) {
+    const index = runtime.units.indexOf(outgoing);
+    if (index >= 0) runtime.units.splice(index, 1, incoming);
+    else runtime.units.push(incoming);
+  }
+
+  function defaultRetreat(runtime, actor, effect = {}) {
+    const side = queueApi.sideOf(actor);
+    const team = teamForUnit(runtime, actor);
+    if (team && teamEconomy?.profileForUnit) {
+      const found = teamEconomy.profileForUnit(runtime.encounter, actor);
+      if (team.backups?.length) {
+        const backupProfile = team.backups.shift();
+        const incomingUnit = backupProfile.unit;
+        const incoming = teamEconomy.inheritReplacementSlots
+          ? teamEconomy.inheritReplacementSlots(runtime.encounter, side, actor, incomingUnit, { cap: effect.inheritActionSlotsCap || 2 })
+          : backupProfile;
+        const activeIndex = team.active.indexOf(found.profile);
+        if (activeIndex >= 0) team.active.splice(activeIndex, 1, incoming);
+        found.profile.statusLockedSlots = 0;
+        found.profile.usableActionSlots = 0;
+        team.backups.push(found.profile);
+        replaceRuntimeUnit(runtime, actor, incomingUnit);
+        teamEconomy.syncEncounter?.(runtime.encounter);
+        return { retreated: true, replaced: true, outgoingUnitId: entityId(actor), incomingUnitId: entityId(incomingUnit), inheritedSlots: incoming.currentActionSlots };
+      }
+    }
+
+    actor.combatAbsentThroughRound = runtime.round + 1;
+    return { retreated: true, replaced: false, absentThroughRound: actor.combatAbsentThroughRound };
+  }
+
+  function defaultEscape(runtime, actor) {
+    actor.escaped = true;
+    actor.eligibleForXp = false;
+    const team = teamForUnit(runtime, actor);
+    if (team && teamEconomy?.profileForUnit) {
+      const found = teamEconomy.profileForUnit(runtime.encounter, actor);
+      if (found?.profile) {
+        const index = team.active.indexOf(found.profile);
+        if (index >= 0) team.active.splice(index, 1);
+        teamEconomy.registerVacatedSlots?.(runtime.encounter, team.side, found.profile.currentActionSlots || 1, { hasBackup: team.backups?.length > 0 });
+        teamEconomy.syncEncounter?.(runtime.encounter);
+      }
+    }
+    return { escaped: true, unitId: entityId(actor), eligibleForXp: false };
+  }
+
+  function turnEndEffectHandlers(runtime, context = {}) {
+    return {
+      ...(context.effectHandlers || {}),
+      retreat: context.effectHandlers?.retreat || (({ actor, effect }) => defaultRetreat(runtime, actor, effect)),
+      escape: context.effectHandlers?.escape || (({ actor }) => defaultEscape(runtime, actor)),
+    };
   }
 
   function resolveTurnEnd(runtime, context = {}) {
@@ -397,14 +522,15 @@
     const ordered = [...turnEndActions].sort((a, b) => {
       const aPart = queueApi.partIdOf(a);
       const bPart = queueApi.partIdOf(b);
-      const aSpeed = runtime.speedSnapshot?.[queueApi.speedSourceKey(a.actorId, aPart)]?.speed ?? 0;
-      const bSpeed = runtime.speedSnapshot?.[queueApi.speedSourceKey(b.actorId, bPart)]?.speed ?? 0;
-      return bSpeed - aSpeed;
+      const aSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(a.actorId, aPart)];
+      const bSource = runtime.speedSnapshot?.[queueApi.speedSourceKey(b.actorId, bPart)];
+      return (Number(bSource?.speed || 0) - Number(aSource?.speed || 0)) || (Number(aSource?.tieRoll || 0) - Number(bSource?.tieRoll || 0));
     });
 
+    const effectHandlers = turnEndEffectHandlers(runtime, context);
     for (const action of ordered) {
       const unit = unitById(runtime, action.actorId);
-      const blocked = !unit || isStaggered(unit) || (typeof context.isTurnEndBlocked === "function" && context.isTurnEndBlocked({ action, unit, runtime }) === true);
+      const blocked = !unit || !isUnitActive(runtime, unit) || isStaggered(unit) || (typeof context.isTurnEndBlocked === "function" && context.isTurnEndBlocked({ action, unit, runtime }) === true);
       if (blocked) {
         action.state = "cancelled";
         action.cancelReason = { type: !unit ? "actor_missing" : (isStaggered(unit) ? "stagger" : "turn_end_blocked") };
@@ -413,14 +539,7 @@
         results.push({ actionId: action.id, resolved: false, cancelled: true, reason: action.cancelReason.type });
         continue;
       }
-      const result = resolver.resolveCombatAction(action, {
-        ...context,
-        phase: schema.PHASES.ON_TURN_END,
-        units: runtime.units,
-        encounter: runtime.encounter,
-        actionMap: runtime.actionMap,
-        random: runtime.random,
-      });
+      const result = resolver.resolveCombatAction(action, resolverContext(runtime, { ...context, effectHandlers }, schema.PHASES.ON_TURN_END));
       syncResultActions(runtime, result);
       results.push({ actionId: action.id, ...result });
     }
@@ -441,7 +560,11 @@
 
   const api = Object.freeze({
     createRuntime,
+    activeUnits,
+    isUnitActive,
     beginTurn,
+    availableSlotCount,
+    validateActionSlot,
     registerAction,
     playerPlanningReady,
     aiPlanningReady,
@@ -450,8 +573,11 @@
     beginCombatPhase,
     cancelActorPending,
     triggerReactions,
+    applyGrappleOutcome,
     resolveQueueEntry,
     resolveCombatPhase,
+    defaultRetreat,
+    defaultEscape,
     resolveTurnEnd,
     nextRound,
   });
