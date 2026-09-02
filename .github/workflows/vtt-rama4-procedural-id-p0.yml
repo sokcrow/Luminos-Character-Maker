@@ -7,6 +7,7 @@ on:
     paths:
       - 'js/vtt/map-authoring.js'
       - 'js/vtt/map-authoring-state.js'
+      - 'js/vtt/live-map-creator-hotfix.js'
       - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-core.js'
       - 'js/vtt/procedural-building-generator.js'
@@ -20,6 +21,7 @@ on:
     paths:
       - 'js/vtt/map-authoring.js'
       - 'js/vtt/map-authoring-state.js'
+      - 'js/vtt/live-map-creator-hotfix.js'
       - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-core.js'
       - 'js/vtt/procedural-building-generator.js'
@@ -46,6 +48,7 @@ jobs:
       - name: Syntax
         run: |
           node --input-type=module --check < js/vtt/map-authoring-state.js
+          node --input-type=module --check < js/vtt/live-map-creator-hotfix.js
           node --input-type=module --check < js/vtt/procedural-id-auditor.js
           node --check scripts/vtt-map-creation-id-regression-check.mjs
           node --check scripts/vtt-procedural-id-regression-check.mjs
