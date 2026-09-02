@@ -81,6 +81,11 @@
       assert(during.perception.visionRecomputes===0,`preview movement recomputed FOV ${during.perception.visionRecomputes} times`);
       assert(during.perception.visionInvalidations===0,`preview movement invalidated FOV ${during.perception.visionInvalidations} times`);
       assert(during.frame.renderedFrames>=220,`renderer skipped too many active visual frames: ${during.frame.renderedFrames}/240`);
+      assert(during.frame.renderedFrames<=245,`camera follow caused duplicate render pulses: ${during.frame.renderedFrames} renders for 240 previews`);
+      assert(during.perception.renderRequests>=220&&during.perception.renderRequests<=245,`unexpected render request budget: ${during.perception.renderRequests} for 240 previews`);
+      assert(during.perception.cameraDirtyEvents===240,`camera follow should emit one camera dirty per preview: ${during.perception.cameraDirtyEvents}/240`);
+      assert(during.perception.cameraRenderCoalesces===240,`camera follow should coalesce every traversal camera dirty: ${during.perception.cameraRenderCoalesces}/240`);
+      assert(during.frame.fps>0&&during.frame.avgMs>0&&during.frame.maxMs>0,'Rama 4 runtime timing telemetry must be live in WebGL2 Test Lab');
       assert(during.renderer.webgl2===true,'telemetry did not identify WebGL2 backend');
       assert(during.workingSet.player120.total<during.workingSet.world.total,'POV working set did not reject any Test Lab candidates');
       assert(during.workingSet.viewport.total<during.workingSet.world.total,'viewport working set did not reject any Test Lab candidates');
@@ -101,8 +106,9 @@
           previewVisionInvalidations:during.perception.visionInvalidations,
           endpointVisionRecomputes:after.perception.visionRecomputes,
           cacheHits:after.perception.visionCacheHits,
-          cameraDirtyEvents:after.perception.cameraDirtyEvents,
-          cameraRenderCoalesces:after.perception.cameraRenderCoalesces,
+          renderRequests:during.perception.renderRequests,
+          cameraDirtyEvents:during.perception.cameraDirtyEvents,
+          cameraRenderCoalesces:during.perception.cameraRenderCoalesces,
         },
         frame:{fpsHeadless:round(after.frame.fps),avgMs:round(after.frame.avgMs),maxMs:round(after.frame.maxMs)},
         workingSet:{
@@ -112,7 +118,7 @@
           dmDrawUnits:after.workingSet.dmSimplified.drawUnits.total,
           playerPercentOfWorld:round(after.workingSet.player120.percentOfWorld),
         },
-        note:'Headless browser FPS is diagnostic; pass/fail is based on WebGL2 backend, 240 visual previews, endpoint-only exact perception, and working-set reduction.',
+        note:'Headless browser FPS is diagnostic; pass/fail gates WebGL2 backend, live timing telemetry, 240 visual previews, coalesced camera follow, endpoint-only exact perception, and working-set reduction.',
       };
       output.dataset.status='pass';
       output.textContent=JSON.stringify(result,null,2);
