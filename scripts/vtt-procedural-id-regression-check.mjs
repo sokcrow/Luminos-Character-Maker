@@ -34,10 +34,11 @@ let plansChecked=0;
 for(const profileId of profiles){
   let validPlans=0;
   for(const seed of seeds){
-    // Use distinct map/zone identities in sequence to reproduce the real multi-map workflow.
+    // The live runtime currently generates one 40x40 chunk. Keep this P0 gate faithful to that path;
+    // 3x3/120x120 belongs to the separate heavy performance suite.
     const mapId=`field_${profileId}_${seed}`;
     for(let attempt=0;attempt<3;attempt++){
-      const plan=generator.generateAttempt({zoneId:`${mapId}:zone:0:0`,seed,profileId,gridSize:70,minBuildings:1},attempt);
+      const plan=generator.generateAttempt({zoneId:`${mapId}:zone:0:0`,seed,profileId,gridSize:70,minBuildings:1,chunkCols:1,chunkRows:1},attempt);
       const audit=auditor.auditPlan(plan,{mapId,zoneId:plan.zone?.id,profileId,seed,attempt});
       plansChecked++;
       if(plan.validation?.valid)validPlans++;
