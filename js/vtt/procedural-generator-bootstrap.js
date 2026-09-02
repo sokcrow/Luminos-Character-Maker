@@ -70,7 +70,18 @@ export function start({runtime=window.LuminousVttRuntime,mapData=runtime?.engine
     if(!plan)throw new Error('PROCEDURAL_PREVIEW_REQUIRED');
     const chunkCols=Number(plan.zone?.chunkCols??plan.chunkCols??1),chunkRows=Number(plan.zone?.chunkRows??plan.chunkRows??1);
     if(chunkCols>1||chunkRows>1)throw new Error('LIVE_PLAN_MUST_BE_SINGLE_CHUNK');
-    const shouldPersist=options.persist!==false;core.applyPlan(mapData,plan,options);lastPlan=plan;runtime.semanticMap?.touch?.('procedural-applied');runtime.engine.renderer?.invalidate?.();emit('vtt:procedural-applied',{signature:plan.signature,seed:plan.seed,profileId:plan.profileId,summary:plan.validation.summary,zone:plan.zone});
+    const shouldPersist=options.persist!==false;
+    core.applyPlan(mapData,plan,options);
+    if(mapData.procedural){
+      const geometryDiagnostics=plan.generated?.geometryDiagnostics||null;
+      const topologySourceIdMap=plan.generated?.topologySourceIdMap||null;
+      mapData.procedural={
+        ...mapData.procedural,
+        geometryDiagnostics:geometryDiagnostics?JSON.parse(JSON.stringify(geometryDiagnostics)):null,
+        topologySourceIdMap:topologySourceIdMap?{...topologySourceIdMap}:null,
+      };
+    }
+    lastPlan=plan;runtime.semanticMap?.touch?.('procedural-applied');runtime.engine.renderer?.invalidate?.();emit('vtt:procedural-applied',{signature:plan.signature,seed:plan.seed,profileId:plan.profileId,summary:plan.validation.summary,zone:plan.zone,geometry:mapData.procedural?.geometryDiagnostics||null});
     if(shouldPersist&&runtime.bridge?.isDm)Promise.resolve().then(()=>persist(plan)).catch((error)=>{emit('vtt:procedural-persist-failed',{signature:plan.signature,error:String(error?.message||error)});runtime.controller?.notify?.(`Zona aplicada, pero no se pudo guardar: ${String(error?.message||error)}`,'warning');});
     return mapData;
   }
