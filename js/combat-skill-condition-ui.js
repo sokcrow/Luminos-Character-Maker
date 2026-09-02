@@ -1,8 +1,58 @@
 (function (global) {
     'use strict';
 
+    const BaseSchema = global.CombatSkillSchema;
+    if (!BaseSchema || typeof document === 'undefined') return;
+
+    const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
+    const canonicalScalingStat = (value) => String(value ?? 'fuerza')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+
+    function prepareCanonicalInput(input) {
+        const raw = input && typeof input === 'object' ? { ...input } : {};
+        const canonicalWins = [
+            ['sourceId', 'source_id'],
+            ['statUsed', 'stat_used'],
+            ['skillUsed', 'skill_used']
+        ];
+        canonicalWins.forEach(([canonical, legacy]) => {
+            if (hasOwn(raw, canonical)) delete raw[legacy];
+        });
+        if (hasOwn(raw, 'scalingStat')) raw.scalingStat = canonicalScalingStat(raw.scalingStat);
+        else if (hasOwn(raw, 'scaling_stat')) raw.scaling_stat = canonicalScalingStat(raw.scaling_stat);
+        return raw;
+    }
+
+    function normalizeCombatSkill(input) {
+        const skill = BaseSchema.normalizeCombatSkill(prepareCanonicalInput(input));
+        skill.scalingStat = canonicalScalingStat(skill.scalingStat);
+        return skill;
+    }
+
+    function serializeCombatSkill(input, options) {
+        const normalized = normalizeCombatSkill(input);
+        const output = BaseSchema.serializeCombatSkill(normalized, options);
+        output.scalingStat = normalized.scalingStat;
+        if (!options || options.includeLegacyAliases !== false) output.scaling_stat = normalized.scalingStat;
+        return output;
+    }
+
+    function validateCombatSkill(input) {
+        const result = BaseSchema.validateCombatSkill(normalizeCombatSkill(input));
+        return { ...result, skill: normalizeCombatSkill(result.skill) };
+    }
+
+    global.CombatSkillSchema = Object.freeze({
+        ...BaseSchema,
+        normalizeCombatSkill,
+        serializeCombatSkill,
+        validateCombatSkill
+    });
+
     const Schema = global.CombatSkillSchema;
-    if (!Schema || typeof document === 'undefined') return;
 
     // SP in the creator follows Luminous/Limbus semantics: only Current SP is authored.
     // Legacy sp_percent/sp_max remain readable by the schema, but are intentionally hidden here.
@@ -160,6 +210,50 @@
         document.querySelectorAll('#previewEffects .preview-effect').forEach(prettifyPreviewRow);
     }
 
+    function hardenScalingSelect() {
+        const select = document.getElementById('f-scaling');
+        if (!select) return;
+        const current = canonicalScalingStat(select.value || select.selectedOptions?.[0]?.textContent || 'fuerza');
+        Array.from(select.options).forEach(option => {
+            option.value = canonicalScalingStat(option.textContent);
+        });
+        select.value = current;
+        if (!select.value && select.options.length) select.selectedIndex = 0;
+    }
+
+    function syncImmutableSkillId() {
+        const input = document.getElementById('f-id');
+        const meta = document.getElementById('editMeta');
+        if (!input || !meta) return;
+        const text = String(meta.textContent || '');
+        const locked = Boolean(input.value.trim()) && (/^Editando\b/i.test(text) || /^Guardado\b/i.test(text));
+        input.readOnly = locked;
+        input.title = locked
+            ? 'Skill ID is immutable after the first save because Decks, Items and combat references may depend on it.'
+            : 'ID can be chosen before the first save.';
+    }
+
+    function installCreatorHardening() {
+        hardenScalingSelect();
+        syncImmutableSkillId();
+        const meta = document.getElementById('editMeta');
+        const idInput = document.getElementById('f-id');
+        if (meta) new MutationObserver(syncImmutableSkillId).observe(meta, { childList: true, subtree: true, characterData: true });
+        if (idInput) new MutationObserver(syncImmutableSkillId).observe(idInput, { attributes: true, attributeFilter: ['value'] });
+        document.getElementById('skillList')?.addEventListener('click', () => setTimeout(() => {
+            hardenScalingSelect();
+            syncImmutableSkillId();
+        }, 0));
+        document.getElementById('btnNew')?.addEventListener('click', () => setTimeout(() => {
+            hardenScalingSelect();
+            syncImmutableSkillId();
+        }, 0));
+        document.getElementById('btnDuplicate')?.addEventListener('click', () => setTimeout(() => {
+            hardenScalingSelect();
+            syncImmutableSkillId();
+        }, 0));
+    }
+
     function installObservers() {
         const editor = document.getElementById('editorScroll');
         if (editor) {
@@ -202,6 +296,7 @@
 
     function init() {
         exposeConditionLegend();
+        installCreatorHardening();
         installObservers();
         runHudSmokeIndicator();
     }
