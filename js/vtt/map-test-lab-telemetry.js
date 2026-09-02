@@ -75,7 +75,7 @@ function metricDelta(current={},baseline={}){
 export function installTestLabTelemetry(root=globalThis,engine=root?.LuminousVttRuntime?.engine){
   if(!engine||!isLab(engine))return null;
   if(engine.__testLabTelemetry)return engine.__testLabTelemetry;
-  const scheduler=()=>engine.perceptionScheduler?.snapshot?.()||root?.LuminousVttPerceptionSchedulerRuntime?.snapshot?.()||{};
+  const scheduler=()=>root?.LuminousVttPerceptionSchedulerRuntime?.snapshot?.()||engine.perceptionScheduler?.snapshot?.()||{};
   let baseline=scheduler();
   let previewFrames=0;
   let stopped=false;
