@@ -7,5 +7,6 @@ import './horizontal-plane-core.js';
 import './horizontal-plane-authoring-patch.js';
 import './vertical-transition-animation-runtime.js';
 import './map-test-lab-runtime.js';
+import './map-test-lab-telemetry.js';
 
 globalThis.LuminousVttHorizontalPlaneAuthoringPatch?.install?.();
