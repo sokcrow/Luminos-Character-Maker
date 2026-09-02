@@ -22,7 +22,11 @@ const actions = [
 ];
 const rolls = [0.8,0.2,0.5,0.7,0.1,0.9,0.4];
 let ri = 0;
-const round = queue.buildRoundOrder({actions,units,random:()=>rolls[ri++] ?? 0.5});
+const speedSnapshot = queue.snapshotSpeedSources(units,{random:()=>rolls[ri++] ?? 0.5});
+
+// Speed/tie placement is frozen at ON_TURN_START, before planning/combat.
+p1.speed = 1;
+const round = queue.buildRoundOrder({actions,units,speedSnapshot,random:()=>0.99});
 assert.equal(round.entries[0].actionId,'head1');
 assert.equal(round.getSpeed('p1'),8);
 assert.equal(round.getSpeed('abno','head'),9);
@@ -32,9 +36,6 @@ assert.deepEqual(round.entries.filter(x=>x.actorId==='p1').map(x=>x.actionId),['
 assert.deepEqual(round.layout.allies.map(x=>x.actorId),['p2','p1','p3']);
 assert.equal(round.layout.enemies.at(-1).actorId,'abno');
 assert.equal(round.layout.enemies.at(-1).partId,'head');
-
-p1.speed = 1;
-assert.equal(round.getSpeed('p1'),8);
 
 const p1Entry = round.getEntry('p1s1');
 const e1Entry = round.getEntry('e1s1');
