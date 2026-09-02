@@ -1,6 +1,22 @@
 (function (global) {
     'use strict';
 
+    const DEFAULT_EFFECT = Object.freeze({
+        trigger: '[On Use]',
+        target: 'target',
+        type: 'status',
+        status: '',
+        potency: 0,
+        count: 0,
+        maxCap: 0,
+        scaleTarget: null,
+        scaleCondition: null,
+        is_reuse: false,
+        target_ally: false,
+        timing: 'immediate',
+        condition: null
+    });
+
     const DEFAULTS = Object.freeze({
         id: '',
         name: '',
@@ -70,13 +86,47 @@
         return Boolean(value);
     }
 
+    function normalizeCondition(rawCondition) {
+        if (!rawCondition || typeof rawCondition !== 'object') return null;
+        return {
+            ...rawCondition,
+            target: firstDefined(rawCondition, ['target'], 'target'),
+            stat: firstDefined(rawCondition, ['stat'], 'HP'),
+            operator: firstDefined(rawCondition, ['operator'], 'equal to'),
+            value: asNumber(firstDefined(rawCondition, ['value'], 0), 0)
+        };
+    }
+
+    function normalizeEffect(rawEffect, fallbackTrigger) {
+        const raw = rawEffect && typeof rawEffect === 'object' ? rawEffect : {};
+        return {
+            ...raw,
+            trigger: firstDefined(raw, ['trigger'], fallbackTrigger || DEFAULT_EFFECT.trigger),
+            target: firstDefined(raw, ['target'], DEFAULT_EFFECT.target),
+            type: firstDefined(raw, ['type'], DEFAULT_EFFECT.type),
+            status: firstDefined(raw, ['status'], DEFAULT_EFFECT.status),
+            potency: asNumber(firstDefined(raw, ['potency'], DEFAULT_EFFECT.potency), DEFAULT_EFFECT.potency),
+            count: asNumber(firstDefined(raw, ['count'], DEFAULT_EFFECT.count), DEFAULT_EFFECT.count),
+            maxCap: asNumber(firstDefined(raw, ['maxCap', 'max_cap'], DEFAULT_EFFECT.maxCap), DEFAULT_EFFECT.maxCap),
+            scaleTarget: firstDefined(raw, ['scaleTarget', 'scale_target'], DEFAULT_EFFECT.scaleTarget),
+            scaleCondition: firstDefined(raw, ['scaleCondition', 'scale_condition'], DEFAULT_EFFECT.scaleCondition),
+            is_reuse: asBoolean(firstDefined(raw, ['is_reuse', 'isReuse'], DEFAULT_EFFECT.is_reuse), DEFAULT_EFFECT.is_reuse),
+            target_ally: asBoolean(firstDefined(raw, ['target_ally', 'targetAlly'], DEFAULT_EFFECT.target_ally), DEFAULT_EFFECT.target_ally),
+            timing: firstDefined(raw, ['timing'], DEFAULT_EFFECT.timing),
+            condition: normalizeCondition(raw.condition)
+        };
+    }
+
     function normalizeCoin(rawCoin, index) {
         const coin = rawCoin && typeof rawCoin === 'object' ? rawCoin : {};
         return {
             ...coin,
             index,
             type: firstDefined(coin, ['type', 'coinType'], 'normal'),
-            effects: Array.isArray(coin.effects) ? coin.effects : []
+            status: firstDefined(coin, ['status'], 'active'),
+            effects: Array.isArray(coin.effects)
+                ? coin.effects.map(effect => normalizeEffect(effect, '[On Hit]'))
+                : []
         };
     }
 
@@ -113,7 +163,9 @@
             isIndiscriminate: firstDefined(raw, ['isIndiscriminate', 'is_indiscriminate'], DEFAULTS.isIndiscriminate),
             isTargetFixed: firstDefined(raw, ['isTargetFixed', 'is_target_fixed'], DEFAULTS.isTargetFixed),
             requiresUnlock: firstDefined(raw, ['requiresUnlock', 'requires_unlock'], DEFAULTS.requiresUnlock),
-            effects: Array.isArray(raw.effects) ? raw.effects : DEFAULTS.effects,
+            effects: Array.isArray(raw.effects)
+                ? raw.effects.map(effect => normalizeEffect(effect, '[On Use]'))
+                : [],
             evolutionChain: firstDefined(raw, ['evolutionChain', 'evolution_chain'], DEFAULTS.evolutionChain),
             schemaVersion: 2
         };
@@ -144,19 +196,25 @@
         if (opts.includeLegacyAliases) {
             output.weight = skill.attackWeight;
             output.atkWeight = skill.attackWeight;
+            output.range = skill.skillRange;
             output.targeting_type = skill.targetingType;
             output.aoe_pattern = skill.aoePattern;
             output.scaling_stat = skill.scalingStat;
             output.tipo_dano = skill.damageType;
             output.dmgType = skill.damageType;
+            output.attackType = skill.damageType;
             output.pecado = skill.sinAffinity;
+            output.affinity = skill.sinAffinity;
             output.skill_amount = skill.skillAmount;
+            output.source_type = skill.sourceType;
+            output.source_id = skill.sourceId;
             output.is_item_skill = skill.isItemSkill;
             output.is_defense = skill.isDefense;
             output.defense_subtype = skill.defenseSubtype;
             output.is_unclashable = skill.isUnclashable;
             output.is_indiscriminate = skill.isIndiscriminate;
             output.is_target_fixed = skill.isTargetFixed;
+            output.requires_unlock = skill.requiresUnlock;
             output.evolution_chain = skill.evolutionChain;
         }
 
@@ -177,9 +235,22 @@
         if (skill.targetingType !== 'AoE' && skill.aoePattern && skill.aoePattern !== 'Self') {
             warnings.push('aoePattern se conserva, pero sólo se usa cuando targetingType es AoE.');
         }
-        if (skill.isUnclashable && skill.isClashable) {
-            warnings.push('Unclashable fuerza isClashable=false al normalizar.');
-        }
+
+        skill.effects.forEach((effect, index) => {
+            if (!effect.trigger) errors.push(`Global Effect ${index + 1} necesita trigger.`);
+            if (effect.type === 'status' && !String(effect.status || '').trim()) {
+                warnings.push(`Global Effect ${index + 1} es Status pero no tiene status id.`);
+            }
+        });
+
+        skill.coins.forEach((coin, coinIndex) => {
+            coin.effects.forEach((effect, effectIndex) => {
+                if (!effect.trigger) errors.push(`Coin ${coinIndex + 1}, Effect ${effectIndex + 1} necesita trigger.`);
+                if (effect.type === 'status' && !String(effect.status || '').trim()) {
+                    warnings.push(`Coin ${coinIndex + 1}, Effect ${effectIndex + 1} es Status pero no tiene status id.`);
+                }
+            });
+        });
 
         return { valid: errors.length === 0, errors, warnings, skill };
     }
@@ -187,6 +258,9 @@
     global.CombatSkillSchema = Object.freeze({
         VERSION: 2,
         DEFAULTS,
+        DEFAULT_EFFECT,
+        normalizeCondition,
+        normalizeEffect,
         normalizeCombatSkill,
         serializeCombatSkill,
         validateCombatSkill
