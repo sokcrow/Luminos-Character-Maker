@@ -19,7 +19,11 @@ export function createRenderer(canvas, mapData, { backend = RENDERER_BACKENDS.CA
 
     installPersistentTokenViews(renderer);
     installTransientTokenPreview(renderer);
-    installRemoteTokenInterpolation(renderer);
+    installRemoteTokenInterpolation(renderer, {
+        minDurationMs: 120,
+        defaultDurationMs: 160,
+        maxDurationMs: 240,
+    });
     installTokenInteractionViews(renderer);
     installWebGL2TokenLayer(renderer);
     installWebGL2TokenInteractionLayer(renderer);
