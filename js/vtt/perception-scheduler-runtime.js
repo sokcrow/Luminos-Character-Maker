@@ -30,19 +30,37 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
   Object.defineProperty(scheduler,'__rama4',{value:true,enumerable:false});
   const exactCalculateVision=engine.calculateVision.bind(engine);
   const originalLoop=engine.loop;
+  const originalEmitSemanticEvent=typeof engine.emitSemanticEvent==='function'?engine.emitSemanticEvent.bind(engine):null;
   const raf=typeof globalThis.requestAnimationFrame==='function'
     ?globalThis.requestAnimationFrame.bind(globalThis)
     :(callback)=>globalThis.setTimeout(()=>callback(globalThis.performance?.now?.()||Date.now()),16);
+  const timing={activeIntervals:0,activeIntervalTotalMs:0,activeIntervalMaxMs:0,lastActiveRenderAt:null};
   let stopped=false;
 
   function calculateVisionScheduled(...args){
     return scheduler.consumeVision(()=>exactCalculateVision(...args));
   }
 
+  function emitSemanticEventScheduled(type,detail={},dirty=null){
+    if(!originalEmitSemanticEvent)return undefined;
+    if(!dirty)return originalEmitSemanticEvent(type,detail,dirty);
+    const normalized=normalizePerceptionDirty({...dirty,sourceEvent:type,meta:detail});
+    return originalEmitSemanticEvent(type,detail,{...dirty,render:normalized.render,vision:normalized.vision});
+  }
+
   function scheduledLoop(){
     if(stopped||!engine.isRunning)return;
     const renderData=scheduler.consumeVision(()=>exactCalculateVision());
     if(!engine.isExporting&&scheduler.shouldRender()){
+      const active=Boolean(scheduler.animationActive||scheduler.cameraActive);
+      const now=globalThis.performance?.now?.()||Date.now();
+      if(active&&timing.lastActiveRenderAt!=null){
+        const interval=Math.max(0,now-timing.lastActiveRenderAt);
+        timing.activeIntervals+=1;
+        timing.activeIntervalTotalMs+=interval;
+        timing.activeIntervalMaxMs=Math.max(timing.activeIntervalMaxMs,interval);
+      }
+      timing.lastActiveRenderAt=active?now:null;
       engine.renderer?.render?.(engine.camera,engine.activeZ,renderData,engine.isExporting);
       scheduler.didRender();
     }
@@ -58,6 +76,7 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
 
   engine.calculateVision=calculateVisionScheduled;
   engine.loop=scheduledLoop;
+  if(originalEmitSemanticEvent)engine.emitSemanticEvent=emitSemanticEventScheduled;
   engine.perceptionScheduler=scheduler;
   canvas.addEventListener?.('vtt:scene-dirty',onSceneDirty);
 
@@ -67,13 +86,23 @@ export function installPerceptionSchedulerRuntime({runtime=globalThis.LuminousVt
     normalizePerceptionDirty,
     invalidateVision:()=>scheduler.invalidateVision(),
     requestRender:()=>scheduler.requestRender(),
-    snapshot:()=>scheduler.snapshot(),
+    snapshot:()=>{
+      const base=scheduler.snapshot();
+      const activeFrameTimeAvgMs=timing.activeIntervals?timing.activeIntervalTotalMs/timing.activeIntervals:0;
+      return Object.freeze({
+        ...base,
+        activeFrameTimeAvgMs,
+        activeFrameTimeMaxMs:timing.activeIntervalMaxMs,
+        activeFps:activeFrameTimeAvgMs>0?1000/activeFrameTimeAvgMs:0,
+      });
+    },
     stop(){
       if(stopped)return false;
       stopped=true;
       canvas.removeEventListener?.('vtt:scene-dirty',onSceneDirty);
       if(engine.calculateVision===calculateVisionScheduled)engine.calculateVision=exactCalculateVision;
       if(engine.loop===scheduledLoop)engine.loop=originalLoop;
+      if(originalEmitSemanticEvent&&engine.emitSemanticEvent===emitSemanticEventScheduled)engine.emitSemanticEvent=originalEmitSemanticEvent;
       if(engine.perceptionScheduler===scheduler)delete engine.perceptionScheduler;
       if(globalThis.LuminousVttPerceptionSchedulerRuntime===api)delete globalThis.LuminousVttPerceptionSchedulerRuntime;
       return true;
