@@ -5,22 +5,28 @@ on:
     branches:
       - rama4-grid-topology-verticality
     paths:
+      - 'js/vtt/map-authoring.js'
+      - 'js/vtt/map-authoring-state.js'
       - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-core.js'
       - 'js/vtt/procedural-building-generator.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/urban-fabric-core.js'
       - 'js/vtt/procedural-zone-core.js'
+      - 'scripts/vtt-map-creation-id-regression-check.mjs'
       - 'scripts/vtt-procedural-id-regression-check.mjs'
       - '.github/workflows/vtt-rama4-procedural-id-p0.yml'
   pull_request:
     paths:
+      - 'js/vtt/map-authoring.js'
+      - 'js/vtt/map-authoring-state.js'
       - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-core.js'
       - 'js/vtt/procedural-building-generator.js'
       - 'js/vtt/procedural-building-mix-patch.js'
       - 'js/vtt/urban-fabric-core.js'
       - 'js/vtt/procedural-zone-core.js'
+      - 'scripts/vtt-map-creation-id-regression-check.mjs'
       - 'scripts/vtt-procedural-id-regression-check.mjs'
       - '.github/workflows/vtt-rama4-procedural-id-p0.yml'
   workflow_dispatch:
@@ -39,7 +45,11 @@ jobs:
           node-version: 22
       - name: Syntax
         run: |
+          node --input-type=module --check < js/vtt/map-authoring-state.js
           node --input-type=module --check < js/vtt/procedural-id-auditor.js
+          node --check scripts/vtt-map-creation-id-regression-check.mjs
           node --check scripts/vtt-procedural-id-regression-check.mjs
+      - name: Collision-safe map creation
+        run: node scripts/vtt-map-creation-id-regression-check.mjs
       - name: Procedural ID regression matrix
         run: node scripts/vtt-procedural-id-regression-check.mjs
