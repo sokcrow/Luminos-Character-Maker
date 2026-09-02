@@ -110,6 +110,12 @@
         return Math.max(0, numberOr(active.costSpentFt, 0));
     }
 
+    function pointAtProgress(route, sourceLayer, progressFt, mapData = {}) {
+        const routes = routeRuntime();
+        if (!routes?.pointAtDistance || !route) return null;
+        return routes.pointAtDistance(route, sourceLayer, progressFt, mapData);
+    }
+
     function applyPoint(token, point, sourceLayer, route, progressFt, costSpentFt, mapData) {
         token.x = point.x;
         token.y = point.y;
@@ -135,9 +141,11 @@
         const ordered = routes.orderedPoints(route, sourceLayer);
         const exit = ordered[ordered.length - 1];
         const gridPosition = gridPositionForPoint(exit, targetZ, mapData);
-        const center = centerForGridPosition(gridPosition, mapData);
-        token.x = center.x;
-        token.y = center.y;
+
+        // x/y remain on the physical end of the route. Grid position is metadata only.
+        // Snapping x/y to the destination cell center made stairs/ramps behave like a teleport.
+        token.x = exit.x;
+        token.y = exit.y;
         token.elevationFt = exit.elevationFt;
         token.zLayer = Number(targetZ);
         token.z = [Number(targetZ)];
@@ -151,7 +159,7 @@
             costSpentFt: totalCostFt,
         };
         delete token.verticalMovement;
-        return { valid: true, complete: true, targetZ, route, token, costSpentFt: stepCostFt, totalCostFt };
+        return { valid: true, complete: true, sourceZ: Number(sourceLayer), targetZ, route, token, costSpentFt: stepCostFt, totalCostFt };
     }
 
     function traverse(token, candidate, mapData = {}) {
@@ -193,6 +201,7 @@
             resumed: startProgressFt > 0,
             route,
             token,
+            sourceZ: Number(sourceLayer),
             targetZ,
             progressFt,
             remainingRouteFt: route.pathLengthFt - progressFt,
@@ -224,6 +233,7 @@
         availableMovementFt,
         routeSourceLayer,
         progressFor,
+        pointAtProgress,
         completeTransition,
         traverse,
         transitionOnDrop,

@@ -9,7 +9,10 @@
   const MAPS_ROOT = 'campaña/estado_mundo/vttMaps';
   const ACTIVE_ROOT = 'campaña/estado_mundo/vttMapActive';
   const INSTANCE_ROOT = 'campaña/estado_mundo/instancia_activa';
+  const CREATE_ATTEMPT_LIMIT = 1000;
   const clean = (value) => String(value ?? '').trim();
+  const creationIntents = new WeakSet();
+  const wrappedAuthoringApis = new WeakMap();
 
   function hostWindow(root = browserRoot) {
     if (!root) return null;
@@ -22,12 +25,36 @@
     return host?.firebase || root?.firebase || null;
   }
 
-  function authoringRuntime(root = browserRoot) {
-    if (root?.LuminousVttMapAuthoring) return root.LuminousVttMapAuthoring;
-    if (typeof require !== 'undefined') {
-      try { return require('./map-authoring.js'); } catch (_) {}
+  function withCreationIntent(api, root = browserRoot) {
+    if (!api?.createDefinition || api.isCreateDefinitionIntent) return api;
+    let wrapped = wrappedAuthoringApis.get(api);
+    if (!wrapped) {
+      const baseCreateDefinition = api.createDefinition.bind(api);
+      wrapped = Object.freeze({
+        ...api,
+        createDefinition(...args) {
+          const definition = baseCreateDefinition(...args);
+          if (definition && typeof definition === 'object') creationIntents.add(definition);
+          return definition;
+        },
+        isCreateDefinitionIntent(definition) {
+          return Boolean(definition && typeof definition === 'object' && creationIntents.has(definition));
+        },
+      });
+      wrappedAuthoringApis.set(api, wrapped);
     }
-    return null;
+    try {
+      if (root?.LuminousVttMapAuthoring === api) root.LuminousVttMapAuthoring = wrapped;
+    } catch (_) {}
+    return wrapped;
+  }
+
+  function authoringRuntime(root = browserRoot) {
+    let api = root?.LuminousVttMapAuthoring || null;
+    if (!api && typeof require !== 'undefined') {
+      try { api = require('./map-authoring.js'); } catch (_) {}
+    }
+    return withCreationIntent(api, root);
   }
 
   function currentUid(root = browserRoot) {
@@ -105,34 +132,97 @@
       return clean(typeof active === 'string' ? active : active.mapId);
     }
 
+    function notifyMapsChanged() {
+      if (typeof onMapsChanged === 'function') onMapsChanged(list());
+    }
+
+    function definitionPayload(definition, { creating = false } = {}) {
+      if (!firebase?.database?.ServerValue?.TIMESTAMP) return { ...definition };
+      const timestamp = firebase.database.ServerValue.TIMESTAMP;
+      const payload = { ...definition, updatedByUid: currentUid(root) || DM_UID, updatedAt: timestamp };
+      if (creating || !payload.createdAt) payload.createdAt = timestamp;
+      return payload;
+    }
+
+    function candidateId(baseId, attempt) {
+      return authoring.firebaseKey(attempt <= 1 ? baseId : `${baseId}_${attempt}`, 'map');
+    }
+
+    async function reserveRemoteDefinition(definition) {
+      const ref = mapsRef()?.child?.(definition.id);
+      if (!ref) return true;
+      const payload = definitionPayload(definition, { creating: true });
+      if (typeof ref.transaction === 'function') {
+        const result = await ref.transaction((current) => current == null ? payload : undefined, undefined, false);
+        return Boolean(result?.committed);
+      }
+      if (typeof ref.once === 'function') {
+        const snapshot = await ref.once('value');
+        if (snapshot?.val?.() != null) return false;
+      }
+      if (typeof ref.set !== 'function') throw new Error('MAP_CREATE_STORAGE_UNAVAILABLE');
+      await ref.set(payload);
+      return true;
+    }
+
+    async function createDefinition(rawDefinition) {
+      if (!dm) throw new Error('DM_REQUIRED');
+      const initial = authoring.normalizeDefinition(rawDefinition, mapData || {});
+      const baseId = authoring.firebaseKey(initial.id, 'map');
+
+      for (let attempt = 1; attempt <= CREATE_ATTEMPT_LIMIT; attempt++) {
+        const id = candidateId(baseId, attempt);
+        if (maps[id] !== undefined) continue;
+        const definition = authoring.normalizeDefinition({ ...initial, id }, mapData || {});
+        const reserved = db ? await reserveRemoteDefinition(definition) : true;
+        if (!reserved) continue;
+        maps[id] = definition;
+        notifyMapsChanged();
+        return definition;
+      }
+
+      throw new Error('MAP_ID_ALLOCATION_EXHAUSTED');
+    }
+
     async function saveDefinition(rawDefinition) {
       if (!dm) throw new Error('DM_REQUIRED');
+      if (authoring.isCreateDefinitionIntent?.(rawDefinition)) return createDefinition(rawDefinition);
       const definition = authoring.normalizeDefinition(rawDefinition, mapData || {});
       const previous = maps[definition.id];
       maps[definition.id] = definition;
       try {
-        if (db) {
-          const payload = { ...definition, updatedByUid: currentUid(root) || DM_UID, updatedAt: firebase.database.ServerValue.TIMESTAMP };
-          if (!payload.createdAt) payload.createdAt = firebase.database.ServerValue.TIMESTAMP;
-          await mapsRef().child(definition.id).set(payload);
-        }
+        if (db) await mapsRef().child(definition.id).set(definitionPayload(definition));
       } catch (error) {
         if (previous === undefined) delete maps[definition.id];
         else maps[definition.id] = previous;
-        if (typeof onMapsChanged === 'function') onMapsChanged(list());
+        notifyMapsChanged();
         throw error;
       }
-      if (typeof onMapsChanged === 'function') onMapsChanged(list());
+      notifyMapsChanged();
       return definition;
     }
 
     async function deleteDefinition(mapId) {
       if (!dm) throw new Error('DM_REQUIRED');
       const key = authoring.firebaseKey(mapId, 'default');
+      const previous = maps[key];
+      if (previous === undefined) throw new Error('MAP_NOT_FOUND');
       if (activeMapId() === key) throw new Error('ACTIVE_MAP_CANNOT_BE_DELETED');
+
       delete maps[key];
-      if (db) await mapsRef().child(key).remove();
-      if (typeof onMapsChanged === 'function') onMapsChanged(list());
+      try {
+        if (db) {
+          const ref = mapsRef()?.child?.(key);
+          if (!ref?.remove) throw new Error('MAP_DELETE_STORAGE_UNAVAILABLE');
+          await ref.remove();
+        }
+      } catch (error) {
+        maps[key] = previous;
+        notifyMapsChanged();
+        throw error;
+      }
+
+      notifyMapsChanged();
       return true;
     }
 
@@ -174,7 +264,7 @@
       if (!db) return false;
       subscribe(mapsRef(), (snapshot) => {
         maps = snapshot.val() || {};
-        if (typeof onMapsChanged === 'function') onMapsChanged(list());
+        notifyMapsChanged();
       });
       subscribe(activeRef(), (snapshot) => {
         active = snapshot.val() || {};
@@ -189,12 +279,12 @@
     }
 
     return Object.freeze({
-      isDm: dm, start, stop, list, get, activeMapId, saveDefinition, deleteDefinition, activate, uploadFloorImage,
+      isDm: dm, start, stop, list, get, activeMapId, createDefinition, saveDefinition, deleteDefinition, activate, uploadFloorImage,
     });
   }
 
   return Object.freeze({
-    DM_UID, MAPS_ROOT, ACTIVE_ROOT, INSTANCE_ROOT, hostWindow, hostFirebase, currentUid, isDm,
-    resolveActiveDefinition, watchActiveMap, createBridge,
+    DM_UID, MAPS_ROOT, ACTIVE_ROOT, INSTANCE_ROOT, CREATE_ATTEMPT_LIMIT,
+    hostWindow, hostFirebase, currentUid, isDm, resolveActiveDefinition, watchActiveMap, createBridge,
   });
 });

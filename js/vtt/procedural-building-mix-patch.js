@@ -15,6 +15,12 @@
     return null;
   }
 
+  function optimizerCore(){
+    if(root?.LuminousVttProceduralTopologyOptimizer)return root.LuminousVttProceduralTopologyOptimizer;
+    if(typeof require!=='undefined'){try{return require('./procedural-topology-optimizer.js');}catch(_){}}
+    return null;
+  }
+
   function profileWeights(profileId='mixed_urban'){
     const base=original||root?.LuminousVttProceduralBuildings;
     return base?.WEIGHTS?.[profileId]||base?.WEIGHTS?.mixed_urban||{shop:.3,apartment_building:.35,workshop:.2,warehouse:.15};
@@ -67,7 +73,9 @@
       buildings.push(result.building);areas.push(...result.areas);points.push(...result.points);relations.push(...result.relations);topology.push(...result.topology);
       const g=result.footprint;for(let row=g.minRow;row<=g.maxRow;row++)for(let col=g.minCol;col<=g.maxCol;col++)surfaceCells.push({zLayer:0,col,row,materialId:result.surfaceMaterialId,buildingId:result.building.id});
     }
-    return{schemaVersion:base.SCHEMA_VERSION,buildings,areas,points,relations,topology:base.dedupeTopology(topology),surfaceCells};
+    const rawTopology=base.dedupeTopology(topology),optimizer=optimizerCore();
+    const optimized=optimizer?.optimizeTopology?optimizer.optimizeTopology(rawTopology,{buildingCount:buildings.length}):{topology:rawTopology,sourceIdMap:{},metrics:null};
+    return{schemaVersion:base.SCHEMA_VERSION,buildings,areas,points,relations,topology:optimized.topology,surfaceCells,geometryDiagnostics:optimized.metrics,topologySourceIdMap:optimized.sourceIdMap};
   }
 
   function install(){

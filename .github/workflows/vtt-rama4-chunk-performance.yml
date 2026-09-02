@@ -1,0 +1,67 @@
+name: VTT Rama 4 Simulated Chunk Performance
+
+on:
+  push:
+    branches:
+      - rama4-grid-topology-verticality
+    paths:
+      - 'js/vtt/visibility-working-set.js'
+      - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/map-test-lab-telemetry.js'
+      - 'js/vtt/horizontal-plane-preload.js'
+      - 'scripts/vtt-chunk-visibility-performance-check.mjs'
+      - 'scripts/vtt-chunk-movement-perception-performance-check.mjs'
+      - 'scripts/vtt-test-lab-telemetry-check.mjs'
+      - 'scripts/vtt-test-lab-browser-check.mjs'
+      - 'tests/vtt_rama4_test_lab_performance.html'
+      - '.github/workflows/vtt-rama4-chunk-performance.yml'
+  pull_request:
+    paths:
+      - 'js/vtt/visibility-working-set.js'
+      - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/perception-scheduler-runtime.js'
+      - 'js/vtt/map-test-lab-telemetry.js'
+      - 'js/vtt/horizontal-plane-preload.js'
+      - 'scripts/vtt-chunk-visibility-performance-check.mjs'
+      - 'scripts/vtt-chunk-movement-perception-performance-check.mjs'
+      - 'scripts/vtt-test-lab-telemetry-check.mjs'
+      - 'scripts/vtt-test-lab-browser-check.mjs'
+      - 'tests/vtt_rama4_test_lab_performance.html'
+      - '.github/workflows/vtt-rama4-chunk-performance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chunk-performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --input-type=module --check < js/vtt/visibility-working-set.js
+          node --input-type=module --check < js/vtt/perception-scheduler.js
+          node --input-type=module --check < js/vtt/map-test-lab-telemetry.js
+          node --check scripts/vtt-chunk-visibility-performance-check.mjs
+          node --check scripts/vtt-chunk-movement-perception-performance-check.mjs
+          node --check scripts/vtt-test-lab-telemetry-check.mjs
+          node --check scripts/vtt-test-lab-browser-check.mjs
+      - name: Simulated 40x40 chunk working-set benchmark
+        run: node scripts/vtt-chunk-visibility-performance-check.mjs
+      - name: Cached perception during 240-frame token movement
+        run: node scripts/vtt-chunk-movement-perception-performance-check.mjs
+      - name: Test Lab telemetry contract
+        run: node scripts/vtt-test-lab-telemetry-check.mjs
+      - name: Install Chromium performance harness
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Real WebGL2 Test Lab 240-frame benchmark
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/luminous-test-lab-http.log 2>&1 &
+          node scripts/vtt-test-lab-browser-check.mjs
