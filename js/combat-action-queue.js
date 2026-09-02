@@ -18,6 +18,10 @@
     return raw.includes("enemy") || raw.includes("enem") ? SIDE_B : SIDE_A;
   }
 
+  function partIdentity(part = {}) {
+    return String(part.id ?? part.partId ?? part.key ?? part.name ?? "").trim() || null;
+  }
+
   function partIdOf(action = {}) {
     return String(
       action.partId ?? action.abnormalityPartId ?? action.metadata?.partId ?? action.metadata?.abnormalityPartId ?? ""
@@ -40,7 +44,7 @@
   function findPart(unit = {}, partId) {
     if (!partId) return null;
     const wanted = String(partId);
-    return partCollection(unit).find((part) => String(part.id ?? part.partId ?? part.key ?? part.name ?? "") === wanted) || null;
+    return partCollection(unit).find((part) => partIdentity(part) === wanted) || null;
   }
 
   function speedSourceKey(actorId, partId) {
@@ -51,6 +55,41 @@
     const partId = partIdOf(action);
     const part = findPart(unit, partId);
     return part ? numericSpeed(part) : numericSpeed(unit);
+  }
+
+  function snapshotSpeedSources(units = [], options = {}) {
+    const random = typeof options.random === "function" ? options.random : Math.random;
+    const snapshot = {};
+    asArray(units).forEach((unit, inputIndex) => {
+      const actorId = entityId(unit);
+      if (!actorId) return;
+      const side = sideOf(unit);
+      const unitKey = speedSourceKey(actorId, null);
+      snapshot[unitKey] = {
+        key: unitKey,
+        actorId,
+        partId: null,
+        side,
+        speed: numericSpeed(unit),
+        tieRoll: finiteNumber(random(), 0),
+        inputIndex,
+      };
+      partCollection(unit).forEach((part, partIndex) => {
+        const partId = partIdentity(part);
+        if (!partId) return;
+        const key = speedSourceKey(actorId, partId);
+        snapshot[key] = {
+          key,
+          actorId,
+          partId,
+          side,
+          speed: numericSpeed(part),
+          tieRoll: finiteNumber(random(), 0),
+          inputIndex: inputIndex * 1000 + partIndex + 1,
+        };
+      });
+    });
+    return snapshot;
   }
 
   function slotIndexOf(action = {}, fallback = 0) {
@@ -76,6 +115,7 @@
   function buildRoundOrder(config = {}) {
     const random = typeof config.random === "function" ? config.random : Math.random;
     const unitsById = unitMap(config.units);
+    const frozenSnapshot = config.speedSnapshot && typeof config.speedSnapshot === "object" ? config.speedSnapshot : null;
     const sourceState = new Map();
     const entries = [];
 
@@ -88,7 +128,16 @@
       const key = speedSourceKey(actorId, partId);
       let source = sourceState.get(key);
       if (!source) {
-        source = {
+        const frozen = frozenSnapshot?.[key];
+        source = frozen ? {
+          key,
+          actorId,
+          partId,
+          side: frozen.side || sideOf(unit),
+          speed: finiteNumber(frozen.speed, resolveRoundSpeed(unit, action)),
+          tieRoll: finiteNumber(frozen.tieRoll, 0),
+          inputIndex: finiteNumber(frozen.inputIndex, inputIndex),
+        } : {
           key,
           actorId,
           partId,
@@ -279,7 +328,9 @@
     entityId,
     sideOf,
     partIdOf,
+    speedSourceKey,
     resolveRoundSpeed,
+    snapshotSpeedSources,
     buildRoundOrder,
     actionTargetsActor,
     canForceClash,
