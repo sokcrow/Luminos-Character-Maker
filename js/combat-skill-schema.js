@@ -64,9 +64,7 @@
 
     function firstDefined(source, keys, fallback) {
         for (const key of keys) {
-            if (source[key] !== undefined && source[key] !== null && source[key] !== '') {
-                return source[key];
-            }
+            if (source[key] !== undefined && source[key] !== null && source[key] !== '') return source[key];
         }
         return fallback;
     }
@@ -132,7 +130,6 @@
 
     function normalizeCombatSkill(rawSkill) {
         const raw = rawSkill && typeof rawSkill === 'object' ? rawSkill : {};
-
         const skill = {
             ...raw,
             id: firstDefined(raw, ['id', 'skillId'], DEFAULTS.id),
@@ -163,28 +160,22 @@
             isIndiscriminate: firstDefined(raw, ['isIndiscriminate', 'is_indiscriminate'], DEFAULTS.isIndiscriminate),
             isTargetFixed: firstDefined(raw, ['isTargetFixed', 'is_target_fixed'], DEFAULTS.isTargetFixed),
             requiresUnlock: firstDefined(raw, ['requiresUnlock', 'requires_unlock'], DEFAULTS.requiresUnlock),
-            effects: Array.isArray(raw.effects)
-                ? raw.effects.map(effect => normalizeEffect(effect, '[On Use]'))
-                : [],
+            effects: Array.isArray(raw.effects) ? raw.effects.map(effect => normalizeEffect(effect, '[On Use]')) : [],
             evolutionChain: firstDefined(raw, ['evolutionChain', 'evolution_chain'], DEFAULTS.evolutionChain),
             schemaVersion: 2
         };
 
-        NUMBER_FIELDS.forEach((field) => {
+        NUMBER_FIELDS.forEach(field => {
             const minimum = ['tier', 'coinAmount', 'attackWeight', 'skillRange', 'skillAmount'].includes(field) ? 1 : undefined;
             skill[field] = asNumber(skill[field], DEFAULTS[field], minimum);
         });
-
-        BOOLEAN_FIELDS.forEach((field) => {
-            skill[field] = asBoolean(skill[field], DEFAULTS[field]);
-        });
+        BOOLEAN_FIELDS.forEach(field => { skill[field] = asBoolean(skill[field], DEFAULTS[field]); });
 
         if (skill.isUnclashable) skill.isClashable = false;
         if (skill.isDefense && !skill.defenseSubtype) skill.defenseSubtype = 'Guard';
 
         const rawCoins = Array.isArray(raw.coins) ? raw.coins : [];
         skill.coins = Array.from({ length: skill.coinAmount }, (_, index) => normalizeCoin(rawCoins[index], index));
-
         return skill;
     }
 
@@ -217,7 +208,6 @@
             output.requires_unlock = skill.requiresUnlock;
             output.evolution_chain = skill.evolutionChain;
         }
-
         return output;
     }
 
@@ -225,33 +215,24 @@
         const skill = normalizeCombatSkill(inputSkill);
         const errors = [];
         const warnings = [];
-
         if (!String(skill.name || '').trim()) errors.push('El nombre de la Skill es obligatorio.');
         if (skill.coinAmount < 1) errors.push('Coin Amount debe ser al menos 1.');
         if (skill.attackWeight < 1) errors.push('Attack Weight debe ser al menos 1.');
         if (skill.skillRange < 1) errors.push('Range debe ser al menos 1.');
         if (skill.skillAmount < 1) errors.push('Skill Amount debe ser al menos 1.');
         if (skill.isDefense && !skill.defenseSubtype) errors.push('Una Defense Skill necesita defenseSubtype.');
-        if (skill.targetingType !== 'AoE' && skill.aoePattern && skill.aoePattern !== 'Self') {
-            warnings.push('aoePattern se conserva, pero sólo se usa cuando targetingType es AoE.');
-        }
+        if (skill.targetingType !== 'AoE' && skill.aoePattern && skill.aoePattern !== 'Self') warnings.push('aoePattern se conserva, pero sólo se usa cuando targetingType es AoE.');
 
         skill.effects.forEach((effect, index) => {
             if (!effect.trigger) errors.push(`Global Effect ${index + 1} necesita trigger.`);
-            if (effect.type === 'status' && !String(effect.status || '').trim()) {
-                warnings.push(`Global Effect ${index + 1} es Status pero no tiene status id.`);
-            }
+            if (effect.type === 'status' && !String(effect.status || '').trim()) warnings.push(`Global Effect ${index + 1} es Status pero no tiene status id.`);
         });
-
         skill.coins.forEach((coin, coinIndex) => {
             coin.effects.forEach((effect, effectIndex) => {
                 if (!effect.trigger) errors.push(`Coin ${coinIndex + 1}, Effect ${effectIndex + 1} necesita trigger.`);
-                if (effect.type === 'status' && !String(effect.status || '').trim()) {
-                    warnings.push(`Coin ${coinIndex + 1}, Effect ${effectIndex + 1} es Status pero no tiene status id.`);
-                }
+                if (effect.type === 'status' && !String(effect.status || '').trim()) warnings.push(`Coin ${coinIndex + 1}, Effect ${effectIndex + 1} es Status pero no tiene status id.`);
             });
         });
-
         return { valid: errors.length === 0, errors, warnings, skill };
     }
 
