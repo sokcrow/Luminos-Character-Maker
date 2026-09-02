@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
 
-const schema = require('../js/combat-action-schema.js');
-globalThis.LuminousCombatAction = schema;
-const adapters = require('../js/combat-action-adapters.js');
-globalThis.LuminousCombatActionAdapters = adapters;
-const bridge = require('../js/combat-action-engine-bridge.js');
-globalThis.LuminousCombatActionEngineBridge = bridge;
-const queue = require('../js/combat-action-queue.js');
-globalThis.LuminousCombatActionQueue = queue;
-const resolver = require('../js/combat-action-resolver.js');
-globalThis.LuminousCombatActionResolver = resolver;
-const runtimeApi = require('../js/combat-runtime-integration.js');
+await import('../js/combat-action-schema.js');
+const schema = globalThis.LuminousCombatAction;
+await import('../js/combat-action-adapters.js');
+const adapters = globalThis.LuminousCombatActionAdapters;
+await import('../js/combat-action-engine-bridge.js');
+const bridge = globalThis.LuminousCombatActionEngineBridge;
+await import('../js/combat-action-queue.js');
+const queue = globalThis.LuminousCombatActionQueue;
+await import('../js/combat-action-resolver.js');
+const resolver = globalThis.LuminousCombatActionResolver;
+await import('../js/combat-runtime-integration.js');
+const runtimeApi = globalThis.LuminousCombatRuntimeIntegration;
+if (!schema || !adapters || !bridge || !queue || !resolver || !runtimeApi) throw new Error('Combat runtime modules were not initialized.');
 
 let clashCalls = 0;
 let attackCalls = 0;
@@ -96,12 +96,9 @@ assert.equal(runtimeApi.registerAction(runtime,e1a1).registered,true);
 assert.equal(runtimeApi.registerAction(runtime,e1a2).registered,true);
 assert.equal(runtimeApi.registerAction(runtime,e2a1).registered,true);
 
-// p2 is not e1a1's target and is slower (5 < 7), so it cannot steal the clash.
 const denied = runtimeApi.linkClash(runtime,p2a1.id,e1a1.id);
 assert.equal(denied.linked,false);
 assert.equal(denied.reason,'insufficient_speed_to_force_clash');
-
-// p1 is the declared target, so it can clash regardless of speed; its frozen speed remains 8 anyway.
 const linked = runtimeApi.linkClash(runtime,p1a1.id,e1a1.id);
 assert.equal(linked.linked,true);
 
