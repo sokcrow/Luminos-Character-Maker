@@ -11,6 +11,7 @@ on:
       - 'js/vtt/render/renderer-factory.js'
       - 'js/vtt/procedural-topology-optimizer.js'
       - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-bootstrap.js'
       - 'js/vtt/procedural-generator-worker.js'
       - 'js/vtt/procedural-performance-runtime.js'
@@ -24,6 +25,7 @@ on:
       - 'js/vtt/render/renderer-factory.js'
       - 'js/vtt/procedural-topology-optimizer.js'
       - 'js/vtt/procedural-building-mix-patch.js'
+      - 'js/vtt/procedural-id-auditor.js'
       - 'js/vtt/procedural-generator-bootstrap.js'
       - 'js/vtt/procedural-generator-worker.js'
       - 'js/vtt/procedural-performance-runtime.js'
@@ -50,6 +52,7 @@ jobs:
           node --input-type=module --check < js/vtt/render/renderer-factory.js
           node --input-type=module --check < js/vtt/procedural-topology-optimizer.js
           node --input-type=module --check < js/vtt/procedural-building-mix-patch.js
+          node --input-type=module --check < js/vtt/procedural-id-auditor.js
           node --input-type=module --check < js/vtt/procedural-generator-bootstrap.js
           node --input-type=module --check < js/vtt/procedural-performance-runtime.js
       - name: Topology optimizer unit checks
@@ -58,6 +61,8 @@ jobs:
         run: node scripts/vtt-procedural-topology-runtime-check.mjs
       - name: Procedural generator geometry
         run: node scripts/vtt-procedural-generator-geometry-check.mjs
+      - name: Procedural ID regression matrix
+        run: node scripts/vtt-procedural-id-regression-check.mjs
       - name: Pre-spatial performance baseline
         run: node scripts/vtt-procedural-performance-baseline-check.mjs
       - name: Perception scheduler
