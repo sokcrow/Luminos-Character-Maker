@@ -25,6 +25,9 @@
       "base_datos_npcs": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
+      "base_datos_skills": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (!root.child('campaña').child('config').child('dm_uid').exists() && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+      },
       "escenarios": {
         ".write": "auth != null && auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'"
       },
