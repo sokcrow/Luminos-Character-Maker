@@ -40,15 +40,18 @@ engine.emitSemanticEvent('vtt:token-preview-moved',{tokenId:'p1',traversing:true
 assert.equal(dirtyEvents.at(-1)?.vision,false,'traversal preview must be emitted as visual-only');
 engine.calculateVision();
 assert.equal(rawVisionCalls,1,'traversal preview must not recalculate FOV');
+api.scheduler.didRender();
+const requestsBeforeCamera=api.snapshot().renderRequests;
+globalThis.LuminousVttSceneDirty.emit(canvas,{reason:'camera',render:true,vision:true,active:true,sourceEvent:'camera:follow'});
+assert.equal(api.snapshot().renderRequests,requestsBeforeCamera,'camera-follow during traversal must not create a second render request');
+assert.equal(api.snapshot().cameraRenderCoalesces,1);
+engine.calculateVision();
+assert.equal(rawVisionCalls,1,'camera-only changes must not recalculate world FOV');
 
 engine.emitSemanticEvent('vtt:token-preview-moved',{tokenId:'p1'},{reason:'token',render:true,vision:true,active:true});
 assert.equal(dirtyEvents.at(-1)?.vision,false,'raw token preview must be emitted as visual-only');
 engine.calculateVision();
 assert.equal(rawVisionCalls,1,'raw preview must not recalculate FOV');
-
-globalThis.LuminousVttSceneDirty.emit(canvas,{reason:'camera',render:true,vision:true,active:true,sourceEvent:'camera:test'});
-engine.calculateVision();
-assert.equal(rawVisionCalls,1,'camera-only changes must not recalculate world FOV');
 
 engine.emitSemanticEvent('vtt:token-moved',{tokenId:'p1'},{reason:'token',render:true,vision:true,active:false});
 assert.equal(dirtyEvents.at(-1)?.vision,true,'canonical endpoint must keep perception invalidation');
@@ -62,6 +65,7 @@ const snapshot=api.snapshot();
 assert.equal(snapshot.visionRecomputes,2);
 assert.ok(snapshot.visionCacheHits>=102);
 assert.ok(snapshot.cameraDirtyEvents>=1);
+assert.ok(snapshot.cameraRenderCoalesces>=1);
 
 api.stop();
 assert.notEqual(engine.calculateVision,undefined);
