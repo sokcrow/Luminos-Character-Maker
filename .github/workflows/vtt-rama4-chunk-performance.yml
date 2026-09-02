@@ -7,15 +7,21 @@ on:
     paths:
       - 'js/vtt/visibility-working-set.js'
       - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/map-test-lab-telemetry.js'
+      - 'js/vtt/horizontal-plane-preload.js'
       - 'scripts/vtt-chunk-visibility-performance-check.mjs'
       - 'scripts/vtt-chunk-movement-perception-performance-check.mjs'
+      - 'scripts/vtt-test-lab-telemetry-check.mjs'
       - '.github/workflows/vtt-rama4-chunk-performance.yml'
   pull_request:
     paths:
       - 'js/vtt/visibility-working-set.js'
       - 'js/vtt/perception-scheduler.js'
+      - 'js/vtt/map-test-lab-telemetry.js'
+      - 'js/vtt/horizontal-plane-preload.js'
       - 'scripts/vtt-chunk-visibility-performance-check.mjs'
       - 'scripts/vtt-chunk-movement-perception-performance-check.mjs'
+      - 'scripts/vtt-test-lab-telemetry-check.mjs'
       - '.github/workflows/vtt-rama4-chunk-performance.yml'
   workflow_dispatch:
 
@@ -34,9 +40,13 @@ jobs:
         run: |
           node --input-type=module --check < js/vtt/visibility-working-set.js
           node --input-type=module --check < js/vtt/perception-scheduler.js
+          node --input-type=module --check < js/vtt/map-test-lab-telemetry.js
           node --check scripts/vtt-chunk-visibility-performance-check.mjs
           node --check scripts/vtt-chunk-movement-perception-performance-check.mjs
+          node --check scripts/vtt-test-lab-telemetry-check.mjs
       - name: Simulated 40x40 chunk working-set benchmark
         run: node scripts/vtt-chunk-visibility-performance-check.mjs
       - name: Cached perception during 240-frame token movement
         run: node scripts/vtt-chunk-movement-perception-performance-check.mjs
+      - name: Test Lab telemetry contract
+        run: node scripts/vtt-test-lab-telemetry-check.mjs
