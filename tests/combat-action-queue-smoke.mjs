@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const queue = require('../js/combat-action-queue.js');
+await import('../js/combat-action-queue.js');
+const queue = globalThis.LuminousCombatActionQueue;
+if (!queue) throw new Error('LuminousCombatActionQueue was not initialized.');
 
 const p1 = { id:'p1', faction:'allies', speed:8, hp:20 };
 const p2 = { id:'p2', faction:'allies', speed:8, hp:20 };
@@ -23,8 +23,6 @@ const actions = [
 const rolls = [0.8,0.2,0.5,0.7,0.1,0.9,0.4];
 let ri = 0;
 const speedSnapshot = queue.snapshotSpeedSources(units,{random:()=>rolls[ri++] ?? 0.5});
-
-// Speed/tie placement is frozen at ON_TURN_START, before planning/combat.
 p1.speed = 1;
 const round = queue.buildRoundOrder({actions,units,speedSnapshot,random:()=>0.99});
 assert.equal(round.entries[0].actionId,'head1');
