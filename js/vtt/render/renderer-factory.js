@@ -1,5 +1,6 @@
 import '../movement-zero-work-drag.js';
 import '../token-interaction-runtime.js';
+import '../field-stability-hotfix.js';
 import { Canvas2DRenderer } from './canvas2d-renderer.js';
 import { installDmObserverOverlay } from './dm-observer-overlay.js';
 import { installPersistentTokenViews } from './persistent-token-views.js';
