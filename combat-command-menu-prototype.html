@@ -3,143 +3,365 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Luminous Combat Command Menu Prototype v2</title>
+<title>Luminous Combat Command Menu Prototype v3</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-:root{
-  --hp:#ff4a22;--sp:#88eeff;--speed:#ffe877;--ink:#09090d;--cream:#fff8e8;
-  --orange:#ff5528;--cyan:#7ee9ff;--violet:#b98bff;--gold:#f1c64d;--green:#7ee38f;
-  --font:'Bebas Neue',Impact,sans-serif;
+:root {
+  --limbus-hp-orange:#ff4a22;
+  --limbus-sp-cyan:#88eeff;
+  --limbus-speed-yellow:#ffe877;
+  --limbus-speed-glow:#ff4400;
+  --limbus-slot-dark:#1a1510;
+  --limbus-slot-border:#4a3520;
+  --limbus-slot-dash:#a87030;
+  --font-limbus:'Bebas Kai','Bebas Neue',sans-serif;
+  --menu-red:#ff3b24;
+  --menu-cyan:#54e7ff;
+  --menu-violet:#b888ff;
+  --menu-gold:#ffd34e;
+  --menu-green:#74e58b;
 }
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05050a;color:#fff;font-family:Arial,sans-serif}
-button{font:inherit}
-#stage{position:relative;width:100vw;height:100vh;min-width:1180px;min-height:680px;overflow:hidden;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.43)),url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png') center bottom/cover no-repeat}
-#stage:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 52%,transparent 0 27%,rgba(0,0,0,.12) 48%,rgba(0,0,0,.55) 100%)}
-.phase{position:absolute;left:28px;top:24px;z-index:40;font:28px var(--font);letter-spacing:2px;transform:rotate(-2deg);text-shadow:3px 3px 0 #000}.phase b{color:var(--orange)}
-.quick{position:absolute;right:30px;top:24px;z-index:40;font:18px var(--font);letter-spacing:1.5px;background:#0a090d;border-left:5px solid var(--gold);padding:7px 13px;transform:skewX(-10deg);box-shadow:6px 6px 0 rgba(0,0,0,.5)}.quick strong{color:var(--gold)}
-.controls{position:absolute;right:28px;top:72px;z-index:50;display:flex;gap:7px}.controls button{border:1px solid #776b58;background:rgba(7,7,10,.86);color:#ddd;padding:6px 10px;cursor:pointer;font-size:10px;font-weight:900;text-transform:uppercase}.controls button:hover{border-color:var(--orange);color:#fff}
-.status{position:absolute;left:28px;top:64px;z-index:42;color:#bdb5a7;font-size:10px;letter-spacing:.5px;background:rgba(0,0,0,.45);padding:5px 8px}
+* { box-sizing:border-box; }
+html,body { margin:0; width:100%; height:100%; overflow:hidden; background:#050010; color:#fff; font-family:Arial,sans-serif; }
+button { font:inherit; }
+#stage {
+  position:relative; width:100vw; height:100vh; min-width:1180px; min-height:680px; overflow:hidden;
+  background-image:linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.36)),url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png');
+  background-size:cover; background-position:center bottom; background-repeat:no-repeat;
+}
+#stage::after { content:""; position:absolute; inset:0; z-index:1; pointer-events:none; background:radial-gradient(circle at 50% 55%,transparent 0 30%,rgba(0,0,0,.12) 52%,rgba(0,0,0,.58) 100%); }
+.prototype-label { position:absolute; z-index:80; left:26px; top:20px; font-family:var(--font-limbus); font-size:25px; letter-spacing:1.6px; text-shadow:3px 3px 0 #000; }
+.prototype-label b { color:var(--limbus-hp-orange); }
+.prototype-controls { position:absolute; z-index:80; top:22px; right:26px; display:flex; gap:7px; }
+.prototype-controls button { background:rgba(7,7,10,.9); border:1px solid #6d5a43; color:#ddd; padding:6px 10px; cursor:pointer; font-size:10px; font-weight:900; text-transform:uppercase; }
+.prototype-controls button:hover { border-color:var(--limbus-hp-orange); color:#fff; }
+.prototype-status { position:absolute; z-index:80; left:27px; top:56px; max-width:480px; font-size:10px; color:#c7bcae; background:rgba(0,0,0,.48); padding:5px 8px; }
+.quick-badge { position:absolute; z-index:80; right:28px; top:62px; font-family:var(--font-limbus); font-size:18px; letter-spacing:1px; text-shadow:2px 2px 0 #000; }
+.quick-badge strong { color:var(--limbus-speed-yellow); }
+.offdeck-badge { position:absolute; z-index:80; left:28px; bottom:20px; font-size:9px; letter-spacing:1px; color:#9d978e; text-transform:uppercase; }
+.offdeck-badge b { color:#e8ca86; }
 
-/* combatant frame keeps the language of Battle-viewer */
-.fighter{position:absolute;z-index:10;left:50%;bottom:4vh;width:620px;height:650px;transform:translateX(-50%)}
-.sprite{position:absolute;z-index:8;left:50%;bottom:122px;height:455px;max-width:360px;object-fit:contain;object-position:bottom;transform:translateX(-50%);filter:drop-shadow(0 18px 12px rgba(0,0,0,.92));pointer-events:auto;cursor:pointer}
-.sprite:hover{filter:drop-shadow(0 18px 12px #000) brightness(1.06)}
-.shadow{position:absolute;left:50%;bottom:112px;width:255px;height:36px;transform:translateX(-50%);background:rgba(0,0,0,.7);border-radius:50%;filter:blur(8px)}
+/* Selected combatant is the real Battle Viewer HUD scaled as one unit. */
+.focus-stage { position:absolute; z-index:10; left:50%; top:50%; width:980px; height:700px; transform:translate(-50%,-47%); }
+.combatant-scale { position:absolute; left:50%; top:48%; width:260px; height:360px; transform:translate(-50%,-50%) scale(1.72); transform-origin:center center; z-index:15; }
+.combatant { position:relative; width:260px; height:360px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; pointer-events:none; transform-origin:bottom center; }
 
-/* Existing top HUD concept: Speed + Action Slots */
-.top-hud{position:absolute;z-index:22;left:50%;top:42px;transform:translateX(-50%);display:flex;align-items:flex-start;gap:8px;pointer-events:auto}
-.speed{font:56px/0.85 var(--font);color:var(--speed);text-shadow:0 0 10px #ff4b00,2px 2px 2px #000;padding-top:8px}
-.action-slots{display:flex;gap:3px}.slot{position:relative;width:54px;height:54px;border:0;background:transparent;cursor:pointer;padding:0;filter:drop-shadow(0 3px 4px #000)}
-.slot svg{width:54px;height:54px}.slot polygon{fill:#17130f;stroke:#5a4025;stroke-width:8}.slot line{stroke:#b47930;stroke-width:7;stroke-linecap:round}.slot.active polygon,.slot:hover polygon{stroke:var(--speed);fill:#2a1b11}.slot-index{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f7df9b;font:17px var(--font);pointer-events:none}
+/* Exact Battle Viewer standard HUD geometry. */
+.diegetic-floor { position:absolute; bottom:-110px; width:220px; height:220px; transform:rotateX(65deg); z-index:1; overflow:visible; pointer-events:auto; }
+.floor-bg-poly { fill:rgba(255,80,0,.2); stroke:rgba(255,200,50,.5); stroke-width:3; }
+.hp-track { fill:none; stroke:rgba(30,5,5,.8); stroke-width:22; stroke-linecap:butt; }
+.stagger-tick-line { fill:none; stroke:#ffdd44; stroke-width:26; pointer-events:none; filter:drop-shadow(0 0 3px #000); }
+.hp-fill-line { fill:none; stroke:var(--limbus-hp-orange); stroke-width:22; transition:stroke-dashoffset .4s ease-out; filter:drop-shadow(0 0 10px var(--limbus-hp-orange)); }
+.shield-fill-line { fill:none; stroke:#4a90e2; stroke-width:22; transition:stroke-dashoffset .4s ease-out; filter:drop-shadow(0 0 10px #4a90e2); opacity:.8; }
+.sprite-anchor { position:absolute; display:flex; justify-content:center; width:100%; z-index:3; pointer-events:none; transition:transform .2s ease; transform-origin:bottom center; }
+.sprite-img { height:240px; object-fit:contain; object-position:bottom; filter:drop-shadow(0 15px 10px rgba(0,0,0,.8)); transition:transform .2s; pointer-events:auto; cursor:pointer; }
+.sprite-img:hover { transform:scale(1.05); }
+.top-ui-panel { position:absolute; display:flex; align-items:flex-start; gap:6px; z-index:10; pointer-events:none; top:60px; left:80px; }
+.speed-number { color:var(--limbus-speed-yellow); font-size:50px; font-family:var(--font-limbus); line-height:.8; text-shadow:0 0 8px var(--limbus-speed-glow),1px 1px 2px #000; margin-top:8px; }
+.action-slots { display:flex; gap:2px; pointer-events:auto; }
+.action-slot-wrapper { position:relative; touch-action:none; cursor:pointer; pointer-events:auto; }
+.action-slot-svg { width:44px; height:44px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.8)); pointer-events:none; }
+.slot-heptagon-bg { fill:var(--limbus-slot-dark); stroke:var(--limbus-slot-border); stroke-width:10; }
+.slot-center-line { stroke:var(--limbus-slot-dash); stroke-width:8; stroke-linecap:round; }
+.action-slot-wrapper.prototype-focus { filter:drop-shadow(0 0 5px var(--limbus-speed-yellow)); }
+.floating-hp-group { position:absolute; bottom:5px; left:-10px; z-index:10; display:flex; flex-direction:column; align-items:flex-start; pointer-events:none; }
+.name-plate { background:#050505; color:#ddd; font-size:14px; letter-spacing:1px; font-family:var(--font-limbus); padding:2px 6px; border:1px solid #333; border-radius:4px; text-transform:uppercase; margin-bottom:-2px; }
+.hp-number { font-size:60px; color:var(--limbus-hp-orange); font-family:var(--font-limbus); line-height:.85; text-shadow:2px 4px 6px rgba(0,0,0,.8); }
+.floating-sp-group { position:absolute; bottom:5px; right:5px; width:48px; height:48px; border-radius:50%; border:3px solid #3b2c20; outline:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:30px; font-family:var(--font-limbus); color:white; text-shadow:1px 1px 3px #000; z-index:10; pointer-events:none; }
+.sp-neutral { background:radial-gradient(circle at 30% 30%,#55aaaa 0%,#113333 80%); }
 
-/* Existing lower HUD concept: diegetic floor HP, name/HP, SP */
-.floor-hud{position:absolute;z-index:6;left:50%;bottom:18px;width:300px;height:190px;transform:translateX(-50%);pointer-events:none}
-.floor-hud svg{position:absolute;left:50%;bottom:-16px;width:280px;height:210px;transform:translateX(-50%) rotateX(62deg);overflow:visible}
-.floor-poly{fill:rgba(255,80,0,.13);stroke:rgba(255,190,70,.42);stroke-width:3}.hp-track{fill:none;stroke:rgba(35,7,5,.92);stroke-width:20}.hp-line{fill:none;stroke:var(--hp);stroke-width:20;filter:drop-shadow(0 0 7px var(--hp))}.stagger{stroke:#ffdd44;stroke-width:23}
-.name-hp{position:absolute;left:6px;bottom:14px;z-index:12}.name{display:inline-block;background:#050505;border:1px solid #383838;padding:2px 7px;font:15px var(--font);letter-spacing:1.5px;color:#ddd}.hp-number{font:64px/.78 var(--font);color:var(--hp);text-shadow:3px 4px 5px #000}
-.sp-orb{position:absolute;right:5px;bottom:15px;width:58px;height:58px;border-radius:50%;border:3px solid #493728;outline:1px solid #000;background:radial-gradient(circle at 30% 30%,#67d5e6,#173d48 72%);display:flex;align-items:center;justify-content:center;font:34px var(--font);text-shadow:1px 2px 3px #000;box-shadow:0 0 14px rgba(136,238,255,.24)}
+/* Command blades: irregular, layered, asymmetrical and visibly anchored to the fighter. */
+.command-layer { position:absolute; inset:0; z-index:35; pointer-events:none; }
+.command { --accent:#fff; --rot:0deg; --w:270px; position:absolute; width:var(--w); height:86px; border:0; background:transparent; color:#fff; cursor:pointer; pointer-events:auto; transform:rotate(var(--rot)); transform-origin:var(--origin,50% 50%); transition:transform .1s ease,filter .1s ease; filter:drop-shadow(8px 9px 0 rgba(0,0,0,.6)); }
+.command .splash { position:absolute; inset:12px -18px 3px -22px; z-index:0; background:var(--accent); clip-path:polygon(0 57%,18% 30%,47% 23%,71% 0,100% 23%,87% 56%,100% 79%,64% 72%,33% 100%,18% 72%); transform:rotate(-3deg); opacity:.96; }
+.command .ink { position:absolute; inset:0; z-index:1; display:flex; align-items:center; background:#050507; clip-path:polygon(0 32%,8% 15%,40% 9%,72% 0,100% 24%,94% 56%,100% 86%,58% 78%,20% 100%,4% 79%); }
+.command .pivot { position:absolute; z-index:4; width:58px; height:58px; border-radius:50%; background:#050507; border:5px solid #fff; display:grid; place-items:center; color:var(--accent); font-family:var(--font-limbus); font-size:30px; line-height:1; box-shadow:0 0 0 4px #050507; }
+.command .label { position:relative; z-index:3; font-family:var(--font-limbus); font-size:44px; line-height:.78; letter-spacing:1px; text-shadow:3px 3px 0 #000; white-space:nowrap; }
+.command .sub { display:block; font-family:Arial,sans-serif; font-size:9px; line-height:1; margin-top:8px; letter-spacing:1.4px; font-weight:900; color:#d7d2c8; text-transform:uppercase; }
+.command.left .ink { padding:14px 74px 12px 24px; justify-content:flex-end; text-align:right; }
+.command.left .pivot { right:-7px; top:13px; }
+.command.right .ink { padding:14px 24px 12px 74px; justify-content:flex-start; text-align:left; }
+.command.right .pivot { left:-7px; top:13px; }
+.command.right .splash { transform:scaleX(-1) rotate(-3deg); }
+.command:hover,.command.active { filter:drop-shadow(11px 12px 0 #000) brightness(1.12); }
+.command:hover { transform:rotate(var(--rot)) scale(1.07); }
+.command.active .ink { background:#f4efe6; color:#08080b; }
+.command.active .label { text-shadow:none; }
+.command.active .sub { color:#38332e; }
+.cmd-skills { --accent:var(--menu-red); --rot:-8deg; --w:315px; --origin:100% 55%; left:24px; top:150px; }
+.cmd-defense { --accent:var(--menu-cyan); --rot:6deg; --w:270px; --origin:100% 45%; left:62px; top:252px; }
+.cmd-spells { --accent:var(--menu-violet); --rot:7deg; --w:292px; --origin:0 55%; right:40px; top:139px; }
+.cmd-items { --accent:var(--menu-gold); --rot:-4deg; --w:270px; --origin:0 50%; right:56px; top:247px; }
+.cmd-global { --accent:var(--menu-green); --rot:9deg; --w:300px; --origin:0 45%; right:22px; top:350px; }
 
-/* Persona-like command fan: wedges originate around the unit, not presentation cards */
-.command-fan{position:absolute;z-index:28;inset:0;pointer-events:none}
-.cmd{--accent:#fff;position:absolute;border:0;color:#fff;background:transparent;pointer-events:auto;cursor:pointer;height:64px;filter:drop-shadow(7px 8px 0 rgba(0,0,0,.55));transition:transform .1s ease,filter .1s ease;transform-origin:var(--origin,50% 50%)}
-.cmd .blade{height:100%;min-width:210px;padding:8px 27px 7px 31px;background:linear-gradient(102deg,#050507 0 79%,transparent 80%);clip-path:polygon(0 24%,8% 9%,89% 0,100% 51%,88% 100%,5% 86%);display:flex;flex-direction:column;justify-content:center;text-align:left;position:relative}
-.cmd .blade:after{content:"";position:absolute;left:8px;top:5px;bottom:6px;width:9px;background:var(--accent);transform:skewX(-13deg)}
-.cmd strong{font:31px/.86 var(--font);letter-spacing:1px}.cmd small{font:10px Arial,sans-serif;font-weight:800;letter-spacing:1.4px;color:#bdb8b0;text-transform:uppercase;margin-top:4px}.cmd:hover,.cmd.active{filter:drop-shadow(9px 10px 0 #000) brightness(1.18)}
-.cmd:hover{transform:var(--pose) scale(1.07) translateX(7px)}.cmd.active{transform:var(--pose) scale(1.045)}
-.cmd-skills{left:-50px;top:178px;--accent:var(--orange);--pose:rotate(-8deg);transform:var(--pose);--origin:100% 50%}.cmd-defense{left:-82px;top:270px;--accent:var(--cyan);--pose:rotate(5deg);transform:var(--pose);--origin:100% 50%}.cmd-spells{right:-58px;top:165px;--accent:var(--violet);--pose:rotate(7deg);transform:var(--pose);--origin:0 50%}.cmd-items{right:-88px;top:257px;--accent:var(--gold);--pose:rotate(-3deg);transform:var(--pose);--origin:0 50%}.cmd-global{right:-38px;top:342px;--accent:var(--green);--pose:rotate(8deg);transform:var(--pose);--origin:0 50%}
-.cmd-spells .blade,.cmd-items .blade,.cmd-global .blade{background:linear-gradient(78deg,transparent 0 9%,#050507 10% 100%);clip-path:polygon(0 50%,12% 3%,94% 15%,100% 82%,11% 100%)}
-.cmd-spells .blade:after,.cmd-items .blade:after,.cmd-global .blade:after{left:auto;right:8px}
+/* Submenu has no card/dashboard shell: only individual action blades. */
+.submenu { position:absolute; z-index:55; pointer-events:auto; display:none; }
+.submenu.open { display:block; }
+.submenu.skills { left:10px; top:366px; width:640px; }
+.submenu.left { left:78px; top:362px; width:440px; }
+.submenu.right { right:32px; top:432px; width:470px; }
+.submenu-title { display:inline-block; font-family:var(--font-limbus); font-size:24px; letter-spacing:1.4px; color:#fff; text-shadow:3px 3px 0 #000; margin:0 0 7px 12px; transform:rotate(-2deg); }
+.skill-row { display:grid; grid-template-columns:70px 240px 240px; gap:5px; margin-bottom:5px; align-items:stretch; }
+.slot-tag { display:flex; align-items:center; justify-content:center; min-height:54px; background:#08080b; color:var(--limbus-speed-yellow); font-family:var(--font-limbus); font-size:18px; letter-spacing:1px; clip-path:polygon(0 18%,78% 0,100% 50%,78% 100%,0 82%); }
+.option { --accent:#9b8460; position:relative; border:0; background:transparent; color:#fff; min-height:54px; padding:0; cursor:pointer; text-align:left; transition:transform .08s ease,filter .08s ease; }
+.option::before { content:""; position:absolute; inset:4px -7px -2px 0; background:var(--accent); z-index:0; clip-path:polygon(0 45%,17% 13%,80% 0,100% 40%,89% 100%,24% 86%); opacity:.78; }
+.option .option-ink { position:relative; z-index:1; min-height:54px; padding:8px 13px 7px 16px; background:#07070a; clip-path:polygon(0 14%,88% 0,100% 44%,91% 100%,7% 88%); }
+.option b { display:block; font-family:var(--font-limbus); font-size:21px; line-height:.9; letter-spacing:.4px; }
+.option small { display:block; margin-top:5px; font-size:9px; font-weight:900; letter-spacing:.7px; opacity:.72; text-transform:uppercase; }
+.option.oldest { --accent:#a57b3c; }
+.option.newest { --accent:var(--menu-red); }
+.option.granted { --accent:#cfaa54; }
+.option:hover,.option.selected { transform:translateX(7px) rotate(-1deg); filter:brightness(1.18) drop-shadow(5px 6px 0 #000); }
+.option:hover .option-ink,.option.selected .option-ink { background:#f4efe6; color:#09090b; }
+.permanent-label { margin:8px 0 4px 75px; font-family:var(--font-limbus); font-size:14px; letter-spacing:1px; color:#d5ccbe; }
+.simple-stack { display:flex; flex-direction:column; gap:6px; width:360px; }
+.simple-stack .option { width:100%; }
 
-/* Context menu hangs off the selected command instead of becoming a dashboard */
-.flyout{position:absolute;z-index:36;display:none;max-width:510px;pointer-events:auto}.flyout.open{display:block}.flyout.skills{left:-235px;top:355px}.flyout.left{left:-205px;top:340px}.flyout.right{right:-210px;top:410px}
-.fly-title{display:inline-block;background:#050507;padding:5px 15px 4px;border-left:6px solid var(--orange);font:25px var(--font);letter-spacing:1px;transform:skewX(-8deg);box-shadow:5px 5px 0 #000;margin-bottom:7px}.fly-title span{display:block;transform:skewX(8deg)}
-.skill-rows{display:flex;flex-direction:column;gap:6px}.skill-row{display:grid;grid-template-columns:66px 190px 190px;gap:5px;align-items:stretch;transform-origin:left center}.row-label{display:flex;align-items:center;justify-content:center;background:#0a090c;border-left:5px solid var(--speed);font:18px var(--font);letter-spacing:1px;clip-path:polygon(0 9%,91% 0,100% 50%,91% 100%,0 91%)}
-.option{--accent:#777;position:relative;border:0;color:#fff;background:#08080b;text-align:left;min-height:55px;padding:8px 14px 7px 16px;cursor:pointer;clip-path:polygon(0 8%,92% 0,100% 48%,93% 100%,4% 90%);box-shadow:none;transition:transform .08s,filter .08s}.option:before{content:"";position:absolute;left:4px;top:5px;bottom:5px;width:6px;background:var(--accent)}.option:hover,.option.selected{background:#f5efe1;color:#09090c;transform:translateX(7px) rotate(-1deg);filter:drop-shadow(5px 6px 0 var(--accent))}.option b{display:block;font:19px/.95 var(--font);letter-spacing:.6px}.option small{display:block;font:9px Arial,sans-serif;font-weight:800;letter-spacing:.6px;opacity:.68;margin-top:4px;text-transform:uppercase}.option.oldest{--accent:#b68a42}.option.newest{--accent:var(--orange)}
-.permanent-label{font:12px var(--font);letter-spacing:1.4px;color:#cfc6b7;margin:6px 0 3px 67px}.simple-options{display:flex;flex-wrap:wrap;gap:6px;max-width:440px}.simple-options .option{min-width:190px}
-
-/* Hover description follows the flyout; no fixed PowerPoint panel */
-.tooltip{position:absolute;z-index:60;display:none;width:320px;background:rgba(5,5,8,.96);border-left:5px solid var(--tip-accent,var(--gold));padding:11px 14px;pointer-events:none;clip-path:polygon(0 0,96% 0,100% 12%,100% 100%,4% 100%,0 88%);box-shadow:8px 8px 0 rgba(0,0,0,.55)}.tooltip.show{display:block}.tip-kicker{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#c2b9a8;font-weight:900}.tip-name{font:24px var(--font);letter-spacing:.6px;margin:2px 0 5px}.tip-body{font-size:11px;line-height:1.35;color:#ddd6ca}.tip-evo{margin-top:7px;padding:6px 8px;border-left:3px solid var(--orange);background:rgba(255,85,40,.09);font-size:10px;line-height:1.3}.tip-cost{margin-top:7px;color:#aaa294;font-size:9px;text-transform:uppercase;letter-spacing:.6px}
-.offdeck{position:absolute;left:30px;bottom:24px;z-index:42;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#9d978e}.offdeck b{color:#e8ca86}
-@media(max-width:1300px){.fighter{transform:translateX(-50%) scale(.9);transform-origin:bottom center}.phase{font-size:24px}}
+.tooltip { position:absolute; z-index:90; display:none; width:330px; pointer-events:none; background:rgba(5,5,8,.96); border-left:5px solid var(--tip-accent,var(--menu-gold)); padding:10px 13px; box-shadow:8px 8px 0 rgba(0,0,0,.58); clip-path:polygon(0 0,95% 0,100% 12%,100% 100%,5% 100%,0 88%); }
+.tooltip.show { display:block; }
+.tip-kicker { font-size:9px; text-transform:uppercase; letter-spacing:1.4px; color:#c6bbaa; font-weight:900; }
+.tip-name { font-family:var(--font-limbus); font-size:25px; line-height:1; margin:3px 0 6px; }
+.tip-body { font-size:11px; line-height:1.35; color:#ddd5c9; }
+.tip-evolution { display:none; margin-top:7px; padding:6px 8px; border-left:3px solid var(--menu-red); background:rgba(255,59,36,.08); font-size:10px; line-height:1.3; }
+.tip-cost { margin-top:7px; font-size:9px; color:#aaa092; letter-spacing:.6px; text-transform:uppercase; }
+@media(max-width:1320px){ .focus-stage{ transform:translate(-50%,-47%) scale(.9); } }
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="phase">PLANNING <b>PHASE</b> · R<span id="round">1</span></div>
-  <div class="quick">QUICK ACTION <strong>1 / 1</strong></div>
-  <div class="controls"><button id="execute">Simular ejecución</button><button id="next">ON TURN START</button></div>
-  <div class="status" id="status">HUD de combate persistente + menú contextual alrededor de la Unit.</div>
-  <div class="offdeck">OFF-DECK: <b>Blood Reprise</b> · Trigger automático, no aparece como comando de Planning</div>
+  <div class="prototype-label">LUMINOUS <b>COMMAND TEST</b> · R<span id="round-number">1</span></div>
+  <div class="prototype-controls"><button id="execute-selected">Simular ejecución</button><button id="next-turn">ON TURN START</button></div>
+  <div class="prototype-status" id="status">El HUD central es el del Battle Viewer; sólo el menú de comandos es experimental.</div>
+  <div class="quick-badge">QUICK ACTION <strong>1 / 1</strong></div>
+  <div class="offdeck-badge">OFF-DECK: <b>Blood Reprise</b> · Trigger automático, fuera de Planning</div>
 
-  <main class="fighter">
-    <div class="top-hud">
-      <div class="speed">8</div>
-      <div class="action-slots" id="action-slots"></div>
+  <main class="focus-stage">
+    <div class="combatant-scale">
+      <div class="combatant">
+        <svg class="diegetic-floor" id="hp-floor" viewBox="-100 -100 200 200"></svg>
+        <div class="top-ui-panel">
+          <div class="speed-number">8</div>
+          <div class="action-slots" id="action-slots"></div>
+        </div>
+        <div class="sprite-anchor" style="bottom:0px;transform:scale(1)">
+          <img src="https://i.imgur.com/24qV5kD.png" class="sprite-img" alt="Agatha" onerror="this.style.opacity='.18'">
+        </div>
+        <div class="floating-hp-group"><div class="name-plate">Agatha</div><div class="hp-number">186</div></div>
+        <div class="floating-sp-group sp-neutral">15</div>
+      </div>
     </div>
 
-    <div class="shadow"></div>
-    <img class="sprite" src="https://i.imgur.com/24qV5kD.png" alt="Agatha" onerror="this.style.opacity='.18'">
-
-    <div class="floor-hud">
-      <svg viewBox="-140 -95 280 190">
-        <polygon class="floor-poly" points="0,-78 93,-43 119,23 69,73 -69,73 -119,23 -93,-43"/>
-        <polyline class="hp-track" points="-119,23 -69,73 69,73 119,23"/>
-        <polyline class="hp-line" points="-119,23 -69,73 69,73 102,39"/>
-        <line class="stagger" x1="-68" y1="71" x2="-59" y2="61"/><line class="stagger" x1="7" y1="73" x2="7" y2="60"/>
-      </svg>
-      <div class="name-hp"><div class="name">AGATHA</div><div class="hp-number">186</div></div>
-      <div class="sp-orb">15</div>
-    </div>
-
-    <nav class="command-fan">
-      <button class="cmd cmd-skills active" data-menu="skills"><span class="blade"><strong>SKILLS</strong><small>Deck + Granted</small></span></button>
-      <button class="cmd cmd-defense" data-menu="defense"><span class="blade"><strong>DEFENSE</strong><small>Permanente</small></span></button>
-      <button class="cmd cmd-spells" data-menu="spells"><span class="blade"><strong>SPELLS</strong><small>Spellbook</small></span></button>
-      <button class="cmd cmd-items" data-menu="items"><span class="blade"><strong>ITEMS</strong><small>Inventory</small></span></button>
-      <button class="cmd cmd-global" data-menu="global"><span class="blade"><strong>GLOBAL</strong><small>Universal</small></span></button>
+    <nav class="command-layer">
+      <button class="command left cmd-skills active" data-menu="skills"><span class="splash"></span><span class="ink"><span><span class="label">SKILLS</span><span class="sub">Deck + Granted</span></span></span><span class="pivot">S</span></button>
+      <button class="command left cmd-defense" data-menu="defense"><span class="splash"></span><span class="ink"><span><span class="label">DEFENSE</span><span class="sub">Permanent Skill</span></span></span><span class="pivot">D</span></button>
+      <button class="command right cmd-spells" data-menu="spells"><span class="splash"></span><span class="ink"><span><span class="label">SPELLS</span><span class="sub">Spellbook</span></span></span><span class="pivot">M</span></button>
+      <button class="command right cmd-items" data-menu="items"><span class="splash"></span><span class="ink"><span><span class="label">ITEMS</span><span class="sub">Inventory</span></span></span><span class="pivot">I</span></button>
+      <button class="command right cmd-global" data-menu="global"><span class="splash"></span><span class="ink"><span><span class="label">GLOBAL</span><span class="sub">Universal Actions</span></span></span><span class="pivot">G</span></button>
     </nav>
 
-    <section class="flyout skills open" id="flyout"><div class="fly-title"><span>SKILLS · ACTION SLOTS</span></div><div id="fly-content"></div></section>
+    <section class="submenu skills open" id="submenu"></section>
+    <aside class="tooltip" id="tooltip"><div class="tip-kicker" id="tip-kicker"></div><div class="tip-name" id="tip-name"></div><div class="tip-body" id="tip-body"></div><div class="tip-evolution" id="tip-evolution"></div><div class="tip-cost" id="tip-cost"></div></aside>
   </main>
-  <aside class="tooltip" id="tooltip"><div class="tip-kicker" id="tip-kicker"></div><div class="tip-name" id="tip-name"></div><div class="tip-body" id="tip-body"></div><div class="tip-evo" id="tip-evo"></div><div class="tip-cost" id="tip-cost"></div></aside>
 </div>
 <script src="js/deckEngine.js"></script>
 <script>
 (() => {
-  const Deck=window.LuminousDeckEngine||window.DeckEngine;if(!Deck)throw new Error('DeckEngine no disponible');
-  let round=1,activeMenu='skills',selected=null,activeSlot='agatha_slot_0';
-  const skill=(id,name,tier,description,evolution='')=>({id,name,tier,availability:{type:'deck'},description,evolution});
-  const deckSkills=[
-    skill('needle_drive','Needle Drive',1,'Pierce · 2 Coins · En Hit aplica 2 Bleed.','Skill 1-1 — Al ejecutar, si Target tiene 6+ Bleed: Coin 2 gana +2 Final Power y aplica 1 Rupture.'),
-    skill('rupture_line','Rupture Line',1,'Pierce · Mantiene Rupture Count.'),
-    skill('blood_arc','Blood Arc',2,'Slash · Gana Coin Power según Bleed del objetivo.','Skill 2-1 — Si Agatha tiene Bleed al ejecutar: consume 1 y gana +1 Coin.'),
-    skill('severing_step','Severing Step',2,'Slash · Si gana Clash, aplica 2 Bleed Count.'),
-    skill('red_nail','Red Nail',3,'Pierce · 3 Coins · Alto impacto.','Skill 3-1 — Si Target Bleed ≥ 6 al ejecutar: cambia temporalmente a Open Wound, Attack Weight 2.'),
-    skill('scarlet_end','Scarlet End',3,'Heavy Pierce · Consume Rupture para daño adicional.','Skill 3-1 — Si Target Rupture Potency ≥ 8: no consume Count en el primer Hit.')
-  ];
-  const unit={id:'agatha',name:'Agatha'};Deck.initDeck(unit,deckSkills);Deck.onTurnStart(unit,{round,slotCount:3});
-  const permanent={
-    granted:[{name:'Perforar',tag:'Granted · Weapon',description:'Skill gratuita respecto al Deck. Siempre disponible mientras su fuente siga equipada.',cost:'1 Action Slot · puede admitir Quick/Reaction según definición'}],
-    defense:[{name:'Guard',tag:'Defense',description:'Defensive Skill permanente; nunca ocupa una carta del Deck.',evolution:'Defense-1 — La propia Skill define su variante condicional.',cost:'1 Action Slot'},{name:'Counter',tag:'Defense',description:'Respuesta defensiva permanente de la Unit.',cost:'1 Action Slot'}],
-    spells:[{name:'Blood Sigil',tag:'Spell Lv1',description:'Spell fuera del Deck. Su runtime valida Spell Slot y recursos.',cost:'1 Action Slot + Spell Slot'},{name:'Binding Word',tag:'Spell Save',description:'Spell con Save; no modifica la rotación de Skills.',cost:'1 Action Slot + Spell Slot'}],
-    items:[{name:'Healing Vial',tag:'Item',description:'Item fuera del Deck.',cost:'Action o Quick si el Item lo permite'},{name:'Rupture Bomb',tag:'Throwable',description:'Item arrojable enlazado a su Skill de lanzamiento.',cost:'1 Action Slot'}],
-    global:[{name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics.',cost:'1 Action Slot'},{name:'Help',tag:'Universal',description:'+1 Final Power a una Action aliada válida.',cost:'1 Action Slot'},{name:'Retreat',tag:'Universal',description:'Se resuelve On Turn End.',cost:'1 Action Slot'},{name:'Escape',tag:'Universal',description:'Salida permanente del encuentro si tiene éxito.',cost:'1 Action Slot'}]
+  const Deck = window.LuminousDeckEngine || window.DeckEngine;
+  if (!Deck) throw new Error('DeckEngine no disponible.');
+
+  const unit = {
+    id:'agatha', name:'Agatha', hp:186, maxHp:200, sp:15, speed:8, shield:0,
+    armorType:'heavy', staggerThresholds:[50], actionSlots:3
   };
-  const $=id=>document.getElementById(id),tooltip=$('tooltip');
-  function heptagon(){return '<svg viewBox="0 0 100 100"><polygon points="50,5 88,23 97,62 72,94 28,94 3,62 12,23"/><line x1="32" y1="55" x2="68" y2="55"/></svg>';}
-  function renderTopSlots(){const root=$('action-slots');root.innerHTML='';for(let i=0;i<3;i++){const id=`agatha_slot_${i}`,b=document.createElement('button');b.className='slot'+(id===activeSlot?' active':'');b.innerHTML=heptagon()+`<span class="slot-index">${i+1}</span>`;b.title=Deck.getSlotHand(unit,id).map(c=>c.skill.name).join(' / ');b.onclick=()=>{activeSlot=id;activeMenu='skills';setCommands();renderTopSlots();renderFlyout();};root.appendChild(b)}}
-  function showTip(data,kicker,anchor,accent){$('tip-kicker').textContent=kicker||data.tag||'COMBAT COMMAND';$('tip-name').textContent=data.name||'—';$('tip-body').textContent=data.description||'Sin descripción';$('tip-evo').style.display=data.evolution?'block':'none';$('tip-evo').textContent=data.evolution||'';$('tip-cost').textContent=data.cost||'';tooltip.style.setProperty('--tip-accent',accent||'var(--gold)');const r=anchor.getBoundingClientRect(),w=320,left=Math.min(window.innerWidth-w-18,r.right+12),top=Math.max(18,Math.min(window.innerHeight-190,r.top-10));tooltip.style.left=left+'px';tooltip.style.top=top+'px';tooltip.classList.add('show')}
-  function hideTip(){tooltip.classList.remove('show')}
-  function makeOption(data,meta={}){const b=document.createElement('button');b.className='option '+(meta.kind||'');b.innerHTML=`<b>${data.name}</b><small>${meta.caption||data.tag||data.cost||''}</small>`;b.onmouseenter=()=>showTip({...data,evolution:data.evolution||meta.evolution},meta.kicker,b,meta.accent);b.onmouseleave=hideTip;b.onclick=()=>{document.querySelectorAll('.option.selected').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');selected=meta.selection||{type:activeMenu,data};$('status').textContent=meta.status||`${data.name} seleccionada.`;};return b}
-  function renderSkillFlyout(){const root=$('fly-content'),wrap=document.createElement('div');wrap.className='skill-rows';for(let i=0;i<3;i++){const slotId=`agatha_slot_${i}`,hand=Deck.getSlotHand(unit,slotId),row=document.createElement('div');row.className='skill-row';row.style.opacity=slotId===activeSlot?'1':'.78';const lab=document.createElement('div');lab.className='row-label';lab.textContent='SLOT '+(i+1);row.appendChild(lab);hand.forEach((card,index)=>row.appendChild(makeOption(card.skill,{kind:index===0?'oldest':'newest',caption:`${index===0?'OLDEST · rota':'NEWEST · acelera'} · T${['','I','II','III'][card.tier]}`,kicker:`DECK SKILL · SLOT ${i+1}`,selection:{type:'deck',slotId,drawId:card.drawId,data:card.skill},accent:index===0?'#b68a42':'#ff5528'})));wrap.appendChild(row)}root.innerHTML='';root.appendChild(wrap);const pl=document.createElement('div');pl.className='permanent-label';pl.textContent='GRANTED / FREE · FUERA DEL DECK';root.appendChild(pl);const simple=document.createElement('div');simple.className='simple-options';permanent.granted.forEach(d=>simple.appendChild(makeOption(d,{kicker:'GRANTED SKILL',selection:{type:'granted',data:d}})));root.appendChild(simple)}
-  function renderSimple(key,title){const root=$('fly-content');root.innerHTML='';const simple=document.createElement('div');simple.className='simple-options';permanent[key].forEach(d=>simple.appendChild(makeOption(d,{kicker:d.tag,selection:{type:key,data:d}})));root.appendChild(simple);document.querySelector('.fly-title span').textContent=title}
-  function renderFlyout(){const fly=$('flyout');selected=null;fly.className='flyout open '+(activeMenu==='skills'?'skills':(['defense'].includes(activeMenu)?'left':'right'));document.querySelector('.fly-title span').textContent=activeMenu.toUpperCase();if(activeMenu==='skills'){document.querySelector('.fly-title span').textContent='SKILLS · ACTION SLOTS';renderSkillFlyout()}else if(activeMenu==='defense')renderSimple('defense','DEFENSE · PERMANENTE');else if(activeMenu==='spells')renderSimple('spells','SPELLS · SPELLBOOK');else if(activeMenu==='items')renderSimple('items','ITEMS · INVENTORY');else renderSimple('global','GLOBAL · UNIVERSAL')}
-  function setCommands(){document.querySelectorAll('.cmd').forEach(b=>b.classList.toggle('active',b.dataset.menu===activeMenu))}
-  document.querySelectorAll('.cmd').forEach(b=>b.onclick=()=>{activeMenu=b.dataset.menu;setCommands();renderFlyout()});
-  $('execute').onclick=()=>{if(!selected){$('status').textContent='Selecciona una acción primero.';return}if(selected.type==='deck'){Deck.markCardUsed(unit,selected.slotId,selected.drawId);$('status').textContent=`${selected.data.name}: ejecución iniciada; la carta cuenta como usada.`}else $('status').textContent=`${selected.data.name}: ejecución simulada; no altera el Deck.`};
-  $('next').onclick=()=>{round++;Deck.onTurnStart(unit,{round,slotCount:3});$('round').textContent=round;selected=null;renderTopSlots();renderFlyout();$('status').textContent=`ON TURN START R${round}: los 3 Slots rotaron independientemente.`};
-  renderTopSlots();renderFlyout();
+  let round = 1;
+  let activeMenu = 'skills';
+  let selected = null;
+  let focusedSlotId = 'agatha_slot_0';
+
+  const deckSkills = [
+    {id:'needle_drive',name:'Needle Drive',tier:1,availability:{type:'deck'},description:'Pierce. 2 Coins. En Hit aplica 2 Bleed.',evolution:'Skill 1-1 — Si Target tiene 6+ Bleed: Coin 2 gana +2 Final Power y aplica 1 Rupture.'},
+    {id:'rupture_line',name:'Rupture Line',tier:1,availability:{type:'deck'},description:'Pierce. Mantiene Rupture Count y prepara el siguiente Hit.'},
+    {id:'blood_arc',name:'Blood Arc',tier:2,availability:{type:'deck'},description:'Slash. Gana Coin Power según Bleed del objetivo.',evolution:'Skill 2-1 — Si la Unit tiene Bleed al ejecutar, cambia temporalmente su comportamiento.'},
+    {id:'severing_step',name:'Severing Step',tier:2,availability:{type:'deck'},description:'Slash. Si gana Clash, aplica Bleed Count.'},
+    {id:'red_nail',name:'Red Nail',tier:3,availability:{type:'deck'},description:'Pierce. 3 Coins. Skill de alto impacto.',evolution:'Skill 3-1 — Al ejecutar, si Target Bleed ≥ 6 cambia a Open Wound y modifica su Attack Weight.'},
+    {id:'scarlet_end',name:'Scarlet End',tier:3,availability:{type:'deck'},description:'Heavy Pierce. Consume Rupture para daño adicional.',evolution:'Skill 3-1 — Si Target tiene suficiente Rupture, el primer Hit no consume Count.'}
+  ];
+  Deck.initDeck(unit, deckSkills);
+  Deck.onTurnStart(unit,{round,slotCount:3});
+
+  const permanent = {
+    granted:[{name:'Perforar',tag:'Granted · Weapon',description:'Skill otorgada por el arma. No ocupa el Deck. Puede usarse como Action, Quick Action o Reaction si su definición lo permite.',cost:'Economy definida por la Skill'}],
+    defense:[{name:'Guard',tag:'Defense',description:'Defensive Skill permanente. Siempre disponible y fuera del Deck.',cost:'1 Action Slot',evolution:'Defense-1 — Si cumple su criterio al ejecutar, cambia sólo para esa ejecución.'},{name:'Counter',tag:'Defense',description:'Defensive Skill permanente orientada a respuesta.',cost:'1 Action Slot'}],
+    spells:[{name:'Blood Sigil',tag:'Spell',description:'Spell fuera del Deck. Sus recursos los valida Spell Runtime.',cost:'1 Action Slot + Spell Slot'},{name:'Binding Word',tag:'Spell · Save',description:'El objetivo realiza un Save. No participa en el Deck de Skills.',cost:'1 Action Slot + Spell Slot'}],
+    items:[{name:'Healing Vial',tag:'Item',description:'Item usable desde el menú de combate.',cost:'Action o Quick si el Item lo permite'},{name:'Rupture Bomb',tag:'Throwable',description:'Throwable enlazado a su Skill de lanzamiento.',cost:'1 Action Slot'}],
+    global:[{name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics. Puede cancelar Actions pendientes si tiene éxito.',cost:'1 Action Slot'},{name:'Help',tag:'Universal',description:'+1 Final Power a una Action aliada válida.',cost:'1 Action Slot'},{name:'Retreat',tag:'Universal',description:'Se planea y resuelve On Turn End.',cost:'1 Action Slot'},{name:'Escape',tag:'Universal',description:'Salida permanente del encuentro si tiene éxito.',cost:'1 Action Slot'}]
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  function generateHeptagonPoints(radius) {
+    const sides=7, points=[], startAngle=Math.PI/2;
+    for(let i=0;i<sides;i++){
+      const angle=startAngle+(i*2*Math.PI/sides);
+      points.push({x:(radius*Math.cos(angle)).toFixed(1),y:(radius*Math.sin(angle)).toFixed(1)});
+    }
+    const full=points.map(p=>`${p.x},${p.y}`).join(' ');
+    const front=`${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
+    return {full,front};
+  }
+
+  function renderBattleHud() {
+    const hpPct=Math.max(0,Math.min(100,(unit.hp/unit.maxHp)*100));
+    const shieldPct=Math.max(0,(unit.shield/unit.maxHp)*100);
+    const heptagon=generateHeptagonPoints(85);
+    const staggerHtml=(unit.staggerThresholds||[]).map(pct=>`<polyline class="stagger-tick-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray:2 98;stroke-dashoffset:-${(100-pct)-1}" />`).join('');
+    $('hp-floor').innerHTML=`
+      <polygon class="floor-bg-poly" points="${heptagon.full}" />
+      <polyline class="hp-track" points="${heptagon.front}" />
+      <polyline class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-hpPct}" />
+      ${unit.shield>0?`<polyline class="shield-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-shieldPct}" />`:''}
+      ${staggerHtml}`;
+
+    $('action-slots').innerHTML=Array.from({length:unit.actionSlots},(_,i)=>{
+      const slotId=`agatha_slot_${i}`;
+      return `<div class="action-slot-wrapper ${slotId===focusedSlotId?'prototype-focus':''}" id="hud-${slotId}" data-slot-id="${slotId}">
+        <svg class="action-slot-svg" viewBox="0 0 100 100">
+          <polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78" />
+          <line class="slot-center-line" x1="25" y1="50" x2="75" y2="50" />
+        </svg>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.action-slot-wrapper').forEach(node=>node.addEventListener('click',()=>{
+      focusedSlotId=node.dataset.slotId;
+      activeMenu='skills';
+      selected=null;
+      setActiveCommand();
+      renderBattleHud();
+      renderSubmenu();
+      $('status').textContent=`${focusedSlotId.replace('agatha_slot_','Slot ')} enfocado. El HUD no cambia de estructura.`;
+    }));
+  }
+
+  function showTooltip(event,data,kicker,accent) {
+    const tip=$('tooltip');
+    $('tip-kicker').textContent=kicker||data.tag||'Combat Command';
+    $('tip-name').textContent=data.name||'—';
+    $('tip-body').textContent=data.description||'Sin descripción.';
+    $('tip-cost').textContent=data.cost||'';
+    const evo=data.evolution||'';
+    $('tip-evolution').style.display=evo?'block':'none';
+    $('tip-evolution').textContent=evo;
+    tip.style.setProperty('--tip-accent',accent||'var(--menu-gold)');
+    tip.classList.add('show');
+    moveTooltip(event);
+  }
+  function moveTooltip(event) {
+    const rect=document.querySelector('.focus-stage').getBoundingClientRect();
+    const x=Math.min(rect.width-345,Math.max(8,event.clientX-rect.left+18));
+    const y=Math.min(rect.height-180,Math.max(8,event.clientY-rect.top+16));
+    $('tooltip').style.left=x+'px';
+    $('tooltip').style.top=y+'px';
+  }
+  function hideTooltip(){ $('tooltip').classList.remove('show'); }
+
+  function optionButton(data,opts={}) {
+    const button=document.createElement('button');
+    button.className=`option ${opts.className||''}`;
+    button.style.setProperty('--accent',opts.accent||'#927a55');
+    button.innerHTML=`<span class="option-ink"><b>${data.name}</b><small>${opts.meta||data.tag||data.cost||''}</small></span>`;
+    button.addEventListener('mouseenter',(e)=>showTooltip(e,data,opts.kicker,opts.accent));
+    button.addEventListener('mousemove',moveTooltip);
+    button.addEventListener('mouseleave',hideTooltip);
+    button.addEventListener('click',()=>{
+      document.querySelectorAll('.option.selected').forEach(n=>n.classList.remove('selected'));
+      button.classList.add('selected');
+      selected=opts.selection||{type:activeMenu,data};
+      $('status').textContent=opts.status||`${data.name} seleccionada.`;
+    });
+    return button;
+  }
+
+  function renderSkills() {
+    const fragment=document.createDocumentFragment();
+    const title=document.createElement('div');
+    title.className='submenu-title';
+    title.textContent='SKILLS · ACTION SLOTS';
+    fragment.appendChild(title);
+    for(let i=0;i<3;i++){
+      const slotId=`agatha_slot_${i}`;
+      const hand=Deck.getSlotHand(unit,slotId);
+      const row=document.createElement('div'); row.className='skill-row';
+      const tag=document.createElement('div'); tag.className='slot-tag'; tag.textContent=`SLOT ${i+1}`; row.appendChild(tag);
+      hand.forEach((card,index)=>{
+        const isOld=index===0;
+        row.appendChild(optionButton(card.skill,{
+          className:isOld?'oldest':'newest', accent:isOld?'#a57b3c':'var(--menu-red)',
+          meta:`${isOld?'OLDEST':'NEWEST'} · T${['','I','II','III'][card.tier]}`,
+          kicker:`Deck Skill · Slot ${i+1}`,
+          selection:{type:'deck',slotId,drawId:card.drawId,handIndex:index,data:card.skill},
+          status:`Slot ${i+1}: ${card.skill.name} seleccionada.`
+        }));
+      });
+      fragment.appendChild(row);
+    }
+    const label=document.createElement('div'); label.className='permanent-label'; label.textContent='GRANTED / FREE — FUERA DEL DECK'; fragment.appendChild(label);
+    const granted=document.createElement('div'); granted.className='simple-stack';
+    permanent.granted.forEach(data=>granted.appendChild(optionButton(data,{className:'granted',accent:'#cfaa54',kicker:'Granted Skill',selection:{type:'granted',data}})));
+    fragment.appendChild(granted);
+    return fragment;
+  }
+
+  function renderSimple(key) {
+    const fragment=document.createDocumentFragment();
+    const title=document.createElement('div'); title.className='submenu-title'; title.textContent=key.toUpperCase(); fragment.appendChild(title);
+    const stack=document.createElement('div'); stack.className='simple-stack';
+    const colors={defense:'var(--menu-cyan)',spells:'var(--menu-violet)',items:'var(--menu-gold)',global:'var(--menu-green)'};
+    permanent[key].forEach(data=>stack.appendChild(optionButton(data,{accent:colors[key],kicker:data.tag,selection:{type:key,data}})));
+    fragment.appendChild(stack);
+    return fragment;
+  }
+
+  function renderSubmenu() {
+    const submenu=$('submenu');
+    submenu.className='submenu open '+(activeMenu==='skills'?'skills':(activeMenu==='defense'?'left':'right'));
+    submenu.innerHTML='';
+    submenu.appendChild(activeMenu==='skills'?renderSkills():renderSimple(activeMenu));
+  }
+
+  function setActiveCommand() {
+    document.querySelectorAll('.command').forEach(btn=>btn.classList.toggle('active',btn.dataset.menu===activeMenu));
+  }
+
+  document.querySelectorAll('.command').forEach(btn=>btn.addEventListener('click',()=>{
+    activeMenu=btn.dataset.menu;
+    selected=null;
+    setActiveCommand();
+    renderSubmenu();
+    $('status').textContent=`${activeMenu.toUpperCase()} abierto sobre el HUD existente.`;
+  }));
+
+  $('execute-selected').addEventListener('click',()=>{
+    if(!selected){ $('status').textContent='No hay una opción seleccionada.'; return; }
+    if(selected.type==='deck'){
+      Deck.markCardUsed(unit,selected.slotId,selected.drawId);
+      $('status').textContent=`${selected.data.name} inició ejecución: la carta cuenta como usada.`;
+    } else {
+      $('status').textContent=`${selected.data.name} ejecutada en la demo; no altera el Deck.`;
+    }
+  });
+
+  $('next-turn').addEventListener('click',()=>{
+    round++;
+    Deck.onTurnStart(unit,{round,slotCount:3});
+    $('round-number').textContent=round;
+    selected=null;
+    renderBattleHud();
+    renderSubmenu();
+    $('status').textContent=`ON TURN START R${round}: cada Slot rotó independientemente.`;
+  });
+
+  renderBattleHud();
+  renderSubmenu();
 })();
 </script>
 </body>
