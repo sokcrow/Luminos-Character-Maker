@@ -3,56 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Luminous Combat Command Menu Prototype v5</title>
+<title>Luminous Combat Command Menu Prototype v6</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 :root{
-  --limbus-hp-orange:#ff4a22;--limbus-hp-boss:#dd0000;--limbus-sp-cyan:#88eeff;
-  --limbus-speed-yellow:#ffe877;--limbus-speed-glow:#ff4400;--limbus-slot-dark:#1a1510;
-  --limbus-slot-border:#4a3520;--limbus-slot-dash:#a87030;--font-limbus:'Bebas Kai','Bebas Neue',sans-serif;
-  --menu-skill:#ff4a22;--menu-defense:#88eeff;--menu-spell:#d4b06a;--menu-item:#b86a38;--menu-global:#ffe877;
-  --limbus-ink:#080706;--limbus-panel:#100c08;--limbus-bronze:#6e4b28;--limbus-paper:#e9dfc9;
+  --limbus-hp-orange:#ff4a22;--limbus-sp-cyan:#88eeff;--limbus-speed-yellow:#ffe877;--limbus-speed-glow:#ff4400;
+  --limbus-slot-dark:#1a1510;--limbus-slot-border:#4a3520;--limbus-slot-dash:#a87030;--font-limbus:'Bebas Kai','Bebas Neue',sans-serif;
+  --ink:#080604;--ink2:#130d08;--bronze:#6e4b28;--paper:#e7dcc6;--muted:#b8aa92;
+  --skill:#ff4a22;--defense:#88eeff;--spell:#c8a56a;--item:#a86034;--global:#ffe877;
 }
-*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#050010;color:#fff;font-family:Arial,sans-serif}button{font:inherit}
-#game-container{position:relative;width:100vw;height:100vh;overflow:hidden}.layer{position:absolute;inset:0}
-#battlefield{position:relative;width:100%;height:100%;background-image:linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.36)),url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png');background-size:cover;background-position:center bottom;background-repeat:no-repeat}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050010;color:#fff;font-family:Arial,sans-serif}
+button{font:inherit}
+#game-container{position:relative;width:100vw;height:100vh;overflow:hidden}
+#battlefield{position:absolute;inset:0;background-image:linear-gradient(rgba(0,0,0,.07),rgba(0,0,0,.38)),url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png');background-size:cover;background-position:center bottom}
 
-/* === HUD DE UNIT: MISMA ESTRUCTURA DEL MOTOR ENTREGADO === */
-.sprite-container{position:absolute;transform:translateX(-50%);transition:transform .6s ease,left .6s ease,bottom .6s ease;pointer-events:none}
+/* ===== UNIT HUD: estructura del motor ===== */
+.sprite-container{position:absolute;transform:translateX(-50%);pointer-events:none;transition:transform .25s ease}
 .combatant{position:relative;width:260px;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;pointer-events:none;transform-origin:bottom center;transform:scale(.30)}
 .diegetic-floor{position:absolute;bottom:-110px;width:220px;height:220px;transform:rotateX(65deg);z-index:1;overflow:visible;pointer-events:auto}
-.floor-bg-poly{fill:rgba(255,80,0,.2);stroke:rgba(255,200,50,.5);stroke-width:3}.hp-track{fill:none;stroke:rgba(30,5,5,.8);stroke-width:22;stroke-linecap:butt}.hp-fill-line{fill:none;stroke:var(--limbus-hp-orange);stroke-width:22;transition:stroke-dashoffset .4s ease-out;filter:drop-shadow(0 0 10px var(--limbus-hp-orange))}
-.sprite-anchor{position:absolute;display:flex;justify-content:center;width:100%;z-index:3;pointer-events:none;transition:transform .2s ease,left .2s ease,bottom .2s ease;transform-origin:bottom center}.sprite-img{height:240px;object-fit:contain;object-position:bottom;filter:drop-shadow(0 15px 10px rgba(0,0,0,.8));transition:transform .2s;pointer-events:auto;cursor:pointer}.sprite-img:hover{transform:scale(1.05)}
-.top-ui-panel{position:absolute;display:flex;align-items:flex-start;gap:6px;z-index:10;pointer-events:none}.speed-number{color:var(--limbus-speed-yellow);font-size:50px;font-family:var(--font-limbus);line-height:.8;text-shadow:0 0 8px var(--limbus-speed-glow),1px 1px 2px #000;margin-top:8px}.action-slots{display:flex;gap:2px;pointer-events:auto}.action-slot-wrapper{position:relative;touch-action:none;cursor:crosshair;pointer-events:auto}.action-slot-svg{width:44px;height:44px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.8));pointer-events:none}.slot-heptagon-bg{fill:var(--limbus-slot-dark);stroke:var(--limbus-slot-border);stroke-width:10}.slot-center-line{stroke:var(--limbus-slot-dash);stroke-width:8;stroke-linecap:round}.action-slot-wrapper.prototype-focus{filter:drop-shadow(0 0 5px var(--limbus-speed-yellow))}
-.floating-hp-group{position:absolute;bottom:5px;left:-10px;z-index:10;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none}.name-plate{background:#050505;color:#ddd;font-size:14px;letter-spacing:1px;font-family:var(--font-limbus);padding:2px 6px;border:1px solid #333;border-radius:4px;text-transform:uppercase;margin-bottom:-2px}.hp-number{font-size:60px;color:var(--limbus-hp-orange);font-family:var(--font-limbus);line-height:.85;text-shadow:2px 4px 6px rgba(0,0,0,.8)}.floating-sp-group{position:absolute;bottom:5px;right:5px;width:48px;height:48px;border-radius:50%;border:3px solid #3b2c20;outline:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:30px;font-family:var(--font-limbus);color:white;text-shadow:1px 1px 3px black;z-index:10;pointer-events:none}.sp-neutral{background:radial-gradient(circle at 30% 30%,#55aaaa 0%,#113333 80%)}
-/* Sólo amplía el token completo. No reacomoda HP/SP/Speed/Slots. */
-.sprite-container.menu-focus-token{transform:translateX(-50%) scale(3.15);transform-origin:bottom center}
+.floor-bg-poly{fill:rgba(255,80,0,.2);stroke:rgba(255,200,50,.5);stroke-width:3}
+.hp-track{fill:none;stroke:rgba(30,5,5,.8);stroke-width:22;stroke-linecap:butt}
+.hp-fill-line{fill:none;stroke:var(--limbus-hp-orange);stroke-width:22;filter:drop-shadow(0 0 10px var(--limbus-hp-orange))}
+.sprite-anchor{position:absolute;display:flex;justify-content:center;width:100%;z-index:3;pointer-events:none;transform-origin:bottom center}
+.sprite-img{height:240px;object-fit:contain;object-position:bottom;filter:drop-shadow(0 15px 10px rgba(0,0,0,.8));pointer-events:auto}
+.top-ui-panel{position:absolute;display:flex;align-items:flex-start;gap:6px;z-index:10;pointer-events:none}
+.speed-number{color:var(--limbus-speed-yellow);font-size:50px;font-family:var(--font-limbus);line-height:.8;text-shadow:0 0 8px var(--limbus-speed-glow),1px 1px 2px #000;margin-top:8px}
+.action-slots{display:flex;gap:2px;pointer-events:auto}
+.action-slot-wrapper{position:relative;touch-action:none;cursor:pointer;pointer-events:auto;transition:filter .1s,transform .1s}
+.action-slot-svg{width:44px;height:44px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.8));pointer-events:none}
+.slot-heptagon-bg{fill:var(--limbus-slot-dark);stroke:var(--limbus-slot-border);stroke-width:10}
+.slot-center-line{stroke:var(--limbus-slot-dash);stroke-width:8;stroke-linecap:round}
+.action-slot-wrapper.prototype-focus{filter:drop-shadow(0 0 7px var(--limbus-speed-yellow));transform:translateY(-3px)}
+.action-slot-wrapper.prototype-focus .slot-heptagon-bg{stroke:var(--limbus-speed-yellow)}
+.floating-hp-group{position:absolute;bottom:5px;left:-10px;z-index:10;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none}
+.name-plate{background:#050505;color:#ddd;font-size:14px;letter-spacing:1px;font-family:var(--font-limbus);padding:2px 6px;border:1px solid #333;border-radius:4px;text-transform:uppercase;margin-bottom:-2px}
+.hp-number{font-size:60px;color:var(--limbus-hp-orange);font-family:var(--font-limbus);line-height:.85;text-shadow:2px 4px 6px rgba(0,0,0,.8)}
+.floating-sp-group{position:absolute;bottom:5px;right:5px;width:48px;height:48px;border-radius:50%;border:3px solid #3b2c20;outline:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:30px;font-family:var(--font-limbus);color:#fff;text-shadow:1px 1px 3px #000;z-index:10;pointer-events:none}
+.sp-neutral{background:radial-gradient(circle at 30% 30%,#55aaaa 0%,#113333 80%)}
+.sprite-container.menu-focus-token{transform:translateX(-50%) scale(3.05);transform-origin:bottom center}
 
-/* === CONTROLES DE PROTOTIPO === */
-.prototype-title{position:absolute;z-index:120;left:24px;top:18px;font:27px var(--font-limbus);letter-spacing:1.3px;text-shadow:3px 3px 0 #000}.prototype-title b{color:var(--limbus-hp-orange)}.prototype-status{position:absolute;z-index:120;left:25px;top:54px;max-width:560px;font-size:10px;color:#c8bfb1;background:rgba(0,0,0,.5);padding:5px 8px}.prototype-controls{position:absolute;z-index:120;right:25px;top:20px;display:flex;gap:7px}.prototype-controls button{background:#0c0906;color:#d8cbb7;border:1px solid var(--limbus-bronze);padding:6px 10px;cursor:pointer;text-transform:uppercase;font-size:10px;font-weight:900}.prototype-controls button:hover{border-color:var(--limbus-hp-orange);color:#fff}.quick-badge{position:absolute;z-index:120;right:28px;top:59px;font:18px var(--font-limbus);text-shadow:2px 2px 0 #000}.quick-badge strong{color:var(--limbus-speed-yellow)}.offdeck-badge{position:absolute;z-index:120;left:26px;bottom:18px;font-size:9px;letter-spacing:1px;color:#a69d90;text-transform:uppercase}.offdeck-badge b{color:#d6b36f}
+/* ===== PROTOTYPE UTILITY ===== */
+.prototype-title{position:absolute;z-index:130;left:24px;top:18px;font:27px var(--font-limbus);letter-spacing:1.3px;text-shadow:3px 3px 0 #000}
+.prototype-title b{color:var(--limbus-hp-orange)}
+.prototype-status{position:absolute;z-index:130;left:25px;top:54px;max-width:550px;font-size:10px;color:#c8bfb1;background:rgba(0,0,0,.5);padding:5px 8px}
+.prototype-controls{position:absolute;z-index:130;right:25px;top:20px;display:flex;gap:7px}
+.prototype-controls button{background:#0c0906;color:#d8cbb7;border:1px solid var(--bronze);padding:6px 10px;cursor:pointer;text-transform:uppercase;font-size:10px;font-weight:900}
+.prototype-controls button:hover{border-color:var(--limbus-hp-orange);color:#fff}
+.quick-badge{position:absolute;z-index:130;right:28px;top:59px;font:18px var(--font-limbus);text-shadow:2px 2px 0 #000}.quick-badge strong{color:var(--limbus-speed-yellow)}
+.offdeck-badge{position:absolute;z-index:130;left:26px;bottom:18px;font-size:9px;letter-spacing:1px;color:#a69d90;text-transform:uppercase}.offdeck-badge b{color:#d6b36f}
 
-/* === MENÚ ANCLADO AL HUD DE ACTION SLOTS === */
-.command-ring{position:absolute;z-index:70;width:900px;height:560px;left:50%;top:50%;transform:translate(-50%,-18%);pointer-events:none;transition:left .15s ease,top .15s ease}
-.command{--accent:#fff;--rot:0deg;--w:270px;position:absolute;width:var(--w);height:78px;border:0;background:transparent;color:#fff;cursor:pointer;pointer-events:auto;transform:rotate(var(--rot));transform-origin:var(--origin,50% 50%);transition:transform .1s ease,filter .1s ease;filter:drop-shadow(7px 8px 0 rgba(0,0,0,.67))}
-.command .splash{position:absolute;inset:11px -13px 4px -17px;background:var(--accent);clip-path:polygon(0 56%,15% 27%,39% 18%,63% 25%,80% 0,100% 25%,89% 56%,100% 77%,68% 72%,42% 100%,18% 77%);opacity:.72}
+/* ===== COMMAND RING =====
+   Centro 330..650px es zona protegida: ningún comando ni submenu entra ahí. */
+.command-ring{position:absolute;z-index:70;width:980px;height:500px;pointer-events:none;transition:left .12s ease,top .12s ease}
+.command{--accent:#fff;--rot:0deg;--w:280px;position:absolute;width:var(--w);height:78px;border:0;background:transparent;color:#fff;cursor:pointer;pointer-events:auto;transform:rotate(var(--rot));transform-origin:var(--origin,50% 50%);transition:transform .1s,filter .1s;filter:drop-shadow(7px 8px 0 rgba(0,0,0,.67))}
+.command .splash{position:absolute;inset:11px -13px 4px -17px;background:var(--accent);clip-path:polygon(0 56%,15% 27%,39% 18%,63% 25%,80% 0,100% 25%,89% 56%,100% 77%,68% 72%,42% 100%,18% 77%);opacity:.58}
 .command .ink{position:absolute;inset:0;background:linear-gradient(110deg,#050403,#110b06);display:flex;align-items:center;border:1px solid rgba(126,84,40,.48);clip-path:polygon(0 32%,8% 13%,38% 7%,68% 0,100% 22%,94% 53%,100% 84%,60% 79%,21% 100%,4% 78%)}
-.command .pivot{position:absolute;z-index:4;top:12px;width:54px;height:54px;border-radius:50%;background:#090705;border:4px solid var(--limbus-paper);box-shadow:0 0 0 3px #090705;color:var(--accent);display:grid;place-items:center;font:28px var(--font-limbus)}
-.command .label{position:relative;z-index:2;font:39px/.8 var(--font-limbus);white-space:nowrap;text-shadow:3px 3px 0 #000}.command .sub{display:block;margin-top:7px;font:900 8px Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;color:#b9aa94}.command.left .ink{justify-content:flex-end;text-align:right;padding:12px 69px 10px 18px}.command.left .pivot{right:-6px}.command.right .ink{justify-content:flex-start;text-align:left;padding:12px 18px 10px 69px}.command.right .pivot{left:-6px}.command.right .splash{transform:scaleX(-1)}.command:hover{transform:rotate(var(--rot)) scale(1.07);filter:drop-shadow(10px 11px 0 #000) brightness(1.14)}.command.active .ink{background:var(--limbus-paper);color:#0b0805}.command.active .label{text-shadow:none}.command.active .sub{color:#4e4030}
-.cmd-skills{--accent:var(--menu-skill);--rot:-8deg;--w:305px;--origin:100% 55%;left:4px;top:34px}.cmd-defense{--accent:var(--menu-defense);--rot:5deg;--w:265px;--origin:100% 45%;left:47px;top:135px}.cmd-spells{--accent:var(--menu-spell);--rot:7deg;--w:278px;--origin:0 55%;right:35px;top:29px}.cmd-items{--accent:var(--menu-item);--rot:-4deg;--w:260px;--origin:0 50%;right:52px;top:132px}.cmd-global{--accent:var(--menu-global);--rot:8deg;--w:280px;--origin:0 45%;right:20px;top:229px}
+.command .pivot{position:absolute;z-index:4;top:12px;width:54px;height:54px;border-radius:50%;background:#090705;border:4px solid var(--paper);box-shadow:0 0 0 3px #090705;color:var(--accent);display:grid;place-items:center;font:28px var(--font-limbus)}
+.command .label{position:relative;z-index:2;font:39px/.8 var(--font-limbus);white-space:nowrap;text-shadow:3px 3px 0 #000}.command .sub{display:block;margin-top:7px;font:900 8px Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.command.left .ink{justify-content:flex-end;text-align:right;padding:12px 69px 10px 18px}.command.left .pivot{right:-6px}
+.command.right .ink{justify-content:flex-start;text-align:left;padding:12px 18px 10px 69px}.command.right .pivot{left:-6px}.command.right .splash{transform:scaleX(-1)}
+.command:hover{transform:rotate(var(--rot)) scale(1.07);filter:drop-shadow(10px 11px 0 #000) brightness(1.14)}
+.command.active .ink{background:var(--paper);color:#0b0805}.command.active .label{text-shadow:none}.command.active .sub{color:#4e4030}
+.cmd-skills{--accent:var(--skill);--rot:-7deg;--w:300px;--origin:100% 55%;left:8px;top:38px}
+.cmd-defense{--accent:var(--defense);--rot:5deg;--w:260px;--origin:100% 45%;left:50px;top:154px}
+.cmd-spells{--accent:var(--spell);--rot:6deg;--w:276px;--origin:0 55%;right:42px;top:34px}
+.cmd-items{--accent:var(--item);--rot:-4deg;--w:258px;--origin:0 50%;right:56px;top:151px}
+.cmd-global{--accent:var(--global);--rot:7deg;--w:276px;--origin:0 45%;right:24px;top:267px}
 
-/* Skills nace debajo del HUD de slots; no hay dashboard gigante. */
-.submenu{position:absolute;z-index:90;display:none;pointer-events:auto}.submenu.open{display:block}.submenu.skills{left:50%;top:50%;transform:translate(-50%,145px);width:610px}.submenu.left{left:70px;top:390px;width:390px}.submenu.right{right:55px;top:390px;width:400px}.submenu-title{display:inline-block;margin:0 0 7px 10px;padding:3px 9px;background:rgba(8,6,4,.9);border-left:4px solid var(--limbus-hp-orange);font:23px var(--font-limbus);color:#e8ddca;text-shadow:2px 2px 0 #000}.skill-row{display:grid;grid-template-columns:62px 225px 225px;gap:5px;margin-bottom:5px}.slot-tag{min-height:50px;display:flex;align-items:center;justify-content:center;background:#0b0805;color:var(--limbus-speed-yellow);border:1px solid #5a3d22;font:17px var(--font-limbus);clip-path:polygon(0 18%,80% 0,100% 50%,80% 100%,0 82%)}.option{--accent:#9e8155;position:relative;min-height:50px;border:0;padding:0;background:transparent;color:#fff;cursor:pointer;text-align:left}.option:before{content:'';position:absolute;inset:4px -5px -2px 0;background:var(--accent);clip-path:polygon(0 45%,17% 12%,80% 0,100% 40%,89% 100%,24% 86%);opacity:.54}.option-ink{position:relative;z-index:1;min-height:50px;padding:7px 12px 6px 14px;background:linear-gradient(110deg,#070605,#120c07);border:1px solid rgba(112,74,37,.45);clip-path:polygon(0 14%,88% 0,100% 44%,91% 100%,7% 88%)}.option b{display:block;font:20px/.92 var(--font-limbus)}.option small{display:block;margin-top:4px;font-size:8px;font-weight:900;text-transform:uppercase;opacity:.7}.option.oldest{--accent:#9a7440}.option.newest{--accent:var(--limbus-hp-orange)}.option.granted{--accent:#c89f5e}.option:hover,.option.selected{transform:translateX(6px);filter:brightness(1.18) drop-shadow(4px 5px 0 #000)}.option:hover .option-ink,.option.selected .option-ink{background:#e7dcc7;color:#0a0704}.permanent-label{margin:7px 0 4px 68px;font:13px var(--font-limbus);color:#cdbd9f}.simple-stack{width:350px;display:flex;flex-direction:column;gap:6px}
-.tooltip{position:absolute;z-index:130;display:none;width:320px;pointer-events:none;background:rgba(7,5,3,.97);border:1px solid #644321;border-left:5px solid var(--limbus-hp-orange);padding:10px 13px;box-shadow:8px 8px 0 rgba(0,0,0,.58)}.tooltip.show{display:block}.tip-kicker{font-size:9px;text-transform:uppercase;color:#bba98f;font-weight:900}.tip-name{font:24px/1 var(--font-limbus);margin:3px 0 6px;color:#f0e6d5}.tip-body{font-size:11px;line-height:1.35;color:#d5c9b7}.tip-evolution{display:none;margin-top:7px;padding:6px 8px;border-left:3px solid var(--limbus-hp-orange);background:rgba(255,74,34,.08);font-size:10px}.tip-cost{margin-top:7px;font-size:9px;color:#a99578;text-transform:uppercase}
+/* ===== OUTWARD SUBMENU ===== */
+.submenu{position:absolute;z-index:95;width:330px;display:none;pointer-events:auto;filter:drop-shadow(8px 9px 0 rgba(0,0,0,.55))}
+.submenu.open{display:block}
+.submenu.leftward{text-align:right}.submenu.rightward{text-align:left}
+.submenu-title{display:inline-block;margin:0 4px 7px;padding:4px 10px;background:#090604;border:1px solid #57391e;border-left:4px solid var(--limbus-hp-orange);font:21px var(--font-limbus);color:#e8ddca;text-shadow:2px 2px 0 #000}
+.submenu.leftward .submenu-title{border-left:1px solid #57391e;border-right:4px solid var(--limbus-hp-orange)}
+.context-slot{display:inline-block;margin:0 5px 8px;padding:2px 7px;background:#120c07;border:1px solid #50341c;color:var(--limbus-speed-yellow);font:14px var(--font-limbus);letter-spacing:.5px}
+.option-stack{display:flex;flex-direction:column;gap:6px}
+.option{--accent:#9e8155;position:relative;width:100%;min-height:54px;border:0;padding:0;background:transparent;color:#fff;cursor:pointer;text-align:left;transition:transform .08s,filter .08s}
+.option:before{content:'';position:absolute;inset:4px -6px -2px 0;background:var(--accent);clip-path:polygon(0 45%,17% 12%,80% 0,100% 40%,89% 100%,24% 86%);opacity:.5}
+.option-ink{position:relative;z-index:1;min-height:54px;padding:8px 13px 7px 16px;background:linear-gradient(110deg,#070605,#120c07);border:1px solid rgba(112,74,37,.45);clip-path:polygon(0 14%,88% 0,100% 44%,91% 100%,7% 88%)}
+.submenu.leftward .option{text-align:right}.submenu.leftward .option:before{transform:scaleX(-1)}.submenu.leftward .option-ink{clip-path:polygon(0 44%,12% 0,100% 14%,93% 88%,9% 100%)}
+.option b{display:block;font:21px/.92 var(--font-limbus)}.option small{display:block;margin-top:5px;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;opacity:.7}
+.option.oldest{--accent:#9a7440}.option.newest{--accent:var(--limbus-hp-orange)}.option.granted{--accent:#c89f5e}.option.defense{--accent:var(--limbus-sp-cyan)}.option.spell{--accent:var(--spell)}.option.item{--accent:var(--item)}.option.global{--accent:var(--global)}
+.option:hover,.option.selected{transform:translateX(6px);filter:brightness(1.18) drop-shadow(4px 5px 0 #000)}.submenu.leftward .option:hover,.submenu.leftward .option.selected{transform:translateX(-6px)}
+.option:hover .option-ink,.option.selected .option-ink{background:var(--paper);color:#0a0704}
+.separator-label{margin:5px 8px 2px;font:12px var(--font-limbus);letter-spacing:.8px;color:#cdbd9f}
+.tooltip{position:absolute;z-index:150;display:none;width:320px;pointer-events:none;background:rgba(7,5,3,.97);border:1px solid #644321;border-left:5px solid var(--limbus-hp-orange);padding:10px 13px;box-shadow:8px 8px 0 rgba(0,0,0,.58)}.tooltip.show{display:block}.tip-kicker{font-size:9px;text-transform:uppercase;color:#bba98f;font-weight:900}.tip-name{font:24px/1 var(--font-limbus);margin:3px 0 6px;color:#f0e6d5}.tip-body{font-size:11px;line-height:1.35;color:#d5c9b7}.tip-evolution{display:none;margin-top:7px;padding:6px 8px;border-left:3px solid var(--limbus-hp-orange);background:rgba(255,74,34,.08);font-size:10px}.tip-cost{margin-top:7px;font-size:9px;color:#a99578;text-transform:uppercase}
 </style>
 </head>
 <body>
 <div id="game-container">
-  <div class="layer"><div id="battlefield"></div></div>
+  <div id="battlefield"></div>
   <div class="prototype-title">LUMINOUS <b>COMMAND MENU</b> · R<span id="round">1</span></div>
-  <div class="prototype-status" id="status">HUD completo visible. El menú se ancla al HUD de Action Slots.</div>
+  <div class="prototype-status" id="status">Slot 1 activo · selecciona una categoría.</div>
   <div class="prototype-controls"><button id="execute">Simular ejecución</button><button id="next">ON TURN START</button></div>
   <div class="quick-badge">QUICK ACTION <strong>1 / 1</strong></div>
   <div class="offdeck-badge">OFF-DECK: <b>Blood Reprise</b> · Trigger automático</div>
+
   <nav class="command-ring" id="command-ring">
     <button class="command left cmd-skills active" data-menu="skills"><span class="splash"></span><span class="ink"><span class="label">SKILLS<span class="sub">Deck + Granted</span></span></span><span class="pivot">S</span></button>
     <button class="command left cmd-defense" data-menu="defense"><span class="splash"></span><span class="ink"><span class="label">DEFENSE<span class="sub">Permanent</span></span></span><span class="pivot">D</span></button>
@@ -60,39 +107,111 @@
     <button class="command right cmd-items" data-menu="items"><span class="splash"></span><span class="ink"><span class="label">ITEMS<span class="sub">Inventory</span></span></span><span class="pivot">I</span></button>
     <button class="command right cmd-global" data-menu="global"><span class="splash"></span><span class="ink"><span class="label">GLOBAL<span class="sub">Universal Actions</span></span></span><span class="pivot">G</span></button>
   </nav>
-  <section class="submenu skills open" id="submenu"><div class="submenu-title" id="submenu-title">SKILLS · ACTION SLOTS</div><div id="submenu-body"></div></section>
+
+  <section class="submenu" id="submenu">
+    <div class="submenu-title" id="submenu-title"></div><br>
+    <div class="context-slot" id="context-slot"></div>
+    <div id="submenu-body"></div>
+  </section>
   <aside class="tooltip" id="tooltip"><div class="tip-kicker" id="tip-kicker"></div><div class="tip-name" id="tip-name"></div><div class="tip-body" id="tip-body"></div><div class="tip-evolution" id="tip-evolution"></div><div class="tip-cost" id="tip-cost"></div></aside>
 </div>
 <script src="js/deckEngine.js"></script>
 <script>
-let combatData={},round=1,activeMenu='skills',selected=null,deckReady=false;
+let combatData={},round=1,activeMenu='skills',selected=null,selectedSlotIndex=0;
 const Deck=window.LuminousDeckEngine||window.DeckEngine;
-const tipK=(id,v)=>document.getElementById(id).textContent=v;
-function updateDepthSorting(){document.querySelectorAll('.sprite-container').forEach(s=>{const y=parseFloat(s.style.bottom);s.style.zIndex=Math.floor(1000-y*10)})}
-function generateHeptagonPoints(radius){const sides=7,points=[],startAngle=Math.PI/2;for(let i=0;i<sides;i++){const angle=startAngle+i*2*Math.PI/sides;points.push({x:(radius*Math.cos(angle)).toFixed(1),y:(radius*Math.sin(angle)).toFixed(1)})}const fullPoly=points.map(p=>`${p.x},${p.y}`).join(' '),frontHalf=`${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;return{full:fullPoly,front:frontHalf}}
-function spawnCombatant(data){const battlefield=document.getElementById('battlefield'),hpPct=Math.max(0,Math.min(100,(data.hp/data.maxHp)*100));if(!combatData[data.id])combatData[data.id]={...data};const unit=combatData[data.id];const slotsHtml=Array.from({length:unit.actionSlots}).map((_,i)=>{const slotId=`${data.id}_slot_${i}`;return `<div class="action-slot-wrapper" id="${slotId}" data-faction="${data.faction}"><svg class="action-slot-svg" viewBox="0 0 100 100"><polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78"/><line class="slot-center-line" x1="25" y1="50" x2="75" y2="50"/></svg></div>`}).join('');const container=document.createElement('div');container.className=`sprite-container ${data.faction} ${data.menuFocus?'menu-focus-token':''}`;container.id=`token-${data.id}`;container.style.bottom=`${data.y}%`;container.style.left=`${data.x}%`;const heptagon=generateHeptagonPoints(85);const uiHtml=`<svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${heptagon.full}"/><polyline class="hp-track" points="${heptagon.front}"/><polyline id="svg-hp-${data.id}" class="hp-fill-line" points="${heptagon.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-hpPct};"/></svg>`;container.innerHTML=`<div class="combatant">${uiHtml}<div class="top-ui-panel" id="ui-panel-${data.id}" style="top:calc(60px + ${unit.uiY}px);left:calc(80px + ${unit.uiX}px);"><div class="speed-number">${data.speed}</div><div class="action-slots">${slotsHtml}</div></div><div class="sprite-anchor" id="anchor-${data.id}" style="bottom:${unit.spriteY}px;margin-left:${unit.spriteX}px;transform:scale(${unit.scale});"><img src="${data.img}" class="sprite-img" onerror="this.style.opacity='.25'"></div><div class="floating-hp-group"><div class="name-plate">${data.name}</div><div class="hp-number" id="text-hp-${data.id}">${data.hp}</div></div><div class="floating-sp-group sp-neutral" id="text-sp-${data.id}">${data.sp??0}</div></div>`;battlefield.appendChild(container);updateDepthSorting()}
-function focusMenuOnActionHud(){const panel=document.getElementById('ui-panel-agatha'),ring=document.getElementById('command-ring');if(!panel||!ring)return;const r=panel.getBoundingClientRect();ring.style.left=`${r.left+r.width/2}px`;ring.style.top=`${r.top+r.height/2}px`;const sub=document.getElementById('submenu');if(activeMenu==='skills'){sub.style.left=`${r.left+r.width/2}px`;sub.style.top=`${r.bottom}px`;sub.style.transform='translate(-50%,24px)'}}
+const $=id=>document.getElementById(id);
+const tipK=(id,v)=>{$(id).textContent=v};
 
-/* El HUD se crea primero: no depende del Deck. */
-spawnCombatant({id:'agatha',name:'Agatha',faction:'ally',speed:8,hp:216,maxHp:216,sp:15,actionSlots:3,img:'https://i.imgur.com/24qV5kD.png',x:50,y:28,scale:1,spriteX:0,spriteY:0,uiX:0,uiY:0,menuFocus:true});
-requestAnimationFrame(()=>{focusMenuOnActionHud();document.getElementById('agatha_slot_0')?.classList.add('prototype-focus')});window.addEventListener('resize',focusMenuOnActionHud);
+function updateDepthSorting(){document.querySelectorAll('.sprite-container').forEach(s=>{const y=parseFloat(s.style.bottom);s.style.zIndex=Math.floor(1000-y*10)})}
+function generateHeptagonPoints(radius){const sides=7,points=[],startAngle=Math.PI/2;for(let i=0;i<sides;i++){const angle=startAngle+i*2*Math.PI/sides;points.push({x:(radius*Math.cos(angle)).toFixed(1),y:(radius*Math.sin(angle)).toFixed(1)})}return{full:points.map(p=>`${p.x},${p.y}`).join(' '),front:`${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`}}
+function spawnCombatant(data){
+  const battlefield=$('battlefield'),hpPct=Math.max(0,Math.min(100,(data.hp/data.maxHp)*100));
+  combatData[data.id]={...data};const unit=combatData[data.id];
+  const slotsHtml=Array.from({length:unit.actionSlots}).map((_,i)=>`<div class="action-slot-wrapper" id="${data.id}_slot_${i}" data-slot-index="${i}"><svg class="action-slot-svg" viewBox="0 0 100 100"><polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78"/><line class="slot-center-line" x1="25" y1="50" x2="75" y2="50"/></svg></div>`).join('');
+  const h=generateHeptagonPoints(85),container=document.createElement('div');container.className='sprite-container ally menu-focus-token';container.id=`token-${data.id}`;container.style.left=`${data.x}%`;container.style.bottom=`${data.y}%`;
+  container.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-hpPct}"/></svg><div class="top-ui-panel" id="ui-panel-${data.id}" style="top:60px;left:80px"><div class="speed-number">${data.speed}</div><div class="action-slots">${slotsHtml}</div></div><div class="sprite-anchor" style="bottom:${data.spriteY}px;margin-left:${data.spriteX}px;transform:scale(${data.scale})"><img src="${data.img}" class="sprite-img" onerror="this.style.opacity='.25'"></div><div class="floating-hp-group"><div class="name-plate">${data.name}</div><div class="hp-number">${data.hp}</div></div><div class="floating-sp-group sp-neutral">${data.sp}</div></div>`;
+  battlefield.appendChild(container);updateDepthSorting();
+}
+
+spawnCombatant({id:'agatha',name:'Agatha',speed:8,hp:216,maxHp:216,sp:15,actionSlots:3,img:'https://i.imgur.com/24qV5kD.png',x:50,y:25,scale:1,spriteX:0,spriteY:0});
 
 const skill=(id,name,tier,description,evolution='')=>({id,name,tier,availability:{type:'deck'},description,evolution,economy:{action:true}});
-const deckSkills=[skill('needle_drive','Needle Drive',1,'Pierce · 2 Coins · aplica Bleed.','Skill 1-1 — Si Target tiene 6+ Bleed, cambia al ejecutar.'),skill('rupture_line','Rupture Line',1,'Pierce · mantiene Rupture Count.'),skill('blood_arc','Blood Arc',2,'Slash · gana Coin Power según Bleed.'),skill('severing_step','Severing Step',2,'Slash · aplica Bleed Count.'),skill('red_nail','Red Nail',3,'Pierce · 3 Coins.','Skill 3-1 — Si Target Bleed ≥ 6 al ejecutar: Open Wound.'),skill('scarlet_end','Scarlet End',3,'Heavy Pierce · usa Rupture.')];
-const unit={id:'agatha'};
-try{if(Deck){Deck.initDeck(unit,deckSkills);Deck.onTurnStart(unit,{round,slotCount:3});deckReady=true}else throw new Error('DeckEngine no disponible')}catch(err){tipK('status',`HUD visible · Deck demo no disponible: ${err.message}`)}
-const permanent={granted:[{name:'Perforar',tag:'Granted · Weapon',description:'Skill otorgada por arma. No ocupa Deck.',cost:'Action / Quick / Reaction según definición'}],defense:[{name:'Guard',tag:'Defense',description:'Defensive Skill permanente.',cost:'1 Action Slot'}],spells:[{name:'Blood Sigil',tag:'Spell',description:'Spell fuera del Deck.',cost:'1 Action Slot + recurso'}],items:[{name:'Healing Vial',tag:'Item',description:'Recupera HP.',cost:'Action o Quick si se permite'}],global:[{name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics.',cost:'1 Action Slot'},{name:'Help',tag:'Universal',description:'+1 Final Power.',cost:'1 Action Slot'},{name:'Retreat',tag:'Universal',description:'On Turn End.',cost:'1 Action Slot'},{name:'Escape',tag:'Universal',description:'Salida del Encounter.',cost:'1 Action Slot'}]};
-function showTooltip(data,e,k='Combat Action'){const t=document.getElementById('tooltip');tipK('tip-kicker',k);tipK('tip-name',data.name);tipK('tip-body',data.description||'');const ev=document.getElementById('tip-evolution');ev.style.display=data.evolution?'block':'none';ev.textContent=data.evolution||'';tipK('tip-cost',data.cost||(data.tier?`Tier ${['','I','II','III'][data.tier]} · Deck Skill`:''));t.style.left=`${Math.min(innerWidth-335,e.clientX+18)}px`;t.style.top=`${Math.min(innerHeight-205,e.clientY+16)}px`;t.classList.add('show')}
-function hideTooltip(){document.getElementById('tooltip').classList.remove('show')}
-function makeOption(data,x={}){const b=document.createElement('button');b.className=`option ${x.className||''}`;b.innerHTML=`<div class="option-ink"><b>${data.name}</b><small>${x.meta||data.tag||data.cost||''}</small></div>`;b.onmousemove=e=>showTooltip(data,e,x.kicker||data.tag||'Combat Action');b.onmouseleave=hideTooltip;b.onclick=()=>{document.querySelectorAll('.option.selected').forEach(n=>n.classList.remove('selected'));b.classList.add('selected');selected=x.selection||{type:activeMenu,data};tipK('status',`${data.name} seleccionada.`)};return b}
-function renderSkills(){const body=document.getElementById('submenu-body');body.innerHTML='';if(!deckReady){body.innerHTML='<div class="permanent-label">DeckEngine no cargado; el HUD de Unit sigue independiente.</div>'}else{for(let i=0;i<3;i++){const slotId=`agatha_slot_${i}`,hand=Deck.getSlotHand(unit,slotId),row=document.createElement('div');row.className='skill-row';const tag=document.createElement('div');tag.className='slot-tag';tag.textContent=`SLOT ${i+1}`;row.appendChild(tag);hand.forEach((card,index)=>row.appendChild(makeOption(card.skill,{className:index?'newest':'oldest',meta:`${index?'NEWEST':'OLDEST'} · T${['','I','II','III'][card.tier]}`,selection:{type:'deck',slotId,drawId:card.drawId,data:card.skill}})));body.appendChild(row)}}const l=document.createElement('div');l.className='permanent-label';l.textContent='GRANTED / FREE — FUERA DEL DECK';body.appendChild(l);permanent.granted.forEach(d=>body.appendChild(makeOption(d,{className:'granted',selection:{type:'granted',data:d}})))}
-function renderSimple(key){const body=document.getElementById('submenu-body');body.innerHTML='';const s=document.createElement('div');s.className='simple-stack';permanent[key].forEach(d=>s.appendChild(makeOption(d,{selection:{type:key,data:d}})));body.appendChild(s)}
-function renderMenu(){const titles={skills:'SKILLS · ACTION SLOTS',defense:'DEFENSE',spells:'SPELLS',items:'ITEMS',global:'GLOBAL ACTIONS'};tipK('submenu-title',titles[activeMenu]);const sub=document.getElementById('submenu');sub.className=`submenu open ${activeMenu==='skills'?'skills':activeMenu==='defense'?'left':'right'}`;sub.removeAttribute('style');activeMenu==='skills'?renderSkills():renderSimple(activeMenu);document.querySelectorAll('.command').forEach(b=>b.classList.toggle('active',b.dataset.menu===activeMenu));requestAnimationFrame(focusMenuOnActionHud)}
+const deckSkills=[
+ skill('needle_drive','Needle Drive',1,'Pierce · 2 Coins · aplica Bleed.','Skill 1-1 — Si Target tiene 6+ Bleed, cambia al ejecutar.'),
+ skill('rupture_line','Rupture Line',1,'Pierce · mantiene Rupture Count.'),
+ skill('blood_arc','Blood Arc',2,'Slash · gana Coin Power según Bleed.'),
+ skill('severing_step','Severing Step',2,'Slash · aplica Bleed Count.'),
+ skill('red_nail','Red Nail',3,'Pierce · 3 Coins.','Skill 3-1 — Si Target Bleed ≥ 6 al ejecutar: Open Wound.'),
+ skill('scarlet_end','Scarlet End',3,'Heavy Pierce · usa Rupture.')
+];
+const permanent={
+ granted:[{name:'Perforar',tag:'Granted · Weapon',description:'Skill otorgada por arma. No ocupa Deck.',cost:'1 Action Slot · también puede permitir Quick/Reaction'}],
+ defense:[{name:'Guard',tag:'Defense',description:'Defensive Skill permanente.',cost:'1 Action Slot'},{name:'Counter',tag:'Defense',description:'Defensive Skill permanente.',cost:'1 Action Slot'}],
+ spells:[{name:'Blood Sigil',tag:'Spell',description:'Spell fuera del Deck.',cost:'1 Action Slot + recurso'}],
+ items:[{name:'Healing Vial',tag:'Item',description:'Recupera HP.',cost:'Action o Quick si se permite'}],
+ global:[{name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics.',cost:'1 Action Slot'},{name:'Help',tag:'Universal',description:'+1 Final Power.',cost:'1 Action Slot'},{name:'Retreat',tag:'Universal',description:'Resuelve On Turn End.',cost:'1 Action Slot'},{name:'Escape',tag:'Universal',description:'Salida permanente del Encounter.',cost:'1 Action Slot'}]
+};
+
+/* Fallback visual: mismas reglas FIFO si DeckEngine no carga. */
+const fallback={slots:{},serial:0};
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function fallbackTemplates(){const out=[];deckSkills.forEach(s=>{const copies=s.tier===1?3:s.tier===2?2:1;for(let i=0;i<copies;i++)out.push({skill:s,tier:s.tier})});return out}
+function fallbackDraw(slot){if(!slot.pile.length)slot.pile=shuffle(fallbackTemplates().map(x=>({...x})));const x=slot.pile.shift();return{...x,drawId:`fb_${++fallback.serial}`}}
+function fallbackInit(){for(let i=0;i<3;i++){const slot={pile:shuffle(fallbackTemplates().map(x=>({...x}))),hand:[],used:null};slot.hand=[fallbackDraw(slot),fallbackDraw(slot)];fallback.slots[i]=slot}}
+function fallbackTurnStart(){for(let i=0;i<3;i++){const s=fallback.slots[i],newest=s.hand[1],usedNewest=newest&&s.used===newest.drawId;s.hand=usedNewest?[]:(newest?[newest]:[]);s.used=null;while(s.hand.length<2)s.hand.push(fallbackDraw(s))}}
+fallbackInit();
+
+const deckUnit={id:'agatha'};let deckReady=false;
+try{if(Deck){Deck.initDeck(deckUnit,deckSkills);Deck.onTurnStart(deckUnit,{round,slotCount:3});deckReady=true}}catch(_){deckReady=false}
+function getHand(slotIndex){if(deckReady)return Deck.getSlotHand(deckUnit,`agatha_slot_${slotIndex}`);return fallback.slots[slotIndex].hand}
+function markUsed(slotIndex,drawId){if(deckReady)return Deck.markCardUsed(deckUnit,`agatha_slot_${slotIndex}`,drawId);fallback.slots[slotIndex].used=drawId;return{used:true}}
+function turnStartDeck(){if(deckReady)Deck.onTurnStart(deckUnit,{round,slotCount:3});else fallbackTurnStart()}
+
+function focusCommandRing(){
+  const panel=$('ui-panel-agatha'),ring=$('command-ring');if(!panel||!ring)return;
+  const r=panel.getBoundingClientRect();
+  ring.style.left=`${r.left+r.width/2-490}px`;
+  ring.style.top=`${r.top-18}px`;
+  if(activeMenu)positionSubmenu();
+}
+function commandFor(menu){return document.querySelector(`.command[data-menu="${menu}"]`)}
+function positionSubmenu(){
+  const sub=$('submenu'),cmd=commandFor(activeMenu);if(!sub||!cmd)return;
+  const r=cmd.getBoundingClientRect(),gap=18;
+  const goesLeft=activeMenu==='skills'||activeMenu==='defense';
+  sub.className=`submenu open ${goesLeft?'leftward':'rightward'}`;
+  if(goesLeft){sub.style.left=`${Math.max(12,r.left-sub.offsetWidth-gap)}px`;sub.style.top=`${Math.max(95,r.top-4)}px`}
+  else{sub.style.left=`${Math.min(innerWidth-sub.offsetWidth-12,r.right+gap)}px`;sub.style.top=`${Math.max(95,r.top-4)}px`}
+}
+
+function showTooltip(data,e,k='Combat Action'){const t=$('tooltip');tipK('tip-kicker',k);tipK('tip-name',data.name);tipK('tip-body',data.description||'');const ev=$('tip-evolution');ev.style.display=data.evolution?'block':'none';ev.textContent=data.evolution||'';tipK('tip-cost',data.cost||(data.tier?`Tier ${['','I','II','III'][data.tier]} · Deck Skill`:''));t.style.left=`${Math.min(innerWidth-335,e.clientX+18)}px`;t.style.top=`${Math.min(innerHeight-205,e.clientY+16)}px`;t.classList.add('show')}
+function hideTooltip(){$('tooltip').classList.remove('show')}
+function makeOption(data,x={}){const b=document.createElement('button');b.className=`option ${x.className||''}`;b.innerHTML=`<div class="option-ink"><b>${data.name}</b><small>${x.meta||data.tag||data.cost||''}</small></div>`;b.onmousemove=e=>showTooltip(data,e,x.kicker||data.tag||'Combat Action');b.onmouseleave=hideTooltip;b.onclick=()=>{document.querySelectorAll('.option.selected').forEach(n=>n.classList.remove('selected'));b.classList.add('selected');selected=x.selection||{type:activeMenu,data};tipK('status',`Slot ${selectedSlotIndex+1} · ${data.name} seleccionada.`)};return b}
+function stack(){const s=document.createElement('div');s.className='option-stack';return s}
+function renderSkills(){
+  const body=$('submenu-body');body.innerHTML='';const s=stack(),hand=getHand(selectedSlotIndex);
+  hand.forEach((card,index)=>s.appendChild(makeOption(card.skill,{className:index?'newest':'oldest',meta:`${index?'NEWEST':'OLDEST'} · T${['','I','II','III'][card.tier]}`,selection:{type:'deck',slotIndex:selectedSlotIndex,drawId:card.drawId,data:card.skill}})));
+  const label=document.createElement('div');label.className='separator-label';label.textContent='GRANTED / FREE';s.appendChild(label);
+  permanent.granted.forEach(d=>s.appendChild(makeOption(d,{className:'granted',selection:{type:'granted',slotIndex:selectedSlotIndex,data:d}})));
+  body.appendChild(s);
+}
+function renderSimple(key){const body=$('submenu-body');body.innerHTML='';const s=stack(),cls=key==='defense'?'defense':key==='spells'?'spell':key==='items'?'item':'global';permanent[key].forEach(d=>s.appendChild(makeOption(d,{className:cls,selection:{type:key,slotIndex:selectedSlotIndex,data:d}})));body.appendChild(s)}
+function renderMenu(){
+  const titles={skills:'SKILLS',defense:'DEFENSE',spells:'SPELLS',items:'ITEMS',global:'GLOBAL'};
+  tipK('submenu-title',titles[activeMenu]);tipK('context-slot',`ACTION SLOT ${selectedSlotIndex+1}`);
+  activeMenu==='skills'?renderSkills():renderSimple(activeMenu);
+  document.querySelectorAll('.command').forEach(b=>b.classList.toggle('active',b.dataset.menu===activeMenu));
+  requestAnimationFrame(positionSubmenu);
+}
+function selectSlot(i){selectedSlotIndex=i;selected=null;document.querySelectorAll('.action-slot-wrapper').forEach((n,idx)=>n.classList.toggle('prototype-focus',idx===i));tipK('status',`Slot ${i+1} activo · ${activeMenu.toUpperCase()}.`);renderMenu()}
+
 document.querySelectorAll('.command').forEach(b=>b.onclick=()=>{activeMenu=b.dataset.menu;selected=null;renderMenu()});
-document.querySelectorAll('.action-slot-wrapper').forEach((slot,i)=>slot.onclick=()=>{activeMenu='skills';document.querySelectorAll('.action-slot-wrapper').forEach(n=>n.classList.toggle('prototype-focus',n===slot));renderMenu();tipK('status',`Slot ${i+1} enfocado.`)});
-document.getElementById('execute').onclick=()=>{if(!selected)return tipK('status','Selecciona una acción.');if(selected.type==='deck'&&deckReady){Deck.markCardUsed(unit,selected.slotId,selected.drawId);tipK('status',`${selected.data.name} comenzó ejecución: cuenta como usada.`)}else tipK('status',`${selected.data.name} ejecutada; no altera Deck.`)};
-document.getElementById('next').onclick=()=>{round++;if(deckReady)Deck.onTurnStart(unit,{round,slotCount:3});tipK('round',round);selected=null;renderMenu();tipK('status',`ON TURN START R${round}: Slots rotaron independientemente.`)};
-renderMenu();
+document.querySelectorAll('.action-slot-wrapper').forEach((slot,i)=>slot.onclick=()=>{activeMenu='skills';selectSlot(i)});
+$('execute').onclick=()=>{if(!selected)return tipK('status',`Slot ${selectedSlotIndex+1} · selecciona una acción.`);if(selected.type==='deck'){markUsed(selected.slotIndex,selected.drawId);tipK('status',`Slot ${selected.slotIndex+1} · ${selected.data.name} comenzó ejecución: cuenta como usada.`)}else tipK('status',`Slot ${selected.slotIndex+1} · ${selected.data.name} ejecutada; no altera Deck.`)};
+$('next').onclick=()=>{round++;turnStartDeck();tipK('round',round);selected=null;renderMenu();tipK('status',`ON TURN START R${round} · Slot ${selectedSlotIndex+1} mantiene su ciclo independiente.`)};
+window.addEventListener('resize',focusCommandRing);
+
+selectSlot(0);requestAnimationFrame(focusCommandRing);
 </script>
 </body>
 </html>
