@@ -3,132 +3,143 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Luminous Combat Command Menu Prototype</title>
+<title>Luminous Combat Command Menu Prototype v2</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 :root{
-  --ink:#08070b;
-  --paper:#f1ead8;
-  --cream:#fff7dc;
-  --gold:#e5b84c;
-  --orange:#ff5a27;
-  --red:#c9192f;
-  --cyan:#7ee9ff;
-  --muted:#958d7d;
-  --panel:rgba(12,10,16,.93);
+  --hp:#ff4a22;--sp:#88eeff;--speed:#ffe877;--ink:#09090d;--cream:#fff8e8;
+  --orange:#ff5528;--cyan:#7ee9ff;--violet:#b98bff;--gold:#f1c64d;--green:#7ee38f;
+  --font:'Bebas Neue',Impact,sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07070b;color:var(--cream);font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05050a;color:#fff;font-family:Arial,sans-serif}
 button{font:inherit}
-#stage{
-  position:relative;width:100vw;height:100vh;min-width:1100px;min-height:620px;overflow:hidden;
-  background:
-    radial-gradient(circle at 54% 42%,rgba(87,56,31,.22),transparent 24%),
-    linear-gradient(to bottom,rgba(12,14,20,.15),rgba(3,3,5,.72)),
-    url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png') center bottom/cover no-repeat;
-}
-#stage:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.62),transparent 34%,transparent 68%,rgba(0,0,0,.45))}
-.scanline{position:absolute;inset:0;pointer-events:none;z-index:2;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px);mix-blend-mode:overlay}
-.round-header{position:absolute;top:24px;left:34px;z-index:20;transform:skewX(-10deg);display:flex;gap:8px;align-items:stretch}
-.round-chip{background:var(--cream);color:#0a0a0d;padding:9px 17px;font-weight:900;letter-spacing:1px;text-transform:uppercase;box-shadow:5px 5px 0 #000}
-.round-value{background:var(--orange);color:white;padding:9px 18px;font-size:22px;font-weight:1000;box-shadow:5px 5px 0 #000}
-.quick-badge{position:absolute;top:28px;right:34px;z-index:20;background:#0c0c0f;border:2px solid var(--gold);padding:8px 14px;letter-spacing:1px;font-weight:800;box-shadow:0 0 18px rgba(229,184,76,.18)}
-.quick-badge strong{color:var(--gold)}
-.fighter-zone{position:absolute;z-index:10;left:50%;top:50%;width:620px;height:610px;transform:translate(-50%,-45%)}
-.fighter-shadow{position:absolute;width:270px;height:44px;left:50%;bottom:90px;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.62);filter:blur(8px)}
-.fighter-name{position:absolute;left:50%;bottom:42px;transform:translateX(-50%) skewX(-10deg);background:#0c0b0e;border-left:6px solid var(--orange);padding:8px 18px;font-size:18px;font-weight:900;letter-spacing:2px;text-transform:uppercase;box-shadow:8px 8px 0 rgba(0,0,0,.45)}
-.fighter-sprite{position:absolute;height:420px;max-width:350px;object-fit:contain;object-position:bottom;left:50%;bottom:105px;transform:translateX(-50%);filter:drop-shadow(0 18px 10px rgba(0,0,0,.9));z-index:2}
-.core-ring{position:absolute;left:50%;bottom:186px;width:250px;height:250px;transform:translateX(-50%);border:1px solid rgba(229,184,76,.18);border-radius:50%;box-shadow:0 0 42px rgba(229,184,76,.06),inset 0 0 42px rgba(229,184,76,.04);z-index:1}
-.core-ring:before,.core-ring:after{content:"";position:absolute;inset:18px;border:1px dashed rgba(255,255,255,.1);border-radius:50%}.core-ring:after{inset:55px;border-style:solid;border-color:rgba(255,90,39,.11)}
-.command{position:absolute;z-index:8;width:190px;height:62px;border:0;color:white;text-align:left;text-transform:uppercase;font-weight:1000;font-size:20px;letter-spacing:1px;cursor:pointer;transform:skewX(-13deg);padding:0 24px;background:#101014;box-shadow:8px 8px 0 rgba(0,0,0,.58);transition:transform .12s ease,filter .12s ease,background .12s ease}
-.command span{display:block;transform:skewX(13deg)}
-.command small{font-size:10px;display:block;opacity:.65;letter-spacing:2px;margin-top:2px}
-.command:hover,.command.active{transform:skewX(-13deg) translateX(8px) scale(1.04);filter:brightness(1.16)}
-.command:before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--accent,var(--gold))}
-.cmd-skills{left:8px;top:130px;--accent:var(--orange)}
-.cmd-defense{left:-22px;top:214px;--accent:var(--cyan)}
-.cmd-spells{right:-8px;top:118px;--accent:#b18cff}
-.cmd-items{right:-34px;top:202px;--accent:var(--gold)}
-.cmd-global{right:12px;top:286px;--accent:#8fe28a}
-.slot-strip{position:absolute;left:50%;bottom:77px;transform:translateX(-50%);display:flex;gap:9px;z-index:7}
-.slot-gem{width:64px;height:52px;background:#141217;border:2px solid #685842;clip-path:polygon(50% 0,100% 24%,88% 100%,12% 100%,0 24%);display:flex;align-items:center;justify-content:center;position:relative;font-weight:900;color:var(--gold);cursor:pointer;transition:.12s}
-.slot-gem:hover,.slot-gem.active{background:#241915;border-color:var(--orange);transform:translateY(-4px)}
-.slot-gem .mini{position:absolute;bottom:5px;display:flex;gap:3px}.slot-gem .mini i{display:block;width:12px;height:4px;background:#6f6557}.slot-gem .mini i:nth-child(2){background:#a99373}
-.tray{position:absolute;z-index:30;left:32px;bottom:32px;width:min(650px,44vw);min-height:252px;background:linear-gradient(135deg,rgba(10,9,13,.97),rgba(22,17,18,.95));border:1px solid #55483a;box-shadow:14px 14px 0 rgba(0,0,0,.5),0 0 45px rgba(0,0,0,.45);padding:18px 20px 18px 24px;clip-path:polygon(0 0,96% 0,100% 16%,100% 100%,5% 100%,0 86%)}
-.tray-title{font-size:30px;font-weight:1000;text-transform:uppercase;letter-spacing:2px;line-height:.95;margin-bottom:12px}.tray-title b{color:var(--orange)}
-.tray-subtitle{color:#9c9386;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:12px}
-.option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.option{position:relative;border:1px solid #4d453b;background:#151318;color:#f7f0df;min-height:62px;padding:9px 12px;text-align:left;cursor:pointer;overflow:hidden;transition:.12s}
-.option:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--option-accent,#7e725e)}
-.option:hover,.option.selected{background:#f0e6d2;color:#0b0a0d;transform:translateX(5px);box-shadow:5px 5px 0 var(--orange)}
-.option-name{font-weight:1000;text-transform:uppercase;font-size:15px}.option-meta{font-size:10px;opacity:.7;margin-top:3px;text-transform:uppercase;letter-spacing:.8px}.option-tag{float:right;background:#2a2420;color:#e9c36e;padding:2px 6px;font-size:9px;font-weight:900}.option:hover .option-tag,.option.selected .option-tag{background:#171418;color:#fff}
-.slot-row{grid-column:1/-1;display:grid;grid-template-columns:84px 1fr 1fr;gap:7px;align-items:stretch}.slot-label{display:flex;align-items:center;justify-content:center;background:#211d1b;border-left:4px solid var(--gold);font-weight:1000;text-transform:uppercase;font-size:12px;letter-spacing:1px}.permanent-divider{grid-column:1/-1;margin:5px 0 0;color:#c5bba8;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #3d362d;padding-bottom:4px}
-.description{position:absolute;z-index:31;right:34px;bottom:42px;width:360px;min-height:215px;background:rgba(9,9,12,.95);border-top:5px solid var(--gold);padding:18px 20px;box-shadow:-10px 10px 0 rgba(0,0,0,.48);clip-path:polygon(8% 0,100% 0,100% 88%,92% 100%,0 100%,0 14%)}
-.desc-kicker{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:900}.desc-name{font-size:25px;font-weight:1000;text-transform:uppercase;margin:5px 0 8px}.desc-body{font-size:13px;line-height:1.42;color:#d5cec1;white-space:pre-line}.desc-cost{margin-top:12px;font-size:11px;color:#9f9689;text-transform:uppercase}.evolution{margin-top:12px;border-left:3px solid var(--orange);padding:8px 10px;background:rgba(255,90,39,.08);font-size:11px;line-height:1.35}.evolution b{color:#ff9e68}
-.prototype-controls{position:absolute;z-index:40;left:50%;top:28px;transform:translateX(-50%);display:flex;gap:8px}.prototype-controls button{background:#111016;color:#ddd;border:1px solid #615747;padding:7px 12px;cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:900;letter-spacing:1px}.prototype-controls button:hover{border-color:var(--orange);color:white}.status-line{position:absolute;z-index:45;left:50%;top:71px;transform:translateX(-50%);font-size:11px;color:#c8bfaf;background:rgba(0,0,0,.52);padding:5px 10px;letter-spacing:.4px}
-.offdeck-chip{position:absolute;z-index:16;left:34px;top:82px;color:#aaa;font-size:10px;text-transform:uppercase;letter-spacing:1px}.offdeck-chip b{color:#f1d28d}
-@media(max-width:1250px){.fighter-zone{transform:translate(-50%,-45%) scale(.9)}.description{width:310px}.tray{width:520px}.option-name{font-size:13px}}
+#stage{position:relative;width:100vw;height:100vh;min-width:1180px;min-height:680px;overflow:hidden;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.43)),url('https://limbuscompany.wiki.gg/images/Battle_Alleyways_of_T_Corp._2_BG.png') center bottom/cover no-repeat}
+#stage:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 52%,transparent 0 27%,rgba(0,0,0,.12) 48%,rgba(0,0,0,.55) 100%)}
+.phase{position:absolute;left:28px;top:24px;z-index:40;font:28px var(--font);letter-spacing:2px;transform:rotate(-2deg);text-shadow:3px 3px 0 #000}.phase b{color:var(--orange)}
+.quick{position:absolute;right:30px;top:24px;z-index:40;font:18px var(--font);letter-spacing:1.5px;background:#0a090d;border-left:5px solid var(--gold);padding:7px 13px;transform:skewX(-10deg);box-shadow:6px 6px 0 rgba(0,0,0,.5)}.quick strong{color:var(--gold)}
+.controls{position:absolute;right:28px;top:72px;z-index:50;display:flex;gap:7px}.controls button{border:1px solid #776b58;background:rgba(7,7,10,.86);color:#ddd;padding:6px 10px;cursor:pointer;font-size:10px;font-weight:900;text-transform:uppercase}.controls button:hover{border-color:var(--orange);color:#fff}
+.status{position:absolute;left:28px;top:64px;z-index:42;color:#bdb5a7;font-size:10px;letter-spacing:.5px;background:rgba(0,0,0,.45);padding:5px 8px}
+
+/* combatant frame keeps the language of Battle-viewer */
+.fighter{position:absolute;z-index:10;left:50%;bottom:4vh;width:620px;height:650px;transform:translateX(-50%)}
+.sprite{position:absolute;z-index:8;left:50%;bottom:122px;height:455px;max-width:360px;object-fit:contain;object-position:bottom;transform:translateX(-50%);filter:drop-shadow(0 18px 12px rgba(0,0,0,.92));pointer-events:auto;cursor:pointer}
+.sprite:hover{filter:drop-shadow(0 18px 12px #000) brightness(1.06)}
+.shadow{position:absolute;left:50%;bottom:112px;width:255px;height:36px;transform:translateX(-50%);background:rgba(0,0,0,.7);border-radius:50%;filter:blur(8px)}
+
+/* Existing top HUD concept: Speed + Action Slots */
+.top-hud{position:absolute;z-index:22;left:50%;top:42px;transform:translateX(-50%);display:flex;align-items:flex-start;gap:8px;pointer-events:auto}
+.speed{font:56px/0.85 var(--font);color:var(--speed);text-shadow:0 0 10px #ff4b00,2px 2px 2px #000;padding-top:8px}
+.action-slots{display:flex;gap:3px}.slot{position:relative;width:54px;height:54px;border:0;background:transparent;cursor:pointer;padding:0;filter:drop-shadow(0 3px 4px #000)}
+.slot svg{width:54px;height:54px}.slot polygon{fill:#17130f;stroke:#5a4025;stroke-width:8}.slot line{stroke:#b47930;stroke-width:7;stroke-linecap:round}.slot.active polygon,.slot:hover polygon{stroke:var(--speed);fill:#2a1b11}.slot-index{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f7df9b;font:17px var(--font);pointer-events:none}
+
+/* Existing lower HUD concept: diegetic floor HP, name/HP, SP */
+.floor-hud{position:absolute;z-index:6;left:50%;bottom:18px;width:300px;height:190px;transform:translateX(-50%);pointer-events:none}
+.floor-hud svg{position:absolute;left:50%;bottom:-16px;width:280px;height:210px;transform:translateX(-50%) rotateX(62deg);overflow:visible}
+.floor-poly{fill:rgba(255,80,0,.13);stroke:rgba(255,190,70,.42);stroke-width:3}.hp-track{fill:none;stroke:rgba(35,7,5,.92);stroke-width:20}.hp-line{fill:none;stroke:var(--hp);stroke-width:20;filter:drop-shadow(0 0 7px var(--hp))}.stagger{stroke:#ffdd44;stroke-width:23}
+.name-hp{position:absolute;left:6px;bottom:14px;z-index:12}.name{display:inline-block;background:#050505;border:1px solid #383838;padding:2px 7px;font:15px var(--font);letter-spacing:1.5px;color:#ddd}.hp-number{font:64px/.78 var(--font);color:var(--hp);text-shadow:3px 4px 5px #000}
+.sp-orb{position:absolute;right:5px;bottom:15px;width:58px;height:58px;border-radius:50%;border:3px solid #493728;outline:1px solid #000;background:radial-gradient(circle at 30% 30%,#67d5e6,#173d48 72%);display:flex;align-items:center;justify-content:center;font:34px var(--font);text-shadow:1px 2px 3px #000;box-shadow:0 0 14px rgba(136,238,255,.24)}
+
+/* Persona-like command fan: wedges originate around the unit, not presentation cards */
+.command-fan{position:absolute;z-index:28;inset:0;pointer-events:none}
+.cmd{--accent:#fff;position:absolute;border:0;color:#fff;background:transparent;pointer-events:auto;cursor:pointer;height:64px;filter:drop-shadow(7px 8px 0 rgba(0,0,0,.55));transition:transform .1s ease,filter .1s ease;transform-origin:var(--origin,50% 50%)}
+.cmd .blade{height:100%;min-width:210px;padding:8px 27px 7px 31px;background:linear-gradient(102deg,#050507 0 79%,transparent 80%);clip-path:polygon(0 24%,8% 9%,89% 0,100% 51%,88% 100%,5% 86%);display:flex;flex-direction:column;justify-content:center;text-align:left;position:relative}
+.cmd .blade:after{content:"";position:absolute;left:8px;top:5px;bottom:6px;width:9px;background:var(--accent);transform:skewX(-13deg)}
+.cmd strong{font:31px/.86 var(--font);letter-spacing:1px}.cmd small{font:10px Arial,sans-serif;font-weight:800;letter-spacing:1.4px;color:#bdb8b0;text-transform:uppercase;margin-top:4px}.cmd:hover,.cmd.active{filter:drop-shadow(9px 10px 0 #000) brightness(1.18)}
+.cmd:hover{transform:var(--pose) scale(1.07) translateX(7px)}.cmd.active{transform:var(--pose) scale(1.045)}
+.cmd-skills{left:-50px;top:178px;--accent:var(--orange);--pose:rotate(-8deg);transform:var(--pose);--origin:100% 50%}.cmd-defense{left:-82px;top:270px;--accent:var(--cyan);--pose:rotate(5deg);transform:var(--pose);--origin:100% 50%}.cmd-spells{right:-58px;top:165px;--accent:var(--violet);--pose:rotate(7deg);transform:var(--pose);--origin:0 50%}.cmd-items{right:-88px;top:257px;--accent:var(--gold);--pose:rotate(-3deg);transform:var(--pose);--origin:0 50%}.cmd-global{right:-38px;top:342px;--accent:var(--green);--pose:rotate(8deg);transform:var(--pose);--origin:0 50%}
+.cmd-spells .blade,.cmd-items .blade,.cmd-global .blade{background:linear-gradient(78deg,transparent 0 9%,#050507 10% 100%);clip-path:polygon(0 50%,12% 3%,94% 15%,100% 82%,11% 100%)}
+.cmd-spells .blade:after,.cmd-items .blade:after,.cmd-global .blade:after{left:auto;right:8px}
+
+/* Context menu hangs off the selected command instead of becoming a dashboard */
+.flyout{position:absolute;z-index:36;display:none;max-width:510px;pointer-events:auto}.flyout.open{display:block}.flyout.skills{left:-235px;top:355px}.flyout.left{left:-205px;top:340px}.flyout.right{right:-210px;top:410px}
+.fly-title{display:inline-block;background:#050507;padding:5px 15px 4px;border-left:6px solid var(--orange);font:25px var(--font);letter-spacing:1px;transform:skewX(-8deg);box-shadow:5px 5px 0 #000;margin-bottom:7px}.fly-title span{display:block;transform:skewX(8deg)}
+.skill-rows{display:flex;flex-direction:column;gap:6px}.skill-row{display:grid;grid-template-columns:66px 190px 190px;gap:5px;align-items:stretch;transform-origin:left center}.row-label{display:flex;align-items:center;justify-content:center;background:#0a090c;border-left:5px solid var(--speed);font:18px var(--font);letter-spacing:1px;clip-path:polygon(0 9%,91% 0,100% 50%,91% 100%,0 91%)}
+.option{--accent:#777;position:relative;border:0;color:#fff;background:#08080b;text-align:left;min-height:55px;padding:8px 14px 7px 16px;cursor:pointer;clip-path:polygon(0 8%,92% 0,100% 48%,93% 100%,4% 90%);box-shadow:none;transition:transform .08s,filter .08s}.option:before{content:"";position:absolute;left:4px;top:5px;bottom:5px;width:6px;background:var(--accent)}.option:hover,.option.selected{background:#f5efe1;color:#09090c;transform:translateX(7px) rotate(-1deg);filter:drop-shadow(5px 6px 0 var(--accent))}.option b{display:block;font:19px/.95 var(--font);letter-spacing:.6px}.option small{display:block;font:9px Arial,sans-serif;font-weight:800;letter-spacing:.6px;opacity:.68;margin-top:4px;text-transform:uppercase}.option.oldest{--accent:#b68a42}.option.newest{--accent:var(--orange)}
+.permanent-label{font:12px var(--font);letter-spacing:1.4px;color:#cfc6b7;margin:6px 0 3px 67px}.simple-options{display:flex;flex-wrap:wrap;gap:6px;max-width:440px}.simple-options .option{min-width:190px}
+
+/* Hover description follows the flyout; no fixed PowerPoint panel */
+.tooltip{position:absolute;z-index:60;display:none;width:320px;background:rgba(5,5,8,.96);border-left:5px solid var(--tip-accent,var(--gold));padding:11px 14px;pointer-events:none;clip-path:polygon(0 0,96% 0,100% 12%,100% 100%,4% 100%,0 88%);box-shadow:8px 8px 0 rgba(0,0,0,.55)}.tooltip.show{display:block}.tip-kicker{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#c2b9a8;font-weight:900}.tip-name{font:24px var(--font);letter-spacing:.6px;margin:2px 0 5px}.tip-body{font-size:11px;line-height:1.35;color:#ddd6ca}.tip-evo{margin-top:7px;padding:6px 8px;border-left:3px solid var(--orange);background:rgba(255,85,40,.09);font-size:10px;line-height:1.3}.tip-cost{margin-top:7px;color:#aaa294;font-size:9px;text-transform:uppercase;letter-spacing:.6px}
+.offdeck{position:absolute;left:30px;bottom:24px;z-index:42;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#9d978e}.offdeck b{color:#e8ca86}
+@media(max-width:1300px){.fighter{transform:translateX(-50%) scale(.9);transform-origin:bottom center}.phase{font-size:24px}}
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="scanline"></div>
-  <div class="round-header"><div class="round-chip">Planning Phase</div><div class="round-value" id="round-number">R1</div></div>
-  <div class="quick-badge">QUICK ACTION <strong>1 / 1</strong></div>
-  <div class="offdeck-chip">Off-Deck Trigger: <b>Blood Reprise</b> · automático, fuera de Planning</div>
-  <div class="prototype-controls"><button id="execute-selected">Simular ejecución</button><button id="next-turn">ON TURN START</button></div>
-  <div class="status-line" id="status-line">Selecciona una carta o acción. Hover muestra la descripción.</div>
-  <div class="fighter-zone">
-    <div class="core-ring"></div><div class="fighter-shadow"></div>
-    <img class="fighter-sprite" src="https://i.imgur.com/24qV5kD.png" alt="Agatha" onerror="this.style.opacity='.18'">
-    <div class="fighter-name">Agatha</div>
-    <button class="command cmd-skills active" data-menu="skills"><span>Skills<small>Deck + Granted</small></span></button>
-    <button class="command cmd-defense" data-menu="defense"><span>Defense<small>Permanente</small></span></button>
-    <button class="command cmd-spells" data-menu="spells"><span>Spells<small>Spellbook</small></span></button>
-    <button class="command cmd-items" data-menu="items"><span>Items<small>Inventory</small></span></button>
-    <button class="command cmd-global" data-menu="global"><span>Global<small>Universal Actions</small></span></button>
-    <div class="slot-strip" id="slot-strip"></div>
-  </div>
-  <section class="tray" id="tray"><div class="tray-title" id="tray-title"><b>Skills</b> / Action Slots</div><div class="tray-subtitle" id="tray-subtitle">Cada Slot mantiene 2 cartas de su propia secuencia independiente.</div><div class="option-grid" id="option-grid"></div></section>
-  <aside class="description" id="description"><div class="desc-kicker" id="desc-kicker">Combat Command</div><div class="desc-name" id="desc-name">Selecciona una opción</div><div class="desc-body" id="desc-body">Pasa el mouse por una carta, Spell, Item o acción para ver qué hace sin salir de Planning.</div><div class="evolution" id="desc-evolution" style="display:none"></div><div class="desc-cost" id="desc-cost"></div></aside>
+  <div class="phase">PLANNING <b>PHASE</b> · R<span id="round">1</span></div>
+  <div class="quick">QUICK ACTION <strong>1 / 1</strong></div>
+  <div class="controls"><button id="execute">Simular ejecución</button><button id="next">ON TURN START</button></div>
+  <div class="status" id="status">HUD de combate persistente + menú contextual alrededor de la Unit.</div>
+  <div class="offdeck">OFF-DECK: <b>Blood Reprise</b> · Trigger automático, no aparece como comando de Planning</div>
+
+  <main class="fighter">
+    <div class="top-hud">
+      <div class="speed">8</div>
+      <div class="action-slots" id="action-slots"></div>
+    </div>
+
+    <div class="shadow"></div>
+    <img class="sprite" src="https://i.imgur.com/24qV5kD.png" alt="Agatha" onerror="this.style.opacity='.18'">
+
+    <div class="floor-hud">
+      <svg viewBox="-140 -95 280 190">
+        <polygon class="floor-poly" points="0,-78 93,-43 119,23 69,73 -69,73 -119,23 -93,-43"/>
+        <polyline class="hp-track" points="-119,23 -69,73 69,73 119,23"/>
+        <polyline class="hp-line" points="-119,23 -69,73 69,73 102,39"/>
+        <line class="stagger" x1="-68" y1="71" x2="-59" y2="61"/><line class="stagger" x1="7" y1="73" x2="7" y2="60"/>
+      </svg>
+      <div class="name-hp"><div class="name">AGATHA</div><div class="hp-number">186</div></div>
+      <div class="sp-orb">15</div>
+    </div>
+
+    <nav class="command-fan">
+      <button class="cmd cmd-skills active" data-menu="skills"><span class="blade"><strong>SKILLS</strong><small>Deck + Granted</small></span></button>
+      <button class="cmd cmd-defense" data-menu="defense"><span class="blade"><strong>DEFENSE</strong><small>Permanente</small></span></button>
+      <button class="cmd cmd-spells" data-menu="spells"><span class="blade"><strong>SPELLS</strong><small>Spellbook</small></span></button>
+      <button class="cmd cmd-items" data-menu="items"><span class="blade"><strong>ITEMS</strong><small>Inventory</small></span></button>
+      <button class="cmd cmd-global" data-menu="global"><span class="blade"><strong>GLOBAL</strong><small>Universal</small></span></button>
+    </nav>
+
+    <section class="flyout skills open" id="flyout"><div class="fly-title"><span>SKILLS · ACTION SLOTS</span></div><div id="fly-content"></div></section>
+  </main>
+  <aside class="tooltip" id="tooltip"><div class="tip-kicker" id="tip-kicker"></div><div class="tip-name" id="tip-name"></div><div class="tip-body" id="tip-body"></div><div class="tip-evo" id="tip-evo"></div><div class="tip-cost" id="tip-cost"></div></aside>
 </div>
 <script src="js/deckEngine.js"></script>
 <script>
 (() => {
-  const Deck = window.LuminousDeckEngine || window.DeckEngine;
-  if (!Deck) throw new Error('DeckEngine no disponible. Sirve este archivo desde la raíz del proyecto.');
-  let round = 1, selected = null, activeMenu = 'skills';
-  const skill = (id,name,tier,description,evolution='') => ({id,name,tier,availability:{type:'deck'},description,evolution,economy:{action:true,quickAction:false,reaction:false}});
-  const deckSkills = [
-    skill('needle_drive','Needle Drive',1,'Pierce. 2 Coins. En Hit aplica 2 Bleed.','Skill 1-1 — Si el objetivo tiene 6+ Bleed: Coin 2 gana +2 Final Power y aplica 1 Rupture.'),
-    skill('rupture_line','Rupture Line',1,'Pierce. En Hit aplica Rupture Count. Diseñada para mantener la cadena de Rupture.'),
-    skill('blood_arc','Blood Arc',2,'Slash. Gana Coin Power según Bleed del objetivo.','Skill 2-1 — Si Agatha tiene Bleed: consume 1 Bleed propio y gana +1 Coin.'),
-    skill('severing_step','Severing Step',2,'Slash. Si gana Clash, aplica 2 Bleed Count.'),
-    skill('red_nail','Red Nail',3,'Pierce. Skill de alto impacto con 3 Coins.','Skill 3-1 — Se evalúa AL EJECUTAR. Si Target Bleed ≥ 6: cambia a Red Nail: Open Wound, Attack Weight 2.'),
-    skill('scarlet_end','Scarlet End',3,'Heavy Pierce. Consume Rupture para daño adicional.','Skill 3-1 — Si Target tiene Rupture Potency 8+: no consume Count en el primer Hit.')
+  const Deck=window.LuminousDeckEngine||window.DeckEngine;if(!Deck)throw new Error('DeckEngine no disponible');
+  let round=1,activeMenu='skills',selected=null,activeSlot='agatha_slot_0';
+  const skill=(id,name,tier,description,evolution='')=>({id,name,tier,availability:{type:'deck'},description,evolution});
+  const deckSkills=[
+    skill('needle_drive','Needle Drive',1,'Pierce · 2 Coins · En Hit aplica 2 Bleed.','Skill 1-1 — Al ejecutar, si Target tiene 6+ Bleed: Coin 2 gana +2 Final Power y aplica 1 Rupture.'),
+    skill('rupture_line','Rupture Line',1,'Pierce · Mantiene Rupture Count.'),
+    skill('blood_arc','Blood Arc',2,'Slash · Gana Coin Power según Bleed del objetivo.','Skill 2-1 — Si Agatha tiene Bleed al ejecutar: consume 1 y gana +1 Coin.'),
+    skill('severing_step','Severing Step',2,'Slash · Si gana Clash, aplica 2 Bleed Count.'),
+    skill('red_nail','Red Nail',3,'Pierce · 3 Coins · Alto impacto.','Skill 3-1 — Si Target Bleed ≥ 6 al ejecutar: cambia temporalmente a Open Wound, Attack Weight 2.'),
+    skill('scarlet_end','Scarlet End',3,'Heavy Pierce · Consume Rupture para daño adicional.','Skill 3-1 — Si Target Rupture Potency ≥ 8: no consume Count en el primer Hit.')
   ];
-  const unit = {id:'agatha',name:'Agatha'};
-  Deck.initDeck(unit, deckSkills);
-  Deck.onTurnStart(unit,{round,slotCount:3});
-  const permanent = {
-    granted:[{id:'pierce',name:'Perforar',tag:'Granted · Weapon',description:'Skill básica otorgada por el arma. No ocupa Deck. Puede enfocarse en Bleed o Rupture según el arma equipada.',cost:'Action / Quick Action según definición'}],
-    defense:[{id:'guard',name:'Guard',tag:'Defense',description:'Defensive Skill permanente. No entra al Deck y ocupa 1 Action Slot.',cost:'1 Action Slot',evolution:'Defense-1 — Si HP ≤ 30%, la propia Skill cambia temporalmente su comportamiento al ejecutarse.'},{id:'counter',name:'Counter',tag:'Defense',description:'Prepara una respuesta defensiva ligada a la definición de la Unit.',cost:'1 Action Slot'}],
-    spells:[{id:'blood_sigil',name:'Blood Sigil',tag:'Spell · Lv1',description:'Spell de ejemplo. Aplica una marca que amplifica Bleed del siguiente Hit.',cost:'1 Action Slot + Spell Slot'},{id:'binding_word',name:'Binding Word',tag:'Spell · Save',description:'El objetivo hace un Save. No pertenece al Deck de Skills.',cost:'1 Action Slot + Spell Slot'}],
-    items:[{id:'healing_vial',name:'Healing Vial',tag:'Item',description:'Recupera HP. Los Items viven fuera del Deck y usan el runtime de Items.',cost:'Action o Quick si el Item lo permite'},{id:'rupture_bomb',name:'Rupture Bomb',tag:'Throwable',description:'Item arrojable enlazado a una Skill de lanzamiento.',cost:'1 Action Slot'}],
-    global:[{id:'grapple',name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics. Si gana, aplica Grappled y puede cancelar Actions pendientes.',cost:'1 Action Slot'},{id:'help',name:'Help',tag:'Universal',description:'+1 Final Power a una Action aliada válida. Una vez por equipo por Turn.',cost:'1 Action Slot'},{id:'retreat',name:'Retreat',tag:'Universal',description:'Se planea ahora y se resuelve On Turn End.',cost:'1 Action Slot'},{id:'escape',name:'Escape',tag:'Universal',description:'Intento de salida permanente del encuentro. Se resuelve On Turn End.',cost:'1 Action Slot'}]
+  const unit={id:'agatha',name:'Agatha'};Deck.initDeck(unit,deckSkills);Deck.onTurnStart(unit,{round,slotCount:3});
+  const permanent={
+    granted:[{name:'Perforar',tag:'Granted · Weapon',description:'Skill gratuita respecto al Deck. Siempre disponible mientras su fuente siga equipada.',cost:'1 Action Slot · puede admitir Quick/Reaction según definición'}],
+    defense:[{name:'Guard',tag:'Defense',description:'Defensive Skill permanente; nunca ocupa una carta del Deck.',evolution:'Defense-1 — La propia Skill define su variante condicional.',cost:'1 Action Slot'},{name:'Counter',tag:'Defense',description:'Respuesta defensiva permanente de la Unit.',cost:'1 Action Slot'}],
+    spells:[{name:'Blood Sigil',tag:'Spell Lv1',description:'Spell fuera del Deck. Su runtime valida Spell Slot y recursos.',cost:'1 Action Slot + Spell Slot'},{name:'Binding Word',tag:'Spell Save',description:'Spell con Save; no modifica la rotación de Skills.',cost:'1 Action Slot + Spell Slot'}],
+    items:[{name:'Healing Vial',tag:'Item',description:'Item fuera del Deck.',cost:'Action o Quick si el Item lo permite'},{name:'Rupture Bomb',tag:'Throwable',description:'Item arrojable enlazado a su Skill de lanzamiento.',cost:'1 Action Slot'}],
+    global:[{name:'Grapple',tag:'Universal',description:'STR/Athletics vs DEX/Acrobatics.',cost:'1 Action Slot'},{name:'Help',tag:'Universal',description:'+1 Final Power a una Action aliada válida.',cost:'1 Action Slot'},{name:'Retreat',tag:'Universal',description:'Se resuelve On Turn End.',cost:'1 Action Slot'},{name:'Escape',tag:'Universal',description:'Salida permanente del encuentro si tiene éxito.',cost:'1 Action Slot'}]
   };
-  const menus = {skills:{title:'<b>Skills</b> / Action Slots',subtitle:'Dos cartas por Slot. OLDEST sale en cada ON TURN START; usar NEWEST acelera la rotación.'},defense:{title:'<b>Defense</b> / Permanent',subtitle:'No se roba. Siempre disponible mientras la Unit pueda actuar.'},spells:{title:'<b>Spells</b> / Spellbook',subtitle:'Fuera del Deck; recursos y Spell Slots los valida su runtime.'},items:{title:'<b>Items</b> / Inventory',subtitle:'Fuera del Deck; Action o Quick Action según el Item.'},global:{title:'<b>Global</b> / Universal',subtitle:'Acciones universales de combate.'}};
-  const el = id => document.getElementById(id);
-  function describe(data,kicker){el('desc-kicker').textContent=kicker||data.tag||'Combat Command';el('desc-name').textContent=data.name||data.id||'—';el('desc-body').textContent=data.description||'Sin descripción.';const evo=data.evolution||'';el('desc-evolution').style.display=evo?'block':'none';el('desc-evolution').innerHTML=evo?'<b>EVOLUTION</b><br>'+evo:'';el('desc-cost').textContent=data.cost||(data.tier?`Tier ${['','I','II','III'][data.tier]} · Deck Skill`:'');}
-  function optionButton(data,extra={}){const b=document.createElement('button');b.className='option';b.style.setProperty('--option-accent',extra.accent||'#7e725e');b.innerHTML=`<span class="option-tag">${extra.tag||data.tag||''}</span><div class="option-name">${data.name}</div><div class="option-meta">${extra.meta||data.cost||''}</div>`;b.addEventListener('mouseenter',()=>describe({...data,evolution:data.evolution||extra.evolution},extra.kicker));b.addEventListener('click',()=>{document.querySelectorAll('.option.selected').forEach(n=>n.classList.remove('selected'));b.classList.add('selected');selected=extra.selection||{type:activeMenu,data};el('status-line').textContent=extra.status||`${data.name} seleccionada.`;describe({...data,evolution:data.evolution||extra.evolution},extra.kicker);});return b;}
-  function renderSlots(){const strip=el('slot-strip');strip.innerHTML='';for(let i=0;i<3;i++){const slotId=`agatha_slot_${i}`,hand=Deck.getSlotHand(unit,slotId),g=document.createElement('button');g.className='slot-gem';g.dataset.slot=slotId;g.innerHTML=`${i+1}<span class="mini"><i></i><i></i></span>`;g.title=`Slot ${i+1}: ${hand.map(c=>c.skill.name).join(' / ')}`;g.onclick=()=>{activeMenu='skills';setMenuButtons();renderTray(slotId)};strip.appendChild(g);}}
-  function renderSkillTray(focusSlot){const grid=el('option-grid');grid.innerHTML='';for(let i=0;i<3;i++){const slotId=`agatha_slot_${i}`,hand=Deck.getSlotHand(unit,slotId),row=document.createElement('div');row.className='slot-row';if(focusSlot===slotId)row.style.filter='drop-shadow(0 0 5px rgba(255,90,39,.65))';const label=document.createElement('div');label.className='slot-label';label.innerHTML=`SLOT ${i+1}`;row.appendChild(label);hand.forEach((card,index)=>{const data={...card.skill},tag=`${index===0?'OLDEST':'NEWEST'} · T${['','I','II','III'][card.tier]}`;row.appendChild(optionButton(data,{tag,meta:index===0?'Sale en el próximo ciclo':'Si la usas, acelera 2 cartas',kicker:`Deck Skill · Slot ${i+1}`,selection:{type:'deck',slotId,drawId:card.drawId,handIndex:index,data},status:`Slot ${i+1}: ${data.name} seleccionada (${index===0?'oldest':'newest'}).`}));});grid.appendChild(row);}const divider=document.createElement('div');divider.className='permanent-divider';divider.textContent='Granted / Free Skills — fuera del Deck';grid.appendChild(divider);permanent.granted.forEach(data=>grid.appendChild(optionButton(data,{tag:data.tag,kicker:'Granted Skill',selection:{type:'granted',data}})));}
-  function renderSimpleTray(key){const grid=el('option-grid');grid.innerHTML='';permanent[key].forEach(data=>grid.appendChild(optionButton(data,{tag:data.tag,kicker:data.tag,selection:{type:key,data}})));}
-  function renderTray(focusSlot){el('tray-title').innerHTML=menus[activeMenu].title;el('tray-subtitle').textContent=menus[activeMenu].subtitle;if(activeMenu==='skills')renderSkillTray(focusSlot);else renderSimpleTray(activeMenu);}
-  function setMenuButtons(){document.querySelectorAll('.command').forEach(btn=>btn.classList.toggle('active',btn.dataset.menu===activeMenu));}
-  document.querySelectorAll('.command').forEach(btn=>btn.addEventListener('click',()=>{activeMenu=btn.dataset.menu;selected=null;setMenuButtons();renderTray();}));
-  el('execute-selected').addEventListener('click',()=>{if(!selected){el('status-line').textContent='No hay una acción seleccionada.';return;}if(selected.type==='deck'){Deck.markCardUsed(unit,selected.slotId,selected.drawId);el('status-line').textContent=`Ejecución iniciada: ${selected.data.name}. La carta cuenta como usada.`;}else{el('status-line').textContent=`Ejecución simulada: ${selected.data.name}. No altera el Deck.`;}});
-  el('next-turn').addEventListener('click',()=>{round++;Deck.onTurnStart(unit,{round,slotCount:3});el('round-number').textContent='R'+round;selected=null;renderSlots();renderTray();el('status-line').textContent=`ON TURN START R${round}: cada Slot procesó su ciclo independiente.`;});
-  renderSlots();renderTray();describe({name:'Needle Drive',description:'Hover sobre cualquier opción para inspeccionarla sin abandonar Planning.',cost:'Prototype UI'},'Luminous Command Menu');
+  const $=id=>document.getElementById(id),tooltip=$('tooltip');
+  function heptagon(){return '<svg viewBox="0 0 100 100"><polygon points="50,5 88,23 97,62 72,94 28,94 3,62 12,23"/><line x1="32" y1="55" x2="68" y2="55"/></svg>';}
+  function renderTopSlots(){const root=$('action-slots');root.innerHTML='';for(let i=0;i<3;i++){const id=`agatha_slot_${i}`,b=document.createElement('button');b.className='slot'+(id===activeSlot?' active':'');b.innerHTML=heptagon()+`<span class="slot-index">${i+1}</span>`;b.title=Deck.getSlotHand(unit,id).map(c=>c.skill.name).join(' / ');b.onclick=()=>{activeSlot=id;activeMenu='skills';setCommands();renderTopSlots();renderFlyout();};root.appendChild(b)}}
+  function showTip(data,kicker,anchor,accent){$('tip-kicker').textContent=kicker||data.tag||'COMBAT COMMAND';$('tip-name').textContent=data.name||'—';$('tip-body').textContent=data.description||'Sin descripción';$('tip-evo').style.display=data.evolution?'block':'none';$('tip-evo').textContent=data.evolution||'';$('tip-cost').textContent=data.cost||'';tooltip.style.setProperty('--tip-accent',accent||'var(--gold)');const r=anchor.getBoundingClientRect(),w=320,left=Math.min(window.innerWidth-w-18,r.right+12),top=Math.max(18,Math.min(window.innerHeight-190,r.top-10));tooltip.style.left=left+'px';tooltip.style.top=top+'px';tooltip.classList.add('show')}
+  function hideTip(){tooltip.classList.remove('show')}
+  function makeOption(data,meta={}){const b=document.createElement('button');b.className='option '+(meta.kind||'');b.innerHTML=`<b>${data.name}</b><small>${meta.caption||data.tag||data.cost||''}</small>`;b.onmouseenter=()=>showTip({...data,evolution:data.evolution||meta.evolution},meta.kicker,b,meta.accent);b.onmouseleave=hideTip;b.onclick=()=>{document.querySelectorAll('.option.selected').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');selected=meta.selection||{type:activeMenu,data};$('status').textContent=meta.status||`${data.name} seleccionada.`;};return b}
+  function renderSkillFlyout(){const root=$('fly-content'),wrap=document.createElement('div');wrap.className='skill-rows';for(let i=0;i<3;i++){const slotId=`agatha_slot_${i}`,hand=Deck.getSlotHand(unit,slotId),row=document.createElement('div');row.className='skill-row';row.style.opacity=slotId===activeSlot?'1':'.78';const lab=document.createElement('div');lab.className='row-label';lab.textContent='SLOT '+(i+1);row.appendChild(lab);hand.forEach((card,index)=>row.appendChild(makeOption(card.skill,{kind:index===0?'oldest':'newest',caption:`${index===0?'OLDEST · rota':'NEWEST · acelera'} · T${['','I','II','III'][card.tier]}`,kicker:`DECK SKILL · SLOT ${i+1}`,selection:{type:'deck',slotId,drawId:card.drawId,data:card.skill},accent:index===0?'#b68a42':'#ff5528'})));wrap.appendChild(row)}root.innerHTML='';root.appendChild(wrap);const pl=document.createElement('div');pl.className='permanent-label';pl.textContent='GRANTED / FREE · FUERA DEL DECK';root.appendChild(pl);const simple=document.createElement('div');simple.className='simple-options';permanent.granted.forEach(d=>simple.appendChild(makeOption(d,{kicker:'GRANTED SKILL',selection:{type:'granted',data:d}})));root.appendChild(simple)}
+  function renderSimple(key,title){const root=$('fly-content');root.innerHTML='';const simple=document.createElement('div');simple.className='simple-options';permanent[key].forEach(d=>simple.appendChild(makeOption(d,{kicker:d.tag,selection:{type:key,data:d}})));root.appendChild(simple);document.querySelector('.fly-title span').textContent=title}
+  function renderFlyout(){const fly=$('flyout');selected=null;fly.className='flyout open '+(activeMenu==='skills'?'skills':(['defense'].includes(activeMenu)?'left':'right'));document.querySelector('.fly-title span').textContent=activeMenu.toUpperCase();if(activeMenu==='skills'){document.querySelector('.fly-title span').textContent='SKILLS · ACTION SLOTS';renderSkillFlyout()}else if(activeMenu==='defense')renderSimple('defense','DEFENSE · PERMANENTE');else if(activeMenu==='spells')renderSimple('spells','SPELLS · SPELLBOOK');else if(activeMenu==='items')renderSimple('items','ITEMS · INVENTORY');else renderSimple('global','GLOBAL · UNIVERSAL')}
+  function setCommands(){document.querySelectorAll('.cmd').forEach(b=>b.classList.toggle('active',b.dataset.menu===activeMenu))}
+  document.querySelectorAll('.cmd').forEach(b=>b.onclick=()=>{activeMenu=b.dataset.menu;setCommands();renderFlyout()});
+  $('execute').onclick=()=>{if(!selected){$('status').textContent='Selecciona una acción primero.';return}if(selected.type==='deck'){Deck.markCardUsed(unit,selected.slotId,selected.drawId);$('status').textContent=`${selected.data.name}: ejecución iniciada; la carta cuenta como usada.`}else $('status').textContent=`${selected.data.name}: ejecución simulada; no altera el Deck.`};
+  $('next').onclick=()=>{round++;Deck.onTurnStart(unit,{round,slotCount:3});$('round').textContent=round;selected=null;renderTopSlots();renderFlyout();$('status').textContent=`ON TURN START R${round}: los 3 Slots rotaron independientemente.`};
+  renderTopSlots();renderFlyout();
 })();
 </script>
 </body>
