@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/combat-runtime-integration
+      - feature/combat-deck-engine
   pull_request:
     branches:
       - main
@@ -32,3 +33,5 @@ jobs:
         run: node tests/combat-runtime-integration-smoke.mjs
       - name: Combat Runtime Rules smoke
         run: node tests/combat-runtime-rules-smoke.mjs
+      - name: Combat Deck Engine smoke
+        run: node tests/combat-deck-engine-smoke.mjs
