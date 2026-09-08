@@ -12,6 +12,7 @@
   const scripts = [
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
+    ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
   ];
 
   function waitForGlobal(globalName, timeoutMs = WAIT_TIMEOUT_MS) {
@@ -60,26 +61,30 @@
   function buildApi() {
     const core = global.LuminousBattleViewerRuntime073 || {};
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
+    const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
     const api = Object.freeze({
       ...core,
       version: VERSION,
       rulesVersion: core.version || "0.7.3",
       dmConsole,
+      dmMagic,
       install,
     });
     global.LuminousBattleViewerRuntime074 = api;
     dmConsole?.init?.();
+    dmMagic?.install?.();
     return api;
   }
 
   function install() {
-    if (global.LuminousBattleViewerRuntime073 && global.LuminousBattleViewerDmConsole074) return Promise.resolve(buildApi());
+    if (global.LuminousBattleViewerRuntime073 && global.LuminousBattleViewerDmConsole074 && global.LuminousBattleViewerDmMagic074) return Promise.resolve(buildApi());
     return Promise.all(scripts.map(([id, src, name]) => loadScript(id, src, name))).then(() => buildApi());
   }
 
   if (typeof require === "function" && !global.document) {
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
     const api = buildApi();
     if (typeof module !== "undefined" && module.exports) module.exports = api;
   } else {
