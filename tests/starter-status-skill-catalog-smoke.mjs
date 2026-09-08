@@ -22,7 +22,7 @@ const skills = catalog.list();
 assert.equal(skills.length, 216);
 assert.deepEqual(catalog.STATUS_ORDER, statuses);
 assert.deepEqual(catalog.DAMAGE_ORDER, damages);
-assert.equal(catalog.version, '1.3.0');
+assert.equal(catalog.version, '1.3.1');
 assert.equal(rupture.DEFINITION.mode, 'double');
 assert.equal(rupture.DEFINITION.rules[0].trigger, 'getting_hit');
 assert.equal(globalThis.STATUS_REGISTRY.rupture.mode, 'double');
@@ -106,6 +106,13 @@ for (const skill of skills) {
   assert.ok(potency >= 1 && potency <= 2, `${skill.id} potency package out of starter range`);
   assert.ok(count >= 1 && count <= 2, `${skill.id} count package out of starter range`);
 }
+
+const poiseSplit = catalog.get('t1_poise_08_patient_chain');
+assert.ok(poiseSplit, 'Poise double_split legacy Skill must exist');
+assert.deepEqual(poiseSplit.coins.map((coin) => coin.effects.map((effect) => [effect.trigger, effect.target, effect.potency, effect.count])), [
+  [['[On Hit]', 'self', 1, 1]],
+  [['[On Hit]', 'self', 1, 1]],
+], 'Poise split profiles must preserve per-Coin On Hit applications instead of aggregating them');
 
 assert.equal(legacyIdCount, 72, 'the original 72 starter IDs must remain preserved');
 const payload = catalog.firebasePayload(schema);
