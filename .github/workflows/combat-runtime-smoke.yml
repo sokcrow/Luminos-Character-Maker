@@ -22,6 +22,8 @@ jobs:
           node-version: '20'
       - name: Combat Skill schema smoke
         run: node tests/combat-skill-schema-smoke.mjs
+      - name: Starter Tier 1 status skill catalog smoke
+        run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: Team action economy smoke
         run: node tests/team-action-economy-smoke.mjs
       - name: CombatAction schema smoke
@@ -48,5 +50,7 @@ jobs:
           node --check js/battle-viewer-dm-console-074-magic.js
           node --check js/battle-viewer-runtime-074.js
           node --check js/elemental-status-compat.js
+          node --check js/status-rupture-runtime.js
+          node --check js/skill-catalog-starter-status-tier1.js
       - name: Battle Viewer 0.7.4 DM console smoke
         run: node tests/combat-v074-dm-console-smoke.mjs
