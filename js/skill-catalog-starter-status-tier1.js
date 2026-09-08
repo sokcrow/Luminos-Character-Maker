@@ -35,23 +35,24 @@
     ]) }),
   });
 
-  // Tier 1 budget: 1 Coin = 4/+4, 2 Coins = 3/+3, 3 Coins = 2/+2.
-  // Stronger status packages trade 1-2 Base Power instead of adding extra mechanics.
+  // Tier 1 clash budget: Final Power must stay between 10 and 13.
+  // More Coins means lower Coin Power: 1 Coin = +6, 2 Coins = +4, 3 Coins = +3.
+  // Stronger status packages trade Base Power instead of adding extra mechanics.
   const PROFILES = Object.freeze([
-    Object.freeze({ slug: "steady", coins: 1, basePower: 4, coinPower: 4, apps: Object.freeze([[0, 1, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "lasting", coins: 1, basePower: 3, coinPower: 4, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
-    Object.freeze({ slug: "intense", coins: 1, basePower: 3, coinPower: 4, apps: Object.freeze([[0, 2, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "loaded", coins: 1, basePower: 2, coinPower: 4, apps: Object.freeze([[0, 2, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
+    Object.freeze({ slug: "steady", coins: 1, basePower: 7, coinPower: 6, apps: Object.freeze([[0, 1, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "lasting", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "intense", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 2, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "loaded", coins: 1, basePower: 4, coinPower: 6, apps: Object.freeze([[0, 2, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
 
-    Object.freeze({ slug: "double_step", coins: 2, basePower: 3, coinPower: 3, apps: Object.freeze([[1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
-    Object.freeze({ slug: "double_lasting", coins: 2, basePower: 2, coinPower: 3, apps: Object.freeze([[1, 1, 2]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "double_intense", coins: 2, basePower: 2, coinPower: 3, apps: Object.freeze([[1, 2, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "double_split", coins: 2, basePower: 1, coinPower: 3, apps: Object.freeze([[0, 1, 1], [1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "double_step", coins: 2, basePower: 5, coinPower: 4, apps: Object.freeze([[1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "double_lasting", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 1, 2]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "double_intense", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 2, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "double_split", coins: 2, basePower: 2, coinPower: 4, apps: Object.freeze([[0, 1, 1], [1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
 
-    Object.freeze({ slug: "triple_step", coins: 3, basePower: 2, coinPower: 2, apps: Object.freeze([[2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "triple_lasting", coins: 3, basePower: 1, coinPower: 2, apps: Object.freeze([[2, 1, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
-    Object.freeze({ slug: "triple_intense", coins: 3, basePower: 1, coinPower: 2, apps: Object.freeze([[2, 2, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
-    Object.freeze({ slug: "triple_split", coins: 3, basePower: 1, coinPower: 2, apps: Object.freeze([[0, 1, 1], [2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "triple_step", coins: 3, basePower: 4, coinPower: 3, apps: Object.freeze([[2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
+    Object.freeze({ slug: "triple_lasting", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 1, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
+    Object.freeze({ slug: "triple_intense", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 2, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "triple_split", coins: 3, basePower: 1, coinPower: 3, apps: Object.freeze([[0, 1, 1], [2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
   ]);
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
