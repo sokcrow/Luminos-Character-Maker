@@ -10,6 +10,7 @@ const catalog = globalThis.LuminousStarterStatusSkillCatalog;
 if (!schema || !rupture || !catalog) throw new Error('Starter status skill modules were not initialized.');
 
 const statuses = ['burn', 'rupture', 'sinking', 'tremor', 'poise', 'bleed'];
+const expectedCoinPower = new Map([[1, 6], [2, 4], [3, 3]]);
 const skills = catalog.list();
 assert.equal(skills.length, 72);
 assert.deepEqual(catalog.STATUS_ORDER, statuses);
@@ -21,6 +22,7 @@ for (const statusId of statuses) {
   const group = catalog.byStatus(statusId);
   assert.equal(group.length, 12, `${statusId} must have exactly 12 starter Skills`);
   assert.deepEqual(group.map((skill) => skill.coinAmount).sort((a, b) => a - b), [1,1,1,1,2,2,2,2,3,3,3,3]);
+  assert.deepEqual(group.map((skill) => skill.coinPower).sort((a, b) => b - a), [6,6,6,6,4,4,4,4,3,3,3,3]);
 }
 
 const ids = new Set();
@@ -38,12 +40,13 @@ for (const skill of skills) {
   assert.equal(skill.targetingType, 'Focused Attack');
   assert.equal(skill.isClashable, true);
   assert.equal(skill.isUnclashable, false);
-  assert.ok(skill.basePower >= 1 && skill.basePower <= 4);
-  assert.ok(skill.coinPower >= 2 && skill.coinPower <= 4);
+  assert.ok(skill.basePower >= 1 && skill.basePower <= 7);
+  assert.ok(skill.coinPower >= 3 && skill.coinPower <= 6);
   assert.ok(skill.coinAmount >= 1 && skill.coinAmount <= 3);
+  assert.equal(skill.coinPower, expectedCoinPower.get(skill.coinAmount), `${skill.id} coin power must decrease as coin count increases`);
 
   const maxPower = skill.basePower + (skill.coinPower * skill.coinAmount);
-  assert.ok(maxPower >= 6 && maxPower <= 9, `${skill.id} max power ${maxPower} outside Tier 1 budget`);
+  assert.ok(maxPower >= 10 && maxPower <= 13, `${skill.id} max power ${maxPower} outside Tier 1 budget`);
 
   const validation = schema.validateCombatSkill(skill);
   assert.equal(validation.valid, true, `${skill.id}: ${validation.errors.join(' · ')}`);
