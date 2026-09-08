@@ -4,14 +4,77 @@
   if (global.LuminousElementalStatusCompatibility) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const state = {
     units: [],
     lastCombatState: null,
     encounterEndedWhileActive: false,
   };
 
+  function ensureStatusLibrary() {
+    if (global.LuminousStatusLibrary) {
+      global.LuminousStatusLibrary.install?.();
+      global.LuminousStatusLibrary.installStatusEngineBridge?.();
+      return true;
+    }
+    const doc = global.document;
+    if (!doc || doc.getElementById("status-library-script")) return false;
+    const script = doc.createElement("script");
+    script.id = "status-library-script";
+    script.src = "js/status-library.js";
+    script.async = false;
+    script.dataset.engine = "canonical-status-library";
+    script.addEventListener("load", () => {
+      global.LuminousStatusLibrary?.install?.();
+      global.LuminousStatusLibrary?.installStatusEngineBridge?.();
+    }, { once:true });
+    doc.head?.appendChild(script);
+    return true;
+  }
+
+  function patchDefinitionAuthorities() {
+    const library = global.LuminousStatusLibrary;
+    if (!library) return false;
+
+    const conditions = global.LuminousConditionRuntime;
+    if (conditions && !conditions.__canonicalStatusLibraryDefinitions) {
+      const definitions = Object.freeze(Object.fromEntries(
+        (library.conditionIds || []).map((id) => [id, library.get(id)]).filter((entry) => Boolean(entry[1]))
+      ));
+      const icons = Object.freeze(Object.fromEntries(
+        Object.entries(definitions).map(([id, definition]) => [id, definition.icon || null])
+      ));
+      global.LuminousConditionRuntime = Object.freeze({
+        ...conditions,
+        __canonicalStatusLibraryDefinitions:true,
+        ICONS:icons,
+        DEFINITIONS:definitions,
+        getDefinition(statusId) {
+          const definition = library.get(statusId);
+          return definition && library.conditionIds.includes(library.resolveId(statusId)) ? clone(definition) : null;
+        },
+        installRegistry() { return library.install(); },
+      });
+    }
+
+    const elemental = global.LuminousElementalStatusRuntime;
+    if (elemental && !elemental.__canonicalStatusLibraryDefinitions) {
+      const elementalIds = ['burn','tremor','sinking','paralyze','chill','frozen','shock','corrosion','poison','decay','radiance'];
+      const definitions = Object.freeze(Object.fromEntries(
+        elementalIds.map((id) => [id, library.get(id)]).filter((entry) => Boolean(entry[1]))
+      ));
+      global.LuminousElementalStatusRuntime = Object.freeze({
+        ...elemental,
+        __canonicalStatusLibraryDefinitions:true,
+        STATUS_DEFINITIONS:definitions,
+        registerStatuses() { return library.install(); },
+      });
+    }
+    return true;
+  }
+
   function protectionFor(unit, statusId, options = {}) {
-    const id = normalizeId(statusId);
+    const id = global.LuminousStatusLibrary?.resolveId?.(statusId) || normalizeId(statusId);
     return options.protectedStatuses?.[id]
       || unit?.statusProtections?.[id]
       || unit?.protectedStatuses?.[id]
@@ -38,14 +101,14 @@
       ...source,
       __elementalStatusProtectionCompat: true,
       removeStatus(unit, statusId, options = {}) {
-        const id = normalizeId(statusId);
+        const id = global.LuminousStatusLibrary?.resolveId?.(statusId) || normalizeId(statusId);
         const protectionCheck = isRemovalBlocked(unit, id, options);
         if (protectionCheck.blocked) {
           return {
             removed: false,
             protected: true,
             statusId: id,
-            protection: protectionCheck.protection ? JSON.parse(JSON.stringify(protectionCheck.protection)) : null,
+            protection: protectionCheck.protection ? clone(protectionCheck.protection) : null,
           };
         }
         return source.removeStatus(unit, id, options);
@@ -53,6 +116,7 @@
     });
 
     global.LuminousStatusEngine = wrapped;
+    global.LuminousStatusLibrary?.installStatusEngineBridge?.();
     return true;
   }
 
@@ -135,6 +199,10 @@
   }
 
   function install() {
+    ensureStatusLibrary();
+    global.LuminousStatusLibrary?.install?.();
+    global.LuminousStatusLibrary?.installStatusEngineBridge?.();
+    patchDefinitionAuthorities();
     patchStatusProtection();
     patchEncounterLifecycle();
     observeEncounterState();
@@ -142,6 +210,8 @@
   }
 
   const api = Object.freeze({
+    ensureStatusLibrary,
+    patchDefinitionAuthorities,
     protectionFor,
     isRemovalBlocked,
     patchStatusProtection,
