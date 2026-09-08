@@ -33,6 +33,20 @@ assert.equal(library.get('rage')?.name, 'Rage');
 assert.equal(library.get('rage')?.mode, 'zero');
 assert.equal(library.get('rage')?.icon, 'https://imgur.com/j3C7GzS.png');
 
+// Bardic Inspiration is a visible Status. Potency carries its Power bonus and Count carries the consumable instance.
+assert.equal(library.has('bardic_inspiration'), true);
+assert.equal(library.get('bardic_inspiration')?.name, 'Bardic Inspiration');
+assert.equal(library.get('bardic_inspiration')?.mode, 'double');
+assert.equal(library.get('bardic_inspiration')?.icon, 'https://imgur.com/LaZgHYg.png');
+assert.equal(library.get('bardic_inspiration')?.classId, 'bard');
+
+// Psychic Blade is a visible College of Whispers Status whose Count tracks remaining charges.
+assert.equal(library.has('psychic_blade'), true);
+assert.equal(library.get('psychic_blade')?.name, 'Psychic Blade');
+assert.equal(library.get('psychic_blade')?.mode, 'single');
+assert.equal(library.get('psychic_blade')?.icon, 'https://imgur.com/vEDE8Q8.png');
+assert.equal(library.get('psychic_blade')?.archetypeId, 'college_of_whispers');
+
 // Class resources and Action/Passive implementation markers are not Status Effects.
 assert.equal(library.has('sorcery_points'), false, 'Sorcery Points are a Sorcerer class resource, not a Status');
 assert.equal(library.has('reckless_attack_armed'), false, 'Reckless Attack arming is internal Trait state');
@@ -56,17 +70,25 @@ for (const rule of reckless.rules.filter((rule) => ['coin', 'status'].includes(r
   }
 }
 
-// Legacy/runtime Action markers can still exist mechanically, but the canonical Status UI must hide them.
+// Legacy/runtime Action markers stay hidden while real class Statuses stay visible.
 const unit = {
   statusEffects: {
     rage: { id: 'rage', count: 1, potency: 0 },
     haste: { id: 'haste', count: 2, potency: 0 },
+    bardic_inspiration: { id: 'bardic_inspiration', count: 1, potency: 3 },
+    psychic_blade: { id: 'psychic_blade', count: 2, potency: 0 },
     countercharm: { id: 'countercharm', count: 2, potency: 0 },
     reckless_attack_armed: { id: 'reckless_attack_armed', count: 1, potency: 0 },
   },
 };
 const visible = globalThis.LuminousStatusEngine.listStatuses(unit).map((entry) => entry.id).sort();
-assert.deepEqual(visible, ['haste', 'rage']);
+assert.deepEqual(visible, ['bardic_inspiration', 'haste', 'psychic_blade', 'rage']);
+
+// Existing Trait runtimes must still reference the same canonical ids.
+const bardSource = fs.readFileSync(path.join(root, 'js/bard-class-runtime.js'), 'utf8');
+assert.match(bardSource, /bardic_inspiration/);
+const whispersSource = fs.readFileSync(path.join(root, 'js/college-of-whispers-runtime.js'), 'utf8');
+assert.match(whispersSource, /psychic_blade/);
 
 // Sorcerer keeps Sorcery Points in classResources; it must not regress into the Status Library.
 const sorcererSource = fs.readFileSync(path.join(root, 'js/sorcerer-class-runtime.js'), 'utf8');
@@ -77,4 +99,4 @@ assert.doesNotMatch(sorcererSource, /statusId\s*:\s*["']sorcery_points["']/);
 const managerSource = fs.readFileSync(path.join(root, 'js/statusManager.js'), 'utf8');
 assert.match(managerSource, /class-status-semantics\.js/);
 
-console.log('Class Status semantics smoke passed: Rage visible; Reckless/Countercharm internal; Sorcery Points remain a resource.');
+console.log('Class Status semantics smoke passed: Rage, Bardic Inspiration, and Psychic Blade visible; internal Action markers hidden; Sorcery Points remain a resource.');
