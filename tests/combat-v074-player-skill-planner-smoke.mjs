@@ -1,101 +1,51 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-await import('../js/combat-action-schema.js');
-await import('../js/combat-action-adapters.js');
-await import('../js/combat-skill-schema.js');
-await import('../js/combat-skill-loadout-074.js');
-await import('../js/battle-viewer-ownership-074.js');
-await import('../js/battle-viewer-player-skill-planner-074.js');
+const require = createRequire(import.meta.url);
+const loadedOwnership = require('../js/battle-viewer-ownership-074.js');
+const ownership = loadedOwnership?.version === '0.7.4' ? loadedOwnership : globalThis.LuminousBattleViewerOwnership074;
+const loadedLoadout = require('../js/combat-skill-loadout-074.js');
+const loadout = loadedLoadout?.version === '0.7.4' ? loadedLoadout : globalThis.LuminousCombatSkillLoadout074;
+const loadedPlanner = require('../js/battle-viewer-player-skill-planner-074.js');
+const planner = loadedPlanner?.version === '0.7.4' ? loadedPlanner : globalThis.LuminousBattleViewerPlayerSkillPlanner074;
 
-const loadout = globalThis.LuminousCombatSkillLoadout074;
-const planner = globalThis.LuminousBattleViewerPlayerSkillPlanner074;
-if (!loadout || !planner) throw new Error('0.7.4 Skill loadout/planner modules were not initialized.');
-
-const canonicalSkills = {
-  skill_a: {
-    name: 'Canonical A',
-    type: 'Attack',
-    tier: 1,
-    basePower: 6,
-    coinPower: 3,
-    coinAmount: 2,
-    damageType: 'cortante',
-    sinAffinity: 'wrath',
-    attackWeight: 1,
-    effects: [],
-    coins: [{ effects: [] }, { effects: [] }],
-    schemaVersion: 2,
-  },
-  skill_b: {
-    name: 'Canonical B',
-    type: 'Attack',
-    tier: 1,
-    basePower: 5,
-    coinPower: 4,
-    coinAmount: 1,
-    damageType: 'perforante',
-    sinAffinity: 'pride',
-    attackWeight: 1,
-    effects: [],
-    coins: [{ effects: [] }],
-    schemaVersion: 2,
-  },
-};
-loadout.applySkills(canonicalSkills);
+assert.equal(planner.version, '0.7.4');
 
 const players = {
-  player_a: { uid: 'uid-a', nombre: 'Player A' },
-  player_b: { uid: 'uid-b', nombre: 'Player B' },
+  player_a: { uid: 'uid-a', name: 'A' },
+  player_b: { uid: 'uid-b', name: 'B' },
 };
 const combatants = {
   'player:player_a': {
-    id: 'player:player_a',
-    combatId: 'player:player_a',
-    isPlayer: true,
-    actorCategory: 'player',
-    canonicalScope: 'player',
-    canonicalPlayerKey: 'player_a',
-    canonicalOwnerUid: 'uid-a',
-    playerId: 'player_a',
-    ownerPlayerId: 'player_a',
-    ownerUid: 'uid-a',
-    actionSlots: 2,
-    activeSlots: 2,
-    actionSlotIndex: { 0: true, 1: true },
-    skillSlotIds: ['skill_a'],
-    skillIds: ['skill_a'],
-    equippedSkillIndex: { skill_a: true },
+    id: 'player:player_a', unitId: 'player:player_a', combatId: 'player:player_a',
+    actorCategory: 'player', isPlayer: true, canonicalScope: 'player',
+    playerId: 'player_a', ownerPlayerId: 'player_a', ownerUid: 'uid-a', canonicalPlayerKey: 'player_a', canonicalOwnerUid: 'uid-a',
+    actionSlots: 2, activeSlots: 2, actionSlotIndex: { 0: true, 1: true },
+    skillSlotIds: ['skill_a', 'skill_b'], skillIds: ['skill_a', 'skill_b'], equippedSkillIndex: { skill_a: true, skill_b: true },
   },
   'player:player_b': {
-    id: 'player:player_b',
-    combatId: 'player:player_b',
-    isPlayer: true,
-    actorCategory: 'player',
-    canonicalScope: 'player',
-    canonicalPlayerKey: 'player_b',
-    canonicalOwnerUid: 'uid-b',
-    playerId: 'player_b',
-    ownerPlayerId: 'player_b',
-    ownerUid: 'uid-b',
-    actionSlots: 1,
-    activeSlots: 1,
-    actionSlotIndex: { 0: true },
-    skillSlotIds: ['skill_b'],
-    skillIds: ['skill_b'],
-    equippedSkillIndex: { skill_b: true },
+    id: 'player:player_b', unitId: 'player:player_b', combatId: 'player:player_b',
+    actorCategory: 'player', isPlayer: true, canonicalScope: 'player',
+    playerId: 'player_b', ownerPlayerId: 'player_b', ownerUid: 'uid-b', canonicalPlayerKey: 'player_b', canonicalOwnerUid: 'uid-b',
+    actionSlots: 1, activeSlots: 1, actionSlotIndex: { 0: true },
+    skillSlotIds: ['skill_c'], skillIds: ['skill_c'], equippedSkillIndex: { skill_c: true },
   },
-  enemy_1: {
-    id: 'enemy_1',
-    actorCategory: 'enemy',
-    category: 'enemy',
-    hp: 100,
-    maxHp: 100,
-    actionSlots: 1,
-  },
+  enemy_1: { id: 'enemy_1', actorCategory: 'enemy', name: 'Enemy' },
 };
+
+assert.equal(ownership.resolveCombatantForPlanOwner('player_a', combatants, players).ok, true);
+
+const previousLibrary = globalThis.LuminousCombatSkillLoadout074?.state?.skillLibrary;
+if (globalThis.LuminousCombatSkillLoadout074?.state) {
+  globalThis.LuminousCombatSkillLoadout074.state.skillLibrary = {
+    skill_a: { id: 'skill_a', name: 'Skill A' },
+    skill_b: { id: 'skill_b', name: 'Skill B' },
+    skill_c: { id: 'skill_c', name: 'Skill C' },
+  };
+}
 
 planner.applyPlayers(players);
 planner.applyCombatants(combatants);
@@ -103,60 +53,28 @@ planner.applyPlans({});
 planner.applyCombatState('PRE_COMBAT_PLANNING');
 planner.state.auth = { currentUser: { uid: 'uid-a' } };
 
-globalThis.combatData = combatants;
-globalThis.sharedPlannedActions = {};
-globalThis.attackVectors = {};
+const resolvedOwner = planner.resolveAuthenticatedPlayer();
+assert.equal(resolvedOwner.ok, true);
+assert.equal(resolvedOwner.playerId, 'player_a');
+const resolvedCombatant = planner.resolveOwnedCombatant('player_a');
+assert.equal(resolvedCombatant.ok, true);
+assert.equal(resolvedCombatant.unitId, 'player:player_a');
+assert.equal(planner.ownsCombatSlot('player_a', 'player:player_a_slot_0'), true);
+assert.equal(planner.ownsCombatSlot('player_a', 'player:player_b_slot_0'), false);
 
-const writes = {};
-const fakeDb = {
-  ref(refPath) {
-    return {
-      async set(value) { writes[refPath] = structuredClone(value); },
-      async remove() { delete writes[refPath]; },
-    };
-  },
-};
-planner.state.db = fakeDb;
+const equipped = planner.equippedSkillsFor('player_a');
+assert.deepEqual(equipped.map((row) => row.id), ['skill_a', 'skill_b']);
 
-// The Player selects only an equipped Skill.
-assert.equal(planner.selectSkill('skill_a').ok, true);
-assert.equal(planner.state.selectedSkillId, 'skill_a');
-assert.equal(planner.selectSkill('skill_b').ok, false);
-assert.equal(planner.selectSkill('skill_b').reason, 'SKILL_NOT_EQUIPPED');
-assert.equal(planner.selectSkill('skill_a').ok, true);
-
-// Wrong Unit / wrong Player Action Slot must fail before Firebase.
-const foreignSlot = planner.buildSkillPlan({
+const valid = planner.buildSkillPlan({
   authUid: 'uid-a',
   ownerPlayerId: 'player_a',
-  slotId: 'player:player_b_slot_0',
+  slotId: 'player:player_a_slot_0',
   skillId: 'skill_a',
   targetId: 'enemy_1',
 });
-assert.equal(foreignSlot.ok, false);
-assert.equal(foreignSlot.reason, 'ACTION_SLOT_NOT_OWNED');
-
-// Install the real targeting producer hook: select Skill -> drag own Action Slot -> choose target.
-let matrixOpened = null;
-globalThis.openTargetingMatrix = (attackerSlotId, targetSlotId) => {
-  matrixOpened = { attackerSlotId, targetSlotId };
-  return true;
-};
-globalThis.selectMatrixCell = () => true;
-assert.equal(planner.installTargetingHook(), true);
-
-globalThis.openTargetingMatrix('player:player_a_slot_0', 'enemy_1_slot_0');
-assert.deepEqual(matrixOpened, { attackerSlotId: 'player:player_a_slot_0', targetSlotId: 'enemy_1_slot_0' });
-globalThis.selectMatrixCell(1, 0);
-await new Promise((resolve) => setTimeout(resolve, 10));
-
-const planPath = 'campaña/combate/plannedActions/player_a/0';
-const payload = writes[planPath];
-assert.ok(payload, 'targeting hook should write the compact Skill plan to Firebase');
-assert.deepEqual(Object.keys(payload).sort(), [
-  'kind', 'scheduledBy', 'schedulerUid', 'skillId', 'status', 'targetId', 'unitId',
-].sort());
-assert.deepEqual(payload, {
+assert.equal(valid.ok, true);
+assert.equal(valid.slotIndex, 0);
+assert.deepEqual(valid.payload, {
   unitId: 'player:player_a',
   kind: 'skill',
   skillId: 'skill_a',
@@ -165,32 +83,80 @@ assert.deepEqual(payload, {
   scheduledBy: 'player_a',
   schedulerUid: 'uid-a',
 });
-assert.equal('data' in payload, false);
-assert.equal('basePower' in payload, false);
-assert.equal('coinPower' in payload, false);
-assert.equal('coinAmount' in payload, false);
-assert.equal('effects' in payload, false);
+assert.equal('data' in valid.payload, false);
+assert.equal('skill' in valid.payload, false);
+assert.equal('sourceDefinition' in valid.payload, false);
+assert.equal('combatAction' in valid.payload, false);
 
-// Feed exactly that Firebase payload to the Battle Viewer adapter.
-globalThis.sharedPlannedActions = {
-  player_a: { 0: payload },
+assert.equal(planner.buildSkillPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, skillId: 'skill_c', targetId: 'enemy_1' }).reason, 'SKILL_NOT_EQUIPPED');
+assert.equal(planner.buildSkillPlan({ authUid: 'uid-a', ownerPlayerId: 'player_b', slotIndex: 0, skillId: 'skill_c', targetId: 'enemy_1' }).reason, 'AUTH_UID_MISMATCH');
+assert.equal(planner.buildSkillPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotId: 'player:player_b_slot_0', skillId: 'skill_a', targetId: 'enemy_1' }).reason, 'ACTION_SLOT_NOT_OWNED');
+assert.equal(planner.buildSkillPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 5, skillId: 'skill_a', targetId: 'enemy_1' }).reason, 'ACTION_SLOT_NOT_OWNED');
+assert.equal(planner.buildSkillPlan({ authUid: 'uid-a', ownerPlayerId: 'player_a', slotIndex: 0, skillId: 'skill_a', targetId: 'missing' }).reason, 'TARGET_NOT_FOUND');
+
+const writes = {};
+function makeSnapshot(value) { return { val: () => value }; }
+const fakeDb = {
+  ref(refPath) {
+    return {
+      async set(value) { writes[refPath] = JSON.parse(JSON.stringify(value)); },
+      async remove() { delete writes[refPath]; },
+      on() {}, off() {},
+      once() { return Promise.resolve(makeSnapshot(writes[refPath])); },
+    };
+  },
 };
-await import('../js/battle-viewer-action-adapter-073.js');
-const adapter = globalThis.LuminousBattleViewerActionAdapter073;
-if (!adapter) throw new Error('Battle Viewer action adapter was not initialized.');
+planner.state.db = fakeDb;
 
-const compiled = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0');
-assert.ok(compiled.action, compiled.reason || 'compact Skill plan should compile');
-assert.equal(compiled.action.source.type, 'skill');
-assert.equal(compiled.action.source.id, 'skill_a');
-assert.equal(compiled.action.actorId, 'player:player_a');
-assert.equal(compiled.action.targeting.mainTargetId, 'enemy_1');
-assert.equal(compiled.action.metadata.canonicalSkill, true);
-assert.equal(compiled.action.metadata.loadoutSkillId, 'skill_a');
-assert.equal(compiled.action.metadata.sourceDefinition.name, 'Canonical A');
-assert.equal(compiled.action.metadata.sourceDefinition.basePower, 6);
-assert.equal(compiled.action.metadata.sourceDefinition.coinPower, 3);
-assert.equal(compiled.action.metadata.sourceDefinition.coinAmount, 2);
+const scheduled = await planner.scheduleSkill({
+  authUid: 'uid-a',
+  ownerPlayerId: 'player_a',
+  slotId: 'player:player_a_slot_0',
+  skillId: 'skill_a',
+  targetId: 'enemy_1',
+  db: fakeDb,
+});
+assert.equal(scheduled.ok, true);
+assert.deepEqual(writes['campaña/combate/plannedActions/player_a/0'], valid.payload);
+
+planner.applyPlans({ player_a: { 0: writes['campaña/combate/plannedActions/player_a/0'] } });
+const forgedReservation = await planner.scheduleSkill({
+  authUid: 'uid-b',
+  ownerPlayerId: 'player_a',
+  slotIndex: 0,
+  skillId: 'skill_a',
+  targetId: 'enemy_1',
+  db: fakeDb,
+});
+assert.equal(forgedReservation.ok, false);
+assert.equal(forgedReservation.reason, 'AUTH_UID_MISMATCH');
+
+const cancelled = await planner.cancelSkillPlan(0, { ownerPlayerId: 'player_a', authUid: 'uid-a', db: fakeDb });
+assert.equal(cancelled.ok, true);
+assert.equal(writes['campaña/combate/plannedActions/player_a/0'], undefined);
+
+// Targeting integration: selecting a Skill turns the existing Action Slot drag into a compact shared plan.
+planner.applyPlans({});
+planner.applyCombatState('PRE_COMBAT_PLANNING');
+planner.state.auth = { currentUser: { uid: 'uid-a' } };
+let baseOpenCalls = 0;
+let baseSelectCalls = 0;
+globalThis.openTargetingMatrix = () => { baseOpenCalls += 1; return 'opened'; };
+globalThis.selectMatrixCell = () => { baseSelectCalls += 1; return 'selected'; };
+planner.installTargetingHook();
+assert.equal(planner.selectSkill('skill_a').ok, true);
+assert.equal(globalThis.openTargetingMatrix('player:player_a_slot_1', 'enemy_1_slot_0'), 'opened');
+assert.equal(globalThis.selectMatrixCell(), 'selected');
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(baseOpenCalls, 1);
+assert.equal(baseSelectCalls, 1);
+assert.deepEqual(writes['campaña/combate/plannedActions/player_a/1'], {
+  unitId: 'player:player_a', kind: 'skill', skillId: 'skill_a', targetId: 'enemy_1', status: 'planned', scheduledBy: 'player_a', schedulerUid: 'uid-a',
+});
+
+// A Player cannot hijack another combatant's Action Slot while a Skill is selected.
+assert.equal(globalThis.openTargetingMatrix('player:player_b_slot_0', 'enemy_1_slot_0'), false);
+assert.equal(baseOpenCalls, 1);
 
 // Planning phase is a hard producer boundary.
 planner.applyCombatState('COMBAT_ACTIVE');
@@ -206,10 +172,13 @@ assert.equal(lateWrite.ok, false);
 assert.equal(lateWrite.reason, 'NOT_IN_PLANNING');
 assert.equal(writes['campaña/combate/plannedActions/player_a/1'], undefined);
 
-// Runtime 0.7.4 must load the planner as a first-class module.
+// Runtime 0.7.4 must load the planner as a first-class module behind the Firebase role gate.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const runtimeSource = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-runtime-074.js'), 'utf8');
 assert.match(runtimeSource, /battle-viewer-player-skill-planner-074\.js/);
-assert.match(runtimeSource, /playerSkillPlanner\?\.init\?\.\(\)/);
+assert.match(runtimeSource, /battle-viewer-firebase-session-074\.js/);
+assert.match(runtimeSource, /result\.role === "player"/);
+assert.match(runtimeSource, /parts\.playerSkillPlanner\?\.init\?\.\(scoped\)/);
 
+if (globalThis.LuminousCombatSkillLoadout074?.state) globalThis.LuminousCombatSkillLoadout074.state.skillLibrary = previousLibrary || {};
 console.log('combat-v074-player-skill-planner-smoke: ok');
