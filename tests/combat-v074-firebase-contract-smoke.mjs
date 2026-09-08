@@ -148,4 +148,11 @@ assert.match(runtimeSource, /dmState\.authorized = true/);
 assert.match(runtimeSource, /result\.db\.ref\(dmConsole\.ROOTS\.players\)/);
 assert.match(runtimeSource, /result\.db\.ref\(dmConsole\.ROOTS\.combatants\)/);
 
+const seederSource = fs.readFileSync(new URL('../dm-skill-starter-status-seeder.html', import.meta.url), 'utf8');
+assert.match(seederSource, /id="sync" disabled/);
+assert.match(seederSource, /battle-viewer-firebase-session-074\.js/);
+assert.match(seederSource, /session\.preflight\(\{firebase\}\)/);
+assert.match(seederSource, /result\.role!==['"]dm['"]/);
+assert.match(seederSource, /Object\.keys\(payload\)\.length!==216/);
+
 console.log('combat-v074-firebase-contract-smoke: ok');
