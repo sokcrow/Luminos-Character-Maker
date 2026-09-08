@@ -3,32 +3,32 @@
 
   const STATUS_ORDER = Object.freeze(["burn", "rupture", "sinking", "tremor", "poise", "bleed"]);
   const STATUS_CONFIG = Object.freeze({
-    burn: Object.freeze({ target: "target", names: Object.freeze([
+    burn: Object.freeze({ target: "target", sins: Object.freeze(["wrath", "lust", "pride"]), names: Object.freeze([
       "Ember Cut", "Cinder Point", "Ash Knuckle", "Kindling Edge",
       "Searing Step", "Coal Press", "Brand Needle", "Smolder Chain",
       "Spark Rend", "Flame Trace", "Scorch Line", "Ignition Pattern",
     ]) }),
-    rupture: Object.freeze({ target: "target", names: Object.freeze([
+    rupture: Object.freeze({ target: "target", sins: Object.freeze(["gluttony", "envy", "pride"]), names: Object.freeze([
       "Faultline Cut", "Fracture Point", "Split Guard", "Hairline Break",
       "Breach Step", "Crack Press", "Open Seam", "Shear Chain",
       "Stress Mark", "Break Line", "Fracture Rhythm", "Deep Fissure",
     ]) }),
-    sinking: Object.freeze({ target: "target", names: Object.freeze([
+    sinking: Object.freeze({ target: "target", sins: Object.freeze(["gloom", "sloth", "envy"]), names: Object.freeze([
       "Gloom Cut", "Undertow Point", "Hollow Weight", "Drowning Touch",
       "Low Tide Step", "Depth Press", "Quiet Descent", "Heavy Current",
       "Blackwater Line", "Sunken Rhythm", "Abyssal Trace", "Deep Silence",
     ]) }),
-    tremor: Object.freeze({ target: "target", names: Object.freeze([
+    tremor: Object.freeze({ target: "target", sins: Object.freeze(["sloth", "pride", "gluttony"]), names: Object.freeze([
       "Rattle Cut", "Pulse Point", "Hammer Echo", "Fault Beat",
       "Shaking Step", "Resonant Press", "Quake Needle", "Rumble Chain",
       "Vibrating Line", "Aftershock Rhythm", "Ground Trace", "Seismic Pattern",
     ]) }),
-    poise: Object.freeze({ target: "self", names: Object.freeze([
+    poise: Object.freeze({ target: "self", sins: Object.freeze(["pride", "lust", "gluttony"]), names: Object.freeze([
       "Centered Cut", "Measured Point", "Quiet Strike", "Calm Breath",
       "Balanced Step", "Steady Press", "Focused Needle", "Patient Chain",
       "True Line", "Measured Rhythm", "Composed Trace", "Perfect Form",
     ]) }),
-    bleed: Object.freeze({ target: "target", names: Object.freeze([
+    bleed: Object.freeze({ target: "target", sins: Object.freeze(["lust", "wrath", "envy"]), names: Object.freeze([
       "Red Cut", "Needle Point", "Open Vein", "Crimson Mark",
       "Drawing Step", "Scarlet Press", "Fine Nick", "Red Thread",
       "Cutting Line", "Blood Rhythm", "Crimson Trace", "Deep Laceration",
@@ -38,20 +38,22 @@
   // Tier 1 clash budget: Final Power must stay between 10 and 13.
   // More Coins means lower Coin Power: 1 Coin = +6, 2 Coins = +4, 3 Coins = +3.
   // Stronger status packages trade Base Power instead of adding extra mechanics.
+  // This starter batch is melee-only, so every Skill has Range 1.
+  // Each Status family rotates three Sin affinities evenly: 4 Skills per Sin.
   const PROFILES = Object.freeze([
     Object.freeze({ slug: "steady", coins: 1, basePower: 7, coinPower: 6, apps: Object.freeze([[0, 1, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "lasting", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "lasting", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "intense", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 2, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "loaded", coins: 1, basePower: 4, coinPower: 6, apps: Object.freeze([[0, 2, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
 
-    Object.freeze({ slug: "double_step", coins: 2, basePower: 5, coinPower: 4, apps: Object.freeze([[1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "double_step", coins: 2, basePower: 5, coinPower: 4, apps: Object.freeze([[1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "double_lasting", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 1, 2]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "double_intense", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 2, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
-    Object.freeze({ slug: "double_split", coins: 2, basePower: 2, coinPower: 4, apps: Object.freeze([[0, 1, 1], [1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "double_split", coins: 2, basePower: 2, coinPower: 4, apps: Object.freeze([[0, 1, 1], [1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
 
     Object.freeze({ slug: "triple_step", coins: 3, basePower: 4, coinPower: 3, apps: Object.freeze([[2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "triple_lasting", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 1, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
-    Object.freeze({ slug: "triple_intense", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 2, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 2 }),
+    Object.freeze({ slug: "triple_intense", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 2, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "triple_split", coins: 3, basePower: 1, coinPower: 3, apps: Object.freeze([[0, 1, 1], [2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
   ]);
 
@@ -84,6 +86,7 @@
     const ordinal = String(profileIndex + 1).padStart(2, "0");
     const name = config.names[profileIndex];
     const id = `t1_${statusId}_${ordinal}_${slugify(name)}`;
+    const sinAffinity = config.sins[profileIndex % config.sins.length];
     const coins = Array.from({ length: profile.coins }, (_, index) => ({
       index,
       type: "normal",
@@ -113,7 +116,7 @@
       attackWeight: 1,
       skillRange: profile.skillRange,
       damageType: profile.damageType,
-      sinAffinity: "sinless",
+      sinAffinity,
       scalingStat: profile.scalingStat,
       statUsed: "",
       skillUsed: "",
@@ -141,6 +144,7 @@
         statusFamily: statusId,
         rulesPolicy: "apply_only",
         balanceProfile: profile.slug,
+        combatRange: "melee",
       },
     };
   }
@@ -175,7 +179,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.0.0",
+    version: "1.1.0",
     STATUS_ORDER,
     STATUS_CONFIG,
     PROFILES,
