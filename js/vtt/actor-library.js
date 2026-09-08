@@ -15,7 +15,7 @@
 
   function categoryFor(scope, data = {}) {
     if (scope === 'players') return 'player';
-    const raw = clean(data.actorCategory || data.category || data.tipo || data.type || data.role || data.kind).toLowerCase();
+    const raw = clean(data.actorCategory || data.category || data.tipo || data.type || data.role || data.kind || data.faction || data.faccion).toLowerCase();
     if (['enemy', 'enemigo', 'hostile', 'boss', 'monster', 'monstruo'].some((term) => raw.includes(term))) return raw.includes('boss') ? 'boss' : 'enemy';
     if (data.hostile === true || data.enemy === true || data.isEnemy === true) return 'enemy';
     if (['ally', 'aliado', 'friendly'].some((term) => raw.includes(term))) return 'ally';
@@ -95,7 +95,7 @@
     return normalizeActor('players', id, source);
   }
 
-  function mergeCollections({ players = {}, actors = {}, npcs = {} } = {}) {
+  function mergeCollections({ players = {}, actors = {}, npcs = {}, units = {} } = {}) {
     const result = [];
     const assignedActorIds = new Set();
     const playerEntries = Object.entries(players || {}).map(([id, data]) => normalizePlayerActor(id, data || {}, actors || {}));
@@ -116,6 +116,7 @@
     };
     Object.entries(actors || {}).forEach(([id, data]) => addPersistent('actors', id, data));
     Object.entries(npcs || {}).forEach(([id, data]) => addPersistent('npcs', id, data));
+    Object.entries(units || {}).forEach(([id, data]) => addPersistent('units', id, data));
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }
 
