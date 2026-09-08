@@ -1,8 +1,10 @@
 (function (global) {
   "use strict";
 
+  const IS_COMMONJS = typeof module !== "undefined" && Boolean(module.exports) && typeof require === "function";
+
   if (global.LuminousBattleViewerRuntime074?.version === "0.7.4") {
-    if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousBattleViewerRuntime074;
+    if (IS_COMMONJS) module.exports = global.LuminousBattleViewerRuntime074;
     return;
   }
 
@@ -85,13 +87,13 @@
     return Promise.all(scripts.map(([id, src, name]) => loadScript(id, src, name))).then(() => buildApi());
   }
 
-  if (typeof require === "function" && !global.document) {
+  if (IS_COMMONJS) {
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
     const api = buildApi();
-    if (typeof module !== "undefined" && module.exports) module.exports = api;
+    module.exports = api;
   } else {
     install();
     global.addEventListener?.("load", install, { once: true });
