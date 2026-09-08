@@ -51,5 +51,15 @@
       "js/rogue-theatre-runtime.js",
       () => Boolean(global.LuminousRogueTheatreRuntime),
     ))
+    .then(() => ensureScript(
+      "mastermind-archetype-runtime-script",
+      "js/mastermind-archetype-runtime.js",
+      () => Boolean(global.LuminousMastermindArchetypeRuntime),
+    ))
+    .then(() => ensureScript(
+      "mastermind-theatre-runtime-script",
+      "js/mastermind-theatre-runtime.js",
+      () => Boolean(global.LuminousMastermindTheatreRuntime),
+    ))
     .catch((error) => console.error("Player Archetype Bootstrap:", error));
 })(window);

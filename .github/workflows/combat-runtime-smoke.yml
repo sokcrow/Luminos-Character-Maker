@@ -51,6 +51,10 @@ jobs:
         run: node tests/orosh-lineage-runtime-smoke.mjs
       - name: Rogue Theatre and Combat smoke
         run: node tests/rogue-class-runtime-smoke.mjs
+      - name: Mastermind archetype Theatre and Combat smoke
+        run: node tests/mastermind-archetype-runtime-smoke.mjs
+      - name: Mastermind Trait bridge smoke
+        run: node tests/mastermind-trait-bridge-smoke.mjs
       - name: Battle Viewer 0.7.3 rules smoke
         run: node tests/combat-v073-rules-smoke.mjs
       - name: Battle Viewer 0.7.3 runtime authority smoke

@@ -51,5 +51,10 @@
       "js/rogue-combat-runtime.js",
       () => Boolean(global.LuminousRogueCombatRuntime),
     ))
+    .then(() => ensureScript(
+      "mastermind-archetype-runtime-script",
+      "js/mastermind-archetype-runtime.js",
+      () => Boolean(global.LuminousMastermindArchetypeRuntime),
+    ))
     .catch((error) => console.error("Archetype Combat Event Bootstrap:", error));
 })(typeof window !== "undefined" ? window : globalThis);
