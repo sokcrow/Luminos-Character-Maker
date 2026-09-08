@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
 
 const character = {
   id: "player-orosh",
@@ -55,8 +52,9 @@ globalThis.CombatEngine = {
   },
 };
 
-const runtime = require("../js/orosh-lineage-runtime.js");
-assert.ok(runtime, "Orosh runtime should export an API");
+await import("../js/orosh-lineage-runtime.js");
+const runtime = globalThis.LuminousOroshLineageRuntime;
+assert.ok(runtime, "Orosh runtime should expose an API");
 assert.equal(runtime.isSelected(character), true, "Orosh should be detected");
 assert.equal(runtime.isSelected(combatUnit), true, "Linked combat unit should resolve the player's Orosh build");
 assert.equal(runtime.getLevel(character), 40, "Sorcerer class level should resolve");
