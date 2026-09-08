@@ -125,8 +125,11 @@
     const id = normalizeId(classId);
     if (!id) return false;
     const runtime = spellcastingRuntime();
+    if (typeof runtime?.getClassSpellcastingAbility === "function") {
+      try { return Boolean(runtime.getClassSpellcastingAbility(id)); } catch (_) {}
+    }
     if (typeof runtime?.classSpellcastingAbility === "function") {
-      try { return Boolean(runtime.classSpellcastingAbility(id)); } catch (_) {}
+      try { return Boolean(runtime.classSpellcastingAbility({}, id)); } catch (_) {}
     }
     return true;
   }
@@ -199,6 +202,7 @@
     resolveSpellDefinition,
     classIdsFor,
     spellAllowedClassIds,
+    isCastingClass,
     resolveCastClass,
     resolveSpellForCombatant,
     hydrateSpellSelections,
