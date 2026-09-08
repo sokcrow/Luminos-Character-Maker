@@ -3,7 +3,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
+const ITEM_RUNTIME = path.join(ROOT, "js/item-runtime-engine.js");
 const INVENTORY_RUNTIME = path.join(ROOT, "js/item-inventory-runtime.js");
+const PERSISTENCE_RUNTIME = path.join(ROOT, "js/item-persistence-runtime.js");
 const REALTIME = path.join(ROOT, "js/item-realtime-sync.js");
 const BRIDGE = path.join(ROOT, "js/item-equipment-bridge.js");
 const HUD = path.join(ROOT, "js/inventory-hud-v2.js");
@@ -41,7 +43,7 @@ async function bootHarness(page) {
 
   await page.evaluate(() => {
     const active = {
-      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1 },
+      blade_1: { instanceId: "blade_1", definitionId: "blade", nombre: "Test Workshop Blade", descripcion: "Instance presentation wins", category: "weapon", tier: 3, qualityTier: 3, condition: 90, conditionMax: 100, quantity: 1 },
       coat_1: { instanceId: "coat_1", definitionId: "coat", nombre: "Reinforced Coat", category: "armor", tier: 2, qualityTier: 2, condition: 100, conditionMax: 100, quantity: 1 },
     };
     const stash = {
@@ -77,7 +79,7 @@ async function bootHarness(page) {
       findItem,
       normalizeId: (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_"),
       equipmentSchema: (item) => ({ kind: categoryOf(item), handCost: categoryOf(item) === "weapon" ? 1 : 0 }),
-      resolveItem: (item) => ({ ...item, displayName: item.nombre || item.name || item.definitionId }),
+      resolveItem: (item) => ({ definitionId: item.definitionId, displayName: item.definitionId }),
       hydrateForEquipment: (item) => item,
       getConditionState: (item) => Number(item.condition ?? 100) <= 50 ? "damaged" : "good",
       hasFunction: (item, fn) => fn === "use" && categoryOf(item) === "consumable",
@@ -148,6 +150,8 @@ test("HUD V2 owns rendering and creates the canonical 5x2 Active grid", async ({
 test("equips through the runtime bridge and persists equipment refs", async ({ page }) => {
   await bootHarness(page);
   await page.locator('#inv-active-grid [data-key="blade_1"]').click();
+  await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+  await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
   await page.locator('[data-equipment-slot="mainHand"]').click();
   await page.waitForFunction(() => window.__saves.length > 0);
   expect((await page.evaluate(() => window.__saves.at(-1))).mainHand).toBe("blade_1");
@@ -166,6 +170,49 @@ test("moves Active to Stash through ItemInventoryRuntime and realtime persistenc
   expect(saved.active).not.toContain("coat_1");
   expect(saved.stash).toContain("coat_1");
   await expect(page.locator('#inv-stash-grid [data-key="coat_1"]')).toHaveCount(1);
+});
+
+test("canonical persistence mirrors keep Synthesis and legacy charge readers alive", async ({ page }) => {
+  await page.setContent("<!doctype html><html><head></head><body></body></html>");
+  await page.addScriptTag({ path: ITEM_RUNTIME });
+  await page.addScriptTag({ path: INVENTORY_RUNTIME });
+  await page.addScriptTag({ path: PERSISTENCE_RUNTIME });
+
+  const result = await page.evaluate(() => {
+    const raw = {
+      legacy_key: {
+        id: "battery_tool",
+        nombre: "Battery Tool",
+        cantidad: 3,
+        icono: "battery.png",
+        valorBase: 125,
+        carga_actual: 2,
+        vinculo_item: "battery_cell",
+        vinculo_cantidad: 2,
+        vinculo_stacks_max: 5,
+      },
+    };
+    const state = window.LuminousItemPersistenceRuntime.deserializeInventoryState({ inventario_activo: raw });
+    const item = Object.values(state.inventario_activo)[0];
+    item.quantity = 2;
+    item.chargesCurrent = 3;
+    const saved = window.LuminousItemPersistenceRuntime.serializeContainer({ [item.instanceId]: item });
+    return { item, saved: saved[item.instanceId] };
+  });
+
+  expect(result.item.quantity).toBe(3);
+  expect(result.item.chargesCurrent).toBe(2);
+  expect(result.item.chargesMax).toBe(5);
+  expect(result.item.rechargeRule.resourceDefinitionId).toBe("battery_cell");
+  expect(result.saved.quantity).toBe(2);
+  expect(result.saved.cantidad).toBe(2);
+  expect(result.saved.chargesCurrent).toBe(3);
+  expect(result.saved.carga_actual).toBe(3);
+  expect(result.saved.carga_maxima).toBe(5);
+  expect(result.saved.vinculo_item).toBe("battery_cell");
+  expect(result.saved.vinculo_cantidad).toBe(2);
+  expect(result.saved.icono).toBe("battery.png");
+  expect(result.saved.valorBase).toBe(125);
 });
 
 test("player source no longer contains the removed inventory implementation", async () => {
