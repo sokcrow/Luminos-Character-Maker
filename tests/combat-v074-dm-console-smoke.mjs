@@ -159,8 +159,9 @@ const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, 
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
 
 globalThis.LuminousBattleViewerRuntime073 = { version: '0.7.3', forecastClash() { return null; } };
-const Runtime074 = require('../js/battle-viewer-runtime-074.js');
-const R074 = Runtime074?.version === '0.7.4' ? Runtime074 : globalThis.LuminousBattleViewerRuntime074;
+await import('../js/status-rupture-runtime.js');
+await import('../js/battle-viewer-runtime-074.js');
+const R074 = globalThis.LuminousBattleViewerRuntime074;
 assert.equal(R074.version, '0.7.4');
 assert.equal(R074.rulesVersion, '0.7.3');
 assert.equal(R074.dmConsole.version, '0.7.4');
