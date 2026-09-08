@@ -43,6 +43,8 @@
       speedFt: actor.speedFt,
       movement: actor.movement,
       senses: actor.senses,
+      skillSlotIds: actor.skillSlotIds,
+      skillIds: actor.skillIds,
     })));
   }
 
