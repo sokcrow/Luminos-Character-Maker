@@ -10,6 +10,8 @@
   const ROOTS = Object.freeze({
     players: "campaña/jugadores",
     actors: "campaña/actores",
+    units: "campaña/base_datos_unidades",
+    skills: "campaña/base_datos_skills",
     combatants: "campaña/combate/combatants",
   });
   const CARD_ID = "dm074-player-entry";
@@ -21,6 +23,8 @@
     db: null,
     players: {},
     actors: {},
+    units: {},
+    skills: {},
     combatants: {},
     subscriptions: [],
     started: false,
@@ -42,6 +46,14 @@
     if (global?.LuminousVttActorLibrary) return global.LuminousVttActorLibrary;
     if (typeof require === "function") {
       try { return require("./vtt/actor-library.js"); } catch (_) {}
+    }
+    return null;
+  }
+
+  function skillLoadoutRuntime() {
+    if (global?.LuminousCombatSkillLoadout074) return global.LuminousCombatSkillLoadout074;
+    if (typeof require === "function") {
+      try { return require("./combat-skill-loadout-074.js"); } catch (_) {}
     }
     return null;
   }
@@ -107,6 +119,12 @@
     return Object.fromEntries(Array.from({ length: count }, (_, index) => [String(index), true]));
   }
 
+  function resolvePlayerUnit(actor, units = state.units) {
+    const runtime = skillLoadoutRuntime();
+    if (!runtime?.resolvePlayerUnit) return { ok: false, reason: "SKILL_LOADOUT_RUNTIME_REQUIRED", unitId: null, unit: null, matches: [] };
+    return runtime.resolvePlayerUnit(actor, units || {});
+  }
+
   function buildPlayerCombatant(actor, options = {}) {
     if (!actor || clean(actor.category) !== "player") throw new Error("PLAYER_ACTOR_REQUIRED");
     const playerId = clean(actor.playerId || actor.sourceId);
@@ -122,6 +140,15 @@
     const sp = firstFinite(raw.sp, raw.currentSp, raw.currentSP, raw.sp_actual, raw.combatStats?.sp_actual, 0);
     const actionSlots = Math.max(1, Math.trunc(firstFinite(raw.actionSlots, raw.activeSlots, raw.action_slots_count, 1) || 1));
     const actionSlotIndex = buildActionSlotIndex(actionSlots);
+
+    const unitResolution = options.unitResolution || resolvePlayerUnit(actor, options.units || state.units);
+    if (unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT") throw new Error("AMBIGUOUS_PLAYER_UNIT");
+    const loadoutRuntime = skillLoadoutRuntime();
+    const sourceUnit = unitResolution?.ok ? unitResolution.unit : null;
+    const skillSlotIds = sourceUnit && loadoutRuntime?.skillSlotIdsFor ? loadoutRuntime.skillSlotIdsFor(sourceUnit) : [];
+    const skillIds = sourceUnit && loadoutRuntime?.skillIdsFor ? loadoutRuntime.skillIdsFor(sourceUnit) : [];
+    const equippedSkillIndex = sourceUnit && loadoutRuntime?.buildEquippedSkillIndex ? loadoutRuntime.buildEquippedSkillIndex(skillIds) : {};
+    const hydrated = sourceUnit && loadoutRuntime?.hydrateLoadout ? loadoutRuntime.hydrateLoadout(sourceUnit, options.skills || state.skills) : null;
 
     const combatant = {
       ...raw,
@@ -149,22 +176,36 @@
       actionSlots,
       activeSlots: actionSlots,
       actionSlotIndex,
+      skillSlotIds,
+      skillIds,
+      equippedSkillIndex,
+      skillLoadoutState: !sourceUnit ? "unit_not_found" : hydrated?.hasErrors ? "invalid" : "ready",
+      skillLoadoutMissingIds: hydrated?.missingIds || [],
+      skillLoadoutInvalidIds: hydrated?.invalidIds || [],
       statusEffects: raw.statusEffects && typeof raw.statusEffects === "object" ? clone(raw.statusEffects) : {},
       entrySource: "dm_player_entry_074",
       enteredCombatAt: Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now(),
     };
+    if (unitResolution?.ok) combatant.unitRef = { scope: "units", id: clean(unitResolution.unitId) };
     if (maxHp != null) combatant.maxHp = maxHp;
     if (hp != null) combatant.hp = hp;
     if (sp != null) combatant.sp = sp;
     return combatant;
   }
 
-  function playerEntries(players = state.players, actors = state.actors, combatants = state.combatants) {
-    return normalizePlayerActors(players, actors).map((actor) => ({
-      actor,
-      linked: Boolean(actor.linkedActorId),
-      existing: playerAlreadyInCombat(actor, combatants),
-    }));
+  function playerEntries(players = state.players, actors = state.actors, combatants = state.combatants, units = state.units, skills = state.skills) {
+    const loadoutRuntime = skillLoadoutRuntime();
+    return normalizePlayerActors(players, actors).map((actor) => {
+      const unitResolution = resolvePlayerUnit(actor, units);
+      const loadout = unitResolution.ok && loadoutRuntime?.hydrateLoadout ? loadoutRuntime.hydrateLoadout(unitResolution.unit, skills) : null;
+      return {
+        actor,
+        linked: Boolean(actor.linkedActorId),
+        existing: playerAlreadyInCombat(actor, combatants),
+        unitResolution,
+        loadout,
+      };
+    });
   }
 
   async function addPlayerActor(actor, options = {}) {
@@ -173,7 +214,9 @@
     const existing = playerAlreadyInCombat(actor, options.combatants || state.combatants);
     if (existing) return { added: false, reason: "already_in_combat", key: existing.key, combatant: clone(existing.combatant) };
 
-    const combatant = buildPlayerCombatant(actor, options);
+    const unitResolution = options.unitResolution || resolvePlayerUnit(actor, options.units || state.units);
+    if (unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT") return { added: false, reason: "ambiguous_player_unit", key: null, combatant: null };
+    const combatant = buildPlayerCombatant(actor, { ...options, unitResolution });
     const key = playerCombatantKey(actor);
     const ref = db.ref(`${ROOTS.combatants}/${key}`);
     let occupied = false;
@@ -201,18 +244,27 @@
     if (!select || !add) return false;
     const previous = select.value;
     const entries = playerEntries();
-    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing }) => {
+    select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout }) => {
       const key = actor.key;
-      const suffix = existing ? " · IN COMBAT" : linked ? " · READY" : " · NO ACTOR LINK";
+      let suffix = existing ? " · IN COMBAT" : linked ? " · READY" : " · NO ACTOR LINK";
+      if (!existing && linked) {
+        if (unitResolution.reason === "AMBIGUOUS_PLAYER_UNIT") suffix = " · AMBIGUOUS UNIT";
+        else if (!unitResolution.ok) suffix = " · NO UNIT LOADOUT";
+        else suffix = ` · UNIT · ${loadout?.skillIds?.length || 0} SKILLS`;
+      }
       return `<option value="${htmlEscape(key)}">${htmlEscape(actor.name)}${suffix}</option>`;
     }).join("");
     if (previous && entries.some(({ actor }) => actor.key === previous)) select.value = previous;
     const selected = entries.find(({ actor }) => actor.key === select.value) || null;
-    add.disabled = !selected || !selected.linked || Boolean(selected.existing);
+    const ambiguous = selected?.unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT";
+    add.disabled = !selected || !selected.linked || Boolean(selected.existing) || ambiguous;
     if (!entries.length) setStatus("No campaign Players found.");
     else if (selected?.existing) setStatus("Player is already in combat.");
     else if (selected && !selected.linked) setStatus("Player has no assigned Actor; cannot create a canonical combatant.", "error");
-    else if (selected) setStatus(`Ready: ${selected.actor.name}`);
+    else if (ambiguous) setStatus("Multiple Player Units match this Player. Resolve the Unit linkage before entering combat.", "error");
+    else if (selected && !selected.unitResolution.ok) setStatus(`Ready: ${selected.actor.name} · no linked Unit loadout; combatant will have 0 equipped Skills.`);
+    else if (selected?.loadout?.hasErrors) setStatus(`Ready: ${selected.actor.name} · loadout has missing/invalid Skill IDs.`, "error");
+    else if (selected) setStatus(`Ready: ${selected.actor.name} · ${selected.loadout?.skillIds?.length || 0} equipped Skills.`);
     else setStatus("Select a Player to add to combat.");
     return true;
   }
@@ -247,8 +299,8 @@
         add.disabled = true;
         setStatus(`Adding ${entry.actor.name}…`);
         try {
-          const result = await addPlayerActor(entry.actor);
-          setStatus(result.added ? `${entry.actor.name} added to combat.` : `${entry.actor.name} is already in combat.`, result.added ? "ok" : "info");
+          const result = await addPlayerActor(entry.actor, { unitResolution: entry.unitResolution });
+          setStatus(result.added ? `${entry.actor.name} added to combat.` : result.reason === "ambiguous_player_unit" ? `${entry.actor.name} has ambiguous Unit linkage.` : `${entry.actor.name} is already in combat.`, result.added ? "ok" : result.reason === "ambiguous_player_unit" ? "error" : "info");
         } catch (error) {
           setStatus(`Could not add Player: ${error?.message || error}`, "error");
         }
@@ -260,12 +312,13 @@
   }
 
   function scheduleMount() {
-    if (!global.document || state.mountTimer) return;
+    const root = global;
+    if (!root.document || state.mountTimer) return;
     let attempts = 0;
-    state.mountTimer = global.setInterval?.(() => {
+    state.mountTimer = root.setInterval?.(() => {
       attempts += 1;
       if (mount() || attempts >= 200) {
-        global.clearInterval?.(state.mountTimer);
+        root.clearInterval?.(state.mountTimer);
         state.mountTimer = null;
       }
     }, 25) || null;
@@ -286,6 +339,8 @@
     state.started = true;
     subscribe(ROOTS.players, (value) => { state.players = value; });
     subscribe(ROOTS.actors, (value) => { state.actors = value; });
+    subscribe(ROOTS.units, (value) => { state.units = value; skillLoadoutRuntime()?.applyUnits?.(value); });
+    subscribe(ROOTS.skills, (value) => { state.skills = value; skillLoadoutRuntime()?.applySkills?.(value); });
     subscribe(ROOTS.combatants, (value) => { state.combatants = value; });
     if (!mount()) scheduleMount();
     return true;
@@ -305,6 +360,7 @@
     playerCombatantKey,
     playerAlreadyInCombat,
     buildActionSlotIndex,
+    resolvePlayerUnit,
     buildPlayerCombatant,
     playerEntries,
     addPlayerActor,
