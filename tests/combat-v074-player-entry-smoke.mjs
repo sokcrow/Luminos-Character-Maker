@@ -12,6 +12,8 @@ assert.equal(playerEntry.version, '0.7.4');
 assert.equal(playerEntry.ROOTS.players, 'campaña/jugadores');
 assert.equal(playerEntry.ROOTS.actors, 'campaña/actores');
 assert.equal(playerEntry.ROOTS.combatants, 'campaña/combate/combatants');
+assert.deepEqual(playerEntry.buildActionSlotIndex(1), { 0: true });
+assert.deepEqual(playerEntry.buildActionSlotIndex(4), { 0: true, 1: true, 2: true, 3: true });
 
 const players = {
   player_1: {
@@ -68,6 +70,7 @@ assert.equal(combatant.hp, 93);
 assert.equal(combatant.sp, 15);
 assert.equal(combatant.actionSlots, 2);
 assert.equal(combatant.activeSlots, 2);
+assert.deepEqual(combatant.actionSlotIndex, { 0: true, 1: true });
 assert.equal(combatant.enteredCombatAt, 123456);
 assert.equal(combatant.entrySource, 'dm_player_entry_074');
 
@@ -114,6 +117,7 @@ assert.equal(writes[0].path, 'campaña/combate/combatants/player:player_1');
 assert.equal(writes[0].next.ownerUid, 'uid-player-1');
 assert.equal(writes[0].next.actorId, 'actor_jeske');
 assert.equal(writes[0].next.enteredCombatAt, 999);
+assert.deepEqual(writes[0].next.actionSlotIndex, { 0: true, 1: true });
 
 const duplicateResult = await playerEntry.addPlayerActor(actor, {
   db: fakeDb,
