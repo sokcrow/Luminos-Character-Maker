@@ -2,6 +2,7 @@
   "use strict";
 
   const IS_COMMONJS = typeof module !== "undefined" && Boolean(module.exports) && typeof require === "function";
+  const HAS_DOCUMENT = Boolean(global.document);
 
   if (global.LuminousBattleViewerRuntime074?.version === "0.7.4") {
     if (IS_COMMONJS) module.exports = global.LuminousBattleViewerRuntime074;
@@ -94,6 +95,10 @@
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
     const api = buildApi();
     module.exports = api;
+  } else if (!HAS_DOCUMENT) {
+    // Node ESM: dependency modules are imported by the harness before this aggregate.
+    // Build synchronously so the global API is available immediately after import().
+    buildApi();
   } else {
     install();
     global.addEventListener?.("load", install, { once: true });
