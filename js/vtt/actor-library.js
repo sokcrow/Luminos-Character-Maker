@@ -47,10 +47,22 @@
     return null;
   }
 
-  function skillIdsFor(scope, data = {}) {
+  function skillSlotIdsFor(scope, data = {}) {
     if (scope !== 'units') return [];
-    const raw = data.action_slots || data.skillIds || data.skill_ids || data.mechanics?.skills || [];
-    return Array.isArray(raw) ? [...new Set(raw.map(clean).filter(Boolean))] : [];
+    const raw = data.action_slots ?? data.skillSlotIds ?? data.skillIds ?? data.skill_ids ?? data.mechanics?.skills ?? [];
+    if (Array.isArray(raw)) return raw.map(clean).filter(Boolean);
+    if (raw && typeof raw === 'object') {
+      return Object.entries(raw)
+        .map(([key, value]) => ({ index: Number(key), value: clean(value) }))
+        .filter((row) => Number.isInteger(row.index) && row.index >= 0 && row.value)
+        .sort((a, b) => a.index - b.index)
+        .map((row) => row.value);
+    }
+    return [];
+  }
+
+  function skillIdsFor(scope, data = {}) {
+    return [...new Set(skillSlotIdsFor(scope, data))];
   }
 
   function normalizeActor(scope, id, data = {}) {
@@ -59,6 +71,7 @@
     const category = categoryFor(scope, data);
     const name = displayName(data, actorId);
     const tokenImage = scope === 'units' ? unitImageFor(data) : imageFor(data);
+    const skillSlotIds = skillSlotIdsFor(scope, data);
     return {
       key: `${scope}:${safeKey(id || actorId)}`,
       scope,
@@ -80,7 +93,8 @@
       speedFt: finite(data.speedFt ?? data.speed?.walk ?? data.speed?.walking ?? data.velocidad, 30),
       movement: clone(data.movement || data.movimiento || null),
       senses: clone(data.senses || data.sentidos || null),
-      skillIds: skillIdsFor(scope, data),
+      skillSlotIds,
+      skillIds: [...new Set(skillSlotIds)],
       raw: clone(data),
     };
   }
@@ -187,10 +201,11 @@
       speedFt: actor.speedFt || 30,
       movement: clone(actor.movement),
       senses: clone(actor.senses),
+      skillSlotIds: clone(actor.skillSlotIds || []),
       skillIds: clone(actor.skillIds || []),
       draggable: true,
     };
   }
 
-  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, unitImageFor, skillIdsFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
+  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, unitImageFor, skillSlotIdsFor, skillIdsFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
 });
