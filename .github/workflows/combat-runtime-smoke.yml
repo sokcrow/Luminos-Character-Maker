@@ -52,6 +52,7 @@ jobs:
         run: |
           node --check js/battle-viewer-action-adapter-073.js
           node --check js/combat-skill-loadout-074.js
+          node --check js/battle-viewer-player-skill-planner-074.js
           node --check js/battle-viewer-dm-console-074.js
           node --check js/battle-viewer-player-entry-074.js
           node --check js/battle-viewer-ownership-074.js
@@ -70,6 +71,8 @@ jobs:
         run: node tests/combat-v074-skill-loadout-smoke.mjs
       - name: Battle Viewer 0.7.4 canonical skill adapter smoke
         run: node tests/combat-v074-skill-loadout-adapter-smoke.mjs
+      - name: Battle Viewer 0.7.4 player skill planner E2E smoke
+        run: node tests/combat-v074-player-skill-planner-smoke.mjs
       - name: Battle Viewer 0.7.4 DM player entry smoke
         run: node tests/combat-v074-player-entry-smoke.mjs
       - name: Battle Viewer 0.7.4 DM console smoke
