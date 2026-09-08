@@ -13,6 +13,8 @@
   const WAIT_TIMEOUT_MS = 5000;
   const WAIT_INTERVAL_MS = 25;
   const scripts = [
+    ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
+    ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
     ["rupture-status-runtime-script", "js/status-rupture-runtime.js", "LuminousRuptureStatusRuntime"],
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
@@ -68,6 +70,7 @@
 
   function buildApi() {
     const core = global.LuminousBattleViewerRuntime073 || {};
+    const skillLoadout = global.LuminousCombatSkillLoadout074 || null;
     const ownership = global.LuminousBattleViewerOwnership074 || null;
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
     const playerEntry = global.LuminousBattleViewerPlayerEntry074 || null;
@@ -78,6 +81,7 @@
       ...core,
       version: VERSION,
       rulesVersion: core.version || "0.7.3",
+      skillLoadout,
       ownership,
       dmConsole,
       playerEntry,
@@ -87,6 +91,7 @@
       install,
     });
     global.LuminousBattleViewerRuntime074 = api;
+    skillLoadout?.init?.();
     ruptureStatus?.install?.();
     ownership?.install?.();
     dmConsole?.init?.();
@@ -97,7 +102,9 @@
 
   function install() {
     if (
-      global.LuminousRuptureStatusRuntime
+      global.CombatSkillSchema
+      && global.LuminousCombatSkillLoadout074
+      && global.LuminousRuptureStatusRuntime
       && global.LuminousSkillForgeG2
       && global.LuminousBattleViewerRuntime073
       && global.LuminousVttActorLibrary
@@ -110,6 +117,8 @@
   }
 
   if (IS_COMMONJS) {
+    try { if (!global.CombatSkillSchema) require("./combat-skill-schema.js"); } catch (_) {}
+    try { if (!global.LuminousCombatSkillLoadout074) require("./combat-skill-loadout-074.js"); } catch (_) {}
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
