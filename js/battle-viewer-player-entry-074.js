@@ -102,6 +102,11 @@
     return null;
   }
 
+  function buildActionSlotIndex(slotCount) {
+    const count = Math.max(0, Math.trunc(Number(slotCount) || 0));
+    return Object.fromEntries(Array.from({ length: count }, (_, index) => [String(index), true]));
+  }
+
   function buildPlayerCombatant(actor, options = {}) {
     if (!actor || clean(actor.category) !== "player") throw new Error("PLAYER_ACTOR_REQUIRED");
     const playerId = clean(actor.playerId || actor.sourceId);
@@ -116,6 +121,7 @@
     const hp = firstFinite(raw.hp, raw.currentHp, raw.currentHP, raw.hp_actual, raw.combatStats?.hp_actual, maxHp);
     const sp = firstFinite(raw.sp, raw.currentSp, raw.currentSP, raw.sp_actual, raw.combatStats?.sp_actual, 0);
     const actionSlots = Math.max(1, Math.trunc(firstFinite(raw.actionSlots, raw.activeSlots, raw.action_slots_count, 1) || 1));
+    const actionSlotIndex = buildActionSlotIndex(actionSlots);
 
     const combatant = {
       ...raw,
@@ -141,6 +147,7 @@
       portrait: actor.portrait || actor.icono || raw.icono || null,
       actionSlots,
       activeSlots: actionSlots,
+      actionSlotIndex,
       statusEffects: raw.statusEffects && typeof raw.statusEffects === "object" ? clone(raw.statusEffects) : {},
       entrySource: "dm_player_entry_074",
       enteredCombatAt: Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now(),
@@ -296,6 +303,7 @@
     normalizePlayerActors,
     playerCombatantKey,
     playerAlreadyInCombat,
+    buildActionSlotIndex,
     buildPlayerCombatant,
     playerEntries,
     addPlayerActor,
