@@ -7,6 +7,7 @@
   const PLAYERS_ROOT = 'campaña/jugadores';
   const ACTORS_ROOT = 'campaña/actores';
   const NPCS_ROOT = 'campaña/base_datos_npcs';
+  const UNITS_ROOT = 'campaña/base_datos_unidades';
 
   function hostWindow(root = browserRoot) {
     if (!root) return null;
@@ -50,10 +51,10 @@
     if (!actorRuntime) throw new Error('ACTOR_LIBRARY_RUNTIME_REQUIRED');
     const db = hostFirebase(root)?.database?.() || null;
     const subscriptions = [];
-    let players = {}, actors = {}, npcs = {}, started = false;
+    let players = {}, actors = {}, npcs = {}, units = {}, started = false;
     let lastSignature = null;
 
-    function list() { return actorRuntime.mergeCollections({ players, actors, npcs }); }
+    function list() { return actorRuntime.mergeCollections({ players, actors, npcs, units }); }
     function get(key) { return list().find((actor) => actor.key === key) || null; }
 
     function emitIfChanged() {
@@ -84,6 +85,7 @@
       subscribe(PLAYERS_ROOT, (value) => { players = value; });
       subscribe(ACTORS_ROOT, (value) => { actors = value; });
       subscribe(NPCS_ROOT, (value) => { npcs = value; });
+      subscribe(UNITS_ROOT, (value) => { units = value; });
       return true;
     }
     function stop() {
@@ -100,8 +102,9 @@
       applyPlayers: (value) => { players = value || {}; },
       applyActors: (value) => { actors = value || {}; },
       applyNpcs: (value) => { npcs = value || {}; },
+      applyUnits: (value) => { units = value || {}; },
     });
   }
 
-  return Object.freeze({ PLAYERS_ROOT, ACTORS_ROOT, NPCS_ROOT, hostWindow, hostFirebase, actorLibrarySignature, createBridge });
+  return Object.freeze({ PLAYERS_ROOT, ACTORS_ROOT, NPCS_ROOT, UNITS_ROOT, hostWindow, hostFirebase, actorLibrarySignature, createBridge });
 });
