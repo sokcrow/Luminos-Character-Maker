@@ -17,6 +17,7 @@
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["vtt-actor-library-script", "js/vtt/actor-library.js", "LuminousVttActorLibrary"],
+    ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
     ["battle-viewer-player-entry-074-script", "js/battle-viewer-player-entry-074.js", "LuminousBattleViewerPlayerEntry074"],
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
@@ -67,6 +68,7 @@
 
   function buildApi() {
     const core = global.LuminousBattleViewerRuntime073 || {};
+    const ownership = global.LuminousBattleViewerOwnership074 || null;
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
     const playerEntry = global.LuminousBattleViewerPlayerEntry074 || null;
     const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
@@ -76,6 +78,7 @@
       ...core,
       version: VERSION,
       rulesVersion: core.version || "0.7.3",
+      ownership,
       dmConsole,
       playerEntry,
       dmMagic,
@@ -97,6 +100,7 @@
       && global.LuminousSkillForgeG2
       && global.LuminousBattleViewerRuntime073
       && global.LuminousVttActorLibrary
+      && global.LuminousBattleViewerOwnership074
       && global.LuminousBattleViewerDmConsole074
       && global.LuminousBattleViewerPlayerEntry074
       && global.LuminousBattleViewerDmMagic074
@@ -109,6 +113,7 @@
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousVttActorLibrary) require("./vtt/actor-library.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerEntry074) require("./battle-viewer-player-entry-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
