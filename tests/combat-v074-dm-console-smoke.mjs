@@ -79,8 +79,10 @@ globalThis.LuminousFixedDamageRuntime = {
 
 const DM = require('../js/battle-viewer-dm-console-074.js');
 const Magic = require('../js/battle-viewer-dm-console-074-magic.js');
-assert.equal(DM.version, '0.7.4');
-assert.equal(Magic.version, '0.7.4');
+const dmApi = DM?.version === '0.7.4' ? DM : globalThis.LuminousBattleViewerDmConsole074;
+const magicApi = Magic?.version === '0.7.4' ? Magic : globalThis.LuminousBattleViewerDmMagic074;
+assert.equal(dmApi.version, '0.7.4');
+assert.equal(magicApi.version, '0.7.4');
 
 const player = {
   level: 40,
@@ -88,19 +90,19 @@ const player = {
   abilityProficiency: { str: 'proficient', dex: 'none' },
   skillProficiency: { athletics: 'expertise' },
 };
-assert.equal(DM.effectiveAbilityScore(player, 'str'), 16);
-assert.equal(DM.abilityModifier(16), 3);
-assert.equal(DM.proficiencyBonus(40), 2);
-assert.equal(DM.saveTotal(player, 'str'), 5);
-assert.equal(DM.skillTotal(player, 'athletics'), 7);
+assert.equal(dmApi.effectiveAbilityScore(player, 'str'), 16);
+assert.equal(dmApi.abilityModifier(16), 3);
+assert.equal(dmApi.proficiencyBonus(40), 2);
+assert.equal(dmApi.saveTotal(player, 'str'), 5);
+assert.equal(dmApi.skillTotal(player, 'athletics'), 7);
 
 const unit = { id: 'unit-a', ownerPlayerId: 'player-a', hp: 100, maxHp: 100, sp: 10, statusEffects: { poison: { potency: 4, count: 10 } } };
-const linked = DM.playerForUnit(unit, { 'player-a': { ...player, name: 'Tester' } });
+const linked = dmApi.playerForUnit(unit, { 'player-a': { ...player, name: 'Tester' } });
 assert.equal(linked.id, 'player-a');
 
 const rolls = [0.1, 0.2, 0.9, 0.4, 0.99];
 let index = 0;
-const check = DM.rollCheck(unit, player, { kind: 'skill', abilityId: 'str', skillId: 'athletics', threshold: 10 }, () => rolls[index++]);
+const check = dmApi.rollCheck(unit, player, { kind: 'skill', abilityId: 'str', skillId: 'athletics', threshold: 10 }, () => rolls[index++]);
 assert.equal(check.headsChance, 60);
 assert.equal(check.heads, 3);
 assert.equal(check.base, 7);
@@ -110,54 +112,55 @@ assert.equal(check.total, 19);
 assert.equal(check.passed, true);
 
 unit.autoFail = true;
-const autoFail = DM.rollCheck(unit, player, { kind: 'save', abilityId: 'dex', threshold: 2 }, () => 0);
+const autoFail = dmApi.rollCheck(unit, player, { kind: 'save', abilityId: 'dex', threshold: 2 }, () => 0);
 assert.equal(autoFail.automaticFailure, true);
 assert.equal(autoFail.passed, false);
 unit.autoFail = false;
 
-DM.applyStatusToUnit(unit, 'restrained', { count: 3, potency: 0, sourceType: 'normal' });
+dmApi.applyStatusToUnit(unit, 'restrained', { count: 3, potency: 0, sourceType: 'normal' });
 assert.equal(unit.statusEffects.restrained.count, 3);
-DM.removeStatusFromUnit(unit, 'restrained', { force: true });
+dmApi.removeStatusFromUnit(unit, 'restrained', { force: true });
 assert.equal(Boolean(unit.statusEffects.restrained), false);
 
 const magicEncounter = {
   caster: { id: 'caster', name: 'Caster', hp: 100, maxHp: 100, statusEffects: {} },
   target: { id: 'target', name: 'Target', hp: 100, maxHp: 100, statusEffects: {} },
 };
-const startedConc = Magic.startConcentration(magicEncounter, 'caster', { concentrationId: 'conc-1' });
+const startedConc = magicApi.startConcentration(magicEncounter, 'caster', { concentrationId: 'conc-1' });
 assert.equal(startedConc.concentration.id, 'conc-1');
-const magicInput = Magic.magicConditionInput(magicEncounter, 'caster', { count: 2, potency: 0 });
+const magicInput = magicApi.magicConditionInput(magicEncounter, 'caster', { count: 2, potency: 0 });
 assert.equal(magicInput.sourceType, 'magic');
 assert.equal(magicInput.sourceUnitId, 'caster');
 assert.equal(magicInput.removalMode, 'concentration');
 assert.equal(magicInput.concentrationId, 'conc-1');
-DM.applyStatusToUnit(magicEncounter.target, 'restrained', magicInput);
+dmApi.applyStatusToUnit(magicEncounter.target, 'restrained', magicInput);
 assert.equal(magicEncounter.target.statusEffects.restrained.data.concentrationId, 'conc-1');
 globalThis.LuminousConditionRuntime.loseConcentration(magicEncounter.caster, { units: Object.values(magicEncounter) });
 assert.equal(Boolean(magicEncounter.target.statusEffects.restrained), false);
 
-DM.applyDamageToUnit(unit, 12);
+dmApi.applyDamageToUnit(unit, 12);
 assert.equal(unit.hp, 88);
-DM.healUnit(unit, 5);
+dmApi.healUnit(unit, 5);
 assert.equal(unit.hp, 93);
 
 const encounter = { 'unit-a': unit };
-DM.runTurnStart(encounter, 'unit-a');
+dmApi.runTurnStart(encounter, 'unit-a');
 assert.equal(unit.started, true);
 assert.equal(unit.elementalStarted, true);
-DM.runTurnEnd(encounter, 'unit-a');
+dmApi.runTurnEnd(encounter, 'unit-a');
 assert.equal(unit.ended, true);
 assert.equal(unit.statusEffects.poison.count, 5);
-DM.runRest(encounter, 'unit-a', 'short_rest');
+dmApi.runRest(encounter, 'unit-a', 'short_rest');
 assert.equal(unit.lastRest, 'short_rest');
-DM.runEncounterEnd(encounter, 'unit-a');
+dmApi.runEncounterEnd(encounter, 'unit-a');
 assert.equal(unit.encounterEnded, true);
 
-const firebaseSafe = DM.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
+const firebaseSafe = dmApi.sanitizeForFirebase({ a: 1, fn() {}, nested: { b: 2, skip: undefined } });
 assert.deepEqual(firebaseSafe, { a: 1, nested: { b: 2 } });
 
 globalThis.LuminousBattleViewerRuntime073 = { version: '0.7.3', forecastClash() { return null; } };
-const R074 = require('../js/battle-viewer-runtime-074.js');
+require('../js/battle-viewer-runtime-074.js');
+const R074 = globalThis.LuminousBattleViewerRuntime074;
 assert.equal(R074.version, '0.7.4');
 assert.equal(R074.rulesVersion, '0.7.3');
 assert.equal(R074.dmConsole.version, '0.7.4');
