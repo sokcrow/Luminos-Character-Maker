@@ -15,6 +15,8 @@
     ["combat-action-adapters-script", "js/combat-action-adapters.js", "./combat-action-adapters.js", "LuminousCombatActionAdapters"],
     ["team-action-economy-script", "js/team-action-economy.js", "./team-action-economy.js", "LuminousTeamActionEconomy"],
     ["combat-runtime-integration-script", "js/combat-runtime-integration.js", "./combat-runtime-integration.js", "LuminousCombatRuntimeIntegration"],
+    ["skill-forge-g2-script", "js/skill-forge-g2.js", "./skill-forge-g2.js", "LuminousSkillForgeG2"],
+    ["skill-forge-runtime-g2-script", "js/skill-forge-runtime-g2.js", "./skill-forge-runtime-g2.js", "LuminousSkillForgeRuntimeG2"],
     ["battle-viewer-action-adapter-073-script", "js/battle-viewer-action-adapter-073.js", "./battle-viewer-action-adapter-073.js", "LuminousBattleViewerActionAdapter073"],
     ["battle-viewer-runtime-073-forecast-script", "js/battle-viewer-runtime-073-forecast.js", "./battle-viewer-runtime-073-forecast.js", "LuminousBattleViewerForecast073"],
     ["battle-viewer-runtime-073-timeline-script", "js/battle-viewer-runtime-073-timeline.js", "./battle-viewer-runtime-073-timeline.js", "LuminousBattleViewerTimeline073"],
@@ -62,6 +64,7 @@
 
   function buildApi() {
     const forecast = global.LuminousBattleViewerForecast073 || {}, timeline = global.LuminousBattleViewerTimeline073 || {};
+    global.LuminousSkillForgeRuntimeG2?.install?.(global.CombatEngine);
     const api = Object.freeze({
       ...forecast,
       ...timeline,
@@ -71,6 +74,8 @@
       actionResolver: global.LuminousCombatActionResolver || null,
       actionRuntime: global.LuminousCombatRuntimeIntegration || null,
       actionAdapter: global.LuminousBattleViewerActionAdapter073 || null,
+      skillForge: global.LuminousSkillForgeG2 || null,
+      skillForgeRuntime: global.LuminousSkillForgeRuntimeG2 || null,
       install,
     });
     global.LuminousBattleViewerRuntime073 = api;
@@ -81,7 +86,7 @@
   }
 
   function install() {
-    if (global.LuminousBattleViewerTimeline073 && global.LuminousBattleViewerActionAdapter073 && global.LuminousCombatActionResolver) return Promise.resolve(buildApi());
+    if (global.LuminousBattleViewerTimeline073 && global.LuminousBattleViewerActionAdapter073 && global.LuminousCombatActionResolver && global.LuminousSkillForgeG2 && global.LuminousSkillForgeRuntimeG2) return Promise.resolve(buildApi());
     return loadDependencies().then(buildApi);
   }
 
@@ -94,6 +99,8 @@
     try { if (!global.LuminousCombatActionAdapters) require("./combat-action-adapters.js"); } catch (_) {}
     try { if (!global.LuminousTeamActionEconomy) require("./team-action-economy.js"); } catch (_) {}
     try { if (!global.LuminousCombatRuntimeIntegration) require("./combat-runtime-integration.js"); } catch (_) {}
+    try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
+    try { if (!global.LuminousSkillForgeRuntimeG2) require("./skill-forge-runtime-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerActionAdapter073) require("./battle-viewer-action-adapter-073.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerForecast073) require("./battle-viewer-runtime-073-forecast.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerTimeline073) require("./battle-viewer-runtime-073-timeline.js"); } catch (_) {}
