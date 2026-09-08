@@ -29,9 +29,14 @@
     return Number.isInteger(index) ? index : 0;
   }
   function combatUnitId(unit = {}) { return String(unit.id || unit.unitId || unit.characterId || unit.actorId || "").trim(); }
+  function combatUnitIdentityValues(unit = {}) {
+    return [unit.id, unit.unitId, unit.playerId, unit.player_id, unit.ownerPlayerId, unit.owner_player_id, unit.characterId, unit.character_id, unit.actorId, unit.uid, unit.ownerUid, unit.vinculo_jugador]
+      .filter((value) => value != null && String(value).trim())
+      .map((value) => String(value).trim());
+  }
   function combatUnitForOwner(ownerPlayerId) {
-    const wanted = String(ownerPlayerId || "");
-    return Object.values(combatData()).find((unit) => String(unit?.playerId || unit?.ownerPlayerId || unit?.uid || unit?.ownerUid || "") === wanted) || null;
+    const wanted = String(ownerPlayerId || "").trim();
+    return wanted ? Object.values(combatData()).find((unit) => combatUnitIdentityValues(unit).includes(wanted)) || null : null;
   }
   function sharedPlanForSlot(slotId) {
     const unitId = unitIdFromSlot(slotId), slotIndex = slotIndexFromId(slotId);
@@ -62,9 +67,7 @@
     const vector = attackVectors()[slotId] || {};
     return vector.combatAction || vector.action || vector.plan || vector.skill || null;
   }
-  function planForSlot(slotId) {
-    return vectorPlanForSlot(slotId) || sharedPlanForSlot(slotId) || localPlanForSlot(slotId) || null;
-  }
+  function planForSlot(slotId) { return vectorPlanForSlot(slotId) || sharedPlanForSlot(slotId) || localPlanForSlot(slotId) || null; }
   function targetIdsFor(plan = {}, explicitTargetId = null) {
     const ids = [];
     const add = (value) => { const id = String(value || "").trim(); if (id && !ids.includes(id)) ids.push(id); };
@@ -83,19 +86,11 @@
   function optionsFor(slotId, plan = {}, explicitTargetId = null) {
     const ids = targetIdsFor(plan, explicitTargetId), data = plan.data || plan.sourceDefinition || plan.definition || plan.skill || plan.spell || plan;
     return {
-      actorId: unitIdFromSlot(slotId),
-      actionSlotId: slotId,
+      actorId: unitIdFromSlot(slotId), actionSlotId: slotId,
       isAi: String((combatData()[unitIdFromSlot(slotId)] || {}).controlled || "").toLowerCase() === "ai",
-      targetId: ids[0] || null,
-      mainTargetId: ids[0] || null,
-      targetIds: ids,
+      targetId: ids[0] || null, mainTargetId: ids[0] || null, targetIds: ids,
       allegiance: targetAllegiance(plan, data),
-      metadata: {
-        viewer073: true,
-        viewerPlanType: plan.type || plan.kind || data.kind || null,
-        viewerSlotIndex: slotIndexFromId(slotId),
-        sharedOwnerPlayerId: plan.__ownerPlayerId || null,
-      },
+      metadata: { viewer073: true, viewerPlanType: plan.type || plan.kind || data.kind || null, viewerSlotIndex: slotIndexFromId(slotId), sharedOwnerPlayerId: plan.__ownerPlayerId || null },
     };
   }
   function normalizeExistingAction(raw, slotId, explicitTargetId) {
@@ -113,31 +108,33 @@
   }
   function compileItem(actor, data, slotId, plan, explicitTargetId) {
     const options = optionsFor(slotId, plan, explicitTargetId), sourceId = data.id || data.itemId || data.name || "item";
-    const effects = Array.isArray(data.effects) ? clone(data.effects) : [{ type: "viewer_item", item: clone(data) }];
     return schema.createCombatAction({
-      actorId: options.actorId,
-      actionSlotId: slotId,
+      actorId: options.actorId, actionSlotId: slotId,
       source: { type: "item", id: String(sourceId) },
       phase: { selectedAt: options.isAi ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER, executesAt: schema.PHASES.COMBAT_PHASE },
       economy: { cost: schema.ECONOMY_COSTS.ACTION },
       targeting: { allegiance: options.allegiance, mode: options.targetIds.length > 1 ? "multi" : "single", mainTargetId: options.mainTargetId, targetIds: options.targetIds, attackWeight: Math.max(1, Number(data.attackWeight || data.atkWeight || 1)) },
       resolution: { type: "automatic" },
-      effects,
+      effects: [{ type: "viewer_item", item: clone(data), plan: clone(plan) }],
       metadata: { ...options.metadata, name: data.name || sourceId, sourceDefinition: clone(data) },
     });
   }
+  function defenseDefinition(data = {}, subtype = "defense") {
+    const typeMap = { guard: "Guard", evade: "Evade", counter: "Counter", clashable_guard: "ClashableGuard", clashable_counter: "ClashableCounter" };
+    const type = typeMap[subtype] || data.type || data.name || "Guard";
+    return { ...clone(data), kind: "defense", type, defenseType: subtype, defenseSubtype: type, isDefense: true, isClashable: subtype === "clashable_guard" || subtype === "clashable_counter", coinAmount: Math.max(1, Number(data.coinAmount || 1)), coinPower: Number(data.coinPower || 0), basePower: Number(data.basePower || 0) };
+  }
   function compileDefense(actor, data, slotId, plan, explicitTargetId) {
-    const options = optionsFor(slotId, plan, explicitTargetId), subtype = normalizeId(data.defenseType || data.defenseSubtype || data.name || "defense");
+    const options = optionsFor(slotId, plan, explicitTargetId), subtype = normalizeId(data.defenseType || data.defenseSubtype || data.name || "defense"), definition = defenseDefinition(data, subtype);
     return schema.createCombatAction({
-      actorId: options.actorId,
-      actionSlotId: slotId,
+      actorId: options.actorId, actionSlotId: slotId,
       source: { type: "skill", id: String(data.id || data.skillId || subtype || "defense") },
       phase: { selectedAt: options.isAi ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER, executesAt: schema.PHASES.COMBAT_PHASE },
       economy: { cost: schema.ECONOMY_COSTS.ACTION },
       targeting: { allegiance: "self", mode: "self", mainTargetId: options.actorId, targetIds: [options.actorId] },
       resolution: { type: "automatic" },
-      effects: [{ type: "viewer_defense", defenseType: subtype, definition: clone(data) }],
-      metadata: { ...options.metadata, name: data.name || subtype || "Defense", defenseSubtype: subtype, sourceDefinition: clone(data) },
+      effects: [{ type: "viewer_defense", defenseType: subtype, definition }],
+      metadata: { ...options.metadata, name: data.name || subtype || "Defense", defenseSubtype: subtype, sourceDefinition: definition },
     });
   }
   function compilePlan(slotId, explicitTargetSlotId = null, providedPlan = null) {
@@ -157,7 +154,7 @@
       action = adapters.compileSkillToCombatAction(actor, data, options);
     } else if (["spells", "spell", "magic"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "spell")) {
       action = adapters.compileSpellToCombatAction(actor, data, options);
-    } else if (["defense", "guard", "evade", "counter"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "defense")) {
+    } else if (["defense", "guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "defense")) {
       action = compileDefense(actor, data, slotId, plan, explicitTargetId);
     } else if (["items", "item"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "item")) {
       action = compileItem(actor, data, slotId, plan, explicitTargetId);
@@ -174,8 +171,8 @@
   }
 
   const api = Object.freeze({
-    combatData, sharedPlans, attackVectors, unitIdFromSlot, slotIndexFromId, sharedPlanForSlot, plannedSlotIds, localPlanForSlot,
-    vectorPlanForSlot, planForSlot, compilePlan,
+    combatData, sharedPlans, attackVectors, unitIdFromSlot, slotIndexFromId, combatUnitForOwner, sharedPlanForSlot, plannedSlotIds, localPlanForSlot,
+    vectorPlanForSlot, planForSlot, defenseDefinition, compilePlan,
   });
   global.LuminousBattleViewerActionAdapter073 = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
