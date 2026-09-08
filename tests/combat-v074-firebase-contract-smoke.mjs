@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const session = require('../js/battle-viewer-firebase-session-074.js');
+const loadedSession = require('../js/battle-viewer-firebase-session-074.js');
+const session = loadedSession?.version === '0.7.4' ? loadedSession : globalThis.LuminousBattleViewerFirebaseSession074;
 
 function snapshot(value) { return { val: () => value }; }
 
@@ -53,6 +54,7 @@ function firebaseHarness({ uid = 'player_uid', configuredDmUid = 'dm_uid', failP
   return { sdk, app, auth, db, writes };
 }
 
+assert.ok(session, 'Firebase session runtime must attach to globalThis in Node module mode');
 assert.equal(session.version, '0.7.4');
 assert.equal(session.ROOTS.units, 'campaña/base_datos_unidades');
 assert.equal(session.ROOTS.skills, 'campaña/base_datos_skills');
