@@ -46,13 +46,9 @@
     const name = isLegacyVariant ? baseName : `${baseName} · ${damage.label}`, legacyId = `t1_${statusId}_${ordinal}_${slugify(baseName)}`, id = isLegacyVariant ? legacyId : `${legacyId}_${damageId}`, sinAffinity = config.sins[profileIndex % config.sins.length];
     const coins = Array.from({ length: profile.coins }, (_, index) => ({ index, type: "normal", status: "active", effects: [] }));
 
-    if (statusId === "poise") {
-      const totals = profile.apps.reduce((sum, app) => ({ potency: sum.potency + app[1], count: sum.count + app[2] }), { potency: 0, count: 0 });
-      const coinIndex = Math.max(0, Math.min(profile.coins - 1, profile.apps[profile.apps.length - 1]?.[0] ?? profile.coins - 1));
-      coins[coinIndex].effects.push(statusEffect(statusId, "self", totals.potency, totals.count, "[On Hit]"));
-    } else {
-      profile.apps.forEach(([coinIndex, potency, count]) => coins[coinIndex].effects.push(statusEffect(statusId, "target", potency, count, "[On Hit]")));
-    }
+    profile.apps.forEach(([coinIndex, potency, count]) => {
+      coins[coinIndex].effects.push(statusEffect(statusId, config.target, potency, count, "[On Hit]"));
+    });
 
     return {
       id, name, type: "Attack", tier: 1, basePower: profile.basePower, coinPower: profile.coinPower, coinAmount: profile.coins, coinType: "positive", attackWeight: 1, skillRange: 1, damageType: damage.damageType, sinAffinity, scalingStat: profile.scalingStat, statUsed: "", skillUsed: "", targetingType: "Focused Attack", aoePattern: "Self", skillAmount: 1, sourceType: "skill", sourceId: id, isItemSkill: false, isDefense: false, defenseSubtype: "", isClashable: true, isUnclashable: false, isIndiscriminate: false, isTargetFixed: false, requiresUnlock: false, effects: [], coins, evolutionChain: null, schemaVersion: 2,
@@ -80,7 +76,7 @@
     return payload;
   }
 
-  const api = Object.freeze({ version: "1.3.0", STATUS_ORDER, DAMAGE_ORDER, DAMAGE_CONFIG, STATUS_CONFIG, PROFILES, DEFINITIONS, list, get, byStatus, byDamage, firebasePayload });
+  const api = Object.freeze({ version: "1.3.1", STATUS_ORDER, DAMAGE_ORDER, DAMAGE_CONFIG, STATUS_CONFIG, PROFILES, DEFINITIONS, list, get, byStatus, byDamage, firebasePayload });
   global.LuminousStarterStatusSkillCatalog = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
