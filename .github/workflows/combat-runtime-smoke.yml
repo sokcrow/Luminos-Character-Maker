@@ -51,6 +51,7 @@ jobs:
       - name: Battle Viewer 0.7.4 module syntax
         run: |
           node --check js/battle-viewer-dm-console-074.js
+          node --check js/battle-viewer-player-entry-074.js
           node --check js/battle-viewer-dm-console-074-magic.js
           node --check js/battle-viewer-runtime-074.js
           node --check js/elemental-status-compat.js
@@ -58,5 +59,7 @@ jobs:
           node --check js/skill-catalog-starter-status-tier1.js
           node --check js/skill-forge-g2.js
           node --check js/skill-forge-runtime-g2.js
+      - name: Battle Viewer 0.7.4 DM player entry smoke
+        run: node tests/combat-v074-player-entry-smoke.mjs
       - name: Battle Viewer 0.7.4 DM console smoke
         run: node tests/combat-v074-dm-console-smoke.mjs
