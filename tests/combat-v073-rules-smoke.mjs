@@ -69,15 +69,17 @@ globalThis.CombatEngine = {
 require('../js/elemental-status-runtime.js');
 require('../js/core-condition-runtime.js');
 require('../js/core-condition-combat-bridge.js');
-const requiredBattleViewer = require('../js/battle-viewer-runtime-073.js');
+await import('../js/battle-viewer-runtime-073.js');
+const B = await globalThis.LuminousBattleViewerRuntime073Ready;
 
 const E = globalThis.LuminousElementalStatusRuntime;
 const C = globalThis.LuminousConditionRuntime;
-const B = requiredBattleViewer?.version === '0.7.3' ? requiredBattleViewer : globalThis.LuminousBattleViewerRuntime073;
 assert.equal(E.version, '0.7.3');
 assert.equal(C.version, '0.7.3');
 assert.equal(E.ELEMENT_TO_STATUS.force, null);
+assert.equal(B.version, '0.7.3');
 assert.equal(B.ACTIVE_FIELD_CAP, 8);
+assert.equal(B.authority, 'combat-action-runtime');
 
 // Poison v0.7.3 merged model.
 const poisonUnit = { id:'p', hp:200, maxHp:200, statusEffects:{} };
