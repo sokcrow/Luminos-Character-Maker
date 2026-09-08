@@ -40,6 +40,8 @@ jobs:
         run: node tests/combat-v073-rules-smoke.mjs
       - name: Battle Viewer 0.7.3 runtime authority smoke
         run: node tests/combat-v073-runtime-authority-smoke.mjs
+      - name: VTT combat unit actor library smoke
+        run: node tests/vtt-actor-library-units-smoke.mjs
       - name: Battle Viewer 0.7.4 module syntax
         run: |
           node --check js/battle-viewer-dm-console-074.js
