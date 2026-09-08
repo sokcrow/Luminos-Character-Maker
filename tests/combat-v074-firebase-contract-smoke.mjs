@@ -134,4 +134,11 @@ assert.ok(planned?.['.validate']?.includes('equippedSkillIndex'), 'Player Skills
 assert.ok(planned?.['.validate']?.includes('spellSelections'), 'Player Spells must stay selection-authorized');
 assert.ok(campaign?.combate?.['$other']?.['.write']?.includes("child('dm_uid')"), 'DM combat state writes must use configured DM');
 
+const runtimeSource = fs.readFileSync(new URL('../js/battle-viewer-runtime-074.js', import.meta.url), 'utf8');
+assert.match(runtimeSource, /initializeConfiguredDmConsole/);
+assert.match(runtimeSource, /result\.uid === dmConsole\.DM_UID/);
+assert.match(runtimeSource, /dmState\.authorized = true/);
+assert.match(runtimeSource, /result\.db\.ref\(dmConsole\.ROOTS\.players\)/);
+assert.match(runtimeSource, /result\.db\.ref\(dmConsole\.ROOTS\.combatants\)/);
+
 console.log('combat-v074-firebase-contract-smoke: ok');
