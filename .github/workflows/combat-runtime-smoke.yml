@@ -35,3 +35,5 @@ jobs:
         run: node tests/combat-runtime-rules-smoke.mjs
       - name: Combat Deck Engine smoke
         run: node tests/combat-deck-engine-smoke.mjs
+      - name: Orosh complete Theatre and Combat smoke
+        run: node tests/orosh-lineage-runtime-smoke.mjs
