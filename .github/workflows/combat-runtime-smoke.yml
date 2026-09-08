@@ -5,6 +5,7 @@ on:
     branches:
       - feature/combat-runtime-integration
       - feature/combat-deck-engine
+      - feature/battle-viewer-0.7.3-engine-migration
   pull_request:
     branches:
       - main
@@ -35,3 +36,12 @@ jobs:
         run: node tests/combat-runtime-rules-smoke.mjs
       - name: Combat Deck Engine smoke
         run: node tests/combat-deck-engine-smoke.mjs
+      - name: Battle Viewer 0.7.3 rules smoke
+        run: node tests/combat-v073-rules-smoke.mjs
+      - name: Battle Viewer 0.7.4 module syntax
+        run: |
+          node --check js/battle-viewer-dm-console-074.js
+          node --check js/battle-viewer-runtime-074.js
+          node --check js/elemental-status-compat.js
+      - name: Battle Viewer 0.7.4 DM console smoke
+        run: node tests/combat-v074-dm-console-smoke.mjs
