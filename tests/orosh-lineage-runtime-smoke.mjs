@@ -137,6 +137,10 @@ globalThis.CombatEngine = {
     if (tag === "[Test Status]") {
       globalThis.LuminousStatusEngine.applyStatus(context.currentTarget, "burn", { mode: "gain", count: 1, potency: 2 });
     }
+    if (tag === "[Spellcasting SP Loss]") {
+      const before = globalThis.LuminousSpellcastingRuntime.readCurrentSp(context.attacker);
+      globalThis.LuminousSpellcastingRuntime.writeCurrentSp(context.attacker, before - 10);
+    }
     return { tag, context };
   },
   processStatusEffects(unit, triggerKey) {
@@ -229,7 +233,6 @@ await import("../js/orosh-lineage-complete-runtime.js");
 const complete = globalThis.LuminousOroshLineageCompleteRuntime;
 assert.ok(complete, "Complete Orosh runtime should expose an API");
 
-// Termosense now participates in the concrete condition targeting gate.
 const invisibleTarget = { id: "hidden-target", statusEffects: { invisible: { count: 1 } } };
 assert.equal(globalThis.LuminousConditionRuntime.canTarget(combatUnit, invisibleTarget, { attackWeight: 1 }).allowed, true, "Termosense should bypass visual untargetability");
 assert.equal(globalThis.LuminousConditionRuntime.canTarget({ id: "ordinary-unit" }, invisibleTarget, { attackWeight: 1 }).allowed, false, "Non-Orosh Units should remain blocked by visual untargetability");
@@ -238,7 +241,6 @@ assert.equal(runtime.canIgnoreTargetingObscurement(combatUnit, "magical_darkness
 assert.equal(runtime.canIgnoreTargetingObscurement(combatUnit, "visual_camouflage"), true);
 assert.equal(runtime.canIgnoreTargetingObscurement(combatUnit, "solid_wall"), false);
 
-// Emotional Echo free Detect Emotions is consumed before the Sorcerer runtime can spend a Slot.
 const detectSpell = { id: "detect_emotions", name: "Detect Emotions", level: 2, slotLevel: 2, sourceClassId: "sorcerer", type: "Spell", tags: ["emotion"] };
 const freeDetect = globalThis.LuminousSorcererClassRuntime.castSorcererSpell(character, detectSpell, {});
 assert.equal(freeDetect.success, true);
@@ -250,11 +252,9 @@ const paidDetect = globalThis.LuminousSorcererClassRuntime.castSorcererSpell(cha
 assert.equal(paidDetect.paid, true, "After the free use, Detect Emotions should fall back to normal casting");
 assert.equal(paidSorcererCasts, 1);
 
-// Persisted state lives on the character even when Firebase is absent.
 complete.persistState(character);
 assert.equal(character.archetypeResources.orosh_lineage.detectEmotionsUsed, true);
 
-// Move to the Voice/Ascension milestones while preserving the same linked combat identity.
 character.classes[0].levels = 85;
 runtime.resetLongRest(character);
 runtime.selectFragment(character, "Pride");
@@ -323,7 +323,6 @@ globalThis.CombatEngine.triggerEvent("[Test Status]", {
 }, [lustTarget]);
 assert.equal(lustTarget.statusEffects.burn.potency, 5, "Lust Echo should add +3 Potency to Skill-inflicted statuses");
 
-// Isolate Ascension from Voice effects.
 for (const sin of complete.VOICE_SINS) complete.stateFor(character).emotionalEchoes[sin] = 0;
 const ascensionTrait = { id: "orosh_lineage_ascension_of_the_heiress" };
 globalThis.LuminousTraitEngine.dispatchTrait(ascensionTrait, "on_use", { character: combatUnit, self: combatUnit }, {});
@@ -340,8 +339,10 @@ assert.equal(combatUnit.sp, 15, "Ascension should reduce Spellcasting SP Loss by
 combatUnit.sp = 20;
 globalThis.CombatEngine.processStatusEffects(combatUnit, "lose_sp_10", { attacker: combatUnit, target: combatUnit });
 assert.equal(combatUnit.sp, 15, "Ascension should reduce Combat-engine SP Loss by 5");
+combatUnit.sp = 20;
+globalThis.CombatEngine.triggerEvent("[Spellcasting SP Loss]", { attacker: combatUnit, target: combatUnit, skill: { type: "Spell", tags: ["mind"] } }, [combatUnit]);
+assert.equal(combatUnit.sp, 15, "A Spellcasting SP loss nested inside Combat must receive the -5 mitigation exactly once");
 
-// On Kill recovery: target must have been affected by one of the Orosh caster's Spells.
 character.spellcastingState.slotsByClass.sorcerer.levels[5].spent = 2;
 character.spellcastingState.slotsByClass.sorcerer.levels[4].spent = 1;
 const doomed = { id: "doomed", hp: 0, maxHp: 100, sp: 0 };
