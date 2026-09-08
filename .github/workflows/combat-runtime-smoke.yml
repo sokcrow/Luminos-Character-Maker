@@ -62,6 +62,8 @@ jobs:
           node --check js/skill-forge-runtime-g2.js
       - name: Battle Viewer 0.7.4 ownership smoke
         run: node tests/combat-v074-ownership-smoke.mjs
+      - name: Battle Viewer 0.7.4 ownership resolution smoke
+        run: node tests/combat-v074-ownership-resolution-smoke.mjs
       - name: Battle Viewer 0.7.4 DM player entry smoke
         run: node tests/combat-v074-player-entry-smoke.mjs
       - name: Battle Viewer 0.7.4 DM console smoke
