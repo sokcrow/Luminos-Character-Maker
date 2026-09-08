@@ -18,12 +18,41 @@ globalThis.LuminousStatusEngine = {
 globalThis.LuminousConditionRuntime = {
   DEFINITIONS: { restrained: { name: 'Restrained' }, paralyzed: { name: 'Paralyzed' } },
   getDefinition(id) { return this.DEFINITIONS[id] || null; },
-  applyCondition(unit, id, input = {}) { return globalThis.LuminousStatusEngine.applyStatus(unit, id, input); },
+  applyCondition(unit, id, input = {}) {
+    return globalThis.LuminousStatusEngine.applyStatus(unit, id, {
+      ...input,
+      data: {
+        ...(input.data || {}),
+        sourceType: input.sourceType || 'normal',
+        removalMode: input.removalMode || 'trigger',
+        concentrationId: input.concentrationId || null,
+      },
+    });
+  },
   thresholdModifier(unit, context = {}) { return context.kind === 'save' ? 1 : 0; },
   automaticCheckFailure(unit, context = {}) { return unit.autoFail && context.kind === 'save' ? { failed: true, reason: 'test_auto_fail' } : { failed: false }; },
   turnStart(unit) { unit.started = true; return { started: true }; },
   turnEnd(unit) { unit.ended = true; return { ended: true }; },
-  loseConcentration(unit) { unit.concentration = null; return { lost: true }; },
+  startConcentration(unit, options = {}) {
+    unit.concentration = { id: options.concentrationId || 'conc-test', active: true, source: options.source || null };
+    return unit.concentration;
+  },
+  getConcentration(unit) { return unit.concentration?.active ? unit.concentration : null; },
+  loseConcentration(unit, options = {}) {
+    const id = unit.concentration?.id;
+    if (!unit.concentration?.active) return { lost: false, removed: [] };
+    unit.concentration.active = false;
+    const removed = [];
+    for (const other of options.units || []) {
+      for (const [statusId, entry] of Object.entries(other.statusEffects || {})) {
+        if (entry?.data?.concentrationId === id) {
+          delete other.statusEffects[statusId];
+          removed.push(statusId);
+        }
+      }
+    }
+    return { lost: true, removed };
+  },
 };
 
 globalThis.LuminousElementalStatusRuntime = {
@@ -49,7 +78,9 @@ globalThis.LuminousFixedDamageRuntime = {
 };
 
 const DM = require('../js/battle-viewer-dm-console-074.js');
+const Magic = require('../js/battle-viewer-dm-console-074-magic.js');
 assert.equal(DM.version, '0.7.4');
+assert.equal(Magic.version, '0.7.4');
 
 const player = {
   level: 40,
@@ -89,6 +120,22 @@ assert.equal(unit.statusEffects.restrained.count, 3);
 DM.removeStatusFromUnit(unit, 'restrained', { force: true });
 assert.equal(Boolean(unit.statusEffects.restrained), false);
 
+const magicEncounter = {
+  caster: { id: 'caster', name: 'Caster', hp: 100, maxHp: 100, statusEffects: {} },
+  target: { id: 'target', name: 'Target', hp: 100, maxHp: 100, statusEffects: {} },
+};
+const startedConc = Magic.startConcentration(magicEncounter, 'caster', { concentrationId: 'conc-1' });
+assert.equal(startedConc.concentration.id, 'conc-1');
+const magicInput = Magic.magicConditionInput(magicEncounter, 'caster', { count: 2, potency: 0 });
+assert.equal(magicInput.sourceType, 'magic');
+assert.equal(magicInput.sourceUnitId, 'caster');
+assert.equal(magicInput.removalMode, 'concentration');
+assert.equal(magicInput.concentrationId, 'conc-1');
+DM.applyStatusToUnit(magicEncounter.target, 'restrained', magicInput);
+assert.equal(magicEncounter.target.statusEffects.restrained.data.concentrationId, 'conc-1');
+globalThis.LuminousConditionRuntime.loseConcentration(magicEncounter.caster, { units: Object.values(magicEncounter) });
+assert.equal(Boolean(magicEncounter.target.statusEffects.restrained), false);
+
 DM.applyDamageToUnit(unit, 12);
 assert.equal(unit.hp, 88);
 DM.healUnit(unit, 5);
@@ -114,5 +161,6 @@ const R074 = require('../js/battle-viewer-runtime-074.js');
 assert.equal(R074.version, '0.7.4');
 assert.equal(R074.rulesVersion, '0.7.3');
 assert.equal(R074.dmConsole.version, '0.7.4');
+assert.equal(R074.dmMagic.version, '0.7.4');
 
 console.log('combat-v074-dm-console-smoke: ok');
