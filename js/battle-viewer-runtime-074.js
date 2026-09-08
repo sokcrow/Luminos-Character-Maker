@@ -88,6 +88,7 @@
     });
     global.LuminousBattleViewerRuntime074 = api;
     ruptureStatus?.install?.();
+    ownership?.install?.();
     dmConsole?.init?.();
     playerEntry?.init?.();
     dmMagic?.install?.();
