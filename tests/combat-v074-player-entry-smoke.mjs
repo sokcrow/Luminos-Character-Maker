@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
-const actorLibrary = require('../js/vtt/actor-library.js');
-globalThis.LuminousVttActorLibrary = actorLibrary;
-const playerEntry = require('../js/battle-viewer-player-entry-074.js');
+await import('../js/vtt/actor-library.js');
+const actorLibrary = globalThis.LuminousVttActorLibrary;
+if (!actorLibrary) throw new Error('LuminousVttActorLibrary was not initialized.');
+
+await import('../js/battle-viewer-player-entry-074.js');
+const playerEntry = globalThis.LuminousBattleViewerPlayerEntry074;
+if (!playerEntry) throw new Error('LuminousBattleViewerPlayerEntry074 was not initialized.');
 
 assert.equal(playerEntry.version, '0.7.4');
 assert.equal(playerEntry.ROOTS.players, 'campaña/jugadores');
