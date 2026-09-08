@@ -51,6 +51,7 @@ jobs:
       - name: Battle Viewer 0.7.4 module syntax
         run: |
           node --check js/battle-viewer-action-adapter-073.js
+          node --check js/battle-viewer-firebase-session-074.js
           node --check js/combat-skill-loadout-074.js
           node --check js/combat-spell-loadout-074.js
           node --check js/battle-viewer-spell-adapter-074.js
@@ -67,6 +68,8 @@ jobs:
           node --check js/skill-catalog-starter-status-tier1.js
           node --check js/skill-forge-g2.js
           node --check js/skill-forge-runtime-g2.js
+      - name: Battle Viewer 0.7.4 Firebase contract smoke
+        run: node tests/combat-v074-firebase-contract-smoke.mjs
       - name: Battle Viewer 0.7.4 ownership smoke
         run: node tests/combat-v074-ownership-smoke.mjs
       - name: Battle Viewer 0.7.4 ownership resolution smoke
