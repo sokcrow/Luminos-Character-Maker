@@ -10,6 +10,8 @@ const catalog = globalThis.LuminousStarterStatusSkillCatalog;
 if (!schema || !rupture || !catalog) throw new Error('Starter status skill modules were not initialized.');
 
 const statuses = ['burn', 'rupture', 'sinking', 'tremor', 'poise', 'bleed'];
+const damages = ['slash', 'pierce', 'blunt'];
+const expectedDamageTypes = { slash: 'cortante', pierce: 'perforante', blunt: 'contundente' };
 const expectedCoinPower = new Map([[1, 6], [2, 4], [3, 3]]);
 const expectedSins = {
   burn: ['wrath', 'lust', 'pride'],
@@ -21,29 +23,47 @@ const expectedSins = {
 };
 const validSins = new Set(['wrath', 'lust', 'sloth', 'gluttony', 'gloom', 'pride', 'envy']);
 const skills = catalog.list();
-assert.equal(skills.length, 72);
+assert.equal(skills.length, 216);
 assert.deepEqual(catalog.STATUS_ORDER, statuses);
-assert.equal(catalog.version, '1.1.0');
+assert.deepEqual(catalog.DAMAGE_ORDER, damages);
+assert.equal(catalog.version, '1.2.0');
 assert.equal(rupture.DEFINITION.mode, 'double');
 assert.equal(rupture.DEFINITION.rules[0].trigger, 'getting_hit');
 assert.equal(globalThis.STATUS_REGISTRY.rupture.mode, 'double');
 
+for (const damageId of damages) {
+  const group = catalog.byDamage(damageId);
+  assert.equal(group.length, 72, `${damageId} must have exactly 72 starter Skills across all Status families`);
+  assert.ok(group.every((skill) => skill.damageType === expectedDamageTypes[damageId]));
+}
+
 for (const statusId of statuses) {
   const group = catalog.byStatus(statusId);
-  assert.equal(group.length, 12, `${statusId} must have exactly 12 starter Skills`);
-  assert.deepEqual(group.map((skill) => skill.coinAmount).sort((a, b) => a - b), [1,1,1,1,2,2,2,2,3,3,3,3]);
-  assert.deepEqual(group.map((skill) => skill.coinPower).sort((a, b) => b - a), [6,6,6,6,4,4,4,4,3,3,3,3]);
+  assert.equal(group.length, 36, `${statusId} must have exactly 36 starter Skills`);
   assert.deepEqual(catalog.STATUS_CONFIG[statusId].sins, expectedSins[statusId]);
 
-  const sinCounts = Object.fromEntries(expectedSins[statusId].map((sin) => [sin, 0]));
-  for (const skill of group) {
-    assert.ok(Object.prototype.hasOwnProperty.call(sinCounts, skill.sinAffinity), `${skill.id} has unexpected Sin ${skill.sinAffinity}`);
-    sinCounts[skill.sinAffinity] += 1;
+  const familySinCounts = Object.fromEntries(expectedSins[statusId].map((sin) => [sin, 0]));
+  for (const skill of group) familySinCounts[skill.sinAffinity] += 1;
+  assert.deepEqual(Object.values(familySinCounts), [12, 12, 12], `${statusId} must distribute its three Sins 12/12/12 across 36 Skills`);
+
+  for (const damageId of damages) {
+    const damageGroup = group.filter((skill) => skill.metadata?.damageFamily === damageId);
+    assert.equal(damageGroup.length, 12, `${statusId}/${damageId} must have exactly 12 Skills`);
+    assert.ok(damageGroup.every((skill) => skill.damageType === expectedDamageTypes[damageId]));
+    assert.deepEqual(damageGroup.map((skill) => skill.coinAmount).sort((a, b) => a - b), [1,1,1,1,2,2,2,2,3,3,3,3]);
+    assert.deepEqual(damageGroup.map((skill) => skill.coinPower).sort((a, b) => b - a), [6,6,6,6,4,4,4,4,3,3,3,3]);
+
+    const sinCounts = Object.fromEntries(expectedSins[statusId].map((sin) => [sin, 0]));
+    for (const skill of damageGroup) {
+      assert.ok(Object.prototype.hasOwnProperty.call(sinCounts, skill.sinAffinity), `${skill.id} has unexpected Sin ${skill.sinAffinity}`);
+      sinCounts[skill.sinAffinity] += 1;
+    }
+    assert.deepEqual(Object.values(sinCounts), [4, 4, 4], `${statusId}/${damageId} must distribute its three Sins 4/4/4`);
   }
-  assert.deepEqual(Object.values(sinCounts), [4, 4, 4], `${statusId} must distribute its three Sins 4/4/4`);
 }
 
 const ids = new Set();
+let legacyIdCount = 0;
 for (const skill of skills) {
   assert.ok(skill.id && !ids.has(skill.id), `duplicate or empty id: ${skill.id}`);
   ids.add(skill.id);
@@ -54,6 +74,9 @@ for (const skill of skills) {
   assert.equal(skill.metadata?.buildEntry, true);
   assert.equal(skill.metadata?.rulesPolicy, 'apply_only');
   assert.equal(skill.metadata?.combatRange, 'melee');
+  assert.ok(damages.includes(skill.metadata?.damageFamily), `${skill.id} must identify a physical damage family`);
+  assert.equal(skill.damageType, expectedDamageTypes[skill.metadata.damageFamily]);
+  if (skill.metadata?.legacyStarterId) legacyIdCount += 1;
   assert.ok(validSins.has(skill.sinAffinity), `${skill.id} must use a canonical Sin affinity`);
   assert.notEqual(skill.sinAffinity, 'sinless');
   assert.equal(skill.attackWeight, 1);
@@ -109,8 +132,10 @@ for (const skill of skills) {
   assert.ok(count >= 1 && count <= 2, `${skill.id} count package out of starter range`);
 }
 
+assert.equal(legacyIdCount, 72, 'the original 72 starter IDs must remain preserved');
+
 const payload = catalog.firebasePayload(schema);
-assert.equal(Object.keys(payload).length, 72);
+assert.equal(Object.keys(payload).length, 216);
 assert.ok(payload[skills[0].id].schemaVersion === 2);
 assert.equal(payload[skills[0].id].range, 1);
 assert.equal(payload[skills[0].id].affinity, skills[0].sinAffinity);
