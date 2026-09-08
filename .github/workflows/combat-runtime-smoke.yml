@@ -26,6 +26,8 @@ jobs:
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: G1-G2 Skill Forge smoke
         run: node tests/skill-forge-g2-smoke.mjs
+      - name: G1-G2 Skill Forge runtime smoke
+        run: node tests/skill-forge-runtime-g2-smoke.mjs
       - name: Team action economy smoke
         run: node tests/team-action-economy-smoke.mjs
       - name: CombatAction schema smoke
@@ -55,5 +57,6 @@ jobs:
           node --check js/status-rupture-runtime.js
           node --check js/skill-catalog-starter-status-tier1.js
           node --check js/skill-forge-g2.js
+          node --check js/skill-forge-runtime-g2.js
       - name: Battle Viewer 0.7.4 DM console smoke
         run: node tests/combat-v074-dm-console-smoke.mjs
