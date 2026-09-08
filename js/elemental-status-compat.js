@@ -4,6 +4,7 @@
   if (global.LuminousElementalStatusCompatibility) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const state = {
     units: [],
     lastCombatState: null,
@@ -28,6 +29,47 @@
       global.LuminousStatusLibrary?.installStatusEngineBridge?.();
     }, { once:true });
     doc.head?.appendChild(script);
+    return true;
+  }
+
+  function patchDefinitionAuthorities() {
+    const library = global.LuminousStatusLibrary;
+    if (!library) return false;
+
+    const conditions = global.LuminousConditionRuntime;
+    if (conditions && !conditions.__canonicalStatusLibraryDefinitions) {
+      const definitions = Object.freeze(Object.fromEntries(
+        (library.conditionIds || []).map((id) => [id, library.get(id)]).filter((entry) => Boolean(entry[1]))
+      ));
+      const icons = Object.freeze(Object.fromEntries(
+        Object.entries(definitions).map(([id, definition]) => [id, definition.icon || null])
+      ));
+      global.LuminousConditionRuntime = Object.freeze({
+        ...conditions,
+        __canonicalStatusLibraryDefinitions:true,
+        ICONS:icons,
+        DEFINITIONS:definitions,
+        getDefinition(statusId) {
+          const definition = library.get(statusId);
+          return definition && library.conditionIds.includes(library.resolveId(statusId)) ? clone(definition) : null;
+        },
+        installRegistry() { return library.install(); },
+      });
+    }
+
+    const elemental = global.LuminousElementalStatusRuntime;
+    if (elemental && !elemental.__canonicalStatusLibraryDefinitions) {
+      const elementalIds = ['burn','tremor','sinking','paralyze','chill','frozen','shock','corrosion','poison','decay','radiance'];
+      const definitions = Object.freeze(Object.fromEntries(
+        elementalIds.map((id) => [id, library.get(id)]).filter((entry) => Boolean(entry[1]))
+      ));
+      global.LuminousElementalStatusRuntime = Object.freeze({
+        ...elemental,
+        __canonicalStatusLibraryDefinitions:true,
+        STATUS_DEFINITIONS:definitions,
+        registerStatuses() { return library.install(); },
+      });
+    }
     return true;
   }
 
@@ -66,7 +108,7 @@
             removed: false,
             protected: true,
             statusId: id,
-            protection: protectionCheck.protection ? JSON.parse(JSON.stringify(protectionCheck.protection)) : null,
+            protection: protectionCheck.protection ? clone(protectionCheck.protection) : null,
           };
         }
         return source.removeStatus(unit, id, options);
@@ -160,6 +202,7 @@
     ensureStatusLibrary();
     global.LuminousStatusLibrary?.install?.();
     global.LuminousStatusLibrary?.installStatusEngineBridge?.();
+    patchDefinitionAuthorities();
     patchStatusProtection();
     patchEncounterLifecycle();
     observeEncounterState();
@@ -168,6 +211,7 @@
 
   const api = Object.freeze({
     ensureStatusLibrary,
+    patchDefinitionAuthorities,
     protectionFor,
     isRemovalBlocked,
     patchStatusProtection,
