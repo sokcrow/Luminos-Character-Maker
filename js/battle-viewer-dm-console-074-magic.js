@@ -29,6 +29,11 @@
     return key && combatants?.[key] ? { key, unit: combatants[key] } : null;
   }
 
+  function canonicalUnitId(found) {
+    const api = consoleApi();
+    return api?.identityValues?.(found?.unit || {})?.[0] || found?.key || null;
+  }
+
   function activeConcentration(unit) {
     return conditionRuntime()?.getConcentration?.(unit) || (unit?.concentration?.active ? unit.concentration : null);
   }
@@ -42,7 +47,7 @@
       concentrationId: options.concentrationId || undefined,
       source: options.source || "dm_console",
     });
-    return { unitId: found.key, concentration };
+    return { unitId: found.key, canonicalUnitId: canonicalUnitId(found), concentration };
   }
 
   function magicSourceContext(combatants, sourceUnitId) {
@@ -52,7 +57,7 @@
     if (!concentration?.active || !concentration.id) {
       throw new Error(`${entityLabel(found.key, found.unit)} is not Concentrating. Start Concentration first.`);
     }
-    return { ...found, concentration };
+    return { ...found, canonicalUnitId: canonicalUnitId(found), concentration };
   }
 
   function magicConditionInput(combatants, sourceUnitId, input = {}) {
@@ -60,10 +65,27 @@
     return {
       ...input,
       sourceType: "magic",
-      sourceUnitId: source.key,
+      sourceUnitId: source.canonicalUnitId,
       removalMode: "concentration",
       concentrationId: source.concentration.id,
     };
+  }
+
+  function surfaceError(error, source = "magic_condition") {
+    console.error("[DM Magic 0.7.4]", error);
+    const doc = global.document;
+    const terminal = doc?.getElementById?.("combat-log-terminal");
+    if (terminal) {
+      const line = doc.createElement("div");
+      line.className = "log-entry interrupt";
+      line.textContent = `> [ DM 0.7.4 ] ERROR · ${error?.message || error}`;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+    try {
+      if (typeof global.CustomEvent === "function") global.dispatchEvent?.(new global.CustomEvent("luminous:dm-console-error", { detail: { error, source } }));
+    } catch (_) {}
+    return false;
   }
 
   function replaceSourceInput(panel) {
@@ -138,10 +160,7 @@
         const entry = api.applyStatusToUnit(unit, id, input);
         if (!entry) throw new Error(`${id} was rejected by its application rules or immunity gate.`);
         return { id, sourceType, sourceUnitId: input.sourceUnitId || null, concentrationId: input.concentrationId || null, entry };
-      }, { type: "apply_status", label: "APPLY STATUS" }).catch((error) => {
-        console.error("[DM Magic 0.7.4]", error);
-        global.dispatchEvent?.(new CustomEvent("luminous:dm-console-error", { detail: { error, source: "magic_condition" } }));
-      });
+      }, { type: "apply_status", label: "APPLY STATUS" }).catch((error) => surfaceError(error, "magic_condition"));
     };
     return true;
   }
@@ -156,7 +175,7 @@
     }).then(() => {
       const select = panel.querySelector("#dm074-source-unit");
       populateSourceSelect(select);
-    }).catch((error) => console.error("[DM Magic 0.7.4]", error));
+    }).catch((error) => surfaceError(error, "start_concentration"));
     return true;
   }
 
@@ -182,11 +201,13 @@
   const api = Object.freeze({
     version: VERSION,
     findCombatant,
+    canonicalUnitId,
     activeConcentration,
     startConcentration,
     magicSourceContext,
     magicConditionInput,
     populateSourceSelect,
+    surfaceError,
     patchUi,
     install,
   });
