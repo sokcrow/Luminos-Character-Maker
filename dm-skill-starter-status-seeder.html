@@ -11,8 +11,8 @@
 <div class="wrap"><div class="panel">
 <h1>Tier 1 · Starter Status Skills</h1>
 <p>Catálogo melee de entrada para Burn, Rupture, Sinking, Tremor, Poise y Bleed. Son 216 Skills Tier 1: <strong>36 por Status</strong>, con <strong>12 Slash + 12 Pierce + 12 Blunt</strong> en cada familia. Todas mantienen política <code>apply_only</code>, Range 1 y Final Power 10–13.</p>
-<div class="toolbar"><button class="btn primary" id="sync">SINCRONIZAR 216 SKILLS</button><button class="btn" id="refresh">REVISAR CATÁLOGO</button><span>Destino: <code>campaña/base_datos_skills</code></span></div>
-<div id="status" class="status">Cargando catálogo…</div><div id="summary" class="summary"></div><div id="groups" class="groups"></div>
+<div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR 216 SKILLS</button><button class="btn" id="refresh">REVISAR CATÁLOGO</button><span>Destino: <code>campaña/base_datos_skills</code></span></div>
+<div id="status" class="status">Cargando catálogo y verificando sesión DM…</div><div id="summary" class="summary"></div><div id="groups" class="groups"></div>
 <p>La sincronización usa <code>update()</code>: no borra Skills ajenas al catálogo. Los 72 IDs originales se conservan para sus variantes de daño originales; las 144 variantes nuevas usan IDs adicionales.</p>
 </div></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -22,6 +22,7 @@
 <script src="js/status-rupture-runtime.js"></script>
 <script src="js/combat-skill-schema.js"></script>
 <script src="js/skill-catalog-starter-status-tier1.js"></script>
+<script src="js/battle-viewer-firebase-session-074.js"></script>
 <script>
 (function(){
 'use strict';
@@ -31,8 +32,10 @@ const db=firebase.database();
 const PATH='campaña/base_datos_skills';
 const catalog=window.LuminousStarterStatusSkillCatalog;
 const schema=window.CombatSkillSchema;
+const session=window.LuminousBattleViewerFirebaseSession074;
 const $=id=>document.getElementById(id);
 const damageLabels={slash:'SLASH',pierce:'PIERCE',blunt:'BLUNT'};
+let dmReady=false;
 function setStatus(text,kind){$('status').textContent=text;$('status').className='status'+(kind?' '+kind:'')}
 function render(){
  if(!catalog||!schema){setStatus('Falta CombatSkillSchema o LuminousStarterStatusSkillCatalog.','bad');return false}
@@ -48,16 +51,28 @@ function render(){
  }).join('');
  const invalid=skills.map(s=>[s,schema.validateCombatSkill(s)]).filter(([,v])=>!v.valid);
  if(invalid.length){setStatus(`Catálogo inválido: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`,'bad');return false}
- setStatus(`Catálogo válido: ${skills.length} Skills · 36 por Status · 12 por Damage Type · Tier 1 · melee · apply_only.`,'ok');return true;
+ setStatus(`Catálogo válido: ${skills.length} Skills · versión ${catalog.version} · 36 por Status · 12 por Damage Type · Tier 1 · melee · apply_only.`,'ok');return true;
+}
+async function authorize(){
+ $('sync').disabled=true;dmReady=false;
+ if(!session?.preflight){setStatus('Falta el preflight Firebase 0.7.4.','bad');return false}
+ try{
+   const result=await session.preflight({firebase});
+   if(!result?.ok){setStatus(`Firebase bloqueado: ${result?.reason||'FIREBASE_SESSION_FAILED'}.`,'bad');return false}
+   if(result.role!=='dm'){setStatus(`Sesión válida pero sin autoridad DM (${result.role||'unknown'}).`,'bad');return false}
+   dmReady=true;$('sync').disabled=false;
+   setStatus(`DM autorizado · ${result.uid} · catálogo ${catalog.version} listo para sincronizar ${catalog.list().length} Skills.`,'ok');return true;
+ }catch(error){console.error(error);setStatus(`No se pudo validar la sesión DM: ${error.message||error}`,'bad');return false}
 }
 async function sync(){
+ if(!dmReady){setStatus('Sincronización bloqueada: primero debe validarse una sesión DM.','bad');return}
  if(!render())return;
  const button=$('sync');button.disabled=true;
- try{const payload=catalog.firebasePayload(schema);await db.ref(PATH).update(payload);setStatus(`Sincronización completa: ${Object.keys(payload).length} Skills escritas/actualizadas en ${PATH}.`,'ok')}
+ try{const payload=catalog.firebasePayload(schema);if(Object.keys(payload).length!==216)throw new Error(`Payload inesperado: ${Object.keys(payload).length} Skills`);await db.ref(PATH).update(payload);setStatus(`Sincronización completa: ${Object.keys(payload).length} Skills escritas/actualizadas en ${PATH}.`,'ok')}
  catch(error){console.error(error);setStatus(`No se pudo sincronizar: ${error.message||error}`,'bad')}
- finally{button.disabled=false}
+ finally{button.disabled=!dmReady}
 }
-$('sync').addEventListener('click',sync);$('refresh').addEventListener('click',render);render();
+$('sync').addEventListener('click',sync);$('refresh').addEventListener('click',()=>{render();authorize()});render();authorize();
 })();
 </script>
 </body>
