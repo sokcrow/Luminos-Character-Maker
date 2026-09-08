@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const ownership = require('../js/battle-viewer-ownership-074.js');
+const loadedOwnership = require('../js/battle-viewer-ownership-074.js');
+const ownership = loadedOwnership?.version === '0.7.4' ? loadedOwnership : globalThis.LuminousBattleViewerOwnership074;
 
 assert.equal(ownership.version, '0.7.4');
 assert.equal(ownership.canonicalCombatantIdForPlayer('player_a'), 'player:player_a');
