@@ -134,6 +134,13 @@ assert.ok(planned?.['.validate']?.includes('equippedSkillIndex'), 'Player Skills
 assert.ok(planned?.['.validate']?.includes('spellSelections'), 'Player Spells must stay selection-authorized');
 assert.ok(campaign?.combate?.['$other']?.['.write']?.includes("child('dm_uid')"), 'DM combat state writes must use configured DM');
 
+const firebaseRc = JSON.parse(fs.readFileSync(new URL('../.firebaserc', import.meta.url), 'utf8'));
+assert.equal(firebaseRc.projects?.default, 'luminous-system', 'Firebase CLI must target the production Luminous project');
+const firebaseJson = JSON.parse(fs.readFileSync(new URL('../firebase.json', import.meta.url), 'utf8'));
+assert.equal(firebaseJson.database?.rules, 'database.rules.json', 'Firebase deploy must publish the reviewed Realtime Database rules file');
+const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.equal(packageJson.scripts?.['firebase:deploy:rules'], 'npx firebase-tools deploy --only database --project luminous-system');
+
 const runtimeSource = fs.readFileSync(new URL('../js/battle-viewer-runtime-074.js', import.meta.url), 'utf8');
 assert.match(runtimeSource, /initializeConfiguredDmConsole/);
 assert.match(runtimeSource, /result\.uid === dmConsole\.DM_UID/);
