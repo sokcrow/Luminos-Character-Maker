@@ -23,6 +23,8 @@
     ["rupture-status-runtime-script", "js/status-rupture-runtime.js", "LuminousRuptureStatusRuntime"],
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
+    ["battle-viewer-spell-adapter-074-script", "js/battle-viewer-spell-adapter-074.js", "LuminousBattleViewerSpellAdapter074"],
+    ["battle-viewer-spell-runtime-074-script", "js/battle-viewer-spell-runtime-074.js", "LuminousBattleViewerSpellRuntime074"],
     ["vtt-actor-library-script", "js/vtt/actor-library.js", "LuminousVttActorLibrary"],
     ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
     ["battle-viewer-player-skill-planner-074-script", "js/battle-viewer-player-skill-planner-074.js", "LuminousBattleViewerPlayerSkillPlanner074"],
@@ -38,15 +40,8 @@
     return new Promise((resolve) => {
       const startedAt = Date.now();
       const timer = global.setInterval(() => {
-        if (global[globalName]) {
-          global.clearInterval(timer);
-          resolve(global[globalName]);
-          return;
-        }
-        if (Date.now() - startedAt >= timeoutMs) {
-          global.clearInterval(timer);
-          resolve(null);
-        }
+        if (global[globalName]) { global.clearInterval(timer); resolve(global[globalName]); return; }
+        if (Date.now() - startedAt >= timeoutMs) { global.clearInterval(timer); resolve(null); }
       }, WAIT_INTERVAL_MS);
     });
   }
@@ -56,19 +51,11 @@
     if (!global.document) return Promise.resolve(null);
     let script = global.document.getElementById(id);
     if (!script) {
-      script = global.document.createElement("script");
-      script.id = id;
-      script.src = src;
-      script.async = false;
-      global.document.head?.appendChild(script);
+      script = global.document.createElement("script"); script.id = id; script.src = src; script.async = false; global.document.head?.appendChild(script);
     }
     return new Promise((resolve) => {
       let settled = false;
-      const finish = (value) => {
-        if (settled) return;
-        settled = true;
-        resolve(value || null);
-      };
+      const finish = (value) => { if (settled) return; settled = true; resolve(value || null); };
       if (global[globalName]) return finish(global[globalName]);
       script.addEventListener("error", () => finish(null), { once: true });
       waitForGlobal(globalName).then(finish);
@@ -79,6 +66,8 @@
     const core = global.LuminousBattleViewerRuntime073 || {};
     const skillLoadout = global.LuminousCombatSkillLoadout074 || null;
     const spellLoadout = global.LuminousCombatSpellLoadout074 || null;
+    const spellAdapter = global.LuminousBattleViewerSpellAdapter074 || null;
+    const spellRuntime = global.LuminousBattleViewerSpellRuntime074 || null;
     const ownership = global.LuminousBattleViewerOwnership074 || null;
     const playerSkillPlanner = global.LuminousBattleViewerPlayerSkillPlanner074 || null;
     const playerSpellPlanner = global.LuminousBattleViewerPlayerSpellPlanner074 || null;
@@ -88,24 +77,15 @@
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
     const api = Object.freeze({
-      ...core,
-      version: VERSION,
-      rulesVersion: core.version || "0.7.3",
-      skillLoadout,
-      spellLoadout,
-      ownership,
-      playerSkillPlanner,
-      playerSpellPlanner,
-      dmConsole,
-      playerEntry,
-      dmMagic,
-      ruptureStatus,
-      skillForge,
-      install,
+      ...core, version: VERSION, rulesVersion: core.version || "0.7.3",
+      skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership, playerSkillPlanner, playerSpellPlanner,
+      dmConsole, playerEntry, dmMagic, ruptureStatus, skillForge, install,
     });
     global.LuminousBattleViewerRuntime074 = api;
     skillLoadout?.init?.();
     ruptureStatus?.install?.();
+    spellAdapter?.install?.();
+    spellRuntime?.install?.();
     ownership?.install?.();
     playerSkillPlanner?.init?.();
     playerSpellPlanner?.init?.();
@@ -126,6 +106,8 @@
       && global.LuminousRuptureStatusRuntime
       && global.LuminousSkillForgeG2
       && global.LuminousBattleViewerRuntime073
+      && global.LuminousBattleViewerSpellAdapter074
+      && global.LuminousBattleViewerSpellRuntime074
       && global.LuminousVttActorLibrary
       && global.LuminousBattleViewerOwnership074
       && global.LuminousBattleViewerPlayerSkillPlanner074
@@ -148,6 +130,8 @@
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerSpellAdapter074) require("./battle-viewer-spell-adapter-074.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerSpellRuntime074) require("./battle-viewer-spell-runtime-074.js"); } catch (_) {}
     try { if (!global.LuminousVttActorLibrary) require("./vtt/actor-library.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerSkillPlanner074) require("./battle-viewer-player-skill-planner-074.js"); } catch (_) {}
