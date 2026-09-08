@@ -6,6 +6,7 @@ on:
       - feature/combat-runtime-integration
       - feature/combat-deck-engine
       - feature/battle-viewer-0.7.3-engine-migration
+      - hotfix/unified-status-library
   pull_request:
     branches:
       - main
@@ -24,6 +25,8 @@ jobs:
         run: node tests/combat-skill-schema-smoke.mjs
       - name: Unbreakable Red Coin smoke
         run: node tests/unbreakable-red-coin-smoke.mjs
+      - name: Unified canonical Status Library smoke
+        run: node tests/combat-v074-unified-status-library-smoke.mjs
       - name: Starter Tier 1 status skill catalog smoke
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: G1-G2 Skill Forge smoke
@@ -56,6 +59,8 @@ jobs:
         run: node tests/vtt-actor-library-units-smoke.mjs
       - name: Battle Viewer 0.7.4 module syntax
         run: |
+          node --check js/status-library.js
+          node --check js/statusManager.js
           node --check js/battle-viewer-action-adapter-073.js
           node --check js/battle-viewer-firebase-session-074.js
           node --check js/combat-skill-loadout-074.js
