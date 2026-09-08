@@ -61,8 +61,10 @@
   }
 
   function itemName(item = {}) {
+    const explicit = item.displayName || item.nombre || item.name;
+    if (explicit) return String(explicit).trim();
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return String(resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || "ITEM").trim();
+    return String(resolved?.displayName || resolved?.nombre || resolved?.name || item.definitionId || item.id || "ITEM").trim();
   }
 
   function itemCategory(item = {}) {
@@ -118,16 +120,22 @@
   }
 
   function itemIcon(item = {}) {
+    const explicit = item.icono || item.icon || item.image || item.img;
+    if (explicit) return String(explicit).trim();
     const resolved = runtime()?.resolveItem?.(item) || item;
     return String(resolved.icono || resolved.icon || resolved.image || resolved.img || "").trim();
   }
 
   function itemDescription(item = {}) {
+    const explicit = item.descripcion || item.description || item.desc;
+    if (explicit) return String(explicit);
     const resolved = runtime()?.resolveItem?.(item) || item;
     return String(resolved.descripcion || resolved.description || resolved.desc || "Sin descripción.");
   }
 
   function itemValue(item = {}) {
+    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio;
+    if (explicit != null) return Number(explicit) || 0;
     const resolved = runtime()?.resolveItem?.(item) || item;
     return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? 0) || 0;
   }
@@ -478,7 +486,6 @@
     }
     card.classList.add("active");
 
-    const resolved = runtime()?.resolveItem?.(item) || item;
     const quality = Number(item.qualityTier ?? item.quality ?? 1);
     const condition = runtime()?.getCondition?.(item);
     const conditionPercent = condition?.percent ?? Math.max(0, Math.min(100, Math.round((Number(item.condition ?? 100) / Math.max(1, Number(item.conditionMax ?? 100))) * 100)));
@@ -496,7 +503,7 @@
     const cost = doc.getElementById("detail-cost-val");
     if (cost) cost.textContent = String(itemValue(item));
     const title = doc.getElementById("detail-title");
-    if (title) title.textContent = resolved.displayName || itemName(item);
+    if (title) title.textContent = itemName(item);
     const desc = doc.getElementById("detail-desc");
     if (desc) desc.textContent = itemDescription(item);
     const tagsHost = doc.getElementById("detail-tags-val");
