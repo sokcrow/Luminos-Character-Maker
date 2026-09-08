@@ -69,11 +69,11 @@ globalThis.CombatEngine = {
 require('../js/elemental-status-runtime.js');
 require('../js/core-condition-runtime.js');
 require('../js/core-condition-combat-bridge.js');
-require('../js/battle-viewer-runtime-073.js');
+const requiredBattleViewer = require('../js/battle-viewer-runtime-073.js');
 
 const E = globalThis.LuminousElementalStatusRuntime;
 const C = globalThis.LuminousConditionRuntime;
-const B = globalThis.LuminousBattleViewerRuntime073;
+const B = requiredBattleViewer?.version === '0.7.3' ? requiredBattleViewer : globalThis.LuminousBattleViewerRuntime073;
 assert.equal(E.version, '0.7.3');
 assert.equal(C.version, '0.7.3');
 assert.equal(E.ELEMENT_TO_STATUS.force, null);
