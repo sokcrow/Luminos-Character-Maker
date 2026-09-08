@@ -14,6 +14,7 @@
   const WAIT_INTERVAL_MS = 25;
   const scripts = [
     ["rupture-status-runtime-script", "js/status-rupture-runtime.js", "LuminousRuptureStatusRuntime"],
+    ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
@@ -67,6 +68,7 @@
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
     const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
+    const skillForge = global.LuminousSkillForgeG2 || null;
     const api = Object.freeze({
       ...core,
       version: VERSION,
@@ -74,6 +76,7 @@
       dmConsole,
       dmMagic,
       ruptureStatus,
+      skillForge,
       install,
     });
     global.LuminousBattleViewerRuntime074 = api;
@@ -84,20 +87,19 @@
   }
 
   function install() {
-    if (global.LuminousRuptureStatusRuntime && global.LuminousBattleViewerRuntime073 && global.LuminousBattleViewerDmConsole074 && global.LuminousBattleViewerDmMagic074) return Promise.resolve(buildApi());
+    if (global.LuminousRuptureStatusRuntime && global.LuminousSkillForgeG2 && global.LuminousBattleViewerRuntime073 && global.LuminousBattleViewerDmConsole074 && global.LuminousBattleViewerDmMagic074) return Promise.resolve(buildApi());
     return Promise.all(scripts.map(([id, src, name]) => loadScript(id, src, name))).then(() => buildApi());
   }
 
   if (IS_COMMONJS) {
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
     const api = buildApi();
     module.exports = api;
   } else if (!HAS_DOCUMENT) {
-    // Node ESM: dependency modules are imported by the harness before this aggregate.
-    // Build synchronously so the global API is available immediately after import().
     buildApi();
   } else {
     install();
