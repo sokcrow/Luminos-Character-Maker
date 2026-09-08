@@ -23,11 +23,13 @@
     return 'npc';
   }
 
-  // Canonical tactical image: the Actor Studio `icono` field only.
-  // Player records, Theatre sprites/portraits and generic image fields are not
-  // valid tactical token sources.
+  // Canonical tactical image for Actor Studio records is `icono` only.
   function imageFor(data = {}) {
     return clean(data?.icono || '');
+  }
+
+  function unitImageFor(data = {}) {
+    return clean(data?.icono || data?.visual?.spriteUrl || data?.sprite || data?.image || '');
   }
 
   function actorIdentity(scope, id, data = {}) {
@@ -45,12 +47,18 @@
     return null;
   }
 
+  function skillIdsFor(scope, data = {}) {
+    if (scope !== 'units') return [];
+    const raw = data.action_slots || data.skillIds || data.skill_ids || data.mechanics?.skills || [];
+    return Array.isArray(raw) ? [...new Set(raw.map(clean).filter(Boolean))] : [];
+  }
+
   function normalizeActor(scope, id, data = {}) {
     const linkedActorId = actorIdentity(scope, id, data);
     const actorId = linkedActorId || clean(data.id || data.uid || id) || safeKey(id);
     const category = categoryFor(scope, data);
     const name = displayName(data, actorId);
-    const tokenImage = imageFor(data);
+    const tokenImage = scope === 'units' ? unitImageFor(data) : imageFor(data);
     return {
       key: `${scope}:${safeKey(id || actorId)}`,
       scope,
@@ -72,6 +80,7 @@
       speedFt: finite(data.speedFt ?? data.speed?.walk ?? data.speed?.walking ?? data.velocidad, 30),
       movement: clone(data.movement || data.movimiento || null),
       senses: clone(data.senses || data.sentidos || null),
+      skillIds: skillIdsFor(scope, data),
       raw: clone(data),
     };
   }
@@ -178,9 +187,10 @@
       speedFt: actor.speedFt || 30,
       movement: clone(actor.movement),
       senses: clone(actor.senses),
+      skillIds: clone(actor.skillIds || []),
       draggable: true,
     };
   }
 
-  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
+  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, unitImageFor, skillIdsFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
 });
