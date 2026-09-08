@@ -18,10 +18,12 @@
   const SCHEMA_VERSION = 2;
   const LEGACY_HUD_FIELDS = Object.freeze([
     "nombre", "name", "displayName", "tipo_categoria", "category", "itemType", "type",
-    "tags", "tag", "keywords", "limite_activo", "limite_alijo", "precio", "price", "cost",
-    "tier", "tierRoman", "icon", "imagen", "image", "description", "descripcion",
+    "tags", "tag", "keywords", "cantidad", "qty", "stack", "count",
+    "limite_activo", "limite_alijo", "precio", "price", "cost", "valorBase", "costo",
+    "tier", "tierRoman", "icon", "icono", "imagen", "image", "description", "descripcion", "desc",
     "weapon_details", "armor_details", "shield_details", "accessory_details", "consumable_details",
-    "upgrade_details", "runtime", "function", "functions", "carga_actual", "carga_maxima",
+    "upgrade_details", "runtime", "function", "functions", "carga_actual", "carga_max", "carga_maxima",
+    "vinculo_item", "vinculo_cantidad", "vinculo_stacks_max",
   ]);
 
   function emit(name, detail) {
@@ -48,6 +50,46 @@
     return target;
   }
 
+  function normalizeLegacyRuntimeFields(item = {}) {
+    const normalized = clone(item) || {};
+    if (normalized.quantity == null && normalized.cantidad != null) normalized.quantity = normalized.cantidad;
+    if (normalized.chargesCurrent == null && normalized.carga_actual != null) normalized.chargesCurrent = normalized.carga_actual;
+    if (normalized.chargesMax == null) {
+      normalized.chargesMax = normalized.carga_maxima ?? normalized.carga_max ?? normalized.vinculo_stacks_max ?? null;
+    }
+    if (!normalized.rechargeRule && normalized.vinculo_item) {
+      normalized.rechargeRule = {
+        trigger: "manual_resource",
+        resourceDefinitionId: normalized.vinculo_item,
+        resourceAmount: Math.max(1, intOr(normalized.vinculo_cantidad, 1)),
+        amount: 1,
+      };
+    }
+    return normalized;
+  }
+
+  function syncLegacyRuntimeMirrors(serialized, source = {}) {
+    if (!serialized || typeof serialized !== "object") return serialized;
+    if (serialized.quantity != null) serialized.cantidad = Math.max(0, intOr(serialized.quantity, 0));
+    if (serialized.chargesCurrent != null) serialized.carga_actual = Math.max(0, intOr(serialized.chargesCurrent, 0));
+    if (serialized.chargesMax != null) {
+      const max = Math.max(0, intOr(serialized.chargesMax, 0));
+      serialized.carga_max = max;
+      serialized.carga_maxima = max;
+      if (serialized.vinculo_stacks_max == null) serialized.vinculo_stacks_max = max;
+    }
+    const rule = serialized.rechargeRule;
+    if (rule && typeof rule === "object") {
+      const resource = rule.resourceDefinitionId || rule.resourceId || null;
+      if (resource && serialized.vinculo_item == null) serialized.vinculo_item = String(resource);
+      if (resource && serialized.vinculo_cantidad == null) {
+        serialized.vinculo_cantidad = Math.max(1, intOr(rule.resourceAmount ?? rule.resourceCost ?? rule.amount, 1));
+      }
+    }
+    if (serialized.nombre == null && source.nombre != null) serialized.nombre = clone(source.nombre);
+    return serialized;
+  }
+
   function serializeContainer(container) {
     const runtime = inventory();
     const out = {};
@@ -55,6 +97,7 @@
       if (!item || typeof item !== "object") return;
       const serialized = runtime?.serializeItemInstance?.(item) || clone(item);
       preserveLegacyHudFields(serialized, item);
+      syncLegacyRuntimeMirrors(serialized, item);
       const instanceId = String(serialized.instanceId || key);
       serialized.instanceId = instanceId;
       out[instanceId] = serialized;
@@ -93,10 +136,12 @@
     const out = {};
     objectEntries(raw).forEach(([key, item]) => {
       if (!item || typeof item !== "object") return;
-      const instance = intOr(item.schemaVersion, 0) >= SCHEMA_VERSION && item.instanceId && item.definitionId
-        ? (runtime?.deserializeItemInstance?.(item, options) || clone(item))
-        : (runtime?.migrateLegacyItem?.(item, key, options) || clone(item));
+      const normalized = normalizeLegacyRuntimeFields(item);
+      const instance = intOr(normalized.schemaVersion, 0) >= SCHEMA_VERSION && normalized.instanceId && normalized.definitionId
+        ? (runtime?.deserializeItemInstance?.(normalized, options) || clone(normalized))
+        : (runtime?.migrateLegacyItem?.(normalized, key, options) || clone(normalized));
       preserveLegacyHudFields(instance, item);
+      syncLegacyRuntimeMirrors(instance, item);
       const instanceId = String(instance.instanceId || key);
       instance.instanceId = instanceId;
       out[instanceId] = instance;
@@ -301,10 +346,12 @@
   }
 
   const api = Object.freeze({
-    version: 1,
+    version: 2,
     schemaVersion: SCHEMA_VERSION,
     LEGACY_HUD_FIELDS,
     preserveLegacyHudFields,
+    normalizeLegacyRuntimeFields,
+    syncLegacyRuntimeMirrors,
     serializeContainer,
     serializeInventoryState,
     deserializeInventoryState,

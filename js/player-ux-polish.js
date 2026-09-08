@@ -54,6 +54,7 @@
       await ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js", "LuminousAnatomyEquipmentEngine");
       await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
       await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
+      await ensureScript("workshop-runtime-script", "js/workshop-runtime.js", "LuminousWorkshopRuntime");
       await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
       await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
       await ensureScript("item-augmentation-runtime-script", "js/item-augmentation-runtime.js", "LuminousItemAugmentationRuntime");

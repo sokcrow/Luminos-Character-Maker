@@ -1,0 +1,49 @@
+name: Inventory Runtime Validation
+
+on:
+  pull_request:
+    paths:
+      - hoja_personaje.js
+      - hoja_personaje.html
+      - pantalla_dm.html
+      - js/inventory-hud-v2.js
+      - js/dm-item-instance-editor.js
+      - js/dm-player-dnd-studio-hotfix.js
+      - js/item-equipment-bridge.js
+      - js/item-inventory-runtime.js
+      - js/item-persistence-runtime.js
+      - js/item-realtime-sync.js
+      - js/player-ux-polish.js
+      - css/inventory-hud-v2.css
+      - css/dm-item-instance-editor.css
+      - tests/inventory-runtime-cutover.spec.cjs
+      - tests/dm-item-instance-editor.spec.cjs
+      - .github/workflows/player-inventory-runtime-validation.yml
+  push:
+    branches:
+      - refactor/player-inventory-runtime-cutover
+
+jobs:
+  inventory-runtime-cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax validation
+        run: |
+          node --check hoja_personaje.js
+          node --check js/inventory-hud-v2.js
+          node --check js/dm-item-instance-editor.js
+          node --check js/dm-player-dnd-studio-hotfix.js
+          node --check js/item-inventory-runtime.js
+          node --check js/item-equipment-bridge.js
+          node --check js/item-persistence-runtime.js
+          node --check js/item-realtime-sync.js
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Inventory runtime ownership tests
+        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs --workers=1
