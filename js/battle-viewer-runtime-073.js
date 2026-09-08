@@ -1,6 +1,9 @@
 (function (global) {
   "use strict";
-  if (global.LuminousBattleViewerRuntime073) return;
+  if (global.LuminousBattleViewerRuntime073) {
+    if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousBattleViewerRuntime073;
+    return;
+  }
   const VERSION = "0.7.3";
   const scripts = [
     ["battle-viewer-runtime-073-forecast-script", "js/battle-viewer-runtime-073-forecast.js", "LuminousBattleViewerForecast073"],
@@ -28,10 +31,13 @@
     if (global.LuminousBattleViewerForecast073 && global.LuminousBattleViewerTimeline073) return Promise.resolve(buildApi());
     return Promise.all(scripts.map(([id, src, name]) => loadScript(id, src, name))).then(buildApi);
   }
-  if (typeof require === "function" && !global.document) {
+
+  const commonJs = typeof module !== "undefined" && module.exports && typeof require === "function";
+  if (commonJs) {
     try { if (!global.LuminousBattleViewerForecast073) require("./battle-viewer-runtime-073-forecast.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerTimeline073) require("./battle-viewer-runtime-073-timeline.js"); } catch (_) {}
-    buildApi();
+    const api = buildApi();
+    module.exports = api;
   } else {
     install(); global.addEventListener?.("load", install, { once: true });
   }
