@@ -20,6 +20,7 @@
   ];
 
   const runtimeScripts = [
+    ["battle-viewer-firebase-session-074-script", "js/battle-viewer-firebase-session-074.js", "LuminousBattleViewerFirebaseSession074"],
     ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
     ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
     ["combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js", "LuminousCombatSpellLoadout074"],
@@ -99,8 +100,67 @@
     for (const [id, src, name] of runtimeScripts) await loadScript(id, src, name);
   }
 
+  function emitBootstrapError(result = {}) {
+    const reason = result.reason || result.error?.code || "FIREBASE_SESSION_FAILED";
+    try {
+      if (typeof global.addLogEntry === "function") global.addLogEntry(`[ FIREBASE BLOCKED ] ${reason}`, "interrupt");
+      else global.console?.error?.(`[BattleViewer074] Firebase preflight blocked multiplayer UI: ${reason}`, result.error || "");
+    } catch (_) {}
+  }
+
+  function initializeSharedRuntime(parts = {}) {
+    parts.skillLoadout?.init?.();
+    parts.ruptureStatus?.install?.();
+    parts.spellAdapter?.install?.();
+    parts.spellRuntime?.install?.();
+    parts.ownership?.install?.();
+  }
+
+  function initializeRoleRuntime(parts = {}, sessionResult = null) {
+    const options = sessionResult?.ok ? { db: sessionResult.db, auth: sessionResult.auth } : {};
+    if (!HAS_DOCUMENT) {
+      parts.playerSkillPlanner?.init?.(options);
+      parts.playerSpellPlanner?.init?.(options);
+      parts.dmConsole?.init?.(options);
+      parts.playerEntry?.init?.(options);
+      parts.dmMagic?.install?.();
+      return Promise.resolve({ ok: true, role: "test" });
+    }
+
+    if (!parts.firebaseSession?.start) {
+      parts.playerSkillPlanner?.init?.(options);
+      parts.playerSpellPlanner?.init?.(options);
+      parts.dmConsole?.init?.(options);
+      parts.playerEntry?.init?.(options);
+      parts.dmMagic?.install?.();
+      return Promise.resolve({ ok: true, role: "legacy" });
+    }
+
+    return parts.firebaseSession.start().then((result) => {
+      if (!result?.ok) {
+        emitBootstrapError(result || {});
+        return result || { ok: false, reason: "FIREBASE_SESSION_FAILED" };
+      }
+      const scoped = { db: result.db, auth: result.auth };
+      if (result.role === "player") {
+        parts.playerSkillPlanner?.init?.(scoped);
+        parts.playerSpellPlanner?.init?.(scoped);
+      } else if (result.role === "dm") {
+        parts.dmConsole?.init?.(scoped);
+        parts.playerEntry?.init?.(scoped);
+        parts.dmMagic?.install?.();
+      }
+      return result;
+    }).catch((error) => {
+      const result = { ok: false, reason: "FIREBASE_SESSION_FAILED", error };
+      emitBootstrapError(result);
+      return result;
+    });
+  }
+
   function buildApi() {
     const core = global.LuminousBattleViewerRuntime073 || {};
+    const firebaseSession = global.LuminousBattleViewerFirebaseSession074 || null;
     const skillLoadout = global.LuminousCombatSkillLoadout074 || null;
     const spellLoadout = global.LuminousCombatSpellLoadout074 || null;
     const spellAdapter = global.LuminousBattleViewerSpellAdapter074 || null;
@@ -113,10 +173,18 @@
     const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
+    const parts = {
+      firebaseSession, skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership,
+      playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, dmMagic, ruptureStatus, skillForge,
+    };
+    initializeSharedRuntime(parts);
+    const sessionReady = initializeRoleRuntime(parts);
     const api = Object.freeze({
       ...core,
       version: VERSION,
       rulesVersion: core.version || "0.7.3",
+      firebaseSession,
+      sessionReady,
       skillLoadout,
       spellLoadout,
       spellAdapter,
@@ -132,16 +200,6 @@
       install,
     });
     global.LuminousBattleViewerRuntime074 = api;
-    skillLoadout?.init?.();
-    ruptureStatus?.install?.();
-    spellAdapter?.install?.();
-    spellRuntime?.install?.();
-    ownership?.install?.();
-    playerSkillPlanner?.init?.();
-    playerSpellPlanner?.init?.();
-    dmConsole?.init?.();
-    playerEntry?.init?.();
-    dmMagic?.install?.();
     return api;
   }
 
@@ -150,6 +208,7 @@
       global.LuminousContentRegistry
       && global.LuminousContentRegistryBootstrap
       && global.LuminousSpellcastingRuntime?.__basicRulesV1
+      && global.LuminousBattleViewerFirebaseSession074
       && global.CombatSkillSchema
       && global.LuminousCombatSkillLoadout074
       && global.LuminousCombatSpellLoadout074
@@ -178,6 +237,7 @@
     try { if (!global.LuminousContentRegistryBootstrap) require("./content-registry-bootstrap.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime) require("./spellcasting-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime?.__basicRulesV1) require("./spellcasting-basic-rules-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerFirebaseSession074) require("./battle-viewer-firebase-session-074.js"); } catch (_) {}
     try { if (!global.CombatSkillSchema) require("./combat-skill-schema.js"); } catch (_) {}
     try { if (!global.LuminousCombatSkillLoadout074) require("./combat-skill-loadout-074.js"); } catch (_) {}
     try { if (!global.LuminousCombatSpellLoadout074) require("./combat-spell-loadout-074.js"); } catch (_) {}
