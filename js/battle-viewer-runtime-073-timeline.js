@@ -15,6 +15,7 @@
     try { return typeof global.eval === "function" ? global.eval(`typeof ${name} !== 'undefined' ? ${name} : undefined`) ?? fallback : fallback; }
     catch (_) { return fallback; }
   }
+  function viewerFunction(name) { const fn = global[name] || lexical(name, null); return typeof fn === "function" ? fn : null; }
   function combatData() { return global.combatData || lexical("combatData", {}) || {}; }
   function slotTargets() { return global.slotTargets || lexical("slotTargets", {}) || {}; }
   function attackVectors() { return global.attackVectors || lexical("attackVectors", {}) || {}; }
@@ -22,6 +23,7 @@
   function resolver() { return global.LuminousCombatActionResolver || null; }
   function schema() { return global.LuminousCombatAction || null; }
   function unitIdFromSlot(slotId) { return adapter()?.unitIdFromSlot?.(slotId) || String(slotId || "").split("_slot_")[0]; }
+  function slotIndexFromId(slotId) { return adapter()?.slotIndexFromId?.(slotId) ?? Number(String(slotId || "").split("_slot_")[1] || 0); }
   function unitForSlot(slotId) { return combatData()[unitIdFromSlot(slotId)] || null; }
   function speedForSlot(slotId) { const u = unitForSlot(slotId); return numberOr(u?.resolvedSpeed ?? u?.currentSpeed ?? u?.speed, 0); }
   function wait(ms) { return new Promise((resolve) => global.setTimeout(resolve, Math.max(0, Number(ms) || 0))); }
@@ -97,13 +99,8 @@
     return { valid: true };
   }
 
-  function targetSlotFor(slotId) {
-    return state.clashOverrides[slotId] || attackVectors()[slotId]?.target || slotTargets()[slotId] || null;
-  }
-  function compileSlot(slotId, targetSlotId = null) {
-    const compiled = adapter()?.compilePlan?.(slotId, targetSlotId) || { action: null, reason: "action_adapter_missing" };
-    return compiled;
-  }
+  function targetSlotFor(slotId) { return state.clashOverrides[slotId] || attackVectors()[slotId]?.target || slotTargets()[slotId] || null; }
+  function compileSlot(slotId, targetSlotId = null) { return adapter()?.compilePlan?.(slotId, targetSlotId) || { action: null, reason: "action_adapter_missing" }; }
   function plannedSlotIds() { return adapter()?.plannedSlotIds?.() || []; }
   function isClashAction(action) { return action?.resolution?.type === "clash"; }
   function buildEvents() {
@@ -116,8 +113,7 @@
       const reciprocal = target && targetSlotFor(target) === slot;
       const opposing = reciprocal ? compileSlot(target, slot) : null;
       const mutualClash = Boolean(reciprocal && isClashAction(compiled.action) && isClashAction(opposing?.action));
-      const participants = [unitIdFromSlot(slot)];
-      if (target) participants.push(unitIdFromSlot(target));
+      const participants = [unitIdFromSlot(slot)]; if (target) participants.push(unitIdFromSlot(target));
       if (mutualClash) {
         consumed.add(slot); consumed.add(target);
         events.push({ id: `clash_${++state.seq}`, type: "clash", actorSlotId: slot, targetSlotId: target, opponentSlotId: target, action: compiled.action, actionPlan: compiled.plan, actionReason: compiled.reason, opposingAction: opposing.action, opposingPlan: opposing.plan, opposingActionReason: opposing.reason, speed: Math.max(speedForSlot(slot), speedForSlot(target)), participants: [...new Set(participants)] });
@@ -140,10 +136,17 @@
   }
 
   function preparedDefenseFor(unit) { return unit?.__luminousPreparedDefense073 || null; }
+  function defenseSubtype(definition) { return normalizeId(definition?.defenseType || definition?.defenseSubtype || definition?.type || definition?.name); }
   function consumePreparedDefense(unit, definition) {
     if (!unit || !definition) return;
-    const subtype = normalizeId(definition.defenseType || definition.defenseSubtype || definition.name);
-    if (subtype === "counter" || subtype === "guard") delete unit.__luminousPreparedDefense073;
+    const subtype = defenseSubtype(definition);
+    if (["counter", "evade"].includes(subtype)) delete unit.__luminousPreparedDefense073;
+  }
+  function trackEphemeralShield(unit, amount) {
+    if (!unit) return 0;
+    const gain = Math.max(0, numberOr(amount, 0));
+    unit.__luminousEphemeralShield073 = Math.max(0, numberOr(unit.__luminousEphemeralShield073, 0)) + gain;
+    return gain;
   }
   function combatEngineBridge() {
     const engine = global.CombatEngine;
@@ -152,25 +155,71 @@
       get(target, prop, receiver) {
         if (prop !== "resolveUnilateralWithCounter") return Reflect.get(target, prop, receiver);
         return function (actor, skill, defender, counterSkill, options) {
-          const prepared = counterSkill || preparedDefenseFor(defender);
-          const result = target.resolveUnilateralWithCounter(actor, skill, defender, prepared, options || {});
-          if (prepared) consumePreparedDefense(defender, prepared);
-          return result;
+          const prepared = counterSkill || preparedDefenseFor(defender), subtype = defenseSubtype(prepared);
+          if (prepared && subtype === "evade" && typeof target.resolveEvade === "function") {
+            const evadeResult = target.resolveEvade(defender, prepared, actor, skill);
+            if (!evadeResult?.evadeDestroyed) return { attackLogs: [], pendingActions: [], damageTaken: 0, evaded: true, evadeResult };
+            consumePreparedDefense(defender, prepared);
+            const remainingCoins = Array.isArray(evadeResult.coinsBeaten) ? evadeResult.coinsBeaten : [];
+            if (!remainingCoins.length) return { attackLogs: [], pendingActions: [], damageTaken: 0, evaded: true, evadeResult };
+            const remainingSkill = { ...skill, coins: remainingCoins, coinAmount: remainingCoins.length };
+            const hitResult = target.resolveUnilateralWithCounter(actor, remainingSkill, defender, null, options || {});
+            return { ...hitResult, evadeResult, evadeDestroyed: true };
+          }
+          if (prepared && subtype === "counter") {
+            const result = target.resolveUnilateralWithCounter(actor, skill, defender, null, options || {});
+            let counterResult = null;
+            if (isActive(defender) && isActive(actor)) counterResult = target.resolveUnilateralWithCounter(defender, prepared, actor, null, { skipUseHooks: false, clashResult: null, combatants: Object.values(combatData()).filter(Boolean), counterReaction073: true });
+            consumePreparedDefense(defender, prepared);
+            return { ...result, counterResolved: Boolean(counterResult), counterResult };
+          }
+          return target.resolveUnilateralWithCounter(actor, skill, defender, counterSkill || null, options || {});
         };
       },
     });
+  }
+
+  function genericItemEffect({ actor, targets, effect }) {
+    const item = effect?.item || {}, target = targets?.[0] || actor, itemType = normalizeId(item.itemType || item.type);
+    const consume = viewerFunction("consumeItem"), apply = viewerFunction("applyItemEffect");
+    if (consume && apply) {
+      if (!consume(item)) return { handled: false, reason: "item_depleted" };
+      return { handled: true, result: apply(item, target?.id || actor?.id, actor?.id, effect.plan || null) };
+    }
+    if (Number.isFinite(Number(item.quantity))) {
+      if (Number(item.quantity) <= 0) return { handled: false, reason: "item_depleted" };
+      item.quantity = Math.max(0, Number(item.quantity) - 1);
+    }
+    const amount = Math.max(0, numberOr(item.effectAmount ?? item.amount, 0));
+    if (itemType === "hp_healing" && target) {
+      const maxHp = Math.max(numberOr(target.maxHp ?? target.maxHP, target.hp), numberOr(target.hp, 0));
+      const before = numberOr(target.hp, 0); target.hp = Math.min(maxHp, before + amount);
+      return { handled: true, healed: target.hp - before, targetId: target.id || null };
+    }
+    if (itemType === "sp_healing" && target) {
+      const maxSp = numberOr(target.maxSp ?? target.maxSP, 45), before = numberOr(target.sp, 0); target.sp = Math.min(maxSp, before + amount);
+      return { handled: true, healedSp: target.sp - before, targetId: target.id || null };
+    }
+    return { handled: false, reason: "viewer_item_handler_required", itemType };
   }
   function viewerEffectHandlers() {
     const hooks = global.LuminousBattleViewerCombatHooks073 || {};
     return {
       viewer_defense({ actor, effect }) {
-        const definition = effect.definition || {};
+        const definition = effect.definition || {}, subtype = normalizeId(effect.defenseType || definition.defenseType || definition.defenseSubtype || definition.name);
+        if (subtype === "guard") {
+          if (typeof global.CombatEngine?.resolveGuard !== "function") return { resolved: false, reason: "guard_resolver_missing" };
+          const result = global.CombatEngine.resolveGuard(actor, definition);
+          trackEphemeralShield(actor, result?.guardPower);
+          return { resolved: true, defenseType: subtype, ...result };
+        }
+        if (["evade", "counter"].includes(subtype)) return { resolved: true, armed: Boolean(preparedDefenseFor(actor)), defenseType: subtype, prearmed: true };
         actor.__luminousPreparedDefense073 = definition;
-        return { armed: true, defenseType: effect.defenseType || definition.defenseType || definition.name || "defense" };
+        return { resolved: true, armed: true, defenseType: subtype };
       },
       viewer_item(payload) {
         if (typeof hooks.useItem === "function") return hooks.useItem(payload);
-        return { handled: false, reason: "viewer_item_handler_required" };
+        return genericItemEffect(payload);
       },
       viewer_trait_action({ actor, effect, context }) {
         if (typeof hooks.resolveTraitAction === "function") return hooks.resolveTraitAction({ actor, effect, context });
@@ -184,37 +233,75 @@
   function resolverContext(event) {
     return {
       phase: schema()?.PHASES?.COMBAT_PHASE || "combat_phase",
-      units: Object.values(combatData()).filter(Boolean),
-      combatData: combatData(),
-      engine: combatEngineBridge(),
-      coinwiseResolution: true,
-      isTargetAvailable: (target) => isActive(target),
-      effectHandlers: viewerEffectHandlers(),
+      units: Object.values(combatData()).filter(Boolean), combatData: combatData(), engine: combatEngineBridge(), coinwiseResolution: true,
+      isTargetAvailable: (target) => isActive(target), effectHandlers: viewerEffectHandlers(),
       actionMap: Object.fromEntries([event.action, event.opposingAction].filter(Boolean).map((action) => [action.id, action])),
       opposingAction: event.type === "clash" ? event.opposingAction : null,
     };
   }
   function armReactiveDefenses(events = []) {
-    for (const event of events) {
-      for (const action of [event.action, event.opposingAction]) {
-        const subtype = normalizeId(action?.metadata?.defenseSubtype);
-        if (!action || !["evade", "counter"].includes(subtype)) continue;
-        const actor = combatData()[action.actorId];
-        if (actor) actor.__luminousPreparedDefense073 = action.metadata?.sourceDefinition || action.metadata?.viewerPlan?.data || {};
-      }
+    for (const event of events) for (const action of [event.action, event.opposingAction]) {
+      const subtype = normalizeId(action?.metadata?.defenseSubtype);
+      if (!action || !["evade", "counter"].includes(subtype)) continue;
+      const actor = combatData()[action.actorId];
+      if (actor) actor.__luminousPreparedDefense073 = action.metadata?.sourceDefinition || action.metadata?.viewerPlan?.data || {};
     }
   }
   function clearPreparedDefenses() { Object.values(combatData()).forEach((unit) => { if (unit) delete unit.__luminousPreparedDefense073; }); }
+
+  function updateClaimedPlan(action, claimed) {
+    if (!action || !claimed) return;
+    action.metadata = { ...(action.metadata || {}), viewerPlan: claimed };
+    for (const effect of action.effects || []) if (normalizeId(effect.type) === "viewer_trait_action") effect.plannedAction = claimed;
+  }
+  async function claimSharedAction(action) {
+    const ownerPlayerId = action?.metadata?.sharedOwnerPlayerId;
+    if (!ownerPlayerId) return { required: false, claimed: true, action };
+    const claim = viewerFunction("claimSharedPlannedAction");
+    if (!claim) return { required: true, claimed: false, reason: "shared_claim_bridge_missing", action };
+    try {
+      const planned = await claim(ownerPlayerId, Number(action.metadata?.viewerSlotIndex || 0));
+      if (!planned) return { required: true, claimed: false, reason: "shared_action_not_claimed", action };
+      if (planned.scheduledBy != null && String(planned.scheduledBy) !== String(ownerPlayerId)) return { required: true, claimed: false, reason: "shared_action_owner_mismatch", action, planned };
+      updateClaimedPlan(action, planned);
+      return { required: true, claimed: true, action, planned, ownerPlayerId };
+    } catch (error) { return { required: true, claimed: false, reason: "shared_action_claim_error", error, action }; }
+  }
+  function finishPayloadFromCombatAction(action, result) {
+    const traitEffect = result?.resolution?.effects?.find?.((row) => normalizeId(row?.effect?.type) === "viewer_trait_action");
+    if (traitEffect?.result) return traitEffect.result;
+    const available = result?.resolved === true;
+    return { handled: true, planned: action?.metadata?.viewerPlan || null, result: { available, trait: { id: action?.source?.id || null }, reasons: available ? [] : [result?.reason || "combat_action_failed"] } };
+  }
+  async function finishSharedAction(action, result, claim) {
+    if (!claim?.required || !claim?.claimed) return null;
+    const finish = viewerFunction("finishSharedPlannedAction");
+    if (!finish) return { finished: false, reason: "shared_finish_bridge_missing" };
+    try { return { finished: true, payload: await finish(claim.ownerPlayerId, Number(action.metadata?.viewerSlotIndex || 0), finishPayloadFromCombatAction(action, result)) }; }
+    catch (error) { return { finished: false, reason: "shared_finish_error", error }; }
+  }
 
   async function resolveEvent(event) {
     const check = eventValidity(event);
     if (!check.valid) return { event, resolved: false, ...check };
     const api = resolver();
     if (!api?.resolveCombatAction) return { event, resolved: false, reason: "combat_action_resolver_missing" };
-    const context = resolverContext(event);
-    const result = api.resolveCombatAction(event.action, context);
-    const handled = result?.resolved !== false;
-    return { event, resolved: handled, result, actionId: event.action.id, opposingActionId: event.opposingAction?.id || null };
+
+    const claimA = await claimSharedAction(event.action);
+    if (!claimA.claimed) return { event, resolved: false, reason: claimA.reason, sharedClaim: claimA };
+    let claimB = { required: false, claimed: true };
+    if (event.opposingAction) {
+      claimB = await claimSharedAction(event.opposingAction);
+      if (!claimB.claimed) {
+        if (typeof schema()?.cancelCombatAction === "function") event.opposingAction = schema().cancelCombatAction(event.opposingAction, { type: claimB.reason || "shared_action_not_claimed" }).action;
+        else event.opposingAction.state = "cancelled";
+      }
+    }
+
+    const context = resolverContext(event), result = api.resolveCombatAction(event.action, context);
+    const finishedA = await finishSharedAction(event.action, result, claimA);
+    const finishedB = event.opposingAction ? await finishSharedAction(event.opposingAction, result, claimB) : null;
+    return { event, resolved: result?.resolved !== false, result, actionId: event.action.id, opposingActionId: event.opposingAction?.id || null, shared: { claimA, claimB, finishedA, finishedB } };
   }
 
   async function runTimeline(events = buildEvents()) {
@@ -224,12 +311,9 @@
     const startedAt = global.performance?.now?.() ?? Date.now(), results = [];
     const now = () => (global.performance?.now?.() ?? Date.now()) - startedAt;
     const canLaunch = (event) => event.participants.every((id) => !participantLocks.has(id));
-    const refreshFocus = () => {
-      const ids = new Set(); activeParticipants.forEach((set) => set.forEach((id) => ids.add(id))); applyCombatFocus([...ids]);
-    };
+    const refreshFocus = () => { const ids = new Set(); activeParticipants.forEach((set) => set.forEach((id) => ids.add(id))); applyCombatFocus([...ids]); };
     const launch = (event) => {
-      event.participants.forEach((id) => participantLocks.add(id));
-      activeParticipants.set(event.id, new Set(event.participants)); refreshFocus();
+      event.participants.forEach((id) => participantLocks.add(id)); activeParticipants.set(event.id, new Set(event.participants)); refreshFocus();
       const task = (async () => {
         try { const output = await resolveEvent(event); results.push(output); return output; }
         finally { event.participants.forEach((id) => participantLocks.delete(id)); activeParticipants.delete(event.id); refreshFocus(); }
@@ -247,23 +331,23 @@
         if (!pending.length) { if (active.size) await Promise.race([...active.values()].map((task) => task.catch(() => null))); continue; }
         if (launched) { await wait(18); continue; }
         const nextReady = Math.min(...pending.map((event) => event.readyAt)), untilReady = Math.max(18, nextReady - now());
-        const wake = [wait(Math.min(55, untilReady))];
-        if (active.size) wake.push(Promise.race([...active.values()].map((task) => task.catch(() => null))));
+        const wake = [wait(Math.min(55, untilReady))]; if (active.size) wake.push(Promise.race([...active.values()].map((task) => task.catch(() => null))));
         await Promise.race(wake);
       }
       return events.map((event) => results.find((row) => row.event.id === event.id) || { event, resolved: false, reason: "timeline_result_missing" });
-    } finally {
-      clearPreparedDefenses(); applyCombatFocus([]);
-    }
+    } finally { clearPreparedDefenses(); applyCombatFocus([]); }
   }
 
-  async function executeCombatTimeline() {
-    try { lexical("syncCombatEnginePhase", null)?.("COMBAT_ACTIVE"); } catch (_) {}
-    return runTimeline(buildEvents());
+  async function syncCombatPhase() {
+    try { viewerFunction("syncCombatEnginePhase")?.("COMBAT_ACTIVE"); } catch (_) {}
+    const db = global.db || lexical("db", null), path = lexical("COMBAT_STATE_PATH", null);
+    if (db?.ref && path) {
+      try { await db.ref(path).set("COMBAT_ACTIVE"); } catch (error) { global.console?.error?.("No se pudo sincronizar COMBAT_ACTIVE en Firebase:", error); }
+    }
   }
+  async function executeCombatTimeline() { await syncCombatPhase(); return runTimeline(buildEvents()); }
   function updateInvisiblePresentation(observer = null) {
-    const rt = global.LuminousConditionRuntime;
-    if (!rt || !global.document) return;
+    const rt = global.LuminousConditionRuntime; if (!rt || !global.document) return;
     Object.values(combatData()).forEach((unit) => {
       if (!unit?.id || !rt.hasStatus?.(unit, "invisible")) return;
       const located = observer ? rt.hasLocatedInvisible?.(observer, unit) : false;
@@ -273,9 +357,9 @@
 
   const api = Object.freeze({
     ACTIVE_FIELD_CAP, TIMELINE_SPEED_STEP_MS, state, combatData, slotTargets, attackVectors, canOverwriteClash,
-    requestClashOverwrite, confirmOverwriteClash, eventValidity, buildEvents, runTimeline, resolveEvent,
-    executeCombatTimeline, applyCombatFocus, updateInvisiblePresentation, armReactiveDefenses, clearPreparedDefenses,
-    ensureStyle, ensureModal,
+    requestClashOverwrite, confirmOverwriteClash, eventValidity, buildEvents, runTimeline, resolveEvent, executeCombatTimeline,
+    applyCombatFocus, updateInvisiblePresentation, armReactiveDefenses, clearPreparedDefenses, trackEphemeralShield,
+    claimSharedAction, finishSharedAction, syncCombatPhase, ensureStyle, ensureModal,
   });
   global.LuminousBattleViewerTimeline073 = api;
   ensureStyle(); ensureModal();
