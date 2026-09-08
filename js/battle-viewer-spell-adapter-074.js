@@ -7,6 +7,7 @@
   "use strict";
 
   const VERSION = "0.7.4";
+  const OVERCAST_PREFIX = "__overcast__";
   const clean = (value) => String(value ?? "").trim();
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -15,9 +16,7 @@
   function baseAdapter() {
     if (installedBase) return installedBase;
     if (global?.LuminousBattleViewerActionAdapter073 && !global.LuminousBattleViewerActionAdapter073.__spellAdapter074) return global.LuminousBattleViewerActionAdapter073;
-    if (typeof require === "function") {
-      try { return require("./battle-viewer-action-adapter-073.js"); } catch (_) {}
-    }
+    if (typeof require === "function") { try { return require("./battle-viewer-action-adapter-073.js"); } catch (_) {} }
     return null;
   }
 
@@ -40,19 +39,12 @@
   function unitIdFromSlot(base, slotId) { return base?.unitIdFromSlot?.(slotId) || clean(slotId).split("_slot_")[0]; }
   function planForSlot(base, slotId) { return base?.planForSlot?.(slotId) || null; }
 
-  function spellIdForPlan(plan = {}, data = {}) {
-    return clean(plan.spellId || plan.sourceId || data.libraryKey || data.spellId || data.id);
-  }
-
+  function spellIdForPlan(plan = {}, data = {}) { return clean(plan.spellId || plan.sourceId || data.libraryKey || data.spellId || data.id); }
   function isPlayerActor(actor = {}, plan = {}) {
     const category = normalizeId(actor.actorCategory || actor.category || actor.type);
     return plan.__ownerPlayerId != null || actor.isPlayer === true || category === "player" || normalizeId(actor.canonicalScope) === "player";
   }
-
-  function planKind(plan = {}, data = {}) {
-    return normalizeId(plan.type || plan.kind || data.kind || data.type);
-  }
-
+  function planKind(plan = {}, data = {}) { return normalizeId(plan.type || plan.kind || data.kind || data.type); }
   function isSpellPlan(plan = {}, data = {}) {
     const kind = planKind(plan, data);
     return ["spell", "spells", "magic"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "spell") || Boolean(plan.spellId);
@@ -76,11 +68,11 @@
     return Math.max(baseLevel, Number.isFinite(requested) ? Math.trunc(requested) : baseLevel);
   }
 
-  function canonicalCastResource(spell, classId, slotLevel, overcast) {
+  function canonicalCastResource(classId, slotLevel, overcast) {
     return {
       owner: "source",
-      type: "spell_cast",
-      id: clean(spell.id || spell.spellId),
+      type: "spell_slot",
+      id: overcast === true ? `${OVERCAST_PREFIX}${clean(classId)}` : clean(classId),
       amount: 1,
       metadata: { classId: clean(classId), slotLevel: Math.max(0, Number(slotLevel) || 0), overcast: overcast === true },
     };
@@ -88,10 +80,23 @@
 
   function applyCanonicalSave(action, actor, classId, spell) {
     if (action?.resolution?.type !== "save") return action;
-    const runtime = spellcastingRuntime();
-    const resolved = runtime?.resolveSpellSave?.(actor, classId, spell);
+    const resolved = spellcastingRuntime()?.resolveSpellSave?.(actor, classId, spell);
     if (resolved && Number.isFinite(Number(resolved.dc))) action.resolution.save.dc = Number(resolved.dc);
     return action;
+  }
+
+  function applyUpcast(action, spell, slotLevel) {
+    const upcast = spellcastingRuntime()?.resolveUpcast?.(spell, slotLevel) || null;
+    if (!upcast || !action) return upcast;
+    if (Number(upcast.finalPower)) action.modifiers = [...(action.modifiers || []), { source: "spell_upcast", type: "final_power", amount: Number(upcast.finalPower) }];
+    if (Number(upcast.coinPower) && action.metadata?.sourceDefinition) {
+      const definition = action.metadata.sourceDefinition;
+      definition.coinPower = Number(definition.coinPower || definition.coin_power || 0) + Number(upcast.coinPower);
+      definition.coin_power = definition.coinPower;
+    }
+    if (Number(upcast.atkWeight)) action.targeting.attackWeight = Math.max(1, Number(action.targeting.attackWeight || 1) + Number(upcast.atkWeight));
+    action.metadata = { ...(action.metadata || {}), upcast: clone(upcast) };
+    return upcast;
   }
 
   function compileTrustedPlayerSpell(base, slotId, explicitTargetSlotId, plan, actor, data) {
@@ -104,35 +109,25 @@
     if (slotLevel > 9) return { action: null, plan, reason: "spell_slot_level_invalid", kind: "spell", spellId: trusted.spellId };
 
     const trustedPlan = {
-      ...clone(plan),
-      type: "spell",
-      kind: "spell",
-      spellId: trusted.spellId,
-      classId: trusted.classId,
-      slotLevel,
-      data: clone(trusted.spell),
-      spell: undefined,
-      definition: undefined,
-      sourceDefinition: undefined,
-      combatAction: undefined,
+      ...clone(plan), type: "spell", kind: "spell", spellId: trusted.spellId,
+      classId: trusted.classId, slotLevel, data: clone(trusted.spell),
+      spell: undefined, definition: undefined, sourceDefinition: undefined, combatAction: undefined,
     };
     const compiled = base.compilePlan(slotId, explicitTargetSlotId, trustedPlan);
     if (!compiled?.action) return compiled;
     compiled.action.source = { type: "spell", id: trusted.spellId };
-    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0
-      ? []
-      : [canonicalCastResource(trusted.spell, trusted.classId, slotLevel, plan.overcast === true)];
+    compiled.action.resources = trusted.spell.cantrip === true || slotLevel === 0 ? [] : [canonicalCastResource(trusted.classId, slotLevel, plan.overcast === true)];
+    compiled.action.effects = [
+      { type: "viewer_spell_cast", spellId: trusted.spellId, classId: trusted.classId, slotLevel, concentration: trusted.spell.concentration === true },
+      ...(compiled.action.effects || []),
+    ];
     compiled.action.metadata = {
-      ...(compiled.action.metadata || {}),
-      loadoutSpellId: trusted.spellId,
-      canonicalSpell: true,
-      sourceClassId: trusted.classId,
-      slotLevel,
-      overcast: plan.overcast === true,
-      sourceDefinition: clone(trusted.spell),
-      viewerPlan: clone(plan),
+      ...(compiled.action.metadata || {}), loadoutSpellId: trusted.spellId, canonicalSpell: true,
+      sourceClassId: trusted.classId, slotLevel, overcast: plan.overcast === true,
+      sourceDefinition: clone(trusted.spell), viewerPlan: clone(plan),
     };
     applyCanonicalSave(compiled.action, actor, trusted.classId, trusted.spell);
+    applyUpcast(compiled.action, trusted.spell, slotLevel);
     return { ...compiled, source: "spell", spellId: trusted.spellId, canonicalSpell: true };
   }
 
@@ -141,15 +136,8 @@
     if (!base?.compilePlan) return false;
     if (global.LuminousBattleViewerActionAdapter073?.__spellAdapter074) return true;
     installedBase = base;
-
     const wrapped = Object.freeze({
-      ...base,
-      __spellAdapter074: true,
-      spellIdForPlan,
-      isSpellPlan,
-      trustedSpell,
-      requestedSlotLevel,
-      canonicalCastResource,
+      ...base, __spellAdapter074: true, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel, canonicalCastResource,
       compilePlan(slotId, explicitTargetSlotId = null, providedPlan = null) {
         const plan = providedPlan || planForSlot(base, slotId);
         if (!plan) return base.compilePlan(slotId, explicitTargetSlotId, providedPlan);
@@ -164,7 +152,7 @@
     return true;
   }
 
-  const api = Object.freeze({ version: VERSION, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel, canonicalCastResource, compileTrustedPlayerSpell, install });
+  const api = Object.freeze({ version: VERSION, OVERCAST_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel, canonicalCastResource, applyUpcast, compileTrustedPlayerSpell, install });
   install();
   return api;
 });
