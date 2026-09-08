@@ -3,11 +3,12 @@
   const api = factory(global);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (global) global.LuminousBattleViewerOwnership074 = api;
-})(typeof window !== "undefined" ? window : globalThis, function () {
+})(typeof window !== "undefined" ? window : globalThis, function (global) {
   "use strict";
 
   const VERSION = "0.7.4";
   const FALLBACK_DM_UID = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+  const RESOLVER_GUARD = "__luminousOwnership074Guarded";
 
   const clean = (value) => String(value ?? "").trim();
   const safeKey = (value, fallback = "player") => clean(value).replace(/[.#$\[\]\/]/g, "_") || fallback;
@@ -54,6 +55,15 @@
     return clean(unit?.id || unit?.unitId || unit?.combatId || fallbackKey) || null;
   }
 
+  function unitIdentitySet(unit = {}, fallbackKey = null) {
+    return new Set([
+      unit?.id,
+      unit?.unitId,
+      unit?.combatId,
+      fallbackKey,
+    ].map(clean).filter(Boolean));
+  }
+
   function actionSlotCount(unit = {}) {
     const raw = unit?.activeSlots ?? unit?.actionSlots ?? unit?.action_slots_count;
     const value = Number(raw);
@@ -78,6 +88,12 @@
     if (!/^\d+$/.test(key)) return false;
     const index = actionSlotIndex(unit);
     return index[key] === true;
+  }
+
+  function plannedActionMatchesUnit(unit = {}, action = {}) {
+    const plannedUnitId = clean(action?.unitId);
+    if (!plannedUnitId) return false;
+    return unitIdentitySet(unit).has(plannedUnitId);
   }
 
   function resolveCombatantForPlanOwner(ownerPlayerId, combatants = {}, players = {}, options = {}) {
@@ -131,13 +147,7 @@
     if (!resolved.ok) return resolved;
     const plannedUnitId = clean(action.unitId);
     if (!plannedUnitId) return { ok: false, reason: "SOURCE_UNIT_REQUIRED" };
-    const acceptedIds = new Set([
-      clean(resolved.unitId),
-      clean(resolved.unit?.id),
-      clean(resolved.unit?.unitId),
-      clean(resolved.unit?.combatId),
-    ].filter(Boolean));
-    if (!acceptedIds.has(plannedUnitId)) return { ok: false, reason: "SOURCE_UNIT_MISMATCH", unit: resolved.unit, unitId: resolved.unitId };
+    if (!unitIdentitySet(resolved.unit, resolved.unitId).has(plannedUnitId)) return { ok: false, reason: "SOURCE_UNIT_MISMATCH", unit: resolved.unit, unitId: resolved.unitId };
     if (action.scheduledBy != null && clean(action.scheduledBy) !== ownerId) return { ok: false, reason: "SCHEDULED_BY_MISMATCH", unit: resolved.unit, unitId: resolved.unitId };
     const requestedSlot = slotIndex != null ? slotIndex : action.slotIndex;
     if (requestedSlot == null || clean(requestedSlot) === "") return { ok: false, reason: "ACTION_SLOT_REQUIRED", unit: resolved.unit, unitId: resolved.unitId };
@@ -158,6 +168,36 @@
     return { ...integrity, ok: true, reason: null, role: "player" };
   }
 
+  function rejectedResolution(planned, reason) {
+    return {
+      handled: true,
+      planned,
+      result: {
+        available: false,
+        reasons: [reason],
+        trait: null,
+      },
+    };
+  }
+
+  function install() {
+    const engine = global?.CombatEngine;
+    if (!engine || typeof engine.resolveActionSlot !== "function") return false;
+    if (engine.resolveActionSlot?.[RESOLVER_GUARD]) return true;
+    const original = engine.resolveActionSlot.bind(engine);
+    const guarded = function (unit, slotIndex, context = {}) {
+      const planned = context?.plannedAction || null;
+      if (planned) {
+        if (!plannedActionMatchesUnit(unit, planned)) return rejectedResolution(planned, "Planned action source Unit mismatch.");
+        if (!isAuthorizedActionSlot(unit, slotIndex)) return rejectedResolution(planned, "Planned action slot is not owned by this Unit.");
+      }
+      return original(unit, slotIndex, context);
+    };
+    Object.defineProperty(guarded, RESOLVER_GUARD, { value: true, enumerable: false });
+    engine.resolveActionSlot = guarded;
+    return true;
+  }
+
   return Object.freeze({
     version: VERSION,
     FALLBACK_DM_UID,
@@ -171,12 +211,15 @@
     canonicalPlayerId,
     canonicalOwnerUid,
     unitIdentity,
+    unitIdentitySet,
     actionSlotCount,
     actionSlotIndex,
     isAuthorizedActionSlot,
+    plannedActionMatchesUnit,
     resolveCombatantForPlanOwner,
     canControlCombatant,
     validatePlanIntegrity,
     authorizePlanWrite,
+    install,
   });
 });
