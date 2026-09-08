@@ -11,9 +11,19 @@ if (!schema || !rupture || !catalog) throw new Error('Starter status skill modul
 
 const statuses = ['burn', 'rupture', 'sinking', 'tremor', 'poise', 'bleed'];
 const expectedCoinPower = new Map([[1, 6], [2, 4], [3, 3]]);
+const expectedSins = {
+  burn: ['wrath', 'lust', 'pride'],
+  rupture: ['gluttony', 'envy', 'pride'],
+  sinking: ['gloom', 'sloth', 'envy'],
+  tremor: ['sloth', 'pride', 'gluttony'],
+  poise: ['pride', 'lust', 'gluttony'],
+  bleed: ['lust', 'wrath', 'envy'],
+};
+const validSins = new Set(['wrath', 'lust', 'sloth', 'gluttony', 'gloom', 'pride', 'envy']);
 const skills = catalog.list();
 assert.equal(skills.length, 72);
 assert.deepEqual(catalog.STATUS_ORDER, statuses);
+assert.equal(catalog.version, '1.1.0');
 assert.equal(rupture.DEFINITION.mode, 'double');
 assert.equal(rupture.DEFINITION.rules[0].trigger, 'getting_hit');
 assert.equal(globalThis.STATUS_REGISTRY.rupture.mode, 'double');
@@ -23,6 +33,14 @@ for (const statusId of statuses) {
   assert.equal(group.length, 12, `${statusId} must have exactly 12 starter Skills`);
   assert.deepEqual(group.map((skill) => skill.coinAmount).sort((a, b) => a - b), [1,1,1,1,2,2,2,2,3,3,3,3]);
   assert.deepEqual(group.map((skill) => skill.coinPower).sort((a, b) => b - a), [6,6,6,6,4,4,4,4,3,3,3,3]);
+  assert.deepEqual(catalog.STATUS_CONFIG[statusId].sins, expectedSins[statusId]);
+
+  const sinCounts = Object.fromEntries(expectedSins[statusId].map((sin) => [sin, 0]));
+  for (const skill of group) {
+    assert.ok(Object.prototype.hasOwnProperty.call(sinCounts, skill.sinAffinity), `${skill.id} has unexpected Sin ${skill.sinAffinity}`);
+    sinCounts[skill.sinAffinity] += 1;
+  }
+  assert.deepEqual(Object.values(sinCounts), [4, 4, 4], `${statusId} must distribute its three Sins 4/4/4`);
 }
 
 const ids = new Set();
@@ -35,8 +53,11 @@ for (const skill of skills) {
   assert.equal(skill.metadata?.starter, true);
   assert.equal(skill.metadata?.buildEntry, true);
   assert.equal(skill.metadata?.rulesPolicy, 'apply_only');
-  assert.equal(skill.sinAffinity, 'sinless');
+  assert.equal(skill.metadata?.combatRange, 'melee');
+  assert.ok(validSins.has(skill.sinAffinity), `${skill.id} must use a canonical Sin affinity`);
+  assert.notEqual(skill.sinAffinity, 'sinless');
   assert.equal(skill.attackWeight, 1);
+  assert.equal(skill.skillRange, 1, `${skill.id} must remain melee Range 1`);
   assert.equal(skill.targetingType, 'Focused Attack');
   assert.equal(skill.isClashable, true);
   assert.equal(skill.isUnclashable, false);
@@ -91,5 +112,7 @@ for (const skill of skills) {
 const payload = catalog.firebasePayload(schema);
 assert.equal(Object.keys(payload).length, 72);
 assert.ok(payload[skills[0].id].schemaVersion === 2);
+assert.equal(payload[skills[0].id].range, 1);
+assert.equal(payload[skills[0].id].affinity, skills[0].sinAffinity);
 
 console.log('starter status skill catalog smoke: ok');
