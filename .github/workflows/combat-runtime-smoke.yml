@@ -22,6 +22,8 @@ jobs:
           node-version: '20'
       - name: Combat Skill schema smoke
         run: node tests/combat-skill-schema-smoke.mjs
+      - name: Unbreakable Red Coin smoke
+        run: node tests/unbreakable-red-coin-smoke.mjs
       - name: Starter Tier 1 status skill catalog smoke
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: G1-G2 Skill Forge smoke
