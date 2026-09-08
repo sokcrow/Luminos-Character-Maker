@@ -10,8 +10,29 @@
     encounterEndedWhileActive: false,
   };
 
+  function ensureStatusLibrary() {
+    if (global.LuminousStatusLibrary) {
+      global.LuminousStatusLibrary.install?.();
+      global.LuminousStatusLibrary.installStatusEngineBridge?.();
+      return true;
+    }
+    const doc = global.document;
+    if (!doc || doc.getElementById("status-library-script")) return false;
+    const script = doc.createElement("script");
+    script.id = "status-library-script";
+    script.src = "js/status-library.js";
+    script.async = false;
+    script.dataset.engine = "canonical-status-library";
+    script.addEventListener("load", () => {
+      global.LuminousStatusLibrary?.install?.();
+      global.LuminousStatusLibrary?.installStatusEngineBridge?.();
+    }, { once:true });
+    doc.head?.appendChild(script);
+    return true;
+  }
+
   function protectionFor(unit, statusId, options = {}) {
-    const id = normalizeId(statusId);
+    const id = global.LuminousStatusLibrary?.resolveId?.(statusId) || normalizeId(statusId);
     return options.protectedStatuses?.[id]
       || unit?.statusProtections?.[id]
       || unit?.protectedStatuses?.[id]
@@ -38,7 +59,7 @@
       ...source,
       __elementalStatusProtectionCompat: true,
       removeStatus(unit, statusId, options = {}) {
-        const id = normalizeId(statusId);
+        const id = global.LuminousStatusLibrary?.resolveId?.(statusId) || normalizeId(statusId);
         const protectionCheck = isRemovalBlocked(unit, id, options);
         if (protectionCheck.blocked) {
           return {
@@ -53,6 +74,7 @@
     });
 
     global.LuminousStatusEngine = wrapped;
+    global.LuminousStatusLibrary?.installStatusEngineBridge?.();
     return true;
   }
 
@@ -135,6 +157,9 @@
   }
 
   function install() {
+    ensureStatusLibrary();
+    global.LuminousStatusLibrary?.install?.();
+    global.LuminousStatusLibrary?.installStatusEngineBridge?.();
     patchStatusProtection();
     patchEncounterLifecycle();
     observeEncounterState();
@@ -142,6 +167,7 @@
   }
 
   const api = Object.freeze({
+    ensureStatusLibrary,
     protectionFor,
     isRemovalBlocked,
     patchStatusProtection,
