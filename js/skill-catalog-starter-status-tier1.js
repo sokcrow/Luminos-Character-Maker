@@ -11,45 +11,14 @@
   const DAMAGE_ID_BY_TYPE = Object.freeze({ cortante: "slash", perforante: "pierce", contundente: "blunt" });
 
   const STATUS_CONFIG = Object.freeze({
-    burn: Object.freeze({ target: "target", sins: Object.freeze(["wrath", "lust", "pride"]), names: Object.freeze([
-      "Ember Cut", "Cinder Point", "Ash Knuckle", "Kindling Edge",
-      "Searing Step", "Coal Press", "Brand Needle", "Smolder Chain",
-      "Spark Rend", "Flame Trace", "Scorch Line", "Ignition Pattern",
-    ]) }),
-    rupture: Object.freeze({ target: "target", sins: Object.freeze(["gluttony", "envy", "pride"]), names: Object.freeze([
-      "Faultline Cut", "Fracture Point", "Split Guard", "Hairline Break",
-      "Breach Step", "Crack Press", "Open Seam", "Shear Chain",
-      "Stress Mark", "Break Line", "Fracture Rhythm", "Deep Fissure",
-    ]) }),
-    sinking: Object.freeze({ target: "target", sins: Object.freeze(["gloom", "sloth", "envy"]), names: Object.freeze([
-      "Gloom Cut", "Undertow Point", "Hollow Weight", "Drowning Touch",
-      "Low Tide Step", "Depth Press", "Quiet Descent", "Heavy Current",
-      "Blackwater Line", "Sunken Rhythm", "Abyssal Trace", "Deep Silence",
-    ]) }),
-    tremor: Object.freeze({ target: "target", sins: Object.freeze(["sloth", "pride", "gluttony"]), names: Object.freeze([
-      "Rattle Cut", "Pulse Point", "Hammer Echo", "Fault Beat",
-      "Shaking Step", "Resonant Press", "Quake Needle", "Rumble Chain",
-      "Vibrating Line", "Aftershock Rhythm", "Ground Trace", "Seismic Pattern",
-    ]) }),
-    poise: Object.freeze({ target: "self", sins: Object.freeze(["pride", "lust", "gluttony"]), names: Object.freeze([
-      "Centered Cut", "Measured Point", "Quiet Strike", "Calm Breath",
-      "Balanced Step", "Steady Press", "Focused Needle", "Patient Chain",
-      "True Line", "Measured Rhythm", "Composed Trace", "Perfect Form",
-    ]) }),
-    bleed: Object.freeze({ target: "target", sins: Object.freeze(["lust", "wrath", "envy"]), names: Object.freeze([
-      "Red Cut", "Needle Point", "Open Vein", "Crimson Mark",
-      "Drawing Step", "Scarlet Press", "Fine Nick", "Red Thread",
-      "Cutting Line", "Blood Rhythm", "Crimson Trace", "Deep Laceration",
-    ]) }),
+    burn: Object.freeze({ target: "target", sins: Object.freeze(["wrath", "lust", "pride"]), names: Object.freeze(["Ember Cut", "Cinder Point", "Ash Knuckle", "Kindling Edge", "Searing Step", "Coal Press", "Brand Needle", "Smolder Chain", "Spark Rend", "Flame Trace", "Scorch Line", "Ignition Pattern"]) }),
+    rupture: Object.freeze({ target: "target", sins: Object.freeze(["gluttony", "envy", "pride"]), names: Object.freeze(["Faultline Cut", "Fracture Point", "Split Guard", "Hairline Break", "Breach Step", "Crack Press", "Open Seam", "Shear Chain", "Stress Mark", "Break Line", "Fracture Rhythm", "Deep Fissure"]) }),
+    sinking: Object.freeze({ target: "target", sins: Object.freeze(["gloom", "sloth", "envy"]), names: Object.freeze(["Gloom Cut", "Undertow Point", "Hollow Weight", "Drowning Touch", "Low Tide Step", "Depth Press", "Quiet Descent", "Heavy Current", "Blackwater Line", "Sunken Rhythm", "Abyssal Trace", "Deep Silence"]) }),
+    tremor: Object.freeze({ target: "target", sins: Object.freeze(["sloth", "pride", "gluttony"]), names: Object.freeze(["Rattle Cut", "Pulse Point", "Hammer Echo", "Fault Beat", "Shaking Step", "Resonant Press", "Quake Needle", "Rumble Chain", "Vibrating Line", "Aftershock Rhythm", "Ground Trace", "Seismic Pattern"]) }),
+    poise: Object.freeze({ target: "self", sins: Object.freeze(["pride", "lust", "gluttony"]), names: Object.freeze(["Centered Cut", "Measured Point", "Quiet Strike", "Calm Breath", "Balanced Step", "Steady Press", "Focused Needle", "Patient Chain", "True Line", "Measured Rhythm", "Composed Trace", "Perfect Form"]) }),
+    bleed: Object.freeze({ target: "target", sins: Object.freeze(["lust", "wrath", "envy"]), names: Object.freeze(["Red Cut", "Needle Point", "Open Vein", "Crimson Mark", "Drawing Step", "Scarlet Press", "Fine Nick", "Red Thread", "Cutting Line", "Blood Rhythm", "Crimson Trace", "Deep Laceration"]) }),
   });
 
-  // Tier 1 clash budget: Final Power must stay between 10 and 13.
-  // More Coins means lower Coin Power: 1 Coin = +6, 2 Coins = +4, 3 Coins = +3.
-  // Stronger status packages trade Base Power instead of adding extra mechanics.
-  // This starter batch is melee-only, so every Skill has Range 1.
-  // Each Status family rotates three Sin affinities evenly.
-  // Every Status now has 12 Slash + 12 Pierce + 12 Blunt Skills (36 total).
-  // The original 72 IDs are preserved for their original damage variants.
   const PROFILES = Object.freeze([
     Object.freeze({ slug: "steady", coins: 1, basePower: 7, coinPower: 6, apps: Object.freeze([[0, 1, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "lasting", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
@@ -66,125 +35,39 @@
   ]);
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
-  const slugify = (value) => String(value || "skill")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const slugify = (value) => String(value || "skill").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
   function statusEffect(statusId, target, potency, count, trigger) {
-    return {
-      trigger: trigger || "[On Hit]",
-      target,
-      type: "status",
-      status: statusId,
-      potency,
-      count,
-      maxCap: 0,
-      scaleTarget: null,
-      scaleCondition: null,
-      is_reuse: false,
-      target_ally: false,
-      timing: "immediate",
-      condition: null,
-    };
+    return { trigger: trigger || "[On Hit]", target, type: "status", status: statusId, potency, count, maxCap: 0, scaleTarget: null, scaleCondition: null, is_reuse: false, target_ally: false, timing: "immediate", condition: null };
   }
 
   function buildSkill(statusId, profileIndex, damageId) {
-    const config = STATUS_CONFIG[statusId];
-    const profile = PROFILES[profileIndex];
-    const damage = DAMAGE_CONFIG[damageId];
-    const ordinal = String(profileIndex + 1).padStart(2, "0");
-    const baseName = config.names[profileIndex];
-    const legacyDamageId = DAMAGE_ID_BY_TYPE[profile.damageType];
-    const isLegacyVariant = damageId === legacyDamageId;
-    const name = isLegacyVariant ? baseName : `${baseName} · ${damage.label}`;
-    const legacyId = `t1_${statusId}_${ordinal}_${slugify(baseName)}`;
-    const id = isLegacyVariant ? legacyId : `${legacyId}_${damageId}`;
-    const sinAffinity = config.sins[profileIndex % config.sins.length];
-    const coins = Array.from({ length: profile.coins }, (_, index) => ({
-      index,
-      type: "normal",
-      status: "active",
-      effects: [],
-    }));
-    const globalEffects = [];
+    const config = STATUS_CONFIG[statusId], profile = PROFILES[profileIndex], damage = DAMAGE_CONFIG[damageId], ordinal = String(profileIndex + 1).padStart(2, "0"), baseName = config.names[profileIndex], legacyDamageId = DAMAGE_ID_BY_TYPE[profile.damageType], isLegacyVariant = damageId === legacyDamageId;
+    const name = isLegacyVariant ? baseName : `${baseName} · ${damage.label}`, legacyId = `t1_${statusId}_${ordinal}_${slugify(baseName)}`, id = isLegacyVariant ? legacyId : `${legacyId}_${damageId}`, sinAffinity = config.sins[profileIndex % config.sins.length];
+    const coins = Array.from({ length: profile.coins }, (_, index) => ({ index, type: "normal", status: "active", effects: [] }));
 
     if (statusId === "poise") {
       const totals = profile.apps.reduce((sum, app) => ({ potency: sum.potency + app[1], count: sum.count + app[2] }), { potency: 0, count: 0 });
-      globalEffects.push(statusEffect(statusId, "self", totals.potency, totals.count, "[On Use]"));
+      const coinIndex = Math.max(0, Math.min(profile.coins - 1, profile.apps[profile.apps.length - 1]?.[0] ?? profile.coins - 1));
+      coins[coinIndex].effects.push(statusEffect(statusId, "self", totals.potency, totals.count, "[On Hit]"));
     } else {
-      profile.apps.forEach(([coinIndex, potency, count]) => {
-        coins[coinIndex].effects.push(statusEffect(statusId, "target", potency, count, "[On Hit]"));
-      });
+      profile.apps.forEach(([coinIndex, potency, count]) => coins[coinIndex].effects.push(statusEffect(statusId, "target", potency, count, "[On Hit]")));
     }
 
     return {
-      id,
-      name,
-      type: "Attack",
-      tier: 1,
-      basePower: profile.basePower,
-      coinPower: profile.coinPower,
-      coinAmount: profile.coins,
-      coinType: "positive",
-      attackWeight: 1,
-      skillRange: 1,
-      damageType: damage.damageType,
-      sinAffinity,
-      scalingStat: profile.scalingStat,
-      statUsed: "",
-      skillUsed: "",
-      targetingType: "Focused Attack",
-      aoePattern: "Self",
-      skillAmount: 1,
-      sourceType: "skill",
-      sourceId: id,
-      isItemSkill: false,
-      isDefense: false,
-      defenseSubtype: "",
-      isClashable: true,
-      isUnclashable: false,
-      isIndiscriminate: false,
-      isTargetFixed: false,
-      requiresUnlock: false,
-      effects: globalEffects,
-      coins,
-      evolutionChain: null,
-      schemaVersion: 2,
-      metadata: {
-        starter: true,
-        buildEntry: true,
-        tier: 1,
-        statusFamily: statusId,
-        rulesPolicy: "apply_only",
-        balanceProfile: profile.slug,
-        combatRange: "melee",
-        damageFamily: damageId,
-        legacyStarterId: isLegacyVariant,
-      },
+      id, name, type: "Attack", tier: 1, basePower: profile.basePower, coinPower: profile.coinPower, coinAmount: profile.coins, coinType: "positive", attackWeight: 1, skillRange: 1, damageType: damage.damageType, sinAffinity, scalingStat: profile.scalingStat, statUsed: "", skillUsed: "", targetingType: "Focused Attack", aoePattern: "Self", skillAmount: 1, sourceType: "skill", sourceId: id, isItemSkill: false, isDefense: false, defenseSubtype: "", isClashable: true, isUnclashable: false, isIndiscriminate: false, isTargetFixed: false, requiresUnlock: false, effects: [], coins, evolutionChain: null, schemaVersion: 2,
+      metadata: { starter: true, buildEntry: true, tier: 1, statusFamily: statusId, rulesPolicy: "apply_only", balanceProfile: profile.slug, combatRange: "melee", damageFamily: damageId, legacyStarterId: isLegacyVariant },
     };
   }
 
   const DEFINITIONS = {};
-  STATUS_ORDER.forEach((statusId) => {
-    PROFILES.forEach((_, profileIndex) => {
-      DAMAGE_ORDER.forEach((damageId) => {
-        const skill = buildSkill(statusId, profileIndex, damageId);
-        DEFINITIONS[skill.id] = Object.freeze(skill);
-      });
-    });
-  });
+  STATUS_ORDER.forEach((statusId) => PROFILES.forEach((_, profileIndex) => DAMAGE_ORDER.forEach((damageId) => { const skill = buildSkill(statusId, profileIndex, damageId); DEFINITIONS[skill.id] = Object.freeze(skill); })));
   Object.freeze(DEFINITIONS);
 
   function list() { return Object.values(DEFINITIONS).map(clone); }
   function get(id) { return DEFINITIONS[String(id || "")] ? clone(DEFINITIONS[String(id || "")]) : null; }
-  function byStatus(statusId) {
-    const wanted = String(statusId || "").trim().toLowerCase();
-    return list().filter((skill) => skill.metadata?.statusFamily === wanted);
-  }
-  function byDamage(damageId) {
-    const wanted = String(damageId || "").trim().toLowerCase();
-    return list().filter((skill) => skill.metadata?.damageFamily === wanted);
-  }
+  function byStatus(statusId) { const wanted = String(statusId || "").trim().toLowerCase(); return list().filter((skill) => skill.metadata?.statusFamily === wanted); }
+  function byDamage(damageId) { const wanted = String(damageId || "").trim().toLowerCase(); return list().filter((skill) => skill.metadata?.damageFamily === wanted); }
   function firebasePayload(schema = global.CombatSkillSchema) {
     const payload = {};
     list().forEach((skill) => {
@@ -192,28 +75,12 @@
         const validation = schema.validateCombatSkill(skill);
         if (!validation.valid) throw new Error(`${skill.id}: ${validation.errors.join(" · ")}`);
         payload[skill.id] = schema.serializeCombatSkill({ ...validation.skill, id: skill.id }, { includeLegacyAliases: true });
-      } else {
-        payload[skill.id] = skill;
-      }
+      } else payload[skill.id] = skill;
     });
     return payload;
   }
 
-  const api = Object.freeze({
-    version: "1.2.0",
-    STATUS_ORDER,
-    DAMAGE_ORDER,
-    DAMAGE_CONFIG,
-    STATUS_CONFIG,
-    PROFILES,
-    DEFINITIONS,
-    list,
-    get,
-    byStatus,
-    byDamage,
-    firebasePayload,
-  });
-
+  const api = Object.freeze({ version: "1.3.0", STATUS_ORDER, DAMAGE_ORDER, DAMAGE_CONFIG, STATUS_CONFIG, PROFILES, DEFINITIONS, list, get, byStatus, byDamage, firebasePayload });
   global.LuminousStarterStatusSkillCatalog = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
