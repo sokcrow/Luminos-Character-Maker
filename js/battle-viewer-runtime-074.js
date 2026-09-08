@@ -36,6 +36,7 @@
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
     ["battle-viewer-player-entry-074-script", "js/battle-viewer-player-entry-074.js", "LuminousBattleViewerPlayerEntry074"],
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
+    ["battle-viewer-progressive-ui-074-script", "js/battle-viewer-progressive-ui-074.js", "LuminousBattleViewerProgressiveUi074"],
   ];
 
   function waitForReady(isReady, valueGetter = null, timeoutMs = WAIT_TIMEOUT_MS) {
@@ -114,6 +115,7 @@
     parts.spellAdapter?.install?.();
     parts.spellRuntime?.install?.();
     parts.ownership?.install?.();
+    parts.progressiveUi?.install?.();
   }
 
   function initializeConfiguredDmConsole(dmConsole, result = {}) {
@@ -204,11 +206,12 @@
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
     const playerEntry = global.LuminousBattleViewerPlayerEntry074 || null;
     const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
+    const progressiveUi = global.LuminousBattleViewerProgressiveUi074 || null;
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
     const parts = {
       firebaseSession, skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership,
-      playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, dmMagic, ruptureStatus, skillForge,
+      playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, dmMagic, progressiveUi, ruptureStatus, skillForge,
     };
     initializeSharedRuntime(parts);
     const sessionReady = initializeRoleRuntime(parts);
@@ -228,6 +231,7 @@
       dmConsole,
       playerEntry,
       dmMagic,
+      progressiveUi,
       ruptureStatus,
       skillForge,
       initializeConfiguredDmConsole,
@@ -258,6 +262,7 @@
       && global.LuminousBattleViewerDmConsole074
       && global.LuminousBattleViewerPlayerEntry074
       && global.LuminousBattleViewerDmMagic074
+      && global.LuminousBattleViewerProgressiveUi074
     );
   }
 
@@ -287,6 +292,7 @@
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerEntry074) require("./battle-viewer-player-entry-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerProgressiveUi074) require("./battle-viewer-progressive-ui-074.js"); } catch (_) {}
     const api = buildApi();
     module.exports = api;
   } else if (!HAS_DOCUMENT) {
