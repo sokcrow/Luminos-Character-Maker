@@ -3,6 +3,8 @@
 
   const VERSION = "0.7.4-class-status-semantics";
   const RAGE_ICON = "https://imgur.com/j3C7GzS.png";
+  const BARDIC_INSPIRATION_ICON = "https://imgur.com/LaZgHYg.png";
+  const PSYCHIC_BLADE_ICON = "https://imgur.com/vEDE8Q8.png";
   const INTERNAL_EFFECT_IDS = Object.freeze(new Set([
     "reckless_attack_armed",
     "countercharm",
@@ -36,7 +38,30 @@
       visible: true,
     });
 
-    return library.get?.("rage")?.icon === RAGE_ICON;
+    library.registerExtension("bardic_inspiration", {
+      name: "Bardic Inspiration",
+      type: "positive",
+      mode: "double",
+      icon: BARDIC_INSPIRATION_ICON,
+      description: "Bardic Inspiration. Potency is the Power bonus granted before a chosen Check or Skill; Count tracks the consumable Inspiration instance.",
+      classId: "bard",
+      visible: true,
+    });
+
+    library.registerExtension("psychic_blade", {
+      name: "Psychic Blade",
+      type: "positive",
+      mode: "single",
+      icon: PSYCHIC_BLADE_ICON,
+      description: "College of Whispers Psychic Blade charges. Count tracks the remaining charges consumed by successful hits.",
+      classId: "bard",
+      archetypeId: "college_of_whispers",
+      visible: true,
+    });
+
+    return library.get?.("rage")?.icon === RAGE_ICON
+      && library.get?.("bardic_inspiration")?.icon === BARDIC_INSPIRATION_ICON
+      && library.get?.("psychic_blade")?.icon === PSYCHIC_BLADE_ICON;
   }
 
   function patchRecklessAttack(definition) {
@@ -141,6 +166,8 @@
   const api = Object.freeze({
     version: VERSION,
     RAGE_ICON,
+    BARDIC_INSPIRATION_ICON,
+    PSYCHIC_BLADE_ICON,
     INTERNAL_EFFECT_IDS,
     RESOURCE_ONLY_IDS,
     isInternalEffectId,
