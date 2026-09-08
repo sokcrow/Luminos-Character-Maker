@@ -116,6 +116,39 @@
     parts.ownership?.install?.();
   }
 
+  function initializeConfiguredDmConsole(dmConsole, result = {}) {
+    if (!dmConsole) return false;
+    const scoped = { db: result.db, auth: result.auth };
+    if (!HAS_DOCUMENT || !result?.ok || result.role !== "dm") return dmConsole.init?.(scoped) !== false;
+
+    // The original DM console predates campaña/config/dm_uid and still contains the historical UID.
+    // Keep that path untouched for the legacy DM, but trust the Firebase session preflight for a configured DM.
+    if (!result.uid || result.uid === dmConsole.DM_UID) return dmConsole.init?.(scoped) !== false;
+
+    const dmState = dmConsole._state;
+    if (!dmState || !result.db?.ref) return dmConsole.init?.(scoped) !== false;
+    dmState.db = result.db;
+    dmState.authorized = true;
+
+    if (!dmState.__configuredDmListenersBound) {
+      dmState.__configuredDmListenersBound = true;
+      const refresh = () => {
+        if (dmState.authorized) dmConsole.mount?.();
+      };
+      result.db.ref(dmConsole.ROOTS.players).on("value", (snapshot) => {
+        dmState.players = snapshot.val() || {};
+        refresh();
+      });
+      result.db.ref(dmConsole.ROOTS.combatants).on("value", (snapshot) => {
+        dmState.combatants = snapshot.val() || {};
+        if (dmState.selectedUnitId && !dmState.combatants[dmState.selectedUnitId]) dmState.selectedUnitId = null;
+        refresh();
+      });
+    }
+    dmConsole.mount?.();
+    return true;
+  }
+
   function initializeRoleRuntime(parts = {}, sessionResult = null) {
     const options = sessionResult?.ok ? { db: sessionResult.db, auth: sessionResult.auth } : {};
     if (!HAS_DOCUMENT) {
@@ -146,7 +179,7 @@
         parts.playerSkillPlanner?.init?.(scoped);
         parts.playerSpellPlanner?.init?.(scoped);
       } else if (result.role === "dm") {
-        parts.dmConsole?.init?.(scoped);
+        initializeConfiguredDmConsole(parts.dmConsole, result);
         parts.playerEntry?.init?.(scoped);
         parts.dmMagic?.install?.();
       }
@@ -197,6 +230,7 @@
       dmMagic,
       ruptureStatus,
       skillForge,
+      initializeConfiguredDmConsole,
       install,
     });
     global.LuminousBattleViewerRuntime074 = api;
