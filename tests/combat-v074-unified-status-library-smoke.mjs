@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
@@ -12,8 +10,9 @@ for (const key of ['LuminousStatusLibrary','LuminousStatusEngine','LuminousCondi
   delete globalThis[key];
 }
 
-const library = require('../js/status-library.js');
-assert.equal(library.version, '0.7.4-unified');
+await import('../js/status-library.js');
+const library = globalThis.LuminousStatusLibrary;
+assert.equal(library?.version, '0.7.4-unified');
 
 const sourceDefinitions = library.list().filter((entry) => entry.canonicalSource === 'alpha-v0.7.3-combat-engine-1');
 assert.equal(sourceDefinitions.length, 48, 'the migrated alpha v0.7.3 registry must remain complete');
@@ -115,7 +114,8 @@ globalThis.LuminousElementalStatusRuntime = Object.freeze({
   registerStatuses(){ globalThis.STATUS_REGISTRY.poison = { name:'WRONG POISON' }; },
   onEncounterEnd(){ return []; },
 });
-const compat = require('../js/elemental-status-compat.js');
+await import('../js/elemental-status-compat.js');
+const compat = globalThis.LuminousElementalStatusCompatibility;
 assert.equal(compat.patchDefinitionAuthorities(), true);
 assert.equal(globalThis.LuminousConditionRuntime.getDefinition('paralyzed').name, 'Paralyzed');
 assert.equal(globalThis.LuminousConditionRuntime.DEFINITIONS.paralyzed.icon, 'https://imgur.com/BqchBbA.png');
