@@ -12,11 +12,14 @@
   const VERSION = "0.7.4";
   const WAIT_TIMEOUT_MS = 5000;
   const WAIT_INTERVAL_MS = 25;
-  const scripts = [
+
+  const bootstrapScripts = [
     ["content-registry-script", "js/content-registry.js", "LuminousContentRegistry"],
     ["content-registry-bootstrap-script", "js/content-registry-bootstrap.js", "LuminousContentRegistryBootstrap"],
     ["spellcasting-runtime-script", "js/spellcasting-runtime.js", "LuminousSpellcastingRuntime"],
-    ["spellcasting-basic-rules-runtime-script", "js/spellcasting-basic-rules-runtime.js", "LuminousSpellcastingRuntime"],
+  ];
+
+  const runtimeScripts = [
     ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
     ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
     ["combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js", "LuminousCombatSpellLoadout074"],
@@ -34,32 +37,66 @@
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
   ];
 
-  function waitForGlobal(globalName, timeoutMs = WAIT_TIMEOUT_MS) {
-    if (global[globalName]) return Promise.resolve(global[globalName]);
+  function waitForReady(isReady, valueGetter = null, timeoutMs = WAIT_TIMEOUT_MS) {
+    try {
+      if (isReady()) return Promise.resolve(valueGetter ? valueGetter() : true);
+    } catch (_) {}
     if (typeof global.setInterval !== "function") return Promise.resolve(null);
     return new Promise((resolve) => {
       const startedAt = Date.now();
       const timer = global.setInterval(() => {
-        if (global[globalName]) { global.clearInterval(timer); resolve(global[globalName]); return; }
-        if (Date.now() - startedAt >= timeoutMs) { global.clearInterval(timer); resolve(null); }
+        let ready = false;
+        try { ready = Boolean(isReady()); } catch (_) {}
+        if (ready) {
+          global.clearInterval(timer);
+          resolve(valueGetter ? valueGetter() : true);
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          global.clearInterval(timer);
+          resolve(null);
+        }
       }, WAIT_INTERVAL_MS);
     });
   }
 
-  function loadScript(id, src, globalName) {
-    if (global[globalName]) return Promise.resolve(global[globalName]);
+  function loadScript(id, src, globalName, readyPredicate = null) {
+    const isReady = readyPredicate || (() => Boolean(global[globalName]));
+    try { if (isReady()) return Promise.resolve(global[globalName] || true); } catch (_) {}
     if (!global.document) return Promise.resolve(null);
     let script = global.document.getElementById(id);
     if (!script) {
-      script = global.document.createElement("script"); script.id = id; script.src = src; script.async = false; global.document.head?.appendChild(script);
+      script = global.document.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      global.document.head?.appendChild(script);
     }
     return new Promise((resolve) => {
       let settled = false;
-      const finish = (value) => { if (settled) return; settled = true; resolve(value || null); };
-      if (global[globalName]) return finish(global[globalName]);
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value || null);
+      };
       script.addEventListener("error", () => finish(null), { once: true });
-      waitForGlobal(globalName).then(finish);
+      waitForReady(isReady, () => global[globalName] || true).then(finish);
     });
+  }
+
+  function loadSpellcastingBasicRules() {
+    return loadScript(
+      "spellcasting-basic-rules-runtime-script",
+      "js/spellcasting-basic-rules-runtime.js",
+      "LuminousSpellcastingRuntime",
+      () => Boolean(global.LuminousSpellcastingRuntime?.__basicRulesV1),
+    );
+  }
+
+  async function loadDependencies() {
+    for (const [id, src, name] of bootstrapScripts) await loadScript(id, src, name);
+    await loadSpellcastingBasicRules();
+    for (const [id, src, name] of runtimeScripts) await loadScript(id, src, name);
   }
 
   function buildApi() {
@@ -77,9 +114,22 @@
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
     const api = Object.freeze({
-      ...core, version: VERSION, rulesVersion: core.version || "0.7.3",
-      skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership, playerSkillPlanner, playerSpellPlanner,
-      dmConsole, playerEntry, dmMagic, ruptureStatus, skillForge, install,
+      ...core,
+      version: VERSION,
+      rulesVersion: core.version || "0.7.3",
+      skillLoadout,
+      spellLoadout,
+      spellAdapter,
+      spellRuntime,
+      ownership,
+      playerSkillPlanner,
+      playerSpellPlanner,
+      dmConsole,
+      playerEntry,
+      dmMagic,
+      ruptureStatus,
+      skillForge,
+      install,
     });
     global.LuminousBattleViewerRuntime074 = api;
     skillLoadout?.init?.();
@@ -95,8 +145,8 @@
     return api;
   }
 
-  function install() {
-    if (
+  function readyForBuild() {
+    return Boolean(
       global.LuminousContentRegistry
       && global.LuminousContentRegistryBootstrap
       && global.LuminousSpellcastingRuntime?.__basicRulesV1
@@ -115,8 +165,12 @@
       && global.LuminousBattleViewerDmConsole074
       && global.LuminousBattleViewerPlayerEntry074
       && global.LuminousBattleViewerDmMagic074
-    ) return Promise.resolve(buildApi());
-    return Promise.all(scripts.map(([id, src, name]) => loadScript(id, src, name))).then(() => buildApi());
+    );
+  }
+
+  function install() {
+    if (readyForBuild()) return Promise.resolve(buildApi());
+    return loadDependencies().then(() => buildApi());
   }
 
   if (IS_COMMONJS) {
