@@ -72,6 +72,28 @@
     }
   }
 
+  function ensureDmItemInstanceEditorAssets() {
+    if (!doc?.head || !doc.getElementById("modal-inventario-dm")) return;
+
+    if (!doc.getElementById("dm-item-instance-editor-stylesheet")) {
+      const link = doc.createElement("link");
+      link.id = "dm-item-instance-editor-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/dm-item-instance-editor.css";
+      link.dataset.ui = "dm-item-instance-editor";
+      doc.head.appendChild(link);
+    }
+
+    if (!doc.getElementById("dm-item-instance-editor-script")) {
+      const script = doc.createElement("script");
+      script.id = "dm-item-instance-editor-script";
+      script.src = "js/dm-item-instance-editor.js";
+      script.async = false;
+      script.dataset.ui = "dm-item-instance-editor";
+      doc.head.appendChild(script);
+    }
+  }
+
   function installPlayerProxyMilestoneSync() {
     const EventCtor = global.Event;
     if (!doc || typeof doc.addEventListener !== "function" || typeof EventCtor !== "function") return;
@@ -144,6 +166,7 @@
 
   ensureRacialIntegrationAssets();
   ensureClassMilestoneAssets();
+  ensureDmItemInstanceEditorAssets();
   installPlayerProxyMilestoneSync();
   installDmRacialStatVisibility();
 
