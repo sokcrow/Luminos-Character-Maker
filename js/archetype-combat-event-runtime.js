@@ -41,5 +41,15 @@
       "js/orosh-lineage-complete-runtime.js",
       () => Boolean(global.LuminousOroshLineageCompleteRuntime),
     ))
+    .then(() => ensureScript(
+      "rogue-class-runtime-script",
+      "js/rogue-class-runtime.js",
+      () => Boolean(global.LuminousRogueClassRuntime),
+    ))
+    .then(() => ensureScript(
+      "rogue-combat-runtime-script",
+      "js/rogue-combat-runtime.js",
+      () => Boolean(global.LuminousRogueCombatRuntime),
+    ))
     .catch((error) => console.error("Archetype Combat Event Bootstrap:", error));
 })(typeof window !== "undefined" ? window : globalThis);
