@@ -39,6 +39,8 @@ jobs:
       - name: Battle Viewer 0.7.3 rules smoke
         run: |
           node --input-type=module -e "await import('./js/battle-viewer-runtime-073-forecast.js'); await import('./js/battle-viewer-runtime-073-timeline.js'); await import('./tests/combat-v073-rules-smoke.mjs');"
+      - name: Battle Viewer 0.7.3 runtime authority smoke
+        run: node tests/combat-v073-runtime-authority-smoke.mjs
       - name: Battle Viewer 0.7.4 module syntax
         run: |
           node --check js/battle-viewer-dm-console-074.js
