@@ -15,7 +15,7 @@
 
   function categoryFor(scope, data = {}) {
     if (scope === 'players') return 'player';
-    const raw = clean(data.actorCategory || data.category || data.tipo || data.type || data.role || data.kind).toLowerCase();
+    const raw = clean(data.actorCategory || data.category || data.tipo || data.type || data.role || data.kind || data.faction || data.faccion).toLowerCase();
     if (['enemy', 'enemigo', 'hostile', 'boss', 'monster', 'monstruo'].some((term) => raw.includes(term))) return raw.includes('boss') ? 'boss' : 'enemy';
     if (data.hostile === true || data.enemy === true || data.isEnemy === true) return 'enemy';
     if (['ally', 'aliado', 'friendly'].some((term) => raw.includes(term))) return 'ally';
@@ -23,11 +23,13 @@
     return 'npc';
   }
 
-  // Canonical tactical image: the Actor Studio `icono` field only.
-  // Player records, Theatre sprites/portraits and generic image fields are not
-  // valid tactical token sources.
+  // Canonical tactical image for Actor Studio records is `icono` only.
   function imageFor(data = {}) {
     return clean(data?.icono || '');
+  }
+
+  function unitImageFor(data = {}) {
+    return clean(data?.icono || data?.visual?.spriteUrl || data?.sprite || data?.image || '');
   }
 
   function actorIdentity(scope, id, data = {}) {
@@ -45,12 +47,31 @@
     return null;
   }
 
+  function skillSlotIdsFor(scope, data = {}) {
+    if (scope !== 'units') return [];
+    const raw = data.action_slots ?? data.skillSlotIds ?? data.skillIds ?? data.skill_ids ?? data.mechanics?.skills ?? [];
+    if (Array.isArray(raw)) return raw.map(clean).filter(Boolean);
+    if (raw && typeof raw === 'object') {
+      return Object.entries(raw)
+        .map(([key, value]) => ({ index: Number(key), value: clean(value) }))
+        .filter((row) => Number.isInteger(row.index) && row.index >= 0 && row.value)
+        .sort((a, b) => a.index - b.index)
+        .map((row) => row.value);
+    }
+    return [];
+  }
+
+  function skillIdsFor(scope, data = {}) {
+    return [...new Set(skillSlotIdsFor(scope, data))];
+  }
+
   function normalizeActor(scope, id, data = {}) {
     const linkedActorId = actorIdentity(scope, id, data);
     const actorId = linkedActorId || clean(data.id || data.uid || id) || safeKey(id);
     const category = categoryFor(scope, data);
     const name = displayName(data, actorId);
-    const tokenImage = imageFor(data);
+    const tokenImage = scope === 'units' ? unitImageFor(data) : imageFor(data);
+    const skillSlotIds = skillSlotIdsFor(scope, data);
     return {
       key: `${scope}:${safeKey(id || actorId)}`,
       scope,
@@ -72,6 +93,8 @@
       speedFt: finite(data.speedFt ?? data.speed?.walk ?? data.speed?.walking ?? data.velocidad, 30),
       movement: clone(data.movement || data.movimiento || null),
       senses: clone(data.senses || data.sentidos || null),
+      skillSlotIds,
+      skillIds: [...new Set(skillSlotIds)],
       raw: clone(data),
     };
   }
@@ -95,7 +118,7 @@
     return normalizeActor('players', id, source);
   }
 
-  function mergeCollections({ players = {}, actors = {}, npcs = {} } = {}) {
+  function mergeCollections({ players = {}, actors = {}, npcs = {}, units = {} } = {}) {
     const result = [];
     const assignedActorIds = new Set();
     const playerEntries = Object.entries(players || {}).map(([id, data]) => normalizePlayerActor(id, data || {}, actors || {}));
@@ -116,6 +139,7 @@
     };
     Object.entries(actors || {}).forEach(([id, data]) => addPersistent('actors', id, data));
     Object.entries(npcs || {}).forEach(([id, data]) => addPersistent('npcs', id, data));
+    Object.entries(units || {}).forEach(([id, data]) => addPersistent('units', id, data));
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -177,9 +201,11 @@
       speedFt: actor.speedFt || 30,
       movement: clone(actor.movement),
       senses: clone(actor.senses),
+      skillSlotIds: clone(actor.skillSlotIds || []),
+      skillIds: clone(actor.skillIds || []),
       draggable: true,
     };
   }
 
-  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
+  return Object.freeze({ clean, safeKey, displayName, categoryFor, imageFor, unitImageFor, skillSlotIdsFor, skillIdsFor, actorIdentity, assignedActorRecord, normalizeActor, normalizePlayerActor, mergeCollections, snap, sizeRadius, tokenId, tokenFromActor });
 });

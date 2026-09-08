@@ -5,6 +5,7 @@ on:
     branches:
       - feature/combat-runtime-integration
       - feature/combat-deck-engine
+      - feature/battle-viewer-0.7.3-engine-migration
   pull_request:
     branches:
       - main
@@ -21,6 +22,12 @@ jobs:
           node-version: '20'
       - name: Combat Skill schema smoke
         run: node tests/combat-skill-schema-smoke.mjs
+      - name: Starter Tier 1 status skill catalog smoke
+        run: node tests/starter-status-skill-catalog-smoke.mjs
+      - name: G1-G2 Skill Forge smoke
+        run: node tests/skill-forge-g2-smoke.mjs
+      - name: G1-G2 Skill Forge runtime smoke
+        run: node tests/skill-forge-runtime-g2-smoke.mjs
       - name: Team action economy smoke
         run: node tests/team-action-economy-smoke.mjs
       - name: CombatAction schema smoke
@@ -39,3 +46,47 @@ jobs:
         run: node tests/orosh-lineage-runtime-smoke.mjs
       - name: Rogue Theatre and Combat smoke
         run: node tests/rogue-class-runtime-smoke.mjs
+      - name: Battle Viewer 0.7.3 rules smoke
+        run: node tests/combat-v073-rules-smoke.mjs
+      - name: Battle Viewer 0.7.3 runtime authority smoke
+        run: node tests/combat-v073-runtime-authority-smoke.mjs
+      - name: VTT combat unit actor library smoke
+        run: node tests/vtt-actor-library-units-smoke.mjs
+      - name: Battle Viewer 0.7.4 module syntax
+        run: |
+          node --check js/battle-viewer-action-adapter-073.js
+          node --check js/battle-viewer-firebase-session-074.js
+          node --check js/combat-skill-loadout-074.js
+          node --check js/combat-spell-loadout-074.js
+          node --check js/battle-viewer-spell-adapter-074.js
+          node --check js/battle-viewer-spell-runtime-074.js
+          node --check js/battle-viewer-player-skill-planner-074.js
+          node --check js/battle-viewer-player-spell-planner-074.js
+          node --check js/battle-viewer-dm-console-074.js
+          node --check js/battle-viewer-player-entry-074.js
+          node --check js/battle-viewer-ownership-074.js
+          node --check js/battle-viewer-dm-console-074-magic.js
+          node --check js/battle-viewer-runtime-074.js
+          node --check js/elemental-status-compat.js
+          node --check js/status-rupture-runtime.js
+          node --check js/skill-catalog-starter-status-tier1.js
+          node --check js/skill-forge-g2.js
+          node --check js/skill-forge-runtime-g2.js
+      - name: Battle Viewer 0.7.4 Firebase contract smoke
+        run: node tests/combat-v074-firebase-contract-smoke.mjs
+      - name: Battle Viewer 0.7.4 ownership smoke
+        run: node tests/combat-v074-ownership-smoke.mjs
+      - name: Battle Viewer 0.7.4 ownership resolution smoke
+        run: node tests/combat-v074-ownership-resolution-smoke.mjs
+      - name: Battle Viewer 0.7.4 canonical skill loadout smoke
+        run: node tests/combat-v074-skill-loadout-smoke.mjs
+      - name: Battle Viewer 0.7.4 canonical skill adapter smoke
+        run: node tests/combat-v074-skill-loadout-adapter-smoke.mjs
+      - name: Battle Viewer 0.7.4 player skill planner E2E smoke
+        run: node tests/combat-v074-player-skill-planner-smoke.mjs
+      - name: Battle Viewer 0.7.4 player spell planner E2E smoke
+        run: node tests/combat-v074-player-spell-planner-smoke.mjs
+      - name: Battle Viewer 0.7.4 DM player entry smoke
+        run: node tests/combat-v074-player-entry-smoke.mjs
+      - name: Battle Viewer 0.7.4 DM console smoke
+        run: node tests/combat-v074-dm-console-smoke.mjs

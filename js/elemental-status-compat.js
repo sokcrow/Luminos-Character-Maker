@@ -120,10 +120,25 @@
     return true;
   }
 
+  function ensureBattleViewer074() {
+    const doc = global.document;
+    if (!doc || !global.CombatEngine) return false;
+    if (!doc.getElementById("battlefield") || !doc.getElementById("combat-log-terminal")) return false;
+    if (global.LuminousBattleViewerRuntime074 || doc.getElementById("battle-viewer-runtime-074-script")) return true;
+    const script = doc.createElement("script");
+    script.id = "battle-viewer-runtime-074-script";
+    script.src = "js/battle-viewer-runtime-074.js";
+    script.async = false;
+    script.dataset.engine = "battle-viewer-runtime-074";
+    doc.head?.appendChild(script);
+    return true;
+  }
+
   function install() {
     patchStatusProtection();
     patchEncounterLifecycle();
     observeEncounterState();
+    ensureBattleViewer074();
   }
 
   const api = Object.freeze({
@@ -132,6 +147,7 @@
     patchStatusProtection,
     patchEncounterLifecycle,
     observeEncounterState,
+    ensureBattleViewer074,
     install,
     state,
   });

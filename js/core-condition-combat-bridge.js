@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  if (global.LuminousConditionCombatBridge) {
+  if (global.LuminousConditionCombatBridge?.version === "0.7.3") {
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousConditionCombatBridge;
     return;
   }
@@ -9,384 +9,242 @@
   const PATCH_INTERVAL_MS = 250;
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
-  const conditionRuntime = () => global.LuminousConditionRuntime || null;
+  const runtime = () => global.LuminousConditionRuntime || null;
 
-  const POISON_TYPES = new Set(["poison", "poison_damage", "venom", "veneno", "toxic", "toxico"]);
-  const ABILITY_KEYS = Object.freeze({
-    str: ["fuerza", "strength", "str"],
-    dex: ["destreza", "dexterity", "dex"],
-    con: ["constitucion", "constitution", "con"],
-    int: ["inteligencia", "intelligence", "int"],
-    wis: ["sabiduria", "wisdom", "wis"],
-    cha: ["carisma", "charisma", "cha"],
-  });
-  const ABILITY_CODES = Object.freeze({ str: "STR", dex: "DEX", con: "CON", int: "INT", wis: "WIS", cha: "CHA" });
+  const ABILITY_KEYS = Object.freeze({ str: ["str", "strength", "fuerza"], dex: ["dex", "dexterity", "destreza"], con: ["con", "constitution", "constitucion"], int: ["int", "intelligence", "inteligencia"], wis: ["wis", "wisdom", "sabiduria"], cha: ["cha", "charisma", "carisma"] });
 
   function emit(name, detail) {
-    try {
-      if (typeof global.dispatchEvent === "function" && typeof global.CustomEvent === "function") {
-        global.dispatchEvent(new global.CustomEvent(name, { detail }));
-      }
-    } catch (_) {}
+    try { if (typeof global.dispatchEvent === "function" && typeof global.CustomEvent === "function") global.dispatchEvent(new global.CustomEvent(name, { detail })); } catch (_) {}
     return detail;
   }
 
-  function isPoisonDamage(type, skill = null) {
-    const values = [type, skill?.damageType, skill?.damage_type, skill?.attackType, skill?.attack_type]
-      .map(normalizeId)
-      .filter(Boolean);
-    return values.some((value) => POISON_TYPES.has(value));
-  }
-
   function unitIds(unit = {}) {
-    return [
-      unit.combatId, unit.combat_id, unit.id, unit.unitId, unit.unit_id,
-      unit.characterId, unit.character_id, unit.playerId, unit.player_id,
-      unit.actorId, unit.actor_id, unit.uid, unit.vinculo_jugador,
-    ].filter((value) => value != null && String(value).trim() !== "").map((value) => String(value).trim());
+    return [unit.combatId, unit.id, unit.unitId, unit.characterId, unit.playerId, unit.actorId, unit.uid, unit.vinculo_jugador].filter((v) => v != null && String(v).trim()).map((v) => String(v).trim());
   }
-
-  function findUnitById(units, id) {
-    if (id == null || String(id).trim() === "") return null;
-    const wanted = String(id).trim();
-    return (units || []).find((unit) => unitIds(unit).includes(wanted)) || null;
-  }
+  function findUnit(units, id) { const wanted = String(id || ""); return (units || []).find((u) => unitIds(u).includes(wanted)) || null; }
 
   function scoreFor(unit, abilityId) {
-    const id = normalizeId(abilityId);
-    const keys = ABILITY_KEYS[id] || [id];
-    const roots = [unit?.stats, unit?.dndStats, unit];
-    for (const root of roots) {
-      if (!root || typeof root !== "object") continue;
-      for (const key of keys) {
-        if (Number.isFinite(Number(root[key]))) return Number(root[key]);
-        const upper = String(key).toUpperCase();
-        if (Number.isFinite(Number(root[upper]))) return Number(root[upper]);
-      }
+    const id = normalizeId(abilityId); const keys = ABILITY_KEYS[id] || [id]; const roots = [unit?.stats, unit?.dndStats, unit];
+    for (const root of roots) if (root && typeof root === "object") for (const key of keys) {
+      const value = root[key] ?? root[String(key).toUpperCase()]; if (Number.isFinite(Number(value))) return Number(value);
     }
     return 10;
   }
-
   function proficiencyBonus(unit = {}) {
-    const explicit = unit?.dndStats?.proficiencyBonus ?? unit?.proficiencyBonus ?? unit?.proficiency_bonus ?? unit?.proficiency;
+    const explicit = unit?.dndStats?.proficiencyBonus ?? unit?.proficiencyBonus ?? unit?.proficiency_bonus;
     if (Number.isFinite(Number(explicit))) return Number(explicit);
-    return Math.ceil(Math.max(0, numberOr(unit?.level ?? unit?.characterBuild?.calculatedAtLevel, 1)) / 20);
+    return Math.max(2, Math.ceil(Math.max(1, numberOr(unit.level ?? unit.characterBuild?.calculatedAtLevel, 1)) / 20));
   }
-
-  function proficiencyMultiplier(value) {
-    const id = normalizeId(value || "none");
-    if (id === "expertise") return 2;
-    if (id === "proficient") return 1;
-    if (id === "half") return 0.5;
-    return 0;
-  }
-
-  function legacyProficiencies(unit = {}) {
-    return Array.isArray(unit?.dndStats?.proficiencies)
-      ? unit.dndStats.proficiencies.map((value) => String(value).toUpperCase())
-      : [];
-  }
-
-  function fallbackCheckBonus(unit, check = {}) {
-    const abilityId = normalizeId(check.abilityId || check.ability || "str");
-    const score = scoreFor(unit, abilityId);
-    let bonus = Math.floor((score - 10) / 2);
-    const kind = normalizeId(check.kind || check.checkType || "ability");
-    const skillId = normalizeId(check.skillId || check.skill || "");
+  function checkBonus(unit, check = {}) {
+    const ability = normalizeId(check.abilityId || check.ability || "str");
+    let bonus = Math.floor((scoreFor(unit, ability) - 10) / 2);
+    const kind = normalizeId(check.kind || check.checkType || "ability"); const skill = normalizeId(check.skillId || check.skill || "");
     const pb = proficiencyBonus(unit);
-    const legacy = legacyProficiencies(unit);
-    if (kind === "skill" && skillId) {
-      const stored = unit?.dndSkills?.[skillId]?.value;
-      if (Number.isFinite(Number(stored))) return Number(stored);
-      const prof = unit?.skillProficiency?.[skillId] ?? unit?.dndSkills?.[skillId]?.proficiency ?? unit?.dndSkills?.[skillId]?.proficiencyState;
-      if (legacy.includes(skillId.toUpperCase())) bonus += pb;
-      else bonus += Math.floor(pb * proficiencyMultiplier(prof));
+    if (kind === "skill" && skill) {
+      const stored = unit?.dndSkills?.[skill]?.value; if (Number.isFinite(Number(stored))) return Number(stored);
+      const prof = normalizeId(unit?.dndSkills?.[skill]?.proficiency || unit?.skillProficiency?.[skill] || "");
+      if (prof === "expertise") bonus += pb * 2; else if (["proficient", "true"].includes(prof)) bonus += pb; else if (prof === "half") bonus += Math.floor(pb / 2);
     } else if (["save", "saving_throw", "savingthrow"].includes(kind)) {
-      const code = ABILITY_CODES[abilityId] || String(abilityId).toUpperCase();
-      if (legacy.includes(`${code}_SAVE`)) bonus += pb;
-      else {
-        const prof = unit?.saveProficiency?.[abilityId] ?? unit?.savingThrowProficiency?.[abilityId];
-        bonus += Math.floor(pb * proficiencyMultiplier(prof));
-      }
-    } else {
-      const prof = unit?.abilityProficiency?.[abilityId] ?? unit?.abilityProficiency?.[ABILITY_KEYS[abilityId]?.[0]];
-      bonus += Math.floor(pb * proficiencyMultiplier(prof));
+      const prof = unit?.saveProficiency?.[ability] ?? unit?.savingThrowProficiency?.[ability]; if (prof === true || normalizeId(prof) === "proficient") bonus += pb;
     }
     return bonus;
   }
 
-  function checkBonus(_engine, unit, check = {}) {
-    return fallbackCheckBonus(unit, check);
-  }
-
-  function sourceSpellDc(source = {}) {
-    const direct = [
-      source.spellDC, source.spellDc, source.spellSaveDC, source.spell_save_dc,
-      source.spellcasting?.spellDC, source.spellcasting?.spellDc, source.spellcasting?.saveDC,
-      source.combatStats?.spellDC, source.dndStats?.spellDC, source.dndStats?.spellSaveDC,
-    ].map(Number).find(Number.isFinite);
-    if (Number.isFinite(direct)) return direct;
-
-    const spellcasting = global.LuminousSpellcastingRuntime;
-    const classes = Array.isArray(source.classes)
-      ? source.classes
-      : (Array.isArray(source.characterBuild?.classes) ? source.characterBuild.classes : []);
-    if (spellcasting?.resolveSpellcasting) {
-      for (const entry of classes) {
-        const classId = normalizeId(entry?.id || entry?.classId || entry?.class_id || entry?.name || entry);
-        if (!classId) continue;
-        try {
-          const resolved = spellcasting.resolveSpellcasting(source, classId, {}, {});
-          if (Number.isFinite(Number(resolved?.spellDC))) return Number(resolved.spellDC);
-        } catch (_) {}
-      }
-    }
-    return NaN;
-  }
-
-  function rollCheck(engine, unit, check = {}, options = {}) {
-    if (!unit) return { pending: true, reason: "missing_unit" };
+  function rollCheck(engine, unit, rawCheck = {}, options = {}) {
+    const check = { ...rawCheck };
+    const rt = runtime();
+    const auto = rt?.automaticCheckFailure?.(unit, check) || { failed: false };
+    const applied = rt?.applyCheckThreshold?.(unit, check, options) || { check, modifier: 0, finalPowerModifier: 0 };
+    if (auto.failed || applied.automaticFailure?.failed) return { passed: false, automaticFailure: true, reason: auto.reason || applied.automaticFailure?.reason, total: 0, threshold: Number(check.threshold ?? check.difficulty) };
     const rng = typeof options.rng === "function" ? options.rng : Math.random;
-    const coinAmount = Math.max(1, Math.trunc(numberOr(check.coinAmount, 5)));
-    const coinPower = numberOr(check.coinPower, 4);
-    const headsChance = typeof engine?.getCoinProbability === "function"
-      ? Math.max(5, Math.min(95, numberOr(engine.getCoinProbability(unit.sp || 0), 50)))
-      : Math.max(5, Math.min(95, 50 + numberOr(unit.sp, 0)));
-    const tosses = Array.from({ length: coinAmount }, () => (rng() * 100) < headsChance);
-    const heads = tosses.filter(Boolean).length;
-    const base = checkBonus(engine, unit, check);
-    const total = base + (heads * coinPower);
+    const coins = Math.max(1, Math.floor(numberOr(check.coinAmount, 5))); const coinPower = numberOr(check.coinPower, 4);
+    const headsChance = typeof engine?.getCoinProbability === "function" ? Math.max(5, Math.min(95, numberOr(engine.getCoinProbability(unit?.sp || 0), 50))) : Math.max(5, Math.min(95, 50 + numberOr(unit?.sp, 0)));
+    const tosses = Array.from({ length: coins }, () => rng() * 100 < headsChance); const heads = tosses.filter(Boolean).length;
+    const base = checkBonus(unit, check); const finalPower = numberOr(applied.finalPowerModifier, 0); const total = base + heads * coinPower + finalPower;
     const threshold = Number(check.threshold ?? check.difficulty ?? check.thresholdRaw);
-    const result = { total, base, heads, tosses, headsChance, coinAmount, coinPower };
-    if (Number.isFinite(threshold)) {
-      result.threshold = threshold;
-      result.passed = total >= threshold;
-    }
-    return result;
+    return { total, base, finalPower, heads, tosses, headsChance, coinAmount: coins, coinPower, threshold, passed: Number.isFinite(threshold) ? total >= threshold : undefined };
   }
 
   function resolveConditionCheck(engine, request, units, options = {}) {
-    if (!request || typeof request !== "object") return { pending: true, reason: "invalid_request" };
-    if (request.type === "save_check") {
-      const source = findUnitById(units, request.sourceUnitId);
-      const check = { ...(request.check || {}) };
-      let threshold = Number(check.threshold);
-      if (!Number.isFinite(threshold) && source) threshold = sourceSpellDc(source);
-      if (!Number.isFinite(threshold)) return { pending: true, reason: "missing_threshold", source };
-      check.threshold = threshold;
-      return { ...rollCheck(engine, request.unit, check, options), source };
-    }
-    if (request.type === "opposed_check") {
-      const source = findUnitById(units, request.sourceUnitId);
-      if (!source) return { pending: true, reason: "missing_opposed_source" };
-      const unitRoll = rollCheck(engine, request.unit, request.check || { kind: "ability", abilityId: "str" }, options);
-      const rivalRoll = rollCheck(engine, source, request.rivalCheck || { kind: "ability", abilityId: "str" }, options);
-      return {
-        passed: numberOr(unitRoll.total, 0) >= numberOr(rivalRoll.total, 0),
-        unitTotal: unitRoll.total,
-        rivalTotal: rivalRoll.total,
-        unitRoll,
-        rivalRoll,
-        source,
-      };
+    if (!request) return { pending: true, reason: "invalid_request" };
+    if (["save_check", "concentration_save", "calm_check", "find_check", "liberate_check"].includes(request.type)) return rollCheck(engine, request.actor || request.unit, request.check || {}, { ...options, target: request.target });
+    if (request.type === "grapple_clash" || request.type === "opposed_check") {
+      const initiator = request.initiator || request.actor || request.unit;
+      const rival = request.rival || findUnit(units, request.sourceUnitId);
+      if (!initiator || !rival) return { pending: true, reason: "missing_opposed_unit" };
+      const a = rollCheck(engine, initiator, request.initiatorCheck || request.check || {}, options);
+      const checks = request.rivalChecks || [request.rivalCheck || { kind: "skill", abilityId: "str", skillId: "athletics", coinAmount: 5, coinPower: 4 }];
+      const rivalRolls = checks.map((c) => rollCheck(engine, rival, c, options));
+      const b = rivalRolls.reduce((best, current) => !best || numberOr(current.total, -Infinity) > numberOr(best.total, -Infinity) ? current : best, null);
+      return { attackerWon: numberOr(a.total, 0) > numberOr(b?.total, 0), passed: numberOr(a.total, 0) > numberOr(b?.total, 0), unitATotal: a.total, unitBTotal: b?.total, initiatorRoll: a, rivalRoll: b, rivalRolls };
     }
     return { pending: true, reason: "unsupported_condition_check" };
   }
 
-  function resolvePerceptionChecks(engine, request, units, options = {}) {
-    const initiator = request?.initiator;
-    if (!initiator) return { pending: true, reason: "missing_invisible_unit", results: [] };
-    const stealth = rollCheck(engine, initiator, request.initiatorCheck || { kind: "skill", abilityId: "dex", skillId: "stealth" }, options);
-    const candidates = (request.targets || units || []).filter((unit) => unit && unit !== initiator && numberOr(unit.hp, 1) > 0);
-    const results = candidates.map((unit) => {
-      const perception = rollCheck(engine, unit, request.rivalCheck || { kind: "skill", abilityId: "wis", skillId: "perception" }, options);
-      return { unit, perception, stealth, passed: numberOr(perception.total, 0) >= numberOr(stealth.total, 0) };
-    });
-    return { pending: false, stealth, results };
+  function resolveTurnStartOutcome(engine, outcome, units) {
+    if (outcome?.type !== "invisible_arcana_notice") return outcome;
+    if (!Number.isFinite(Number(outcome.threshold))) return { ...outcome, pending: true, reason: "missing_invisibility_threshold" };
+    const result = rollCheck(engine, outcome.observer, outcome.check, { target: outcome.invisibleUnit });
+    let findResult = null;
+    if (result.passed) {
+      runtime()?.markInvisibleNotice?.(outcome.observer, outcome.invisibleUnit, true);
+      const control = normalizeId(outcome.observer?.controlled || outcome.observer?.control || outcome.observer?.controller);
+      if (["ai", "enemy_ai", "npc"].includes(control)) {
+        const findRequest = runtime()?.buildFindRequest?.(outcome.observer, outcome.invisibleUnit);
+        if (findRequest && Number.isFinite(Number(findRequest.threshold))) {
+          findResult = rollCheck(engine, outcome.observer, findRequest.check, { target: outcome.invisibleUnit });
+          if (findResult.passed) runtime()?.markInvisibleLocated?.(outcome.observer, outcome.invisibleUnit, true);
+        }
+      }
+    }
+    return { ...outcome, result, findResult };
   }
 
-  function conditionGateForSkill(unit, target, skill, options = {}) {
-    const runtime = conditionRuntime();
-    if (!runtime) return { allowed: true, reason: null };
-    const action = runtime.actionAvailability?.(unit, "action", options);
-    if (action?.available === false) return { allowed: false, reason: action.reason || "condition_blocks_action" };
-    return runtime.canTarget?.(unit, target, skill, options) || { allowed: true, reason: null };
+  function confusionMode(unit) {
+    return normalizeId(runtime()?.getStatus?.(unit, "confusion")?.data?.turnMode || "");
+  }
+  function randomIndiscriminateTarget(engine, actor, originalTarget, skill, options = {}) {
+    if (confusionMode(actor) !== "indiscriminate") return originalTarget;
+    const source = typeof engine?.getAllAliveUnits === "function"
+      ? engine.getAllAliveUnits()
+      : Object.values(global.combatData || {});
+    const candidates = (source || []).filter((target) =>
+      target && target !== actor && Number(target.hp ?? 1) > 0 &&
+      runtime()?.canTarget?.(actor, target, { ...(skill || {}), attackWeight: Math.max(4, Number(skill?.attackWeight || skill?.weight || 1)) }, { ...options, ignoreInvisible: false })?.allowed !== false
+    );
+    if (!candidates.length) return originalTarget;
+    const rng = typeof options.random === "function" ? options.random : Math.random;
+    return candidates[Math.min(candidates.length - 1, Math.floor(Math.max(0, Math.min(.999999, Number(rng()) || 0)) * candidates.length))];
   }
 
-  function blockedAttackResult(reason) {
-    return {
-      attackLogs: [{ message: `Action blocked by Condition (${reason || "condition"}).`, class: "error" }],
-      pendingActions: [],
-      damageTaken: 0,
-      conditionBlocked: true,
-      reason: reason || "condition_blocks_action",
-    };
+  function conditionGate(actor, target, skill, options = {}) {
+    const rt = runtime(); if (!rt) return { allowed: true };
+    const action = rt.actionAvailability?.(actor, "action", options); if (action?.available === false) return { allowed: false, reason: action.reason };
+    return rt.canTarget?.(actor, target, skill, options) || { allowed: true };
   }
+  function blocked(reason) { return { attackLogs: [{ message: `Action blocked by Condition (${reason}).`, class: "error" }], pendingActions: [], damageTaken: 0, conditionBlocked: true, reason }; }
 
   function install() {
-    const engine = global.CombatEngine;
-    const runtime = conditionRuntime();
-    if (!engine || !runtime) return false;
-    if (engine.__luminousCoreConditionCombatBridge) return true;
+    const engine = global.CombatEngine; const rt = runtime(); if (!engine || !rt) return false;
+    if (engine.__luminousConditionBridge073) return true;
 
-    const originalTriggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
-    const originalApplyDamage = typeof engine.applyDamage === "function" ? engine.applyDamage : null;
-    const originalAutoTarget = typeof engine.autoTarget === "function" ? engine.autoTarget : null;
-    const originalAoE = typeof engine.calculateAoETargets === "function" ? engine.calculateAoETargets : null;
-    const originalUnilateral = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
-    const originalClash = typeof engine.resolveStandardClash === "function" ? engine.resolveStandardClash : null;
-    const originalResolveActionSlot = typeof engine.resolveActionSlot === "function" ? engine.resolveActionSlot : null;
+    const triggerPhase = typeof engine.triggerPhase === "function" ? engine.triggerPhase : null;
+    const applyDamage = typeof engine.applyDamage === "function" ? engine.applyDamage : null;
+    const applySPDamage = typeof engine.applySPDamage === "function" ? engine.applySPDamage : (typeof engine.applySpDamage === "function" ? engine.applySpDamage : null);
+    const calculateCoinDamage = typeof engine.calculateCoinDamage === "function" ? engine.calculateCoinDamage : null;
+    const processStatusEffects = typeof engine.processStatusEffects === "function" ? engine.processStatusEffects : null;
+    const applyPassiveModifiers = typeof engine.applyPassiveModifiers === "function" ? engine.applyPassiveModifiers : null;
+    const autoTarget = typeof engine.autoTarget === "function" ? engine.autoTarget : null;
+    const aoe = typeof engine.calculateAoETargets === "function" ? engine.calculateAoETargets : null;
+    const unilateral = typeof engine.resolveUnilateralWithCounter === "function" ? engine.resolveUnilateralWithCounter : null;
+    const clash = typeof engine.resolveStandardClash === "function" ? engine.resolveStandardClash : null;
 
-    if (originalTriggerPhase) {
-      engine.triggerPhase = function (phaseTag, allUnits, ...rest) {
-        const units = Array.isArray(allUnits) ? allUnits.filter(Boolean) : [];
-        const normalized = normalizeId(phaseTag).replace(/^\[+|\]+$/g, "").replace(/^_+|_+$/g, "");
-        if (normalized === "round_start") {
-          units.forEach((unit) => {
-            const outcomes = runtime.turnStart?.(unit, {
-              units,
-              combatants: units,
-              engine: this,
-              resolvePerceptionChecks: (request) => resolvePerceptionChecks(this, request, units),
-            }) || [];
-            if (outcomes.length) emit("luminous:condition-turn-start-resolved", { unit, outcomes, units });
-          });
-        }
-        const result = originalTriggerPhase.call(this, phaseTag, allUnits, ...rest);
-        if (normalized === "round_end") {
-          units.forEach((unit) => {
-            const outcomes = runtime.turnEnd?.(unit, {
-              units,
-              combatants: units,
-              engine: this,
-              resolveCheck: (request) => resolveConditionCheck(this, request, units),
-            }) || [];
-            global.LuminousStatusEngine?.advanceDurations?.(unit, "round_end");
-            if (outcomes.length) emit("luminous:condition-turn-end-resolved", { unit, outcomes, units });
-          });
-        }
-        return result;
+    if (triggerPhase) engine.triggerPhase = function (phaseTag, allUnits = [], ...rest) {
+      const units = Array.isArray(allUnits) ? allUnits.filter(Boolean) : [];
+      const phase = normalizeId(phaseTag).replace(/^_+|_+$/g, "");
+      if (["turn_start", "round_start", "[turn_start]", "[round_start]"].includes(phase)) units.forEach((unit) => {
+        const outcomes = (rt.turnStart?.(unit, { units, combatants: units, engine: this }) || []).map((outcome) => resolveTurnStartOutcome(this, outcome, units));
+        if (outcomes.length) emit("luminous:condition-turn-start-resolved", { unit, outcomes, units });
+      });
+      const result = triggerPhase.call(this, phaseTag, allUnits, ...rest);
+      if (["turn_end", "round_end", "[turn_end]", "[round_end]"].includes(phase)) units.forEach((unit) => {
+        const outcomes = rt.turnEnd?.(unit, { units, combatants: units, engine: this, resolveCheck: (request) => resolveConditionCheck(this, request, units) }) || [];
+        global.LuminousStatusEngine?.advanceDurations?.(unit, "round_end");
+        if (outcomes.length) emit("luminous:condition-turn-end-resolved", { unit, outcomes, units });
+      });
+      return result;
+    };
+
+    if (applyPassiveModifiers) engine.applyPassiveModifiers = function (unit, contextOptions = {}) {
+      const base = applyPassiveModifiers.call(this, unit, contextOptions) || {};
+      const extra = rt.contextualModifiers?.({
+        unit,
+        character: unit,
+        target: contextOptions?.target || contextOptions?.defender || null,
+        skill: contextOptions?.skill || null,
+        context: "combat",
+      }) || {};
+      const merged = { ...base };
+      ["final_power", "defense_power", "clash_power", "counter_power", "evade_power", "min_speed", "max_speed", "speed"].forEach((key) => {
+        merged[key] = numberOr(merged[key], 0) + numberOr(extra[key], 0);
+      });
+      if (numberOr(extra.damage_taken_percent, 0)) merged.condition_damage_taken_percent = numberOr(merged.condition_damage_taken_percent, 0) + numberOr(extra.damage_taken_percent, 0);
+      if (numberOr(extra.sp_damage_taken_multiplier, 1) !== 1) merged.condition_sp_damage_taken_multiplier = numberOr(extra.sp_damage_taken_multiplier, 1);
+      return merged;
+    };
+
+    if (calculateCoinDamage) engine.calculateCoinDamage = function (attacker, defender, skill, coinFinalPower, isCritical, clashCount, context = null, ...rest) {
+      const autoCrit = Boolean(rt.shouldAutoCrit?.(attacker, defender));
+      if (autoCrit && context && typeof context === "object") context.conditionAutoCrit = true;
+      return calculateCoinDamage.call(this, attacker, defender, skill, coinFinalPower, Boolean(isCritical) || autoCrit, clashCount, context, ...rest);
+    };
+
+    if (processStatusEffects) engine.processStatusEffects = function (unit, triggerKey, context = {}, ...rest) {
+      const trigger = normalizeId(triggerKey);
+      const defender = context?.defender || context?.currentTarget || context?.target || null;
+      const suppressPoiseConsume = trigger === "on_crit" && defender && rt.shouldAutoCrit?.(unit, defender);
+      if (!suppressPoiseConsume || !unit?.statusEffects?.poise) return processStatusEffects.call(this, unit, triggerKey, context, ...rest);
+      const poise = unit.statusEffects.poise;
+      delete unit.statusEffects.poise;
+      try { return processStatusEffects.call(this, unit, triggerKey, context, ...rest); }
+      finally { if (!unit.statusEffects.poise) unit.statusEffects.poise = poise; }
+    };
+
+    if (applyDamage) engine.applyDamage = function (unit, damage, type = "directo", isCritical = false, skillUsed = null, damageContext = null, ...rest) {
+      const context = damageContext || {}; const attacker = context.attacker || context.sourceUnit || context.source || null;
+      if (rt.hasStatus?.(unit, "petrified") && normalizeId(context.element || skillUsed?.element || type) === "poison") return { damageTaken: 0, conditionImmune: true, reason: "petrified_poison_immunity" };
+      let adjusted = Math.max(0, numberOr(damage, 0)) * numberOr(rt.damageTakenMultiplier?.(unit), 1);
+      if (rt.hasStatus?.(unit, "sleep") && normalizeId(type) === "directo") adjusted *= numberOr(rt.sleepNextAttackMultiplier?.(unit), 1);
+      let critical = Boolean(isCritical);
+      const autoCrit = attacker && rt.shouldAutoCrit?.(attacker, unit); if (autoCrit) critical = true;
+      const result = applyDamage.call(this, unit, adjusted, type, critical, skillUsed, damageContext, ...rest);
+      const dealt = numberOr(result?.damageTaken ?? result?.damage ?? result?.hpDamage, adjusted);
+      rt.onDamageTaken?.(unit, dealt, { attacker, skillUsed, type, result });
+      if (rt.hasStatus?.(unit, "sleep") || numberOr(rt.sleepNextAttackMultiplier?.(unit), 1) > 1) rt.consumeSleepAttackBonus?.(unit);
+      if (autoCrit && result && typeof result === "object") result.conditionAutoCrit = true;
+      return result;
+    };
+
+    if (applySPDamage) {
+      const name = typeof engine.applySPDamage === "function" ? "applySPDamage" : "applySpDamage";
+      engine[name] = function (unit, damage, ...rest) {
+        const multiplier = rt.hasStatus?.(unit, "sleep") ? 3 : 1;
+        return applySPDamage.call(this, unit, Math.floor(Math.max(0, numberOr(damage, 0)) * multiplier), ...rest);
       };
     }
 
-    if (originalApplyDamage) {
-      engine.applyDamage = function (unit, damage, type = "directo", isCritical = false, skillUsed = null, ...rest) {
-        const multiplier = isPoisonDamage(type, skillUsed) ? numberOr(runtime.poisonDamageMultiplier?.(unit), 1) : 1;
-        const adjusted = Math.max(0, numberOr(damage, 0) * multiplier);
-        const result = originalApplyDamage.call(this, unit, adjusted, type, isCritical, skillUsed, ...rest);
-        if (result && typeof result === "object" && multiplier !== 1) {
-          return { ...result, conditionDamageMultiplier: multiplier, incomingDamage: numberOr(damage, 0), adjustedDamage: adjusted };
-        }
-        return result;
-      };
-    }
+    if (autoTarget) engine.autoTarget = function (attacker, skill, enemies, ...rest) {
+      const allowed = (enemies || []).filter((target) => conditionGate(attacker, target, skill).allowed); return allowed.length ? autoTarget.call(this, attacker, skill, allowed, ...rest) : null;
+    };
+    if (aoe) engine.calculateAoETargets = function (skill, primary, allTargets, attacker, ...rest) {
+      if (!conditionGate(attacker, primary, skill).allowed) return [];
+      return aoe.call(this, skill, primary, (allTargets || []).filter((target) => conditionGate(attacker, target, skill).allowed), attacker, ...rest);
+    };
+    if (unilateral) engine.resolveUnilateralWithCounter = function (attacker, attackSkill, defender, counterSkill, options, ...rest) {
+      const resolvedTarget = randomIndiscriminateTarget(this, attacker, defender, attackSkill, options || {});
+      const gate = conditionGate(attacker, resolvedTarget, attackSkill, options || {});
+      const result = gate.allowed ? unilateral.call(this, attacker, attackSkill, resolvedTarget, counterSkill, options, ...rest) : blocked(gate.reason);
+      if (result && typeof result === "object" && resolvedTarget !== defender) {
+        result.conditionRetargeted = true;
+        result.originalTarget = defender;
+        result.target = resolvedTarget;
+      }
+      return result;
+    };
+    if (clash) engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, options, ...rest) {
+      const a = conditionGate(unitA, unitB, skillA, options || {}); const b = conditionGate(unitB, unitA, skillB, options || {});
+      if (!a.allowed) return blocked(a.reason); if (!b.allowed) return blocked(b.reason);
+      return clash.call(this, unitA, skillA, unitB, skillB, options, ...rest);
+    };
 
-    if (originalAutoTarget) {
-      engine.autoTarget = function (attacker, skill, enemies, ...rest) {
-        const list = (enemies || []).filter((target) => conditionGateForSkill(attacker, target, skill).allowed);
-        if (!list.length) return null;
-        return originalAutoTarget.call(this, attacker, skill, list, ...rest);
-      };
-    }
-
-    if (originalAoE) {
-      engine.calculateAoETargets = function (skill, primaryTarget, allPossibleTargets, unitAttacker, ...rest) {
-        if (!conditionGateForSkill(unitAttacker, primaryTarget, skill).allowed) return [];
-        const allowed = (allPossibleTargets || []).filter((target) => conditionGateForSkill(unitAttacker, target, skill).allowed);
-        return originalAoE.call(this, skill, primaryTarget, allowed, unitAttacker, ...rest);
-      };
-    }
-
-    if (originalUnilateral) {
-      engine.resolveUnilateralWithCounter = function (attacker, attackSkill, defender, counterSkill, options, ...rest) {
-        const gate = conditionGateForSkill(attacker, defender, attackSkill, options || {});
-        if (!gate.allowed) return blockedAttackResult(gate.reason);
-        return originalUnilateral.call(this, attacker, attackSkill, defender, counterSkill, options, ...rest);
-      };
-    }
-
-    if (originalClash) {
-      engine.resolveStandardClash = function (unitA, skillA, unitB, skillB, ...rest) {
-        const gateA = conditionGateForSkill(unitA, unitB, skillA);
-        const gateB = conditionGateForSkill(unitB, unitA, skillB);
-        if (!gateA.allowed || !gateB.allowed) {
-          return {
-            winner: null,
-            clashWinner: null,
-            clashLogs: [{ note: "Clash blocked by Condition.", blockedA: !gateA.allowed, blockedB: !gateB.allowed }],
-            pendingActions: [],
-            conditionBlocked: true,
-            blockedA: !gateA.allowed,
-            blockedB: !gateB.allowed,
-            reasons: { A: gateA.reason || null, B: gateB.reason || null },
-          };
-        }
-        return originalClash.call(this, unitA, skillA, unitB, skillB, ...rest);
-      };
-    }
-
-    if (originalResolveActionSlot) {
-      engine.resolveActionSlot = function (unit, slotIndex, context = {}, ...rest) {
-        const gate = runtime.actionAvailability?.(unit, "action", { ...context, phase: this.currentState });
-        if (gate?.available === false) {
-          return { handled: true, conditionBlocked: true, reason: gate.reason || "condition_blocks_action", planned: context?.plannedAction || null };
-        }
-
-        const localPlanned = context?.plannedAction || global.LuminousActionEconomy?.getPlannedAction?.(unit, slotIndex) || null;
-        if (normalizeId(localPlanned?.kind) === "universal_action") {
-          const actionId = normalizeId(localPlanned?.data?.actionId || localPlanned?.sourceId);
-          if (actionId !== "grapple") {
-            return { handled: true, planned: localPlanned, result: { applied: false, reason: "unknown_universal_action", actionId } };
-          }
-          const units = Object.values(context?.combatData || {}).filter(Boolean);
-          if (!units.some((candidate) => candidate === unit)) units.push(unit);
-          const target = findUnitById(units, localPlanned?.targetId);
-          if (!target) {
-            return { handled: true, planned: localPlanned, result: { applied: false, reason: "grapple_target_unavailable" } };
-          }
-          runtime.onActionUsed?.(unit, { ...context, combatants: units, units });
-          const unitARoll = rollCheck(this, unit, { kind: "ability", abilityId: "str" }, context);
-          const unitBRoll = rollCheck(this, target, { kind: "ability", abilityId: "str" }, context);
-          const opposed = {
-            unitATotal: unitARoll.total,
-            unitBTotal: unitBRoll.total,
-            unitBPassed: numberOr(unitBRoll.total, 0) >= numberOr(unitARoll.total, 0),
-            unitARoll,
-            unitBRoll,
-          };
-          const grappleResult = runtime.grapple?.(unit, target, {
-            ...context,
-            combatants: units,
-            units,
-            resolveOpposedCheck: () => opposed,
-          }) || { applied: false, reason: "condition_runtime_unavailable" };
-          if (!context?.plannedAction) global.LuminousActionEconomy?.cancelAction?.(unit, slotIndex);
-          return { handled: true, planned: localPlanned, result: grappleResult, opposed };
-        }
-
-        return originalResolveActionSlot.call(this, unit, slotIndex, context, ...rest);
-      };
-    }
-
-    try { Object.defineProperty(engine, "__luminousCoreConditionCombatBridge", { value: true, configurable: true }); }
-    catch (_) { engine.__luminousCoreConditionCombatBridge = true; }
+    Object.defineProperty(engine, "__luminousConditionBridge073", { value: true, configurable: true });
     return true;
   }
 
-  const api = Object.freeze({
-    POISON_TYPES,
-    isPoisonDamage,
-    fallbackCheckBonus,
-    sourceSpellDc,
-    rollCheck,
-    resolveConditionCheck,
-    resolvePerceptionChecks,
-    conditionGateForSkill,
-    install,
-  });
-
+  const api = Object.freeze({ version: "0.7.3", rollCheck, resolveConditionCheck, resolveTurnStartOutcome, confusionMode, randomIndiscriminateTarget, conditionGateForSkill: conditionGate, install });
   global.LuminousConditionCombatBridge = api;
   install();
-  if (global.document) global.setInterval?.(install, PATCH_INTERVAL_MS);
+  const timer = typeof global.setInterval === "function" ? global.setInterval(install, PATCH_INTERVAL_MS) : null;
+  timer?.unref?.();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
