@@ -1,7 +1,4 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
 
 const calls = { clash: 0, unilateral: 0 };
 globalThis.CombatEngine = {
@@ -45,7 +42,8 @@ globalThis.executeCombatTimeline = function legacyTimelineMustDisappear() {
 };
 globalThis.__luminousLegacyExecuteCombatTimeline = globalThis.executeCombatTimeline;
 
-const runtime = require('../js/battle-viewer-runtime-073.js');
+await import('../js/battle-viewer-runtime-073.js');
+const runtime = await globalThis.LuminousBattleViewerRuntime073Ready;
 assert.equal(runtime.authority, 'combat-action-runtime');
 assert.equal(globalThis.__luminousCombatTimelineAuthority, 'v0.7.3-combat-action-runtime');
 assert.equal(globalThis.__luminousLegacyExecuteCombatTimeline, undefined, 'legacy timeline backup must not survive installation');
