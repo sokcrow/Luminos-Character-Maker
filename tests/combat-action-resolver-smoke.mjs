@@ -16,6 +16,9 @@ let clashCalls = 0;
 let attackCalls = 0;
 const attackTargetLog = [];
 const engine = {
+  FLANKING_DAMAGE_MULTIPLIER: 1.20,
+  FLANKING_POWER_BONUS: 2,
+  evaluateFlanking() { return true; },
   calculateFinalPower(skill, heads) { return Number(skill.basePower || 0) + Number(heads || 0); },
   resolveStandardClash() { clashCalls++; return { winner: 'A', clashLogs: [{}, {}], mitigationPenalty: 0 }; },
   resolveUnilateralWithCounter(attacker, skill, defender, counter, options) {
@@ -43,6 +46,9 @@ const common = { phase:'combat_phase', units, engine, resourceHandlers, random: 
 
 bridge.installCombatActionPowerBridge(engine);
 assert.equal(engine.calculateFinalPower({basePower:4,__combatActionFinalPowerBonus:1}, 2), 7);
+assert.equal(engine.FLANKING_DAMAGE_MULTIPLIER, undefined, 'legacy flanking damage multiplier must be removed');
+assert.equal(engine.FLANKING_POWER_BONUS, undefined, 'legacy flanking power bonus must be removed');
+assert.equal(engine.evaluateFlanking({}, {}, {}), false, 'grid position must never create a flanking combat modifier');
 
 const actionA = adapters.compileSkillToCombatAction(a, { id:'slash', basePower:4, coinPower:2, coinAmount:1, attackWeight:2, isClashable:true, resourceCosts:[{type:'trait_use',id:'useA',amount:1}] }, { targetId:'b', targetIds:['b','e2'] });
 const actionB = adapters.compileSkillToCombatAction(b, { id:'guard_hit', basePower:3, coinPower:2, coinAmount:1, isClashable:true, resourceCosts:[{type:'trait_use',id:'useB',amount:1}] }, { targetId:'a', isAi:true });
