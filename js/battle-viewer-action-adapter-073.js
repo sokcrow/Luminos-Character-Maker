@@ -10,6 +10,7 @@
   if (!schema || !adapters) return;
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const clean = (value) => String(value ?? "").trim();
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   function lexical(name, fallback = null) {
     try { return typeof global.eval === "function" ? global.eval(`typeof ${name} !== 'undefined' ? ${name} : undefined`) ?? fallback : fallback; }
@@ -18,6 +19,13 @@
   function combatData() { return global.combatData || lexical("combatData", {}) || {}; }
   function sharedPlans() { return global.sharedPlannedActions || lexical("sharedPlannedActions", {}) || {}; }
   function attackVectors() { return global.attackVectors || lexical("attackVectors", {}) || {}; }
+  function skillLoadoutRuntime() {
+    if (global.LuminousCombatSkillLoadout074) return global.LuminousCombatSkillLoadout074;
+    if (typeof require === "function") {
+      try { return require("./combat-skill-loadout-074.js"); } catch (_) {}
+    }
+    return null;
+  }
   function unitIdFromSlot(slotId) {
     const raw = String(slotId || ""), marker = "_slot_", splitAt = raw.lastIndexOf(marker);
     return splitAt >= 0 ? raw.slice(0, splitAt) : raw;
@@ -83,8 +91,8 @@
     if (["neutral", "any"].includes(raw)) return "neutral";
     return "enemy";
   }
-  function optionsFor(slotId, plan = {}, explicitTargetId = null) {
-    const ids = targetIdsFor(plan, explicitTargetId), data = plan.data || plan.sourceDefinition || plan.definition || plan.skill || plan.spell || plan;
+  function optionsFor(slotId, plan = {}, explicitTargetId = null, trustedData = null) {
+    const ids = targetIdsFor(plan, explicitTargetId), data = trustedData || plan.data || plan.sourceDefinition || plan.definition || plan.skill || plan.spell || plan;
     return {
       actorId: unitIdFromSlot(slotId), actionSlotId: slotId,
       isAi: String((combatData()[unitIdFromSlot(slotId)] || {}).controlled || "").toLowerCase() === "ai",
@@ -105,6 +113,25 @@
   }
   function trustedTrait(actor, traitId) {
     try { return global.CombatEngine?.resolveTrustedTraitForUnit?.(actor, traitId) || null; } catch (_) { return null; }
+  }
+  function declaredSkillLoadout(actor = {}) {
+    return Array.isArray(actor.skillSlotIds) || Array.isArray(actor.skillIds) || Boolean(actor.equippedSkillIndex && typeof actor.equippedSkillIndex === "object");
+  }
+  function skillIdForPlan(plan = {}, data = {}) {
+    return clean(plan.skillId || plan.sourceId || data.libraryKey || data.skillId || data.id);
+  }
+  function trustedSkill(actor = {}, plan = {}, data = {}) {
+    const skillId = skillIdForPlan(plan, data);
+    if (!skillId) return { ok: false, reason: "skill_id_required", skillId: null, skill: null };
+    const runtime = skillLoadoutRuntime();
+    if (runtime?.resolveSkillForCombatant) {
+      const result = runtime.resolveSkillForCombatant(actor, skillId);
+      return result.ok
+        ? { ok: true, reason: null, skillId, skill: result.skill, legacy: false }
+        : { ok: false, reason: String(result.reason || "skill_unavailable").toLowerCase(), skillId, skill: null };
+    }
+    if (declaredSkillLoadout(actor) || plan.__ownerPlayerId) return { ok: false, reason: "skill_loadout_runtime_required", skillId, skill: null };
+    return { ok: true, reason: null, skillId, skill: data, legacy: true };
   }
   function compileItem(actor, data, slotId, plan, explicitTargetId) {
     const options = optionsFor(slotId, plan, explicitTargetId), sourceId = data.id || data.itemId || data.name || "item";
@@ -144,23 +171,34 @@
     if (!plan) return { action: null, plan: null, reason: "combat_action_missing" };
     const explicitTargetId = explicitTargetSlotId ? unitIdFromSlot(explicitTargetSlotId) : null;
     const embedded = plan.combatAction || (plan.schemaVersion && plan.source && plan.resolution ? plan : null);
-    if (embedded) return { action: normalizeExistingAction(embedded, slotId, explicitTargetId), plan, source: "combat_action" };
+    if (embedded) {
+      if (plan.__ownerPlayerId || (actor.isPlayer === true && String(embedded?.source?.type || "").toLowerCase() === "skill")) {
+        return { action: null, plan, reason: "player_embedded_skill_action_forbidden" };
+      }
+      return { action: normalizeExistingAction(embedded, slotId, explicitTargetId), plan, source: "combat_action" };
+    }
 
     const data = plan.data || plan.sourceDefinition || plan.definition || plan.skill || plan.spell || plan;
     const kind = normalizeId(plan.type || data.kind || plan.kind || data.type);
-    const options = optionsFor(slotId, plan, explicitTargetId);
     let action = null;
     if (["deck", "granted", "skill", "attack"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "skill")) {
-      action = adapters.compileSkillToCombatAction(actor, data, options);
+      const resolved = trustedSkill(actor, plan, data);
+      if (!resolved.ok) return { action: null, plan, reason: resolved.reason, kind, skillId: resolved.skillId };
+      const trustedData = resolved.skill;
+      const options = optionsFor(slotId, plan, explicitTargetId, trustedData);
+      options.metadata = { ...options.metadata, loadoutSkillId: resolved.skillId, canonicalSkill: !resolved.legacy, sourceDefinition: clone(trustedData) };
+      action = adapters.compileSkillToCombatAction(actor, trustedData, { ...options, sourceId: resolved.skillId });
     } else if (["spells", "spell", "magic"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "spell")) {
-      action = adapters.compileSpellToCombatAction(actor, data, options);
+      action = adapters.compileSpellToCombatAction(actor, data, optionsFor(slotId, plan, explicitTargetId));
     } else if (["defense", "guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "defense")) {
       action = compileDefense(actor, data, slotId, plan, explicitTargetId);
     } else if (["items", "item"].includes(kind) || (kind === "auto" && normalizeId(data.kind) === "item")) {
       action = compileItem(actor, data, slotId, plan, explicitTargetId);
     } else if (["global", "universal", "universal_action"].includes(kind) || data.actionKey) {
+      const options = optionsFor(slotId, plan, explicitTargetId);
       action = adapters.compileUniversalAction(actor, data.actionKey || data.id || plan.actionKey || "action", { ...options, targetUnitId: options.mainTargetId, metadata: { ...options.metadata, sourceDefinition: clone(data), name: data.name || data.actionKey || "Action" } });
     } else if (plan.traitId || kind === "trait") {
+      const options = optionsFor(slotId, plan, explicitTargetId);
       const traitId = plan.traitId || data.traitId || data.id;
       const definition = trustedTrait(actor, traitId) || data;
       action = adapters.compileTraitToCombatAction(actor, definition, { ...options, sourceId: traitId, resolution: { type: "automatic" }, effects: [{ type: "viewer_trait_action", plannedAction: clone(plan), slotIndex: slotIndexFromId(slotId) }], metadata: { ...options.metadata, sharedPlannedAction: true, sourceDefinition: clone(definition) } });
@@ -172,7 +210,7 @@
 
   const api = Object.freeze({
     combatData, sharedPlans, attackVectors, unitIdFromSlot, slotIndexFromId, combatUnitForOwner, sharedPlanForSlot, plannedSlotIds, localPlanForSlot,
-    vectorPlanForSlot, planForSlot, defenseDefinition, compilePlan,
+    vectorPlanForSlot, planForSlot, declaredSkillLoadout, skillIdForPlan, trustedSkill, defenseDefinition, compilePlan,
   });
   global.LuminousBattleViewerActionAdapter073 = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
