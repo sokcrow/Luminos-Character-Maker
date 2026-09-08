@@ -11,25 +11,66 @@ const ownership = loadedOwnership?.version === '0.7.4' ? loadedOwnership : globa
 assert.equal(ownership.version, '0.7.4');
 assert.equal(ownership.canonicalCombatantIdForPlayer('player_a'), 'player:player_a');
 
-const players = {
-  player_a: { uid: 'uid-a', actorId: 'actor-a', name: 'A' },
-  player_b: { uid: 'uid-b', actorId: 'actor-b', name: 'B' },
-};
-const combatants = {
-  'player:player_a': {
-    id: 'player:player_a', unitId: 'player:player_a', combatId: 'player:player_a',
-    actorCategory: 'player', isPlayer: true, canonicalScope: 'player',
-    playerId: 'player_a', ownerPlayerId: 'player_a', ownerUid: 'uid-a',
-    canonicalPlayerKey: 'player_a', canonicalOwnerUid: 'uid-a',
-  },
-  'player:player_b': {
-    id: 'player:player_b', unitId: 'player:player_b', combatId: 'player:player_b',
-    actorCategory: 'player', isPlayer: true, canonicalScope: 'player',
-    playerId: 'player_b', ownerPlayerId: 'player_b', ownerUid: 'uid-b',
-    canonicalPlayerKey: 'player_b', canonicalOwnerUid: 'uid-b',
-  },
-  enemy_1: { id: 'enemy_1', actorCategory: 'enemy', name: 'Enemy' },
-};
+const playerIds = ['player_a', 'player_b', 'player_c', 'player_d', 'player_e', 'player_f', 'player_g', 'player_h'];
+const players = Object.fromEntries(playerIds.map((id, index) => [id, {
+  uid: `uid-${String.fromCharCode(97 + index)}`,
+  actorId: `actor-${String.fromCharCode(97 + index)}`,
+  name: id,
+}]));
+const combatants = Object.fromEntries(playerIds.map((id, index) => {
+  const suffix = String.fromCharCode(97 + index);
+  const slots = (index % 4) + 1;
+  return [`player:${id}`, {
+    id: `player:${id}`,
+    unitId: `player:${id}`,
+    combatId: `player:${id}`,
+    actorCategory: 'player',
+    isPlayer: true,
+    canonicalScope: 'player',
+    playerId: id,
+    ownerPlayerId: id,
+    ownerUid: `uid-${suffix}`,
+    canonicalPlayerKey: id,
+    canonicalOwnerUid: `uid-${suffix}`,
+    actionSlots: slots,
+    activeSlots: slots,
+    actionSlotIndex: Object.fromEntries(Array.from({ length: slots }, (_, slot) => [String(slot), true])),
+  }];
+}));
+combatants.enemy_1 = { id: 'enemy_1', actorCategory: 'enemy', name: 'Enemy' };
+
+// Eight simultaneous Players must resolve to eight different canonical combatants and only their own slots.
+for (let index = 0; index < playerIds.length; index += 1) {
+  const playerId = playerIds[index];
+  const uid = players[playerId].uid;
+  const unit = combatants[`player:${playerId}`];
+  const lastOwnedSlot = unit.activeSlots - 1;
+  const resolved = ownership.resolveCombatantForPlanOwner(playerId, combatants, players);
+  assert.equal(resolved.ok, true, `${playerId} should resolve`);
+  assert.equal(resolved.unitId, `player:${playerId}`);
+  assert.equal(resolved.ownerUid, uid);
+  assert.equal(ownership.canControlCombatant({ authUid: uid, ownerPlayerId: playerId, unit, players }).ok, true);
+  assert.equal(ownership.isAuthorizedActionSlot(unit, lastOwnedSlot), true);
+  assert.equal(ownership.isAuthorizedActionSlot(unit, unit.activeSlots), false);
+
+  const ownSlotPlan = {
+    unitId: `player:${playerId}`,
+    slotIndex: lastOwnedSlot,
+    kind: 'trait',
+    traitId: 'attack',
+    status: 'planned',
+    scheduledBy: playerId,
+    schedulerUid: uid,
+  };
+  assert.equal(ownership.authorizePlanWrite({ authUid: uid, ownerPlayerId: playerId, action: ownSlotPlan, combatants, players }).ok, true);
+  assert.equal(ownership.authorizePlanWrite({
+    authUid: uid,
+    ownerPlayerId: playerId,
+    action: { ...ownSlotPlan, slotIndex: unit.activeSlots },
+    combatants,
+    players,
+  }).reason, 'ACTION_SLOT_NOT_OWNED');
+}
 
 const resolvedA = ownership.resolveCombatantForPlanOwner('player_a', combatants, players);
 assert.equal(resolvedA.ok, true);
@@ -48,6 +89,9 @@ const ownPlan = {
 };
 assert.equal(ownership.validatePlanIntegrity({ ownerPlayerId: 'player_a', action: ownPlan, combatants, players }).ok, true);
 assert.equal(ownership.authorizePlanWrite({ authUid: 'uid-a', ownerPlayerId: 'player_a', action: ownPlan, combatants, players }).ok, true);
+assert.equal(ownership.validatePlanIntegrity({ ownerPlayerId: 'player_a', action: { ...ownPlan, slotIndex: 1 }, combatants, players }).reason, 'ACTION_SLOT_NOT_OWNED');
+assert.equal(ownership.validatePlanIntegrity({ ownerPlayerId: 'player_a', slotIndex: 0, action: { ...ownPlan, slotIndex: undefined }, combatants, players }).ok, true);
+assert.equal(ownership.validatePlanIntegrity({ ownerPlayerId: 'player_a', action: { ...ownPlan, slotIndex: undefined }, combatants, players }).reason, 'ACTION_SLOT_REQUIRED');
 
 const forgedUnit = { ...ownPlan, unitId: 'player:player_b' };
 assert.equal(ownership.validatePlanIntegrity({ ownerPlayerId: 'player_a', action: forgedUnit, combatants, players }).reason, 'SOURCE_UNIT_MISMATCH');
@@ -81,7 +125,7 @@ const ambiguousLegacy = {
 };
 assert.equal(ownership.resolveCombatantForPlanOwner('player_a', ambiguousLegacy, players).reason, 'AMBIGUOUS_COMBATANT');
 
-// Static guard: Firebase Rules must enforce the same canonical ownership boundary.
+// Static guard: Firebase Rules must enforce the same canonical ownership + slot boundary.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rules = JSON.parse(fs.readFileSync(path.join(here, '..', 'database.rules.json'), 'utf8'));
 const slotRules = rules.rules.campaña.combate.plannedActions.$ownerPlayerId.$slotIndex;
@@ -93,5 +137,7 @@ assert.match(slotRules['.validate'], /canonicalPlayerKey/);
 assert.match(slotRules['.validate'], /canonicalOwnerUid/);
 assert.match(slotRules['.validate'], /schedulerUid/);
 assert.match(slotRules['.validate'], /unitId/);
+assert.match(slotRules['.validate'], /actionSlotIndex/);
+assert.match(slotRules['.validate'], /\$slotIndex/);
 
 console.log('combat-v074-ownership-smoke: ok');
