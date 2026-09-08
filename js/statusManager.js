@@ -29,6 +29,26 @@
     return library.registry || global.STATUS_REGISTRY || null;
   }
 
+  function ensureClassStatusSemantics() {
+    if (global.LuminousClassStatusSemantics) {
+      global.LuminousClassStatusSemantics.install?.();
+      return Promise.resolve(global.LuminousClassStatusSemantics);
+    }
+    if (typeof require === "function") {
+      try {
+        const runtime = require("./class-status-semantics.js");
+        runtime?.install?.();
+        if (runtime) return Promise.resolve(runtime);
+      } catch (_) {}
+    }
+    if (!global.document) return Promise.resolve(null);
+    return loadOnce("class-status-semantics-script", "js/class-status-semantics.js", () => global.LuminousClassStatusSemantics)
+      .then((runtime) => {
+        runtime?.install?.();
+        return runtime;
+      });
+  }
+
   function ensureElementalRuntime() {
     if (global.LuminousElementalStatusRuntime) {
       global.LuminousElementalStatusRuntime.install?.();
@@ -46,11 +66,13 @@
 
   if (library) {
     installLibrary(library);
+    ensureClassStatusSemantics();
     ensureElementalRuntime();
   } else if (global.document) {
     loadOnce("status-library-script", "js/status-library.js", () => global.LuminousStatusLibrary)
       .then((loaded) => {
         installLibrary(loaded);
+        ensureClassStatusSemantics();
         ensureElementalRuntime();
       });
   }
@@ -62,6 +84,7 @@
     get registry() { return global.LuminousStatusLibrary?.registry || global.STATUS_REGISTRY || null; },
     install() {
       const active = installLibrary(global.LuminousStatusLibrary);
+      ensureClassStatusSemantics();
       ensureElementalRuntime();
       return active;
     }

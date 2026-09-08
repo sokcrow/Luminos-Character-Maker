@@ -27,6 +27,8 @@ jobs:
         run: node tests/unbreakable-red-coin-smoke.mjs
       - name: Unified canonical Status Library smoke
         run: node tests/combat-v074-unified-status-library-smoke.mjs
+      - name: Class Status semantics smoke
+        run: node tests/class-status-semantics-smoke.mjs
       - name: Starter Tier 1 status skill catalog smoke
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: G1-G2 Skill Forge smoke
@@ -61,6 +63,7 @@ jobs:
         run: |
           node --check js/status-library.js
           node --check js/statusManager.js
+          node --check js/class-status-semantics.js
           node --check js/battle-viewer-action-adapter-073.js
           node --check js/battle-viewer-firebase-session-074.js
           node --check js/combat-skill-loadout-074.js
