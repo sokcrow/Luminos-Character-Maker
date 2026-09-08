@@ -7,6 +7,7 @@ on:
       - feature/combat-deck-engine
       - feature/battle-viewer-0.7.3-engine-migration
       - hotfix/unified-status-library
+      - hotfix/class-status-classification-rage
   pull_request:
     branches:
       - main
@@ -27,6 +28,8 @@ jobs:
         run: node tests/unbreakable-red-coin-smoke.mjs
       - name: Unified canonical Status Library smoke
         run: node tests/combat-v074-unified-status-library-smoke.mjs
+      - name: Class Status classification smoke
+        run: node tests/combat-v074-class-status-classification-smoke.mjs
       - name: Starter Tier 1 status skill catalog smoke
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: G1-G2 Skill Forge smoke
@@ -61,6 +64,7 @@ jobs:
         run: |
           node --check js/status-library.js
           node --check js/statusManager.js
+          node --check js/class-status-classification.js
           node --check js/battle-viewer-action-adapter-073.js
           node --check js/battle-viewer-firebase-session-074.js
           node --check js/combat-skill-loadout-074.js
