@@ -38,6 +38,7 @@
     activeSkillContexts: [],
     spGuardDepth: 0,
     spGuardSnapshots: null,
+    spGuardMitigated: new Set(),
   };
 
   function base() {
@@ -607,6 +608,8 @@
   function refundAscensionSpLoss(snapshots) {
     if (!snapshots) return;
     snapshots.forEach((before, unit) => {
+      const key = entityKey(unit) || unit;
+      if (local.spGuardMitigated.has(key)) return;
       const after = readSp(unit);
       if (after >= before || !ascended(unit)) return;
       const repaired = Math.min(before, after + 5);
@@ -617,7 +620,10 @@
 
   function withSpLossGuard(context, callback) {
     const root = local.spGuardDepth === 0;
-    if (root) local.spGuardSnapshots = snapshotSp(spUnitsFromContext(context || {}));
+    if (root) {
+      local.spGuardSnapshots = snapshotSp(spUnitsFromContext(context || {}));
+      local.spGuardMitigated.clear();
+    }
     local.spGuardDepth += 1;
     try { return callback(); }
     finally {
@@ -626,6 +632,7 @@
         const snapshots = local.spGuardSnapshots;
         local.spGuardSnapshots = null;
         refundAscensionSpLoss(snapshots);
+        local.spGuardMitigated.clear();
       }
     }
   }
@@ -805,7 +812,10 @@
       writeCurrentSp(character, value) {
         const before = source.readCurrentSp ? numberOr(source.readCurrentSp(character), 0) : readSp(character);
         let requested = numberOr(value, before);
-        if (requested < before && ascended(character)) requested = Math.min(before, requested + 5);
+        if (requested < before && ascended(character)) {
+          requested = Math.min(before, requested + 5);
+          if (local.spGuardDepth > 0) local.spGuardMitigated.add(entityKey(character) || character);
+        }
         return source.writeCurrentSp ? source.writeCurrentSp.call(source, character, requested) : rawWriteSp(character, requested);
       },
       resolveSpellSave(character, classId, spell = {}, runtime = {}, variables = {}) {
