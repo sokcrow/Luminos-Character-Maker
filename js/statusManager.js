@@ -29,6 +29,29 @@
     return library.registry || global.STATUS_REGISTRY || null;
   }
 
+  function installClassStatusClassification() {
+    if (global.LuminousClassStatusClassification) {
+      global.LuminousClassStatusClassification.install?.();
+      return Promise.resolve(global.LuminousClassStatusClassification);
+    }
+    if (typeof require === "function") {
+      try {
+        const classification = require("./class-status-classification.js");
+        classification?.install?.();
+        return Promise.resolve(classification || null);
+      } catch (_) {}
+    }
+    if (!global.document) return Promise.resolve(null);
+    return loadOnce(
+      "class-status-classification-script",
+      "js/class-status-classification.js",
+      () => global.LuminousClassStatusClassification,
+    ).then((classification) => {
+      classification?.install?.();
+      return classification || null;
+    });
+  }
+
   function ensureElementalRuntime() {
     if (global.LuminousElementalStatusRuntime) {
       global.LuminousElementalStatusRuntime.install?.();
@@ -39,20 +62,22 @@
       .then((runtime) => runtime?.install?.());
   }
 
+  function finishInstall(library) {
+    const registry = installLibrary(library);
+    installClassStatusClassification().then(() => ensureElementalRuntime());
+    return registry;
+  }
+
   let library = global.LuminousStatusLibrary || null;
   if (!library && typeof require === "function") {
     try { library = require("./status-library.js"); } catch (_) {}
   }
 
   if (library) {
-    installLibrary(library);
-    ensureElementalRuntime();
+    finishInstall(library);
   } else if (global.document) {
     loadOnce("status-library-script", "js/status-library.js", () => global.LuminousStatusLibrary)
-      .then((loaded) => {
-        installLibrary(loaded);
-        ensureElementalRuntime();
-      });
+      .then((loaded) => finishInstall(loaded));
   }
 
   // Compatibility export only.  statusManager no longer owns a registry.
@@ -62,7 +87,7 @@
     get registry() { return global.LuminousStatusLibrary?.registry || global.STATUS_REGISTRY || null; },
     install() {
       const active = installLibrary(global.LuminousStatusLibrary);
-      ensureElementalRuntime();
+      installClassStatusClassification().then(() => ensureElementalRuntime());
       return active;
     }
   });
