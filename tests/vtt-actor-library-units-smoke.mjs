@@ -15,8 +15,8 @@ const merged = library.mergeCollections({
       id: 'unit_wolf',
       name: 'Test Wolf',
       faction: 'enemy',
-      icono: 'https://example.invalid/wolf.png',
-      attack_tier_1_sequence: ['skill:bite'],
+      visual: { spriteUrl: 'https://example.invalid/wolf.png' },
+      action_slots: ['bite', 'howl', 'bite'],
     },
   },
 });
@@ -25,14 +25,21 @@ assert.equal(merged.length, 1);
 assert.equal(merged[0].scope, 'units');
 assert.equal(merged[0].actorId, 'unit_wolf');
 assert.equal(merged[0].category, 'enemy');
-assert.deepEqual(merged[0].raw.attack_tier_1_sequence, ['skill:bite']);
+assert.equal(merged[0].tokenImage, 'https://example.invalid/wolf.png');
+assert.deepEqual(merged[0].skillIds, ['bite', 'howl']);
+
+const token = library.tokenFromActor(merged[0], { x: 10, y: 10 }, { grid:{ size:70, cols:10, rows:10 } });
+assert.equal(token.actorRef.scope, 'units');
+assert.equal(token.actorRef.id, 'unit_wolf');
+assert.deepEqual(token.skillIds, ['bite', 'howl']);
 
 const bridge = state.createBridge({ root: globalThis });
 bridge.applyUnits({
-  unit_guard: { id: 'unit_guard', name: 'Guard', faction: 'ally' },
+  unit_guard: { id: 'unit_guard', name: 'Guard', faction: 'ally', action_slots:['shield_bash'] },
 });
 assert.equal(bridge.list().length, 1);
 assert.equal(bridge.list()[0].actorId, 'unit_guard');
 assert.equal(bridge.list()[0].category, 'ally');
+assert.deepEqual(bridge.list()[0].skillIds, ['shield_bash']);
 
 console.log('vtt actor library units smoke: ok');
