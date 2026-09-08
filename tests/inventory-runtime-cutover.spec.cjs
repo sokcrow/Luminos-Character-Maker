@@ -194,16 +194,22 @@ test("canonical persistence mirrors keep Synthesis and legacy charge readers ali
     };
     const state = window.LuminousItemPersistenceRuntime.deserializeInventoryState({ inventario_activo: raw });
     const item = Object.values(state.inventario_activo)[0];
+    const loaded = {
+      quantity: item.quantity,
+      chargesCurrent: item.chargesCurrent,
+      chargesMax: item.chargesMax,
+      rechargeResource: item.rechargeRule?.resourceDefinitionId || null,
+    };
     item.quantity = 2;
     item.chargesCurrent = 3;
     const saved = window.LuminousItemPersistenceRuntime.serializeContainer({ [item.instanceId]: item });
-    return { item, saved: saved[item.instanceId] };
+    return { loaded, saved: saved[item.instanceId] };
   });
 
-  expect(result.item.quantity).toBe(3);
-  expect(result.item.chargesCurrent).toBe(2);
-  expect(result.item.chargesMax).toBe(5);
-  expect(result.item.rechargeRule.resourceDefinitionId).toBe("battery_cell");
+  expect(result.loaded.quantity).toBe(3);
+  expect(result.loaded.chargesCurrent).toBe(2);
+  expect(result.loaded.chargesMax).toBe(5);
+  expect(result.loaded.rechargeResource).toBe("battery_cell");
   expect(result.saved.quantity).toBe(2);
   expect(result.saved.cantidad).toBe(2);
   expect(result.saved.chargesCurrent).toBe(3);
