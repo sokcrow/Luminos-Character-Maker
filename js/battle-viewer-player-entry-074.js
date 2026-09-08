@@ -131,6 +131,7 @@
       characterName: clean(actor.name) || playerId,
       actorCategory: "player",
       category: "player",
+      isPlayer: true,
       type: raw.type || "player",
       playerId,
       ownerPlayerId: playerId,
