@@ -41,5 +41,15 @@
       "js/orosh-lineage-complete-runtime.js",
       () => Boolean(global.LuminousOroshLineageCompleteRuntime),
     ))
+    .then(() => ensureScript(
+      "rogue-class-runtime-script",
+      "js/rogue-class-runtime.js",
+      () => Boolean(global.LuminousRogueClassRuntime),
+    ))
+    .then(() => ensureScript(
+      "rogue-theatre-runtime-script",
+      "js/rogue-theatre-runtime.js",
+      () => Boolean(global.LuminousRogueTheatreRuntime),
+    ))
     .catch((error) => console.error("Player Archetype Bootstrap:", error));
 })(window);
