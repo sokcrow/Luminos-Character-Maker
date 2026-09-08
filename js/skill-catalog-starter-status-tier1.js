@@ -2,6 +2,14 @@
   "use strict";
 
   const STATUS_ORDER = Object.freeze(["burn", "rupture", "sinking", "tremor", "poise", "bleed"]);
+  const DAMAGE_ORDER = Object.freeze(["slash", "pierce", "blunt"]);
+  const DAMAGE_CONFIG = Object.freeze({
+    slash: Object.freeze({ damageType: "cortante", label: "Slash" }),
+    pierce: Object.freeze({ damageType: "perforante", label: "Pierce" }),
+    blunt: Object.freeze({ damageType: "contundente", label: "Blunt" }),
+  });
+  const DAMAGE_ID_BY_TYPE = Object.freeze({ cortante: "slash", perforante: "pierce", contundente: "blunt" });
+
   const STATUS_CONFIG = Object.freeze({
     burn: Object.freeze({ target: "target", sins: Object.freeze(["wrath", "lust", "pride"]), names: Object.freeze([
       "Ember Cut", "Cinder Point", "Ash Knuckle", "Kindling Edge",
@@ -39,18 +47,18 @@
   // More Coins means lower Coin Power: 1 Coin = +6, 2 Coins = +4, 3 Coins = +3.
   // Stronger status packages trade Base Power instead of adding extra mechanics.
   // This starter batch is melee-only, so every Skill has Range 1.
-  // Each Status family rotates three Sin affinities evenly: 4 Skills per Sin.
+  // Each Status family rotates three Sin affinities evenly.
+  // Every Status now has 12 Slash + 12 Pierce + 12 Blunt Skills (36 total).
+  // The original 72 IDs are preserved for their original damage variants.
   const PROFILES = Object.freeze([
     Object.freeze({ slug: "steady", coins: 1, basePower: 7, coinPower: 6, apps: Object.freeze([[0, 1, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "lasting", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 1, 2]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "intense", coins: 1, basePower: 6, coinPower: 6, apps: Object.freeze([[0, 2, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "loaded", coins: 1, basePower: 4, coinPower: 6, apps: Object.freeze([[0, 2, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
-
     Object.freeze({ slug: "double_step", coins: 2, basePower: 5, coinPower: 4, apps: Object.freeze([[1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "double_lasting", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 1, 2]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "double_intense", coins: 2, basePower: 4, coinPower: 4, apps: Object.freeze([[1, 2, 1]]), damageType: "cortante", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "double_split", coins: 2, basePower: 2, coinPower: 4, apps: Object.freeze([[0, 1, 1], [1, 1, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
-
     Object.freeze({ slug: "triple_step", coins: 3, basePower: 4, coinPower: 3, apps: Object.freeze([[2, 1, 1]]), damageType: "contundente", scalingStat: "Fuerza", skillRange: 1 }),
     Object.freeze({ slug: "triple_lasting", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 1, 2]]), damageType: "cortante", scalingStat: "Destreza", skillRange: 1 }),
     Object.freeze({ slug: "triple_intense", coins: 3, basePower: 3, coinPower: 3, apps: Object.freeze([[2, 2, 1]]), damageType: "perforante", scalingStat: "Destreza", skillRange: 1 }),
@@ -80,12 +88,17 @@
     };
   }
 
-  function buildSkill(statusId, profileIndex) {
+  function buildSkill(statusId, profileIndex, damageId) {
     const config = STATUS_CONFIG[statusId];
     const profile = PROFILES[profileIndex];
+    const damage = DAMAGE_CONFIG[damageId];
     const ordinal = String(profileIndex + 1).padStart(2, "0");
-    const name = config.names[profileIndex];
-    const id = `t1_${statusId}_${ordinal}_${slugify(name)}`;
+    const baseName = config.names[profileIndex];
+    const legacyDamageId = DAMAGE_ID_BY_TYPE[profile.damageType];
+    const isLegacyVariant = damageId === legacyDamageId;
+    const name = isLegacyVariant ? baseName : `${baseName} · ${damage.label}`;
+    const legacyId = `t1_${statusId}_${ordinal}_${slugify(baseName)}`;
+    const id = isLegacyVariant ? legacyId : `${legacyId}_${damageId}`;
     const sinAffinity = config.sins[profileIndex % config.sins.length];
     const coins = Array.from({ length: profile.coins }, (_, index) => ({
       index,
@@ -114,8 +127,8 @@
       coinAmount: profile.coins,
       coinType: "positive",
       attackWeight: 1,
-      skillRange: profile.skillRange,
-      damageType: profile.damageType,
+      skillRange: 1,
+      damageType: damage.damageType,
       sinAffinity,
       scalingStat: profile.scalingStat,
       statUsed: "",
@@ -145,6 +158,8 @@
         rulesPolicy: "apply_only",
         balanceProfile: profile.slug,
         combatRange: "melee",
+        damageFamily: damageId,
+        legacyStarterId: isLegacyVariant,
       },
     };
   }
@@ -152,8 +167,10 @@
   const DEFINITIONS = {};
   STATUS_ORDER.forEach((statusId) => {
     PROFILES.forEach((_, profileIndex) => {
-      const skill = buildSkill(statusId, profileIndex);
-      DEFINITIONS[skill.id] = Object.freeze(skill);
+      DAMAGE_ORDER.forEach((damageId) => {
+        const skill = buildSkill(statusId, profileIndex, damageId);
+        DEFINITIONS[skill.id] = Object.freeze(skill);
+      });
     });
   });
   Object.freeze(DEFINITIONS);
@@ -163,6 +180,10 @@
   function byStatus(statusId) {
     const wanted = String(statusId || "").trim().toLowerCase();
     return list().filter((skill) => skill.metadata?.statusFamily === wanted);
+  }
+  function byDamage(damageId) {
+    const wanted = String(damageId || "").trim().toLowerCase();
+    return list().filter((skill) => skill.metadata?.damageFamily === wanted);
   }
   function firebasePayload(schema = global.CombatSkillSchema) {
     const payload = {};
@@ -179,14 +200,17 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.0",
+    version: "1.2.0",
     STATUS_ORDER,
+    DAMAGE_ORDER,
+    DAMAGE_CONFIG,
     STATUS_CONFIG,
     PROFILES,
     DEFINITIONS,
     list,
     get,
     byStatus,
+    byDamage,
     firebasePayload,
   });
 
