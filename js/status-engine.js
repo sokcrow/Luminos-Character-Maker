@@ -198,6 +198,7 @@
 
   ensureCoreConditionRuntime();
   if (global.document && !global.LuminousThrownProjectileSequenceRuntime) loadScript("thrown-projectile-sequence-runtime-script", "js/thrown-projectile-sequence-runtime.js");
+  if (global.document && !global.LuminousThrownProjectileSequenceProfiles) loadScript("thrown-projectile-sequence-profiles-script", "js/thrown-projectile-sequence-profiles.js");
   if (global.document && !global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
   if (global.document && !global.LuminousConditionTheatreBridge) loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
