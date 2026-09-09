@@ -4,6 +4,8 @@
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const skillCatalog = global.LuminousKoboldTier1SkillCatalog
     || (typeof require !== 'undefined' ? (() => { try { return require('./skill-catalog-kobold-tier1.js'); } catch (_) { return null; } })() : null);
+  const rankRuntime = global.LuminousUnitRankRuntime
+    || (typeof require !== 'undefined' ? (() => { try { return require('./unit-rank-runtime.js'); } catch (_) { return null; } })() : null);
 
   const BASE_LEVEL = Object.freeze({ min: 1, max: 3 });
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
@@ -22,11 +24,23 @@
     description: 'When this Kobold attacks a target that is also being attacked by another Kobold ally during the round, gain +1 Clash Power.',
   });
 
-  const RANKS = Object.freeze({
-    normal: Object.freeze({ id: 'normal', levelMultiplier: 1, hpBase: 24, hpCoefficient: 1.00, defLvlMod: 0, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0 }),
-    captain: Object.freeze({ id: 'captain', levelMultiplier: 2, hpBase: 30, hpCoefficient: 1.25, defLvlMod: 0, minSpeedBonus: 0, maxSpeedBonus: 1, applyBonus: 1, basePowerBonus: 0 }),
-    leader: Object.freeze({ id: 'leader', levelMultiplier: 3, hpBase: 36, hpCoefficient: 1.50, defLvlMod: 0, minSpeedBonus: 1, maxSpeedBonus: 2, applyBonus: 2, basePowerBonus: 1 }),
+  const FALLBACK_UNIVERSAL_RANKS = Object.freeze({
+    normal: Object.freeze({ id: 'normal', levelMultiplier: 1, minSpeedBonus: 0, maxSpeedBonus: 0, applyBonus: 0, basePowerBonus: 0, commandLevel: 0, aiCoordination: 'independent', targetPriority: 'random', turnEndSpRecovery: 0 }),
+    captain: Object.freeze({ id: 'captain', levelMultiplier: 2, minSpeedBonus: 0, maxSpeedBonus: 1, applyBonus: 1, basePowerBonus: 0, commandLevel: 1, aiCoordination: 'focus_fire', targetPriority: 'lowest_hp_ratio', turnEndSpRecovery: 5 }),
+    leader: Object.freeze({ id: 'leader', levelMultiplier: 3, minSpeedBonus: 1, maxSpeedBonus: 2, applyBonus: 2, basePowerBonus: 1, commandLevel: 2, aiCoordination: 'directed_focus', targetPriority: 'lowest_hp_ratio_then_highest_threat', turnEndSpRecovery: 10 }),
   });
+  const UNIVERSAL_RANKS = rankRuntime?.RANKS || FALLBACK_UNIVERSAL_RANKS;
+
+  // Durability belongs to the Kobold chassis. Command/speed/apply/power behavior belongs to the universal rank runtime.
+  const HP_RANKS = Object.freeze({
+    normal: Object.freeze({ hpBase: 24, hpCoefficient: 1.00, defLvlMod: 0 }),
+    captain: Object.freeze({ hpBase: 30, hpCoefficient: 1.25, defLvlMod: 0 }),
+    leader: Object.freeze({ hpBase: 36, hpCoefficient: 1.50, defLvlMod: 0 }),
+  });
+
+  const RANKS = Object.freeze(Object.fromEntries(
+    Object.keys(HP_RANKS).map((rankId) => [rankId, Object.freeze({ ...UNIVERSAL_RANKS[rankId], ...HP_RANKS[rankId] })])
+  ));
 
   function baseUnit({ id, name, variant, sprite, speed, skills }) {
     return {
@@ -81,7 +95,7 @@
       metadata: {
         canonicalUnit: true,
         catalog: 'kobold-tier1',
-        rankModel: 'normal_captain_leader',
+        rankModel: 'universal_normal_captain_leader',
         hpModel: 'rank_coefficient',
       },
     };
@@ -107,7 +121,7 @@
   });
 
   function normalizeRank(rank) {
-    const id = String(rank || 'normal').trim().toLowerCase();
+    const id = rankRuntime?.normalizeRank ? rankRuntime.normalizeRank(rank, '') : String(rank || 'normal').trim().toLowerCase();
     if (!RANKS[id]) throw new Error(`UNKNOWN_UNIT_RANK:${id}`);
     return id;
   }
@@ -150,7 +164,7 @@
     const baseLevel = normalizeBaseLevel(opts.baseLevel ?? 1);
     const rank = normalizeRank(opts.rank ?? 'normal');
     const profile = RANKS[rank];
-    const effectiveLevel = baseLevel * profile.levelMultiplier;
+    const effectiveLevel = rankRuntime?.effectiveLevel ? rankRuntime.effectiveLevel(baseLevel, rank) : baseLevel * profile.levelMultiplier;
     const maxHp = Math.floor(profile.hpBase + (effectiveLevel + profile.defLvlMod) * profile.hpCoefficient);
     const baseSpeed = parseSpeed(unit.mechanics.speed);
     const minSpeed = baseSpeed.min + profile.minSpeedBonus;
@@ -161,6 +175,12 @@
     unit.baseLevelSelected = baseLevel;
     unit.effectiveLevel = effectiveLevel;
     unit.rankBonuses = clone(profile);
+    unit.commandProfile = {
+      commandLevel: profile.commandLevel,
+      aiCoordination: profile.aiCoordination,
+      targetPriority: profile.targetPriority,
+      turnEndSpRecovery: profile.turnEndSpRecovery,
+    };
     unit.resolvedSkills = resolvedSkills;
     unit.mechanics = {
       ...unit.mechanics,
@@ -177,6 +197,9 @@
       maxSpeed,
       statusApplyBonus: profile.applyBonus,
       basePowerBonus: profile.basePowerBonus,
+      commandLevel: profile.commandLevel,
+      aiCoordination: profile.aiCoordination,
+      turnEndSpRecovery: profile.turnEndSpRecovery,
     };
     return unit;
   }
@@ -193,7 +216,8 @@
   }
 
   const api = Object.freeze({
-    version: '1.0.0', BASE_LEVEL, STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS, RANKS, DEFINITIONS,
+    version: '1.1.0', BASE_LEVEL, STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS,
+    UNIVERSAL_RANKS, HP_RANKS, RANKS, DEFINITIONS,
     list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload,
   });
   global.LuminousKoboldUnitCatalog = api;

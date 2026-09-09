@@ -14,6 +14,14 @@
     return null;
   }
 
+  function rankDirector() {
+    if (global.LuminousUnitRankRuntime) return global.LuminousUnitRankRuntime;
+    if (typeof require === "function") {
+      try { return require("./unit-rank-runtime.js"); } catch (_) {}
+    }
+    return null;
+  }
+
   function allActiveUnits(encounter) {
     if (!encounter) return [];
     return [
@@ -44,6 +52,11 @@
     engine.getTeamEconomySnapshot = function getTeamEconomySnapshot() {
       const api = director();
       return api && this.teamActionEncounter ? api.snapshot(this.teamActionEncounter) : null;
+    };
+
+    engine.getTeamCommandContext = function getTeamCommandContext() {
+      const ranks = rankDirector();
+      return ranks?.encounterCommandContext?.(this.teamActionEncounter) || null;
     };
 
     engine.consumeTeamQuickAction = function consumeTeamQuickAction(side) {
@@ -85,7 +98,11 @@
     engine.markPlayerPlanningReady = function markPlayerPlanningReady(options = {}) {
       const api = director();
       if (!api || !this.teamActionEncounter) return { ready: false, reason: "team_economy_unavailable" };
-      const result = api.playerReady(this.teamActionEncounter, { aiPlanner: options.aiPlanner });
+      const ranks = rankDirector();
+      const planner = typeof options.aiPlanner === "function"
+        ? (encounter) => options.aiPlanner(encounter, ranks?.encounterCommandContext?.(encounter) || null)
+        : options.aiPlanner;
+      const result = api.playerReady(this.teamActionEncounter, { aiPlanner: planner });
       if (!result.ready) return result;
 
       const finishAi = (aiResult) => {
@@ -125,19 +142,22 @@
       const api = director();
       if (!api || !this.teamActionEncounter) return { ended: false, reason: "team_economy_unavailable" };
       const result = api.endRound(this.teamActionEncounter, handlers);
+      let commandRecovery = null;
       if (result.ended) {
+        const ranks = rankDirector();
+        commandRecovery = ranks?.applyEncounterTurnEndSpRecovery?.(this.teamActionEncounter) || null;
         this.currentState = "PRE_COMBAT_PLANNING";
         const unitEconomy = global.LuminousActionEconomy;
         if (unitEconomy) allActiveUnits(this.teamActionEncounter).forEach((unit) => unitEconomy.beginPlanning?.(unit));
       }
-      return result;
+      return commandRecovery ? { ...result, commandRecovery } : result;
     };
 
     Object.defineProperty(engine, "__luminousTeamEconomyInstalled", { value: true, configurable: true, enumerable: false });
     return { installed: true, engine };
   }
 
-  const api = Object.freeze({ director, allActiveUnits, install });
+  const api = Object.freeze({ director, rankDirector, allActiveUnits, install });
   global.LuminousCombatTeamEconomyBridge = api;
   if (global.CombatEngine) install(global.CombatEngine);
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -10,17 +10,18 @@
 <body>
 <div class="wrap"><div class="panel">
 <h1>Kobold · Unit Library</h1>
-<p>Primer catálogo canónico de Units enemigas: Dagger y Sling. Las definiciones usan Base Level 1–3, rangos Normal/Captain/Leader, HP por coeficiente, tres Stagger Thresholds, Scores/Proficiencies y Skills Tier 1 especializadas en Count.</p>
+<p>Primer catálogo canónico de Units enemigas: Dagger y Sling. Las definiciones usan Base Level 1–3, rangos universales Normal/Captain/Leader, HP por coeficiente, tres Stagger Thresholds, Scores/Proficiencies y Skills Tier 1 especializadas en Count.</p>
 <div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR KOBOLDS</button><button class="btn" id="refresh">REVISAR CATÁLOGO</button><span>Units: <code>campaña/base_datos_unidades</code> · Skills: <code>campaña/base_datos_skills</code></span></div>
 <div id="status" class="status">Cargando catálogo y verificando sesión DM…</div>
 <div id="units" class="units"></div>
-<p>La sincronización usa <code>update()</code> con IDs determinísticos. No borra otras Units ni otras Skills. Pack Tactics y los Stagger Thresholds quedan guardados como contrato canónico; sólo las mecánicas que ya consume el runtime se ejecutan automáticamente.</p>
+<p>La sincronización usa <code>update()</code> con IDs determinísticos. No borra otras Units ni otras Skills. Pack Tactics y los Stagger Thresholds quedan guardados como contrato canónico.</p>
 </div></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="js/combat-skill-schema.js"></script>
 <script src="js/skill-catalog-kobold-tier1.js"></script>
+<script src="js/unit-rank-runtime.js"></script>
 <script src="js/unit-catalog-kobold-tier1.js"></script>
 <script src="js/battle-viewer-firebase-session-074.js"></script>
 <script>
@@ -33,22 +34,23 @@ const UNIT_PATH='campaña/base_datos_unidades';
 const SKILL_PATH='campaña/base_datos_skills';
 const catalog=window.LuminousKoboldUnitCatalog;
 const skills=window.LuminousKoboldTier1SkillCatalog;
+const ranks=window.LuminousUnitRankRuntime;
 const schema=window.CombatSkillSchema;
 const session=window.LuminousBattleViewerFirebaseSession074;
 const $=id=>document.getElementById(id);
 let dmReady=false;
 function setStatus(text,kind){$('status').textContent=text;$('status').className='status'+(kind?' '+kind:'')}
-function rankRows(unitId){return ['normal','captain','leader'].map(rank=>{const a=catalog.resolve(unitId,{baseLevel:1,rank}),b=catalog.resolve(unitId,{baseLevel:3,rank});return `<tr><td>${rank.toUpperCase()}</td><td>${a.mechanics.speed}</td><td>${a.mechanics.hp}</td><td>${b.mechanics.hp}</td><td>+${a.mechanics.statusApplyBonus}</td><td>+${a.mechanics.basePowerBonus}</td></tr>`}).join('')}
+function rankRows(unitId){return ['normal','captain','leader'].map(rank=>{const a=catalog.resolve(unitId,{baseLevel:1,rank}),b=catalog.resolve(unitId,{baseLevel:3,rank});return `<tr><td>${rank.toUpperCase()}</td><td>${a.mechanics.speed}</td><td>${a.mechanics.hp}</td><td>${b.mechanics.hp}</td><td>+${a.mechanics.statusApplyBonus}</td><td>+${a.mechanics.basePowerBonus}</td><td>+${a.mechanics.turnEndSpRecovery} SP</td></tr>`}).join('')}
 function render(){
- if(!catalog||!skills||!schema){setStatus('Falta CombatSkillSchema o uno de los catálogos Kobold.','bad');return false}
+ if(!catalog||!skills||!ranks||!schema){setStatus('Falta CombatSkillSchema o uno de los catálogos/runtimes de Unit.','bad');return false}
  const definitions=catalog.list();
  const skillList=skills.list();
  const invalid=skillList.map(s=>[s,schema.validateCombatSkill(s)]).filter(([,v])=>!v.valid);
  if(invalid.length){setStatus(`Skill inválida: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`,'bad');return false}
  const outOfTier=skillList.filter(s=>{const p=skills.finalPower(s);return p<10||p>12});
  if(outOfTier.length){setStatus(`Tier 1 fuera de 10–12: ${outOfTier[0].id}.`,'bad');return false}
- $('units').innerHTML=definitions.map(unit=>`<section class="unit"><img src="${unit.visual.spriteUrl}" alt="${unit.name}"><h2>${unit.name}</h2><div class="skills">${unit.action_slots.join(' · ')}</div><table class="ranks"><thead><tr><th>Rank</th><th>Speed Lv1</th><th>HP Lv1</th><th>HP Lv3</th><th>Apply</th><th>Base</th></tr></thead><tbody>${rankRows(unit.id)}</tbody></table></section>`).join('');
- setStatus(`Catálogo válido: ${definitions.length} Units · ${skillList.length} Skills · versión ${catalog.version}.`,'ok');return true;
+ $('units').innerHTML=definitions.map(unit=>`<section class="unit"><img src="${unit.visual.spriteUrl}" alt="${unit.name}"><h2>${unit.name}</h2><div class="skills">${unit.action_slots.join(' · ')}</div><table class="ranks"><thead><tr><th>Rank</th><th>Speed Lv1</th><th>HP Lv1</th><th>HP Lv3</th><th>Apply</th><th>Base</th><th>Turn End</th></tr></thead><tbody>${rankRows(unit.id)}</tbody></table></section>`).join('');
+ setStatus(`Catálogo válido: ${definitions.length} Units · ${skillList.length} Skills · Unit Rank ${ranks.version} · Kobold ${catalog.version}.`,'ok');return true;
 }
 async function authorize(){
  $('sync').disabled=true;dmReady=false;

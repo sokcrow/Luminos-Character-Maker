@@ -31,6 +31,16 @@
     global.document.head?.appendChild(script);
   }
 
+  function ensureUnitRankRuntime() {
+    if (!global.document || global.LuminousUnitRankRuntime) return;
+    if (global.document.getElementById("luminous-unit-rank-runtime-bootstrap")) return;
+    const script = global.document.createElement("script");
+    script.id = "luminous-unit-rank-runtime-bootstrap";
+    script.src = "js/unit-rank-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
   function normalizePhase(value) {
     const id = normalizeId(value);
     if (["pre_combat_planning", "planning", "planning_phase", "before_combat", "before_combat_phase"].includes(id)) return PHASES.PLANNING;
@@ -324,5 +334,6 @@
 
   global.LuminousActionEconomy = api;
   ensureEnvironmentRuntime();
+  ensureUnitRankRuntime();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
