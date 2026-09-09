@@ -4,6 +4,8 @@ await import('../js/unit-rank-runtime.js');
 const rank = globalThis.LuminousUnitRankRuntime;
 if (!rank) throw new Error('LuminousUnitRankRuntime was not initialized.');
 
+assert.equal(rank.version, '1.1.0');
+assert.equal(rank.BACKUP_COMMAND_SP_MULTIPLIER, 0.5);
 assert.equal(rank.RANKS.normal.levelMultiplier, 1);
 assert.equal(rank.RANKS.captain.levelMultiplier, 2);
 assert.equal(rank.RANKS.leader.levelMultiplier, 3);
@@ -99,7 +101,7 @@ const leaderPlan = rank.assignTargetSlots({ attackSlots, targetSlots: leaderTarg
 assert.equal(leaderPlan.command.rank, 'leader');
 assert.deepEqual(new Set(Object.values(leaderTargets).map(id => id.split('_slot_')[0])), new Set(['a2']));
 
-// Encounter helpers only read FIELD/active profiles. Backups do not command.
+// AI command comes only from FIELD. Backup commanders instead provide half SP support.
 const encounter = {
   allies: { active: [{ unit: { id: 'ally', faction: 'ally', rank: 'normal', hp: 10, sp: 0 } }], backups: [{ unit: { id: 'ally_leader_backup', faction: 'ally', rank: 'leader', hp: 10, sp: 0 } }] },
   enemies: { active: [{ unit: { id: 'enemy', faction: 'enemy', rank: 'captain', hp: 10, sp: 0 } }], backups: [{ unit: { id: 'enemy_leader_backup', faction: 'enemy', rank: 'leader', hp: 10, sp: 0 } }] },
@@ -108,7 +110,29 @@ const encounterCommand = rank.encounterCommandContext(encounter);
 assert.equal(encounterCommand.allies.rank, 'normal');
 assert.equal(encounterCommand.enemies.rank, 'captain');
 
-// Team Economy passes the command context to the AI planner and resolves the SP aura at Turn End.
+const encounterRecovery = rank.applyEncounterTurnEndSpRecovery(encounter);
+assert.equal(encounter.allies.active[0].unit.sp, 5, 'backup Leader grants half of +10 SP');
+assert.equal(encounter.allies.backups[0].unit.sp, 0, 'backup Units do not receive the recovery');
+assert.equal(encounterRecovery.factions.ally.rank, 'leader');
+assert.equal(encounterRecovery.factions.ally.sourceDeployment, 'backup');
+assert.equal(encounterRecovery.factions.ally.turnEndSpRecovery, 5);
+assert.equal(encounter.enemies.active[0].unit.sp, 5, 'FIELD Captain ties backup Leader at 5 and wins by deployment priority');
+assert.equal(encounterRecovery.factions.enemy.rank, 'captain');
+assert.equal(encounterRecovery.factions.enemy.sourceDeployment, 'field');
+
+const backupCaptainEncounter = {
+  enemies: {
+    active: [{ unit: { id: 'trooper', faction: 'enemy', rank: 'normal', hp: 10, sp: 0 } }],
+    backups: [{ unit: { id: 'captain_backup', faction: 'enemy', rank: 'captain', hp: 10, sp: 0 } }],
+  },
+};
+const backupCaptainRecovery = rank.applyEncounterTurnEndSpRecovery(backupCaptainEncounter);
+assert.equal(backupCaptainEncounter.enemies.active[0].unit.sp, 2.5, 'backup Captain grants half of +5 SP');
+assert.equal(backupCaptainEncounter.enemies.backups[0].unit.sp, 0);
+assert.equal(backupCaptainRecovery.factions.enemy.turnEndSpRecovery, 2.5);
+assert.equal(backupCaptainRecovery.factions.enemy.sourceDeployment, 'backup');
+
+// Team Economy passes FIELD command context to the AI planner and resolves the best SP aura at Turn End.
 await import('../js/team-action-economy.js');
 globalThis.LuminousActionEconomy = {
   beginPlanning() {},
@@ -138,6 +162,7 @@ assert.equal(engine.beginTeamTurnEnd().started, true);
 const ended = engine.endTeamRound();
 assert.equal(ended.ended, true);
 assert.equal(ended.commandRecovery.factions.enemy.rank, 'captain');
+assert.equal(ended.commandRecovery.factions.enemy.sourceDeployment, 'field');
 assert.equal(activeCaptain.sp, 5);
 assert.equal(activeTrooper.sp, 5);
 assert.equal(backupLeader.sp, 0);
