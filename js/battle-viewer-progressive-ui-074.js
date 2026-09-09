@@ -7,6 +7,8 @@
   const DM_BODY_ID = "dm074-body";
   const DM_TOGGLE_ID = "dm074-collapse";
   const SKILL_PANEL_ID = "bv074-player-skill-planner";
+  const ROSTER_SCRIPT_ID = "battle-viewer-dm-encounter-roster-074-script";
+  const ROSTER_SCRIPT_SRC = "js/battle-viewer-dm-encounter-roster-074.js";
 
   const state = {
     installed: false,
@@ -72,6 +74,25 @@
     return true;
   }
 
+  function syncEncounterRoster() {
+    const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
+    const db = dmConsole?._state?.db || null;
+    if (!db?.ref) return false;
+    const roster = global.LuminousBattleViewerDmEncounterRoster074 || null;
+    if (roster?.init) return roster.init({ db });
+    const doc = global.document;
+    if (!doc?.head) return false;
+    let script = doc.getElementById(ROSTER_SCRIPT_ID);
+    if (!script) {
+      script = doc.createElement("script");
+      script.id = ROSTER_SCRIPT_ID;
+      script.src = ROSTER_SCRIPT_SRC;
+      script.async = false;
+      doc.head.appendChild(script);
+    }
+    return false;
+  }
+
   function ensureStyle() {
     const doc = global.document;
     if (!doc?.head || doc.getElementById(STYLE_ID)) return false;
@@ -90,6 +111,7 @@
     ensureStyle();
     syncDmPanel();
     syncSkillPlanner();
+    syncEncounterRoster();
     return true;
   }
 
@@ -149,6 +171,7 @@
     shouldShowSkillPlanner,
     syncSkillPlanner,
     syncDmPanel,
+    syncEncounterRoster,
     setDmExpanded,
     sync,
     scheduleSync,
