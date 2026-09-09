@@ -1,7 +1,4 @@
-import { createRequire } from "node:module";
 import assert from "node:assert/strict";
-
-const require = createRequire(import.meta.url);
 
 globalThis.LuminousContentRegistry = {
   entries: new Map(),
@@ -37,8 +34,9 @@ globalThis.LuminousSpellcastingRuntime = {
   }
 };
 
-globalThis.LuminousSpellCatalog = require("../js/spell-catalog-core.js");
-const loadout = require("../js/combat-spell-loadout-074.js");
+await import("../js/spell-catalog-core.js");
+await import("../js/combat-spell-loadout-074.js");
+const loadout = globalThis.LuminousCombatSpellLoadout074;
 
 const wizard = {
   id: "wizard_unit",
@@ -66,7 +64,8 @@ globalThis.LuminousBattleViewerActionAdapter073 = {
   }
 };
 
-const adapter = require("../js/battle-viewer-spell-adapter-074.js");
+await import("../js/battle-viewer-spell-adapter-074.js");
+const adapter = globalThis.LuminousBattleViewerSpellAdapter074;
 
 const fire = loadout.resolveSpellDefinition("fire_bolt").spell;
 const fire40 = adapter.materializeSpell(wizard, "wizard", fire, 0, {});
