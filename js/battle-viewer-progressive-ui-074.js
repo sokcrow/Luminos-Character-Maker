@@ -12,6 +12,7 @@
     installed: false,
     observer: null,
     timer: null,
+    syncQueued: false,
     dmExpanded: false,
   };
 
@@ -31,7 +32,8 @@
     const panel = global.document?.getElementById?.(SKILL_PANEL_ID);
     if (!panel) return false;
     const shouldShow = shouldShowSkillPlanner();
-    if (panel.hidden === shouldShow) panel.hidden = !shouldShow;
+    const shouldHide = !shouldShow;
+    if (Boolean(panel.hidden) !== shouldHide) panel.hidden = shouldHide;
     if (!shouldShow) {
       const planner = playerSkillPlanner();
       if (planner?.state) planner.state.selectedSkillId = null;
@@ -46,9 +48,15 @@
     const toggle = doc?.getElementById?.(DM_TOGGLE_ID);
     if (!panel || !body || !toggle) return false;
 
-    body.hidden = !state.dmExpanded;
-    panel.classList?.toggle?.("dm074-compact", !state.dmExpanded);
-    toggle.textContent = state.dmExpanded ? "—" : "+";
+    const shouldHide = !state.dmExpanded;
+    const toggleText = state.dmExpanded ? "—" : "+";
+
+    // Important: do not rewrite reflected DOM attributes/text when they already
+    // match. The progressive UI is driven by a MutationObserver, so redundant
+    // writes can create an observer feedback loop in a real browser.
+    if (Boolean(body.hidden) !== shouldHide) body.hidden = shouldHide;
+    panel.classList?.toggle?.("dm074-compact", shouldHide);
+    if (toggle.textContent !== toggleText) toggle.textContent = toggleText;
 
     if (toggle.dataset?.progressiveUi074Bound !== "1") {
       if (toggle.dataset) toggle.dataset.progressiveUi074Bound = "1";
@@ -57,7 +65,8 @@
         if (original) original.call(this, event);
         state.dmExpanded = !body.hidden;
         panel.classList?.toggle?.("dm074-compact", !state.dmExpanded);
-        toggle.textContent = state.dmExpanded ? "—" : "+";
+        const nextText = state.dmExpanded ? "—" : "+";
+        if (toggle.textContent !== nextText) toggle.textContent = nextText;
       };
     }
     return true;
@@ -84,21 +93,34 @@
     return true;
   }
 
+  function scheduleSync() {
+    if (state.syncQueued) return false;
+    state.syncQueued = true;
+    const run = () => {
+      state.syncQueued = false;
+      sync();
+    };
+    if (typeof global.queueMicrotask === "function") global.queueMicrotask(run);
+    else if (typeof global.setTimeout === "function") global.setTimeout(run, 0);
+    else run();
+    return true;
+  }
+
   function install() {
     if (!global.document?.body) return false;
     if (!state.installed) {
       state.installed = true;
       if (typeof global.MutationObserver === "function") {
-        state.observer = new global.MutationObserver(() => sync());
+        state.observer = new global.MutationObserver(() => scheduleSync());
+        // We only need to notice console/planner mounts and remounts. Observing
+        // `hidden` was unsafe because syncDmPanel itself owns that attribute.
         state.observer.observe(global.document.body, {
           childList: true,
           subtree: true,
-          attributes: true,
-          attributeFilter: ["hidden"],
         });
       }
       if (typeof global.setInterval === "function") {
-        state.timer = global.setInterval(sync, 250);
+        state.timer = global.setInterval(sync, 500);
         state.timer?.unref?.();
       }
     }
@@ -111,6 +133,7 @@
     state.observer = null;
     if (state.timer && typeof global.clearInterval === "function") global.clearInterval(state.timer);
     state.timer = null;
+    state.syncQueued = false;
     state.installed = false;
   }
 
@@ -128,6 +151,7 @@
     syncDmPanel,
     setDmExpanded,
     sync,
+    scheduleSync,
     install,
     stop,
   });
