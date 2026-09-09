@@ -33,6 +33,8 @@ jobs:
         run: node tests/starter-status-skill-catalog-smoke.mjs
       - name: Kobold Unit Library smoke
         run: node tests/kobold-unit-library-smoke.mjs
+      - name: Universal Unit rank command smoke
+        run: node tests/unit-rank-command-smoke.mjs
       - name: G1-G2 Skill Forge smoke
         run: node tests/skill-forge-g2-smoke.mjs
       - name: G1-G2 Skill Forge runtime smoke
@@ -89,7 +91,10 @@ jobs:
           node --check js/status-rupture-runtime.js
           node --check js/skill-catalog-starter-status-tier1.js
           node --check js/skill-catalog-kobold-tier1.js
+          node --check js/unit-rank-runtime.js
           node --check js/unit-catalog-kobold-tier1.js
+          node --check js/combat-team-economy-bridge.js
+          node --check js/universal-action-economy.js
           node --check js/skill-forge-g2.js
           node --check js/skill-forge-runtime-g2.js
       - name: Battle Viewer 0.7.4 Firebase contract smoke
