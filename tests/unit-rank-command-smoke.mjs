@@ -37,6 +37,7 @@ assert.equal(field[3].sp, 7);
 assert.equal(recovery.recoveries.filter(entry => entry.faction === 'enemy').length, 3);
 assert.equal(recovery.factions.enemy.turnEndSpRecovery, 10);
 
+// A dead Leader stops commanding; the living Captain takes over.
 field[2].hp = 0;
 field[0].sp = field[1].sp = 0;
 const captainRecovery = rank.applyTurnEndSpRecovery(field);
@@ -45,6 +46,7 @@ assert.equal(field[0].sp, 5);
 assert.equal(field[1].sp, 5);
 assert.equal(field[2].sp, 10);
 
+// Respect a combatant's explicit SP cap when it exists.
 const capped = [
   { id: 'captain', faction: 'enemy', rank: 'captain', hp: 10, maxHp: 10, sp: 8, maxSp: 10 },
   { id: 'trooper', faction: 'enemy', hp: 10, maxHp: 10, sp: 9, maxSp: 10 },
@@ -53,6 +55,7 @@ rank.applyTurnEndSpRecovery(capped);
 assert.equal(capped[0].sp, 10);
 assert.equal(capped[1].sp, 10);
 
+// Normal Units preserve the legacy random enemy targeting behavior.
 const combatDataNormal = {
   e1: { id: 'e1', faction: 'enemy', rank: 'normal', hp: 10, maxHp: 10 },
   e2: { id: 'e2', faction: 'enemy', rank: 'normal', hp: 10, maxHp: 10 },
@@ -75,6 +78,7 @@ assert.equal(normalPlan.command.rank, 'normal');
 assert.equal(normalTargets.e1_slot_0, 'a1_slot_0');
 assert.equal(normalTargets.e2_slot_0, 'a2_slot_1');
 
+// Captain coordinates focus fire onto the most vulnerable target.
 const combatDataCaptain = JSON.parse(JSON.stringify(combatDataNormal));
 combatDataCaptain.e1.rank = 'captain';
 const captainTargets = {};
@@ -82,6 +86,7 @@ const captainPlan = rank.assignTargetSlots({ attackSlots, targetSlots, combatDat
 assert.equal(captainPlan.command.rank, 'captain');
 assert.deepEqual(new Set(Object.values(captainTargets).map(id => id.split('_slot_')[0])), new Set(['a2']));
 
+// Leader keeps vulnerability first and resolves equal vulnerability by highest threat.
 const leaderData = {
   e1: { id: 'e1', faction: 'enemy', rank: 'leader', hp: 10, maxHp: 10 },
   e2: { id: 'e2', faction: 'enemy', rank: 'normal', hp: 10, maxHp: 10 },
@@ -94,6 +99,7 @@ const leaderPlan = rank.assignTargetSlots({ attackSlots, targetSlots: leaderTarg
 assert.equal(leaderPlan.command.rank, 'leader');
 assert.deepEqual(new Set(Object.values(leaderTargets).map(id => id.split('_slot_')[0])), new Set(['a2']));
 
+// Encounter helpers only read FIELD/active profiles. Backups do not command.
 const encounter = {
   allies: { active: [{ unit: { id: 'ally', faction: 'ally', rank: 'normal', hp: 10, sp: 0 } }], backups: [{ unit: { id: 'ally_leader_backup', faction: 'ally', rank: 'leader', hp: 10, sp: 0 } }] },
   enemies: { active: [{ unit: { id: 'enemy', faction: 'enemy', rank: 'captain', hp: 10, sp: 0 } }], backups: [{ unit: { id: 'enemy_leader_backup', faction: 'enemy', rank: 'leader', hp: 10, sp: 0 } }] },
@@ -101,5 +107,40 @@ const encounter = {
 const encounterCommand = rank.encounterCommandContext(encounter);
 assert.equal(encounterCommand.allies.rank, 'normal');
 assert.equal(encounterCommand.enemies.rank, 'captain');
+
+// Team Economy passes the command context to the AI planner and resolves the SP aura at Turn End.
+await import('../js/team-action-economy.js');
+globalThis.LuminousActionEconomy = {
+  beginPlanning() {},
+  beginCombat() {},
+};
+await import('../js/combat-team-economy-bridge.js');
+const bridge = globalThis.LuminousCombatTeamEconomyBridge;
+const engine = { currentState: 'COMBAT_ACTIVE' };
+assert.equal(bridge.install(engine).installed, true);
+const activeCaptain = { id: 'bridge_captain', faction: 'enemy', rank: 'captain', hp: 20, maxHp: 20, sp: 0, initialActionSlots: 1, maxActionSlots: 1 };
+const activeTrooper = { id: 'bridge_trooper', faction: 'enemy', rank: 'normal', hp: 20, maxHp: 20, sp: 0, initialActionSlots: 1, maxActionSlots: 1 };
+const backupLeader = { id: 'bridge_leader_backup', faction: 'enemy', rank: 'leader', hp: 20, maxHp: 20, sp: 0, initialActionSlots: 1, maxActionSlots: 1 };
+const activeAlly = { id: 'bridge_ally', faction: 'ally', rank: 'normal', hp: 20, maxHp: 20, sp: 0, initialActionSlots: 1, maxActionSlots: 1 };
+engine.createTeamEconomyEncounter({ allies: [activeAlly], enemies: [activeCaptain, activeTrooper], enemyBackups: [backupLeader] });
+let plannerCommand = null;
+const ready = engine.markPlayerPlanningReady({
+  aiPlanner: (_encounter, commandContext) => {
+    plannerCommand = commandContext;
+    return { planned: true };
+  },
+});
+assert.equal(ready.aiResult.planned, true);
+assert.equal(plannerCommand.enemies.rank, 'captain');
+assert.equal(plannerCommand.enemies.aiCoordination, 'focus_fire');
+assert.equal(engine.getTeamCommandContext().enemies.rank, 'captain');
+assert.equal(engine.beginTeamTurnEnd().started, true);
+const ended = engine.endTeamRound();
+assert.equal(ended.ended, true);
+assert.equal(ended.commandRecovery.factions.enemy.rank, 'captain');
+assert.equal(activeCaptain.sp, 5);
+assert.equal(activeTrooper.sp, 5);
+assert.equal(backupLeader.sp, 0);
+assert.equal(activeAlly.sp, 0);
 
 console.log('universal unit rank command smoke: OK');
