@@ -6,6 +6,7 @@
     return;
   }
 
+  const BACKUP_COMMAND_SP_MULTIPLIER = 0.5;
   const RANKS = Object.freeze({
     normal: Object.freeze({
       id: "normal",
@@ -183,7 +184,7 @@
     const recoveries = [];
     byFaction.forEach((members, faction) => {
       const command = commandProfile(members);
-      factions[faction] = { ...command, commander: undefined };
+      factions[faction] = { ...command, commander: undefined, sourceDeployment: "field" };
       if (command.turnEndSpRecovery <= 0) return;
       members.forEach((unit) => {
         const result = recoverSp(unit, command.turnEndSpRecovery);
@@ -191,6 +192,7 @@
           faction,
           unitId: clean(unit.id || unit.unitId || unit.actorId || unit.name),
           rank: command.rank,
+          sourceDeployment: "field",
           amount: command.turnEndSpRecovery,
           before: result.before,
           after: result.after,
@@ -201,20 +203,61 @@
     return { factions, recoveries };
   }
 
-  function encounterCommandContext(encounter = {}) {
-    const teamUnits = (team) => (team?.active || []).map((entry) => entry?.unit || entry).filter(Boolean);
+  function entriesToUnits(entries = []) {
+    return (Array.isArray(entries) ? entries : []).map((entry) => entry?.unit || entry).filter(Boolean);
+  }
+
+  function commandSpRecoveryProfile(activeUnits = [], backupUnits = []) {
+    const field = commandProfile(activeUnits);
+    const backup = commandProfile(backupUnits);
+    const backupRecovery = backup.turnEndSpRecovery * BACKUP_COMMAND_SP_MULTIPLIER;
+    if (field.turnEndSpRecovery >= backupRecovery) {
+      return { ...field, sourceDeployment: "field", recoveryMultiplier: 1 };
+    }
     return {
-      allies: commandProfile(teamUnits(encounter.allies)),
-      enemies: commandProfile(teamUnits(encounter.enemies)),
+      ...backup,
+      turnEndSpRecovery: backupRecovery,
+      sourceDeployment: "backup",
+      recoveryMultiplier: BACKUP_COMMAND_SP_MULTIPLIER,
+    };
+  }
+
+  function encounterCommandContext(encounter = {}) {
+    return {
+      allies: commandProfile(entriesToUnits(encounter.allies?.active)),
+      enemies: commandProfile(entriesToUnits(encounter.enemies?.active)),
     };
   }
 
   function applyEncounterTurnEndSpRecovery(encounter = {}) {
-    const active = [
-      ...(encounter.allies?.active || []).map((entry) => entry?.unit || entry),
-      ...(encounter.enemies?.active || []).map((entry) => entry?.unit || entry),
-    ].filter(Boolean);
-    return applyTurnEndSpRecovery(active);
+    const factions = {};
+    const recoveries = [];
+
+    [encounter.allies, encounter.enemies].forEach((team) => {
+      const active = entriesToUnits(team?.active).filter(isActiveUnit);
+      const backups = entriesToUnits(team?.backups).filter(isActiveUnit);
+      if (!active.length) return;
+      const command = commandSpRecoveryProfile(active, backups);
+      const faction = active.map(factionForUnit).find(Boolean) || factionForUnit(command.commander || {});
+      if (!faction) return;
+      factions[faction] = { ...command, commander: undefined };
+      if (command.turnEndSpRecovery <= 0) return;
+      active.forEach((unit) => {
+        const result = recoverSp(unit, command.turnEndSpRecovery);
+        recoveries.push({
+          faction,
+          unitId: clean(unit.id || unit.unitId || unit.actorId || unit.name),
+          rank: command.rank,
+          sourceDeployment: command.sourceDeployment,
+          amount: command.turnEndSpRecovery,
+          before: result.before,
+          after: result.after,
+          recovered: result.recovered,
+        });
+      });
+    });
+
+    return { factions, recoveries };
   }
 
   function slotBaseId(slotOrId) {
@@ -351,7 +394,8 @@
   }
 
   const api = Object.freeze({
-    version: "1.0.0",
+    version: "1.1.0",
+    BACKUP_COMMAND_SP_MULTIPLIER,
     RANKS,
     normalizeRank,
     rankForUnit,
@@ -367,6 +411,7 @@
     writeSp,
     recoverSp,
     applyTurnEndSpRecovery,
+    commandSpRecoveryProfile,
     encounterCommandContext,
     applyEncounterTurnEndSpRecovery,
     slotBaseId,
