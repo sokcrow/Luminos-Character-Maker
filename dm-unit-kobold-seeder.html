@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luminous · Kobold Unit Library Seeder</title>
+<style>
+:root{color-scheme:dark;--bg:#080808;--panel:#12110e;--line:#453b2b;--gold:#d5ad5d;--text:#eee6d7;--muted:#8c8477;--ok:#85b97a;--bad:#df7669}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}.wrap{max-width:1100px;margin:0 auto;padding:28px}.panel{border:1px solid var(--line);background:var(--panel);padding:22px}h1{margin:0 0 4px;color:var(--gold)}p{color:var(--muted);line-height:1.5}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}.btn{border:1px solid var(--gold);background:#211a0e;color:var(--gold);padding:10px 16px;font-weight:700;cursor:pointer}.btn.primary{background:var(--gold);color:#151006}.btn:disabled{opacity:.5;cursor:wait}.status{padding:10px;border:1px solid #333;background:#090909;color:var(--muted)}.status.ok{border-color:#375a32;color:var(--ok)}.status.bad{border-color:#71372f;color:var(--bad)}.units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.unit{border:1px solid #302b23;padding:14px;background:#0c0c0b}.unit img{width:100%;height:190px;object-fit:contain;background:#050505}.unit h2{color:var(--gold);margin:10px 0 4px}.ranks{width:100%;border-collapse:collapse;font-size:12px}.ranks td,.ranks th{border:1px solid #302b23;padding:5px;text-align:center}.skills{color:#cdb98b;font-size:12px;line-height:1.6}code{color:#d7c49d}@media(max-width:760px){.units{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<div class="wrap"><div class="panel">
+<h1>Kobold · Unit Library</h1>
+<p>Primer catálogo canónico de Units enemigas: Dagger y Sling. Las definiciones usan Base Level 1–3, rangos Normal/Captain/Leader, HP por coeficiente, tres Stagger Thresholds, Scores/Proficiencies y Skills Tier 1 especializadas en Count.</p>
+<div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR KOBOLDS</button><button class="btn" id="refresh">REVISAR CATÁLOGO</button><span>Units: <code>campaña/base_datos_unidades</code> · Skills: <code>campaña/base_datos_skills</code></span></div>
+<div id="status" class="status">Cargando catálogo y verificando sesión DM…</div>
+<div id="units" class="units"></div>
+<p>La sincronización usa <code>update()</code> con IDs determinísticos. No borra otras Units ni otras Skills. Pack Tactics y los Stagger Thresholds quedan guardados como contrato canónico; sólo las mecánicas que ya consume el runtime se ejecutan automáticamente.</p>
+</div></div>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/combat-skill-schema.js"></script>
+<script src="js/skill-catalog-kobold-tier1.js"></script>
+<script src="js/unit-catalog-kobold-tier1.js"></script>
+<script src="js/battle-viewer-firebase-session-074.js"></script>
+<script>
+(function(){
+'use strict';
+const firebaseConfig={apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8",measurementId:"G-X775P4YS7W"};
+if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const UNIT_PATH='campaña/base_datos_unidades';
+const SKILL_PATH='campaña/base_datos_skills';
+const catalog=window.LuminousKoboldUnitCatalog;
+const skills=window.LuminousKoboldTier1SkillCatalog;
+const schema=window.CombatSkillSchema;
+const session=window.LuminousBattleViewerFirebaseSession074;
+const $=id=>document.getElementById(id);
+let dmReady=false;
+function setStatus(text,kind){$('status').textContent=text;$('status').className='status'+(kind?' '+kind:'')}
+function rankRows(unitId){return ['normal','captain','leader'].map(rank=>{const a=catalog.resolve(unitId,{baseLevel:1,rank}),b=catalog.resolve(unitId,{baseLevel:3,rank});return `<tr><td>${rank.toUpperCase()}</td><td>${a.mechanics.speed}</td><td>${a.mechanics.hp}</td><td>${b.mechanics.hp}</td><td>+${a.mechanics.statusApplyBonus}</td><td>+${a.mechanics.basePowerBonus}</td></tr>`}).join('')}
+function render(){
+ if(!catalog||!skills||!schema){setStatus('Falta CombatSkillSchema o uno de los catálogos Kobold.','bad');return false}
+ const definitions=catalog.list();
+ const skillList=skills.list();
+ const invalid=skillList.map(s=>[s,schema.validateCombatSkill(s)]).filter(([,v])=>!v.valid);
+ if(invalid.length){setStatus(`Skill inválida: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`,'bad');return false}
+ const outOfTier=skillList.filter(s=>{const p=skills.finalPower(s);return p<10||p>12});
+ if(outOfTier.length){setStatus(`Tier 1 fuera de 10–12: ${outOfTier[0].id}.`,'bad');return false}
+ $('units').innerHTML=definitions.map(unit=>`<section class="unit"><img src="${unit.visual.spriteUrl}" alt="${unit.name}"><h2>${unit.name}</h2><div class="skills">${unit.action_slots.join(' · ')}</div><table class="ranks"><thead><tr><th>Rank</th><th>Speed Lv1</th><th>HP Lv1</th><th>HP Lv3</th><th>Apply</th><th>Base</th></tr></thead><tbody>${rankRows(unit.id)}</tbody></table></section>`).join('');
+ setStatus(`Catálogo válido: ${definitions.length} Units · ${skillList.length} Skills · versión ${catalog.version}.`,'ok');return true;
+}
+async function authorize(){
+ $('sync').disabled=true;dmReady=false;
+ if(!session?.preflight){setStatus('Falta el preflight Firebase 0.7.4.','bad');return false}
+ try{const result=await session.preflight({firebase});if(!result?.ok){setStatus(`Firebase bloqueado: ${result?.reason||'FIREBASE_SESSION_FAILED'}.`,'bad');return false}if(result.role!=='dm'){setStatus(`Sesión válida pero sin autoridad DM (${result.role||'unknown'}).`,'bad');return false}dmReady=true;$('sync').disabled=false;setStatus(`DM autorizado · catálogo ${catalog.version} listo para sincronizar.`,'ok');return true}catch(error){console.error(error);setStatus(`No se pudo validar la sesión DM: ${error.message||error}`,'bad');return false}
+}
+async function sync(){
+ if(!dmReady){setStatus('Sincronización bloqueada: se requiere sesión DM.','bad');return}
+ if(!render())return;
+ const button=$('sync');button.disabled=true;
+ try{const unitPayload=catalog.firebasePayload();const skillPayload=catalog.firebaseSkillPayload(schema);await db.ref(UNIT_PATH).update(unitPayload);await db.ref(SKILL_PATH).update(skillPayload);setStatus(`Sincronización completa: ${Object.keys(unitPayload).length} Units y ${Object.keys(skillPayload).length} Skills actualizadas.`,'ok')}catch(error){console.error(error);setStatus(`No se pudo sincronizar: ${error.message||error}`,'bad')}finally{button.disabled=!dmReady}
+}
+$('sync').addEventListener('click',sync);$('refresh').addEventListener('click',()=>{render();authorize()});render();authorize();
+})();
+</script>
+</body>
+</html>
