@@ -144,6 +144,13 @@
     if (explicit) return explicit;
     const id = normalizeId(definition.id || raw.id);
     if (sourceType === "universal" && ["escape", "retreat"].includes(id)) return "escape";
+
+    const definitionType = normalizeId(definition.type || definition.actionType || definition.action_type);
+    const defenseSubtype = normalizeId(definition.defenseSubtype || definition.defense_subtype);
+    if (definition.isDefense === true || definitionType === "defense" || ["guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(defenseSubtype)) {
+      return "defense";
+    }
+
     const tags = asArray(raw.tags || definition.tags).map(normalizeId);
     if (tags.some((tag) => ["defend", "defense", "guard", "dodge", "block", "protect"].includes(tag))) return "defense";
     if (tags.some((tag) => ["heal", "recover", "recovery", "restore"].includes(tag))) return "recover";
@@ -176,9 +183,9 @@
       available: raw.available !== false,
       availability: typeof raw.isAvailable === "function" ? raw.isAvailable : null,
       estimate: {
-        damage: Math.max(0, finite(estimateRaw.damage, roughDamage)),
+        damage: role === "defense" ? Math.max(0, finite(estimateRaw.damage, 0)) : Math.max(0, finite(estimateRaw.damage, roughDamage)),
         damageType,
-        safety: finite(estimateRaw.safety ?? raw.safety, role === "defense" ? 4 : 0),
+        safety: finite(estimateRaw.safety ?? raw.safety, role === "defense" ? Math.max(4, roughDamage) : 0),
         recovery: finite(estimateRaw.recovery ?? raw.recovery, role === "recover" ? 4 : 0),
         advantage: finite(estimateRaw.advantage ?? raw.advantage, role === "setup" ? 3 : 0),
         resourceCost: Math.max(0, finite(estimateRaw.resourceCost ?? raw.resourceCost, asArray(definition.resourceCosts || definition.resource_costs).length)),
@@ -392,7 +399,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.1.0",
+    version: "0.1.1",
     GOALS,
     MAX_PLANNED_SLOTS,
     INTEL_SCHEMA_VERSION,
