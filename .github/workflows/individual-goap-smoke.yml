@@ -1,0 +1,29 @@
+name: Individual GOAP Smoke
+
+on:
+  push:
+    branches:
+      - feature/individual-goap-combat-ai
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  individual-goap-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: AI module syntax
+        run: |
+          node --check js/individual-goap-combat-ai.js
+          node --check js/unit-ai-kit-adapter.js
+          node --check js/unit-action-economy-catalog.js
+          node --check js/enemy-action-slot-allocator.js
+          node --check js/battle-viewer-enemy-planning-074.js
+      - name: Individual GOAP suite
+        run: npm run test:individual-goap

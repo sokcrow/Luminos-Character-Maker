@@ -41,6 +41,22 @@
     global.document.head?.appendChild(script);
   }
 
+  function isBattleViewerPage() {
+    if (!global.document || !global.location) return false;
+    const filename = String(global.location.pathname || "").split("/").pop();
+    return /^battle-viewer\.html$/i.test(filename);
+  }
+
+  function ensureBattleViewerEnemyPlanningRuntime() {
+    if (!isBattleViewerPage() || global.LuminousBattleViewerEnemyPlanning074) return;
+    if (global.document.getElementById("battle-viewer-enemy-planning-074-bootstrap")) return;
+    const script = global.document.createElement("script");
+    script.id = "battle-viewer-enemy-planning-074-bootstrap";
+    script.src = "js/battle-viewer-enemy-planning-074.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+  }
+
   function normalizePhase(value) {
     const id = normalizeId(value);
     if (["pre_combat_planning", "planning", "planning_phase", "before_combat", "before_combat_phase"].includes(id)) return PHASES.PLANNING;
@@ -335,5 +351,6 @@
   global.LuminousActionEconomy = api;
   ensureEnvironmentRuntime();
   ensureUnitRankRuntime();
+  ensureBattleViewerEnemyPlanningRuntime();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
