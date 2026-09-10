@@ -11,22 +11,26 @@
 <body>
 <div class="wrap"><div class="panel">
 <h1>Luminous · Unit Library</h1>
-<p>Seeder canónico conjunto para las Units Kobold y Goblin. La sincronización conserva IDs determinísticos y actualiza únicamente las entradas incluidas en estos catálogos.</p>
+<p>Seeder canónico conjunto para las familias Kobold, Goblin y Wolf. La sincronización conserva IDs determinísticos y actualiza únicamente las entradas incluidas en estos catálogos.</p>
 <div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR UNIT LIBRARY</button><button class="btn" id="refresh">REVISAR CATÁLOGOS</button><span>Units: <code>campaña/base_datos_unidades</code> · Skills canónicas disponibles: <code>campaña/base_datos_skills</code></span></div>
 <div id="status" class="status">Cargando catálogos y verificando sesión DM…</div>
 <div id="families" class="families"></div>
-<p>El sync usa <code>update()</code>: no elimina otras Units ni otras Skills. Las Skills Kobold se validan y sincronizan desde su catálogo canónico. Los Goblins se sincronizan como Units con sus Traits, Ammo y weapon loadouts declarados; este seeder no inventa un catálogo de Skills Goblin donde el catálogo de Unit todavía marca referencias pendientes.</p>
+<p>El sync usa <code>update()</code>: no elimina otras Units ni otras Skills. Las Skills Kobold y Wolf se validan y sincronizan desde sus catálogos canónicos. Los Goblins se sincronizan como Units con sus Traits, Ammo y weapon loadouts declarados sin fabricar Skills que su catálogo todavía marque como pendientes.</p>
 </div></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="js/combat-skill-schema.js"></script>
 <script src="js/skill-catalog-kobold-tier1.js"></script>
+<script src="js/skill-catalog-wolf.js"></script>
 <script src="js/unit-rank-runtime.js"></script>
+<script src="js/universal-action-economy.js"></script>
 <script src="js/universal-ranged-ammo-runtime.js"></script>
 <script src="js/goblin-unit-runtime.js"></script>
+<script src="js/wolf-unit-runtime.js"></script>
 <script src="js/unit-catalog-kobold-tier1.js"></script>
 <script src="js/unit-catalog-goblin.js"></script>
+<script src="js/unit-catalog-wolf.js"></script>
 <script src="js/battle-viewer-firebase-session-074.js"></script>
 <script>
 (function(){
@@ -38,7 +42,9 @@ const UNIT_PATH='campaña/base_datos_unidades';
 const SKILL_PATH='campaña/base_datos_skills';
 const kobolds=window.LuminousKoboldUnitCatalog;
 const goblins=window.LuminousGoblinUnitCatalog;
+const wolves=window.LuminousWolfUnitCatalog;
 const koboldSkills=window.LuminousKoboldTier1SkillCatalog;
+const wolfSkills=window.LuminousWolfSkillCatalog;
 const ranks=window.LuminousUnitRankRuntime;
 const schema=window.CombatSkillSchema;
 const session=window.LuminousBattleViewerFirebaseSession074;
@@ -50,12 +56,13 @@ function setStatus(text,kind){$('status').textContent=text;$('status').className
 function pending(value,fallback='Pendiente'){return value==null||value===''?`<span class="pending">${esc(fallback)}</span>`:esc(value)}
 function mergePayloads(...payloads){
  const merged={};
- for(const payload of payloads){for(const [id,value] of Object.entries(payload||{})){if(Object.prototype.hasOwnProperty.call(merged,id))throw new Error(`DUPLICATE_UNIT_ID:${id}`);merged[id]=value}}
+ for(const payload of payloads){for(const [id,value] of Object.entries(payload||{})){if(Object.prototype.hasOwnProperty.call(merged,id))throw new Error(`DUPLICATE_LIBRARY_ID:${id}`);merged[id]=value}}
  return merged;
 }
 function familyEntries(){return [
  {id:'kobold',label:'Kobolds',catalog:kobolds},
  {id:'goblin',label:'Goblins',catalog:goblins},
+ {id:'wolf',label:'Wolves',catalog:wolves},
 ]}
 function levelRange(unit){const range=unit.naturalWorldLevel||unit.baseLevel||{};const min=Number(range.min||1);const max=Number(range.max||min);return {min,max}}
 function rankRows(entry,unit){
@@ -68,7 +75,7 @@ function rankRows(entry,unit){
    const apply=low?.mechanics?.statusApplyBonus;
    const base=low?.mechanics?.basePowerBonus;
    const sp=low?.mechanics?.turnEndSpRecovery??low?.commandProfile?.turnEndSpRecovery;
-   return `<tr><td>${esc(String(rank).toUpperCase())}</td><td>${pending(speed)}</td><td>${esc(low?.mechanics?.hp??low?.hp??'—')}</td><td>${esc(high?.mechanics?.hp??high?.hp??'—')}</td><td>${apply==null?'—':`+${esc(apply)}`}</td><td>${base==null?'—':`+${esc(base)}`}</td><td>${sp==null?'—':`${esc(sp)} SP`}</td></tr>`;
+   return `<tr><td>${esc(String(rank).toUpperCase())}</td><td>${pending(speed)}</td><td>${esc(low?.mechanics?.hp??low?.hp??unit.hpBase??'—')}</td><td>${esc(high?.mechanics?.hp??high?.hp??unit.hpBase??'—')}</td><td>${apply==null?'—':`+${esc(apply)}`}</td><td>${base==null?'—':`+${esc(base)}`}</td><td>${sp==null?'—':`${esc(sp)} SP`}</td></tr>`;
   }catch(error){return `<tr><td>${esc(String(rank).toUpperCase())}</td><td colspan="6" class="pending">${esc(error.message||error)}</td></tr>`}
  }).join('');
 }
@@ -87,21 +94,21 @@ function unitCard(entry,unit){
  const ammo=(unit?.mechanics?.ammoLoadout||[]).map(a=>`${a.amount} ${a.id}`).join(' · ')||'—';
  return `<section class="unit">${portrait(unit)}<h3>${esc(unit.name)}</h3><div class="meta"><span class="label">ID:</span> ${esc(unit.id)} · <span class="label">Nivel natural:</span> ${levels.min}${levels.max!==levels.min?`–${levels.max}`:''} · <span class="label">Ranks:</span> ${(unit.allowedRanks||[]).map(esc).join(', ')}</div><div class="traits"><span class="label">Traits:</span> ${traitReferences(unit)}</div><div class="refs"><span class="label">Skills / Weapons:</span><br>${unitReferences(unit)}</div><div class="meta"><span class="label">Ammo:</span> ${esc(ammo)} · <span class="label">Defense:</span> ${defense(unit)}</div><table class="ranks"><thead><tr><th>Rank</th><th>Speed</th><th>HP Min</th><th>HP Max</th><th>Apply</th><th>Base</th><th>Turn End</th></tr></thead><tbody>${rankRows(entry,unit)}</tbody></table></section>`;
 }
-function validateKoboldSkills(){
- if(!koboldSkills||!schema)return {ok:false,error:'Falta CombatSkillSchema o LuminousKoboldTier1SkillCatalog.'};
- const list=koboldSkills.list();
+function validateSkillCatalog(label,catalog){
+ if(!catalog||!schema)return {ok:false,error:`Falta CombatSkillSchema o catálogo ${label}.`};
+ const list=catalog.list();
  const invalid=list.map(skill=>[skill,schema.validateCombatSkill(skill)]).filter(([,result])=>!result.valid);
- if(invalid.length)return {ok:false,error:`Skill inválida: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`};
+ if(invalid.length)return {ok:false,error:`${label}: Skill inválida ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`};
  return {ok:true,count:list.length};
 }
 function render(){
- if(!kobolds||!goblins||!ranks){setStatus('Falta uno de los catálogos/runtimes requeridos por Unit Library.','bad');return false}
- const skillValidation=validateKoboldSkills();
- if(!skillValidation.ok){setStatus(skillValidation.error,'bad');return false}
+ if(!kobolds||!goblins||!wolves||!ranks){setStatus('Falta uno de los catálogos/runtimes requeridos por Unit Library.','bad');return false}
+ const kv=validateSkillCatalog('Kobold',koboldSkills);if(!kv.ok){setStatus(kv.error,'bad');return false}
+ const wv=validateSkillCatalog('Wolf',wolfSkills);if(!wv.ok){setStatus(wv.error,'bad');return false}
  const entries=familyEntries();
  const unitPayload=mergePayloads(...entries.map(entry=>entry.catalog.firebasePayload()));
  $('families').innerHTML=entries.map(entry=>{const definitions=entry.catalog.list();return `<section class="family"><h2>${esc(entry.label)} · ${definitions.length}</h2><div class="units">${definitions.map(unit=>unitCard(entry,unit)).join('')}</div></section>`}).join('');
- setStatus(`Unit Library válido: ${Object.keys(unitPayload).length} Units (${kobolds.list().length} Kobold + ${goblins.list().length} Goblin) · ${skillValidation.count} Skills Kobold validadas · Unit Rank ${ranks.version}.`,'ok');
+ setStatus(`Unit Library válido: ${Object.keys(unitPayload).length} Units (${kobolds.list().length} Kobold + ${goblins.list().length} Goblin + ${wolves.list().length} Wolf) · ${kv.count+wv.count} Skills canónicas validadas · Unit Rank ${ranks.version}.`,'ok');
  return true;
 }
 async function authorize(){
@@ -112,7 +119,7 @@ async function authorize(){
   if(!result?.ok){setStatus(`Firebase bloqueado: ${result?.reason||'FIREBASE_SESSION_FAILED'}.`,'bad');return false}
   if(result.role!=='dm'){setStatus(`Sesión válida pero sin autoridad DM (${result.role||'unknown'}).`,'bad');return false}
   dmReady=true;$('sync').disabled=false;
-  setStatus(`DM autorizado · Kobold ${kobolds.version} + Goblin ${goblins.version} listos para sincronizar.`,'ok');return true;
+  setStatus(`DM autorizado · Kobold ${kobolds.version} + Goblin ${goblins.version} + Wolf ${wolves.version} listos para sincronizar.`,'ok');return true;
  }catch(error){console.error(error);setStatus(`No se pudo validar la sesión DM: ${error.message||error}`,'bad');return false}
 }
 async function sync(){
@@ -120,8 +127,8 @@ async function sync(){
  if(!render())return;
  const button=$('sync');button.disabled=true;
  try{
-  const unitPayload=mergePayloads(kobolds.firebasePayload(),goblins.firebasePayload());
-  const skillPayload=kobolds.firebaseSkillPayload(schema);
+  const unitPayload=mergePayloads(kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload());
+  const skillPayload=mergePayloads(kobolds.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
   await db.ref(UNIT_PATH).update(unitPayload);
   await db.ref(SKILL_PATH).update(skillPayload);
   setStatus(`Sincronización completa: ${Object.keys(unitPayload).length} Units y ${Object.keys(skillPayload).length} Skills canónicas actualizadas.`,'ok');
