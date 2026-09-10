@@ -71,6 +71,7 @@ const plan = kitAdapter.planUnitTurn({
   targets: [player],
   availableSlots: 1,
   allowEscape: false,
+  allowGrapple: false,
 });
 assert.equal(plan.planned, true);
 assert.equal(plan.actions.length, 1);
@@ -92,7 +93,7 @@ const sling = hydrateCombatant(
   'Real Sling Kobold',
 );
 ammo.setAmmo(sling, 'pebbles', 0);
-const dryPlan = kitAdapter.planUnitTurn({ actor: sling, targetIds: [player.id], availableSlots: 1, allowEscape: false });
+const dryPlan = kitAdapter.planUnitTurn({ actor: sling, targetIds: [player.id], availableSlots: 1, allowEscape: false, allowGrapple: false });
 assert.equal(dryPlan.planned, true);
 assert.equal(dryPlan.sequence[0].sourceId, 'kobold_duck_away');
 assert.equal(dryPlan.kit.unavailable.filter((entry) => entry.reason === 'ammunition_unavailable').length, 2);
