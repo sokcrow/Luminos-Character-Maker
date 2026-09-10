@@ -24,5 +24,6 @@ jobs:
           node --check js/unit-ai-kit-adapter.js
           node --check js/unit-action-economy-catalog.js
           node --check js/enemy-action-slot-allocator.js
+          node --check js/battle-viewer-enemy-planning-074.js
       - name: Individual GOAP suite
         run: npm run test:individual-goap
