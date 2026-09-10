@@ -10,9 +10,9 @@
 <main class="codex">
   <aside class="guide">
     <header class="hero">
-      <div class="kicker">LUMINOUS // CÓDICE DE JUEGO</div>
+      <div class="kicker">LUMINOUS // CÓDICE DE JUEGO · PREVIEW DE CAMPO</div>
       <h1>Aprende el combate <span>viéndolo</span></h1>
-      <p>Este códice usa el motor alpha v0.7.3 como escena de demostración. Primero te dice qué mirar; después ejecuta esa regla en el HUD real.</p>
+      <p>Esta preview carga el Battle Viewer real de main, lo aísla de Firebase y genera una escena local con Don + Training Dummy. La intención es probarla en campo y corregir lo que falle visualmente.</p>
     </header>
     <nav class="section-tabs" aria-label="Secciones">
       <button class="section-tab active" data-section="fundamentals">Fundamentos</button>
@@ -33,8 +33,8 @@
     </article>
   </aside>
   <section class="stage">
-    <header class="stage-head"><div><b>ESCENA REAL DEL MOTOR</b><span id="stage-label">Esperando demostración</span></div><div class="legend"><span><i class="dot hp"></i>HP</span><span><i class="dot sp"></i>SP</span><span><i class="dot gold"></i>Evento/HUD</span></div></header>
-    <div class="frame-wrap"><iframe id="engine" src="engine-alpha.html" title="Motor de combate Luminous alpha v0.7.3"></iframe><div class="coach" id="coach"><b>Empieza por “HUD de unidad”.</b><span>El tutorial te irá diciendo exactamente qué elemento mirar.</span></div></div>
+    <header class="stage-head"><div><b>BATTLE VIEWER REAL · FIELD MODE</b><span id="stage-label">Esperando demostración</span></div><div class="legend"><span><i class="dot hp"></i>HP</span><span><i class="dot sp"></i>SP</span><span><i class="dot gold"></i>Evento/HUD</span></div></header>
+    <div class="frame-wrap"><iframe id="engine" src="../Battle-viewer.html" title="Battle Viewer Luminous"></iframe><div class="coach" id="coach"><b>Cargando escena de campo…</b><span>El códice aislará dos unidades cuando el Viewer termine de cargar.</span></div></div>
   </section>
 </main>
 <script src="codex.js"></script>
