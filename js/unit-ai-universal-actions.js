@@ -13,6 +13,7 @@
 
   const baseAdapter = global.LuminousUnitAiKitAdapter || safeRequire("./unit-ai-kit-adapter.js");
   const goap = global.LuminousIndividualGoapCombatAI || safeRequire("./individual-goap-combat-ai.js");
+  const combatSchema = () => global.LuminousCombatAction || safeRequire("./combat-action-schema.js");
   if (!baseAdapter || !goap?.planTurn) return;
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -141,11 +142,18 @@
     return normalizeId(action.source?.type) === "universal" && normalizeId(action.source?.id) === "help";
   }
 
+  function helpEligibleAction(action = {}) {
+    const schema = combatSchema();
+    if (typeof schema?.canReceiveHelp === "function") return schema.canReceiveHelp(action) === true;
+    const resolution = normalizeId(action.resolution?.type);
+    return resolution === "clash" || resolution === "check";
+  }
+
   function bestHelpTarget(actor = {}, options = {}) {
     const committed = visibleCommittedActions(actor, options);
     if (committed.some(isHelpAction)) return null;
     return committed
-      .filter((action) => !isHelpAction(action))
+      .filter((action) => !isHelpAction(action) && helpEligibleAction(action))
       .map((action) => ({ action, value: actionSupportValue(action) }))
       .sort((a, b) => b.value - a.value || clean(a.action.id).localeCompare(clean(b.action.id)))[0] || null;
   }
@@ -229,7 +237,7 @@
           },
           metadata: {
             unitAiUniversalAction: true,
-            universalPolicy: "visible_committed_ally_action_only",
+            universalPolicy: "visible_committed_help_eligible_action_only",
             helpedActionId: clean(help.action.id),
           },
         });
@@ -335,11 +343,12 @@
   });
 
   const api = Object.freeze({
-    version: "0.1.2",
+    version: "0.1.3",
     universalDescriptors,
     grappleEstimate,
     visibleCommittedActions,
     bestHelpTarget,
+    helpEligibleAction,
     actionSupportValue,
     currentHpRatio,
     immediateRetreatThreshold,
