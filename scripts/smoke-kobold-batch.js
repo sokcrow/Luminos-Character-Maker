@@ -1,12 +1,28 @@
 'use strict';
 
 const assert = require('assert');
+require('../js/status-library.js');
+require('../js/status-engine.js');
+const ammo = require('../js/universal-ranged-ammo-runtime.js');
 const mechanics = require('../js/unit-combat-mechanics-runtime.js');
 const skills = require('../js/skill-catalog-kobold-tier1.js');
 const units = require('../js/unit-catalog-kobold-tier1.js');
 
 const ids = units.list().map((unit) => unit.id);
 ['kobold_dagger', 'kobold_sling', 'winged_kobold', 'dragonheart_kobold', 'scale_sorcerer_kobold'].forEach((id) => assert(ids.includes(id), `missing ${id}`));
+
+const sling = units.resolve('kobold_sling', { level: 60, rank: 'normal', initializeEncounter: true });
+assert.strictEqual(ammo.ammoCount(sling, 'pebbles'), 6);
+assert(sling.traitIds.includes('ammo_pebbles'));
+const slingShot = skills.get('kobold_sling_shot');
+const rapidPebble = skills.get('kobold_rapid_pebble');
+assert.strictEqual(slingShot.resourceCosts[0].id, 'pebbles');
+assert.strictEqual(rapidPebble.resourceCosts[0].id, 'pebbles');
+assert.strictEqual(ammo.isAmmoConsumingSkill(slingShot, 'pebbles'), true);
+assert.strictEqual(ammo.isAmmoConsumingSkill(rapidPebble, 'pebbles'), true);
+const pebbleSpent = mechanics.consumeSkillAmmunition(sling, rapidPebble);
+assert.strictEqual(pebbleSpent.ok, true);
+assert.strictEqual(ammo.ammoCount(sling, 'pebbles'), 5);
 
 const winged = units.resolve('winged_kobold', { level: 60, rank: 'normal', initializeEncounter: true });
 assert.strictEqual(winged.mechanics.maxHp, Math.floor(7 + 60 * 0.22));
@@ -23,10 +39,13 @@ assert.strictEqual(fallingRock.basePower, 3);
 assert.strictEqual(fallingRock.coinPower, 3);
 assert.strictEqual(fallingRock.damageType, 'contundente');
 assert.strictEqual(fallingRock.resourceCosts[0].id, 'rock');
+assert.strictEqual(fallingRock.metadata.ammoType, 'rock');
 
 const spent = mechanics.consumeSkillAmmunition(winged, fallingRock);
 assert.strictEqual(spent.ok, true);
 assert.strictEqual(mechanics.ammunitionCount(winged, 'rock'), 0);
+mechanics.onComeback(winged);
+assert.strictEqual(mechanics.ammunitionCount(winged, 'rock'), 1);
 mechanics.onComeback(winged);
 assert.strictEqual(mechanics.ammunitionCount(winged, 'rock'), 1);
 
