@@ -73,6 +73,18 @@
     return 0;
   }
 
+  function currentHpRatio(actor = {}) {
+    const hp = [actor.hp, actor.currentHp, actor.currentHP, actor.mechanics?.hp].map(Number).find(Number.isFinite);
+    const maxHp = [actor.maxHp, actor.maxHP, actor.hpMax, actor.mechanics?.maxHp].map(Number).find((value) => Number.isFinite(value) && value > 0);
+    if (hp == null || maxHp == null) return 1;
+    return clamp(hp / maxHp, 0, 1);
+  }
+
+  function immediateRetreatThreshold(actor = {}) {
+    const wisdom = abilityScore(actor, "wisdom", "wis", 10);
+    return clamp(0.12 + wisdom * 0.012, 0.13, 0.42);
+  }
+
   function contestBelief(options = {}, targetId, contestId) {
     const entry = options.intel?.targets?.[targetId]?.contests?.[contestId];
     if (!entry || typeof entry !== "object") return null;
@@ -131,8 +143,6 @@
 
   function bestHelpTarget(actor = {}, options = {}) {
     const committed = visibleCommittedActions(actor, options);
-    // Help is once-per-team in the canonical resolver. Once an ally has committed Help,
-    // later independent planners must not waste another slot attempting the same team resource.
     if (committed.some(isHelpAction)) return null;
     return committed
       .filter((action) => !isHelpAction(action))
@@ -227,13 +237,17 @@
     }
 
     if (options.allowRetreat !== false && universalAllowed("retreat", explicitSet)) {
+      const criticalWithdrawal = currentHpRatio(actor) <= immediateRetreatThreshold(actor);
       result.push({
         sourceType: "universal",
-        definition: { id: "retreat", aiRole: "retreat" },
-        role: "retreat",
-        aiEstimate: { safety: 7, recovery: 1, risk: 0.5, resourceCost: 0 },
+        definition: { id: "retreat", aiRole: criticalWithdrawal ? "escape" : "retreat" },
+        role: criticalWithdrawal ? "escape" : "retreat",
+        aiEstimate: { safety: criticalWithdrawal ? 9 : 7, recovery: 1, risk: 0.5, resourceCost: 0 },
         maxUsesPerTurn: 1,
-        metadata: { unitAiUniversalAction: true, universalPolicy: "survival_option" },
+        metadata: {
+          unitAiUniversalAction: true,
+          universalPolicy: criticalWithdrawal ? "critical_immediate_withdrawal" : "survival_option",
+        },
       });
     }
 
@@ -321,12 +335,14 @@
   });
 
   const api = Object.freeze({
-    version: "0.1.1",
+    version: "0.1.2",
     universalDescriptors,
     grappleEstimate,
     visibleCommittedActions,
     bestHelpTarget,
     actionSupportValue,
+    currentHpRatio,
+    immediateRetreatThreshold,
     augmentKit,
     baseAdapter,
     adapter: wrappedAdapter,
