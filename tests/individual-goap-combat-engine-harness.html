@@ -25,7 +25,7 @@
 <body>
 <main>
   <h1>Individual GOAP × Canonical Units × CombatEngine</h1>
-  <p>The planner now reads the selected Unit's real canonical kit. No manual <code>sources[]</code> is created in this harness. Kobold ammunition is preflighted before GOAP planning; Goblin exposes its currently pending canonical weapon definitions instead of fabricating attacks.</p>
+  <p>The planner reads the selected Unit's real canonical kit. No manual <code>sources[]</code> is created here. Kobold ammunition is preflighted before planning; Goblin exposes pending canonical weapon definitions instead of fabricated attacks. Defensive actions are planned but are not resolved standalone by this harness because they require queue/opposing-action context.</p>
 
   <div class="grid">
     <label>Canonical Unit
@@ -223,6 +223,19 @@
     }
 
     const action = plan.actions[0];
+    const definition = action.metadata?.sourceDefinition || {};
+    if (definition.isDefense === true || String(definition.type || '').toLowerCase() === 'defense') {
+      show({
+        planned: true,
+        selectedSource: plan.sequence[0]?.sourceId,
+        executionSkipped: true,
+        reason: 'defense_requires_queue_or_opposing_action_context',
+        note: 'This harness intentionally does not feed a defense into unilateral resolution.',
+        kit: kitSummary(kit),
+      });
+      return;
+    }
+
     const before = player.hp;
     const result = resolver.resolveCombatAction(action, {
       phase: action.phase.executesAt,
