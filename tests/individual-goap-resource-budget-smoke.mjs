@@ -28,6 +28,7 @@ const plan = kitAdapter.planUnitTurn({
   availableSlots: 2,
   targetIds: ['player_1'],
   allowEscape: false,
+  allowGrapple: false,
 });
 
 assert.equal(plan.planned, true);
