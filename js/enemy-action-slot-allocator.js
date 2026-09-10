@@ -233,10 +233,7 @@
       }
     }
 
-    // Mutation happens only after every validation/allocation step has succeeded.
-    if (options.apply !== false) {
-      rows.forEach((row) => applySlotCount(row.unit, row.slots, row, options));
-    }
+    if (options.apply !== false) rows.forEach((row) => applySlotCount(row.unit, row.slots, row, options));
 
     const missingSpeed = rows.filter((row) => row.speed == null && row.maxSlots > row.minSlots).map((row) => row.unitId);
     const resultRows = rows.map((row) => ({
@@ -272,7 +269,9 @@
   }
 
   function beginEnemyPlanningRound(units = [], options = {}) {
-    const allocation = allocateEnemySlots(units, options);
+    // Preflight allocation without mutating live Units. Planning state is only touched
+    // after ids, caps, Speed input and the Universal Action Economy contract are valid.
+    const allocation = allocateEnemySlots(units, { ...options, apply: false });
     if (!allocation.allocated) return { allocation, planningReady: false, planning: [] };
 
     const economy = actionEconomy();
@@ -281,12 +280,19 @@
     }
 
     const unitById = new Map((Array.isArray(units) ? units : []).map((unit) => [unitIdOf(unit), unit]));
+    for (const row of allocation.rows) {
+      if (!unitById.has(row.unitId)) {
+        return { allocation, planningReady: false, reason: "allocated_unit_missing", unitId: row.unitId, planning: [] };
+      }
+    }
+
+    for (const row of allocation.rows) {
+      applySlotCount(unitById.get(row.unitId), row.slots, row, options);
+    }
+
     const planning = [];
     for (const row of allocation.rows) {
       const unit = unitById.get(row.unitId);
-      if (!unit) {
-        return { allocation, planningReady: false, reason: "allocated_unit_missing", unitId: row.unitId, planning };
-      }
       const snapshot = economy.beginPlanning(unit);
       const maximum = economy.actionSlotMaximum(unit);
       if (!snapshot || maximum !== row.slots || snapshot.actionSlots !== row.slots || snapshot.action !== row.slots) {
@@ -339,7 +345,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.0",
+    version: "1.1.1",
     DEFAULT_TEAM_SLOT_CAP,
     DEFAULT_BONUS_RECIPIENT_LIMIT,
     unitIdOf,
