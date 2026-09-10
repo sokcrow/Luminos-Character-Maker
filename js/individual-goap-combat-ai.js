@@ -152,6 +152,17 @@
     };
   }
   function makeEscapeDescriptor() { return normalizeSourceDescriptor({ sourceType: "universal", definition: { id: "escape" }, role: "escape", estimate: { safety: 10, risk: 0, resourceCost: 0 }, metadata: { injectedByIndividualGoap: true } }, 999); }
+  function makeGrappleDescriptor(targetId) {
+    return normalizeSourceDescriptor({
+      sourceType: "universal",
+      definition: { id: "grapple", tags: ["control", "setup"] },
+      role: "setup",
+      targetId,
+      estimate: { advantage: 5, safety: 1, risk: 1, resourceCost: 0, producesTags: ["target_controlled"] },
+      planningResources: [{ type: "turn_action", id: "grapple", amount: 1, availableAmount: 1 }],
+      metadata: { injectedByIndividualGoap: true, fairPlanning: true, targetSheetRead: false },
+    }, 998);
+  }
   function resolveSlots(input = {}) {
     if (Array.isArray(input.slotIds)) return input.slotIds.slice(0, MAX_PLANNED_SLOTS).map(String);
     const count = clamp(integer(input.availableSlots ?? input.slots, 1), 0, MAX_PLANNED_SLOTS);
@@ -226,6 +237,7 @@
     const intp = planningProfile(intelligence), wisp = wisdomProfile(wisdom), hpRatio = ownHpRatio(actor), intel = createIntelState(input.intel || {});
     const targetIds = targetIdsFrom(input), targetId = clean(input.targetId) || bestKnownTarget(targetIds, intel);
     let candidates = asArray(input.sources || input.actions).map(normalizeSourceDescriptor).filter((candidate) => candidate.available && (!candidate.availability || candidate.availability(actor, input) !== false));
+    if (input.allowGrapple !== false && targetId && !candidates.some((candidate) => candidate.sourceType === "universal" && normalizeId(candidate.sourceId) === "grapple")) candidates.push(makeGrappleDescriptor(targetId));
     if (input.allowEscape !== false && !candidates.some((candidate) => candidate.sourceType === "universal" && normalizeId(candidate.sourceId) === "escape")) candidates.push(makeEscapeDescriptor());
     if (!candidates.length) return { planned: false, reason: "no_available_actions", actorId, actions: [], sequence: [] };
     const hasEscape = candidates.some((candidate) => candidate.role === "escape");
@@ -235,8 +247,13 @@
       const escapeCandidate = candidates.find((candidate) => candidate.role === "escape");
       if (escapeCandidate) candidates = [escapeCandidate];
     } else {
+      const grappleCandidate = candidates.find((candidate) => candidate.sourceType === "universal" && normalizeId(candidate.sourceId) === "grapple");
       candidates.sort((a, b) => quickCandidateScore(b) - quickCandidateScore(a) || a.key.localeCompare(b.key));
       candidates = candidates.slice(0, intp.candidateLimit);
+      if (grappleCandidate && !candidates.some((candidate) => candidate.key === grappleCandidate.key) && (goal === GOALS.GAIN_ADVANTAGE || intp.candidateLimit >= 3)) {
+        if (candidates.length >= intp.candidateLimit) candidates[candidates.length - 1] = grappleCandidate;
+        else candidates.push(grappleCandidate);
+      }
       if (hasEscape && !candidates.some((candidate) => candidate.role === "escape")) candidates.push(makeEscapeDescriptor());
     }
     let beam = [{ sequence: [], score: 0, producedTags: new Set(), resourceSpent: {}, escaped: false }];
@@ -265,7 +282,7 @@
     };
   }
 
-  const api = Object.freeze({ version: "0.2.2", GOALS, MAX_PLANNED_SLOTS, INTEL_SCHEMA_VERSION, planningProfile, wisdomProfile, createIntelState, observeDamageResult, normalizeSourceDescriptor, normalizePlanningResources, planningResourceKey, chooseGoal, planTurn });
+  const api = Object.freeze({ version: "0.3.0", GOALS, MAX_PLANNED_SLOTS, INTEL_SCHEMA_VERSION, planningProfile, wisdomProfile, createIntelState, observeDamageResult, normalizeSourceDescriptor, normalizePlanningResources, planningResourceKey, chooseGoal, planTurn });
   global.LuminousIndividualGoapCombatAI = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
