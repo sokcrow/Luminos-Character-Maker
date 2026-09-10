@@ -2,6 +2,9 @@ name: Game Codex hotfix check
 on:
   push:
     branches: [hotfix/game-codex-crash]
+  pull_request:
+    paths:
+      - 'game-codex/**'
   workflow_dispatch:
 jobs:
   check:
@@ -11,11 +14,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Syntax check
+      - name: Syntax check controller
         run: node --check game-codex/codex.js
+      - name: Syntax check stage inline script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('game-codex/stage.html').read_text()
+          start=text.rfind('<script>')+len('<script>')
+          end=text.rfind('</script>')
+          assert start >= len('<script>') and end > start
+          Path('/tmp/codex-stage.js').write_text(text[start:end])
+          PY
+          node --check /tmp/codex-stage.js
       - name: Static contract
         run: |
           grep -q 'id="engine"' game-codex/index.html
           grep -q 'play-demo' game-codex/index.html
           grep -q 'reset-demo' game-codex/index.html
-          grep -q '../Battle-viewer.html' game-codex/index.html
+          grep -q 'src="stage.html"' game-codex/index.html
+          grep -q 'window.CodexStage' game-codex/stage.html
+          grep -q 'clash-float-hud' game-codex/stage.html
+          grep -q 'diegetic-floor' game-codex/stage.html
+          ! grep -q 'Battle-viewer.html' game-codex/index.html
+          ! grep -q 'firebase' game-codex/stage.html
+          ! grep -q 'fonts.googleapis.com' game-codex/codex.css
+          ! grep -q 'fonts.googleapis.com' game-codex/stage.html
