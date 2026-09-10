@@ -274,7 +274,7 @@
 
     clearPreviousAiVectors(vectors);
     const staleSlotTargetsRemoved = pruneStaleEnemySlotTargets(slotTargets, result.allocation);
-    const applied = [];
+    const entriesApplied = [];
     const deferred = [];
 
     for (const row of result.allocation?.rows || []) {
@@ -315,7 +315,7 @@
           };
         }
         state.appliedVectorSlots.add(slotId);
-        applied.push({ unitId: entry.unitId, slotId, targetSlotId, defense: isDefenseAction(action), sourceId: action.source?.id || null });
+        entriesApplied.push({ unitId: entry.unitId, slotId, targetSlotId, defense: isDefenseAction(action), sourceId: action.source?.id || null });
       }
       if (actor) {
         try {
@@ -326,10 +326,10 @@
       }
     }
 
-    const appliedResult = { applied: true, result, applied, deferred, staleSlotTargetsRemoved };
+    const appliedResult = { applied: true, result, entriesApplied, deferred, staleSlotTargetsRemoved };
     state.lastResult = appliedResult;
     try {
-      global.dispatchEvent?.(new global.CustomEvent("luminous:enemy-planning-ready", { detail: { allocation: clone(result.allocation), applied: clone(applied), deferredCount: deferred.length } }));
+      global.dispatchEvent?.(new global.CustomEvent("luminous:enemy-planning-ready", { detail: { allocation: clone(result.allocation), applied: clone(entriesApplied), deferredCount: deferred.length } }));
     } catch (_) {}
     return appliedResult;
   }
@@ -344,10 +344,22 @@
     return applyPlanningToViewer(result, { ...options, units });
   }
 
+  function reaffirmCanonicalTimelineAuthority() {
+    const timeline = global.LuminousBattleViewerRuntime073?.executeCombatTimeline
+      || global.LuminousBattleViewerTimeline073?.executeCombatTimeline;
+    if (typeof timeline !== "function") return false;
+    global.executeCombatTimeline = timeline;
+    try { delete global.__luminousLegacyExecuteCombatTimeline; }
+    catch (_) { global.__luminousLegacyExecuteCombatTimeline = undefined; }
+    global.__luminousCombatTimelineAuthority = "v0.7.3-combat-action-runtime";
+    return true;
+  }
+
   function installPhaseHook() {
     const current = viewerFunction("syncCombatEnginePhase");
     if (!current) return false;
     if (current.__luminousEnemyPlanning074Wrapped === true) {
+      reaffirmCanonicalTimelineAuthority();
       state.installed = true;
       return true;
     }
@@ -355,6 +367,7 @@
     state.originalSyncCombatEnginePhase = current;
     const wrapped = function (rawState, ...rest) {
       const result = current.call(this, rawState, ...rest);
+      reaffirmCanonicalTimelineAuthority();
       const normalized = clean(rawState).toUpperCase();
       if (normalized === "PRE_COMBAT_PLANNING") {
         try { runViewerPlanning(); }
@@ -364,6 +377,7 @@
     };
     Object.defineProperty(wrapped, "__luminousEnemyPlanning074Wrapped", { value: true });
     global.syncCombatEnginePhase = wrapped;
+    reaffirmCanonicalTimelineAuthority();
     state.installed = true;
 
     const currentPhase = clean(global.LuminousCombatPhaseState).toUpperCase();
@@ -451,6 +465,7 @@
     applyPlanningToViewer,
     runViewerPlanning,
     renderEnemySlots,
+    reaffirmCanonicalTimelineAuthority,
     installPhaseHook,
     ensureDependencies,
     install,
