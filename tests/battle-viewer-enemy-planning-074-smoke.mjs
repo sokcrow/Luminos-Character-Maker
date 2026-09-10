@@ -75,6 +75,7 @@ function enemy(id, speed, profileId = 'kobold_dagger', skill = strike) {
   });
 
   assert.equal(result.applied, true);
+  assert.equal(result.entriesApplied.length, 5);
   assert.equal(result.result.allocation.totalSlots, 5);
   const rows = Object.fromEntries(result.result.allocation.rows.map((row) => [row.unitId, row]));
   assert.equal(rows.encounter_kobold_fast.slots, 2);
@@ -164,7 +165,8 @@ function enemy(id, speed, profileId = 'kobold_dagger', skill = strike) {
 }
 
 // Real hook contract: the existing Viewer sync owns beginPlanning for everyone; the bridge
-// runs after it. Player and enemy turn counters must each increment exactly once.
+// runs after it. Player and enemy turn counters must each increment exactly once, and the
+// canonical v0.7.3 timeline must win even if a legacy inline function was declared later.
 {
   const player = { id: 'hook_player', faction: 'ally', isPlayer: true, hp: 50, maxHp: 50, speed: 6, actionSlots: 5 };
   const fast = enemy('hook_fast', 8);
@@ -178,9 +180,14 @@ function enemy(id, speed, profileId = 'kobold_dagger', skill = strike) {
     if (String(rawState).toUpperCase() === 'PRE_COMBAT_PLANNING') Object.values(globalThis.combatData).forEach((unit) => economy.beginPlanning(unit));
     return String(rawState).toUpperCase();
   };
+  const canonicalTimeline = function canonicalTimeline() {};
+  globalThis.LuminousBattleViewerRuntime073 = { executeCombatTimeline: canonicalTimeline };
+  globalThis.executeCombatTimeline = function legacyInlineTimeline() {};
 
   bridge.state.installed = false;
   assert.equal(bridge.installPhaseHook(), true);
+  assert.equal(globalThis.executeCombatTimeline, canonicalTimeline, 'canonical timeline authority must be restored when the phase hook installs');
+  assert.equal(globalThis.__luminousCombatTimelineAuthority, 'v0.7.3-combat-action-runtime');
   globalThis.syncCombatEnginePhase('PRE_COMBAT_PLANNING');
 
   assert.equal(originalCalls, 1);
