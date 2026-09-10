@@ -20,13 +20,8 @@ if (!schema || !adapters || !resolver || !goblins || !ai) {
 const slash = {
   sourceType: 'skill',
   definition: {
-    id: 'test_slash',
-    name: 'Test Slash',
-    basePower: 5,
-    coinPower: 2,
-    coinAmount: 1,
-    damageType: 'slash',
-    isClashable: false,
+    id: 'test_slash', name: 'Test Slash', basePower: 5, coinPower: 2, coinAmount: 1,
+    damageType: 'slash', isClashable: false,
   },
   estimate: { damage: 8, damageType: 'slash' },
 };
@@ -34,18 +29,12 @@ const slash = {
 const fire = {
   sourceType: 'skill',
   definition: {
-    id: 'test_fire',
-    name: 'Test Fire',
-    basePower: 4,
-    coinPower: 1,
-    coinAmount: 1,
-    damageType: 'fire',
-    isClashable: false,
+    id: 'test_fire', name: 'Test Fire', basePower: 4, coinPower: 1, coinAmount: 1,
+    damageType: 'fire', isClashable: false,
   },
   estimate: { damage: 6, damageType: 'fire' },
 };
 
-// Canonical Goblin scores are consumed directly by the planner.
 const goblin = goblins.resolve('goblin', { level: 3, rank: 'normal' });
 goblin.id = 'goblin_goap';
 goblin.hp = goblin.maxHp;
@@ -58,6 +47,8 @@ const healthyPlan = ai.planTurn({
 assert.equal(healthyPlan.planned, true);
 assert.equal(healthyPlan.goal, ai.GOALS.KILL_TARGET);
 assert.equal(healthyPlan.actions.length, 2);
+assert.equal(healthyPlan.slotsUsed, 2);
+assert.equal(healthyPlan.unusedSlots, 0);
 assert.equal(healthyPlan.actions[0].phase.selectedAt, schema.PHASES.PLANNING_PHASE_AI);
 assert.equal(healthyPlan.actions[0].actorId, goblin.id);
 assert.equal(healthyPlan.actions[0].targeting.mainTargetId, 'player_1');
@@ -65,15 +56,12 @@ for (const action of healthyPlan.actions) {
   assert.equal(schema.validateCombatAction(action).valid, true, 'GOAP output must remain a canonical CombatAction');
 }
 
-// The planner is slot-bounded; it can never create more actions than the economy gives it.
 const oneSlot = ai.planTurn({ actor: goblin, availableSlots: 1, targetIds: ['player_1'], sources: [slash, fire] });
 assert.equal(oneSlot.actions.length, 1);
 assert.equal(oneSlot.slotsRequested, 1);
 
-// Target objects are identity-only to the planner. Accessing hidden combat truth must explode the test.
 const privateTargetView = {
-  id: 'player_private',
-  faction: 'allies',
+  id: 'player_private', faction: 'allies',
   get hp() { throw new Error('GOAP read private target HP'); },
   get sp() { throw new Error('GOAP read private target SP'); },
   get resistances() { throw new Error('GOAP read private target resistances'); },
@@ -84,7 +72,6 @@ const fairPlan = ai.planTurn({ actor: goblin, availableSlots: 1, targets: [priva
 assert.equal(fairPlan.planned, true);
 assert.equal(fairPlan.targetId, 'player_private');
 
-// Personal observations, not target internals, create damage-type beliefs.
 let intel = ai.createIntelState();
 intel = ai.observeDamageResult(intel, { targetId: 'player_1', damageType: 'slash', expectedDamage: 10, actualDamage: 2 });
 intel = ai.observeDamageResult(intel, { targetId: 'player_1', damageType: 'slash', expectedDamage: 10, actualDamage: 3 });
@@ -92,7 +79,6 @@ intel = ai.observeDamageResult(intel, { targetId: 'player_1', damageType: 'slash
 assert.ok(intel.targets.player_1.damageTypes.slash.multiplierEstimate < 0.4);
 assert.ok(intel.targets.player_1.damageTypes.slash.confidence > 0.5);
 
-// High INT should exploit learned resistance information; very low INT mostly trusts its obvious stronger attack.
 const lowInt = { id: 'low_int', hp: 20, maxHp: 20, scores: { int: 5, wis: 10 } };
 const highInt = { id: 'high_int', hp: 20, maxHp: 20, scores: { int: 18, wis: 10 } };
 const lowPlan = ai.planTurn({ actor: lowInt, availableSlots: 1, targetIds: ['player_1'], sources: [slash, fire], intel });
@@ -100,15 +86,46 @@ const highPlan = ai.planTurn({ actor: highInt, availableSlots: 1, targetIds: ['p
 assert.equal(lowPlan.sequence[0].sourceId, 'test_slash');
 assert.equal(highPlan.sequence[0].sourceId, 'test_fire');
 
-// High WIS + critical personal HP selects escape without consulting target HP.
+// Escape is terminal: extra allocated slots remain unused after leaving the encounter.
 const cautious = { id: 'cautious', hp: 2, maxHp: 20, scores: { int: 10, wis: 18 } };
-const escapePlan = ai.planTurn({ actor: cautious, availableSlots: 1, targets: [privateTargetView], sources: [slash, fire] });
+const escapePlan = ai.planTurn({ actor: cautious, availableSlots: 3, targets: [privateTargetView], sources: [slash, fire] });
 assert.equal(escapePlan.goal, ai.GOALS.ESCAPE);
 assert.equal(escapePlan.sequence[0].sourceId, 'escape');
+assert.equal(escapePlan.actions.length, 1);
+assert.equal(escapePlan.slotsUsed, 1);
+assert.equal(escapePlan.unusedSlots, 2);
 assert.equal(escapePlan.actions[0].phase.executesAt, schema.PHASES.ON_TURN_END);
 assert.equal(escapePlan.actions[0].effects[0].deniesXp, true);
 
-// End-to-end: the action chosen by GOAP reaches the canonical resolver and then CombatEngine.
+// Resources are budgeted across the whole planned turn, not validated independently per slot.
+const onePebbleShot = {
+  sourceType: 'skill',
+  definition: {
+    id: 'one_pebble_shot', name: 'One Pebble Shot', type: 'Attack', basePower: 6, coinPower: 2, coinAmount: 1,
+    damageType: 'blunt', isClashable: false,
+    resourceCosts: [{ type: 'ammunition', id: 'pebbles', amount: 1 }],
+  },
+  estimate: { damage: 9, damageType: 'blunt' },
+  metadata: {
+    resourceChecks: [{
+      known: true,
+      resource: { type: 'ammunition', id: 'pebbles', amount: 1 },
+      detail: { available: true, current: 1, required: 1 },
+    }],
+  },
+};
+const resourcePlan = ai.planTurn({
+  actor: { id: 'ammo_ai', hp: 20, maxHp: 20, scores: { int: 12, wis: 10 } },
+  availableSlots: 2,
+  targetIds: ['player_1'],
+  sources: [onePebbleShot],
+  allowEscape: false,
+});
+assert.equal(resourcePlan.actions.length, 1);
+assert.equal(resourcePlan.sequence[0].sourceId, 'one_pebble_shot');
+assert.equal(resourcePlan.unusedSlots, 1);
+assert.equal(resourcePlan.resourceSpent['ammunition:pebbles'], 1);
+
 let attackCalls = 0;
 const engine = {
   calculateFinalPower(skill, heads) { return Number(skill.basePower || 0) + Number(heads || 0); },
@@ -130,7 +147,6 @@ assert.equal(engineResult.resolved, true);
 assert.equal(attackCalls, 1);
 assert.equal(realPlayer.hp, 17);
 
-// Escape also travels through the canonical resolver, using the existing structural effect hook.
 let escaped = false;
 const escapeResult = resolver.resolveCombatAction(escapePlan.actions[0], {
   phase: schema.PHASES.ON_TURN_END,
