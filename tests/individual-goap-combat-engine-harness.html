@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Individual GOAP × CombatEngine Harness</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #111318; color: #e8eaf0; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { color: #aeb5c4; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; margin: 18px 0; }
+    label, .card { background: #1a1e26; border: 1px solid #303744; border-radius: 10px; padding: 12px; }
+    label { display: grid; gap: 7px; font-size: 13px; color: #bfc6d4; }
+    input { width: 100%; box-sizing: border-box; background: #0f1116; color: #fff; border: 1px solid #3b4352; border-radius: 7px; padding: 8px; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 20px; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0b0d11; border: 1px solid #2a303b; border-radius: 10px; padding: 14px; min-height: 220px; }
+    .status { display:flex; gap:20px; flex-wrap:wrap; margin: 12px 0; }
+    .status strong { display:block; font-size:22px; }
+    code { color:#d9e2ff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Individual GOAP × CombatEngine</h1>
+  <p>This page exercises the new Individual GOAP planner, compiles its choice into canonical CombatAction, then resolves it through the repository CombatAction resolver and the real <code>CombatEngine</code>.</p>
+
+  <div class="grid">
+    <label>INT <input id="int" type="number" min="1" max="30" value="10"></label>
+    <label>WIS <input id="wis" type="number" min="1" max="30" value="9"></label>
+    <label>Goblin HP <input id="hp" type="number" min="0" max="20" value="20"></label>
+    <label>Action Slots <input id="slots" type="number" min="1" max="6" value="2"></label>
+    <label>Observed Slash Multiplier <input id="slashMult" type="number" min="0.1" max="2.5" step="0.1" value="1"></label>
+    <label>Intel Confidence <input id="confidence" type="number" min="0" max="1" step="0.05" value="0"></label>
+  </div>
+
+  <div class="status">
+    <div class="card">Player HP<strong id="playerHp">40</strong></div>
+    <div class="card">Goal<strong id="goal">—</strong></div>
+    <div class="card">Choice<strong id="choice">—</strong></div>
+  </div>
+
+  <div class="buttons">
+    <button id="plan">Plan AI Turn</button>
+    <button id="execute">Execute First CombatAction</button>
+    <button id="observe">Teach: Slash Was Resisted</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <pre id="log">Ready.</pre>
+</main>
+
+<script src="../js/combatEngine.js"></script>
+<script src="../js/combat-action-schema.js"></script>
+<script src="../js/combat-action-adapters.js"></script>
+<script src="../js/combat-action-engine-bridge.js"></script>
+<script src="../js/combat-action-queue.js"></script>
+<script src="../js/combat-action-resolver.js"></script>
+<script src="../js/individual-goap-combat-ai.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const schema = window.LuminousCombatAction;
+  const resolver = window.LuminousCombatActionResolver;
+  const ai = window.LuminousIndividualGoapCombatAI;
+  const engine = window.CombatEngine;
+  const $ = (id) => document.getElementById(id);
+
+  if (!schema || !resolver || !ai || !engine) {
+    $('log').textContent = 'Initialization failed: missing CombatEngine / CombatAction / GOAP module.';
+    return;
+  }
+
+  const strike = {
+    sourceType: 'skill',
+    definition: {
+      id: 'goap_slash', name: 'Slash', type: 'Attack',
+      basePower: 5, coinPower: 2, coinAmount: 1, coinType: 'positive',
+      attackWeight: 1, damageType: 'slash', sinAffinity: 'sinless',
+      targetingType: 'Focused Attack', isDefense: false,
+      isClashable: false, isUnclashable: true,
+      resourceCosts: [], effects: [],
+      coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }]
+    },
+    estimate: { damage: 8, damageType: 'slash' }
+  };
+
+  const fire = {
+    sourceType: 'skill',
+    definition: {
+      id: 'goap_fire', name: 'Fire Attack', type: 'Attack',
+      basePower: 4, coinPower: 2, coinAmount: 1, coinType: 'positive',
+      attackWeight: 1, damageType: 'fire', sinAffinity: 'sinless',
+      targetingType: 'Focused Attack', isDefense: false,
+      isClashable: false, isUnclashable: true,
+      resourceCosts: [], effects: [],
+      coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }]
+    },
+    estimate: { damage: 6, damageType: 'fire' }
+  };
+
+  let player;
+  let goblin;
+  let intel;
+  let plan;
+
+  function resetUnits() {
+    goblin = {
+      id: 'goap_goblin', name: 'GOAP Goblin', faction: 'enemy', faccion: 'enemy',
+      hp: Number($('hp').value || 20), maxHp: 20, sp: 0, level: 3,
+      scores: { int: Number($('int').value || 10), wis: Number($('wis').value || 9) },
+      stats: {}, statusEffects: {}, shield: 0
+    };
+    player = {
+      id: 'player_1', name: 'Player', faction: 'allies', faccion: 'allies',
+      hp: 40, maxHp: 40, sp: 0, level: 3,
+      stats: {}, statusEffects: {}, shield: 0, physRes: 1, sinRes: 1
+    };
+    intel = ai.createIntelState();
+    plan = null;
+    syncStatus();
+  }
+
+  function syncActorInputs() {
+    goblin.hp = Math.max(0, Math.min(20, Number($('hp').value || 0)));
+    goblin.scores.int = Number($('int').value || 10);
+    goblin.scores.wis = Number($('wis').value || 10);
+  }
+
+  function intelFromControls() {
+    const multiplier = Number($('slashMult').value || 1);
+    const confidence = Number($('confidence').value || 0);
+    if (confidence <= 0) return intel;
+    return ai.createIntelState({
+      targets: {
+        player_1: {
+          observations: 3,
+          damageTypes: {
+            slash: { multiplierEstimate: multiplier, confidence, samples: 3 }
+          }
+        }
+      }
+    });
+  }
+
+  function syncStatus() {
+    $('playerHp').textContent = player ? player.hp : '—';
+    $('goal').textContent = plan?.goal || '—';
+    $('choice').textContent = plan?.sequence?.[0]?.sourceId || '—';
+  }
+
+  function show(value) {
+    $('log').textContent = JSON.stringify(value, null, 2);
+    syncStatus();
+  }
+
+  $('plan').addEventListener('click', () => {
+    syncActorInputs();
+    const controlledIntel = intelFromControls();
+    plan = ai.planTurn({
+      actor: goblin,
+      availableSlots: Number($('slots').value || 1),
+      targetIds: [player.id],
+      sources: [strike, fire],
+      intel: controlledIntel
+    });
+    show(plan);
+  });
+
+  $('execute').addEventListener('click', () => {
+    if (!plan?.actions?.length) $('plan').click();
+    if (!plan?.actions?.length) return;
+    const action = plan.actions[0];
+    const phase = action.phase.executesAt;
+    const result = resolver.resolveCombatAction(action, {
+      phase,
+      units: [goblin, player],
+      engine,
+      effectHandlers: {
+        escape: ({ actor, effect }) => ({ escaped: actor.id === goblin.id && effect.leavesEncounter === true })
+      }
+    });
+    show({ plan: { goal: plan.goal, sequence: plan.sequence }, result, playerHp: player.hp });
+  });
+
+  $('observe').addEventListener('click', () => {
+    intel = ai.observeDamageResult(intel, {
+      targetId: player.id,
+      damageType: 'slash',
+      expectedDamage: 10,
+      actualDamage: 2
+    });
+    const belief = intel.targets[player.id].damageTypes.slash;
+    $('slashMult').value = belief.multiplierEstimate.toFixed(2);
+    $('confidence').value = belief.confidence.toFixed(2);
+    show(intel);
+  });
+
+  $('reset').addEventListener('click', () => {
+    $('int').value = 10;
+    $('wis').value = 9;
+    $('hp').value = 20;
+    $('slots').value = 2;
+    $('slashMult').value = 1;
+    $('confidence').value = 0;
+    resetUnits();
+    $('log').textContent = 'Reset complete.';
+  });
+
+  resetUnits();
+})();
+</script>
+</body>
+</html>
