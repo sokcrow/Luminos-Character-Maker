@@ -1,4 +1,14 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+// combatEngine.js is a browser/CommonJS script, not an ESM export. Evaluate the
+// repository file in a browser-like global so this test exercises the real engine.
+globalThis.window = globalThis;
+globalThis.STATUS_REGISTRY = globalThis.STATUS_REGISTRY || {};
+const engineSource = readFileSync(new URL('../js/combatEngine.js', import.meta.url), 'utf8');
+vm.runInThisContext(engineSource, { filename: 'js/combatEngine.js' });
+const engine = globalThis.CombatEngine;
 
 await import('../js/status-engine.js');
 await import('../js/universal-ranged-ammo-runtime.js');
@@ -14,8 +24,6 @@ await import('../js/combat-action-resolver.js');
 await import('../js/individual-goap-combat-ai.js');
 await import('../js/unit-ai-kit-adapter.js');
 
-const { default: importedEngine } = await import('../js/combatEngine.js');
-const engine = importedEngine || globalThis.CombatEngine;
 const resolver = globalThis.LuminousCombatActionResolver;
 const kitAdapter = globalThis.LuminousUnitAiKitAdapter;
 const kobolds = globalThis.LuminousKoboldUnitCatalog;
@@ -64,7 +72,7 @@ const result = resolver.resolveCombatAction(plan.actions[0], {
   engine,
   resourceHandlers: { ammunition: ammo.ammunitionHandler() },
 });
-assert.equal(result.resolved, true);
+assert.equal(result.resolved, true, result.reason || 'canonical Unit CombatAction should resolve');
 assert.ok(player.hp < hpBefore, `real CombatEngine should apply damage (${hpBefore} -> ${player.hp})`);
 
 // A Sling Kobold with no ammunition must plan its remaining canonical defense rather than
@@ -81,4 +89,4 @@ assert.equal(dryPlan.planned, true);
 assert.equal(dryPlan.sequence[0].sourceId, 'kobold_duck_away');
 assert.equal(dryPlan.kit.unavailable.filter((entry) => entry.reason === 'ammunition_unavailable').length, 2);
 
-console.log('unit-ai-kit-adapter real-engine smoke: ok');
+console.log(`unit-ai-kit-adapter real-engine smoke: ok (${hpBefore} -> ${player.hp} HP)`);
