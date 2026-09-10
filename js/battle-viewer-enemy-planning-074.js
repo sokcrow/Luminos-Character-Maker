@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.7.4";
+  const VERSION = "0.7.5";
   const STATE_KEY = "__luminousEnemyPlanning074State";
   const BOOTSTRAP_TIMEOUT_MS = 5000;
   const BOOTSTRAP_INTERVAL_MS = 25;
@@ -101,6 +101,125 @@
     return result;
   }
 
+  function canonicalUnitIdForCombatant(unit = {}) {
+    const actorRef = unit.actorRef && typeof unit.actorRef === "object" ? unit.actorRef : null;
+    if (normalizeId(actorRef?.scope) === "units" && clean(actorRef?.id)) return normalizeId(actorRef.id);
+    return normalizeId(
+      unit.canonicalUnitId
+      ?? unit.definitionId
+      ?? unit.catalogId
+      ?? unit.baseUnitId
+      ?? unit.actionSlotProfileId
+      ?? unit.actionEconomy?.profileId
+      ?? unit.metadata?.canonicalUnitId
+      ?? unit.metadata?.definitionId
+      ?? unit.metadata?.catalogId
+      ?? unit.metadata?.actionEconomyProfileId
+    );
+  }
+
+  function unitCatalogForId(canonicalId) {
+    const id = normalizeId(canonicalId);
+    const catalogs = [global.LuminousKoboldUnitCatalog, global.LuminousGoblinUnitCatalog].filter(Boolean);
+    return catalogs.find((catalog) => {
+      try { return Boolean(catalog?.get?.(id)); } catch (_) { return false; }
+    }) || null;
+  }
+
+  function runtimeLevelFor(unit = {}, definition = {}) {
+    const candidates = [
+      unit.runtimeLevel,
+      unit.baseLevelSelected,
+      unit.baseLevel,
+      unit.level,
+      unit.mechanics?.runtimeLevel,
+      unit.mechanics?.baseLevel,
+      unit.mechanics?.level,
+    ];
+    const found = candidates.map(finite).find((value) => value != null && value >= 1);
+    if (found != null) return Math.max(1, Math.trunc(found));
+    const natural = finite(definition.naturalWorldLevel?.min ?? definition.baseLevel?.min);
+    return Math.max(1, Math.trunc(natural ?? 1));
+  }
+
+  function runtimeRankFor(unit = {}, definition = {}) {
+    const explicit = clean(unit.rank ?? unit.unitRank ?? unit.mechanics?.rank ?? unit.metadata?.unitRank);
+    if (explicit) return explicit;
+    return clean(Array.isArray(definition.allowedRanks) ? definition.allowedRanks[0] : "normal", "normal");
+  }
+
+  function mergePlanningDefinition(unit, resolved, canonicalId) {
+    if (!unit || !resolved) return;
+    if (!unit.canonicalUnitId) unit.canonicalUnitId = canonicalId;
+    unit.metadata = {
+      ...(resolved.metadata && typeof resolved.metadata === "object" ? clone(resolved.metadata) : {}),
+      ...(unit.metadata && typeof unit.metadata === "object" ? unit.metadata : {}),
+      canonicalUnitId: canonicalId,
+    };
+    if (!unit.scores && resolved.scores) unit.scores = clone(resolved.scores);
+    if (!unit.abilityScores && resolved.abilityScores) unit.abilityScores = clone(resolved.abilityScores);
+    if (!Array.isArray(unit.resolvedSkills) && Array.isArray(resolved.resolvedSkills)) unit.resolvedSkills = clone(resolved.resolvedSkills);
+    if (!Array.isArray(unit.resolvedSpells) && Array.isArray(resolved.resolvedSpells)) unit.resolvedSpells = clone(resolved.resolvedSpells);
+    if (!Array.isArray(unit.traits) && Array.isArray(resolved.traits)) unit.traits = clone(resolved.traits);
+    if (!Array.isArray(unit.traitIds) && Array.isArray(resolved.traitIds)) unit.traitIds = clone(resolved.traitIds);
+    if (!Array.isArray(unit.action_slots) && Array.isArray(resolved.action_slots)) unit.action_slots = clone(resolved.action_slots);
+    unit.mechanics = {
+      ...(resolved.mechanics && typeof resolved.mechanics === "object" ? clone(resolved.mechanics) : {}),
+      ...(unit.mechanics && typeof unit.mechanics === "object" ? unit.mechanics : {}),
+    };
+  }
+
+  function hydrateEnemyCombatant(unit = {}) {
+    if (sideOf(unit) !== "enemy" || !isActiveTarget(unit)) return { hydrated: false, reason: "not_active_enemy", unitId: unitIdOf(unit) || null };
+    const unitId = unitIdOf(unit);
+    const canonicalId = canonicalUnitIdForCombatant(unit);
+    if (!canonicalId) return { hydrated: false, reason: "canonical_unit_reference_missing", unitId };
+
+    const catalog = unitCatalogForId(canonicalId);
+    if (!catalog?.resolve) {
+      const profileResult = profileCatalog()?.applyToUnit?.(unit, canonicalId) || null;
+      return {
+        hydrated: false,
+        reason: "canonical_unit_catalog_unavailable",
+        unitId,
+        canonicalUnitId: canonicalId,
+        profileApplied: profileResult?.applied === true,
+      };
+    }
+
+    let definition = null;
+    let resolved = null;
+    try {
+      definition = catalog.get(canonicalId);
+      resolved = catalog.resolve(canonicalId, {
+        level: runtimeLevelFor(unit, definition || {}),
+        rank: runtimeRankFor(unit, definition || {}),
+        initializeEncounter: false,
+      });
+    } catch (error) {
+      return { hydrated: false, reason: "canonical_unit_resolution_failed", unitId, canonicalUnitId: canonicalId, error: clean(error?.message || error) };
+    }
+
+    mergePlanningDefinition(unit, resolved, canonicalId);
+    const profileResult = profileCatalog()?.applyToUnit?.(unit, canonicalId) || null;
+    return {
+      hydrated: true,
+      unitId,
+      canonicalUnitId: canonicalId,
+      profileApplied: profileResult?.applied === true,
+      resolvedSkillCount: Array.isArray(unit.resolvedSkills) ? unit.resolvedSkills.length : 0,
+    };
+  }
+
+  function hydrateEnemiesForPlanning(units = []) {
+    const results = [];
+    for (const unit of Array.isArray(units) ? units : []) {
+      if (sideOf(unit) !== "enemy" || !isActiveTarget(unit)) continue;
+      results.push(hydrateEnemyCombatant(unit));
+    }
+    return results;
+  }
+
   function ensureCanonicalEnemyProfiles(units = []) {
     const catalog = profileCatalog();
     if (!catalog?.applyToUnit) return [];
@@ -108,7 +227,8 @@
     for (const unit of Array.isArray(units) ? units : []) {
       if (sideOf(unit) !== "enemy" || !isActiveTarget(unit)) continue;
       if (unit.actionEconomy?.minSlots != null && unit.actionEconomy?.maxSlots != null) continue;
-      const profile = catalog.get?.(unit);
+      const canonicalId = canonicalUnitIdForCombatant(unit);
+      const profile = catalog.get?.(canonicalId || unit);
       if (!profile) continue;
       const result = catalog.applyToUnit(unit, profile.id);
       if (result?.applied) applied.push({ unitId: unitIdOf(unit), profileId: profile.id });
@@ -161,6 +281,7 @@
     if (!slotAllocator?.allocateEnemySlots) return { planned: false, reason: "enemy_action_slot_allocator_unavailable", allocation: null, plans: [] };
     if (!adapter?.planUnitTurn) return { planned: false, reason: "unit_ai_kit_adapter_unavailable", allocation: null, plans: [] };
 
+    const hydration = hydrateEnemiesForPlanning(units);
     const profileApplications = ensureCanonicalEnemyProfiles(units);
     const speeds = options.speedByUnitId || roundSpeedByUnitId(units);
     const allocation = slotAllocator.allocateEnemySlots(units, {
@@ -169,7 +290,7 @@
       speedByUnitId: speeds,
       apply: true,
     });
-    if (!allocation.allocated) return { planned: false, reason: allocation.reason, allocation, plans: [], profileApplications };
+    if (!allocation.allocated) return { planned: false, reason: allocation.reason, allocation, plans: [], hydration, profileApplications };
 
     const unitById = new Map(units.map((unit) => [unitIdOf(unit), unit]).filter(([id]) => id));
     const targets = Array.isArray(options.targets) ? options.targets : activeAllyIdentities(units);
@@ -218,6 +339,7 @@
       plans,
       targets: targetIds,
       speedByUnitId: { ...speeds },
+      hydration,
       profileApplications,
     };
   }
@@ -417,6 +539,11 @@
       try { await global.LuminousBattleViewerRuntime073Ready; } catch (_) {}
     }
     if (!global.LuminousUniversalRangedAmmoRuntime) await loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js", "LuminousUniversalRangedAmmoRuntime");
+    if (!global.LuminousUnitRankRuntime) await loadScript("unit-rank-runtime-script", "js/unit-rank-runtime.js", "LuminousUnitRankRuntime");
+    if (!global.LuminousKoboldTier1SkillCatalog) await loadScript("kobold-tier1-skill-catalog-script", "js/skill-catalog-kobold-tier1.js", "LuminousKoboldTier1SkillCatalog");
+    if (!global.LuminousUnitCombatMechanics) await loadScript("unit-combat-mechanics-runtime-script", "js/unit-combat-mechanics-runtime.js", "LuminousUnitCombatMechanics");
+    if (!global.LuminousKoboldUnitCatalog) await loadScript("kobold-unit-catalog-script", "js/unit-catalog-kobold-tier1.js", "LuminousKoboldUnitCatalog");
+    if (!global.LuminousGoblinUnitCatalog) await loadScript("goblin-unit-catalog-script", "js/unit-catalog-goblin.js", "LuminousGoblinUnitCatalog");
     if (!global.LuminousUnitActionEconomyCatalog) await loadScript("unit-action-economy-catalog-script", "js/unit-action-economy-catalog.js", "LuminousUnitActionEconomyCatalog");
     if (!global.LuminousIndividualGoapCombatAI) await loadScript("individual-goap-combat-ai-script", "js/individual-goap-combat-ai.js", "LuminousIndividualGoapCombatAI");
     if (!global.LuminousUnitAiKitAdapter) await loadScript("unit-ai-kit-adapter-script", "js/unit-ai-kit-adapter.js", "LuminousUnitAiKitAdapter");
@@ -458,6 +585,9 @@
     isActiveTarget,
     activeAllyIdentities,
     roundSpeedByUnitId,
+    canonicalUnitIdForCombatant,
+    hydrateEnemyCombatant,
+    hydrateEnemiesForPlanning,
     ensureCanonicalEnemyProfiles,
     isDefenseAction,
     defenseViewerPlan,
