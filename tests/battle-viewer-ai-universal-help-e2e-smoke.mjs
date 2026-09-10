@@ -46,8 +46,8 @@ function attackSkill(id, basePower, coinPower) {
     sinAffinity: 'sinless',
     targetingType: 'Focused Attack',
     isDefense: false,
-    isClashable: false,
-    isUnclashable: true,
+    isClashable: true,
+    isUnclashable: false,
     resourceCosts: [],
     effects: [],
     coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }],
@@ -90,8 +90,8 @@ const player = {
   sinRes: 1,
 };
 
-// The attacker commits first. The helper is deliberately slower and weak, so its GOAP can
-// see only the already-committed allied action and prefer Help under GAIN_ADVANTAGE.
+// The attacker commits a Help-eligible clashable action first. The helper is deliberately
+// slower and weak, so its GOAP can see only that already-committed action and prefer Help.
 const attacker = aiUnit('ai_attacker', 2, attackSkill('strong_committed_strike', 10, 5), 12);
 const helper = aiUnit('ai_helper', 1, attackSkill('weak_helper_strike', 1, 1), 16);
 const units = [player, attacker, helper];
@@ -122,6 +122,8 @@ const attackerPlan = planning.result.plans.find((entry) => entry.unitId === atta
 const helperPlan = planning.result.plans.find((entry) => entry.unitId === helper.id)?.plan;
 assert.equal(attackerPlan.actions.length, 1);
 assert.equal(attackerPlan.actions[0].source.id, 'strong_committed_strike');
+assert.equal(attackerPlan.actions[0].resolution.type, 'clash');
+assert.equal(schema.canReceiveHelp(attackerPlan.actions[0]), true);
 assert.equal(helperPlan.actions.length, 1);
 assert.equal(helperPlan.actions[0].source.id, 'help');
 assert.equal(helperPlan.actions[0].effects[0].targetActionId, attackerPlan.actions[0].id);
@@ -143,7 +145,7 @@ const results = await timeline.runTimeline(events);
 const helpResult = results.find((row) => row.actionId === helperPlan.actions[0].id);
 const attackResult = results.find((row) => row.actionId === attackerPlan.actions[0].id);
 assert.equal(helpResult.resolved, true, helpResult.reason || 'Help should resolve through Viewer timeline');
-assert.equal(helpResult.result.resolution.effects[0].applied, true, 'Help must find and modify the cross-event CombatAction');
+assert.equal(helpResult.result.resolution.effects[0].applied, true, helpResult.result.resolution.effects[0].reason || 'Help must find and modify the cross-event CombatAction');
 assert.equal(attackResult.resolved, true, attackResult.reason || 'helped attack should resolve');
 assert.ok(attackResult.event.action.modifiers.some((modifier) => modifier.type === 'final_power' && Number(modifier.amount) === 1), 'helped action should receive +1 Final Power before it resolves');
 assert.ok(player.hp < hpBefore, `helped attack should still reach the real CombatEngine (${hpBefore} -> ${player.hp})`);
