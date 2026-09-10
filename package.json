@@ -4,7 +4,8 @@
   "description": "Luminous Character Maker.",
   "main": "hoja_personaje.js",
   "scripts": {
-    "firebase:deploy:rules": "npx firebase-tools deploy --only database --project luminous-system"
+    "firebase:deploy:rules": "npx firebase-tools deploy --only database --project luminous-system",
+    "test:individual-goap": "node tests/individual-goap-combat-ai-smoke.mjs && node tests/individual-goap-combat-ai-real-engine-smoke.mjs"
   },
   "repository": {
     "type": "git",
