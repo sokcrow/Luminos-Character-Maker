@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
 
+await import('../js/status-engine.js');
+await import('../js/universal-ranged-ammo-runtime.js');
+await import('../js/skill-catalog-kobold-tier1.js');
+await import('../js/unit-rank-runtime.js');
+await import('../js/unit-combat-mechanics-runtime.js');
+await import('../js/unit-catalog-kobold-tier1.js');
+await import('../js/unit-catalog-goblin.js');
 await import('../js/universal-action-economy.js');
 await import('../js/combat-action-schema.js');
 await import('../js/combat-action-adapters.js');
@@ -111,6 +118,43 @@ function enemy(id, speed, profileId = 'kobold_dagger', skill = strike) {
   assert.equal(slotTargets.player_live_slot_0, 'encounter_kobold_fast_slot_0', 'player targeting state must remain untouched');
 }
 
+// Real VTT/Battle Viewer combatants can arrive as lightweight token records. actorRef is
+// sufficient to recover canonical planning data without replacing live HP/Speed/state.
+{
+  const player = { id: 'actorref_player', faction: 'ally', isPlayer: true, hp: 40, maxHp: 40, actionSlots: 3 };
+  const tokenCombatant = {
+    id: 'enemy:kobold_dagger:runtime_001',
+    actorRef: { scope: 'units', id: 'kobold_dagger' },
+    actorCategory: 'enemy',
+    faction: 'enemy',
+    hp: 7,
+    maxHp: 13,
+    currentSpeed: 5,
+    actionSlots: 1,
+  };
+  const hpBefore = tokenCombatant.hp;
+  const maxHpBefore = tokenCombatant.maxHp;
+  economy.beginPlanning(player);
+  economy.beginPlanning(tokenCombatant);
+
+  const attackVectors = {};
+  const result = bridge.runViewerPlanning({ units: [player, tokenCombatant], attackVectors, slotTargets: {}, renderSlots: () => {} });
+  const hydration = result.result.hydration.find((entry) => entry.unitId === tokenCombatant.id);
+
+  assert.equal(result.applied, true);
+  assert.equal(hydration.hydrated, true);
+  assert.equal(hydration.canonicalUnitId, 'kobold_dagger');
+  assert.equal(tokenCombatant.canonicalUnitId, 'kobold_dagger');
+  assert.ok(Array.isArray(tokenCombatant.resolvedSkills) && tokenCombatant.resolvedSkills.length >= 3);
+  assert.deepEqual(tokenCombatant.scores, { str: 7, dex: 15, con: 9, int: 8, wis: 7, cha: 8 });
+  assert.equal(tokenCombatant.hp, hpBefore, 'rehydration must preserve live HP');
+  assert.equal(tokenCombatant.maxHp, maxHpBefore, 'rehydration must preserve live max HP');
+  assert.equal(tokenCombatant.currentSpeed, 5, 'rehydration must preserve round Speed');
+  assert.equal(tokenCombatant.actionSlots, 2, 'canonical 1-2 profile should apply to the live token id');
+  assert.equal(result.entriesApplied.length, 2);
+  assert.ok(Object.values(attackVectors).every((vector) => ['kobold_dagger_jab', 'kobold_desperate_stab'].includes(vector.combatAction?.source?.id)));
+}
+
 // Defense decisions are routed through the Viewer defense plan contract instead of being
 // sent to CombatActionResolver as unilateral attacks.
 {
@@ -198,4 +242,4 @@ function enemy(id, speed, profileId = 'kobold_dagger', skill = strike) {
   assert.equal(Object.keys(globalThis.attackVectors).length, 4, 'two 1-2 enemies should expose four GOAP vectors');
 }
 
-console.log('Battle Viewer enemy Planning 0.7.4 smoke: ok');
+console.log('Battle Viewer enemy Planning 0.7.5 smoke: ok');
