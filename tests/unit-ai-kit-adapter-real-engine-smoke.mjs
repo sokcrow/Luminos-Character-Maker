@@ -35,19 +35,30 @@ if (!engine || !resolver || !kitAdapter || !kobolds || !ammo) {
 
 engine.currentState = 'COMBAT_ACTIVE';
 
-const kobold = kobolds.resolve('kobold_dagger', { level: 2, initializeEncounter: true });
-kobold.id = 'real_kobold';
-kobold.name = 'Real GOAP Kobold';
-kobold.hp = Math.max(kobold.hp, 10);
-kobold.maxHp = Math.max(kobold.maxHp, 10);
-kobold.sp = 0;
-kobold.level = kobold.effectiveLevel || 2;
-kobold.faction = 'enemy';
-kobold.faccion = 'enemy';
-kobold.statusEffects = kobold.statusEffects || {};
-kobold.stats = kobold.stats || {};
-kobold.physRes = kobold.physRes || 1;
-kobold.sinRes = kobold.sinRes || 1;
+function hydrateCombatant(unit, id, name) {
+  const canonicalHp = Number(unit.hp ?? unit.mechanics?.hp ?? 1);
+  const canonicalMaxHp = Number(unit.maxHp ?? unit.mechanics?.maxHp ?? canonicalHp);
+  unit.id = id;
+  unit.name = name;
+  unit.hp = Math.max(Number.isFinite(canonicalHp) ? canonicalHp : 1, 10);
+  unit.maxHp = Math.max(Number.isFinite(canonicalMaxHp) ? canonicalMaxHp : unit.hp, unit.hp);
+  unit.mechanics = { ...(unit.mechanics || {}), hp: unit.hp, maxHp: unit.maxHp };
+  unit.sp = Number.isFinite(Number(unit.sp ?? unit.mechanics?.sp)) ? Number(unit.sp ?? unit.mechanics?.sp) : 0;
+  unit.level = unit.effectiveLevel || unit.mechanics?.level || 2;
+  unit.faction = 'enemy';
+  unit.faccion = 'enemy';
+  unit.statusEffects = unit.statusEffects || {};
+  unit.stats = unit.stats || {};
+  unit.physRes = unit.physRes || 1;
+  unit.sinRes = unit.sinRes || 1;
+  return unit;
+}
+
+const kobold = hydrateCombatant(
+  kobolds.resolve('kobold_dagger', { level: 2, initializeEncounter: true }),
+  'real_kobold',
+  'Real GOAP Kobold',
+);
 
 const player = {
   id: 'real_player', name: 'Target Player', faction: 'allies', faccion: 'allies',
@@ -75,14 +86,11 @@ const result = resolver.resolveCombatAction(plan.actions[0], {
 assert.equal(result.resolved, true, result.reason || 'canonical Unit CombatAction should resolve');
 assert.ok(player.hp < hpBefore, `real CombatEngine should apply damage (${hpBefore} -> ${player.hp})`);
 
-// A Sling Kobold with no ammunition must plan its remaining canonical defense rather than
-// send an action that the resolver will reject for missing ammunition.
-const sling = kobolds.resolve('kobold_sling', { level: 2, initializeEncounter: true });
-sling.id = 'real_sling';
-sling.hp = Math.max(sling.hp, 10);
-sling.maxHp = Math.max(sling.maxHp, 10);
-sling.faction = 'enemy';
-sling.faccion = 'enemy';
+const sling = hydrateCombatant(
+  kobolds.resolve('kobold_sling', { level: 2, initializeEncounter: true }),
+  'real_sling',
+  'Real Sling Kobold',
+);
 ammo.setAmmo(sling, 'pebbles', 0);
 const dryPlan = kitAdapter.planUnitTurn({ actor: sling, targetIds: [player.id], availableSlots: 1, allowEscape: false });
 assert.equal(dryPlan.planned, true);
