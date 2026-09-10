@@ -26,7 +26,7 @@
     return clean(definition.id ?? definition.skillId ?? definition.spellId ?? definition.traitId ?? definition.itemId, fallback);
   }
 
-  function resourceCostsOf(definition = {}) {
+  function declaredResourceCosts(definition = {}) {
     return asArray(definition.resourceCosts || definition.resource_costs || definition.resources)
       .filter(Boolean)
       .map((resource) => ({
@@ -37,6 +37,35 @@
         metadata: resource.metadata && typeof resource.metadata === "object" ? clone(resource.metadata) : null,
       }))
       .filter((resource) => resource.type);
+  }
+
+  function resourceCostsOf(definition = {}, sourceType = "") {
+    const resources = declaredResourceCosts(definition);
+    const type = normalizeId(sourceType || definition.sourceType || definition.source_type || definition.type);
+
+    // Mirror the canonical CombatAction adapters so planning validates the same implicit costs
+    // that resolution will later consume.
+    if (type === "spell") {
+      const slotLevel = Math.max(0, Math.trunc(finite(definition.slotLevel ?? definition.level ?? definition.spellLevel, 0)));
+      const cantrip = definition.cantrip === true || slotLevel === 0;
+      if (!cantrip && !resources.some((resource) => resource.type === "spell_slot")) {
+        resources.push({
+          owner: "source",
+          type: "spell_slot",
+          id: String(definition.sourceClassId || definition.classId || definition.class_id || ""),
+          amount: 1,
+          metadata: { slotLevel },
+        });
+      }
+    }
+
+    if (type === "trait") {
+      const maxUses = definition.uses ?? definition.maxUses ?? definition.max_uses;
+      if (maxUses != null && !resources.some((resource) => resource.type === "trait_use")) {
+        resources.push({ owner: "source", type: "trait_use", id: sourceIdOf(definition), amount: 1, metadata: null });
+      }
+    }
+    return resources;
   }
 
   function isPassiveTrait(definition = {}) {
@@ -181,8 +210,46 @@
     }
   }
 
+  function validateSourceState(actor, sourceType, raw, definition, options = {}) {
+    const sourceId = sourceIdOf(definition, sourceIdOf(raw));
+    if (raw.available === false || definition.available === false || raw.disabled === true || definition.disabled === true) {
+      return { available: false, reason: "source_disabled" };
+    }
+
+    const cooldown = raw.cooldownRemaining ?? raw.cooldown_remaining ?? definition.cooldownRemaining ?? definition.cooldown_remaining ?? actor.cooldowns?.[sourceId];
+    if (Number.isFinite(Number(cooldown)) && Number(cooldown) > 0) {
+      return { available: false, reason: "cooldown_active", cooldownRemaining: Number(cooldown) };
+    }
+
+    const remaining = raw.usesRemaining ?? raw.remainingUses ?? definition.usesRemaining ?? definition.remainingUses;
+    if (Number.isFinite(Number(remaining)) && Number(remaining) <= 0) {
+      return { available: false, reason: "uses_exhausted", remaining: Number(remaining) };
+    }
+
+    if (sourceType === "item") {
+      const quantity = raw.quantity ?? raw.item?.quantity ?? definition.quantity;
+      if (Number.isFinite(Number(quantity)) && Number(quantity) <= 0) return { available: false, reason: "item_quantity_empty" };
+      // CombatActionAdapters currently has no canonical item compiler. Do not pretend a nested
+      // item Skill is a complete Item action until that contract exists.
+      if (options.allowItemFallback !== true) return { available: false, reason: "item_combat_action_adapter_pending" };
+    }
+
+    if (typeof options.isSourceAvailable === "function") {
+      try {
+        const result = options.isSourceAvailable({ actor, sourceType, raw, definition });
+        if (result === false) return { available: false, reason: "source_unavailable" };
+        if (result && typeof result === "object" && (result.available === false || result.valid === false)) {
+          return { available: false, reason: result.reason || "source_unavailable", detail: clone(result) };
+        }
+      } catch (_) {
+        return { available: false, reason: "source_availability_check_failed" };
+      }
+    }
+    return { available: true, reason: null };
+  }
+
   function normalizeResourceHandlerResult(result, resource) {
-    if (result == null) return { known: false, available: true, reason: "resource_validation_unavailable", resource };
+    if (result == null) return { known: false, available: false, reason: "resource_validation_unavailable", resource };
     const available = !(result.available === false || result.valid === false || result.canUse === false || result.ok === false);
     return {
       known: true,
@@ -195,7 +262,7 @@
 
   function validateAmmo(actor, definition, resource) {
     const runtime = ammoRuntime();
-    if (!runtime) return null;
+    if (!runtime) return { available: false, reason: "ammunition_runtime_unavailable" };
     if (typeof runtime.ammunitionHandler === "function") {
       const handler = runtime.ammunitionHandler();
       if (handler?.validate) {
@@ -211,12 +278,13 @@
       const required = Math.max(1, finite(resource.amount, 1));
       return { available: current >= required, current, required, reason: current >= required ? null : "ammunition_unavailable" };
     }
-    return null;
+    return { available: false, reason: "ammunition_validator_unavailable" };
   }
 
   function validateSpellSlot(actor, definition, resource) {
     const runtime = spellRuntime();
-    if (!runtime?.canSpendSpellSlot) return null;
+    if (!runtime) return { available: false, reason: "spell_slot_runtime_unavailable" };
+    if (typeof runtime.canSpendSpellSlot !== "function") return { available: false, reason: "spell_slot_validator_unavailable" };
     const level = Math.max(0, Math.trunc(finite(resource.metadata?.slotLevel ?? definition.slotLevel ?? definition.level ?? definition.spellLevel, 0)));
     try {
       return runtime.canSpendSpellSlot(actor, resource.id, level);
@@ -227,7 +295,7 @@
 
   function validateResources(actor, sourceType, definition, options = {}) {
     const checks = [];
-    for (const resource of resourceCostsOf(definition)) {
+    for (const resource of resourceCostsOf(definition, sourceType)) {
       let result = null;
       const direct = options.resourceHandlers?.[resource.type];
       if (direct?.validate) {
@@ -241,12 +309,11 @@
       } else if (resource.type === "spell_slot") {
         result = validateSpellSlot(actor, definition, resource);
       }
-      const check = normalizeResourceHandlerResult(result, resource);
+
+      let check = normalizeResourceHandlerResult(result, resource);
+      if (!check.known && options.allowUnvalidatedResources === true) check = { ...check, available: true };
       checks.push(check);
       if (!check.available) return { available: false, reason: check.reason, checks };
-      if (!check.known && options.strictResources === true) {
-        return { available: false, reason: "resource_validation_unavailable", checks };
-      }
     }
     return { available: true, reason: null, checks };
   }
@@ -259,17 +326,25 @@
     definition.id = sourceId;
     if (!definition.sourceType && sourceType !== "item") definition.sourceType = sourceType;
 
-    const resources = validateResources(actor, sourceType, definition, options);
+    const sourceState = validateSourceState(actor, sourceType, raw, definition, options);
+    const resources = sourceState.available ? validateResources(actor, sourceType, definition, options) : { available: false, reason: sourceState.reason, checks: [] };
+    const availability = sourceState.available && resources.available
+      ? { available: true, reason: null }
+      : { available: false, reason: sourceState.reason || resources.reason || "source_unavailable" };
+
     return {
       sourceType,
       definition,
-      available: resources.available,
+      available: availability.available,
       estimate: raw.aiEstimate || definition.aiEstimate || undefined,
       metadata: {
         ...(raw.metadata && typeof raw.metadata === "object" ? clone(raw.metadata) : {}),
         unitAiKitAdapter: true,
+        sourceState: clone(sourceState),
         resourceChecks: resources.checks,
       },
+      __availability: availability,
+      __sourceState: sourceState,
       __resourceValidation: resources,
     };
   }
@@ -306,12 +381,13 @@
       .map((source) => ({
         sourceType: source.sourceType,
         sourceId: sourceIdOf(source.definition),
-        reason: source.__resourceValidation?.reason || "source_unavailable",
+        reason: source.__availability?.reason || "source_unavailable",
+        sourceState: clone(source.__sourceState),
         resourceChecks: clone(source.__resourceValidation?.checks || []),
       }));
 
     return {
-      version: "0.1.0",
+      version: "0.2.0",
       actorId,
       sources,
       allSources,
@@ -349,10 +425,11 @@
   }
 
   const api = Object.freeze({
-    version: "0.1.0",
+    version: "0.2.0",
     ACTIONABLE_SOURCE_TYPES,
     actorIdOf,
     resourceCostsOf,
+    validateSourceState,
     validateResources,
     buildKit,
     planUnitTurn,
