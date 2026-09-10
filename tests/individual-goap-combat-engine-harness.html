@@ -3,55 +3,72 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Individual GOAP × CombatEngine Harness</title>
+  <title>Individual GOAP × Canonical Units × CombatEngine</title>
   <style>
     :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
     body { margin: 0; background: #111318; color: #e8eaf0; }
-    main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    main { max-width: 1080px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 8px; font-size: 24px; }
     p { color: #aeb5c4; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; margin: 18px 0; }
     label, .card { background: #1a1e26; border: 1px solid #303744; border-radius: 10px; padding: 12px; }
     label { display: grid; gap: 7px; font-size: 13px; color: #bfc6d4; }
-    input { width: 100%; box-sizing: border-box; background: #0f1116; color: #fff; border: 1px solid #3b4352; border-radius: 7px; padding: 8px; }
+    input, select { width: 100%; box-sizing: border-box; background: #0f1116; color: #fff; border: 1px solid #3b4352; border-radius: 7px; padding: 8px; }
     .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 20px; }
     button { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0b0d11; border: 1px solid #2a303b; border-radius: 10px; padding: 14px; min-height: 220px; }
-    .status { display:flex; gap:20px; flex-wrap:wrap; margin: 12px 0; }
-    .status strong { display:block; font-size:22px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0b0d11; border: 1px solid #2a303b; border-radius: 10px; padding: 14px; min-height: 260px; }
+    .status { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin: 12px 0; }
+    .status strong { display:block; font-size:20px; margin-top:4px; }
     code { color:#d9e2ff; }
   </style>
 </head>
 <body>
 <main>
-  <h1>Individual GOAP × CombatEngine</h1>
-  <p>This page exercises the new Individual GOAP planner, compiles its choice into canonical CombatAction, then resolves it through the repository CombatAction resolver and the real <code>CombatEngine</code>.</p>
+  <h1>Individual GOAP × Canonical Units × CombatEngine</h1>
+  <p>The planner now reads the selected Unit's real canonical kit. No manual <code>sources[]</code> is created in this harness. Kobold ammunition is preflighted before GOAP planning; Goblin exposes its currently pending canonical weapon definitions instead of fabricating attacks.</p>
 
   <div class="grid">
-    <label>INT <input id="int" type="number" min="1" max="30" value="10"></label>
-    <label>WIS <input id="wis" type="number" min="1" max="30" value="9"></label>
-    <label>Goblin HP <input id="hp" type="number" min="0" max="20" value="20"></label>
+    <label>Canonical Unit
+      <select id="unit">
+        <option value="kobold_dagger">Kobold Dagger</option>
+        <option value="kobold_sling">Kobold Sling</option>
+        <option value="goblin">Goblin (weapon Skills pending)</option>
+      </select>
+    </label>
+    <label>INT override <input id="int" type="number" min="1" max="30" value="8"></label>
+    <label>WIS override <input id="wis" type="number" min="1" max="30" value="7"></label>
+    <label>Unit HP % <input id="hpPct" type="number" min="1" max="100" value="100"></label>
     <label>Action Slots <input id="slots" type="number" min="1" max="6" value="2"></label>
-    <label>Observed Slash Multiplier <input id="slashMult" type="number" min="0.1" max="2.5" step="0.1" value="1"></label>
-    <label>Intel Confidence <input id="confidence" type="number" min="0" max="1" step="0.05" value="0"></label>
+    <label>Pebbles <input id="ammo" type="number" min="0" max="20" value="20"></label>
   </div>
 
   <div class="status">
-    <div class="card">Player HP<strong id="playerHp">40</strong></div>
+    <div class="card">Player HP<strong id="playerHp">80</strong></div>
     <div class="card">Goal<strong id="goal">—</strong></div>
     <div class="card">Choice<strong id="choice">—</strong></div>
+    <div class="card">Usable Kit<strong id="kitCount">—</strong></div>
+    <div class="card">Unavailable<strong id="unavailable">—</strong></div>
+    <div class="card">Unresolved<strong id="unresolved">—</strong></div>
   </div>
 
   <div class="buttons">
+    <button id="rebuild">Rebuild Canonical Unit</button>
+    <button id="inspect">Inspect AI Kit</button>
     <button id="plan">Plan AI Turn</button>
     <button id="execute">Execute First CombatAction</button>
-    <button id="observe">Teach: Slash Was Resisted</button>
-    <button id="reset">Reset</button>
+    <button id="resetPlayer">Reset Player HP</button>
   </div>
 
   <pre id="log">Ready.</pre>
 </main>
 
+<script src="../js/status-engine.js"></script>
+<script src="../js/universal-ranged-ammo-runtime.js"></script>
+<script src="../js/unit-rank-runtime.js"></script>
+<script src="../js/skill-catalog-kobold-tier1.js"></script>
+<script src="../js/unit-combat-mechanics-runtime.js"></script>
+<script src="../js/unit-catalog-kobold-tier1.js"></script>
+<script src="../js/unit-catalog-goblin.js"></script>
 <script src="../js/combatEngine.js"></script>
 <script src="../js/combat-action-schema.js"></script>
 <script src="../js/combat-action-adapters.js"></script>
@@ -59,97 +76,96 @@
 <script src="../js/combat-action-queue.js"></script>
 <script src="../js/combat-action-resolver.js"></script>
 <script src="../js/individual-goap-combat-ai.js"></script>
+<script src="../js/unit-ai-kit-adapter.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const schema = window.LuminousCombatAction;
   const resolver = window.LuminousCombatActionResolver;
   const ai = window.LuminousIndividualGoapCombatAI;
+  const kitAdapter = window.LuminousUnitAiKitAdapter;
+  const kobolds = window.LuminousKoboldUnitCatalog;
+  const goblins = window.LuminousGoblinUnitCatalog;
+  const ammoRuntime = window.LuminousUniversalRangedAmmoRuntime;
   const engine = window.CombatEngine;
   const $ = (id) => document.getElementById(id);
 
-  if (!schema || !resolver || !ai || !engine) {
-    $('log').textContent = 'Initialization failed: missing CombatEngine / CombatAction / GOAP module.';
+  if (!resolver || !ai || !kitAdapter || !kobolds || !goblins || !ammoRuntime || !engine) {
+    $('log').textContent = 'Initialization failed: missing canonical Unit / CombatEngine / CombatAction / GOAP module.';
     return;
   }
 
-  const strike = {
-    sourceType: 'skill',
-    definition: {
-      id: 'goap_slash', name: 'Slash', type: 'Attack',
-      basePower: 5, coinPower: 2, coinAmount: 1, coinType: 'positive',
-      attackWeight: 1, damageType: 'slash', sinAffinity: 'sinless',
-      targetingType: 'Focused Attack', isDefense: false,
-      isClashable: false, isUnclashable: true,
-      resourceCosts: [], effects: [],
-      coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }]
-    },
-    estimate: { damage: 8, damageType: 'slash' }
-  };
+  let actor = null;
+  let player = null;
+  let kit = null;
+  let plan = null;
 
-  const fire = {
-    sourceType: 'skill',
-    definition: {
-      id: 'goap_fire', name: 'Fire Attack', type: 'Attack',
-      basePower: 4, coinPower: 2, coinAmount: 1, coinType: 'positive',
-      attackWeight: 1, damageType: 'fire', sinAffinity: 'sinless',
-      targetingType: 'Focused Attack', isDefense: false,
-      isClashable: false, isUnclashable: true,
-      resourceCosts: [], effects: [],
-      coins: [{ index: 0, type: 'normal', status: 'active', effects: [] }]
-    },
-    estimate: { damage: 6, damageType: 'fire' }
-  };
-
-  let player;
-  let goblin;
-  let intel;
-  let plan;
-
-  function resetUnits() {
-    goblin = {
-      id: 'goap_goblin', name: 'GOAP Goblin', faction: 'enemy', faccion: 'enemy',
-      hp: Number($('hp').value || 20), maxHp: 20, sp: 0, level: 3,
-      scores: { int: Number($('int').value || 10), wis: Number($('wis').value || 9) },
-      stats: {}, statusEffects: {}, shield: 0
-    };
-    player = {
+  function makePlayer() {
+    return {
       id: 'player_1', name: 'Player', faction: 'allies', faccion: 'allies',
-      hp: 40, maxHp: 40, sp: 0, level: 3,
-      stats: {}, statusEffects: {}, shield: 0, physRes: 1, sinRes: 1
+      hp: 80, maxHp: 80, sp: 0, level: 2, stats: {}, statusEffects: {},
+      shield: 0, physRes: 1, sinRes: 1,
     };
-    intel = ai.createIntelState();
+  }
+
+  function selectedCatalog() {
+    return $('unit').value === 'goblin' ? goblins : kobolds;
+  }
+
+  function defaultScoresFor(unitId) {
+    return unitId === 'goblin' ? { int: 10, wis: 9 } : { int: 8, wis: 7 };
+  }
+
+  function rebuildActor(resetInputs = false) {
+    const unitId = $('unit').value;
+    const catalog = selectedCatalog();
+    actor = catalog.resolve(unitId, { level: unitId === 'goblin' ? 3 : 2, initializeEncounter: true });
+    actor.id = `goap_${unitId}`;
+    actor.faction = 'enemy';
+    actor.faccion = 'enemy';
+    actor.sp = Number(actor.sp || 0);
+    actor.level = actor.effectiveLevel || actor.runtimeLevel || actor.level || 2;
+    actor.statusEffects = actor.statusEffects || {};
+    actor.stats = actor.stats || {};
+    actor.physRes = actor.physRes || 1;
+    actor.sinRes = actor.sinRes || 1;
+
+    const defaults = defaultScoresFor(unitId);
+    if (resetInputs) {
+      $('int').value = defaults.int;
+      $('wis').value = defaults.wis;
+      $('hpPct').value = 100;
+      $('slots').value = 2;
+      $('ammo').value = unitId === 'kobold_sling' ? 20 : 0;
+    }
+
+    actor.scores = { ...(actor.scores || {}), int: Number($('int').value || defaults.int), wis: Number($('wis').value || defaults.wis) };
+    const ratio = Math.max(0.01, Math.min(1, Number($('hpPct').value || 100) / 100));
+    actor.hp = Math.max(1, Math.round(Number(actor.maxHp || actor.hp || 1) * ratio));
+    if (unitId === 'kobold_sling') ammoRuntime.setAmmo(actor, 'pebbles', Number($('ammo').value || 0));
+
+    kit = kitAdapter.buildKit(actor);
     plan = null;
     syncStatus();
+    return actor;
   }
 
-  function syncActorInputs() {
-    goblin.hp = Math.max(0, Math.min(20, Number($('hp').value || 0)));
-    goblin.scores.int = Number($('int').value || 10);
-    goblin.scores.wis = Number($('wis').value || 10);
-  }
-
-  function intelFromControls() {
-    const multiplier = Number($('slashMult').value || 1);
-    const confidence = Number($('confidence').value || 0);
-    if (confidence <= 0) return intel;
-    return ai.createIntelState({
-      targets: {
-        player_1: {
-          observations: 3,
-          damageTypes: {
-            slash: { multiplierEstimate: multiplier, confidence, samples: 3 }
-          }
-        }
-      }
-    });
+  function syncActorControls() {
+    if (!actor || !actor.id.includes($('unit').value)) rebuildActor();
+    const defaults = defaultScoresFor($('unit').value);
+    actor.scores = { ...(actor.scores || {}), int: Number($('int').value || defaults.int), wis: Number($('wis').value || defaults.wis) };
+    const ratio = Math.max(0.01, Math.min(1, Number($('hpPct').value || 100) / 100));
+    actor.hp = Math.max(1, Math.round(Number(actor.maxHp || actor.hp || 1) * ratio));
+    if ($('unit').value === 'kobold_sling') ammoRuntime.setAmmo(actor, 'pebbles', Number($('ammo').value || 0));
   }
 
   function syncStatus() {
-    $('playerHp').textContent = player ? player.hp : '—';
+    $('playerHp').textContent = player?.hp ?? '—';
     $('goal').textContent = plan?.goal || '—';
     $('choice').textContent = plan?.sequence?.[0]?.sourceId || '—';
+    $('kitCount').textContent = kit?.counts?.usable ?? '—';
+    $('unavailable').textContent = kit?.counts?.unavailable ?? '—';
+    $('unresolved').textContent = kit?.counts?.unresolved ?? '—';
   }
 
   function show(value) {
@@ -157,60 +173,85 @@
     syncStatus();
   }
 
+  function kitSummary(currentKit) {
+    return {
+      actorId: currentKit.actorId,
+      usable: currentKit.sources.map((source) => source.definition.id),
+      unavailable: currentKit.unavailable,
+      unresolved: currentKit.unresolved,
+      counts: currentKit.counts,
+      ammo: $('unit').value === 'kobold_sling' ? ammoRuntime.ammoCount(actor, 'pebbles') : null,
+    };
+  }
+
+  $('unit').addEventListener('change', () => rebuildActor(true));
+  $('rebuild').addEventListener('click', () => {
+    rebuildActor(false);
+    show({ actor: { id: actor.id, name: actor.name, hp: actor.hp, maxHp: actor.maxHp, scores: actor.scores }, kit: kitSummary(kit) });
+  });
+
+  $('inspect').addEventListener('click', () => {
+    syncActorControls();
+    kit = kitAdapter.buildKit(actor);
+    show(kitSummary(kit));
+  });
+
   $('plan').addEventListener('click', () => {
-    syncActorInputs();
-    const controlledIntel = intelFromControls();
-    plan = ai.planTurn({
-      actor: goblin,
+    syncActorControls();
+    plan = kitAdapter.planUnitTurn({
+      actor,
+      targets: [player],
       availableSlots: Number($('slots').value || 1),
-      targetIds: [player.id],
-      sources: [strike, fire],
-      intel: controlledIntel
+      intel: ai.createIntelState(),
     });
-    show(plan);
+    kit = plan.kit || kitAdapter.buildKit(actor);
+    show({
+      planned: plan.planned,
+      reason: plan.reason || null,
+      goal: plan.goal || null,
+      sequence: plan.sequence || [],
+      combatActions: plan.actions || [],
+      kit: kitSummary(kit),
+    });
   });
 
   $('execute').addEventListener('click', () => {
     if (!plan?.actions?.length) $('plan').click();
-    if (!plan?.actions?.length) return;
+    if (!plan?.actions?.length) {
+      show({ planned: plan?.planned || false, reason: plan?.reason || 'no_action_to_execute', kit: kitSummary(kit) });
+      return;
+    }
+
     const action = plan.actions[0];
-    const phase = action.phase.executesAt;
+    const before = player.hp;
     const result = resolver.resolveCombatAction(action, {
-      phase,
-      units: [goblin, player],
+      phase: action.phase.executesAt,
+      units: [actor, player],
       engine,
+      resourceHandlers: { ammunition: ammoRuntime.ammunitionHandler() },
       effectHandlers: {
-        escape: ({ actor, effect }) => ({ escaped: actor.id === goblin.id && effect.leavesEncounter === true })
-      }
+        escape: ({ actor: escapingActor, effect }) => ({ escaped: escapingActor.id === actor.id && effect.leavesEncounter === true }),
+      },
     });
-    show({ plan: { goal: plan.goal, sequence: plan.sequence }, result, playerHp: player.hp });
-  });
-
-  $('observe').addEventListener('click', () => {
-    intel = ai.observeDamageResult(intel, {
-      targetId: player.id,
-      damageType: 'slash',
-      expectedDamage: 10,
-      actualDamage: 2
+    show({
+      selectedUnit: actor.name,
+      selectedSource: plan.sequence[0]?.sourceId,
+      playerHpBefore: before,
+      playerHpAfter: player.hp,
+      result,
+      kit: kitSummary(kitAdapter.buildKit(actor)),
     });
-    const belief = intel.targets[player.id].damageTypes.slash;
-    $('slashMult').value = belief.multiplierEstimate.toFixed(2);
-    $('confidence').value = belief.confidence.toFixed(2);
-    show(intel);
   });
 
-  $('reset').addEventListener('click', () => {
-    $('int').value = 10;
-    $('wis').value = 9;
-    $('hp').value = 20;
-    $('slots').value = 2;
-    $('slashMult').value = 1;
-    $('confidence').value = 0;
-    resetUnits();
-    $('log').textContent = 'Reset complete.';
+  $('resetPlayer').addEventListener('click', () => {
+    player = makePlayer();
+    syncStatus();
+    $('log').textContent = 'Player HP reset.';
   });
 
-  resetUnits();
+  player = makePlayer();
+  rebuildActor(true);
+  $('log').textContent = 'Ready. The harness is using canonical Unit definitions.';
 })();
 </script>
 </body>
