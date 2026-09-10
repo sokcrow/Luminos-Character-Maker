@@ -75,10 +75,12 @@ assert.ok(dryIds.includes('kobold_duck_away'), 'defense must remain available wi
 assert.ok(dryKit.unavailable.some((entry) => entry.sourceId === 'kobold_sling_shot' && entry.reason === 'ammunition_unavailable'));
 assert.ok(dryKit.unavailable.some((entry) => entry.sourceId === 'kobold_rapid_pebble' && entry.reason === 'ammunition_unavailable'));
 
+// This fixture isolates kit fallback with no ammunition; Grapple has its own integration smoke.
 const dryPlan = kitAdapter.planUnitTurn({
   actor: sling,
   targetIds: ['player_1'],
   availableSlots: 1,
+  allowGrapple: false,
 });
 assert.equal(dryPlan.planned, true);
 assert.equal(dryPlan.sequence[0].sourceId, 'kobold_duck_away');
