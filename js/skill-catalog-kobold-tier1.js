@@ -13,9 +13,10 @@
 
   function coin(index, effects) { return { index, type: 'normal', status: 'active', effects: effects || [] }; }
 
-  function attack({ id, name, variant, tier = 1, maxCopies, basePower, coinPower, coinAmount, damageType, skillRange, statusFamily, statusCoin = 0, potency, count, effects = [], metadata = {} }) {
+  function attack({ id, name, variant, tier = 1, maxCopies, basePower, coinPower, coinAmount, damageType, skillRange, statusFamily, statusCoin = 0, potency, count, effects = [], ammoType = null, metadata = {} }) {
     const coins = Array.from({ length: coinAmount }, (_, index) => coin(index, []));
     if (statusFamily && coins[statusCoin]) coins[statusCoin].effects.push(statusEffect(statusFamily, potency, count));
+    const resourceCosts = ammoType ? [{ owner: 'source', type: 'ammunition', id: ammoType, amount: 1, timing: 'on_user' }] : [];
     return {
       id, name, type: 'Attack', tier, maxCopies: maxCopies ?? (tier === 1 ? 3 : tier === 2 ? 2 : 1),
       basePower, coinPower, coinAmount, coinType: 'positive', attackWeight: 1, skillRange,
@@ -23,10 +24,12 @@
       targetingType: 'Focused Attack', aoePattern: 'Self', skillAmount: 1, sourceType: 'skill', sourceId: id,
       isItemSkill: false, isDefense: false, defenseSubtype: '', isClashable: true, isUnclashable: false,
       isIndiscriminate: false, isTargetFixed: false, requiresUnlock: false,
+      resourceCosts,
       effects: clone(effects), coins, evolutionChain: null, schemaVersion: 2,
       metadata: {
         canonicalUnitSkill: true, species: 'kobold', unitVariant: variant, tier,
-        statusFamily: statusFamily || null, combatRange: skillRange > 1 ? 'ranged' : 'melee', ...metadata,
+        statusFamily: statusFamily || null, combatRange: skillRange > 1 ? 'ranged' : 'melee', weaponSkill: true,
+        ...(ammoType ? { ammoType } : {}), ...metadata,
       },
     };
   }
@@ -39,8 +42,8 @@
       statUsed: '', skillUsed: '', targetingType: 'Focused Attack', aoePattern: 'Self', skillAmount: 1,
       sourceType: 'skill', sourceId: id, isItemSkill: false, isDefense: true, defenseSubtype: 'Evade',
       isClashable: true, isUnclashable: false, isIndiscriminate: false, isTargetFixed: false,
-      requiresUnlock: false, effects: [], coins: [coin(0, [])], evolutionChain: null, schemaVersion: 2,
-      metadata: { canonicalUnitSkill: true, species: 'kobold', unitVariant: variant, tier: 1, statusFamily: null, rulesPolicy: 'defense_only', combatRange: 'self' },
+      requiresUnlock: false, resourceCosts: [], effects: [], coins: [coin(0, [])], evolutionChain: null, schemaVersion: 2,
+      metadata: { canonicalUnitSkill: true, species: 'kobold', unitVariant: variant, tier: 1, statusFamily: null, rulesPolicy: 'defense_only', combatRange: 'self', weaponSkill: false },
     };
   }
 
@@ -89,6 +92,9 @@
         tier: 1,
         tierPowerException: 'save_harassment_skill',
         combatRange: 'ranged',
+        ammoType: 'rock',
+        weaponSkill: false,
+        thrownProjectile: true,
         damageTypeLabel: 'Blunt',
         economyLabel: 'Quick Action',
         resolutionPolicy: 'save_then_unopposed_attack_on_failure',
@@ -100,8 +106,8 @@
     kobold_dagger_jab: Object.freeze(attack({ id: 'kobold_dagger_jab', name: 'Dagger Jab', variant: 'dagger', basePower: 6, coinPower: 5, coinAmount: 1, damageType: 'perforante', skillRange: 1, statusFamily: 'bleed', statusCoin: 0, potency: 1, count: 2 })),
     kobold_desperate_stab: Object.freeze(attack({ id: 'kobold_desperate_stab', name: 'Desperate Stab', variant: 'dagger', basePower: 4, coinPower: 3, coinAmount: 2, damageType: 'perforante', skillRange: 1, statusFamily: 'bleed', statusCoin: 1, potency: 1, count: 3 })),
     kobold_scurry: Object.freeze(evade({ id: 'kobold_scurry', name: 'Scurry', variant: 'dagger' })),
-    kobold_sling_shot: Object.freeze(attack({ id: 'kobold_sling_shot', name: 'Sling Shot', variant: 'sling', basePower: 6, coinPower: 4, coinAmount: 1, damageType: 'contundente', skillRange: 6, statusFamily: 'tremor', statusCoin: 0, potency: 1, count: 2 })),
-    kobold_rapid_pebble: Object.freeze(attack({ id: 'kobold_rapid_pebble', name: 'Rapid Pebble', variant: 'sling', basePower: 4, coinPower: 3, coinAmount: 2, damageType: 'contundente', skillRange: 6, statusFamily: 'tremor', statusCoin: 1, potency: 1, count: 3 })),
+    kobold_sling_shot: Object.freeze(attack({ id: 'kobold_sling_shot', name: 'Sling Shot', variant: 'sling', basePower: 6, coinPower: 4, coinAmount: 1, damageType: 'contundente', skillRange: 6, statusFamily: 'tremor', statusCoin: 0, potency: 1, count: 2, ammoType: 'pebbles' })),
+    kobold_rapid_pebble: Object.freeze(attack({ id: 'kobold_rapid_pebble', name: 'Rapid Pebble', variant: 'sling', basePower: 4, coinPower: 3, coinAmount: 2, damageType: 'contundente', skillRange: 6, statusFamily: 'tremor', statusCoin: 1, potency: 1, count: 3, ammoType: 'pebbles' })),
     kobold_duck_away: Object.freeze(evade({ id: 'kobold_duck_away', name: 'Duck Away', variant: 'sling' })),
 
     winged_kobold_dagger: Object.freeze(attack({ id: 'winged_kobold_dagger', name: 'Airborne Dagger', variant: 'winged', tier: 1, basePower: 5, coinPower: 5, coinAmount: 1, damageType: 'perforante', skillRange: 1, metadata: { rulesPolicy: 'flying_melee' } })),
@@ -132,7 +138,7 @@
     return payload;
   }
 
-  const api = Object.freeze({ version: '1.1.0', DEFINITIONS, list, get, finalPower, firebasePayload });
+  const api = Object.freeze({ version: '1.2.0', DEFINITIONS, list, get, finalPower, firebasePayload });
   global.LuminousKoboldTier1SkillCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
