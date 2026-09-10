@@ -135,9 +135,25 @@ function enemy(id, overrides = {}) {
   assert.equal(plan.actions[0].effects[0].targetActionId, 'ally_attack_action');
   assert.equal(plan.actions[0].metadata.targetActionSlotId, 'ally_kobold_slot_0');
   assert.equal(schema.validateCombatAction(plan.actions[0]).valid, true);
+
+  const alreadyCommittedHelp = {
+    id: 'prior_help_action',
+    actorId: 'prior_helper',
+    actionSlotId: 'prior_helper_slot_0',
+    source: { type: 'universal', id: 'help' },
+    phase: { executesAt: 'combat_phase' },
+  };
+  const secondHelperSources = universal.universalDescriptors(actor, {
+    targetIds: ['player'],
+    allowGrapple: false,
+    allowRetreat: false,
+    alliedCommittedActions: [committed, alreadyCommittedHelp],
+  });
+  assert.equal(secondHelperSources.some((entry) => entry.definition.id === 'help'), false, 'canonical Help is once per team, so later planners must not spend another slot on it');
 }
 
-// Retreat competes with offense under survival pressure and remains an on_turn_end action.
+// At critical HP, Retreat becomes an immediate withdrawal option. The Unit must not attack
+// first and then retreat just because it has a second Action Slot.
 {
   const actor = enemy('retreat_ai', { hp: 6, maxHp: 30, scores: { str: 8, int: 10, wis: 16 }, skillBonuses: { athletics: 0 } });
   const plan = adapter.planUnitTurn({
@@ -149,10 +165,10 @@ function enemy(id, overrides = {}) {
     allowGrapple: false,
     allowHelp: false,
   });
-  assert.equal(plan.goal, goap.GOALS.SURVIVE);
+  assert.equal(plan.goal, goap.GOALS.ESCAPE);
   assert.equal(plan.actions[0].source.id, 'retreat');
   assert.equal(plan.actions[0].phase.executesAt, schema.PHASES.ON_TURN_END);
-  assert.equal(plan.actions.length, 1, 'Retreat is terminal for the remainder of that Unit turn');
+  assert.equal(plan.actions.length, 1, 'critical Retreat is terminal and immediate for that Unit turn');
 }
 
 // Improvise fails closed unless the encounter/Unit supplies a concrete resolution or effect.
