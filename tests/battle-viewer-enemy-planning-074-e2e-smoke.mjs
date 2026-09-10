@@ -108,8 +108,15 @@ function installViewerState(units) {
   installViewerState(units);
   beginViewerPlanning(units);
 
-  const planning = bridge.runViewerPlanning({ units, attackVectors: globalThis.attackVectors, slotTargets: globalThis.slotTargets, renderSlots: () => {} });
+  const planning = bridge.runViewerPlanning({
+    units,
+    attackVectors: globalThis.attackVectors,
+    slotTargets: globalThis.slotTargets,
+    renderSlots: () => {},
+    allocationOptions: { teamSlotCap: 1 },
+  });
   assert.equal(planning.applied, true);
+  assert.equal(planning.result.allocation.totalSlots, 1, 'single-slot fixture must isolate one timeline action');
   const vector = globalThis.attackVectors.timeline_kobold_slot_0;
   assert.ok(vector?.combatAction, 'GOAP should inject a canonical CombatAction into the enemy slot');
   assert.equal(vector.combatAction.source.id, 'kobold_dagger_jab');
