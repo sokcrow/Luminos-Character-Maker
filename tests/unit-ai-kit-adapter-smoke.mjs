@@ -1,0 +1,117 @@
+import assert from 'node:assert/strict';
+
+await import('../js/status-engine.js');
+await import('../js/universal-ranged-ammo-runtime.js');
+await import('../js/skill-catalog-kobold-tier1.js');
+await import('../js/unit-rank-runtime.js');
+await import('../js/unit-combat-mechanics-runtime.js');
+await import('../js/unit-catalog-kobold-tier1.js');
+await import('../js/unit-catalog-goblin.js');
+await import('../js/combat-action-schema.js');
+await import('../js/combat-action-adapters.js');
+await import('../js/individual-goap-combat-ai.js');
+await import('../js/unit-ai-kit-adapter.js');
+
+const ammo = globalThis.LuminousUniversalRangedAmmoRuntime;
+const kobolds = globalThis.LuminousKoboldUnitCatalog;
+const goblins = globalThis.LuminousGoblinUnitCatalog;
+const ai = globalThis.LuminousIndividualGoapCombatAI;
+const kitAdapter = globalThis.LuminousUnitAiKitAdapter;
+
+if (!ammo || !kobolds || !goblins || !ai || !kitAdapter) {
+  throw new Error('Unit AI kit test dependencies were not initialized.');
+}
+
+const playerIdentityOnly = new Proxy({ id: 'player_1' }, {
+  get(target, prop, receiver) {
+    if (['hp', 'maxHp', 'sp', 'physRes', 'sinRes', 'skills', 'plannedActions'].includes(String(prop))) {
+      throw new Error(`AI attempted to read private target field: ${String(prop)}`);
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+});
+
+// Canonical Kobold dagger: resolvedSkills should become usable AI sources without a manual sources[] array.
+const dagger = kobolds.resolve('kobold_dagger', { level: 2, initializeEncounter: true });
+dagger.id = 'kobold_dagger_test';
+const daggerKit = kitAdapter.buildKit(dagger);
+const daggerIds = daggerKit.sources.map((source) => source.definition.id).sort();
+assert.ok(daggerIds.includes('kobold_dagger_jab'));
+assert.ok(daggerIds.includes('kobold_desperate_stab'));
+assert.ok(daggerIds.includes('kobold_scurry'));
+assert.equal(daggerKit.unavailable.length, 0);
+
+const daggerPlan = kitAdapter.planUnitTurn({
+  actor: dagger,
+  targets: [playerIdentityOnly],
+  availableSlots: 2,
+  intel: ai.createIntelState(),
+});
+assert.equal(daggerPlan.planned, true);
+assert.equal(daggerPlan.actions.length, 2);
+assert.ok(daggerPlan.actions.every((action) => action.actorId === dagger.id));
+assert.ok(daggerPlan.actions.every((action) => action.phase.selectedAt === 'planning_phase_ai'));
+assert.ok(daggerPlan.actions.every((action) => action.targeting.mainTargetId === 'player_1'));
+
+// Canonical Sling Kobold: ammunition is real encounter state and must gate its ranged attacks.
+const sling = kobolds.resolve('kobold_sling', { level: 2, initializeEncounter: true });
+sling.id = 'kobold_sling_test';
+assert.ok(ammo.ammoCount(sling, 'pebbles') > 0, 'encounter initialization should grant pebbles');
+
+const loadedKit = kitAdapter.buildKit(sling);
+const loadedIds = loadedKit.sources.map((source) => source.definition.id);
+assert.ok(loadedIds.includes('kobold_sling_shot'));
+assert.ok(loadedIds.includes('kobold_rapid_pebble'));
+assert.ok(loadedIds.includes('kobold_duck_away'));
+
+ammo.setAmmo(sling, 'pebbles', 0);
+assert.equal(ammo.ammoCount(sling, 'pebbles'), 0);
+const dryKit = kitAdapter.buildKit(sling);
+const dryIds = dryKit.sources.map((source) => source.definition.id);
+assert.equal(dryIds.includes('kobold_sling_shot'), false, 'Sling Shot must be removed when ammunition is unavailable');
+assert.equal(dryIds.includes('kobold_rapid_pebble'), false, 'Rapid Pebble must be removed when ammunition is unavailable');
+assert.ok(dryIds.includes('kobold_duck_away'), 'defense must remain available with no ammunition');
+assert.ok(dryKit.unavailable.some((entry) => entry.sourceId === 'kobold_sling_shot' && entry.reason === 'ammunition_unavailable'));
+assert.ok(dryKit.unavailable.some((entry) => entry.sourceId === 'kobold_rapid_pebble' && entry.reason === 'ammunition_unavailable'));
+
+const dryPlan = kitAdapter.planUnitTurn({
+  actor: sling,
+  targetIds: ['player_1'],
+  availableSlots: 1,
+});
+assert.equal(dryPlan.planned, true);
+assert.equal(dryPlan.sequence[0].sourceId, 'kobold_duck_away');
+
+ammo.setAmmo(sling, 'pebbles', 3);
+const reloadedKit = kitAdapter.buildKit(sling);
+assert.ok(reloadedKit.sources.some((source) => source.definition.id === 'kobold_sling_shot'));
+assert.ok(reloadedKit.sources.some((source) => source.definition.id === 'kobold_rapid_pebble'));
+
+// Goblin catalog currently declares weapon references, but its canonical weapon Skills are explicitly pending.
+// The AI adapter must report that catalog gap rather than inventing fake Scimitar/Shortbow attacks.
+const goblin = goblins.resolve('goblin', { level: 3, initializeEncounter: true });
+goblin.id = 'goblin_test';
+const goblinKit = kitAdapter.buildKit(goblin);
+assert.equal(goblinKit.sources.some((source) => ['scimitar', 'shortbow'].includes(source.definition.id)), false);
+assert.ok(goblinKit.unresolved.some((entry) => entry.sourceId === 'scimitar' && entry.reason === 'canonical_weapon_skill_pending'));
+assert.ok(goblinKit.unresolved.some((entry) => entry.sourceId === 'shortbow' && entry.reason === 'canonical_weapon_skill_pending'));
+
+const goblinPlan = kitAdapter.planUnitTurn({ actor: goblin, targetIds: ['player_1'], availableSlots: 2 });
+assert.equal(goblinPlan.planned, false);
+assert.equal(goblinPlan.reason, 'unit_combat_sources_unresolved');
+
+// Generic resource handlers can preflight future Items/Traits without coupling GOAP to their runtimes.
+const customActor = {
+  id: 'custom_unit', hp: 10, maxHp: 10, scores: { int: 12, wis: 10 },
+  combatSkills: [{
+    id: 'charged_hit', sourceType: 'skill', type: 'Attack', basePower: 5, coinPower: 2, coinAmount: 1,
+    resourceCosts: [{ type: 'charge', id: 'battery', amount: 1 }],
+  }],
+};
+const blockedCustom = kitAdapter.buildKit(customActor, {
+  resourceHandlers: { charge: { validate: () => ({ available: false, reason: 'battery_empty' }) } },
+});
+assert.equal(blockedCustom.sources.length, 0);
+assert.equal(blockedCustom.unavailable[0].reason, 'battery_empty');
+
+console.log('unit-ai-kit-adapter smoke: ok');
