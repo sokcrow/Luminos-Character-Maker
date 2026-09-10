@@ -5,7 +5,7 @@
   "main": "hoja_personaje.js",
   "scripts": {
     "firebase:deploy:rules": "npx firebase-tools deploy --only database --project luminous-system",
-    "test:individual-goap": "node tests/individual-goap-combat-ai-smoke.mjs && node tests/individual-goap-combat-ai-real-engine-smoke.mjs && node tests/unit-ai-kit-adapter-smoke.mjs && node tests/unit-ai-kit-adapter-real-engine-smoke.mjs"
+    "test:individual-goap": "node tests/individual-goap-combat-ai-smoke.mjs && node tests/individual-goap-combat-ai-real-engine-smoke.mjs && node tests/unit-ai-kit-adapter-smoke.mjs && node tests/unit-ai-kit-adapter-real-engine-smoke.mjs && node tests/enemy-action-slot-allocator-smoke.mjs"
   },
   "repository": {
     "type": "git",
