@@ -24,7 +24,7 @@
   const clampInt = (value, min, max) => Math.max(min, Math.min(max, finiteInt(value, min)));
 
   function unitIdOf(unit = {}) {
-    return clean(unit.id ?? unit.unitId ?? unit.characterId ?? unit.actorId ?? unit.name);
+    return clean(unit.id ?? unit.unitId ?? unit.characterId ?? unit.actorId);
   }
 
   function factionOf(unit = {}) {
@@ -51,11 +51,9 @@
   function embeddedProfile(unit = {}) {
     const raw = unit.actionEconomy || unit.mechanics?.actionEconomy || unit.ai?.actionEconomy || null;
     if (!raw || typeof raw !== "object") return null;
-    return {
-      source: "unit",
-      minSlots: Math.max(1, finiteInt(raw.minSlots ?? raw.minimumSlots ?? raw.baseSlots, 1)),
-      maxSlots: Math.max(1, finiteInt(raw.maxSlots ?? raw.maximumSlots ?? raw.slotCap, 1)),
-    };
+    const minSlots = Math.max(1, finiteInt(raw.minSlots ?? raw.minimumSlots ?? raw.baseSlots, 1));
+    const maxSlots = Math.max(minSlots, finiteInt(raw.maxSlots ?? raw.maximumSlots ?? raw.slotCap, minSlots));
+    return { source: "unit", minSlots, maxSlots };
   }
 
   function legacyProfile(unit = {}) {
@@ -73,35 +71,70 @@
     const teamCap = Math.max(1, finiteInt(options.teamSlotCap, DEFAULT_TEAM_SLOT_CAP));
     const minSlots = clampInt(raw.minSlots, 1, teamCap);
     const maxSlots = clampInt(raw.maxSlots, minSlots, teamCap);
-    return { source: raw.source || "catalog", minSlots, maxSlots };
+    return {
+      source: raw.source || "catalog",
+      profileId: raw.id || profileCatalog()?.canonicalUnitId?.(unit) || null,
+      minSlots,
+      maxSlots,
+    };
   }
 
-  function speedFor(unit = {}, options = {}) {
+  function speedInfoFor(unit = {}, options = {}) {
     const id = unitIdOf(unit);
     const source = options.speedByUnitId;
     let explicit;
     if (typeof source === "function") explicit = source(unit, id);
     else if (source && typeof source === "object") explicit = source[id];
-    if (Number.isFinite(Number(explicit))) return Number(explicit);
+    if (Number.isFinite(Number(explicit))) return { value: Number(explicit), source: "round_override" };
 
-    const candidates = [unit.resolvedSpeed, unit.currentSpeed, unit.speedRoll, unit.speedValue, unit.speed];
-    const found = candidates.map(Number).find(Number.isFinite);
-    return found == null ? null : found;
+    const candidates = [
+      ["resolvedSpeed", unit.resolvedSpeed],
+      ["currentSpeed", unit.currentSpeed],
+      ["speedRoll", unit.speedRoll],
+      ["speedValue", unit.speedValue],
+      ["speed", unit.speed],
+    ];
+    for (const [field, value] of candidates) {
+      if (Number.isFinite(Number(value))) return { value: Number(value), source: field };
+    }
+    return { value: null, source: null };
+  }
+
+  function speedFor(unit = {}, options = {}) {
+    return speedInfoFor(unit, options).value;
+  }
+
+  function validateEnemyIds(entries = []) {
+    const seen = new Set();
+    for (const entry of entries) {
+      const id = unitIdOf(entry.unit);
+      if (!id) return { valid: false, reason: "enemy_unit_id_required", deploymentIndex: entry.deploymentIndex };
+      if (seen.has(id)) return { valid: false, reason: "duplicate_enemy_unit_id", unitId: id };
+      seen.add(id);
+    }
+    return { valid: true, reason: null };
+  }
+
+  function slotIdsFor(unit, count = null) {
+    const id = unitIdOf(unit);
+    const max = count == null
+      ? Math.max(0, finiteInt(unit.activeSlots ?? unit.currentActionSlots ?? unit.actionSlots, 0))
+      : Math.max(0, finiteInt(count, 0));
+    return Array.from({ length: max }, (_, index) => `${id}_slot_${index}`);
   }
 
   function syncSlotObjects(unit, count) {
     const existing = Array.isArray(unit.slots) ? unit.slots : [];
     unit.slots = Array.from({ length: count }, (_, index) => ({
-      id: `${unitIdOf(unit) || "unit"}_slot_${index}`,
-      slotWeight: 1,
-      isTargetedThisRound: false,
       ...(existing[index] && typeof existing[index] === "object" ? existing[index] : {}),
-      id: `${unitIdOf(unit) || "unit"}_slot_${index}`,
+      id: `${unitIdOf(unit)}_slot_${index}`,
+      slotWeight: Number.isFinite(Number(existing[index]?.slotWeight)) ? Number(existing[index].slotWeight) : 1,
+      isTargetedThisRound: false,
     }));
     return unit.slots;
   }
 
-  function applySlotCount(unit, count, row = null) {
+  function applySlotCount(unit, count, row = null, options = {}) {
     const next = Math.max(0, finiteInt(count, 0));
     unit.activeSlots = next;
     unit.currentActionSlots = next;
@@ -109,12 +142,16 @@
     syncSlotObjects(unit, next);
     unit.actionSlotAllocation = {
       roundScoped: true,
+      roundId: options.roundId ?? row?.roundId ?? null,
       slots: next,
       speed: row?.speed ?? null,
+      speedSource: row?.speedSource ?? null,
       minSlots: row?.minSlots ?? next,
       maxSlots: row?.maxSlots ?? next,
       bonusSlots: row?.bonusSlots ?? Math.max(0, next - (row?.minSlots ?? next)),
+      profileId: row?.profileId ?? null,
       profileSource: row?.profileSource ?? null,
+      bonusEligible: row?.bonusEligible === true,
     };
     return next;
   }
@@ -122,23 +159,42 @@
   function allocateEnemySlots(units = [], options = {}) {
     const teamSlotCap = Math.max(1, finiteInt(options.teamSlotCap, DEFAULT_TEAM_SLOT_CAP));
     const bonusRecipientLimit = Math.max(0, finiteInt(options.bonusRecipientLimit, DEFAULT_BONUS_RECIPIENT_LIMIT));
-    const enemies = (Array.isArray(units) ? units : [])
+    const allEnemies = (Array.isArray(units) ? units : [])
       .map((unit, deploymentIndex) => ({ unit, deploymentIndex }))
-      .filter(({ unit }) => isEnemy(unit) && isActive(unit));
+      .filter(({ unit }) => isEnemy(unit));
+    const activeEnemies = allEnemies.filter(({ unit }) => isActive(unit));
 
-    const rows = enemies.map(({ unit, deploymentIndex }) => {
+    const idCheck = validateEnemyIds(activeEnemies);
+    if (!idCheck.valid) {
+      return {
+        allocated: false,
+        reason: idCheck.reason,
+        teamSlotCap,
+        bonusRecipientLimit,
+        totalSlots: 0,
+        minimumTotal: 0,
+        rows: [],
+        ...idCheck,
+      };
+    }
+
+    const rows = activeEnemies.map(({ unit, deploymentIndex }) => {
       const profile = profileFor(unit, { ...options, teamSlotCap });
+      const speedInfo = speedInfoFor(unit, options);
       return {
         unit,
         unitId: unitIdOf(unit),
         deploymentIndex,
-        speed: speedFor(unit, options),
+        speed: speedInfo.value,
+        speedSource: speedInfo.source,
         minSlots: profile.minSlots,
         maxSlots: profile.maxSlots,
         slots: profile.minSlots,
         bonusSlots: 0,
+        profileId: profile.profileId,
         profileSource: profile.source,
         bonusEligible: false,
+        roundId: options.roundId ?? null,
       };
     });
 
@@ -150,6 +206,8 @@
         teamSlotCap,
         minimumTotal,
         totalSlots: 0,
+        activeEnemyCount: rows.length,
+        inactiveEnemyCount: allEnemies.length - rows.length,
         bonusRecipientLimit,
         rows: rows.map((row) => ({ ...row, unit: undefined })),
       };
@@ -175,25 +233,34 @@
       }
     }
 
-    if (options.apply !== false) rows.forEach((row) => applySlotCount(row.unit, row.slots, row));
+    // Mutation happens only after every validation/allocation step has succeeded.
+    if (options.apply !== false) {
+      rows.forEach((row) => applySlotCount(row.unit, row.slots, row, options));
+    }
 
     const missingSpeed = rows.filter((row) => row.speed == null && row.maxSlots > row.minSlots).map((row) => row.unitId);
     const resultRows = rows.map((row) => ({
       unitId: row.unitId,
       deploymentIndex: row.deploymentIndex,
       speed: row.speed,
+      speedSource: row.speedSource,
       minSlots: row.minSlots,
       maxSlots: row.maxSlots,
       slots: row.slots,
       bonusSlots: row.bonusSlots,
+      profileId: row.profileId,
       profileSource: row.profileSource,
       bonusEligible: row.bonusEligible,
+      slotIds: slotIdsFor(row.unit, row.slots),
     }));
 
     return {
       allocated: true,
+      roundId: options.roundId ?? null,
       teamSlotCap,
       bonusRecipientLimit,
+      activeEnemyCount: rows.length,
+      inactiveEnemyCount: allEnemies.length - rows.length,
       minimumTotal,
       totalSlots,
       unusedSlots: Math.max(0, teamSlotCap - totalSlots),
@@ -206,42 +273,73 @@
 
   function beginEnemyPlanningRound(units = [], options = {}) {
     const allocation = allocateEnemySlots(units, options);
-    if (!allocation.allocated) return { allocation, planning: [] };
+    if (!allocation.allocated) return { allocation, planningReady: false, planning: [] };
+
     const economy = actionEconomy();
+    if (!economy?.beginPlanning || !economy?.actionSlotMaximum) {
+      return { allocation, planningReady: false, reason: "action_economy_unavailable", planning: [] };
+    }
+
+    const unitById = new Map((Array.isArray(units) ? units : []).map((unit) => [unitIdOf(unit), unit]));
     const planning = [];
     for (const row of allocation.rows) {
-      const unit = units.find((candidate) => unitIdOf(candidate) === row.unitId);
-      if (!unit) continue;
-      const snapshot = economy?.beginPlanning?.(unit) || null;
-      planning.push({ unitId: row.unitId, slots: row.slots, snapshot: snapshot ? clone(snapshot) : null });
+      const unit = unitById.get(row.unitId);
+      if (!unit) {
+        return { allocation, planningReady: false, reason: "allocated_unit_missing", unitId: row.unitId, planning };
+      }
+      const snapshot = economy.beginPlanning(unit);
+      const maximum = economy.actionSlotMaximum(unit);
+      if (!snapshot || maximum !== row.slots || snapshot.actionSlots !== row.slots || snapshot.action !== row.slots) {
+        return {
+          allocation,
+          planningReady: false,
+          reason: "action_economy_slot_mismatch",
+          unitId: row.unitId,
+          expectedSlots: row.slots,
+          actualSlots: maximum,
+          snapshot: snapshot ? clone(snapshot) : null,
+          planning,
+        };
+      }
+      planning.push({ unitId: row.unitId, slots: row.slots, slotIds: row.slotIds.slice(), snapshot: clone(snapshot) });
     }
-    return { allocation, planning };
+    return { allocation, planningReady: true, planning };
   }
 
   function allocateAndPlan(units = [], options = {}) {
     const round = beginEnemyPlanningRound(units, options);
-    if (!round.allocation.allocated) return { ...round, plans: [] };
+    if (!round.allocation.allocated || !round.planningReady) return { ...round, plans: [] };
+
     const adapter = kitAdapter();
     if (!adapter?.planUnitTurn) return { ...round, plans: [], reason: "unit_ai_kit_adapter_unavailable" };
 
     const targetIds = Array.isArray(options.targetIds) ? options.targetIds : undefined;
     const targets = Array.isArray(options.targets) ? options.targets : undefined;
+    const unitById = new Map((Array.isArray(units) ? units : []).map((unit) => [unitIdOf(unit), unit]));
     const plans = round.allocation.rows.map((row) => {
-      const actor = units.find((candidate) => unitIdOf(candidate) === row.unitId);
+      const actor = unitById.get(row.unitId);
       const plan = adapter.planUnitTurn({
         ...(options.planOptions || {}),
         actor,
+        slotIds: row.slotIds.slice(),
         availableSlots: row.slots,
         ...(targetIds ? { targetIds } : {}),
         ...(targets ? { targets } : {}),
       });
-      return { unitId: row.unitId, slots: row.slots, plan };
+      return {
+        unitId: row.unitId,
+        slots: row.slots,
+        slotIds: row.slotIds.slice(),
+        plannedActions: Array.isArray(plan?.actions) ? plan.actions.length : 0,
+        unusedSlots: Math.max(0, row.slots - (Array.isArray(plan?.actions) ? plan.actions.length : 0)),
+        plan,
+      };
     });
     return { ...round, plans };
   }
 
   const api = Object.freeze({
-    version: "1.0.0",
+    version: "1.1.0",
     DEFAULT_TEAM_SLOT_CAP,
     DEFAULT_BONUS_RECIPIENT_LIMIT,
     unitIdOf,
@@ -249,7 +347,10 @@
     isEnemy,
     isActive,
     profileFor,
+    speedInfoFor,
     speedFor,
+    validateEnemyIds,
+    slotIdsFor,
     applySlotCount,
     allocateEnemySlots,
     beginEnemyPlanningRound,
