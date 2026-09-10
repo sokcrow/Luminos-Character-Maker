@@ -5,6 +5,7 @@
   const skillCatalog = global.LuminousKoboldTier1SkillCatalog || (typeof require !== 'undefined' ? (() => { try { return require('./skill-catalog-kobold-tier1.js'); } catch (_) { return null; } })() : null);
   const rankRuntime = global.LuminousUnitRankRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./unit-rank-runtime.js'); } catch (_) { return null; } })() : null);
   const combatMechanics = global.LuminousUnitCombatMechanics || (typeof require !== 'undefined' ? (() => { try { return require('./unit-combat-mechanics-runtime.js'); } catch (_) { return null; } })() : null);
+  const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || (typeof require !== 'undefined' ? (() => { try { return require('./universal-ranged-ammo-runtime.js'); } catch (_) { return null; } })() : null);
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const SCORES = Object.freeze({ str: 7, dex: 15, con: 9, int: 8, wis: 7, cha: 8 });
@@ -17,6 +18,15 @@
     leader: Object.freeze({ id: 'leader', levelMultiplier: 3, minSpeedBonus: 1, maxSpeedBonus: 2, applyBonus: 2, basePowerBonus: 1, commandLevel: 2, aiCoordination: 'directed_focus', targetPriority: 'lowest_hp_ratio_then_highest_threat', turnEndSpRecovery: 10 }),
   });
   const UNIVERSAL_RANKS = rankRuntime?.RANKS || FALLBACK_RANKS;
+
+  function ammoTrait(ammoId, amount) {
+    if (rangedAmmo?.createAmmoTrait) return Object.freeze(rangedAmmo.createAmmoTrait(ammoId, amount));
+    const name = String(ammoId || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return Object.freeze({ id: `ammo_${ammoId}`, name: `Ammo — ${name}`, type: 'passive', description: `[On Encounter Start] Gain ${amount} ${name}.`, mechanics: { ammoId, encounterStart: amount, statusMode: 'single', rangedSkillsOnly: true } });
+  }
+
+  const AMMO_PEBBLES = ammoTrait('pebbles', 6);
+  const AMMO_ROCK = ammoTrait('rock', 1);
 
   const AERIAL_HARRIER = Object.freeze({
     id: 'aerial_harrier', name: 'Aerial Harrier', type: 'passive',
@@ -66,16 +76,20 @@
 
   const DEFINITIONS = Object.freeze({
     kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', sprite: 'https://imgur.com/2BBvM2s.png', naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19, speed: '3-5', resist: 'perforante', weak: 'contundente', tags: ['tier1'], tier1: ['kobold_dagger_jab', 'kobold_desperate_stab', 'kobold_scurry'] })),
-    kobold_sling: Object.freeze(makeUnit({ id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', sprite: 'https://imgur.com/ndB257N.png', naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19, speed: '2-4', resist: 'perforante', weak: 'contundente', tags: ['tier1'], tier1: ['kobold_sling_shot', 'kobold_rapid_pebble', 'kobold_duck_away'] })),
+    kobold_sling: Object.freeze(makeUnit({
+      id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', sprite: 'https://imgur.com/ndB257N.png', naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19, speed: '2-4', resist: 'perforante', weak: 'contundente', tags: ['tier1', 'ranged'], traits: [AMMO_PEBBLES], tier1: ['kobold_sling_shot', 'kobold_rapid_pebble', 'kobold_duck_away'],
+      mechanics: { ammoLoadout: [{ id: 'pebbles', amount: 6 }], ammunition: { pebbles: { type: 'single', icon: 'https://imgur.com/hhYbwsi.png' } } },
+    })),
     winged_kobold: Object.freeze(makeUnit({
       id: 'winged_kobold', name: 'Winged Kobold', variant: 'winged', sprite: 'https://imgur.com/529fa4E.png',
       spriteVariants: { dagger: 'https://imgur.com/evsrs1B.png', holdingRock: 'https://imgur.com/529fa4E.png', withoutRock: 'https://imgur.com/zmA1FPz.png', rockAsset: 'https://imgur.com/P4J48yc.png' },
       naturalWorldLevel: { min: 2, max: 4 }, hpBase: 7, hpCoefficient: 0.22, speed: '3-5', speedBonus: { min: 0, max: 2 }, resist: 'cortante', weak: 'perforante',
-      tags: ['tier1', 'tier2', 'flying'], traits: [AERIAL_HARRIER], tier1: ['winged_kobold_falling_rock', 'winged_kobold_dagger'], tier2: ['winged_kobold_dive_stab'],
+      tags: ['tier1', 'tier2', 'flying'], traits: [AERIAL_HARRIER, AMMO_ROCK], tier1: ['winged_kobold_falling_rock', 'winged_kobold_dagger'], tier2: ['winged_kobold_dive_stab'],
       mechanics: {
         flying: true,
+        ammoLoadout: [{ id: 'rock', amount: 1 }],
         ammunition: { rock: { type: 'single', max: 1, icon: 'https://imgur.com/7rOv1S0.png', asset: 'https://imgur.com/P4J48yc.png' } },
-        unitLifecycle: { onEncounterStart: { grantAmmunition: [{ id: 'rock', amount: 1, max: 1 }] }, onComeback: { grantAmmunition: [{ id: 'rock', amount: 1, max: 1 }] } },
+        unitLifecycle: { onComeback: { grantAmmunition: [{ id: 'rock', amount: 1, max: 1 }] } },
         ai: { prefersRetreat: true, retreatAfter: 'harassment', fallingRockRequiresAmmo: 'rock' },
       },
     })),
@@ -146,7 +160,7 @@
   function firebasePayload() { const payload = {}; list().forEach((u) => { payload[u.id] = u; }); return payload; }
   function firebaseSkillPayload(schema) { if (!skillCatalog?.firebasePayload) throw new Error('KOBOLD_SKILL_CATALOG_REQUIRED'); return skillCatalog.firebasePayload(schema); }
 
-  const api = Object.freeze({ version: '2.0.1', STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
+  const api = Object.freeze({ version: '2.1.0', STAGGER_THRESHOLDS, SCORES, PROFICIENCIES, PACK_TACTICS_ID, UNIVERSAL_RANKS, AMMO_PEBBLES, AMMO_ROCK, AERIAL_HARRIER, DRAGONHEART, DRAGON_RESISTANCE, SPELL_CASTER_CHARISMA, DEFINITIONS, list, get, resolve, resolveSkill, firebasePayload, firebaseSkillPayload });
   global.LuminousKoboldUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
