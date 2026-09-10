@@ -113,8 +113,6 @@
   function targetIdOf(target) {
     if (typeof target === "string" || typeof target === "number") return clean(target);
     if (!target || typeof target !== "object") return "";
-    // Deliberately read identity only. Individual GOAP must not inspect private combat truth
-    // such as target HP, SP, resistances, skills, future slots, or planned actions.
     return clean(target.id ?? target.unitId ?? target.characterId);
   }
 
@@ -147,15 +145,39 @@
 
     const definitionType = normalizeId(definition.type || definition.actionType || definition.action_type);
     const defenseSubtype = normalizeId(definition.defenseSubtype || definition.defense_subtype);
-    if (definition.isDefense === true || definitionType === "defense" || ["guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(defenseSubtype)) {
-      return "defense";
-    }
+    if (definition.isDefense === true || definitionType === "defense" || ["guard", "evade", "counter", "clashable_guard", "clashable_counter"].includes(defenseSubtype)) return "defense";
 
     const tags = asArray(raw.tags || definition.tags).map(normalizeId);
     if (tags.some((tag) => ["defend", "defense", "guard", "dodge", "block", "protect"].includes(tag))) return "defense";
     if (tags.some((tag) => ["heal", "recover", "recovery", "restore"].includes(tag))) return "recover";
     if (tags.some((tag) => ["buff", "setup", "control", "debuff", "advantage"].includes(tag))) return "setup";
     return "offense";
+  }
+
+  function planningResourceKey(resource = {}) {
+    const type = normalizeId(resource.type || resource.resourceType);
+    const id = normalizeId(resource.id || resource.resourceId || "shared");
+    const slotLevel = resource.metadata?.slotLevel;
+    return `${type}:${id}${slotLevel == null ? "" : `:slot_${integer(slotLevel, 0)}`}`;
+  }
+
+  function normalizePlanningResources(raw = {}) {
+    const explicit = asArray(raw.planningResources);
+    const checks = explicit.length ? explicit : asArray(raw.metadata?.resourceChecks);
+    return checks.map((entry) => {
+      const resource = entry.resource || entry;
+      const detail = entry.detail || entry;
+      const amount = Math.max(0, finite(resource.amount ?? detail.required, 1));
+      const availableRaw = detail.current ?? entry.current ?? entry.availableAmount ?? resource.availableAmount;
+      const available = Number.isFinite(Number(availableRaw)) ? Math.max(0, Number(availableRaw)) : null;
+      return {
+        key: planningResourceKey(resource),
+        type: normalizeId(resource.type || resource.resourceType),
+        id: resource.id == null ? null : String(resource.id),
+        amount,
+        available,
+      };
+    }).filter((entry) => entry.type && entry.amount > 0);
   }
 
   function normalizeSourceDescriptor(raw = {}, index = 0) {
@@ -191,6 +213,7 @@
         resourceCost: Math.max(0, finite(estimateRaw.resourceCost ?? raw.resourceCost, asArray(definition.resourceCosts || definition.resource_costs).length)),
         risk: clamp(estimateRaw.risk ?? raw.risk ?? 0, 0, 10),
       },
+      planningResources: normalizePlanningResources(raw),
       producesTags: asArray(raw.producesTags ?? estimateRaw.producesTags).map(normalizeId).filter(Boolean),
       consumesTags: asArray(raw.consumesTags ?? estimateRaw.consumesTags).map(normalizeId).filter(Boolean),
       metadata: raw.metadata && typeof raw.metadata === "object" ? clone(raw.metadata) : {},
@@ -216,7 +239,6 @@
   function chooseGoal(input, context) {
     const explicit = normalizeId(input.goal || input.primaryGoal);
     if (Object.values(GOALS).includes(explicit)) return explicit;
-
     const { hpRatio, wisdomProfile: wis, hasEscape } = context;
     if (hasEscape && hpRatio <= wis.escapeHpRatio) return GOALS.ESCAPE;
     if (hpRatio <= Math.min(0.65, wis.escapeHpRatio + 0.15)) return GOALS.SURVIVE;
@@ -283,6 +305,24 @@
     return score;
   }
 
+  function canAffordPlanningResources(candidate, state) {
+    for (const resource of candidate.planningResources || []) {
+      if (!Number.isFinite(resource.available)) continue;
+      const spent = finite(state.resourceSpent?.[resource.key], 0);
+      if (spent + resource.amount > resource.available + 1e-9) return false;
+    }
+    return true;
+  }
+
+  function spendPlanningResources(candidate, state) {
+    const next = { ...(state.resourceSpent || {}) };
+    for (const resource of candidate.planningResources || []) {
+      if (!Number.isFinite(resource.available)) continue;
+      next[resource.key] = finite(next[resource.key], 0) + resource.amount;
+    }
+    return next;
+  }
+
   function expandState(state, candidate, score, context) {
     const producedTags = new Set(state.producedTags);
     if (context.intelligenceProfile.comboAwareness > 0) candidate.producesTags.forEach((tag) => producedTags.add(tag));
@@ -290,6 +330,7 @@
       sequence: state.sequence.concat(candidate),
       score: state.score + score,
       producedTags,
+      resourceSpent: spendPlanningResources(candidate, state),
       escaped: state.escaped || candidate.role === "escape",
     };
   }
@@ -321,7 +362,7 @@
     if (!actorId) return { planned: false, reason: "actor_id_required", actions: [] };
 
     const slots = resolveSlots(input);
-    if (!slots.length) return { planned: true, reason: "no_action_slots", actorId, actions: [], sequence: [] };
+    if (!slots.length) return { planned: true, reason: "no_action_slots", actorId, actions: [], sequence: [], slotsRequested: 0, slotsUsed: 0, unusedSlots: 0 };
 
     const intelligence = abilityScore(actor, "intelligence", "int", 10);
     const wisdom = abilityScore(actor, "wisdom", "wis", 10);
@@ -336,37 +377,43 @@
       .map(normalizeSourceDescriptor)
       .filter((candidate) => candidate.available && (!candidate.availability || candidate.availability(actor, input) !== false));
 
-    if (input.allowEscape !== false && !candidates.some((candidate) => candidate.sourceType === "universal" && normalizeId(candidate.sourceId) === "escape")) {
-      candidates.push(makeEscapeDescriptor());
-    }
+    if (input.allowEscape !== false && !candidates.some((candidate) => candidate.sourceType === "universal" && normalizeId(candidate.sourceId) === "escape")) candidates.push(makeEscapeDescriptor());
     if (!candidates.length) return { planned: false, reason: "no_available_actions", actorId, actions: [], sequence: [] };
 
     const hasEscape = candidates.some((candidate) => candidate.role === "escape");
     const goal = chooseGoal(input, { hpRatio, wisdomProfile: wisp, hasEscape });
     const context = { goal, hpRatio, intelligenceProfile: intp, wisdomProfile: wisp, intel, targetId };
 
-    // Low INT sees a smaller menu; higher INT gets more breadth. This is the main
-    // performance guard: the search never expands the full combat menu without a cap.
     candidates.sort((a, b) => quickCandidateScore(b) - quickCandidateScore(a) || a.key.localeCompare(b.key));
     candidates = candidates.slice(0, intp.candidateLimit);
     if (hasEscape && !candidates.some((candidate) => candidate.role === "escape")) candidates.push(makeEscapeDescriptor());
 
-    let beam = [{ sequence: [], score: 0, producedTags: new Set(), escaped: false }];
+    let beam = [{ sequence: [], score: 0, producedTags: new Set(), resourceSpent: {}, escaped: false }];
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const next = [];
       for (const state of beam) {
+        // Escape leaves the encounter. It is terminal and can never be followed by another action.
+        if (state.escaped) {
+          next.push(state);
+          continue;
+        }
+
+        let expanded = false;
         for (const candidate of candidates) {
-          if (state.escaped && candidate.role === "escape") continue;
+          if (!canAffordPlanningResources(candidate, state)) continue;
           const score = candidateScore(candidate, state, context);
           next.push(expandState(state, candidate, score, context));
+          expanded = true;
         }
+        // A Unit is allowed to leave slots unused when all remaining actions are resource-blocked.
+        if (!expanded) next.push(state);
       }
       next.sort((a, b) => b.score - a.score || a.sequence.map((item) => item.key).join("|").localeCompare(b.sequence.map((item) => item.key).join("|")));
       beam = next.slice(0, intp.beamWidth);
       if (!beam.length) break;
     }
 
-    const best = beam[0] || { sequence: [], score: 0, producedTags: new Set() };
+    const best = beam[0] || { sequence: [], score: 0, producedTags: new Set(), resourceSpent: {} };
     const perActionScore = best.sequence.length ? best.score / best.sequence.length : 0;
     const actions = best.sequence.map((candidate, index) => compileCandidate(actor, candidate, {
       actionSlotId: slots[index],
@@ -381,6 +428,8 @@
       goal,
       targetId,
       slotsRequested: slots.length,
+      slotsUsed: actions.length,
+      unusedSlots: Math.max(0, slots.length - actions.length),
       actions,
       sequence: best.sequence.map((candidate, index) => ({
         slotId: slots[index],
@@ -389,6 +438,7 @@
         role: candidate.role,
       })),
       score: best.score,
+      resourceSpent: clone(best.resourceSpent || {}),
       intelligence,
       wisdom,
       profile: clone(intp),
@@ -399,7 +449,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.1.1",
+    version: "0.2.0",
     GOALS,
     MAX_PLANNED_SLOTS,
     INTEL_SCHEMA_VERSION,
@@ -408,6 +458,8 @@
     createIntelState,
     observeDamageResult,
     normalizeSourceDescriptor,
+    normalizePlanningResources,
+    planningResourceKey,
     chooseGoal,
     planTurn,
   });
