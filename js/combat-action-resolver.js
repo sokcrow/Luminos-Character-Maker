@@ -428,6 +428,126 @@
     return Array.from({ length: 5 }, () => random() * 100 < probability);
   }
 
+  const ABILITY_LONG_NAMES = Object.freeze({ str: "strength", dex: "dexterity", con: "constitution", int: "intelligence", wis: "wisdom", cha: "charisma" });
+
+  function finiteNumber(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+  }
+
+  function shortAbilityId(value) {
+    const id = normalizeId(value);
+    const match = Object.entries(ABILITY_LONG_NAMES).find(([short, long]) => id === short || id === long);
+    return match ? match[0] : id;
+  }
+
+  function abilityScoreForCheck(unit = {}, abilityId) {
+    const short = shortAbilityId(abilityId);
+    const long = ABILITY_LONG_NAMES[short] || short;
+    const sources = [unit.dndStats, unit.scores, unit.abilityScores, unit.stats, unit.attributes, unit.mechanics?.scores, unit.mechanics, unit];
+    for (const source of sources) {
+      if (!source || typeof source !== "object") continue;
+      const value = source[short] ?? source[long] ?? source[long.toUpperCase()] ?? source[short.toUpperCase()];
+      if (Number.isFinite(Number(value))) return Number(value);
+    }
+    return 10;
+  }
+
+  function proficiencyRankForCheck(unit = {}, skillId) {
+    const wanted = normalizeId(skillId);
+    if (!wanted) return 0;
+    const containers = [unit.dndStats?.proficiencies, unit.proficiencies, unit.mechanics?.proficiencies];
+    for (const proficiencies of containers) {
+      if (Array.isArray(proficiencies)) {
+        if (proficiencies.some((entry) => normalizeId(entry) === wanted)) return 1;
+        continue;
+      }
+      if (!proficiencies || typeof proficiencies !== "object") continue;
+      const direct = proficiencies[skillId] ?? proficiencies[wanted];
+      const skillMap = proficiencies.skills && typeof proficiencies.skills === "object" ? proficiencies.skills : null;
+      const entry = direct ?? skillMap?.[skillId] ?? skillMap?.[wanted];
+      const id = normalizeId(entry);
+      if (entry === true || entry === 1 || id === "proficient") return 1;
+      if (entry === 2 || id === "expertise" || id === "expert") return 2;
+    }
+    return 0;
+  }
+
+  function proficiencyBonusForCheck(unit = {}) {
+    const candidates = [unit.dndStats?.proficiencyBonus, unit.proficiencyBonus, unit.proficiency_bonus, unit.mechanics?.proficiencyBonus, unit.mechanics?.proficiency_bonus];
+    for (const value of candidates) if (Number.isFinite(Number(value))) return Number(value);
+    return 0;
+  }
+
+  function checkBonus(engine, unit, check = {}) {
+    const abilityId = shortAbilityId(check.abilityId || check.stat || check.ability);
+    const skillId = normalizeId(check.skillId || check.skill);
+    if (unit?.dndStats && typeof engine?.calculateDndBonus === "function") {
+      const long = ABILITY_LONG_NAMES[abilityId] || abilityId;
+      const statId = unit.dndStats[abilityId] != null ? abilityId : (unit.dndStats[long] != null ? long : abilityId);
+      const value = Number(engine.calculateDndBonus(unit, statId, skillId || null));
+      if (Number.isFinite(value)) return value;
+    }
+    const score = abilityScoreForCheck(unit, abilityId);
+    const modifier = typeof engine?.getDndModifier === "function" ? finiteNumber(engine.getDndModifier(score), 0) : Math.floor((score - 10) / 2);
+    return modifier + proficiencyRankForCheck(unit, skillId) * proficiencyBonusForCheck(unit);
+  }
+
+  function spForCheck(unit = {}) {
+    return finiteNumber(unit.sp ?? unit.currentSp ?? unit.currentSP ?? unit.mechanics?.sp, 0);
+  }
+
+  function rollOpposedSide(unit, check = {}, context = {}, label = "side") {
+    const engine = context.engine || global.CombatEngine;
+    if (!engine) return null;
+    const coinAmount = Math.max(0, Math.trunc(finiteNumber(check.coinAmount ?? check.coin_count ?? check.coinCount, 5)));
+    const coinPower = finiteNumber(check.coinPower ?? check.coin_power, 4);
+    const probability = typeof engine.getCoinProbability === "function" ? Math.max(0, Math.min(100, finiteNumber(engine.getCoinProbability(spForCheck(unit)), 50))) : 50;
+    let heads;
+    if (typeof context.rollOpposedCheckHeads === "function") {
+      heads = asArray(context.rollOpposedCheckHeads({ unit, check, label, coinAmount, probability, context })).slice(0, coinAmount).map(Boolean);
+      while (heads.length < coinAmount) heads.push(false);
+    } else {
+      const random = typeof context.random === "function" ? context.random : Math.random;
+      heads = Array.from({ length: coinAmount }, () => random() * 100 < probability);
+    }
+    const bonus = checkBonus(engine, unit, check);
+    const headCount = heads.filter(Boolean).length;
+    return { unitId: entityId(unit), check: clone(check), bonus, probability, heads, headCount, coinPower, total: bonus + headCount * coinPower };
+  }
+
+  function resolveOpposedCheck(request = {}, context = {}) {
+    if (typeof context.resolveOpposedCheck === "function") return context.resolveOpposedCheck(request, context);
+    const initiator = request.initiator || request.unitA || request.actor;
+    const rival = request.rival || request.unitB || request.target;
+    if (!initiator || !rival) return null;
+    const attackerCheck = request.initiatorCheck || request.attackerCheck || request.unitACheck;
+    const rivalChecks = asArray(request.rivalChecks || request.defenderChecks || request.unitBChecks).filter(Boolean);
+    if (!attackerCheck || !rivalChecks.length) return null;
+
+    const engine = context.engine || global.CombatEngine;
+    if (!engine) return null;
+    const defenderChoices = rivalChecks.map((check, index) => ({ check, index, bonus: checkBonus(engine, rival, check) }));
+    defenderChoices.sort((a, b) => b.bonus - a.bonus || a.index - b.index);
+    const chosenDefender = defenderChoices[0];
+    const unitA = rollOpposedSide(initiator, attackerCheck, context, "initiator");
+    const unitB = rollOpposedSide(rival, chosenDefender.check, context, "rival");
+    if (!unitA || !unitB) return null;
+    const attackerWon = unitA.total > unitB.total;
+    return {
+      resolved: true,
+      attackerWon,
+      passed: attackerWon,
+      tie: unitA.total === unitB.total,
+      tieRule: "defender_wins",
+      unitATotal: unitA.total,
+      unitBTotal: unitB.total,
+      unitA,
+      unitB,
+      defenderChoiceIndex: chosenDefender.index,
+      defenderChoice: clone(chosenDefender.check),
+    };
+  }
+
   function resolveSave(action, actor, targets, context = {}) {
     const engine = context.engine || global.CombatEngine;
     if (!engine?.resolveSpell) return { resolved: false, reason: "save_resolver_unavailable", results: [] };
@@ -448,7 +568,16 @@
 
   function resolveContest(action, actor, targets, context = {}) {
     if (action.source.type === "universal" && normalizeId(action.source.id) === "grapple" && global.LuminousConditionRuntime?.grapple && targets[0]) {
-      return { resolved: true, type: "contest", result: global.LuminousConditionRuntime.grapple(actor, targets[0], { combatAction: action, context }) };
+      const result = global.LuminousConditionRuntime.grapple(actor, targets[0], {
+        combatAction: action,
+        context,
+        encounter: context.encounter,
+        units: context.units,
+        combatants: context.units,
+        resolveOpposedCheck: (request) => resolveOpposedCheck(request, context),
+      });
+      if (!result || result.pending === true) return { resolved: false, pending: true, type: "contest", reason: "opposed_check_resolver_required", result };
+      return { resolved: true, type: "contest", result };
     }
     if (typeof context.contestResolver !== "function") return { resolved: false, reason: "contest_resolver_required" };
     return { resolved: true, type: "contest", result: context.contestResolver({ action, actor, targets, context }) };
@@ -539,7 +668,7 @@
     }
     if (resolution?.resolved === false) {
       action.state = "locked";
-      return { resolved: false, reason: resolution.reason || "resolution_failed", resolution, resources, economy, action };
+      return { resolved: false, pending: resolution.pending === true, reason: resolution.reason || "resolution_failed", resolution, resources, economy, action };
     }
     action.state = "resolved";
     return { resolved: true, action, resolution, resources, economy, targetResolution, resolvedActionIds: [action.id] };
@@ -555,6 +684,7 @@
     resolveCoinwiseAttack,
     resolvePreparedUnopposed,
     resolveClashPair,
+    resolveOpposedCheck,
     resolveSave,
     resolveCheck,
     resolveContest,
