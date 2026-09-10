@@ -112,9 +112,28 @@
     };
   }
 
+  function installTurnResetBridge(engine) {
+    if (!engine || engine.__goblinRedirectTurnResetInstalled || typeof engine.triggerEvent !== 'function') return Boolean(engine?.__goblinRedirectTurnResetInstalled);
+    const originalTriggerEvent = engine.triggerEvent;
+    engine.triggerEvent = function (eventName, context = {}, targetUnits = []) {
+      const event = normalizeId(eventName);
+      if (event === 'turn_start' || event === 'round_start') {
+        const units = asArray(targetUnits).length
+          ? asArray(targetUnits)
+          : (asArray(context.units).length ? asArray(context.units) : asArray(this.getAllAliveUnits?.()));
+        units.forEach(resetRedirect);
+      }
+      return originalTriggerEvent.call(this, eventName, context, targetUnits);
+    };
+    Object.defineProperty(engine, '__goblinRedirectTurnResetInstalled', { value: true, configurable: true });
+    return true;
+  }
+
   function installCombatBridge() {
     const engine = global.CombatEngine;
-    if (!engine || engine.__goblinUnitRuntimeInstalled || typeof engine.resolveUnilateralWithCounter !== 'function') return Boolean(engine?.__goblinUnitRuntimeInstalled);
+    if (!engine || typeof engine.resolveUnilateralWithCounter !== 'function') return false;
+    installTurnResetBridge(engine);
+    if (engine.__goblinUnitRuntimeInstalled) return true;
     const originalResolve = engine.resolveUnilateralWithCounter;
 
     engine.resolveUnilateralWithCounter = function (attacker, skill, defender, counterSkill, options = {}) {
@@ -161,9 +180,9 @@
   function install() { return installCombatBridge(); }
 
   const api = Object.freeze({
-    version: '1.0.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
+    version: '1.1.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
     prepareMultiAttackSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart, lastCoinReuseSkill,
-    installCombatBridge, install,
+    installTurnResetBridge, installCombatBridge, install,
   });
 
   global.LuminousGoblinUnitRuntime = api;
