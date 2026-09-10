@@ -125,8 +125,17 @@
     return clamp(3.5 + offensiveSignal * 0.35 * resolutionWeight, 2, 10);
   }
 
+  function isHelpAction(action = {}) {
+    return normalizeId(action.source?.type) === "universal" && normalizeId(action.source?.id) === "help";
+  }
+
   function bestHelpTarget(actor = {}, options = {}) {
-    return visibleCommittedActions(actor, options)
+    const committed = visibleCommittedActions(actor, options);
+    // Help is once-per-team in the canonical resolver. Once an ally has committed Help,
+    // later independent planners must not waste another slot attempting the same team resource.
+    if (committed.some(isHelpAction)) return null;
+    return committed
+      .filter((action) => !isHelpAction(action))
       .map((action) => ({ action, value: actionSupportValue(action) }))
       .sort((a, b) => b.value - a.value || clean(a.action.id).localeCompare(clean(b.action.id)))[0] || null;
   }
@@ -312,7 +321,7 @@
   });
 
   const api = Object.freeze({
-    version: "0.1.0",
+    version: "0.1.1",
     universalDescriptors,
     grappleEstimate,
     visibleCommittedActions,
