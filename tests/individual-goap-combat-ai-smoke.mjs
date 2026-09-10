@@ -98,6 +98,7 @@ assert.equal(escapePlan.actions[0].phase.executesAt, schema.PHASES.ON_TURN_END);
 assert.equal(escapePlan.actions[0].effects[0].deniesXp, true);
 
 // Resources are budgeted across the whole planned turn, not validated independently per slot.
+// Disable Grapple here because this fixture isolates ammo budgeting and intentionally has no fallback action.
 const onePebbleShot = {
   sourceType: 'skill',
   definition: {
@@ -120,6 +121,7 @@ const resourcePlan = ai.planTurn({
   targetIds: ['player_1'],
   sources: [onePebbleShot],
   allowEscape: false,
+  allowGrapple: false,
 });
 assert.equal(resourcePlan.actions.length, 1);
 assert.equal(resourcePlan.sequence[0].sourceId, 'one_pebble_shot');
