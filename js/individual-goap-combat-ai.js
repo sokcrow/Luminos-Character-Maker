@@ -35,8 +35,8 @@
     return fallback;
   }
   function ownHpRatio(actor = {}) {
-    const hp = Math.max(0, finite(actor.hp ?? actor.currentHp ?? actor.currentHP, 0));
-    const maxHp = Math.max(1, finite(actor.maxHp ?? actor.maxHP ?? actor.hpMax ?? actor.mechanics?.maxHp, hp || 1));
+    const hp = Math.max(0, finite(actor.hp ?? actor.currentHp ?? actor.currentHP ?? actor.mechanics?.hp, 0));
+    const maxHp = Math.max(1, finite(actor.maxHp ?? actor.maxHP ?? actor.hpMax ?? actor.mechanics?.maxHp ?? actor.mechanics?.hp, hp || 1));
     return clamp(hp / maxHp, 0, 1);
   }
   function planningProfile(intelligenceRaw) {
@@ -231,8 +231,6 @@
     const hasEscape = candidates.some((candidate) => candidate.role === "escape");
     const goal = chooseGoal(input, { hpRatio, wisdomProfile: wisp, hasEscape });
     const context = { goal, hpRatio, intelligenceProfile: intp, wisdomProfile: wisp, intel, targetId };
-
-    // Once critical survival logic commits to ESCAPE, do it immediately. Do not farm preceding attacks from extra slots.
     if (goal === GOALS.ESCAPE) {
       const escapeCandidate = candidates.find((candidate) => candidate.role === "escape");
       if (escapeCandidate) candidates = [escapeCandidate];
@@ -241,7 +239,6 @@
       candidates = candidates.slice(0, intp.candidateLimit);
       if (hasEscape && !candidates.some((candidate) => candidate.role === "escape")) candidates.push(makeEscapeDescriptor());
     }
-
     let beam = [{ sequence: [], score: 0, producedTags: new Set(), resourceSpent: {}, escaped: false }];
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const next = [];
@@ -268,7 +265,7 @@
     };
   }
 
-  const api = Object.freeze({ version: "0.2.1", GOALS, MAX_PLANNED_SLOTS, INTEL_SCHEMA_VERSION, planningProfile, wisdomProfile, createIntelState, observeDamageResult, normalizeSourceDescriptor, normalizePlanningResources, planningResourceKey, chooseGoal, planTurn });
+  const api = Object.freeze({ version: "0.2.2", GOALS, MAX_PLANNED_SLOTS, INTEL_SCHEMA_VERSION, planningProfile, wisdomProfile, createIntelState, observeDamageResult, normalizeSourceDescriptor, normalizePlanningResources, planningResourceKey, chooseGoal, planTurn });
   global.LuminousIndividualGoapCombatAI = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
