@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luminous · Unit Library Seeder</title>
+<style>
+:root{color-scheme:dark;--bg:#080808;--panel:#12110e;--line:#453b2b;--gold:#d5ad5d;--text:#eee6d7;--muted:#8c8477;--ok:#85b97a;--bad:#df7669;--pending:#d5ad5d}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}.wrap{max-width:1240px;margin:0 auto;padding:28px}.panel{border:1px solid var(--line);background:var(--panel);padding:22px}h1{margin:0 0 4px;color:var(--gold)}p{color:var(--muted);line-height:1.5}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}.btn{border:1px solid var(--gold);background:#211a0e;color:var(--gold);padding:10px 16px;font-weight:700;cursor:pointer}.btn.primary{background:var(--gold);color:#151006}.btn:disabled{opacity:.5;cursor:wait}.status{padding:10px;border:1px solid #333;background:#090909;color:var(--muted)}.status.ok{border-color:#375a32;color:var(--ok)}.status.bad{border-color:#71372f;color:var(--bad)}.families{display:grid;gap:22px;margin-top:20px}.family>h2{margin:0 0 10px;color:var(--gold);font-size:18px}.units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.unit{border:1px solid #302b23;padding:14px;background:#0c0c0b;min-width:0}.portrait{width:100%;height:190px;display:flex;align-items:center;justify-content:center;background:#050505;border:1px solid #1d1b17;color:var(--muted);font-size:12px;text-align:center;padding:12px}.portrait img{width:100%;height:100%;object-fit:contain}.unit h3{color:var(--gold);margin:10px 0 4px}.meta,.refs,.traits{color:#cdb98b;font-size:12px;line-height:1.6;overflow-wrap:anywhere}.pending{color:var(--pending)}.ranks{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.ranks td,.ranks th{border:1px solid #302b23;padding:5px;text-align:center}.ranks th{color:#b9aa8c}.label{color:var(--muted)}code{color:#d7c49d}@media(max-width:820px){.units{grid-template-columns:1fr}.wrap{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="panel">
+<h1>Luminous · Unit Library</h1>
+<p>Seeder canónico conjunto para las Units Kobold y Goblin. La sincronización conserva IDs determinísticos y actualiza únicamente las entradas incluidas en estos catálogos.</p>
+<div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR UNIT LIBRARY</button><button class="btn" id="refresh">REVISAR CATÁLOGOS</button><span>Units: <code>campaña/base_datos_unidades</code> · Skills canónicas disponibles: <code>campaña/base_datos_skills</code></span></div>
+<div id="status" class="status">Cargando catálogos y verificando sesión DM…</div>
+<div id="families" class="families"></div>
+<p>El sync usa <code>update()</code>: no elimina otras Units ni otras Skills. Las Skills Kobold se validan y sincronizan desde su catálogo canónico. Los Goblins se sincronizan como Units con sus Traits, Ammo y weapon loadouts declarados; este seeder no inventa un catálogo de Skills Goblin donde el catálogo de Unit todavía marca referencias pendientes.</p>
+</div></div>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/combat-skill-schema.js"></script>
+<script src="js/skill-catalog-kobold-tier1.js"></script>
+<script src="js/unit-rank-runtime.js"></script>
+<script src="js/universal-ranged-ammo-runtime.js"></script>
+<script src="js/goblin-unit-runtime.js"></script>
+<script src="js/unit-catalog-kobold-tier1.js"></script>
+<script src="js/unit-catalog-goblin.js"></script>
+<script src="js/battle-viewer-firebase-session-074.js"></script>
+<script>
+(function(){
+'use strict';
+const firebaseConfig={apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8",measurementId:"G-X775P4YS7W"};
+if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const UNIT_PATH='campaña/base_datos_unidades';
+const SKILL_PATH='campaña/base_datos_skills';
+const kobolds=window.LuminousKoboldUnitCatalog;
+const goblins=window.LuminousGoblinUnitCatalog;
+const koboldSkills=window.LuminousKoboldTier1SkillCatalog;
+const ranks=window.LuminousUnitRankRuntime;
+const schema=window.CombatSkillSchema;
+const session=window.LuminousBattleViewerFirebaseSession074;
+const $=id=>document.getElementById(id);
+let dmReady=false;
+
+function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function setStatus(text,kind){$('status').textContent=text;$('status').className='status'+(kind?' '+kind:'')}
+function pending(value,fallback='Pendiente'){return value==null||value===''?`<span class="pending">${esc(fallback)}</span>`:esc(value)}
+function mergePayloads(...payloads){
+ const merged={};
+ for(const payload of payloads){for(const [id,value] of Object.entries(payload||{})){if(Object.prototype.hasOwnProperty.call(merged,id))throw new Error(`DUPLICATE_UNIT_ID:${id}`);merged[id]=value}}
+ return merged;
+}
+function familyEntries(){return [
+ {id:'kobold',label:'Kobolds',catalog:kobolds},
+ {id:'goblin',label:'Goblins',catalog:goblins},
+]}
+function levelRange(unit){const range=unit.naturalWorldLevel||unit.baseLevel||{};const min=Number(range.min||1);const max=Number(range.max||min);return {min,max}}
+function rankRows(entry,unit){
+ const levels=levelRange(unit);
+ return (unit.allowedRanks||['normal']).map(rank=>{
+  try{
+   const low=entry.catalog.resolve(unit.id,{baseLevel:levels.min,rank});
+   const high=entry.catalog.resolve(unit.id,{baseLevel:levels.max,rank});
+   const speed=low?.mechanics?.speed||unit?.mechanics?.speed||null;
+   const apply=low?.mechanics?.statusApplyBonus;
+   const base=low?.mechanics?.basePowerBonus;
+   const sp=low?.mechanics?.turnEndSpRecovery??low?.commandProfile?.turnEndSpRecovery;
+   return `<tr><td>${esc(String(rank).toUpperCase())}</td><td>${pending(speed)}</td><td>${esc(low?.mechanics?.hp??low?.hp??'—')}</td><td>${esc(high?.mechanics?.hp??high?.hp??'—')}</td><td>${apply==null?'—':`+${esc(apply)}`}</td><td>${base==null?'—':`+${esc(base)}`}</td><td>${sp==null?'—':`${esc(sp)} SP`}</td></tr>`;
+  }catch(error){return `<tr><td>${esc(String(rank).toUpperCase())}</td><td colspan="6" class="pending">${esc(error.message||error)}</td></tr>`}
+ }).join('');
+}
+function unitReferences(unit){
+ const slots=Array.isArray(unit.action_slots)?unit.action_slots:[];
+ if(slots.length)return slots.map(esc).join(' · ');
+ const weapons=Array.isArray(unit?.mechanics?.weaponLoadout)?unit.mechanics.weaponLoadout:[];
+ if(weapons.length)return weapons.map(w=>{const ammo=w.ammoType?` · Ammo ${w.ammoType}`:'';const pierced=w.onHitStatusId?` · On Hit ${w.onHitStatusId}`:'';return `${esc(w.weaponId)} (${esc(w.range)})${esc(ammo)}${esc(pierced)}`}).join('<br>');
+ return '<span class="pending">Skills pendientes en catálogo</span>';
+}
+function traitReferences(unit){const traits=Array.isArray(unit.traits)?unit.traits:[];return traits.length?traits.map(t=>esc(t.name||t.id||t)).join(' · '):'—'}
+function defense(unit){const d=unit.damageTypeDefense||unit?.mechanics?.damageTypeDefense;if(!d)return '<span class="pending">Perfil físico pendiente</span>';return `Resist ${esc(d.resist||'—')} · Weak ${esc(d.weak||'—')}`}
+function portrait(unit){const src=unit?.visual?.spriteUrl||unit?.icono||'';return src?`<div class="portrait"><img src="${esc(src)}" alt="${esc(unit.name)}"></div>`:`<div class="portrait pending">Sprite pendiente en catálogo</div>`}
+function unitCard(entry,unit){
+ const levels=levelRange(unit);
+ const ammo=(unit?.mechanics?.ammoLoadout||[]).map(a=>`${a.amount} ${a.id}`).join(' · ')||'—';
+ return `<section class="unit">${portrait(unit)}<h3>${esc(unit.name)}</h3><div class="meta"><span class="label">ID:</span> ${esc(unit.id)} · <span class="label">Nivel natural:</span> ${levels.min}${levels.max!==levels.min?`–${levels.max}`:''} · <span class="label">Ranks:</span> ${(unit.allowedRanks||[]).map(esc).join(', ')}</div><div class="traits"><span class="label">Traits:</span> ${traitReferences(unit)}</div><div class="refs"><span class="label">Skills / Weapons:</span><br>${unitReferences(unit)}</div><div class="meta"><span class="label">Ammo:</span> ${esc(ammo)} · <span class="label">Defense:</span> ${defense(unit)}</div><table class="ranks"><thead><tr><th>Rank</th><th>Speed</th><th>HP Min</th><th>HP Max</th><th>Apply</th><th>Base</th><th>Turn End</th></tr></thead><tbody>${rankRows(entry,unit)}</tbody></table></section>`;
+}
+function validateKoboldSkills(){
+ if(!koboldSkills||!schema)return {ok:false,error:'Falta CombatSkillSchema o LuminousKoboldTier1SkillCatalog.'};
+ const list=koboldSkills.list();
+ const invalid=list.map(skill=>[skill,schema.validateCombatSkill(skill)]).filter(([,result])=>!result.valid);
+ if(invalid.length)return {ok:false,error:`Skill inválida: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`};
+ return {ok:true,count:list.length};
+}
+function render(){
+ if(!kobolds||!goblins||!ranks){setStatus('Falta uno de los catálogos/runtimes requeridos por Unit Library.','bad');return false}
+ const skillValidation=validateKoboldSkills();
+ if(!skillValidation.ok){setStatus(skillValidation.error,'bad');return false}
+ const entries=familyEntries();
+ const unitPayload=mergePayloads(...entries.map(entry=>entry.catalog.firebasePayload()));
+ $('families').innerHTML=entries.map(entry=>{const definitions=entry.catalog.list();return `<section class="family"><h2>${esc(entry.label)} · ${definitions.length}</h2><div class="units">${definitions.map(unit=>unitCard(entry,unit)).join('')}</div></section>`}).join('');
+ setStatus(`Unit Library válido: ${Object.keys(unitPayload).length} Units (${kobolds.list().length} Kobold + ${goblins.list().length} Goblin) · ${skillValidation.count} Skills Kobold validadas · Unit Rank ${ranks.version}.`,'ok');
+ return true;
+}
+async function authorize(){
+ $('sync').disabled=true;dmReady=false;
+ if(!session?.preflight){setStatus('Falta el preflight Firebase 0.7.4.','bad');return false}
+ try{
+  const result=await session.preflight({firebase});
+  if(!result?.ok){setStatus(`Firebase bloqueado: ${result?.reason||'FIREBASE_SESSION_FAILED'}.`,'bad');return false}
+  if(result.role!=='dm'){setStatus(`Sesión válida pero sin autoridad DM (${result.role||'unknown'}).`,'bad');return false}
+  dmReady=true;$('sync').disabled=false;
+  setStatus(`DM autorizado · Kobold ${kobolds.version} + Goblin ${goblins.version} listos para sincronizar.`,'ok');return true;
+ }catch(error){console.error(error);setStatus(`No se pudo validar la sesión DM: ${error.message||error}`,'bad');return false}
+}
+async function sync(){
+ if(!dmReady){setStatus('Sincronización bloqueada: se requiere sesión DM.','bad');return}
+ if(!render())return;
+ const button=$('sync');button.disabled=true;
+ try{
+  const unitPayload=mergePayloads(kobolds.firebasePayload(),goblins.firebasePayload());
+  const skillPayload=kobolds.firebaseSkillPayload(schema);
+  await db.ref(UNIT_PATH).update(unitPayload);
+  await db.ref(SKILL_PATH).update(skillPayload);
+  setStatus(`Sincronización completa: ${Object.keys(unitPayload).length} Units y ${Object.keys(skillPayload).length} Skills canónicas actualizadas.`,'ok');
+ }catch(error){console.error(error);setStatus(`No se pudo sincronizar: ${error.message||error}`,'bad')}
+ finally{button.disabled=!dmReady}
+}
+$('sync').addEventListener('click',sync);
+$('refresh').addEventListener('click',()=>{render();authorize()});
+render();authorize();
+})();
+</script>
+</body>
+</html>

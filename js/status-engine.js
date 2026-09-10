@@ -174,6 +174,8 @@
     try { if (!global.LuminousConditionRuntime) require("./core-condition-runtime.js"); } catch (_) {}
     try { if (!global.LuminousConditionCombatBridge) require("./core-condition-combat-bridge.js"); } catch (_) {}
     try { if (!global.LuminousConditionTheatreBridge) require("./core-condition-theatre-bridge.js"); } catch (_) {}
+    try { if (!global.LuminousUniversalRangedAmmoRuntime) require("./universal-ranged-ammo-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousGoblinUnitRuntime) require("./goblin-unit-runtime.js"); } catch (_) {}
   }
 
   function loadScript(id, src) {
@@ -197,12 +199,16 @@
   }
 
   ensureCoreConditionRuntime();
+  if (global.document && !global.LuminousThrownProjectileSequenceRuntime) loadScript("thrown-projectile-sequence-runtime-script", "js/thrown-projectile-sequence-runtime.js");
+  if (global.document && !global.LuminousThrownProjectileSequenceProfiles) loadScript("thrown-projectile-sequence-profiles-script", "js/thrown-projectile-sequence-profiles.js");
   if (global.document && !global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
   if (global.document && !global.LuminousConditionTheatreBridge) loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
   if (global.document && !global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
   if (global.document && !global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
   if (global.document && !global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
   if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
+  if (global.document && !global.LuminousUniversalRangedAmmoRuntime) loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js");
+  if (global.document && !global.LuminousGoblinUnitRuntime) loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js");
   if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
   if (global.document && !global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
   if (global.document && !global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
