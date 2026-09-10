@@ -30,7 +30,6 @@ function rowMap(result) {
   return Object.fromEntries(result.rows.map((row) => [row.unitId, row]));
 }
 
-// 12 is a ceiling, not a quota. Only the two fastest Units may receive bonus slots.
 {
   const units = [enemy('fast', 8, 3), enemy('second', 6, 3), enemy('slow', 4, 3)];
   const result = allocator.allocateEnemySlots(units, { apply: false, roundId: 'round_1' });
@@ -48,7 +47,6 @@ function rowMap(result) {
   assert.equal(result.unusedSlots, 5);
 }
 
-// Minion-style maxSlots 2 still stops below 12 when individual caps are reached.
 {
   const units = [enemy('m1', 7, 2), enemy('m2', 5, 2), enemy('m3', 3, 2)];
   const result = allocator.allocateEnemySlots(units, { apply: false });
@@ -60,7 +58,6 @@ function rowMap(result) {
   assert.equal(result.unusedSlots, 7);
 }
 
-// Near the team ceiling, bonus slots are distributed round-robin to the two fastest.
 {
   const units = Array.from({ length: 10 }, (_, index) => enemy(`u${index + 1}`, 20 - index, 3));
   const result = allocator.allocateEnemySlots(units, { apply: false });
@@ -71,7 +68,6 @@ function rowMap(result) {
   for (let index = 3; index <= 10; index += 1) assert.equal(rows[`u${index}`].slots, 1);
 }
 
-// Encounter deployment itself is invalid if guaranteed minimum slots exceed the team cap.
 {
   const units = Array.from({ length: 13 }, (_, index) => enemy(`overflow_${index}`, index + 1, 2));
   const result = allocator.allocateEnemySlots(units, { apply: false });
@@ -80,7 +76,6 @@ function rowMap(result) {
   assert.equal(result.minimumTotal, 13);
 }
 
-// Runtime ids are mandatory and unique because they become slot ids.
 {
   const duplicateA = enemy('duplicate', 8, 2);
   const duplicateB = enemy('duplicate', 7, 2);
@@ -97,7 +92,6 @@ function rowMap(result) {
   assert.equal(missingResult.reason, 'enemy_unit_id_required');
 }
 
-// Equal Speed uses stable deployment order as the deterministic tie-break.
 {
   const units = [enemy('tie_a', 5, 2), enemy('tie_b', 5, 2), enemy('tie_c', 5, 2)];
   const result = allocator.allocateEnemySlots(units, { apply: false });
@@ -106,7 +100,6 @@ function rowMap(result) {
   assert.equal(result.tieBreak, 'deployment_order_then_unit_id');
 }
 
-// Missing round Speed never invents a value. The Unit keeps its guaranteed base slot only.
 {
   const noSpeedA = enemy('no_speed_a', undefined, 2);
   delete noSpeedA.speed;
@@ -121,7 +114,6 @@ function rowMap(result) {
   assert.deepEqual(result.missingSpeed.sort(), ['no_speed_a', 'no_speed_b']);
 }
 
-// Explicit round Speed has precedence over stale Unit fields.
 {
   const first = enemy('speed_override_a', 2, 2);
   const second = enemy('speed_override_b', 9, 2);
@@ -134,7 +126,6 @@ function rowMap(result) {
   assert.equal(rowMap(result).speed_override_a.speedSource, 'round_override');
 }
 
-// Allies and inactive enemies are outside active enemy allocation.
 {
   const hostile = enemy('hostile', 5, 2);
   const dead = { ...enemy('dead_enemy', 20, 3), hp: 0 };
@@ -145,7 +136,6 @@ function rowMap(result) {
   assert.equal(result.inactiveEnemyCount, 1);
 }
 
-// Canonical Unit profiles live in data and can be stamped onto a uniquely-id'd combatant instance.
 assert.deepEqual(catalog.get('kobold_dagger'), { id: 'kobold_dagger', minSlots: 1, maxSlots: 2 });
 assert.deepEqual(catalog.get('kobold_sling'), { id: 'kobold_sling', minSlots: 1, maxSlots: 2 });
 assert.deepEqual(catalog.get('dragonheart_kobold'), { id: 'dragonheart_kobold', minSlots: 1, maxSlots: 3 });
@@ -161,7 +151,6 @@ assert.deepEqual(catalog.get('goblin_boss'), { id: 'goblin_boss', minSlots: 1, m
   assert.equal(allocator.profileFor(instance).maxSlots, 2);
 }
 
-// Applying an allocation resets round-target flags and makes Universal Action Economy consume the exact count.
 {
   const first = enemy('apply_fast', 7, 3);
   const second = enemy('apply_slow', 4, 3);
@@ -182,7 +171,21 @@ assert.deepEqual(catalog.get('goblin_boss'), { id: 'goblin_boss', minSlots: 1, m
   assert.equal(first.slots.length, 3);
 }
 
-// End-to-end planner handoff: the exact allocated slot ids become GOAP CombatAction slot ids.
+// Planning round uses a non-mutating allocation preflight before touching live Unit state.
+{
+  const first = enemy('preflight_fast', 8, 2);
+  const second = enemy('preflight_slow', 4, 2);
+  first.actionSlots = 7;
+  const preview = allocator.allocateEnemySlots([first, second], { apply: false, roundId: 'preview' });
+  assert.equal(preview.allocated, true);
+  assert.equal(first.actionSlots, 7);
+  const round = allocator.beginEnemyPlanningRound([first, second], { roundId: 'commit' });
+  assert.equal(round.planningReady, true);
+  assert.equal(first.actionSlots, 2);
+  assert.equal(first.actionSlotAllocation.roundId, 'commit');
+  assert.equal(round.planning[0].snapshot.actionSlots, 2);
+}
+
 {
   const skill = {
     id: 'allocator_test_strike', sourceType: 'skill', type: 'Attack', basePower: 5, coinPower: 2, coinAmount: 1,
