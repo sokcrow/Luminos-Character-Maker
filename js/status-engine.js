@@ -176,6 +176,7 @@
     try { if (!global.LuminousConditionTheatreBridge) require("./core-condition-theatre-bridge.js"); } catch (_) {}
     try { if (!global.LuminousUniversalRangedAmmoRuntime) require("./universal-ranged-ammo-runtime.js"); } catch (_) {}
     try { if (!global.LuminousGoblinUnitRuntime) require("./goblin-unit-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousWolfUnitRuntime) require("./wolf-unit-runtime.js"); } catch (_) {}
   }
 
   function loadScript(id, src) {
@@ -209,6 +210,7 @@
   if (global.document && !global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
   if (global.document && !global.LuminousUniversalRangedAmmoRuntime) loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js");
   if (global.document && !global.LuminousGoblinUnitRuntime) loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js");
+  if (global.document && !global.LuminousWolfUnitRuntime) loadScript("wolf-unit-runtime-script", "js/wolf-unit-runtime.js");
   if (global.document && !global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
   if (global.document && !global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
   if (global.document && !global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
