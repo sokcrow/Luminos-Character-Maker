@@ -64,6 +64,7 @@ assert.equal(statuses.getStatus(target, 'bleed').count, 3);
 assert.equal(statuses.getStatus(target, 'bleed').potency, 2);
 assert.equal(statuses.getStatus(target, 'sinking').count, 2, 'Bite should cross the 3+ Bleed Count threshold on the same hit.');
 
+statuses.applyStatus(target, 'bleed', { mode: 'set', potency: 2, count: 4 });
 statuses.applyStatus(target, 'sinking', { mode: 'set', potency: 2, count: 4 });
 const prepared = runtime.prepareConditionalSkill(breakPrey, target);
 assert.equal(prepared.metadata.wolfConditionalFinalPowerActive, true);
