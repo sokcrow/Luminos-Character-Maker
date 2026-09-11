@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
-const icons = require("../js/item-icon-registry.js");
-const healing = require("../js/item-healing-catalog.js");
-const runtime = require("../js/item-runtime-engine.js");
+await import("../js/item-icon-registry.js");
+await import("../js/item-healing-catalog.js");
+await import("../js/item-runtime-engine.js");
+
+const icons = globalThis.LuminousItemIconRegistry;
+const healing = globalThis.LuminousItemHealingCatalog;
+const runtime = globalThis.LuminousItemRuntime;
 
 assert.equal(icons.version, 1);
 assert.equal(icons.list().length, 46, "V1 should expose exactly 46 shared icon families");
