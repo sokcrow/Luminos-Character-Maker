@@ -51,6 +51,13 @@
 
       ensureStyle("inventory-hud-v2-stylesheet", "css/inventory-hud-v2.css");
 
+      // ItemDefinitions are authoritative presentation/mechanics data. Load the
+      // registry + icon families + V10 catalog before hydrating ItemInstances.
+      await ensureScript("content-registry-script", "js/content-registry.js", "LuminousContentRegistry");
+      await ensureScript("item-icon-registry-script", "js/item-icon-registry.js", "LuminousItemIconRegistry");
+      await ensureScript("item-catalog-v10-script", "js/item-catalog-v10.js", "LuminousItemCatalogV10");
+      global.LuminousItemCatalogV10?.registerAll?.();
+
       await ensureScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js", "LuminousAnatomyEquipmentEngine");
       await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
       await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
