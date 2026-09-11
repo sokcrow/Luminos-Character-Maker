@@ -80,7 +80,7 @@
       ammoType: 'arrows',
       pierced: 1,
       aiEstimate: {
-        advantage: 2,
+        advantage: 3,
         producesTags: ['pierced', 'goblin_bind_setup', 'goblin_bleed_setup'],
       },
     })),
@@ -97,7 +97,7 @@
       ammoType: 'javelin',
       pierced: 1,
       aiEstimate: {
-        advantage: 2,
+        advantage: 3,
         producesTags: ['pierced', 'goblin_bind_setup', 'goblin_bleed_setup'],
       },
       metadata: { thrownProjectile: true },
