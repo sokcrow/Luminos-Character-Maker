@@ -24,7 +24,6 @@ on:
   push:
     branches:
       - refactor/player-inventory-runtime-cutover
-      - feat/item-icon-families
 
 jobs:
   inventory-runtime-cutover:
