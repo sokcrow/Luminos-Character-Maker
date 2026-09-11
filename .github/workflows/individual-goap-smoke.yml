@@ -28,5 +28,8 @@ jobs:
           node --check js/enemy-action-slot-allocator.js
           node --check js/battle-viewer-enemy-planning-074.js
           node --check js/battle-viewer-runtime-073-timeline.js
+          node --check js/skill-catalog-goblin-tier1.js
+          node --check js/unit-catalog-goblin.js
+          node --check js/goblin-unit-runtime.js
       - name: Individual GOAP suite
         run: npm run test:individual-goap
