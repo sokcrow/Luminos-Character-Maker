@@ -5,6 +5,11 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const safeRequire = (path) => {
+    if (typeof require !== 'function') return null;
+    try { return require(path); } catch (_) { return null; }
+  };
+  const rangedAmmoRuntime = () => global.LuminousUniversalRangedAmmoRuntime || safeRequire('./universal-ranged-ammo-runtime.js');
 
   const MULTI_ATTACK = Object.freeze({
     id: 'goblin_multi_attack',
@@ -84,6 +89,28 @@
   }
   function onTurnStart(unit) { resetRedirect(unit); return unit; }
 
+  function tagMatches(effect, tag) { return normalizeId(effect?.trigger) === normalizeId(tag); }
+  function isGoblinManagedSkill(skill = {}) { return skill?.metadata?.goblinRuntimeManagedStatusEffects === true; }
+  function applyManagedSkillEffects(tag, context = {}, targetsHit = []) {
+    if (normalizeId(tag) !== 'on_hit' || !isGoblinManagedSkill(context.skill)) return [];
+    const effects = [
+      ...asArray(context.skill?.effects).filter((effect) => tagMatches(effect, tag)),
+      ...asArray(context.currentCoin?.effects).filter((effect) => tagMatches(effect, tag)),
+    ].filter((effect) => normalizeId(effect?.type) === 'status' && normalizeId(effect?.status) === 'pierced');
+    if (!effects.length) return [];
+    const targets = asArray(targetsHit).length ? asArray(targetsHit) : [context.currentTarget || context.defender].filter(Boolean);
+    const applied = [];
+    for (const target of targets) {
+      for (const effect of effects) {
+        const amount = Math.max(0, Math.trunc(numberOr(effect.count, 0)));
+        if (!amount) continue;
+        const result = rangedAmmoRuntime()?.applyPierced?.(target, amount, { sourceUnitId: unitId(context.attacker) || null });
+        if (result) applied.push({ targetId: unitId(target), statusId: 'pierced', amount, result });
+      }
+    }
+    return applied;
+  }
+
   function lastCoinReuseSkill(originalSkill, preparedSkill, baseResult) {
     const coins = asArray(preparedSkill.coins);
     const lastCoin = clone(coins[coins.length - 1] || { index: 0, type: 'normal', status: 'active', effects: [] });
@@ -123,7 +150,10 @@
           : (asArray(context.units).length ? asArray(context.units) : asArray(this.getAllAliveUnits?.()));
         units.forEach(resetRedirect);
       }
-      return originalTriggerEvent.call(this, eventName, context, targetUnits);
+      const result = originalTriggerEvent.call(this, eventName, context, targetUnits);
+      const applied = applyManagedSkillEffects(eventName, context, targetUnits);
+      if (applied.length) context.goblinStatusEffectsApplied = [...asArray(context.goblinStatusEffectsApplied), ...applied];
+      return result;
     };
     Object.defineProperty(engine, '__goblinRedirectTurnResetInstalled', { value: true, configurable: true });
     return true;
@@ -180,8 +210,9 @@
   function install() { return installCombatBridge(); }
 
   const api = Object.freeze({
-    version: '1.1.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
-    prepareMultiAttackSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart, lastCoinReuseSkill,
+    version: '1.2.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
+    prepareMultiAttackSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart,
+    tagMatches, isGoblinManagedSkill, applyManagedSkillEffects, lastCoinReuseSkill,
     installTurnResetBridge, installCombatBridge, install,
   });
 
