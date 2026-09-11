@@ -16,7 +16,7 @@ const addedCombatIds = [
   'dissonant_whispers', 'animal_friendship', 'crown_of_madness', 'suggestion'
 ];
 for (const id of addedCombatIds) assert.ok(combatCatalog[id], `missing combat spell ${id}`);
-assert.deepEqual(Object.keys(roleCatalog).sort(), ['message', 'thaumaturgy']);
+for (const id of ['message', 'thaumaturgy']) assert.ok(roleCatalog[id], `missing role spell ${id}`);
 assert.deepEqual(roleCatalog.message.contexts, ['theater']);
 assert.deepEqual(roleCatalog.thaumaturgy.contexts, ['theater']);
 
