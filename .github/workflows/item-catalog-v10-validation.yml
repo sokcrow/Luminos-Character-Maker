@@ -1,0 +1,40 @@
+name: Item Catalog V10 Validation
+
+on:
+  push:
+    branches:
+      - feature/item-catalog-v10-integration
+  pull_request:
+    paths:
+      - js/item-icon-registry.js
+      - js/item-catalog-v10-data.js
+      - js/item-catalog-runtime.js
+      - js/item-catalog-inventory-bridge.js
+      - js/item-catalog-hud-sync.js
+      - js/dm-item-catalog-editor.js
+      - css/dm-item-catalog-editor.css
+      - js/player-ux-polish.js
+      - js/dm-player-dnd-studio-hotfix.js
+      - tests/item-catalog-v10-smoke.cjs
+      - .github/workflows/item-catalog-v10-validation.yml
+
+jobs:
+  item-catalog-v10:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax validation
+        run: |
+          node --check js/item-icon-registry.js
+          node --check js/item-catalog-v10-data.js
+          node --check js/item-catalog-runtime.js
+          node --check js/item-catalog-inventory-bridge.js
+          node --check js/item-catalog-hud-sync.js
+          node --check js/dm-item-catalog-editor.js
+          node --check js/player-ux-polish.js
+          node --check js/dm-player-dnd-studio-hotfix.js
+      - name: Item Catalog V10 smoke
+        run: node tests/item-catalog-v10-smoke.cjs
