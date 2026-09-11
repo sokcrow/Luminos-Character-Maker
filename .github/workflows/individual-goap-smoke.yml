@@ -26,6 +26,7 @@ jobs:
           node --check js/combat-spell-loadout-074.js
           node --check js/battle-viewer-spell-adapter-074.js
           node --check js/battle-viewer-spell-runtime-074.js
+          node --check js/battle-viewer-runtime-074.js
           node --check js/individual-goap-combat-ai.js
           node --check js/unit-ai-kit-adapter.js
           node --check js/unit-ai-universal-actions.js
