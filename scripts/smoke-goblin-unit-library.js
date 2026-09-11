@@ -21,13 +21,34 @@ if (!schema || !ammo || !goblinRuntime || !skills || !units) {
 
 const ids = units.list().map((unit) => unit.id);
 assert.deepStrictEqual(ids.sort(), ['goblin', 'goblin_boss']);
-assert.deepStrictEqual(skills.list().map((skill) => skill.id).sort(), ['goblin_javelin_throw', 'goblin_scimitar_slash', 'goblin_shortbow_shot']);
+assert.deepStrictEqual(skills.list().map((skill) => skill.id).sort(), [
+  'goblin_barbed_arrow',
+  'goblin_barbed_javelin',
+  'goblin_bloodletter',
+  'goblin_butchers_cut',
+  'goblin_crippling_stab',
+  'goblin_hamstring_cut',
+  'goblin_javelin_throw',
+  'goblin_kneecapper',
+  'goblin_relentless_cleave',
+  'goblin_scimitar_slash',
+  'goblin_serrated_slash',
+  'goblin_shortbow_shot',
+  'goblin_tyrants_assault',
+]);
 skills.list().forEach((skill) => {
   const validation = schema.validateCombatSkill(skill);
   assert.strictEqual(validation.valid, true, `${skill.id}: ${validation.errors.join(' · ')}`);
   assert.strictEqual(skill.isClashable, true);
   assert.strictEqual(skill.isUnclashable, false);
 });
+
+assert.strictEqual(skills.byTier('goblin', 1).filter((skill) => skill.skillRange <= 1).length, 2);
+assert.strictEqual(skills.byTier('goblin', 1).filter((skill) => skill.skillRange > 1).length, 1);
+assert.strictEqual(skills.byTier('goblin', 2).filter((skill) => skill.skillRange <= 1).length, 2);
+assert.strictEqual(skills.byTier('goblin', 2).filter((skill) => skill.skillRange > 1).length, 1);
+assert.strictEqual(skills.byTier('goblin_boss', 1).filter((skill) => skill.skillRange <= 1).length, 3);
+assert.strictEqual(skills.byTier('goblin_boss', 2).filter((skill) => skill.skillRange <= 1).length, 3);
 
 const scimitar = skills.get('goblin_scimitar_slash');
 assert.strictEqual(scimitar.coinAmount, 2, 'Scimitar must remain Multi Attack eligible for Goblin Boss');
@@ -50,7 +71,7 @@ assert(goblin.traitIds.includes('goblin_fury_of_small'));
 assert(goblin.traitIds.includes('goblin_nimble_escape'));
 assert(goblin.traitIds.includes('ammo_arrows'));
 assert.strictEqual(ammo.ammoCount(goblin, 'arrows'), 10);
-assert.deepStrictEqual(goblin.action_slots, ['goblin_scimitar_slash', 'goblin_shortbow_shot']);
+assert.deepStrictEqual(goblin.action_slots, skills.loadout('goblin'));
 assert.deepStrictEqual(goblin.resolvedSkills.map((skill) => skill.id), goblin.action_slots);
 assert.strictEqual(goblin.mechanics.weaponLoadout[0].weaponId, 'scimitar');
 assert.strictEqual(goblin.mechanics.weaponLoadout[0].skillId, 'goblin_scimitar_slash');
@@ -73,7 +94,7 @@ assert(boss.traitIds.includes('goblin_multi_attack'));
 assert(boss.traitIds.includes('goblin_redirect_attack'));
 assert(boss.traitIds.includes('ammo_javelin'));
 assert.strictEqual(ammo.ammoCount(boss, 'javelin'), 6);
-assert.deepStrictEqual(boss.action_slots, ['goblin_scimitar_slash', 'goblin_javelin_throw']);
+assert.deepStrictEqual(boss.action_slots, skills.loadout('goblin_boss'));
 assert.deepStrictEqual(boss.resolvedSkills.map((skill) => skill.id), boss.action_slots);
 assert.strictEqual(boss.mechanics.weaponLoadout[1].weaponId, 'javelin');
 assert.strictEqual(boss.mechanics.weaponLoadout[1].skillId, 'goblin_javelin_throw');
