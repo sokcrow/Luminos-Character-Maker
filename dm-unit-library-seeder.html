@@ -15,13 +15,14 @@
 <div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR UNIT LIBRARY</button><button class="btn" id="refresh">REVISAR CATÁLOGOS</button><span>Units: <code>campaña/base_datos_unidades</code> · Skills canónicas disponibles: <code>campaña/base_datos_skills</code></span></div>
 <div id="status" class="status">Cargando catálogos y verificando sesión DM…</div>
 <div id="families" class="families"></div>
-<p>El sync usa <code>update()</code>: no elimina otras Units ni otras Skills. Las Skills Kobold y Wolf se validan y sincronizan desde sus catálogos canónicos. Los Goblins se sincronizan como Units con sus Traits, Ammo y weapon loadouts declarados sin fabricar Skills que su catálogo todavía marque como pendientes.</p>
+<p>El sync usa <code>update()</code>: no elimina otras Units ni otras Skills. Kobolds, Goblins y Wolves validan y sincronizan sus Skills desde catálogos canónicos; los loadouts Goblin conservan Ammo y Pierced para construir Bind/Bleed mediante el runtime universal.</p>
 </div></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="js/combat-skill-schema.js"></script>
 <script src="js/skill-catalog-kobold-tier1.js"></script>
+<script src="js/skill-catalog-goblin-tier1.js"></script>
 <script src="js/skill-catalog-wolf.js"></script>
 <script src="js/unit-rank-runtime.js"></script>
 <script src="js/universal-action-economy.js"></script>
@@ -44,6 +45,7 @@ const kobolds=window.LuminousKoboldUnitCatalog;
 const goblins=window.LuminousGoblinUnitCatalog;
 const wolves=window.LuminousWolfUnitCatalog;
 const koboldSkills=window.LuminousKoboldTier1SkillCatalog;
+const goblinSkills=window.LuminousGoblinTier1SkillCatalog;
 const wolfSkills=window.LuminousWolfSkillCatalog;
 const ranks=window.LuminousUnitRankRuntime;
 const schema=window.CombatSkillSchema;
@@ -104,11 +106,12 @@ function validateSkillCatalog(label,catalog){
 function render(){
  if(!kobolds||!goblins||!wolves||!ranks){setStatus('Falta uno de los catálogos/runtimes requeridos por Unit Library.','bad');return false}
  const kv=validateSkillCatalog('Kobold',koboldSkills);if(!kv.ok){setStatus(kv.error,'bad');return false}
+ const gv=validateSkillCatalog('Goblin',goblinSkills);if(!gv.ok){setStatus(gv.error,'bad');return false}
  const wv=validateSkillCatalog('Wolf',wolfSkills);if(!wv.ok){setStatus(wv.error,'bad');return false}
  const entries=familyEntries();
  const unitPayload=mergePayloads(...entries.map(entry=>entry.catalog.firebasePayload()));
  $('families').innerHTML=entries.map(entry=>{const definitions=entry.catalog.list();return `<section class="family"><h2>${esc(entry.label)} · ${definitions.length}</h2><div class="units">${definitions.map(unit=>unitCard(entry,unit)).join('')}</div></section>`}).join('');
- setStatus(`Unit Library válido: ${Object.keys(unitPayload).length} Units (${kobolds.list().length} Kobold + ${goblins.list().length} Goblin + ${wolves.list().length} Wolf) · ${kv.count+wv.count} Skills canónicas validadas · Unit Rank ${ranks.version}.`,'ok');
+ setStatus(`Unit Library válido: ${Object.keys(unitPayload).length} Units (${kobolds.list().length} Kobold + ${goblins.list().length} Goblin + ${wolves.list().length} Wolf) · ${kv.count+gv.count+wv.count} Skills canónicas validadas · Unit Rank ${ranks.version}.`,'ok');
  return true;
 }
 async function authorize(){
@@ -128,7 +131,7 @@ async function sync(){
  const button=$('sync');button.disabled=true;
  try{
   const unitPayload=mergePayloads(kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload());
-  const skillPayload=mergePayloads(kobolds.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
+  const skillPayload=mergePayloads(kobolds.firebaseSkillPayload(schema),goblins.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
   await db.ref(UNIT_PATH).update(unitPayload);
   await db.ref(SKILL_PATH).update(skillPayload);
   setStatus(`Sincronización completa: ${Object.keys(unitPayload).length} Units y ${Object.keys(skillPayload).length} Skills canónicas actualizadas.`,'ok');
