@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
 
 globalThis.STATUS_REGISTRY = {};
 delete globalThis.LuminousStatusEngine;
 delete globalThis.LuminousElementalStatusRuntime;
+delete globalThis.LuminousSpellCatalog;
+delete globalThis.LuminousRoleSpellCatalog;
 delete globalThis.LuminousAngeloSpellBatchRuntime;
 
-const combatCatalog = require('../js/spell-catalog-core.js');
-const roleCatalog = require('../js/role-spell-catalog-core.js');
-const batch = globalThis.LuminousAngeloSpellBatchRuntime || require('../js/spell-batch-angelo-runtime.js');
+await import('../js/spell-catalog-core.js');
+await import('../js/role-spell-catalog-core.js');
+await import('../js/spell-batch-angelo-runtime.js');
+
+const combatCatalog = globalThis.LuminousSpellCatalog;
+const roleCatalog = globalThis.LuminousRoleSpellCatalog;
+const batch = globalThis.LuminousAngeloSpellBatchRuntime;
 
 for (const id of ['vicious_mockery', 'silvery_barbs', 'calm_emotions', 'mirror_image', 'hold_person', 'hypnotic_pattern']) {
   assert.ok(combatCatalog[id], `missing combat spell ${id}`);
