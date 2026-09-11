@@ -41,6 +41,12 @@ jobs:
         run: node tests/pierre-spell-batch-smoke.mjs
       - name: Angelo universal spell batch smoke
         run: node tests/angelo-spell-batch-smoke.mjs
+      - name: Fighter Battle Master module syntax
+        run: |
+          node --check js/fighter-maneuver-catalog.js
+          node --check js/battle-master-archetype-runtime.js
+      - name: Battle Master archetype smoke
+        run: node tests/battle-master-archetype-runtime-smoke.mjs
       - name: Kobold Unit Library smoke
         run: node tests/kobold-unit-library-smoke.mjs
       - name: Universal Unit rank command smoke
