@@ -100,7 +100,7 @@
     const fallback = options.allowSpeciesDefault === false ? null : defaultProfileForSpecies(speciesId(unit));
     const creatureType = explicitType || fallback?.creatureType || '';
     if (!creatureType) {
-      if (options.required === true) throw new Error(`CREATURE_TYPE_REQUIRED:${String(unit.id ?? unit.name ?? speciesId(unit) || 'unit')}`);
+      if (options.required === true) throw new Error(`CREATURE_TYPE_REQUIRED:${String((unit.id ?? unit.name ?? speciesId(unit)) || 'unit')}`);
       return null;
     }
 
