@@ -71,11 +71,19 @@ jobs:
         run: node tests/combat-v074-progressive-ui-smoke.mjs
       - name: Battle Viewer 0.7.4 DM encounter roster smoke
         run: node tests/combat-v074-dm-encounter-roster-smoke.mjs
+      - name: Pierre universal spell batch smoke
+        run: node tests/pierre-spell-batch-smoke.mjs
+      - name: Angelo universal spell batch smoke
+        run: node tests/angelo-spell-batch-smoke.mjs
       - name: Battle Viewer 0.7.4 module syntax
         run: |
           node --check js/status-library.js
           node --check js/statusManager.js
           node --check js/class-status-semantics.js
+          node --check js/spell-catalog-core.js
+          node --check js/role-spell-catalog-core.js
+          node --check js/spell-batch-pierre-runtime.js
+          node --check js/spell-batch-angelo-runtime.js
           node --check js/battle-viewer-action-adapter-073.js
           node --check js/battle-viewer-firebase-session-074.js
           node --check js/combat-skill-loadout-074.js
