@@ -96,6 +96,11 @@ assert.equal(goblin.metadata.weaponSkillsPendingCanonicalCatalog, false);
 assert.equal(goblin.actionEconomy.minSlots, 1);
 assert.equal(goblin.actionEconomy.maxSlots, 2);
 
+const scimitarDefinition = skills.get('goblin_scimitar_slash');
+const shortbowDefinition = skills.get('goblin_shortbow_shot');
+assert.deepStrictEqual(shortbowDefinition.aiEstimate.producesTags, ['pierced', 'goblin_bind_setup', 'goblin_bleed_setup']);
+assert.deepStrictEqual(scimitarDefinition.aiEstimate.consumesTags, ['goblin_bind_setup', 'goblin_bleed_setup', 'bind', 'bleed']);
+
 const plan = kitAdapter.planUnitTurn({
   actor: goblin,
   targets: [{ id: player.id }],
@@ -111,6 +116,21 @@ assert.ok(
   `Goblin GOAP should choose a canonical weapon Skill, got ${plan.sequence[0].sourceId}`,
 );
 assert.equal(plan.kit.unresolved.filter((entry) => entry.reason === 'canonical_weapon_skill_pending').length, 0);
+
+const comboPlan = kitAdapter.planUnitTurn({
+  actor: goblin,
+  targets: [{ id: player.id }],
+  availableSlots: 2,
+  slotIds: ['ai_goblin_combo_0', 'ai_goblin_combo_1'],
+  allowEscape: false,
+  allowGrapple: false,
+});
+assert.equal(comboPlan.planned, true, comboPlan.reason || 'Goblin should plan its two-slot build');
+assert.deepStrictEqual(
+  comboPlan.sequence.map((entry) => entry.sourceId),
+  ['goblin_shortbow_shot', 'goblin_scimitar_slash'],
+  'GOAP should recognize ranged Pierced setup into melee Bind/Bleed payoff',
+);
 
 // Force the ranged build for deterministic content validation. GOAP is tested above;
 // this section verifies that the selected canonical Shortbow CombatAction consumes Ammo,
@@ -137,6 +157,29 @@ assert.equal(ammo.ammoCount(goblin, 'arrows'), arrowsBefore - 4, 'four Shortbow 
 assert.ok(player.hp < hpBefore, `real CombatEngine should damage Player (${hpBefore} -> ${player.hp})`);
 assert.equal(ammo.statusCount(player, 'bind'), 1, 'Pierced 3 threshold should generate Bind');
 assert.equal(ammo.statusCount(player, 'bleed'), 1, 'Pierced 4 threshold should generate Bleed Count');
+
+const cleanTarget = playerTarget('goblin_clean_target');
+const cleanPayoff = goblinRuntime.prepareBindBleedPayoffSkill(goblin, scimitarDefinition, cleanTarget);
+assert.equal(Number(cleanPayoff.__combatActionFinalPowerBonus || 0), 0, 'Scimitar gets no payoff against an unprepared target');
+
+const preparedPayoff = goblinRuntime.prepareBindBleedPayoffSkill(goblin, scimitarDefinition, player);
+assert.equal(preparedPayoff.__combatActionFinalPowerBonus, 2, 'Bind + Bleed should grant +2 Final Power total');
+assert.equal(preparedPayoff.metadata.goblinBindBleedPayoffApplied.bindActive, true);
+assert.equal(preparedPayoff.metadata.goblinBindBleedPayoffApplied.bleedActive, true);
+
+const payoffAction = adapters.compileSkillToCombatAction(goblin, scimitarDefinition, {
+  isAi: true,
+  actionSlotId: 'ai_goblin_payoff',
+  targetId: player.id,
+});
+const payoffResult = resolver.resolveCombatAction(payoffAction, {
+  phase: payoffAction.phase.executesAt,
+  units: [goblin, player],
+  engine,
+});
+assert.equal(payoffResult.resolved, true, payoffResult.reason || 'Goblin Scimitar payoff should resolve');
+const payoffEngineResult = payoffResult.resolution?.results?.[0]?.result;
+assert.equal(payoffEngineResult?.goblinBindBleedPayoff?.finalPowerBonus, 2, 'real CombatEngine path must receive the Bind/Bleed payoff');
 
 // Boss keeps the same Scimitar definition, but its passive runtime reuses the last
 // Coin because the canonical Skill has 2 Coins. Rank still does not manufacture slots:
@@ -169,4 +212,4 @@ assert.equal(bossEngineResult?.multiAttackReuse?.timesRequested, 1);
 assert.equal(bossEngineResult?.multiAttackReuse?.timesResolved, 1);
 assert.ok(bossTarget.hp < bossTarget.maxHp, 'Goblin Boss Scimitar + Multi Attack should damage Player');
 
-console.log(`goblin AI vs Player smoke: ok (Player ${hpBefore} -> ${player.hp} HP, Pierced ${ammo.statusCount(player, 'pierced')}, Bind ${ammo.statusCount(player, 'bind')}, Bleed ${ammo.statusCount(player, 'bleed')})`);
+console.log(`goblin AI vs Player smoke: ok (Player ${hpBefore} -> ${player.hp} HP, Pierced ${ammo.statusCount(player, 'pierced')}, Bind ${ammo.statusCount(player, 'bind')}, Bleed ${ammo.statusCount(player, 'bleed')}, Payoff +${payoffEngineResult?.goblinBindBleedPayoff?.finalPowerBonus || 0} Final Power)`);
