@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
 
 globalThis.STATUS_REGISTRY = {};
 delete globalThis.LuminousStatusEngine;
 delete globalThis.LuminousElementalStatusRuntime;
+delete globalThis.LuminousSpellCatalog;
+delete globalThis.LuminousRoleSpellCatalog;
 delete globalThis.LuminousPierreSpellBatchRuntime;
 
-const combatCatalog = require('../js/spell-catalog-core.js');
-const roleCatalog = require('../js/role-spell-catalog-core.js');
-const batch = globalThis.LuminousPierreSpellBatchRuntime || require('../js/spell-batch-pierre-runtime.js');
+await import('../js/spell-catalog-core.js');
+await import('../js/role-spell-catalog-core.js');
+await import('../js/spell-batch-pierre-runtime.js');
+
+const combatCatalog = globalThis.LuminousSpellCatalog;
+const roleCatalog = globalThis.LuminousRoleSpellCatalog;
+const batch = globalThis.LuminousPierreSpellBatchRuntime;
 
 const addedCombatIds = [
   'mind_sliver', 'chill_touch', 'absorb_elements', 'shield', 'thunderwave',
