@@ -38,6 +38,7 @@
         weaponId,
         combatRange: skillRange > 1 ? 'ranged' : 'melee',
         statusFamily: pierced > 0 ? 'pierced' : null,
+        goblinRuntimeManagedStatusEffects: pierced > 0,
         ...(ammoType ? { ammoType } : {}),
         ...(pierced > 0 ? { piercedCountOnHit: pierced, piercedBuild: 'bind_bleed' } : {}),
         ...clone(metadata),
@@ -112,7 +113,7 @@
     return payload;
   }
 
-  const api = Object.freeze({ version: '1.0.0', DEFINITIONS, LOADOUTS, get, list, loadout, finalPower, firebasePayload });
+  const api = Object.freeze({ version: '1.0.1', DEFINITIONS, LOADOUTS, get, list, loadout, finalPower, firebasePayload });
   global.LuminousGoblinTier1SkillCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
