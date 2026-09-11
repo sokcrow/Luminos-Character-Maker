@@ -65,7 +65,8 @@
 
     const category = normalize(item.category || item.tipo_categoria || item.itemType || item.type);
     const subtype = normalize(item.subtype || item.subType || item.armorType || item.weaponType);
-    const haystack = `${category} ${subtype} ${(item.tags || []).join ? item.tags.join(" ") : item.tags || ""}`.toLowerCase();
+    const rawTags = Array.isArray(item.tags) ? item.tags.join(" ") : String(item.tags || item.tag || "");
+    const haystack = `${category} ${subtype} ${rawTags}`.toLowerCase();
 
     if (category === "weapon") {
       if (/ranged|firearm|pistol|revolver|rifle|shotgun|smg|machinegun|bow|crossbow|launcher/.test(haystack)) return "weapon_ranged";
