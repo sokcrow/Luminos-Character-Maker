@@ -19,10 +19,21 @@ jobs:
         with:
           ref: feat/item-database-v10-runtime
           fetch-depth: 0
-      - name: Rebuild generated catalog
+      - name: Verify and rebuild generated catalog
         shell: bash
         run: |
           set -euo pipefail
+          cat > /tmp/item-catalog.sha256 <<'SUMS'
+          a944724548411c845cbf627e316ce0200c80f3f210a03e884f94f5717b5ce81e  tmp/item-catalog-v10/part-01.b64
+          8b8c5836e4874715ee43f689411a04f0f563372e424071b20cfc57786c3d3547  tmp/item-catalog-v10/part-02.b64
+          9bcdb416fa38213debbc86eaca19faaa8fee6ccfa2540de5c9d320de6fdb28d5  tmp/item-catalog-v10/part-03.b64
+          84ac9dcc9cc359927f5d517e094a99822f97d5dacf621dfa212aa9238a16a163  tmp/item-catalog-v10/part-04.b64
+          d3f406a9f93ec38b567718cf5ce85e1e24c520b4cc23a3f1a99640d1be2b84ca  tmp/item-catalog-v10/part-05.b64
+          b921848afb0431c9a008a48d1de2e254a7e0057a5203274e905054ae74fa5449  tmp/item-catalog-v10/part-06.b64
+          ab274998e6cd590766beac0b2da70164d81154915073b77d4cda669dce8e6664  tmp/item-catalog-v10/part-07.b64
+          b5db651e6bc15b2a68cb427ef106a846430a8f2f80cccb859ecb9c4fbeadd29e  tmp/item-catalog-v10/part-08.b64
+          SUMS
+          sha256sum -c /tmp/item-catalog.sha256
           cat tmp/item-catalog-v10/part-*.b64 | base64 --decode | gzip --decompress > js/item-catalog-v10.js
           node --check js/item-catalog-v10.js
           node - <<'NODE'
