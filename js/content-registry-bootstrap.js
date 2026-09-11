@@ -101,6 +101,7 @@
     const optionalCatalogs = [
       ["skill", modules.skillCatalog || global.LuminousSkillCatalog, "skill-catalog"],
       ["spell", modules.spellCatalog || global.LuminousSpellCatalog, "spell-catalog"],
+      ["role_spell", modules.roleSpellCatalog || global.LuminousRoleSpellCatalog, "role-spell-catalog"],
       ["item", modules.itemCatalog || global.LuminousItemCatalog, "item-catalog"],
       ["equipment", modules.equipmentCatalog || global.LuminousEquipmentCatalog, "equipment-catalog"],
     ];
