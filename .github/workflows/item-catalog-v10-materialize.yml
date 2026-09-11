@@ -1,0 +1,53 @@
+name: Materialize Item Catalog V10
+
+on:
+  push:
+    branches:
+      - feat/item-database-v10-runtime
+    paths:
+      - 'tmp/item-catalog-v10/**'
+      - '.github/workflows/item-catalog-v10-materialize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/item-database-v10-runtime
+          fetch-depth: 0
+      - name: Rebuild generated catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat tmp/item-catalog-v10/part-*.b64 | base64 --decode | gzip --decompress > js/item-catalog-v10.js
+          node --check js/item-catalog-v10.js
+          node - <<'NODE'
+          require('./js/content-registry.js');
+          require('./js/item-icon-registry.js');
+          const catalog = require('./js/item-catalog-v10.js');
+          if (catalog.count !== 560) throw new Error(`Expected 560 definitions, got ${catalog.count}`);
+          const registered = catalog.registerAll();
+          if (registered.length !== 560) throw new Error(`Expected 560 registered definitions, got ${registered.length}`);
+          const invalid = catalog.list().filter((item) => !globalThis.LuminousItemIconRegistry.has(item.iconGroup));
+          if (invalid.length) throw new Error(`Invalid icon groups: ${invalid.map((x) => x.canonicalId).join(', ')}`);
+          console.log(`Item Catalog V10 materialized: ${catalog.count}/560 definitions, ${invalid.length} invalid icon groups`);
+          NODE
+      - name: Commit generated catalog and remove staging payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf tmp/item-catalog-v10
+          rm -f .github/workflows/item-catalog-v10-materialize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Nothing to commit.'
+            exit 0
+          fi
+          git commit -m 'feat(items): materialize canonical V10 item catalog'
+          git push origin HEAD:feat/item-database-v10-runtime
