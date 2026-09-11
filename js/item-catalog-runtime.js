@@ -19,6 +19,14 @@
   const overrides = new Map();
   let firebaseBinding = null;
 
+  const RUNTIME_CATEGORY = Object.freeze({
+    weapon_chassis: "weapon",
+    armor_chassis: "armor",
+    accessory_chassis: "accessory",
+    food_drink: "consumable",
+    module: "upgrade"
+  });
+
   function allData() {
     const chunks = Array.isArray(global.LuminousItemCatalogV10Chunks) ? global.LuminousItemCatalogV10Chunks : [];
     return chunks.flatMap((chunk) => Array.isArray(chunk) ? chunk : []);
@@ -31,6 +39,11 @@
     const category = String(definition.category || definition.tipo_categoria || "item").toLowerCase();
     const type = category === "module" || category === "upgrade" ? "module" : "item";
     return `${type}:${normalize(raw)}`;
+  }
+
+  function runtimeCategoryOf(definition = {}) {
+    const category = String(definition.category || definition.tipo_categoria || "item").trim().toLowerCase();
+    return RUNTIME_CATEGORY[category] || category || "item";
   }
 
   function normalizeDefinition(input = {}, fallbackId = "") {
@@ -46,10 +59,14 @@
     definition.descripcion = definition.description;
     definition.price = Number(definition.price ?? definition.basePriceAhn ?? definition.valorBase ?? 0) || 0;
     definition.basePriceAhn = Number(definition.basePriceAhn ?? definition.price ?? 0) || 0;
+    definition.valorBase = definition.price;
     definition.stashStackLimit = Math.max(1, Number(definition.stashStackLimit ?? definition.stackMax ?? definition.max_stash ?? 99) || 99);
     definition.activeStackLimit = Math.max(1, Number(definition.activeStackLimit ?? definition.inventoryMax ?? definition.max_inventory ?? 2) || 2);
     definition.stackMax = definition.stashStackLimit;
     definition.inventoryMax = definition.activeStackLimit;
+    definition.max_stash = definition.stashStackLimit;
+    definition.max_inventory = definition.activeStackLimit;
+    definition.tipo_categoria = runtimeCategoryOf(definition);
     if (typeof definition.tags === "string") definition.tags = definition.tags.split(/[|,]/g).map((tag) => tag.trim()).filter(Boolean);
     if (!Array.isArray(definition.tags)) definition.tags = [];
     const iconRegistry = icons();
@@ -117,7 +134,7 @@
     if (ref && typeof ref === "object") {
       const id = canonicalIdOf(ref);
       const definition = id ? get(id) : null;
-      return definition ? { ...definition, ...clone(ref), canonicalId: id, definitionId: id } : clone(ref);
+      return definition ? normalizeDefinition({ ...definition, ...clone(ref), canonicalId: id, definitionId: id }, id) : normalizeDefinition(ref, id);
     }
     return get(ref);
   }
@@ -216,6 +233,7 @@
   const api = Object.freeze({
     version: 10,
     source: "Luminous_Item_Database_Runtime_V10.xlsx",
+    runtimeCategoryOf,
     normalizeDefinition,
     installBaseCatalog,
     resolveDefinition,
