@@ -72,7 +72,24 @@
     }
   }
 
-  function ensureDmItemInstanceEditorAssets() {
+  function ensureScript(id, src, globalName) {
+    return new Promise((resolve, reject) => {
+      if (globalName && global[globalName]) return resolve(global[globalName]);
+      let script = doc.getElementById(id);
+      if (!script) {
+        script = doc.createElement("script");
+        script.id = id;
+        script.src = src;
+        script.async = false;
+        doc.head.appendChild(script);
+      }
+      if (globalName && global[globalName]) return resolve(global[globalName]);
+      script.addEventListener("load", () => resolve(globalName ? global[globalName] : script), { once: true });
+      script.addEventListener("error", () => reject(new Error(`No se pudo cargar ${src}`)), { once: true });
+    });
+  }
+
+  async function ensureDmItemInstanceEditorAssets() {
     if (!doc?.head || !doc.getElementById("modal-inventario-dm")) return;
 
     if (!doc.getElementById("dm-item-instance-editor-stylesheet")) {
@@ -83,14 +100,31 @@
       link.dataset.ui = "dm-item-instance-editor";
       doc.head.appendChild(link);
     }
+    if (!doc.getElementById("dm-item-catalog-editor-stylesheet")) {
+      const link = doc.createElement("link");
+      link.id = "dm-item-catalog-editor-stylesheet";
+      link.rel = "stylesheet";
+      link.href = "css/dm-item-catalog-editor.css";
+      link.dataset.ui = "dm-item-catalog-editor";
+      doc.head.appendChild(link);
+    }
 
-    if (!doc.getElementById("dm-item-instance-editor-script")) {
-      const script = doc.createElement("script");
-      script.id = "dm-item-instance-editor-script";
-      script.src = "js/dm-item-instance-editor.js";
-      script.async = false;
-      script.dataset.ui = "dm-item-instance-editor";
-      doc.head.appendChild(script);
+    try {
+      await ensureScript("content-registry-script", "js/content-registry.js", "LuminousContentRegistry");
+      await ensureScript("item-icon-registry-script", "js/item-icon-registry.js", "LuminousItemIconRegistry");
+      await ensureScript("item-catalog-v10-data-script", "js/item-catalog-v10-data.js", "LuminousItemCatalogV10Ready");
+      await global.LuminousItemCatalogV10Ready;
+      await ensureScript("item-catalog-runtime-script", "js/item-catalog-runtime.js", "LuminousItemCatalog");
+      global.LuminousItemCatalog?.autoBindFirebase?.();
+      await ensureScript("item-runtime-engine-script", "js/item-runtime-engine.js", "LuminousItemRuntime");
+      await ensureScript("item-inventory-runtime-script", "js/item-inventory-runtime.js", "LuminousItemInventoryRuntime");
+      await ensureScript("item-catalog-inventory-bridge-script", "js/item-catalog-inventory-bridge.js", "LuminousItemCatalogInventoryBridge");
+      await ensureScript("item-persistence-runtime-script", "js/item-persistence-runtime.js", "LuminousItemPersistenceRuntime");
+      await ensureScript("item-realtime-sync-script", "js/item-realtime-sync.js", "LuminousItemRealtimeSync");
+      await ensureScript("dm-item-instance-editor-script", "js/dm-item-instance-editor.js", "LuminousDmItemInstanceEditor");
+      await ensureScript("dm-item-catalog-editor-script", "js/dm-item-catalog-editor.js", "LuminousDmItemCatalogEditor");
+    } catch (error) {
+      console.error("[Luminous] DM Item Catalog bootstrap failed:", error);
     }
   }
 
