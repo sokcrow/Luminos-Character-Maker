@@ -15,7 +15,7 @@
     return { index, type: 'normal', status: 'active', effects: clone(effects) };
   }
 
-  function attack({ id, name, weaponId, variant, basePower, coinPower, coinAmount, damageType, skillRange, ammoType = null, pierced = 0, metadata = {} }) {
+  function attack({ id, name, weaponId, variant, basePower, coinPower, coinAmount, damageType, skillRange, ammoType = null, pierced = 0, aiEstimate = null, metadata = {} }) {
     const coins = Array.from({ length: coinAmount }, (_, index) => coin(index));
     if (pierced > 0 && coins.length) coins[coins.length - 1].effects.push(statusEffect('pierced', 0, pierced));
     const resourceCosts = ammoType
@@ -29,6 +29,7 @@
       sourceType: 'skill', sourceId: id, isItemSkill: false, isDefense: false, defenseSubtype: '',
       isClashable: true, isUnclashable: false, isIndiscriminate: false, isTargetFixed: false,
       requiresUnlock: false, resourceCosts, effects: [], coins, evolutionChain: null, schemaVersion: 2,
+      ...(aiEstimate ? { aiEstimate: clone(aiEstimate) } : {}),
       metadata: {
         canonicalUnitSkill: true,
         species: 'goblin',
@@ -57,7 +58,14 @@
       coinAmount: 2,
       damageType: 'cortante',
       skillRange: 1,
-      metadata: { goblinMultiAttackEligible: true },
+      aiEstimate: {
+        advantage: 1.5,
+        consumesTags: ['goblin_bind_setup', 'goblin_bleed_setup', 'bind', 'bleed'],
+      },
+      metadata: {
+        goblinMultiAttackEligible: true,
+        goblinBindBleedPayoff: { bindFinalPower: 1, bleedFinalPower: 1, maxFinalPowerBonus: 2 },
+      },
     })),
     goblin_shortbow_shot: Object.freeze(attack({
       id: 'goblin_shortbow_shot',
@@ -71,6 +79,10 @@
       skillRange: 6,
       ammoType: 'arrows',
       pierced: 1,
+      aiEstimate: {
+        advantage: 2,
+        producesTags: ['pierced', 'goblin_bind_setup', 'goblin_bleed_setup'],
+      },
     })),
     goblin_javelin_throw: Object.freeze(attack({
       id: 'goblin_javelin_throw',
@@ -84,6 +96,10 @@
       skillRange: 5,
       ammoType: 'javelin',
       pierced: 1,
+      aiEstimate: {
+        advantage: 2,
+        producesTags: ['pierced', 'goblin_bind_setup', 'goblin_bleed_setup'],
+      },
       metadata: { thrownProjectile: true },
     })),
   });
@@ -113,7 +129,7 @@
     return payload;
   }
 
-  const api = Object.freeze({ version: '1.0.1', DEFINITIONS, LOADOUTS, get, list, loadout, finalPower, firebasePayload });
+  const api = Object.freeze({ version: '1.1.0', DEFINITIONS, LOADOUTS, get, list, loadout, finalPower, firebasePayload });
   global.LuminousGoblinTier1SkillCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
