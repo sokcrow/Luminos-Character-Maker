@@ -22,6 +22,10 @@ jobs:
       - name: AI module syntax
         run: |
           node --check js/creature-type-catalog.js
+          node --check js/spell-targeting-language.js
+          node --check js/combat-spell-loadout-074.js
+          node --check js/battle-viewer-spell-adapter-074.js
+          node --check js/battle-viewer-spell-runtime-074.js
           node --check js/individual-goap-combat-ai.js
           node --check js/unit-ai-kit-adapter.js
           node --check js/unit-ai-universal-actions.js
