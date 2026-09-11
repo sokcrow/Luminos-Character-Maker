@@ -9,6 +9,7 @@ on:
       - js/inventory-hud-v2.js
       - js/dm-item-instance-editor.js
       - js/dm-player-dnd-studio-hotfix.js
+      - js/item-icon-registry.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -16,12 +17,14 @@ on:
       - js/player-ux-polish.js
       - css/inventory-hud-v2.css
       - css/dm-item-instance-editor.css
+      - tests/item-icon-registry-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
   push:
     branches:
       - refactor/player-inventory-runtime-cutover
+      - feat/item-icon-families
 
 jobs:
   inventory-runtime-cutover:
@@ -37,10 +40,13 @@ jobs:
           node --check js/inventory-hud-v2.js
           node --check js/dm-item-instance-editor.js
           node --check js/dm-player-dnd-studio-hotfix.js
+          node --check js/item-icon-registry.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
           node --check js/item-realtime-sync.js
+      - name: Item icon registry smoke
+        run: node tests/item-icon-registry-smoke.cjs
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
