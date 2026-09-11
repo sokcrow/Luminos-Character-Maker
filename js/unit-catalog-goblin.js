@@ -10,6 +10,7 @@
   const rankRuntime = global.LuminousUnitRankRuntime || safeRequire('./unit-rank-runtime.js');
   const rangedAmmo = global.LuminousUniversalRangedAmmoRuntime || safeRequire('./universal-ranged-ammo-runtime.js');
   const goblinRuntime = global.LuminousGoblinUnitRuntime || safeRequire('./goblin-unit-runtime.js');
+  const skillCatalog = global.LuminousGoblinTier1SkillCatalog || safeRequire('./skill-catalog-goblin-tier1.js');
 
   const STAGGER_THRESHOLDS = Object.freeze([75, 50, 25]);
   const RACIAL_TRAIT_IDS = Object.freeze(['goblin_fury_of_small', 'goblin_nimble_escape']);
@@ -40,14 +41,16 @@
   }));
 
   function racialTraits() { return RACIAL_TRAIT_IDS.map((id) => ({ id, source: 'racial_trait_catalog' })); }
-  function weaponRef(id, range, options = {}) {
+  function skillRefs(unitId) { return skillCatalog?.loadout?.(unitId) || []; }
+  function weaponRef(id, range, skillId, options = {}) {
     return {
       weaponId: id,
+      skillId,
       range,
-      skillRange: range === 'ranged' ? null : 1,
-      canonicalWeaponSkillPending: true,
+      skillRange: range === 'ranged' ? Number(options.skillRange || 1) : 1,
+      canonicalWeaponSkillPending: false,
       ...(options.ammoType ? { ammoType: options.ammoType, ammoPerSkill: 1 } : {}),
-      ...(options.pierced ? { onHitStatusId: 'pierced', onHitStatusCount: null, onHitStatusCountPending: true } : {}),
+      ...(options.pierced ? { onHitStatusId: 'pierced', onHitStatusCount: Number(options.piercedCount || 1), onHitStatusCountPending: false } : {}),
     };
   }
 
@@ -64,17 +67,20 @@
       rankProfiles: UNIVERSAL_RANKS,
       staggerThresholds: STAGGER_THRESHOLDS,
       visual: Object.freeze({ spriteUrl: '', spritePending: true }),
+      action_slots: Object.freeze(skillRefs('goblin')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 7, hpCoefficient: 0.21,
+        build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'arrows', amount: 10 }]),
         ammunition: Object.freeze({ arrows: Object.freeze({ type: 'single', icon: 'https://imgur.com/ivdNbBA.png' }) }),
         weaponLoadout: Object.freeze([
-          Object.freeze(weaponRef('scimitar', 'melee')),
-          Object.freeze(weaponRef('shortbow', 'ranged', { ammoType: 'arrows', pierced: true })),
+          Object.freeze(weaponRef('scimitar', 'melee', 'goblin_scimitar_slash')),
+          Object.freeze(weaponRef('shortbow', 'ranged', 'goblin_shortbow_shot', { skillRange: 6, ammoType: 'arrows', pierced: true, piercedCount: 1 })),
         ]),
+        skills: Object.freeze(skillRefs('goblin')),
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: true, physicalProfilePending: true, speedPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
       schemaVersion: 2,
     }),
 
@@ -90,19 +96,22 @@
       rankProfiles: UNIVERSAL_RANKS,
       staggerThresholds: STAGGER_THRESHOLDS,
       visual: Object.freeze({ spriteUrl: '', spritePending: true }),
+      action_slots: Object.freeze(skillRefs('goblin_boss')),
       mechanics: Object.freeze({
         hpModel: 'chassis_coefficient', hpBase: 21, hpCoefficient: 0.24,
+        build: Object.freeze(['pierced', 'bind', 'bleed']),
         ammoLoadout: Object.freeze([{ id: 'javelin', amount: 6 }]),
         ammunition: Object.freeze({ javelin: Object.freeze({ type: 'single', icon: 'https://imgur.com/3wBN5qk.png' }) }),
         weaponLoadout: Object.freeze([
-          Object.freeze(weaponRef('scimitar', 'melee')),
-          Object.freeze(weaponRef('javelin', 'ranged', { ammoType: 'javelin', pierced: true })),
+          Object.freeze(weaponRef('scimitar', 'melee', 'goblin_scimitar_slash')),
+          Object.freeze(weaponRef('javelin', 'ranged', 'goblin_javelin_throw', { skillRange: 5, ammoType: 'javelin', pierced: true, piercedCount: 1 })),
         ]),
+        skills: Object.freeze(skillRefs('goblin_boss')),
         multiAttack: MULTI_ATTACK.mechanics || null,
         redirectAttack: REDIRECT_ATTACK.mechanics || null,
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
-      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: true, physicalProfilePending: true, speedPending: true }),
+      metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: true, speedPending: true }),
       schemaVersion: 2,
     }),
   });
@@ -118,6 +127,20 @@
     const value = Math.floor(Number(level));
     if (!Number.isFinite(value) || value < 1) throw new Error(`UNIT_LEVEL_OUT_OF_RANGE:${level}`);
     return value;
+  }
+  function resolveSkill(skillId, rank) {
+    if (!skillCatalog?.get) throw new Error('GOBLIN_SKILL_CATALOG_REQUIRED');
+    const skill = skillCatalog.get(skillId);
+    if (!skill) throw new Error(`UNKNOWN_GOBLIN_SKILL:${skillId}`);
+    const profile = UNIVERSAL_RANKS[normalizeRank(rank)];
+    skill.basePower += Number(profile.basePowerBonus || 0);
+    const boost = (effects) => (effects || []).forEach((effect) => {
+      if (effect?.type === 'status' && Number(effect.count) > 0) effect.count = Number(effect.count) + Number(profile.applyBonus || 0);
+    });
+    boost(skill.effects);
+    (skill.coins || []).forEach((entry) => boost(entry.effects));
+    skill.metadata = { ...(skill.metadata || {}), unitRank: profile.id, rankBasePowerBonus: profile.basePowerBonus, rankApplyBonus: profile.applyBonus };
+    return skill;
   }
   function resolve(id, options = {}) {
     const unit = get(id);
@@ -136,6 +159,7 @@
     unit.commandProfile = { commandLevel: profile.commandLevel, aiCoordination: profile.aiCoordination, targetPriority: profile.targetPriority, turnEndSpRecovery: profile.turnEndSpRecovery };
     unit.hp = maxHp;
     unit.maxHp = maxHp;
+    unit.resolvedSkills = skillRefs(id).map((skillId) => resolveSkill(skillId, rank));
     unit.mechanics = { ...unit.mechanics, hp: maxHp, maxHp, level: effectiveLevel, runtimeLevel: level, rank, commandLevel: profile.commandLevel, basePowerBonus: profile.basePowerBonus, statusApplyBonus: profile.applyBonus };
     if (options.initializeEncounter === true) rangedAmmo?.onEncounterStart?.(unit);
     return unit;
@@ -146,10 +170,14 @@
     list().forEach((unit) => { payload[unit.id] = unit; });
     return payload;
   }
+  function firebaseSkillPayload(schema = global.CombatSkillSchema) {
+    if (!skillCatalog?.firebasePayload) throw new Error('GOBLIN_SKILL_CATALOG_REQUIRED');
+    return skillCatalog.firebasePayload(schema);
+  }
 
   const api = Object.freeze({
-    version: '1.0.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
-    AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolve, firebasePayload,
+    version: '1.1.0', STAGGER_THRESHOLDS, RACIAL_TRAIT_IDS, GOBLIN_SCORES, GOBLIN_BOSS_SCORES, UNIVERSAL_RANKS,
+    AMMO_ARROWS, AMMO_JAVELIN, MULTI_ATTACK, REDIRECT_ATTACK, DEFINITIONS, get, list, resolveSkill, resolve, firebasePayload, firebaseSkillPayload,
   });
 
   global.LuminousGoblinUnitCatalog = api;
