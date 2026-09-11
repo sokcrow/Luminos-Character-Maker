@@ -21,6 +21,7 @@ jobs:
           node-version: '24'
       - name: AI module syntax
         run: |
+          node --check js/creature-type-catalog.js
           node --check js/individual-goap-combat-ai.js
           node --check js/unit-ai-kit-adapter.js
           node --check js/unit-ai-universal-actions.js
