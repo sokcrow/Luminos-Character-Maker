@@ -213,6 +213,24 @@
     return action;
   }
 
+  function explicitTarget(base, explicitTargetSlotId, plan = {}, actor = {}) {
+    const data = combatData(base);
+    const selfTarget = normalizeId(plan?.data?.targetType || plan?.data?.targetingType) === "self";
+    const targetId = selfTarget
+      ? clean(actor.id || actor.unitId)
+      : clean(plan.targetId || unitIdFromSlot(base, explicitTargetSlotId));
+    return { targetId, target: data[targetId] || (targetId === clean(actor.id || actor.unitId) ? actor : null) };
+  }
+
+  function validateExplicitSpellTarget(base, explicitTargetSlotId, plan, actor, spell) {
+    const runtime = spellLoadoutRuntime();
+    if (!runtime?.validateSpellTarget) return { valid: false, reason: "spell_targeting_language_required" };
+    const resolved = explicitTarget(base, explicitTargetSlotId, plan, actor);
+    if (!resolved.target) return { valid: true, reason: null, ...resolved };
+    const validation = runtime.validateSpellTarget(spell, resolved.target);
+    return { ...validation, ...resolved };
+  }
+
   function compileCanonicalSpell(base, slotId, explicitTargetSlotId, plan, actor, data) {
     const embedded = plan.combatAction || (plan.schemaVersion && plan.source && plan.resolution ? plan : null);
     if (embedded) return { action: null, plan, reason: "embedded_spell_action_forbidden" };
@@ -224,6 +242,11 @@
 
     const materialized = materializeSpell(actor, trusted.classId, trusted.spell, slotLevel, plan);
     if (!materialized.ok) return { action: null, plan, reason: materialized.reason, kind: "spell", spellId: trusted.spellId, choices: materialized.choices || [] };
+
+    const targetValidation = validateExplicitSpellTarget(base, explicitTargetSlotId, { ...plan, data: materialized.definition }, actor, materialized.definition);
+    if (!targetValidation.valid) {
+      return { action: null, plan, reason: String(targetValidation.reason || "spell_target_invalid_creature_type").toLowerCase(), kind: "spell", spellId: trusted.spellId, targetValidation };
+    }
 
     const trustedPlan = {
       ...clone(plan), type: "spell", kind: "spell", spellId: trusted.spellId,
@@ -265,6 +288,7 @@
       ...base,
       __spellAdapter074: true,
       spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel, canonicalCastResource, materializeSpell,
+      validateExplicitSpellTarget,
       compilePlan(slotId, explicitTargetSlotId = null, providedPlan = null) {
         const plan = providedPlan || planForSlot(base, slotId);
         if (!plan) return base.compilePlan(slotId, explicitTargetSlotId, providedPlan);
@@ -282,7 +306,7 @@
   const api = Object.freeze({
     version: VERSION, OVERCAST_PREFIX, spellIdForPlan, isSpellPlan, trustedSpell, requestedSlotLevel,
     canonicalCastResource, actorLevel, spellcastingValues, materializeSpell, applyCanonicalSave,
-    applyCanonicalMetadata, compileCanonicalSpell, install
+    applyCanonicalMetadata, validateExplicitSpellTarget, compileCanonicalSpell, install
   });
   install();
   return api;
