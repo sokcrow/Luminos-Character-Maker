@@ -97,10 +97,17 @@
 
   function prepareConditionalPowerSkill(attacker, skill = {}, defender = {}) {
     const prepared = clone(skill);
-    const rules = prepared.metadata?.goblinConditionalPower;
-    if (!isGoblin(attacker) || !rules) return prepared;
+    if (!isGoblin(attacker)) return prepared;
 
     const snapshot = targetStatusSnapshot(defender);
+    prepared.metadata = {
+      ...(prepared.metadata || {}),
+      goblinTargetStatusSnapshot: clone(snapshot),
+    };
+
+    const rules = prepared.metadata?.goblinConditionalPower;
+    if (!rules) return prepared;
+
     const applied = { targetId: unitId(defender) || null, snapshot: clone(snapshot), finalPower: [], coinPower: [] };
 
     for (const rule of asArray(rules.finalPower)) {
@@ -131,7 +138,6 @@
 
     prepared.metadata = {
       ...(prepared.metadata || {}),
-      goblinTargetStatusSnapshot: clone(snapshot),
       goblinConditionalPowerApplied: applied,
     };
     return prepared;
@@ -384,7 +390,7 @@
   function install() { return installCombatBridge(); }
 
   const api = Object.freeze({
-    version: '2.0.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
+    version: '2.0.1', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
     prepareMultiAttackSkill, statusCount, statusActive, targetStatusSnapshot, requirementsMet, prepareConditionalPowerSkill,
     prepareBindBleedPayoffSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart,
     tagMatches, isGoblinManagedSkill, effectRequirementsMet, applyStatusEffect, applyManagedSkillEffects,
