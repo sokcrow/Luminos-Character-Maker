@@ -7,6 +7,7 @@
     try { global.LuminousContentRegistryBootstrap?.registerGenericCatalog?.("spell", catalog, "spell-catalog"); } catch (_) {}
     if (typeof require === "function") {
       try { require("./spell-batch-pierre-runtime.js"); } catch (_) {}
+      try { require("./spell-batch-angelo-runtime.js"); } catch (_) {}
     }
     if (global.document) {
       const load = (id, src) => {
@@ -17,6 +18,7 @@
       };
       if (!global.LuminousRoleSpellCatalog) load("role-spell-catalog-core-script", "js/role-spell-catalog-core.js");
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
+      if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
     }
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
@@ -84,6 +86,23 @@
       mechanics: {
         levelCoinPower: { every: 20, amount: 1 },
         onHitStatusFromSpellMod: { status: "decay", countDivisor: 2, minimum: 1, element: "necrotic" }
+      },
+      effects: []
+    }),
+
+    vicious_mockery: Object.freeze({
+      id: "vicious_mockery", name: "Vicious Mockery", nombre: "Burla Dañina",
+      level: 0, spellLevel: 0, cantrip: true,
+      classIds: ["bard"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "gloom", damageType: "perforante",
+      targetingType: "focused_attack", attackWeight: 1, atkWeight: 1,
+      basePower: 6, coinPower: 5, coinAmount: 1, coins: 1,
+      mechanics: {
+        levelCoinPower: { every: 20, amount: 1 },
+        onHitLevelStatus: { every: 20, base: 1, status: "sinking", potencyAndCount: true },
+        onHitClashPowerDown: 2,
+        clashPowerDownExpires: "next_clash_end"
       },
       effects: []
     }),
@@ -203,6 +222,24 @@
       effects: []
     }),
 
+    silvery_barbs: Object.freeze({
+      id: "silvery_barbs", name: "Silvery Barbs", nombre: "Púas Plateadas",
+      level: 1, spellLevel: 1, cantrip: false,
+      classIds: ["bard", "sorcerer", "wizard"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetingType: "multi", targetType: "multi", attackWeight: 2, atkWeight: 2,
+      isUnclashable: true, castingTime: "reaction",
+      mechanics: {
+        trigger: "combat_start", distinctTargets: true,
+        badTarget: status("on_combat_start", "silvery_barbs_bad", 0, 1),
+        goodTarget: status("on_combat_start", "silvery_barbs_good", 0, 1),
+        finalPower: { bad: -2, good: 2 },
+        consumeOn: ["clash_end", "save_end", "check_end"]
+      },
+      effects: []
+    }),
+
     expeditious_retreat: Object.freeze({
       id: "expeditious_retreat", name: "Expeditious Retreat", nombre: "Retirada Expeditiva",
       level: 1, spellLevel: 1, cantrip: false,
@@ -277,6 +314,83 @@
           retreat: { action: "retreat", slots: 1 },
           do_nothing: { action: "lock_slot", slots: 1 }
         }
+      },
+      effects: []
+    }),
+
+    calm_emotions: Object.freeze({
+      id: "calm_emotions", name: "Calm Emotions", nombre: "Calmar Emociones",
+      level: 2, spellLevel: 2, cantrip: false,
+      classIds: ["bard", "cleric"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetingType: "aoe", targetType: "all_deployed", attackWeight: 0, atkWeight: 0,
+      isUnclashable: true, save: { abilityId: "cha", onSuccess: "negates", enemyOnly: true },
+      concentration: true,
+      mechanics: {
+        trigger: "turn_start", targets: "all_deployed", indiscriminate: true,
+        allies: { resetSpTo: 0, removeStatuses: ["charmed", "frightened"] },
+        enemies: { saveAbility: "cha", onFailure: { resetSpTo: 0, removeStatuses: ["charmed", "frightened"] } },
+        duration: "concentration_slot"
+      },
+      effects: []
+    }),
+
+    mirror_image: Object.freeze({
+      id: "mirror_image", name: "Mirror Image", nombre: "Imagen Múltiple",
+      level: 2, spellLevel: 2, cantrip: false,
+      classIds: ["sorcerer", "warlock", "wizard"],
+      school: "illusion", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetType: "self", targetingType: "self", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, concentration: false,
+      mechanics: {
+        onUse: status("on_use", "mirror_image", 3, 10, "self", { mode: "set" }),
+        beforeGettingHit: { consumePotency: 1, defense: "evade", defensePowerBonus: 50, perHit: true },
+        onTurnEnd: { loseCount: 1 },
+        onEncounterEnd: { removeStatus: "mirror_image" }
+      },
+      effects: []
+    }),
+
+    hold_person: Object.freeze({
+      id: "hold_person", name: "Hold Person", nombre: "Inmovilizar Persona",
+      level: 2, spellLevel: 2, cantrip: false,
+      classIds: ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"],
+      school: "enchantment", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetingType: "multi", targetType: "multi", attackWeight: 1, atkWeight: 1,
+      isUnclashable: true, save: { abilityId: "wis", onSuccess: "negates" },
+      concentration: true,
+      mechanics: {
+        targetRequirement: { creatureType: "humanoid" },
+        onFailedSave: status("on_failed_save", "paralyzed", 0, 10),
+        paralyzedOverride: { lockAllActionSlots: true, speed: 0, cannotUseReactions: true },
+        repeatSaveAtTurnEnd: { abilityId: "wis", onSuccess: "remove", onFailureLoseCount: 1 },
+        duration: "concentration_slot"
+      },
+      upcast: { additionalTargetsPerLevel: 1 },
+      effects: []
+    }),
+
+    hypnotic_pattern: Object.freeze({
+      id: "hypnotic_pattern", name: "Hypnotic Pattern", nombre: "Patrón Hipnótico",
+      level: 3, spellLevel: 3, cantrip: false,
+      classIds: ["bard", "sorcerer", "warlock", "wizard"],
+      school: "illusion", contexts: ["combat"],
+      sinAffinity: "sinless", damageType: null,
+      targetingType: "aoe", targetType: "area", attackWeight: 0, atkWeight: 0,
+      isUnclashable: true, save: { abilityId: "wis", onSuccess: "negates" },
+      concentration: true,
+      mechanics: {
+        targetingCoin: { coins: 1, headsChance: "caster_sp_formula", heads: "intended_enemies_only", tails: "indiscriminate_including_allies_and_caster" },
+        onFailedSave: status("on_failed_save", "hypnotic_pattern", 0, 10),
+        statusMaxCount: 10,
+        whileAffected: { lockAllActionSlots: true, speed: 1, cannotUseAnyAction: true },
+        whenDamaged: { removeCount: 10 },
+        alliedAssistRemoves: true,
+        onTurnEnd: { loseCount: 1 },
+        duration: "concentration_slot"
       },
       effects: []
     }),
