@@ -163,7 +163,7 @@ const bossResult = resolver.resolveCombatAction(scimitarAction, {
   engine,
 });
 assert.equal(bossResult.resolved, true, bossResult.reason || 'Goblin Boss Scimitar should resolve');
-const bossEngineResult = bossResult.attack?.results?.[0]?.result;
+const bossEngineResult = bossResult.resolution?.results?.[0]?.result;
 assert.equal(bossEngineResult?.multiAttackReuse?.traitId, 'goblin_multi_attack');
 assert.equal(bossEngineResult?.multiAttackReuse?.timesRequested, 1);
 assert.equal(bossEngineResult?.multiAttackReuse?.timesResolved, 1);
