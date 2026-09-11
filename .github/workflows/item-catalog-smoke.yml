@@ -1,0 +1,29 @@
+name: Item Catalog Smoke
+
+on:
+  pull_request:
+    paths:
+      - js/item-icon-registry.js
+      - js/item-healing-catalog.js
+      - tests/item-icon-healing-catalog-smoke.mjs
+      - docs/items/icon-groups-and-hp-healing-batch.md
+      - .github/workflows/item-catalog-smoke.yml
+  push:
+    branches:
+      - feature/item-icon-groups-hp-healing-batch
+
+jobs:
+  item-catalog-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax validation
+        run: |
+          node --check js/item-icon-registry.js
+          node --check js/item-healing-catalog.js
+          node --check tests/item-icon-healing-catalog-smoke.mjs
+      - name: Item catalog smoke
+        run: node tests/item-icon-healing-catalog-smoke.mjs
