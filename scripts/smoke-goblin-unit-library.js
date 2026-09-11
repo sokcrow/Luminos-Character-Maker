@@ -1,13 +1,23 @@
-'use strict';
+import assert from 'node:assert/strict';
 
-const assert = require('assert');
-require('../js/status-library.js');
-require('../js/status-engine.js');
-const schema = require('../js/combat-skill-schema.js');
-const ammo = require('../js/universal-ranged-ammo-runtime.js');
-const goblinRuntime = require('../js/goblin-unit-runtime.js');
-const skills = require('../js/skill-catalog-goblin-tier1.js');
-const units = require('../js/unit-catalog-goblin.js');
+await import('../js/status-library.js');
+await import('../js/status-engine.js');
+await import('../js/combat-skill-schema.js');
+await import('../js/universal-ranged-ammo-runtime.js');
+await import('../js/goblin-unit-runtime.js');
+await import('../js/skill-catalog-goblin-tier1.js');
+await import('../js/unit-rank-runtime.js');
+await import('../js/unit-catalog-goblin.js');
+
+const schema = globalThis.CombatSkillSchema;
+const ammo = globalThis.LuminousUniversalRangedAmmoRuntime;
+const goblinRuntime = globalThis.LuminousGoblinUnitRuntime;
+const skills = globalThis.LuminousGoblinTier1SkillCatalog;
+const units = globalThis.LuminousGoblinUnitCatalog;
+
+if (!schema || !ammo || !goblinRuntime || !skills || !units) {
+  throw new Error('Goblin Unit Library smoke dependencies were not initialized.');
+}
 
 const ids = units.list().map((unit) => unit.id);
 assert.deepStrictEqual(ids.sort(), ['goblin', 'goblin_boss']);
@@ -26,10 +36,12 @@ assert.strictEqual(scimitar.skillRange, 1);
 const shortbow = skills.get('goblin_shortbow_shot');
 assert.deepStrictEqual(shortbow.resourceCosts, [{ owner: 'source', type: 'ammunition', id: 'arrows', amount: 1, timing: 'on_user' }]);
 assert(shortbow.coins[0].effects.some((effect) => effect.status === 'pierced' && effect.count === 1));
+assert.strictEqual(shortbow.metadata.goblinRuntimeManagedStatusEffects, true);
 
 const javelin = skills.get('goblin_javelin_throw');
 assert.deepStrictEqual(javelin.resourceCosts, [{ owner: 'source', type: 'ammunition', id: 'javelin', amount: 1, timing: 'on_user' }]);
 assert(javelin.coins[0].effects.some((effect) => effect.status === 'pierced' && effect.count === 1));
+assert.strictEqual(javelin.metadata.goblinRuntimeManagedStatusEffects, true);
 
 const goblin = units.resolve('goblin', { level: 60, rank: 'normal', initializeEncounter: true });
 assert.deepStrictEqual(goblin.scores, { str: 8, dex: 15, con: 10, int: 10, wis: 9, cha: 8 });
