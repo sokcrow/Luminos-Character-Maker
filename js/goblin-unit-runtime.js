@@ -61,6 +61,48 @@
     return prepared;
   }
 
+  function statusCount(unit = {}, statusId) {
+    const runtime = rangedAmmoRuntime();
+    if (typeof runtime?.statusCount === 'function') return Math.max(0, numberOr(runtime.statusCount(unit, statusId), 0));
+    const wanted = normalizeId(statusId);
+    const statuses = unit.statusEffects || unit.statuses || {};
+    if (Array.isArray(statuses)) {
+      const entry = statuses.find((status) => normalizeId(status?.id || status?.status || status?.name) === wanted);
+      return Math.max(0, numberOr(entry?.count ?? entry?.potency ?? entry?.stacks, 0));
+    }
+    const entry = statuses[wanted] ?? statuses[statusId];
+    if (Number.isFinite(Number(entry))) return Math.max(0, Number(entry));
+    return Math.max(0, numberOr(entry?.count ?? entry?.potency ?? entry?.stacks, 0));
+  }
+
+  function prepareBindBleedPayoffSkill(attacker, skill = {}, defender = {}) {
+    const prepared = clone(skill);
+    const payoff = prepared.metadata?.goblinBindBleedPayoff;
+    if (!isGoblin(attacker) || !payoff || !isMeleeSkill(prepared)) return prepared;
+
+    const bindActive = statusCount(defender, 'bind') > 0;
+    const bleedActive = statusCount(defender, 'bleed') > 0;
+    const bindBonus = bindActive ? Math.max(0, numberOr(payoff.bindFinalPower, 1)) : 0;
+    const bleedBonus = bleedActive ? Math.max(0, numberOr(payoff.bleedFinalPower, 1)) : 0;
+    const cap = Math.max(0, numberOr(payoff.maxFinalPowerBonus, bindBonus + bleedBonus));
+    const finalPowerBonus = Math.min(cap, bindBonus + bleedBonus);
+    if (!(finalPowerBonus > 0)) return prepared;
+
+    prepared.__combatActionFinalPowerBonus = numberOr(prepared.__combatActionFinalPowerBonus, 0) + finalPowerBonus;
+    prepared.metadata = {
+      ...(prepared.metadata || {}),
+      goblinBindBleedPayoffApplied: {
+        bindActive,
+        bleedActive,
+        bindBonus,
+        bleedBonus,
+        finalPowerBonus,
+        targetId: unitId(defender) || null,
+      },
+    };
+    return prepared;
+  }
+
   function isGoblin(unit = {}) {
     if (normalizeId(unit.species) === 'goblin' || normalizeId(unit.raceId) === 'goblin') return true;
     return asArray(unit.tags).map(normalizeId).includes('goblin');
@@ -179,11 +221,15 @@
         }
       }
 
-      const preparedSkill = prepareMultiAttackSkill(attacker, skill);
+      const payoffSkill = prepareBindBleedPayoffSkill(attacker, skill, actualDefender);
+      const preparedSkill = prepareMultiAttackSkill(attacker, payoffSkill);
       const base = originalResolve.call(this, attacker, preparedSkill, actualDefender, counterSkill, { ...options, __goblinRedirectApplied: true });
       if (redirect && base && typeof base === 'object') base.redirectAttack = redirect;
+      if (base && typeof base === 'object' && preparedSkill.metadata?.goblinBindBleedPayoffApplied) {
+        base.goblinBindBleedPayoff = clone(preparedSkill.metadata.goblinBindBleedPayoffApplied);
+      }
 
-      const eligibleReuse = options.__goblinMultiReuse !== true && hasTrait(attacker, MULTI_ATTACK.id) && isMeleeSkill(skill) && skillCoinCount(skill) >= 2;
+      const eligibleReuse = options.__goblinMultiReuse !== true && hasTrait(attacker, MULTI_ATTACK.id) && isMeleeSkill(payoffSkill) && skillCoinCount(payoffSkill) >= 2;
       if (!eligibleReuse || !base || typeof base !== 'object') return base;
 
       const requested = reuseTimes(attacker);
@@ -210,8 +256,8 @@
   function install() { return installCombatBridge(); }
 
   const api = Object.freeze({
-    version: '1.2.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
-    prepareMultiAttackSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart,
+    version: '1.3.0', MULTI_ATTACK, REDIRECT_ATTACK, hasTrait, effectiveLevel, skillCoinCount, isMeleeSkill, reuseTimes,
+    prepareMultiAttackSkill, statusCount, prepareBindBleedPayoffSkill, isGoblin, isFieldUnit, selectRedirectTarget, resetRedirect, onTurnStart,
     tagMatches, isGoblinManagedSkill, applyManagedSkillEffects, lastCoinReuseSkill,
     installTurnResetBridge, installCombatBridge, install,
   });
