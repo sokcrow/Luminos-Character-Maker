@@ -1,0 +1,40 @@
+name: Runtime smoke - current player and DM
+
+on:
+  push:
+    branches:
+      - test/runtime-smoke-dm-main-20260912
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Serve repository
+        run: |
+          nohup python3 -m http.server 4173 >/tmp/luminous-http.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/index.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/luminous-http.log
+          exit 1
+
+      - name: Chromium runtime smoke
+        run: node scripts/runtime-smoke-current-main.mjs
