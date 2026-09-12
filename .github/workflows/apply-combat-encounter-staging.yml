@@ -1,0 +1,40 @@
+name: Apply combat encounter staging
+
+on:
+  push:
+    branches:
+      - fix/combat-encounter-staging
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/combat-encounter-staging
+          fetch-depth: 0
+      - name: Apply encounter staging patch
+        run: python3 scripts/apply-combat-encounter-staging.py
+      - name: Verify patch
+        run: |
+          git diff --check
+          grep -q "LUMINOUS COMBAT ENGINE READY" Battle-viewer.html
+          ! grep -q "Hooligan" Battle-viewer.html
+          ! grep -q "LuminousVttActorLibrary" js/battle-viewer-player-entry-074.js js/battle-viewer-encounter-setup-074.js
+          grep -q "encounterDraft/combatants" js/battle-viewer-player-entry-074.js
+          grep -q "START ENCOUNTER" js/battle-viewer-encounter-setup-074.js
+      - name: Commit patched runtime
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Battle-viewer.html js/combatEngine.js js/battle-viewer-runtime-074.js js/battle-viewer-player-entry-074.js js/battle-viewer-encounter-setup-074.js js/battle-viewer-dm-encounter-roster-074.js
+          git commit -m "fix: stage encounters before combat start"
+          git push origin HEAD:fix/combat-encounter-staging
