@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.7.5";
+  const VERSION = "0.7.7";
   const STATE_KEY = "__luminousEnemyPlanning074State";
   const BOOTSTRAP_TIMEOUT_MS = 5000;
   const BOOTSTRAP_INTERVAL_MS = 25;
@@ -296,6 +296,7 @@
     const targets = Array.isArray(options.targets) ? options.targets : activeAllyIdentities(units);
     const targetIds = Array.isArray(options.targetIds) ? options.targetIds.map(clean).filter(Boolean) : targets.map((target) => unitIdOf(target)).filter(Boolean);
     const plans = [];
+    const alliedCommittedActions = [];
 
     for (const row of allocation.rows) {
       const actor = unitById.get(row.unitId);
@@ -320,6 +321,7 @@
         availableSlots: row.slots,
         targets: targets.length ? targets : undefined,
         targetIds: targets.length ? undefined : targetIds,
+        alliedCommittedActions: alliedCommittedActions.slice(),
         intel,
       });
       plans.push({
@@ -330,6 +332,7 @@
         unusedSlots: Math.max(0, row.slots - (Array.isArray(plan?.actions) ? plan.actions.length : 0)),
         plan,
       });
+      if (Array.isArray(plan?.actions)) alliedCommittedActions.push(...plan.actions);
     }
 
     return {
@@ -539,16 +542,26 @@
       try { await global.LuminousBattleViewerRuntime073Ready; } catch (_) {}
     }
     if (!global.LuminousUniversalRangedAmmoRuntime) await loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js", "LuminousUniversalRangedAmmoRuntime");
+    if (!global.LuminousGoblinUnitRuntime) await loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js", "LuminousGoblinUnitRuntime");
     if (!global.LuminousUnitRankRuntime) await loadScript("unit-rank-runtime-script", "js/unit-rank-runtime.js", "LuminousUnitRankRuntime");
     if (!global.LuminousKoboldTier1SkillCatalog) await loadScript("kobold-tier1-skill-catalog-script", "js/skill-catalog-kobold-tier1.js", "LuminousKoboldTier1SkillCatalog");
+    if (!global.LuminousGoblinTier1SkillCatalog) await loadScript("goblin-tier1-skill-catalog-script", "js/skill-catalog-goblin-tier1.js", "LuminousGoblinTier1SkillCatalog");
     if (!global.LuminousUnitCombatMechanics) await loadScript("unit-combat-mechanics-runtime-script", "js/unit-combat-mechanics-runtime.js", "LuminousUnitCombatMechanics");
     if (!global.LuminousKoboldUnitCatalog) await loadScript("kobold-unit-catalog-script", "js/unit-catalog-kobold-tier1.js", "LuminousKoboldUnitCatalog");
     if (!global.LuminousGoblinUnitCatalog) await loadScript("goblin-unit-catalog-script", "js/unit-catalog-goblin.js", "LuminousGoblinUnitCatalog");
     if (!global.LuminousUnitActionEconomyCatalog) await loadScript("unit-action-economy-catalog-script", "js/unit-action-economy-catalog.js", "LuminousUnitActionEconomyCatalog");
     if (!global.LuminousIndividualGoapCombatAI) await loadScript("individual-goap-combat-ai-script", "js/individual-goap-combat-ai.js", "LuminousIndividualGoapCombatAI");
     if (!global.LuminousUnitAiKitAdapter) await loadScript("unit-ai-kit-adapter-script", "js/unit-ai-kit-adapter.js", "LuminousUnitAiKitAdapter");
+    if (!global.LuminousUnitAiUniversalActions) await loadScript("unit-ai-universal-actions-script", "js/unit-ai-universal-actions.js", "LuminousUnitAiUniversalActions");
     if (!global.LuminousEnemyActionSlotAllocator) await loadScript("enemy-action-slot-allocator-script", "js/enemy-action-slot-allocator.js", "LuminousEnemyActionSlotAllocator");
-    return Boolean(allocator()?.allocateEnemySlots && kitAdapter()?.planUnitTurn && global.LuminousBattleViewerRuntime073);
+    return Boolean(
+      allocator()?.allocateEnemySlots
+      && kitAdapter()?.planUnitTurn
+      && global.LuminousUnitAiUniversalActions
+      && global.LuminousBattleViewerRuntime073
+      && global.LuminousGoblinUnitRuntime
+      && global.LuminousGoblinTier1SkillCatalog
+    );
   }
 
   function waitForPhaseHook() {

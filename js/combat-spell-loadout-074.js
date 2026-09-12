@@ -40,6 +40,11 @@
     }
     return null;
   }
+  function spellTargetingLanguage() {
+    if (global?.LuminousSpellTargetingLanguage) return global.LuminousSpellTargetingLanguage;
+    if (typeof require === "function") { try { return require("./spell-targeting-language.js"); } catch (_) {} }
+    return null;
+  }
 
   function selectionSource(source = {}) {
     if (Array.isArray(source.spellIds)) return source.spellIds;
@@ -108,7 +113,10 @@
     const spell = clone(definition || {}) || {};
     const levelRaw = spell.level ?? spell.spellLevel ?? spell.slotLevel ?? 0;
     const level = Number.isFinite(Number(levelRaw)) ? Math.max(0, Math.trunc(Number(levelRaw))) : 0;
-    return { ...spell, id, spellId: id, name: clean(spell.name || spell.nombre) || id, level, spellLevel: level, cantrip: spell.cantrip === true || level === 0, canonicalContentId: `spell:${id}` };
+    const normalized = { ...spell, id, spellId: id, name: clean(spell.name || spell.nombre) || id, level, spellLevel: level, cantrip: spell.cantrip === true || level === 0, canonicalContentId: `spell:${id}` };
+    const targeting = spellTargetingLanguage();
+    if (!targeting?.canonicalizeSpellDefinition) throw new Error("SPELL_TARGETING_LANGUAGE_REQUIRED");
+    return targeting.canonicalizeSpellDefinition(normalized);
   }
 
   function resolveSpellDefinition(spellId) {
@@ -118,7 +126,11 @@
     if (!registry) return { ok: false, reason: "CONTENT_REGISTRY_REQUIRED", spellId: id, spell: null, entry: null };
     const entry = spellEntry(id);
     if (!entry?.definition) return { ok: false, reason: "SPELL_DEFINITION_NOT_FOUND", spellId: id, spell: null, entry: null };
-    return { ok: true, reason: null, spellId: id, spell: normalizeSpellDefinition(id, entry.definition), entry };
+    try {
+      return { ok: true, reason: null, spellId: id, spell: normalizeSpellDefinition(id, entry.definition), entry };
+    } catch (error) {
+      return { ok: false, reason: error?.code || "SPELL_TARGETING_INVALID", spellId: id, spell: null, entry, errors: error?.errors || [String(error?.message || error)] };
+    }
   }
 
   function spellAllowedClassIds(spell = {}) {
@@ -127,6 +139,20 @@
     add(spell.sourceClassId || spell.classId || spell.class_id);
     [spell.classIds, spell.classes, spell.allowedClasses, spell.allowedClassIds].forEach((list) => (Array.isArray(list) ? list : []).forEach((entry) => add(entry?.classId || entry?.id || entry)));
     return values;
+  }
+
+  function validateSpellTarget(spell = {}, target = {}) {
+    const targeting = spellTargetingLanguage();
+    if (!targeting?.validateTarget) return { valid: false, reason: "SPELL_TARGETING_LANGUAGE_REQUIRED", errors: ["SPELL_TARGETING_LANGUAGE_REQUIRED"] };
+    return targeting.validateTarget(spell, target);
+  }
+
+  function matchesSpellTarget(spell = {}, target = {}) {
+    return validateSpellTarget(spell, target).valid === true;
+  }
+
+  function spellTargetingAuthoringContract() {
+    return spellTargetingLanguage()?.authoringContract?.() || { schemaVersion: 1, canonicalKeys: [], creatureTypes: [] };
   }
 
   function resolveCastClass(source = {}, spell = {}, requestedClassId = null) {
@@ -152,6 +178,10 @@
     if (!definition.ok) return definition;
     const castClass = resolveCastClass(combatant, definition.spell, options.classId);
     if (!castClass.ok) return { ...definition, ok: false, reason: castClass.reason, classId: null, candidates: castClass.candidates || [] };
+    if (options.target) {
+      const target = validateSpellTarget(definition.spell, options.target);
+      if (!target.valid) return { ...definition, ok: false, reason: target.reason, classId: castClass.classId, targetValidation: target };
+    }
     return { ...definition, ok: true, reason: null, classId: castClass.classId };
   }
 
@@ -214,6 +244,9 @@
     isCastingClass,
     castingClassIdsFor,
     canCastSpells,
+    validateSpellTarget,
+    matchesSpellTarget,
+    spellTargetingAuthoringContract,
     resolveCastClass,
     resolveSpellForCombatant,
     hydrateSpellSelections

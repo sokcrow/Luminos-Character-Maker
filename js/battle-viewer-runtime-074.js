@@ -16,6 +16,8 @@
   const bootstrapScripts = [
     ["content-registry-script", "js/content-registry.js", "LuminousContentRegistry"],
     ["content-registry-bootstrap-script", "js/content-registry-bootstrap.js", "LuminousContentRegistryBootstrap"],
+    ["creature-type-catalog-script", "js/creature-type-catalog.js", "LuminousCreatureTypeCatalog"],
+    ["spell-targeting-language-script", "js/spell-targeting-language.js", "LuminousSpellTargetingLanguage"],
     ["spellcasting-runtime-script", "js/spellcasting-runtime.js", "LuminousSpellcastingRuntime"],
   ];
 
@@ -245,6 +247,8 @@
     return Boolean(
       global.LuminousContentRegistry
       && global.LuminousContentRegistryBootstrap
+      && global.LuminousCreatureTypeCatalog
+      && global.LuminousSpellTargetingLanguage
       && global.LuminousSpellcastingRuntime?.__basicRulesV1
       && global.LuminousBattleViewerFirebaseSession074
       && global.CombatSkillSchema
@@ -274,6 +278,8 @@
   if (IS_COMMONJS) {
     try { if (!global.LuminousContentRegistry) require("./content-registry.js"); } catch (_) {}
     try { if (!global.LuminousContentRegistryBootstrap) require("./content-registry-bootstrap.js"); } catch (_) {}
+    try { if (!global.LuminousCreatureTypeCatalog) require("./creature-type-catalog.js"); } catch (_) {}
+    try { if (!global.LuminousSpellTargetingLanguage) require("./spell-targeting-language.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime) require("./spellcasting-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime?.__basicRulesV1) require("./spellcasting-basic-rules-runtime.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerFirebaseSession074) require("./battle-viewer-firebase-session-074.js"); } catch (_) {}

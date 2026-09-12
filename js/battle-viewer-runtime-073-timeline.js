@@ -33,6 +33,11 @@
     return global.LuminousConditionRuntime?.hasStatus?.(unit, "incapacitated") !== true;
   }
 
+  function teamSideForUnit(unit = {}) {
+    const raw = normalizeId(unit.side || unit.team || unit.faction || unit.faccion);
+    return raw.includes("enemy") || raw.includes("enem") || raw === "hostile" ? "enemies" : "allies";
+  }
+
   function currentClashForTarget(targetSlotId) {
     if (state.clashOverrides[targetSlotId]) return state.clashOverrides[targetSlotId];
     const other = slotTargets()[targetSlotId];
@@ -230,12 +235,71 @@
       ...(hooks.effectHandlers || {}),
     };
   }
-  function resolverContext(event) {
+
+  function sharedActionMap(events = []) {
+    const map = {};
+    for (const event of events) {
+      for (const action of [event?.action, event?.opposingAction]) {
+        if (action?.id) map[action.id] = action;
+      }
+    }
+    return map;
+  }
+
+  function eventDependencies(events = []) {
+    const actionToEvent = new Map();
+    for (const event of events) {
+      for (const action of [event?.action, event?.opposingAction]) if (action?.id) actionToEvent.set(action.id, event.id);
+    }
+    const dependencies = new Map(events.map((event) => [event.id, new Set()]));
+    for (const helperEvent of events) {
+      for (const action of [helperEvent?.action, helperEvent?.opposingAction]) {
+        if (!action || action.source?.type !== "universal" || normalizeId(action.source?.id) !== "help") continue;
+        for (const effect of action.effects || []) {
+          if (normalizeId(effect?.type) !== "modify_combat_action" || !effect.targetActionId) continue;
+          const targetEventId = actionToEvent.get(effect.targetActionId);
+          if (targetEventId && targetEventId !== helperEvent.id) dependencies.get(targetEventId)?.add(helperEvent.id);
+        }
+      }
+    }
+    return dependencies;
+  }
+
+  function createTimelineSharedContext(events = []) {
+    const helpRemaining = { allies: 1, enemies: 1 };
+    return {
+      actionMap: sharedActionMap(events),
+      dependencies: eventDependencies(events),
+      completedEventIds: new Set(),
+      consumeHelp({ actor } = {}) {
+        const side = teamSideForUnit(actor || {});
+        if ((helpRemaining[side] || 0) <= 0) return { consumed: false, reason: "team_help_spent" };
+        helpRemaining[side] = 0;
+        return { consumed: true, remaining: 0, side };
+      },
+      helpRemaining,
+    };
+  }
+
+  function refreshEventActions(event, shared = {}) {
+    const map = shared.actionMap || {};
+    if (event?.action?.id && map[event.action.id]) event.action = map[event.action.id];
+    if (event?.opposingAction?.id && map[event.opposingAction.id]) event.opposingAction = map[event.opposingAction.id];
+    return event;
+  }
+
+  function resolverContext(event, shared = {}) {
+    const localActionMap = Object.fromEntries([event.action, event.opposingAction].filter(Boolean).map((action) => [action.id, action]));
     return {
       phase: schema()?.PHASES?.COMBAT_PHASE || "combat_phase",
-      units: Object.values(combatData()).filter(Boolean), combatData: combatData(), engine: combatEngineBridge(), coinwiseResolution: true,
-      isTargetAvailable: (target) => isActive(target), effectHandlers: viewerEffectHandlers(),
-      actionMap: Object.fromEntries([event.action, event.opposingAction].filter(Boolean).map((action) => [action.id, action])),
+      units: Object.values(combatData()).filter(Boolean),
+      combatData: combatData(),
+      engine: combatEngineBridge(),
+      coinwiseResolution: true,
+      isTargetAvailable: (target) => isActive(target),
+      effectHandlers: viewerEffectHandlers(),
+      actionMap: shared.actionMap || localActionMap,
+      consumeHelp: shared.consumeHelp,
       opposingAction: event.type === "clash" ? event.opposingAction : null,
     };
   }
@@ -281,7 +345,8 @@
     catch (error) { return { finished: false, reason: "shared_finish_error", error }; }
   }
 
-  async function resolveEvent(event) {
+  async function resolveEvent(event, shared = {}) {
+    refreshEventActions(event, shared);
     const check = eventValidity(event);
     if (!check.valid) return { event, resolved: false, ...check };
     const api = resolver();
@@ -298,7 +363,11 @@
       }
     }
 
-    const context = resolverContext(event), result = api.resolveCombatAction(event.action, context);
+    const context = resolverContext(event, shared), result = api.resolveCombatAction(event.action, context);
+    if (shared.actionMap && result?.action?.id) shared.actionMap[result.action.id] = result.action;
+    if (shared.actionMap && Array.isArray(result?.actions)) {
+      for (const action of result.actions) if (action?.id) shared.actionMap[action.id] = action;
+    }
     const finishedA = await finishSharedAction(event.action, result, claimA);
     const finishedB = event.opposingAction ? await finishSharedAction(event.opposingAction, result, claimB) : null;
     return { event, resolved: result?.resolved !== false, result, actionId: event.action.id, opposingActionId: event.opposingAction?.id || null, shared: { claimA, claimB, finishedA, finishedB } };
@@ -307,16 +376,23 @@
   async function runTimeline(events = buildEvents()) {
     const pending = [...events], active = new Map(), participantLocks = new Set(), activeParticipants = new Map();
     if (!pending.length) { applyCombatFocus([]); return []; }
+    const shared = createTimelineSharedContext(events);
     armReactiveDefenses(pending);
     const startedAt = global.performance?.now?.() ?? Date.now(), results = [];
     const now = () => (global.performance?.now?.() ?? Date.now()) - startedAt;
-    const canLaunch = (event) => event.participants.every((id) => !participantLocks.has(id));
+    const dependenciesDone = (event) => [...(shared.dependencies.get(event.id) || [])].every((eventId) => shared.completedEventIds.has(eventId));
+    const canLaunch = (event) => dependenciesDone(event) && event.participants.every((id) => !participantLocks.has(id));
     const refreshFocus = () => { const ids = new Set(); activeParticipants.forEach((set) => set.forEach((id) => ids.add(id))); applyCombatFocus([...ids]); };
     const launch = (event) => {
       event.participants.forEach((id) => participantLocks.add(id)); activeParticipants.set(event.id, new Set(event.participants)); refreshFocus();
       const task = (async () => {
-        try { const output = await resolveEvent(event); results.push(output); return output; }
-        finally { event.participants.forEach((id) => participantLocks.delete(id)); activeParticipants.delete(event.id); refreshFocus(); }
+        try { const output = await resolveEvent(event, shared); results.push(output); return output; }
+        finally {
+          shared.completedEventIds.add(event.id);
+          event.participants.forEach((id) => participantLocks.delete(id));
+          activeParticipants.delete(event.id);
+          refreshFocus();
+        }
       })();
       active.set(event.id, task); task.finally(() => active.delete(event.id));
     };
@@ -360,6 +436,7 @@
     requestClashOverwrite, confirmOverwriteClash, eventValidity, buildEvents, runTimeline, resolveEvent, executeCombatTimeline,
     applyCombatFocus, updateInvisiblePresentation, armReactiveDefenses, clearPreparedDefenses, trackEphemeralShield,
     claimSharedAction, finishSharedAction, syncCombatPhase, ensureStyle, ensureModal,
+    sharedActionMap, eventDependencies, createTimelineSharedContext,
   });
   global.LuminousBattleViewerTimeline073 = api;
   ensureStyle(); ensureModal();

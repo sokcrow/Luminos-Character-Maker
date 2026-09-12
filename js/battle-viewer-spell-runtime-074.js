@@ -13,6 +13,7 @@
   const VERSION = "0.7.4";
   const OVERCAST_PREFIX = "__overcast__";
   const clean = (value) => String(value ?? "").trim();
+  const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   let baseSpellcastingRuntime = null;
 
@@ -63,6 +64,108 @@
       try { return require("./spellcasting-runtime.js"); } catch (_) {}
     }
     return current || null;
+  }
+
+  function spellTargetingLanguage() {
+    if (global?.LuminousSpellTargetingLanguage) return global.LuminousSpellTargetingLanguage;
+    if (typeof require === "function") { try { return require("./spell-targeting-language.js"); } catch (_) {} }
+    return null;
+  }
+
+  function combatActionSchema() {
+    if (global?.LuminousCombatAction) return global.LuminousCombatAction;
+    if (typeof require === "function") { try { return require("./combat-action-schema.js"); } catch (_) {} }
+    return null;
+  }
+
+  function entityId(entity = {}) {
+    return clean(entity.id ?? entity.unitId ?? entity.characterId);
+  }
+
+  function combatants(context = {}) {
+    if (Array.isArray(context.targetCandidates)) return context.targetCandidates.filter(Boolean);
+    if (Array.isArray(context.units)) return context.units.filter(Boolean);
+    return Object.values(context.combatData || global.combatData || {}).filter(Boolean);
+  }
+
+  function unitById(context = {}, id) {
+    const wanted = clean(id);
+    if (!wanted) return null;
+    const candidates = Array.isArray(context.units) ? context.units.filter(Boolean) : Object.values(context.combatData || global.combatData || {}).filter(Boolean);
+    return candidates.find((unit) => entityId(unit) === wanted) || null;
+  }
+
+  function spellTargetingPreflight(actionInput = {}, context = {}) {
+    const schema = combatActionSchema();
+    const targetingLanguage = spellTargetingLanguage();
+    const action = schema?.normalizeCombatAction ? schema.normalizeCombatAction(actionInput) : actionInput;
+    if (normalizeId(action?.source?.type) !== "spell") return { allowed: true, reason: null, action, context, restricted: false, eligibleTargets: combatants(context) };
+    if (!targetingLanguage?.validateRule || !targetingLanguage?.validateTarget) {
+      return { allowed: false, reason: "SPELL_TARGETING_LANGUAGE_REQUIRED", action, context, restricted: true, eligibleTargets: [] };
+    }
+
+    const spell = action?.metadata?.sourceDefinition || {};
+    const ruleValidation = targetingLanguage.validateRule(spell);
+    if (!ruleValidation.valid) {
+      return { allowed: false, reason: "SPELL_TARGETING_INVALID", errors: ruleValidation.errors, action, context, restricted: true, eligibleTargets: [] };
+    }
+    const restricted = Object.values(ruleValidation.rule || {}).some((value) => Array.isArray(value) && value.length > 0);
+    if (!restricted) return { allowed: true, reason: null, action, context, restricted: false, rule: ruleValidation.rule, eligibleTargets: combatants(context) };
+
+    const allCandidates = combatants(context);
+    const eligibleTargets = allCandidates.filter((target) => targetingLanguage.validateTarget(spell, target).valid === true);
+    const explicitIds = [...new Set([
+      action?.targeting?.mainTargetId,
+      ...(Array.isArray(action?.targeting?.targetIds) ? action.targeting.targetIds : []),
+    ].map(clean).filter(Boolean))];
+
+    if (action?.targeting?.mode === "self") {
+      const actor = unitById(context, action.actorId);
+      const selfValidation = targetingLanguage.validateTarget(spell, actor || {});
+      if (!selfValidation.valid) return { allowed: false, reason: selfValidation.reason || "SPELL_TARGET_INVALID_CREATURE_TYPE", targetValidation: selfValidation, action, context, restricted, rule: ruleValidation.rule, eligibleTargets };
+    }
+
+    for (const id of explicitIds) {
+      const target = unitById(context, id);
+      if (!target) continue;
+      const validation = targetingLanguage.validateTarget(spell, target);
+      if (!validation.valid) {
+        return { allowed: false, reason: validation.reason || "SPELL_TARGET_INVALID_CREATURE_TYPE", targetId: id, targetValidation: validation, action, context, restricted, rule: ruleValidation.rule, eligibleTargets };
+      }
+    }
+
+    if (action?.targeting?.mode !== "self" && !eligibleTargets.length) {
+      return { allowed: false, reason: "SPELL_NO_ELIGIBLE_CREATURE_TARGETS", action, context, restricted, rule: ruleValidation.rule, eligibleTargets: [] };
+    }
+
+    return {
+      allowed: true,
+      reason: null,
+      action,
+      restricted,
+      rule: ruleValidation.rule,
+      eligibleTargets,
+      context: { ...context, targetCandidates: eligibleTargets },
+    };
+  }
+
+  function installSpellTargetingResolverBridge() {
+    const current = global.LuminousCombatActionResolver;
+    if (!current?.resolveCombatAction) return true;
+    if (current.__spellTargetingLanguageV1) return true;
+    const wrapped = Object.freeze({
+      ...current,
+      __spellTargetingLanguageV1: true,
+      resolveCombatAction(input = {}, context = {}) {
+        const gate = spellTargetingPreflight(input, context);
+        if (!gate.allowed) {
+          return { resolved: false, reason: gate.reason, action: gate.action || input, spellTargetingGate: gate, resourcesConsumed: false };
+        }
+        return current.resolveCombatAction(input, gate.context || context);
+      },
+    });
+    global.LuminousCombatActionResolver = wrapped;
+    return true;
   }
 
   function parseResourceClassId(classId) {
@@ -155,15 +258,13 @@
 
   function installCore() {
     const resource = installSpellcastingResourceBridge();
+    const targeting = installSpellTargetingResolverBridge();
     const hook = installCombatHook();
     pierreBatchRuntime()?.install?.();
-    return resource && hook;
+    return resource && targeting && hook;
   }
 
   function install() {
-    if (!global.document) {
-      return ensureSupplementalSpellFiles().then(() => installCore());
-    }
     return ensureSupplementalSpellFiles().then(() => installCore());
   }
 
@@ -174,6 +275,7 @@
   const api = Object.freeze({
     version: VERSION, OVERCAST_PREFIX, parseResourceClassId, overcastAvailability,
     ensureSupplementalSpellFiles, pierreBatchRuntime,
+    spellTargetingPreflight, installSpellTargetingResolverBridge,
     installSpellcastingResourceBridge, spellCastEffect, absorbElementsEffect, shieldEffect,
     installCombatHook, install, ready
   });

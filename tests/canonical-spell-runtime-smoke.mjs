@@ -34,6 +34,8 @@ globalThis.LuminousSpellcastingRuntime = {
   }
 };
 
+await import("../js/creature-type-catalog.js");
+await import("../js/spell-targeting-language.js");
 await import("../js/spell-catalog-core.js");
 await import("../js/combat-spell-loadout-074.js");
 const loadout = globalThis.LuminousCombatSpellLoadout074;
@@ -57,6 +59,13 @@ assert.equal(loadout.canCastSpells(barbarian), false);
 assert.deepEqual(loadout.spellIdsFor(barbarian), []);
 assert.equal(loadout.resolveSpellForCombatant(barbarian, "fire_bolt").reason, "SPELLCASTING_ABILITY_REQUIRED");
 assert.equal(loadout.resolveSpellForCombatant(wizard, "old_test_spell").reason, "SPELL_DEFINITION_NOT_FOUND");
+
+const unrestrictedFire = loadout.resolveSpellDefinition("fire_bolt").spell;
+assert.deepEqual(unrestrictedFire.allowedCreatureTypes, []);
+assert.deepEqual(unrestrictedFire.excludedCreatureTypes, []);
+assert.deepEqual(unrestrictedFire.allowedCreatureSubtypes, []);
+assert.deepEqual(unrestrictedFire.excludedCreatureSubtypes, []);
+assert.equal(loadout.validateSpellTarget(unrestrictedFire, { id: "legacy_target_without_creature_type" }).valid, true);
 
 globalThis.LuminousBattleViewerActionAdapter073 = {
   compilePlan() {

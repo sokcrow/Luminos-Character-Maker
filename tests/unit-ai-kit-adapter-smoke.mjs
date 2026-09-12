@@ -4,6 +4,7 @@ await import('../js/status-engine.js');
 await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/spellcasting-runtime.js');
 await import('../js/skill-catalog-kobold-tier1.js');
+await import('../js/skill-catalog-goblin-tier1.js');
 await import('../js/unit-rank-runtime.js');
 await import('../js/unit-combat-mechanics-runtime.js');
 await import('../js/unit-catalog-kobold-tier1.js');
@@ -88,18 +89,25 @@ const reloadedKit = kitAdapter.buildKit(sling);
 assert.ok(reloadedKit.sources.some((source) => source.definition.id === 'kobold_sling_shot'));
 assert.ok(reloadedKit.sources.some((source) => source.definition.id === 'kobold_rapid_pebble'));
 
-// Goblin catalog currently declares weapon references, but its canonical weapon Skills are explicitly pending.
-// The AI adapter must report that catalog gap rather than inventing fake Scimitar/Shortbow attacks.
+// Goblin weapon references are backed by the full canonical Tier 1 + Tier 2 kit.
+// The adapter must expose those real definitions and never fall back to a pending legacy weapon.
 const goblin = goblins.resolve('goblin', { level: 3, initializeEncounter: true });
 goblin.id = 'goblin_test';
 const goblinKit = kitAdapter.buildKit(goblin);
-assert.equal(goblinKit.sources.some((source) => ['scimitar', 'shortbow'].includes(source.definition.id)), false);
-assert.ok(goblinKit.unresolved.some((entry) => entry.sourceId === 'scimitar' && entry.reason === 'canonical_weapon_skill_pending'));
-assert.ok(goblinKit.unresolved.some((entry) => entry.sourceId === 'shortbow' && entry.reason === 'canonical_weapon_skill_pending'));
+const goblinSkillIds = goblinKit.sources.map((source) => source.definition.id);
+assert.ok(goblinSkillIds.includes('goblin_scimitar_slash'));
+assert.ok(goblinSkillIds.includes('goblin_hamstring_cut'));
+assert.ok(goblinSkillIds.includes('goblin_shortbow_shot'));
+assert.ok(goblinSkillIds.includes('goblin_serrated_slash'));
+assert.ok(goblinSkillIds.includes('goblin_crippling_stab'));
+assert.ok(goblinSkillIds.includes('goblin_barbed_arrow'));
+assert.equal(goblinKit.unresolved.some((entry) => entry.reason === 'canonical_weapon_skill_pending'), false);
 
-const goblinPlan = kitAdapter.planUnitTurn({ actor: goblin, targetIds: ['player_1'], availableSlots: 2 });
-assert.equal(goblinPlan.planned, false);
-assert.equal(goblinPlan.reason, 'unit_combat_sources_unresolved');
+const goblinPlan = kitAdapter.planUnitTurn({ actor: goblin, targetIds: ['player_1'], availableSlots: 2, allowGrapple: false });
+assert.equal(goblinPlan.planned, true);
+assert.ok(goblinPlan.actions.length >= 1);
+const canonicalGoblinSkillIds = new Set(goblin.resolvedSkills.map((skill) => skill.id));
+assert.ok(goblinPlan.sequence.every((entry) => canonicalGoblinSkillIds.has(entry.sourceId)));
 
 // Generic resource handlers can preflight future resource-bearing Skills/Traits without coupling GOAP to their runtimes.
 const customActor = {
