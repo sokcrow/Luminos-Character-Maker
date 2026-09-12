@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const FAMILY = "healing_sp";
   const CURRENCY = "AHN";
   const DEFAULT_MAX_SP = 45;
@@ -18,9 +18,9 @@
     l_corp: Object.freeze({ quickAction: 10, combat: 15, offCombat: 20 }),
   });
   const SOURCE_PROFILES = Object.freeze({
-    generic: Object.freeze({ label: "Generic", owner: null, material: null }),
-    m_corp: Object.freeze({ label: "M Corp", owner: "M Corp", material: "Moonlight Stone" }),
-    l_corp: Object.freeze({ label: "L Corp Enkephalin", owner: "L Corp", material: "Enkephalin" }),
+    generic: Object.freeze({ label: "Generic", owner: null, origin: null, material: null, status: "current" }),
+    m_corp: Object.freeze({ label: "M Corp", owner: "M Corp", origin: "M Corp", material: "Moonlight Stone", status: "current" }),
+    l_corp: Object.freeze({ label: "Fallen L Corp Enkephalin", owner: null, origin: "L Corp (fallen)", material: "Enkephalin", status: "legacy" }),
   });
 
   function item(id, name, sourceLine, tier, actionCost, priceAhn, spRestore, options = {}) {
@@ -44,7 +44,9 @@
       sourceProfile: {
         label: sourceProfile.label,
         owner: sourceProfile.owner,
+        origin: sourceProfile.origin,
         material: sourceProfile.material,
+        status: sourceProfile.status,
       },
       tier,
       purchasable: true,
@@ -204,7 +206,9 @@
     const expectedProfile = SOURCE_PROFILES[entry?.sourceLine];
     if (!expectedProfile) errors.push("missing_source_profile");
     if (expectedProfile && entry?.sourceProfile?.owner !== expectedProfile.owner) errors.push("invalid_source_owner");
+    if (expectedProfile && entry?.sourceProfile?.origin !== expectedProfile.origin) errors.push("invalid_source_origin");
     if (expectedProfile && entry?.sourceProfile?.material !== expectedProfile.material) errors.push("invalid_source_material");
+    if (expectedProfile && entry?.sourceProfile?.status !== expectedProfile.status) errors.push("invalid_source_status");
     const profile = entry?.runtime?.spHealing;
     if (!profile) errors.push("missing_sp_healing");
     if (Number(profile?.maxSp) !== DEFAULT_MAX_SP) errors.push("invalid_default_max_sp");
