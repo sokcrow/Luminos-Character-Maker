@@ -8,14 +8,19 @@ const { pathToFileURL } = require('node:url');
   const catalog = globalThis.LuminousSpHealingCatalog;
 
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 1);
+  assert.equal(catalog.VERSION, 2);
   assert.equal(catalog.FAMILY, 'healing_sp');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.DEFAULT_MAX_SP, 45);
   assert.deepEqual(catalog.SOURCE_LIMITS, {
     generic: { quickAction: 5, combat: 6, offCombat: 10 },
-    workshop: { quickAction: 7, combat: 10, offCombat: 15 },
-    k_corp: { quickAction: 10, combat: 15, offCombat: 20 },
+    m_corp: { quickAction: 7, combat: 10, offCombat: 15 },
+    l_corp: { quickAction: 10, combat: 15, offCombat: 20 },
+  });
+  assert.deepEqual(catalog.SOURCE_PROFILES, {
+    generic: { label: 'Generic', owner: null, material: null },
+    m_corp: { label: 'M Corp', owner: 'M Corp', material: 'Moonlight Stone' },
+    l_corp: { label: 'L Corp Enkephalin', owner: 'L Corp', material: 'Enkephalin' },
   });
 
   const validation = catalog.validateCatalog();
@@ -23,7 +28,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(validation.count, 60);
   assert.equal(new Set(catalog.ITEMS.map((item) => item.id)).size, 60);
 
-  for (const sourceLine of ['generic', 'workshop', 'k_corp']) {
+  for (const sourceLine of ['generic', 'm_corp', 'l_corp']) {
     const line = catalog.list({ sourceLine });
     assert.equal(line.length, 20, `${sourceLine} should contain 20 items`);
     for (const tier of catalog.TIERS) {
@@ -45,11 +50,25 @@ const { pathToFileURL } = require('node:url');
     assert.ok(catalog.USE_TIMINGS.includes(item.runtime.actionCost));
     assert.equal(item.runtime.effects.spRestore, item.runtime.spHealing.immediate);
 
+    const sourceProfile = catalog.SOURCE_PROFILES[item.sourceLine];
+    assert.ok(sourceProfile, `${item.id} has an unknown source profile`);
+    assert.equal(item.sourceProfile.owner, sourceProfile.owner);
+    assert.equal(item.sourceProfile.material, sourceProfile.material);
+
     const check = catalog.validateItem(item);
     assert.equal(check.valid, true, `${item.id}: ${JSON.stringify(check.errors)}`);
     assert.ok(check.total < 45, `${item.id} must never be a full 45 SP restore`);
     assert.ok(check.total <= check.limit, `${item.id} exceeds its source/timing limit`);
   }
+
+  const mCorpItems = catalog.list({ sourceLine: 'm_corp' });
+  assert.ok(mCorpItems.every((item) => item.sourceProfile.owner === 'M Corp'));
+  assert.ok(mCorpItems.every((item) => item.sourceProfile.material === 'Moonlight Stone'));
+
+  const lCorpItems = catalog.list({ sourceLine: 'l_corp' });
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.owner === 'L Corp'));
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.material === 'Enkephalin'));
+  assert.ok(lCorpItems.every((item) => /enkephalin|l corp/i.test(item.name)));
 
   const genericCombat = catalog.restorationBreakdown('sp_generic_emergency_composure_dose', 0);
   assert.equal(genericCombat.total, 6);
@@ -63,26 +82,26 @@ const { pathToFileURL } = require('node:url');
   assert.equal(genericOffCombat.total, 10);
   assert.equal(genericOffCombat.lineLimit, 10);
 
-  const workshopCombat = catalog.restorationBreakdown('sp_workshop_masterwork_composure_core', 0);
-  assert.equal(workshopCombat.total, 10);
-  assert.equal(workshopCombat.lineLimit, 10);
+  const mCorpCombat = catalog.restorationBreakdown('sp_m_corp_masterwork_moonlight_core', 0);
+  assert.equal(mCorpCombat.total, 10);
+  assert.equal(mCorpCombat.lineLimit, 10);
 
-  const workshopOffCombat = catalog.restorationBreakdown('sp_workshop_serenity_cell', 0);
-  assert.equal(workshopOffCombat.total, 15);
+  const mCorpOffCombat = catalog.restorationBreakdown('sp_m_corp_serenity_core', 0);
+  assert.equal(mCorpOffCombat.total, 15);
 
-  const kCorpCombat = catalog.restorationBreakdown('sp_k_corp_prime_neural_ampule', 0);
-  assert.equal(kCorpCombat.total, 15);
-  assert.equal(kCorpCombat.lineLimit, 15);
+  const lCorpCombat = catalog.restorationBreakdown('sp_l_corp_concentrated_enkephalin_ampule_ex', 0);
+  assert.equal(lCorpCombat.total, 15);
+  assert.equal(lCorpCombat.lineLimit, 15);
 
-  const kCorpOffCombat = catalog.restorationBreakdown('sp_k_corp_executive_reset_ampule', 0);
-  assert.equal(kCorpOffCombat.total, 20);
-  assert.equal(kCorpOffCombat.lineLimit, 20);
+  const lCorpOffCombat = catalog.restorationBreakdown('sp_l_corp_executive_enkephalin_case_ex', 0);
+  assert.equal(lCorpOffCombat.total, 20);
+  assert.equal(lCorpOffCombat.lineLimit, 20);
 
-  const nearCap = catalog.restorationBreakdown('sp_k_corp_executive_reset_ampule', 40);
+  const nearCap = catalog.restorationBreakdown('sp_l_corp_executive_enkephalin_case_ex', 40);
   assert.equal(nearCap.total, 5, 'SP restoration must clamp to the 45 SP maximum');
   assert.equal(nearCap.after, 45);
 
-  const negativeSp = catalog.restorationBreakdown('sp_k_corp_executive_reset_ampule', -45);
+  const negativeSp = catalog.restorationBreakdown('sp_l_corp_executive_enkephalin_case_ex', -45);
   assert.equal(negativeSp.total, 20);
   assert.equal(negativeSp.after, -25, 'even the strongest item must not erase deep negative SP in one use');
 
@@ -100,7 +119,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.canUse(offCombat, { inCombat: true }).allowed, false);
   assert.equal(catalog.canUse(offCombat, { inCombat: false }).allowed, true);
 
-  console.log('SP healing catalog smoke: OK (60 items, bounded for 45 SP sanity economy)');
+  console.log('SP healing catalog smoke: OK (60 items, Generic/M Corp/L Corp, bounded for 45 SP sanity economy)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
