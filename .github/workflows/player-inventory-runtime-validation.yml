@@ -11,6 +11,7 @@ on:
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
       - js/item-catalog-hp-healing.js
+      - js/item-catalog-sp-healing.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -20,6 +21,7 @@ on:
       - css/dm-item-instance-editor.css
       - tests/item-icon-registry-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
+      - tests/item-catalog-sp-healing-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
@@ -43,6 +45,7 @@ jobs:
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
           node --check js/item-catalog-hp-healing.js
+          node --check js/item-catalog-sp-healing.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -51,6 +54,8 @@ jobs:
         run: node tests/item-icon-registry-smoke.cjs
       - name: HP healing catalog smoke
         run: node tests/item-catalog-hp-healing-smoke.cjs
+      - name: SP healing catalog smoke
+        run: node tests/item-catalog-sp-healing-smoke.cjs
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
