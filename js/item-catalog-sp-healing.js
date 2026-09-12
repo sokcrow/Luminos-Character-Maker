@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "healing_sp";
   const CURRENCY = "AHN";
   const DEFAULT_MAX_SP = 45;
@@ -14,8 +14,13 @@
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
   const SOURCE_LIMITS = Object.freeze({
     generic: Object.freeze({ quickAction: 5, combat: 6, offCombat: 10 }),
-    workshop: Object.freeze({ quickAction: 7, combat: 10, offCombat: 15 }),
-    k_corp: Object.freeze({ quickAction: 10, combat: 15, offCombat: 20 }),
+    m_corp: Object.freeze({ quickAction: 7, combat: 10, offCombat: 15 }),
+    l_corp: Object.freeze({ quickAction: 10, combat: 15, offCombat: 20 }),
+  });
+  const SOURCE_PROFILES = Object.freeze({
+    generic: Object.freeze({ label: "Generic", owner: null, material: null }),
+    m_corp: Object.freeze({ label: "M Corp", owner: "M Corp", material: "Moonlight Stone" }),
+    l_corp: Object.freeze({ label: "L Corp Enkephalin", owner: "L Corp", material: "Enkephalin" }),
   });
 
   function item(id, name, sourceLine, tier, actionCost, priceAhn, spRestore, options = {}) {
@@ -27,6 +32,7 @@
         spPerTurn: options.regen[1],
       };
     }
+    const sourceProfile = SOURCE_PROFILES[sourceLine] || SOURCE_PROFILES.generic;
     return Object.freeze({
       id,
       name,
@@ -35,6 +41,11 @@
       category: "consumable",
       itemType: "consumable",
       sourceLine,
+      sourceProfile: {
+        label: sourceProfile.label,
+        owner: sourceProfile.owner,
+        material: sourceProfile.material,
+      },
       tier,
       purchasable: true,
       currency: CURRENCY,
@@ -72,47 +83,47 @@
     item("sp_generic_sustained_lucidity_compound", "Sustained Lucidity Compound", "generic", "V", "action", 340000, 4, { regen: [2, 1] }),
     item("sp_generic_executive_sanity_case", "Executive Sanity Case", "generic", "V", "off_combat", 380000, 10),
 
-    item("sp_workshop_resonance_stabilizer_cartridge", "Resonance Stabilizer Cartridge", "workshop", "I", "action", 24000, 3),
-    item("sp_workshop_flash_focus_capsule", "Flash-Focus Capsule", "workshop", "I", "quick_action", 36000, 2),
-    item("sp_workshop_thought_weave_gel", "Thought-Weave Gel", "workshop", "I", "action", 50000, 2, { regen: [2, 1] }),
-    item("sp_workshop_decompression_cell", "Workshop Decompression Cell", "workshop", "I", "off_combat", 56000, 5),
-    item("sp_workshop_synapse_alignment_injector", "Synapse Alignment Injector", "workshop", "II", "action", 78000, 5),
-    item("sp_workshop_snap_lucidity_capsule", "Snap Lucidity Capsule", "workshop", "II", "quick_action", 110000, 3),
-    item("sp_workshop_persistent_focus_lattice", "Persistent Focus Lattice", "workshop", "II", "action", 145000, 4, { regen: [2, 1] }),
-    item("sp_workshop_quiet_core", "Workshop Quiet Core", "workshop", "II", "off_combat", 160000, 7),
-    item("sp_workshop_cognitive_reversal_cartridge", "Cognitive Reversal Cartridge", "workshop", "III", "action", 220000, 7),
-    item("sp_workshop_combat_mnemonic_injector", "Combat Mnemonic Injector", "workshop", "III", "quick_action", 300000, 5),
-    item("sp_workshop_self_correcting_nerve_gel", "Self-Correcting Nerve Gel", "workshop", "III", "action", 370000, 6, { regen: [2, 1] }),
-    item("sp_workshop_cognition_reset_frame", "Cognition Reset Frame", "workshop", "III", "off_combat", 410000, 10),
-    item("sp_workshop_high_fidelity_stabilizer", "High-Fidelity Stabilizer", "workshop", "IV", "action", 540000, 9),
-    item("sp_workshop_zero_lag_focus_injector", "Zero-Lag Focus Injector", "workshop", "IV", "quick_action", 720000, 6),
-    item("sp_workshop_persistent_lucidity_mesh", "Persistent Lucidity Mesh", "workshop", "IV", "action", 880000, 6, { regen: [2, 2] }),
-    item("sp_workshop_full_spectrum_quiet_cell", "Full-Spectrum Quiet Cell", "workshop", "IV", "off_combat", 940000, 12),
-    item("sp_workshop_masterwork_composure_core", "Masterwork Composure Core", "workshop", "V", "action", 1200000, 10),
-    item("sp_workshop_zero_noise_cognition_injector", "Zero-Noise Cognition Injector", "workshop", "V", "quick_action", 1550000, 7),
-    item("sp_workshop_autonomous_focus_lattice", "Autonomous Focus Lattice", "workshop", "V", "action", 1800000, 6, { regen: [2, 2] }),
-    item("sp_workshop_serenity_cell", "Workshop Serenity Cell", "workshop", "V", "off_combat", 2050000, 15),
+    item("sp_m_corp_moonlight_shard_stabilizer", "Moonlight Shard Stabilizer", "m_corp", "I", "action", 24000, 3),
+    item("sp_m_corp_flash_moonlight_chip", "Flash Moonlight Chip", "m_corp", "I", "quick_action", 36000, 2),
+    item("sp_m_corp_low_grade_resonance_cartridge", "Low-Grade Moonlight Resonance Cartridge", "m_corp", "I", "action", 50000, 2, { regen: [2, 1] }),
+    item("sp_m_corp_calm_cell", "M Corp Calm Cell", "m_corp", "I", "off_combat", 56000, 5),
+    item("sp_m_corp_polished_moonlight_stabilizer", "Polished Moonlight Stabilizer", "m_corp", "II", "action", 78000, 5),
+    item("sp_m_corp_snap_moonlight_capsule", "Snap Moonlight Capsule", "m_corp", "II", "quick_action", 110000, 3),
+    item("sp_m_corp_resonant_moonlight_lattice", "Resonant Moonlight Lattice", "m_corp", "II", "action", 145000, 4, { regen: [2, 1] }),
+    item("sp_m_corp_quiet_cell", "M Corp Quiet Cell", "m_corp", "II", "off_combat", 160000, 7),
+    item("sp_m_corp_moonlight_resonance_cartridge", "Moonlight Resonance Cartridge", "m_corp", "III", "action", 220000, 7),
+    item("sp_m_corp_combat_moonlight_capsule", "Combat Moonlight Capsule", "m_corp", "III", "quick_action", 300000, 5),
+    item("sp_m_corp_self_tuning_moonlight_mesh", "Self-Tuning Moonlight Mesh", "m_corp", "III", "action", 370000, 6, { regen: [2, 1] }),
+    item("sp_m_corp_decompression_frame", "M Corp Decompression Frame", "m_corp", "III", "off_combat", 410000, 10),
+    item("sp_m_corp_high_purity_stabilizer", "High-Purity Moonlight Stabilizer", "m_corp", "IV", "action", 540000, 9),
+    item("sp_m_corp_zero_lag_moonlight_capsule", "Zero-Lag Moonlight Capsule", "m_corp", "IV", "quick_action", 720000, 6),
+    item("sp_m_corp_persistent_moonlight_matrix", "Persistent Moonlight Matrix", "m_corp", "IV", "action", 880000, 6, { regen: [2, 2] }),
+    item("sp_m_corp_full_spectrum_moonlight_cell", "Full-Spectrum Moonlight Cell", "m_corp", "IV", "off_combat", 940000, 12),
+    item("sp_m_corp_masterwork_moonlight_core", "Masterwork Moonlight Core", "m_corp", "V", "action", 1200000, 10),
+    item("sp_m_corp_zero_noise_capsule", "M Corp Zero-Noise Capsule", "m_corp", "V", "quick_action", 1550000, 7),
+    item("sp_m_corp_autonomous_moonlight_lattice", "Autonomous Moonlight Lattice", "m_corp", "V", "action", 1800000, 6, { regen: [2, 2] }),
+    item("sp_m_corp_serenity_core", "M Corp Serenity Core", "m_corp", "V", "off_combat", 2050000, 15),
 
-    item("sp_k_corp_neural_balance_ampule_c", "K Corp Neural Balance Ampule — C", "k_corp", "I", "action", 90000, 4),
-    item("sp_k_corp_snap_balance_c", "K Corp Snap Balance — C", "k_corp", "I", "quick_action", 130000, 3),
-    item("sp_k_corp_green_composure_dose_c", "Green Composure Dose — C", "k_corp", "I", "action", 175000, 3, { regen: [2, 1] }),
-    item("sp_k_corp_composure_vial_c", "K Corp Composure Vial — C", "k_corp", "I", "off_combat", 190000, 6),
-    item("sp_k_corp_neural_balance_ampule_b", "K Corp Neural Balance Ampule — B", "k_corp", "II", "action", 260000, 6),
-    item("sp_k_corp_combat_balance_b", "K Corp Combat Balance — B", "k_corp", "II", "quick_action", 360000, 4),
-    item("sp_k_corp_sustained_composure_b", "Sustained Composure — B", "k_corp", "II", "action", 470000, 5, { regen: [2, 1] }),
-    item("sp_k_corp_composure_vial_b", "K Corp Composure Vial — B", "k_corp", "II", "off_combat", 500000, 9),
-    item("sp_k_corp_neural_balance_ampule_a", "K Corp Neural Balance Ampule — A", "k_corp", "III", "action", 700000, 9),
-    item("sp_k_corp_combat_balance_a", "K Corp Combat Balance — A", "k_corp", "III", "quick_action", 900000, 6),
-    item("sp_k_corp_persistent_green_focus", "Persistent Green Focus", "k_corp", "III", "action", 1100000, 8, { regen: [2, 1] }),
-    item("sp_k_corp_neural_recovery_case", "K Corp Neural Recovery Case", "k_corp", "III", "off_combat", 1180000, 12),
-    item("sp_k_corp_high_density_neural_ampule", "K Corp High-Density Neural Ampule", "k_corp", "IV", "action", 1600000, 12),
-    item("sp_k_corp_emergency_balance", "K Corp Emergency Balance", "k_corp", "IV", "quick_action", 2050000, 8),
-    item("sp_k_corp_continuous_stabilization_ampule", "Continuous Stabilization Ampule", "k_corp", "IV", "action", 2500000, 9, { regen: [2, 2] }),
-    item("sp_k_corp_neural_decompression_pack", "K Corp Neural Decompression Pack", "k_corp", "IV", "off_combat", 2650000, 16),
-    item("sp_k_corp_prime_neural_ampule", "K Corp Prime Neural Ampule", "k_corp", "V", "action", 3500000, 15),
-    item("sp_k_corp_emergency_prime_focus", "K Corp Emergency Prime Focus", "k_corp", "V", "quick_action", 4400000, 10),
-    item("sp_k_corp_persistent_prime_balance", "K Corp Persistent Prime Balance", "k_corp", "V", "action", 5200000, 11, { regen: [2, 2] }),
-    item("sp_k_corp_executive_reset_ampule", "K Corp Executive Reset Ampule", "k_corp", "V", "off_combat", 6200000, 20),
+    item("sp_l_corp_diluted_enkephalin_ampule_d", "Diluted Enkephalin Ampule — D", "l_corp", "I", "action", 90000, 4),
+    item("sp_l_corp_enkephalin_microdose_d", "Enkephalin Microdose — D", "l_corp", "I", "quick_action", 130000, 3),
+    item("sp_l_corp_slow_release_enkephalin_d", "Slow-Release Enkephalin Compound — D", "l_corp", "I", "action", 175000, 3, { regen: [2, 1] }),
+    item("sp_l_corp_recovery_flask_d", "L Corp Recovery Flask — D", "l_corp", "I", "off_combat", 190000, 6),
+    item("sp_l_corp_stabilized_enkephalin_ampule_c", "Stabilized Enkephalin Ampule — C", "l_corp", "II", "action", 260000, 6),
+    item("sp_l_corp_combat_enkephalin_dose_c", "Combat Enkephalin Dose — C", "l_corp", "II", "quick_action", 360000, 4),
+    item("sp_l_corp_sustained_enkephalin_compound_c", "Sustained Enkephalin Compound — C", "l_corp", "II", "action", 470000, 5, { regen: [2, 1] }),
+    item("sp_l_corp_composure_vial_c", "L Corp Composure Vial — C", "l_corp", "II", "off_combat", 500000, 9),
+    item("sp_l_corp_refined_enkephalin_ampule_b", "Refined Enkephalin Ampule — B", "l_corp", "III", "action", 700000, 9),
+    item("sp_l_corp_rapid_enkephalin_dose_b", "Rapid Enkephalin Dose — B", "l_corp", "III", "quick_action", 900000, 6),
+    item("sp_l_corp_persistent_enkephalin_compound_b", "Persistent Enkephalin Compound — B", "l_corp", "III", "action", 1100000, 8, { regen: [2, 1] }),
+    item("sp_l_corp_recovery_case_b", "L Corp Recovery Case — B", "l_corp", "III", "off_combat", 1180000, 12),
+    item("sp_l_corp_high_purity_enkephalin_ampule_a", "High-Purity Enkephalin Ampule — A", "l_corp", "IV", "action", 1600000, 12),
+    item("sp_l_corp_emergency_enkephalin_dose_a", "Emergency Enkephalin Dose — A", "l_corp", "IV", "quick_action", 2050000, 8),
+    item("sp_l_corp_continuous_enkephalin_compound_a", "Continuous Enkephalin Compound — A", "l_corp", "IV", "action", 2500000, 9, { regen: [2, 2] }),
+    item("sp_l_corp_decompression_pack_a", "L Corp Decompression Pack — A", "l_corp", "IV", "off_combat", 2650000, 16),
+    item("sp_l_corp_concentrated_enkephalin_ampule_ex", "Concentrated Enkephalin Ampule — EX", "l_corp", "V", "action", 3500000, 15),
+    item("sp_l_corp_emergency_enkephalin_concentrate_ex", "Emergency Enkephalin Concentrate — EX", "l_corp", "V", "quick_action", 4400000, 10),
+    item("sp_l_corp_persistent_prime_enkephalin_ex", "Persistent Prime Enkephalin Compound — EX", "l_corp", "V", "action", 5200000, 11, { regen: [2, 2] }),
+    item("sp_l_corp_executive_enkephalin_case_ex", "L Corp Executive Enkephalin Case — EX", "l_corp", "V", "off_combat", 6200000, 20),
   ]);
 
   function clone(value) {
@@ -190,6 +201,10 @@
     if (!Number.isInteger(entry?.priceAhn) || entry.priceAhn <= 0) errors.push("invalid_price");
     if (!USE_TIMINGS.includes(entry?.runtime?.actionCost)) errors.push("invalid_use_timing");
     if (!SOURCE_LIMITS[entry?.sourceLine]) errors.push("invalid_source_line");
+    const expectedProfile = SOURCE_PROFILES[entry?.sourceLine];
+    if (!expectedProfile) errors.push("missing_source_profile");
+    if (expectedProfile && entry?.sourceProfile?.owner !== expectedProfile.owner) errors.push("invalid_source_owner");
+    if (expectedProfile && entry?.sourceProfile?.material !== expectedProfile.material) errors.push("invalid_source_material");
     const profile = entry?.runtime?.spHealing;
     if (!profile) errors.push("missing_sp_healing");
     if (Number(profile?.maxSp) !== DEFAULT_MAX_SP) errors.push("invalid_default_max_sp");
@@ -236,6 +251,7 @@
     TIERS,
     USE_TIMINGS,
     SOURCE_LIMITS,
+    SOURCE_PROFILES,
     ITEMS,
     get,
     list,
