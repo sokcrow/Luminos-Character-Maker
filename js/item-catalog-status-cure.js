@@ -2,11 +2,12 @@
   "use strict";
 
   if (global.LuminousStatusCureCatalog) {
+    global.LuminousStatusCureCatalog.installItemRuntimeBridge?.();
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousStatusCureCatalog;
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "status_cure";
   const CURRENCY = "AHN";
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
@@ -125,6 +126,24 @@
 
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function normalizeId(value) {
+    return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function safeRequire(path) {
+    if (typeof require !== "function") return null;
+    try { return require(path); } catch (_) { return null; }
+  }
+
+  function emit(name, detail) {
+    try {
+      if (typeof global.dispatchEvent === "function" && typeof global.CustomEvent === "function") {
+        global.dispatchEvent(new global.CustomEvent(name, { detail }));
+      }
+    } catch (_) {}
+    return detail;
   }
 
   function item(id, name, sourceLine, tier, actionCost, priceAhn, adjustments) {
@@ -303,6 +322,114 @@
     });
   }
 
+  function installItemRuntimeBridge(options = {}) {
+    const current = options.itemRuntime || global.LuminousItemRuntime;
+    if (!current) return false;
+    if (current.__luminousStatusCureBridge === true) return true;
+
+    const normalize = current.normalizeId || normalizeId;
+    const actionEngine = () => options.actionEngine || global.LuminousActionEconomy || safeRequire("./universal-action-economy.js");
+    const statusEngine = () => options.statusEngine || global.LuminousStatusEngine || safeRequire("./status-engine.js");
+
+    const hydrate = (stored, useOptions = {}) => {
+      if (!stored || typeof stored !== "object") return stored;
+      return current.resolveItem?.(stored, useOptions)
+        || current.hydrateItemInstance?.(stored, useOptions)
+        || stored;
+    };
+
+    const isCure = (itemValue) => normalize(itemValue?.runtime?.handler) === "status_cure";
+
+    function consumeCure(user, storedItem, definitionItem, useOptions = {}) {
+      const phase = normalize(useOptions.phase || actionEngine()?.phaseFor?.(useOptions) || "other");
+      const target = useOptions.target || user;
+      const applied = applyCure(definitionItem, target, {
+        ...useOptions,
+        statusEngine: statusEngine(),
+        inCombat: ["planning", "combat"].includes(phase),
+      });
+      if (!applied.applied && useOptions.consumeOnNoEffect !== true) return { ...applied, consumed: false };
+
+      const consumeQty = Math.max(0, Math.trunc(Number(definitionItem?.runtime?.consumeQty ?? 1) || 0));
+      const quantityBefore = current.quantityOf?.(storedItem) ?? Number(storedItem?.quantity ?? 1);
+      const consumption = consumeQty > 0 && current.consumeQuantity
+        ? current.consumeQuantity(storedItem, consumeQty)
+        : { consumed: true, before: quantityBefore, after: quantityBefore, amount: 0 };
+      if (!consumption.consumed) return { applied: false, reason: consumption.reason || "insufficient_quantity", consumed: false, item: storedItem, consumption };
+
+      const result = { ...applied, consumed: true, consumption, item: storedItem, definition: definitionItem };
+      emit("luminous:item-used", result);
+      return result;
+    }
+
+    function bridgedUseItem(user, itemInput, useOptions = {}) {
+      const storedItem = current.findItem?.(user, itemInput) || itemInput;
+      const definitionItem = hydrate(storedItem, useOptions);
+      if (!isCure(definitionItem)) return current.useItem?.(user, itemInput, useOptions) || { used: false, reason: "base_item_runtime_unavailable" };
+      if (!user || !storedItem || typeof storedItem !== "object") return { used: false, reason: "missing_user_or_item" };
+      if ((current.quantityOf?.(storedItem) ?? Number(storedItem.quantity ?? 1)) <= 0) return { used: false, reason: "insufficient_quantity", item: storedItem };
+
+      const actions = actionEngine();
+      const phase = normalize(useOptions.phase || actions?.phaseFor?.(useOptions) || "other");
+      const cost = current.actionCostFor?.(definitionItem) || normalize(definitionItem.runtime?.actionCost || "action");
+      const inActionEconomy = ["planning", "combat"].includes(phase);
+      const gate = canUse(definitionItem, { inCombat: inActionEconomy });
+      if (!gate.allowed) return { used: false, reason: gate.reason, item: storedItem, cost };
+
+      if (!inActionEconomy || useOptions.ignoreActionCost === true || cost === "none" || cost === "free") {
+        const result = consumeCure(user, storedItem, definitionItem, useOptions);
+        return { used: Boolean(result.applied && result.consumed), immediate: true, cost, ...result };
+      }
+
+      if (!actions) return { used: false, reason: "action_economy_unavailable", item: storedItem, cost };
+
+      if (cost === "action") {
+        if (phase !== "planning") return { used: false, reason: "action_item_requires_planning_phase", item: storedItem, cost };
+        const scheduled = actions.scheduleAction?.(user, {
+          kind: "item_use",
+          sourceId: current.definitionId?.(definitionItem) || definitionItem.id,
+          targetId: useOptions.target?.id || useOptions.target?.unitId || useOptions.target?.characterId || null,
+          data: {
+            itemInstanceId: storedItem.instanceId || current.itemId?.(storedItem) || storedItem.id,
+            definitionId: current.definitionId?.(definitionItem) || definitionItem.id,
+            handler: "status_cure",
+          },
+        }, useOptions);
+        if (!scheduled?.scheduled) return { used: false, scheduled: false, reason: scheduled?.reason || "schedule_failed", item: storedItem, cost };
+        const result = { used: true, scheduled: true, immediate: false, item: storedItem, cost, ...scheduled };
+        emit("luminous:item-use-scheduled", { user, item: storedItem, definition: definitionItem, scheduled });
+        return result;
+      }
+
+      const availability = actions.availability?.(user, cost, useOptions) || { available: true };
+      if (!availability.available) return { used: false, reason: availability.reason || "action_cost_unavailable", item: storedItem, cost };
+      if (actions.consume && !actions.consume(user, cost, useOptions)) return { used: false, reason: "action_cost_not_consumed", item: storedItem, cost };
+      const result = consumeCure(user, storedItem, definitionItem, useOptions);
+      return { used: Boolean(result.applied && result.consumed), immediate: true, cost, ...result };
+    }
+
+    function bridgedResolveScheduledUse(user, plannedAction, useOptions = {}) {
+      const entry = plannedAction?.entry || plannedAction;
+      if (normalize(entry?.kind) !== "item_use") return current.resolveScheduledUse?.(user, plannedAction, useOptions) || { resolved: false, reason: "not_item_use_action" };
+      const instanceRef = entry?.data?.itemInstanceId || entry?.data?.definitionId || entry?.sourceId;
+      const storedItem = useOptions.item || current.findItem?.(user, instanceRef);
+      const definitionItem = hydrate(storedItem, useOptions);
+      if (!isCure(definitionItem)) return current.resolveScheduledUse?.(user, plannedAction, useOptions) || { resolved: false, reason: "base_item_runtime_unavailable" };
+      if (!storedItem) return { resolved: false, reason: "scheduled_item_not_found", instanceRef };
+      const result = consumeCure(user, storedItem, definitionItem, { ...useOptions, phase: useOptions.phase || "combat", ignoreActionCost: true });
+      return { resolved: Boolean(result.applied && result.consumed), item: storedItem, ...result };
+    }
+
+    global.LuminousItemRuntime = Object.freeze({
+      ...current,
+      useItem: bridgedUseItem,
+      resolveScheduledUse: bridgedResolveScheduledUse,
+      __luminousStatusCureBridge: true,
+      __luminousStatusCureBase: current,
+    });
+    return true;
+  }
+
   const API = Object.freeze({
     VERSION,
     FAMILY,
@@ -319,8 +446,13 @@
     validateItem,
     validateCatalog,
     registerIntoContentRegistry,
+    installItemRuntimeBridge,
   });
 
   global.LuminousStatusCureCatalog = API;
+  const bridgeInstalled = installItemRuntimeBridge();
+  if (!bridgeInstalled && global.addEventListener) {
+    global.addEventListener("load", () => installItemRuntimeBridge(), { once: true });
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);
