@@ -47,6 +47,13 @@ assert.equal(library.get('psychic_blade')?.mode, 'single');
 assert.equal(library.get('psychic_blade')?.icon, 'https://imgur.com/vEDE8Q8.png');
 assert.equal(library.get('psychic_blade')?.archetypeId, 'college_of_whispers');
 
+// Second Wind is a visible Fighter Status whose Count tracks the remaining uses for the Encounter.
+assert.equal(library.has('second_wind'), true);
+assert.equal(library.get('second_wind')?.name, 'Second Wind');
+assert.equal(library.get('second_wind')?.mode, 'single');
+assert.equal(library.get('second_wind')?.icon, 'https://imgur.com/VSxnVEo.png');
+assert.equal(library.get('second_wind')?.classId, 'fighter');
+
 // Class resources and Action/Passive implementation markers are not Status Effects.
 assert.equal(library.has('sorcery_points'), false, 'Sorcery Points are a Sorcerer class resource, not a Status');
 assert.equal(library.has('reckless_attack_armed'), false, 'Reckless Attack arming is internal Trait state');
@@ -77,18 +84,21 @@ const unit = {
     haste: { id: 'haste', count: 2, potency: 0 },
     bardic_inspiration: { id: 'bardic_inspiration', count: 1, potency: 3 },
     psychic_blade: { id: 'psychic_blade', count: 2, potency: 0 },
+    second_wind: { id: 'second_wind', count: 3, potency: 0 },
     countercharm: { id: 'countercharm', count: 2, potency: 0 },
     reckless_attack_armed: { id: 'reckless_attack_armed', count: 1, potency: 0 },
   },
 };
 const visible = globalThis.LuminousStatusEngine.listStatuses(unit).map((entry) => entry.id).sort();
-assert.deepEqual(visible, ['bardic_inspiration', 'haste', 'psychic_blade', 'rage']);
+assert.deepEqual(visible, ['bardic_inspiration', 'haste', 'psychic_blade', 'rage', 'second_wind']);
 
 // Existing Trait runtimes must still reference the same canonical ids.
 const bardSource = fs.readFileSync(path.join(root, 'js/bard-class-runtime.js'), 'utf8');
 assert.match(bardSource, /bardic_inspiration/);
 const whispersSource = fs.readFileSync(path.join(root, 'js/college-of-whispers-runtime.js'), 'utf8');
 assert.match(whispersSource, /psychic_blade/);
+const fighterSource = fs.readFileSync(path.join(root, 'js/fighter-class-runtime.js'), 'utf8');
+assert.match(fighterSource, /second_wind/);
 
 // Sorcerer keeps Sorcery Points in classResources; it must not regress into the Status Library.
 const sorcererSource = fs.readFileSync(path.join(root, 'js/sorcerer-class-runtime.js'), 'utf8');
@@ -99,4 +109,4 @@ assert.doesNotMatch(sorcererSource, /statusId\s*:\s*["']sorcery_points["']/);
 const managerSource = fs.readFileSync(path.join(root, 'js/statusManager.js'), 'utf8');
 assert.match(managerSource, /class-status-semantics\.js/);
 
-console.log('Class Status semantics smoke passed: Rage, Bardic Inspiration, and Psychic Blade visible; internal Action markers hidden; Sorcery Points remain a resource.');
+console.log('Class Status semantics smoke passed: Rage, Bardic Inspiration, Psychic Blade, and Second Wind visible; internal Action markers hidden; Sorcery Points remain a resource.');
