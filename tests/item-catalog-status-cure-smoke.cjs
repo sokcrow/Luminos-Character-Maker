@@ -3,20 +3,24 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 (async () => {
-  for (const key of ['LuminousStatusLibrary', 'LuminousStatusEngine', 'LuminousStatusCureCatalog', 'STATUS_REGISTRY']) delete globalThis[key];
+  for (const key of ['LuminousStatusLibrary', 'LuminousStatusEngine', 'LuminousStatusCureCatalog', 'LuminousItemRuntime', 'STATUS_REGISTRY']) delete globalThis[key];
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/status-library.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/status-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-runtime-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-status-cure.js')).href);
 
   const catalog = globalThis.LuminousStatusCureCatalog;
   const statusEngine = globalThis.LuminousStatusEngine;
+  const itemRuntime = globalThis.LuminousItemRuntime;
 
   assert.ok(catalog);
   assert.ok(statusEngine);
-  assert.equal(catalog.VERSION, 1);
+  assert.ok(itemRuntime);
+  assert.equal(catalog.VERSION, 2);
   assert.equal(catalog.FAMILY, 'status_cure');
   assert.equal(catalog.CURRENCY, 'AHN');
+  assert.equal(itemRuntime.__luminousStatusCureBridge, true, 'status cure catalog should bridge into normal item use');
 
   const supported = Object.keys(catalog.CURABLE_STATUS_PROFILES).sort();
   assert.deepEqual(supported, [
@@ -101,7 +105,27 @@ const { pathToFileURL } = require('node:url');
   const totalTargets = new Set(totalCase.runtime.statusCure.statusAdjustments.map((entry) => entry.statusId));
   for (const statusId of supported) assert.ok(totalTargets.has(statusId), `Tier V specialist case should cover ${statusId}`);
 
-  console.log('Status cure catalog smoke: OK (60 items, 12 canonical reducible statuses, partial Count/Potency treatment)');
+  // Normal LuminousItemRuntime.useItem must route cure handlers, consume the item and apply partial treatment.
+  const runtimeUnit = { id: 'runtime_cure_unit', statusEffects: {} };
+  statusEngine.applyStatus(runtimeUnit, 'bleed', { mode: 'set', count: 6, potency: 4 });
+  const runtimeItem = catalog.get('cure_generic_coagulant_bandage');
+  runtimeItem.quantity = 1;
+  const runtimeUse = itemRuntime.useItem(runtimeUnit, runtimeItem, { phase: 'other', target: runtimeUnit });
+  assert.equal(runtimeUse.used, true);
+  assert.equal(runtimeUse.consumed, true);
+  assert.equal(runtimeItem.quantity, 0);
+  const runtimeBleed = statusEngine.getStatus(runtimeUnit, 'bleed');
+  assert.equal(runtimeBleed.count, 3);
+  assert.equal(runtimeBleed.potency, 3);
+
+  const combatOffItem = catalog.get('cure_generic_field_recovery_kit');
+  combatOffItem.quantity = 1;
+  const blockedOffCombat = itemRuntime.useItem(runtimeUnit, combatOffItem, { phase: 'combat', target: runtimeUnit });
+  assert.equal(blockedOffCombat.used, false);
+  assert.equal(blockedOffCombat.reason, 'off_combat_only');
+  assert.equal(combatOffItem.quantity, 1, 'blocked Off Combat cure must not be consumed');
+
+  console.log('Status cure catalog smoke: OK (60 items, 12 canonical reducible statuses, partial Count/Potency treatment + item runtime bridge)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
