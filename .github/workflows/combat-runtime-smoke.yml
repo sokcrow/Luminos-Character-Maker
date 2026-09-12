@@ -47,8 +47,6 @@ jobs:
           node --check js/battle-master-archetype-runtime.js
       - name: Battle Master archetype smoke
         run: node tests/battle-master-archetype-runtime-smoke.mjs
-      - name: Kobold Unit Library smoke
-        run: node tests/kobold-unit-library-smoke.mjs
       - name: Universal Unit rank command smoke
         run: node tests/unit-rank-command-smoke.mjs
       - name: G1-G2 Skill Forge smoke

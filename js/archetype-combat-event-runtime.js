@@ -4,12 +4,20 @@
   const doc = global.document;
   if (!doc) return;
 
+  function scriptExists(src) {
+    const expected = String(src || "").split(/[?#]/)[0].replace(/^\.\//, "");
+    return [...doc.querySelectorAll("script[src]")].find((script) => {
+      const raw = String(script.getAttribute("src") || "").split(/[?#]/)[0].replace(/^\.\//, "");
+      return raw === expected || raw.endsWith(`/${expected}`);
+    }) || null;
+  }
+
   function ensureScript(id, src, ready) {
     if (ready?.()) return Promise.resolve();
-    const existing = doc.getElementById(id);
+    const existing = doc.getElementById(id) || scriptExists(src);
     if (existing) {
+      if (ready?.()) return Promise.resolve();
       return new Promise((resolve, reject) => {
-        if (ready?.()) return resolve();
         existing.addEventListener("load", resolve, { once: true });
         existing.addEventListener("error", reject, { once: true });
       });
@@ -31,6 +39,8 @@
       "js/archetype-combat-event-runtime-core.js",
       () => Boolean(global.LuminousArchetypeCombatEventRuntime),
     ))
+    // Orosh is still a legacy lineage runtime and does not yet follow the
+    // universal class/archetype filename convention, so keep it here only.
     .then(() => ensureScript(
       "orosh-lineage-runtime-script",
       "js/orosh-lineage-runtime.js",
@@ -41,20 +51,13 @@
       "js/orosh-lineage-complete-runtime.js",
       () => Boolean(global.LuminousOroshLineageCompleteRuntime),
     ))
+    // Class/archetype runtimes and their combat adapters are owned exclusively
+    // by the universal bootstrap. Do not hardcode Rogue/Mastermind here.
     .then(() => ensureScript(
-      "rogue-class-runtime-script",
-      "js/rogue-class-runtime.js",
-      () => Boolean(global.LuminousRogueClassRuntime),
+      "class-runtime-bootstrap-script",
+      "js/class-runtime-bootstrap.js",
+      () => Boolean(global.LuminousClassRuntimeBootstrap),
     ))
-    .then(() => ensureScript(
-      "rogue-combat-runtime-script",
-      "js/rogue-combat-runtime.js",
-      () => Boolean(global.LuminousRogueCombatRuntime),
-    ))
-    .then(() => ensureScript(
-      "mastermind-archetype-runtime-script",
-      "js/mastermind-archetype-runtime.js",
-      () => Boolean(global.LuminousMastermindArchetypeRuntime),
-    ))
+    .then(() => global.LuminousClassRuntimeBootstrap?.boot?.({ context: "combat" }))
     .catch((error) => console.error("Archetype Combat Event Bootstrap:", error));
 })(typeof window !== "undefined" ? window : globalThis);
