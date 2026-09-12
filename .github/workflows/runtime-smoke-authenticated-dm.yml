@@ -8,9 +8,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: authenticated-dm-sync-smoke
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,4 +37,4 @@ jobs:
           cat /tmp/luminous-http.log
           exit 1
       - name: Authenticated DM synchronization smoke
-        run: node scripts/runtime-smoke-authenticated-dm.mjs
+        run: timeout 45s node scripts/runtime-smoke-authenticated-dm.mjs
