@@ -26,9 +26,9 @@
     if (!build) return [];
     return registerSourceOnce("character-build-rules", () => {
       const out = [];
-      out.push(...registry.registerCatalog("class", build.CLASSES || [], { source: "character-build-rules", nameAliases: true }));
-      out.push(...registry.registerCatalog("race", build.RACES || [], { source: "character-build-rules", nameAliases: true }));
-      out.push(...registry.registerCatalog("background", build.BACKGROUNDS || [], { source: "character-build-rules", nameAliases: true }));
+      out.push(...registry.registerCatalog("class", build.CLASSES || [], { source: "character-build-rules", nameAliases: true, allowSameDefinition: true }));
+      out.push(...registry.registerCatalog("race", build.RACES || [], { source: "character-build-rules", nameAliases: true, allowSameDefinition: true }));
+      out.push(...registry.registerCatalog("background", build.BACKGROUNDS || [], { source: "character-build-rules", nameAliases: true, allowSameDefinition: true }));
 
       (build.RACES || []).forEach((race) => {
         (race.subtypes || []).forEach((subtype) => {
@@ -39,7 +39,7 @@
             sourceKey: "character-build-rules",
             definition: { ...subtype, parentRaceId: race.id },
             aliases: [`${race.id}_${subtype.id}`],
-          }, { source: "character-build-rules" });
+          }, { source: "character-build-rules", allowSameDefinition: true });
           out.push(entry);
         });
       });
@@ -49,15 +49,15 @@
 
   function registerTraitCatalog(catalog, source = "trait-catalog-core") {
     if (!catalog?.DEFINITIONS) return [];
-    return registerSourceOnce(source, () => registry.registerCatalog("trait", catalog.DEFINITIONS, { source }));
+    return registerSourceOnce(source, () => registry.registerCatalog("trait", catalog.DEFINITIONS, { source, allowSameDefinition: true }));
   }
 
   function registerArchetypeCatalog(catalog) {
     if (!catalog) return [];
     return registerSourceOnce("archetype-trait-catalog", () => {
       const out = [];
-      out.push(...registry.registerCatalog("archetype", catalog.ARCHETYPES || {}, { source: "archetype-trait-catalog", nameAliases: true }));
-      out.push(...registry.registerCatalog("trait", catalog.DEFINITIONS || {}, { source: "archetype-trait-catalog" }));
+      out.push(...registry.registerCatalog("archetype", catalog.ARCHETYPES || {}, { source: "archetype-trait-catalog", nameAliases: true, allowSameDefinition: true }));
+      out.push(...registry.registerCatalog("trait", catalog.DEFINITIONS || {}, { source: "archetype-trait-catalog", allowSameDefinition: true }));
       return out;
     });
   }
@@ -71,20 +71,20 @@
         name: definition?.nombre || definition?.name || id,
         definition: { ...definition, id },
       }));
-      return registry.registerCatalog("language", adapted, { source: "language-catalog-engine", nameAliases: true });
+      return registry.registerCatalog("language", adapted, { source: "language-catalog-engine", nameAliases: true, allowSameDefinition: true });
     });
   }
 
   function registerStatusRegistry(statusRegistry) {
     if (!statusRegistry || typeof statusRegistry !== "object") return [];
-    return registerSourceOnce("status-registry", () => registry.registerCatalog("status", statusRegistry, { source: "status-registry" }));
+    return registerSourceOnce("status-registry", () => registry.registerCatalog("status", statusRegistry, { source: "status-registry", allowSameDefinition: true }));
   }
 
   function registerGenericCatalog(type, catalog, source) {
     if (!catalog) return [];
     const definitions = catalog.DEFINITIONS || catalog.definitions || catalog;
     if (!definitions || typeof definitions !== "object") return [];
-    return registerSourceOnce(source, () => registry.registerCatalog(type, definitions, { source }));
+    return registerSourceOnce(source, () => registry.registerCatalog(type, definitions, { source, allowSameDefinition: true }));
   }
 
   function registerAvailableCore(options = {}) {
