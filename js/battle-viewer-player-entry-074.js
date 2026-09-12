@@ -12,7 +12,7 @@
     actors: "campaña/actores",
     units: "campaña/base_datos_unidades",
     skills: "campaña/base_datos_skills",
-    combatants: "campaña/combate/combatants",
+    draftCombatants: "campaña/combate/encounterDraft/combatants",
   });
   const CARD_ID = "dm074-player-entry";
   const SELECT_ID = "dm074-player-entry-select";
@@ -43,9 +43,9 @@
     .replace(/'/g, "&#039;");
 
   function actorLibrary() {
-    if (global?.LuminousVttActorLibrary) return global.LuminousVttActorLibrary;
+    if (global?.LuminousActorLibrary) return global.LuminousActorLibrary;
     if (typeof require === "function") {
-      try { return require("./vtt/actor-library.js"); } catch (_) {}
+      try { return require("./actor-library.js"); } catch (_) {}
     }
     return null;
   }
@@ -218,7 +218,7 @@
     if (unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT") return { added: false, reason: "ambiguous_player_unit", key: null, combatant: null };
     const combatant = buildPlayerCombatant(actor, { ...options, unitResolution });
     const key = playerCombatantKey(actor);
-    const ref = db.ref(`${ROOTS.combatants}/${key}`);
+    const ref = db.ref(`${ROOTS.draftCombatants}/${key}`);
     let occupied = false;
     const result = await ref.transaction((current) => {
       if (current) { occupied = true; return; }
@@ -246,7 +246,7 @@
     const entries = playerEntries();
     select.innerHTML = '<option value="">— Select campaign Player —</option>' + entries.map(({ actor, linked, existing, unitResolution, loadout }) => {
       const key = actor.key;
-      let suffix = existing ? " · IN COMBAT" : linked ? " · READY" : " · NO ACTOR LINK";
+      let suffix = existing ? " · STAGED" : linked ? " · READY" : " · NO ACTOR LINK";
       if (!existing && linked) {
         if (unitResolution.reason === "AMBIGUOUS_PLAYER_UNIT") suffix = " · AMBIGUOUS UNIT";
         else if (!unitResolution.ok) suffix = " · NO UNIT LOADOUT";
@@ -259,13 +259,13 @@
     const ambiguous = selected?.unitResolution?.reason === "AMBIGUOUS_PLAYER_UNIT";
     add.disabled = !selected || !selected.linked || Boolean(selected.existing) || ambiguous;
     if (!entries.length) setStatus("No campaign Players found.");
-    else if (selected?.existing) setStatus("Player is already in combat.");
+    else if (selected?.existing) setStatus("Player is already staged for this encounter.");
     else if (selected && !selected.linked) setStatus("Player has no assigned Actor; cannot create a canonical combatant.", "error");
     else if (ambiguous) setStatus("Multiple Player Units match this Player. Resolve the Unit linkage before entering combat.", "error");
     else if (selected && !selected.unitResolution.ok) setStatus(`Ready: ${selected.actor.name} · no linked Unit loadout; combatant will have 0 equipped Skills.`);
     else if (selected?.loadout?.hasErrors) setStatus(`Ready: ${selected.actor.name} · loadout has missing/invalid Skill IDs.`, "error");
     else if (selected) setStatus(`Ready: ${selected.actor.name} · ${selected.loadout?.skillIds?.length || 0} equipped Skills.`);
-    else setStatus("Select a Player to add to combat.");
+    else setStatus("Select a Player to stage for the encounter.");
     return true;
   }
 
@@ -281,10 +281,10 @@
       card.id = CARD_ID;
       card.className = "dm074-card";
       card.innerHTML = `
-        <div class="dm074-title">Campaign Players → Combat</div>
+        <div class="dm074-title">Encounter Draft · Campaign Players</div>
         <div class="dm074-row">
           <select id="${SELECT_ID}"><option value="">— Select campaign Player —</option></select>
-          <button id="${ADD_ID}" type="button">ADD PLAYER</button>
+          <button id="${ADD_ID}" type="button">STAGE PLAYER</button>
         </div>
         <div id="${STATUS_ID}" class="dm074-muted" style="margin-top:6px;font-size:10px">Loading campaign Players…</div>`;
       const firstCard = body.querySelector(".dm074-card");
@@ -300,7 +300,7 @@
         setStatus(`Adding ${entry.actor.name}…`);
         try {
           const result = await addPlayerActor(entry.actor, { unitResolution: entry.unitResolution });
-          setStatus(result.added ? `${entry.actor.name} added to combat.` : result.reason === "ambiguous_player_unit" ? `${entry.actor.name} has ambiguous Unit linkage.` : `${entry.actor.name} is already in combat.`, result.added ? "ok" : result.reason === "ambiguous_player_unit" ? "error" : "info");
+          setStatus(result.added ? `${entry.actor.name} staged for encounter.` : result.reason === "ambiguous_player_unit" ? `${entry.actor.name} has ambiguous Unit linkage.` : `${entry.actor.name} is already staged.`, result.added ? "ok" : result.reason === "ambiguous_player_unit" ? "error" : "info");
         } catch (error) {
           setStatus(`Could not add Player: ${error?.message || error}`, "error");
         }
@@ -336,12 +336,13 @@
     if (state.started) { mount(); return true; }
     state.db = options.db || state.db || (global.firebase?.database ? global.firebase.database() : null);
     if (!state.db && global.document) return false;
+    global.LuminousBattleViewerEncounterSession074?.init?.({ db: state.db });
     state.started = true;
     subscribe(ROOTS.players, (value) => { state.players = value; });
     subscribe(ROOTS.actors, (value) => { state.actors = value; });
     subscribe(ROOTS.units, (value) => { state.units = value; skillLoadoutRuntime()?.applyUnits?.(value); });
     subscribe(ROOTS.skills, (value) => { state.skills = value; skillLoadoutRuntime()?.applySkills?.(value); });
-    subscribe(ROOTS.combatants, (value) => { state.combatants = value; });
+    subscribe(ROOTS.draftCombatants, (value) => { state.combatants = value; });
     if (!mount()) scheduleMount();
     return true;
   }

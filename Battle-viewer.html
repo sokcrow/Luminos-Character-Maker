@@ -204,7 +204,7 @@
     <!-- Logs and Execute Button -->
     <button id="btn-execute-clash" onclick="executeCombatTimeline()">[ EJECUTAR CHOQUE ]</button>
     <div id="combat-log-terminal">
-        <div class="log-entry">VTT LUMINOS SYSTEM INITIALIZED...</div>
+        <div class="log-entry">LUMINOUS COMBAT ENGINE READY · WAITING FOR ENCOUNTER...</div>
     </div>
 
     <div id="combat-mode" class="layer">
@@ -252,8 +252,10 @@
     let combatData = {};
 
     const COMBAT_STATE_PATH = 'campaña/combate/estado';
+    const ACTIVE_ENCOUNTER_PATH = 'campaña/combate/activeEncounterId';
     const SHARED_PLANNED_ACTIONS_PATH = 'campaña/combate/plannedActions';
-    let luminousCombatPhaseState = null;
+    let luminousCombatPhaseState = 'IDLE';
+    let activeEncounterId = null;
     let sharedPlannedActions = {};
 
     function combatUnitsForActionEconomy() {
@@ -292,10 +294,14 @@
                     });
                 }
             }
+        } else {
+            CombatEngine.currentState = 'IDLE';
         }
 
-        luminousCombatPhaseState = normalized;
-        window.LuminousCombatPhaseState = normalized;
+        luminousCombatPhaseState = normalized || 'IDLE';
+        window.LuminousCombatPhaseState = luminousCombatPhaseState;
+        const executeButton = document.getElementById('btn-execute-clash');
+        if (executeButton) executeButton.disabled = !(activeEncounterId && luminousCombatPhaseState === 'PRE_COMBAT_PLANNING');
         return normalized;
     }
 
@@ -417,17 +423,6 @@
     let dragStartSlotId = null;
     let dragCurrentX = 0;
     let dragCurrentY = 0;
-
-    // --- BASE DE DATOS DE TUS PECADORES ---
-    const customSinners = [
-        { name: "Jeske", escala_matriz: 3, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Calipsys", escala_matriz: 3, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Pierre", img: "https://i.imgur.com/11DglPK.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Agatha", escala_matriz: 3, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Dalzay", img: "https://i.imgur.com/dv5h0TR.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Ishamon", img: "https://i.imgur.com/8J3F4Ls.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-        { name: "Angelo", img: "https://i.imgur.com/264tPzM.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
-    ];
 
     function toggleGrid() { document.getElementById('floor-grid').classList.toggle('active'); }
 
@@ -585,40 +580,6 @@
             default:
                 return [75, 50, 25];
         }
-    }
-
-    // --- FIREBASE MOCK ---
-    function fetchPlayersFromFirebaseMock() {
-        console.log("Fetching players from Firebase mock...");
-        const mockPlayers = [
-            { id: "player_1", name: "Jeske", hp: 120, maxHp: 120, armorType: "light", speed: 5, actionSlots: 1, img: "https://i.imgur.com/vSpYJg7.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-            { id: "player_2", name: "Calipsys", hp: 150, maxHp: 150, armorType: "medium", speed: 4, actionSlots: 1, img: "https://i.imgur.com/NObW7pm.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 },
-            { id: "player_3", name: "Agatha", hp: 200, maxHp: 200, armorType: "heavy", speed: 2, actionSlots: 1, img: "https://i.imgur.com/24qV5kD.png", scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 }
-        ];
-
-        // Clean up allies first for this test
-        const battlefield = document.getElementById('battlefield');
-        const currentAllies = document.querySelectorAll('.sprite-container.ally');
-        currentAllies.forEach(el => el.remove());
-
-        // Remove allies from combatData and slotTargets
-        Object.keys(combatData).forEach(key => { if(combatData[key].faction === 'ally') delete combatData[key]; });
-        Object.keys(slotTargets).forEach(key => { if(key.startsWith('ally')) delete slotTargets[key]; });
-
-        mockPlayers.forEach((p, index) => {
-            const playerData = {
-                ...p,
-                faction: 'ally',
-                x: 10 + (index * 15),
-                y: 45 + (index % 2 === 0 ? 10 : -10)
-            };
-
-            // Inyectar el arreglo en la propiedad staggerThresholds justo antes de mandar a spawnCombatant
-            playerData.staggerThresholds = calculateStaggerThresholds(playerData.armorType);
-
-            console.log(`Player ${playerData.name} armor: ${playerData.armorType}, Stagger Thresholds:`, playerData.staggerThresholds);
-            spawnCombatant(playerData);
-        });
     }
 
     // --- FUNCIONES DEL EDITOR GENERALIZADO ---
@@ -912,6 +873,10 @@
 
     // --- TIMELINE DE EJECUCIÓN (Flanqueo y Movimiento) ---
     async function executeCombatTimeline() {
+        if (!activeEncounterId || luminousCombatPhaseState !== 'PRE_COMBAT_PLANNING') {
+            addLogEntry('[ ENCOUNTER ] - No hay un encuentro iniciado en fase de planeación.', 'interrupt');
+            return;
+        }
         // Pressing Execute is the authoritative Planning -> Combat transition for this timeline.
         syncCombatEnginePhase('COMBAT_ACTIVE');
         try {
@@ -1187,100 +1152,6 @@
         dragStartSlotId = null; // Clear drag state completely
     }
 
-
-    // --- DESPLIEGUE HORDA 7v7 ---
-        function deploy7v7() {
-        document.getElementById('battlefield').innerHTML = '';
-        combatData = {}; slotTargets = {};
-
-        let allies = []; let enemies = [];
-        for(let i = 0; i < 7; i++) {
-            allies.push({ 
-                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
-            });
-            enemies.push({ 
-                id: 'enemy_' + i, name: 'Hooligan ' + (i+1), faction: 'enemy', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 145, maxHp: 145, actionSlots: 1, armorType: 'light', escala_matriz: 3, img: 'https://limbuscompany.wiki.gg/images/8/87/Head_Hooligan_Idle_Sprite.png',
-                scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0 
-            });
-        }
-
-        allies.sort((a, b) => a.speed - b.speed);
-        enemies.sort((a, b) => a.speed - b.speed);
-
-        // Distribution algorithm: Speed Topology
-        // Slowest near center (X=50), Fastest towards edges (X=10 and X=90)
-        // Allies X: 40% (slowest) to 10% (fastest)
-        // Enemies X: 60% (slowest) to 90% (fastest)
-        // Y staggered (45 +- 10)
-
-        const allyCount = allies.length;
-        allies.forEach((unit, index) => {
-            // index 0 is slowest, index allyCount-1 is fastest
-            // map index 0 -> 40%, index max -> 10%
-            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
-            unit.x = 40 - (fraction * 30); // 40 to 10
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-
-        const enemyCount = enemies.length;
-        enemies.forEach((unit, index) => {
-            let fraction = enemyCount > 1 ? (index / (enemyCount - 1)) : 0.5;
-            unit.x = 60 + (fraction * 30); // 60 to 90
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-        
-        setTimeout(rollEnemyTargets, 500);
-    }
-
-    function deployBossFight() {
-        document.getElementById('battlefield').innerHTML = '';
-        combatData = {}; slotTargets = {};
-        const bossEditor = document.getElementById('boss-editor-panel');
-        if (bossEditor) bossEditor.style.display = 'block';
-
-        let allies = [];
-        for(let i = 0; i < 7; i++) {
-            allies.push({ 
-                id: 'ally_' + i, name: customSinners[i].name, faction: 'ally', speed: Math.floor(Math.random() * 6) + 1, 
-                hp: 216, maxHp: 216, actionSlots: 1, armorType: 'medium', escala_matriz: 3, ...customSinners[i]
-            });
-        }
-        
-        allies.sort((a, b) => a.speed - b.speed);
-
-        const allyCount = allies.length;
-        allies.forEach((unit, index) => {
-            let fraction = allyCount > 1 ? (index / (allyCount - 1)) : 0.5;
-            unit.x = 40 - (fraction * 30); // 40 to 10
-            unit.y = 45 + (index % 2 === 0 ? 10 : -10);
-            unit.staggerThresholds = calculateStaggerThresholds(unit.armorType);
-            spawnCombatant(unit);
-        });
-
-        const bossData = { 
-            id: 'enemy_boss', name: "Distortion Faust", type: 'boss', faction: 'enemy', speed: 8, 
-            hp: 1500, maxHp: 1500, armorType: 'heavy', actionSlots: 7, escala_matriz: 5, img: 'https://i.imgur.com/URvF0s1.png',
-            x: 75, y: 45, scale: 1.0, spriteX: 0, spriteY: 0, uiX: 0, uiY: 0
-        };
-        bossData.staggerThresholds = calculateStaggerThresholds(bossData.armorType);
-        spawnCombatant(bossData);
-        
-                refreshEditorDropdown();
-        const editorTargetSelect = document.getElementById('editor-target-select');
-        if (editorTargetSelect) {
-            editorTargetSelect.value = 'enemy_boss';
-            loadEntityToEditor();
-        }
-
-        setTimeout(rollEnemyTargets, 500);
-    }
-
 function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
 
     // --- FIREBASE SYNC LÓGICA ---
@@ -1289,10 +1160,36 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
     let dbCombatSettings = {};
     let activeDragRef = null;
 
+    function renderLiveEncounterCombatants() {
+        const battlefield = document.getElementById('battlefield');
+        if (!battlefield) return;
+        battlefield.innerHTML = '';
+        combatData = {};
+        const liveState = luminousCombatPhaseState === 'PRE_COMBAT_PLANNING' || luminousCombatPhaseState === 'COMBAT_ACTIVE';
+        if (!activeEncounterId || !liveState) {
+            drawArcs();
+            return;
+        }
+        Object.values(dbCombatData || {}).forEach(unit => {
+            if (String(unit?.encounterId || '') !== String(activeEncounterId)) return;
+            spawnCombatant(unit);
+        });
+        if (luminousCombatPhaseState) syncCombatEnginePhase(luminousCombatPhaseState);
+        drawArcs();
+    }
+
     function initFirebaseCombat() {
         // Firebase is the production source of truth for Planning vs Combat Phase.
         db.ref(COMBAT_STATE_PATH).on('value', snap => {
             syncCombatEnginePhase(snap.val());
+            renderLiveEncounterCombatants();
+        });
+
+        db.ref(ACTIVE_ENCOUNTER_PATH).on('value', snap => {
+            activeEncounterId = String(snap.val() || '').trim() || null;
+            const executeButton = document.getElementById('btn-execute-clash');
+            if (executeButton) executeButton.disabled = !(activeEncounterId && luminousCombatPhaseState === 'PRE_COMBAT_PLANNING');
+            renderLiveEncounterCombatants();
         });
 
         // Shared Planning is authoritative across every player and the DM viewer.
@@ -1300,22 +1197,8 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
 
         // Escuchar datos de los combatientes
         db.ref('campaña/combate/combatants').on('value', snap => {
-            const data = snap.val() || {};
-            dbCombatData = data;
-
-            // Re-render
-            const battlefield = document.getElementById('battlefield');
-            battlefield.innerHTML = '';
-            combatData = {}; // Clear local combat data cache
-
-            // Re-spawn each combatant based on db
-            Object.values(dbCombatData).forEach(unit => {
-                spawnCombatant(unit);
-            });
-            // Initial Firebase callbacks can arrive in either order. Re-apply the already-known
-            // phase to newly materialized Unit objects without resetting existing planned actions.
-            if (luminousCombatPhaseState) syncCombatEnginePhase(luminousCombatPhaseState);
-            drawArcs();
+            dbCombatData = snap.val() || {};
+            renderLiveEncounterCombatants();
         });
 
         // Escuchar configuración (Grid)
@@ -1337,7 +1220,11 @@ function renderLoop() { drawArcs(); requestAnimationFrame(renderLoop); }
         });
     }
 
-    window.onload = () => { initFirebaseCombat(); initDragAndDrop(); renderLoop(); };
+    window.onload = () => {
+        const executeButton = document.getElementById('btn-execute-clash');
+        if (executeButton) executeButton.disabled = true;
+        initFirebaseCombat(); initDragAndDrop(); renderLoop();
+    };
 </script>
 </body>
 </html>

@@ -11,13 +11,19 @@
   const STYLE_ID = "dm074-encounter-roster-style";
   const ROOTS = Object.freeze({
     combatants: "campaña/combate/combatants",
+    draftCombatants: "campaña/combate/encounterDraft/combatants",
     reserves: "campaña/combate/reserves",
+    activeEncounterId: "campaña/combate/activeEncounterId",
+    combatState: "campaña/combate/estado",
   });
 
   const state = {
     db: null,
     combatants: {},
+    draftCombatants: {},
     reserves: {},
+    activeEncounterId: null,
+    combatState: "IDLE",
     started: false,
     listeners: [],
     mountTimer: null,
@@ -83,6 +89,13 @@
       bosses: entries.filter((entry) => entry.role === "boss").length,
       neutral: entries.filter((entry) => entry.role === "neutral").length,
     };
+  }
+
+  function visibleLiveCombatants() {
+    const encounterId = clean(state.activeEncounterId);
+    const live = ["PRE_COMBAT_PLANNING", "COMBAT_ACTIVE"].includes(clean(state.combatState).toUpperCase());
+    if (!encounterId || !live) return {};
+    return Object.fromEntries(Object.entries(state.combatants || {}).filter(([, unit]) => clean(unit?.encounterId) === encounterId));
   }
 
   function summarizeRoster(combatants = state.combatants, reserves = state.reserves) {
@@ -171,13 +184,16 @@
       if (firstCard) body.insertBefore(card, firstCard);
       else body.appendChild(card);
     }
-    const roster = summarizeRoster();
+    const liveCombatants = visibleLiveCombatants();
+    const isLive = Object.keys(liveCombatants).length > 0;
+    const roster = summarizeRoster(isLive ? liveCombatants : state.draftCombatants, isLive ? state.reserves : {});
+    const rosterMode = isLive ? "ACTIVE" : "DRAFT";
     const af = roster.allied.field;
     const ab = roster.allied.backup;
     const ef = roster.enemy.field;
     const eb = roster.enemy.backup;
     card.innerHTML = `
-      <div class="dm074-title">Encounter Roster</div>
+      <div class="dm074-title">Encounter Roster · ${rosterMode}</div>
       <div class="dm074-roster-score">
         <div class="dm074-roster-side"><b>ALLIED · FIELD ${af.total} / BACKUP ${ab.total}</b><small>${af.players} Players · ${af.allies} Allied Units</small></div>
         <div class="dm074-roster-side"><b>ENEMY · FIELD ${ef.total} / BACKUP ${eb.total}</b><small>${ef.enemies} Enemies · ${ef.bosses} Bosses</small></div>
@@ -229,7 +245,10 @@
     state.db = db;
     state.started = true;
     subscribe(ROOTS.combatants, (value) => { state.combatants = value; });
+    subscribe(ROOTS.draftCombatants, (value) => { state.draftCombatants = value; });
     subscribe(ROOTS.reserves, (value) => { state.reserves = value; });
+    subscribe(ROOTS.activeEncounterId, (value) => { state.activeEncounterId = clean(value) || null; });
+    subscribe(ROOTS.combatState, (value) => { state.combatState = clean(value || "IDLE").toUpperCase(); });
     if (typeof global.setInterval === "function") {
       state.mountTimer = global.setInterval(mount, 750);
       state.mountTimer?.unref?.();

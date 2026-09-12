@@ -20,6 +20,8 @@
   ];
 
   const runtimeScripts = [
+    ["actor-library-script", "js/actor-library.js", "LuminousActorLibrary"],
+    ["battle-viewer-encounter-session-074-script", "js/battle-viewer-encounter-session-074.js", "LuminousBattleViewerEncounterSession074"],
     ["battle-viewer-firebase-session-074-script", "js/battle-viewer-firebase-session-074.js", "LuminousBattleViewerFirebaseSession074"],
     ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
     ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
@@ -256,6 +258,8 @@
       global.LuminousContentRegistry
       && global.LuminousContentRegistryBootstrap
       && global.LuminousSpellcastingRuntime?.__basicRulesV1
+      && global.LuminousActorLibrary
+      && global.LuminousBattleViewerEncounterSession074
       && global.LuminousBattleViewerFirebaseSession074
       && global.CombatSkillSchema
       && global.LuminousCombatSkillLoadout074
@@ -287,6 +291,8 @@
     try { if (!global.LuminousContentRegistryBootstrap) require("./content-registry-bootstrap.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime) require("./spellcasting-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSpellcastingRuntime?.__basicRulesV1) require("./spellcasting-basic-rules-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousActorLibrary) require("./actor-library.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerEncounterSession074) require("./battle-viewer-encounter-session-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerFirebaseSession074) require("./battle-viewer-firebase-session-074.js"); } catch (_) {}
     try { if (!global.CombatSkillSchema) require("./combat-skill-schema.js"); } catch (_) {}
     try { if (!global.LuminousCombatSkillLoadout074) require("./combat-skill-loadout-074.js"); } catch (_) {}

@@ -12,6 +12,7 @@
     actors: "campaña/actores",
     units: "campaña/base_datos_unidades",
     combatants: "campaña/combate/combatants",
+    draftCombatants: "campaña/combate/encounterDraft/combatants",
   });
 
   const CARD_ID = "dm074-encounter-setup";
@@ -23,6 +24,8 @@
   const UNIT_ENEMY_ID = "dm074-encounter-unit-enemy";
   const UNIT_ALLY_ID = "dm074-encounter-unit-ally";
   const STATUS_ID = "dm074-encounter-setup-status";
+  const START_ID = "dm074-encounter-start";
+  const CLEAR_ID = "dm074-encounter-clear";
 
   const state = {
     db: null,
@@ -48,9 +51,9 @@
     .replace(/'/g, "&#039;");
 
   function actorLibrary() {
-    if (global?.LuminousVttActorLibrary) return global.LuminousVttActorLibrary;
+    if (global?.LuminousActorLibrary) return global.LuminousActorLibrary;
     if (typeof require === "function") {
-      try { return require("./vtt/actor-library.js"); } catch (_) {}
+      try { return require("./actor-library.js"); } catch (_) {}
     }
     return null;
   }
@@ -137,7 +140,7 @@
         updates[`${key}/tokenImage`] = url;
         updates[`${key}/portrait`] = url;
       });
-      await db.ref(ROOTS.combatants).update(updates);
+      await db.ref(ROOTS.draftCombatants).update(updates);
     }
     return { actorId: actor.linkedActorId, spriteUrl: url, activeCombatantsUpdated: activeKeys.length };
   }
@@ -233,7 +236,7 @@
       updates[combatant.id] = combatant;
       created.push(combatant);
     }
-    await db.ref(ROOTS.combatants).update(updates);
+    await db.ref(ROOTS.draftCombatants).update(updates);
     return created;
   }
 
@@ -249,7 +252,7 @@
     const count = Object.keys(updates).length;
     if (!count) return 0;
     state.repairingSprites = true;
-    try { await db.ref(ROOTS.combatants).update(updates); }
+    try { await db.ref(ROOTS.draftCombatants).update(updates); }
     finally { state.repairingSprites = false; }
     return count;
   }
@@ -307,7 +310,7 @@
       card.className = "dm074-card";
       card.innerHTML = `
         <div class="dm074-title">Encounter Setup · Sprites + Unit Library</div>
-        <div class="dm074-muted" style="margin-bottom:6px;font-size:10px">Player sprites are stored on the assigned Actor. Library Units deploy directly into the canonical FIELD roster.</div>
+        <div class="dm074-muted" style="margin-bottom:6px;font-size:10px">Player sprites are stored on the assigned Actor. Players and Units are staged here. Nothing enters the live FIELD until START ENCOUNTER.</div>
         <div class="dm074-row" style="align-items:center">
           <select id="${PLAYER_SELECT_ID}"><option value="">— Select Player —</option></select>
         </div>
@@ -320,8 +323,12 @@
           <input id="${UNIT_QTY_ID}" type="number" min="1" max="20" value="1" title="Quantity" style="width:48px;background:#090909;color:#ddd;border:1px solid #55472f;padding:5px">
         </div>
         <div class="dm074-row" style="margin-top:5px">
-          <button id="${UNIT_ENEMY_ID}" type="button">DEPLOY ENEMY</button>
-          <button id="${UNIT_ALLY_ID}" type="button">DEPLOY ALLY</button>
+          <button id="${UNIT_ENEMY_ID}" type="button">STAGE ENEMY</button>
+          <button id="${UNIT_ALLY_ID}" type="button">STAGE ALLY</button>
+        </div>
+        <div class="dm074-row" style="margin-top:7px">
+          <button id="${START_ID}" type="button" style="flex:1">START ENCOUNTER</button>
+          <button id="${CLEAR_ID}" type="button">CLEAR DRAFT</button>
         </div>
         <div id="${STATUS_ID}" class="dm074-muted" style="margin-top:6px;font-size:10px">Select a Player sprite or a Unit from the Library.</div>`;
       const anchor = doc.getElementById("dm074-player-entry") || body.querySelector(".dm074-card");
@@ -335,6 +342,8 @@
       const qtyInput = card.querySelector(`#${UNIT_QTY_ID}`);
       const enemyButton = card.querySelector(`#${UNIT_ENEMY_ID}`);
       const allyButton = card.querySelector(`#${UNIT_ALLY_ID}`);
+      const startButton = card.querySelector(`#${START_ID}`);
+      const clearButton = card.querySelector(`#${CLEAR_ID}`);
 
       playerSelect.addEventListener("change", render);
       spriteInput.addEventListener("input", () => {
@@ -361,10 +370,10 @@
         const qty = Math.max(1, Math.min(20, Math.trunc(Number(qtyInput.value) || 1)));
         enemyButton.disabled = true;
         allyButton.disabled = true;
-        setStatus(`Deploying ${qty} × ${actor.name} as ${faction.toUpperCase()}…`);
+        setStatus(`Staging ${qty} × ${actor.name} as ${faction.toUpperCase()}…`);
         try {
           const created = await deployLibraryUnit(actor, faction, qty);
-          setStatus(`${created.length} × ${actor.name} deployed as ${faction.toUpperCase()} from Unit Library.`, "ok");
+          setStatus(`${created.length} × ${actor.name} staged as ${faction.toUpperCase()} from Unit Library.`, "ok");
         } catch (error) {
           setStatus(`Could not deploy Unit: ${error?.message || error}`, "error");
         } finally {
@@ -374,6 +383,35 @@
       };
       enemyButton.addEventListener("click", () => deploy("enemy"));
       allyButton.addEventListener("click", () => deploy("ally"));
+      startButton.addEventListener("click", async () => {
+        const session = global.LuminousBattleViewerEncounterSession074;
+        if (!session?.startEncounter) return setStatus("Encounter session runtime is unavailable.", "error");
+        startButton.disabled = true;
+        clearButton.disabled = true;
+        setStatus("Starting staged encounter…");
+        try {
+          const result = await session.startEncounter({ db: state.db, draftCombatants: state.combatants });
+          setStatus(`Encounter ${result.encounterId} started in PRE_COMBAT_PLANNING.`, "ok");
+        } catch (error) {
+          setStatus(error?.message === "EMPTY_ENCOUNTER_DRAFT" ? "Draft is empty. Stage Players or Units first." : `Could not start encounter: ${error?.message || error}`, "error");
+        } finally {
+          startButton.disabled = false;
+          clearButton.disabled = false;
+        }
+      });
+      clearButton.addEventListener("click", async () => {
+        const session = global.LuminousBattleViewerEncounterSession074;
+        if (!session?.clearDraft) return setStatus("Encounter session runtime is unavailable.", "error");
+        clearButton.disabled = true;
+        try {
+          await session.clearDraft({ db: state.db });
+          setStatus("Encounter draft cleared.", "ok");
+        } catch (error) {
+          setStatus(`Could not clear draft: ${error?.message || error}`, "error");
+        } finally {
+          clearButton.disabled = false;
+        }
+      });
     }
     render();
     return true;
@@ -409,11 +447,12 @@
     if (state.started) { mount(); return true; }
     state.db = options.db || state.db || (global.firebase?.database ? global.firebase.database() : null);
     if (!state.db && global.document) return false;
+    global.LuminousBattleViewerEncounterSession074?.init?.({ db: state.db });
     state.started = true;
     subscribe(ROOTS.players, (value) => { state.players = value; });
     subscribe(ROOTS.actors, (value) => { state.actors = value; });
     subscribe(ROOTS.units, (value) => { state.units = value; skillLoadoutRuntime()?.applyUnits?.(value); });
-    subscribe(ROOTS.combatants, (value) => { state.combatants = value; }, (value) => { repairCanonicalSprites(value).catch(() => {}); });
+    subscribe(ROOTS.draftCombatants, (value) => { state.combatants = value; }, (value) => { repairCanonicalSprites(value).catch(() => {}); });
     if (!mount()) scheduleMount();
     return true;
   }

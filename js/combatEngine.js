@@ -52,7 +52,7 @@ function resolveTrustedTraitForUnit(unit = {}, traitId) {
 
 const CombatEngine = {
     // Game State
-    currentState: 'COMBAT_ACTIVE',
+    currentState: 'IDLE',
     FLANKING_DAMAGE_MULTIPLIER: 1.20,
     FLANKING_POWER_BONUS: 2,
 
