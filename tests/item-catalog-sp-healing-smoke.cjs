@@ -8,8 +8,9 @@ const { pathToFileURL } = require('node:url');
   const catalog = globalThis.LuminousSpHealingCatalog;
 
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 3);
+  assert.equal(catalog.VERSION, 4);
   assert.equal(catalog.FAMILY, 'healing_sp');
+  assert.equal(catalog.DELIVERY_FAMILY, 'sp_gas');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.DEFAULT_MAX_SP, 45);
   assert.deepEqual(catalog.SOURCE_LIMITS, {
@@ -18,9 +19,9 @@ const { pathToFileURL } = require('node:url');
     l_corp: { quickAction: 10, combat: 15, offCombat: 20 },
   });
   assert.deepEqual(catalog.SOURCE_PROFILES, {
-    generic: { label: 'Generic', owner: null, origin: null, material: null, status: 'current' },
-    m_corp: { label: 'M Corp', owner: 'M Corp', origin: 'M Corp', material: 'Moonlight Stone', status: 'current' },
-    l_corp: { label: 'Fallen L Corp Enkephalin', owner: null, origin: 'L Corp (fallen)', material: 'Enkephalin', status: 'legacy' },
+    generic: { label: 'Generic SP Gas', owner: null, origin: null, material: 'SP Gas', status: 'current' },
+    m_corp: { label: 'M Corp Moonlight SP Gas', owner: 'M Corp', origin: 'M Corp', material: 'Moonlight Stone SP Gas derivative', status: 'current' },
+    l_corp: { label: 'Fallen L Corp Enkephalin SP Gas', owner: null, origin: 'L Corp (fallen)', material: 'Enkephalin SP Gas derivative', status: 'legacy' },
   });
 
   const validation = catalog.validateCatalog();
@@ -49,6 +50,9 @@ const { pathToFileURL } = require('node:url');
     assert.equal(item.category, 'consumable');
     assert.ok(catalog.USE_TIMINGS.includes(item.runtime.actionCost));
     assert.equal(item.runtime.effects.spRestore, item.runtime.spHealing.immediate);
+    assert.equal(item.runtime.spHealing.delivery.family, 'sp_gas');
+    assert.equal(item.runtime.spHealing.delivery.derivative, true);
+    assert.ok(item.runtime.spHealing.delivery.form);
 
     const sourceProfile = catalog.SOURCE_PROFILES[item.sourceLine];
     assert.ok(sourceProfile, `${item.id} has an unknown source profile`);
@@ -65,15 +69,20 @@ const { pathToFileURL } = require('node:url');
 
   const mCorpItems = catalog.list({ sourceLine: 'm_corp' });
   assert.ok(mCorpItems.every((item) => item.sourceProfile.owner === 'M Corp'));
-  assert.ok(mCorpItems.every((item) => item.sourceProfile.material === 'Moonlight Stone'));
+  assert.ok(mCorpItems.every((item) => item.sourceProfile.material === 'Moonlight Stone SP Gas derivative'));
   assert.ok(mCorpItems.every((item) => item.sourceProfile.status === 'current'));
+  assert.ok(mCorpItems.every((item) => /gas|mist|aerosol|vapor/i.test(item.name)));
 
   const lCorpItems = catalog.list({ sourceLine: 'l_corp' });
   assert.ok(lCorpItems.every((item) => item.sourceProfile.owner === null));
   assert.ok(lCorpItems.every((item) => item.sourceProfile.origin === 'L Corp (fallen)'));
-  assert.ok(lCorpItems.every((item) => item.sourceProfile.material === 'Enkephalin'));
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.material === 'Enkephalin SP Gas derivative'));
   assert.ok(lCorpItems.every((item) => item.sourceProfile.status === 'legacy'));
   assert.ok(lCorpItems.every((item) => /enkephalin|l corp/i.test(item.name)));
+  assert.ok(lCorpItems.every((item) => /gas|mist|aerosol|vapor/i.test(item.name)));
+
+  const genericItems = catalog.list({ sourceLine: 'generic' });
+  assert.ok(genericItems.every((item) => /gas|mist|aerosol|vapor/i.test(item.name)));
 
   const genericCombat = catalog.restorationBreakdown('sp_generic_emergency_composure_dose', 0);
   assert.equal(genericCombat.total, 6);
@@ -124,7 +133,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.canUse(offCombat, { inCombat: true }).allowed, false);
   assert.equal(catalog.canUse(offCombat, { inCombat: false }).allowed, true);
 
-  console.log('SP healing catalog smoke: OK (60 items, Generic/M Corp/Fallen L Corp legacy, bounded for 45 SP sanity economy)');
+  console.log('SP healing catalog smoke: OK (60 SP Gas/derivative items, Generic/M Corp/Fallen L Corp legacy)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
