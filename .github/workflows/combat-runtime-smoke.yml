@@ -31,6 +31,22 @@ jobs:
         run: node tests/class-status-semantics-smoke.mjs
       - name: Starter Tier 1 status skill catalog smoke
         run: node tests/starter-status-skill-catalog-smoke.mjs
+      - name: Universal spell batch syntax
+        run: |
+          node --check js/spell-catalog-core.js
+          node --check js/role-spell-catalog-core.js
+          node --check js/spell-batch-pierre-runtime.js
+          node --check js/spell-batch-angelo-runtime.js
+      - name: Pierre universal spell batch smoke
+        run: node tests/pierre-spell-batch-smoke.mjs
+      - name: Angelo universal spell batch smoke
+        run: node tests/angelo-spell-batch-smoke.mjs
+      - name: Fighter Battle Master module syntax
+        run: |
+          node --check js/fighter-maneuver-catalog.js
+          node --check js/battle-master-archetype-runtime.js
+      - name: Battle Master archetype smoke
+        run: node tests/battle-master-archetype-runtime-smoke.mjs
       - name: Kobold Unit Library smoke
         run: node tests/kobold-unit-library-smoke.mjs
       - name: Universal Unit rank command smoke

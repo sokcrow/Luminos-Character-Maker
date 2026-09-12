@@ -52,6 +52,16 @@
       () => Boolean(global.LuminousRogueTheatreRuntime),
     ))
     .then(() => ensureScript(
+      "fighter-maneuver-catalog-script",
+      "js/fighter-maneuver-catalog.js",
+      () => Boolean(global.LuminousFighterManeuverCatalog),
+    ))
+    .then(() => ensureScript(
+      "battle-master-archetype-runtime-script",
+      "js/battle-master-archetype-runtime.js",
+      () => Boolean(global.LuminousBattleMasterArchetypeRuntime),
+    ))
+    .then(() => ensureScript(
       "mastermind-archetype-runtime-script",
       "js/mastermind-archetype-runtime.js",
       () => Boolean(global.LuminousMastermindArchetypeRuntime),
