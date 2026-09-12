@@ -10,6 +10,9 @@ on:
       - "js/class-runtime-registry.js"
       - "js/class-runtime-manifest.js"
       - "js/class-runtime-bootstrap.js"
+      - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
+      - "js/status-engine.js"
       - "scripts/generate-class-runtime-manifest.mjs"
       - "package.json"
   push:
@@ -22,6 +25,9 @@ on:
       - "js/class-runtime-registry.js"
       - "js/class-runtime-manifest.js"
       - "js/class-runtime-bootstrap.js"
+      - "js/player-archetype-runtime.js"
+      - "js/archetype-combat-event-runtime.js"
+      - "js/status-engine.js"
       - "scripts/generate-class-runtime-manifest.mjs"
       - "package.json"
 
@@ -38,4 +44,5 @@ jobs:
       - run: node --check js/class-runtime-manifest.js
       - run: node --check js/class-runtime-bootstrap.js
       - run: node --check js/player-archetype-runtime.js
+      - run: node --check js/archetype-combat-event-runtime.js
       - run: node --check js/status-engine.js
