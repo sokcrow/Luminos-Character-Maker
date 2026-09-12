@@ -10,6 +10,7 @@
   const MAX_SEVERE_HP_PENALTY = 0.20;
   const PLAYER_ROOT = "campaña/jugadores";
   const SEVERITY_RANK = Object.freeze({ light: 1, moderate: 2, severe: 3 });
+  const NARRATIVE_ONLY_EFFECTS = Object.freeze(["speed", "min_speed", "max_speed"]);
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -277,9 +278,10 @@
   function syncDerivedState(unit, options = {}) {
     const health = syncMaxHp(unit);
     const equipment = syncAnatomyAndEquipment(unit, options);
-    emit("luminous:injury-state-changed", { unit, injuries: clone(activeInjuries(unit)), health, equipment });
+    const narrative = collectNarrativeEffects(unit);
+    emit("luminous:injury-state-changed", { unit, injuries: clone(activeInjuries(unit)), health, equipment, narrative });
     if (options.persist !== false) persistPlayerState(unit);
-    return { health, equipment };
+    return { health, equipment, narrative };
   }
 
   function gainInjury(unit, input, options = {}) {
@@ -523,7 +525,7 @@
   const MODIFIER_CHANNELS = Object.freeze([
     "damage_dealt_multiplier", "damage_taken_multiplier", "healing_multiplier", "final_power", "base_power",
     "defense_power", "counter_power", "evade_power", "guard_power", "clash_power", "offensive_level",
-    "defensive_level", "speed", "min_speed", "max_speed", "resource", "coin_power", "crit_damage_multiplier",
+    "defensive_level", "resource", "coin_power", "crit_damage_multiplier",
   ]);
 
   function collectModifiers(unit) {
@@ -534,6 +536,36 @@
       });
     });
     return modifiers;
+  }
+
+  function collectNarrativeEffects(unit) {
+    const totals = Object.fromEntries(NARRATIVE_ONLY_EFFECTS.map((channel) => [channel, 0]));
+    const injuries = [];
+    activeInjuries(unit).forEach((injury) => {
+      const effects = {};
+      NARRATIVE_ONLY_EFFECTS.forEach((channel) => {
+        const value = numberOr(injury.effects?.[channel], 0);
+        if (!value) return;
+        effects[channel] = value;
+        totals[channel] += value;
+      });
+      if (!Object.keys(effects).length) return;
+      injuries.push({
+        instanceId: injury.instanceId,
+        catalogId: injury.catalogId || injury.id,
+        name: injury.name,
+        severity: injury.severity,
+        bodyPart: injury.bodyPart || null,
+        affectedParts: clone(injury.affectedParts || []),
+        effects,
+      });
+    });
+    return {
+      narrativeOnly: true,
+      speedAffected: NARRATIVE_ONLY_EFFECTS.some((channel) => totals[channel] !== 0),
+      totals,
+      injuries,
+    };
   }
 
   function checkPenalty(unit, statUsed, skillUsed) {
@@ -666,6 +698,7 @@
     DOWNS_PER_MODERATE,
     SEVERE_MAX_HP_PENALTY,
     MAX_SEVERE_HP_PENALTY,
+    NARRATIVE_ONLY_EFFECTS,
     normalizeId,
     definition,
     ensureState,
@@ -689,6 +722,7 @@
     treatInjury,
     clearForDanteClock,
     collectModifiers,
+    collectNarrativeEffects,
     checkPenalty,
     wrapCombatEngine,
     installCombatBridge,
