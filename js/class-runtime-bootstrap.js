@@ -7,7 +7,8 @@
   }
 
   const doc = global.document;
-  let bootPromise = null;
+  let infrastructurePromise = null;
+  const bootPromises = new Map();
 
   function scriptExists(src) {
     if (!doc) return null;
@@ -25,16 +26,9 @@
     if (existing) {
       if (ready?.()) return Promise.resolve();
       return new Promise((resolve, reject) => {
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          if (ready?.()) resolve();
-          else reject(new Error(`Class Runtime Bootstrap: ${src} loaded without exposing its API.`));
-        };
-        existing.addEventListener?.("load", finish, { once: true });
+        const onLoad = () => ready?.() ? resolve() : reject(new Error(`Class Runtime Bootstrap: ${src} loaded without exposing its API.`));
+        existing.addEventListener?.("load", onLoad, { once: true });
         existing.addEventListener?.("error", () => reject(new Error(`Class Runtime Bootstrap: failed to load ${src}.`)), { once: true });
-        global.setTimeout?.(finish, 0);
       });
     }
     return new Promise((resolve, reject) => {
@@ -63,29 +57,36 @@
     return "any";
   }
 
-  async function ensureInfrastructure() {
-    await ensureScript(
-      "class-runtime-registry-script",
-      "js/class-runtime-registry.js",
-      () => Boolean(global.LuminousClassRuntimeRegistry),
-    );
-    await ensureScript(
-      "class-runtime-manifest-script",
-      "js/class-runtime-manifest.js",
-      () => Boolean(global.LuminousClassRuntimeManifest),
-    );
-    const registry = global.LuminousClassRuntimeRegistry;
-    const manifest = global.LuminousClassRuntimeManifest;
-    if (!registry || !manifest) throw new Error("Class Runtime Bootstrap: registry or manifest is unavailable.");
-    if (!registry.list().length) registry.registerManifest(manifest);
-    return { registry, manifest };
+  function ensureInfrastructure() {
+    if (infrastructurePromise) return infrastructurePromise;
+    infrastructurePromise = (async () => {
+      await ensureScript(
+        "class-runtime-registry-script",
+        "js/class-runtime-registry.js",
+        () => Boolean(global.LuminousClassRuntimeRegistry),
+      );
+      await ensureScript(
+        "class-runtime-manifest-script",
+        "js/class-runtime-manifest.js",
+        () => Boolean(global.LuminousClassRuntimeManifest),
+      );
+      const registry = global.LuminousClassRuntimeRegistry;
+      const manifest = global.LuminousClassRuntimeManifest;
+      if (!registry || !manifest) throw new Error("Class Runtime Bootstrap: registry or manifest is unavailable.");
+      manifest.entries.forEach((entry) => {
+        if (!registry.get(entry.id)) registry.register(entry);
+      });
+      return { registry, manifest };
+    })();
+    return infrastructurePromise;
   }
 
   async function boot(options = {}) {
-    if (bootPromise && options.force !== true) return bootPromise;
-    bootPromise = (async () => {
-      const { registry, manifest } = await ensureInfrastructure();
-      const context = registry.normalizeContext(detectContext(options.context));
+    const { registry, manifest } = await ensureInfrastructure();
+    const context = registry.normalizeContext(detectContext(options.context));
+    if (bootPromises.has(context) && options.force !== true) return bootPromises.get(context);
+
+    const promise = (async () => {
       const result = await registry.loadAll({ context });
       const detail = { ...result, manifestVersion: manifest.version, manifestEntries: manifest.entries.length };
       if (global.dispatchEvent && typeof global.CustomEvent === "function") {
@@ -94,11 +95,12 @@
       if (!result.ok) console.error("Class Runtime Bootstrap:", result.errors);
       return detail;
     })();
-    return bootPromise;
+    bootPromises.set(context, promise);
+    return promise;
   }
 
-  function ready() {
-    return bootPromise || boot();
+  function ready(context) {
+    return boot({ context: context || detectContext() });
   }
 
   const api = Object.freeze({
