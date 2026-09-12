@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -133,16 +133,23 @@ function render(entries) {
   return `// GENERATED FILE. Run: npm run generate:class-runtime-manifest\n(function (global) {\n  "use strict";\n\n  const entries = ${JSON.stringify(entries, null, 2)};\n\n  const manifest = Object.freeze({\n    version: 1,\n    generatedFrom: "scripts/generate-class-runtime-manifest.mjs",\n    entries: Object.freeze(entries.map((entry) => Object.freeze({\n      ...entry,\n      contexts: Object.freeze([...(entry.contexts || ["any"])]),\n      dependsOn: Object.freeze([...(entry.dependsOn || [])]),\n    }))),\n  });\n\n  global.LuminousClassRuntimeManifest = manifest;\n  if (typeof module !== "undefined" && module.exports) module.exports = manifest;\n})(typeof window !== "undefined" ? window : globalThis);\n`;
 }
 
-const next = render(discoverEntries());
+const expectedEntries = discoverEntries();
 if (process.argv.includes("--check")) {
-  const current = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, "utf8") : "";
-  if (current !== next) {
-    console.error("class-runtime-manifest.js is stale. Run: npm run generate:class-runtime-manifest");
+  if (!fs.existsSync(OUTPUT)) {
+    console.error("class-runtime-manifest.js is missing. Run: npm run generate:class-runtime-manifest");
     process.exitCode = 1;
   } else {
-    console.log("class-runtime-manifest.js is current.");
+    delete globalThis.LuminousClassRuntimeManifest;
+    await import(`${pathToFileURL(OUTPUT).href}?check=${Date.now()}`);
+    const currentEntries = globalThis.LuminousClassRuntimeManifest?.entries || [];
+    if (JSON.stringify(currentEntries) !== JSON.stringify(expectedEntries)) {
+      console.error("class-runtime-manifest.js is stale. Run: npm run generate:class-runtime-manifest");
+      process.exitCode = 1;
+    } else {
+      console.log("class-runtime-manifest.js is current.");
+    }
   }
 } else {
-  fs.writeFileSync(OUTPUT, next, "utf8");
+  fs.writeFileSync(OUTPUT, render(expectedEntries), "utf8");
   console.log(`Generated ${path.relative(ROOT, OUTPUT)}.`);
 }
