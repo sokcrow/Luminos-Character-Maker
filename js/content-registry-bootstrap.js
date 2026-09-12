@@ -4,7 +4,11 @@
   const registry = global.LuminousContentRegistry || (typeof require === "function" ? require("./content-registry.js") : null);
   if (!registry) return;
 
-  const registeredSources = new Set();
+  // Persist source registration state across duplicate script evaluations. The
+  // registry itself is global, so a per-evaluation Set can otherwise forget
+  // what is already registered and throw canonical collisions on ON GAME boot.
+  const registeredSources = global.__LuminousContentRegistryRegisteredSources
+    || (global.__LuminousContentRegistryRegisteredSources = new Set());
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
