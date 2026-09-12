@@ -8,7 +8,7 @@ const { pathToFileURL } = require('node:url');
   const catalog = globalThis.LuminousSpHealingCatalog;
 
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 2);
+  assert.equal(catalog.VERSION, 3);
   assert.equal(catalog.FAMILY, 'healing_sp');
   assert.equal(catalog.CURRENCY, 'AHN');
   assert.equal(catalog.DEFAULT_MAX_SP, 45);
@@ -18,9 +18,9 @@ const { pathToFileURL } = require('node:url');
     l_corp: { quickAction: 10, combat: 15, offCombat: 20 },
   });
   assert.deepEqual(catalog.SOURCE_PROFILES, {
-    generic: { label: 'Generic', owner: null, material: null },
-    m_corp: { label: 'M Corp', owner: 'M Corp', material: 'Moonlight Stone' },
-    l_corp: { label: 'L Corp Enkephalin', owner: 'L Corp', material: 'Enkephalin' },
+    generic: { label: 'Generic', owner: null, origin: null, material: null, status: 'current' },
+    m_corp: { label: 'M Corp', owner: 'M Corp', origin: 'M Corp', material: 'Moonlight Stone', status: 'current' },
+    l_corp: { label: 'Fallen L Corp Enkephalin', owner: null, origin: 'L Corp (fallen)', material: 'Enkephalin', status: 'legacy' },
   });
 
   const validation = catalog.validateCatalog();
@@ -53,7 +53,9 @@ const { pathToFileURL } = require('node:url');
     const sourceProfile = catalog.SOURCE_PROFILES[item.sourceLine];
     assert.ok(sourceProfile, `${item.id} has an unknown source profile`);
     assert.equal(item.sourceProfile.owner, sourceProfile.owner);
+    assert.equal(item.sourceProfile.origin, sourceProfile.origin);
     assert.equal(item.sourceProfile.material, sourceProfile.material);
+    assert.equal(item.sourceProfile.status, sourceProfile.status);
 
     const check = catalog.validateItem(item);
     assert.equal(check.valid, true, `${item.id}: ${JSON.stringify(check.errors)}`);
@@ -64,10 +66,13 @@ const { pathToFileURL } = require('node:url');
   const mCorpItems = catalog.list({ sourceLine: 'm_corp' });
   assert.ok(mCorpItems.every((item) => item.sourceProfile.owner === 'M Corp'));
   assert.ok(mCorpItems.every((item) => item.sourceProfile.material === 'Moonlight Stone'));
+  assert.ok(mCorpItems.every((item) => item.sourceProfile.status === 'current'));
 
   const lCorpItems = catalog.list({ sourceLine: 'l_corp' });
-  assert.ok(lCorpItems.every((item) => item.sourceProfile.owner === 'L Corp'));
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.owner === null));
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.origin === 'L Corp (fallen)'));
   assert.ok(lCorpItems.every((item) => item.sourceProfile.material === 'Enkephalin'));
+  assert.ok(lCorpItems.every((item) => item.sourceProfile.status === 'legacy'));
   assert.ok(lCorpItems.every((item) => /enkephalin|l corp/i.test(item.name)));
 
   const genericCombat = catalog.restorationBreakdown('sp_generic_emergency_composure_dose', 0);
@@ -119,7 +124,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.canUse(offCombat, { inCombat: true }).allowed, false);
   assert.equal(catalog.canUse(offCombat, { inCombat: false }).allowed, true);
 
-  console.log('SP healing catalog smoke: OK (60 items, Generic/M Corp/L Corp, bounded for 45 SP sanity economy)');
+  console.log('SP healing catalog smoke: OK (60 items, Generic/M Corp/Fallen L Corp legacy, bounded for 45 SP sanity economy)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
