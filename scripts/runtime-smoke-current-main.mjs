@@ -18,6 +18,16 @@ for (const target of targets) {
   const pageErrors = [];
   const consoleErrors = [];
   const vttRequests = [];
+  const vttInitiators = [];
+
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Network.enable');
+  cdp.on('Network.requestWillBeSent', event => {
+    const url = event?.request?.url || '';
+    if (/\/vtt\.html(?:$|[?#])|\/js\/vtt\//i.test(url)) {
+      vttInitiators.push({ url, initiator: event.initiator || null });
+    }
+  });
 
   page.on('pageerror', error => pageErrors.push(String(error?.stack || error)));
   page.on('console', msg => {
@@ -70,10 +80,12 @@ for (const target of targets) {
     pageErrors,
     consoleErrors: hardConsoleErrors.slice(0, 20),
     vttRequests,
+    vttInitiators,
     metrics,
     failed: targetFailed,
   });
 
+  await cdp.detach();
   await page.close();
 }
 
