@@ -5,6 +5,7 @@
   const RAGE_ICON = "https://imgur.com/j3C7GzS.png";
   const BARDIC_INSPIRATION_ICON = "https://imgur.com/LaZgHYg.png";
   const PSYCHIC_BLADE_ICON = "https://imgur.com/vEDE8Q8.png";
+  const SECOND_WIND_ICON = "https://imgur.com/VSxnVEo.png";
   const INTERNAL_EFFECT_IDS = Object.freeze(new Set([
     "reckless_attack_armed",
     "countercharm",
@@ -59,9 +60,20 @@
       visible: true,
     });
 
+    library.registerExtension("second_wind", {
+      name: "Second Wind",
+      type: "positive",
+      mode: "single",
+      icon: SECOND_WIND_ICON,
+      description: "Fighter Second Wind. Count tracks the remaining Second Wind uses available during the Encounter.",
+      classId: "fighter",
+      visible: true,
+    });
+
     return library.get?.("rage")?.icon === RAGE_ICON
       && library.get?.("bardic_inspiration")?.icon === BARDIC_INSPIRATION_ICON
-      && library.get?.("psychic_blade")?.icon === PSYCHIC_BLADE_ICON;
+      && library.get?.("psychic_blade")?.icon === PSYCHIC_BLADE_ICON
+      && library.get?.("second_wind")?.icon === SECOND_WIND_ICON;
   }
 
   function patchRecklessAttack(definition) {
@@ -156,10 +168,33 @@
     return true;
   }
 
+  function ensureFighterRuntime() {
+    if (global.LuminousFighterClassRuntime) {
+      global.LuminousFighterClassRuntime.install?.();
+      return true;
+    }
+    if (typeof require === "function") {
+      try {
+        const runtime = require("./fighter-class-runtime.js");
+        runtime?.install?.();
+        if (runtime) return true;
+      } catch (_) {}
+    }
+    if (!global.document) return false;
+    if (global.document.getElementById("fighter-class-runtime-script")) return true;
+    const script = global.document.createElement("script");
+    script.id = "fighter-class-runtime-script";
+    script.src = "js/fighter-class-runtime.js";
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return true;
+  }
+
   function install() {
     const status = registerClassStatuses();
     const catalog = patchTraitCatalog();
     const engine = patchStatusEngine();
+    ensureFighterRuntime();
     return { status, catalog, engine };
   }
 
@@ -168,6 +203,7 @@
     RAGE_ICON,
     BARDIC_INSPIRATION_ICON,
     PSYCHIC_BLADE_ICON,
+    SECOND_WIND_ICON,
     INTERNAL_EFFECT_IDS,
     RESOURCE_ONLY_IDS,
     isInternalEffectId,
@@ -176,6 +212,7 @@
     patchTraitCatalog,
     patchStatusEngine,
     patchRecklessAttack,
+    ensureFighterRuntime,
     install,
   });
 
