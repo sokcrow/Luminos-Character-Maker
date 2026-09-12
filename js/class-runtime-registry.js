@@ -60,7 +60,7 @@
 
   function matchesContext(entry, context) {
     const requested = normalizeContext(context);
-    return entry.contexts.includes("any") || requested === "any" || entry.contexts.includes(requested);
+    return entry.contexts.includes("any") || entry.contexts.includes(requested);
   }
 
   function runtimeGlobal(entry) {
