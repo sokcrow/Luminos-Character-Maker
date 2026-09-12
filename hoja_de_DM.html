@@ -17,7 +17,7 @@
     <div class="instance-toggles">
       <label><input type="radio" name="instancia" value="ninguno"> PANTALLA NEGRA</label>
       <label><input type="radio" name="instancia" value="teatro"> TEATRO / LORE</label>
-      <label><input type="radio" name="instancia" value="mapa"> MAPA TÁCTICO</label>
+      <label hidden aria-hidden="true"><input type="radio" name="instancia" value="mapa" disabled tabindex="-1"> MAPA TÁCTICO</label>
       <label><input type="radio" name="instancia" value="combate"> COMBATE TÁCTICO</label>
     </div>
     <div class="status-container" style="display: flex; gap: 20px; align-items: center;">
@@ -116,8 +116,8 @@
       </details>
     </section>
 
-    <section id="modulo-mapa" class="game-module hidden" aria-hidden="true">
-      <iframe data-vtt-src="vtt.html" title="Mapa táctico D&amp;D"></iframe>
+    <section id="modulo-mapa" class="game-module hidden" aria-hidden="true" hidden>
+      <!-- Mapa táctico temporalmente deshabilitado. Se reconstruirá en una implementación nueva. -->
     </section>
 
     <section id="modulo-combate" class="game-module hidden" aria-hidden="true">
@@ -134,11 +134,23 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script>
     firebase.initializeApp({apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"});
+
+    // Safety lock: the old VTT is disabled on the DM dashboard. A persisted
+    // "mapa" instance used to auto-reactivate vtt.html on load and could trap
+    // ON GAME in the same crash loop. Normalize that legacy state immediately.
+    (function disableLegacyTacticalMap() {
+      const instanceRef = firebase.database().ref("campaña/estado_mundo/instancia_activa");
+      instanceRef.on("value", (snapshot) => {
+        if (snapshot.val() !== "mapa") return;
+        instanceRef.set("ninguno").catch((error) => {
+          console.error("No se pudo desactivar la instancia legacy del mapa táctico:", error);
+        });
+      });
+    })();
   </script>
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
   <script src="js/instance-control.js"></script>
-  <script src="js/vtt/dm-map-lazy-loader.js"></script>
   <script src="js/dm-managed-effect-engine.js"></script>
   <script src="js/language-catalog-engine.js"></script>
   <script src="js/bond-engine.js"></script>
