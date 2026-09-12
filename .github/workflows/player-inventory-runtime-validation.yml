@@ -14,6 +14,7 @@ on:
       - js/item-catalog-sp-healing.js
       - js/item-catalog-hybrid-healing.js
       - js/item-catalog-status-cure.js
+      - js/item-catalog-medical-supply.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -26,6 +27,7 @@ on:
       - tests/item-catalog-sp-healing-smoke.cjs
       - tests/item-catalog-hybrid-healing-smoke.cjs
       - tests/item-catalog-status-cure-smoke.cjs
+      - tests/item-catalog-medical-supply-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
       - .github/workflows/player-inventory-runtime-validation.yml
@@ -52,6 +54,7 @@ jobs:
           node --check js/item-catalog-sp-healing.js
           node --check js/item-catalog-hybrid-healing.js
           node --check js/item-catalog-status-cure.js
+          node --check js/item-catalog-medical-supply.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -66,6 +69,8 @@ jobs:
         run: node tests/item-catalog-hybrid-healing-smoke.cjs
       - name: Status cure catalog smoke
         run: node tests/item-catalog-status-cure-smoke.cjs
+      - name: Medical supply catalog smoke
+        run: node tests/item-catalog-medical-supply-smoke.cjs
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
