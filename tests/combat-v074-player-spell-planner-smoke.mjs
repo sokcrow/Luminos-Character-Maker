@@ -35,7 +35,7 @@ registry.register({
     damageType: 'force',
     concentration: true,
     effects: [{ type: 'test_spell_effect', amount: 2 }],
-    upcast: { finalPower: 1, coinPower: 1, atkWeight: 0 },
+    upcast: { coinPowerPerLevel: 1 },
   },
 });
 registry.register({
@@ -91,8 +91,7 @@ assert.equal(compiled.action.resources[0].type, 'spell_slot');
 assert.equal(compiled.action.resources[0].id, 'sorcerer');
 assert.equal(compiled.action.resources[0].metadata.slotLevel, 2);
 assert.equal(compiled.action.effects[0].type, 'viewer_spell_cast');
-assert.equal(compiled.action.modifiers.some((modifier) => modifier.type === 'final_power' && modifier.amount === 1), true, 'Level 2 cast should apply one upcast level');
-assert.equal(compiled.action.metadata.sourceDefinition.coinPower, 4, 'upcast Coin Power must be applied to the trusted definition');
+assert.equal(compiled.action.metadata.sourceDefinition.coinPower, 4, 'Level 2 cast should apply one canonical Coin Power upcast level');
 
 const notSelected = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', { kind: 'spell', spellId: 'other_spell', classId: 'sorcerer', targetId: 'enemy_1', __ownerPlayerId: 'player_a' });
 assert.equal(notSelected.action, null);
