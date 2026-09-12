@@ -29,7 +29,6 @@
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
     ["battle-viewer-spell-adapter-074-script", "js/battle-viewer-spell-adapter-074.js", "LuminousBattleViewerSpellAdapter074"],
     ["battle-viewer-spell-runtime-074-script", "js/battle-viewer-spell-runtime-074.js", "LuminousBattleViewerSpellRuntime074"],
-    ["vtt-actor-library-script", "js/vtt/actor-library.js", "LuminousVttActorLibrary"],
     ["battle-viewer-ownership-074-script", "js/battle-viewer-ownership-074.js", "LuminousBattleViewerOwnership074"],
     ["battle-viewer-player-skill-planner-074-script", "js/battle-viewer-player-skill-planner-074.js", "LuminousBattleViewerPlayerSkillPlanner074"],
     ["battle-viewer-player-spell-planner-074-script", "js/battle-viewer-player-spell-planner-074.js", "LuminousBattleViewerPlayerSpellPlanner074"],
@@ -266,7 +265,6 @@
       && global.LuminousBattleViewerRuntime073
       && global.LuminousBattleViewerSpellAdapter074
       && global.LuminousBattleViewerSpellRuntime074
-      && global.LuminousVttActorLibrary
       && global.LuminousBattleViewerOwnership074
       && global.LuminousBattleViewerPlayerSkillPlanner074
       && global.LuminousBattleViewerPlayerSpellPlanner074
@@ -298,7 +296,6 @@
     try { if (!global.LuminousBattleViewerRuntime073) require("./battle-viewer-runtime-073.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellAdapter074) require("./battle-viewer-spell-adapter-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerSpellRuntime074) require("./battle-viewer-spell-runtime-074.js"); } catch (_) {}
-    try { if (!global.LuminousVttActorLibrary) require("./vtt/actor-library.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerOwnership074) require("./battle-viewer-ownership-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerSkillPlanner074) require("./battle-viewer-player-skill-planner-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerSpellPlanner074) require("./battle-viewer-player-spell-planner-074.js"); } catch (_) {}
