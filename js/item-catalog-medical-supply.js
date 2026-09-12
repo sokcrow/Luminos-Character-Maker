@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "medical_supply";
   const CURRENCY = "AHN";
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
@@ -63,6 +63,12 @@
     specialist: Object.freeze(["light", "moderate", "severe"]),
   });
 
+  const NARRATIVE_SPEED_RELIEF = Object.freeze({
+    generic: Object.freeze([1, 1, 1, 1, 1]),
+    workshop: Object.freeze([1, 1, 2, 2, 3]),
+    specialist: Object.freeze([1, 2, 2, 3, 3]),
+  });
+
   const NAMES = Object.freeze({
     generic: Object.freeze([
       Object.freeze(["Sterile Field Dressing", "Joint Support Wrap", "Concussion Cold Pack", "Basic Recovery Kit"]),
@@ -111,27 +117,31 @@
     ]),
   });
 
+  function relief(speed) {
+    return Object.freeze({ speed: Math.max(0, Number(speed) || 0) });
+  }
+
   const TREATMENTS = Object.freeze({
     generic: Object.freeze([
-      Object.freeze([{ reduceHours:2 }, { reduceHours:2 }, { reduceHours:2 }, { reducePercent:10 }]),
-      Object.freeze([{ reduceHours:4 }, { reduceHours:4 }, { reduceHours:4 }, { reducePercent:15 }]),
-      Object.freeze([{ reduceHours:6 }, { reduceHours:6 }, { reduceHours:6 }, { reducePercent:20 }]),
-      Object.freeze([{ reduceHours:10 }, { reduceHours:10 }, { reduceHours:10 }, { reducePercent:30 }]),
-      Object.freeze([{ reduceHours:16 }, { reduceHours:16 }, { reduceHours:16 }, { reducePercent:40 }]),
+      Object.freeze([{ reduceHours:2 }, { reduceHours:2, narrativeRelief:relief(1) }, { reduceHours:2 }, { reducePercent:10 }]),
+      Object.freeze([{ reduceHours:4 }, { reduceHours:4, narrativeRelief:relief(1) }, { reduceHours:4 }, { reducePercent:15 }]),
+      Object.freeze([{ reduceHours:6 }, { reduceHours:6, narrativeRelief:relief(1) }, { reduceHours:6 }, { reducePercent:20 }]),
+      Object.freeze([{ reduceHours:10 }, { reduceHours:10, narrativeRelief:relief(1) }, { reduceHours:10 }, { reducePercent:30 }]),
+      Object.freeze([{ reduceHours:16 }, { reduceHours:16, narrativeRelief:relief(1) }, { reduceHours:16 }, { reducePercent:40 }]),
     ]),
     workshop: Object.freeze([
-      Object.freeze([{ reducePercent:20 }, { reducePercent:15 }, { reducePercent:20 }, { reducePercent:25 }]),
-      Object.freeze([{ reducePercent:30 }, { reducePercent:25 }, { reducePercent:30 }, { reducePercent:35 }]),
-      Object.freeze([{ reducePercent:40 }, { reducePercent:35 }, { reducePercent:40 }, { reducePercent:45 }]),
-      Object.freeze([{ reducePercent:50 }, { reducePercent:45 }, { reducePercent:50 }, { reducePercent:60 }]),
-      Object.freeze([{ reducePercent:65 }, { reducePercent:55 }, { reducePercent:65 }, { reducePercent:75 }]),
+      Object.freeze([{ reducePercent:20 }, { reducePercent:15, narrativeRelief:relief(1) }, { reducePercent:20 }, { reducePercent:25 }]),
+      Object.freeze([{ reducePercent:30 }, { reducePercent:25, narrativeRelief:relief(1) }, { reducePercent:30 }, { reducePercent:35 }]),
+      Object.freeze([{ reducePercent:40 }, { reducePercent:35, narrativeRelief:relief(2) }, { reducePercent:40 }, { reducePercent:45 }]),
+      Object.freeze([{ reducePercent:50 }, { reducePercent:45, narrativeRelief:relief(2) }, { reducePercent:50 }, { reducePercent:60 }]),
+      Object.freeze([{ reducePercent:65 }, { reducePercent:55, narrativeRelief:relief(3) }, { reducePercent:65 }, { reducePercent:75 }]),
     ]),
     specialist: Object.freeze([
-      Object.freeze([{ reducePercent:30 }, { reducePercent:25 }, { reducePercent:30 }, { reducePercent:40 }]),
-      Object.freeze([{ reducePercent:40 }, { reducePercent:35 }, { reducePercent:40 }, { reducePercent:50 }]),
-      Object.freeze([{ reducePercent:50 }, { reducePercent:45 }, { reducePercent:50 }, { reducePercent:60 }]),
-      Object.freeze([{ reducePercent:65 }, { reducePercent:55 }, { reducePercent:65 }, { reducePercent:75 }]),
-      Object.freeze([{ cure:true }, { reducePercent:75 }, { cure:true }, { cure:true }]),
+      Object.freeze([{ reducePercent:30 }, { reducePercent:25, narrativeRelief:relief(1) }, { reducePercent:30 }, { reducePercent:40 }]),
+      Object.freeze([{ reducePercent:40 }, { reducePercent:35, narrativeRelief:relief(2) }, { reducePercent:40 }, { reducePercent:50 }]),
+      Object.freeze([{ reducePercent:50 }, { reducePercent:45, narrativeRelief:relief(2) }, { reducePercent:50 }, { reducePercent:60 }]),
+      Object.freeze([{ reducePercent:65 }, { reducePercent:55, narrativeRelief:relief(3) }, { reducePercent:65 }, { reducePercent:75 }]),
+      Object.freeze([{ cure:true }, { reducePercent:75, narrativeRelief:relief(3) }, { cure:true }, { cure:true }]),
     ]),
   });
 
@@ -236,6 +246,72 @@
     ) || null;
   }
 
+  function applyNarrativeReliefToInjury(injury, treatment = {}) {
+    const requested = Math.max(0, Number(treatment?.narrativeRelief?.speed || 0));
+    if (!injury || injury.structural === true || requested <= 0) return { applied: false, reason: "no_narrative_relief" };
+    if (!injury.effects || typeof injury.effects !== "object") injury.effects = {};
+    if (!injury.metadata || typeof injury.metadata !== "object") injury.metadata = {};
+    if (!injury.metadata.medicalSupplyNarrativeBaseline || typeof injury.metadata.medicalSupplyNarrativeBaseline !== "object") {
+      injury.metadata.medicalSupplyNarrativeBaseline = {};
+    }
+    if (!injury.metadata.medicalSupplyNarrativeRelief || typeof injury.metadata.medicalSupplyNarrativeRelief !== "object") {
+      injury.metadata.medicalSupplyNarrativeRelief = {};
+    }
+
+    const baselineStore = injury.metadata.medicalSupplyNarrativeBaseline;
+    const reliefStore = injury.metadata.medicalSupplyNarrativeRelief;
+    const current = Number(injury.effects.speed || 0);
+    if (!Number.isFinite(Number(baselineStore.speed))) baselineStore.speed = current;
+    const baseline = Number(baselineStore.speed || 0);
+    const previousRelief = Math.max(0, Number(reliefStore.speed || 0));
+    const effectiveRelief = Math.max(previousRelief, requested);
+    reliefStore.speed = effectiveRelief;
+
+    if (baseline >= 0) {
+      return { applied: false, reason: "injury_has_no_negative_narrative_speed", baseline, before: current, after: current, relief: effectiveRelief };
+    }
+
+    const after = Math.min(0, baseline + effectiveRelief);
+    injury.effects.speed = after;
+    return {
+      applied: after !== current || effectiveRelief !== previousRelief,
+      channel: "speed",
+      baseline,
+      before: current,
+      after,
+      requested,
+      previousRelief,
+      relief: effectiveRelief,
+      cappedAtZero: true,
+    };
+  }
+
+  function installInjuryTreatmentBridge(options = {}) {
+    const current = options.injuryEngine || global.LuminousInjuryEngine || safeRequire("./injury-engine.js");
+    if (!current?.treatInjury) return false;
+    if (current.__luminousMedicalSupplyNarrativeBridge === true) return true;
+    const previousTreatInjury = current.treatInjury.bind(current);
+
+    function bridgedTreatInjury(unit, injuryRef, treatment = {}) {
+      let narrativeRelief = null;
+      const injury = resolveInjury(unit, injuryRef, current);
+      const isMedicalSupply = normalizeId(treatment?.method) === "medical_supply";
+      if (isMedicalSupply && injury && injury.structural !== true && treatment?.cure !== true && treatment?.remove !== true) {
+        narrativeRelief = applyNarrativeReliefToInjury(injury, treatment);
+      }
+      const result = previousTreatInjury(unit, injuryRef, treatment);
+      return narrativeRelief ? { ...result, narrativeRelief } : result;
+    }
+
+    global.LuminousInjuryEngine = Object.freeze({
+      ...current,
+      treatInjury: bridgedTreatInjury,
+      __luminousMedicalSupplyNarrativeBridge: true,
+      __luminousMedicalSupplyNarrativeBase: current,
+    });
+    return true;
+  }
+
   function canTreatInjury(itemOrId, unit, injuryRef, options = {}) {
     const entry = typeof itemOrId === "string" ? get(itemOrId) : itemOrId;
     if (!entry) return { allowed: false, reason: "unknown_item" };
@@ -264,7 +340,11 @@
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     const gate = canTreatInjury(entry, unit, injuryRef, options);
     if (!gate.allowed) return { applied: false, ...gate, item: entry };
-    const injuryEngine = options.injuryEngine || global.LuminousInjuryEngine || safeRequire("./injury-engine.js");
+    let injuryEngine = options.injuryEngine || global.LuminousInjuryEngine || safeRequire("./injury-engine.js");
+    if (!injuryEngine?.__luminousMedicalSupplyNarrativeBridge) {
+      installInjuryTreatmentBridge({ injuryEngine });
+      injuryEngine = global.LuminousInjuryEngine || injuryEngine;
+    }
     const result = injuryEngine.treatInjury(unit, gate.injury.instanceId, gate.treatment);
     return { applied: result?.treated === true, item: entry, injury: gate.injury, treatment: gate.treatment, result };
   }
@@ -288,6 +368,12 @@
     if (!Array.isArray(treatment?.allowedSeverities) || !treatment.allowedSeverities.length) errors.push("missing_severities");
     const hasEffect = treatment?.cure === true || Number(treatment?.reduceHours || 0) > 0 || Number(treatment?.reducePercent || 0) > 0;
     if (!hasEffect) errors.push("missing_treatment_effect");
+    if (treatment?.narrativeRelief) {
+      const keys = Object.keys(treatment.narrativeRelief);
+      if (keys.length !== 1 || keys[0] !== "speed") errors.push("invalid_narrative_relief_channel");
+      if (!(Number(treatment.narrativeRelief.speed) > 0)) errors.push("invalid_narrative_speed_relief");
+      if (entry.runtime?.actionCost !== "quick_action") errors.push("narrative_speed_relief_requires_orthopedic_quick_action");
+    }
     if (entry.runtime?.effects?.hpRestore || entry.runtime?.effects?.spRestore || entry.runtime?.effects?.removeStatuses) errors.push("medical_supply_must_not_duplicate_healing_or_cure");
     return { valid: errors.length === 0, errors };
   }
@@ -301,6 +387,8 @@
       if (ids.has(entry.id)) errors.push({ id: entry.id, errors: ["duplicate_id"] });
       ids.add(entry.id);
     }
+    const reliefItems = ITEMS.filter((entry) => Number(entry.runtime?.injuryTreatment?.narrativeRelief?.speed || 0) > 0);
+    if (reliefItems.length !== 15) errors.push({ id: "catalog", errors: [`expected_15_narrative_speed_relief_items:${reliefItems.length}`] });
     return { valid: errors.length === 0, errors, count: ITEMS.length };
   }
 
@@ -354,20 +442,27 @@
     LIGHT_MODERATE,
     NON_STRUCTURAL,
     STRUCTURAL_EXCLUSIONS,
+    NARRATIVE_SPEED_RELIEF,
     ITEMS,
     get,
     list,
     canUse,
     canTreatInjury,
     applyTreatment,
+    applyNarrativeReliefToInjury,
     validateItem,
     validateCatalog,
     registerIntoContentRegistry,
+    installInjuryTreatmentBridge,
     installItemRuntimeBridge,
   });
 
   global.LuminousMedicalSupplyCatalog = API;
+  installInjuryTreatmentBridge();
   const bridgeInstalled = installItemRuntimeBridge();
-  if (!bridgeInstalled && global.addEventListener) global.addEventListener("load", () => installItemRuntimeBridge(), { once: true });
+  if (!bridgeInstalled && global.addEventListener) global.addEventListener("load", () => {
+    installInjuryTreatmentBridge();
+    installItemRuntimeBridge();
+  }, { once: true });
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);
