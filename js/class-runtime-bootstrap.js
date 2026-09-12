@@ -7,6 +7,9 @@
   }
 
   const doc = global.document;
+  // document.currentScript is only reliable during synchronous script evaluation.
+  // Capture its context now so the automatic async boot cannot lose Combat/Theatre.
+  const initialScriptContext = doc?.currentScript?.dataset?.luminousContext || null;
   let infrastructurePromise = null;
   const bootPromises = new Map();
 
@@ -47,9 +50,9 @@
 
   function detectContext(explicit) {
     if (explicit) return String(explicit);
-    const current = doc?.currentScript;
-    const fromDataset = current?.dataset?.luminousContext;
-    if (fromDataset) return fromDataset;
+    const fromCurrentScript = doc?.currentScript?.dataset?.luminousContext;
+    if (fromCurrentScript) return fromCurrentScript;
+    if (initialScriptContext) return initialScriptContext;
     if (global.LUMINOUS_RUNTIME_CONTEXT) return global.LUMINOUS_RUNTIME_CONTEXT;
     const pathname = String(global.location?.pathname || "").toLowerCase();
     if (/battle|combat/.test(pathname)) return "combat";
@@ -82,8 +85,11 @@
   }
 
   async function boot(options = {}) {
+    // Resolve context synchronously, before awaiting infrastructure. Otherwise
+    // document.currentScript may become null and context-specific adapters vanish.
+    const requestedContext = detectContext(options.context);
     const { registry, manifest } = await ensureInfrastructure();
-    const context = registry.normalizeContext(detectContext(options.context));
+    const context = registry.normalizeContext(requestedContext);
     if (bootPromises.has(context) && options.force !== true) return bootPromises.get(context);
 
     const promise = (async () => {
@@ -114,5 +120,5 @@
   global.LuminousClassRuntimeBootstrap = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 
-  if (doc) boot().catch((error) => console.error("Class Runtime Bootstrap:", error));
+  if (doc) boot({ context: initialScriptContext || detectContext() }).catch((error) => console.error("Class Runtime Bootstrap:", error));
 })(typeof window !== "undefined" ? window : globalThis);
