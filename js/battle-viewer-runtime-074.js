@@ -35,6 +35,7 @@
     ["battle-viewer-player-spell-planner-074-script", "js/battle-viewer-player-spell-planner-074.js", "LuminousBattleViewerPlayerSpellPlanner074"],
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
     ["battle-viewer-player-entry-074-script", "js/battle-viewer-player-entry-074.js", "LuminousBattleViewerPlayerEntry074"],
+    ["battle-viewer-encounter-setup-074-script", "js/battle-viewer-encounter-setup-074.js", "LuminousBattleViewerEncounterSetup074"],
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
     ["battle-viewer-progressive-ui-074-script", "js/battle-viewer-progressive-ui-074.js", "LuminousBattleViewerProgressiveUi074"],
   ];
@@ -158,6 +159,7 @@
       parts.playerSpellPlanner?.init?.(options);
       parts.dmConsole?.init?.(options);
       parts.playerEntry?.init?.(options);
+      parts.encounterSetup?.init?.(options);
       parts.dmMagic?.install?.();
       return Promise.resolve({ ok: true, role: "test" });
     }
@@ -167,6 +169,7 @@
       parts.playerSpellPlanner?.init?.(options);
       parts.dmConsole?.init?.(options);
       parts.playerEntry?.init?.(options);
+      parts.encounterSetup?.init?.(options);
       parts.dmMagic?.install?.();
       return Promise.resolve({ ok: true, role: "legacy" });
     }
@@ -183,6 +186,7 @@
       } else if (result.role === "dm") {
         initializeConfiguredDmConsole(parts.dmConsole, result);
         parts.playerEntry?.init?.(scoped);
+        parts.encounterSetup?.init?.(scoped);
         parts.dmMagic?.install?.();
       }
       return result;
@@ -205,13 +209,14 @@
     const playerSpellPlanner = global.LuminousBattleViewerPlayerSpellPlanner074 || null;
     const dmConsole = global.LuminousBattleViewerDmConsole074 || null;
     const playerEntry = global.LuminousBattleViewerPlayerEntry074 || null;
+    const encounterSetup = global.LuminousBattleViewerEncounterSetup074 || null;
     const dmMagic = global.LuminousBattleViewerDmMagic074 || null;
     const progressiveUi = global.LuminousBattleViewerProgressiveUi074 || null;
     const ruptureStatus = global.LuminousRuptureStatusRuntime || null;
     const skillForge = global.LuminousSkillForgeG2 || null;
     const parts = {
       firebaseSession, skillLoadout, spellLoadout, spellAdapter, spellRuntime, ownership,
-      playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, dmMagic, progressiveUi, ruptureStatus, skillForge,
+      playerSkillPlanner, playerSpellPlanner, dmConsole, playerEntry, encounterSetup, dmMagic, progressiveUi, ruptureStatus, skillForge,
     };
     initializeSharedRuntime(parts);
     const sessionReady = initializeRoleRuntime(parts);
@@ -230,6 +235,7 @@
       playerSpellPlanner,
       dmConsole,
       playerEntry,
+      encounterSetup,
       dmMagic,
       progressiveUi,
       ruptureStatus,
@@ -261,6 +267,7 @@
       && global.LuminousBattleViewerPlayerSpellPlanner074
       && global.LuminousBattleViewerDmConsole074
       && global.LuminousBattleViewerPlayerEntry074
+      && global.LuminousBattleViewerEncounterSetup074
       && global.LuminousBattleViewerDmMagic074
       && global.LuminousBattleViewerProgressiveUi074
     );
@@ -291,6 +298,7 @@
     try { if (!global.LuminousBattleViewerPlayerSpellPlanner074) require("./battle-viewer-player-spell-planner-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmConsole074) require("./battle-viewer-dm-console-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerPlayerEntry074) require("./battle-viewer-player-entry-074.js"); } catch (_) {}
+    try { if (!global.LuminousBattleViewerEncounterSetup074) require("./battle-viewer-encounter-setup-074.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerDmMagic074) require("./battle-viewer-dm-console-074-magic.js"); } catch (_) {}
     try { if (!global.LuminousBattleViewerProgressiveUi074) require("./battle-viewer-progressive-ui-074.js"); } catch (_) {}
     const api = buildApi();
