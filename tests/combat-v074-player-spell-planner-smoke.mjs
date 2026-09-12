@@ -102,7 +102,7 @@ const embedded = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0',
   combatAction: { actorId: 'player:player_a', source: { type: 'spell', id: 'arc_bolt' }, resolution: { type: 'automatic' }, phase: {} },
 });
 assert.equal(embedded.action, null);
-assert.equal(embedded.reason, 'player_embedded_spell_action_forbidden');
+assert.equal(embedded.reason, 'embedded_spell_action_forbidden');
 
 // Overcast is represented through the existing spell_slot resource channel and bridged to SP/Fixed Damage.
 await import('../js/battle-viewer-spell-runtime-074.js');
