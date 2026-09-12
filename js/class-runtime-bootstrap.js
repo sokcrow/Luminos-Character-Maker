@@ -1,0 +1,116 @@
+(function (global) {
+  "use strict";
+
+  if (global.LuminousClassRuntimeBootstrap) {
+    if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousClassRuntimeBootstrap;
+    return;
+  }
+
+  const doc = global.document;
+  let bootPromise = null;
+
+  function scriptExists(src) {
+    if (!doc) return null;
+    const expected = String(src || "").split(/[?#]/)[0].replace(/^\.\//, "");
+    return [...doc.querySelectorAll("script[src]")].find((script) => {
+      const raw = String(script.getAttribute("src") || "").split(/[?#]/)[0].replace(/^\.\//, "");
+      return raw === expected || raw.endsWith(`/${expected}`);
+    }) || null;
+  }
+
+  function ensureScript(id, src, ready) {
+    if (ready?.()) return Promise.resolve();
+    if (!doc) return Promise.reject(new Error(`Class Runtime Bootstrap: document is unavailable while loading ${src}.`));
+    const existing = doc.getElementById(id) || scriptExists(src);
+    if (existing) {
+      if (ready?.()) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (ready?.()) resolve();
+          else reject(new Error(`Class Runtime Bootstrap: ${src} loaded without exposing its API.`));
+        };
+        existing.addEventListener?.("load", finish, { once: true });
+        existing.addEventListener?.("error", () => reject(new Error(`Class Runtime Bootstrap: failed to load ${src}.`)), { once: true });
+        global.setTimeout?.(finish, 0);
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const script = doc.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = false;
+      script.addEventListener("load", () => {
+        if (!ready || ready()) resolve();
+        else reject(new Error(`Class Runtime Bootstrap: ${src} loaded without exposing its API.`));
+      }, { once: true });
+      script.addEventListener("error", () => reject(new Error(`Class Runtime Bootstrap: failed to load ${src}.`)), { once: true });
+      (doc.head || doc.documentElement).appendChild(script);
+    });
+  }
+
+  function detectContext(explicit) {
+    if (explicit) return String(explicit);
+    const current = doc?.currentScript;
+    const fromDataset = current?.dataset?.luminousContext;
+    if (fromDataset) return fromDataset;
+    if (global.LUMINOUS_RUNTIME_CONTEXT) return global.LUMINOUS_RUNTIME_CONTEXT;
+    const pathname = String(global.location?.pathname || "").toLowerCase();
+    if (/battle|combat/.test(pathname)) return "combat";
+    if (/hoja_personaje|theatre|theater|character/.test(pathname)) return "theatre";
+    return "any";
+  }
+
+  async function ensureInfrastructure() {
+    await ensureScript(
+      "class-runtime-registry-script",
+      "js/class-runtime-registry.js",
+      () => Boolean(global.LuminousClassRuntimeRegistry),
+    );
+    await ensureScript(
+      "class-runtime-manifest-script",
+      "js/class-runtime-manifest.js",
+      () => Boolean(global.LuminousClassRuntimeManifest),
+    );
+    const registry = global.LuminousClassRuntimeRegistry;
+    const manifest = global.LuminousClassRuntimeManifest;
+    if (!registry || !manifest) throw new Error("Class Runtime Bootstrap: registry or manifest is unavailable.");
+    if (!registry.list().length) registry.registerManifest(manifest);
+    return { registry, manifest };
+  }
+
+  async function boot(options = {}) {
+    if (bootPromise && options.force !== true) return bootPromise;
+    bootPromise = (async () => {
+      const { registry, manifest } = await ensureInfrastructure();
+      const context = registry.normalizeContext(detectContext(options.context));
+      const result = await registry.loadAll({ context });
+      const detail = { ...result, manifestVersion: manifest.version, manifestEntries: manifest.entries.length };
+      if (global.dispatchEvent && typeof global.CustomEvent === "function") {
+        global.dispatchEvent(new global.CustomEvent("luminous:class-runtime-bootstrap-ready", { detail }));
+      }
+      if (!result.ok) console.error("Class Runtime Bootstrap:", result.errors);
+      return detail;
+    })();
+    return bootPromise;
+  }
+
+  function ready() {
+    return bootPromise || boot();
+  }
+
+  const api = Object.freeze({
+    version: 1,
+    detectContext,
+    ensureInfrastructure,
+    boot,
+    ready,
+  });
+
+  global.LuminousClassRuntimeBootstrap = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+
+  if (doc) boot().catch((error) => console.error("Class Runtime Bootstrap:", error));
+})(typeof window !== "undefined" ? window : globalThis);
