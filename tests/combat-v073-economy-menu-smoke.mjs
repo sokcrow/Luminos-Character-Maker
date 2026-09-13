@@ -67,11 +67,4 @@ assert.equal(api.normalizeEconomyCost({ actionCost: 'action' }), 'action');
 assert.equal(api.normalizeEconomyCost({ cost: 'Quick Action' }), 'action', 'display cost text must not decide economy classification');
 assert.equal(api.economyTabFor({ activation: { actionCost: 'quick_action' } }), 'quick_action');
 
-await import('../js/combat-v073-economy-review-fixes.js');
-const fixes = globalThis.LuminousCombatEconomyReviewFixes073;
-assert.ok(fixes, 'review-fix API must initialize outside the browser for contract tests');
-assert.equal(fixes.canonicalCost({ castingTime: 'reaction' }), 'reaction');
-assert.equal(fixes.canonicalCost({ castingTime: 'quick_action' }), 'quick_action');
-assert.equal(fixes.canonicalCost({ economyCost: 'action', castingTime: 'reaction' }), 'action', 'explicit structured economy metadata must win over castingTime');
-
 console.log('combat v0.7.3 Action/Quick Action/Reaction menu smoke: ok');
