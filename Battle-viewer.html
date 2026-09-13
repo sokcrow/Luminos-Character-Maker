@@ -36,11 +36,72 @@
     for(let i=0;i<binary.length;i+=1)bytes[i]=binary.charCodeAt(i);
     const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
     let html=await new Response(stream).text();
+
     const cancelNeedle="setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    return;";
     const readyNeedle="planReady=true;\n  ready.textContent='CANCEL READY';";
     if(!html.includes(cancelNeedle)||!html.includes(readyNeedle))throw new Error("COMBAT_READY_BRIDGE_PATCH_MISSING");
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
+
+    // Player renderer performance patch. Keep WebGL2, but stop paying 60 FPS while idle.
+    const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
+    const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),coarse=window.matchMedia?.('(pointer:coarse)')?.matches===true,dprCap=coarse?1.25:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
+    const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
+    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{host.classList.add('webgl2-background-ready');ensureFrame()});";
+    const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
+    const webglSpritePatch="const entry=requestTexture(url,()=>{img.classList.add('webgl2-texture-backed');ensureFrame()});";
+    const webglBurstNeedle="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000})";
+    const webglBurstPatch="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000});ensureFrame(340)";
+    const webglFrameNeedle=`let rafId=0;
+  function frame(now){
+    rafId=0;if(!enabled)return;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    lastFrame=now;if(enabled&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  function ensureFrame(){if(enabled&&!rafId)rafId=requestAnimationFrame(frame)}
+
+  host.classList.add('webgl2-renderer-ready');
+  ensureFrame();`;
+    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0;
+  function needsContinuous(now){return !document.hidden&&(particles.length>0||host.classList.contains('round-running')||now<continuousUntil)}
+  function frame(now){
+    rafId=0;if(!enabled)return;
+    const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
+    dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  function ensureFrame(animateMs=0){
+    dirty=true;if(animateMs>0)continuousUntil=Math.max(continuousUntil,performance.now()+animateMs);
+    if(enabled&&!rafId)rafId=requestAnimationFrame(frame)
+  }
+  const webglMutationObserver=new MutationObserver(mutations=>{
+    let animate=false;
+    for(const mutation of mutations){
+      if(mutation.type==='attributes'&&(mutation.attributeName==='class'||mutation.attributeName==='style')){animate=true;break}
+    }
+    ensureFrame(animate?420:0)
+  });
+  webglMutationObserver.observe(host,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','src','d','cx','cy']});
+  const webglResizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>ensureFrame(180)):null;
+  webglResizeObserver?.observe(host);if(field!==host)webglResizeObserver?.observe(field);
+  window.addEventListener('resize',()=>ensureFrame(240),{passive:true});
+  window.addEventListener('orientationchange',()=>ensureFrame(320),{passive:true});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureFrame(120)});
+
+  host.classList.add('webgl2-renderer-ready');
+  ensureFrame();`;
+    const webglApiNeedle="version:'0.8.0',";
+    const webglApiPatch="version:'0.8.1-demand',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,";
+    const webglNeedles=[webglResizeNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglBurstNeedle,webglFrameNeedle,webglApiNeedle];
+    if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
+    html=html.replace(webglResizeNeedle,webglResizePatch)
+      .replace(webglBackgroundNeedle,webglBackgroundPatch)
+      .replace(webglSpriteNeedle,webglSpritePatch)
+      .replace(webglBurstNeedle,webglBurstPatch)
+      .replace(webglFrameNeedle,webglFramePatch)
+      .replace(webglApiNeedle,webglApiPatch);
+
     html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
     document.open();document.write(html);document.close();
   }catch(error){
