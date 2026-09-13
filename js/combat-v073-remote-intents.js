@@ -2,12 +2,12 @@
   'use strict';
   if(global.LuminousCombatRemoteIntents073)return;
 
-  const TARGET_ROOT='campaña/combate/targetIntents';
+  const READY_ROOT='campaña/combate/readyPlayers';
   const AUTH_ROOT='campaña/combate/authority/current';
   const clean=value=>String(value??'').trim();
   const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
   const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
-  const state={started:false,targetRef:null,targetHandler:null,authRef:null,authHandler:null,rawTargets:{},authority:{},retryTimer:null};
+  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},authority:{},retryTimer:null};
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
@@ -39,6 +39,15 @@
     }
     return{...common,type:'auto',data:{...embedded,kind,id:clean(embedded.id||raw.actionName||raw.skillId||raw.itemId||raw.actionKey),targetSide:targetSide||embedded.targetSide}};
   }
+  function rowsFromReady(ready={}){
+    const out={};
+    for(const [owner,row] of Object.entries(ready||{})){
+      const targets=row?.targetIntents;if(!targets||typeof targets!=='object')continue;
+      out[owner]={};
+      for(const [slot,target] of Object.entries(targets))if(target&&typeof target==='object')out[owner][slot]={...clone(target),scheduledBy:clean(target.scheduledBy||owner),unitId:clean(target.unitId||row.unitId),round:Number(target.round||row.round)||0};
+    }
+    return out;
+  }
   function applyRows(rows,fullPlans){
     const combat=runtime(),s=adapterState();if(!combat?.combatants||!s)return false;const data=combat.combatants();
     Object.values(data).forEach(unit=>{if(unit?.controlled==='remote')unit.autoPlans=[];});
@@ -57,13 +66,13 @@
     return applyRows(full?(state.authority?.plans||{}):state.rawTargets,full);
   }
   function bind(){
-    const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.targetRef||state.authRef)return true;
-    state.targetRef=s.db.ref(TARGET_ROOT);state.targetHandler=snapshot=>{state.rawTargets=snapshot.val()||{};apply();};state.targetRef.on('value',state.targetHandler,error=>console.error('[Combat073 TargetIntents]',error));
+    const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.readyRef||state.authRef)return true;
+    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{state.rawTargets=rowsFromReady(snapshot.val()||{});apply();};state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 TargetIntents]',error));
     state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};state.authRef.on('value',state.authHandler,error=>console.error('[Combat073 AuthorityPlans]',error));return true;
   }
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
-  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.targetRef&&state.targetHandler)state.targetRef.off('value',state.targetHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.targetRef=state.targetHandler=state.authRef=state.authHandler=null;state.started=false;}
+  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',apply);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.3-private',TARGET_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,runtimePlan,intentPlan,inferTargetSide});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.4-targets-only',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,rowsFromReady,runtimePlan,intentPlan,inferTargetSide});
   start();
 })(window);
