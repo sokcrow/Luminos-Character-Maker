@@ -10,6 +10,8 @@ on:
       - 'database.rules.json'
       - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-plan-sync.js'
+      - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-economy-review-fixes.js'
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-camera-controls.js'
       - 'js/combat-v073-dm-setup.js'
@@ -29,6 +31,7 @@ on:
       - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
+      - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
@@ -46,6 +49,8 @@ jobs:
         run: |
           node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-plan-sync.js
+          node --check js/combat-v073-economy-menu.js
+          node --check js/combat-v073-economy-review-fixes.js
           node --check js/combat-v073-remote-intents.js
           node --check js/combat-v073-camera-controls.js
           node --check js/combat-v073-dm-setup.js
@@ -66,6 +71,8 @@ jobs:
         run: node tests/combat-v073-live-sync-hotfix-smoke.mjs
       - name: Unit Library to FIELD instantiation contract
         run: node tests/unit-combat-instantiator-smoke.mjs
+      - name: Player Action economy menu contract
+        run: node tests/combat-v073-economy-menu-smoke.mjs
       - name: Speed persistence contract
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract

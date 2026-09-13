@@ -16,7 +16,7 @@
     if(s.combatants?.[canonical])return[canonical,s.combatants[canonical]];
     return Object.entries(s.combatants||{}).find(([,u])=>clean(u?.canonicalPlayerKey||u?.ownerPlayerId||u?.playerId)===s.playerId&&(!clean(u?.canonicalOwnerUid||u?.ownerUid)||clean(u?.canonicalOwnerUid||u?.ownerUid)===s.uid))||null;
   }
-  function kindOf(plan){const t=norm(plan?.type),k=norm(plan?.data?.kind);if(t==='spells'||k==='spell')return'spell';if(t==='traits'||k==='trait')return'trait';if(t==='defense'||k==='defense')return'defense';if(t==='items'||k==='item')return'item';if(t==='global'||k==='global')return'global';return'skill'}
+  function kindOf(plan){const t=norm(plan?.type),k=norm(plan?.data?.kind);if(t==='spells'||t==='spell'||k==='spell')return'spell';if(t==='traits'||t==='trait'||k==='trait')return'trait';if(t==='defense'||k==='defense')return'defense';if(t==='items'||t==='item'||k==='item')return'item';if(t==='global'||k==='global')return'global';return'skill'}
   function idOf(plan,kind){const d=plan?.data||{};if(kind==='spell')return clean(d.spellId||d.id||d.key);if(kind==='trait')return clean(d.traitId||d.id||d.key);if(kind==='item')return clean(d.itemId||d.id||d.key||d.name);if(kind==='global')return clean(d.actionKey||d.id||d.key||d.name);return clean(d.skillId||d.id||d.key||d.name)}
   function payloadFor(plan,index,unitId,s){
     const kind=kindOf(plan),id=idOf(plan,kind),d=plan?.data||{};
@@ -60,8 +60,31 @@
   function queue(detail,mode='ready'){chain=chain.then(()=>mode==='live'?syncLivePlans(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`}catch(_){}});return chain}
   function onReady(event){queue(event?.detail||{},'ready')}
   function onPlan(event){queue(event?.detail||{},'live')}
+  function ensureEconomyReviewFixes(){
+    if(global.LuminousCombatEconomyReviewFixes073){global.LuminousCombatEconomyReviewFixes073.install?.();return global.LuminousCombatEconomyReviewFixes073}
+    if(!global.document||!global.LuminousCombatEconomyMenu073)return null;
+    const id='combat-v073-economy-review-fixes-script';
+    let script=global.document.getElementById(id);if(script)return script;
+    script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-review-fixes.js';script.async=false;global.document.head?.appendChild(script);return script;
+  }
+  function ensureEconomyMenu(){
+    if(global.LuminousCombatEconomyMenu073){ensureEconomyReviewFixes();return global.LuminousCombatEconomyMenu073}
+    if(!global.document)return null;
+    const id='combat-v073-economy-menu-script';
+    let script=global.document.getElementById(id);
+    if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script}
+    script=global.document.createElement('script');
+    script.id=id;
+    script.src='js/combat-v073-economy-menu.js';
+    script.async=false;
+    script.addEventListener('load',ensureEconomyReviewFixes,{once:true});
+    global.document.head?.appendChild(script);
+    return script;
+  }
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);
   global.addEventListener('luminous:combat073-plan-change',onPlan);
-  global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan)},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.4',sync:syncReady,syncReady,syncLivePlans,queue,kindOf,payloadFor,ownCombatant});
+  global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
+  global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu)},{once:true});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.6',sync:syncReady,syncReady,syncLivePlans,queue,kindOf,payloadFor,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes});
+  ensureEconomyMenu();
 })(window);
