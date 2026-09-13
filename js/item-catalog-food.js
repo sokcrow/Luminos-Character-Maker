@@ -58,7 +58,7 @@
     const raw = rawMeat(itemOrId);
     if (!raw) return null;
     const suffix = String(raw.id || "").replace(/^meat_/, "");
-    const cookedBaseValueAhn = roundTo10(raw.priceAhn * SIMPLE_COOKING_VALUE_MULTIPLIER);
+    const cookedBaseValueAhn = Math.round(raw.priceAhn * SIMPLE_COOKING_VALUE_MULTIPLIER);
     const priceAhn = roundTo10(cookedBaseValueAhn * SHOP_RETAIL_MULTIPLIER);
     return {
       id: `food_cooked_${suffix}`,
