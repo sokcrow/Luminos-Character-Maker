@@ -18,6 +18,8 @@ on:
       - 'tests/combat-v073-dm-editor-smoke.mjs'
       - 'tests/combat-v073-speed-persistence-smoke.mjs'
       - 'tests/combat-v073-dm-observer-smoke.mjs'
+      - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
+      - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -46,3 +48,7 @@ jobs:
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract
         run: node tests/combat-v073-dm-observer-smoke.mjs
+      - name: Player renderer performance contract
+        run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: Combat / Theatre isolation contract
+        run: node tests/combat-v073-theatre-isolation-smoke.mjs
