@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const menuSource = read('js/combat-v073-economy-menu.js');
+const reviewFixSource = read('js/combat-v073-economy-review-fixes.js');
 const planSync = read('js/combat-v073-plan-sync.js');
 const traitCatalog = read('js/archetype-trait-catalog.js');
 
@@ -16,7 +17,15 @@ assert.ok(menuSource.includes('LuminousArchetypeTraitCatalog'), 'ACTIONS must re
 assert.ok(menuSource.includes('unit.traitDefinitions') && menuSource.includes('unit.actionTraits'), 'ACTIONS must read combatant Trait definitions');
 assert.ok(traitCatalog.includes('devil_lineage_improved_demonic_resistance') && traitCatalog.includes('actionCost: "quick_action"'), 'real Quick Action Trait fixture must exist');
 
-assert.ok(menuSource.includes('if (tab === ECONOMY.ACTION) return state.originals.renderSkills?.();'), 'normal Skills must retain the canonical action-slot renderer');
+assert.ok(reviewFixSource.includes('source?.castingTime??source?.casting_time'), 'canonical Spell castingTime must participate in economy classification');
+assert.ok(reviewFixSource.includes("canonicalCost(row)===ECONOMY.ACTION"), 'the Action deck must exclude Quick Action and Reaction entries');
+assert.ok(reviewFixSource.includes("withActionTraits(()=>menu?.state?.originals?.renderCleanList?.())"), 'Action rows must keep the canonical confirmation renderer');
+assert.ok(reviewFixSource.includes("sel?.type==='global'"), 'Action-cost Trait rows must be converted back to Trait plans before canonical confirmation');
+assert.ok(reviewFixSource.includes('engine.canActivateTrait(source,runtime,tState)') && reviewFixSource.includes('engine.activateTrait(source,runtime,tState)'), 'Quick Action Traits must pass their canonical activation and usage gates');
+assert.ok(reviewFixSource.indexOf('engine.canActivateTrait(source,runtime,tState)') < reviewFixSource.indexOf('engine.activateTrait(source,runtime,tState)'), 'Trait activation gate must run before activation');
+assert.ok(reviewFixSource.includes("global.addEventListener?.('luminous:combat073-reaction-trigger',onReactionTrigger)"), 'prepared Reaction resolution must have a runtime handler');
+assert.ok(reviewFixSource.includes('engine.triggerEvent=wrapped') && reviewFixSource.includes('maybeTriggerPrepared(tag,context,targetsHit)'), 'prepared Reactions must be connected to Combat trigger events');
+
 assert.ok(menuSource.includes('liveActions("skill").filter'), 'Quick/Reaction Skills must come from the live Unit kit');
 assert.ok(menuSource.includes('liveActions("spell")'), 'Spell economy tabs must inspect the live Unit kit');
 
@@ -46,6 +55,7 @@ assert.ok(menuSource.includes('luminous:combat073-quick-action-request'), 'Quick
 assert.ok(menuSource.includes('luminous:combat073-reaction-trigger'), 'Reactions must expose a canonical runtime trigger event');
 
 assert.ok(planSync.includes("script.src='js/combat-v073-economy-menu.js'"), 'the live Viewer bridge must actually load the economy menu');
+assert.ok(planSync.includes("script.src='js/combat-v073-economy-review-fixes.js'"), 'the Codex review fixes must load immediately after the economy menu');
 assert.ok(planSync.includes("t==='trait'"), 'Trait Action Slot plans must serialize as Traits instead of Skills');
 
 await import('../js/combat-v073-economy-menu.js');
@@ -56,5 +66,12 @@ assert.equal(api.normalizeEconomyCost({ activation: { actionCost: 'reaction' } }
 assert.equal(api.normalizeEconomyCost({ actionCost: 'action' }), 'action');
 assert.equal(api.normalizeEconomyCost({ cost: 'Quick Action' }), 'action', 'display cost text must not decide economy classification');
 assert.equal(api.economyTabFor({ activation: { actionCost: 'quick_action' } }), 'quick_action');
+
+await import('../js/combat-v073-economy-review-fixes.js');
+const fixes = globalThis.LuminousCombatEconomyReviewFixes073;
+assert.ok(fixes, 'review-fix API must initialize outside the browser for contract tests');
+assert.equal(fixes.canonicalCost({ castingTime: 'reaction' }), 'reaction');
+assert.equal(fixes.canonicalCost({ castingTime: 'quick_action' }), 'quick_action');
+assert.equal(fixes.canonicalCost({ economyCost: 'action', castingTime: 'reaction' }), 'action', 'explicit structured economy metadata must win over castingTime');
 
 console.log('combat v0.7.3 Action/Quick Action/Reaction menu smoke: ok');
