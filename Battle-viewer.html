@@ -43,15 +43,33 @@
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
-    // Player renderer performance patch. Keep WebGL2, but stop paying 60 FPS while idle.
+    // Combat-iframe-only renderer patch. It never installs hooks in the parent/Theatre document.
+    // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
+    const webglStateNeedle=`const particles=[];
+  let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
+    const webglStatePatch=`const particles=[];
+  const coarsePointer=window.matchMedia?.('(pointer:coarse)')?.matches===true;
+  const lowPowerDevice=coarsePointer||((navigator.hardwareConcurrency||8)<=4)||((navigator.deviceMemory||8)<=4);
+  const domSpriteMode=lowPowerDevice;
+  const intentPathCache=new WeakMap();
+  let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
-    const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),coarse=window.matchMedia?.('(pointer:coarse)')?.matches===true,dprCap=coarse?1.25:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
+    const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),dprCap=lowPowerDevice?1:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
     const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{host.classList.add('webgl2-background-ready');ensureFrame()});";
     const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
     const webglSpritePatch="const entry=requestTexture(url,()=>{img.classList.add('webgl2-texture-backed');ensureFrame()});";
+    const webglRenderSpritesNeedle=`function renderSprites(){
+    const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
+    const webglRenderSpritesPatch=`function renderSprites(){
+    if(domSpriteMode)return;
+    const rows=Array.from(document.querySelectorAll('.sprite-img')).map(img=>{`;
+    const webglIntentNeedle="const local=parsePath(path.getAttribute('d')),tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
+    const webglIntentPatch="const d=path.getAttribute('d')||'';let cached=intentPathCache.get(path);if(!cached||cached.d!==d){cached={d,points:parsePath(d)};intentPathCache.set(path,cached)}const local=cached.points,tone=intentToneFromClass(path),color=[...intentColors[tone]],secondary=path.classList.contains('atk-weight-secondary');color[3]*=opacity;";
     const webglBurstNeedle="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000})";
     const webglBurstPatch="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000});ensureFrame(340)";
+    const webglParticleRaysNeedle="const rays=p.range?7:10;for(let r=0;r<rays;r++){";
+    const webglParticleRaysPatch="const rays=p.range?(lowPowerDevice?4:7):(lowPowerDevice?6:10);for(let r=0;r<rays;r++){";
     const webglFrameNeedle=`let rafId=0;
   function frame(now){
     rafId=0;if(!enabled)return;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
@@ -80,25 +98,31 @@
     for(const mutation of mutations){
       if(mutation.type==='attributes'&&(mutation.attributeName==='class'||mutation.attributeName==='style')){animate=true;break}
     }
-    ensureFrame(animate?420:0)
+    ensureFrame(animate&&!host.classList.contains('round-running')?140:0)
   });
   webglMutationObserver.observe(host,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','src','d','cx','cy']});
-  const webglResizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>ensureFrame(180)):null;
+  const webglResizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>ensureFrame(120)):null;
   webglResizeObserver?.observe(host);if(field!==host)webglResizeObserver?.observe(field);
-  window.addEventListener('resize',()=>ensureFrame(240),{passive:true});
-  window.addEventListener('orientationchange',()=>ensureFrame(320),{passive:true});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureFrame(120)});
+  window.addEventListener('resize',()=>ensureFrame(180),{passive:true});
+  window.addEventListener('orientationchange',()=>ensureFrame(220),{passive:true});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureFrame(100)});
 
+  host.dataset.webglSpriteMode=domSpriteMode?'dom-hybrid':'webgl';
+  host.dataset.webglQuality=lowPowerDevice?'low-power':'full';
   host.classList.add('webgl2-renderer-ready');
   ensureFrame();`;
     const webglApiNeedle="version:'0.8.0',";
-    const webglApiPatch="version:'0.8.1-demand',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,";
-    const webglNeedles=[webglResizeNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglBurstNeedle,webglFrameNeedle,webglApiNeedle];
+    const webglApiPatch="version:'0.8.2-hybrid',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',";
+    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
     if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
-    html=html.replace(webglResizeNeedle,webglResizePatch)
+    html=html.replace(webglStateNeedle,webglStatePatch)
+      .replace(webglResizeNeedle,webglResizePatch)
       .replace(webglBackgroundNeedle,webglBackgroundPatch)
       .replace(webglSpriteNeedle,webglSpritePatch)
+      .replace(webglRenderSpritesNeedle,webglRenderSpritesPatch)
+      .replace(webglIntentNeedle,webglIntentPatch)
       .replace(webglBurstNeedle,webglBurstPatch)
+      .replace(webglParticleRaysNeedle,webglParticleRaysPatch)
       .replace(webglFrameNeedle,webglFramePatch)
       .replace(webglApiNeedle,webglApiPatch);
 
