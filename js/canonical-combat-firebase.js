@@ -7,7 +7,7 @@
   "use strict";
 
   const VERSION = "0.7.3-canonical-firebase-v1";
-  const ROOT = "campaña/combate_v073";
+  const ROOT = "campaña/combate/canonical_v073";
   const ROOTS = Object.freeze({
     session: `${ROOT}/session`,
     combatants: `${ROOT}/combatants`,
