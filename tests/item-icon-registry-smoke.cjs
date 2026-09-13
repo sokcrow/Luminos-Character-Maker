@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 5);
+  assert.equal(registry.VERSION, 6);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 61);
+  assert.equal(Object.keys(registry.GROUPS).length, 64);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -49,6 +49,11 @@ const { pathToFileURL } = require('node:url');
     ['scale_reptile', 'shell_carapace', 'chitin_plate']
   );
 
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['feather_raw', 'animal_fiber_raw', 'silk_raw'].includes(entry.id)).map((entry) => entry.id),
+    ['feather_raw', 'animal_fiber_raw', 'silk_raw']
+  );
+
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
   assert.equal(registry.canonicalGroupId('food_meat'), 'food');
@@ -62,35 +67,50 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.canonicalGroupId('scale'), 'scale_reptile');
   assert.equal(registry.canonicalGroupId('shell'), 'shell_carapace');
   assert.equal(registry.canonicalGroupId('chitin'), 'chitin_plate');
+  assert.equal(registry.canonicalGroupId('feather'), 'feather_raw');
+  assert.equal(registry.canonicalGroupId('down'), 'feather_raw');
+  assert.equal(registry.canonicalGroupId('wool'), 'animal_fiber_raw');
+  assert.equal(registry.canonicalGroupId('raw_silk'), 'silk_raw');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
-  assert.equal(registry.resolveIcon('healing_hp'), 'https://imgur.com/GcnX53v.png');
-  assert.equal(registry.resolveIcon('food'), 'https://imgur.com/uFmUpuD.png');
+
+  const expectedIcons = {
+    healing_hp: 'https://imgur.com/GcnX53v.png',
+    food: 'https://imgur.com/uFmUpuD.png',
+    meat_mammal: 'https://imgur.com/GQAGWzK.png',
+    meat_bird: 'https://imgur.com/4Y6KfFh.png',
+    meat_fish: 'https://imgur.com/KZ6Y7LQ.png',
+    meat_shellfish: 'https://imgur.com/cUkw6rB.png',
+    meat_reptile: 'https://imgur.com/LZ3maix.png',
+    meat_draconic: 'https://imgur.com/QJZhEJC.png',
+    meat_insectoid: 'https://imgur.com/bZoLZeb.png',
+    hide_mammal: 'https://imgur.com/nK6vQIR.png',
+    pelt_fur: 'https://imgur.com/12IQYXa.png',
+    hide_reptile: 'https://imgur.com/llKa6G5.png',
+    hide_draconic: 'https://imgur.com/F1YNegu.png',
+    hard_bone: 'https://imgur.com/HrqeZ0a.png',
+    hard_claw: 'https://imgur.com/gjLEUIT.png',
+    hard_horn: 'https://imgur.com/H1kn8fD.png',
+    scale_reptile: 'https://imgur.com/cJz55WQ.png',
+    shell_carapace: 'https://imgur.com/TgCPNLU.png',
+    chitin_plate: 'https://imgur.com/0785C1C.png',
+    feather_raw: 'https://imgur.com/EPkBtW0.png',
+    animal_fiber_raw: 'https://imgur.com/A3FpNXr.png',
+    silk_raw: 'https://imgur.com/NYnkd17.png',
+  };
+  for (const [id, icon] of Object.entries(expectedIcons)) assert.equal(registry.resolveIcon(id), icon);
+
   assert.equal(registry.resolveIcon('food_meat'), 'https://imgur.com/uFmUpuD.png');
-  assert.equal(registry.resolveIcon('meat_mammal'), 'https://imgur.com/GQAGWzK.png');
-  assert.equal(registry.resolveIcon('meat_bird'), 'https://imgur.com/4Y6KfFh.png');
-  assert.equal(registry.resolveIcon('meat_fish'), 'https://imgur.com/KZ6Y7LQ.png');
-  assert.equal(registry.resolveIcon('meat_shellfish'), 'https://imgur.com/cUkw6rB.png');
-  assert.equal(registry.resolveIcon('meat_reptile'), 'https://imgur.com/LZ3maix.png');
-  assert.equal(registry.resolveIcon('meat_draconic'), 'https://imgur.com/QJZhEJC.png');
-  assert.equal(registry.resolveIcon('meat_insectoid'), 'https://imgur.com/bZoLZeb.png');
-  assert.equal(registry.resolveIcon('hide_mammal'), 'https://imgur.com/nK6vQIR.png');
-  assert.equal(registry.resolveIcon('pelt_fur'), 'https://imgur.com/12IQYXa.png');
-  assert.equal(registry.resolveIcon('hide_reptile'), 'https://imgur.com/llKa6G5.png');
-  assert.equal(registry.resolveIcon('hide_draconic'), 'https://imgur.com/F1YNegu.png');
   assert.equal(registry.resolveIcon('hide_leather'), 'https://imgur.com/nK6vQIR.png');
-  assert.equal(registry.resolveIcon('hard_bone'), 'https://imgur.com/HrqeZ0a.png');
-  assert.equal(registry.resolveIcon('hard_claw'), 'https://imgur.com/gjLEUIT.png');
-  assert.equal(registry.resolveIcon('hard_horn'), 'https://imgur.com/H1kn8fD.png');
   assert.equal(registry.resolveIcon('bone_horn'), 'https://imgur.com/HrqeZ0a.png');
   assert.equal(registry.resolveIcon('claw'), 'https://imgur.com/gjLEUIT.png');
   assert.equal(registry.resolveIcon('horn'), 'https://imgur.com/H1kn8fD.png');
-  assert.equal(registry.resolveIcon('scale_reptile'), 'https://imgur.com/cJz55WQ.png');
-  assert.equal(registry.resolveIcon('shell_carapace'), 'https://imgur.com/TgCPNLU.png');
-  assert.equal(registry.resolveIcon('chitin_plate'), 'https://imgur.com/0785C1C.png');
   assert.equal(registry.resolveIcon('scale'), 'https://imgur.com/cJz55WQ.png');
   assert.equal(registry.resolveIcon('carapace'), 'https://imgur.com/TgCPNLU.png');
   assert.equal(registry.resolveIcon('chitin'), 'https://imgur.com/0785C1C.png');
+  assert.equal(registry.resolveIcon('flight_feather'), 'https://imgur.com/EPkBtW0.png');
+  assert.equal(registry.resolveIcon('animal_hair'), 'https://imgur.com/A3FpNXr.png');
+  assert.equal(registry.resolveIcon('silk'), 'https://imgur.com/NYnkd17.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
