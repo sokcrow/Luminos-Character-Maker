@@ -1,0 +1,36 @@
+name: Runtime smoke combat encounter staging
+
+on:
+  push:
+    branches:
+      - fix/combat-encounter-staging
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve repository
+        run: |
+          nohup python3 -m http.server 4173 >/tmp/luminous-http.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/Battle-viewer.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/luminous-http.log
+          exit 1
+      - name: Stale roster to staged encounter regression
+        run: timeout 60s node scripts/runtime-smoke-combat-encounter-staging.mjs
