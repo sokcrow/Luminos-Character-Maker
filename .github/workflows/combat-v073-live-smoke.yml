@@ -11,6 +11,7 @@ on:
       - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-plan-sync.js'
       - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-economy-review-fixes.js'
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-camera-controls.js'
       - 'js/combat-v073-dm-setup.js'
@@ -49,6 +50,7 @@ jobs:
           node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-plan-sync.js
           node --check js/combat-v073-economy-menu.js
+          node --check js/combat-v073-economy-review-fixes.js
           node --check js/combat-v073-remote-intents.js
           node --check js/combat-v073-camera-controls.js
           node --check js/combat-v073-dm-setup.js
