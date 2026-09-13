@@ -4,7 +4,7 @@
   if (global.LuminousCombatLiveAdapter073) return;
   global.LuminousCombatLiveMode = true;
 
-  const VERSION = "0.7.3-live.1";
+  const VERSION = "0.7.3-live.2";
   const ROOTS = Object.freeze({
     dmUid: "campaña/config/dm_uid",
     players: "campaña/jugadores",
@@ -133,7 +133,8 @@
   function spriteFor(unit = {}) {
     return clean(
       unit.combatSprite || unit.sprite_combate || unit.combat_sprite || unit.tokenImage || unit.sprite ||
-      unit.idle_sprite || unit.portrait || unit.icono || unit.img || unit.image
+      unit.idle_sprite || unit.portrait || unit.icono || unit.img || unit.image ||
+      unit.visual?.spriteUrl || unit.combatVisual?.spriteUrl
     );
   }
 
@@ -170,7 +171,9 @@
       const faction = factionFor(raw);
       const pos = defaultPosition(faction, sideIndex[faction]++);
       const maxHp = maxHpFor(raw);
-      const playerOwned = state.role === "player" && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
+      const humanPlayer = isPlayerUnit(raw);
+      const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
+      const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
       const x = finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
       const y = finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
       result.push({
@@ -178,9 +181,11 @@
         id,
         name: clean(raw.characterName || raw.character_name || raw.nombre || raw.name || id) || id,
         faction,
-        controlled: playerOwned ? "player" : "ai",
+        controlled: controller,
         focusMenu: playerOwned,
         speed: finite(raw.speed, 0) || 0,
+        speedTie: finite(raw.speedTie, 0) || 0,
+        speedRollTurn: finite(raw.speedRollTurn, 0) || 0,
         speedRange: Array.isArray(raw.speedRange) ? raw.speedRange.slice(0, 2) : [finite(raw.speedMin, 1) || 1, finite(raw.speedMax, 6) || 6],
         hp: hpFor(raw, maxHp),
         maxHp,
@@ -191,9 +196,9 @@
         img: spriteFor(raw),
         x,
         y,
-        scale: finite(raw.scale ?? raw.visualScale ?? raw.escala, 1) || 1,
-        spriteX: finite(raw.spriteX, 0) || 0,
-        spriteY: finite(raw.spriteY, 0) || 0,
+        scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
+        spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
+        spriteY: finite(raw.spriteY ?? raw.combatVisual?.y, 0) || 0,
         staggerThresholds: Array.isArray(raw.staggerThresholds) && raw.staggerThresholds.length ? raw.staggerThresholds : [75, 50, 25],
         isBackup: raw.isBackup === true || raw.battleActive === false,
         battleActive: raw.battleActive !== false,
@@ -239,6 +244,7 @@
 
   function skillIdsFor(unit = {}) {
     if (Array.isArray(unit.skillIds)) return unit.skillIds.map(clean).filter(Boolean);
+    if (Array.isArray(unit.skillSlotIds)) return unit.skillSlotIds.map(clean).filter(Boolean);
     if (Array.isArray(unit.equippedSkills)) return unit.equippedSkills.map((row) => clean(row?.id || row)).filter(Boolean);
     if (unit.equippedSkillIndex && typeof unit.equippedSkillIndex === "object") return Object.keys(unit.equippedSkillIndex).filter((id) => unit.equippedSkillIndex[id] === true);
     return [];
@@ -256,8 +262,28 @@
   }
 
   function hydrationSignature(combatants, playerId) {
-    const summary = combatants.map((unit) => [unit.id, unit.hp, unit.maxHp, unit.sp, unit.x, unit.y, unit.actionSlots, unit.img, unit.battleActive, unit.statusEffects]);
-    return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, Object.keys(state.skills || {}).length]);
+    const summary = combatants.map((unit) => [
+      unit.id,
+      unit.controlled,
+      unit.hp,
+      unit.maxHp,
+      unit.sp,
+      unit.speed,
+      unit.speedTie,
+      unit.speedRollTurn,
+      unit.x,
+      unit.y,
+      unit.scale,
+      unit.spriteX,
+      unit.spriteY,
+      unit.actionSlots,
+      unit.img,
+      unit.battleActive,
+      unit.statusEffects,
+      skillIdsFor(unit)
+    ]);
+    const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
+    return JSON.stringify([state.role, playerId, state.combatState, state.round, summary, skillRevision]);
   }
 
   function setRoleUi() {
@@ -275,10 +301,24 @@
         #game-container[data-viewer-role="dm"] .category-back,
         #game-container[data-viewer-role="dm"] .player-ready-control,
         #game-container[data-viewer-role="dm"] .quick-badge { display:none!important; }
-        #game-container[data-viewer-role="player"] .prototype-controls { display:none!important; }
+        #game-container[data-viewer-role="player"] .prototype-controls,
+        #game-container[data-viewer-role="dm"] .prototype-controls { display:none!important; }
       `;
       global.document.head.appendChild(style);
     }
+  }
+
+  function dispatchHydrated(focusId, combatants) {
+    global.dispatchEvent(new CustomEvent("luminous:combat073-hydrated", {
+      detail: {
+        version: VERSION,
+        role: state.role,
+        playerId: state.playerId,
+        focusId,
+        round: state.round,
+        combatants: combatants.map((unit) => ({ id: unit.id, controlled: unit.controlled }))
+      }
+    }));
   }
 
   function hydrateNow() {
@@ -306,6 +346,7 @@
     setRoleUi();
     global.LuminousCombat073.hydrate({
       playerId: focusId,
+      viewerRole: state.role,
       combatants,
       kits: kitsFor(combatants),
       round: state.round,
@@ -322,6 +363,7 @@
       host?.classList.toggle("ready-menu-visible", planning);
       setStatus(`TURN ${state.round} · ${planning ? "PLANNING" : state.combatState} · ${focusUnit?.name || focusUnit?.characterName || state.playerId}`);
     }
+    dispatchHydrated(focusId, combatants);
     return true;
   }
 
@@ -397,9 +439,11 @@
     start,
     stop,
     hydrateNow,
+    scheduleHydrate,
     normalizeSkill,
     normalizedCombatants,
     kitsFor,
+    hydrationSignature,
   });
 
   start();
