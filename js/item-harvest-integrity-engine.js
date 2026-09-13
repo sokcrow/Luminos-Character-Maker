@@ -63,6 +63,20 @@
       secondaryPhysical: Object.freeze([]),
       exposureChannels: Object.freeze(["acid", "frozen", "cold", "mana_corruption"]),
     }),
+    hard_cover_modular: Object.freeze({
+      id: "hard_cover_modular",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze(["bludgeoning"]),
+      secondaryPhysical: Object.freeze(["slashing"]),
+      exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "mana_corruption"]),
+    }),
+    hard_cover_structural: Object.freeze({
+      id: "hard_cover_structural",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze(["bludgeoning"]),
+      secondaryPhysical: Object.freeze([]),
+      exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "mana_corruption"]),
+    }),
     organ_gland: Object.freeze({
       id: "organ_gland",
       directHitSensitive: false,
