@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 1);
+  assert.equal(registry.VERSION, 2);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 46);
+  assert.equal(Object.keys(registry.GROUPS).length, 53);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -28,11 +28,28 @@ const { pathToFileURL } = require('node:url');
     registry.list({ domain: 'equipment' }).map((entry) => entry.id),
     ['weapon_melee', 'weapon_ranged', 'shield', 'accessory', 'armor_light', 'armor_medium', 'armor_heavy']
   );
+
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => entry.id.startsWith('meat_')).map((entry) => entry.id),
+    ['meat_mammal', 'meat_bird', 'meat_fish', 'meat_shellfish', 'meat_reptile', 'meat_draconic', 'meat_insectoid']
+  );
+
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
+  assert.equal(registry.canonicalGroupId('food_meat'), 'food');
+  assert.equal(registry.canonicalGroupId('meat'), 'meat_mammal');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
   assert.equal(registry.resolveIcon('healing_hp'), 'https://imgur.com/GcnX53v.png');
+  assert.equal(registry.resolveIcon('food'), 'https://imgur.com/uFmUpuD.png');
+  assert.equal(registry.resolveIcon('food_meat'), 'https://imgur.com/uFmUpuD.png');
+  assert.equal(registry.resolveIcon('meat_mammal'), 'https://imgur.com/GQAGWzK.png');
+  assert.equal(registry.resolveIcon('meat_bird'), 'https://imgur.com/4Y6KfFh.png');
+  assert.equal(registry.resolveIcon('meat_fish'), 'https://imgur.com/KZ6Y7LQ.png');
+  assert.equal(registry.resolveIcon('meat_shellfish'), 'https://imgur.com/cUkw6rB.png');
+  assert.equal(registry.resolveIcon('meat_reptile'), 'https://imgur.com/LZ3maix.png');
+  assert.equal(registry.resolveIcon('meat_draconic'), 'https://imgur.com/QJZhEJC.png');
+  assert.equal(registry.resolveIcon('meat_insectoid'), 'https://imgur.com/bZoLZeb.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
