@@ -4,20 +4,25 @@ const { pathToFileURL } = require('node:url');
 
 (async () => {
   delete globalThis.LuminousItemQualityEngine;
+  delete globalThis.LuminousItemSizeLineageEngine;
   delete globalThis.LuminousMeatCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-size-lineage-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-meat.js')).href);
 
   const quality = globalThis.LuminousItemQualityEngine;
+  const size = globalThis.LuminousItemSizeLineageEngine;
   const meat = globalThis.LuminousMeatCatalog;
 
   assert.ok(quality);
+  assert.ok(size);
   assert.ok(meat);
-  assert.equal(meat.VERSION, 1);
+  assert.equal(meat.VERSION, 2);
   assert.equal(meat.FAMILY, 'meat');
   assert.equal(meat.CURRENCY, 'AHN');
   assert.equal(meat.DEFAULT_QUALITY, 'standard');
+  assert.equal(meat.DEFAULT_SIZE, 'medium');
   assert.equal(meat.ITEMS.length, 39);
   assert.deepEqual(meat.ICON_FAMILIES, [
     'meat_mammal',
@@ -38,8 +43,11 @@ const { pathToFileURL } = require('node:url');
     assert.equal(item.currency, 'AHN');
     assert.equal(item.baseQuality, 'standard');
     assert.equal(item.qualitySystem, 'universal');
+    assert.equal(item.sizeSystem, 'universal_physical');
     assert.equal(item.stackable, true);
     assert.equal(item.edibleRaw, true);
+    assert.ok(item.lineageId);
+    assert.ok(item.lineageName);
     assert.ok(item.priceAhn > 0);
     assert.ok(meat.ICON_FAMILIES.includes(item.iconFamily));
     assert.equal(ids.has(item.id), false, `duplicate id: ${item.id}`);
@@ -49,6 +57,8 @@ const { pathToFileURL } = require('node:url');
   }
 
   assert.equal(meat.get('meat_wolf').priceAhn, 180);
+  assert.equal(meat.get('meat_wolf').lineageId, 'wolf');
+  assert.equal(meat.get('meat_wolf').lineageName, 'Wolf');
   assert.equal(meat.get('meat_draconic').priceAhn, 750);
   assert.equal(meat.get('meat_rodent').priceAhn, 60);
   assert.equal(meat.get('meat_wolf').iconFamily, 'meat_mammal');
@@ -65,42 +75,57 @@ const { pathToFileURL } = require('node:url');
   assert.equal(meat.priceForQuality('meat_wolf', 'fine'), 270);
   assert.equal(meat.priceForQuality('meat_wolf', 'exceptional'), 360);
   assert.equal(meat.priceForQuality('meat_draconic', 'exceptional'), 1500);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'tiny', 'standard'), 45);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'standard'), 720);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'fine'), 1080);
 
   const direWolfStack = meat.createHarvestStack('meat_wolf', {
     quantity: 6,
+    size: 'large',
     quality: 'fine',
     originCreatureType: 'beast',
     originCreatureId: 'dire_wolf',
   });
-  assert.deepEqual(direWolfStack, {
-    itemId: 'meat_wolf',
-    family: 'meat',
-    quantity: 6,
-    quality: 'fine',
-    unitValueAhn: 270,
-    originCreatureType: 'beast',
-    originCreatureId: 'dire_wolf',
-    originRaceId: null,
-    originSubtypeId: null,
-    sourceEntityId: null,
-  });
+  assert.equal(direWolfStack.itemId, 'meat_wolf');
+  assert.equal(direWolfStack.family, 'meat');
+  assert.equal(direWolfStack.quantity, 6);
+  assert.equal(direWolfStack.size, 'large');
+  assert.equal(direWolfStack.quality, 'fine');
+  assert.equal(direWolfStack.lineageId, 'wolf');
+  assert.equal(direWolfStack.lineageName, 'Wolf');
+  assert.equal(direWolfStack.displayName, 'Wolf Meat');
+  assert.equal(direWolfStack.hungerPerUnit, 200);
+  assert.equal(direWolfStack.rationEquivalentPerUnit, 2);
+  assert.equal(direWolfStack.unitValueAhn, 540);
+  assert.equal(direWolfStack.originCreatureType, 'beast');
+  assert.equal(direWolfStack.originCreatureId, 'dire_wolf');
 
   const moonfaeStack = meat.createHarvestStack('meat_rabbit', {
     quantity: 4,
+    size: 'small',
     quality: 'exceptional',
     originCreatureType: 'humanoid',
     originRaceId: 'moonfae',
     originSubtypeId: 'crimson_moon',
   });
   assert.equal(moonfaeStack.itemId, 'meat_rabbit');
+  assert.equal(moonfaeStack.lineageId, 'rabbit');
+  assert.equal(moonfaeStack.lineageName, 'Rabbit');
+  assert.equal(moonfaeStack.hungerPerUnit, 50);
   assert.equal(moonfaeStack.originRaceId, 'moonfae');
   assert.equal(moonfaeStack.originSubtypeId, 'crimson_moon');
-  assert.equal(moonfaeStack.unitValueAhn, 280);
+  assert.equal(moonfaeStack.unitValueAhn, 140);
+
+  const customLineage = meat.createHarvestStack('meat_rabbit', {
+    lineageId: 'moonfae',
+    lineageName: 'Moonfae',
+  });
+  assert.equal(customLineage.displayName, 'Moonfae Meat');
 
   assert.equal(meat.list({ iconFamily: 'meat_shellfish' }).length, 2);
   assert.ok(meat.list({ tag: 'humanoid' }).length >= 5);
 
-  console.log('Meat catalog smoke: OK (39 ingredients)');
+  console.log('Meat catalog smoke: OK (39 ingredients + size/lineage)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
