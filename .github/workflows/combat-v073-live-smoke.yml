@@ -16,6 +16,11 @@ on:
       - 'js/combat-v073-speed-authority.js'
       - 'js/combat-v073-dm-observer.js'
       - 'js/combat-unit-library-sync.js'
+      - 'js/combat-v073-unit-deploy-bridge.js'
+      - 'js/unit-combat-instantiator.js'
+      - 'js/skill-catalog-goblin-tier1.js'
+      - 'js/unit-catalog-goblin.js'
+      - 'js/goblin-unit-runtime.js'
       - 'js/dm-combat-tab-manager.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
       - 'tests/combat-v073-dm-editor-smoke.mjs'
@@ -24,6 +29,7 @@ on:
       - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
+      - 'tests/unit-combat-instantiator-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -46,6 +52,11 @@ jobs:
           node --check js/combat-v073-speed-authority.js
           node --check js/combat-v073-dm-observer.js
           node --check js/combat-unit-library-sync.js
+          node --check js/combat-v073-unit-deploy-bridge.js
+          node --check js/unit-combat-instantiator.js
+          node --check js/skill-catalog-goblin-tier1.js
+          node --check js/unit-catalog-goblin.js
+          node --check js/goblin-unit-runtime.js
           node --check js/dm-combat-tab-manager.js
       - name: Canonical v0.7.3 cutover contract
         run: node tests/combat-v073-live-cutover-smoke.mjs
@@ -53,6 +64,8 @@ jobs:
         run: node tests/combat-v073-dm-editor-smoke.mjs
       - name: Live sync, camera and canonical library hotfix contract
         run: node tests/combat-v073-live-sync-hotfix-smoke.mjs
+      - name: Unit Library to FIELD instantiation contract
+        run: node tests/unit-combat-instantiator-smoke.mjs
       - name: Speed persistence contract
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract

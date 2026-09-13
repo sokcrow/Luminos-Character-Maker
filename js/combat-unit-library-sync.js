@@ -10,19 +10,24 @@
   const CATALOG_SCRIPTS = Object.freeze([
     'js/combat-skill-schema.js',
     'js/skill-catalog-kobold-tier1.js',
+    'js/skill-catalog-goblin-tier1.js',
     'js/skill-catalog-wolf.js',
     'js/unit-rank-runtime.js',
     'js/universal-action-economy.js',
     'js/universal-ranged-ammo-runtime.js',
+    'js/creature-type-catalog.js',
     'js/goblin-unit-runtime.js',
     'js/wolf-unit-runtime.js',
     'js/unit-catalog-kobold-tier1.js',
     'js/unit-catalog-goblin.js',
-    'js/unit-catalog-wolf.js'
+    'js/unit-catalog-wolf.js',
+    'js/unit-combat-instantiator.js',
+    'js/combat-v073-unit-deploy-bridge.js'
   ]);
 
   const state = { loading: null };
   const clean = (value) => String(value ?? '').trim();
+  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
   function loadScript(src) {
     if (!global.document?.head) return Promise.reject(new Error('DOCUMENT_UNAVAILABLE'));
@@ -50,8 +55,11 @@
     return Boolean(
       global.CombatSkillSchema &&
       global.LuminousKoboldUnitCatalog &&
+      global.LuminousGoblinTier1SkillCatalog &&
       global.LuminousGoblinUnitCatalog &&
-      global.LuminousWolfUnitCatalog
+      global.LuminousWolfUnitCatalog &&
+      global.LuminousUnitCombatInstantiator &&
+      global.LuminousCombat073UnitDeployBridge
     );
   }
 
@@ -90,6 +98,7 @@
     );
     const skills = mergePayloads(
       kobolds.firebaseSkillPayload(schema),
+      goblins.firebaseSkillPayload(schema),
       wolves.firebaseSkillPayload(schema)
     );
     return { units, skills };
@@ -117,6 +126,29 @@
     return value && typeof value === 'object' ? value : {};
   }
 
+  function canonicalUpgradeNeeded(existing = {}, canonical = {}) {
+    if (existing?.metadata?.canonicalUnit !== true || canonical?.metadata?.canonicalUnit !== true) return false;
+    const beforeSkills = Array.isArray(existing.action_slots) ? existing.action_slots.length : Array.isArray(existing.mechanics?.skills) ? existing.mechanics.skills.length : 0;
+    const afterSkills = Array.isArray(canonical.action_slots) ? canonical.action_slots.length : Array.isArray(canonical.mechanics?.skills) ? canonical.mechanics.skills.length : 0;
+    return Number(existing.schemaVersion || 0) < Number(canonical.schemaVersion || 0) ||
+      (existing.metadata?.weaponSkillsPendingCanonicalCatalog === true && canonical.metadata?.weaponSkillsPendingCanonicalCatalog === false) ||
+      beforeSkills < afterSkills;
+  }
+
+  function mergeCanonicalUpgrade(existing = {}, canonical = {}) {
+    const upgraded = {
+      ...clone(canonical),
+      visual: { ...(clone(canonical.visual) || {}), ...(clone(existing.visual) || {}) },
+      combatVisual: { ...(clone(canonical.combatVisual) || {}), ...(clone(existing.combatVisual) || {}) },
+      metadata: { ...(clone(canonical.metadata) || {}), ...(clone(existing.metadata) || {}) }
+    };
+    if (canonical.metadata?.weaponSkillsPendingCanonicalCatalog === false) upgraded.metadata.weaponSkillsPendingCanonicalCatalog = false;
+    for (const key of ['combatSprite', 'sprite_combate', 'combat_sprite', 'spriteX', 'spriteY', 'scale', 'visualScale']) {
+      if (existing[key] != null && existing[key] !== '') upgraded[key] = clone(existing[key]);
+    }
+    return upgraded;
+  }
+
   async function materialize(db, { force = false } = {}) {
     if (!db?.ref) throw new Error('FIREBASE_DB_REQUIRED');
     const { units, skills } = await buildPayloads();
@@ -126,9 +158,16 @@
     ]);
     const updates = {};
     let unitsWritten = 0;
+    let unitsUpgraded = 0;
     let skillsWritten = 0;
     for (const [id, value] of Object.entries(units)) {
-      if (!force && existingUnits[id]) continue;
+      const existing = existingUnits[id];
+      if (!force && existing) {
+        if (!canonicalUpgradeNeeded(existing, value)) continue;
+        updates[`${ROOTS.units}/${id}`] = mergeCanonicalUpgrade(existing, value);
+        unitsUpgraded += 1;
+        continue;
+      }
       updates[`${ROOTS.units}/${id}`] = value;
       unitsWritten += 1;
     }
@@ -142,6 +181,7 @@
       unitCount: Object.keys(units).length,
       skillCount: Object.keys(skills).length,
       unitsWritten,
+      unitsUpgraded,
       skillsWritten,
       force,
       diagnostics: diagnostics(units)
@@ -157,12 +197,14 @@
   }
 
   global.LuminousCombatUnitLibrarySync = Object.freeze({
-    version: '1.0.0',
+    version: '1.2.0',
     ROOTS,
     CATALOG_SCRIPTS,
     ensureCatalogs,
     buildPayloads,
     diagnostics,
+    canonicalUpgradeNeeded,
+    mergeCanonicalUpgrade,
     ensureMissing,
     syncAll,
     materialize

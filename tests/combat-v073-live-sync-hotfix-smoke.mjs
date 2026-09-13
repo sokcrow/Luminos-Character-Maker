@@ -47,8 +47,11 @@ assert.ok(librarySync.includes('kobolds.firebasePayload()'), 'canonical sync mus
 assert.ok(librarySync.includes('goblins.firebasePayload()'), 'canonical sync must materialize Goblins');
 assert.ok(librarySync.includes('wolves.firebasePayload()'), 'canonical sync must materialize Wolves');
 assert.ok(librarySync.includes('kobolds.firebaseSkillPayload(schema)'), 'canonical sync must materialize Kobold Skills');
+assert.ok(librarySync.includes('goblins.firebaseSkillPayload(schema)'), 'canonical sync must materialize Goblin Skills');
 assert.ok(librarySync.includes('wolves.firebaseSkillPayload(schema)'), 'canonical sync must materialize Wolf Skills');
-assert.ok(librarySync.includes('if (!force && existingUnits[id]) continue'), 'auto sync must preserve existing Unit edits');
+assert.ok(librarySync.includes('canonicalUpgradeNeeded'), 'auto sync must be able to repair stale canonical Unit definitions');
+assert.ok(librarySync.includes("existing?.metadata?.canonicalUnit !== true"), 'custom Firebase Units must never be treated as canonical upgrade targets');
+assert.ok(librarySync.includes("for (const key of ['combatSprite', 'sprite_combate', 'combat_sprite', 'spriteX', 'spriteY', 'scale', 'visualScale'])"), 'canonical upgrades must preserve DM-authored Combat visuals');
 assert.ok(librarySync.includes('if (!force && existingSkills[id]) continue'), 'auto sync must preserve existing Skill edits');
 assert.ok(!librarySync.includes('.remove('), 'canonical materializer must never delete unrelated library records');
 
@@ -76,6 +79,7 @@ await import('../js/universal-ranged-ammo-runtime.js');
 await import('../js/goblin-unit-runtime.js');
 await import('../js/wolf-unit-runtime.js');
 await import('../js/skill-catalog-kobold-tier1.js');
+await import('../js/skill-catalog-goblin-tier1.js');
 await import('../js/skill-catalog-wolf.js');
 await import('../js/unit-catalog-kobold-tier1.js');
 await import('../js/unit-catalog-goblin.js');
@@ -102,9 +106,12 @@ for (const [id, unit] of [...Object.entries(koboldPayload), ...Object.entries(wo
 
 for (const [id, unit] of Object.entries(goblinPayload)) {
   assert.equal(unit.metadata?.spritePending, true, `${id} must explicitly report its missing canonical sprite instead of silently failing`);
-  assert.equal(unit.metadata?.weaponSkillsPendingCanonicalCatalog, true, `${id} must explicitly report pending weapon Skills`);
-  assert.ok(Array.isArray(unit.traitIds) && unit.traitIds.length > 0, `${id} must still expose implemented Traits`);
+  assert.equal(unit.metadata?.weaponSkillsPendingCanonicalCatalog, false, `${id} must expose the recovered canonical weapon Skill catalog`);
+  const skills = unit.action_slots || unit.mechanics?.skills || [];
+  assert.ok(Array.isArray(skills) && skills.length > 0, `${id} must expose canonical Goblin combat Skills`);
+  assert.ok(Array.isArray(unit.traitIds) && unit.traitIds.length > 0, `${id} must expose implemented Traits`);
   assert.ok(Array.isArray(unit.mechanics?.weaponLoadout) && unit.mechanics.weaponLoadout.length > 0, `${id} must expose implemented weapon mechanics`);
+  assert.ok(unit.mechanics.weaponLoadout.every((weapon) => weapon.canonicalWeaponSkillPending === false && weapon.skillId), `${id} weapon references must resolve to canonical Skills`);
 }
 
 console.log('combat v0.7.3 live sync/camera/library hotfix smoke: ok');
