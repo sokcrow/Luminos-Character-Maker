@@ -21,7 +21,8 @@
     const bytes=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i+=1)bytes[i]=binary.charCodeAt(i);
     const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-    const html=await new Response(stream).text();
+    let html=await new Response(stream).text();
+    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script></body>');
     document.open();document.write(html);document.close();
   }catch(error){
     console.error("[Luminous Combat Bootstrap]",error);
