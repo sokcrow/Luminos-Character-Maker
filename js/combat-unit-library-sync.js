@@ -10,15 +10,19 @@
   const CATALOG_SCRIPTS = Object.freeze([
     'js/combat-skill-schema.js',
     'js/skill-catalog-kobold-tier1.js',
+    'js/skill-catalog-goblin-tier1.js',
     'js/skill-catalog-wolf.js',
     'js/unit-rank-runtime.js',
     'js/universal-action-economy.js',
     'js/universal-ranged-ammo-runtime.js',
+    'js/creature-type-catalog.js',
     'js/goblin-unit-runtime.js',
     'js/wolf-unit-runtime.js',
     'js/unit-catalog-kobold-tier1.js',
     'js/unit-catalog-goblin.js',
-    'js/unit-catalog-wolf.js'
+    'js/unit-catalog-wolf.js',
+    'js/unit-combat-instantiator.js',
+    'js/combat-v073-unit-deploy-bridge.js'
   ]);
 
   const state = { loading: null };
@@ -50,8 +54,10 @@
     return Boolean(
       global.CombatSkillSchema &&
       global.LuminousKoboldUnitCatalog &&
+      global.LuminousGoblinTier1SkillCatalog &&
       global.LuminousGoblinUnitCatalog &&
-      global.LuminousWolfUnitCatalog
+      global.LuminousWolfUnitCatalog &&
+      global.LuminousUnitCombatInstantiator
     );
   }
 
@@ -90,6 +96,7 @@
     );
     const skills = mergePayloads(
       kobolds.firebaseSkillPayload(schema),
+      goblins.firebaseSkillPayload(schema),
       wolves.firebaseSkillPayload(schema)
     );
     return { units, skills };
@@ -157,7 +164,7 @@
   }
 
   global.LuminousCombatUnitLibrarySync = Object.freeze({
-    version: '1.0.0',
+    version: '1.1.0',
     ROOTS,
     CATALOG_SCRIPTS,
     ensureCatalogs,
