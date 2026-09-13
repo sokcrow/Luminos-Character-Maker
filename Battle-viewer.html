@@ -43,6 +43,24 @@
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
+    // Live multiplayer authority patch: remote human Players are not local AI.
+    const liveControlNeedle=`    unit.controlled=unit.id===PLAYER_ID?'player':'ai';
+    unit.focusMenu=unit.id===PLAYER_ID;`;
+    const liveControlPatch=`    unit.controlled=payload.viewerRole==='dm'?(unit.controlled==='ai'?'ai':'remote'):(unit.id===PLAYER_ID?'player':(unit.controlled==='remote'?'remote':'ai'));
+    unit.focusMenu=payload.viewerRole!=='dm'&&unit.id===PLAYER_ID;`;
+    const liveAllPlansNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai').forEach(unit=>{";
+    const liveAllPlansPatch="Object.values(combatData).filter(unit=>unit.controlled==='ai'||unit.controlled==='remote').forEach(unit=>{";
+    const liveArrowNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai'&&isUnitTargetable(unit)).forEach(unit=>{";
+    const liveArrowPatch="Object.values(combatData).filter(unit=>(unit.controlled==='ai'||unit.controlled==='remote')&&isUnitTargetable(unit)).forEach(unit=>{";
+    const livePlanRenderNeedle="function renderTargetArrows(){\n  const overlay=$('target-intent-overlay');";
+    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode)window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  const overlay=$('target-intent-overlay');";
+    const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle];
+    if(liveNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_LIVE_REMOTE_CONTROL_PATCH_MISSING");
+    html=html.replace(liveControlNeedle,liveControlPatch)
+      .replace(liveAllPlansNeedle,liveAllPlansPatch)
+      .replace(liveArrowNeedle,liveArrowPatch)
+      .replace(livePlanRenderNeedle,livePlanRenderPatch);
+
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
     const webglStateNeedle=`const particles=[];
@@ -167,7 +185,7 @@
       .replace(webglFrameNeedle,webglFramePatch)
       .replace(webglApiNeedle,webglApiPatch);
 
-    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-remote-intents.js"><\/script><script src="js/combat-v073-camera-controls.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
     document.open();document.write(html);document.close();
   }catch(error){
     console.error("[Luminous Combat Bootstrap]",error);
