@@ -11,8 +11,10 @@ on:
       - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-plan-sync.js'
       - 'js/combat-v073-dm-setup.js'
+      - 'js/combat-v073-speed-authority.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
       - 'tests/combat-v073-dm-editor-smoke.mjs'
+      - 'tests/combat-v073-speed-persistence-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -30,7 +32,10 @@ jobs:
           node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-plan-sync.js
           node --check js/combat-v073-dm-setup.js
+          node --check js/combat-v073-speed-authority.js
       - name: Canonical v0.7.3 cutover contract
         run: node tests/combat-v073-live-cutover-smoke.mjs
       - name: DM asset and Skill editor contract
         run: node tests/combat-v073-dm-editor-smoke.mjs
+      - name: Speed persistence contract
+        run: node tests/combat-v073-speed-persistence-smoke.mjs

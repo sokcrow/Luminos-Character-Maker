@@ -41,7 +41,7 @@
     if(!html.includes(cancelNeedle)||!html.includes(readyNeedle))throw new Error("COMBAT_READY_BRIDGE_PATCH_MISSING");
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
-    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script></body>');
+    html=html.replace("</body>",'<script src="js/combat-v073-plan-sync.js"><\/script><script src="js/combat-v073-dm-setup.js"><\/script><script src="js/combat-v073-speed-authority.js"><\/script></body>');
     document.open();document.write(html);document.close();
   }catch(error){
     console.error("[Luminous Combat Bootstrap]",error);
