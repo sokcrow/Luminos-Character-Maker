@@ -5,9 +5,9 @@
   const ROOTS=Object.freeze({
     campaignUnits:'campaña/base_datos_unidades',
     campaignSkills:'campaña/base_datos_skills',
-    universalRoot:'luminous_library',
-    universalUnitManifest:'luminous_library/manifest/units',
-    universalSkillManifest:'luminous_library/manifest/skills'
+    universalRoot:'campaña/combate/libraryManifest',
+    universalUnitManifest:'campaña/combate/libraryManifest/units',
+    universalSkillManifest:'campaña/combate/libraryManifest/skills'
   });
   const CATALOG_SCRIPTS=Object.freeze([
     'js/universal-library-runtime.js',
@@ -159,7 +159,7 @@
   async function syncAll(db){return materialize(db,{force:true});}
 
   global.LuminousCombatUnitLibrarySync=Object.freeze({
-    version:'2.0.0',ROOTS,CATALOG_SCRIPTS,DEPLOYMENT_SCRIPTS,state,loadScript,ensureCatalogs,ensureDeploymentRuntime,mergePayloads,buildPayloads,diagnostics,
+    version:'2.1.0',ROOTS,CATALOG_SCRIPTS,DEPLOYMENT_SCRIPTS,state,loadScript,ensureCatalogs,ensureDeploymentRuntime,mergePayloads,buildPayloads,diagnostics,
     canonicalUpgradeNeeded,mergeCanonicalUpgrade,installRuntimeFallback,applyRuntimeFallback,refreshCombatTabSelector,refreshEncounterSelector,ensureMissing,syncAll,materialize
   });
 })(window);
