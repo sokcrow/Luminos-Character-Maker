@@ -10,6 +10,7 @@ on:
       - 'database.rules.json'
       - 'js/combat-v073-live-adapter.js'
       - 'js/combat-v073-plan-sync.js'
+      - 'js/combat-v073-dm-setup.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
@@ -27,5 +28,6 @@ jobs:
         run: |
           node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-plan-sync.js
+          node --check js/combat-v073-dm-setup.js
       - name: Canonical v0.7.3 cutover contract
         run: node tests/combat-v073-live-cutover-smoke.mjs

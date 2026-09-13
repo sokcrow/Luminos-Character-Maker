@@ -42,6 +42,7 @@ assert.ok(html.includes('let rafId=0') && html.includes('ensureFrame'), 'WebGL2 
 
 assert.ok(viewer.includes('luminous:combat073-plan-ready-change'), 'Viewer bootstrap must bridge READY/CANCEL READY');
 assert.ok(viewer.includes('js/combat-v073-plan-sync.js'), 'Viewer must load Firebase plan sync bridge');
+assert.ok(viewer.includes('js/combat-v073-dm-setup.js'), 'Viewer must load the v0.7.3 DM encounter setup');
 assert.ok(viewer.includes('COMBAT_READY_BRIDGE_PATCH_MISSING'), 'READY bridge patch must fail closed when alpha signature changes');
 assert.ok(!viewer.includes('js/combatEngine.js'), 'Battle-viewer bootstrap must not load legacy CombatEngine');
 
@@ -50,6 +51,16 @@ assert.ok(planSync.includes("const unitId=own[0]"), 'plannedActions unitId must 
 assert.ok(planSync.includes("ref().update(updates)"), 'READY state and plannedActions must commit atomically');
 assert.ok(planSync.includes("plannedActions/${owner}/${i}"), 'player plans must be written per owned slot');
 assert.ok(planSync.includes("readyPlayers/${owner}"), 'READY state must be persisted');
+
+const dmSetup = read('js/combat-v073-dm-setup.js');
+assert.ok(dmSetup.includes("players:'campaña/jugadores'"), 'DM setup must read Campaign Players');
+assert.ok(dmSetup.includes("units:'campaña/base_datos_unidades'"), 'DM setup must read Unit Library');
+assert.ok(dmSetup.includes("combatants:'campaña/combate/combatants'"), 'DM setup must write canonical combatants');
+assert.ok(dmSetup.includes("canonicalPlayerKey:playerId") && dmSetup.includes("canonicalOwnerUid:uid||null"), 'deployed Players must carry canonical Firebase ownership');
+assert.ok(dmSetup.includes("actionSlotIndex:slotIndex(slots)") && dmSetup.includes("equippedSkillIndex:equipped(ids)"), 'deployed combatants must expose slots and equipped Skill provenance');
+assert.ok(dmSetup.includes("ENCOUNTER SETUP · COMBAT v0.7.3"), 'DM encounter setup UI must be mounted in the new Viewer');
+assert.ok(!dmSetup.includes('LuminousVttActorLibrary') && !dmSetup.includes('js/vtt/'), 'new DM setup must not revive the removed VTT actor library');
+assert.ok(!dmSetup.includes('combatEngine.js') && !dmSetup.includes('CombatEngine'), 'new DM setup must not depend on legacy CombatEngine');
 
 const rulesText = read('database.rules.json');
 const rules = JSON.parse(rulesText);
