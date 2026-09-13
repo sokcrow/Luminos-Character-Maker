@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/individual-goap-combat-ai
+      - feature/universal-actions-ai
   pull_request:
     branches:
       - main
@@ -22,8 +23,13 @@ jobs:
         run: |
           node --check js/individual-goap-combat-ai.js
           node --check js/unit-ai-kit-adapter.js
+          node --check js/unit-ai-universal-actions.js
           node --check js/unit-action-economy-catalog.js
           node --check js/enemy-action-slot-allocator.js
+          node --check js/creature-type-catalog.js
+          node --check js/spell-targeting-language.js
           node --check js/battle-viewer-enemy-planning-074.js
       - name: Individual GOAP suite
         run: npm run test:individual-goap
+      - name: Unit instantiation bridge
+        run: node tests/unit-combat-instantiator-smoke.mjs
