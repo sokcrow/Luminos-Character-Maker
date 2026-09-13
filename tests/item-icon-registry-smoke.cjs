@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 4);
+  assert.equal(registry.VERSION, 5);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 58);
+  assert.equal(Object.keys(registry.GROUPS).length, 61);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -44,6 +44,11 @@ const { pathToFileURL } = require('node:url');
     ['hard_bone', 'hard_claw', 'hard_horn']
   );
 
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['scale_reptile', 'shell_carapace', 'chitin_plate'].includes(entry.id)).map((entry) => entry.id),
+    ['scale_reptile', 'shell_carapace', 'chitin_plate']
+  );
+
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
   assert.equal(registry.canonicalGroupId('food_meat'), 'food');
@@ -54,6 +59,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.canonicalGroupId('bone'), 'hard_bone');
   assert.equal(registry.canonicalGroupId('fang'), 'hard_claw');
   assert.equal(registry.canonicalGroupId('tusk'), 'hard_horn');
+  assert.equal(registry.canonicalGroupId('scale'), 'scale_reptile');
+  assert.equal(registry.canonicalGroupId('shell'), 'shell_carapace');
+  assert.equal(registry.canonicalGroupId('chitin'), 'chitin_plate');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
   assert.equal(registry.resolveIcon('healing_hp'), 'https://imgur.com/GcnX53v.png');
@@ -77,6 +85,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.resolveIcon('bone_horn'), 'https://imgur.com/HrqeZ0a.png');
   assert.equal(registry.resolveIcon('claw'), 'https://imgur.com/gjLEUIT.png');
   assert.equal(registry.resolveIcon('horn'), 'https://imgur.com/H1kn8fD.png');
+  assert.equal(registry.resolveIcon('scale_reptile'), 'https://imgur.com/cJz55WQ.png');
+  assert.equal(registry.resolveIcon('shell_carapace'), 'https://imgur.com/TgCPNLU.png');
+  assert.equal(registry.resolveIcon('chitin_plate'), 'https://imgur.com/0785C1C.png');
+  assert.equal(registry.resolveIcon('scale'), 'https://imgur.com/cJz55WQ.png');
+  assert.equal(registry.resolveIcon('carapace'), 'https://imgur.com/TgCPNLU.png');
+  assert.equal(registry.resolveIcon('chitin'), 'https://imgur.com/0785C1C.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
