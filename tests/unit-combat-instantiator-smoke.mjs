@@ -78,8 +78,8 @@ assert.ok(setupSource.includes("subscribe(ROOTS.units, 'units')"), 'new Firebase
 const syncSource = fs.readFileSync('js/combat-unit-library-sync.js', 'utf8');
 assert.ok(syncSource.includes("'js/skill-catalog-goblin-tier1.js'"), 'live Unit Library sync must load Goblin Skill catalog');
 assert.ok(syncSource.includes('goblins.firebaseSkillPayload(schema)'), 'live Unit Library sync must materialize Goblin Skills');
-assert.ok(syncSource.includes('canonicalUpgradeNeeded'), 'auto-sync must repair stale canonical Units');
-assert.ok(syncSource.includes('existing?.metadata?.canonicalUnit !== true'), 'custom Firebase Units must not be rewritten by canonical auto-upgrade');
+assert.ok(syncSource.includes('canonicalUpgradeNeeded'), 'auto-sync must retain canonical-vs-custom discrimination');
+assert.match(syncSource, /existing\?\.metadata\?\.canonicalUnit\s*!==\s*true/, 'custom Firebase Units must not be treated as canonical auto-upgrade candidates');
 assert.ok(syncSource.includes("'js/unit-combat-instantiator.js'"), 'live Unit Library path must load the universal instantiator');
 assert.ok(syncSource.includes("'js/combat-v073-unit-deploy-bridge.js'"), 'live Unit Library path must install the FIELD deployment bridge');
 
