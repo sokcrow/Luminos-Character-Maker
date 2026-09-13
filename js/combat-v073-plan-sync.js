@@ -60,16 +60,24 @@
   function queue(detail,mode='ready'){chain=chain.then(()=>mode==='live'?syncLivePlans(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`}catch(_){}});return chain}
   function onReady(event){queue(event?.detail||{},'ready')}
   function onPlan(event){queue(event?.detail||{},'live')}
+  function ensureEconomyReviewFixes(){
+    if(global.LuminousCombatEconomyReviewFixes073){global.LuminousCombatEconomyReviewFixes073.install?.();return global.LuminousCombatEconomyReviewFixes073}
+    if(!global.document||!global.LuminousCombatEconomyMenu073)return null;
+    const id='combat-v073-economy-review-fixes-script';
+    let script=global.document.getElementById(id);if(script)return script;
+    script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-review-fixes.js';script.async=false;global.document.head?.appendChild(script);return script;
+  }
   function ensureEconomyMenu(){
-    if(global.LuminousCombatEconomyMenu073)return global.LuminousCombatEconomyMenu073;
+    if(global.LuminousCombatEconomyMenu073){ensureEconomyReviewFixes();return global.LuminousCombatEconomyMenu073}
     if(!global.document)return null;
     const id='combat-v073-economy-menu-script';
     let script=global.document.getElementById(id);
-    if(script)return null;
+    if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script}
     script=global.document.createElement('script');
     script.id=id;
     script.src='js/combat-v073-economy-menu.js';
     script.async=false;
+    script.addEventListener('load',ensureEconomyReviewFixes,{once:true});
     global.document.head?.appendChild(script);
     return script;
   }
@@ -77,6 +85,6 @@
   global.addEventListener('luminous:combat073-plan-change',onPlan);
   global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu)},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.5',sync:syncReady,syncReady,syncLivePlans,queue,kindOf,payloadFor,ownCombatant,ensureEconomyMenu});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.6',sync:syncReady,syncReady,syncLivePlans,queue,kindOf,payloadFor,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes});
   ensureEconomyMenu();
 })(window);
