@@ -4,7 +4,6 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const root = new URL('..', import.meta.url).pathname;
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 // Universal Library: canonical content stays on the existing authorized roots,
@@ -100,8 +99,8 @@ assert.ok(!/subscribe\(ROOTS\.skills/.test(liveAdapter) || /0\.7\.3-live\.2/.tes
 const authoritySource = read('js/combat-v073-authority.js');
 function authorityContext() {
   const combatants = {
-    'player:a': { id: 'player:a', name: 'A', controlled: 'player', canonicalPlayerKey: 'a', hp: 30, maxHp: 30, sp: 0, speed: 5, speedTie: 0.2, actionSlots: 1, activeSlots: 1, statusEffects: {} },
-    'player:b': { id: 'player:b', name: 'B', controlled: 'remote', canonicalPlayerKey: 'b', hp: 28, maxHp: 28, sp: 0, speed: 4, speedTie: 0.3, actionSlots: 1, activeSlots: 1, statusEffects: {}, autoPlans: [{ type: 'deck', data: { id: 'b_skill' }, sourceSlotIndex: 0 }] },
+    'player:a': { id: 'player:a', name: 'A', controlled: 'player', isPlayer: true, canonicalPlayerKey: 'a', canonicalOwnerUid: 'uid-a', hp: 30, maxHp: 30, sp: 0, speed: 5, speedTie: 0.2, actionSlots: 1, activeSlots: 1, statusEffects: {} },
+    'player:b': { id: 'player:b', name: 'B', controlled: 'remote', isPlayer: true, canonicalPlayerKey: 'b', canonicalOwnerUid: 'uid-b', hp: 28, maxHp: 28, sp: 0, speed: 4, speedTie: 0.3, actionSlots: 1, activeSlots: 1, statusEffects: {}, autoPlans: [{ type: 'deck', data: { id: 'b_skill' }, sourceSlotIndex: 0 }] },
     goblin: { id: 'goblin', name: 'Goblin', controlled: 'ai', hp: 20, maxHp: 20, sp: -5, speed: 3, speedTie: 0.4, actionSlots: 1, activeSlots: 1, statusEffects: { bleed: { potency: 2, count: 3 } }, autoPlans: [] },
   };
   const runtime = {
@@ -172,5 +171,12 @@ const readiness = a.LuminousCombatAuthority073.readyComplete(
   1,
 );
 assert.equal(readiness.complete, true);
+const missingPlan = a.LuminousCombatAuthority073.readyComplete(
+  { a: { ready: true, round: 1, plannedSlots: 1 }, b: { ready: true, round: 1, plannedSlots: 1 } },
+  { a: { 0: { skillId: 'a_skill' } }, b: {} },
+  1,
+);
+assert.equal(missingPlan.complete, false);
+assert.ok(missingPlan.missing.includes('b:PLAN'));
 
 console.log('Universal Library + authoritative Combat smoke: PASS');
