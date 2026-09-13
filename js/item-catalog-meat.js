@@ -6,10 +6,11 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "meat";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
+  const DEFAULT_SIZE = "medium";
 
   const ICON_FAMILIES = Object.freeze([
     "meat_mammal",
@@ -30,14 +31,26 @@
     return global.LuminousItemQualityEngine || safeRequire("./item-quality-engine.js");
   }
 
+  function sizeEngine() {
+    return global.LuminousItemSizeLineageEngine || safeRequire("./item-size-lineage-engine.js");
+  }
+
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
   }
 
+  function lineageNameFromItemName(name) {
+    return String(name || "").replace(/ Meat$/i, "").trim();
+  }
+
   function item(id, name, iconFamily, priceAhn, tags = []) {
+    const lineageId = String(id).replace(/^meat_/, "");
+    const lineageName = lineageNameFromItemName(name);
     return Object.freeze({
       id,
       name,
+      lineageId,
+      lineageName,
       family: FAMILY,
       iconFamily,
       category: "ingredient",
@@ -48,6 +61,7 @@
       priceAhn,
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
+      sizeSystem: "universal_physical",
       stackable: true,
       edibleRaw: true,
       tags: Object.freeze(["ingredient", "organic", "meat", ...tags]),
@@ -111,28 +125,51 @@
       .map(clone);
   }
 
-  function priceForQuality(itemOrId, quality = DEFAULT_QUALITY) {
+  function priceForSizeAndQuality(itemOrId, size = DEFAULT_SIZE, quality = DEFAULT_QUALITY) {
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     if (!entry) return null;
-    const engine = qualityEngine();
-    if (!engine?.applyValue) return Math.round(Number(entry.priceAhn) || 0);
-    return engine.applyValue(entry.priceAhn, quality, { rounding: "round" });
+    const sEngine = sizeEngine();
+    const qEngine = qualityEngine();
+    const sized = sEngine?.scaleValue
+      ? sEngine.scaleValue(entry.priceAhn, size, { rounding: "round" })
+      : Math.round(Number(entry.priceAhn) || 0);
+    if (!qEngine?.applyValue) return sized;
+    return qEngine.applyValue(sized, quality, { rounding: "round" });
+  }
+
+  function priceForQuality(itemOrId, quality = DEFAULT_QUALITY) {
+    return priceForSizeAndQuality(itemOrId, DEFAULT_SIZE, quality);
   }
 
   function createHarvestStack(itemOrId, options = {}) {
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     if (!entry) return null;
-    const engine = qualityEngine();
-    const quality = engine?.getQuality
-      ? engine.getQuality(options.quality || DEFAULT_QUALITY).id
+    const qEngine = qualityEngine();
+    const sEngine = sizeEngine();
+    const quality = qEngine?.getQuality
+      ? qEngine.getQuality(options.quality || DEFAULT_QUALITY).id
       : String(options.quality || DEFAULT_QUALITY);
+    const size = sEngine?.canonicalSize ? sEngine.canonicalSize(options.size || DEFAULT_SIZE) : String(options.size || DEFAULT_SIZE);
+    const lineage = sEngine?.lineageFrom
+      ? sEngine.lineageFrom({
+          lineageId: options.lineageId || entry.lineageId,
+          lineageName: options.lineageName || entry.lineageName,
+        }, entry.lineageName)
+      : { lineageId: options.lineageId || entry.lineageId, lineageName: options.lineageName || entry.lineageName };
     const quantity = Math.max(1, Math.trunc(Number(options.quantity || 1)));
+    const hungerPerUnit = sEngine?.hungerForSize ? sEngine.hungerForSize(size) : 100;
     return {
       itemId: entry.id,
       family: FAMILY,
       quantity,
+      size,
       quality,
-      unitValueAhn: priceForQuality(entry, quality),
+      lineageId: lineage.lineageId,
+      lineageName: lineage.lineageName,
+      displayName: entry.name === "Venison" && lineage.lineageName === "Venison" ? "Venison" : `${lineage.lineageName} Meat`,
+      hungerPerUnit,
+      rationEquivalentPerUnit: hungerPerUnit / 100,
+      unitValueAhn: priceForSizeAndQuality(entry, size, quality),
       originCreatureType: options.originCreatureType || null,
       originCreatureId: options.originCreatureId || null,
       originRaceId: options.originRaceId || null,
@@ -146,11 +183,13 @@
     FAMILY,
     CURRENCY,
     DEFAULT_QUALITY,
+    DEFAULT_SIZE,
     ICON_FAMILIES,
     ITEMS,
     get,
     list,
     priceForQuality,
+    priceForSizeAndQuality,
     createHarvestStack,
   });
 
