@@ -13,6 +13,9 @@ on:
       - 'js/combat-v073-economy-menu.js'
       - 'js/combat-v073-economy-review-fixes.js'
       - 'js/combat-v073-remote-intents.js'
+      - 'js/combat-v073-library-client.js'
+      - 'js/combat-v073-authority.js'
+      - 'js/universal-library-runtime.js'
       - 'js/combat-v073-camera-controls.js'
       - 'js/combat-v073-dm-setup.js'
       - 'js/combat-v073-speed-authority.js'
@@ -34,6 +37,7 @@ on:
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
       - 'tests/combat-v073-economy-menu-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
+      - 'tests/universal-library-authority-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
 jobs:
@@ -53,6 +57,9 @@ jobs:
           node --check js/combat-v073-economy-menu.js
           node --check js/combat-v073-economy-review-fixes.js
           node --check js/combat-v073-remote-intents.js
+          node --check js/combat-v073-library-client.js
+          node --check js/combat-v073-authority.js
+          node --check js/universal-library-runtime.js
           node --check js/combat-v073-camera-controls.js
           node --check js/combat-v073-dm-setup.js
           node --check js/combat-v073-speed-authority.js
@@ -74,6 +81,8 @@ jobs:
         run: node tests/combat-v073-live-sync-hotfix-smoke.mjs
       - name: Unit Library to FIELD instantiation contract
         run: node tests/unit-combat-instantiator-smoke.mjs
+      - name: Universal Library and authoritative Combat contract
+        run: node tests/universal-library-authority-smoke.mjs
       - name: Player Action economy menu contract
         run: node tests/combat-v073-economy-menu-smoke.mjs
       - name: Speed persistence contract
