@@ -5,7 +5,7 @@
   const ROOT='campaña/combate';
   const clean=v=>String(v??'').trim();
   const finite=(v,f=null)=>Number.isFinite(Number(v))?Number(v):f;
-  const state={db:null,round:1,role:null,combatants:{},started:false,rolling:false,unsubs:[],lastSpeedSignature:''};
+  const state={db:null,round:1,role:null,combatants:{},started:false,rolling:false,unsubs:[],lastSpeedSignature:'',refreshTimer:null};
 
   function adapter(){return global.LuminousCombatLiveAdapter073||null}
   function adapterState(){return adapter()?.state||null}
@@ -39,27 +39,35 @@
     const sig=speedSignature();
     if(sig===state.lastSpeedSignature)return;
     state.lastSpeedSignature=sig;
-    a.state.lastSignature='';
-    try{a.hydrateNow()}catch(error){console.error('[Combat073 SpeedAuthority] hydrate failed',error)}
+    if(state.refreshTimer)global.clearTimeout(state.refreshTimer);
+    state.refreshTimer=global.setTimeout(()=>{
+      state.refreshTimer=null;
+      a.state.lastSignature='';
+      try{a.hydrateNow()}catch(error){console.error('[Combat073 SpeedAuthority] hydrate failed',error)}
+    },80);
   }
 
   async function ensureRoundSpeeds(){
     if(state.rolling||!state.db?.ref||!isDm())return false;
     state.rolling=true;
     try{
-      const entries=Object.entries(state.combatants||{});
-      for(const [key] of entries){
-        const ref=state.db.ref(`${ROOT}/combatants/${key}`);
-        await ref.transaction(current=>{
-          if(!current||typeof current!=='object')return;
-          const rolledTurn=Math.trunc(finite(current.speedRollTurn,0)||0);
-          const speed=finite(current.speed,null);
-          const tie=finite(current.speedTie,null);
-          if(rolledTurn===state.round&&speed!=null&&tie!=null)return;
-          return{...current,...rollFor(current)};
-        },undefined,false);
-      }
-      return true;
+      const ref=state.db.ref(`${ROOT}/combatants`);
+      const result=await ref.transaction(current=>{
+        if(!current||typeof current!=='object')return;
+        let changed=false;
+        const next={...current};
+        for(const [key,raw] of Object.entries(current)){
+          const unit=raw&&typeof raw==='object'?raw:{};
+          const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
+          const speed=finite(unit.speed,null);
+          const tie=finite(unit.speedTie,null);
+          if(rolledTurn===state.round&&speed!=null&&tie!=null)continue;
+          next[key]={...unit,...rollFor(unit)};
+          changed=true;
+        }
+        return changed?next:undefined;
+      },undefined,false);
+      return Boolean(result?.committed);
     }finally{state.rolling=false}
   }
 
@@ -89,7 +97,11 @@
     return true;
   }
 
-  function stop(){state.unsubs.splice(0).forEach(fn=>{try{fn()}catch(_){}});state.started=false;state.db=null}
+  function stop(){
+    state.unsubs.splice(0).forEach(fn=>{try{fn()}catch(_){}});
+    if(state.refreshTimer)global.clearTimeout(state.refreshTimer);
+    state.refreshTimer=null;state.started=false;state.db=null;
+  }
 
   let tries=0;const timer=global.setInterval(()=>{tries++;if(start()||tries>120)global.clearInterval(timer)},250);
   global.addEventListener('beforeunload',stop,{once:true});
