@@ -7,6 +7,7 @@
   const norm=v=>clean(v).toLowerCase().replace(/[\s-]+/g,'_');
   const safe=v=>clean(v).replace(/[.#$\[\]\/]/g,'_');
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
+  const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
   let chain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function state(){return adapter()?.state||null;}
@@ -25,8 +26,8 @@
     const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;return out;
   }
   function payloadFor(plan,index,unitId,s){
-    const kind=kindOf(plan),id=idOf(plan,kind),d=plan?.data||{};if(!id)throw new Error(`ACTION_ID_MISSING_SLOT_${index}`);
-    const out={schemaVersion:3,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'sealed_private',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    const kind=kindOf(plan),id=idOf(plan,kind),d=clone(plan?.data||{});if(!id)throw new Error(`ACTION_ID_MISSING_SLOT_${index}`);
+    const out={schemaVersion:3,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'sealed_private',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,actionData:d,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
     const targetSide=clean(d.targetSide||d.targetRule||plan?.targetSide||plan?.targetRule);if(targetSide)out.targetSide=targetSide;
     const displayName=clean(d.name||d.nombre||d.label);if(displayName)out.actionName=displayName;
     if(Array.isArray(plan?.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId);
@@ -63,6 +64,6 @@
   function ensureEconomyMenu(){if(global.LuminousCombatEconomyMenu073){ensureEconomyReviewFixes();return global.LuminousCombatEconomyMenu073;}if(!global.document)return null;const id='combat-v073-economy-menu-script';let script=global.document.getElementById(id);if(script){script.addEventListener('load',ensureEconomyReviewFixes,{once:true});return script;}script=global.document.createElement('script');script.id=id;script.src='js/combat-v073-economy-menu.js';script.async=false;script.addEventListener('load',ensureEconomyReviewFixes,{once:true});global.document.head?.appendChild(script);return script;}
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.7-private',PUBLIC_ROOT,PRIVATE_ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.8-private',PUBLIC_ROOT,PRIVATE_ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes});
   ensureEconomyMenu();
 })(window);
