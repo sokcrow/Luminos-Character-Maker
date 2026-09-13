@@ -53,11 +53,13 @@ assert.ok(planSync.includes("plannedActions/${owner}/${i}"), 'player plans must 
 assert.ok(planSync.includes("readyPlayers/${owner}"), 'READY state must be persisted');
 
 const dmSetup = read('js/combat-v073-dm-setup.js');
-assert.ok(dmSetup.includes("players:'campaña/jugadores'"), 'DM setup must read Campaign Players');
-assert.ok(dmSetup.includes("units:'campaña/base_datos_unidades'"), 'DM setup must read Unit Library');
-assert.ok(dmSetup.includes("combatants:'campaña/combate/combatants'"), 'DM setup must write canonical combatants');
-assert.ok(dmSetup.includes("canonicalPlayerKey:playerId") && dmSetup.includes("canonicalOwnerUid:uid||null"), 'deployed Players must carry canonical Firebase ownership');
-assert.ok(dmSetup.includes("actionSlotIndex:slotIndex(slots)") && dmSetup.includes("equippedSkillIndex:equipped(ids)"), 'deployed combatants must expose slots and equipped Skill provenance');
+assert.match(dmSetup, /players:\s*'campaña\/jugadores'/, 'DM setup must read Campaign Players');
+assert.match(dmSetup, /units:\s*'campaña\/base_datos_unidades'/, 'DM setup must read Unit Library');
+assert.match(dmSetup, /combatants:\s*'campaña\/combate\/combatants'/, 'DM setup must write canonical combatants');
+assert.match(dmSetup, /canonicalPlayerKey:\s*playerId/, 'deployed Players must carry canonical Player ownership');
+assert.match(dmSetup, /canonicalOwnerUid:\s*uid\s*\|\|\s*null/, 'deployed Players must carry canonical UID ownership');
+assert.match(dmSetup, /actionSlotIndex:\s*slotIndex\(slots\)/, 'deployed combatants must expose canonical action slots');
+assert.match(dmSetup, /equippedSkillIndex:\s*equipped\(ids\)/, 'deployed combatants must expose equipped Skill provenance');
 assert.ok(dmSetup.includes("ENCOUNTER SETUP · COMBAT v0.7.3"), 'DM encounter setup UI must be mounted in the new Viewer');
 assert.ok(!dmSetup.includes('LuminousVttActorLibrary') && !dmSetup.includes('js/vtt/'), 'new DM setup must not revive the removed VTT actor library');
 assert.ok(!dmSetup.includes('combatEngine.js') && !dmSetup.includes('CombatEngine'), 'new DM setup must not depend on legacy CombatEngine');
