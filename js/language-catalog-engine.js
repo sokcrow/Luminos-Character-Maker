@@ -123,8 +123,6 @@
     document.head.appendChild(script);
   }
 
-  // Restaura el punto de montaje del selector de idioma del DM si el HTML activo no lo trae.
-  ensureScript("luminous-language-selector-mount-script", "js/theatre-language-selector-mount.js", "luminous-language-selector-mount");
   // Los idiomas especiales no forman parte de los defaults: se crean bajo demanda.
   ensureScript("luminous-special-language-access-script", "js/theatre-special-language-access.js", "luminous-special-languages");
   // Hotfix: ENTIENDE canónico, selección automática del idioma especial del hablante
