@@ -79,8 +79,11 @@ jobs:
         run: node tests/combat-v073-rules-smoke.mjs
       - name: Battle Viewer 0.7.3 runtime authority smoke
         run: node tests/combat-v073-runtime-authority-smoke.mjs
-      - name: VTT combat unit actor library smoke
-        run: node tests/vtt-actor-library-units-smoke.mjs
+      - name: Canonical Combat v0.7.3 live cutover smoke
+        run: |
+          node --check js/combat-v073-live-adapter.js
+          node --check js/combat-v073-plan-sync.js
+          node tests/combat-v073-live-cutover-smoke.mjs
       - name: Battle Viewer 0.7.4 progressive UI smoke
         run: node tests/combat-v074-progressive-ui-smoke.mjs
       - name: Battle Viewer 0.7.4 DM encounter roster smoke
