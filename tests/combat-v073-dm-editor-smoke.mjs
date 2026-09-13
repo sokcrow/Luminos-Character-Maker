@@ -32,8 +32,15 @@ assert.ok(combatTab.includes('Combat Sprite Mockup'), 'Combat tab must expose th
 assert.ok(combatTab.includes('ARRASTRA EL SPRITE'), 'sprite mockup must support direct dragging');
 assert.ok(combatTab.includes('dm-combat-tab-sprite-x') && combatTab.includes('dm-combat-tab-sprite-y') && combatTab.includes('dm-combat-tab-sprite-scale'), 'sprite mockup must expose X/Y/Scale controls');
 assert.ok(combatTab.includes('SAVE COMBAT SPRITE'), 'Combat tab must persist the edited Combat Sprite');
+assert.ok(combatTab.includes("legacyNpcs: 'campaña/base_datos_npcs'"), 'Combat Library must bridge the historical NPC database used by the DM Actor Studio');
+assert.ok(combatTab.includes("subscribe(ROOTS.legacyNpcs, 'legacyNpcs')"), 'Combat Library must actually subscribe to historical NPC records');
+assert.ok(combatTab.includes('onAuthStateChanged'), 'Firebase library listeners must wait for authentication instead of binding anonymously');
+assert.ok(combatTab.includes('ENEMIES · ALL SOURCES'), 'enemy selector must combine canonical Units with hostile Actor/NPC sources');
+assert.ok(combatTab.includes('dm-combat-tab-sprite-placeholder'), 'mock battlefield must remain visually useful when a sprite is absent or broken');
+assert.ok(combatTab.includes('SPRITE NO\\nCARGA') && combatTab.includes('SIN COMBAT\\nSPRITE'), 'mock battlefield must diagnose missing/broken sprites instead of rendering blank');
+assert.ok(combatTab.includes('120 / 120 HP') && combatTab.includes('ffe877'), 'mock battlefield must include visible combat UI context, not an empty stage');
 assert.ok(combatTab.includes("updates[`${ROOTS.units}/${id}`]"), 'Unit sync must update canonical Unit records individually');
 assert.ok(combatTab.includes("updates[`${ROOTS.skills}/${id}`]"), 'Skill sync must preserve the canonical Skill Library while updating catalog entries');
 assert.ok(!combatTab.includes('LuminousVttActorLibrary') && !combatTab.includes('CombatEngine'), 'Combat tab manager must not revive VTT or legacy CombatEngine');
 
-console.log('combat v0.7.3 DM asset/skill editor + panel Combat Library smoke: ok');
+console.log('combat v0.7.3 DM asset/skill editor + authenticated multi-source Combat Library smoke: ok');
