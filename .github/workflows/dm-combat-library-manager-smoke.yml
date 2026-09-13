@@ -1,0 +1,23 @@
+name: DM Combat Library Manager Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dm-unit-library-seeder.html'
+      - 'js/dm-combat-asset-manager.js'
+      - 'tests/dm-combat-library-manager-smoke.mjs'
+      - '.github/workflows/dm-combat-library-manager-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax
+        run: node --check js/dm-combat-asset-manager.js
+      - name: Contract
+        run: node tests/dm-combat-library-manager-smoke.mjs

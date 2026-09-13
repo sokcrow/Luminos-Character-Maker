@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=f=>fs.readFileSync(f,'utf8');
+const page=read('dm-unit-library-seeder.html');
+const manager=read('js/dm-combat-asset-manager.js');
+assert.ok(page.includes('Combat Library Manager'),'Seeder page must expose the Combat Library Manager');
+assert.ok(page.includes('js/dm-combat-asset-manager.js'),'Seeder page must load realtime asset manager');
+assert.ok(manager.includes("units:'campaña/base_datos_unidades'"),'Manager must use canonical Unit Library');
+assert.ok(manager.includes("skills:'campaña/base_datos_skills'"),'Manager must use canonical Skill Library');
+assert.ok(manager.includes('LuminousKoboldUnitCatalog')&&manager.includes('LuminousGoblinUnitCatalog')&&manager.includes('LuminousWolfUnitCatalog'),'Sync must use canonical enemy catalogs');
+assert.ok(manager.includes('MOCK BATTLEFIELD'),'Combat sprite mockup must exist');
+assert.ok(manager.includes('dm-combat-sprite-x')&&manager.includes('dm-combat-sprite-y')&&manager.includes('dm-combat-sprite-scale'),'Mockup must expose X/Y/Scale controls');
+assert.ok(manager.includes('pointermove'),'Mockup sprite must support direct drag positioning');
+assert.ok(manager.includes('SAVE COMBAT SPRITE'),'Mockup must persist Combat Sprite settings');
+assert.ok(manager.includes('ROOTS.combatants'),'Saved visual settings must propagate to active FIELD combatants');
+assert.ok(!manager.includes('LuminousVttActorLibrary')&&!manager.includes('combatEngine.js'),'Manager must not revive legacy VTT/CombatEngine');
+console.log('dm combat library manager smoke: ok');
