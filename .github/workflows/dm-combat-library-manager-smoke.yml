@@ -4,9 +4,16 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'dm-unit-library-seeder.html'
-      - 'js/dm-combat-asset-manager.js'
+      - 'pantalla_dm.html'
+      - 'js/utils.js'
+      - 'js/dm-combat-tab-manager.js'
+      - 'js/combat-unit-library-sync.js'
+      - 'js/combat-v073-dm-setup.js'
+      - 'js/unit-catalog-kobold-tier1.js'
+      - 'js/unit-catalog-goblin.js'
+      - 'js/unit-catalog-wolf.js'
       - 'tests/dm-combat-library-manager-smoke.mjs'
+      - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - '.github/workflows/dm-combat-library-manager-smoke.yml'
 
 jobs:
@@ -18,6 +25,11 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax
-        run: node --check js/dm-combat-asset-manager.js
-      - name: Contract
+        run: |
+          node --check js/dm-combat-tab-manager.js
+          node --check js/combat-unit-library-sync.js
+          node --check js/combat-v073-dm-setup.js
+      - name: Real DM tab contract
         run: node tests/dm-combat-library-manager-smoke.mjs
+      - name: Empty Firebase real UI runtime
+        run: node tests/dm-combat-unit-library-real-ui-smoke.mjs
