@@ -31,5 +31,7 @@ jobs:
           node --check js/battle-viewer-enemy-planning-074.js
       - name: Individual GOAP suite
         run: npm run test:individual-goap
+      - name: Universal Retreat phase contract
+        run: node tests/unit-ai-universal-retreat-phase-smoke.mjs
       - name: Unit instantiation bridge
         run: node tests/unit-combat-instantiator-smoke.mjs
