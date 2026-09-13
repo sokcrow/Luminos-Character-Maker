@@ -47,10 +47,12 @@ assert.ok(viewer.includes('COMBAT_READY_BRIDGE_PATCH_MISSING'), 'READY bridge pa
 assert.ok(!viewer.includes('js/combatEngine.js'), 'Battle-viewer bootstrap must not load legacy CombatEngine');
 
 const planSync = read('js/combat-v073-plan-sync.js');
-assert.ok(planSync.includes("const unitId=own[0]"), 'plannedActions unitId must use canonical Firebase combatant key');
-assert.ok(planSync.includes("ref().update(updates)"), 'READY state and plannedActions must commit atomically');
-assert.ok(planSync.includes("plannedActions/${owner}/${i}"), 'player plans must be written per owned slot');
-assert.ok(planSync.includes("readyPlayers/${owner}"), 'READY state must be persisted');
+assert.ok(planSync.includes('const unitId=own[0]'), 'plannedActions unitId must use canonical Firebase combatant key');
+assert.ok(planSync.includes('ref().update(updates)'), 'READY state and plannedActions must commit atomically');
+assert.match(planSync, /plannedActions\/\$\{ctx\.owner\}\/\$\{i\}/, 'READY must write each sealed Player action into its owned Firebase slot');
+assert.match(planSync, /readyPlayers\/\$\{ctx\.owner\}/, 'READY state must be persisted for the owned Player');
+assert.ok(planSync.includes('syncLiveTargets'), 'Planning edits must stream target intent instead of full action payloads');
+assert.ok(planSync.includes('targetIntents:targets'), 'live Planning row must contain target intent data');
 
 const dmSetup = read('js/combat-v073-dm-setup.js');
 assert.match(dmSetup, /players:\s*'campaña\/jugadores'/, 'DM setup must read Campaign Players');
@@ -60,7 +62,7 @@ assert.match(dmSetup, /canonicalPlayerKey:\s*playerId/, 'deployed Players must c
 assert.match(dmSetup, /canonicalOwnerUid:\s*uid\s*\|\|\s*null/, 'deployed Players must carry canonical UID ownership');
 assert.match(dmSetup, /actionSlotIndex:\s*slotIndex\(slots\)/, 'deployed combatants must expose canonical action slots');
 assert.match(dmSetup, /equippedSkillIndex:\s*equipped\(ids\)/, 'deployed combatants must expose equipped Skill provenance');
-assert.ok(dmSetup.includes("ENCOUNTER SETUP · COMBAT v0.7.3"), 'DM encounter setup UI must be mounted in the new Viewer');
+assert.ok(dmSetup.includes('ENCOUNTER SETUP · COMBAT v0.7.3'), 'DM encounter setup UI must be mounted in the new Viewer');
 assert.ok(!dmSetup.includes('LuminousVttActorLibrary') && !dmSetup.includes('js/vtt/'), 'new DM setup must not revive the removed VTT actor library');
 assert.ok(!dmSetup.includes('combatEngine.js') && !dmSetup.includes('CombatEngine'), 'new DM setup must not depend on legacy CombatEngine');
 
@@ -72,7 +74,7 @@ assert.ok(combatRules?.readyPlayers, 'Firebase rules must define readyPlayers');
 const plannedWrite = combatRules.plannedActions?.['$ownerPlayerId']?.['$slotIndex']?.['.write'] || '';
 const plannedValidate = combatRules.plannedActions?.['$ownerPlayerId']?.['$slotIndex']?.['.validate'] || '';
 assert.ok(plannedWrite.includes("child('phase')") && plannedWrite.includes("child('state')") && plannedWrite.includes("child('status')"), 'planning rules must accept object-shaped combat state');
-assert.ok(plannedValidate.includes("canonicalPlayerKey") && plannedValidate.includes("canonicalOwnerUid"), 'player writes must validate canonical ownership');
+assert.ok(plannedValidate.includes('canonicalPlayerKey') && plannedValidate.includes('canonicalOwnerUid'), 'player writes must validate canonical ownership');
 assert.ok(plannedValidate.includes("kind').val() === 'defense'"), 'defense plans must be validated');
 assert.ok(plannedValidate.includes("kind').val() === 'item'") && plannedValidate.includes("kind').val() === 'global'"), 'DM-authored item/global payload shapes must be recognized');
 
