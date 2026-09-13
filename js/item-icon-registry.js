@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 5;
+  const VERSION = 6;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -52,6 +52,9 @@
     scale_reptile: family("scale_reptile", "Scale / Scute", "Escama / Escudo dérmico", "material", "https://imgur.com/cJz55WQ.png"),
     shell_carapace: family("shell_carapace", "Shell / Carapace", "Concha / Caparazón", "material", "https://imgur.com/TgCPNLU.png"),
     chitin_plate: family("chitin_plate", "Chitin / Exoskeleton Plate", "Quitina / Placa de exoesqueleto", "material", "https://imgur.com/0785C1C.png"),
+    feather_raw: family("feather_raw", "Feather / Down", "Pluma / Plumón", "material", "https://imgur.com/EPkBtW0.png"),
+    animal_fiber_raw: family("animal_fiber_raw", "Raw Animal Fiber", "Fibra animal cruda", "material", "https://imgur.com/A3FpNXr.png"),
+    silk_raw: family("silk_raw", "Raw Silk / Exotic Fiber", "Seda cruda / Fibra exótica", "material", "https://imgur.com/NYnkd17.png"),
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
@@ -128,6 +131,16 @@
     carapace: "shell_carapace",
     chitin: "chitin_plate",
     exoskeleton_plate: "chitin_plate",
+    feather: "feather_raw",
+    feathers: "feather_raw",
+    flight_feather: "feather_raw",
+    down: "feather_raw",
+    wool: "animal_fiber_raw",
+    animal_hair: "animal_fiber_raw",
+    raw_fiber: "animal_fiber_raw",
+    silk: "silk_raw",
+    raw_silk: "silk_raw",
+    exotic_raw_fiber: "silk_raw",
     ore: "ore_mineral",
     mineral: "ore_mineral",
     plant: "plant_herb",
