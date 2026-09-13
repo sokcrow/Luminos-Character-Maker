@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -46,10 +46,12 @@
     pelt_fur: family("pelt_fur", "Fur Pelt", "Pelaje / Piel con pelo", "material", "https://imgur.com/12IQYXa.png"),
     hide_reptile: family("hide_reptile", "Reptile / Skin Hide", "Piel reptiliana / piel", "material", "https://imgur.com/llKa6G5.png"),
     hide_draconic: family("hide_draconic", "Draconic Hide", "Piel dracónica", "material", "https://imgur.com/F1YNegu.png"),
+    hard_bone: family("hard_bone", "Bone / Beak", "Hueso / Pico", "material", "https://imgur.com/HrqeZ0a.png"),
+    hard_claw: family("hard_claw", "Claw / Fang / Talon", "Garra / Colmillo / Talón", "material", "https://imgur.com/gjLEUIT.png"),
+    hard_horn: family("hard_horn", "Horn / Antler / Tusk / Ivory", "Cuerno / Asta / Colmillo / Marfil", "material", "https://imgur.com/H1kn8fD.png"),
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
-    bone_horn: family("bone_horn", "Bone / Horn", "Hueso / Cuerno", "material", "https://imgur.com/fUEV5vu.png"),
     organ_gland: family("organ_gland", "Organ / Gland", "Órgano / Glándula", "material", "https://imgur.com/rXlXbOG.png"),
     toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/4kqV4TO.png"),
     abnormality_part: family("abnormality_part", "Abnormality Part", "Parte de anormalidad", "material", "https://imgur.com/JpK4vSq.png"),
@@ -106,12 +108,20 @@
     pelt: "pelt_fur",
     reptile_hide: "hide_reptile",
     draconic_hide: "hide_draconic",
+    bone_horn: "hard_bone",
+    bone: "hard_bone",
+    beak: "hard_bone",
+    claw: "hard_claw",
+    talon: "hard_claw",
+    fang: "hard_claw",
+    horn: "hard_horn",
+    antler: "hard_horn",
+    tusk: "hard_horn",
+    ivory: "hard_horn",
     ore: "ore_mineral",
     mineral: "ore_mineral",
     plant: "plant_herb",
     herb: "plant_herb",
-    bone: "bone_horn",
-    horn: "bone_horn",
     organ: "organ_gland",
     gland: "organ_gland",
     generic_crafting: "craft_component",
