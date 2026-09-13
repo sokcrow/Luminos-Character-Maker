@@ -3,11 +3,11 @@
   if(global.LuminousUniversalLibrary)return;
 
   const ROOTS=Object.freeze({
-    root:'luminous_library',
-    manifestUnits:'luminous_library/manifest/units',
-    manifestSkills:'luminous_library/manifest/skills',
-    units:'luminous_library/units',
-    skills:'luminous_library/skills',
+    root:'campaña',
+    manifestUnits:'campaña/combate/libraryManifest/units',
+    manifestSkills:'campaña/combate/libraryManifest/skills',
+    units:'campaña/base_datos_unidades',
+    skills:'campaña/base_datos_skills',
     campaignUnits:'campaña/base_datos_unidades',
     campaignSkills:'campaña/base_datos_skills',
     unitOverrides:'campaña/unit_overrides'
@@ -128,6 +128,6 @@
   function clearCache(){state.cache.units.clear();state.cache.skills.clear();state.manifest.units={};state.manifest.skills={};state.manifestMiss.units.clear();state.manifestMiss.skills.clear();}
   function setDb(db){state.db=db;return Boolean(db?.ref);}
 
-  global.LuminousUniversalLibrary=Object.freeze({version:'1.1.0',ROOTS,state,setDb,stableStringify,hash,versionFor,spriteFor,skillIdsFor,manifestEntry,unitWithLoadout,getManifest,getRecord,getSkill,getUnit,validateSkill,validateUnit,resolveUnit,listUnitManifest,publish,mergeOverride,clearCache});
+  global.LuminousUniversalLibrary=Object.freeze({version:'1.2.0',ROOTS,state,setDb,stableStringify,hash,versionFor,spriteFor,skillIdsFor,manifestEntry,unitWithLoadout,getManifest,getRecord,getSkill,getUnit,validateSkill,validateUnit,resolveUnit,listUnitManifest,publish,mergeOverride,clearCache});
   if(typeof module!=='undefined'&&module.exports)module.exports=global.LuminousUniversalLibrary;
 })(typeof window!=='undefined'?window:globalThis);
