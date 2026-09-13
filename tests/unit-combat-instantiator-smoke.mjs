@@ -65,6 +65,16 @@ assert.equal(custom.scale, 1.35);
 assert.equal(custom.runtimeDiagnostics.catalogResolved, false, 'custom Units must not require a hardcoded species catalog');
 assert.equal(custom.runtimeDiagnostics.speedFallback, false);
 
+const creatorSource = fs.readFileSync('dm-combat-creator.html', 'utf8');
+assert.ok(creatorSource.includes("db.ref('campaña/base_datos_unidades/' + id).set(unitPayload)"), 'DM Combat Creator must keep saving Units into the canonical Unit Library');
+assert.ok(creatorSource.includes('visual: currentState.visual'), 'DM Combat Creator must persist authored sprite/transform data');
+assert.ok(creatorSource.includes('action_slots: unitActionSlots'), 'DM Combat Creator must persist linked Skill IDs with the Unit');
+assert.ok(creatorSource.includes('unitPayload.mechanics = {'), 'DM Combat Creator must persist combat mechanics for custom Units');
+
+const setupSource = fs.readFileSync('js/combat-v073-dm-setup.js', 'utf8');
+assert.ok(setupSource.includes("units: 'campaña/base_datos_unidades'"), 'Encounter Setup must read the same canonical Unit Library used by the DM Creator');
+assert.ok(setupSource.includes("subscribe(ROOTS.units, 'units')"), 'new Firebase Units must enter the Encounter selector through its realtime Unit subscription');
+
 const syncSource = fs.readFileSync('js/combat-unit-library-sync.js', 'utf8');
 assert.ok(syncSource.includes("'js/skill-catalog-goblin-tier1.js'"), 'live Unit Library sync must load Goblin Skill catalog');
 assert.ok(syncSource.includes('goblins.firebaseSkillPayload(schema)'), 'live Unit Library sync must materialize Goblin Skills');
