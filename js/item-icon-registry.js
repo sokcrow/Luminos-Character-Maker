@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 4;
+  const VERSION = 5;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -49,6 +49,9 @@
     hard_bone: family("hard_bone", "Bone / Beak", "Hueso / Pico", "material", "https://imgur.com/HrqeZ0a.png"),
     hard_claw: family("hard_claw", "Claw / Fang / Talon", "Garra / Colmillo / Talón", "material", "https://imgur.com/gjLEUIT.png"),
     hard_horn: family("hard_horn", "Horn / Antler / Tusk / Ivory", "Cuerno / Asta / Colmillo / Marfil", "material", "https://imgur.com/H1kn8fD.png"),
+    scale_reptile: family("scale_reptile", "Scale / Scute", "Escama / Escudo dérmico", "material", "https://imgur.com/cJz55WQ.png"),
+    shell_carapace: family("shell_carapace", "Shell / Carapace", "Concha / Caparazón", "material", "https://imgur.com/TgCPNLU.png"),
+    chitin_plate: family("chitin_plate", "Chitin / Exoskeleton Plate", "Quitina / Placa de exoesqueleto", "material", "https://imgur.com/0785C1C.png"),
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
@@ -118,6 +121,13 @@
     antler: "hard_horn",
     tusk: "hard_horn",
     ivory: "hard_horn",
+    scale: "scale_reptile",
+    scales: "scale_reptile",
+    scute: "scale_reptile",
+    shell: "shell_carapace",
+    carapace: "shell_carapace",
+    chitin: "chitin_plate",
+    exoskeleton_plate: "chitin_plate",
     ore: "ore_mineral",
     mineral: "ore_mineral",
     plant: "plant_herb",
