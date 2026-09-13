@@ -282,9 +282,7 @@
     }
     const exposures = {};
     for (const channel of profile.exposureChannels) {
-      exposures[channel] = channel === "mana_corruption"
-        ? numberOr(source.magic?.manaCorruption, 0)
-        : numberOr(source.exposure?.[channel], 0);
+      exposures[channel] = numberOr(source.exposure?.[channel], 0);
     }
     return {
       family: profile.id,
@@ -293,7 +291,7 @@
       totalDirectDamage: numberOr(source.totalDirectDamage, 0),
       physical,
       magicHits: numberOr(source.magic?.hits, 0),
-      manaCorruption: numberOr(source.magic?.manaCorruption, 0),
+      manaCorruption: numberOr(source.exposure?.mana_corruption, source.magic?.manaCorruption || 0),
       exposures,
     };
   }
