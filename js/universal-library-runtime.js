@@ -27,6 +27,7 @@
   const kindName=kind=>String(kind||'').toLowerCase().startsWith('skill')?'skills':'units';
   const pathFor=(kind,id)=>`${kindName(kind)==='skills'?ROOTS.skills:ROOTS.units}/${id}`;
   const manifestPathFor=(kind,id)=>`${kindName(kind)==='skills'?ROOTS.manifestSkills:ROOTS.manifestUnits}/${id}`;
+  const UNIT_VISUAL_KEYS=Object.freeze(['combatSprite','sprite_combate','combat_sprite','tokenImage','sprite','idle_sprite','icono','img','image','portrait','spriteX','spriteY','scale','visualScale']);
 
   function stableValue(value){
     if(Array.isArray(value))return value.map(stableValue);
@@ -51,6 +52,14 @@
   }
   function unitWithLoadout(record={}){
     const copy=clone(record)||{},skillIds=skillIdsFor(copy);copy.loadout={...(copy.loadout||{}),skillIds};copy.skillIds=skillIds;copy.skillSlotIds=skillIds;copy.action_slots=skillIds;copy.equippedSkillIndex=Object.fromEntries(skillIds.map(id=>[id,true]));return copy;
+  }
+  function preserveUnitCustomization(canonical={},persisted={}){
+    const base=clone(canonical)||{};
+    if(!persisted||typeof persisted!=='object'||persisted.metadata?.canonicalUnit!==true)return unitWithLoadout(base);
+    base.visual={...(clone(base.visual)||{}),...(clone(persisted.visual)||{})};
+    base.combatVisual={...(clone(base.combatVisual)||{}),...(clone(persisted.combatVisual)||{})};
+    for(const key of UNIT_VISUAL_KEYS){if(persisted[key]!=null&&persisted[key]!=='')base[key]=clone(persisted[key]);}
+    return unitWithLoadout(base);
   }
   async function read(db,path){if(!db?.ref)throw new Error('FIREBASE_DB_REQUIRED');const snap=await db.ref(path).once('value');return snap.val();}
   function cacheKey(entry){return`${entry?.version||0}:${entry?.hash||''}`;}
@@ -112,22 +121,32 @@
   }
   async function publish(db,{units={},skills={}},{force=false}={}){
     if(!db?.ref)throw new Error('FIREBASE_DB_REQUIRED');state.db=db;
-    const [existingUnits,existingSkills]=await Promise.all([read(db,ROOTS.manifestUnits).catch(()=>({})),read(db,ROOTS.manifestSkills).catch(()=>({}))]),updates={};let unitsWritten=0,skillsWritten=0,manifestsWritten=0;
+    const [existingUnits,existingSkills]=await Promise.all([read(db,ROOTS.manifestUnits).catch(()=>({})),read(db,ROOTS.manifestSkills).catch(()=>({}))]),updates={};let unitsWritten=0,skillsWritten=0,manifestsWritten=0,collisionsSkipped=0;
     for(const [id,raw] of Object.entries(units||{})){
-      const record=unitWithLoadout(raw||{}),entry=manifestEntry('units',id,record),existing=existingUnits?.[id];
-      if(force||!existing||existing.hash!==entry.hash||Number(existing.version)!==Number(entry.version)){updates[`${ROOTS.units}/${id}`]=record;updates[`${ROOTS.manifestUnits}/${id}`]=entry;unitsWritten+=1;manifestsWritten+=1;}
-      state.manifest.units[id]=entry;state.manifestMiss.units.delete(id);cacheSet('units',id,entry,record);
+      const canonical=unitWithLoadout(raw||{}),entry=manifestEntry('units',id,canonical),existing=existingUnits?.[id],needsWrite=force||!existing||existing.hash!==entry.hash||Number(existing.version)!==Number(entry.version);
+      let record=canonical;
+      if(needsWrite){
+        const persisted=await read(db,`${ROOTS.units}/${id}`).catch(()=>null);
+        if(persisted&&typeof persisted==='object'&&persisted.metadata?.canonicalUnit!==true){collisionsSkipped+=1;delete state.manifest.units[id];state.manifestMiss.units.add(id);continue;}
+        record=preserveUnitCustomization(canonical,persisted||{});
+        updates[`${ROOTS.units}/${id}`]=record;updates[`${ROOTS.manifestUnits}/${id}`]=entry;unitsWritten+=1;manifestsWritten+=1;cacheSet('units',id,entry,record);
+      }
+      state.manifest.units[id]=entry;state.manifestMiss.units.delete(id);
     }
-    for(const [id,record] of Object.entries(skills||{})){
-      const entry=manifestEntry('skills',id,record||{}),existing=existingSkills?.[id];
-      if(force||!existing||existing.hash!==entry.hash||Number(existing.version)!==Number(entry.version)){updates[`${ROOTS.skills}/${id}`]=clone(record);updates[`${ROOTS.manifestSkills}/${id}`]=entry;skillsWritten+=1;manifestsWritten+=1;}
-      state.manifest.skills[id]=entry;state.manifestMiss.skills.delete(id);cacheSet('skills',id,entry,record);
+    for(const [id,raw] of Object.entries(skills||{})){
+      const record=clone(raw)||{},entry=manifestEntry('skills',id,record),existing=existingSkills?.[id],needsWrite=force||!existing||existing.hash!==entry.hash||Number(existing.version)!==Number(entry.version);
+      if(needsWrite){
+        const persisted=await read(db,`${ROOTS.skills}/${id}`).catch(()=>null);
+        if(persisted&&typeof persisted==='object'&&persisted.metadata?.canonicalUnitSkill!==true){collisionsSkipped+=1;delete state.manifest.skills[id];state.manifestMiss.skills.add(id);continue;}
+        updates[`${ROOTS.skills}/${id}`]=record;updates[`${ROOTS.manifestSkills}/${id}`]=entry;skillsWritten+=1;manifestsWritten+=1;cacheSet('skills',id,entry,record);
+      }
+      state.manifest.skills[id]=entry;state.manifestMiss.skills.delete(id);
     }
-    if(Object.keys(updates).length)await db.ref().update(updates);state.lastPublish={unitsWritten,skillsWritten,manifestsWritten,at:Date.now(),force};return{unitCount:Object.keys(units||{}).length,skillCount:Object.keys(skills||{}).length,unitsWritten,skillsWritten,manifestsWritten,force};
+    if(Object.keys(updates).length)await db.ref().update(updates);state.lastPublish={unitsWritten,skillsWritten,manifestsWritten,collisionsSkipped,at:Date.now(),force};return{unitCount:Object.keys(units||{}).length,skillCount:Object.keys(skills||{}).length,unitsWritten,skillsWritten,manifestsWritten,collisionsSkipped,force};
   }
   function clearCache(){state.cache.units.clear();state.cache.skills.clear();state.manifest.units={};state.manifest.skills={};state.manifestMiss.units.clear();state.manifestMiss.skills.clear();}
   function setDb(db){state.db=db;return Boolean(db?.ref);}
 
-  global.LuminousUniversalLibrary=Object.freeze({version:'1.2.0',ROOTS,state,setDb,stableStringify,hash,versionFor,spriteFor,skillIdsFor,manifestEntry,unitWithLoadout,getManifest,getRecord,getSkill,getUnit,validateSkill,validateUnit,resolveUnit,listUnitManifest,publish,mergeOverride,clearCache});
+  global.LuminousUniversalLibrary=Object.freeze({version:'1.3.0',ROOTS,state,setDb,stableStringify,hash,versionFor,spriteFor,skillIdsFor,manifestEntry,unitWithLoadout,preserveUnitCustomization,getManifest,getRecord,getSkill,getUnit,validateSkill,validateUnit,resolveUnit,listUnitManifest,publish,mergeOverride,clearCache});
   if(typeof module!=='undefined'&&module.exports)module.exports=global.LuminousUniversalLibrary;
 })(typeof window!=='undefined'?window:globalThis);
