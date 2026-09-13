@@ -9,7 +9,7 @@
   let chain=Promise.resolve(),lastSignature='';
   function adapter(){return global.LuminousCombatLiveAdapter073||null}
   function state(){return adapter()?.state||null}
-  function planning(s){return ['pre_combat_planning','planning'].includes(norm(s?.combatState))}
+  function planning(s){const raw=s?.combatState,phase=raw&&typeof raw==='object'?(raw.phase||raw.state||raw.status):raw;return ['pre_combat_planning','planning'].includes(norm(phase))}
   function ownCombatant(s){
     if(!s?.playerId)return null;
     const canonical=`player:${safe(s.playerId)}`;
@@ -31,21 +31,21 @@
     return out;
   }
   async function sync(detail={}){
-    const s=state();
+    const s=state(),a=adapter();
     if(!s?.db?.ref||s.role!=='player'||!s.uid||!s.playerId)return false;
     if(!planning(s))throw new Error('NOT_IN_PLANNING');
     const own=ownCombatant(s);if(!own)throw new Error('PLAYER_COMBATANT_NOT_DEPLOYED');
-    const unitId=clean(own[1]?.id||own[1]?.combatId||own[0]),ready=Boolean(detail.ready),plans=Array.isArray(detail.plans)?detail.plans:[];
+    const unitId=own[0],ready=Boolean(detail.ready),plans=Array.isArray(detail.plans)?detail.plans:[];
     const sig=JSON.stringify([ready,s.round,unitId,plans]);if(sig===lastSignature)return true;
-    const root=s.db.ref(`${ROOT}/plannedActions/${safe(s.playerId)}`),readyRef=s.db.ref(`${ROOT}/readyPlayers/${safe(s.playerId)}`),stamp=global.firebase.database.ServerValue.TIMESTAMP;
-    if(!ready){await root.remove();await readyRef.set({ready:false,round:Math.max(1,Math.trunc(finite(s.round,1))),schedulerUid:s.uid,unitId,updatedAt:stamp});lastSignature=sig;return true}
-    const payload={};plans.forEach((p,i)=>{if(p)payload[String(i)]=payloadFor(p,i,unitId,s)});
-    await root.set(payload);
-    await readyRef.set({ready:true,round:Math.max(1,Math.trunc(finite(s.round,1))),schedulerUid:s.uid,unitId,plannedSlots:Object.keys(payload).length,updatedAt:stamp});
+    const owner=safe(s.playerId),updates={},slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1);
+    for(let i=0;i<slotCount;i+=1)updates[`${ROOT}/plannedActions/${owner}/${i}`]=ready&&plans[i]?payloadFor(plans[i],i,unitId,s):null;
+    updates[`${ROOT}/readyPlayers/${owner}`]={ready,round:Math.max(1,Math.trunc(finite(s.round,1))),schedulerUid:s.uid,unitId,plannedSlots:ready?plans.filter(Boolean).length:0,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    await s.db.ref().update(updates);
     lastSignature=sig;return true;
   }
   function queue(detail){chain=chain.then(()=>sync(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`}catch(_){}});return chain}
   function onReady(event){queue(event?.detail||{})}
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);
-  global.LuminousCombatPlanSync073=Object.freeze({sync,queue,kindOf,payloadFor});
+  global.addEventListener('beforeunload',()=>global.removeEventListener('luminous:combat073-plan-ready-change',onReady),{once:true});
+  global.LuminousCombatPlanSync073=Object.freeze({sync,queue,kindOf,payloadFor,ownCombatant});
 })(window);
