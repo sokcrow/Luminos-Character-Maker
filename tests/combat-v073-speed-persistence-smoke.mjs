@@ -9,10 +9,13 @@ assert.ok(speed.includes("adapterState()?.role==='dm'"),'only DM may author spee
 assert.ok(speed.includes('speedRollTurn:state.round'),'speed roll must be stamped with round');
 assert.ok(speed.includes('speedTie:Math.random()'),'speed tie must be generated once and persisted');
 assert.ok(speed.includes('speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP'),'speed roll must record authoritative timestamp');
-assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use a transaction');
-assert.ok(speed.includes("if(rolledTurn===state.round&&speed!=null&&tie!=null)return"),'same round refresh must not reroll speed');
+assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistence must transact the canonical combatant collection');
+assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
+assert.ok(speed.includes('if(rolledTurn===state.round&&speed!=null&&tie!=null)continue'),'same round refresh must not reroll speed');
+assert.ok(speed.includes('return changed?next:undefined'),'transaction must abort when every combatant already has this round speed');
 assert.ok(speed.includes("a.state.lastSignature=''"),'persisted speed changes must invalidate adapter hydration cache');
 assert.ok(speed.includes('a.hydrateNow()'),'persisted speed changes must rehydrate runtime');
-assert.ok(speed.includes("`${ROOT}/combatants/${key}`"),'speed must persist on canonical Firebase combatant');
+assert.ok(speed.includes('state.refreshTimer=global.setTimeout'),'speed-driven runtime refreshes must be debounced');
+assert.ok(!speed.includes('`${ROOT}/combatants/${key}`'),'speed authority must not issue one transaction per combatant');
 
 console.log('combat v0.7.3 speed persistence smoke: ok');
