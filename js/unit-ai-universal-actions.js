@@ -169,6 +169,14 @@
     return explicitSet == null || explicitSet.has(normalizeId(id));
   }
 
+  function supportsTurnEndActions(options = {}) {
+    if (options.supportsTurnEndActions === true || options.allowTurnEndActions === true) return true;
+    const phases = asArray(options.supportedExecutionPhases ?? options.executionPhases)
+      .map(normalizeId)
+      .filter(Boolean);
+    return phases.includes("on_turn_end") || phases.includes("turn_end");
+  }
+
   function improviseDescriptor(actor = {}, options = {}, targetId) {
     const raw = options.improviseAction ?? actor.aiImproviseAction ?? actor.ai?.improviseAction;
     if (!raw || typeof raw !== "object") return null;
@@ -244,7 +252,7 @@
       }
     }
 
-    if (options.allowRetreat !== false && universalAllowed("retreat", explicitSet)) {
+    if (options.allowRetreat !== false && supportsTurnEndActions(options) && universalAllowed("retreat", explicitSet)) {
       const criticalWithdrawal = currentHpRatio(actor) <= immediateRetreatThreshold(actor);
       result.push({
         sourceType: "universal",
@@ -343,7 +351,7 @@
   });
 
   const api = Object.freeze({
-    version: "0.1.3",
+    version: "0.1.4",
     universalDescriptors,
     grappleEstimate,
     visibleCommittedActions,
@@ -352,6 +360,7 @@
     actionSupportValue,
     currentHpRatio,
     immediateRetreatThreshold,
+    supportsTurnEndActions,
     augmentKit,
     baseAdapter,
     adapter: wrappedAdapter,
