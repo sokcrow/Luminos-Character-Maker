@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -21,12 +21,20 @@
     buff_consumable: family("buff_consumable", "Buff Consumable", "Consumible de mejora", "consumable", "https://imgur.com/9wGle81.png"),
     poison_consumable: family("poison_consumable", "Poison / Venom / Toxic", "Veneno / Tóxico", "consumable", "https://imgur.com/VsWisJQ.png"),
     consumable_other: family("consumable_other", "Other Consumable", "Otro consumible", "consumable", "https://imgur.com/1RZqDFI.png"),
-    food_meat: family("food_meat", "Food / Meat", "Comida / Carne", "consumable", "https://imgur.com/uFmUpuD.png"),
+    food: family("food", "Prepared Food", "Comida preparada", "consumable", "https://imgur.com/uFmUpuD.png"),
     ration: family("ration", "Ration", "Ración", "consumable", "https://imgur.com/6yDrI9e.png"),
     drink: family("drink", "Drink", "Bebida", "consumable", "https://imgur.com/Tf3bZPM.png"),
     throwable: family("throwable", "Throwable", "Arrojable", "consumable", "https://imgur.com/3w2YnUX.png"),
     medical_supply: family("medical_supply", "Medical Supply", "Suministro médico", "consumable", "https://imgur.com/CrWqqZh.png"),
     repair_kit: family("repair_kit", "Repair Kit", "Kit de reparación", "utility", "https://imgur.com/OZdAHys.png"),
+
+    meat_mammal: family("meat_mammal", "Mammal Meat", "Carne de mamífero", "material", "https://imgur.com/GQAGWzK.png"),
+    meat_bird: family("meat_bird", "Bird Meat", "Carne de ave", "material", "https://imgur.com/4Y6KfFh.png"),
+    meat_fish: family("meat_fish", "Fish / Soft Aquatic Meat", "Carne de pescado / acuática blanda", "material", "https://imgur.com/KZ6Y7LQ.png"),
+    meat_shellfish: family("meat_shellfish", "Shellfish / Hard Aquatic Meat", "Carne de marisco / acuática dura", "material", "https://imgur.com/cUkw6rB.png"),
+    meat_reptile: family("meat_reptile", "Reptile Meat", "Carne de reptil", "material", "https://imgur.com/LZ3maix.png"),
+    meat_draconic: family("meat_draconic", "Draconic Meat", "Carne dracónica", "material", "https://imgur.com/QJZhEJC.png"),
+    meat_insectoid: family("meat_insectoid", "Insectoid Meat", "Carne insectoide", "material", "https://imgur.com/bZoLZeb.png"),
 
     scrap_mechanical: family("scrap_mechanical", "Scrap / Mechanical Parts", "Chatarra / Partes mecánicas", "material", "https://imgur.com/IrtN5aS.png"),
     electronic_parts: family("electronic_parts", "Electronic Parts", "Partes electrónicas", "material", "https://imgur.com/wTNk2Te.png"),
@@ -72,8 +80,16 @@
     hybrid_healing: "healing_hybrid",
     cure_antidote: "status_cure",
     poison_venom_toxic: "poison_consumable",
-    food: "food_meat",
-    meat: "food_meat",
+    food_meat: "food",
+    prepared_food: "food",
+    meat: "meat_mammal",
+    mammal_meat: "meat_mammal",
+    bird_meat: "meat_bird",
+    fish_meat: "meat_fish",
+    shellfish_meat: "meat_shellfish",
+    reptile_meat: "meat_reptile",
+    draconic_meat: "meat_draconic",
+    insectoid_meat: "meat_insectoid",
     scrap: "scrap_mechanical",
     mechanical_parts: "scrap_mechanical",
     electronics: "electronic_parts",
