@@ -43,7 +43,7 @@
     html=html.replace(cancelNeedle,"setStatus(`READY CANCELADO · Puedes corregir las acciones del Turn ${round}`);\n    window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:false,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n    return;");
     html=html.replace(readyNeedle,"planReady=true;\n  window.dispatchEvent(new CustomEvent('luminous:combat073-plan-ready-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:true,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  ready.textContent='CANCEL READY';");
 
-    // Combat-iframe-only renderer patch. It never installs hooks in the parent/Theatre document.
+    // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
     // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
     const webglStateNeedle=`const particles=[];
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
@@ -80,10 +80,35 @@
 
   host.classList.add('webgl2-renderer-ready');
   ensureFrame();`;
-    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0;
-  function needsContinuous(now){return !document.hidden&&(particles.length>0||host.classList.contains('round-running')||now<continuousUntil)}
+    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0,surfaceActive=true,parentVisibilityObserver=null;
+  function readSurfaceActive(){
+    if(document.hidden)return false;
+    try{
+      const frameEl=window.frameElement;if(!frameEl||window.parent===window)return true;
+      const rect=frameEl.getBoundingClientRect();if(rect.width<2||rect.height<2)return false;
+      let node=frameEl;
+      while(node&&node.nodeType===1){const style=parent.getComputedStyle(node);if(style.display==='none'||style.visibility==='hidden')return false;node=node.parentElement}
+      return true
+    }catch(_){return !document.hidden}
+  }
+  function syncSurfaceActive(){
+    const next=readSurfaceActive();if(next===surfaceActive)return;
+    surfaceActive=next;dirty=true;
+    if(!surfaceActive&&rafId){cancelAnimationFrame(rafId);rafId=0}
+    else if(surfaceActive)ensureFrame(100)
+  }
+  function bindParentVisibility(){
+    try{
+      const frameEl=window.frameElement;if(!frameEl||window.parent===window||!parent.MutationObserver)return;
+      parentVisibilityObserver=new parent.MutationObserver(syncSurfaceActive);
+      let node=frameEl;
+      while(node&&node.nodeType===1){parentVisibilityObserver.observe(node,{attributes:true,attributeFilter:['class','style','aria-hidden']});node=node.parentElement}
+    }catch(_){}
+  }
+  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||now<continuousUntil)}
   function frame(now){
     rafId=0;if(!enabled)return;
+    if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
     dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
     renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
@@ -91,7 +116,7 @@
   }
   function ensureFrame(animateMs=0){
     dirty=true;if(animateMs>0)continuousUntil=Math.max(continuousUntil,performance.now()+animateMs);
-    if(enabled&&!rafId)rafId=requestAnimationFrame(frame)
+    if(enabled&&surfaceActive&&!rafId)rafId=requestAnimationFrame(frame)
   }
   const webglMutationObserver=new MutationObserver(mutations=>{
     let animate=false;
@@ -105,14 +130,15 @@
   webglResizeObserver?.observe(host);if(field!==host)webglResizeObserver?.observe(field);
   window.addEventListener('resize',()=>ensureFrame(180),{passive:true});
   window.addEventListener('orientationchange',()=>ensureFrame(220),{passive:true});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureFrame(100)});
+  document.addEventListener('visibilitychange',()=>{syncSurfaceActive();if(surfaceActive)ensureFrame(100)});
+  bindParentVisibility();surfaceActive=readSurfaceActive();
 
   host.dataset.webglSpriteMode=domSpriteMode?'dom-hybrid':'webgl';
   host.dataset.webglQuality=lowPowerDevice?'low-power':'full';
   host.classList.add('webgl2-renderer-ready');
   ensureFrame();`;
     const webglApiNeedle="version:'0.8.0',";
-    const webglApiPatch="version:'0.8.2-hybrid',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',";
+    const webglApiPatch="version:'0.8.2-hybrid',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
     const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
     if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
     html=html.replace(webglStateNeedle,webglStatePatch)
