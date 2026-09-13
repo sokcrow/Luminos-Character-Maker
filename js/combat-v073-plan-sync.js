@@ -32,23 +32,36 @@
     else out.skillId=id;
     return out;
   }
-  async function sync(detail={}){
+  function context(detail={}){
     const s=state();
-    if(!s?.db?.ref||s.role!=='player'||!s.uid||!s.playerId)return false;
-    if(!planning(s))return false;
+    if(!s?.db?.ref||s.role!=='player'||!s.uid||!s.playerId)return null;
+    if(!planning(s))return null;
     const own=ownCombatant(s);if(!own)throw new Error('PLAYER_COMBATANT_NOT_DEPLOYED');
-    const unitId=own[0],ready=Boolean(detail.ready),plans=Array.isArray(detail.plans)?detail.plans:[];
-    const sig=JSON.stringify([ready,s.round,unitId,plans]);if(sig===lastSignature)return true;
-    const owner=safe(s.playerId),updates={},slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1);
+    const unitId=own[0],plans=Array.isArray(detail.plans)?detail.plans:[],owner=safe(s.playerId),slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1);
+    return{s,own,unitId,plans,owner,slotCount};
+  }
+  async function syncReady(detail={}){
+    const ctx=context(detail);if(!ctx)return false;
+    const{s,unitId,plans,owner,slotCount}=ctx,ready=Boolean(detail.ready),sig=JSON.stringify(['ready',ready,s.round,unitId,plans]);if(sig===lastSignature)return true;
+    const updates={};
     for(let i=0;i<slotCount;i+=1)updates[`${ROOT}/plannedActions/${owner}/${i}`]=plans[i]?payloadFor(plans[i],i,unitId,s):null;
     updates[`${ROOT}/readyPlayers/${owner}`]={ready,round:Math.max(1,Math.trunc(finite(s.round,1))),schedulerUid:s.uid,unitId,plannedSlots:ready?plans.filter(Boolean).length:0,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
     await s.db.ref().update(updates);lastSignature=sig;return true;
   }
-  function queue(detail){chain=chain.then(()=>sync(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`}catch(_){}});return chain}
-  function onReady(event){queue(event?.detail||{})}
-  function onPlan(event){queue(event?.detail||{})}
+  async function syncLivePlans(detail={}){
+    const ctx=context(detail);if(!ctx)return false;
+    const{s,unitId,plans,owner,slotCount}=ctx;
+    if(!plans.some(Boolean))return false;
+    const sig=JSON.stringify(['live',s.round,unitId,plans]);if(sig===lastSignature)return true;
+    const updates={};
+    for(let i=0;i<slotCount;i+=1)updates[`${ROOT}/plannedActions/${owner}/${i}`]=plans[i]?payloadFor(plans[i],i,unitId,s):null;
+    await s.db.ref().update(updates);lastSignature=sig;return true;
+  }
+  function queue(detail,mode='ready'){chain=chain.then(()=>mode==='live'?syncLivePlans(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`}catch(_){}});return chain}
+  function onReady(event){queue(event?.detail||{},'ready')}
+  function onPlan(event){queue(event?.detail||{},'live')}
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);
   global.addEventListener('luminous:combat073-plan-change',onPlan);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan)},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.3',sync,queue,kindOf,payloadFor,ownCombatant});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.4',sync:syncReady,syncReady,syncLivePlans,queue,kindOf,payloadFor,ownCombatant});
 })(window);
