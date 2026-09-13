@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 // Universal Library: canonical content stays on the existing authorized roots,
 // while the tiny manifest lives under Combat and records are fetched by ID.
 delete globalThis.LuminousUniversalLibrary;
-const lib = require('../js/universal-library-runtime.js');
+await import(`../js/universal-library-runtime.js?authority-smoke=${Date.now()}`);
+const lib = globalThis.LuminousUniversalLibrary;
+assert.ok(lib, 'Universal Library ESM side effect must expose its runtime API');
 assert.equal(lib.ROOTS.manifestUnits, 'campaña/combate/libraryManifest/units');
 assert.equal(lib.ROOTS.manifestSkills, 'campaña/combate/libraryManifest/skills');
 assert.equal(lib.ROOTS.units, 'campaña/base_datos_unidades');
@@ -72,8 +72,25 @@ assert.deepEqual(custom.reads, [
   'campaña/base_datos_unidades/custom_rat',
 ]);
 
-// Planning contract: only target data is streamed while editing. Full action
-// payloads are written only by the READY path, then the DM seals them.
+// First manifest bootstrap must preserve DM-authored visual fields on an already
+// persisted canonical Unit instead of replacing the record wholesale.
+const customized = makeDb({
+  campaña: {
+    base_datos_unidades: {
+      test_goblin: {
+        ...unit,
+        visual: { spriteUrl: 'dm-custom.png', spriteX: 17, spriteY: -4, scale: 1.4 },
+        combatSprite: 'dm-custom.png',
+      },
+    },
+  },
+});
+lib.clearCache();
+await lib.publish(customized.db, { units: { test_goblin: unit }, skills: { test_slash: skill } });
+assert.equal(customized.store.campaña.base_datos_unidades.test_goblin.visual.spriteUrl, 'dm-custom.png');
+assert.equal(customized.store.campaña.base_datos_unidades.test_goblin.visual.spriteX, 17);
+assert.equal(customized.store.campaña.base_datos_unidades.test_goblin.combatSprite, 'dm-custom.png');
+
 const planSync = read('js/combat-v073-plan-sync.js');
 assert.match(planSync, /syncLiveTargets/);
 assert.match(planSync, /readyPlayers\/\$\{ctx\.owner\}/);
@@ -95,7 +112,6 @@ assert.match(libraryClient, /requiredIds\(\)/);
 assert.match(libraryClient, /detachBulkSkills/);
 assert.ok(!/subscribe\(ROOTS\.skills/.test(liveAdapter) || /0\.7\.3-live\.2/.test(liveAdapter), 'new adapter must be sparse or guarded by the bridge');
 
-// Authority deterministic contract in two isolated viewer contexts.
 const authoritySource = read('js/combat-v073-authority.js');
 function authorityContext() {
   const combatants = {
@@ -103,11 +119,7 @@ function authorityContext() {
     'player:b': { id: 'player:b', name: 'B', controlled: 'remote', isPlayer: true, canonicalPlayerKey: 'b', canonicalOwnerUid: 'uid-b', hp: 28, maxHp: 28, sp: 0, speed: 4, speedTie: 0.3, actionSlots: 1, activeSlots: 1, statusEffects: {}, autoPlans: [{ type: 'deck', data: { id: 'b_skill' }, sourceSlotIndex: 0 }] },
     goblin: { id: 'goblin', name: 'Goblin', controlled: 'ai', hp: 20, maxHp: 20, sp: -5, speed: 3, speedTie: 0.4, actionSlots: 1, activeSlots: 1, statusEffects: { bleed: { potency: 2, count: 3 } }, autoPlans: [] },
   };
-  const runtime = {
-    combatants: () => combatants,
-    plans: () => [],
-    render() {},
-  };
+  const runtime = { combatants: () => combatants, plans: () => [], render() {} };
   const context = {
     console,
     Math: Object.create(Math),
@@ -159,7 +171,6 @@ const snapA = a.LuminousCombatAuthority073.snapshotRuntime();
 const snapB = b.LuminousCombatAuthority073.snapshotRuntime();
 assert.equal(a.LuminousCombatAuthority073.checkpointDigest(snapA, 1), b.LuminousCombatAuthority073.checkpointDigest(snapB, 1));
 
-// Remote human plans must join the same execution queue as local + AI work.
 a.LuminousCombatAuthority073.installHooks();
 const queue = a.buildExecutionQueue();
 assert.ok(queue.some((row) => row.ownerId === 'player:a'));
