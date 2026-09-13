@@ -12,12 +12,15 @@ on:
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
       - js/item-quality-engine.js
+      - js/item-size-lineage-engine.js
       - js/item-catalog-hp-healing.js
       - js/item-catalog-sp-healing.js
       - js/item-catalog-hybrid-healing.js
       - js/item-catalog-status-cure.js
       - js/item-catalog-medical-supply.js
       - js/item-catalog-meat.js
+      - js/item-catalog-food.js
+      - js/item-catalog-hide-pelt.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -27,12 +30,15 @@ on:
       - css/dm-item-instance-editor.css
       - tests/item-icon-registry-smoke.cjs
       - tests/item-quality-engine-smoke.cjs
+      - tests/item-size-lineage-engine-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
       - tests/item-catalog-sp-healing-smoke.cjs
       - tests/item-catalog-hybrid-healing-smoke.cjs
       - tests/item-catalog-status-cure-smoke.cjs
       - tests/item-catalog-medical-supply-smoke.cjs
       - tests/item-catalog-meat-smoke.cjs
+      - tests/item-catalog-food-smoke.cjs
+      - tests/item-catalog-hide-pelt-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -58,12 +64,15 @@ jobs:
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
           node --check js/item-quality-engine.js
+          node --check js/item-size-lineage-engine.js
           node --check js/item-catalog-hp-healing.js
           node --check js/item-catalog-sp-healing.js
           node --check js/item-catalog-hybrid-healing.js
           node --check js/item-catalog-status-cure.js
           node --check js/item-catalog-medical-supply.js
           node --check js/item-catalog-meat.js
+          node --check js/item-catalog-food.js
+          node --check js/item-catalog-hide-pelt.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -72,6 +81,8 @@ jobs:
         run: node tests/item-icon-registry-smoke.cjs
       - name: Item quality engine smoke
         run: node tests/item-quality-engine-smoke.cjs
+      - name: Item size and lineage smoke
+        run: node tests/item-size-lineage-engine-smoke.cjs
       - name: HP healing catalog smoke
         run: node tests/item-catalog-hp-healing-smoke.cjs
       - name: SP healing catalog smoke
@@ -84,6 +95,10 @@ jobs:
         run: node tests/item-catalog-medical-supply-smoke.cjs
       - name: Meat ingredient catalog smoke
         run: node tests/item-catalog-meat-smoke.cjs
+      - name: Food and ration catalog smoke
+        run: node tests/item-catalog-food-smoke.cjs
+      - name: Hide and pelt catalog smoke
+        run: node tests/item-catalog-hide-pelt-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
