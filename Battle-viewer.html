@@ -12,7 +12,21 @@
 (async()=>{
   try{
     if(typeof DecompressionStream!=="function")throw new Error("DECOMPRESSION_STREAM_UNAVAILABLE");
-    const urls=Array.from({length:11},(_,index)=>`combat/combat-v073-live.bundle.part${String(index+1).padStart(2,"0")}`);
+    const urls=[
+      "combat/combat-v073-live.bundle.part01",
+      "combat/combat-v073-live.bundle.part02",
+      "combat/combat-v073-live.bundle.part03",
+      "combat/combat-v073-live.bundle.part04",
+      "combat/combat-v073-live.bundle.part05",
+      "combat/combat-v073-live.bundle.part06",
+      "combat/repair/combat-v073-live.bundle.part07.r1",
+      "combat/repair/combat-v073-live.bundle.part07.r2",
+      "combat/repair/combat-v073-live.bundle.part07.r3",
+      "combat/combat-v073-live.bundle.part08",
+      "combat/combat-v073-live.bundle.part09",
+      "combat/combat-v073-live.bundle.part10",
+      "combat/combat-v073-live.bundle.part11"
+    ];
     const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-cache"})));
     const failed=responses.find(response=>!response.ok);
     if(failed)throw new Error(`COMBAT_BUNDLE_HTTP_${failed.status}`);
