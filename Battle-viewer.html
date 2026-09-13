@@ -55,6 +55,8 @@
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
     const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),dprCap=lowPowerDevice?1:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
+    const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
+    const webglTextureCachePatch="if(entry)return entry";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
     const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{host.classList.add('webgl2-background-ready');ensureFrame()});";
     const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
@@ -80,7 +82,7 @@
 
   host.classList.add('webgl2-renderer-ready');
   ensureFrame();`;
-    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0,surfaceActive=true,parentVisibilityObserver=null;
+    const webglFramePatch=`let rafId=0,dirty=true,continuousUntil=0,surfaceActive=true,parentVisibilityObserver=null,cameraTransitionActive=false;
   function readSurfaceActive(){
     if(document.hidden)return false;
     try{
@@ -94,8 +96,10 @@
   function syncSurfaceActive(){
     const next=readSurfaceActive();if(next===surfaceActive)return;
     surfaceActive=next;dirty=true;
-    if(!surfaceActive&&rafId){cancelAnimationFrame(rafId);rafId=0}
-    else if(surfaceActive)ensureFrame(100)
+    if(!surfaceActive){
+      cameraTransitionActive=false;continuousUntil=0;
+      if(rafId){cancelAnimationFrame(rafId);rafId=0}
+    }else ensureFrame(100)
   }
   function bindParentVisibility(){
     try{
@@ -105,7 +109,7 @@
       while(node&&node.nodeType===1){parentVisibilityObserver.observe(node,{attributes:true,attributeFilter:['class','style','aria-hidden']});node=node.parentElement}
     }catch(_){}
   }
-  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||now<continuousUntil)}
+  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||cameraTransitionActive||now<continuousUntil)}
   function frame(now){
     rafId=0;if(!enabled)return;
     if(!surfaceActive){dirty=true;return}
@@ -118,6 +122,16 @@
     dirty=true;if(animateMs>0)continuousUntil=Math.max(continuousUntil,performance.now()+animateMs);
     if(enabled&&surfaceActive&&!rafId)rafId=requestAnimationFrame(frame)
   }
+  function handleCameraTransition(event){
+    if(event.target!==field||event.propertyName!=='transform')return;
+    if(event.type==='transitionrun'||event.type==='transitionstart')cameraTransitionActive=true;
+    else cameraTransitionActive=false;
+    ensureFrame()
+  }
+  field.addEventListener('transitionrun',handleCameraTransition);
+  field.addEventListener('transitionstart',handleCameraTransition);
+  field.addEventListener('transitionend',handleCameraTransition);
+  field.addEventListener('transitioncancel',handleCameraTransition);
   const webglMutationObserver=new MutationObserver(mutations=>{
     let animate=false;
     for(const mutation of mutations){
@@ -138,11 +152,12 @@
   host.classList.add('webgl2-renderer-ready');
   ensureFrame();`;
     const webglApiNeedle="version:'0.8.0',";
-    const webglApiPatch="version:'0.8.2-hybrid',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
-    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
+    const webglApiPatch="version:'0.8.3-review-fixes',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
+    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
     if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
     html=html.replace(webglStateNeedle,webglStatePatch)
       .replace(webglResizeNeedle,webglResizePatch)
+      .replace(webglTextureCacheNeedle,webglTextureCachePatch)
       .replace(webglBackgroundNeedle,webglBackgroundPatch)
       .replace(webglSpriteNeedle,webglSpritePatch)
       .replace(webglRenderSpritesNeedle,webglRenderSpritesPatch)
