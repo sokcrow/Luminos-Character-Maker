@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source = fs.readFileSync('js/combat-v073-dm-setup.js', 'utf8');
+const combatTab = fs.readFileSync('js/dm-combat-tab-manager.js', 'utf8');
+const utils = fs.readFileSync('js/utils.js', 'utf8');
+const dmPanel = fs.readFileSync('pantalla_dm.html', 'utf8');
 
 assert.ok(source.includes("skills:'campaña/base_datos_skills'"), 'DM setup must load canonical Skill Library');
 assert.ok(source.includes('COMBAT ASSET + SKILL EDITOR'), 'DM setup must expose the Combat Asset + Skill editor');
@@ -18,4 +21,19 @@ assert.ok(source.includes('combatSprite:src'), 'saved Combat Sprite must use can
 assert.ok(source.includes("filter(([,u])=>!isPlayerUnit(u))"), 'encounter selector must only deploy real non-player Unit Library entries');
 assert.ok(!source.includes('LuminousVttActorLibrary') && !source.includes('CombatEngine'), 'editor must not revive VTT or legacy CombatEngine');
 
-console.log('combat v0.7.3 DM asset/skill editor smoke: ok');
+assert.ok(dmPanel.includes('data-tab="tab-combate"'), 'DM panel must keep the existing Combat menu button');
+assert.ok(dmPanel.includes('id="tab-combate"'), 'DM panel must expose the existing Combat tab host');
+assert.ok(utils.includes('ensureDmCombatTabManagerAssets'), 'utils must attach the Combat Library Manager to the existing DM Combat tab');
+assert.ok(utils.includes("'js/dm-combat-tab-manager.js'"), 'DM Combat tab integration script must be loaded from the panel');
+assert.ok(combatTab.includes("getElementById('tab-combate')"), 'Combat Library Manager must mount inside the existing DM Combat tab');
+assert.ok(combatTab.includes('Combat Library'), 'Combat tab must contain the Combat Library UI');
+assert.ok(combatTab.includes('SYNC UNIT LIBRARY'), 'Combat tab must expose canonical Unit Library sync');
+assert.ok(combatTab.includes('Combat Sprite Mockup'), 'Combat tab must expose the Combat Sprite mockup');
+assert.ok(combatTab.includes('ARRASTRA EL SPRITE'), 'sprite mockup must support direct dragging');
+assert.ok(combatTab.includes('dm-combat-tab-sprite-x') && combatTab.includes('dm-combat-tab-sprite-y') && combatTab.includes('dm-combat-tab-sprite-scale'), 'sprite mockup must expose X/Y/Scale controls');
+assert.ok(combatTab.includes('SAVE COMBAT SPRITE'), 'Combat tab must persist the edited Combat Sprite');
+assert.ok(combatTab.includes("updates[`${ROOTS.units}/${id}`]"), 'Unit sync must update canonical Unit records individually');
+assert.ok(combatTab.includes("updates[`${ROOTS.skills}/${id}`]"), 'Skill sync must preserve the canonical Skill Library while updating catalog entries');
+assert.ok(!combatTab.includes('LuminousVttActorLibrary') && !combatTab.includes('CombatEngine'), 'Combat tab manager must not revive VTT or legacy CombatEngine');
+
+console.log('combat v0.7.3 DM asset/skill editor + panel Combat Library smoke: ok');
