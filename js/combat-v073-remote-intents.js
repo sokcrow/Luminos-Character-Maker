@@ -20,16 +20,24 @@
   function commonPlan(raw={},slotIndex=0){return{sourceSlotIndex:Number.isInteger(Number(raw.sourceSlotIndex))?Number(raw.sourceSlotIndex):slotIndex,targetId:clean(raw.targetId)||null,targetSlotIndex:raw.targetSlotIndex==null?null:Math.max(0,Number(raw.targetSlotIndex)||0),additionalTargets:Array.isArray(raw.additionalTargets)?clone(raw.additionalTargets):[]};}
   function intentPlan(raw={},slotIndex=0,unit=null){const targetSide=inferTargetSide(unit,raw);return{...commonPlan(raw,slotIndex),type:'intent',data:{kind:'target_intent',id:'target_intent',name:'TARGET',targetSide}};}
   function runtimePlan(raw={},slotIndex=0,unit=null){
-    const kind=norm(raw.kind||'skill'),common=commonPlan(raw,slotIndex),targetSide=inferTargetSide(unit,raw),skills=adapterState()?.skills||{};
+    const kind=norm(raw.kind||'skill'),common=commonPlan(raw,slotIndex),targetSide=inferTargetSide(unit,raw),skills=adapterState()?.skills||{},embedded=clone(raw.actionData||{});
     if(kind==='skill'||kind==='defense'){
-      const skillId=clean(raw.skillId),source=skillId&&skills[skillId]?adapter()?.normalizeSkill?.(skillId,skills[skillId]):null;
-      const data={...(source||{}),kind,skillId,id:skillId||clean(raw.actionName),name:clean(raw.actionName||source?.name||skillId)};if(targetSide)data.targetSide=targetSide;return{...common,type:kind==='defense'?'defense':'deck',data};
+      const skillId=clean(raw.skillId),source=Object.keys(embedded).length?embedded:(skillId&&skills[skillId]?adapter()?.normalizeSkill?.(skillId,skills[skillId]):null);
+      const data={...(source||{}),kind,skillId,id:skillId||clean(source?.id||raw.actionName),name:clean(raw.actionName||source?.name||skillId)};if(targetSide)data.targetSide=targetSide;return{...common,type:kind==='defense'?'defense':'deck',data};
     }
-    if(kind==='spell'){const spellId=clean(raw.spellId);return{...common,type:'spells',data:{kind:'spell',spellId,id:spellId,name:clean(raw.actionName||spellId),targetSide:targetSide||'enemy',slotLevel:Number(raw.slotLevel)||0,overcast:Boolean(raw.overcast)}};}
-    if(kind==='item'){const itemId=clean(raw.itemId),itemType=clean(raw.itemType)||(targetSide==='ally'?'hp_healing':'offensive');return{...common,type:'items',data:{kind:'item',itemId,id:itemId,name:clean(raw.actionName||itemId),itemType,targetSide}};}
-    if(kind==='global'){const actionKey=clean(raw.actionKey);return{...common,type:'global',data:{kind:'global',actionKey,id:actionKey,name:clean(raw.actionName||actionKey),targetSide}};}
-    if(kind==='trait'){const traitId=clean(raw.traitId);return{...common,type:'traits',data:{kind:'trait',traitId,id:traitId,name:clean(raw.actionName||traitId),targetSide}};}
-    return{...common,type:'auto',data:{kind,id:clean(raw.actionName||raw.skillId||raw.itemId||raw.actionKey),targetSide}};
+    if(kind==='spell'){
+      const spellId=clean(raw.spellId),data={...embedded,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
+    }
+    if(kind==='item'){
+      const itemId=clean(raw.itemId),itemType=clean(raw.itemType||embedded.itemType||embedded.item_type)||(targetSide==='ally'?'hp_healing':'offensive'),data={...embedded,kind:'item',itemId,id:itemId||clean(embedded.id),name:clean(raw.actionName||embedded.name||itemId),itemType,targetSide:targetSide||embedded.targetSide};return{...common,type:'items',data};
+    }
+    if(kind==='global'){
+      const actionKey=clean(raw.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
+    }
+    if(kind==='trait'){
+      const traitId=clean(raw.traitId),data={...embedded,kind:'trait',traitId,id:traitId||clean(embedded.id),name:clean(raw.actionName||embedded.name||traitId),targetSide:targetSide||embedded.targetSide};return{...common,type:'traits',data};
+    }
+    return{...common,type:'auto',data:{...embedded,kind,id:clean(embedded.id||raw.actionName||raw.skillId||raw.itemId||raw.actionKey),targetSide:targetSide||embedded.targetSide}};
   }
   function applyRows(rows,fullPlans){
     const combat=runtime(),s=adapterState();if(!combat?.combatants||!s)return false;const data=combat.combatants();
@@ -56,6 +64,6 @@
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
   function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.targetRef&&state.targetHandler)state.targetRef.off('value',state.targetHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.targetRef=state.targetHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',apply);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.2-private',TARGET_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,runtimePlan,intentPlan,inferTargetSide});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.3-private',TARGET_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,runtimePlan,intentPlan,inferTargetSide});
   start();
 })(window);
