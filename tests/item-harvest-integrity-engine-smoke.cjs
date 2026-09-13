@@ -87,6 +87,20 @@ const { pathToFileURL } = require('node:url');
   assert.equal(hard.physical.bludgeoning.damage, 16);
   assert.equal(hard.manaCorruption, 20);
 
+  const modularCover = harvest.harvestCondition(record, 'hard_cover_modular');
+  assert.equal(modularCover.physical.bludgeoning.primary, true);
+  assert.equal(modularCover.physical.bludgeoning.damage, 16);
+  assert.equal(modularCover.physical.slashing.primary, false);
+  assert.equal(modularCover.physical.slashing.damage, 18);
+  assert.equal(modularCover.exposures.burn, 20);
+  assert.equal(modularCover.exposures.mana_corruption, 20);
+
+  const structuralCover = harvest.harvestCondition(record, 'hard_cover_structural');
+  assert.equal(structuralCover.physical.bludgeoning.primary, true);
+  assert.equal(structuralCover.physical.bludgeoning.damage, 16);
+  assert.equal(structuralCover.physical.slashing, undefined);
+  assert.equal(structuralCover.exposures.burn, 20);
+
   const spellWithExplicitTrauma = harvest.explainEvent({
     sourceType: 'spell',
     damageType: 'perforante',
@@ -95,7 +109,7 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(spellWithExplicitTrauma.physicalTraumaType, 'bludgeoning');
 
-  console.log('Harvest integrity engine smoke: OK (physical vs magic/status separation)');
+  console.log('Harvest integrity engine smoke: OK (physical vs magic/status separation + hard covers)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
