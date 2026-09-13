@@ -11,11 +11,13 @@ on:
       - js/dm-item-instance-editor.js
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
+      - js/item-quality-engine.js
       - js/item-catalog-hp-healing.js
       - js/item-catalog-sp-healing.js
       - js/item-catalog-hybrid-healing.js
       - js/item-catalog-status-cure.js
       - js/item-catalog-medical-supply.js
+      - js/item-catalog-meat.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -24,11 +26,13 @@ on:
       - css/inventory-hud-v2.css
       - css/dm-item-instance-editor.css
       - tests/item-icon-registry-smoke.cjs
+      - tests/item-quality-engine-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
       - tests/item-catalog-sp-healing-smoke.cjs
       - tests/item-catalog-hybrid-healing-smoke.cjs
       - tests/item-catalog-status-cure-smoke.cjs
       - tests/item-catalog-medical-supply-smoke.cjs
+      - tests/item-catalog-meat-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -53,17 +57,21 @@ jobs:
           node --check js/dm-item-instance-editor.js
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
+          node --check js/item-quality-engine.js
           node --check js/item-catalog-hp-healing.js
           node --check js/item-catalog-sp-healing.js
           node --check js/item-catalog-hybrid-healing.js
           node --check js/item-catalog-status-cure.js
           node --check js/item-catalog-medical-supply.js
+          node --check js/item-catalog-meat.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
           node --check js/item-realtime-sync.js
       - name: Item icon registry smoke
         run: node tests/item-icon-registry-smoke.cjs
+      - name: Item quality engine smoke
+        run: node tests/item-quality-engine-smoke.cjs
       - name: HP healing catalog smoke
         run: node tests/item-catalog-hp-healing-smoke.cjs
       - name: SP healing catalog smoke
@@ -74,6 +82,8 @@ jobs:
         run: node tests/item-catalog-status-cure-smoke.cjs
       - name: Medical supply catalog smoke
         run: node tests/item-catalog-medical-supply-smoke.cjs
+      - name: Meat ingredient catalog smoke
+        run: node tests/item-catalog-meat-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
