@@ -23,6 +23,7 @@ on:
       - js/item-catalog-food.js
       - js/item-catalog-hide-pelt.js
       - js/item-catalog-hard-parts.js
+      - js/item-catalog-scale-shell-chitin.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -43,6 +44,7 @@ on:
       - tests/item-catalog-food-smoke.cjs
       - tests/item-catalog-hide-pelt-smoke.cjs
       - tests/item-catalog-hard-parts-smoke.cjs
+      - tests/item-catalog-scale-shell-chitin-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -79,6 +81,7 @@ jobs:
           node --check js/item-catalog-food.js
           node --check js/item-catalog-hide-pelt.js
           node --check js/item-catalog-hard-parts.js
+          node --check js/item-catalog-scale-shell-chitin.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -109,6 +112,8 @@ jobs:
         run: node tests/item-catalog-hide-pelt-smoke.cjs
       - name: Hard Parts catalog smoke
         run: node tests/item-catalog-hard-parts-smoke.cjs
+      - name: Scale shell chitin catalog smoke
+        run: node tests/item-catalog-scale-shell-chitin-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
