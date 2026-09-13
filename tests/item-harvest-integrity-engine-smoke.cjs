@@ -73,6 +73,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal(record.physical.bludgeoning.hits, 1);
   assert.equal(record.physical.bludgeoning.damage, 16);
 
+  harvest.recordEvent(record, {
+    sourceType: 'status',
+    statusTick: true,
+    status: 'poison',
+    damageMode: 'fixed',
+    damageDealt: 3,
+  });
+  assert.equal(record.exposure.contamination, 3);
+
   const pelt = harvest.harvestCondition(record, 'hide_pelt');
   assert.equal(pelt.directHitSensitive, true);
   assert.equal(pelt.totalDirectHits, 3);
@@ -101,6 +110,23 @@ const { pathToFileURL } = require('node:url');
   assert.equal(structuralCover.physical.slashing, undefined);
   assert.equal(structuralCover.exposures.burn, 20);
 
+  const feather = harvest.harvestCondition(record, 'feather_raw');
+  assert.equal(feather.directHitSensitive, true);
+  assert.equal(feather.physical.slashing.primary, true);
+  assert.equal(feather.physical.slashing.damage, 18);
+  assert.equal(feather.physical.bludgeoning.primary, false);
+  assert.equal(feather.physical.bludgeoning.damage, 16);
+  assert.equal(feather.exposures.burn, 20);
+  assert.equal(feather.exposures.contamination, 3);
+
+  const fiber = harvest.harvestCondition(record, 'raw_fiber');
+  assert.equal(fiber.directHitSensitive, true);
+  assert.equal(fiber.physical.slashing.primary, true);
+  assert.equal(fiber.physical.piercing.primary, false);
+  assert.equal(fiber.physical.bludgeoning, undefined);
+  assert.equal(fiber.exposures.contamination, 3);
+  assert.equal(fiber.exposures.mana_corruption, 20);
+
   const spellWithExplicitTrauma = harvest.explainEvent({
     sourceType: 'spell',
     damageType: 'perforante',
@@ -109,7 +135,7 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(spellWithExplicitTrauma.physicalTraumaType, 'bludgeoning');
 
-  console.log('Harvest integrity engine smoke: OK (physical vs magic/status separation + hard covers)');
+  console.log('Harvest integrity engine smoke: OK (physical vs magic/status separation + hard/fragile harvest profiles)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
