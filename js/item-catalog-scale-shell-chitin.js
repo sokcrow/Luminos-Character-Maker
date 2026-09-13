@@ -155,7 +155,7 @@
     let base = null;
     if (entry.id === "scale" || entry.id === "chitin") base = MODULAR_YIELD_BY_CREATURE_SIZE[size];
     if (entry.id === "scute") base = SCUTE_YIELD_BY_CREATURE_SIZE[size];
-    if (!Number.isFinite(Number(base))) return null;
+    if (base == null || !Number.isFinite(Number(base))) return null;
     if (entry.id === "scale" && isDraconic(options)) return Math.trunc(base * DRACONIC_SCALE_YIELD_MULTIPLIER);
     return Math.trunc(base);
   }
