@@ -1,6 +1,6 @@
 (function (global) {
   "use strict";
-  const ROOT = "campaña/combate_v073";
+  const ROOT = "campaña/combate/canonical_v073";
   const clean = (v) => String(v ?? "").trim();
   const clone = (v) => v == null ? v : JSON.parse(JSON.stringify(v));
   const state = { db:null, uid:null, dmUid:null, ready:false };
