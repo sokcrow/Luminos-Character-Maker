@@ -1,8 +1,7 @@
 (function(global){
   'use strict';
   if(global.LuminousCombatPlanSync073)return;
-  const PUBLIC_ROOT='campaña/combate';
-  const PRIVATE_ROOT='combat_private/plans';
+  const ROOT='campaña/combate';
   const clean=v=>String(v??'').trim();
   const norm=v=>clean(v).toLowerCase().replace(/[\s-]+/g,'_');
   const safe=v=>clean(v).replace(/[.#$\[\]\/]/g,'_');
@@ -22,12 +21,12 @@
   function targetPayloadFor(plan,index,unitId,s){
     if(!plan)return null;const d=plan.data||{},targetId=clean(plan.targetId),additionalTargets=Array.isArray(plan.additionalTargets)?plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId):[];
     if(!targetId&&!additionalTargets.length)return null;
-    const out={schemaVersion:1,engineVersion:'0.7.3-live',unitId,scheduledBy:s.playerId,schedulerUid:s.uid,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0),updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    const out={unitId,scheduledBy:s.playerId,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0)};
     const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;return out;
   }
   function payloadFor(plan,index,unitId,s){
     const kind=kindOf(plan),id=idOf(plan,kind),d=clone(plan?.data||{});if(!id)throw new Error(`ACTION_ID_MISSING_SLOT_${index}`);
-    const out={schemaVersion:3,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'sealed_private',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,actionData:d,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    const out={schemaVersion:2,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:s.playerId,schedulerUid:s.uid,status:'planned',round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan?.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:clean(plan?.targetId)||null,targetSlotIndex:Number.isInteger(plan?.targetSlotIndex)?plan.targetSlotIndex:null,actionData:d,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
     const targetSide=clean(d.targetSide||d.targetRule||plan?.targetSide||plan?.targetRule);if(targetSide)out.targetSide=targetSide;
     const displayName=clean(d.name||d.nombre||d.label);if(displayName)out.actionName=displayName;
     if(Array.isArray(plan?.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId);
@@ -44,18 +43,17 @@
     const unitId=own[0],plans=Array.isArray(detail.plans)?detail.plans:[],owner=safe(s.playerId),slotCount=Math.max(plans.length,Math.trunc(finite(own[1]?.actionSlots??own[1]?.activeSlots,1)),1),round=Math.max(1,Math.trunc(finite(s.round,1)));
     return{s,own,unitId,plans,owner,slotCount,round};
   }
-  function addTargetUpdates(updates,ctx){for(let i=0;i<ctx.slotCount;i+=1)updates[`${PUBLIC_ROOT}/targetIntents/${ctx.owner}/${i}`]=targetPayloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);}
+  function targetIndex(ctx){const out={};for(let i=0;i<ctx.slotCount;i+=1){const row=targetPayloadFor(ctx.plans[i],i,ctx.unitId,ctx.s);if(row)out[i]=row;}return out;}
   async function syncReady(detail={}){
     const ctx=context(detail);if(!ctx)return false;const ready=Boolean(detail.ready),sig=JSON.stringify(['ready',ready,ctx.round,ctx.unitId,ctx.plans]);if(sig===lastReadySignature)return true;
-    const publicUpdates={};addTargetUpdates(publicUpdates,ctx);
-    publicUpdates[`${PUBLIC_ROOT}/readyPlayers/${ctx.owner}`]={ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:ready?ctx.plans.filter(Boolean).length:0,updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
-    const privateUpdates={};for(let i=0;i<ctx.slotCount;i+=1)privateUpdates[`${PRIVATE_ROOT}/${ctx.round}/${ctx.owner}/${i}`]=ready&&ctx.plans[i]?payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s):null;
-    await Promise.all([ctx.s.db.ref().update(publicUpdates),ctx.s.db.ref().update(privateUpdates)]);lastReadySignature=sig;return true;
+    const updates={};
+    updates[`${ROOT}/readyPlayers/${ctx.owner}`]={ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:ready?ctx.plans.filter(Boolean).length:0,targetIntents:targetIndex(ctx),updatedAt:global.firebase.database.ServerValue.TIMESTAMP};
+    for(let i=0;i<ctx.slotCount;i+=1)updates[`${ROOT}/plannedActions/${ctx.owner}/${i}`]=ready&&ctx.plans[i]?payloadFor(ctx.plans[i],i,ctx.unitId,ctx.s):null;
+    await ctx.s.db.ref().update(updates);lastReadySignature=sig;return true;
   }
   async function syncLiveTargets(detail={}){
-    const ctx=context(detail);if(!ctx)return false;const targets=ctx.plans.map((plan,index)=>targetPayloadFor(plan,index,ctx.unitId,ctx.s)),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
-    const updates={};for(let i=0;i<ctx.slotCount;i+=1)updates[`${PUBLIC_ROOT}/targetIntents/${ctx.owner}/${i}`]=targets[i]||null;
-    await ctx.s.db.ref().update(updates);lastTargetSignature=sig;return true;
+    const ctx=context(detail);if(!ctx)return false;const targets=targetIndex(ctx),sig=JSON.stringify(['targets',ctx.round,ctx.unitId,targets]);if(sig===lastTargetSignature)return true;
+    await ctx.s.db.ref(`${ROOT}/readyPlayers/${ctx.owner}`).set({ready:false,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,plannedSlots:0,targetIntents:targets,updatedAt:global.firebase.database.ServerValue.TIMESTAMP});lastTargetSignature=sig;return true;
   }
   function queue(detail,mode='ready'){chain=chain.then(()=>mode==='targets'?syncLiveTargets(detail):syncReady(detail)).catch(error=>{console.error('[Combat073 PlanSync]',error);try{const n=global.document?.getElementById?.('status');if(n)n.textContent=`COMBAT · PLAN SYNC FAILED · ${error?.code||error?.message||error}`;}catch(_){}});return chain;}
   function onReady(event){queue(event?.detail||{},'ready');}
@@ -78,6 +76,6 @@
   }
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.9-authority',PUBLIC_ROOT,PRIVATE_ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.10-targets-only-live',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
