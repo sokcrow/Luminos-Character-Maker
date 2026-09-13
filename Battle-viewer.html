@@ -12,9 +12,11 @@
 (async()=>{
   try{
     if(typeof DecompressionStream!=="function")throw new Error("DECOMPRESSION_STREAM_UNAVAILABLE");
-    const response=await fetch("combat/combat-v073-live.bundle.b64",{cache:"no-cache"});
-    if(!response.ok)throw new Error(`COMBAT_BUNDLE_HTTP_${response.status}`);
-    const encoded=(await response.text()).replace(/\s+/g,"");
+    const urls=Array.from({length:11},(_,index)=>`combat/combat-v073-live.bundle.part${String(index+1).padStart(2,"0")}`);
+    const responses=await Promise.all(urls.map(url=>fetch(url,{cache:"no-cache"})));
+    const failed=responses.find(response=>!response.ok);
+    if(failed)throw new Error(`COMBAT_BUNDLE_HTTP_${failed.status}`);
+    const encoded=(await Promise.all(responses.map(response=>response.text()))).join("").replace(/\s+/g,"");
     const binary=atob(encoded);
     const bytes=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i+=1)bytes[i]=binary.charCodeAt(i);
