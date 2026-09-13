@@ -10,6 +10,7 @@ const camera = read('js/combat-v073-camera-controls.js');
 const dmSetup = read('js/combat-v073-dm-setup.js');
 const manager = read('js/dm-combat-tab-manager.js');
 const librarySync = read('js/combat-unit-library-sync.js');
+const rules = JSON.parse(read('database.rules.json'));
 
 assert.ok(adapter.includes('humanPlayer ? "remote" : "ai"'), 'other human Players must be remote, not local AI');
 assert.ok(adapter.includes('unit.scale') && adapter.includes('unit.spriteX') && adapter.includes('unit.spriteY'), 'visual fields must participate in hydration signature');
@@ -19,6 +20,13 @@ assert.ok(adapter.includes('viewerRole: state.role'), 'runtime hydration must kn
 assert.ok(plans.includes("luminous:combat073-plan-change"), 'live plan changes must sync before READY');
 assert.ok(plans.includes('updates[`${ROOT}/plannedActions/${owner}/${i}`]=plans[i]?payloadFor'), 'non-ready plans must still be persisted for remote intent display');
 assert.ok(plans.includes('targetSide') && plans.includes('itemType'), 'support item metadata must survive Firebase plan sync');
+assert.ok(plans.includes('async function syncLivePlans'), 'render-driven plan sync must use a dedicated non-READY path');
+assert.ok(plans.includes('if(!plans.some(Boolean))return false'), 'empty hydration renders must not delete persisted plans');
+const liveSyncStart = plans.indexOf('async function syncLivePlans');
+const liveSyncEnd = plans.indexOf('function queue', liveSyncStart);
+const liveSyncBody = plans.slice(liveSyncStart, liveSyncEnd);
+assert.ok(!liveSyncBody.includes('readyPlayers'), 'render-driven plan sync must never overwrite READY state');
+assert.ok(plans.includes("mode==='live'?syncLivePlans(detail):syncReady(detail)"), 'READY and live-plan writes must stay separated');
 
 assert.ok(remote.includes("unit?.controlled==='remote'"), 'remote intent bridge must target human allies only');
 assert.ok(remote.includes('inferTargetSide'), 'remote intent bridge must infer ally/enemy target side');
@@ -49,6 +57,12 @@ assert.ok(manager.includes('linkedPlayerUnit') && manager.includes('linkedActor'
 assert.ok(manager.includes('row.savePaths = sources.savePaths'), 'Player sprite save must propagate to all linked canonical sources');
 assert.ok(manager.includes("subscribe(ROOTS.skills, 'skills')"), 'Combat Library status must track canonical Skills');
 assert.ok(manager.includes('FORCE SYNC UNIT LIBRARY'), 'manual force-sync must remain available as repair action');
+
+const campaignRules = rules.rules?.['campaña'] || {};
+const actorWrite = campaignRules.actores?.['.write'] || '';
+const legacyNpcWrite = campaignRules.base_datos_npcs?.['.write'] || '';
+assert.ok(actorWrite.includes("child('config').child('dm_uid')"), 'linked Actor saves must accept the configured DM authority');
+assert.ok(legacyNpcWrite.includes("child('config').child('dm_uid')"), 'legacy NPC saves must accept the configured DM authority');
 
 assert.ok(dmSetup.includes('FIELD solamente.'), 'Viewer Encounter Setup must be field deployment only');
 assert.ok(dmSetup.includes('ensureLibraryMaterialized'), 'Viewer must repair an empty canonical Unit Library for the DM');
