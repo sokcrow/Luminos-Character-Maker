@@ -77,6 +77,20 @@
       secondaryPhysical: Object.freeze([]),
       exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "mana_corruption"]),
     }),
+    feather_raw: Object.freeze({
+      id: "feather_raw",
+      directHitSensitive: true,
+      primaryPhysical: Object.freeze(["slashing"]),
+      secondaryPhysical: Object.freeze(["piercing", "bludgeoning"]),
+      exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "contamination", "mana_corruption"]),
+    }),
+    raw_fiber: Object.freeze({
+      id: "raw_fiber",
+      directHitSensitive: true,
+      primaryPhysical: Object.freeze(["slashing"]),
+      secondaryPhysical: Object.freeze(["piercing"]),
+      exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "contamination", "mana_corruption"]),
+    }),
     organ_gland: Object.freeze({
       id: "organ_gland",
       directHitSensitive: false,
