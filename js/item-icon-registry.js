@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -42,7 +42,10 @@
     circuitry: family("circuitry", "Circuit / Electronics", "Circuitos / Electrónica", "material", "https://imgur.com/FfDiki6.png"),
     chemical: family("chemical", "Chemical", "Químico", "material", "https://imgur.com/MvbtE4u.png"),
     textile: family("textile", "Textile", "Textil", "material", "https://imgur.com/4gr0EeJ.png"),
-    hide_leather: family("hide_leather", "Hide / Leather", "Piel / Cuero", "material", "https://imgur.com/nK6vQIR.png"),
+    hide_mammal: family("hide_mammal", "Mammal / Humanoid Hide", "Piel de mamífero / humanoide", "material", "https://imgur.com/nK6vQIR.png"),
+    pelt_fur: family("pelt_fur", "Fur Pelt", "Pelaje / Piel con pelo", "material", "https://imgur.com/12IQYXa.png"),
+    hide_reptile: family("hide_reptile", "Reptile / Skin Hide", "Piel reptiliana / piel", "material", "https://imgur.com/llKa6G5.png"),
+    hide_draconic: family("hide_draconic", "Draconic Hide", "Piel dracónica", "material", "https://imgur.com/F1YNegu.png"),
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
@@ -95,8 +98,14 @@
     electronics: "electronic_parts",
     precision_components: "precision_component",
     circuit_electronics: "circuitry",
-    hide: "hide_leather",
-    leather: "hide_leather",
+    hide_leather: "hide_mammal",
+    hide: "hide_mammal",
+    leather: "hide_mammal",
+    mammal_hide: "hide_mammal",
+    fur_pelt: "pelt_fur",
+    pelt: "pelt_fur",
+    reptile_hide: "hide_reptile",
+    draconic_hide: "hide_draconic",
     ore: "ore_mineral",
     mineral: "ore_mineral",
     plant: "plant_herb",
