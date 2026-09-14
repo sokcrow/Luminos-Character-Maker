@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 9);
+  assert.equal(registry.VERSION, 10);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 75);
+  assert.equal(Object.keys(registry.GROUPS).length, 77);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -70,6 +70,10 @@ const { pathToFileURL } = require('node:url');
   );
 
   assert.equal(registry.list({ domain: 'material' }).some((entry) => entry.id === 'ooze_gel'), true);
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['essence_raw', 'energy_core'].includes(entry.id)).map((entry) => entry.id),
+    ['essence_raw', 'energy_core']
+  );
 
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
@@ -104,6 +108,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.canonicalGroupId('slime'), 'ooze_gel');
   assert.equal(registry.canonicalGroupId('mucus'), 'ooze_gel');
   assert.equal(registry.canonicalGroupId('conductive_gel'), 'ooze_gel');
+  assert.equal(registry.canonicalGroupId('arcane_essence'), 'essence_raw');
+  assert.equal(registry.canonicalGroupId('radiant_essence'), 'essence_raw');
+  assert.equal(registry.canonicalGroupId('mana_core'), 'energy_core');
+  assert.equal(registry.canonicalGroupId('exotic_core'), 'energy_core');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
 
@@ -142,6 +150,8 @@ const { pathToFileURL } = require('node:url');
     ink_secretion: 'https://imgur.com/pcc7tsi.png',
     bio_secretion: 'https://imgur.com/YzrMRpI.png',
     ooze_gel: 'https://imgur.com/91cMoMg.png',
+    essence_raw: 'https://imgur.com/Yay5U5o.png',
+    energy_core: 'https://imgur.com/KBSJN7y.png',
     toxin_material: 'https://imgur.com/8dBvLD5.png',
   };
   for (const [id, icon] of Object.entries(expectedIcons)) assert.equal(registry.resolveIcon(id), icon);
@@ -169,6 +179,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.resolveIcon('scent'), 'https://imgur.com/YzrMRpI.png');
   assert.equal(registry.resolveIcon('gel'), 'https://imgur.com/91cMoMg.png');
   assert.equal(registry.resolveIcon('exotic_ooze'), 'https://imgur.com/91cMoMg.png');
+  assert.equal(registry.resolveIcon('psionic_essence'), 'https://imgur.com/Yay5U5o.png');
+  assert.equal(registry.resolveIcon('mana_energy_core'), 'https://imgur.com/KBSJN7y.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
