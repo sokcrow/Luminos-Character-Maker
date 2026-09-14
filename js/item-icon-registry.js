@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 6;
+  const VERSION = 7;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -58,7 +58,13 @@
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
-    organ_gland: family("organ_gland", "Organ / Gland", "Órgano / Glándula", "material", "https://imgur.com/rXlXbOG.png"),
+    organ_internal: family("organ_internal", "Internal Organ", "Órgano interno", "material", "https://imgur.com/rXlXbOG.png"),
+    organ_sensory: family("organ_sensory", "Sensory Organ", "Órgano sensorial", "material", "https://imgur.com/tPLOEZe.png"),
+    organ_brain: family("organ_brain", "Brain", "Cerebro", "material", "https://imgur.com/9MdgTfI.png"),
+    organ_gland: family("organ_gland", "Gland / Sac", "Glándula / Saco", "material", "https://imgur.com/4kqV4TO.png"),
+    blood: family("blood", "Blood", "Sangre", "material", "https://imgur.com/7a75QU2.png"),
+    hemolymph: family("hemolymph", "Hemolymph", "Hemolinfa", "material", "https://imgur.com/Kwwd6A7.png"),
+    ichor: family("ichor", "Ichor / Exotic Fluid", "Icor / Fluido exótico", "material", "https://imgur.com/KHKQKjb.png"),
     toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/4kqV4TO.png"),
     abnormality_part: family("abnormality_part", "Abnormality Part", "Parte de anormalidad", "material", "https://imgur.com/JpK4vSq.png"),
     craft_component: family("craft_component", "Generic Crafting Component", "Componente genérico de fabricación", "material", "https://imgur.com/exU9uZ1.png"),
@@ -145,8 +151,28 @@
     mineral: "ore_mineral",
     plant: "plant_herb",
     herb: "plant_herb",
-    organ: "organ_gland",
+    organ: "organ_internal",
+    internal_organ: "organ_internal",
+    heart: "organ_internal",
+    liver: "organ_internal",
+    kidney: "organ_internal",
+    lung: "organ_internal",
+    stomach: "organ_internal",
+    digestive_organ: "organ_internal",
+    sensory_organ: "organ_sensory",
+    eye: "organ_sensory",
+    brain: "organ_brain",
     gland: "organ_gland",
+    sac: "organ_gland",
+    bladder: "organ_gland",
+    blood: "blood",
+    humanoid_blood: "blood",
+    draconic_blood: "blood",
+    hemolymph: "hemolymph",
+    ichor: "ichor",
+    exotic_blood: "ichor",
+    exotic_fluid: "ichor",
+    exotic_blood_fluid: "ichor",
     generic_crafting: "craft_component",
     data: "data_storage",
     container: "generic_item",
