@@ -144,7 +144,7 @@
     }
     if (!Number.isFinite(Number(minBase))) return null;
     const scale = (value) => {
-      if (!Number.isFinite(Number(value))) return null;
+      if (value == null || !Number.isFinite(Number(value))) return null;
       const sized = sEngine?.scaleValue ? sEngine.scaleValue(Number(value), partSize, { rounding: "round" }) : Number(value);
       return qEngine?.applyValue ? qEngine.applyValue(sized, quality, { rounding: "round" }) : Math.round(sized);
     };
