@@ -71,18 +71,27 @@ function makeDb({ failWrites = false } = {}) {
     'campaña/combate/libraryManifest/units': {},
     'campaña/combate/libraryManifest/skills': {},
   };
+  const roots = Object.keys(remote).sort((a, b) => b.length - a.length);
+  function readPath(path = '') {
+    for (const root of roots) {
+      if (path === root) return remote[root];
+      if (path.startsWith(`${root}/`)) return remote[root][path.slice(root.length + 1)] ?? null;
+    }
+    return null;
+  }
   function notify() { for (const [root, handler] of listeners.entries()) handler({ val: () => remote[root] || {} }); }
   function ref(path = '') {
     return {
-      once: async () => ({ val: () => remote[path] || {} }),
-      on(type, handler) { if (type !== 'value') return; listeners.set(path, handler); handler({ val: () => remote[path] || {} }); },
+      once: async () => ({ val: () => readPath(path) }),
+      on(type, handler) { if (type !== 'value') return; listeners.set(path, handler); handler({ val: () => readPath(path) ?? {} }); },
       off() { listeners.delete(path); },
       async update(updates) {
         if (failWrites) throw new Error('PERMISSION_DENIED');
         for (const [fullPath, value] of Object.entries(updates || {})) {
-          for (const root of Object.keys(remote)) {
+          for (const root of roots) {
             if (!fullPath.startsWith(`${root}/`)) continue;
             remote[root][fullPath.slice(root.length + 1)] = value;
+            break;
           }
         }
         notify();
