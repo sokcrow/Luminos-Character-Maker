@@ -15,6 +15,7 @@
   const DRACONIC_SCALE_YIELD_MULTIPLIER = 2;
   const CRAFT_VALUE_MULTIPLIER = 1.25;
   const RETAIL_VALUE_MULTIPLIER = 1.25;
+  const AHN_ECONOMY_SCALE = 10;
 
   const MODULAR_YIELD_BY_CREATURE_SIZE = Object.freeze({
     tiny: 2,
@@ -72,7 +73,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      mediumStandardValueAhn,
+      mediumStandardValueAhn: Math.round(mediumStandardValueAhn * AHN_ECONOMY_SCALE),
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
       sizeSystem: "anatomical_part_size",
@@ -292,6 +293,7 @@
     DRACONIC_SCALE_YIELD_MULTIPLIER,
     CRAFT_VALUE_MULTIPLIER,
     RETAIL_VALUE_MULTIPLIER,
+    AHN_ECONOMY_SCALE,
     MODULAR_YIELD_BY_CREATURE_SIZE,
     SCUTE_YIELD_BY_CREATURE_SIZE,
     ITEMS,
