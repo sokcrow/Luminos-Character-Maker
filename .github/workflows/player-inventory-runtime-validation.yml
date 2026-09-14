@@ -25,6 +25,8 @@ on:
       - js/item-catalog-hard-parts.js
       - js/item-catalog-scale-shell-chitin.js
       - js/item-catalog-feather-raw-fiber.js
+      - js/item-catalog-organ-gland.js
+      - js/item-catalog-blood-ichor.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -47,6 +49,8 @@ on:
       - tests/item-catalog-hard-parts-smoke.cjs
       - tests/item-catalog-scale-shell-chitin-smoke.cjs
       - tests/item-catalog-feather-raw-fiber-smoke.cjs
+      - tests/item-catalog-organ-gland-smoke.cjs
+      - tests/item-catalog-blood-ichor-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -85,6 +89,8 @@ jobs:
           node --check js/item-catalog-hard-parts.js
           node --check js/item-catalog-scale-shell-chitin.js
           node --check js/item-catalog-feather-raw-fiber.js
+          node --check js/item-catalog-organ-gland.js
+          node --check js/item-catalog-blood-ichor.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -119,6 +125,10 @@ jobs:
         run: node tests/item-catalog-scale-shell-chitin-smoke.cjs
       - name: Feather raw fiber catalog smoke
         run: node tests/item-catalog-feather-raw-fiber-smoke.cjs
+      - name: Organ gland catalog smoke
+        run: node tests/item-catalog-organ-gland-smoke.cjs
+      - name: Blood ichor catalog smoke
+        run: node tests/item-catalog-blood-ichor-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
