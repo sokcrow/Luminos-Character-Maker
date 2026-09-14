@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 7;
+  const VERSION = 8;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -65,7 +65,11 @@
     blood: family("blood", "Blood", "Sangre", "material", "https://imgur.com/7a75QU2.png"),
     hemolymph: family("hemolymph", "Hemolymph", "Hemolinfa", "material", "https://imgur.com/Kwwd6A7.png"),
     ichor: family("ichor", "Ichor / Exotic Fluid", "Icor / Fluido exótico", "material", "https://imgur.com/KHKQKjb.png"),
-    toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/4kqV4TO.png"),
+    venom_raw: family("venom_raw", "Venom / Toxic Secretion", "Veneno / Secreción tóxica", "material", "https://imgur.com/8dBvLD5.png"),
+    acid_secretion: family("acid_secretion", "Acid Secretion", "Secreción ácida", "material", "https://imgur.com/akDUWvj.png"),
+    ink_secretion: family("ink_secretion", "Ink Secretion", "Secreción de tinta", "material", "https://imgur.com/pcc7tsi.png"),
+    bio_secretion: family("bio_secretion", "Biological Secretion", "Secreción biológica", "material", "https://imgur.com/YzrMRpI.png"),
+    toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/8dBvLD5.png"),
     abnormality_part: family("abnormality_part", "Abnormality Part", "Parte de anormalidad", "material", "https://imgur.com/JpK4vSq.png"),
     craft_component: family("craft_component", "Generic Crafting Component", "Componente genérico de fabricación", "material", "https://imgur.com/exU9uZ1.png"),
 
@@ -173,6 +177,16 @@
     exotic_blood: "ichor",
     exotic_fluid: "ichor",
     exotic_blood_fluid: "ichor",
+    venom: "venom_raw",
+    raw_venom: "venom_raw",
+    toxic_secretion: "venom_raw",
+    acid: "acid_secretion",
+    ink: "ink_secretion",
+    pheromone: "bio_secretion",
+    scent: "bio_secretion",
+    pheromone_scent: "bio_secretion",
+    defensive_secretion: "bio_secretion",
+    exotic_secretion: "bio_secretion",
     generic_crafting: "craft_component",
     data: "data_storage",
     container: "generic_item",
