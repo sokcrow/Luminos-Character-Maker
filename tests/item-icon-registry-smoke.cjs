@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 6);
+  assert.equal(registry.VERSION, 7);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 64);
+  assert.equal(Object.keys(registry.GROUPS).length, 70);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -54,6 +54,16 @@ const { pathToFileURL } = require('node:url');
     ['feather_raw', 'animal_fiber_raw', 'silk_raw']
   );
 
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['organ_internal', 'organ_sensory', 'organ_brain', 'organ_gland'].includes(entry.id)).map((entry) => entry.id),
+    ['organ_internal', 'organ_sensory', 'organ_brain', 'organ_gland']
+  );
+
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['blood', 'hemolymph', 'ichor'].includes(entry.id)).map((entry) => entry.id),
+    ['blood', 'hemolymph', 'ichor']
+  );
+
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
   assert.equal(registry.canonicalGroupId('food_meat'), 'food');
@@ -71,6 +81,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.canonicalGroupId('down'), 'feather_raw');
   assert.equal(registry.canonicalGroupId('wool'), 'animal_fiber_raw');
   assert.equal(registry.canonicalGroupId('raw_silk'), 'silk_raw');
+  assert.equal(registry.canonicalGroupId('heart'), 'organ_internal');
+  assert.equal(registry.canonicalGroupId('eye'), 'organ_sensory');
+  assert.equal(registry.canonicalGroupId('brain'), 'organ_brain');
+  assert.equal(registry.canonicalGroupId('gland'), 'organ_gland');
+  assert.equal(registry.canonicalGroupId('humanoid_blood'), 'blood');
+  assert.equal(registry.canonicalGroupId('hemolymph'), 'hemolymph');
+  assert.equal(registry.canonicalGroupId('exotic_fluid'), 'ichor');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
 
@@ -97,6 +114,13 @@ const { pathToFileURL } = require('node:url');
     feather_raw: 'https://imgur.com/EPkBtW0.png',
     animal_fiber_raw: 'https://imgur.com/A3FpNXr.png',
     silk_raw: 'https://imgur.com/NYnkd17.png',
+    organ_internal: 'https://imgur.com/rXlXbOG.png',
+    organ_sensory: 'https://imgur.com/tPLOEZe.png',
+    organ_brain: 'https://imgur.com/9MdgTfI.png',
+    organ_gland: 'https://imgur.com/4kqV4TO.png',
+    blood: 'https://imgur.com/7a75QU2.png',
+    hemolymph: 'https://imgur.com/Kwwd6A7.png',
+    ichor: 'https://imgur.com/KHKQKjb.png',
   };
   for (const [id, icon] of Object.entries(expectedIcons)) assert.equal(registry.resolveIcon(id), icon);
 
@@ -111,6 +135,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.resolveIcon('flight_feather'), 'https://imgur.com/EPkBtW0.png');
   assert.equal(registry.resolveIcon('animal_hair'), 'https://imgur.com/A3FpNXr.png');
   assert.equal(registry.resolveIcon('silk'), 'https://imgur.com/NYnkd17.png');
+  assert.equal(registry.resolveIcon('heart'), 'https://imgur.com/rXlXbOG.png');
+  assert.equal(registry.resolveIcon('eye'), 'https://imgur.com/tPLOEZe.png');
+  assert.equal(registry.resolveIcon('brain'), 'https://imgur.com/9MdgTfI.png');
+  assert.equal(registry.resolveIcon('gland'), 'https://imgur.com/4kqV4TO.png');
+  assert.equal(registry.resolveIcon('draconic_blood'), 'https://imgur.com/7a75QU2.png');
+  assert.equal(registry.resolveIcon('exotic_fluid'), 'https://imgur.com/KHKQKjb.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
