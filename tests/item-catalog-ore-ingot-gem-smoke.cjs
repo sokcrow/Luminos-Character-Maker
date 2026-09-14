@@ -1,10 +1,17 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
-(() => {
+(async () => {
+  delete globalThis.LuminousItemQualityEngine;
+  delete globalThis.LuminousItemSizeLineageEngine;
   delete globalThis.LuminousOreIngotGemCatalog;
-  const catalog = require(path.resolve(__dirname, '../js/item-catalog-ore-ingot-gem.js'));
 
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-size-lineage-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-ore-ingot-gem.js')).href);
+
+  const catalog = globalThis.LuminousOreIngotGemCatalog;
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, 'ore_ingot_gem');
@@ -91,4 +98,7 @@ const path = require('node:path');
   assert.equal(catalog.createCreatureHarvestStack('ruby', { quantity: 1 }), null);
 
   console.log(`Ore/Ingot/Gem catalog smoke: OK (${catalog.ITEMS.length} materials)`);
-})();
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
