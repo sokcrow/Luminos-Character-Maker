@@ -11,6 +11,7 @@
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_PART_SIZE = "medium";
+  const AHN_ECONOMY_SCALE = 10;
 
   const FEATHER_YIELD_BY_CREATURE_SIZE = Object.freeze({
     tiny: 40,
@@ -77,7 +78,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardUnitValueAhn,
+      standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE),
       measure,
       pieceBased,
       fiberUnitBased: measure === "fiber_unit",
@@ -281,6 +282,7 @@
     CURRENCY,
     DEFAULT_QUALITY,
     DEFAULT_PART_SIZE,
+    AHN_ECONOMY_SCALE,
     FEATHER_YIELD_BY_CREATURE_SIZE,
     FLIGHT_FEATHER_YIELD_BY_CREATURE_SIZE,
     FIBER_UNITS_BY_CREATURE_SIZE,
