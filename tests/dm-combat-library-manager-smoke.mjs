@@ -20,14 +20,16 @@ assert.ok(manager.includes('FORCE SYNC UNIT LIBRARY'), 'real Combat tab must exp
 assert.ok(manager.includes("units: 'campaña/base_datos_unidades'"), 'real Combat tab must subscribe to the canonical Unit root');
 assert.ok(manager.includes('ENEMIES · ALL SOURCES') && manager.includes('UNIT LIBRARY'), 'real Combat tab must expose Enemy and Unit Library selectors');
 
-assert.ok(librarySync.includes("version: '1.3.0-real-ui'"), 'canonical Unit sync must use the real-UI fallback runtime');
+assert.ok(librarySync.includes("version:'2.1.0'"), 'canonical Unit sync must use the Universal Library + real-UI fallback runtime');
 assert.ok(librarySync.includes('installRuntimeFallback'), 'canonical Units must be available locally before Firebase persistence');
 assert.ok(librarySync.includes('refreshCombatTabSelector'), 'local canonical Units must refresh the Panel DM selector');
 assert.ok(librarySync.includes('refreshEncounterSelector'), 'local canonical Units must refresh Encounter Setup');
 assert.ok(librarySync.includes('SCRIPT_LOAD_TIMEOUT'), 'catalog loader must fail instead of hanging forever on an already-loaded script');
 assert.ok(librarySync.includes('DEPLOYMENT_SCRIPTS'), 'FIELD deployment runtime must remain available');
+assert.ok(librarySync.includes("universalUnitManifest:'campaña/combate/libraryManifest/units'"), 'canonical sync must publish/read the lightweight Firebase Unit manifest');
+assert.ok(librarySync.includes('LuminousUniversalLibrary.publish'), 'canonical sync must publish version/hash manifest records');
 assert.ok(dmSetup.includes('c073-unit'), 'Battle Viewer DM setup must retain its Unit Library selector');
 assert.ok(dmSetup.includes('ensureLibraryMaterialized'), 'Battle Viewer must still request canonical library materialization');
 
 assert.ok(!manager.includes('LuminousVttActorLibrary') && !manager.includes('combatEngine.js'), 'real DM manager must not revive legacy VTT/CombatEngine');
-console.log('DM Combat Library real-tab contract smoke: ok');
+console.log('DM Combat Library real-tab + Universal Library contract smoke: ok');

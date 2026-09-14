@@ -1,52 +1,78 @@
-(function (global) {
+(function(global){
   'use strict';
-  if (global.LuminousCombatRemoteIntents073) return;
+  if(global.LuminousCombatRemoteIntents073)return;
 
-  const ROOT = 'campaña/combate/plannedActions';
-  const clean = (value) => String(value ?? '').trim();
-  const norm = (value) => clean(value).toLowerCase().replace(/[\s-]+/g, '_');
-  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
-  const state = { started:false, ref:null, handler:null, rawPlans:{}, retryTimer:null };
-  function adapter(){ return global.LuminousCombatLiveAdapter073 || null; }
-  function adapterState(){ return adapter()?.state || null; }
-  function runtime(){ return global.LuminousCombat073 || null; }
+  const READY_ROOT='campaña/combate/readyPlayers';
+  const AUTH_ROOT='campaña/combate/authority/current';
+  const clean=value=>String(value??'').trim();
+  const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
+  const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
+  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},authority:{},retryTimer:null};
+  function adapter(){return global.LuminousCombatLiveAdapter073||null;}
+  function adapterState(){return adapter()?.state||null;}
+  function runtime(){return global.LuminousCombat073||null;}
   function combatantForPersistedPlan(raw={}){
-    const data=runtime()?.combatants?.()||{}, explicit=clean(raw.unitId); if(explicit&&data[explicit])return data[explicit];
-    const playerId=clean(raw.scheduledBy); if(!playerId)return null;
+    const data=runtime()?.combatants?.()||{},explicit=clean(raw.unitId);if(explicit&&data[explicit])return data[explicit];
+    const playerId=clean(raw.scheduledBy);if(!playerId)return null;
     return Object.values(data).find(unit=>clean(unit?.canonicalPlayerKey||unit?.ownerPlayerId||unit?.playerId||unit?.characterLink?.playerId)===playerId)||null;
   }
-  function inferTargetSide(unit,raw={}){
-    const explicit=clean(raw.targetSide); if(explicit)return explicit;
-    const target=runtime()?.combatants?.()?.[clean(raw.targetId)]; if(!unit||!target)return '';
-    return unit.faction===target.faction?'ally':'enemy';
-  }
+  function inferTargetSide(unit,raw={}){const explicit=clean(raw.targetSide);if(explicit)return explicit;const target=runtime()?.combatants?.()?.[clean(raw.targetId)];if(!unit||!target)return'';return unit.faction===target.faction?'ally':'enemy';}
+  function commonPlan(raw={},slotIndex=0){return{sourceSlotIndex:Number.isInteger(Number(raw.sourceSlotIndex))?Number(raw.sourceSlotIndex):slotIndex,targetId:clean(raw.targetId)||null,targetSlotIndex:raw.targetSlotIndex==null?null:Math.max(0,Number(raw.targetSlotIndex)||0),additionalTargets:Array.isArray(raw.additionalTargets)?clone(raw.additionalTargets):[]};}
+  function intentPlan(raw={},slotIndex=0,unit=null){const targetSide=inferTargetSide(unit,raw);return{...commonPlan(raw,slotIndex),type:'intent',data:{kind:'target_intent',id:'target_intent',name:'TARGET',targetSide}};}
   function runtimePlan(raw={},slotIndex=0,unit=null){
-    const kind=norm(raw.kind||'skill');
-    const common={sourceSlotIndex:Number.isInteger(Number(raw.sourceSlotIndex))?Number(raw.sourceSlotIndex):slotIndex,targetId:clean(raw.targetId)||null,targetSlotIndex:raw.targetSlotIndex==null?null:Math.max(0,Number(raw.targetSlotIndex)||0),additionalTargets:Array.isArray(raw.additionalTargets)?clone(raw.additionalTargets):[]};
-    const targetSide=inferTargetSide(unit,raw), skills=adapterState()?.skills||{};
+    const kind=norm(raw.kind||'skill'),common=commonPlan(raw,slotIndex),targetSide=inferTargetSide(unit,raw),skills=adapterState()?.skills||{},embedded=clone(raw.actionData||{});
     if(kind==='skill'||kind==='defense'){
-      const skillId=clean(raw.skillId), source=skillId&&skills[skillId]?adapter()?.normalizeSkill?.(skillId,skills[skillId]):null;
-      const data={...(source||{}),kind,skillId,id:skillId||clean(raw.actionName),name:clean(raw.actionName||source?.name||skillId)}; if(targetSide)data.targetSide=targetSide;
-      return {...common,type:kind==='defense'?'defense':'deck',data};
+      const skillId=clean(raw.skillId),source=Object.keys(embedded).length?embedded:(skillId&&skills[skillId]?adapter()?.normalizeSkill?.(skillId,skills[skillId]):null);
+      const data={...(source||{}),kind,skillId,id:skillId||clean(source?.id||raw.actionName),name:clean(raw.actionName||source?.name||skillId)};if(targetSide)data.targetSide=targetSide;return{...common,type:kind==='defense'?'defense':'deck',data};
     }
-    if(kind==='spell'){const spellId=clean(raw.spellId);return {...common,type:'spells',data:{kind:'spell',spellId,id:spellId,name:clean(raw.actionName||spellId),targetSide:targetSide||'enemy',slotLevel:Number(raw.slotLevel)||0,overcast:Boolean(raw.overcast)}};}
-    if(kind==='item'){const itemId=clean(raw.itemId),itemType=clean(raw.itemType)||(targetSide==='ally'?'hp_healing':'offensive');return {...common,type:'items',data:{kind:'item',itemId,id:itemId,name:clean(raw.actionName||itemId),itemType,targetSide}};}
-    if(kind==='global'){const actionKey=clean(raw.actionKey);return {...common,type:'global',data:{kind:'global',actionKey,id:actionKey,name:clean(raw.actionName||actionKey),targetSide}};}
-    if(kind==='trait'){const traitId=clean(raw.traitId);return {...common,type:'traits',data:{kind:'trait',traitId,id:traitId,name:clean(raw.actionName||traitId),targetSide}};}
-    return {...common,type:'auto',data:{kind,id:clean(raw.actionName||raw.skillId||raw.itemId||raw.actionKey),targetSide}};
+    if(kind==='spell'){
+      const spellId=clean(raw.spellId),data={...embedded,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
+    }
+    if(kind==='item'){
+      const itemId=clean(raw.itemId),itemType=clean(raw.itemType||embedded.itemType||embedded.item_type)||(targetSide==='ally'?'hp_healing':'offensive'),data={...embedded,kind:'item',itemId,id:itemId||clean(embedded.id),name:clean(raw.actionName||embedded.name||itemId),itemType,targetSide:targetSide||embedded.targetSide};return{...common,type:'items',data};
+    }
+    if(kind==='global'){
+      const actionKey=clean(raw.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
+    }
+    if(kind==='trait'){
+      const traitId=clean(raw.traitId),data={...embedded,kind:'trait',traitId,id:traitId||clean(embedded.id),name:clean(raw.actionName||embedded.name||traitId),targetSide:targetSide||embedded.targetSide};return{...common,type:'traits',data};
+    }
+    return{...common,type:'auto',data:{...embedded,kind,id:clean(embedded.id||raw.actionName||raw.skillId||raw.itemId||raw.actionKey),targetSide:targetSide||embedded.targetSide}};
+  }
+  function rowsFromReady(ready={}){
+    const out={};
+    for(const [owner,row] of Object.entries(ready||{})){
+      const targets=row?.targetIntents;if(!targets||typeof targets!=='object')continue;
+      out[owner]={};
+      for(const [slot,target] of Object.entries(targets))if(target&&typeof target==='object')out[owner][slot]={...clone(target),scheduledBy:clean(target.scheduledBy||owner),unitId:clean(target.unitId||row.unitId),round:Number(target.round||row.round)||0};
+    }
+    return out;
+  }
+  function applyRows(rows,fullPlans){
+    const combat=runtime(),s=adapterState();if(!combat?.combatants||!s)return false;const data=combat.combatants();
+    Object.values(data).forEach(unit=>{if(unit?.controlled==='remote')unit.autoPlans=[];});
+    for(const ownerRows of Object.values(rows||{})){
+      if(!ownerRows||typeof ownerRows!=='object')continue;
+      for(const [slotKey,raw] of Object.entries(ownerRows)){
+        if(!raw||typeof raw!=='object'||Number(raw.round)&&Number(raw.round)!==Number(s.round))continue;
+        const unit=combatantForPersistedPlan(raw);if(!unit||unit.controlled!=='remote')continue;
+        const slotIndex=Math.max(0,Number(raw.sourceSlotIndex??slotKey)||0);unit.autoPlans=Array.isArray(unit.autoPlans)?unit.autoPlans:[];unit.autoPlans[slotIndex]=fullPlans?runtimePlan(raw,slotIndex,unit):intentPlan(raw,slotIndex,unit);
+      }
+    }
+    combat.render?.();global.LuminousWebGL2Renderer?.requestRender?.(80);return true;
   }
   function apply(){
-    const combat=runtime(),s=adapterState(); if(!combat?.combatants||!s)return false; const data=combat.combatants();
-    Object.values(data).forEach(unit=>{if(unit?.controlled==='remote')unit.autoPlans=[];});
-    for(const ownerRows of Object.values(state.rawPlans||{})){if(!ownerRows||typeof ownerRows!=='object')continue;for(const [slotKey,raw] of Object.entries(ownerRows)){if(!raw||typeof raw!=='object')continue;if(Number(raw.round)&&Number(raw.round)!==Number(s.round))continue;const unit=combatantForPersistedPlan(raw);if(!unit||unit.controlled!=='remote')continue;const slotIndex=Math.max(0,Number(raw.sourceSlotIndex??slotKey)||0);unit.autoPlans=Array.isArray(unit.autoPlans)?unit.autoPlans:[];unit.autoPlans[slotIndex]=runtimePlan(raw,slotIndex,unit);}}
-    combat.render?.(); global.LuminousWebGL2Renderer?.requestRender?.(80); return true;
+    const s=adapterState(),phase=norm(state.authority?.phase),round=Number(state.authority?.round)||0,full=round===Number(s?.round)&&['sealed','running'].includes(phase);
+    return applyRows(full?(state.authority?.plans||{}):state.rawTargets,full);
   }
-  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.ref)return true;state.ref=s.db.ref(ROOT);state.handler=snapshot=>{state.rawPlans=snapshot.val()||{};apply();};state.ref.on('value',state.handler,error=>console.error('[Combat073 RemoteIntents]',error));return true;}
+  function bind(){
+    const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.readyRef||state.authRef)return true;
+    state.readyRef=s.db.ref(READY_ROOT);state.readyHandler=snapshot=>{state.rawTargets=rowsFromReady(snapshot.val()||{});apply();};state.readyRef.on('value',state.readyHandler,error=>console.error('[Combat073 TargetIntents]',error));
+    state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};state.authRef.on('value',state.authHandler,error=>console.error('[Combat073 AuthorityPlans]',error));return true;
+  }
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
-  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.ref&&state.handler)state.ref.off('value',state.handler);state.ref=null;state.handler=null;state.started=false;}
-  global.addEventListener('luminous:combat073-hydrated',apply);
-  global.addEventListener('luminous:combat073-runtime-ready',apply);
-  global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.1',state,start,stop,bind,apply,runtimePlan,inferTargetSide});
+  function stop(){if(state.retryTimer)global.clearTimeout(state.retryTimer);state.retryTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
+  global.addEventListener('luminous:combat073-hydrated',apply);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.4-targets-only',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,rowsFromReady,runtimePlan,intentPlan,inferTargetSide});
   start();
 })(window);

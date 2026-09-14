@@ -22,7 +22,7 @@ assert.ok(combatTab.includes('dm-combat-tab-sprite-x') && combatTab.includes('dm
 assert.ok(combatTab.includes('SAVE COMBAT SPRITE'), 'Combat tab must persist the edited Combat Sprite');
 assert.ok(combatTab.includes("legacyNpcs: 'campaña/base_datos_npcs'"), 'Combat Library must bridge the historical NPC database');
 assert.ok(combatTab.includes("subscribe(ROOTS.legacyNpcs, 'legacyNpcs')"), 'Combat Library must subscribe to historical NPC records');
-assert.ok(combatTab.includes("subscribe(ROOTS.skills, 'skills')"), 'Combat Library must subscribe to the canonical Skill Library');
+assert.ok(combatTab.includes("subscribe(ROOTS.skills, 'skills')"), 'Combat Library editor must retain its Skill Library subscription');
 assert.ok(combatTab.includes('linkedPlayerUnit') && combatTab.includes('linkedActor'), 'Player visual resolution must include linked Player Unit and Actor sources');
 assert.ok(combatTab.includes('row.savePaths = sources.savePaths'), 'Player sprite persistence must target all resolved canonical linked records');
 assert.ok(combatTab.includes('onAuthStateChanged'), 'Firebase library listeners must wait for authentication');
@@ -32,9 +32,11 @@ assert.ok(combatTab.includes('SPRITE NO\\nCARGA') && combatTab.includes('SIN COM
 assert.ok(combatTab.includes('120 / 120 HP'), 'mock battlefield must include visible combat UI context');
 assert.ok(!combatTab.includes('LuminousVttActorLibrary') && !combatTab.includes('CombatEngine'), 'Combat tab manager must not revive legacy VTT/CombatEngine');
 
-assert.ok(librarySync.includes("updates[`${ROOTS.units}/${id}`]"), 'Unit sync must update canonical Unit records individually');
-assert.ok(librarySync.includes("updates[`${ROOTS.skills}/${id}`]"), 'Skill sync must update canonical Skill records individually');
+assert.ok(librarySync.includes('LuminousUniversalLibrary.publish'), 'canonical Unit/Skill sync must publish through the manifest-backed Universal Library');
+assert.ok(librarySync.includes("universalUnitManifest:'campaña/combate/libraryManifest/units'"), 'Unit manifest must use the lightweight Combat library root');
+assert.ok(librarySync.includes("universalSkillManifest:'campaña/combate/libraryManifest/skills'"), 'Skill manifest must use the lightweight Combat library root');
 assert.ok(librarySync.includes('goblins.firebasePayload()'), 'Goblin Units must participate in canonical materialization');
+assert.ok(librarySync.includes('goblins.firebaseSkillPayload(schema)'), 'Goblin Skills must participate in canonical materialization');
 assert.ok(!librarySync.includes('.remove('), 'canonical sync must preserve unrelated Firebase records');
 
 assert.ok(dmSetup.includes('ENCOUNTER SETUP · COMBAT v0.7.3'), 'Viewer must retain Encounter Setup');
@@ -44,4 +46,4 @@ assert.ok(!dmSetup.includes('COMBAT ASSET + SKILL EDITOR'), 'duplicate legacy ed
 assert.ok(!dmSetup.includes('SAVE EQUIPPED SKILLS') && !dmSetup.includes('SAVE SPRITE'), 'asset/Skill editing belongs only to the realtime DM panel');
 assert.ok(!dmSetup.includes('LuminousVttActorLibrary') && !dmSetup.includes('CombatEngine'), 'Encounter Setup must not revive legacy VTT/CombatEngine');
 
-console.log('combat v0.7.3 DM Combat Library + field-only Encounter Setup smoke: ok');
+console.log('combat v0.7.3 DM Combat Library + manifest-backed field-only Encounter Setup smoke: ok');
