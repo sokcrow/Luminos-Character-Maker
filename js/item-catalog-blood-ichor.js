@@ -122,7 +122,8 @@
 
   function createPhysiologyProfile(input = {}) {
     const fluidItemId = get(input.fluidItemId || input.itemId || input.fluidType || "blood")?.id || "blood";
-    const explicitMax = Number(input.maxBloodUnits ?? input.maxBU);
+    const explicitRaw = input.maxBloodUnits ?? input.maxBU;
+    const explicitMax = explicitRaw == null ? null : Number(explicitRaw);
     const modifier = Number(input.bloodPoolModifier ?? input.poolModifier ?? 1);
     const safeDraw = Number(input.safeDrawMaxBU ?? input.safeDrawMax ?? 0);
     const regrowth = Number(input.regrowthPerDay);
@@ -132,7 +133,7 @@
       lineageName: String(input.lineageName || input.name || "Generic").trim(),
       creatureSize: canonicalSize(input.creatureSize || "medium"),
       fluidItemId,
-      maxBloodUnits: Number.isFinite(explicitMax) && explicitMax >= 0 ? explicitMax : null,
+      maxBloodUnits: explicitMax != null && Number.isFinite(explicitMax) && explicitMax >= 0 ? explicitMax : null,
       bloodPoolModifier: Number.isFinite(modifier) && modifier >= 0 ? modifier : 1,
       renewableDraw: input.renewableDraw === true || input.bloodDraw === true,
       drawAction: normalizeId(input.drawAction || "blood_draw"),
