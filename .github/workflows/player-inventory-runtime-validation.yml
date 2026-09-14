@@ -28,6 +28,7 @@ on:
       - js/item-catalog-organ-gland.js
       - js/item-catalog-blood-ichor.js
       - js/item-catalog-venom-secretion.js
+      - js/item-catalog-ooze-gel.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -53,6 +54,7 @@ on:
       - tests/item-catalog-organ-gland-smoke.cjs
       - tests/item-catalog-blood-ichor-smoke.cjs
       - tests/item-catalog-venom-secretion-smoke.cjs
+      - tests/item-catalog-ooze-gel-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -94,6 +96,7 @@ jobs:
           node --check js/item-catalog-organ-gland.js
           node --check js/item-catalog-blood-ichor.js
           node --check js/item-catalog-venom-secretion.js
+          node --check js/item-catalog-ooze-gel.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -134,6 +137,8 @@ jobs:
         run: node tests/item-catalog-blood-ichor-smoke.cjs
       - name: Venom secretion catalog smoke
         run: node tests/item-catalog-venom-secretion-smoke.cjs
+      - name: Ooze gel catalog smoke
+        run: node tests/item-catalog-ooze-gel-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
