@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 10;
+  const VERSION = 11;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -58,6 +58,13 @@
     ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
+    fruit_raw: family("fruit_raw", "Raw Fruit", "Fruta cruda", "material", "https://imgur.com/JA0yMwM.png"),
+    vegetable_raw: family("vegetable_raw", "Raw Vegetable / Produce", "Verdura / hortaliza cruda", "material", "https://imgur.com/QWUZK4g.png"),
+    grain_seed_raw: family("grain_seed_raw", "Grain / Legume / Seed / Nut", "Grano / legumbre / semilla / nuez", "material", "https://imgur.com/Z0TuVti.png"),
+    spice_herb_raw: family("spice_herb_raw", "Spice / Culinary Herb", "Especia / hierba culinaria", "material", "https://imgur.com/zvEvhjc.png"),
+    medicinal_herb_raw: family("medicinal_herb_raw", "Medicinal / Toxic Herb", "Hierba medicinal / tóxica", "material", "https://imgur.com/FY3Sda7.png"),
+    fungus_raw: family("fungus_raw", "Raw Fungus", "Hongo crudo", "material", "https://imgur.com/YRTeaK5.png"),
+    botanical_extract_raw: family("botanical_extract_raw", "Sap / Resin / Botanical Extract", "Savia / resina / extracto botánico", "material", "https://imgur.com/818zarC.png"),
     organ_internal: family("organ_internal", "Internal Organ", "Órgano interno", "material", "https://imgur.com/rXlXbOG.png"),
     organ_sensory: family("organ_sensory", "Sensory Organ", "Órgano sensorial", "material", "https://imgur.com/tPLOEZe.png"),
     organ_brain: family("organ_brain", "Brain", "Cerebro", "material", "https://imgur.com/9MdgTfI.png"),
@@ -158,6 +165,28 @@
     mineral: "ore_mineral",
     plant: "plant_herb",
     herb: "plant_herb",
+    fruit: "fruit_raw",
+    fruits: "fruit_raw",
+    raw_fruit: "fruit_raw",
+    vegetable: "vegetable_raw",
+    vegetables: "vegetable_raw",
+    produce: "vegetable_raw",
+    raw_vegetable: "vegetable_raw",
+    grain: "grain_seed_raw",
+    grains: "grain_seed_raw",
+    legume: "grain_seed_raw",
+    seed: "grain_seed_raw",
+    nut: "grain_seed_raw",
+    spice: "spice_herb_raw",
+    culinary_herb: "spice_herb_raw",
+    medicinal_herb: "medicinal_herb_raw",
+    toxic_herb: "medicinal_herb_raw",
+    fungus: "fungus_raw",
+    mushroom: "fungus_raw",
+    sap: "botanical_extract_raw",
+    resin: "botanical_extract_raw",
+    plant_latex: "botanical_extract_raw",
+    botanical_extract: "botanical_extract_raw",
     organ: "organ_internal",
     internal_organ: "organ_internal",
     heart: "organ_internal",
