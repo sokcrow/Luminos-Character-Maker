@@ -1,0 +1,103 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+
+(async () => {
+  delete globalThis.LuminousItemQualityEngine;
+  delete globalThis.LuminousPlantProduceCatalog;
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-plant-produce.js')).href);
+
+  const catalog = globalThis.LuminousPlantProduceCatalog;
+  assert.ok(catalog);
+  assert.equal(catalog.VERSION, 1);
+  assert.equal(catalog.FAMILY, 'plant_produce');
+  assert.equal(catalog.CURRENCY, 'AHN');
+  assert.equal(catalog.MEASURE, 'market_unit');
+  assert.equal(catalog.RECIPES_IMPLEMENTED, false);
+  assert.equal(catalog.ITEMS.length, 76);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 76);
+
+  const groupCounts = Object.fromEntries(
+    [...new Set(catalog.ITEMS.map((entry) => entry.group))]
+      .map((group) => [group, catalog.list({ group }).length])
+  );
+  assert.deepEqual(groupCounts, {
+    fruit: 12,
+    vegetable: 14,
+    grain_legume: 10,
+    nut_seed: 6,
+    spice: 10,
+    culinary_herb: 6,
+    medicinal_toxic_herb: 8,
+    fungus: 6,
+    botanical_extract: 4,
+  });
+
+  const approvedIcons = new Set([
+    'fruit_raw',
+    'vegetable_raw',
+    'grain_seed_raw',
+    'spice_herb_raw',
+    'medicinal_herb_raw',
+    'fungus_raw',
+    'botanical_extract_raw',
+  ]);
+
+  for (const entry of catalog.ITEMS) {
+    assert.equal(entry.family, 'plant_produce');
+    assert.equal(entry.currency, 'AHN');
+    assert.equal(entry.measure, 'market_unit');
+    assert.equal(entry.qualitySystem, 'universal');
+    assert.equal(entry.recipesImplemented, false);
+    assert.equal(entry.gatheringModel, 'deferred');
+    assert.ok(entry.standardUnitValueAhn > 0);
+    assert.equal(approvedIcons.has(entry.iconFamily), true);
+    assert.equal(Array.isArray(entry.recipeRoles), true);
+    assert.equal(Array.isArray(entry.flavorTags), true);
+    assert.equal(Array.isArray(entry.functionalTags), true);
+    assert.equal(Array.isArray(entry.craftTags), true);
+  }
+
+  assert.equal(catalog.get('apple').standardUnitValueAhn, 300);
+  assert.equal(catalog.get('tomato').standardUnitValueAhn, 300);
+  assert.equal(catalog.get('wheat').standardUnitValueAhn, 150);
+  assert.equal(catalog.get('rare_spice').standardUnitValueAhn, 3000);
+  assert.equal(catalog.get('nightshade').standardUnitValueAhn, 3000);
+  assert.equal(catalog.get('exotic_medicinal_herb').standardUnitValueAhn, 7500);
+  assert.equal(catalog.get('exotic_fungus').standardUnitValueAhn, 5000);
+  assert.equal(catalog.get('exotic_botanical_extract').standardUnitValueAhn, 2500);
+
+  assert.equal(catalog.get('tomato').iconFamily, 'vegetable_raw');
+  assert.equal(catalog.get('almond').iconFamily, 'grain_seed_raw');
+  assert.equal(catalog.get('rosemary').iconFamily, 'spice_herb_raw');
+  assert.equal(catalog.get('nightshade').iconFamily, 'medicinal_herb_raw');
+  assert.equal(catalog.get('common_mushroom').iconFamily, 'fungus_raw');
+  assert.equal(catalog.get('resin').iconFamily, 'botanical_extract_raw');
+
+  assert.equal(catalog.list({ recipeRole: 'protein' }).some((entry) => entry.id === 'beans'), true);
+  assert.equal(catalog.list({ functionalTag: 'oil_source' }).some((entry) => entry.id === 'sesame_seed'), true);
+  assert.equal(catalog.list({ functionalTag: 'fermentable' }).some((entry) => entry.id === 'grape'), true);
+  assert.equal(catalog.list({ craftTag: 'medicine' }).some((entry) => entry.id === 'medicinal_herb'), true);
+  assert.equal(catalog.list({ craftTag: 'poison' }).some((entry) => entry.id === 'nightshade'), true);
+  assert.equal(catalog.list({ flavorTag: 'cooling' }).some((entry) => entry.id === 'mint'), true);
+
+  assert.equal(catalog.get('mushroom').id, 'common_mushroom');
+  assert.equal(catalog.get('healing_herb').id, 'medicinal_herb');
+  assert.equal(catalog.get('latex').id, 'plant_latex');
+
+  assert.equal(catalog.unitValueForQuality('apple', 'standard'), 300);
+  assert.equal(catalog.unitValueForQuality('apple', 'exceptional'), 600);
+
+  const stack = catalog.createIngredientStack('potato', { quantity: 4, quality: 'fine' });
+  assert.equal(stack.quantity, 4);
+  assert.equal(stack.quality, 'fine');
+  assert.equal(stack.unitValueAhn, 300);
+  assert.equal(stack.totalValueAhn, 1200);
+  assert.equal(stack.recipesImplemented, false);
+
+  console.log('Plant produce catalog smoke: OK (76 canonical ingredients, recipes deferred)');
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
