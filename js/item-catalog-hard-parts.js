@@ -12,6 +12,7 @@
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_PART_SIZE = "medium";
   const DRACONIC_VALUE_MULTIPLIER = 3;
+  const AHN_ECONOMY_SCALE = 10;
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
@@ -54,7 +55,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      mediumStandardValueAhn,
+      mediumStandardValueAhn: Math.round(mediumStandardValueAhn * AHN_ECONOMY_SCALE),
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
       sizeSystem: "anatomical_part_size",
@@ -324,6 +325,7 @@
     DEFAULT_QUALITY,
     DEFAULT_PART_SIZE,
     DRACONIC_VALUE_MULTIPLIER,
+    AHN_ECONOMY_SCALE,
     ITEMS,
     ANATOMICAL_PARTS,
     MEDIUM_PRIMITIVE_RECIPES,
