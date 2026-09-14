@@ -11,6 +11,7 @@
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_SIZE = "medium";
+  const AHN_ECONOMY_SCALE = 10;
 
   const ICON_FAMILIES = Object.freeze([
     "meat_mammal",
@@ -58,7 +59,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      priceAhn,
+      priceAhn: Math.round(priceAhn * AHN_ECONOMY_SCALE),
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
       sizeSystem: "universal_physical",
@@ -184,6 +185,7 @@
     CURRENCY,
     DEFAULT_QUALITY,
     DEFAULT_SIZE,
+    AHN_ECONOMY_SCALE,
     ICON_FAMILIES,
     ITEMS,
     get,
