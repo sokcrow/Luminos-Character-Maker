@@ -32,6 +32,7 @@ on:
       - js/item-catalog-essence-core.js
       - js/item-catalog-plant-produce.js
       - js/item-catalog-ore-ingot-gem.js
+      - js/item-catalog-tools.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -61,6 +62,7 @@ on:
       - tests/item-catalog-essence-core-smoke.cjs
       - tests/item-catalog-plant-produce-smoke.cjs
       - tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - tests/item-catalog-tools-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -106,6 +108,7 @@ jobs:
           node --check js/item-catalog-essence-core.js
           node --check js/item-catalog-plant-produce.js
           node --check js/item-catalog-ore-ingot-gem.js
+          node --check js/item-catalog-tools.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -154,6 +157,8 @@ jobs:
         run: node tests/item-catalog-plant-produce-smoke.cjs
       - name: Ore ingot gem catalog smoke
         run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
+      - name: Tool catalog smoke
+        run: node tests/item-catalog-tools-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
