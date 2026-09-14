@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 7);
+  assert.equal(registry.VERSION, 8);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 70);
+  assert.equal(Object.keys(registry.GROUPS).length, 74);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -64,6 +64,11 @@ const { pathToFileURL } = require('node:url');
     ['blood', 'hemolymph', 'ichor']
   );
 
+  assert.deepEqual(
+    registry.list({ domain: 'material' }).filter((entry) => ['venom_raw', 'acid_secretion', 'ink_secretion', 'bio_secretion'].includes(entry.id)).map((entry) => entry.id),
+    ['venom_raw', 'acid_secretion', 'ink_secretion', 'bio_secretion']
+  );
+
   assert.equal(registry.canonicalGroupId('Light Armor'), 'armor_light');
   assert.equal(registry.canonicalGroupId('Melee Weapon'), 'weapon_melee');
   assert.equal(registry.canonicalGroupId('food_meat'), 'food');
@@ -88,6 +93,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.canonicalGroupId('humanoid_blood'), 'blood');
   assert.equal(registry.canonicalGroupId('hemolymph'), 'hemolymph');
   assert.equal(registry.canonicalGroupId('exotic_fluid'), 'ichor');
+  assert.equal(registry.canonicalGroupId('venom'), 'venom_raw');
+  assert.equal(registry.canonicalGroupId('toxic_secretion'), 'venom_raw');
+  assert.equal(registry.canonicalGroupId('acid'), 'acid_secretion');
+  assert.equal(registry.canonicalGroupId('ink'), 'ink_secretion');
+  assert.equal(registry.canonicalGroupId('pheromone'), 'bio_secretion');
+  assert.equal(registry.canonicalGroupId('exotic_secretion'), 'bio_secretion');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
 
@@ -121,6 +132,11 @@ const { pathToFileURL } = require('node:url');
     blood: 'https://imgur.com/7a75QU2.png',
     hemolymph: 'https://imgur.com/Kwwd6A7.png',
     ichor: 'https://imgur.com/KHKQKjb.png',
+    venom_raw: 'https://imgur.com/8dBvLD5.png',
+    acid_secretion: 'https://imgur.com/akDUWvj.png',
+    ink_secretion: 'https://imgur.com/pcc7tsi.png',
+    bio_secretion: 'https://imgur.com/YzrMRpI.png',
+    toxin_material: 'https://imgur.com/8dBvLD5.png',
   };
   for (const [id, icon] of Object.entries(expectedIcons)) assert.equal(registry.resolveIcon(id), icon);
 
@@ -141,6 +157,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.resolveIcon('gland'), 'https://imgur.com/4kqV4TO.png');
   assert.equal(registry.resolveIcon('draconic_blood'), 'https://imgur.com/7a75QU2.png');
   assert.equal(registry.resolveIcon('exotic_fluid'), 'https://imgur.com/KHKQKjb.png');
+  assert.equal(registry.resolveIcon('raw_venom'), 'https://imgur.com/8dBvLD5.png');
+  assert.equal(registry.resolveIcon('acid'), 'https://imgur.com/akDUWvj.png');
+  assert.equal(registry.resolveIcon('ink'), 'https://imgur.com/pcc7tsi.png');
+  assert.equal(registry.resolveIcon('scent'), 'https://imgur.com/YzrMRpI.png');
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
   console.log(`Item icon registry smoke: OK (${groups.length} families)`);
