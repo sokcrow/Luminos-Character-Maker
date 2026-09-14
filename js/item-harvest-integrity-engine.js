@@ -41,6 +41,8 @@
     tremor_burst: Object.freeze([]),
   });
 
+  const ORGAN_EXPOSURES = Object.freeze(["burn", "heat", "acid", "cold", "frozen", "electrical", "necrotic", "mana_corruption"]);
+
   const RESOURCE_PROFILES = Object.freeze({
     meat: Object.freeze({
       id: "meat",
@@ -91,19 +93,40 @@
       secondaryPhysical: Object.freeze(["piercing"]),
       exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "contamination", "mana_corruption"]),
     }),
+    organ_internal: Object.freeze({
+      id: "organ_internal",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze(["piercing"]),
+      secondaryPhysical: Object.freeze(["bludgeoning"]),
+      exposureChannels: ORGAN_EXPOSURES,
+    }),
+    organ_sensory: Object.freeze({
+      id: "organ_sensory",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze(["piercing", "slashing"]),
+      secondaryPhysical: Object.freeze(["bludgeoning"]),
+      exposureChannels: ORGAN_EXPOSURES,
+    }),
+    organ_brain: Object.freeze({
+      id: "organ_brain",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze(["bludgeoning", "piercing"]),
+      secondaryPhysical: Object.freeze([]),
+      exposureChannels: ORGAN_EXPOSURES,
+    }),
     organ_gland: Object.freeze({
       id: "organ_gland",
       directHitSensitive: false,
       primaryPhysical: Object.freeze(["piercing"]),
       secondaryPhysical: Object.freeze(["bludgeoning"]),
-      exposureChannels: Object.freeze(["burn", "heat", "acid", "cold", "frozen", "electrical", "necrotic", "mana_corruption"]),
+      exposureChannels: ORGAN_EXPOSURES,
     }),
     blood_ichor: Object.freeze({
       id: "blood_ichor",
       directHitSensitive: false,
       primaryPhysical: Object.freeze([]),
       secondaryPhysical: Object.freeze(["slashing", "piercing"]),
-      exposureChannels: Object.freeze(["blood_loss", "burn", "heat", "acid", "mana_corruption"]),
+      exposureChannels: Object.freeze(["blood_loss", "burn", "heat", "acid", "contamination", "mana_corruption"]),
     }),
     venom_secretion: Object.freeze({
       id: "venom_secretion",
