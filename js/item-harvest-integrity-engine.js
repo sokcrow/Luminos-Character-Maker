@@ -135,6 +135,13 @@
       secondaryPhysical: Object.freeze(["bludgeoning"]),
       exposureChannels: Object.freeze(["burn", "heat", "acid", "mana_corruption"]),
     }),
+    ooze_gel: Object.freeze({
+      id: "ooze_gel",
+      directHitSensitive: false,
+      primaryPhysical: Object.freeze([]),
+      secondaryPhysical: Object.freeze(["slashing", "bludgeoning"]),
+      exposureChannels: Object.freeze(["burn", "heat", "cold", "frozen", "acid", "electrical", "contamination", "mana_corruption"]),
+    }),
   });
 
   function normalizeId(value) {
