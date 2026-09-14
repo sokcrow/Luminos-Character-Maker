@@ -135,6 +135,17 @@ const { pathToFileURL } = require('node:url');
   assert.equal(blood.exposures.contamination, 3);
   assert.equal(blood.exposures.mana_corruption, 20);
 
+  const ooze = harvest.harvestCondition(record, 'ooze_gel');
+  assert.equal(ooze.directHitSensitive, false);
+  assert.equal(ooze.physical.slashing.primary, false);
+  assert.equal(ooze.physical.slashing.damage, 18);
+  assert.equal(ooze.physical.bludgeoning.primary, false);
+  assert.equal(ooze.physical.bludgeoning.damage, 16);
+  assert.equal(ooze.physical.piercing, undefined, 'piercing is not a primary ooze-destruction channel');
+  assert.equal(ooze.exposures.burn, 20);
+  assert.equal(ooze.exposures.contamination, 3);
+  assert.equal(ooze.exposures.mana_corruption, 20);
+
   const organRecord = harvest.createDamageRecord();
   harvest.recordEvent(organRecord, { sourceType: 'weapon', damageType: 'perforante', damageDealt: 11 });
   harvest.recordEvent(organRecord, { sourceType: 'weapon', damageType: 'cortante', damageDealt: 7 });
@@ -175,7 +186,7 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(spellWithExplicitTrauma.physicalTraumaType, 'bludgeoning');
 
-  console.log('Harvest integrity engine smoke: OK (physical vs magic/status + hard/fragile/organ/blood/secretion profiles)');
+  console.log('Harvest integrity engine smoke: OK (physical vs magic/status + hard/fragile/organ/blood/secretion/ooze profiles)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
