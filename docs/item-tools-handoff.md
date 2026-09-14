@@ -1,8 +1,8 @@
 # Tool System Handoff
 
-This document records the approved Tool-system contract already integrated in `js/item-catalog-tools.js` and the exact work intentionally left for the next pass.
+This document records the approved Tool-system contract already integrated in `js/item-catalog-tools.js`, the Craft / Industrial Component layer now integrated in `js/item-catalog-craft-components.js`, and the work intentionally left for later passes.
 
-## Integrated rules
+## Integrated Tool rules
 
 ### Tool requirement and improvisation
 
@@ -40,19 +40,19 @@ Tools use the universal Item Quality system. Final Quality of a crafted Tool com
 
 `js/item-catalog-tools.js` contains **32 reusable Tool items** with approved Standard Ahn values, Tool proficiencies and semantic Recipes.
 
-Canonical Tool icon families now include:
+Canonical Tool icon families include:
 
-- `tool` — existing generic Tool icon
-- `repair_kit` — existing Repair Kit icon
-- `harvest_kit` — https://imgur.com/o1ZbzmZ.png
-- `cooking_tools` — https://imgur.com/9J5aoNo.png
-- `smithing_tools` — https://imgur.com/U9eG3Iw.png
-- `fabrication_tools` — https://imgur.com/KBJtJvx.png
-- `textile_tools` — https://imgur.com/GroyHFc.png
-- `medical_tools` — https://imgur.com/q0qnACw.png
-- `technical_tools` — https://imgur.com/oPFjjqC.png
-- `lapidary_tools` — https://imgur.com/EWDbp22.png
-- `chemical_tools` — https://imgur.com/jlcBHuz.png
+- `tool`
+- `repair_kit`
+- `harvest_kit`
+- `cooking_tools`
+- `smithing_tools`
+- `fabrication_tools`
+- `textile_tools`
+- `medical_tools`
+- `technical_tools`
+- `lapidary_tools`
+- `chemical_tools`
 
 ### Approved Standard prices
 
@@ -91,61 +91,106 @@ Canonical Tool icon families now include:
 | Chemical Processing Tools | ₳55,000 |
 | Repair Kit | ₳30,000 |
 
-## Recipes: current state
+## Craft / Industrial Components — integrated
 
-Every Tool already has a semantic Recipe with:
+`js/item-catalog-craft-components.js` now defines **28 processed Craft Components** that can be referenced as canonical recipe inputs by Tools and future Weapons, Armor, Augments and other crafted equipment.
+
+The component layer does not assign an arbitrary fixed retail value. Its approved base-value contract is:
+
+`Craft Base Value = sum(consumed input values) × process multiplier`
+
+Retail markup is **not included** in this calculation. This prevents chained Recipes from applying retail markup repeatedly when one crafted component becomes the input of another crafted item.
+
+Universal Quality is applied to the crafted output after the Craft Base Value is calculated.
+
+### Process multipliers and Checks
+
+The current process scale spans:
+
+- processed stock and paper: ×1.20;
+- wire, textile, leather and basic containers: ×1.25;
+- hardware and structural fabrication: ×1.30;
+- housing, glass and ceramic fabrication: ×1.35;
+- chemical processing: ×1.40;
+- chemical-resistant containers: ×1.45;
+- electrical and mechanical fabrication: ×1.50;
+- precision, optical and electronics fabrication: ×1.65;
+- calibration: ×1.70;
+- circuitry: ×1.80;
+- sensors: ×1.85;
+- Augment-grade fabrication: ×2.00;
+- Corp / Wing precision fabrication: ×2.20;
+- exotic industrial fabrication: ×2.50.
+
+Each component Recipe declares a semantic Craft Check, required Tool type and base Threshold. The approved Threshold bands remain:
+
+- Generic processing: **TH18**;
+- Workshop processing: **TH22**;
+- Corp / Wing processing: **TH28**.
+
+Improvisation continues to use the universal Tool rule of **TH +3** when physically plausible.
+
+Exact canonical Character Skill IDs remain a later binding step; component Recipes store semantic Checks so the Recipe definitions do not have to be redesigned when that binding is completed.
+
+### Integrated component icon families
+
+Existing icon families are reused wherever they already describe the component clearly. Five additional families are integrated:
+
+- `structural_stock` — https://imgur.com/C985Ijj.png
+- `fasteners_hardware` — https://imgur.com/UvxjuRG.png
+- `wire_cable` — https://imgur.com/NHMef8W.png
+- `glass_component` — https://imgur.com/s4C3Jog.png
+- `container` — https://imgur.com/DvIOvQk.png
+
+Ceramic components reuse `craft_component`. Optical components reuse `precision_component`.
+
+The component catalog also reuses `scrap_mechanical`, `electronic_parts`, `precision_component`, `circuitry`, `chemical`, `textile`, `hide_mammal` and `craft_component` where appropriate.
+
+### Recipe-input contract
+
+Components expose canonical IDs plus `requirementTags`. Future Recipes may therefore request either a specific component ID or a compatible semantic requirement without duplicating material definitions.
+
+Examples include:
+
+- `mechanical_parts`;
+- `precision_component`;
+- `electronic_parts`;
+- `circuitry`;
+- `textile_component`;
+- `container`;
+- `chemical_component`;
+- `chemical_resistant_container`;
+- `glass_or_optical_material`;
+- `structural_component`;
+- `structural_handle`;
+- `generic_component`.
+
+Finished equipment should consume refined or processed inputs when appropriate rather than consuming Raw Ore directly.
+
+## Tool Recipes: intentionally still semantic
+
+Every Tool still has a semantic Recipe with:
 
 - output item and quantity 1;
 - required Tool type;
-- required Tool is reusable and not consumed;
+- required Tool reusable and not consumed;
 - improvisation allowed at +3 TH;
 - output Quality from Craft Check;
-- component requirements expressed as semantic tags;
-- exact component quantities explicitly deferred.
+- semantic component requirements.
 
-Do not invent exact component amounts yet. The catalog intentionally uses requirements such as `precision_component`, `mechanical_parts`, `refined_metal`, `textile`, `container`, `circuitry`, `chemical_component`, and similar component tags.
+Now that the component catalog exists, a later Tool-recipe pass may replace those semantic requirements with exact canonical component IDs and quantities. That pass is intentionally separate from the component-family integration so the project can continue to the next item family without prematurely locking Work Units, Stations or Skill-ID bindings.
 
-## Next family: Craft / Industrial Components
+## Work intentionally left for later Crafting passes
 
-This is the next family to design before returning to exact Tool recipe quantities.
-
-Present the complete proposed list for approval before touching PR #777. Recommended coverage:
-
-1. Mechanical Parts and Scrap refinement.
-2. Fasteners / generic assembly hardware.
-3. Precision Components.
-4. Electronic Parts.
-5. Circuitry.
-6. Processed Textile components / textile stock.
-7. Chemical components and suitable containers.
-8. Glass / Ceramic / Optical components.
-9. Structural stock / handles needed by fabrication.
-10. Standard intermediate component forms shared by Tools, Weapons, Armor and Augments.
-
-The icon registry already contains these relevant material groups and should be checked before requesting new art:
-
-- `scrap_mechanical`
-- `electronic_parts`
-- `precision_component`
-- `circuitry`
-- `chemical`
-- `textile`
-- `craft_component`
-
-Do not make finished equipment consume Raw Ore directly when a refined or intermediate component is appropriate.
-
-## Work intentionally left after Components
-
-Once Craft / Industrial Components is approved and integrated:
-
-1. Replace semantic component requirements in Tool recipes with exact canonical item IDs and quantities.
-2. Assign each Tool recipe its final Craft TH and Work Units.
-3. Bind each Tool/action to the actual canonical Character Skill ID used by Luminous.
+1. Replace semantic Tool-recipe requirements with exact canonical component IDs and quantities.
+2. Assign each Tool recipe its final Craft TH and Work Units where not already defined by process.
+3. Bind each Tool/action and Component semantic Check to the actual canonical Character Skill ID used by Luminous.
 4. Balance the Tool Base Power scale against Character Skill and Tool Proficiency.
 5. Decide whether universal Quality modifies Tool Base Power, durability, both, or neither.
 6. Connect reusable physical Tools to the future universal Condition/Durability engine.
-7. Design Stations separately: Forge, Furnace, Lapidary Bench, etc. A Tool is not a Station.
+7. Design Stations separately: Forge, Furnace, Lapidary Bench, Electronics Bench, Chemical Station, etc. A Tool is not a Station.
 8. Preserve the weapon crossover rule: knives, hammers, picks, saws and similar real objects remain their normal item/weapon archetype and can improvise suitable work; do not duplicate them as Tool items only to unlock a Craft.
+9. Bind component input quantities and material-lineage transforms where a future Production/Crafting pass needs exact conservation rules.
 
 ## Standing workflow rule
 
