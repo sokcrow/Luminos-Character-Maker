@@ -60,6 +60,7 @@ on:
       - tests/item-catalog-ooze-gel-smoke.cjs
       - tests/item-catalog-essence-core-smoke.cjs
       - tests/item-catalog-plant-produce-smoke.cjs
+      - tests/item-catalog-ore-ingot-gem-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -151,6 +152,8 @@ jobs:
         run: node tests/item-catalog-essence-core-smoke.cjs
       - name: Plant produce catalog smoke
         run: node tests/item-catalog-plant-produce-smoke.cjs
+      - name: Ore ingot gem catalog smoke
+        run: node tests/item-catalog-ore-ingot-gem-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
