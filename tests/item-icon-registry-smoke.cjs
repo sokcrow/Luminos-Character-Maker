@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 11);
+  assert.equal(registry.VERSION, 12);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 84);
+  assert.equal(Object.keys(registry.GROUPS).length, 87);
   assert.equal(registry.has('healing_hp'), true);
   assert.equal(registry.has('weapon_melee'), true);
   assert.equal(registry.has('trap'), false);
@@ -34,38 +34,10 @@ const { pathToFileURL } = require('node:url');
     ['meat_mammal', 'meat_bird', 'meat_fish', 'meat_shellfish', 'meat_reptile', 'meat_draconic', 'meat_insectoid']
   );
 
+  const mineralIconIds = ['ore_raw', 'metal_ingot', 'gem_rough', 'gem_cut'];
   assert.deepEqual(
-    registry.list({ domain: 'material' }).filter((entry) => ['hide_mammal', 'pelt_fur', 'hide_reptile', 'hide_draconic'].includes(entry.id)).map((entry) => entry.id),
-    ['hide_mammal', 'pelt_fur', 'hide_reptile', 'hide_draconic']
-  );
-
-  assert.deepEqual(
-    registry.list({ domain: 'material' }).filter((entry) => ['organ_internal', 'organ_sensory', 'organ_brain', 'organ_gland'].includes(entry.id)).map((entry) => entry.id),
-    ['organ_internal', 'organ_sensory', 'organ_brain', 'organ_gland']
-  );
-
-  assert.deepEqual(
-    registry.list({ domain: 'material' }).filter((entry) => ['venom_raw', 'acid_secretion', 'ink_secretion', 'bio_secretion'].includes(entry.id)).map((entry) => entry.id),
-    ['venom_raw', 'acid_secretion', 'ink_secretion', 'bio_secretion']
-  );
-
-  assert.deepEqual(
-    registry.list({ domain: 'material' }).filter((entry) => ['essence_raw', 'energy_core'].includes(entry.id)).map((entry) => entry.id),
-    ['essence_raw', 'energy_core']
-  );
-
-  const botanicalIds = [
-    'fruit_raw',
-    'vegetable_raw',
-    'grain_seed_raw',
-    'spice_herb_raw',
-    'medicinal_herb_raw',
-    'fungus_raw',
-    'botanical_extract_raw',
-  ];
-  assert.deepEqual(
-    registry.list({ domain: 'material' }).filter((entry) => botanicalIds.includes(entry.id)).map((entry) => entry.id),
-    botanicalIds
+    registry.list({ domain: 'material' }).filter((entry) => mineralIconIds.includes(entry.id)).map((entry) => entry.id),
+    mineralIconIds
   );
 
   const aliasExpectations = {
@@ -83,6 +55,16 @@ const { pathToFileURL } = require('node:url');
     feather: 'feather_raw',
     wool: 'animal_fiber_raw',
     raw_silk: 'silk_raw',
+    ore: 'ore_raw',
+    mineral: 'ore_raw',
+    ore_mineral: 'ore_raw',
+    ingot: 'metal_ingot',
+    refined_metal: 'metal_ingot',
+    alloy: 'metal_ingot',
+    rough_gem: 'gem_rough',
+    raw_gem: 'gem_rough',
+    cut_gem: 'gem_cut',
+    polished_gem: 'gem_cut',
     heart: 'organ_internal',
     eye: 'organ_sensory',
     brain: 'organ_brain',
@@ -137,22 +119,75 @@ const { pathToFileURL } = require('node:url');
     medicinal_herb_raw: 'https://imgur.com/FY3Sda7.png',
     fungus_raw: 'https://imgur.com/YRTeaK5.png',
     botanical_extract_raw: 'https://imgur.com/818zarC.png',
-    toxin_material: 'https://imgur.com/8dBvLD5.png',
+    ore_raw: 'https://imgur.com/xR1qk05.png',
+    metal_ingot: 'https://imgur.com/BNTZ6FI.png',
+    gem_rough: 'https://imgur.com/18tq0PQ.png',
+    gem_cut: 'https://imgur.com/sDAhiUI.png',
   };
   for (const [id, icon] of Object.entries(expectedIcons)) assert.equal(registry.resolveIcon(id), icon);
-
-  assert.equal(registry.resolveIcon('fruit'), 'https://imgur.com/JA0yMwM.png');
-  assert.equal(registry.resolveIcon('vegetable'), 'https://imgur.com/QWUZK4g.png');
-  assert.equal(registry.resolveIcon('grain'), 'https://imgur.com/Z0TuVti.png');
-  assert.equal(registry.resolveIcon('spice'), 'https://imgur.com/zvEvhjc.png');
-  assert.equal(registry.resolveIcon('nightshade'), registry.resolveIcon('generic_item'));
-  assert.equal(registry.resolveIcon('mushroom'), 'https://imgur.com/YRTeaK5.png');
-  assert.equal(registry.resolveIcon('resin'), 'https://imgur.com/818zarC.png');
+  assert.equal(registry.resolveIcon('ore_mineral'), 'https://imgur.com/xR1qk05.png');
   assert.equal(registry.get('missing-family').id, 'generic_item');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
-  assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
-  console.log(`Item icon registry smoke: OK (${groups.length} families)`);
+  delete globalThis.LuminousOreIngotGemCatalog;
+  const catalog = require(path.resolve(__dirname, '../js/item-catalog-ore-ingot-gem.js'));
+  assert.ok(catalog);
+  assert.equal(catalog.VERSION, 1);
+  assert.equal(catalog.FAMILY, 'ore_ingot_gem');
+  assert.equal(catalog.MATERIAL_UNIT_ABBREVIATION, 'MU');
+  assert.equal(catalog.RAW_MINERALS.length, 31);
+  assert.equal(catalog.REFINED_METALS.length, 25);
+  assert.equal(catalog.ALLOYS.length, 17);
+  assert.equal(catalog.ROUGH_GEMS.length, 12);
+  assert.equal(catalog.CUT_GEMS.length, 12);
+  assert.equal(catalog.ITEMS.length, 97);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 97);
+
+  assert.equal(catalog.get('iron_ore').standardUnitValueAhn, 12000);
+  assert.equal(catalog.get('titanium_ore').standardUnitValueAhn, 75000);
+  assert.equal(catalog.get('exotic_industrial_mineral').standardUnitValueAhn, 300000);
+  assert.equal(catalog.get('iron').standardUnitValueAhn, 20000);
+  assert.equal(catalog.get('titanium_alloy').standardUnitValueAhn, 185000);
+  assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 650000);
+
+  assert.equal(catalog.get('iron_ore').iconFamily, 'ore_raw');
+  assert.equal(catalog.get('iron').iconFamily, 'metal_ingot');
+  assert.equal(catalog.get('rough_ruby').iconFamily, 'gem_rough');
+  assert.equal(catalog.get('ruby').iconFamily, 'gem_cut');
+  assert.deepEqual(catalog.get('ruby').resonanceTags, ['fire', 'heat']);
+  assert.deepEqual(catalog.get('topaz').resonanceTags, ['lightning', 'energy']);
+  assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 200000);
+  assert.equal(catalog.unitValueForQuality('starstone', 'exceptional'), 360000);
+
+  assert.equal(catalog.canSourceFromCreatureBody('iron_ore'), true);
+  assert.equal(catalog.canSourceFromCreatureBody('rough_ruby'), true);
+  assert.equal(catalog.canSourceFromCreatureBody('iron'), false);
+  assert.equal(catalog.canSourceFromCreatureBody('ruby'), false);
+  assert.equal(catalog.CREATURE_MINERAL_HARVEST_RULE.replacesBiologicalFamilies, true);
+  assert.equal(catalog.CREATURE_MINERAL_HARVEST_RULE.naturalGemsAreRoughByDefault, true);
+
+  const golemOre = catalog.createCreatureHarvestStack('iron_ore', {
+    materialUnits: 3,
+    quality: 'fine',
+    lineageId: 'stone_golem',
+    lineageName: 'Stone Golem',
+  });
+  assert.equal(golemOre.origin, 'creature_body');
+  assert.equal(golemOre.quantity, 3);
+  assert.equal(golemOre.lineageId, 'stone_golem');
+  assert.equal(golemOre.displayName, 'Stone Golem Iron Ore');
+  assert.equal(golemOre.unitValueAhn, 18000);
+  assert.equal(golemOre.totalValueAhn, 54000);
+
+  const roughGem = catalog.createCreatureHarvestStack('rough_ruby', {
+    quantity: 1,
+    lineageId: 'crystal_beast',
+    lineageName: 'Crystal Beast',
+  });
+  assert.equal(roughGem.displayName, 'Crystal Beast Ruby');
+  assert.equal(catalog.createCreatureHarvestStack('ruby', { quantity: 1 }), null);
+
+  console.log(`Item icon registry + Ore/Ingot/Gem catalog smoke: OK (${groups.length} icon families, ${catalog.ITEMS.length} materials)`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

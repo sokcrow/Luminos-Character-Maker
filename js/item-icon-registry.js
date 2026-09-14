@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 11;
+  const VERSION = 12;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -55,7 +55,10 @@
     feather_raw: family("feather_raw", "Feather / Down", "Pluma / Plumón", "material", "https://imgur.com/EPkBtW0.png"),
     animal_fiber_raw: family("animal_fiber_raw", "Raw Animal Fiber", "Fibra animal cruda", "material", "https://imgur.com/A3FpNXr.png"),
     silk_raw: family("silk_raw", "Raw Silk / Exotic Fiber", "Seda cruda / Fibra exótica", "material", "https://imgur.com/NYnkd17.png"),
-    ore_mineral: family("ore_mineral", "Ore / Mineral", "Mena / Mineral", "material", "https://imgur.com/Pwm1Idx.png"),
+    ore_raw: family("ore_raw", "Ore / Raw Mineral", "Mena / Mineral crudo", "material", "https://imgur.com/xR1qk05.png"),
+    metal_ingot: family("metal_ingot", "Ingot / Refined Metal", "Lingote / Metal refinado", "material", "https://imgur.com/BNTZ6FI.png"),
+    gem_rough: family("gem_rough", "Rough Gem", "Gema en bruto", "material", "https://imgur.com/18tq0PQ.png"),
+    gem_cut: family("gem_cut", "Cut / Polished Gem", "Gema tallada / pulida", "material", "https://imgur.com/sDAhiUI.png"),
     organic_material: family("organic_material", "Organic Material", "Material orgánico", "material", "https://imgur.com/lqQbJds.png"),
     plant_herb: family("plant_herb", "Plant / Herb", "Planta / Hierba", "material", "https://imgur.com/DucSfXD.png"),
     fruit_raw: family("fruit_raw", "Raw Fruit", "Fruta cruda", "material", "https://imgur.com/JA0yMwM.png"),
@@ -161,8 +164,17 @@
     silk: "silk_raw",
     raw_silk: "silk_raw",
     exotic_raw_fiber: "silk_raw",
-    ore: "ore_mineral",
-    mineral: "ore_mineral",
+    ore: "ore_raw",
+    mineral: "ore_raw",
+    ore_mineral: "ore_raw",
+    raw_mineral: "ore_raw",
+    ingot: "metal_ingot",
+    refined_metal: "metal_ingot",
+    alloy: "metal_ingot",
+    rough_gem: "gem_rough",
+    raw_gem: "gem_rough",
+    cut_gem: "gem_cut",
+    polished_gem: "gem_cut",
     plant: "plant_herb",
     herb: "plant_herb",
     fruit: "fruit_raw",

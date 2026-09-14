@@ -31,6 +31,7 @@ on:
       - js/item-catalog-ooze-gel.js
       - js/item-catalog-essence-core.js
       - js/item-catalog-plant-produce.js
+      - js/item-catalog-ore-ingot-gem.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -103,6 +104,7 @@ jobs:
           node --check js/item-catalog-ooze-gel.js
           node --check js/item-catalog-essence-core.js
           node --check js/item-catalog-plant-produce.js
+          node --check js/item-catalog-ore-ingot-gem.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
