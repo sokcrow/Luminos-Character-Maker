@@ -132,7 +132,7 @@
       id: "venom_secretion",
       directHitSensitive: false,
       primaryPhysical: Object.freeze(["piercing"]),
-      secondaryPhysical: Object.freeze([]),
+      secondaryPhysical: Object.freeze(["bludgeoning"]),
       exposureChannels: Object.freeze(["burn", "heat", "acid", "mana_corruption"]),
     }),
   });
