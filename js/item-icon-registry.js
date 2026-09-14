@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 8;
+  const VERSION = 9;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -69,6 +69,7 @@
     acid_secretion: family("acid_secretion", "Acid Secretion", "Secreción ácida", "material", "https://imgur.com/akDUWvj.png"),
     ink_secretion: family("ink_secretion", "Ink Secretion", "Secreción de tinta", "material", "https://imgur.com/pcc7tsi.png"),
     bio_secretion: family("bio_secretion", "Biological Secretion", "Secreción biológica", "material", "https://imgur.com/YzrMRpI.png"),
+    ooze_gel: family("ooze_gel", "Ooze / Gel / Slime", "Baba / Gel / Slime", "material", "https://imgur.com/91cMoMg.png"),
     toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/8dBvLD5.png"),
     abnormality_part: family("abnormality_part", "Abnormality Part", "Parte de anormalidad", "material", "https://imgur.com/JpK4vSq.png"),
     craft_component: family("craft_component", "Generic Crafting Component", "Componente genérico de fabricación", "material", "https://imgur.com/exU9uZ1.png"),
@@ -187,6 +188,14 @@
     pheromone_scent: "bio_secretion",
     defensive_secretion: "bio_secretion",
     exotic_secretion: "bio_secretion",
+    ooze: "ooze_gel",
+    slime: "ooze_gel",
+    mucus: "ooze_gel",
+    gel: "ooze_gel",
+    adhesive_ooze: "ooze_gel",
+    regenerative_gel: "ooze_gel",
+    conductive_gel: "ooze_gel",
+    exotic_ooze: "ooze_gel",
     generic_crafting: "craft_component",
     data: "data_storage",
     container: "generic_item",
