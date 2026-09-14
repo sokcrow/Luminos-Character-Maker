@@ -17,19 +17,20 @@ const { pathToFileURL } = require('node:url');
   assert.ok(hard);
   assert.equal(hard.VERSION, 1);
   assert.equal(hard.FAMILY, 'hard_parts');
+  assert.equal(hard.AHN_ECONOMY_SCALE, 10);
   assert.equal(hard.ITEMS.length, 10);
 
   const prices = {
-    hard_bone: 600,
-    hard_beak: 900,
-    hard_claw: 1000,
-    hard_talon: 1000,
-    hard_fang: 1200,
-    hard_horn: 1500,
-    hard_antler: 1500,
-    hard_tusk: 1800,
-    hard_ivory: 1800,
-    hard_exotic: 2200,
+    hard_bone: 6000,
+    hard_beak: 9000,
+    hard_claw: 10000,
+    hard_talon: 10000,
+    hard_fang: 12000,
+    hard_horn: 15000,
+    hard_antler: 15000,
+    hard_tusk: 18000,
+    hard_ivory: 18000,
+    hard_exotic: 22000,
   };
   for (const [id, price] of Object.entries(prices)) {
     const item = hard.get(id);
@@ -40,10 +41,10 @@ const { pathToFileURL } = require('node:url');
     assert.equal(item.creatureSizeDoesNotImplyPartSize, true);
   }
 
-  assert.equal(hard.priceForSizeAndQuality('hard_bone', 'tiny', 'standard'), 150);
-  assert.equal(hard.priceForSizeAndQuality('hard_bone', 'large', 'standard'), 1200);
-  assert.equal(hard.priceForSizeAndQuality('hard_fang', 'medium', 'fine'), 1800);
-  assert.equal(hard.priceForSizeAndQuality('hard_fang', 'medium', 'standard', { draconic: true }), 3600);
+  assert.equal(hard.priceForSizeAndQuality('hard_bone', 'tiny', 'standard'), 1500);
+  assert.equal(hard.priceForSizeAndQuality('hard_bone', 'large', 'standard'), 12000);
+  assert.equal(hard.priceForSizeAndQuality('hard_fang', 'medium', 'fine'), 18000);
+  assert.equal(hard.priceForSizeAndQuality('hard_fang', 'medium', 'standard', { draconic: true }), 36000);
 
   const wolfProfile = hard.createAnatomyProfile({
     id: 'wolf',
@@ -82,7 +83,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(wolfFemur.form, 'long');
   assert.equal(wolfFemur.materialName, 'Wolf Femur');
   assert.equal(wolfFemur.displayName, 'Medium Wolf Femur');
-  assert.equal(wolfFemur.unitValueAhn, 900);
+  assert.equal(wolfFemur.unitValueAhn, 9000);
   assert.equal(wolfFemur.canMergeForLargerPart, false);
 
   const chickenFemurs = hard.createHarvestPart('hard_bone', {
@@ -116,9 +117,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(dragonFang.materialName, 'Red Dragon Fang');
   assert.equal(dragonFang.displayName, 'Large Red Dragon Fang');
   assert.equal(dragonFang.lineageValueMultiplier, 3);
-  assert.equal(dragonFang.unitValueAhn, 7200);
+  assert.equal(dragonFang.unitValueAhn, 72000);
 
-  console.log('Hard Parts catalog smoke: OK (anatomical pieces, size gates, lineage naming)');
+  console.log('Hard Parts catalog smoke: OK (anatomical pieces, size gates, lineage naming, Ahn recalibration)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
