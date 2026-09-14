@@ -160,6 +160,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(gland.physical.piercing.primary, true);
   assert.equal(gland.physical.bludgeoning.primary, false);
 
+  const secretion = harvest.harvestCondition(organRecord, 'venom_secretion');
+  assert.equal(secretion.physical.piercing.primary, true);
+  assert.equal(secretion.physical.piercing.damage, 11);
+  assert.equal(secretion.physical.bludgeoning.primary, false);
+  assert.equal(secretion.physical.bludgeoning.damage, 9);
+  assert.equal(secretion.physical.slashing, undefined);
+
   const spellWithExplicitTrauma = harvest.explainEvent({
     sourceType: 'spell',
     damageType: 'perforante',
@@ -168,7 +175,7 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(spellWithExplicitTrauma.physicalTraumaType, 'bludgeoning');
 
-  console.log('Harvest integrity engine smoke: OK (physical vs magic/status + hard/fragile/organ/blood profiles)');
+  console.log('Harvest integrity engine smoke: OK (physical vs magic/status + hard/fragile/organ/blood/secretion profiles)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
