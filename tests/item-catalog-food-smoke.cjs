@@ -25,13 +25,13 @@ const { pathToFileURL } = require('node:url');
   const wolf = food.get('food_cooked_wolf');
   assert.equal(wolf.name, 'Cooked Wolf Meat');
   assert.equal(wolf.rawItemId, 'meat_wolf');
-  assert.equal(wolf.cookedBaseValueAhn, 225);
-  assert.equal(wolf.priceAhn, 280);
+  assert.equal(wolf.cookedBaseValueAhn, 2250);
+  assert.equal(wolf.priceAhn, 2810);
 
   const shark = food.get('food_cooked_shark');
   assert.equal(shark.name, 'Cooked Shark Meat');
-  assert.equal(shark.cookedBaseValueAhn, 300);
-  assert.equal(shark.priceAhn, 380);
+  assert.equal(shark.cookedBaseValueAhn, 3000);
+  assert.equal(shark.priceAhn, 3750);
 
   const venison = food.get('food_cooked_venison');
   assert.equal(venison.name, 'Cooked Venison');
@@ -50,13 +50,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(cookedWolf.rationEquivalentPerUnit, 1);
   assert.equal(cookedWolf.inputQuality, 'fine');
   assert.equal(cookedWolf.quality, 'standard');
-  assert.equal(cookedWolf.unitValueAhn, 280);
+  assert.equal(cookedWolf.unitValueAhn, 2810);
 
   const hugeWolf = food.createSimpleCookedFood(wolfStack, { size: 'huge', quality: 'exceptional' });
   assert.equal(hugeWolf.hungerPerUnit, 400);
   assert.equal(hugeWolf.rationEquivalentPerUnit, 4);
   assert.equal(hugeWolf.secondaryEffectMultiplier, 6);
-  assert.equal(hugeWolf.unitValueAhn, 2240);
+  assert.equal(hugeWolf.unitValueAhn, 22480);
 
   assert.equal(food.dailyHungerForCreatureSize('tiny'), 25);
   assert.equal(food.dailyHungerForCreatureSize('small'), 50);
@@ -86,7 +86,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(mixed.lineageId, 'mixed');
   assert.equal(mixed.displayName, 'Mixed Meat Ration');
 
-  console.log('Food catalog smoke: OK (39 cooked meats + ration contract)');
+  console.log('Food catalog smoke: OK (39 cooked meats + ration contract + recalibrated Ahn values)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
