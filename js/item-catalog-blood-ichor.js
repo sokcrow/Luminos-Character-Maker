@@ -145,7 +145,9 @@
     const entry = get(itemOrId || profile?.fluidItemId || "blood");
     if (!entry) return null;
     if (profile?.fluidItemId && entry.id !== profile.fluidItemId && options.allowFluidOverride !== true) return 0;
-    if (Number.isFinite(Number(profile?.maxBloodUnits))) return Math.max(0, Number(profile.maxBloodUnits));
+    if (profile?.maxBloodUnits != null && Number.isFinite(Number(profile.maxBloodUnits))) {
+      return Math.max(0, Number(profile.maxBloodUnits));
+    }
     const base = fallbackBloodUnits(profile?.creatureSize || options.creatureSize || "medium");
     if (base == null) return null;
     const modifier = Number.isFinite(Number(profile?.bloodPoolModifier)) ? Number(profile.bloodPoolModifier) : 1;
