@@ -127,6 +127,39 @@ const { pathToFileURL } = require('node:url');
   assert.equal(fiber.exposures.contamination, 3);
   assert.equal(fiber.exposures.mana_corruption, 20);
 
+  const blood = harvest.harvestCondition(record, 'blood_ichor');
+  assert.equal(blood.physical.slashing.primary, false);
+  assert.equal(blood.physical.slashing.damage, 18);
+  assert.equal(blood.physical.piercing.primary, false);
+  assert.equal(blood.exposures.blood_loss, 7);
+  assert.equal(blood.exposures.contamination, 3);
+  assert.equal(blood.exposures.mana_corruption, 20);
+
+  const organRecord = harvest.createDamageRecord();
+  harvest.recordEvent(organRecord, { sourceType: 'weapon', damageType: 'perforante', damageDealt: 11 });
+  harvest.recordEvent(organRecord, { sourceType: 'weapon', damageType: 'cortante', damageDealt: 7 });
+  harvest.recordEvent(organRecord, { sourceType: 'weapon', damageType: 'contundente', damageDealt: 9 });
+
+  const internal = harvest.harvestCondition(organRecord, 'organ_internal');
+  assert.equal(internal.physical.piercing.primary, true);
+  assert.equal(internal.physical.piercing.damage, 11);
+  assert.equal(internal.physical.bludgeoning.primary, false);
+  assert.equal(internal.physical.slashing, undefined);
+
+  const sensory = harvest.harvestCondition(organRecord, 'organ_sensory');
+  assert.equal(sensory.physical.piercing.primary, true);
+  assert.equal(sensory.physical.slashing.primary, true);
+  assert.equal(sensory.physical.bludgeoning.primary, false);
+
+  const brain = harvest.harvestCondition(organRecord, 'organ_brain');
+  assert.equal(brain.physical.bludgeoning.primary, true);
+  assert.equal(brain.physical.piercing.primary, true);
+  assert.equal(brain.physical.slashing, undefined);
+
+  const gland = harvest.harvestCondition(organRecord, 'organ_gland');
+  assert.equal(gland.physical.piercing.primary, true);
+  assert.equal(gland.physical.bludgeoning.primary, false);
+
   const spellWithExplicitTrauma = harvest.explainEvent({
     sourceType: 'spell',
     damageType: 'perforante',
@@ -135,7 +168,7 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(spellWithExplicitTrauma.physicalTraumaType, 'bludgeoning');
 
-  console.log('Harvest integrity engine smoke: OK (physical vs magic/status separation + hard/fragile harvest profiles)');
+  console.log('Harvest integrity engine smoke: OK (physical vs magic/status + hard/fragile/organ/blood profiles)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
