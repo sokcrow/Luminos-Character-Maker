@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 9;
+  const VERSION = 10;
   const DEFAULT_GROUP = "generic_item";
 
   function family(id, label, labelEs, domain, icon) {
@@ -70,6 +70,8 @@
     ink_secretion: family("ink_secretion", "Ink Secretion", "Secreción de tinta", "material", "https://imgur.com/pcc7tsi.png"),
     bio_secretion: family("bio_secretion", "Biological Secretion", "Secreción biológica", "material", "https://imgur.com/YzrMRpI.png"),
     ooze_gel: family("ooze_gel", "Ooze / Gel / Slime", "Baba / Gel / Slime", "material", "https://imgur.com/91cMoMg.png"),
+    essence_raw: family("essence_raw", "Raw Essence", "Esencia cruda", "material", "https://imgur.com/Yay5U5o.png"),
+    energy_core: family("energy_core", "Mana / Energy Core", "Núcleo de maná / energía", "material", "https://imgur.com/KBSJN7y.png"),
     toxin_material: family("toxin_material", "Creature Toxin Material", "Material tóxico de criatura", "material", "https://imgur.com/8dBvLD5.png"),
     abnormality_part: family("abnormality_part", "Abnormality Part", "Parte de anormalidad", "material", "https://imgur.com/JpK4vSq.png"),
     craft_component: family("craft_component", "Generic Crafting Component", "Componente genérico de fabricación", "material", "https://imgur.com/exU9uZ1.png"),
@@ -196,6 +198,17 @@
     regenerative_gel: "ooze_gel",
     conductive_gel: "ooze_gel",
     exotic_ooze: "ooze_gel",
+    essence: "essence_raw",
+    arcane_essence: "essence_raw",
+    elemental_essence: "essence_raw",
+    spirit_essence: "essence_raw",
+    psionic_essence: "essence_raw",
+    necrotic_essence: "essence_raw",
+    radiant_essence: "essence_raw",
+    mana_core: "energy_core",
+    mana_energy_core: "energy_core",
+    core: "energy_core",
+    exotic_core: "energy_core",
     generic_crafting: "craft_component",
     data: "data_storage",
     container: "generic_item",
