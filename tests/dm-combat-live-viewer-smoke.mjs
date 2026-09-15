@@ -14,6 +14,7 @@ assert.ok(utils.includes("'dm-combat-live-viewer-script'"),'live Battle bridge m
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="Battle-viewer.html"'),'DM Combat tab must use the same canonical Battle Viewer as Players');
 assert.ok(bridge.includes('loading="eager"'),'DM Battle must not wait on lazy iframe visibility');
+assert.ok(bridge.includes('width:min(1600px,calc(100% - 24px))'),'DM Battle panel must not shrink-wrap inside the centered flex Combat tab');
 assert.ok(bridge.includes('LuminousCombatDmObserver073?.enforceDmView?.()'),'mounted DM Battle must reassert observer visibility');
 assert.ok(bridge.includes('LuminousWebGL2Renderer?.requestRender?.()'),'mounted DM Battle must explicitly redraw the demand renderer');
 
@@ -75,6 +76,7 @@ vm.runInNewContext(bridge,{window,console},{filename:'dm-combat-live-viewer.js'}
 
 assert.equal(host.children[0]?.id,'dm-combat-live-battle','live Battle panel must be inserted before legacy Combat tools');
 const panel=elements.get('dm-combat-live-battle')||host.children[0];
+assert.match(panel.style.cssText,/width:min\(1600px,calc\(100% - 24px\)\)/,'runtime panel must explicitly span the Combat tab instead of shrink-wrapping');
 assert.match(panel.innerHTML,/Battle-viewer\.html/,'runtime mount must point at canonical Battle Viewer');
 const frame=elements.get('dm-combat-live-frame');
 assert.ok(frame,'runtime mount must create the live Battle iframe');
