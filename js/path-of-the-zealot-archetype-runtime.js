@@ -338,7 +338,7 @@
     if (normalizeId(trigger) !== "on_hit") return null;
     const actor = runtime.self || runtime.attacker || runtime.character || null;
     const target = runtime.target || runtime.defender || null;
-    if (!actor || !target || !hasZealotLevel(actor, 15) || !hasRage(actor) || divineFuryUsed(actor)) return null;
+    if (!actor || !target || sameFaction(actor, target) || !hasZealotLevel(actor, 15) || !hasRage(actor) || divineFuryUsed(actor)) return null;
 
     const includesTrait = (Array.isArray(traits) ? traits : Object.values(traits || {}))
       .some((trait) => normalizeId(trait?.id || trait?.name) === "divine_fury");
@@ -555,6 +555,12 @@
     if (normalizeId(trigger) !== "check_coin_fail" || !result?.outcomes?.length) return false;
     const traits = Array.isArray(traitOrTraits) ? traitOrTraits : [traitOrTraits];
     if (!traits.some((trait) => normalizeId(trait?.id || trait?.name) === "fanatical_focus")) return false;
+    const triggered = result.outcomes.some((outcome) =>
+      normalizeId(outcome?.traitId) === "fanatical_focus"
+      && normalizeId(outcome?.action) === "retoss_last"
+      && numberOr(outcome?.count, 0) > 0
+    );
+    if (!triggered) return false;
     const unit = runtime?.self || runtime?.character || null;
     if (!unit || !hasStatus(unit, FANATICAL_READY_STATUS)) return false;
     global.LuminousStatusEngine?.removeStatus?.(unit, FANATICAL_READY_STATUS, { from: "self", ignoreProtection: true });
