@@ -6,6 +6,7 @@ on:
     paths:
       - 'pantalla_dm.html'
       - 'js/utils.js'
+      - 'js/dm-combat-live-viewer.js'
       - 'js/dm-combat-tab-manager.js'
       - 'js/combat-unit-library-sync.js'
       - 'js/combat-v073-dm-setup.js'
@@ -13,6 +14,7 @@ on:
       - 'js/unit-catalog-goblin.js'
       - 'js/unit-catalog-wolf.js'
       - 'tests/dm-combat-library-manager-smoke.mjs'
+      - 'tests/dm-combat-live-viewer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - '.github/workflows/dm-combat-library-manager-smoke.yml'
 
@@ -26,10 +28,13 @@ jobs:
           node-version: '20'
       - name: Syntax
         run: |
+          node --check js/dm-combat-live-viewer.js
           node --check js/dm-combat-tab-manager.js
           node --check js/combat-unit-library-sync.js
           node --check js/combat-v073-dm-setup.js
       - name: Real DM tab contract
         run: node tests/dm-combat-library-manager-smoke.mjs
+      - name: Real DM Battle Viewer mount
+        run: node tests/dm-combat-live-viewer-smoke.mjs
       - name: Empty Firebase real UI runtime
         run: node tests/dm-combat-unit-library-real-ui-smoke.mjs
