@@ -32,6 +32,7 @@ on:
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
       - 'tests/combat-v073-speed-persistence-smoke.mjs'
       - 'tests/combat-v073-dm-observer-smoke.mjs'
+      - 'tests/combat-v073-limbus-facing-runtime-smoke.mjs'
       - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
       - 'tests/combat-v073-theatre-isolation-smoke.mjs'
       - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
@@ -89,6 +90,8 @@ jobs:
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract
         run: node tests/combat-v073-dm-observer-smoke.mjs
+      - name: Limbus sprite facing runtime contract
+        run: node tests/combat-v073-limbus-facing-runtime-smoke.mjs
       - name: Player renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
       - name: Combat / Theatre isolation contract

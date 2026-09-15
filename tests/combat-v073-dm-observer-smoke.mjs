@@ -11,8 +11,16 @@ assert.ok(source.includes("game.classList.remove('player-blinded')"),'DM observe
 assert.ok(source.includes("'invisible-hidden','invisible-detected'"),'DM observer must ignore observer-local Invisibility hiding');
 assert.ok(source.includes("wrapGlobalFunction('syncBlindnessVisual'"),'Blindness visual sync must be role-aware');
 assert.ok(source.includes("wrapGlobalFunction('syncInvisibilityVisuals'"),'Invisibility visual sync must be role-aware');
-assert.ok(source.includes('renderer.setEnabled(false)'),'DM observer must disable continuous WebGL rendering to reduce GPU load');
+assert.ok(!source.includes('renderer.setEnabled(false)'),'DM observer must never turn off the renderer that owns the visible battlefield/background');
+assert.ok(source.includes('renderer.setEnabled(true)'),'DM observer must restore WebGL rendering if it was disabled before DM view is established');
+assert.ok(source.includes('renderer.requestRender?.(220)'),'DM observer must explicitly invalidate the demand renderer after forcing full-battle view');
 assert.ok(source.includes("global.LuminousCombat073?.camera?.('full',false)"),'DM observer must reassert full arena after hydration/resize');
+
+assert.ok(source.includes("return value==='left'||value==='right'?value:'right'"),'battle sprites must use a deterministic source-facing convention');
+assert.ok(source.includes("?'left':'right'"),'Limbus battlefield orientation must make enemies face left and allies face right');
+assert.ok(source.includes("classList.toggle('luminous-flip-x',flip)"),'runtime must flip only sprites whose source facing differs from their battlefield side');
+assert.ok(source.includes('.sprite-container.luminous-flip-x .sprite-img{transform:scaleX(-1)!important'),'facing override must beat the legacy enemy transform rule');
+assert.ok(source.includes("global.addEventListener('luminous:combat073-hydrated'"),'facing and DM visibility must be reasserted after live Firebase hydration');
 assert.ok(!source.includes('LuminousVttActorLibrary')&&!source.includes('CombatEngine'),'DM observer must not revive removed legacy systems');
 
-console.log('combat v0.7.3 DM observer smoke: ok');
+console.log('combat v0.7.3 DM observer + Limbus facing smoke: ok');
