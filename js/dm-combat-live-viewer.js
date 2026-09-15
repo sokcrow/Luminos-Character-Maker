@@ -60,7 +60,7 @@
       panel=global.document.createElement('section');
       panel.id='dm-combat-live-battle';
       panel.dataset.canonicalBattleViewer='true';
-      panel.style.cssText='margin:20px 0 24px;border:1px solid #7c6338;background:#050507;box-shadow:0 12px 30px rgba(0,0,0,.55);overflow:hidden;';
+      panel.style.cssText='width:min(1600px,calc(100% - 24px));max-width:1600px;align-self:center;box-sizing:border-box;margin:20px auto 24px;border:1px solid #7c6338;background:#050507;box-shadow:0 12px 30px rgba(0,0,0,.55);overflow:hidden;';
       panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0d0b09;border-bottom:1px solid #4d4029;color:#ddb765;font:700 12px system-ui;letter-spacing:.08em"><span style="flex:1">BATTLE LIVE · DM OBSERVER</span><span id="dm-combat-live-status" style="color:#c7b98f;font-weight:600;letter-spacing:0">CARGANDO BATTLE…</span><button id="dm-combat-live-reload" type="button" style="border:1px solid #77613b;background:#18130c;color:#e4c981;padding:5px 9px;cursor:pointer">RECARGAR</button></div><iframe id="dm-combat-live-frame" title="Battle Viewer DM" src="Battle-viewer.html" loading="eager" style="display:block;width:100%;height:clamp(560px,72vh,900px);min-height:560px;border:0;background:#050010" allow="autoplay"></iframe>`;
       host.insertBefore(panel,host.firstChild);
     }
@@ -99,6 +99,6 @@
   function stop(){clearRetries();state.observer?.disconnect?.();state.observer=null}
 
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.0.0',state,start,mount,nudgeBattle,scheduleNudges,reload,isVisible});
+  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.0.1',state,start,mount,nudgeBattle,scheduleNudges,reload,isVisible});
   start();
 })(window);
