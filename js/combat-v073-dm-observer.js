@@ -2,11 +2,13 @@
   'use strict';
   if(global.LuminousCombatDmObserver073)return;
 
-  const state={patched:false,rendererDisabled:false,roleObserver:null,roleTimer:null};
+  const state={patched:false,roleObserver:null,roleTimer:null,facingObserver:null,facingFrame:0};
 
   function adapterState(){return global.LuminousCombatLiveAdapter073?.state||null}
   function host(){return global.document?.getElementById?.('game-container')||null}
   function isDm(){return adapterState()?.role==='dm'||host()?.dataset?.viewerRole==='dm'}
+  function runtimeCombatants(){return global.LuminousCombat073?.combatants?.()||{}}
+  function clean(value){return String(value??'').trim().toLowerCase()}
 
   function clearObserverRestrictions(){
     if(!isDm())return false;
@@ -19,15 +21,68 @@
     return true;
   }
 
+  function sourceFacing(unit={}){
+    const value=clean(unit.spriteFacing||unit.sourceFacing||unit.combatVisual?.facing||unit.visual?.facing||unit.metadata?.spriteFacing);
+    return value==='left'||value==='right'?value:'right';
+  }
+
+  function desiredFacing(unit={},token=null){
+    const faction=clean(unit.faction||unit.faccion||unit.category||unit.actorCategory)||(token?.classList?.contains('enemy')?'enemy':'ally');
+    return faction==='enemy'||faction==='enemigo'||faction==='hostile'?'left':'right';
+  }
+
+  function ensureFacingStyle(){
+    const doc=global.document;if(!doc)return false;
+    let style=doc.getElementById('combat073-limbus-facing-style');
+    if(style)return true;
+    style=doc.createElement('style');style.id='combat073-limbus-facing-style';
+    style.textContent=`
+      #game-container .sprite-container.luminous-flip-x .sprite-img{transform:scaleX(-1)!important;transform-origin:center center!important}
+      #game-container .sprite-container.luminous-no-flip-x .sprite-img{transform:scaleX(1)!important;transform-origin:center center!important}
+    `;
+    doc.head?.appendChild(style);return true;
+  }
+
+  function applyLimbusFacing(){
+    ensureFacingStyle();
+    const game=host();if(!game)return false;
+    const units=runtimeCombatants();
+    game.querySelectorAll('.sprite-container').forEach(token=>{
+      const tokenId=String(token.id||'').replace(/^token-/,'');
+      const unit=units[tokenId]||{};
+      const source=sourceFacing(unit),desired=desiredFacing(unit,token),flip=source!==desired;
+      token.dataset.luminousSourceFacing=source;
+      token.dataset.luminousBattleFacing=desired;
+      token.classList.toggle('luminous-flip-x',flip);
+      token.classList.toggle('luminous-no-flip-x',!flip);
+    });
+    global.LuminousWebGL2Renderer?.requestRender?.(120);
+    return true;
+  }
+
+  function scheduleFacing(){
+    if(state.facingFrame)return;
+    state.facingFrame=global.requestAnimationFrame?.(()=>{state.facingFrame=0;applyLimbusFacing()})||0;
+    if(!state.facingFrame)applyLimbusFacing();
+  }
+
+  function observeFacing(){
+    const field=global.document?.getElementById?.('battlefield');
+    if(!field||state.facingObserver||typeof MutationObserver!=='function')return Boolean(field);
+    state.facingObserver=new MutationObserver(records=>{
+      if(records.some(record=>record.type==='childList'))scheduleFacing();
+    });
+    state.facingObserver.observe(field,{childList:true,subtree:true});
+    scheduleFacing();
+    return true;
+  }
+
   function tuneRenderer(){
     const renderer=global.LuminousWebGL2Renderer;
     if(!renderer?.setEnabled)return false;
     if(isDm()){
-      if(renderer.isEnabled?.()!==false)renderer.setEnabled(false);
-      state.rendererDisabled=true;
-    }else if(state.rendererDisabled){
-      renderer.setEnabled(true);
-      state.rendererDisabled=false;
+      if(renderer.isEnabled?.()===false)renderer.setEnabled(true);
+      renderer.requestRender?.(220);
     }
     return true;
   }
@@ -37,6 +92,7 @@
     clearObserverRestrictions();
     try{global.LuminousCombat073?.camera?.('full',false)}catch(error){console.error('[Combat073 DM Observer] camera failed',error)}
     tuneRenderer();
+    applyLimbusFacing();
     const game=host();
     if(game)game.dataset.dmObserverMode='true';
     return true;
@@ -75,8 +131,8 @@
     if(!game||state.roleObserver)return Boolean(game);
     state.roleObserver=new MutationObserver(records=>{
       if(records.some(record=>record.type==='attributes'&&record.attributeName==='data-viewer-role')){
+        scheduleFacing();
         if(isDm())global.requestAnimationFrame(enforceDmView);
-        else tuneRenderer();
       }
     });
     state.roleObserver.observe(game,{attributes:true,attributeFilter:['data-viewer-role']});
@@ -86,6 +142,8 @@
   function start(){
     patchRuntime();
     observeRole();
+    observeFacing();
+    scheduleFacing();
     if(isDm())enforceDmView();
     if(state.roleTimer)return true;
     let tries=0;
@@ -93,6 +151,8 @@
       tries+=1;
       patchRuntime();
       observeRole();
+      observeFacing();
+      scheduleFacing();
       const role=adapterState()?.role||host()?.dataset?.viewerRole||'';
       if(role==='dm')enforceDmView();
       if(role||tries>=120){global.clearInterval(state.roleTimer);state.roleTimer=null}
@@ -102,13 +162,17 @@
 
   function stop(){
     state.roleObserver?.disconnect?.();state.roleObserver=null;
+    state.facingObserver?.disconnect?.();state.facingObserver=null;
+    if(state.facingFrame)global.cancelAnimationFrame?.(state.facingFrame);
+    state.facingFrame=0;
     if(state.roleTimer)global.clearInterval(state.roleTimer);
     state.roleTimer=null;
   }
 
-  global.addEventListener('resize',()=>{if(isDm())global.requestAnimationFrame(enforceDmView)});
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();if(isDm())enforceDmView()});
+  global.addEventListener('resize',()=>{scheduleFacing();if(isDm())global.requestAnimationFrame(enforceDmView)});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();observeFacing();scheduleFacing();if(isDm())enforceDmView()});
+  global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();scheduleFacing();if(isDm())enforceDmView()});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatDmObserver073=Object.freeze({state,start,stop,isDm,enforceDmView,clearObserverRestrictions,tuneRenderer,patchRuntime});
+  global.LuminousCombatDmObserver073=Object.freeze({state,start,stop,isDm,enforceDmView,clearObserverRestrictions,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
   start();
 })(window);
