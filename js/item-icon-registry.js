@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 14;
+  const VERSION = 15;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -104,6 +104,26 @@
     ["generic_item","Generic Item","Objeto genérico","fallback","https://imgur.com/clIQfGj.png"],
     ["weapon_melee","Melee Weapon","Arma cuerpo a cuerpo","equipment","https://imgur.com/3AEGrWu.png"],
     ["weapon_ranged","Ranged Weapon","Arma a distancia","equipment","https://imgur.com/PWnWMq1.png"],
+    ["weapon_sword","Sword","Espada","equipment","https://imgur.com/3AEGrWu.png"],
+    ["weapon_dagger","Dagger / Small Blade","Daga / Hoja pequeña","equipment","https://imgur.com/K3d5UEA.png"],
+    ["weapon_polearm","Polearm","Arma de asta","equipment","https://imgur.com/WWODflC.png"],
+    ["weapon_hammer","Hammer","Martillo","equipment","https://imgur.com/WwAq8r.png"],
+    ["weapon_firearm_shotgun","Shotgun","Escopeta","equipment","https://imgur.com/46tMIlQ.png"],
+    ["weapon_sling","Sling","Honda","equipment","https://imgur.com/hmPPD07.png"],
+    ["weapon_firearm_pistol","Pistol","Pistola","equipment","https://imgur.com/gJJgmqX.png"],
+    ["weapon_net","Net","Red","equipment","https://imgur.com/T3u9Z3N.png"],
+    ["weapon_firearm_revolver","Revolver","Revólver","equipment","https://imgur.com/GCEeR8H.png"],
+    ["weapon_firearm_smg","SMG","Subfusil","equipment","https://imgur.com/L5FQuTA.png"],
+    ["weapon_spear","Spear","Lanza","equipment","https://imgur.com/DUGcpP5.png"],
+    ["weapon_crossbow","Crossbow","Ballesta","equipment","https://imgur.com/83PWc1r.png"],
+    ["weapon_pick","Pick / Pickaxe","Pico","equipment","https://imgur.com/dTwA4cO.png"],
+    ["weapon_whip","Whip","Látigo","equipment","https://imgur.com/Nw8Mdnp.png"],
+    ["weapon_blunt","Blunt Weapon","Arma contundente","equipment","https://imgur.com/XElPYSo.png"],
+    ["weapon_blowgun","Blowgun","Cerbatana","equipment","https://imgur.com/qkKi2DL.png"],
+    ["weapon_firearm_rifle","Rifle","Rifle","equipment","https://imgur.com/aXXrcFQ.png"],
+    ["weapon_staff","Staff","Bastón","equipment","https://imgur.com/AChSLCZ.png"],
+    ["weapon_axe","Axe","Hacha","equipment","https://imgur.com/Fp9MJRw.png"],
+    ["weapon_bow","Bow","Arco","equipment","https://imgur.com/PWnWMq1.png"],
     ["shield","Shield","Escudo","equipment","https://imgur.com/UnS3IAr.png"],
     ["accessory","Accessory","Accesorio","equipment","https://imgur.com/G6YFWYw.png"],
     ["armor_light","Light Armor","Armadura ligera","equipment","https://imgur.com/yO2oNKD.png"],
@@ -128,7 +148,9 @@
     "essence":"essence_raw","arcane_essence":"essence_raw","elemental_essence":"essence_raw","spirit_essence":"essence_raw","psionic_essence":"essence_raw","necrotic_essence":"essence_raw","radiant_essence":"essence_raw","mana_core":"energy_core","mana_energy_core":"energy_core","core":"energy_core","exotic_core":"energy_core",
     "generic_crafting":"craft_component","processed_stock":"structural_stock","structural_material":"structural_stock","fasteners":"fasteners_hardware","hardware":"fasteners_hardware","wire":"wire_cable","cable":"wire_cable","processed_glass":"glass_component","glassware":"glass_component","vessel":"container","generic_container":"container",
     "harvesting_tool":"harvest_kit","harvesting_tools":"harvest_kit","harvest_tools":"harvest_kit","harvesting_kit":"harvest_kit","cooking_tool":"cooking_tools","cook_tools":"cooking_tools","smithing_tool":"smithing_tools","smith_tools":"smithing_tools","fabrication_tool":"fabrication_tools","textile_tool":"textile_tools","medical_tool":"medical_tools","technical_tool":"technical_tools","lapidary_tool":"lapidary_tools","chemical_tool":"chemical_tools",
-    "data":"data_storage","melee_weapon":"weapon_melee","ranged_weapon":"weapon_ranged","light_armor":"armor_light","medium_armor":"armor_medium","heavy_armor":"armor_heavy"
+    "data":"data_storage","melee_weapon":"weapon_melee","ranged_weapon":"weapon_ranged",
+    "sword":"weapon_sword","dagger":"weapon_dagger","polearm":"weapon_polearm","pole_arm":"weapon_polearm","hammer":"weapon_hammer","shotgun":"weapon_firearm_shotgun","sling":"weapon_sling","pistol":"weapon_firearm_pistol","net":"weapon_net","revolver":"weapon_firearm_revolver","smg":"weapon_firearm_smg","spear":"weapon_spear","crossbow":"weapon_crossbow","pick":"weapon_pick","pickaxe":"weapon_pick","whip":"weapon_whip","blunt_weapon":"weapon_blunt","blowgun":"weapon_blowgun","rifle":"weapon_firearm_rifle","staff":"weapon_staff","axe":"weapon_axe","bow":"weapon_bow",
+    "light_armor":"armor_light","medium_armor":"armor_medium","heavy_armor":"armor_heavy"
   });
   function normalizeGroupId(value) {
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
