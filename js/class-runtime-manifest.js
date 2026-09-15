@@ -64,6 +64,14 @@
       globalName: "LuminousMastermindArchetypeRuntime",
     },
     {
+      id: "archetype:path-of-the-zealot",
+      kind: "archetype",
+      path: "js/path-of-the-zealot-archetype-runtime.js",
+      contexts: ["any"],
+      dependsOn: [],
+      globalName: "LuminousPathOfTheZealotArchetypeRuntime",
+    },
+    {
       id: "class:barbarian",
       kind: "class",
       path: "js/barbarian-class-runtime.js",
