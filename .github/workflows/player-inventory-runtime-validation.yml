@@ -35,6 +35,8 @@ on:
       - js/item-catalog-tools.js
       - js/item-catalog-craft-components.js
       - js/item-catalog-weapons.js
+      - js/item-catalog-weapon-components.js
+      - js/item-weapon-composition-engine.js
       - js/item-equipment-bridge.js
       - js/item-inventory-runtime.js
       - js/item-persistence-runtime.js
@@ -67,6 +69,7 @@ on:
       - tests/item-catalog-tools-smoke.cjs
       - tests/item-catalog-craft-components-smoke.cjs
       - tests/item-catalog-weapons-smoke.cjs
+      - tests/item-weapon-composition-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
       - tests/dm-item-instance-editor.spec.cjs
@@ -115,6 +118,8 @@ jobs:
           node --check js/item-catalog-tools.js
           node --check js/item-catalog-craft-components.js
           node --check js/item-catalog-weapons.js
+          node --check js/item-catalog-weapon-components.js
+          node --check js/item-weapon-composition-engine.js
           node --check js/item-inventory-runtime.js
           node --check js/item-equipment-bridge.js
           node --check js/item-persistence-runtime.js
@@ -169,6 +174,8 @@ jobs:
         run: node tests/item-catalog-craft-components-smoke.cjs
       - name: Weapon catalog smoke
         run: node tests/item-catalog-weapons-smoke.cjs
+      - name: Weapon composition engine smoke
+        run: node tests/item-weapon-composition-smoke.cjs
       - name: Injury narrative Speed smoke
         run: node tests/injury-narrative-speed-smoke.cjs
       - name: Install Playwright test runner
