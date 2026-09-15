@@ -317,7 +317,9 @@ function ensureDmCharacterManagerAssets(doc) {
 function ensureDmCombatTabManagerAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#tab-combate')) return null;
-    return ensureScriptAsset(documentRef, 'dm-combat-tab-manager-script', 'js/dm-combat-tab-manager.js', { ui: 'dm-combat-tab-manager' });
+    const manager = ensureScriptAsset(documentRef, 'dm-combat-tab-manager-script', 'js/dm-combat-tab-manager.js', { ui: 'dm-combat-tab-manager' });
+    const liveViewer = ensureScriptAsset(documentRef, 'dm-combat-live-viewer-script', 'js/dm-combat-live-viewer.js', { ui: 'dm-combat-live-viewer' });
+    return { manager, liveViewer };
 }
 
 if (typeof document !== 'undefined') {
