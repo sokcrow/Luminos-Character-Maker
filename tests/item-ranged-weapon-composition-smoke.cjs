@@ -18,7 +18,7 @@ const { pathToFileURL } = require('node:url');
 
   assert.ok(Components);
   assert.ok(Engine);
-  assert.equal(Components.COMPONENTS.length, 19, 'expected 19 ranged component definitions');
+  assert.equal(Components.COMPONENTS.length, 20, 'expected 20 ranged component definitions');
   for (const component of Components.COMPONENTS) {
     for (const input of component.materialInputs) {
       assert.ok(Number.isInteger(input.quantity) && input.quantity > 0, `${component.id} has non-integer material quantity`);
