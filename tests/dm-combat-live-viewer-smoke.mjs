@@ -15,17 +15,19 @@ assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initia
 assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
 assert.ok(bridge.includes('surfaceActive?.()'),'DM bridge must verify the renderer surface instead of trusting role state alone');
 assert.ok(bridge.includes('gameRect.width>100')&&bridge.includes('fieldRect.width>100'),'DM bridge must require a measurable game/battlefield before declaring Battle visible');
+assert.ok(bridge.includes("surface?.ready&&surface?.role==='dm'"),'DM bridge must require canonical DM role before reporting observer readiness');
 assert.ok(bridge.includes("classList?.remove?.('player-blinded','webgl2-background-ready')"),'DM bridge must restore DOM background fallback if WebGL remains inactive');
 
 class FakeElement {
   constructor(tag='div',id=''){
-    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;
+    this.tagName=tag.toUpperCase();this.id=id;this.dataset={};this.style={};this.children=[];this.listeners={};this.attributes={};this.firstChild=null;this._innerHTML='';this.contentWindow=null;this._src='';this._hidden=false;this.textContent='';
   }
   set innerHTML(value){
     this._innerHTML=String(value);
-    for(const [,tag,id] of this._innerHTML.matchAll(/<(iframe|span|button)[^>]*id="([^"]+)"[^>]*>/g)){
+    for(const match of this._innerHTML.matchAll(/<(iframe|span|button)[^>]*id="([^"]+)"[^>]*>/g)){
+      const [,tag,id]=match;
       const node=new FakeElement(tag,id);
-      const src=this._innerHTML.match(new RegExp(`<${tag}[^>]*id="${id}"[^>]*?\\ssrc="([^"]+)"`))?.[1];
+      const src=match[0].match(/(?:^|\s)src="([^"]+)"/)?.[1];
       if(src){node.attributes.src=src;node._src=src;}
       elements.set(id,node);this.children.push(node);
     }
@@ -94,5 +96,11 @@ assert.ok(enabledCalls>0,'visible DM runtime must keep renderer enabled');
 assert.ok(enforceCalls>0,'visible DM runtime must invoke observer visibility enforcement');
 assert.ok(renderCalls>0,'visible DM runtime must request a real frame redraw');
 assert.ok(resizeCalls>0,'visible DM runtime must notify Battle Viewer after the tab becomes measurable');
+
+child.LuminousCombatLiveAdapter073.state.role='player';
+assert.equal(window.LuminousDmCombatLiveViewer.nudgeBattle(),false,'a measurable non-DM surface must not be reported as DM observer ready');
+assert.match(elements.get('dm-combat-live-status').textContent,/ROL PLAYER/,'status must retain the actual role instead of claiming DM observer readiness');
+child.LuminousCombatLiveAdapter073.state.role='dm';
+assert.equal(window.LuminousDmCombatLiveViewer.nudgeBattle(),true,'measurable authenticated DM surface must report ready');
 
 console.log('DM pantalla real visible Battle surface smoke: ok');
