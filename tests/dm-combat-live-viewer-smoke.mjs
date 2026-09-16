@@ -25,7 +25,7 @@ class FakeElement {
     this._innerHTML=String(value);
     for(const [,tag,id] of this._innerHTML.matchAll(/<(iframe|span|button)[^>]*id="([^"]+)"[^>]*>/g)){
       const node=new FakeElement(tag,id);
-      const src=this._innerHTML.match(new RegExp(`<${tag}[^>]*id="${id}"[^>]*src="([^"]+)"`))?.[1];
+      const src=this._innerHTML.match(new RegExp(`<${tag}[^>]*id="${id}"[^>]*?\\ssrc="([^"]+)"`))?.[1];
       if(src){node.attributes.src=src;node._src=src;}
       elements.set(id,node);this.children.push(node);
     }
