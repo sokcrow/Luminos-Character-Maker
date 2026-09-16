@@ -21,6 +21,25 @@
     return true;
   }
 
+  function ensureVisualSurface(){
+    if(!isDm())return false;
+    const game=host();if(!game)return false;
+    game.style.visibility='visible';
+    game.style.opacity='1';
+    const renderer=global.LuminousWebGL2Renderer;
+    const surfaceActive=renderer?.surfaceActive?.();
+    if(surfaceActive===false){
+      game.classList.remove('webgl2-background-ready');
+      game.querySelectorAll('.sprite-img.webgl2-texture-backed').forEach(img=>img.classList.remove('webgl2-texture-backed'));
+      game.dataset.dmVisualFallback='dom';
+      try{global.LuminousCombat073?.render?.()}catch(_){}
+    }else if(game.dataset.dmVisualFallback==='dom'){
+      delete game.dataset.dmVisualFallback;
+    }
+    renderer?.requestRender?.(260);
+    return true;
+  }
+
   function sourceFacing(unit={}){
     const value=clean(unit.spriteFacing||unit.sourceFacing||unit.combatVisual?.facing||unit.visual?.facing||unit.metadata?.spriteFacing);
     return value==='left'||value==='right'?value:'right';
@@ -92,6 +111,7 @@
     clearObserverRestrictions();
     try{global.LuminousCombat073?.camera?.('full',false)}catch(error){console.error('[Combat073 DM Observer] camera failed',error)}
     tuneRenderer();
+    ensureVisualSurface();
     applyLimbusFacing();
     const game=host();
     if(game)game.dataset.dmObserverMode='true';
@@ -140,19 +160,11 @@
   }
 
   function start(){
-    patchRuntime();
-    observeRole();
-    observeFacing();
-    scheduleFacing();
-    if(isDm())enforceDmView();
+    patchRuntime();observeRole();observeFacing();scheduleFacing();if(isDm())enforceDmView();
     if(state.roleTimer)return true;
     let tries=0;
     state.roleTimer=global.setInterval(()=>{
-      tries+=1;
-      patchRuntime();
-      observeRole();
-      observeFacing();
-      scheduleFacing();
+      tries+=1;patchRuntime();observeRole();observeFacing();scheduleFacing();
       const role=adapterState()?.role||host()?.dataset?.viewerRole||'';
       if(role==='dm')enforceDmView();
       if(role||tries>=120){global.clearInterval(state.roleTimer);state.roleTimer=null}
@@ -163,16 +175,14 @@
   function stop(){
     state.roleObserver?.disconnect?.();state.roleObserver=null;
     state.facingObserver?.disconnect?.();state.facingObserver=null;
-    if(state.facingFrame)global.cancelAnimationFrame?.(state.facingFrame);
-    state.facingFrame=0;
-    if(state.roleTimer)global.clearInterval(state.roleTimer);
-    state.roleTimer=null;
+    if(state.facingFrame)global.cancelAnimationFrame?.(state.facingFrame);state.facingFrame=0;
+    if(state.roleTimer)global.clearInterval(state.roleTimer);state.roleTimer=null;
   }
 
   global.addEventListener('resize',()=>{scheduleFacing();if(isDm())global.requestAnimationFrame(enforceDmView)});
   global.addEventListener('luminous:combat073-runtime-ready',()=>{patchRuntime();observeFacing();scheduleFacing();if(isDm())enforceDmView()});
   global.addEventListener('luminous:combat073-hydrated',()=>{observeFacing();scheduleFacing();if(isDm())enforceDmView()});
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatDmObserver073=Object.freeze({state,start,stop,isDm,enforceDmView,clearObserverRestrictions,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
+  global.LuminousCombatDmObserver073=Object.freeze({state,start,stop,isDm,enforceDmView,clearObserverRestrictions,ensureVisualSurface,tuneRenderer,patchRuntime,sourceFacing,desiredFacing,applyLimbusFacing});
   start();
 })(window);
