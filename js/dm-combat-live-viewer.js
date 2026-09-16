@@ -84,7 +84,7 @@
       let surface=childSurface();
       if(surface?.surfaceActive===false)pulseSurface(surface);
       if(options.allowFallback&&surface&&!surface.ready){forceDomFallback(surface);surface=childSurface()||surface}
-      if(surface?.ready){
+      if(surface?.ready&&surface?.role==='dm'){
         setStatus(state.visualFallback?'BATTLE VISIBLE · DOM FALLBACK':'BATTLE VISIBLE · DM OBSERVER');
         return true;
       }
@@ -157,6 +157,6 @@
   function stop(){clearRetries();state.observer?.disconnect?.();state.observer=null}
 
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.1.0',state,start,mount,ensureLoaded,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible});
+  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.1.1',state,start,mount,ensureLoaded,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible});
   start();
 })(window);
