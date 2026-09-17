@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousCombatRuntimeHotfix073)return;
 
-  const state={started:false,active:null,parentObserver:null,pollTimer:null,queueOriginal:null,dmFallbackTimer:null};
+  const state={started:false,active:null,parentObserver:null,pollTimer:null,queueOriginal:null,targetIntentOriginal:null,dmFallbackTimer:null};
   const clean=value=>String(value??'').trim();
   const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
   const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
@@ -39,7 +39,7 @@
 
   function emitLifecycle(active,reason='visibility'){
     try{
-      global.dispatchEvent(new CustomEvent('luminous:combat073-view-lifecycle',{detail:{version:'0.7.3-runtime-hotfix.1',active:Boolean(active),role:adapterState()?.role||null,reason}}));
+      global.dispatchEvent(new CustomEvent('luminous:combat073-view-lifecycle',{detail:{version:'0.7.3-runtime-hotfix.2',active:Boolean(active),role:adapterState()?.role||null,reason}}));
     }catch(_){}
   }
 
@@ -159,6 +159,27 @@
     return true;
   }
 
+  function patchTargetIntents(){
+    const original=global.assignTargetIntents;
+    if(typeof original!=='function')return false;
+    if(original.__luminousRuntimeHotfix073)return true;
+    state.targetIntentOriginal=original;
+    const wrapped=function(...args){
+      applyAuthorityAiPlans();
+      const result=original.apply(this,args);
+      applyAuthorityAiPlans();
+      return result;
+    };
+    wrapped.__luminousRuntimeHotfix073=true;
+    if(original.__luminousAuthorityWrapped){
+      wrapped.__luminousAuthorityWrapped=true;
+      wrapped.__luminousAuthorityOriginal=original.__luminousAuthorityOriginal||original;
+    }
+    global.assignTargetIntents=wrapped;
+    if(global.LuminousCombatHUD?.assignTargetIntents===original)global.LuminousCombatHUD.assignTargetIntents=wrapped;
+    return true;
+  }
+
   function forceDmDomFallback(reason='visual-recovery'){
     if(!isDm())return false;
     const game=global.document?.getElementById?.('game-container');
@@ -170,6 +191,24 @@
     try{runtime()?.render?.();}catch(_){}
     global.LuminousWebGL2Renderer?.requestRender?.(180);
     return true;
+  }
+
+  function webglHasVisualPixels(game){
+    const canvases=Array.from(game?.querySelectorAll?.('canvas')||[]).filter(canvas=>(Number(canvas?.width)||0)>1&&(Number(canvas?.height)||0)>1);
+    if(!canvases.length)return null;
+    let inspected=false;
+    for(const canvas of canvases){
+      let gl=null;
+      try{gl=canvas.getContext?.('webgl2')||canvas.getContext?.('webgl');}catch(_){}
+      if(!gl?.readPixels)continue;
+      inspected=true;
+      const width=Math.max(2,Number(canvas.width)||2),height=Math.max(2,Number(canvas.height)||2),pixel=new Uint8Array(4);
+      const points=[[Math.floor(width/2),Math.floor(height/2)],[1,1],[width-2,1],[1,height-2],[width-2,height-2]];
+      try{
+        for(const [x,y] of points){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);if(pixel[0]||pixel[1]||pixel[2]||pixel[3])return true;}
+      }catch(_){return null;}
+    }
+    return inspected?false:null;
   }
 
   function dmVisualHealth(){
@@ -186,6 +225,8 @@
     if(surfaceActive===false)return{ok:false,reason:'surface-inactive'};
     if(tokens.length<units.length||images.length<units.length)return{ok:false,reason:'missing-dom-tokens'};
     if(rendererReady&&!backgroundReady)return{ok:false,reason:'background-not-ready'};
+    const gpuPixels=rendererReady?webglHasVisualPixels(game):null;
+    if(gpuPixels===false)return{ok:false,reason:'blank-webgl-canvas'};
     return{ok:true,reason:'healthy'};
   }
 
@@ -201,7 +242,7 @@
   }
 
   function onHydrated(){
-    patchExecutionQueue();
+    patchExecutionQueue();patchTargetIntents();
     applyAuthorityAiPlans();
     syncLifecycle('hydrate');
     scheduleDmRecovery();
@@ -210,13 +251,13 @@
   function start(){
     if(state.started)return true;
     state.started=true;state.active=null;
-    patchExecutionQueue();bindParentVisibility();
+    patchExecutionQueue();patchTargetIntents();bindParentVisibility();
     global.document?.addEventListener?.('visibilitychange',()=>syncLifecycle('document-visibility'));
     global.addEventListener?.('pageshow',()=>syncLifecycle('pageshow'));
     global.addEventListener?.('focus',()=>syncLifecycle('focus'));
     global.addEventListener?.('resize',()=>{syncLifecycle('resize');scheduleDmRecovery();},{passive:true});
     global.addEventListener?.('luminous:combat073-hydrated',onHydrated);
-    global.addEventListener?.('luminous:combat073-runtime-ready',()=>{patchExecutionQueue();syncLifecycle('runtime-ready');scheduleDmRecovery();});
+    global.addEventListener?.('luminous:combat073-runtime-ready',()=>{patchExecutionQueue();patchTargetIntents();syncLifecycle('runtime-ready');scheduleDmRecovery();});
     state.pollTimer=global.setInterval?.(()=>syncLifecycle('poll'),1000)||null;
     global.setTimeout?.(()=>{syncLifecycle('boot');scheduleDmRecovery();},0);
     return true;
@@ -230,6 +271,6 @@
   }
 
   global.addEventListener?.('beforeunload',stop,{once:true});
-  global.LuminousCombatRuntimeHotfix073=Object.freeze({version:'0.7.3-runtime-hotfix.1',state,start,stop,readViewActive,syncLifecycle,clearAdapterRealtime,resumeAdapterRealtime,applyAuthorityAiPlans,patchExecutionQueue,dmVisualHealth,forceDmDomFallback,scheduleDmRecovery});
+  global.LuminousCombatRuntimeHotfix073=Object.freeze({version:'0.7.3-runtime-hotfix.2',state,start,stop,readViewActive,syncLifecycle,clearAdapterRealtime,resumeAdapterRealtime,applyAuthorityAiPlans,patchExecutionQueue,patchTargetIntents,webglHasVisualPixels,dmVisualHealth,forceDmDomFallback,scheduleDmRecovery});
   start();
 })(window);
