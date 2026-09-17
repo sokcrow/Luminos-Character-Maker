@@ -7,9 +7,12 @@ on:
       - js/item-ranged-weapon-composition-engine.js
       - js/item-catalog-ranged-weapon-upgrades.js
       - js/item-ranged-weapon-upgrade-engine.js
+      - js/item-ammo-runtime.js
       - tests/item-ranged-weapon-composition-smoke.cjs
       - tests/item-ranged-weapon-upgrade-smoke.cjs
+      - tests/item-ammo-runtime-smoke.cjs
       - docs/item-ranged-weapons-handoff.md
+      - docs/item-ammunition-handoff.md
       - .github/workflows/ranged-weapon-validation.yml
 
 jobs:
@@ -26,7 +29,10 @@ jobs:
           node --check js/item-ranged-weapon-composition-engine.js
           node --check js/item-catalog-ranged-weapon-upgrades.js
           node --check js/item-ranged-weapon-upgrade-engine.js
+          node --check js/item-ammo-runtime.js
       - name: Ranged composition smoke
         run: node tests/item-ranged-weapon-composition-smoke.cjs
       - name: Ranged upgrade smoke
         run: node tests/item-ranged-weapon-upgrade-smoke.cjs
+      - name: Ammo runtime smoke
+        run: node tests/item-ammo-runtime-smoke.cjs
