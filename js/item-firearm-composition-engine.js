@@ -89,7 +89,7 @@
       feedType:normalizeId(feed?.properties?.feedType),
       cadenceModes:Object.freeze(cadenceModes),
       maxAmmoPerCoin:cadenceModes.includes("full") ? 4 : cadenceModes.includes("burst") ? 3 : cadenceModes.includes("rapid") ? 2 : 1,
-      control:sum("control"),
+      control:Math.min(3,sum("control")),
       reliability:sum("reliability"),
       stability:sum("stability"),
       rangeProfile:normalizeId(chassisDef?.rangeProfile || ""),
