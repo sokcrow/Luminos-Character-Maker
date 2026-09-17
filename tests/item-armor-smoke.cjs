@@ -1,12 +1,24 @@
 "use strict";
 const assert=require("assert");
-const Armor=require("../js/item-armor-composition-engine.js");
-const Materials=require("../js/item-armor-material-profile.js");
-const Components=require("../js/item-catalog-armor-components.js");
-const Upgrades=require("../js/item-catalog-armor-upgrades.js");
-const UpgradeEngine=require("../js/item-armor-upgrade-engine.js");
-const Runtime=require("../js/item-armor-runtime.js");
 
+// The PR merge currently executes repository .js files as ESM. These Armor
+// modules intentionally expose browser/global APIs and CommonJS when available,
+// so the smoke loads them in dependency order and reads the canonical globals.
+require("../js/item-armor-material-profile.js");
+require("../js/item-catalog-armor-components.js");
+require("../js/item-catalog-armor-upgrades.js");
+require("../js/item-armor-upgrade-engine.js");
+require("../js/item-armor-composition-engine.js");
+require("../js/item-armor-runtime.js");
+
+const Materials=globalThis.LuminousArmorMaterialProfile;
+const Components=globalThis.LuminousArmorComponentCatalog;
+const Upgrades=globalThis.LuminousArmorUpgradeCatalog;
+const UpgradeEngine=globalThis.LuminousArmorUpgradeEngine;
+const Armor=globalThis.LuminousArmorCompositionEngine;
+const Runtime=globalThis.LuminousArmorRuntime;
+
+assert.ok(Materials&&Components&&Upgrades&&UpgradeEngine&&Armor&&Runtime,"Armor V1 globals must load");
 assert.strictEqual(Armor.CHASSIS.length,12);
 assert.strictEqual(Armor.getChassis("studded_leather"),null);
 assert.strictEqual(Components.COMPONENTS.length,7);
