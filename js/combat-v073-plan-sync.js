@@ -72,10 +72,11 @@
     await loadBridge('combat-v073-universal-library-script','js/universal-library-runtime.js',()=>Boolean(global.LuminousUniversalLibrary));
     await loadBridge('combat-v073-library-client-script','js/combat-v073-library-client.js',()=>Boolean(global.LuminousCombatLibraryClient073));
     await loadBridge('combat-v073-authority-script','js/combat-v073-authority.js',()=>Boolean(global.LuminousCombatAuthority073));
-    return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatAuthority073);
+    await loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js',()=>Boolean(global.LuminousCombatRuntimeHotfix073));
+    return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.10-targets-only-live',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.11-runtime-hotfix',ROOT,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
