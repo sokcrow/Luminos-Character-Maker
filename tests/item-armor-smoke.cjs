@@ -1,10 +1,10 @@
 "use strict";
 const assert=require("assert");
+const Armor=require("../js/item-armor-composition-engine.js");
 const Materials=require("../js/item-armor-material-profile.js");
 const Components=require("../js/item-catalog-armor-components.js");
 const Upgrades=require("../js/item-catalog-armor-upgrades.js");
 const UpgradeEngine=require("../js/item-armor-upgrade-engine.js");
-const Armor=require("../js/item-armor-composition-engine.js");
 const Runtime=require("../js/item-armor-runtime.js");
 
 assert.strictEqual(Armor.CHASSIS.length,12);
