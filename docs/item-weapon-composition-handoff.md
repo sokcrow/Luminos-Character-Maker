@@ -88,7 +88,7 @@ Current V1 material anchors include:
 - Industrial Stone 30
 - Iron 25
 - Carbon Steel 30
-- Hardened Weapon Steel 40
+- Hardened Steel 42
 - Titanium 45
 - Titanium Alloy 53
 - Advanced Titanium Alloy 60
@@ -255,7 +255,9 @@ The finished Weapon starts from the average Quality of its component Items. Craf
 
 One craft operation can therefore improve at most one tier or lose at most two tiers. Exceptional is the absolute maximum.
 
-Quality does not create structural Durability.
+Quality does not create structural Durability and does not multiply Weapon Damage. Material + Components + physical Upgrades define the mundane performance envelope; Quality remains workmanship/condition and value.
+
+Mundane Weapons have no `-3..+3` Weapon Grade or Enhancement axis. The universal equipment Enhancement namespace reserves only `+1/+2/+3` for future Enchantments; mundane Weapons are Enhancement 0.
 
 ## Durability lifecycle
 
