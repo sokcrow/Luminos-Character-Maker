@@ -75,6 +75,7 @@
     stainless_steel: 35,
     nickel_steel: 38,
     chrome_steel: 40,
+    hardened_steel: 42,
     hardened_weapon_steel: 40,
     armor_steel: 43,
     cobalt_alloy: 45,
@@ -95,6 +96,7 @@
     textile: 6000,
     processed_textile: 6000,
     iron: 22000,
+    hardened_steel: 90000,
   });
 
   const MATERIAL_TAGS = Object.freeze({
