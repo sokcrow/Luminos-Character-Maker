@@ -17,11 +17,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 37);
 
   assert.deepEqual(catalog.QUALITY_ORDER, ['ruined', 'poor', 'standard', 'fine', 'exceptional']);
-  assert.equal(catalog.damageMultiplierForQuality('ruined'), 0.60);
-  assert.equal(catalog.damageMultiplierForQuality('poor'), 0.80);
-  assert.equal(catalog.damageMultiplierForQuality('standard'), 1.00);
-  assert.equal(catalog.damageMultiplierForQuality('fine'), 1.20);
-  assert.equal(catalog.damageMultiplierForQuality('exceptional'), 1.40);
+  assert.equal(typeof catalog.damageMultiplierForQuality, 'undefined');
+  assert.equal('damageMultiplier' in catalog.getQuality('fine'), false);
+  assert.equal('durabilityMultiplier' in catalog.getQuality('fine'), false);
 
   assert.equal(catalog.chassisValueForQuality('longsword', 'ruined'), 20000);
   assert.equal(catalog.chassisValueForQuality('longsword', 'poor'), 55000);
@@ -38,8 +36,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('war_pick').iconFamily, 'weapon_pick');
 
   assert.equal(catalog.maxDurability('longsword', 1, 'standard'), 50);
-  assert.equal(catalog.maxDurability('longsword', 1, 'fine'), 63);
-  assert.equal(catalog.maxDurability('longsword', 1.4, 'exceptional'), 105);
+  assert.equal(catalog.maxDurability('longsword', 1, 'fine'), 50);
+  assert.equal(catalog.maxDurability('longsword', 1.4, 'exceptional'), 70);
   assert.equal(catalog.maxDurability('greatsword', 1, 'standard'), 65);
   assert.equal(catalog.maxDurability('maul', 1, 'standard'), 80);
 
@@ -89,7 +87,7 @@ const { pathToFileURL } = require('node:url');
   for (const item of catalog.ITEMS) {
     assert.equal(item.category, 'weapon');
     assert.equal(item.itemType, 'weapon');
-    assert.equal(item.qualitySystem, 'weapon');
+    assert.equal(item.qualitySystem, 'universal');
     assert.equal(item.priceReferenceScope, 'chassis_only');
     assert.ok(item.standardChassisValueAhn > 0);
     assert.ok(item.baseDurability > 0);
