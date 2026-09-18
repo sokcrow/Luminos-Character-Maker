@@ -20,11 +20,11 @@ const { pathToFileURL } = require('node:url');
 
   assert.equal(catalog.RAW_MINERALS.length, 31);
   assert.equal(catalog.REFINED_METALS.length, 25);
-  assert.equal(catalog.ALLOYS.length, 17);
+  assert.equal(catalog.ALLOYS.length, 16);
   assert.equal(catalog.ROUGH_GEMS.length, 12);
   assert.equal(catalog.CUT_GEMS.length, 12);
-  assert.equal(catalog.ITEMS.length, 97);
-  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 97);
+  assert.equal(catalog.ITEMS.length, 96);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 96);
 
   assert.equal(catalog.get('industrial_stone').standardUnitValueAhn, 4000);
   assert.equal(catalog.get('iron_ore').standardUnitValueAhn, 12000);
@@ -35,6 +35,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('iron').standardUnitValueAhn, 20000);
   assert.equal(catalog.get('titanium').standardUnitValueAhn, 120000);
   assert.equal(catalog.get('titanium_alloy').standardUnitValueAhn, 185000);
+  assert.equal(catalog.get('hardened_steel').standardUnitValueAhn, 90000);
+  assert.equal(catalog.get('hardened_weapon_steel').id, 'hardened_steel');
+  assert.equal(catalog.get('armor_steel').id, 'hardened_steel');
   assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 650000);
 
   assert.equal(catalog.get('iron_ore').iconFamily, 'ore_raw');
