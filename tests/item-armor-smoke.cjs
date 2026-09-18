@@ -32,7 +32,7 @@ assert.strictEqual(Materials.upgradeSlotsForDurability(35),3);
 const steelPlate=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:{materialId:"hardened_steel",name:"Hardened Steel"}},
   armor_reinforcement:{body:{materialId:"hardened_steel",name:"Hardened Steel"}},
-},{armorGrade:0,craftResult:24});
+},{craftResult:24});
 assert.strictEqual(steelPlate.valid,true);
 assert.strictEqual(steelPlate.orientation.strong,"slash");
 assert.strictEqual(steelPlate.orientation.secondary,"pierce");
@@ -43,7 +43,7 @@ assert.strictEqual(steelPlate.strengthTarget<=13,true);
 const chitinPlate=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:{materialId:"chitin",name:"Chitin"}},
   armor_reinforcement:{body:{materialId:"chitin",name:"Chitin"}},
-},{armorGrade:0,craftResult:24});
+},{craftResult:24});
 assert.strictEqual(chitinPlate.valid,true);
 assert.strictEqual(chitinPlate.orientation.strong,"slash");
 assert.strictEqual(chitinPlate.orientation.sacrifice,"pierce");
@@ -51,7 +51,7 @@ assert.strictEqual(chitinPlate.orientation.sacrifice,"pierce");
 const titaniumPlate=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:{materialId:"titanium_alloy",name:"Titanium Alloy"}},
   armor_reinforcement:{body:{materialId:"titanium_alloy",name:"Titanium Alloy"}},
-},{armorGrade:0,craftResult:24});
+},{craftResult:24});
 assert.strictEqual(titaniumPlate.valid,true);
 assert.ok(titaniumPlate.weightEffect.max>steelPlate.weightEffect.max,"lighter plate should preserve more Max Speed");
 assert.ok(titaniumPlate.strengthTarget<=steelPlate.strengthTarget);
@@ -83,10 +83,10 @@ assert.strictEqual(Number(proficientPlate.final.slash.toFixed(2)),0.54);
 assert.strictEqual(Number(proficientPlate.final.pierce.toFixed(2)),0.74);
 assert.strictEqual(Number(proficientPlate.final.blunt.toFixed(2)),1.24);
 
-const grade3=Armor.resolvePreset("plate_armor",{
+const legacyGradeIgnored=Armor.resolvePreset("plate_armor",{
   armor_plate:{body:"hardened_steel"},armor_reinforcement:{body:"hardened_steel"}
 },{armorGrade:3,craftResult:24});
-assert.strictEqual(Number(grade3.physicalResistanceProfile.slash.toFixed(2)),0.50);
-assert.strictEqual(Number(grade3.physicalResistanceProfile.blunt.toFixed(2)),1.20);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(legacyGradeIgnored,"armorGrade"),false);
+assert.deepStrictEqual(legacyGradeIgnored.physicalResistanceProfile,steelPlate.physicalResistanceProfile);
 
 console.log("Armor V1 smoke: OK");
