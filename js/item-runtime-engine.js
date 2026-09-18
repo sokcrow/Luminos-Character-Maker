@@ -267,8 +267,19 @@
       return;
     }
     if (kind === "shield") {
-      if (equip) unit.equipment.shield = item;
-      else if (unit.equipment.shield === item || itemId(unit.equipment.shield || {}) === itemId(item)) delete unit.equipment.shield;
+      if (equip) {
+        if (!unit.equipment.offHand) unit.equipment.offHand = item;
+        else if (!unit.equipment.mainHand) unit.equipment.mainHand = item;
+        unit.equipment.shield = item;
+      } else {
+        if (unit.equipment.mainHand === item || itemId(unit.equipment.mainHand || {}) === itemId(item)) delete unit.equipment.mainHand;
+        if (unit.equipment.offHand === item || itemId(unit.equipment.offHand || {}) === itemId(item)) delete unit.equipment.offHand;
+        if (unit.equipment.shield === item || itemId(unit.equipment.shield || {}) === itemId(item)) delete unit.equipment.shield;
+        if (!unit.equipment.shield) {
+          const fallback = [unit.equipment.offHand, unit.equipment.mainHand].find((entry) => entry && equipmentSchema(entry).kind === "shield");
+          if (fallback) unit.equipment.shield = fallback;
+        }
+      }
       return;
     }
     if (kind === "weapon") {

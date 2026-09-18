@@ -108,6 +108,9 @@
         statUsed: skill.statUsed || skill.stat_used || null,
         skillUsed: skill.skillUsed || skill.skill_used || null,
         defenseSubtype: skill.defenseSubtype || skill.defense_subtype || null,
+        shieldSourceId: options.shieldSourceId || skill.shieldSourceId || skill.shield_source_id || null,
+        equipmentSourceId: options.equipmentSourceId || skill.equipmentSourceId || skill.equipment_source_id || null,
+        parry: options.parry === true || skill.parry === true,
         sourceDefinition: clone(skill),
       },
     });

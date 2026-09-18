@@ -1,0 +1,36 @@
+name: Armor Validation
+
+on:
+  push:
+    paths:
+      - 'js/item-armor-*.js'
+      - 'js/item-catalog-armor-*.js'
+      - 'tests/item-armor-smoke.cjs'
+      - 'docs/item-armor-handoff.md'
+      - '.github/workflows/armor-validation.yml'
+  pull_request:
+    paths:
+      - 'js/item-armor-*.js'
+      - 'js/item-catalog-armor-*.js'
+      - 'tests/item-armor-smoke.cjs'
+      - 'docs/item-armor-handoff.md'
+      - '.github/workflows/armor-validation.yml'
+
+jobs:
+  armor-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check js/item-armor-material-profile.js
+          node --check js/item-catalog-armor-components.js
+          node --check js/item-catalog-armor-upgrades.js
+          node --check js/item-armor-upgrade-engine.js
+          node --check js/item-armor-composition-engine.js
+          node --check js/item-armor-runtime.js
+      - name: Armor smoke
+        run: node tests/item-armor-smoke.cjs
