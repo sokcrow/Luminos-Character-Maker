@@ -10,31 +10,31 @@ The initial canonical catalog contains **37 base weapon chassis**. Prices in thi
 
 ## Weapon Quality profile
 
-Weapons intentionally use a weapon-specific Quality profile rather than applying the universal Item effect multiplier directly to weapon damage.
+Weapon Quality is workmanship / functional condition:
 
-| Quality | Weapon Damage | Durability cycle | Chassis value | State rule |
-| --- | ---: | ---: | ---: | --- |
-| Ruined | ×0.60 | ×0.50 | ×0.20 | Counts as Improvised; destroyed when Durability reaches 0 |
-| Poor | ×0.80 | ×0.75 | ×0.55 | Drops to Ruined at 0 Durability |
-| Standard | ×1.00 | ×1.00 | ×1.00 | Drops to Poor at 0 Durability |
-| Fine | ×1.20 | ×1.25 | ×1.65 | Drops to Standard at 0 Durability |
-| Exceptional | ×1.40 | ×1.50 | ×2.50 | Drops to Fine at 0 Durability |
+`Ruined < Poor < Standard < Fine < Exceptional`
 
-The Quality progression is therefore:
+Quality may change value and follows the normal degradation lifecycle, but it does **not** multiply Weapon Damage and it does **not** multiply structural Max Durability. Those two legacy performance multipliers were removed after the component-composition pass made Material + Components + physical Upgrades authoritative.
+
+The Quality progression remains:
 
 `Exceptional → Fine → Standard → Poor → Ruined → Destroyed`
 
-A normal repair restores the current Durability bar **without restoring lost Quality**.
+A normal repair restores the current structural Durability bar **without restoring lost Quality**.
 
 ## Durability contract
 
-Each weapon chassis has its own `baseDurability`. This establishes that a Dagger, Longsword, Maul, Bow and Crossbow do not share one universal durability bar.
+The compatibility chassis catalog retains `baseDurability` as a reference field, while canonical composed Weapons derive structural Durability from incorporated material Components.
 
-The approved model is:
+For the compatibility helper:
 
-`Max Durability = Weapon Base Durability × Material Durability Modifier × Quality Durability Multiplier`
+`Max Durability = Weapon Base Durability × Material Durability Modifier`
 
-The **Material Durability Modifier table is intentionally pending**. Wood, iron, steel and other materials must not receive invented durability modifiers until that material pass is approved.
+Quality is not part of this equation.
+
+For canonical composed Weapons:
+
+`Max Durability = sum(incorporated material/component Durability)`
 
 When current Durability reaches 0:
 
@@ -42,9 +42,15 @@ When current Durability reaches 0:
 2. Fine becomes Standard.
 3. Standard becomes Poor.
 4. Poor becomes Ruined.
-5. Ruined is treated as Improvised and is destroyed the next time its Durability reaches 0.
+5. Ruined is destroyed the next time its Durability reaches 0.
 
-After a Quality drop, the item receives the Durability bar appropriate to its new Quality.
+After a non-terminal Quality drop, the same structural Durability bar refills; Quality does not create or remove material structure.
+
+## Universal Enhancement namespace
+
+Mundane Weapons have no `-3..+3` Weapon Grade and no numeric mundane enhancement bonus. They are Enhancement 0.
+
+The shared equipment contract in `js/item-equipment-enhancement-contract.js` reserves only `+1/+2/+3` for future Enchantments across Weapons, Armor and Shields. Negative enhancement levels are invalid.
 
 ## Equipment compatibility
 
@@ -158,9 +164,9 @@ There is no Heavy Firearm visual family. Energy-based weapons do not receive red
 `tests/item-catalog-weapons-smoke.cjs` validates:
 
 - exactly 37 unique base chassis;
-- approved Quality damage/value multipliers;
+- Quality value/lifecycle semantics with no Damage or Durability multiplier;
 - chassis prices;
-- base durability and Quality-cycle calculations;
+- structural/reference durability and Quality-cycle calculations;
 - repair behavior;
 - Ruined/improvised destruction behavior;
 - semantic recipe profiles;
@@ -173,13 +179,10 @@ There is no Heavy Firearm visual family. Energy-based weapons do not receive red
 
 ## Intentionally pending Weapon-item work
 
-1. Approve the **Material Durability Modifier table** and bind material lineage to `maxDurability()`.
-2. Design **Weapon Upgrades** as a separate approved item layer: compatibility, effects, value, Recipe, Tool/TH and upgrade-capacity rules.
-3. Define the **Firearm chassis catalog** separately. Firearm icon families are ready, but prices/Recipes/chassis are not yet approved. Luminous does not use a Heavy Firearm family/high-caliber category for this pass.
-4. Define **Ammo** catalogs and economic rules for ranged weapons/firearms where required.
-5. Define the **repair / reconditioning economy**, including the distinction between restoring Durability and restoring lost Quality.
-6. Bind exact material quantities only when the material-conservation/economy pass is ready.
-7. Add material and Upgrade value layers on top of chassis price without overwriting the chassis reference table.
+1. Complete the remaining legacy compatibility cutover from chassis reference durability to the canonical component/material composition where old callers still use the chassis catalog directly.
+2. Define the **repair / reconditioning economy**, including the distinction between restoring Durability and restoring lost Quality.
+3. Define Enchantment effects on top of the already-reserved universal +1/+2/+3 Enhancement namespace.
+4. Continue using the dedicated Ranged, Ammo and Firearm modules for those families rather than extending legacy chassis-only rules.
 
 ## Standing workflow rule
 
