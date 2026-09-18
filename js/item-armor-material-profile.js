@@ -57,6 +57,8 @@
     exoskeleton_plate: "chitin",
     exotic_armor_plate: "chitin",
     structural_wood: "wood",
+    structural_stock: "wood",
+    wood_stock: "wood",
   });
 
   const PROFILES = Object.freeze(Object.fromEntries([
