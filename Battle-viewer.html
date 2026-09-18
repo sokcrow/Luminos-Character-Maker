@@ -53,7 +53,7 @@
     const liveArrowNeedle="Object.values(combatData).filter(unit=>unit.controlled==='ai'&&isUnitTargetable(unit)).forEach(unit=>{";
     const liveArrowPatch="Object.values(combatData).filter(unit=>(unit.controlled==='ai'||unit.controlled==='remote')&&isUnitTargetable(unit)).forEach(unit=>{";
     const livePlanRenderNeedle="function renderTargetArrows(){\n  const overlay=$('target-intent-overlay');";
-    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode)window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}));\n  const overlay=$('target-intent-overlay');";
+    const livePlanRenderPatch="function renderTargetArrows(){\n  if(window.LuminousCombatLiveMode){const livePlanSignature=JSON.stringify([round,planReady,plannedActions]);if(renderTargetArrows.__luminousLivePlanSignature!==livePlanSignature){renderTargetArrows.__luminousLivePlanSignature=livePlanSignature;window.dispatchEvent(new CustomEvent('luminous:combat073-plan-change',{detail:{version:'0.7.3',playerId:PLAYER_ID,round,ready:planReady,plans:JSON.parse(JSON.stringify(plannedActions))}}))}}\n  const overlay=$('target-intent-overlay');";
     const liveNeedles=[liveControlNeedle,liveAllPlansNeedle,liveArrowNeedle,livePlanRenderNeedle];
     if(liveNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_LIVE_REMOTE_CONTROL_PATCH_MISSING");
     html=html.replace(liveControlNeedle,liveControlPatch)
