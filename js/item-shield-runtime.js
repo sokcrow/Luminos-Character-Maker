@@ -83,13 +83,35 @@
     if(raw>0)return Math.max(1,Math.floor(raw*mult));
     return Math.max(1,conditionState(shield).max);
   }
+  function refreshQualityDerived(shield, quality) {
+    const structureMultiplier=Number(Composition.QUALITY_STRUCTURE?.[quality]||1);
+    const valueMultiplier=Number(Composition.QUALITY_VALUE?.[quality]||1);
+    const materialStructure=Number(shield.materialStructure||0);
+    const range=shield.guardRange||{};
+    const previousBase=Number(shield.baseGuard||0);
+    const upgradeDelta=Number(shield.guard||0)-previousBase;
+    if(Number.isFinite(materialStructure)&&Number.isFinite(Number(range.min))&&Number.isFinite(Number(range.max))){
+      shield.effectiveStructure=Math.max(0,Math.min(1,materialStructure*structureMultiplier));
+      shield.baseGuard=Math.floor(Number(range.min)+(Number(range.max)-Number(range.min))*shield.effectiveStructure);
+      shield.guard=Math.max(0,Math.min(100,shield.baseGuard+upgradeDelta));
+    }
+    shield.qualityMultipliers={structure:structureMultiplier,durability:Number(Composition.QUALITY_DURABILITY?.[quality]||1),value:valueMultiplier,weight:1};
+    if(Number.isFinite(Number(shield.standardPhysicalValueAhn)))shield.productionValueAhn=Math.max(0,Math.round((Number(shield.standardPhysicalValueAhn)*valueMultiplier)/1000)*1000);
+    const labels={ruined:"Ruined",poor:"Poor",standard:"Standard",fine:"Fine",exceptional:"Exceptional"};
+    if(typeof shield.name==="string"){
+      let base=shield.name.replace(/^(Ruined|Poor|Standard|Fine|Exceptional)\s+/i,"");
+      shield.name=quality==="standard"?base:(labels[quality]+" "+base);
+    }
+    return shield;
+  }
   function degradeAfterBreak(shield) {
     const quality=normalizeId(shield.quality||"standard"), lower=nextLowerQuality(quality);
     if(!lower){ shield.destroyed=true; writeCondition(shield,0,conditionState(shield).max); return {destroyed:true,quality}; }
     shield.quality=lower;
+    refreshQualityDerived(shield,lower);
     const max=maxDurabilityForQuality(shield,lower);
     writeCondition(shield,max,max);
-    return {destroyed:false,quality:lower,maxDurability:max};
+    return {destroyed:false,quality:lower,maxDurability:max,guard:shield.guard,productionValueAhn:shield.productionValueAhn};
   }
   function applyWear(shield, amount) {
     if(!shield||shield.destroyed)return Object.freeze({applied:false,reason:"missing_or_destroyed_shield",wear:0});
@@ -177,7 +199,7 @@
     return true;
   }
 
-  const API=Object.freeze({VERSION,STR_RELIEF_THRESHOLD,equippedShields,resolveShieldSource,guardValue,physicalResistanceSupport,hasStrengthRelief,relieveWeightEffect,effectiveWeightEffect,attackMode,parryProfile,prepareSkill,conditionState,applyWear,applySkillContactWear,protectionRouting,installCombatBridge});
+  const API=Object.freeze({VERSION,STR_RELIEF_THRESHOLD,equippedShields,resolveShieldSource,guardValue,physicalResistanceSupport,hasStrengthRelief,relieveWeightEffect,effectiveWeightEffect,attackMode,parryProfile,prepareSkill,conditionState,refreshQualityDerived,applyWear,applySkillContactWear,protectionRouting,installCombatBridge});
   global.LuminousShieldRuntime=API;
   if(global.CombatEngine) installCombatBridge(global.CombatEngine);
   if(typeof module!=="undefined"&&module.exports)module.exports=API;
