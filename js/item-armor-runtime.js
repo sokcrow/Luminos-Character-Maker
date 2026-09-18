@@ -4,6 +4,8 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousArmorRuntime;
     return;
   }
+  function safeRequire(path){if(typeof require!=="function")return null;try{return require(path);}catch(_){return null;}}
+  const DefensiveWear=global.LuminousDefensiveWearRuntime||safeRequire("./item-defensive-wear-runtime.js");
   const VERSION=1;
   const UNARMORED_BASE=Object.freeze({slash:1.35,pierce:1.35,blunt:1.35});
   const NORMAL_CON_RATE=0.03, ARMORLESS_CON_RATE=0.05, ARMOR_PROFICIENCY_BONUS=0.02;
@@ -31,7 +33,15 @@
     return Object.freeze({base:Object.freeze({...base}),conRate,conAdjustment,proficiencyAdjustment,armorlessDefenseApplied:armorlessEligible,final:Object.freeze(final)});
   }
   function applyPhysicalDamage(amount,damageType,resistance){const n=Math.max(0,Number(amount)||0),type=String(damageType||"").toLowerCase(),profile=resistance?.final||resistance||UNARMORED_BASE,m=Number(profile[type]??1);return n*m;}
-  const API=Object.freeze({VERSION,UNARMORED_BASE,NORMAL_CON_RATE,ARMORLESS_CON_RATE,ARMOR_PROFICIENCY_BONUS,ARMOR_RESISTANCE_MIN,ARMOR_RESISTANCE_MAX,STR_RELIEF_THRESHOLD,baseSpeed,hasStrengthRelief,relieveWeightEffect,resolveSpeed,resolvePhysicalResistance,applyPhysicalDamage});
+  function resolveDurabilityWear({damage=0,damageType="",armor=null}={}){
+    if(DefensiveWear?.resolveArmorWear)return DefensiveWear.resolveArmorWear({damage,damageType,elementalWear:armor?.elementalWear});
+    const n=Math.max(0,Number(damage)||0);if(!n)return 0;
+    const base=Math.max(1,Math.floor(n/10)),type=String(damageType||"").toLowerCase();
+    if(!["fire","cold","lightning","acid"].includes(type))return base;
+    const factor=Number(armor?.elementalWear?.[type]||1);
+    return Math.max(1,Math.floor(base*1.25*factor));
+  }
+  const API=Object.freeze({VERSION,UNARMORED_BASE,NORMAL_CON_RATE,ARMORLESS_CON_RATE,ARMOR_PROFICIENCY_BONUS,ARMOR_RESISTANCE_MIN,ARMOR_RESISTANCE_MAX,STR_RELIEF_THRESHOLD,baseSpeed,hasStrengthRelief,relieveWeightEffect,resolveSpeed,resolvePhysicalResistance,applyPhysicalDamage,resolveDurabilityWear});
   global.LuminousArmorRuntime=API;
   if(typeof module!=="undefined"&&module.exports)module.exports=API;
 })(typeof globalThis!=="undefined"?globalThis:window);
