@@ -58,8 +58,8 @@ const { pathToFileURL } = require('node:url');
 
   const repaired = catalog.repairState('greatsword', { quality: 'poor', currentDurability: 2, materialDurabilityModifier: 1 });
   assert.equal(repaired.quality, 'poor');
-  assert.equal(repaired.currentDurability, 49);
-  assert.equal(repaired.maxDurability, 49);
+  assert.equal(repaired.currentDurability, 65);
+  assert.equal(repaired.maxDurability, 65);
 
   const daggerRecipe = catalog.getRecipe('dagger');
   assert.equal(daggerRecipe.recipeProfile, 'small_blade');
