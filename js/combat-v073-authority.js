@@ -115,7 +115,13 @@
       const scope=this,adjusted=entry?.controller==='remote'&&entry?.plan?.type==='items'?{...entry,controller:'player'}:entry;
       const run=async()=>{
         state.inFlightActions+=1;
-        try{return await original.call(scope,adjusted,...rest);}
+        try{
+          const owner=runtime()?.combatants?.()?.[adjusted?.ownerId];
+          if(!owner||owner.battleActive===false||owner.isBackup===true||owner.defeated===true||owner.dead===true||(Number.isFinite(Number(owner.hp))&&Number(owner.hp)<=0)){
+            return {skipped:true,reason:'owner_not_in_field',ownerId:adjusted?.ownerId||null};
+          }
+          return await original.call(scope,adjusted,...rest);
+        }
         finally{
           state.inFlightActions=Math.max(0,state.inFlightActions-1);state.localActionSeq+=1;
           if(isDm()){
