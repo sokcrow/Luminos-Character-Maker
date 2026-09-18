@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 15;
+  const VERSION = 16;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -125,6 +125,10 @@
     ["weapon_axe","Axe","Hacha","equipment","https://imgur.com/Fp9MJRw.png"],
     ["weapon_bow","Bow","Arco","equipment","https://imgur.com/PWnWMq1.png"],
     ["shield","Shield","Escudo","equipment","https://imgur.com/UnS3IAr.png"],
+    ["shield_buckler","Buckler","Broquel","equipment","https://imgur.com/mct54op.png"],
+    ["shield_round","Round Shield","Escudo redondo","equipment","https://imgur.com/XBJvyX3.png"],
+    ["shield_heater","Heater Shield","Escudo heater","equipment","https://imgur.com/cIj9CrB.png"],
+    ["shield_tower","Tower Shield","Escudo torre","equipment","https://imgur.com/mUnjNz4.png"],
     ["accessory","Accessory","Accesorio","equipment","https://imgur.com/G6YFWYw.png"],
     ["armor_light","Light Armor","Armadura ligera","equipment","https://imgur.com/yO2oNKD.png"],
     ["armor_medium","Medium Armor","Armadura media","equipment","https://imgur.com/Yq7KrcC.png"],
@@ -150,6 +154,7 @@
     "harvesting_tool":"harvest_kit","harvesting_tools":"harvest_kit","harvest_tools":"harvest_kit","harvesting_kit":"harvest_kit","cooking_tool":"cooking_tools","cook_tools":"cooking_tools","smithing_tool":"smithing_tools","smith_tools":"smithing_tools","fabrication_tool":"fabrication_tools","textile_tool":"textile_tools","medical_tool":"medical_tools","technical_tool":"technical_tools","lapidary_tool":"lapidary_tools","chemical_tool":"chemical_tools",
     "data":"data_storage","melee_weapon":"weapon_melee","ranged_weapon":"weapon_ranged",
     "sword":"weapon_sword","dagger":"weapon_dagger","polearm":"weapon_polearm","pole_arm":"weapon_polearm","hammer":"weapon_hammer","shotgun":"weapon_firearm_shotgun","sling":"weapon_sling","pistol":"weapon_firearm_pistol","net":"weapon_net","revolver":"weapon_firearm_revolver","smg":"weapon_firearm_smg","spear":"weapon_spear","crossbow":"weapon_crossbow","pick":"weapon_pick","pickaxe":"weapon_pick","whip":"weapon_whip","blunt_weapon":"weapon_blunt","blowgun":"weapon_blowgun","rifle":"weapon_firearm_rifle","staff":"weapon_staff","axe":"weapon_axe","bow":"weapon_bow",
+    "buckler":"shield_buckler","round_shield":"shield_round","heater_shield":"shield_heater","tower_shield":"shield_tower",
     "light_armor":"armor_light","medium_armor":"armor_medium","heavy_armor":"armor_heavy"
   });
   function normalizeGroupId(value) {
