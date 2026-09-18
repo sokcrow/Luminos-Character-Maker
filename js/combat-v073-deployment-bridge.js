@@ -133,7 +133,7 @@
     state.metrics.transitions += 1;
     if (options.persist !== false) queueUpdate(updates);
     emit({ type: "backup_added", side, key, position: options.position === "front" ? "front" : "back" });
-    return { added: true, key, unit: backup, side, order };
+    return { added: true, key, unit: backup, side, order, updates };
   }
 
   function promoteNextBackupLocal(side, outgoing = {}, options = {}, updates = {}) {
@@ -166,7 +166,7 @@
     queueUpdate(updates);
     state.metrics.transitions += 1;
     emit({ type: "backup_promoted", side: result.side, key: result.key, reason: options.reason || "manual" });
-    return result;
+    return { ...result, updates };
   }
 
   function archiveDefeatedLocal(unit, options = {}, updates = {}) {
@@ -232,7 +232,7 @@
     queueUpdate(updates);
     state.metrics.transitions += 1;
     emit({ type: "retreat", side, key, queueOrder: order });
-    return { handled: true, changed: true, key, side, unit: backup, promoted: false };
+    return { handled: true, changed: true, key, side, unit: backup, promoted: false, updates };
   }
 
   function escapeUnit(unit = {}, options = {}) {
@@ -255,7 +255,7 @@
     queueUpdate(updates);
     state.metrics.transitions += 1;
     emit({ type: "escape", side, key, replacement });
-    return { handled: true, changed: true, key, side, unit: departed, replacement };
+    return { handled: true, changed: true, key, side, unit: departed, replacement, updates };
   }
 
   function resolveRetreatEffect({ actor, effect } = {}) {
