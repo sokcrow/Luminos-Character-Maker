@@ -147,8 +147,8 @@
       reason: options.reason || "replacement",
       inheritActionSlotsCap: options.inheritActionSlotsCap ?? 2,
     });
-    incoming.id = clean(incoming.id || entry.key) || entry.key;
-    incoming.combatId = clean(incoming.combatId || incoming.id || entry.key) || entry.key;
+    incoming.id = entry.key;
+    incoming.combatId = entry.key;
     incoming.replacementPendingPlanning = true;
     combatants[entry.key] = incoming;
     delete state.reserves[entry.key];
