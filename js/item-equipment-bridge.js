@@ -113,6 +113,10 @@
     ["mainHand", "offHand", "armor", "shield"].forEach((slot) => {
       if (sameItem(store[slot], item)) delete store[slot];
     });
+    if (!store.shield) {
+      if (categoryOf(store.offHand || {}) === "shield") store.shield = store.offHand;
+      else if (categoryOf(store.mainHand || {}) === "shield") store.shield = store.mainHand;
+    }
     store.accessories = asArray(store.accessories).filter((entry) => !sameItem(entry, item));
   }
 
@@ -136,7 +140,7 @@
       const handCost = Math.max(1, Number(schema.handCost || item.handCost || item.handsRequired || 1));
       return handCost >= 2 ? ["mainHand"] : ["mainHand", "offHand"];
     }
-    if (category === "shield") return ["offHand", "shield"];
+    if (category === "shield") return ["mainHand", "offHand"];
     if (category === "armor") return ["armor"];
     if (category === "accessory") return ["accessory0", "accessory1"];
     if (["augmentation", "augment", "aumento", "alteracion_corporal"].includes(category)) return ["augment0", "augment1"];
@@ -145,8 +149,12 @@
 
   function canEquipTo(unit, itemInput, slot) {
     const item = typeof itemInput === "object" ? itemInput : findActiveItem(unit, itemInput);
-    const normalized = normalizeSlot(slot);
+    let normalized = normalizeSlot(slot);
     if (!unit || !item) return { allowed: false, reason: "missing_unit_or_item", item, slot: normalized };
+    if (categoryOf(item) === "shield" && normalized === "shield") {
+      const store = equipmentStore(unit);
+      normalized = !store.offHand ? "offHand" : (!store.mainHand ? "mainHand" : "offHand");
+    }
     if (!compatibleSlots(item).includes(normalized)) return { allowed: false, reason: "incompatible_equipment_slot", item, slot: normalized };
 
     if (augmentIndex(normalized) >= 0) {
@@ -223,8 +231,8 @@
         store.mainHand = item;
       }
     } else if (category === "shield") {
+      store[normalized] = item;
       store.shield = item;
-      store.offHand = item;
     } else if (category === "armor") {
       store.armor = item;
     } else if (category === "accessory") {
