@@ -139,6 +139,7 @@
 
   function applySlotCount(unit, count, row = null, options = {}) {
     const next = Math.max(0, finiteInt(count, 0));
+    unit.replacementPendingPlanning = false;
     unit.activeSlots = next;
     unit.currentActionSlots = next;
     unit.actionSlots = next;
