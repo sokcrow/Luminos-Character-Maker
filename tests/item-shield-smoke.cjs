@@ -116,6 +116,12 @@ assert.strictEqual(prepared.type,"ClashableGuard");
 assert.strictEqual(prepared.__shieldClashModifier,2);
 assert.strictEqual(prepared.__shieldCrackedPower,0);
 
+const degradeShield={...fineHardened,currentDurability:1,maxDurability:fineHardened.maxDurability,durability:1};
+const degraded=Runtime.applyWear(degradeShield,1);
+assert.strictEqual(degraded.degradation.quality,"standard");
+assert.strictEqual(degradeShield.guard,48,"Quality degradation must recalculate Guard");
+assert.strictEqual(degradeShield.productionValueAhn,1924000,"Quality degradation must recalculate physical value");
+
 const genericCoinBefore={type:"unbreakable",status:"latent"};
 assert.deepStrictEqual(genericCoinBefore,{type:"unbreakable",status:"latent"},"Shield-specific Cracked semantics must not mutate generic coin state");
 
