@@ -4,7 +4,7 @@ await import('../js/unit-rank-runtime.js');
 const rank = globalThis.LuminousUnitRankRuntime;
 if (!rank) throw new Error('LuminousUnitRankRuntime was not initialized.');
 
-assert.equal(rank.version, '1.1.0');
+assert.equal(rank.version, '1.2.0-live-backup-command');
 assert.equal(rank.BACKUP_COMMAND_SP_MULTIPLIER, 0.5);
 assert.equal(rank.RANKS.normal.levelMultiplier, 1);
 assert.equal(rank.RANKS.captain.levelMultiplier, 2);
