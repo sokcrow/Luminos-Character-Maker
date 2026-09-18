@@ -43,7 +43,10 @@
 
   function isActive(unit = {}) {
     if (!unit || typeof unit !== "object") return false;
-    if (unit.dead === true || unit.defeated === true || unit.isDead === true || unit.removed === true) return false;
+    if (unit.dead === true || unit.defeated === true || unit.isDead === true || unit.removed === true || unit.escaped === true) return false;
+    if (unit.isBackup === true || unit.battleActive === false) return false;
+    const deployment = normalizeId(unit.deploymentState ?? unit.deployment ?? unit.positionState ?? unit.zone ?? "field");
+    if (["backup", "reserve", "reserves", "retreat", "retreated", "defeated", "dead", "escaped", "departed"].includes(deployment)) return false;
     const hp = currentHp(unit);
     return hp == null || hp > 0;
   }
@@ -345,7 +348,7 @@
   }
 
   const api = Object.freeze({
-    version: "1.1.1",
+    version: "1.1.2-field-only",
     DEFAULT_TEAM_SLOT_CAP,
     DEFAULT_BONUS_RECIPIENT_LIMIT,
     unitIdOf,
