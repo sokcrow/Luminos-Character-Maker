@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 15);
+  assert.equal(registry.VERSION, 16);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 121);
+  assert.equal(Object.keys(registry.GROUPS).length, 125);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -59,7 +59,7 @@ const { pathToFileURL } = require('node:url');
   }
 
   const equipmentIds = registry.list({ domain: 'equipment' }).map((entry) => entry.id);
-  assert.equal(equipmentIds.length, 27);
+  assert.equal(equipmentIds.length, 31);
   assert.deepEqual(equipmentIds.slice(0, 22), [
     'weapon_melee', 'weapon_ranged',
     'weapon_sword', 'weapon_dagger', 'weapon_polearm', 'weapon_hammer',
@@ -68,7 +68,23 @@ const { pathToFileURL } = require('node:url');
     'weapon_pick', 'weapon_whip', 'weapon_blunt', 'weapon_blowgun', 'weapon_firearm_rifle',
     'weapon_staff', 'weapon_axe', 'weapon_bow'
   ]);
-  assert.deepEqual(equipmentIds.slice(22), ['shield', 'accessory', 'armor_light', 'armor_medium', 'armor_heavy']);
+  assert.deepEqual(equipmentIds.slice(22), ['shield', 'shield_buckler', 'shield_round', 'shield_heater', 'shield_tower', 'accessory', 'armor_light', 'armor_medium', 'armor_heavy']);
+
+  const shieldIcons = {
+    shield_buckler: 'https://imgur.com/mct54op.png',
+    shield_round: 'https://imgur.com/XBJvyX3.png',
+    shield_heater: 'https://imgur.com/cIj9CrB.png',
+    shield_tower: 'https://imgur.com/mUnjNz4.png'
+  };
+  for (const [id, icon] of Object.entries(shieldIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'equipment');
+  }
+  assert.equal(registry.canonicalGroupId('buckler'), 'shield_buckler');
+  assert.equal(registry.canonicalGroupId('round_shield'), 'shield_round');
+  assert.equal(registry.canonicalGroupId('heater_shield'), 'shield_heater');
+  assert.equal(registry.canonicalGroupId('tower_shield'), 'shield_tower');
 
   const weaponAliasExpectations = {
     sword: 'weapon_sword', dagger: 'weapon_dagger', polearm: 'weapon_polearm', pole_arm: 'weapon_polearm',
