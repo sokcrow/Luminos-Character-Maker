@@ -162,8 +162,7 @@
     refinedMetal("carbon_steel", "Carbon Steel", 40000, "alloy"),
     refinedMetal("high_carbon_steel", "High-Carbon Steel", 55000, "alloy"),
     refinedMetal("stainless_steel", "Stainless Steel", 70000, "alloy"),
-    refinedMetal("hardened_weapon_steel", "Hardened Weapon Steel", 85000, "alloy"),
-    refinedMetal("armor_steel", "Armor Steel", 95000, "alloy"),
+    refinedMetal("hardened_steel", "Hardened Steel", 90000, "alloy"),
     refinedMetal("nickel_steel", "Nickel Steel", 100000, "alloy"),
     refinedMetal("chrome_steel", "Chrome Steel", 115000, "alloy"),
     refinedMetal("cobalt_alloy", "Cobalt Alloy", 145000, "alloy"),
@@ -219,6 +218,8 @@
     exotic_gem: "starstone_exotic_gem",
     rough_starstone: "rough_starstone_exotic_gem",
     rough_exotic_gem: "rough_starstone_exotic_gem",
+    hardened_weapon_steel: "hardened_steel",
+    armor_steel: "hardened_steel",
   });
 
   function get(id) {
