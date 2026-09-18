@@ -141,7 +141,7 @@
       engine.resolveUnilateralWithCounter=function(unitAttacker,attackSkill,unitDefender,counterSkill,options){
         if(unitDefender?.__activeGuardShield&&attackSkill&&!attackSkill.__shieldWearEventId){
           legacyEventCounter+=1;
-          attackSkill.__shieldWearEventId=attackSkill.__combatActionId||\`shield_skill_\${legacyEventCounter}\`;
+          attackSkill.__shieldWearEventId=attackSkill.__combatActionId||`shield_skill_${legacyEventCounter}`;
         }
         const eventId=String(attackSkill?.__shieldWearEventId||attackSkill?.__combatActionId||"");
         const result=originalUnilateral.call(this,unitAttacker,attackSkill,unitDefender,counterSkill,options);
@@ -167,9 +167,9 @@
             const bonus=Number(winnerSkill.__shieldStaggerBonus||0); this.modifyNextStaggerThreshold(loserUnit,bonus); result.shieldStaggerBonusApplied=bonus;
           }
         }
-        const event=\`clash_\${Date.now()}_\${Math.random().toString(36).slice(2,8)}\`;
-        if(skillA?.__shieldSourceObject)applySkillContactWear(skillA.__shieldSourceObject,{eventId:\`\${event}_a\`,crashable:skillA.type==="ClashableGuard"});
-        if(skillB?.__shieldSourceObject)applySkillContactWear(skillB.__shieldSourceObject,{eventId:\`\${event}_b\`,crashable:skillB.type==="ClashableGuard"});
+        const event=`clash_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        if(skillA?.__shieldSourceObject)applySkillContactWear(skillA.__shieldSourceObject,{eventId:`${event}_a`,crashable:skillA.type==="ClashableGuard"});
+        if(skillB?.__shieldSourceObject)applySkillContactWear(skillB.__shieldSourceObject,{eventId:`${event}_b`,crashable:skillB.type==="ClashableGuard"});
         return result;
       };
     }
