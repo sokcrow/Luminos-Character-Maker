@@ -34,7 +34,7 @@
   function slot(componentId, quantity = 1) { return Object.freeze({ componentId:normalizeId(componentId), quantity:Math.max(1, Math.trunc(quantity || 1)) }); }
   function chassis(def) {
     return Object.freeze({
-      id:normalizeId(def.id), name:def.name, iconFamily:"shield", handCost:1,
+      id:normalizeId(def.id), name:def.name, iconFamily:normalizeId(def.iconFamily || def.id), handCost:1,
       primaryComponentId:"shield_component_body", components:Object.freeze(def.components.slice()),
       guardMin:Number(def.guardMin), guardMax:Number(def.guardMax),
       baseWeightEffect:Object.freeze({ min:Number(def.baseWeightEffect?.min || 0), max:Number(def.baseWeightEffect?.max || 0) }),
@@ -46,10 +46,10 @@
   }
 
   const CHASSIS = Object.freeze([
-    chassis({ id:"shield_buckler", name:"Buckler", components:[slot("shield_component_body"),slot("shield_component_grip")], guardMin:8, guardMax:15, baseWeightEffect:{min:0,max:0}, strengthTarget:4, clashModifier:2, shieldCrackedPower:0, intrinsicParryTier:1, baseThreshold:18, assemblyMultiplier:1.15 }),
-    chassis({ id:"shield_round", name:"Round Shield", components:[slot("shield_component_body",2),slot("shield_component_rim"),slot("shield_component_grip")], guardMin:15, guardMax:25, baseWeightEffect:{min:0,max:-1}, strengthTarget:6, clashModifier:1, shieldCrackedPower:1, intrinsicParryTier:0, baseThreshold:20, assemblyMultiplier:1.20 }),
-    chassis({ id:"shield_heater", name:"Heater Shield", components:[slot("shield_component_body",3),slot("shield_component_rim"),slot("shield_component_grip")], guardMin:22, guardMax:35, baseWeightEffect:{min:0,max:-2}, strengthTarget:8, clashModifier:0, shieldCrackedPower:2, intrinsicParryTier:0, baseThreshold:22, assemblyMultiplier:1.25 }),
-    chassis({ id:"shield_tower", name:"Tower Shield", components:[slot("shield_component_body",5),slot("shield_component_rim",2),slot("shield_component_grip")], guardMin:30, guardMax:50, baseWeightEffect:{min:-1,max:-3}, strengthTarget:11, clashModifier:-2, shieldCrackedPower:3, intrinsicParryTier:0, baseThreshold:24, assemblyMultiplier:1.30 }),
+    chassis({ id:"shield_buckler", name:"Buckler", iconFamily:"shield_buckler", components:[slot("shield_component_body"),slot("shield_component_grip")], guardMin:8, guardMax:15, baseWeightEffect:{min:0,max:0}, strengthTarget:4, clashModifier:2, shieldCrackedPower:0, intrinsicParryTier:1, baseThreshold:18, assemblyMultiplier:1.15 }),
+    chassis({ id:"shield_round", name:"Round Shield", iconFamily:"shield_round", components:[slot("shield_component_body",2),slot("shield_component_rim"),slot("shield_component_grip")], guardMin:15, guardMax:25, baseWeightEffect:{min:0,max:-1}, strengthTarget:6, clashModifier:1, shieldCrackedPower:1, intrinsicParryTier:0, baseThreshold:20, assemblyMultiplier:1.20 }),
+    chassis({ id:"shield_heater", name:"Heater Shield", iconFamily:"shield_heater", components:[slot("shield_component_body",3),slot("shield_component_rim"),slot("shield_component_grip")], guardMin:22, guardMax:35, baseWeightEffect:{min:0,max:-2}, strengthTarget:8, clashModifier:0, shieldCrackedPower:2, intrinsicParryTier:0, baseThreshold:22, assemblyMultiplier:1.25 }),
+    chassis({ id:"shield_tower", name:"Tower Shield", iconFamily:"shield_tower", components:[slot("shield_component_body",5),slot("shield_component_rim",2),slot("shield_component_grip")], guardMin:30, guardMax:50, baseWeightEffect:{min:-1,max:-3}, strengthTarget:11, clashModifier:-2, shieldCrackedPower:3, intrinsicParryTier:0, baseThreshold:24, assemblyMultiplier:1.30 }),
   ]);
   const BY_ID = Object.freeze(Object.fromEntries(CHASSIS.map((row) => [row.id,row])));
 
@@ -145,7 +145,7 @@
     const parryTier=Math.max(def.intrinsicParryTier,effectMax(rows,"parryTier"));
     const intrinsicParry=def.intrinsicParryTier>0;
     return Object.freeze({
-      valid:true, itemType:"shield", category:"shield", chassisId:def.id, name:displayName(def,material,quality), iconFamily:"shield", handCost:1,
+      valid:true, itemType:"shield", category:"shield", chassisId:def.id, name:displayName(def,material,quality), iconFamily:def.iconFamily, handCost:1,
       equipment:Object.freeze({kind:"shield",handCost:1}), quality, qualityMultipliers:Object.freeze({structure:QUALITY_STRUCTURE[quality],durability:QUALITY_DURABILITY[quality],value:QUALITY_VALUE[quality],weight:1}),
       primaryMaterial:clone(material), materialStructure:baseStructure, effectiveStructure, guardRange:Object.freeze({min:def.guardMin,max:def.guardMax}), baseGuard:rawGuard, guard,
       proficiencyGuardPerPoint:2, physicalResistanceSupport:Object.freeze({base:0.02,perProficiency:0.02,cap:0.08}),
