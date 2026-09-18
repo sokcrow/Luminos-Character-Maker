@@ -8,7 +8,7 @@ Armor V1 is a modular physical-equipment layer. Shields are intentionally exclud
 - `js/item-catalog-armor-components.js` — seven craftable Armor Components and material compatibility.
 - `js/item-catalog-armor-upgrades.js` — mundane physical component Upgrades.
 - `js/item-armor-upgrade-engine.js` — slot validation and Upgrade application.
-- `js/item-armor-composition-engine.js` — twelve canonical chassis/presets, modular assembly, naming, affinity ordering, Grade and Weight resolution.
+- `js/item-armor-composition-engine.js` — twelve canonical chassis/presets, modular assembly, naming, affinity ordering and Weight resolution.
 - `js/item-armor-runtime.js` — character-facing Speed, STR relief, CON, Armorless Defense and Armor Proficiency formulas.
 - `tests/item-armor-smoke.cjs` — contract coverage.
 
@@ -20,9 +20,9 @@ Studded Leather is not a chassis. It is represented by Leather Armor with Reinfo
 
 ## Resistance pipeline
 
-`Material -> Component affinity -> weighted finished scores -> Strong / Secondary / Sacrifice -> chassis budget -> Armor Grade -> character CON / Proficiency`
+`Material -> Component affinity -> weighted finished scores -> Strong / Secondary / Sacrifice -> chassis budget -> character CON / Proficiency`
 
-Standard Grade 0 budgets:
+Mundane chassis resistance budgets:
 
 | Chassis | Strong | Secondary | Sacrifice |
 | --- | ---: | ---: | ---: |
@@ -34,7 +34,7 @@ Standard Grade 0 budgets:
 | Half Plate / Ring Mail | 0.65 | 0.90 | 1.35 |
 | Chain Mail / Splint / Plate | 0.65 | 0.85 | 1.35 |
 
-Armor Grade is clamped to -3..+3 and currently changes each chassis multiplier by `-0.05 * Grade`. Armor-generated physical multipliers are clamped to 0.30..1.50.
+Mundane Armor has no `-3..+3` Grade axis. Physical resistance comes from material affinity, component geometry, chassis budget, physical Upgrades, CON and Proficiency. Armor-generated physical multipliers remain clamped to 0.30..1.50. Legacy `armorGrade` inputs are ignored rather than translated into another mundane bonus.
 
 Normal CON adjustment is `0.03 * CON MOD`. Armorless Defense does not grant a 1.10 baseline; while unarmored it uses the normal 1.35 physical baseline and changes the CON rate to `0.05 * CON MOD`. Armor Proficiency contributes another `-0.02` only for an equipped Armor chassis for which the character is proficient.
 
@@ -70,5 +70,5 @@ Armor canonicalizes `hardened_weapon_steel` and `armor_steel` to `hardened_steel
 
 - Shield composition / Guard interaction.
 - Full live Combat binding and UI presentation.
-- Enchantments and supernatural Armor resistance.
+- Enchantment effect definitions. The universal equipment Enhancement namespace reserves only +1/+2/+3 for Enchantments; mundane Armor remains Enhancement 0.
 - Full material economy migration of legacy steel IDs outside the Armor resolver.
