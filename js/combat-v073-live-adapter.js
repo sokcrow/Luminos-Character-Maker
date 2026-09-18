@@ -392,7 +392,7 @@
     state.firebaseReady = true;
     subscribe(ROOTS.players, (value) => { state.players = value && typeof value === "object" ? value : {}; });
     subscribe(ROOTS.combatants, (value) => { state.combatants = value && typeof value === "object" ? value : {}; });
-    subscribe(ROOTS.skills, (value) => { state.skills = value && typeof value === "object" ? value : {}; });
+    // Skills are loaded sparsely by LuminousCombatLibraryClient073 for FIELD Units only.
     subscribe(ROOTS.state, (value) => {
       const parsed = phaseAndRound(value);
       state.combatState = parsed.phase;
