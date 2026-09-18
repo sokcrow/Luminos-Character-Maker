@@ -114,7 +114,16 @@
 
   function nextBackupKey(unit = {}, prefix = "backup") {
     state.sequence += 1;
-    return safe(unit.instanceId || unit.combatId || unit.id || unit.unitId || `${prefix}_${state.sequence}`);
+    const root = safe(unit.instanceId || unit.combatId || unit.id || unit.unitId || prefix);
+    const occupied = (key) => Object.prototype.hasOwnProperty.call(state.reserves, key)
+      || Object.prototype.hasOwnProperty.call(adapterState()?.combatants || {}, key);
+    if (!occupied(root)) return root;
+    let key = `${root}_backup_${state.sequence}`;
+    while (occupied(key)) {
+      state.sequence += 1;
+      key = `${root}_backup_${state.sequence}`;
+    }
+    return key;
   }
 
   function enqueueBackupUnit(unit = {}, options = {}) {
@@ -317,6 +326,8 @@
 
   function stop() {
     detachReserves();
+    global.removeEventListener?.("luminous:combat073-hydrated", syncSubscription);
+    global.removeEventListener?.("luminous:combat073-view-lifecycle", syncSubscription);
     state.started = false;
     return true;
   }
