@@ -23,11 +23,11 @@
 
   const QUALITY_ORDER = Object.freeze(["ruined", "poor", "standard", "fine", "exceptional"]);
   const QUALITY = Object.freeze({
-    ruined: Object.freeze({ id: "ruined", damageMultiplier: 0.60, durabilityMultiplier: 0.50, valueMultiplier: 0.20, improvised: true, destroyAtZero: true }),
-    poor: Object.freeze({ id: "poor", damageMultiplier: 0.80, durabilityMultiplier: 0.75, valueMultiplier: 0.55, improvised: false, destroyAtZero: false }),
-    standard: Object.freeze({ id: "standard", damageMultiplier: 1.00, durabilityMultiplier: 1.00, valueMultiplier: 1.00, improvised: false, destroyAtZero: false }),
-    fine: Object.freeze({ id: "fine", damageMultiplier: 1.20, durabilityMultiplier: 1.25, valueMultiplier: 1.65, improvised: false, destroyAtZero: false }),
-    exceptional: Object.freeze({ id: "exceptional", damageMultiplier: 1.40, durabilityMultiplier: 1.50, valueMultiplier: 2.50, improvised: false, destroyAtZero: false }),
+    ruined: Object.freeze({ id: "ruined", valueMultiplier: 0.20, improvised: true, destroyAtZero: true }),
+    poor: Object.freeze({ id: "poor", valueMultiplier: 0.55, improvised: false, destroyAtZero: false }),
+    standard: Object.freeze({ id: "standard", valueMultiplier: 1.00, improvised: false, destroyAtZero: false }),
+    fine: Object.freeze({ id: "fine", valueMultiplier: 1.65, improvised: false, destroyAtZero: false }),
+    exceptional: Object.freeze({ id: "exceptional", valueMultiplier: 2.50, improvised: false, destroyAtZero: false }),
   });
 
   const RECIPE_PROFILES = Object.freeze({
@@ -92,12 +92,12 @@
       purchasable: true,
       stackable: false,
       baseQuality: DEFAULT_QUALITY,
-      qualitySystem: "weapon",
+      qualitySystem: "universal",
       pricingModel: PRICING_MODEL,
       priceReferenceScope: PRICE_REFERENCE_SCOPE,
       standardChassisValueAhn: Number(def.standardChassisValueAhn),
       baseDurability: Number(def.baseDurability),
-      durabilitySystem: "weapon_quality_cycles",
+      durabilitySystem: "structural_material_quality_cycles",
       materialDurabilityModifierStatus: MATERIAL_DURABILITY_STATUS,
       equipment: Object.freeze({ handCost }),
       handCost,
@@ -164,13 +164,12 @@
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     return entry ? Math.round(entry.standardChassisValueAhn * getQuality(quality).valueMultiplier) : null;
   }
-  function damageMultiplierForQuality(quality = DEFAULT_QUALITY) { return getQuality(quality).damageMultiplier; }
-  function maxDurability(itemOrId, materialDurabilityModifier = 1, quality = DEFAULT_QUALITY) {
+  function maxDurability(itemOrId, materialDurabilityModifier = 1) {
     const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
     if (!entry) return null;
     const raw = Number(materialDurabilityModifier);
     const material = Number.isFinite(raw) && raw > 0 ? raw : 1;
-    return Math.max(1, Math.round(entry.baseDurability * material * getQuality(quality).durabilityMultiplier));
+    return Math.max(1, Math.round(entry.baseDurability * material));
   }
   function degradeQuality(quality = DEFAULT_QUALITY) {
     const id = getQuality(quality).id;
@@ -203,7 +202,7 @@
     return entry?.recipe ? clone(entry.recipe) : null;
   }
 
-  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, ITEMS, ALIASES, normalizeId, getQuality, get, list, getRecipe, chassisValueForQuality, damageMultiplierForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
+  const API = Object.freeze({ VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, PRICING_MODEL, PRICE_REFERENCE_SCOPE, IMPROVISED_THRESHOLD_PENALTY, MATERIAL_DURABILITY_STATUS, STATION_REQUIREMENTS_STATUS, QUALITY_ORDER, QUALITY, RECIPE_PROFILES, ITEMS, ALIASES, normalizeId, getQuality, get, list, getRecipe, chassisValueForQuality, maxDurability, degradeQuality, resolveDurabilityBreak, repairState });
   global.LuminousWeaponCatalog = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);
