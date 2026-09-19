@@ -8,7 +8,8 @@ const { pathToFileURL } = require('node:url');
   const affinity = globalThis.LuminousItemAffinityEngine;
 
   assert.ok(affinity);
-  assert.equal(affinity.VERSION, 1);
+  assert.equal(affinity.VERSION, 2);
+  assert.equal(affinity.CANONICAL_AFFINITY_TOTAL, 100);
   assert.equal(affinity.TARGET_BRANCH.arcana, 'int');
   assert.equal(affinity.TARGET_BRANCH.survival, 'wis');
   assert.equal(affinity.TARGET_BRANCH.con_save, 'con');
@@ -30,6 +31,8 @@ const { pathToFileURL } = require('node:url');
     ['survival', 50, 'wis'],
   ]);
   assert.equal(affinity.affinityTotal(item), 100);
+  assert.equal(affinity.isCanonicalAffinityDistribution(item), true);
+  assert.equal(affinity.isCanonicalAffinityDistribution({ arcana: 40, survival: 20 }), false);
 
   const normalized = affinity.normalizedAffinityPercentages(item);
   assert.deepEqual(normalized.map((entry) => [entry.target, entry.percent]), [
@@ -74,6 +77,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(instance.culinaryProperties[0].target, 'con_save');
   assert.equal(instance.culinaryProperties[0].sourceInstanceId, 'ingredient-instance-a');
   assert.equal(instance.culinaryProperties[0].affinityBranch, 'con');
+  assert.equal(Object.hasOwn(instance.culinaryProperties[0], 'affinityWeight'), false);
 
   const processed = affinity.materializeCulinaryAffinity({
     id: 'processed_test_ingredient',
