@@ -17,14 +17,18 @@ const { pathToFileURL } = require('node:url');
   const food = globalThis.LuminousFoodCatalog;
   assert.ok(meat);
   assert.ok(food);
-  assert.equal(food.VERSION, 1);
+  assert.equal(food.VERSION, 2);
   assert.equal(food.FAMILY, 'food');
   assert.equal(food.RATION_HUNGER, 100);
+  assert.equal(food.COOKING_SYSTEM, 'cooking_v1');
+  assert.equal(food.LEGACY_HUNGER_SYSTEM, 'size_daily_hunger_compatibility_only');
   assert.equal(food.listSimpleCookedDefinitions().length, 39);
 
   const wolf = food.get('food_cooked_wolf');
   assert.equal(wolf.name, 'Cooked Wolf Meat');
   assert.equal(wolf.rawItemId, 'meat_wolf');
+  assert.equal(wolf.culinarySystem, 'cooking_v1');
+  assert.equal(wolf.defaultHungerSlotsRestored, 1);
   assert.equal(wolf.cookedBaseValueAhn, 2250);
   assert.equal(wolf.priceAhn, 2810);
 
@@ -46,6 +50,8 @@ const { pathToFileURL } = require('node:url');
   const cookedWolf = food.createSimpleCookedFood(wolfStack, { quality: 'standard' });
   assert.equal(cookedWolf.displayName, 'Cooked Wolf Meat');
   assert.equal(cookedWolf.size, 'medium');
+  assert.equal(cookedWolf.culinarySystem, 'cooking_v1');
+  assert.equal(cookedWolf.hungerSlotsRestored, 1);
   assert.equal(cookedWolf.hungerPerUnit, 100);
   assert.equal(cookedWolf.rationEquivalentPerUnit, 1);
   assert.equal(cookedWolf.inputQuality, 'fine');
