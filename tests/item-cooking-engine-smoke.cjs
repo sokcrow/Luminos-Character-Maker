@@ -3,8 +3,11 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 (async () => {
+  delete globalThis.LuminousItemAffinityEngine;
   delete globalThis.LuminousCookingEngine;
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-cooking-engine.js')).href);
+  const affinity = globalThis.LuminousItemAffinityEngine;
   const cooking = globalThis.LuminousCookingEngine;
 
   assert.ok(cooking);
@@ -138,10 +141,23 @@ const { pathToFileURL } = require('node:url');
     ['athletics', 1],
   ]);
 
-  assert.equal(cooking.PROPERTY_VARIANT_COUNT.normal, 0);
-  assert.equal(cooking.PROPERTY_VARIANT_COUNT.notable, 1);
-  assert.equal(cooking.PROPERTY_VARIANT_COUNT.rare, 2);
-  assert.equal(cooking.PROPERTY_VARIANT_COUNT.exceptional, 3);
+  const proceduralIngredient = affinity.materializeCulinaryAffinity({
+    itemId: 'mystic_apple',
+    role: 'core',
+    culinaryAffinities: {
+      arcana: 75,
+      survival: 25,
+    },
+  }, {
+    sourceInstanceId: 'apple-instance-a',
+    roll: 0.0,
+  });
+  assert.equal(proceduralIngredient.culinaryProperties.length, 1);
+  assert.equal(proceduralIngredient.culinaryProperties[0].target, 'arcana');
+  assert.deepEqual(
+    cooking.rankPropertyTargets([proceduralIngredient]).map((entry) => [entry.target, entry.affinity]),
+    [['arcana', 3]]
+  );
 
   assert.deepEqual(cooking.dailySurvivalExhaustion({
     completedRequiredLongRest: false,
@@ -176,7 +192,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(finalItem.effects.length, 3);
   assert.ok(finalItem.sp >= 2 && finalItem.sp <= 8);
 
-  console.log('Cooking V1 smoke: OK (TH, stars, taste/SP, survival and modular properties)');
+  console.log('Cooking V1 smoke: OK (TH, stars, taste/SP, survival and weighted item affinities)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
