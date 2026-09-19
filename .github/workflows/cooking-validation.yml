@@ -4,9 +4,15 @@ on:
   push:
     paths:
       - 'js/item-affinity-engine.js'
+      - 'js/item-culinary-affinity-data.js'
+      - 'js/item-catalog-plant-produce.js'
+      - 'js/item-catalog-meat.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
       - 'tests/item-affinity-engine-smoke.cjs'
+      - 'tests/item-culinary-affinity-data-smoke.cjs'
+      - 'tests/item-catalog-plant-produce-smoke.cjs'
+      - 'tests/item-catalog-meat-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-affinity-handoff.md'
@@ -15,9 +21,15 @@ on:
   pull_request:
     paths:
       - 'js/item-affinity-engine.js'
+      - 'js/item-culinary-affinity-data.js'
+      - 'js/item-catalog-plant-produce.js'
+      - 'js/item-catalog-meat.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
       - 'tests/item-affinity-engine-smoke.cjs'
+      - 'tests/item-culinary-affinity-data-smoke.cjs'
+      - 'tests/item-catalog-plant-produce-smoke.cjs'
+      - 'tests/item-catalog-meat-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-affinity-handoff.md'
@@ -35,9 +47,18 @@ jobs:
       - name: Syntax check
         run: |
           node --check js/item-affinity-engine.js
+          node --check js/item-culinary-affinity-data.js
+          node --check js/item-catalog-plant-produce.js
+          node --check js/item-catalog-meat.js
           node --check js/item-cooking-engine.js
       - name: Item affinity smoke
         run: node tests/item-affinity-engine-smoke.cjs
+      - name: Culinary affinity data smoke
+        run: node tests/item-culinary-affinity-data-smoke.cjs
+      - name: Plant affinity catalog smoke
+        run: node tests/item-catalog-plant-produce-smoke.cjs
+      - name: Meat affinity catalog smoke
+        run: node tests/item-catalog-meat-smoke.cjs
       - name: Cooking smoke
         run: node tests/item-cooking-engine-smoke.cjs
       - name: Legacy food catalog smoke
