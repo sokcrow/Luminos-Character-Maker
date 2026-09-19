@@ -88,13 +88,6 @@
   const STAR_ACTIVE_EFFECTS = Object.freeze({ 1: 0, 2: 1, 3: 1, 4: 2, 5: 3 });
   const STAR_DURATION_HOURS = Object.freeze({ 1: 0, 2: 1, 3: 2, 4: 4, 5: 6 });
 
-  const PROPERTY_VARIANT_COUNT = Object.freeze({
-    normal: 0,
-    notable: 1,
-    rare: 2,
-    exceptional: 3,
-  });
-
   const SKILL_TARGETS = Object.freeze([
     "athletics", "acrobatics", "sleight_of_hand", "stealth",
     "arcana", "history", "investigation", "nature", "religion",
@@ -420,7 +413,6 @@
     STAR_TASTE_MODIFIER,
     STAR_ACTIVE_EFFECTS,
     STAR_DURATION_HOURS,
-    PROPERTY_VARIANT_COUNT,
     SKILL_TARGETS,
     SAVE_TARGETS,
     REST_CONTRACT,
