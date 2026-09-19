@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 16;
+  const VERSION = 17;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -18,6 +18,39 @@
     ["food","Prepared Food","Comida preparada","consumable","https://imgur.com/uFmUpuD.png"],
     ["ration","Ration","Ración","consumable","https://imgur.com/6yDrI9e.png"],
     ["drink","Drink","Bebida","consumable","https://imgur.com/Tf3bZPM.png"],
+    ["animal_milk","Animal Milk","Leche animal","material","https://imgur.com/IxaxoZ1.png"],
+    ["animal_egg","Animal Egg","Huevo animal","material","https://imgur.com/x4caPXf.png"],
+    ["animal_honey","Animal Honey","Miel animal","material","https://imgur.com/eNuLm5s.png"],
+    ["culinary_water","Culinary Water","Agua culinaria","material","https://imgur.com/Nqu6azm.png"],
+    ["culinary_seasoning","Culinary Seasoning","Sazonador culinario","material","https://imgur.com/w6S1WYi.png"],
+    ["culinary_sweetener","Culinary Sweetener","Endulzante culinario","material","https://imgur.com/oSwtrjm.png"],
+    ["culinary_flour","Culinary Flour","Harina culinaria","material","https://imgur.com/1tyQhuN.png"],
+    ["culinary_dough","Culinary Dough","Masa culinaria","material","https://imgur.com/TD8XMl8.png"],
+    ["culinary_dairy","Processed Dairy","Lácteo procesado","material","https://imgur.com/H0y92fH.png"],
+    ["culinary_oil","Culinary Oil","Aceite culinario","material","https://imgur.com/8zxhiiP.png"],
+    ["culinary_stock","Culinary Stock","Caldo base","material","https://imgur.com/SDq6v2E.png"],
+    ["culinary_sauce","Culinary Sauce","Salsa culinaria","material","https://imgur.com/kjo19dQ.png"],
+    ["culinary_culture","Culinary Culture","Cultivo culinario","material","https://imgur.com/VUet0PY.png"],
+    ["food_bread","Bread","Pan","consumable","https://imgur.com/Nuxo0td.png"],
+    ["food_meal","Meal","Plato","consumable","https://imgur.com/vIEGDjC.png"],
+    ["food_soup","Soup","Sopa","consumable","https://imgur.com/ZsJeTRz.png"],
+    ["food_stew","Stew","Estofado","consumable","https://imgur.com/goOaMAZ.png"],
+    ["food_fried","Fried Food","Comida frita","consumable","https://imgur.com/GKZpTyn.png"],
+    ["food_baked","Baked Food","Comida horneada","consumable","https://imgur.com/PSWonqY.png"],
+    ["food_dessert","Dessert","Postre","consumable","https://imgur.com/Yx7PuNo.png"],
+    ["food_snack","Snack","Botana","consumable","https://imgur.com/bvRPR9n.png"],
+    ["ration_field","Field Ration","Ración de campo","consumable","https://imgur.com/3Mak6XC.png"],
+    ["ration_preserved","Preserved Ration","Ración preservada","consumable","https://imgur.com/3bK29IS.png"],
+    ["ration_canned","Canned Ration","Ración enlatada","consumable","https://imgur.com/38PbW0M.png"],
+    ["ration_emergency","Emergency Ration","Ración de emergencia","consumable","https://imgur.com/SIRWsEZ.png"],
+    ["drink_water","Water Drink","Agua potable","consumable","https://imgur.com/qn4PPTy.png"],
+    ["drink_juice","Juice","Jugo","consumable","https://imgur.com/ytqtH1l.png"],
+    ["drink_hot","Hot Drink","Bebida caliente","consumable","https://imgur.com/Yui2IeC.png"],
+    ["drink_can","Canned Drink","Bebida en lata","consumable","https://imgur.com/5zE9jAZ.png"],
+    ["drink_beer","Beer","Cerveza","consumable","https://imgur.com/jN7uKet.png"],
+    ["drink_wine","Wine","Vino","consumable","https://imgur.com/zzgeqPy.png"],
+    ["drink_spirit","Spirit","Destilado","consumable","https://imgur.com/XPOUo7k.png"],
+    ["drink_cocktail","Cocktail","Cóctel","consumable","https://imgur.com/IKC5vpu.png"],
     ["throwable","Throwable","Arrojable","consumable","https://imgur.com/3w2YnUX.png"],
     ["medical_supply","Medical Supply","Suministro médico","consumable","https://imgur.com/CrWqqZh.png"],
     ["repair_kit","Repair Kit","Kit de reparación","utility","https://imgur.com/OZdAHys.png"],
