@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "food";
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
@@ -14,6 +14,8 @@
   const SIMPLE_COOKING_VALUE_MULTIPLIER = 1.25;
   const SHOP_RETAIL_MULTIPLIER = 1.25;
   const RATION_HUNGER = 100;
+  const COOKING_SYSTEM = "cooking_v1";
+  const LEGACY_HUNGER_SYSTEM = "size_daily_hunger_compatibility_only";
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
@@ -77,7 +79,9 @@
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
       sizeSystem: "universal_physical",
-      hungerSystem: "size_daily_hunger",
+      culinarySystem: COOKING_SYSTEM,
+      hungerSystem: LEGACY_HUNGER_SYSTEM,
+      defaultHungerSlotsRestored: 1,
       stackable: true,
       tags: ["food", "cooked", "meat", "simple_cooking"],
     };
@@ -133,6 +137,8 @@
       lineageId: lineage.lineageId,
       lineageName: lineage.lineageName,
       displayName: cookedName(raw, lineage.lineageName),
+      culinarySystem: COOKING_SYSTEM,
+      hungerSlotsRestored: 1,
       hungerPerUnit: hunger,
       rationEquivalentPerUnit: hunger / RATION_HUNGER,
       secondaryEffectMultiplier: sizeMultiplier * qualityEffectMultiplier,
@@ -192,6 +198,8 @@
     SIMPLE_COOKING_VALUE_MULTIPLIER,
     SHOP_RETAIL_MULTIPLIER,
     RATION_HUNGER,
+    COOKING_SYSTEM,
+    LEGACY_HUNGER_SYSTEM,
     roundTo10,
     simpleCookedDefinition,
     listSimpleCookedDefinitions,
