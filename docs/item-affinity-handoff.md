@@ -29,11 +29,11 @@ culinaryAffinities: {
 
 Rules:
 
-- each value is a weight expressed on a 0..100 authoring scale;
-- values are relative weights, not direct Power, rarity or Item Quality;
-- entries do not have to sum to 100;
-- zero/negative/invalid entries are ignored;
-- the affinity engine normalizes weights only for selection/reporting;
+- each value is a percentage-point weight on a 0..100 authoring scale;
+- canonical catalog distributions sum to exactly 100;
+- values are relative selection weights, not direct Power, rarity or Item Quality;
+- zero/negative/invalid entries are ignored by the engine as defensive compatibility behavior;
+- non-canonical external/legacy data may still be normalized for selection/reporting, but PR #777 catalog data must total 100;
 - a base Item may expose many valid targets with different weights.
 
 ## Procedural instance resolution
@@ -46,15 +46,18 @@ The realized instance carries one exact target:
 culinaryProperties: [{
   target: "arcana",
   sourceInstanceId: "ingredient-instance-123",
-  affinityWeight: 35,
   affinityBranch: "int",
   source: "item_affinity_v1",
 }]
 ```
 
+The source percentage is not copied into the instance. It served only to resolve the RNG result; Power continues to come from recipe composition, Recipe TH and star quality.
+
 There is no Normal / Notable / Rare / Exceptional roll and no separate property-count roll.
 
 The selected target is the property Cooking later consumes. The base percentage table remains catalog data and is not recalculated into a persistent score on every ingredient.
+
+The realized target is part of stack identity. Two otherwise-identical stacks with different realized targets do not merge. Current culinary stacks use affinity-aware stack policies alongside their existing Quality/Size/Lineage identity.
 
 ## Ability-branch projection
 
@@ -128,8 +131,15 @@ The exact Processed Item catalogs and the different preparation outputs that can
 - `js/item-cooking-engine.js`
 - `docs/item-cooking-handoff.md`
 
-## Next data pass
+## Current catalog coverage
 
-The next Item-affinity task is catalog authoring: assign canonical `culinaryAffinities` weights to edible/raw culinary Item definitions.
+PR #777 currently assigns canonical 100-point `culinaryAffinities` distributions to:
 
-That pass should define data, not redesign this engine.
+- all 76 Plant / Produce / Herb / Fungi catalog Items;
+- all 39 Meat catalog Items.
+
+The 39 simple Cooked Meat definitions expose the source Meat affinity profile, and cooked stacks preserve the already-realized source target/provenance rather than rerolling.
+
+Canonical data lives in `js/item-culinary-affinity-data.js`. Shared profiles keep similar ingredients coherent while `PROFILE_BY_ITEM` explicitly covers every current culinary Item ID.
+
+Future culinary catalogs must add affinity coverage and pass the same 100-point validation rather than inventing a parallel system.
