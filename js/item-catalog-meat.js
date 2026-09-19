@@ -32,6 +32,14 @@
     return global.LuminousItemQualityEngine || safeRequire("./item-quality-engine.js");
   }
 
+  function affinityEngine() {
+    return global.LuminousItemAffinityEngine || safeRequire("./item-affinity-engine.js");
+  }
+
+  function affinityCatalog() {
+    return global.LuminousCulinaryAffinityCatalog || safeRequire("./item-culinary-affinity-data.js");
+  }
+
   function sizeEngine() {
     return global.LuminousItemSizeLineageEngine || safeRequire("./item-size-lineage-engine.js");
   }
@@ -47,6 +55,8 @@
   function item(id, name, iconFamily, priceAhn, tags = []) {
     const lineageId = String(id).replace(/^meat_/, "");
     const lineageName = lineageNameFromItemName(name);
+    const affinityData = affinityCatalog();
+    const culinaryAffinities = affinityData?.get ? affinityData.get(id) : {};
     return Object.freeze({
       id,
       name,
@@ -64,7 +74,10 @@
       qualitySystem: "universal",
       sizeSystem: "universal_physical",
       stackable: true,
+      stackPolicy: "identical_item_quality_size_lineage_affinity",
       edibleRaw: true,
+      culinaryAffinities: Object.freeze(culinaryAffinities || {}),
+      culinaryAffinityProfileId: affinityData?.profileIdFor ? affinityData.profileIdFor(id) : null,
       tags: Object.freeze(["ingredient", "organic", "meat", ...tags]),
     });
   }
@@ -159,12 +172,32 @@
       : { lineageId: options.lineageId || entry.lineageId, lineageName: options.lineageName || entry.lineageName };
     const quantity = Math.max(1, Math.trunc(Number(options.quantity || 1)));
     const hungerPerUnit = sEngine?.hungerForSize ? sEngine.hungerForSize(size) : 100;
+    const affinity = affinityEngine();
+    const sourceInstanceId = String(options.sourceInstanceId || options.instanceId || options.sourceEntityId || "").trim() || null;
+    const materialized = affinity?.materializeCulinaryAffinity
+      ? affinity.materializeCulinaryAffinity({
+          ...entry,
+          sourceInstanceId,
+          culinaryProperties: clone(options.culinaryProperties || []),
+        }, {
+          sourceInstanceId,
+          roll: options.affinityRoll,
+          rng: options.affinityRng,
+        })
+      : { culinaryProperties: clone(options.culinaryProperties || []) };
+    const culinaryProperties = clone(materialized.culinaryProperties || []);
+    const realized = culinaryProperties[0] || null;
     return {
       itemId: entry.id,
       family: FAMILY,
       quantity,
       size,
       quality,
+      stackPolicy: entry.stackPolicy,
+      sourceInstanceId: materialized.sourceInstanceId || sourceInstanceId,
+      culinaryProperties,
+      affinityTarget: realized?.target || null,
+      affinityBranch: realized?.affinityBranch || null,
       lineageId: lineage.lineageId,
       lineageName: lineage.lineageName,
       displayName: entry.name === "Venison" && lineage.lineageName === "Venison" ? "Venison" : `${lineage.lineageName} Meat`,
