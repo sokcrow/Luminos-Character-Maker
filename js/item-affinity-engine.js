@@ -6,7 +6,8 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
+  const CANONICAL_AFFINITY_TOTAL = 100;
 
   const TARGET_BRANCH = Object.freeze({
     athletics: "str",
@@ -89,6 +90,10 @@
     return normalizeAffinityEntries(itemOrMap).reduce((sum, entry) => sum + entry.weight, 0);
   }
 
+  function isCanonicalAffinityDistribution(itemOrMap) {
+    return affinityTotal(itemOrMap) === CANONICAL_AFFINITY_TOTAL;
+  }
+
   function normalizedAffinityPercentages(itemOrMap) {
     const entries = normalizeAffinityEntries(itemOrMap);
     const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
@@ -164,7 +169,6 @@
         Object.freeze({
           target: picked.target,
           sourceInstanceId: sourceInstanceId || null,
-          affinityWeight: picked.weight,
           affinityBranch: picked.branch,
           source: "item_affinity_v1",
         }),
@@ -174,11 +178,13 @@
 
   const API = Object.freeze({
     VERSION,
+    CANONICAL_AFFINITY_TOTAL,
     TARGET_BRANCH,
     VALID_TARGETS,
     normalizeId,
     normalizeAffinityEntries,
     affinityTotal,
+    isCanonicalAffinityDistribution,
     normalizedAffinityPercentages,
     branchAffinityWeights,
     affinityProfile,
