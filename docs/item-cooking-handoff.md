@@ -1,0 +1,286 @@
+# Cooking / Food V1 handoff
+
+Status: canonical V1 contract for PR #777.
+
+This document freezes the Cooking/Food rules approved for the Items pass. The goal is to stop reopening already-closed design questions. Catalog expansion may add recipes and ingredients, but must not silently change these contracts.
+
+## Design doctrine
+
+Complexity lives in crafting; equipping/consuming stays simple.
+
+Pipeline:
+
+Ingredient / Processed Item -> Recipe TH -> normal Limbus Check -> star quality -> Taste/SP -> culinary properties -> finished Item.
+
+Cooking does not introduce a new dice system. Recipes use the existing Check resolver and declare DEX, INT or WIS as their governing ability. Easier/manual preparations generally use DEX. Harder technical or judgment-heavy recipes use INT or WIS. The recipe authors the ability; the player does not freely substitute a preferred Score.
+
+## Recipe TH
+
+Canonical authored Recipe TH range is 8..24.
+
+A preparation method has Base TH 8..15:
+
+| Method family | Base TH |
+| --- | ---: |
+| Assemble / Cut / Simple Mix | 8 |
+| Mixing / Basic Boil | 9 |
+| Grill / Pan Fry | 10 |
+| Steam / Roast / Knead | 11 |
+| Simmer / Stir Fry | 12 |
+| Bake / Deep Fry | 13 |
+| Smoke / Cure / Pickle / Dry | 14 |
+| Ferment / Brew / Distill / Delicate technique | 15 |
+
+Final authored Recipe TH:
+
+Recipe TH = Base Method TH
++ ceil(Ingredient Complexity)
++ Auxiliary Complexity
++ Special Recipe Penalties
+- Processed Stabilization
+
+then clamp to 8..24.
+
+Ingredient complexity:
+
+| Role | Complexity |
+| --- | ---: |
+| Core / Major | 1.00 |
+| Minor | 0.50 |
+| Seasoning | 0.25 |
+| Garnish | 0.00 |
+
+Fractions are summed first and only then rounded with ceil().
+
+Auxiliary steps use small TH deltas rather than another full method TH. Canonical auxiliary complexity is capped at +4.
+
+Processed ingredients encapsulate their internal crafting complexity. Their internal source ingredients are not recounted in the final recipe. Appropriate Processed ingredients may stabilize by -1 TH; a key Processed component may contribute -2 TH. Total Processed stabilization is capped at -2 TH.
+
+Using an inappropriate tool, station or equivalent required cooking element adds +3 TH per distinct mismatch.
+
+## Cook's Utensils
+
+Cook's Utensils modify TH rather than creating a second roll:
+
+- present, not proficient: -1 TH;
+- proficient: -(2 + Proficiency) TH.
+
+Station- and specialized-tool modifiers are recipe/equipment data. No universal positive station bonus is invented in V1. Inappropriate equipment uses the +3 TH mismatch rule above.
+
+The 8..24 clamp belongs to the authored Recipe TH. Equipment can make the effective Check TH lower or higher at runtime.
+
+## Star quality
+
+Margin = resolved Check result - effective TH.
+
+| Margin | Quality |
+| ---: | --- |
+| <= -8 | ★ |
+| -7..-1 | ★★ |
+| 0..3 | ★★★ |
+| 4..7 | ★★★★ |
+| >= 8 | ★★★★★ |
+
+Stars control active culinary effects and duration:
+
+| Stars | Active effects | Duration | Taste mod |
+| --- | ---: | ---: | ---: |
+| ★ | 0 | 0h | -2 |
+| ★★ | 1 | 1h | -1 |
+| ★★★ | 1 | 2h | 0 |
+| ★★★★ | 2 | 4h | +1 |
+| ★★★★★ | 3 | 6h | +2 |
+
+★ food remains edible/feeding when the underlying item is edible; it simply has no active special culinary effect.
+
+## Taste and SP
+
+Ingredients and Processed items use Taste 0..4. Finished cooking may reach Taste 0..6 after the star modifier.
+
+Base Taste is a weighted average using the same culinary role weights as Ingredient Complexity:
+
+Base Taste = sum(Taste x Role Weight) / sum(Role Weight)
+
+Round Base Taste normally, then:
+
+Final Taste = clamp(Base Taste + Star Taste Modifier, 0, 6).
+
+For edible food:
+
+| Final Taste | SP |
+| ---: | ---: |
+| 0 | +2 |
+| 1 | +3 |
+| 2 | +4 |
+| 3 | +5 |
+| 4 | +6 |
+| 5 | +7 |
+| 6 | +8 |
+
+Equivalent formula: SP = Final Taste + 2, clamped to +2..+8.
+
+For edible:false Ingredient/Processed consumption:
+
+| Final Taste | SP |
+| ---: | ---: |
+| 0 | -10 |
+| 1 | -9 |
+| 2 | -8 |
+| 3 | -7 |
+| 4 | -6 |
+| 5+ | -5 |
+
+Non-edible raw/processed consumption may still restore exactly one Hunger or Hydration slot according to its physical consumption type, but it does not grant normal prepared-food culinary effects.
+
+## Hunger / Hydration / Rest
+
+Medium baseline:
+
+- Hunger: 3 slots;
+- Hydration: 3 slots;
+- both decay by 1 slot every 6 hours;
+- normal food/drink restoration is recipe/item data, usually +1 relevant slot;
+- a filling/hydrating culinary property may add +1 additional relevant slot.
+
+Daily survival Exhaustion:
+
+- missing the required Long Rest/sleep: +1 Exhaustion;
+- inadequate sustenance: +1 Exhaustion;
+- Hunger and Hydration failures together are one sustenance penalty, not two;
+- daily survival penalties therefore cap at +2 Exhaustion.
+
+Current V1 adequacy check is Hunger >= 1 and Hydration >= 1 at the daily survival evaluation.
+
+Short Rest:
+- one active window;
+- choose Activity OR Eat/Drink;
+- no sleep;
+- 2-hour Short Rest cooldown.
+
+Long Rest:
+- one active window;
+- choose Activity OR Eat/Drink;
+- mandatory sleep follows;
+- only one Eat/Drink opportunity is implied by the rest flow.
+
+Food and drink may both be chosen inside one Eat/Drink window when valid inventory consumables are available.
+
+## Culinary property targets
+
+Food properties target individual Skills or individual Saves only. They do not generalize to the parent ability Score/Modifier and do not directly buff Speed, OFF, DEF, Guard, Clash or similar combat channels.
+
+Skill targets:
+Athletics, Acrobatics, Sleight of Hand, Stealth, Arcana, History, Investigation, Nature, Religion, Animal Handling, Insight, Medicine, Perception, Survival, Deception, Persuasion, Intimidation, Performance.
+
+Save targets:
+STR Save, DEX Save, CON Save, INT Save, WIS Save, CHA Save.
+
+A culinary effect changes Final Power only for its exact target Check/Save.
+
+## Modular ingredient properties
+
+Ingredient instances may carry modular culinary properties.
+
+Variant property counts:
+
+| Variant | Properties |
+| --- | ---: |
+| Normal | 0 |
+| Notable | 1 |
+| Rare | 2 |
+| Exceptional | 3 |
+
+Properties are affinities, not direct +Power values.
+
+Affinity contribution by ingredient role:
+
+| Role | Affinity weight |
+| --- | ---: |
+| Core / Major | 3 |
+| Minor | 2 |
+| Seasoning | 1 |
+| Garnish | 0 |
+
+Equal targets merge into one affinity. The same source instance cannot duplicate its target by being processed repeatedly. Processing preserves the property and its source provenance instead of rerolling or cloning it.
+
+Example:
+Mystic Apple -> Mystic Apple Syrup -> Pancakes made with that Syrup.
+
+The Arcana property may survive the chain, but one source Apple does not become multiple Arcana sources merely because it passed through multiple processing stages.
+
+When distinct ingredient sources share the same target, their affinity legitimately combines.
+
+Affinity ranking determines Primary / Secondary / Tertiary. Recipe property priority breaks equal-affinity ties, followed by deterministic target ID order.
+
+The recipe does not hard-code the final buff. Ingredient instances determine the candidate targets.
+
+## Concentration and Power
+
+Distinct candidate targets deliberately dilute specialization.
+
+Canonical power vectors:
+
+| Distinct candidate targets | ★ | ★★ | ★★★ | ★★★★ | ★★★★★ |
+| --- | --- | --- | --- | --- | --- |
+| 1 | — | +2 | +3 | +4 | +6 |
+| 2 | — | +1/— | +2/— | +3/+1 | +4/+2 |
+| 3 | — | +1/—/— | +2/—/— | +2/+1/— | +3/+2/+1 |
+| 4+ | all — | +1/— | +1/— | +1/+1 | +1/+1/+1 |
+
+— means the property is not active.
+
+Recipe difficulty also caps any one culinary effect:
+
+| Recipe TH | Maximum individual Power |
+| ---: | ---: |
+| 8..11 | +2 |
+| 12..15 | +3 |
+| 16..19 | +4 |
+| 20..24 | +6 |
+
+Therefore +6 requires all of the following:
+- a TH 20..24 recipe;
+- one distinct target after composition;
+- ★★★★★ execution.
+
+More ingredients can increase TH and broaden candidate properties, but 4+ targets are intentionally diluted to +1 effects. More ingredients are not automatically stronger.
+
+## Effect replacement
+
+Same-target culinary effects do not stack. A stronger same-target effect replaces a weaker one; a weaker same-target effect does not overwrite a stronger one.
+
+Finished food stores its resolved effects, Taste, SP, stars, duration and provenance. It is not recalculated every time inventory UI renders it.
+
+The generic live active-effect replacement UI when three unrelated culinary effects are already occupied remains a runtime binding concern; the Item itself already resolves to no more than three active effects.
+
+## Catalog / provenance
+
+Processed ingredients are real inventory Items with their own recipes. Processing can be multi-stage. A Processed item carries provenance and inherited culinary properties into later recipes.
+
+Normal finished names remain compact. UI should show stars and small Skill/Save icons rather than prefix every property into the item name.
+
+Example:
+Wolf Meat with Rice ★★★★★
+[Survival +3] [CON Save +2] [Athletics +1]
+
+Detailed view may show provenance such as Made with Mystic Apple Syrup.
+
+## Canonical implementation
+
+- js/item-cooking-engine.js
+- tests/item-cooking-engine-smoke.cjs
+- docs/item-cooking-handoff.md
+
+The older js/item-catalog-food.js 0..100 hunger/ration helpers remain legacy compatibility only until catalog migration. New Cooking/Rest/culinary-effect work must use the Cooking V1 contract above rather than extending the old 100-point Hunger model.
+
+## Explicitly not reopened by this handoff
+
+The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1:
+
+- exact probability distribution for Normal / Notable / Rare / Exceptional ingredient instances;
+- exhaustive affinity pools for every ingredient family;
+- non-Medium body-size Hunger/Hydration slot scaling;
+- full multicultural recipe catalog and exact AHN values;
+- final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
+
+Those tasks must consume this V1 contract rather than redefining it.
