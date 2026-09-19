@@ -3,18 +3,24 @@ name: Cooking Validation
 on:
   push:
     paths:
+      - 'js/item-affinity-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
+      - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-affinity-handoff.md'
       - 'docs/item-cooking-handoff.md'
       - '.github/workflows/cooking-validation.yml'
   pull_request:
     paths:
+      - 'js/item-affinity-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
+      - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-affinity-handoff.md'
       - 'docs/item-cooking-handoff.md'
       - '.github/workflows/cooking-validation.yml'
 
@@ -27,7 +33,11 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check js/item-cooking-engine.js
+        run: |
+          node --check js/item-affinity-engine.js
+          node --check js/item-cooking-engine.js
+      - name: Item affinity smoke
+        run: node tests/item-affinity-engine-smoke.cjs
       - name: Cooking smoke
         run: node tests/item-cooking-engine-smoke.cjs
       - name: Legacy food catalog smoke
