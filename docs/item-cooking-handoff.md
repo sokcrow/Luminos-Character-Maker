@@ -10,7 +10,7 @@ Complexity lives in crafting; equipping/consuming stays simple.
 
 Pipeline:
 
-Ingredient / Processed Item -> Recipe TH -> normal Limbus Check -> star quality -> Taste/SP -> culinary properties -> finished Item.
+Base Item affinities -> procedural ingredient property -> Ingredient / Processed Item -> Recipe TH -> normal Limbus Check -> star quality -> Taste/SP -> culinary effects -> finished Item.
 
 Cooking does not introduce a new dice system. Recipes use the existing Check resolver and declare DEX, INT or WIS as their governing ability. Easier/manual preparations generally use DEX. Harder technical or judgment-heavy recipes use INT or WIS. The recipe authors the ability; the player does not freely substitute a preferred Score.
 
@@ -177,42 +177,63 @@ STR Save, DEX Save, CON Save, INT Save, WIS Save, CHA Save.
 
 A culinary effect changes Final Power only for its exact target Check/Save.
 
-## Modular ingredient properties
+## Item affinity and procedural ingredient properties
 
-Ingredient instances may carry modular culinary properties.
+Ingredient definitions do **not** use Normal / Notable / Rare / Exceptional culinary variants and do not carry a per-ingredient culinary power score.
 
-Variant property counts:
+A culinary-capable base Item may instead declare a weighted `culinaryAffinities` map:
 
-| Variant | Properties |
-| --- | ---: |
-| Normal | 0 |
-| Notable | 1 |
-| Rare | 2 |
-| Exceptional | 3 |
+```js
+culinaryAffinities: {
+  survival: 40,
+  athletics: 25,
+  con_save: 20,
+  nature: 10,
+  arcana: 5,
+}
+```
 
-Properties are affinities, not direct +Power values.
+These values are 0..100 authoring weights. They are relative RNG weights, not direct +Power, rarity, Item Quality or a score that must be recalculated on every ingredient. Entries do not need to sum to 100; the Item Affinity engine normalizes them only when selection/reporting requires it.
 
-Affinity contribution by ingredient role:
+When a procedural ingredient instance is generated, one exact Skill/Save target is selected from its base Item affinity pool. The realized target is stored on the instance as a culinary property together with its source provenance.
 
-| Role | Affinity weight |
+The base Item may expose many possible targets. The instance adopts one result from that pool.
+
+Exact culinary targets also project to gameplay branches for world placement:
+
+- STR: Athletics, STR Save
+- DEX: Acrobatics, Sleight of Hand, Stealth, DEX Save
+- CON: CON Save
+- INT: Arcana, History, Investigation, Nature, Religion, INT Save
+- WIS: Animal Handling, Insight, Medicine, Perception, Survival, WIS Save
+- CHA: Deception, Persuasion, Intimidation, Performance, CHA Save
+
+Locations, districts and shops may inspect those base target/branch weights when deciding which Items they tend to stock. An INT-focused magical district can therefore prefer food Items whose catalog affinities lean toward INT. The world chooses which Items are more likely to appear; it does not rewrite the Item's intrinsic percentages.
+
+Once an ingredient instance has realized its target, Cooking uses the recipe-role contribution weights below:
+
+| Role | Recipe affinity contribution |
 | --- | ---: |
 | Core / Major | 3 |
 | Minor | 2 |
 | Seasoning | 1 |
 | Garnish | 0 |
 
-Equal targets merge into one affinity. The same source instance cannot duplicate its target by being processed repeatedly. Processing preserves the property and its source provenance instead of rerolling or cloning it.
+The catalog-side percentage and the recipe-side contribution are intentionally different layers. Catalog affinity determines **which target the instance adopts**; recipe role determines **how strongly that realized target contributes inside the dish**.
+
+Equal realized targets from distinct source instances merge into one recipe affinity. The same source instance cannot duplicate its target by being processed repeatedly. Processing preserves the realized property and its `sourceInstanceId` instead of rerolling or cloning it by default.
 
 Example:
+
 Mystic Apple -> Mystic Apple Syrup -> Pancakes made with that Syrup.
 
-The Arcana property may survive the chain, but one source Apple does not become multiple Arcana sources merely because it passed through multiple processing stages.
+If the source Apple realized Arcana, that Arcana property may survive the chain, but one source Apple does not become multiple Arcana sources merely because it passed through multiple processing stages.
 
-When distinct ingredient sources share the same target, their affinity legitimately combines.
+When distinct ingredient sources share the same realized target, their recipe affinity legitimately combines.
 
-Affinity ranking determines Primary / Secondary / Tertiary. Recipe property priority breaks equal-affinity ties, followed by deterministic target ID order.
+Recipe affinity ranking determines Primary / Secondary / Tertiary. Recipe property priority breaks equal-affinity ties, followed by deterministic target ID order.
 
-The recipe does not hard-code the final buff. Ingredient instances determine the candidate targets.
+The recipe does not hard-code the final buff. Procedural ingredient instances determine the candidate targets.
 
 ## Concentration and Power
 
@@ -267,6 +288,9 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 
 ## Canonical implementation
 
+- js/item-affinity-engine.js
+- tests/item-affinity-engine-smoke.cjs
+- docs/item-affinity-handoff.md
 - js/item-cooking-engine.js
 - tests/item-cooking-engine-smoke.cjs
 - docs/item-cooking-handoff.md
@@ -277,9 +301,10 @@ The older js/item-catalog-food.js 0..100 hunger/ration helpers remain legacy com
 
 The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1:
 
-- exact probability distribution for Normal / Notable / Rare / Exceptional ingredient instances;
-- exhaustive affinity pools for every ingredient family;
+- catalog authoring of canonical `culinaryAffinities` weights for every edible/raw culinary Item;
+- world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
+- Processed Item catalogs and the multiple preparation outputs available from the same source Item;
 - full multicultural recipe catalog and exact AHN values;
 - final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
 
