@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 16);
+  assert.equal(registry.VERSION, 17);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 125);
+  assert.equal(Object.keys(registry.GROUPS).length, 158);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -29,6 +29,46 @@ const { pathToFileURL } = require('node:url');
     'glass_component', 'container', 'tool', 'repair_kit', 'weapon_melee', 'weapon_ranged'
   ];
   for (const id of legacyCritical) assert.equal(registry.has(id), true, id);
+
+  const culinaryIcons = {
+    animal_milk: 'https://imgur.com/IxaxoZ1.png',
+    animal_egg: 'https://imgur.com/x4caPXf.png',
+    animal_honey: 'https://imgur.com/eNuLm5s.png',
+    culinary_water: 'https://imgur.com/Nqu6azm.png',
+    culinary_seasoning: 'https://imgur.com/w6S1WYi.png',
+    culinary_sweetener: 'https://imgur.com/oSwtrjm.png',
+    culinary_flour: 'https://imgur.com/1tyQhuN.png',
+    culinary_dough: 'https://imgur.com/TD8XMl8.png',
+    culinary_dairy: 'https://imgur.com/H0y92fH.png',
+    culinary_oil: 'https://imgur.com/8zxhiiP.png',
+    culinary_stock: 'https://imgur.com/SDq6v2E.png',
+    culinary_sauce: 'https://imgur.com/kjo19dQ.png',
+    culinary_culture: 'https://imgur.com/VUet0PY.png',
+    food_bread: 'https://imgur.com/Nuxo0td.png',
+    food_meal: 'https://imgur.com/vIEGDjC.png',
+    food_soup: 'https://imgur.com/ZsJeTRz.png',
+    food_stew: 'https://imgur.com/goOaMAZ.png',
+    food_fried: 'https://imgur.com/GKZpTyn.png',
+    food_baked: 'https://imgur.com/PSWonqY.png',
+    food_dessert: 'https://imgur.com/Yx7PuNo.png',
+    food_snack: 'https://imgur.com/bvRPR9n.png',
+    ration_field: 'https://imgur.com/3Mak6XC.png',
+    ration_preserved: 'https://imgur.com/3bK29IS.png',
+    ration_canned: 'https://imgur.com/38PbW0M.png',
+    ration_emergency: 'https://imgur.com/SIRWsEZ.png',
+    drink_water: 'https://imgur.com/qn4PPTy.png',
+    drink_juice: 'https://imgur.com/ytqtH1l.png',
+    drink_hot: 'https://imgur.com/Yui2IeC.png',
+    drink_can: 'https://imgur.com/5zE9jAZ.png',
+    drink_beer: 'https://imgur.com/jN7uKet.png',
+    drink_wine: 'https://imgur.com/zzgeqPy.png',
+    drink_spirit: 'https://imgur.com/XPOUo7k.png',
+    drink_cocktail: 'https://imgur.com/IKC5vpu.png'
+  };
+  for (const [id, icon] of Object.entries(culinaryIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
 
   const weaponIcons = {
     weapon_sword: 'https://imgur.com/3AEGrWu.png',
@@ -126,7 +166,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
-  console.log(`Item icon registry smoke: OK (${groups.length} families, 20 weapon-specific families)`);
+  console.log(`Item icon registry smoke: OK (${groups.length} families, culinary + weapon-specific families)`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
