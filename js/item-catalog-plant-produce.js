@@ -22,6 +22,14 @@
     return global.LuminousItemQualityEngine || safeRequire("./item-quality-engine.js");
   }
 
+  function affinityEngine() {
+    return global.LuminousItemAffinityEngine || safeRequire("./item-affinity-engine.js");
+  }
+
+  function affinityCatalog() {
+    return global.LuminousCulinaryAffinityCatalog || safeRequire("./item-culinary-affinity-data.js");
+  }
+
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
   }
@@ -39,6 +47,8 @@
   }
 
   function ingredient(id, name, group, iconFamily, standardUnitValueAhn, recipeRoles = [], flavorTags = [], functionalTags = [], craftTags = []) {
+    const affinityData = affinityCatalog();
+    const culinaryAffinities = affinityData?.get ? affinityData.get(id) : {};
     return Object.freeze({
       id,
       name,
@@ -55,8 +65,10 @@
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
       stackable: true,
-      stackPolicy: "identical_item_quality",
+      stackPolicy: "identical_item_quality_affinity",
       cookingReady: true,
+      culinaryAffinities: Object.freeze(culinaryAffinities || {}),
+      culinaryAffinityProfileId: affinityData?.profileIdFor ? affinityData.profileIdFor(id) : null,
       recipesImplemented: RECIPES_IMPLEMENTED,
       rawCraftingReagent: true,
       gatheringModel: "deferred",
@@ -217,6 +229,21 @@
       : normalizeId(options.quality || DEFAULT_QUALITY);
     const quantity = Math.max(0, Number(options.quantity ?? 1) || 0);
     const unitValueAhn = unitValueForQuality(entry, quality);
+    const affinity = affinityEngine();
+    const sourceInstanceId = String(options.sourceInstanceId || options.instanceId || "").trim() || null;
+    const materialized = affinity?.materializeCulinaryAffinity
+      ? affinity.materializeCulinaryAffinity({
+          ...entry,
+          sourceInstanceId,
+          culinaryProperties: clone(options.culinaryProperties || []),
+        }, {
+          sourceInstanceId,
+          roll: options.affinityRoll,
+          rng: options.affinityRng,
+        })
+      : { culinaryProperties: clone(options.culinaryProperties || []) };
+    const culinaryProperties = clone(materialized.culinaryProperties || []);
+    const realized = culinaryProperties[0] || null;
     return {
       itemId: entry.id,
       family: FAMILY,
@@ -225,6 +252,11 @@
       quantity,
       measure: MEASURE,
       quality,
+      stackPolicy: entry.stackPolicy,
+      sourceInstanceId: materialized.sourceInstanceId || sourceInstanceId,
+      culinaryProperties,
+      affinityTarget: realized?.target || null,
+      affinityBranch: realized?.affinityBranch || null,
       unitValueAhn,
       totalValueAhn: Math.round(unitValueAhn * quantity),
       recipeRoles: clone(entry.recipeRoles),
