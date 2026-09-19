@@ -83,6 +83,9 @@
       hungerSystem: LEGACY_HUNGER_SYSTEM,
       defaultHungerSlotsRestored: 1,
       stackable: true,
+      stackPolicy: "identical_item_quality_size_lineage_affinity",
+      culinaryAffinities: clone(raw.culinaryAffinities || {}),
+      culinaryAffinityProfileId: raw.culinaryAffinityProfileId || null,
       tags: ["food", "cooked", "meat", "simple_cooking"],
     };
   }
@@ -144,6 +147,11 @@
       secondaryEffectMultiplier: sizeMultiplier * qualityEffectMultiplier,
       unitValueAhn: priceForSizeAndQuality(definition, size, quality),
       rawItemId: raw.id,
+      stackPolicy: definition.stackPolicy,
+      sourceInstanceId: meatStack?.sourceInstanceId || null,
+      culinaryProperties: clone(meatStack?.culinaryProperties || []),
+      affinityTarget: meatStack?.affinityTarget || meatStack?.culinaryProperties?.[0]?.target || null,
+      affinityBranch: meatStack?.affinityBranch || meatStack?.culinaryProperties?.[0]?.affinityBranch || null,
       inputQuality: meatStack?.quality || null,
       originCreatureType: meatStack?.originCreatureType || null,
       originCreatureId: meatStack?.originCreatureId || null,
