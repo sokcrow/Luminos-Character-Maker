@@ -5,10 +5,14 @@ const { pathToFileURL } = require('node:url');
 (async () => {
   delete globalThis.LuminousItemQualityEngine;
   delete globalThis.LuminousItemSizeLineageEngine;
+  delete globalThis.LuminousItemAffinityEngine;
+  delete globalThis.LuminousCulinaryAffinityCatalog;
   delete globalThis.LuminousMeatCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-size-lineage-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-culinary-affinity-data.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-meat.js')).href);
 
   const quality = globalThis.LuminousItemQualityEngine;
@@ -47,6 +51,8 @@ const { pathToFileURL } = require('node:url');
     assert.equal(item.sizeSystem, 'universal_physical');
     assert.equal(item.stackable, true);
     assert.equal(item.edibleRaw, true);
+    assert.equal(item.stackPolicy, 'identical_item_quality_size_lineage_affinity');
+    assert.equal(globalThis.LuminousItemAffinityEngine.isCanonicalAffinityDistribution(item), true);
     assert.ok(item.lineageId);
     assert.ok(item.lineageName);
     assert.ok(item.priceAhn > 0);
@@ -86,6 +92,8 @@ const { pathToFileURL } = require('node:url');
     quality: 'fine',
     originCreatureType: 'beast',
     originCreatureId: 'dire_wolf',
+    sourceInstanceId: 'dire-wolf-meat-a',
+    affinityRoll: 0,
   });
   assert.equal(direWolfStack.itemId, 'meat_wolf');
   assert.equal(direWolfStack.family, 'meat');
@@ -100,6 +108,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(direWolfStack.unitValueAhn, 5400);
   assert.equal(direWolfStack.originCreatureType, 'beast');
   assert.equal(direWolfStack.originCreatureId, 'dire_wolf');
+  assert.equal(direWolfStack.sourceInstanceId, 'dire-wolf-meat-a');
+  assert.equal(direWolfStack.affinityTarget, 'athletics');
+  assert.equal(direWolfStack.affinityBranch, 'str');
+  assert.equal(direWolfStack.culinaryProperties.length, 1);
 
   const moonfaeStack = meat.createHarvestStack('meat_rabbit', {
     quantity: 4,
