@@ -4,8 +4,12 @@ const { pathToFileURL } = require('node:url');
 
 (async () => {
   delete globalThis.LuminousItemQualityEngine;
+  delete globalThis.LuminousItemAffinityEngine;
+  delete globalThis.LuminousCulinaryAffinityCatalog;
   delete globalThis.LuminousPlantProduceCatalog;
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-culinary-affinity-data.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-plant-produce.js')).href);
 
   const catalog = globalThis.LuminousPlantProduceCatalog;
@@ -57,6 +61,8 @@ const { pathToFileURL } = require('node:url');
     assert.equal(Array.isArray(entry.flavorTags), true);
     assert.equal(Array.isArray(entry.functionalTags), true);
     assert.equal(Array.isArray(entry.craftTags), true);
+    assert.equal(globalThis.LuminousItemAffinityEngine.isCanonicalAffinityDistribution(entry), true);
+    assert.equal(entry.stackPolicy, 'identical_item_quality_affinity');
   }
 
   assert.equal(catalog.get('apple').standardUnitValueAhn, 300);
@@ -89,12 +95,22 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.unitValueForQuality('apple', 'standard'), 300);
   assert.equal(catalog.unitValueForQuality('apple', 'exceptional'), 600);
 
-  const stack = catalog.createIngredientStack('potato', { quantity: 4, quality: 'fine' });
+  const stack = catalog.createIngredientStack('potato', {
+    quantity: 4,
+    quality: 'fine',
+    sourceInstanceId: 'potato-stack-a',
+    affinityRoll: 0,
+  });
   assert.equal(stack.quantity, 4);
   assert.equal(stack.quality, 'fine');
   assert.equal(stack.unitValueAhn, 300);
   assert.equal(stack.totalValueAhn, 1200);
   assert.equal(stack.recipesImplemented, false);
+  assert.equal(stack.sourceInstanceId, 'potato-stack-a');
+  assert.equal(stack.affinityTarget, 'athletics');
+  assert.equal(stack.affinityBranch, 'str');
+  assert.equal(stack.culinaryProperties.length, 1);
+  assert.equal(stack.stackPolicy, 'identical_item_quality_affinity');
 
   console.log('Plant produce catalog smoke: OK (76 canonical ingredients, recipes deferred)');
 })().catch((error) => {
