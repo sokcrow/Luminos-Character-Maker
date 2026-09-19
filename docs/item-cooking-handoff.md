@@ -297,11 +297,12 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 
 The older js/item-catalog-food.js 0..100 hunger/ration helpers remain legacy compatibility only until catalog migration. New Cooking/Rest/culinary-effect work must use the Cooking V1 contract above rather than extending the old 100-point Hunger model.
 
+Current PR #777 affinity coverage is 76 Plant / Produce / Herb / Fungi Items plus 39 Meat Items. Canonical catalog distributions total 100 percentage points, and the 39 simple Cooked Meat outputs preserve the realized source affinity instead of rerolling it.
+
 ## Explicitly not reopened by this handoff
 
 The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1:
 
-- catalog authoring of canonical `culinaryAffinities` weights for every edible/raw culinary Item;
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
 - Processed Item catalogs and the multiple preparation outputs available from the same source Item;
