@@ -5,11 +5,15 @@ const { pathToFileURL } = require('node:url');
 (async () => {
   delete globalThis.LuminousItemQualityEngine;
   delete globalThis.LuminousItemSizeLineageEngine;
+  delete globalThis.LuminousItemAffinityEngine;
+  delete globalThis.LuminousCulinaryAffinityCatalog;
   delete globalThis.LuminousMeatCatalog;
   delete globalThis.LuminousFoodCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-size-lineage-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-culinary-affinity-data.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-meat.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-food.js')).href);
 
@@ -46,6 +50,8 @@ const { pathToFileURL } = require('node:url');
     lineageId: 'wolf',
     lineageName: 'Wolf',
     originCreatureId: 'wolf',
+    sourceInstanceId: 'wolf-food-source-a',
+    affinityRoll: 0,
   });
   const cookedWolf = food.createSimpleCookedFood(wolfStack, { quality: 'standard' });
   assert.equal(cookedWolf.displayName, 'Cooked Wolf Meat');
@@ -57,6 +63,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(cookedWolf.inputQuality, 'fine');
   assert.equal(cookedWolf.quality, 'standard');
   assert.equal(cookedWolf.unitValueAhn, 2810);
+  assert.equal(wolfStack.affinityTarget, 'athletics');
+  assert.equal(cookedWolf.affinityTarget, wolfStack.affinityTarget);
+  assert.equal(cookedWolf.affinityBranch, wolfStack.affinityBranch);
+  assert.equal(cookedWolf.sourceInstanceId, wolfStack.sourceInstanceId);
+  assert.deepEqual(cookedWolf.culinaryProperties, wolfStack.culinaryProperties);
 
   const hugeWolf = food.createSimpleCookedFood(wolfStack, { size: 'huge', quality: 'exceptional' });
   assert.equal(hugeWolf.hungerPerUnit, 400);
