@@ -1,0 +1,34 @@
+name: Cooking Validation
+
+on:
+  push:
+    paths:
+      - 'js/item-cooking-engine.js'
+      - 'js/item-catalog-food.js'
+      - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-cooking-handoff.md'
+      - '.github/workflows/cooking-validation.yml'
+  pull_request:
+    paths:
+      - 'js/item-cooking-engine.js'
+      - 'js/item-catalog-food.js'
+      - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-cooking-handoff.md'
+      - '.github/workflows/cooking-validation.yml'
+
+jobs:
+  cooking-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: node --check js/item-cooking-engine.js
+      - name: Cooking smoke
+        run: node tests/item-cooking-engine-smoke.cjs
+      - name: Legacy food catalog smoke
+        run: node tests/item-catalog-food-smoke.cjs
