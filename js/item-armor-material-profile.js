@@ -9,6 +9,7 @@
   const VERSION = 1;
   const DAMAGE_TYPES = Object.freeze(["slash", "pierce", "blunt"]);
   const ELEMENTS = Object.freeze(["fire", "cold", "lightning", "acid"]);
+  const MATERIAL_ECONOMY_SCALE = 2.5;
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function normalizeId(value) {
@@ -25,7 +26,7 @@
       }),
       durability: Number(def.durability || 0),
       weight: Number(def.weight || 1),
-      unitValueAhn: Number(def.unitValueAhn || 0),
+      unitValueAhn: Math.round(Number(def.unitValueAhn || 0) * MATERIAL_ECONOMY_SCALE),
       elementalWear: Object.freeze({
         fire: Number(def.elementalWear?.fire || 1),
         cold: Number(def.elementalWear?.cold || 1),
