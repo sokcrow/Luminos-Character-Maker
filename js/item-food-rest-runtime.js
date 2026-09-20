@@ -148,7 +148,9 @@
 
     let sp=null;
     if(profile.spRestore>0 && itemRuntime()?.recoverResource) sp=itemRuntime().recoverResource(unit,"sp",profile.spRestore);
-    const effects=replaceCulinaryEffects(unit,item,profile.culinaryEffects,options);
+    const effects=profile.culinaryEffects.length
+      ? replaceCulinaryEffects(unit,item,profile.culinaryEffects,options)
+      : [];
     state.lastEatDrinkAtMs=Number(options.now ?? Date.now());
 
     return Object.freeze({
@@ -267,11 +269,18 @@
     let food=null;
     if(choice==="eat_drink") {
       if(!options.foodRef) return Object.freeze({completed:false,reason:"eat_drink_requires_food"});
-      food=consumeFood(unit,options.foodRef,{...options,now});
-      if(!food.consumed) return Object.freeze({completed:false,reason:food.reason,food});
+      const candidate=locateFood(unit,options.foodRef,options);
+      if(!candidate?.item) return Object.freeze({completed:false,reason:"food_not_found"});
+      if(!isFood(candidate.item)) return Object.freeze({completed:false,reason:"item_not_food"});
+      if(quantityOf(candidate.item)<=0) return Object.freeze({completed:false,reason:"insufficient_quantity"});
     }
 
     applyLegacyRestRecovery(unit,normalizedType);
+
+    if(choice==="eat_drink") {
+      food=consumeFood(unit,options.foodRef,{...options,now});
+      if(!food.consumed) return Object.freeze({completed:false,reason:food.reason,food});
+    }
     if(isShort) state.lastShortRestAtMs=now;
     else {
       state.lastLongRestAtMs=now;
