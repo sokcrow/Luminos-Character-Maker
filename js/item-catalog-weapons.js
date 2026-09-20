@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "weapons";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 5;
   const DEFAULT_QUALITY = "standard";
   const PRICING_MODEL = "chassis_reference_plus_materials_and_upgrades";
   const PRICE_REFERENCE_SCOPE = "chassis_only";
@@ -95,7 +96,7 @@
       qualitySystem: "universal",
       pricingModel: PRICING_MODEL,
       priceReferenceScope: PRICE_REFERENCE_SCOPE,
-      standardChassisValueAhn: Number(def.standardChassisValueAhn),
+      standardChassisValueAhn: Math.round(Number(def.standardChassisValueAhn) * AHN_ECONOMY_SCALE),
       baseDurability: Number(def.baseDurability),
       durabilitySystem: "structural_material_quality_cycles",
       materialDurabilityModifierStatus: MATERIAL_DURABILITY_STATUS,
