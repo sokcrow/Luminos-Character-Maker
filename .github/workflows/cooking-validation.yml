@@ -14,6 +14,15 @@ on:
       - 'js/item-cooking-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-cooking-equipment-engine.js'
+      - 'js/item-cooking-runtime.js'
+      - 'js/item-food-rest-runtime.js'
+      - 'js/item-food-rest-ui.js'
+      - 'js/item-cooking-ui.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/inventory-hud-v2.js'
+      - 'hoja_personaje.js'
+      - 'hoja_personaje.html'
       - 'js/item-catalog-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
@@ -26,6 +35,9 @@ on:
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-cooking-recipe-resolver-smoke.cjs'
+      - 'tests/item-cooking-equipment-smoke.cjs'
+      - 'tests/item-cooking-runtime-smoke.cjs'
+      - 'tests/item-food-rest-runtime-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
@@ -45,6 +57,15 @@ on:
       - 'js/item-cooking-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-cooking-equipment-engine.js'
+      - 'js/item-cooking-runtime.js'
+      - 'js/item-food-rest-runtime.js'
+      - 'js/item-food-rest-ui.js'
+      - 'js/item-cooking-ui.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/inventory-hud-v2.js'
+      - 'hoja_personaje.js'
+      - 'hoja_personaje.html'
       - 'js/item-catalog-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
@@ -57,6 +78,9 @@ on:
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-cooking-recipe-resolver-smoke.cjs'
+      - 'tests/item-cooking-equipment-smoke.cjs'
+      - 'tests/item-cooking-runtime-smoke.cjs'
+      - 'tests/item-food-rest-runtime-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
@@ -85,6 +109,11 @@ jobs:
           node --check js/item-cooking-engine.js
           node --check js/item-cooking-recipe-catalog.js
           node --check js/item-cooking-recipe-resolver.js
+          node --check js/item-cooking-equipment-engine.js
+          node --check js/item-cooking-runtime.js
+          node --check js/item-food-rest-runtime.js
+          node --check js/item-food-rest-ui.js
+          node --check js/item-cooking-ui.js
       - name: Economy salary standard smoke
         run: node tests/item-economy-standard-smoke.cjs
       - name: Item affinity smoke
@@ -107,5 +136,11 @@ jobs:
         run: node tests/item-cooking-recipe-catalog-smoke.cjs
       - name: Cooking recipe resolver smoke
         run: node tests/item-cooking-recipe-resolver-smoke.cjs
+      - name: Cooking equipment smoke
+        run: node tests/item-cooking-equipment-smoke.cjs
+      - name: Cooking runtime smoke
+        run: node tests/item-cooking-runtime-smoke.cjs
+      - name: Food Rest runtime smoke
+        run: node tests/item-food-rest-runtime-smoke.cjs
       - name: Legacy food catalog smoke
         run: node tests/item-catalog-food-smoke.cjs
