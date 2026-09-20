@@ -44,9 +44,20 @@ These are shared culinary building blocks used by many later recipes.
 Current canonical output identities:
 
 - Flour
+- Corn Flour
 - Oil
 - Paste
 - Dough
+- Corn Dough
+- Cream
+- Cheese
+- Batter
+- Coating
+- Pasta
+- Noodles
+- Wrapper
+- Ground Meat
+- Miso Paste
 - Stock
 - Sauce Base
 - Syrup
@@ -223,6 +234,30 @@ Each processing method maps directly to an existing Cooking V1 method family and
 
 `buildProcessingRecipe()` creates a Cooking-compatible recipe descriptor so later UI/runtime work can route processing through the normal Limbus Check resolver rather than inventing a second dice system.
 
+## Culinary intermediate expansion
+
+Processing V1 now supports the first master-recipe intermediate layer without adding a second crafting engine.
+
+Specialized templates may share the same Processing Method. The caller can request an explicit `templateId` when the same technique can create multiple valid outputs.
+
+Examples:
+
+```text
+Corn --Grind[corn_flour]--> Corn Flour
+Corn Flour + Binder --Knead[corn_dough]--> Corn Dough
+Flour + Egg --Knead[pasta]--> Pasta
+Dough --Cut[noodles]--> Noodles
+Dough --Cut[wrapper]--> Wrapper
+Milk --Press[cream]--> Cream
+Milk + Culture --Ferment[cheese]--> Cheese
+Soybean + Culture --Ferment[miso_paste]--> Miso Paste
+Flour + Binder --Simple Mix[batter]--> Batter
+Flour + Seasoning --Simple Mix[coating]--> Coating
+Meat --Grind[ground_meat]--> Ground Meat
+```
+
+When `templateId` is omitted, normal priority resolution chooses the most specific valid template before the generic method output.
+
 ## Quantity / Taste / economy
 
 Processing V1 now includes canonical batch/economy data in `js/item-processing-recipe-data.js`.
@@ -322,6 +357,8 @@ so callers do not need to manually reconstruct definition tags around a generate
 
 - `js/item-processing-recipe-data.js`
 - `js/item-processing-engine.js`
+- `js/item-catalog-culinary-staples.js`
+- `tests/item-culinary-intermediates-smoke.cjs`
 - `tests/item-processing-engine-smoke.cjs`
 - `docs/item-processing-handoff.md`
 - `js/item-cooking-engine.js`
