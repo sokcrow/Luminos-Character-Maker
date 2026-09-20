@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "healing_hybrid";
   const CURRENCY = "AHN";
+  const PRICE_SCALE_BY_SOURCE = Object.freeze({ generic:5, workshop:3, premium_synthesis:2 });
   const DEFAULT_MAX_SP = 45;
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
@@ -145,7 +146,7 @@
       tier,
       purchasable: true,
       currency: CURRENCY,
-      priceAhn,
+      priceAhn: Math.round(priceAhn * (PRICE_SCALE_BY_SOURCE[sourceLine] || 2)),
       stackable: true,
       runtime: {
         actionCost,
