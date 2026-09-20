@@ -16,17 +16,17 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.FAMILY, 'blood_ichor');
   assert.equal(catalog.ITEMS.length, 6);
 
-  assert.equal(catalog.get('blood').standardUnitValueAhn, 500);
-  assert.equal(catalog.get('humanoid_blood').standardUnitValueAhn, 800);
-  assert.equal(catalog.get('hemolymph').standardUnitValueAhn, 700);
-  assert.equal(catalog.get('ichor').standardUnitValueAhn, 1500);
+  assert.equal(catalog.get('blood').standardUnitValueAhn, 12500);
+  assert.equal(catalog.get('humanoid_blood').standardUnitValueAhn, 4000);
+  assert.equal(catalog.get('hemolymph').standardUnitValueAhn, 3500);
+  assert.equal(catalog.get('ichor').standardUnitValueAhn, 7500);
   assert.equal(catalog.get('draconic_blood').standardUnitValueAhn, 2500);
-  assert.equal(catalog.get('exotic_blood_fluid').standardUnitValueAhn, 3000);
+  assert.equal(catalog.get('exotic_blood_fluid').standardUnitValueAhn, 15000);
 
   assert.equal(catalog.fallbackBloodUnits('tiny'), 2);
   assert.equal(catalog.fallbackBloodUnits('medium'), 8);
   assert.equal(catalog.fallbackBloodUnits('gargantuan'), 64);
-  assert.equal(catalog.unitValueForQuality('humanoid_blood', 'fine'), 1200);
+  assert.equal(catalog.unitValueForQuality('humanoid_blood', 'fine'), 6000);
 
   const human = catalog.createPhysiologyProfile({
     id: 'human',
@@ -61,8 +61,8 @@ const { pathToFileURL } = require('node:url');
     originCreatureType: 'humanoid',
   });
   assert.equal(corpseStack.bloodUnits, 3, 'Harvest cannot recover lost or contaminated blood');
-  assert.equal(corpseStack.unitValueAhn, 1200);
-  assert.equal(corpseStack.totalValueAhn, 3600);
+  assert.equal(corpseStack.unitValueAhn, 6000);
+  assert.equal(corpseStack.totalValueAhn, 18000);
   assert.equal(corpseStack.displayName, 'Human Blood');
 
   const freshStack = catalog.createHarvestStack('humanoid_blood', {
@@ -72,7 +72,7 @@ const { pathToFileURL } = require('node:url');
     lineageId: 'human',
     lineageName: 'Human',
   });
-  assert.equal(freshStack.totalValueAhn, 7200);
+  assert.equal(freshStack.totalValueAhn, 36000);
 
   const largeRich = catalog.createPhysiologyProfile({
     id: 'rich_blooded_beast',
