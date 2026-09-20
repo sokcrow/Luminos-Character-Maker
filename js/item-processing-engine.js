@@ -499,6 +499,12 @@
     return Math.max(0, Number.isFinite(raw) ? raw : 0);
   }
 
+  function roundAhn(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(0, Math.round(numeric + 1e-9));
+  }
+
   function unitProductionValueAhn(item = {}) {
     const candidates = [
       item.unitProductionValueAhn,
@@ -683,9 +689,9 @@
 
     const totalInput = lines.reduce((sum, line) => sum + line.subtotalProductionValueAhn, 0);
     const batchInput = totalInput / batches;
-    const batchProductionValueAhn = Math.round(batchInput * template.productionMultiplier);
+    const batchProductionValueAhn = roundAhn(batchInput * template.productionMultiplier);
     const totalProductionValueAhn = batchProductionValueAhn * batches;
-    const unitValue = Math.round(totalProductionValueAhn / Math.max(1, outputQuantity));
+    const unitValue = roundAhn(totalProductionValueAhn / Math.max(1, outputQuantity));
 
     return Object.freeze({
       complete: true,
@@ -693,7 +699,7 @@
       batchCount: batches,
       outputQuantity,
       inputLines: Object.freeze(lines),
-      batchInputProductionValueAhn: Math.round(batchInput),
+      batchInputProductionValueAhn: roundAhn(batchInput),
       batchProductionValueAhn,
       totalProductionValueAhn,
       unitProductionValueAhn: unitValue,
@@ -844,6 +850,7 @@
     availableMethodsFor,
     canProcess,
     canonicalOutputFor,
+    roundAhn,
     unitProductionValueAhn,
     resolveProcessingBatch,
     processingEconomy,
