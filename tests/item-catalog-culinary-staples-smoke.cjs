@@ -20,13 +20,13 @@ const { pathToFileURL } = require("node:url");
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, "culinary_staples");
-  assert.equal(catalog.ITEMS.length, 7);
+  assert.equal(catalog.ITEMS.length, 13);
 
   for (const item of catalog.ITEMS) {
     assert.equal(Object.values(item.culinaryAffinities).reduce((a,b)=>a+b,0), 100, item.id);
     assert.equal(item.stackPolicy, "identical_item_quality_affinity");
     assert.equal(item.cookingReady, true);
-    assert.ok(item.standardUnitValueAhn >= 1000);
+    assert.ok(item.standardUnitValueAhn >= 500);
   }
 
   assert.equal(catalog.get("egg").standardUnitValueAhn, 1800);
@@ -36,6 +36,12 @@ const { pathToFileURL } = require("node:url");
   assert.equal(catalog.get("honey").standardUnitValueAhn, 3800);
   assert.equal(catalog.get("sugar_cane").standardUnitValueAhn, 1400);
   assert.equal(catalog.get("recycled_protein").standardUnitValueAhn, 2500);
+  assert.equal(catalog.get("water").standardUnitValueAhn, 500);
+  assert.equal(catalog.get("salt").standardUnitValueAhn, 1200);
+  assert.equal(catalog.get("yeast").standardUnitValueAhn, 1800);
+  assert.equal(catalog.get("beeswax").standardUnitValueAhn, 2400);
+  assert.equal(catalog.get("gelatin").standardUnitValueAhn, 2200);
+  assert.equal(catalog.get("jellyfish").standardUnitValueAhn, 3500);
 
   const egg = catalog.createIngredientStack("egg", { quantity:2, sourceInstanceId:"egg-a", affinityRoll:0 });
   assert.equal(egg.quantity, 2);
@@ -43,6 +49,20 @@ const { pathToFileURL } = require("node:url");
   assert.equal(egg.culinaryProperties[0].sourceInstanceId, "egg-a");
   assert.equal(egg.unitValueAhn, 1800);
   assert.equal(egg.totalValueAhn, 3600);
+
+  const water = catalog.createIngredientStack("water", { quantity:2, sourceInstanceId:"water-a", affinityRoll:0 });
+  assert.equal(water.quantity, 2);
+  assert.equal(water.totalValueAhn, 1000);
+  assert.equal(water.edibleRaw, true);
+  assert.equal(catalog.get("salt").edibleRaw, false);
+  assert.equal(catalog.get("jellyfish").edibleRaw, false);
+
+  const waterMethods = catalog.processingMethodsFor("water").map((entry)=>entry.id);
+  assert.ok(waterMethods.includes("boil"));
+  assert.ok(waterMethods.includes("brew"));
+  const jellyfishMethods = catalog.processingMethodsFor("jellyfish").map((entry)=>entry.id);
+  assert.ok(jellyfishMethods.includes("cut"));
+  assert.ok(jellyfishMethods.includes("steam"));
 
   const milkMethods = catalog.processingMethodsFor("milk").map((entry)=>entry.id);
   assert.ok(milkMethods.includes("press"));
@@ -62,7 +82,7 @@ const { pathToFileURL } = require("node:url");
   assert.equal(cream.unitProductionValueAhn, 4840);
   assert.equal(cream.culinaryProperties[0].sourceInstanceId, "milk-a");
 
-  console.log("Culinary Staples smoke: OK (7 raw staples + affinities + Processing bridge)");
+  console.log("Culinary Staples smoke: OK (13 raw staples + affinities + Processing bridge)");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
