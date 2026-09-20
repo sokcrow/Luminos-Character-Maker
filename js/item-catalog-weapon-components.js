@@ -11,6 +11,7 @@
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const VALUE_ROUNDING_AHN = 1000;
+  const MATERIAL_ECONOMY_SCALE = 2.5;
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function normalizeId(value) {
@@ -89,14 +90,14 @@
   });
 
   const MATERIAL_VALUE_REFERENCE_AHN = Object.freeze({
-    structural_wood: 8000,
-    wood: 8000,
-    leather: 7000,
-    processed_leather: 7000,
-    textile: 6000,
-    processed_textile: 6000,
-    iron: 22000,
-    hardened_steel: 90000,
+    structural_wood: Math.round(8000 * MATERIAL_ECONOMY_SCALE),
+    wood: Math.round(8000 * MATERIAL_ECONOMY_SCALE),
+    leather: Math.round(7000 * MATERIAL_ECONOMY_SCALE),
+    processed_leather: Math.round(7000 * MATERIAL_ECONOMY_SCALE),
+    textile: Math.round(6000 * MATERIAL_ECONOMY_SCALE),
+    processed_textile: Math.round(6000 * MATERIAL_ECONOMY_SCALE),
+    iron: Math.round(22000 * MATERIAL_ECONOMY_SCALE),
+    hardened_steel: Math.round(90000 * MATERIAL_ECONOMY_SCALE),
   });
 
   const MATERIAL_TAGS = Object.freeze({
