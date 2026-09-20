@@ -11,7 +11,7 @@
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_SIZE = "medium";
-  const AHN_ECONOMY_SCALE = 10;
+  const AHN_ECONOMY_SCALE = 100;
 
   const ICON_FAMILIES = Object.freeze([
     "meat_mammal",
