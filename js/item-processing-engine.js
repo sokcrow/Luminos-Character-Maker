@@ -19,6 +19,10 @@
     return global.LuminousCookingEngine || safeRequire("./item-cooking-engine.js");
   }
 
+  function recipeData() {
+    return global.LuminousItemProcessingRecipeData || safeRequire("./item-processing-recipe-data.js");
+  }
+
   function normalizeId(value) {
     return String(value ?? "")
       .trim()
@@ -143,7 +147,7 @@
     }),
     deep_fry: method({
       id: "deep_fry", label: "Deep Fry", cookingMethod: "deep_fry", baseTh: 13,
-      outputForm: "deep_fried", namePrefix: "Deep-Fried",
+      inputMode: "multi", outputForm: "deep_fried", namePrefix: "Deep-Fried",
       usuallyFinal: true, tags: ["cooked", "fried", "final_candidate"],
     }),
     smoke: method({
@@ -203,8 +207,8 @@
     starch: freezeList(["mash", "boil", "roast", "bake"]),
     grain: freezeList(["grind", "boil", "roast"]),
     legume: freezeList(["boil", "mash", "simmer", "grind"]),
-    nut: freezeList(["crush", "grind", "press", "roast"]),
-    seed: freezeList(["crush", "grind", "press", "roast"]),
+    nut: freezeList(["crush", "grind", "roast"]),
+    seed: freezeList(["crush", "grind", "roast"]),
     spice: freezeList(["crush", "grind", "dry", "brew"]),
     seasoning: freezeList(["crush", "grind", "dry"]),
     herb: freezeList(["cut", "crush", "dry", "brew"]),
@@ -490,27 +494,237 @@
     return result;
   }
 
-  function createProcessedItem(inputs, methodId, options = {}) {
-    const entries = normalizedInputs(inputs);
-    const validation = canProcess(entries, methodId);
-    if (!validation.allowed) {
-      if (options.throwOnInvalid === true) {
-        throw new Error(`Cannot process with ${normalizeId(methodId)}: ${validation.reason}.`);
+  function itemQuantity(item = {}) {
+    const raw = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+    return Math.max(0, Number.isFinite(raw) ? raw : 0);
+  }
+
+  function unitProductionValueAhn(item = {}) {
+    const candidates = [
+      item.unitProductionValueAhn,
+      item.productionValueAhn,
+      item.unitValueAhn,
+      item.standardUnitValueAhn,
+      item.priceAhn,
+      item.standardMediumValueAhn,
+      item.valueAhn,
+    ];
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isFinite(value) && value >= 0) return value;
+    }
+    return null;
+  }
+
+  function selectorMatches(item, selector = {}) {
+    const tags = collectTags(item);
+    const form = normalizeId(item?.processedForm);
+    const anyTags = Array.isArray(selector.anyTags) ? selector.anyTags.map(normalizeId).filter(Boolean) : [];
+    const anyForms = Array.isArray(selector.anyForms) ? selector.anyForms.map(normalizeId).filter(Boolean) : [];
+    const excludeTags = Array.isArray(selector.excludeTags) ? selector.excludeTags.map(normalizeId).filter(Boolean) : [];
+    const excludeForms = Array.isArray(selector.excludeForms) ? selector.excludeForms.map(normalizeId).filter(Boolean) : [];
+    if (excludeTags.some((tag) => tags.has(tag))) return false;
+    if (excludeForms.includes(form)) return false;
+
+    const hasPositiveSelector = anyTags.length > 0 || anyForms.length > 0 || Boolean(selector.methodEligible);
+    if (!hasPositiveSelector) return true;
+    if (anyTags.some((tag) => tags.has(tag))) return true;
+    if (anyForms.includes(form)) return true;
+    const eligibleMethod = normalizeId(selector.methodEligible);
+    if (eligibleMethod && availableMethodIds(item).includes(eligibleMethod)) return true;
+    return false;
+  }
+
+  function allocateRequirement(entries, available, requirement, batches) {
+    let remaining = Math.max(1, Number(requirement?.units) || 1) * batches;
+    const allocations = [];
+    for (let index = 0; index < entries.length && remaining > 0; index += 1) {
+      if (!selectorMatches(entries[index], requirement?.selector || {})) continue;
+      const take = Math.min(remaining, available[index]);
+      if (take <= 0) continue;
+      available[index] -= take;
+      remaining -= take;
+      allocations.push({ index, units: take, requirementId: requirement?.id || "input" });
+    }
+    return { complete: remaining <= 0, remaining, allocations };
+  }
+
+  function planTemplateConsumption(template, entries, batches = 1) {
+    const count = Math.max(1, Math.trunc(Number(batches) || 1));
+    const available = entries.map(itemQuantity);
+    const allocations = [];
+    const inputPlan = template?.inputPlan || {};
+
+    if (inputPlan.kind === "all_distinct") {
+      const eligible = entries
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => selectorMatches(item, inputPlan.selector || {}));
+      const minimum = Math.max(1, Number(inputPlan.minDistinct) || 1);
+      if (eligible.length < minimum) return Object.freeze({ valid: false, reason: "insufficient_distinct_inputs", templateId: template.id });
+      const unitsEach = Math.max(1, Number(inputPlan.unitsEach) || 1) * count;
+      for (const { index } of eligible) {
+        if (available[index] < unitsEach) return Object.freeze({ valid: false, reason: "insufficient_input_quantity", templateId: template.id });
+        available[index] -= unitsEach;
+        allocations.push({ index, units: unitsEach, requirementId: "distinct_input" });
       }
-      return Object.freeze({ created: false, ...validation });
+    } else {
+      for (const requirement of (inputPlan.requirements || [])) {
+        const result = allocateRequirement(entries, available, requirement, count);
+        if (!result.complete) return Object.freeze({ valid: false, reason: "insufficient_input_quantity_or_selector", templateId: template.id });
+        allocations.push(...result.allocations);
+      }
     }
 
-    const spec = METHODS[validation.methodId];
-    const canonical = canonicalOutputFor(validation.methodId, entries);
-    const first = entries[0];
+    const merged = new Map();
+    for (const allocation of allocations) {
+      const key = allocation.index;
+      const current = merged.get(key) || { index: key, units: 0, requirementIds: [] };
+      current.units += allocation.units;
+      current.requirementIds.push(allocation.requirementId);
+      merged.set(key, current);
+    }
+
+    return Object.freeze({
+      valid: true,
+      templateId: template.id,
+      batches: count,
+      outputQuantity: template.outputUnits * count,
+      allocations: Object.freeze([...merged.values()].map((entry) => Object.freeze({
+        index: entry.index,
+        units: entry.units,
+        requirementIds: Object.freeze([...new Set(entry.requirementIds)]),
+      }))),
+    });
+  }
+
+  function resolveProcessingBatch(inputs, methodId, options = {}) {
+    const entries = normalizedInputs(inputs);
+    const validation = canProcess(entries, methodId);
+    if (!validation.allowed) return Object.freeze({ valid: false, ...validation });
+
+    const data = recipeData();
+    const candidates = data?.listForMethod ? data.listForMethod(validation.methodId) : [];
+    if (!candidates.length) {
+      return Object.freeze({ valid: false, reason: "processing_template_unavailable", methodId: validation.methodId });
+    }
+
+    for (const template of candidates) {
+      const plan = planTemplateConsumption(template, entries, options.batches || 1);
+      if (!plan.valid) continue;
+      return Object.freeze({
+        valid: true,
+        methodId: validation.methodId,
+        template: Object.freeze(clone(template)),
+        consumption: plan,
+      });
+    }
+
+    return Object.freeze({
+      valid: false,
+      reason: "no_matching_processing_template_or_quantity",
+      methodId: validation.methodId,
+      templateIds: Object.freeze(candidates.map((entry) => entry.id)),
+    });
+  }
+
+  function consumedEntriesFromPlan(entries, plan) {
+    return (plan?.allocations || []).map((allocation) => ({
+      ...entries[allocation.index],
+      quantity: allocation.units,
+      consumedQuantity: allocation.units,
+      inputIndex: allocation.index,
+      requirementIds: allocation.requirementIds,
+    }));
+  }
+
+  function tasteFromConsumption(consumedEntries, tasteDelta, explicitTaste = null) {
+    if (explicitTaste != null && Number.isFinite(Number(explicitTaste))) {
+      return Math.max(0, Math.min(4, Math.round(Number(explicitTaste))));
+    }
+    let weighted = 0;
+    let units = 0;
+    for (const item of consumedEntries) {
+      const taste = Number(item?.taste);
+      if (!Number.isFinite(taste)) continue;
+      const quantity = Math.max(0, Number(item?.consumedQuantity ?? item?.quantity ?? 0) || 0);
+      weighted += taste * quantity;
+      units += quantity;
+    }
+    if (units <= 0) return null;
+    const base = weighted / units;
+    return Math.max(0, Math.min(4, Math.round(base + Number(tasteDelta || 0))));
+  }
+
+  function processingEconomy(consumedEntries, template, batches, outputQuantity) {
+    const lines = consumedEntries.map((item) => {
+      const unitValueAhn = unitProductionValueAhn(item);
+      const units = Math.max(0, Number(item?.consumedQuantity ?? item?.quantity ?? 0) || 0);
+      return Object.freeze({
+        itemId: sourceId(item) || null,
+        units,
+        unitProductionValueAhn: unitValueAhn,
+        subtotalProductionValueAhn: unitValueAhn == null ? null : unitValueAhn * units,
+      });
+    });
+    const complete = lines.every((line) => line.unitProductionValueAhn != null);
+    if (!complete) {
+      return Object.freeze({
+        complete: false,
+        productionMultiplier: template.productionMultiplier,
+        batchCount: batches,
+        outputQuantity,
+        inputLines: Object.freeze(lines),
+        batchInputProductionValueAhn: null,
+        batchProductionValueAhn: null,
+        totalProductionValueAhn: null,
+        unitProductionValueAhn: null,
+      });
+    }
+
+    const totalInput = lines.reduce((sum, line) => sum + line.subtotalProductionValueAhn, 0);
+    const batchInput = totalInput / batches;
+    const batchProductionValueAhn = Math.round(batchInput * template.productionMultiplier);
+    const totalProductionValueAhn = batchProductionValueAhn * batches;
+    const unitValue = Math.round(totalProductionValueAhn / Math.max(1, outputQuantity));
+
+    return Object.freeze({
+      complete: true,
+      productionMultiplier: template.productionMultiplier,
+      batchCount: batches,
+      outputQuantity,
+      inputLines: Object.freeze(lines),
+      batchInputProductionValueAhn: Math.round(batchInput),
+      batchProductionValueAhn,
+      totalProductionValueAhn,
+      unitProductionValueAhn: unitValue,
+    });
+  }
+
+  function createProcessedItem(inputs, methodId, options = {}) {
+    const entries = normalizedInputs(inputs);
+    const batch = resolveProcessingBatch(entries, methodId, options);
+    if (!batch.valid) {
+      if (options.throwOnInvalid === true) {
+        throw new Error(`Cannot process with ${normalizeId(methodId)}: ${batch.reason}.`);
+      }
+      return Object.freeze({ created: false, ...batch });
+    }
+
+    const spec = METHODS[batch.methodId];
+    const template = batch.template;
+    const consumedEntries = consumedEntriesFromPlan(entries, batch.consumption);
+    const canonical = template.outputId
+      ? CANONICAL_OUTPUTS[template.outputId] || canonicalOutputFor(batch.methodId, consumedEntries)
+      : canonicalOutputFor(batch.methodId, consumedEntries);
+    const first = consumedEntries[0] || entries[0];
     const outputId = canonical?.id || proceduralOutputId(spec, first);
-    const outputName = canonical?.name || proceduralOutputName(spec, first, entries.length);
-    const outputForm = canonical?.form || spec.outputForm;
-    const properties = uniqueCulinaryProperties(entries);
-    const provenance = provenanceFrom(entries);
+    const outputName = canonical?.name || proceduralOutputName(spec, first, consumedEntries.length);
+    const outputForm = template.outputForm || canonical?.form || spec.outputForm;
+    const properties = uniqueCulinaryProperties(consumedEntries);
+    const provenance = provenanceFrom(consumedEntries);
     const sourceItemIds = [...new Set(provenance.map((entry) => entry.itemId).filter(Boolean))];
     const sourceInstanceIds = [...new Set(provenance.map((entry) => entry.sourceInstanceId).filter(Boolean))];
-    const tags = inheritedTags(entries);
+    const tags = inheritedTags(consumedEntries);
 
     tags.add("ingredient");
     tags.add("processed");
@@ -519,9 +733,10 @@
     for (const tag of spec.tags) tags.add(normalizeId(tag));
     for (const tag of (canonical?.tags || [])) tags.add(normalizeId(tag));
 
-    const quantity = Math.max(1, Math.trunc(Number(options.outputQuantity ?? options.quantity ?? 1) || 1));
-    const quality = options.quality || entries[0]?.quality || "standard";
-    const taste = options.taste == null ? entries[0]?.taste ?? null : Number(options.taste);
+    const quantity = batch.consumption.outputQuantity;
+    const quality = options.quality || consumedEntries[0]?.quality || "standard";
+    const taste = tasteFromConsumption(consumedEntries, template.tasteDelta, options.taste);
+    const economy = processingEconomy(consumedEntries, template, batch.consumption.batches, quantity);
 
     return Object.freeze({
       created: true,
@@ -541,6 +756,7 @@
       processedForm: outputForm,
       processingMethod: spec.id,
       processingMethodLabel: spec.label,
+      processingTemplateId: template.id,
       processingBaseTh: spec.baseTh,
       processedStabilizationHint: spec.stabilizationHint,
       usuallyFinal: spec.usuallyFinal === true,
@@ -551,7 +767,15 @@
       sourceInstanceIds: Object.freeze(sourceInstanceIds),
       provenance: Object.freeze(provenance),
       processingTags: Object.freeze([...tags].sort()),
-      taste: taste != null && Number.isFinite(Number(taste)) ? Number(taste) : null,
+      taste,
+      tasteDelta: template.tasteDelta,
+      batchCount: batch.consumption.batches,
+      consumptionPlan: batch.consumption.allocations,
+      economy,
+      productionMultiplier: template.productionMultiplier,
+      batchProductionValueAhn: economy.batchProductionValueAhn,
+      totalProductionValueAhn: economy.totalProductionValueAhn,
+      unitProductionValueAhn: economy.unitProductionValueAhn,
       outputMode: canonical ? "canonical" : "procedural",
       canonicalProcessedId: canonical?.id || null,
     });
@@ -620,6 +844,9 @@
     availableMethodsFor,
     canProcess,
     canonicalOutputFor,
+    unitProductionValueAhn,
+    resolveProcessingBatch,
+    processingEconomy,
     createProcessedItem,
     buildProcessingRecipe,
     validateMethodThAgainstCooking,
