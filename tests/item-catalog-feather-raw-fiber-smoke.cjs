@@ -15,17 +15,17 @@ const { pathToFileURL } = require('node:url');
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, 'feather_raw_fiber');
-  assert.equal(catalog.AHN_ECONOMY_SCALE, 10);
+  assert.equal(catalog.AHN_ECONOMY_SCALE, 100);
   assert.equal(catalog.ITEMS.length, 7);
 
   const prices = {
-    feather: 50,
-    flight_feather: 200,
-    down: 200,
-    wool: 250,
-    animal_hair: 150,
-    raw_silk: 600,
-    exotic_raw_fiber: 1000,
+    feather: 500,
+    flight_feather: 2000,
+    down: 2000,
+    wool: 2500,
+    animal_hair: 1500,
+    raw_silk: 6000,
+    exotic_raw_fiber: 10000,
   };
 
   for (const [id, price] of Object.entries(prices)) {
@@ -49,10 +49,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.fallbackYieldMax('wool', 'medium'), 16);
   assert.equal(catalog.fallbackYieldMax('raw_silk', 'huge'), 64);
 
-  assert.equal(catalog.unitValueForQuality('feather', 'standard', { partSize: 'medium' }), 50);
-  assert.equal(catalog.unitValueForQuality('feather', 'fine', { partSize: 'large' }), 150);
-  assert.equal(catalog.unitValueForQuality('wool', 'fine'), 375);
-  assert.equal(catalog.unitValueForQuality('raw_silk', 'exceptional'), 1200);
+  assert.equal(catalog.unitValueForQuality('feather', 'standard', { partSize: 'medium' }), 500);
+  assert.equal(catalog.unitValueForQuality('feather', 'fine', { partSize: 'large' }), 1500);
+  assert.equal(catalog.unitValueForQuality('wool', 'fine'), 3750);
+  assert.equal(catalog.unitValueForQuality('raw_silk', 'exceptional'), 12000);
 
   const chicken = catalog.createAnatomyProfile({
     id: 'chicken',
@@ -82,7 +82,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(feathers.quantity, 31);
   assert.equal(feathers.partSize, 'tiny');
   assert.equal(feathers.displayName, 'Tiny Chicken Feather');
-  assert.equal(feathers.totalValueAhn, 403, 'Tiny Feather is ₳13 after size scaling/rounding');
+  assert.equal(feathers.totalValueAhn, 3875, 'Tiny Feather is ₳125 after size scaling/rounding');
   assert.equal(feathers.renewable, true);
 
   const sheep = catalog.createAnatomyProfile({
@@ -104,8 +104,8 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(wool.fiberUnits, 12);
   assert.equal(wool.displayName, 'Sheep Wool');
-  assert.equal(wool.unitValueAhn, 250);
-  assert.equal(wool.totalValueAhn, 3000);
+  assert.equal(wool.unitValueAhn, 2500);
+  assert.equal(wool.totalValueAhn, 30000);
 
   const state = catalog.createRenewableState(sheep, 'wool');
   assert.equal(state.capacity, 16);
