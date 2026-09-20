@@ -300,6 +300,8 @@ Taste deltas are stored even when a source catalog has not yet authored a numeri
 
 Process multipliers never represent local retail markup. Market/shop pricing remains a later world-economy layer.
 
+Raw Item and Processed Production Values are now sanity-checked against the canonical salary/affordability standard in `js/item-economy-standard.js` / `docs/item-economy-handoff.md`. Repricing a raw catalog Item therefore flows naturally through Flour, Oil, Stock, Syrup and other Processed values without changing the processing multipliers.
+
 ## Current coverage
 
 The Processing V1 rules are tested against all current culinary raw definitions:
