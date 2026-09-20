@@ -30,6 +30,10 @@
     return global.LuminousCulinaryAffinityCatalog || safeRequire("./item-culinary-affinity-data.js");
   }
 
+  function processingEngine() {
+    return global.LuminousItemProcessingEngine || safeRequire("./item-processing-engine.js");
+  }
+
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
   }
@@ -267,6 +271,25 @@
     };
   }
 
+  function processingMethodsFor(itemOrId) {
+    const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
+    if (!entry) return [];
+    const engine = processingEngine();
+    return engine?.availableMethodsFor ? engine.availableMethodsFor(entry) : [];
+  }
+
+  function processIngredient(stackOrId, methodId, options = {}) {
+    const stack = typeof stackOrId === "string"
+      ? createIngredientStack(stackOrId, options.sourceOptions || {})
+      : clone(stackOrId);
+    if (!stack) return null;
+    const entry = get(stack.itemId || stack.id);
+    if (!entry) return null;
+    const engine = processingEngine();
+    if (!engine?.createProcessedItem) return null;
+    return engine.createProcessedItem({ ...entry, ...stack }, methodId, options);
+  }
+
   const API = Object.freeze({
     VERSION,
     FAMILY,
@@ -280,6 +303,8 @@
     list,
     unitValueForQuality,
     createIngredientStack,
+    processingMethodsFor,
+    processIngredient,
   });
 
   global.LuminousPlantProduceCatalog = API;
