@@ -15,17 +15,17 @@ const { pathToFileURL } = require('node:url');
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, 'scale_shell_chitin');
-  assert.equal(catalog.AHN_ECONOMY_SCALE, 10);
+  assert.equal(catalog.AHN_ECONOMY_SCALE, 20);
   assert.equal(catalog.ITEMS.length, 7);
 
   const prices = {
-    scale: 3000,
-    scute: 5000,
-    shell: 18000,
-    carapace: 20000,
-    chitin: 4500,
-    exoskeleton_plate: 15000,
-    exotic_armor_plate: 26000,
+    scale: 6000,
+    scute: 10000,
+    shell: 36000,
+    carapace: 40000,
+    chitin: 9000,
+    exoskeleton_plate: 30000,
+    exotic_armor_plate: 52000,
   };
 
   for (const [id, price] of Object.entries(prices)) {
@@ -45,12 +45,12 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('scale').canAggregateCoverage, true);
   assert.equal(catalog.get('carapace').canAggregateCoverage, false);
 
-  assert.equal(catalog.priceForSizeAndQuality('scale', 'tiny', 'standard'), 750);
-  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'standard'), 3000);
-  assert.equal(catalog.priceForSizeAndQuality('carapace', 'large', 'standard'), 40000);
-  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'standard', { draconic: true }), 9000);
-  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'fine', { draconic: true }), 13500);
-  assert.equal(catalog.priceForSizeAndQuality('chitin', 'medium', 'fine', { draconic: true }), 6750);
+  assert.equal(catalog.priceForSizeAndQuality('scale', 'tiny', 'standard'), 1500);
+  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'standard'), 6000);
+  assert.equal(catalog.priceForSizeAndQuality('carapace', 'large', 'standard'), 80000);
+  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'standard', { draconic: true }), 18000);
+  assert.equal(catalog.priceForSizeAndQuality('scale', 'medium', 'fine', { draconic: true }), 27000);
+  assert.equal(catalog.priceForSizeAndQuality('chitin', 'medium', 'fine', { draconic: true }), 13500);
 
   assert.equal(catalog.fallbackYieldMax('scale', 'medium'), 8);
   assert.equal(catalog.fallbackYieldMax('scale', 'large'), 16);
@@ -89,7 +89,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(turtle.canMergeForLargerPart, false);
   assert.equal(turtle.canDownsizeForSmallerUse, true);
   assert.equal(turtle.harvestIntegrityFamily, 'hard_cover_structural');
-  assert.equal(turtle.unitValueAhn, 60000);
+  assert.equal(turtle.unitValueAhn, 120000);
 
   const dragonProfile = catalog.createAnatomyProfile({
     id: 'red_dragon',
@@ -117,20 +117,20 @@ const { pathToFileURL } = require('node:url');
   assert.equal(dragonScale.canAggregateCoverage, true);
   assert.equal(dragonScale.canMergeForLargerPart, false);
   assert.equal(dragonScale.lineageValueMultiplier, 3);
-  assert.equal(dragonScale.unitValueAhn, 18000);
+  assert.equal(dragonScale.unitValueAhn, 36000);
   assert.equal(dragonScale.harvestIntegrityFamily, 'hard_cover_modular');
 
   const eightMediumScales = [{ itemId: 'scale', size: 'medium', quality: 'standard', quantity: 8 }];
-  assert.equal(catalog.materialValue(eightMediumScales), 24000);
-  assert.equal(catalog.craftBaseValue(eightMediumScales), 30000);
-  assert.equal(catalog.retailValue(eightMediumScales), 37500);
+  assert.equal(catalog.materialValue(eightMediumScales), 48000);
+  assert.equal(catalog.craftBaseValue(eightMediumScales), 60000);
+  assert.equal(catalog.retailValue(eightMediumScales), 75000);
 
   const mixedSizes = [
     { itemId: 'scale', size: 'small', quality: 'standard', quantity: 4 },
     { itemId: 'scale', size: 'medium', quality: 'standard', quantity: 2 },
   ];
-  assert.equal(catalog.materialValue(mixedSizes), 12000);
-  assert.equal(catalog.craftBaseValue(mixedSizes), 15000);
+  assert.equal(catalog.materialValue(mixedSizes), 24000);
+  assert.equal(catalog.craftBaseValue(mixedSizes), 30000);
 
   console.log('Scale/Shell/Chitin catalog smoke: OK (7 materials + anatomical yield + recalibrated craft value)');
 })().catch((error) => {
