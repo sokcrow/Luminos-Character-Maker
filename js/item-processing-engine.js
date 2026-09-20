@@ -39,7 +39,7 @@
     return Object.freeze({
       inputMode: "single",
       outputMode: "procedural",
-      processedStabilization: 0,
+      stabilizationHint: 0,
       usuallyFinal: false,
       ...spec,
       tags: freezeList(spec.tags || []),
@@ -71,22 +71,22 @@
     }),
     mash: method({
       id: "mash", label: "Mash / Purée", cookingMethod: "mixing", baseTh: 9,
-      outputForm: "puree", nameSuffix: "Purée", processedStabilization: 1,
+      outputForm: "puree", nameSuffix: "Purée", stabilizationHint: 1,
       tags: ["prep", "puree"],
     }),
     juice: method({
       id: "juice", label: "Juice", cookingMethod: "mixing", baseTh: 9,
-      outputForm: "juice", nameSuffix: "Juice", processedStabilization: 1,
+      outputForm: "juice", nameSuffix: "Juice", stabilizationHint: 1,
       tags: ["liquid", "juice"],
     }),
     press: method({
       id: "press", label: "Press", cookingMethod: "mixing", baseTh: 9,
       outputMode: "canonical_or_procedural", outputForm: "pressed",
-      processedStabilization: 1, tags: ["pressed"],
+      stabilizationHint: 1, tags: ["pressed"],
     }),
     boil: method({
       id: "boil", label: "Boil", cookingMethod: "basic_boil", baseTh: 9,
-      outputForm: "boiled", namePrefix: "Boiled", processedStabilization: 1,
+      outputForm: "boiled", namePrefix: "Boiled", stabilizationHint: 1,
       tags: ["cooked"],
     }),
     blanch: method({
@@ -95,40 +95,40 @@
     }),
     grill: method({
       id: "grill", label: "Grill", cookingMethod: "grill", baseTh: 10,
-      outputForm: "grilled", namePrefix: "Grilled", processedStabilization: 1,
+      outputForm: "grilled", namePrefix: "Grilled", stabilizationHint: 1,
       tags: ["cooked"],
     }),
     pan_fry: method({
       id: "pan_fry", label: "Pan Fry", cookingMethod: "pan_fry", baseTh: 10,
-      outputForm: "pan_fried", namePrefix: "Pan-Fried", processedStabilization: 1,
+      outputForm: "pan_fried", namePrefix: "Pan-Fried", stabilizationHint: 1,
       tags: ["cooked", "fried"],
     }),
     steam: method({
       id: "steam", label: "Steam", cookingMethod: "steam", baseTh: 11,
-      outputForm: "steamed", namePrefix: "Steamed", processedStabilization: 1,
+      outputForm: "steamed", namePrefix: "Steamed", stabilizationHint: 1,
       tags: ["cooked"],
     }),
     roast: method({
       id: "roast", label: "Roast", cookingMethod: "roast", baseTh: 11,
-      outputForm: "roasted", namePrefix: "Roasted", processedStabilization: 1,
+      outputForm: "roasted", namePrefix: "Roasted", stabilizationHint: 1,
       tags: ["cooked"],
     }),
     knead: method({
       id: "knead", label: "Knead", cookingMethod: "knead", baseTh: 11,
       inputMode: "multi", outputMode: "canonical", outputId: "processed_dough",
-      outputForm: "dough", name: "Dough", processedStabilization: 2,
+      outputForm: "dough", name: "Dough", stabilizationHint: 2,
       tags: ["dough", "base"],
     }),
     simmer: method({
       id: "simmer", label: "Simmer", cookingMethod: "simmer", baseTh: 12,
       inputMode: "single_or_multi", outputMode: "canonical_or_procedural",
-      outputForm: "simmered", namePrefix: "Simmered", processedStabilization: 1,
+      outputForm: "simmered", namePrefix: "Simmered", stabilizationHint: 1,
       tags: ["cooked", "liquid_base"],
     }),
     reduce: method({
       id: "reduce", label: "Reduce", cookingMethod: "simmer", baseTh: 12,
       outputMode: "canonical_or_procedural", outputForm: "reduction",
-      nameSuffix: "Reduction", processedStabilization: 2,
+      nameSuffix: "Reduction", stabilizationHint: 2,
       tags: ["concentrated", "liquid_base"],
     }),
     stir_fry: method({
@@ -148,47 +148,47 @@
     }),
     smoke: method({
       id: "smoke", label: "Smoke", cookingMethod: "smoke", baseTh: 14,
-      outputForm: "smoked", namePrefix: "Smoked", processedStabilization: 2,
+      outputForm: "smoked", namePrefix: "Smoked", stabilizationHint: 2,
       tags: ["preserved", "smoked"],
     }),
     cure: method({
       id: "cure", label: "Cure", cookingMethod: "cure", baseTh: 14,
-      outputForm: "cured", namePrefix: "Cured", processedStabilization: 2,
+      outputForm: "cured", namePrefix: "Cured", stabilizationHint: 2,
       tags: ["preserved", "cured"],
     }),
     pickle: method({
       id: "pickle", label: "Pickle", cookingMethod: "pickle", baseTh: 14,
-      outputForm: "pickled", namePrefix: "Pickled", processedStabilization: 2,
+      outputForm: "pickled", namePrefix: "Pickled", stabilizationHint: 2,
       tags: ["preserved", "pickled"],
     }),
     dry: method({
       id: "dry", label: "Dry / Dehydrate", cookingMethod: "dry", baseTh: 14,
-      outputForm: "dried", namePrefix: "Dried", processedStabilization: 2,
+      outputForm: "dried", namePrefix: "Dried", stabilizationHint: 2,
       tags: ["preserved", "dried"],
     }),
     ferment: method({
       id: "ferment", label: "Ferment", cookingMethod: "ferment", baseTh: 15,
       outputMode: "canonical", outputId: "processed_ferment_base",
-      outputForm: "ferment_base", name: "Ferment Base", processedStabilization: 2,
+      outputForm: "ferment_base", name: "Ferment Base", stabilizationHint: 2,
       tags: ["fermented", "liquid_base", "base"],
     }),
     brew: method({
       id: "brew", label: "Brew", cookingMethod: "brew", baseTh: 15,
       inputMode: "single_or_multi", outputMode: "canonical",
       outputId: "processed_brew_base", outputForm: "brew_base", name: "Brew Base",
-      processedStabilization: 2, tags: ["brewed", "liquid", "base"],
+      stabilizationHint: 2, tags: ["brewed", "liquid", "base"],
     }),
     distill: method({
       id: "distill", label: "Distill", cookingMethod: "distill", baseTh: 15,
       outputMode: "canonical", outputId: "processed_distillate",
-      outputForm: "distillate", name: "Distillate", processedStabilization: 2,
+      outputForm: "distillate", name: "Distillate", stabilizationHint: 2,
       tags: ["distilled", "liquid", "concentrated"],
     }),
     delicate_extract: method({
       id: "delicate_extract", label: "Delicate Extract", cookingMethod: "delicate", baseTh: 15,
       outputMode: "canonical", outputId: "processed_culinary_extract",
       outputForm: "culinary_extract", name: "Culinary Extract",
-      processedStabilization: 2, tags: ["extract", "concentrated"],
+      stabilizationHint: 2, tags: ["extract", "concentrated"],
     }),
   });
 
@@ -542,7 +542,7 @@
       processingMethod: spec.id,
       processingMethodLabel: spec.label,
       processingBaseTh: spec.baseTh,
-      processedStabilization: spec.processedStabilization,
+      stabilizationHint: spec.processedStabilization,
       usuallyFinal: spec.usuallyFinal === true,
       culinaryProperties: Object.freeze(properties),
       affinityTarget: properties.length === 1 ? properties[0].target : null,
@@ -551,7 +551,7 @@
       sourceInstanceIds: Object.freeze(sourceInstanceIds),
       provenance: Object.freeze(provenance),
       processingTags: Object.freeze([...tags].sort()),
-      taste: Number.isFinite(Number(taste)) ? Number(taste) : null,
+      taste: taste != null && Number.isFinite(Number(taste)) ? Number(taste) : null,
       outputMode: canonical ? "canonical" : "procedural",
       canonicalProcessedId: canonical?.id || null,
     });
