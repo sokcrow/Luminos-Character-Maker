@@ -57,15 +57,39 @@
   }
 
   const TEMPLATES = Object.freeze([
+    template({ id: "noodles", methodId: "cut", priority: 120, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.05,
+      outputId: "processed_noodles", outputForm: "noodles",
+      inputPlan: { requirements: [{ id: "dough", units: 1, selector: { anyTags: ["dough"], anyForms: ["dough"] } }] } }),
+    template({ id: "wrapper", methodId: "cut", priority: 110, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.05,
+      outputId: "processed_wrapper", outputForm: "wrapper",
+      inputPlan: { requirements: [{ id: "dough", units: 1, selector: { anyTags: ["dough"], anyForms: ["dough"] } }] } }),
     template({ id: "cut", methodId: "cut", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
     template({ id: "chop", methodId: "chop", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
     template({ id: "crush", methodId: "crush", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.00,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
+    template({ id: "batter", methodId: "simple_mix", priority: 120, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.08,
+      outputId: "processed_batter", outputForm: "batter",
+      inputPlan: { requirements: [
+        { id: "flour", units: 1, selector: { anyTags: ["flour"], anyForms: ["flour", "corn_flour"] } },
+        { id: "binder", units: 1, selector: { anyTags: ["binder", "egg", "dairy", "liquid"] } }
+      ] } }),
+    template({ id: "coating", methodId: "simple_mix", priority: 110, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.08,
+      outputId: "processed_coating", outputForm: "coating",
+      inputPlan: { requirements: [
+        { id: "flour", units: 1, selector: { anyTags: ["flour"], anyForms: ["flour", "corn_flour"] } },
+        { id: "seasoning", units: 1, selector: { anyTags: ["seasoning", "spice", "herb"] } }
+      ] } }),
     template({ id: "simple_mix", methodId: "simple_mix", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.05,
       inputPlan: { kind: "all_distinct", minDistinct: 2, unitsEach: 1 } }),
 
+    template({ id: "corn_flour", methodId: "grind", priority: 120, outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.10,
+      outputId: "processed_corn_flour", outputForm: "corn_flour",
+      inputPlan: { requirements: [{ id: "corn_source", units: 2, selector: { anyTags: ["corn_source"] } }] } }),
+    template({ id: "ground_meat", methodId: "grind", priority: 110, outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.05,
+      outputId: "processed_ground_meat", outputForm: "ground_meat",
+      inputPlan: { requirements: [{ id: "meat", units: 1, selector: { anyTags: ["meat"] } }] } }),
     template({ id: "flour", methodId: "grind", priority: 100, outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.10,
       outputId: "processed_flour", outputForm: "flour",
       inputPlan: { requirements: [{ id: "flour_source", units: 2, selector: { anyTags: ["flour_source"] } }] } }),
@@ -83,6 +107,9 @@
 
     template({ id: "juice", methodId: "juice", outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.10,
       inputPlan: { requirements: [{ id: "juicy_source", units: 2, selector: { anyTags: ["juice", "juicy", "refreshing", "citrus"] } }] } }),
+    template({ id: "cream", methodId: "press", priority: 120, outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.10,
+      outputId: "processed_cream", outputForm: "cream",
+      inputPlan: { requirements: [{ id: "milk", units: 2, selector: { anyTags: ["cream_source", "dairy"] } }] } }),
     template({ id: "oil", methodId: "press", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.15,
       outputId: "processed_oil", outputForm: "oil",
       inputPlan: { requirements: [{ id: "oil_source", units: 3, selector: { anyTags: ["oil_source"] } }] } }),
@@ -100,11 +127,23 @@
     template({ id: "roast", methodId: "roast", outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.10,
       inputPlan: { requirements: [{ id: "source", units: 1 }] } }),
 
+    template({ id: "corn_dough", methodId: "knead", priority: 120, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.15,
+      outputId: "processed_corn_dough", outputForm: "corn_dough",
+      inputPlan: { requirements: [
+        { id: "corn_flour", units: 2, selector: { anyTags: ["corn_flour"], anyForms: ["corn_flour"] } },
+        { id: "binder", units: 1, selector: { anyTags: ["liquid", "binder", "water", "egg", "dairy"], anyForms: ["juice", "brew_base"] } }
+      ] } }),
+    template({ id: "pasta", methodId: "knead", priority: 110, outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.15,
+      outputId: "processed_pasta", outputForm: "pasta",
+      inputPlan: { requirements: [
+        { id: "flour", units: 2, selector: { anyTags: ["flour"], anyForms: ["flour"] } },
+        { id: "egg", units: 1, selector: { anyTags: ["egg"] } }
+      ] } }),
     template({ id: "dough", methodId: "knead", outputUnits: 2, tasteDelta: 0, productionMultiplier: 1.15,
       outputId: "processed_dough", outputForm: "dough",
       inputPlan: { requirements: [
-        { id: "flour", units: 2, selector: { anyTags: ["flour"], anyForms: ["flour"] } },
-        { id: "binder", units: 1, selector: { anyTags: ["liquid", "binder", "water"], anyForms: ["juice", "brew_base"] } }
+        { id: "flour", units: 2, selector: { anyTags: ["flour"], anyForms: ["flour", "corn_flour"] } },
+        { id: "binder", units: 1, selector: { anyTags: ["liquid", "binder", "water", "egg", "dairy"], anyForms: ["juice", "brew_base"] } }
       ] } }),
 
     template({ id: "stock", methodId: "simmer", priority: 100, outputUnits: 2, tasteDelta: 1, productionMultiplier: 1.15,
@@ -144,6 +183,18 @@
     template({ id: "dry", methodId: "dry", outputUnits: 1, tasteDelta: 0, productionMultiplier: 1.15,
       inputPlan: { requirements: [{ id: "source", units: 2 }] } }),
 
+    template({ id: "cheese", methodId: "ferment", priority: 130, outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.25,
+      outputId: "processed_cheese", outputForm: "cheese",
+      inputPlan: { requirements: [
+        { id: "milk", units: 2, selector: { anyTags: ["cheese_source", "dairy"] } },
+        { id: "culture", units: 1, selector: { anyTags: ["culture", "fermentation"] } }
+      ] } }),
+    template({ id: "miso_paste", methodId: "ferment", priority: 125, outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.25,
+      outputId: "processed_miso_paste", outputForm: "miso_paste",
+      inputPlan: { requirements: [
+        { id: "miso_source", units: 2, selector: { anyTags: ["miso_source"] } },
+        { id: "culture", units: 1, selector: { anyTags: ["culture", "fermentation"] } }
+      ] } }),
     template({ id: "ferment_base", methodId: "ferment", outputUnits: 1, tasteDelta: 1, productionMultiplier: 1.25,
       outputId: "processed_ferment_base", outputForm: "ferment_base",
       inputPlan: { requirements: [{ id: "fermentable", units: 2, selector: { anyTags: ["fermentable", "fermentation", "culture"] } }] } }),
