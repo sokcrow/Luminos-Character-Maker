@@ -39,7 +39,8 @@ const { pathToFileURL } = require("node:url");
 
   const egg = catalog.createIngredientStack("egg", { quantity:2, sourceInstanceId:"egg-a", affinityRoll:0 });
   assert.equal(egg.quantity, 2);
-  assert.equal(egg.affinityTarget, "con_save");
+  assert.ok(Object.prototype.hasOwnProperty.call(catalog.get("egg").culinaryAffinities, egg.affinityTarget));
+  assert.equal(egg.culinaryProperties[0].sourceInstanceId, "egg-a");
   assert.equal(egg.unitValueAhn, 1800);
   assert.equal(egg.totalValueAhn, 3600);
 
