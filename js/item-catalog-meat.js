@@ -40,6 +40,10 @@
     return global.LuminousCulinaryAffinityCatalog || safeRequire("./item-culinary-affinity-data.js");
   }
 
+  function processingEngine() {
+    return global.LuminousItemProcessingEngine || safeRequire("./item-processing-engine.js");
+  }
+
   function sizeEngine() {
     return global.LuminousItemSizeLineageEngine || safeRequire("./item-size-lineage-engine.js");
   }
@@ -212,6 +216,25 @@
     };
   }
 
+  function processingMethodsFor(itemOrId) {
+    const entry = typeof itemOrId === "string" ? get(itemOrId) : clone(itemOrId);
+    if (!entry) return [];
+    const engine = processingEngine();
+    return engine?.availableMethodsFor ? engine.availableMethodsFor(entry) : [];
+  }
+
+  function processIngredient(stackOrId, methodId, options = {}) {
+    const stack = typeof stackOrId === "string"
+      ? createHarvestStack(stackOrId, options.sourceOptions || {})
+      : clone(stackOrId);
+    if (!stack) return null;
+    const entry = get(stack.itemId || stack.id);
+    if (!entry) return null;
+    const engine = processingEngine();
+    if (!engine?.createProcessedItem) return null;
+    return engine.createProcessedItem({ ...entry, ...stack }, methodId, options);
+  }
+
   const API = Object.freeze({
     VERSION,
     FAMILY,
@@ -226,6 +249,8 @@
     priceForQuality,
     priceForSizeAndQuality,
     createHarvestStack,
+    processingMethodsFor,
+    processIngredient,
   });
 
   global.LuminousMeatCatalog = API;
