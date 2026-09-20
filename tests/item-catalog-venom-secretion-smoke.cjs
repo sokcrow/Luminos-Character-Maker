@@ -18,13 +18,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.ITEMS.length, 7);
 
   const prices = {
-    venom: 3000,
-    toxic_secretion: 2500,
-    acid_secretion: 2000,
-    ink_secretion: 800,
-    pheromone_scent: 1200,
-    defensive_secretion: 1500,
-    exotic_secretion: 5000,
+    venom: 15000,
+    toxic_secretion: 12500,
+    acid_secretion: 10000,
+    ink_secretion: 4000,
+    pheromone_scent: 6000,
+    defensive_secretion: 7500,
+    exotic_secretion: 25000,
   };
 
   for (const [id, price] of Object.entries(prices)) {
@@ -51,10 +51,10 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.fallbackCapacitySU('huge'), 16);
   assert.equal(catalog.fallbackCapacitySU('gargantuan'), 32);
 
-  assert.equal(catalog.unitValueForQuality('venom', 'ruined'), 750);
-  assert.equal(catalog.unitValueForQuality('venom', 'poor'), 1500);
-  assert.equal(catalog.unitValueForQuality('venom', 'fine'), 4500);
-  assert.equal(catalog.unitValueForQuality('venom', 'exceptional'), 6000);
+  assert.equal(catalog.unitValueForQuality('venom', 'ruined'), 3750);
+  assert.equal(catalog.unitValueForQuality('venom', 'poor'), 7500);
+  assert.equal(catalog.unitValueForQuality('venom', 'fine'), 22500);
+  assert.equal(catalog.unitValueForQuality('venom', 'exceptional'), 30000);
   assert.equal(catalog.potencyMultiplierForQuality('ruined'), 0.5);
   assert.equal(catalog.potencyMultiplierForQuality('fine'), 1.25);
   assert.equal(catalog.potencyMultiplierForQuality('exceptional'), 1.5);
@@ -95,8 +95,8 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(venom.secretionUnits, 1, 'Harvest cannot recreate leaked/contaminated secretion');
   assert.equal(venom.displayName, 'Test Serpent Venom');
-  assert.equal(venom.unitValueAhn, 4500);
-  assert.equal(venom.totalValueAhn, 4500);
+  assert.equal(venom.unitValueAhn, 22500);
+  assert.equal(venom.totalValueAhn, 22500);
   assert.equal(venom.potencyMultiplier, 1.25);
   assert.ok(venom.reagentTags.includes('toxin_reagent'));
   assert.ok(venom.specialProperties.includes('neurotoxic'));
