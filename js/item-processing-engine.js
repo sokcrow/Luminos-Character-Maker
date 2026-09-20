@@ -172,7 +172,7 @@
     }),
     ferment: method({
       id: "ferment", label: "Ferment", cookingMethod: "ferment", baseTh: 15,
-      outputMode: "canonical", outputId: "processed_ferment_base",
+      inputMode: "single_or_multi", outputMode: "canonical", outputId: "processed_ferment_base",
       outputForm: "ferment_base", name: "Ferment Base", stabilizationHint: 2,
       tags: ["fermented", "liquid_base", "base"],
     }),
@@ -217,7 +217,7 @@
     fungus: freezeList(["cut", "chop", "boil", "grill", "pan_fry", "steam", "roast", "simmer", "dry", "pickle"]),
     extract: freezeList(["simple_mix", "delicate_extract"]),
     sap: freezeList(["reduce", "ferment"]),
-    meat: freezeList(["cut", "chop", "boil", "grill", "pan_fry", "steam", "roast", "simmer", "deep_fry", "smoke", "dry", "cure"]),
+    meat: freezeList(["cut", "chop", "grind", "boil", "grill", "pan_fry", "steam", "roast", "simmer", "deep_fry", "smoke", "dry", "cure"]),
     aquatic: freezeList(["cut", "boil", "grill", "pan_fry", "steam", "smoke", "dry", "cure"]),
     insectoid: freezeList(["cut", "boil", "grill", "pan_fry", "roast", "dry"]),
     raw: freezeList(["simple_mix"]),
@@ -259,7 +259,18 @@
     juice: freezeList(["simple_mix", "reduce", "ferment", "brew"]),
     oil: freezeList(["simple_mix", "pan_fry", "deep_fry"]),
     flour: freezeList(["simple_mix", "knead", "bake"]),
-    dough: freezeList(["bake", "steam", "deep_fry"]),
+    dough: freezeList(["cut", "bake", "steam", "deep_fry"]),
+    corn_flour: freezeList(["simple_mix", "knead", "bake"]),
+    corn_dough: freezeList(["cut", "steam", "bake", "pan_fry"]),
+    cream: freezeList(["simple_mix", "simmer", "bake"]),
+    cheese: freezeList(["cut", "simple_mix", "bake", "pan_fry"]),
+    batter: freezeList(["pan_fry", "bake", "deep_fry"]),
+    coating: freezeList(["bake", "deep_fry"]),
+    pasta: freezeList(["boil", "simmer", "stir_fry"]),
+    noodles: freezeList(["boil", "simmer", "stir_fry"]),
+    wrapper: freezeList(["steam", "deep_fry", "bake"]),
+    ground_meat: freezeList(["simple_mix", "pan_fry", "grill", "simmer", "bake"]),
+    miso_paste: freezeList(["simple_mix", "simmer"]),
     stock: freezeList(["simple_mix", "simmer", "reduce"]),
     broth: freezeList(["simple_mix", "simmer", "reduce"]),
     sauce_base: freezeList(["simple_mix", "simmer", "reduce"]),
@@ -283,6 +294,17 @@
     processed_brew_base: Object.freeze({ id: "processed_brew_base", name: "Brew Base", form: "brew_base", tags: freezeList(["brewed", "liquid", "base"]) }),
     processed_distillate: Object.freeze({ id: "processed_distillate", name: "Distillate", form: "distillate", tags: freezeList(["distilled", "liquid", "concentrated"]) }),
     processed_culinary_extract: Object.freeze({ id: "processed_culinary_extract", name: "Culinary Extract", form: "culinary_extract", tags: freezeList(["extract", "concentrated"]) }),
+    processed_corn_flour: Object.freeze({ id: "processed_corn_flour", name: "Corn Flour", form: "corn_flour", tags: freezeList(["flour", "corn_flour", "powder", "base"]) }),
+    processed_corn_dough: Object.freeze({ id: "processed_corn_dough", name: "Corn Dough", form: "corn_dough", tags: freezeList(["dough", "corn_dough", "base"]) }),
+    processed_cream: Object.freeze({ id: "processed_cream", name: "Cream", form: "cream", tags: freezeList(["cream", "dairy", "fat", "liquid", "binder"]) }),
+    processed_cheese: Object.freeze({ id: "processed_cheese", name: "Cheese", form: "cheese", tags: freezeList(["cheese", "dairy", "protein", "fat", "filling"]) }),
+    processed_batter: Object.freeze({ id: "processed_batter", name: "Batter", form: "batter", tags: freezeList(["batter", "coating", "binder", "base"]) }),
+    processed_coating: Object.freeze({ id: "processed_coating", name: "Coating", form: "coating", tags: freezeList(["coating", "breaded", "base"]) }),
+    processed_pasta: Object.freeze({ id: "processed_pasta", name: "Pasta", form: "pasta", tags: freezeList(["pasta", "starch", "base"]) }),
+    processed_noodles: Object.freeze({ id: "processed_noodles", name: "Noodles", form: "noodles", tags: freezeList(["noodles", "starch", "base"]) }),
+    processed_wrapper: Object.freeze({ id: "processed_wrapper", name: "Wrapper", form: "wrapper", tags: freezeList(["wrapper", "dough", "base"]) }),
+    processed_ground_meat: Object.freeze({ id: "processed_ground_meat", name: "Ground Meat", form: "ground_meat", tags: freezeList(["ground_meat", "meat", "protein", "filling"]) }),
+    processed_miso_paste: Object.freeze({ id: "processed_miso_paste", name: "Miso Paste", form: "miso_paste", tags: freezeList(["miso_paste", "paste", "seasoning", "savory"]) }),
   });
 
   function valuesFrom(item, key) {
@@ -609,7 +631,11 @@
     if (!validation.allowed) return Object.freeze({ valid: false, ...validation });
 
     const data = recipeData();
-    const candidates = data?.listForMethod ? data.listForMethod(validation.methodId) : [];
+    const requestedTemplateId = normalizeId(options.templateId);
+    let candidates = data?.listForMethod ? data.listForMethod(validation.methodId) : [];
+    if (requestedTemplateId) {
+      candidates = candidates.filter((entry) => normalizeId(entry.id) === requestedTemplateId);
+    }
     if (!candidates.length) {
       return Object.freeze({ valid: false, reason: "processing_template_unavailable", methodId: validation.methodId });
     }
@@ -627,8 +653,9 @@
 
     return Object.freeze({
       valid: false,
-      reason: "no_matching_processing_template_or_quantity",
+      reason: requestedTemplateId ? "requested_processing_template_did_not_match" : "no_matching_processing_template_or_quantity",
       methodId: validation.methodId,
+      requestedTemplateId: requestedTemplateId || null,
       templateIds: Object.freeze(candidates.map((entry) => entry.id)),
     });
   }
