@@ -7,12 +7,14 @@ const { pathToFileURL } = require('node:url');
   delete globalThis.LuminousItemSizeLineageEngine;
   delete globalThis.LuminousItemAffinityEngine;
   delete globalThis.LuminousCulinaryAffinityCatalog;
+  delete globalThis.LuminousItemProcessingEngine;
   delete globalThis.LuminousMeatCatalog;
 
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-size-lineage-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-culinary-affinity-data.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-processing-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-meat.js')).href);
 
   const quality = globalThis.LuminousItemQualityEngine;
@@ -112,6 +114,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(direWolfStack.affinityTarget, 'athletics');
   assert.equal(direWolfStack.affinityBranch, 'str');
   assert.equal(direWolfStack.culinaryProperties.length, 1);
+  assert.equal(meat.processingMethodsFor('meat_wolf').some((entry) => entry.id === 'smoke'), true);
+  const smokedWolf = meat.processIngredient(direWolfStack, 'smoke');
+  assert.equal(smokedWolf.created, true);
+  assert.equal(smokedWolf.processedForm, 'smoked');
+  assert.equal(smokedWolf.affinityTarget, direWolfStack.affinityTarget);
 
   const moonfaeStack = meat.createHarvestStack('meat_rabbit', {
     quantity: 4,
