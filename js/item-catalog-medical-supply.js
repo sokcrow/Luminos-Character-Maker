@@ -9,6 +9,7 @@
   const VERSION = 2;
   const FAMILY = "medical_supply";
   const CURRENCY = "AHN";
+  const PRICE_SCALE_BY_SOURCE = Object.freeze({ generic:5, workshop:3, specialist:2 });
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
   const ARCHETYPE_TIMINGS = Object.freeze(["action", "quick_action", "action", "off_combat"]);
@@ -182,7 +183,7 @@
       tier,
       purchasable: true,
       currency: CURRENCY,
-      priceAhn,
+      priceAhn: Math.round(priceAhn * (PRICE_SCALE_BY_SOURCE[sourceLine] || 2)),
       stackable: true,
       runtime: Object.freeze({
         handler: "medical_supply",
