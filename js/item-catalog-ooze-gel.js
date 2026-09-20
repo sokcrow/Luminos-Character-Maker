@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "ooze_gel";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 5;
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_CREATURE_SIZE = "medium";
 
@@ -58,7 +59,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardUnitValueAhn,
+      standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE),
       measure: "ooze_unit",
       oozeUnitBased: true,
       baseQuality: DEFAULT_QUALITY,
