@@ -12,6 +12,7 @@ const { pathToFileURL } = require("node:url");
     "../js/item-economy-standard.js",
     "../js/item-cooking-engine.js",
     "../js/item-cooking-recipe-catalog.js",
+    "../js/item-cooking-v2-engine.js",
     "../js/item-cooking-recipe-resolver.js",
     "../js/item-cooking-equipment-engine.js",
     "../js/item-cooking-runtime.js",
@@ -20,7 +21,7 @@ const { pathToFileURL } = require("node:url");
   const rt=globalThis.LuminousCookingRuntime;
   assert.ok(rt);
   const unit={
-    hp:50,hp_max:100,sp:0,sp_max:45,
+    hp:50,hp_max:100,sp:0,sp_max:45,proficiencyBonus:3,
     inventario_activo:{
       cooks:{definitionId:"cooks_utensils",itemId:"cooks_utensils",quantity:1,category:"tool"},
       bread:{
@@ -63,8 +64,13 @@ const { pathToFileURL } = require("node:url");
   assert.equal(result.item.hungerSlotsRestored,1);
   assert.equal(result.item.category,"food");
   assert.ok(result.item.productionValueAhn>0);
-  assert.equal(result.item.culinaryEffects[0].target,"survival");
-  assert.equal(result.item.culinaryEffects[0].power,2);
+  assert.equal(result.item.sourceLine,"cooking_v2");
+  assert.equal(result.item.durationHours,14);
+  assert.equal(result.item.culinaryEffects.length,2,"3-star V2 food unlocks two fixed recipe effects");
+  assert.equal(result.item.culinaryEffects.every((effect)=>globalThis.LuminousCookingV2Engine.VALID_TARGETS.has(effect.target)),true);
+  assert.equal(globalThis.LuminousCookingV2Engine.MAX_HP_STEPS.includes(result.item.maxHpBonus),true);
+  assert.ok(result.item.mealFocus);
+  assert.ok(result.preparedV2);
   assert.ok(unit.inventario_activo["burger-made"]);
   assert.equal(unit.inventario_activo.meat,undefined);
   assert.equal(unit.inventario_activo.veg,undefined);
@@ -76,5 +82,5 @@ const { pathToFileURL } = require("node:url");
   assert.equal(second.valid,false);
   assert.equal(second.reason,"missing_recipe_requirements");
 
-  console.log("Cooking Runtime V1 smoke: OK (inventory recipe -> TH/equipment -> stars/effects/PV -> finished food)");
+  console.log("Cooking Runtime V2 smoke: OK (inventory recipe -> TH/equipment -> stars -> balanced recipe functions -> finished food)");
 })().catch((error)=>{ console.error(error); process.exitCode=1; });
