@@ -148,7 +148,7 @@
     }
 
     unit.culinaryEffects=active;
-    return incoming;
+    return active;
   }
 
   function applyFood(unit,item,options={}) {
