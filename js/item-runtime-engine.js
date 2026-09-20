@@ -738,6 +738,28 @@
       if (effect.kind === "stat") pushStat(effect.id, effect.statId, effect.value);
       if (effect.kind === "modifier") pushModifier(effect.id, effect.channel, effect.value, effect.mode || "add");
     });
+
+    asArray(unit.culinaryEffects).filter((effect) =>
+      effect && effect.active !== false && Number(effect.power) !== 0 && Number(effect.remainingHours) > 0
+    ).forEach((effect) => {
+      const target = normalizeId(effect.target);
+      if (!target) return;
+      pushModifier(
+        effect.id || `culinary_${target}`,
+        "final_power",
+        numberOr(effect.power, 0),
+        "add",
+        [{
+          any: [
+            { path: "skill.id", operator: "eq", value: target },
+            { path: "skill.skillId", operator: "eq", value: target },
+            { path: "skill.skill_id", operator: "eq", value: target },
+            { path: "skill.key", operator: "eq", value: target },
+            { path: "skill.targetId", operator: "eq", value: target },
+          ],
+        }]
+      );
+    });
     return traits;
   }
 
