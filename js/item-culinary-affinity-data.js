@@ -97,6 +97,12 @@
     melon: "fruit_balanced",
     banana: "starch",
     exotic_fruit: "fruit_exotic",
+    pineapple: "fruit_citrus",
+    plum: "fruit_balanced",
+    juniper_berry: "fruit_berry",
+    coconut: "nut",
+    camellia_fruit: "fruit_exotic",
+    catnip_fruit: "fruit_berry",
 
     potato: "starch",
     carrot: "root",
@@ -112,6 +118,8 @@
     celery: "aromatic_vegetable",
     cucumber: "fresh_vegetable",
     bamboo_shoot: "fresh_vegetable",
+    sweet_potato: "starch",
+    eggplant: "fresh_vegetable",
 
     wheat: "grain",
     rice: "grain",
@@ -130,6 +138,11 @@
     sunflower_seed: "seed",
     sesame_seed: "seed",
     exotic_seed: "fruit_exotic",
+    pecan: "nut",
+    chestnut: "nut",
+    pine_nut: "nut",
+    cacao: "seed",
+    coffee_bean: "seed",
 
     garlic: "spice_savory",
     ginger: "spice_medicinal",
@@ -148,6 +161,8 @@
     thyme: "herb_roast",
     sage: "herb_medicinal",
     parsley: "herb_fresh",
+    chives: "herb_fresh",
+    tea_leaf: "herb_fresh",
 
     medicinal_herb: "herb_medicinal",
     bitterroot: "herb_medicinal",
@@ -164,6 +179,7 @@
     toxic_mushroom: "fungus_toxic",
     fermentation_fungus: "fungus_ferment",
     exotic_fungus: "fungus_exotic",
+    truffle: "fungus_exotic",
 
     sap: "extract_sap",
     resin: "extract_resin",
