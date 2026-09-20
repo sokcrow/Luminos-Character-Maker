@@ -7,6 +7,7 @@ on:
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
       - 'js/item-catalog-meat.js'
+      - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
@@ -27,6 +28,7 @@ on:
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
       - 'js/item-catalog-meat.js'
+      - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-catalog-food.js'
@@ -56,6 +58,7 @@ jobs:
           node --check js/item-culinary-affinity-data.js
           node --check js/item-catalog-plant-produce.js
           node --check js/item-catalog-meat.js
+          node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
           node --check js/item-cooking-engine.js
       - name: Item affinity smoke
