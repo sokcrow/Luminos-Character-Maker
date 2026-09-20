@@ -20,19 +20,19 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.list({ form: 'essence' }).length, 6);
   assert.equal(catalog.list({ form: 'core' }).length, 2);
 
-  assert.equal(catalog.get('elemental_essence').standardUnitValueAhn, 10000);
-  assert.equal(catalog.get('arcane_essence').standardUnitValueAhn, 12000);
-  assert.equal(catalog.get('necrotic_essence').standardUnitValueAhn, 14000);
-  assert.equal(catalog.get('spirit_essence').standardUnitValueAhn, 15000);
-  assert.equal(catalog.get('radiant_essence').standardUnitValueAhn, 16000);
-  assert.equal(catalog.get('psionic_essence').standardUnitValueAhn, 18000);
-  assert.equal(catalog.get('mana_energy_core').standardMediumValueAhn, 75000);
-  assert.equal(catalog.get('exotic_core').standardMediumValueAhn, 150000);
+  assert.equal(catalog.get('elemental_essence').standardUnitValueAhn, 30000);
+  assert.equal(catalog.get('arcane_essence').standardUnitValueAhn, 36000);
+  assert.equal(catalog.get('necrotic_essence').standardUnitValueAhn, 42000);
+  assert.equal(catalog.get('spirit_essence').standardUnitValueAhn, 45000);
+  assert.equal(catalog.get('radiant_essence').standardUnitValueAhn, 48000);
+  assert.equal(catalog.get('psionic_essence').standardUnitValueAhn, 54000);
+  assert.equal(catalog.get('mana_energy_core').standardMediumValueAhn, 225000);
+  assert.equal(catalog.get('exotic_core').standardMediumValueAhn, 450000);
 
-  assert.equal(catalog.unitValueForQuality('arcane_essence', 'fine'), 18000);
+  assert.equal(catalog.unitValueForQuality('arcane_essence', 'fine'), 54000);
   assert.equal(catalog.potencyMultiplierForQuality('exceptional'), 1.5);
-  assert.equal(catalog.unitValueForQuality('mana_energy_core', 'standard', { partSize: 'large' }), 150000);
-  assert.equal(catalog.unitValueForQuality('exotic_core', 'exceptional', { partSize: 'large' }), 600000);
+  assert.equal(catalog.unitValueForQuality('mana_energy_core', 'standard', { partSize: 'large' }), 450000);
+  assert.equal(catalog.unitValueForQuality('exotic_core', 'exceptional', { partSize: 'large' }), 1800000);
 
   for (const entry of catalog.ITEMS) {
     assert.equal(entry.requiresDeclaredSourceProfile, true);
@@ -68,8 +68,8 @@ const { pathToFileURL } = require('node:url');
     quality: 'exceptional',
   });
   assert.equal(essence.essenceUnits, 2);
-  assert.equal(essence.unitValueAhn, 24000);
-  assert.equal(essence.totalValueAhn, 48000);
+  assert.equal(essence.unitValueAhn, 72000);
+  assert.equal(essence.totalValueAhn, 144000);
   assert.equal(essence.potencyMultiplier, 1.5);
 
   const core = catalog.createHarvestStack('mana_energy_core', {
@@ -80,8 +80,8 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(core.quantity, 1);
   assert.equal(core.partSize, 'large');
-  assert.equal(core.unitValueAhn, 225000);
-  assert.equal(core.totalValueAhn, 225000);
+  assert.equal(core.unitValueAhn, 675000);
+  assert.equal(core.totalValueAhn, 675000);
 
   console.log('Essence/Core catalog smoke: OK (8 materials, expensive magic economy, declared-source-only yield)');
 })().catch((error) => {
