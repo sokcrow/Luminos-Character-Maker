@@ -25,7 +25,7 @@
 
   const MATERIAL_VALUE_REFERENCE_AHN = Object.freeze({
     ...Base.MATERIAL_VALUE_REFERENCE_AHN,
-    industrial_stone: 4000,
+    industrial_stone: 10000,
   });
 
   const ICONS = Object.freeze({
