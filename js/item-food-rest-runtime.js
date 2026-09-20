@@ -116,8 +116,7 @@
 
   function replaceCulinaryEffects(unit,item,effects,options={}) {
     const now=Number(options.now ?? Date.now());
-    if(options.stackCulinaryEffects===true && !Array.isArray(unit.culinaryEffects)) unit.culinaryEffects=[];
-    const realized=effects.map((effect,index)=>({
+    const incoming=effects.map((effect,index)=>({
       id:`culinary_${normalizeId(itemId(item)||item.recipeId||"food")}_${normalizeId(effect.target)}_${now}_${index}`,
       sourceItemId:item.definitionId || item.itemId || item.id || null,
       sourceRecipeId:item.recipeId || null,
@@ -129,9 +128,27 @@
       active:true,
     })).filter(effect=>effect.target&&effect.power&&effect.remainingHours>0);
 
-    if(options.stackCulinaryEffects===true) unit.culinaryEffects=[...(unit.culinaryEffects||[]),...realized];
-    else unit.culinaryEffects=realized;
-    return realized;
+    const active=(Array.isArray(unit.culinaryEffects)?unit.culinaryEffects:[])
+      .filter(effect=>effect&&effect.active!==false&&Number(effect.remainingHours)>0)
+      .map(clone);
+
+    for(const next of incoming) {
+      const index=active.findIndex(current=>normalizeId(current.target)===next.target);
+      if(index<0) {
+        active.push(next);
+        continue;
+      }
+      const current=active[index];
+      const currentPower=Number(current.power)||0;
+      if(next.power>currentPower) active[index]=next;
+      else if(next.power===currentPower) {
+        current.remainingHours=Math.max(Number(current.remainingHours)||0,next.remainingHours);
+        current.affinity=Math.max(Number(current.affinity)||0,next.affinity);
+      }
+    }
+
+    unit.culinaryEffects=active;
+    return incoming;
   }
 
   function applyFood(unit,item,options={}) {
