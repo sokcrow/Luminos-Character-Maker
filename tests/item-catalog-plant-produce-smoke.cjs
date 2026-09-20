@@ -69,14 +69,14 @@ const { pathToFileURL } = require('node:url');
     assert.equal(entry.stackPolicy, 'identical_item_quality_affinity');
   }
 
-  assert.equal(catalog.get('apple').standardUnitValueAhn, 300);
-  assert.equal(catalog.get('tomato').standardUnitValueAhn, 300);
-  assert.equal(catalog.get('wheat').standardUnitValueAhn, 150);
-  assert.equal(catalog.get('rare_spice').standardUnitValueAhn, 3000);
-  assert.equal(catalog.get('nightshade').standardUnitValueAhn, 3000);
-  assert.equal(catalog.get('exotic_medicinal_herb').standardUnitValueAhn, 7500);
-  assert.equal(catalog.get('exotic_fungus').standardUnitValueAhn, 5000);
-  assert.equal(catalog.get('exotic_botanical_extract').standardUnitValueAhn, 2500);
+  assert.equal(catalog.get('apple').standardUnitValueAhn, 1800);
+  assert.equal(catalog.get('tomato').standardUnitValueAhn, 1800);
+  assert.equal(catalog.get('wheat').standardUnitValueAhn, 900);
+  assert.equal(catalog.get('rare_spice').standardUnitValueAhn, 18000);
+  assert.equal(catalog.get('nightshade').standardUnitValueAhn, 18000);
+  assert.equal(catalog.get('exotic_medicinal_herb').standardUnitValueAhn, 45000);
+  assert.equal(catalog.get('exotic_fungus').standardUnitValueAhn, 30000);
+  assert.equal(catalog.get('exotic_botanical_extract').standardUnitValueAhn, 15000);
 
   assert.equal(catalog.get('tomato').iconFamily, 'vegetable_raw');
   assert.equal(catalog.get('almond').iconFamily, 'grain_seed_raw');
@@ -96,8 +96,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('healing_herb').id, 'medicinal_herb');
   assert.equal(catalog.get('latex').id, 'plant_latex');
 
-  assert.equal(catalog.unitValueForQuality('apple', 'standard'), 300);
-  assert.equal(catalog.unitValueForQuality('apple', 'exceptional'), 600);
+  assert.equal(catalog.unitValueForQuality('apple', 'standard'), 1800);
+  assert.equal(catalog.unitValueForQuality('apple', 'exceptional'), 3600);
 
   const stack = catalog.createIngredientStack('potato', {
     quantity: 4,
@@ -107,8 +107,8 @@ const { pathToFileURL } = require('node:url');
   });
   assert.equal(stack.quantity, 4);
   assert.equal(stack.quality, 'fine');
-  assert.equal(stack.unitValueAhn, 300);
-  assert.equal(stack.totalValueAhn, 1200);
+  assert.equal(stack.unitValueAhn, 1800);
+  assert.equal(stack.totalValueAhn, 7200);
   assert.equal(stack.recipesImplemented, false);
   assert.equal(stack.sourceInstanceId, 'potato-stack-a');
   assert.equal(stack.affinityTarget, 'athletics');
