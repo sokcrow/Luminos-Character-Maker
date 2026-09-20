@@ -4,6 +4,37 @@ Status: canonical V1 contract for PR #777.
 
 This document freezes the Cooking/Food rules approved for the Items pass. The goal is to stop reopening already-closed design questions. Catalog expansion may add recipes and ingredients, but must not silently change these contracts.
 
+
+## Cooking V2 balanced function layer
+
+Cooking V2 is now the canonical finished-food function layer. Cooking V1 remains the TH, Check, Taste/economy, inventory-resolution and compatibility foundation, but the following V2 rules supersede the old finished-food affinity/duration behavior:
+
+- finished recipes author a deterministic food identity instead of inheriting random final buffs from ingredient affinities;
+- the catalog is balanced across six Meal Focuses: Martial, Agile, Arcane, Primal, Support and Social;
+- the V2 compiler distributes two Skill targets and one Save target per normal finished recipe while keeping all 18 Skills and all 6 Saves represented as the catalog grows;
+- stars control food potency/effect availability; the recipe controls which targets it benefits;
+- Cooking methods remain available; TH continues to control practical difficulty;
+- food buff duration is stamped at cook time as `8 + (2 × Cook Proficiency Bonus)` hours, minimum 8 and maximum 20;
+- SP has a fixed game range of `-45..+45`; food only restores current SP and never raises Max SP;
+- Max HP food effects temporarily raise the actual HP cap. They do not grant Temporary HP and do not heal the added capacity automatically. On expiration, the cap returns and current HP is clamped only when above the restored cap;
+- recipe knowledge is supported. Legacy characters with no knowledge store retain access for migration; once a character has an explicit Cooking knowledge store, unknown recipes are gated until learned/granted;
+- Catering checks party recipe knowledge and succeeds when at least one party member knows the recipe;
+- Gourmet recipes expose 4★/5★ component gates; enforcement is applied when reusable component stars are present, and remains deferred for legacy inputs that have no star metadata;
+- Freshness metadata is stored at +20% but its Limbus duration remains intentionally unset until the duration rule is approved;
+- dishes are tagged `immediate`, `rest_meal` or `pre_sleep_long_rest`;
+- pre-sleep dishes can carry a sleep synergy: either +1 to the secondary Skill for the first 4 hours after completed sleep, or +2 hours to that meal's effects, capped at 20 hours;
+- ordinary rations remain primarily sustenance; crafted meals are the tactical rest-preparation layer.
+
+Canonical implementation:
+
+- `js/item-cooking-v2-engine.js`
+- `tests/item-cooking-v2-engine-smoke.cjs`
+- `js/item-cooking-runtime.js`
+- `js/item-food-rest-runtime.js`
+
+The V2 compiler is intentionally data-driven. When the current legacy recipe catalog is replaced by the Mabinogi-grounded recipe graph, new recipes enter the same balancing system automatically instead of requiring a second hand-authored Skill distribution pass.
+
+
 ## Design doctrine
 
 Complexity lives in crafting; equipping/consuming stays simple.
