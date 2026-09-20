@@ -17,6 +17,7 @@
   const VERSION = 1;
   const FAMILY = "firearm_components";
   const CURRENCY = "AHN";
+  const MATERIAL_ECONOMY_SCALE = 2.5;
   const DEFAULT_QUALITY = "standard";
 
   function normalizeId(value) { return Base.normalizeId(value); }
@@ -39,14 +40,14 @@
   // Reference Production Values only. Real instances may inject actual Production Values
   // from the processed Craft Components or chosen materials they consume.
   const REFERENCE_INPUT_VALUE_AHN = Object.freeze({
-    housing_casing: 27000,
-    iron: 20000,
-    fasteners_hardware: 26000,
-    carbon_steel: 40000,
-    mechanical_parts: 69000,
-    precision_component: 114000,
-    structural_stock: 10000,
-    processed_leather: 7000,
+    housing_casing: Math.round(27000 * MATERIAL_ECONOMY_SCALE),
+    iron: Math.round(20000 * MATERIAL_ECONOMY_SCALE),
+    fasteners_hardware: Math.round(26000 * MATERIAL_ECONOMY_SCALE),
+    carbon_steel: Math.round(40000 * MATERIAL_ECONOMY_SCALE),
+    mechanical_parts: Math.round(69000 * MATERIAL_ECONOMY_SCALE),
+    precision_component: Math.round(114000 * MATERIAL_ECONOMY_SCALE),
+    structural_stock: Math.round(10000 * MATERIAL_ECONOMY_SCALE),
+    processed_leather: Math.round(7000 * MATERIAL_ECONOMY_SCALE),
   });
 
   const QUALITY_SCALABLE_FIELDS = Object.freeze([
