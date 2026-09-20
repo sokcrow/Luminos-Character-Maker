@@ -14,6 +14,7 @@ on:
       - js/item-quality-engine.js
       - js/item-affinity-engine.js
       - js/item-culinary-affinity-data.js
+      - js/item-processing-engine.js
       - js/item-size-lineage-engine.js
       - js/item-harvest-integrity-engine.js
       - js/item-catalog-hp-healing.js
@@ -50,6 +51,7 @@ on:
       - tests/item-quality-engine-smoke.cjs
       - tests/item-affinity-engine-smoke.cjs
       - tests/item-culinary-affinity-data-smoke.cjs
+      - tests/item-processing-engine-smoke.cjs
       - tests/item-size-lineage-engine-smoke.cjs
       - tests/item-harvest-integrity-engine-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
@@ -101,6 +103,7 @@ jobs:
           node --check js/item-quality-engine.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
+          node --check js/item-processing-engine.js
           node --check js/item-size-lineage-engine.js
           node --check js/item-harvest-integrity-engine.js
           node --check js/item-catalog-hp-healing.js
@@ -138,6 +141,8 @@ jobs:
         run: node tests/item-affinity-engine-smoke.cjs
       - name: Culinary affinity data smoke
         run: node tests/item-culinary-affinity-data-smoke.cjs
+      - name: Item processing engine smoke
+        run: node tests/item-processing-engine-smoke.cjs
       - name: Item size and lineage smoke
         run: node tests/item-size-lineage-engine-smoke.cjs
       - name: Harvest integrity engine smoke
