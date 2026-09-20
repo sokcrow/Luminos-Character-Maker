@@ -16,11 +16,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.FAMILY, 'blood_ichor');
   assert.equal(catalog.ITEMS.length, 6);
 
-  assert.equal(catalog.get('blood').standardUnitValueAhn, 12500);
+  assert.equal(catalog.get('blood').standardUnitValueAhn, 2500);
   assert.equal(catalog.get('humanoid_blood').standardUnitValueAhn, 4000);
   assert.equal(catalog.get('hemolymph').standardUnitValueAhn, 3500);
   assert.equal(catalog.get('ichor').standardUnitValueAhn, 7500);
-  assert.equal(catalog.get('draconic_blood').standardUnitValueAhn, 2500);
+  assert.equal(catalog.get('draconic_blood').standardUnitValueAhn, 12500);
   assert.equal(catalog.get('exotic_blood_fluid').standardUnitValueAhn, 15000);
 
   assert.equal(catalog.fallbackBloodUnits('tiny'), 2);
