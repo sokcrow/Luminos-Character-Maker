@@ -42,7 +42,7 @@ const buckler=Shields.resolvePreset("shield_buckler",{}, {craftResult:18});
 const round=Shields.resolvePreset("shield_round",{}, {craftResult:20});
 const heater=Shields.resolvePreset("shield_heater",{}, {craftResult:22});
 const tower=Shields.resolvePreset("shield_tower",{}, {craftResult:24});
-assert.deepStrictEqual([buckler.standardPhysicalValueAhn,round.standardPhysicalValueAhn,heater.standardPhysicalValueAhn,tower.standardPhysicalValueAhn],[45000,83000,111000,181000]);
+assert.deepStrictEqual([buckler.standardPhysicalValueAhn,round.standardPhysicalValueAhn,heater.standardPhysicalValueAhn,tower.standardPhysicalValueAhn],[112000,208000,279000,454000]);
 assert.deepStrictEqual([buckler.iconFamily,round.iconFamily,heater.iconFamily,tower.iconFamily],["shield_buckler","shield_round","shield_heater","shield_tower"]);
 assert.deepStrictEqual([buckler.components[0].quantity,round.components[0].quantity,heater.components[0].quantity,tower.components[0].quantity],[1,2,3,5]);
 assert.strictEqual(tower.components.find((row)=>row.component.componentId==="shield_component_rim").quantity,2);
@@ -59,8 +59,8 @@ const hardenedTower=Shields.resolvePreset("shield_tower",{
 },{craftResult:24});
 assert.strictEqual(hardenedTower.valid,true);
 assert.strictEqual(hardenedTower.guard,48);
-assert.strictEqual(hardenedTower.standardPhysicalValueAhn,1924000);
-assert.strictEqual(hardenedTower.productionValueAhn,1924000);
+assert.strictEqual(hardenedTower.standardPhysicalValueAhn,4815000);
+assert.strictEqual(hardenedTower.productionValueAhn,4815000);
 
 const fineHardened=Shields.resolvePreset("shield_tower",{
   shield_component_body:{materials:{body:"hardened_steel"},quality:"fine"},
@@ -69,7 +69,7 @@ const fineHardened=Shields.resolvePreset("shield_tower",{
 },{craftResult:24});
 assert.strictEqual(fineHardened.quality,"fine");
 assert.strictEqual(fineHardened.weightScore,hardenedTower.weightScore,"Quality must never change Weight");
-assert.strictEqual(fineHardened.productionValueAhn,3175000);
+assert.strictEqual(fineHardened.productionValueAhn,7945000);
 assert.ok(fineHardened.durability>hardenedTower.durability);
 
 const spiked=UpgradeEngine.apply(bodyWood,[{id:"spiked_face",materials:{material:"iron"}}]);
@@ -122,7 +122,7 @@ const degradeShield={...fineHardened,currentDurability:1,maxDurability:fineHarde
 const degraded=Runtime.applyWear(degradeShield,1);
 assert.strictEqual(degraded.degradation.quality,"standard");
 assert.strictEqual(degradeShield.guard,48,"Quality degradation must recalculate Guard");
-assert.strictEqual(degradeShield.productionValueAhn,1924000,"Quality degradation must recalculate physical value");
+assert.strictEqual(degradeShield.productionValueAhn,4815000,"Quality degradation must recalculate physical value");
 
 const genericCoinBefore={type:"unbreakable",status:"latent"};
 assert.deepStrictEqual(genericCoinBefore,{type:"unbreakable",status:"latent"},"Shield-specific Cracked semantics must not mutate generic coin state");
