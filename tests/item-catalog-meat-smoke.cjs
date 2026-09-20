@@ -31,7 +31,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(meat.CURRENCY, 'AHN');
   assert.equal(meat.DEFAULT_QUALITY, 'standard');
   assert.equal(meat.DEFAULT_SIZE, 'medium');
-  assert.equal(meat.AHN_ECONOMY_SCALE, 10);
+  assert.equal(meat.AHN_ECONOMY_SCALE, 100);
   assert.equal(meat.ITEMS.length, 39);
   assert.deepEqual(meat.ICON_FAMILIES, [
     'meat_mammal',
@@ -67,11 +67,11 @@ const { pathToFileURL } = require('node:url');
     names.add(item.name);
   }
 
-  assert.equal(meat.get('meat_wolf').priceAhn, 1800);
+  assert.equal(meat.get('meat_wolf').priceAhn, 18000);
   assert.equal(meat.get('meat_wolf').lineageId, 'wolf');
   assert.equal(meat.get('meat_wolf').lineageName, 'Wolf');
-  assert.equal(meat.get('meat_draconic').priceAhn, 7500);
-  assert.equal(meat.get('meat_rodent').priceAhn, 600);
+  assert.equal(meat.get('meat_draconic').priceAhn, 75000);
+  assert.equal(meat.get('meat_rodent').priceAhn, 6000);
   assert.equal(meat.get('meat_wolf').iconFamily, 'meat_mammal');
   assert.equal(meat.get('meat_avian').iconFamily, 'meat_bird');
   assert.equal(meat.get('meat_fish').iconFamily, 'meat_fish');
@@ -80,15 +80,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal(meat.get('meat_draconic').iconFamily, 'meat_draconic');
   assert.equal(meat.get('meat_insect').iconFamily, 'meat_insectoid');
 
-  assert.equal(meat.priceForQuality('meat_wolf', 'ruined'), 450);
-  assert.equal(meat.priceForQuality('meat_wolf', 'poor'), 900);
-  assert.equal(meat.priceForQuality('meat_wolf', 'standard'), 1800);
-  assert.equal(meat.priceForQuality('meat_wolf', 'fine'), 2700);
-  assert.equal(meat.priceForQuality('meat_wolf', 'exceptional'), 3600);
-  assert.equal(meat.priceForQuality('meat_draconic', 'exceptional'), 15000);
-  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'tiny', 'standard'), 450);
-  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'standard'), 7200);
-  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'fine'), 10800);
+  assert.equal(meat.priceForQuality('meat_wolf', 'ruined'), 4500);
+  assert.equal(meat.priceForQuality('meat_wolf', 'poor'), 9000);
+  assert.equal(meat.priceForQuality('meat_wolf', 'standard'), 18000);
+  assert.equal(meat.priceForQuality('meat_wolf', 'fine'), 27000);
+  assert.equal(meat.priceForQuality('meat_wolf', 'exceptional'), 36000);
+  assert.equal(meat.priceForQuality('meat_draconic', 'exceptional'), 150000);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'tiny', 'standard'), 4500);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'standard'), 72000);
+  assert.equal(meat.priceForSizeAndQuality('meat_wolf', 'huge', 'fine'), 108000);
 
   const direWolfStack = meat.createHarvestStack('meat_wolf', {
     quantity: 6,
@@ -109,7 +109,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(direWolfStack.displayName, 'Wolf Meat');
   assert.equal(direWolfStack.hungerPerUnit, 200);
   assert.equal(direWolfStack.rationEquivalentPerUnit, 2);
-  assert.equal(direWolfStack.unitValueAhn, 5400);
+  assert.equal(direWolfStack.unitValueAhn, 54000);
   assert.equal(direWolfStack.originCreatureType, 'beast');
   assert.equal(direWolfStack.originCreatureId, 'dire_wolf');
   assert.equal(direWolfStack.sourceInstanceId, 'dire-wolf-meat-a');
@@ -136,7 +136,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(moonfaeStack.hungerPerUnit, 50);
   assert.equal(moonfaeStack.originRaceId, 'moonfae');
   assert.equal(moonfaeStack.originSubtypeId, 'crimson_moon');
-  assert.equal(moonfaeStack.unitValueAhn, 1400);
+  assert.equal(moonfaeStack.unitValueAhn, 14000);
 
   const customLineage = meat.createHarvestStack('meat_rabbit', {
     lineageId: 'moonfae',
