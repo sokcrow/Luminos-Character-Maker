@@ -74,7 +74,7 @@ assert.ok(fineHardened.durability>hardenedTower.durability);
 
 const spiked=UpgradeEngine.apply(bodyWood,[{id:"spiked_face",materials:{material:"iron"}}]);
 assert.strictEqual(spiked.valid,true);
-assert.strictEqual(spiked.upgradeProductionValueAhn,26000);
+assert.strictEqual(spiked.upgradeProductionValueAhn,65000);
 assert.strictEqual(spiked.shieldUpgradeEffects.guardDelta,-2);
 assert.strictEqual(spiked.shieldUpgradeEffects.addAttackModes[0].damageType,"pierce");
 assert.strictEqual(spiked.shieldUpgradeEffects.statusAmplifiers[0].statusType,"rupture");
