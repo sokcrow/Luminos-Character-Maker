@@ -3,6 +3,7 @@ name: Cooking Validation
 on:
   push:
     paths:
+      - 'js/item-economy-standard.js'
       - 'js/item-affinity-engine.js'
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
@@ -10,20 +11,25 @@ on:
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-catalog-food.js'
+      - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
       - 'tests/item-catalog-plant-produce-smoke.cjs'
       - 'tests/item-catalog-meat-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
       - 'docs/item-processing-handoff.md'
       - 'docs/item-cooking-handoff.md'
       - '.github/workflows/cooking-validation.yml'
   pull_request:
     paths:
+      - 'js/item-economy-standard.js'
       - 'js/item-affinity-engine.js'
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
@@ -31,14 +37,18 @@ on:
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-catalog-food.js'
+      - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
       - 'tests/item-catalog-plant-produce-smoke.cjs'
       - 'tests/item-catalog-meat-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
+      - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
       - 'docs/item-processing-handoff.md'
       - 'docs/item-cooking-handoff.md'
@@ -54,6 +64,7 @@ jobs:
           node-version: '20'
       - name: Syntax check
         run: |
+          node --check js/item-economy-standard.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
           node --check js/item-catalog-plant-produce.js
@@ -61,6 +72,9 @@ jobs:
           node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
           node --check js/item-cooking-engine.js
+          node --check js/item-cooking-recipe-catalog.js
+      - name: Economy salary standard smoke
+        run: node tests/item-economy-standard-smoke.cjs
       - name: Item affinity smoke
         run: node tests/item-affinity-engine-smoke.cjs
       - name: Culinary affinity data smoke
@@ -73,5 +87,7 @@ jobs:
         run: node tests/item-processing-engine-smoke.cjs
       - name: Cooking smoke
         run: node tests/item-cooking-engine-smoke.cjs
+      - name: Master cooking recipe catalog smoke
+        run: node tests/item-cooking-recipe-catalog-smoke.cjs
       - name: Legacy food catalog smoke
         run: node tests/item-catalog-food-smoke.cjs
