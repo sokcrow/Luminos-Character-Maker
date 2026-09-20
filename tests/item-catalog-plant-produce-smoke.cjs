@@ -6,10 +6,12 @@ const { pathToFileURL } = require('node:url');
   delete globalThis.LuminousItemQualityEngine;
   delete globalThis.LuminousItemAffinityEngine;
   delete globalThis.LuminousCulinaryAffinityCatalog;
+  delete globalThis.LuminousItemProcessingEngine;
   delete globalThis.LuminousPlantProduceCatalog;
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-quality-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-affinity-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-culinary-affinity-data.js')).href);
+  await import(pathToFileURL(path.resolve(__dirname, '../js/item-processing-engine.js')).href);
   await import(pathToFileURL(path.resolve(__dirname, '../js/item-catalog-plant-produce.js')).href);
 
   const catalog = globalThis.LuminousPlantProduceCatalog;
@@ -111,6 +113,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(stack.affinityBranch, 'str');
   assert.equal(stack.culinaryProperties.length, 1);
   assert.equal(stack.stackPolicy, 'identical_item_quality_affinity');
+  assert.equal(catalog.processingMethodsFor('apple').some((entry) => entry.id === 'juice'), true);
+  const driedPotato = catalog.processIngredient(stack, 'dry');
+  assert.equal(driedPotato.created, true);
+  assert.equal(driedPotato.processedForm, 'dried');
+  assert.equal(driedPotato.affinityTarget, stack.affinityTarget);
 
   console.log('Plant produce catalog smoke: OK (76 canonical ingredients, recipes deferred)');
 })().catch((error) => {
