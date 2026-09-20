@@ -86,7 +86,7 @@
   }
 
   const ITEMS = Object.freeze([
-    // Fruits — 12
+    // Fruits — 18
     ingredient("apple", "Apple", "fruit", "fruit_raw", 300, ["fruit"], ["sweet"], ["bake", "juice", "fermentable"]),
     ingredient("pear", "Pear", "fruit", "fruit_raw", 350, ["fruit"], ["sweet"], ["preserve"]),
     ingredient("orange", "Orange", "fruit", "fruit_raw", 400, ["fruit"], ["citrus", "acidic"], ["juice", "refreshing"]),
@@ -99,8 +99,14 @@
     ingredient("melon", "Melon", "fruit", "fruit_raw", 500, ["fruit"], ["juicy", "fresh"], ["refreshing"]),
     ingredient("banana", "Banana", "fruit", "fruit_raw", 350, ["fruit", "starch"], ["sweet"], ["filling", "dessert"]),
     ingredient("exotic_fruit", "Exotic Fruit", "fruit", "fruit_raw", 1500, ["fruit"], ["exotic"], ["special_ingredient"], ["alchemy"]),
+    ingredient("pineapple", "Pineapple", "fruit", "fruit_raw", 600, ["fruit"], ["sweet", "acidic", "juicy"], ["juice", "dessert", "grill"]),
+    ingredient("plum", "Plum", "fruit", "fruit_raw", 450, ["fruit"], ["sweet", "acidic"], ["preserve", "fermentable", "juice"]),
+    ingredient("juniper_berry", "Juniper Berry", "fruit", "fruit_raw", 800, ["fruit", "berry", "seasoning"], ["aromatic", "bitter"], ["preserve", "jelly", "seasoning"]),
+    ingredient("coconut", "Coconut", "fruit", "fruit_raw", 700, ["fruit", "fat", "nut"], ["rich", "sweet"], ["oil_source", "milk_source", "dessert", "soup"]),
+    ingredient("camellia_fruit", "Camellia Fruit", "fruit", "fruit_raw", 1000, ["fruit"], ["aromatic", "exotic"], ["drink", "cocktail", "special_ingredient"]),
+    ingredient("catnip_fruit", "Catnip Fruit", "fruit", "fruit_raw", 800, ["fruit", "herb"], ["aromatic", "fresh"], ["tea", "drink", "special_ingredient"]),
 
-    // Vegetables / Produce — 14
+    // Vegetables / Produce — 16
     ingredient("potato", "Potato", "vegetable", "vegetable_raw", 200, ["vegetable", "starch"], ["earthy"], ["filling", "stew", "roast"]),
     ingredient("carrot", "Carrot", "vegetable", "vegetable_raw", 200, ["vegetable", "root"], ["sweet"], ["stew", "soup", "side"]),
     ingredient("onion", "Onion", "vegetable", "vegetable_raw", 250, ["vegetable", "aromatic"], ["savory"], ["soup", "stew", "sauce"]),
@@ -115,6 +121,8 @@
     ingredient("celery", "Celery", "vegetable", "vegetable_raw", 250, ["vegetable", "stem", "aromatic"], ["fresh", "savory"], ["broth_base", "soup"]),
     ingredient("cucumber", "Cucumber", "vegetable", "vegetable_raw", 250, ["vegetable"], ["fresh"], ["salad", "pickle", "refreshing"]),
     ingredient("bamboo_shoot", "Bamboo Shoot", "vegetable", "vegetable_raw", 500, ["vegetable", "shoot"], ["fresh"], ["stir_fry", "special_ingredient"]),
+    ingredient("sweet_potato", "Sweet Potato", "vegetable", "vegetable_raw", 300, ["vegetable", "root", "starch"], ["sweet", "earthy"], ["filling", "roast", "bake", "dessert"]),
+    ingredient("eggplant", "Eggplant", "vegetable", "vegetable_raw", 350, ["vegetable"], ["savory", "earthy"], ["stir_fry", "steam", "side"]),
 
     // Grains / Legumes — 10
     ingredient("wheat", "Wheat", "grain_legume", "grain_seed_raw", 150, ["grain", "starch"], ["neutral"], ["flour_source", "bread", "noodle_base"]),
@@ -128,13 +136,18 @@
     ingredient("peas", "Peas", "grain_legume", "grain_seed_raw", 200, ["legume", "vegetable", "protein"], ["sweet", "fresh"], ["side", "soup"]),
     ingredient("soybean", "Soybean", "grain_legume", "grain_seed_raw", 300, ["legume", "protein", "miso_source"], ["earthy"], ["oil_source", "paste_source", "fermentable", "processed_food"]),
 
-    // Nuts / Seeds — 6
+    // Nuts / Seeds — 11
     ingredient("almond", "Almond", "nut_seed", "grain_seed_raw", 600, ["nut", "protein"], ["rich"], ["oil_source", "paste_source"]),
     ingredient("walnut", "Walnut", "nut_seed", "grain_seed_raw", 700, ["nut"], ["rich", "earthy"], ["oil_source"]),
     ingredient("peanut", "Peanut", "nut_seed", "grain_seed_raw", 350, ["nut", "protein"], ["rich"], ["oil_source", "paste_source"]),
     ingredient("sunflower_seed", "Sunflower Seed", "nut_seed", "grain_seed_raw", 300, ["seed"], ["nutty"], ["oil_source", "snack"]),
     ingredient("sesame_seed", "Sesame Seed", "nut_seed", "grain_seed_raw", 500, ["seed", "seasoning"], ["nutty"], ["oil_source"]),
     ingredient("exotic_seed", "Exotic Seed", "nut_seed", "grain_seed_raw", 1500, ["seed"], ["exotic"], ["special_ingredient"], ["alchemy"]),
+    ingredient("pecan", "Pecan", "nut_seed", "grain_seed_raw", 750, ["nut"], ["rich", "sweet"], ["oil_source", "pie", "dessert"]),
+    ingredient("chestnut", "Chestnut", "nut_seed", "grain_seed_raw", 500, ["nut", "starch"], ["sweet", "earthy"], ["roast", "boil", "dessert"]),
+    ingredient("pine_nut", "Pine Nut", "nut_seed", "grain_seed_raw", 900, ["nut"], ["rich", "nutty"], ["oil_source", "porridge", "sauce"]),
+    ingredient("cacao", "Cacao", "nut_seed", "grain_seed_raw", 900, ["seed", "dessert_base"], ["bitter", "rich"], ["chocolate_source", "dessert", "drink"]),
+    ingredient("coffee_bean", "Coffee Bean", "nut_seed", "grain_seed_raw", 700, ["seed"], ["bitter", "aromatic"], ["coffee_source", "roast", "drink"]),
 
     // Spices — 10
     ingredient("garlic", "Garlic", "spice", "spice_herb_raw", 350, ["spice", "aromatic"], ["savory"], ["recipe_enhancement"]),
@@ -148,13 +161,15 @@
     ingredient("turmeric", "Turmeric", "spice", "spice_herb_raw", 700, ["spice"], ["earthy", "bitter"], ["pigment", "medicinal_minor"], ["medicine"]),
     ingredient("rare_spice", "Rare Spice", "spice", "spice_herb_raw", 3000, ["spice"], ["rare"], ["special_ingredient", "signature_recipe"]),
 
-    // Culinary Herbs — 6
+    // Culinary Herbs — 8
     ingredient("basil", "Basil", "culinary_herb", "spice_herb_raw", 400, ["herb", "aromatic"], ["fresh", "savory"], ["sauce", "recipe_enhancement"]),
     ingredient("mint", "Mint", "culinary_herb", "spice_herb_raw", 450, ["herb"], ["fresh", "cooling", "aromatic"], ["tea", "drink"]),
     ingredient("rosemary", "Rosemary", "culinary_herb", "spice_herb_raw", 450, ["herb"], ["savory", "aromatic"], ["meat_pairing", "roast"]),
     ingredient("thyme", "Thyme", "culinary_herb", "spice_herb_raw", 400, ["herb"], ["savory", "aromatic"], ["stew", "soup"]),
     ingredient("sage", "Sage", "culinary_herb", "spice_herb_raw", 500, ["herb"], ["savory", "aromatic"], ["medicinal_minor", "tea"], ["medicine"]),
     ingredient("parsley", "Parsley", "culinary_herb", "spice_herb_raw", 300, ["herb"], ["fresh"], ["garnish", "recipe_enhancement"]),
+    ingredient("chives", "Chives", "culinary_herb", "spice_herb_raw", 350, ["herb", "seasoning"], ["fresh", "savory"], ["garnish", "recipe_enhancement"]),
+    ingredient("tea_leaf", "Tea Leaves", "culinary_herb", "spice_herb_raw", 600, ["herb", "tea"], ["aromatic", "bitter"], ["tea", "drink", "brew"]),
 
     // Medicinal / Toxic Herbs — 8
     ingredient("medicinal_herb", "Medicinal Herb", "medicinal_toxic_herb", "medicinal_herb_raw", 1000, ["medicinal_herb"], ["bitter"], ["medicinal", "healing_reagent"], ["medicine", "alchemy"]),
@@ -166,13 +181,14 @@
     ingredient("nightshade", "Nightshade", "medicinal_toxic_herb", "medicinal_herb_raw", 3000, ["toxic_herb"], ["bitter"], ["toxic", "potent_toxin"], ["poison", "alchemy"]),
     ingredient("exotic_medicinal_herb", "Exotic Medicinal Herb", "medicinal_toxic_herb", "medicinal_herb_raw", 7500, ["medicinal_herb"], ["exotic"], ["medicinal", "advanced_reagent", "rare"], ["medicine", "alchemy"]),
 
-    // Fungi — 6
+    // Fungi — 7
     ingredient("common_mushroom", "Common Mushroom", "fungus", "fungus_raw", 350, ["fungus", "edible"], ["savory", "earthy"], ["cooking"]),
     ingredient("cave_mushroom", "Cave Mushroom", "fungus", "fungus_raw", 600, ["fungus"], ["earthy"], ["cooking", "underground"]),
     ingredient("medicinal_mushroom", "Medicinal Mushroom", "fungus", "fungus_raw", 1500, ["fungus"], ["earthy"], ["medicinal", "medicine_reagent"], ["medicine", "alchemy"]),
     ingredient("toxic_mushroom", "Toxic Mushroom", "fungus", "fungus_raw", 1500, ["fungus"], ["bitter"], ["toxic", "poison_reagent"], ["poison", "alchemy"]),
     ingredient("fermentation_fungus", "Fermentation Fungus", "fungus", "fungus_raw", 800, ["fungus"], ["earthy"], ["culture", "fermentation"], ["processing"]),
     ingredient("exotic_fungus", "Exotic Fungus", "fungus", "fungus_raw", 5000, ["fungus"], ["exotic"], ["special_reagent", "rare"], ["alchemy"]),
+    ingredient("truffle", "Truffle", "fungus", "fungus_raw", 5000, ["fungus", "seasoning"], ["rich", "earthy", "aromatic"], ["special_ingredient", "gourmet", "sauce"]),
 
     // Sap / Resin / Botanical Extracts — 4
     ingredient("sap", "Sap", "botanical_extract", "botanical_extract_raw", 400, ["extract", "sap"], ["sweet"], ["sweetener_base", "binder"], ["alchemy", "processing"]),
