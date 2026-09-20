@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "plant_produce";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 5;
   const DEFAULT_QUALITY = "standard";
   const MEASURE = "market_unit";
   const RECIPES_IMPLEMENTED = false;
@@ -64,7 +65,7 @@
       sourceLine: "botanical_market",
       purchasable: true,
       currency: CURRENCY,
-      standardUnitValueAhn,
+      standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE),
       measure: MEASURE,
       baseQuality: DEFAULT_QUALITY,
       qualitySystem: "universal",
