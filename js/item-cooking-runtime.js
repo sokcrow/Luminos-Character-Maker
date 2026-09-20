@@ -14,6 +14,7 @@
   }
 
   function cooking() { return global.LuminousCookingEngine || safeRequire("./item-cooking-engine.js"); }
+  function cookingV2() { return global.LuminousCookingV2Engine || safeRequire("./item-cooking-v2-engine.js"); }
   function recipes() { return global.LuminousCookingRecipeCatalog || safeRequire("./item-cooking-recipe-catalog.js"); }
   function resolver() { return global.LuminousCookingRecipeResolver || safeRequire("./item-cooking-recipe-resolver.js"); }
   function equipment() { return global.LuminousCookingEquipmentEngine || safeRequire("./item-cooking-equipment-engine.js"); }
@@ -95,6 +96,10 @@
   function previewCook(unit={},recipeOrId,options={}) {
     const recipe=typeof recipeOrId==="string" ? recipes()?.get?.(recipeOrId) : clone(recipeOrId);
     if (!recipe) return Object.freeze({valid:false,reason:"unknown_recipe"});
+    const v2Function=cookingV2()?.get?.(recipe) || null;
+    if(v2Function?.adoption==="adapt" && cookingV2()?.hasExplicitKnowledgeStore?.(unit) && !cookingV2().knowsRecipe(unit,recipe)) {
+      return Object.freeze({valid:false,reason:"unknown_recipe_knowledge",recipe:Object.freeze(clone(recipe)),v2Function:Object.freeze(clone(v2Function))});
+    }
     const view=inventoryView(unit,options);
     const resolved=resolver()?.resolveRecipe?.(recipe,view.rows,options);
     if (!resolved?.valid) {
@@ -107,6 +112,10 @@
     }
 
     const concrete=concreteRecipe(recipe,resolved);
+    const gourmet=cookingV2()?.checkGourmetComponents?.(recipe,resolved.recipeInputs || []) || null;
+    if(gourmet && gourmet.valid===false) {
+      return Object.freeze({valid:false,reason:"gourmet_component_quality",recipe:Object.freeze(clone(recipe)),resolution:resolved,gourmet:Object.freeze(clone(gourmet)),v2Function:Object.freeze(clone(v2Function))});
+    }
     const eq=equipment()?.evaluate?.(concrete,unit,options.equipment || options) || {
       improperEquipmentCount:0,hasCooksUtensils:false,proficient:false,proficiency:0,stationThModifier:0,toolThModifier:0
     };
@@ -125,6 +134,8 @@
       thBreakdown:th,
       effectiveTh:effective.effectiveTh,
       effectiveThBreakdown:effective,
+      v2Function:v2Function ? Object.freeze(clone(v2Function)) : null,
+      gourmet:gourmet ? Object.freeze(clone(gourmet)) : null,
     });
   }
 
@@ -171,6 +182,7 @@
 
   function finishedFoodItem(recipe,prepared,pricing,options={}) {
     const now=Number(options.createdAt ?? Date.now());
+    const v2Prepared=options.v2Prepared || null;
     const id=`food_prepared_${normalizeId(recipe.id)}`;
     const instanceId=String(options.instanceId || `${id}_${now}_${Math.random().toString(36).slice(2,8)}`);
     return {
@@ -184,7 +196,7 @@
       family:"food",
       category:"food",
       itemType:"consumable",
-      sourceLine:"cooking_v1",
+      sourceLine:v2Prepared ? "cooking_v2" : "cooking_v1",
       quantity:1,
       stackPolicy:"identical_finished_recipe_stars_taste_effects_provenance",
       cuisine:recipe.cuisine,
@@ -194,12 +206,24 @@
       edible:true,
       stars:prepared.stars,
       taste:prepared.taste,
-      spRestore:prepared.sp,
-      hungerSlotsRestored:Number(recipe.hungerRestore ?? 1) || 0,
-      hydrationSlotsRestored:Number(recipe.hydrationRestore ?? 0) || 0,
-      culinaryEffects:clone(prepared.effects || []),
-      activeEffectCount:prepared.activeEffectCount,
-      durationHours:prepared.durationHours,
+      spRestore:v2Prepared ? Number(v2Prepared.spRecovery || 0) : prepared.sp,
+      hungerSlotsRestored:v2Prepared ? Number(v2Prepared.hungerRestore || 0) : (Number(recipe.hungerRestore ?? 1) || 0),
+      hydrationSlotsRestored:v2Prepared ? Number(v2Prepared.hydrationRestore || 0) : (Number(recipe.hydrationRestore ?? 0) || 0),
+      culinaryEffects:clone(v2Prepared ? (v2Prepared.effects || []) : (prepared.effects || [])),
+      activeEffectCount:v2Prepared ? (v2Prepared.effects || []).length : prepared.activeEffectCount,
+      durationHours:v2Prepared ? Number(v2Prepared.durationHours || 0) : prepared.durationHours,
+      maxHpBonus:v2Prepared ? Number(v2Prepared.maxHpBonus || 0) : 0,
+      mealFocus:v2Prepared?.mealFocus || null,
+      mealFocusLabel:v2Prepared?.mealFocusLabel || null,
+      restTiming:v2Prepared?.restTiming || null,
+      sleepSynergy:clone(v2Prepared?.sleepSynergy || {type:"none"}),
+      freshnessEligible:v2Prepared?.freshnessEligible===true,
+      freshnessMultiplier:v2Prepared?.freshnessMultiplier || null,
+      freshnessDurationHours:null,
+      cateringEligible:v2Prepared?.cateringEligible===true,
+      gourmetMinStars:Number(v2Prepared?.gourmetMinStars || 0),
+      seasoningCompatible:v2Prepared?.seasoningCompatible ?? null,
+      recipeKnowledge:v2Prepared?.recipeKnowledge || null,
       recipeTh:prepared.recipeTh,
       effectiveTh:prepared.effectiveTh,
       cookingMargin:prepared.margin,
@@ -235,6 +259,7 @@
     if (!canInsertFinishedItem(unit,destination)) return Object.freeze({cooked:false,reason:"output_inventory_full",preview});
 
     const prepared=cooking().resolvePreparedItem(preview.concreteRecipe,checkResult,{equipment:preview.equipment});
+    const v2Prepared=cookingV2()?.resolvePreparedFunction?.(preview.recipe,prepared.stars,unit,{...options,equipment:preview.equipment}) || null;
     const pricing=recipes()?.resolveReferencePricing?.(preview.recipe,preview.concreteRecipe.ingredients,{
       stars:prepared.stars,
       venue:options.venue || preview.recipe.defaultVenue,
@@ -243,7 +268,7 @@
     const consumption=consumeSourcePlan(unit,preview.sourcePlan,options);
     if (!consumption.consumed) return Object.freeze({cooked:false,reason:consumption.reason,preview,consumption});
 
-    const item=finishedFoodItem(preview.recipe,prepared,pricing,options);
+    const item=finishedFoodItem(preview.recipe,prepared,pricing,{...options,v2Prepared});
     const insertion=insertFinishedItem(unit,item,destination);
     if (!insertion.inserted) return Object.freeze({cooked:false,reason:insertion.reason,preview,consumption});
 
@@ -252,6 +277,7 @@
       recipeId:preview.recipe.id,
       item:Object.freeze(clone(item)),
       prepared,
+      preparedV2:v2Prepared ? Object.freeze(clone(v2Prepared)) : null,
       pricing,
       consumption,
       insertion:Object.freeze({containerType:insertion.containerType,key:insertion.key}),
