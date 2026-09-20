@@ -119,14 +119,14 @@
     // Grains / Legumes — 10
     ingredient("wheat", "Wheat", "grain_legume", "grain_seed_raw", 150, ["grain", "starch"], ["neutral"], ["flour_source", "bread", "noodle_base"]),
     ingredient("rice", "Rice", "grain_legume", "grain_seed_raw", 180, ["grain", "starch"], ["neutral"], ["staple", "rice_bowl", "porridge"]),
-    ingredient("corn", "Corn", "grain_legume", "grain_seed_raw", 180, ["grain", "starch"], ["sweet"], ["flour_source", "oil_source", "staple"]),
+    ingredient("corn", "Corn", "grain_legume", "grain_seed_raw", 180, ["grain", "starch", "corn_source"], ["sweet"], ["flour_source", "oil_source", "staple"]),
     ingredient("oats", "Oats", "grain_legume", "grain_seed_raw", 160, ["grain", "starch"], ["earthy"], ["porridge", "ration_base"]),
     ingredient("barley", "Barley", "grain_legume", "grain_seed_raw", 170, ["grain", "starch"], ["earthy"], ["fermentable", "soup", "bread"]),
     ingredient("rye", "Rye", "grain_legume", "grain_seed_raw", 180, ["grain"], ["earthy"], ["flour_source", "bread"]),
     ingredient("beans", "Beans", "grain_legume", "grain_seed_raw", 220, ["legume", "protein"], ["earthy", "savory"], ["filling", "stew"]),
     ingredient("lentils", "Lentils", "grain_legume", "grain_seed_raw", 220, ["legume", "protein"], ["earthy"], ["filling", "soup", "stew"]),
     ingredient("peas", "Peas", "grain_legume", "grain_seed_raw", 200, ["legume", "vegetable", "protein"], ["sweet", "fresh"], ["side", "soup"]),
-    ingredient("soybean", "Soybean", "grain_legume", "grain_seed_raw", 300, ["legume", "protein"], ["earthy"], ["oil_source", "processed_food"]),
+    ingredient("soybean", "Soybean", "grain_legume", "grain_seed_raw", 300, ["legume", "protein", "miso_source"], ["earthy"], ["oil_source", "paste_source", "fermentable", "processed_food"]),
 
     // Nuts / Seeds — 6
     ingredient("almond", "Almond", "nut_seed", "grain_seed_raw", 600, ["nut", "protein"], ["rich"], ["oil_source", "paste_source"]),
