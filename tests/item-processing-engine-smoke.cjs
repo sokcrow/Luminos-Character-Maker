@@ -229,7 +229,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(processing.canProcess(apple, 'distill').allowed, false);
   assert.equal(processing.canProcess([flour], 'knead').allowed, false);
 
-  console.log('Item Processing V1 smoke: OK (115-item eligibility, procedural/canonical outputs, TH and provenance)');
+  console.log('Item Processing V1 smoke: OK (131 plant+meat eligibility, procedural/canonical outputs, TH and provenance)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
