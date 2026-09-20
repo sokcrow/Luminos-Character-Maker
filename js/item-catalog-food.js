@@ -9,10 +9,11 @@
   const VERSION = 2;
   const FAMILY = "food";
   const CURRENCY = "AHN";
+  const ECONOMY_STANDARD = "salary_v1";
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_SIZE = "medium";
-  const SIMPLE_COOKING_VALUE_MULTIPLIER = 1.25;
-  const SHOP_RETAIL_MULTIPLIER = 1.25;
+  const SIMPLE_COOKING_VALUE_MULTIPLIER = 1.10;
+  const SHOP_RETAIL_MULTIPLIER = 1.35;
   const RATION_HUNGER = 100;
   const COOKING_SYSTEM = "cooking_v1";
   const LEGACY_HUNGER_SYSTEM = "size_daily_hunger_compatibility_only";
@@ -199,6 +200,7 @@
 
   const API = Object.freeze({
     VERSION,
+    ECONOMY_STANDARD,
     FAMILY,
     CURRENCY,
     DEFAULT_QUALITY,
