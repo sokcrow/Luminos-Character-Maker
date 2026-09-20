@@ -8,19 +8,24 @@ on:
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
       - 'js/item-catalog-meat.js'
+      - 'js/item-catalog-culinary-staples.js'
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
       - 'js/item-catalog-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
       - 'tests/item-catalog-plant-produce-smoke.cjs'
       - 'tests/item-catalog-meat-smoke.cjs'
+      - 'tests/item-catalog-culinary-staples-smoke.cjs'
+      - 'tests/item-culinary-intermediates-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
+      - 'tests/item-cooking-recipe-resolver-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
@@ -34,19 +39,24 @@ on:
       - 'js/item-culinary-affinity-data.js'
       - 'js/item-catalog-plant-produce.js'
       - 'js/item-catalog-meat.js'
+      - 'js/item-catalog-culinary-staples.js'
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
       - 'js/item-catalog-food.js'
       - 'tests/item-economy-standard-smoke.cjs'
       - 'tests/item-affinity-engine-smoke.cjs'
       - 'tests/item-culinary-affinity-data-smoke.cjs'
       - 'tests/item-catalog-plant-produce-smoke.cjs'
       - 'tests/item-catalog-meat-smoke.cjs'
+      - 'tests/item-catalog-culinary-staples-smoke.cjs'
+      - 'tests/item-culinary-intermediates-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
+      - 'tests/item-cooking-recipe-resolver-smoke.cjs'
       - 'tests/item-catalog-food-smoke.cjs'
       - 'docs/item-economy-handoff.md'
       - 'docs/item-affinity-handoff.md'
@@ -69,10 +79,12 @@ jobs:
           node --check js/item-culinary-affinity-data.js
           node --check js/item-catalog-plant-produce.js
           node --check js/item-catalog-meat.js
+          node --check js/item-catalog-culinary-staples.js
           node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
           node --check js/item-cooking-engine.js
           node --check js/item-cooking-recipe-catalog.js
+          node --check js/item-cooking-recipe-resolver.js
       - name: Economy salary standard smoke
         run: node tests/item-economy-standard-smoke.cjs
       - name: Item affinity smoke
@@ -83,11 +95,17 @@ jobs:
         run: node tests/item-catalog-plant-produce-smoke.cjs
       - name: Meat affinity catalog smoke
         run: node tests/item-catalog-meat-smoke.cjs
+      - name: Culinary staple catalog smoke
+        run: node tests/item-catalog-culinary-staples-smoke.cjs
       - name: Processing methods smoke
         run: node tests/item-processing-engine-smoke.cjs
+      - name: Culinary intermediates smoke
+        run: node tests/item-culinary-intermediates-smoke.cjs
       - name: Cooking smoke
         run: node tests/item-cooking-engine-smoke.cjs
       - name: Master cooking recipe catalog smoke
         run: node tests/item-cooking-recipe-catalog-smoke.cjs
+      - name: Cooking recipe resolver smoke
+        run: node tests/item-cooking-recipe-resolver-smoke.cjs
       - name: Legacy food catalog smoke
         run: node tests/item-catalog-food-smoke.cjs
