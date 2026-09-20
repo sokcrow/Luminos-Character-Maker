@@ -15,6 +15,7 @@
     try { return require(path); } catch(_) { return null; }
   }
   function cooking(){ return global.LuminousCookingEngine || safeRequire("./item-cooking-engine.js"); }
+  function cookingV2(){ return global.LuminousCookingV2Engine || safeRequire("./item-cooking-v2-engine.js"); }
   function inventory(){ return global.LuminousItemInventoryRuntime || safeRequire("./item-inventory-runtime.js"); }
   function itemRuntime(){ return global.LuminousItemRuntime || safeRequire("./item-runtime-engine.js"); }
   function normalizeId(value){ return String(value??"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,""); }
@@ -70,6 +71,12 @@
       hungerSlotsRestored:Math.max(0,Math.trunc(Number(item.hungerSlotsRestored ?? item.defaultHungerSlotsRestored ?? 0)||0)),
       hydrationSlotsRestored:Math.max(0,Math.trunc(Number(item.hydrationSlotsRestored ?? item.defaultHydrationSlotsRestored ?? 0)||0)),
       spRestore:Number.isFinite(Number(item.spRestore ?? item.sp)) ? Number(item.spRestore ?? item.sp) : 0,
+      maxHpBonus:Math.max(0,Number(item.maxHpBonus)||0),
+      durationHours:Math.max(0,Number(item.durationHours)||0),
+      restTiming:normalizeId(item.restTiming),
+      sleepSynergy:clone(item.sleepSynergy || {type:"none"}),
+      freshnessEligible:item.freshnessEligible===true,
+      freshnessMultiplier:Number(item.freshnessMultiplier)||null,
       culinaryEffects:Object.freeze((Array.isArray(item.culinaryEffects)?item.culinaryEffects:[]).map(clone)),
       taste:Number.isFinite(Number(item.taste))?Number(item.taste):null,
       stars:Number.isFinite(Number(item.stars))?Number(item.stars):null,
@@ -151,6 +158,148 @@
     return active;
   }
 
+  function foodSpSlot(unit={}) {
+    if(Number.isFinite(Number(unit.sp))) return {owner:unit,key:"sp"};
+    if(unit.combatStats&&Number.isFinite(Number(unit.combatStats.sp_actual))) return {owner:unit.combatStats,key:"sp_actual"};
+    return null;
+  }
+
+  function recoverFoodSp(unit={},amount=0) {
+    const slot=foodSpSlot(unit);
+    if(!slot) return {changed:false,reason:"sp_resource_not_found",amount:0};
+    const min=Number(cookingV2()?.SP_MIN ?? -45);
+    const max=Number(cookingV2()?.SP_MAX ?? 45);
+    const before=Number(slot.owner[slot.key])||0;
+    const requested=Math.max(0,Number(amount)||0);
+    const after=Math.max(min,Math.min(max,before+requested));
+    slot.owner[slot.key]=after;
+    return {changed:after!==before,before,after,amount:after-before,kind:"sp"};
+  }
+
+  function hpResourceSlot(unit={}) {
+    if(Number.isFinite(Number(unit.hp))) {
+      const maxKey=Number.isFinite(Number(unit.hp_max)) ? "hp_max"
+        : Number.isFinite(Number(unit.maxHp)) ? "maxHp"
+          : "hp_max";
+      if(!Number.isFinite(Number(unit[maxKey]))) unit[maxKey]=Math.max(0,Number(unit.hp)||0);
+      return {owner:unit,currentKey:"hp",maxKey};
+    }
+    if(unit.combatStats&&Number.isFinite(Number(unit.combatStats.hp_actual))) {
+      const owner=unit.combatStats;
+      const maxKey=Number.isFinite(Number(owner.hp_max)) ? "hp_max" : "hp_max";
+      if(!Number.isFinite(Number(owner[maxKey]))) owner[maxKey]=Math.max(0,Number(owner.hp_actual)||0);
+      return {owner,currentKey:"hp_actual",maxKey};
+    }
+    return null;
+  }
+
+  function syncCulinaryMaxHp(unit={}) {
+    const slot=hpResourceSlot(unit);
+    if(!slot) return {changed:false,reason:"hp_resource_not_found"};
+    const active=(Array.isArray(unit.culinaryMaxHpEffects)?unit.culinaryMaxHpEffects:[])
+      .filter(effect=>effect&&effect.active!==false&&Number(effect.remainingHours)>0&&Number(effect.bonus)>0);
+    const nextBonus=active.reduce((max,effect)=>Math.max(max,Number(effect.bonus)||0),0);
+    const previousBonus=Math.max(0,Number(unit.culinaryAppliedMaxHpBonus)||0);
+    const currentMax=Math.max(0,Number(slot.owner[slot.maxKey])||0);
+    const baseMax=Math.max(0,currentMax-previousBonus);
+    const nextMax=baseMax+nextBonus;
+    slot.owner[slot.maxKey]=nextMax;
+    unit.culinaryAppliedMaxHpBonus=nextBonus;
+    if(Number(slot.owner[slot.currentKey])>nextMax) slot.owner[slot.currentKey]=nextMax;
+    return {changed:nextBonus!==previousBonus,baseMax,previousBonus,nextBonus,maxHp:nextMax};
+  }
+
+  function replaceCulinaryMaxHpEffect(unit,item,bonus,options={}) {
+    const value=Math.max(0,Number(bonus)||0);
+    const duration=Math.max(0,Number(item.durationHours ?? options.durationHours ?? 0)||0);
+    const active=(Array.isArray(unit.culinaryMaxHpEffects)?unit.culinaryMaxHpEffects:[])
+      .filter(effect=>effect&&effect.active!==false&&Number(effect.remainingHours)>0&&Number(effect.bonus)>0)
+      .map(clone);
+    if(value>0&&duration>0) {
+      const incoming={
+        id:`culinary_max_hp_${normalizeId(itemId(item)||item.recipeId||"food")}_${Number(options.now ?? Date.now())}`,
+        sourceItemId:item.definitionId || item.itemId || item.id || null,
+        sourceRecipeId:item.recipeId || null,
+        kind:"culinary_max_hp",
+        bonus:value,
+        remainingHours:duration,
+        active:true,
+      };
+      const current=active[0] || null;
+      if(!current || value>Number(current.bonus||0)) active.splice(0,active.length,incoming);
+      else if(value===Number(current.bonus||0)) {
+        current.remainingHours=Math.max(Number(current.remainingHours)||0,duration);
+        current.sourceItemId=incoming.sourceItemId;
+        current.sourceRecipeId=incoming.sourceRecipeId;
+      }
+    }
+    unit.culinaryMaxHpEffects=active.slice(0,1);
+    const sync=syncCulinaryMaxHp(unit);
+    return {effects:clone(unit.culinaryMaxHpEffects),sync};
+  }
+
+  function advanceCulinaryMaxHpEffects(unit={},hours=0) {
+    const elapsed=Math.max(0,Number(hours)||0);
+    const changed=[];
+    unit.culinaryMaxHpEffects=(Array.isArray(unit.culinaryMaxHpEffects)?unit.culinaryMaxHpEffects:[]).filter(effect=>{
+      if(!effect||effect.active===false) return false;
+      const before=Math.max(0,Number(effect.remainingHours)||0);
+      effect.remainingHours=Math.max(0,before-elapsed);
+      effect.active=effect.remainingHours>0;
+      changed.push({id:effect.id,before,after:effect.remainingHours,expired:!effect.active});
+      return effect.active;
+    });
+    const sync=syncCulinaryMaxHp(unit);
+    return {changed,sync};
+  }
+
+  function applySleepSynergy(unit,item,options={}) {
+    if(normalizeId(options.restType)!=="long" || normalizeId(item.restTiming)!=="pre_sleep_long_rest") return null;
+    const synergy=item.sleepSynergy && typeof item.sleepSynergy==="object" ? item.sleepSynergy : {type:"none"};
+    const type=normalizeId(synergy.type);
+    if(type==="secondary_skill_bonus") {
+      const target=normalizeId((item.culinaryEffects || [])[1]?.target);
+      const power=Math.max(0,Number(synergy.power)||0);
+      const durationHours=Math.max(0,Number(synergy.durationHours)||0);
+      if(!target||!power||!durationHours) return null;
+      const active=Array.isArray(unit.culinaryEffects)?unit.culinaryEffects:[];
+      const existing=active.find(effect=>effect&&effect.kind==="culinary_sleep_bonus"&&normalizeId(effect.target)===target);
+      if(existing) {
+        existing.power=Math.max(Number(existing.power)||0,power);
+        existing.remainingHours=Math.max(Number(existing.remainingHours)||0,durationHours);
+        existing.active=true;
+      } else {
+        active.push({
+          id:`culinary_sleep_${normalizeId(item.recipeId||itemId(item)||"food")}_${target}_${Number(options.now ?? Date.now())}`,
+          sourceItemId:item.definitionId || item.itemId || item.id || null,
+          sourceRecipeId:item.recipeId || null,
+          kind:"culinary_sleep_bonus",
+          target,power,remainingHours:durationHours,active:true,
+        });
+      }
+      unit.culinaryEffects=active;
+      return {type,target,power,durationHours};
+    }
+    if(type==="duration_extension") {
+      const hours=Math.max(0,Number(synergy.hours)||0);
+      const cap=Math.max(0,Number(synergy.capHours)||20);
+      if(!hours) return null;
+      let extended=0;
+      for(const effect of (Array.isArray(unit.culinaryEffects)?unit.culinaryEffects:[])) {
+        if(!effect||effect.active===false||effect.sourceRecipeId!==item.recipeId) continue;
+        effect.remainingHours=Math.min(cap,Math.max(0,Number(effect.remainingHours)||0)+hours);
+        extended++;
+      }
+      for(const effect of (Array.isArray(unit.culinaryMaxHpEffects)?unit.culinaryMaxHpEffects:[])) {
+        if(!effect||effect.active===false||effect.sourceRecipeId!==item.recipeId) continue;
+        effect.remainingHours=Math.min(cap,Math.max(0,Number(effect.remainingHours)||0)+hours);
+        extended++;
+      }
+      return {type,hours,capHours:cap,extended};
+    }
+    return null;
+  }
+
   function applyFood(unit,item,options={}) {
     const state=ensureState(unit);
     const profile=foodProfile(item);
@@ -164,10 +313,14 @@
       : Math.min(state.maxHydrationSlots,state.hydrationSlots+profile.hydrationSlotsRestored);
 
     let sp=null;
-    if(profile.spRestore>0 && itemRuntime()?.recoverResource) sp=itemRuntime().recoverResource(unit,"sp",profile.spRestore);
+    if(profile.spRestore>0) sp=recoverFoodSp(unit,profile.spRestore);
     const effects=profile.culinaryEffects.length
       ? replaceCulinaryEffects(unit,item,profile.culinaryEffects,options)
       : [];
+    const maxHp=profile.maxHpBonus>0
+      ? replaceCulinaryMaxHpEffect(unit,item,profile.maxHpBonus,options)
+      : {effects:clone(unit.culinaryMaxHpEffects || []),sync:syncCulinaryMaxHp(unit)};
+    const sleepSynergy=applySleepSynergy(unit,item,options);
     state.lastEatDrinkAtMs=Number(options.now ?? Date.now());
 
     return Object.freeze({
@@ -176,6 +329,8 @@
       before:Object.freeze(before),
       after:Object.freeze({hungerSlots:state.hungerSlots,hydrationSlots:state.hydrationSlots}),
       sp:sp?Object.freeze(clone(sp)):null,
+      maxHp:Object.freeze(clone(maxHp)),
+      sleepSynergy:sleepSynergy?Object.freeze(clone(sleepSynergy)):null,
       culinaryEffects:Object.freeze(clone(effects)),
     });
   }
@@ -221,6 +376,7 @@
       changed.push({id:effect.id,before,after:effect.remainingHours,expired:!effect.active});
       return effect.active;
     });
+    advanceCulinaryMaxHpEffects(unit,elapsed);
     itemRuntime()?.advanceTime?.(unit,elapsed);
     return changed;
   }
@@ -295,7 +451,7 @@
     applyLegacyRestRecovery(unit,normalizedType);
 
     if(choice==="eat_drink") {
-      food=consumeFood(unit,options.foodRef,{...options,now});
+      food=consumeFood(unit,options.foodRef,{...options,now,restType:normalizedType});
       if(!food.consumed) return Object.freeze({completed:false,reason:food.reason,food});
     }
     if(isShort) state.lastShortRestAtMs=now;
@@ -348,7 +504,9 @@
   const API=Object.freeze({
     VERSION,SHORT_REST_COOLDOWN_HOURS,LONG_REST_SLEEP_HOURS,
     ensureState,isFood,foodProfile,locateFood,listEdibleInventory,
-    applyFood,consumeFood,replaceCulinaryEffects,advanceCulinaryEffects,advanceSurvivalTime,performRest,
+    applyFood,consumeFood,replaceCulinaryEffects,recoverFoodSp,
+    syncCulinaryMaxHp,replaceCulinaryMaxHpEffect,advanceCulinaryMaxHpEffects,applySleepSynergy,
+    advanceCulinaryEffects,advanceSurvivalTime,performRest,
   });
 
   global.LuminousFoodRestRuntime=API;
