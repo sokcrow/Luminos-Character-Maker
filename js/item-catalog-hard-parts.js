@@ -12,7 +12,7 @@
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_PART_SIZE = "medium";
   const DRACONIC_VALUE_MULTIPLIER = 3;
-  const AHN_ECONOMY_SCALE = 10;
+  const AHN_ECONOMY_SCALE = 20;
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
