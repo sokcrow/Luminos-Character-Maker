@@ -193,7 +193,7 @@ culinaryAffinities: {
 }
 ```
 
-These values are 0..100 authoring weights. They are relative RNG weights, not direct +Power, rarity, Item Quality or a score that must be recalculated on every ingredient. Entries do not need to sum to 100; the Item Affinity engine normalizes them only when selection/reporting requires it.
+These values are 0..100 authoring weights. They are relative RNG weights, not direct +Power, rarity, Item Quality or a score that must be recalculated on every ingredient. Canonical PR #777 catalog distributions sum to exactly 100; the Item Affinity engine only normalizes non-canonical external/legacy data defensively.
 
 When a procedural ingredient instance is generated, one exact Skill/Save target is selected from its base Item affinity pool. The realized target is stored on the instance as a culinary property together with its source provenance.
 
@@ -278,6 +278,8 @@ The generic live active-effect replacement UI when three unrelated culinary effe
 
 Processed ingredients are real inventory Items with their own recipes. Processing can be multi-stage. A Processed item carries provenance and inherited culinary properties into later recipes.
 
+Processing Methods V1 is canonical in `js/item-processing-engine.js` / `docs/item-processing-handoff.md`. It derives legal transformations from existing Item families/tags, supports both procedural source-derived forms and shared canonical Processed outputs, and preserves original affinity source provenance without rerolling. Processing stabilization stored on an output is only a hint; the later recipe remains responsible for deciding whether that Processed ingredient is appropriate (-1) or key (-2), subject to the existing -2 total cap.
+
 Normal finished names remain compact. UI should show stars and small Skill/Save icons rather than prefix every property into the item name.
 
 Example:
@@ -291,6 +293,9 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 - js/item-affinity-engine.js
 - tests/item-affinity-engine-smoke.cjs
 - docs/item-affinity-handoff.md
+- js/item-processing-engine.js
+- tests/item-processing-engine-smoke.cjs
+- docs/item-processing-handoff.md
 - js/item-cooking-engine.js
 - tests/item-cooking-engine-smoke.cjs
 - docs/item-cooking-handoff.md
@@ -305,7 +310,7 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
-- Processed Item catalogs and the multiple preparation outputs available from the same source Item;
+- concrete Processed recipe data for quantities/yields, Taste changes, Production Value and equipment/station requirements;
 - full multicultural recipe catalog and exact AHN values;
 - final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
 
