@@ -15,19 +15,19 @@ const { pathToFileURL } = require('node:url');
   assert.ok(catalog);
   assert.equal(catalog.VERSION, 1);
   assert.equal(catalog.FAMILY, 'hide_pelt');
-  assert.equal(catalog.AHN_ECONOMY_SCALE, 10);
+  assert.equal(catalog.AHN_ECONOMY_SCALE, 20);
   assert.equal(catalog.ITEMS.length, 9);
 
   const mediumPrices = {
-    hide_mammal: 16000,
-    pelt_fur: 19000,
-    hide_humanoid: 20000,
-    hide_avian: 12000,
-    hide_reptilian: 22000,
-    skin_amphibian: 14000,
-    skin_fish: 10000,
-    hide_draconic: 50000,
-    hide_exotic: 32000,
+    hide_mammal: 32000,
+    pelt_fur: 38000,
+    hide_humanoid: 40000,
+    hide_avian: 24000,
+    hide_reptilian: 44000,
+    skin_amphibian: 28000,
+    skin_fish: 20000,
+    hide_draconic: 100000,
+    hide_exotic: 64000,
   };
 
   for (const [id, price] of Object.entries(mediumPrices)) {
@@ -40,13 +40,13 @@ const { pathToFileURL } = require('node:url');
     assert.equal(catalog.priceForSizeAndQuality(id, 'medium', 'standard'), price);
   }
 
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'tiny', 'standard'), 4000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'small', 'standard'), 8000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'large', 'standard'), 32000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'huge', 'standard'), 64000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'gargantuan', 'standard'), 128000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'huge', 'fine'), 96000);
-  assert.equal(catalog.priceForSizeAndQuality('hide_draconic', 'huge', 'exceptional'), 400000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'tiny', 'standard'), 8000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'small', 'standard'), 16000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'large', 'standard'), 64000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'huge', 'standard'), 128000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'gargantuan', 'standard'), 256000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_mammal', 'huge', 'fine'), 192000);
+  assert.equal(catalog.priceForSizeAndQuality('hide_draconic', 'huge', 'exceptional'), 800000);
 
   const bunny = catalog.createHarvestStack('pelt_fur', {
     size: 'small',
@@ -63,7 +63,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(bunny.lineageId, 'bunny');
   assert.equal(bunny.materialName, 'Bunny Pelt');
   assert.equal(bunny.displayName, 'Small Bunny Pelt');
-  assert.equal(bunny.unitValueAhn, 14250);
+  assert.equal(bunny.unitValueAhn, 28500);
 
   const elephant = catalog.createHarvestStack('hide_mammal', {
     size: 'huge',
@@ -75,7 +75,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(elephant.hideUnits, 16);
   assert.equal(elephant.remainingUnits, 16);
   assert.equal(elephant.materialName, 'Elephant Hide');
-  assert.equal(elephant.unitValueAhn, 96000);
+  assert.equal(elephant.unitValueAhn, 192000);
 
   assert.equal(catalog.recipeUnits('leather_armor', 'medium'), 4);
   assert.equal(catalog.recipeUnits('reinforced_studded_leather', 'medium'), 6);
