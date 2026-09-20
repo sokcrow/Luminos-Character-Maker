@@ -27,15 +27,15 @@ const { pathToFileURL } = require('node:url');
   }
 
   const expectedBuilds = {
-    shortbow: [48, 41000],
-    longbow: [63, 57000],
-    hand_crossbow: [73, 88000],
-    light_crossbow: [103, 106000],
-    heavy_crossbow: [133, 140000],
-    sling: [18, 18000],
-    blowgun: [45, 36000],
-    dart: [40, 3600],
-    net: [54, 35000],
+    shortbow: [48, 102000],
+    longbow: [63, 142000],
+    hand_crossbow: [73, 221000],
+    light_crossbow: [103, 264000],
+    heavy_crossbow: [133, 351000],
+    sling: [18, 44000],
+    blowgun: [45, 92000],
+    dart: [40, 9000],
+    net: [54, 87000],
   };
   for (const [id, [durability, value]] of Object.entries(expectedBuilds)) {
     const build = Engine.referenceBuild(id);
@@ -49,11 +49,11 @@ const { pathToFileURL } = require('node:url');
   assert.equal(Engine.referenceBuild('net').recoverable, true);
 
   const expectedAmmo = {
-    arrow: [10, 45000, 4500, 48],
-    bolt: [8, 45000, 5625, 48],
-    blowgun_dart: [20, 43200, 2160, 48],
-    dart: [10, 36000, 3600, 40],
-    sling_bullet: [10, 26400, 2640, 25],
+    arrow: [10, 112500, 11250, 48],
+    bolt: [8, 112500, 14063, 48],
+    blowgun_dart: [20, 108000, 5400, 48],
+    dart: [10, 90000, 9000, 40],
+    sling_bullet: [10, 66000, 6600, 25],
   };
   for (const [id, [yieldCount, batchValue, unitValue, durability]] of Object.entries(expectedAmmo)) {
     const ammo = Engine.resolveAmmo(id);
