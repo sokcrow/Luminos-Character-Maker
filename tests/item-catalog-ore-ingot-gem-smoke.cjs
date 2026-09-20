@@ -26,31 +26,31 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.ITEMS.length, 96);
   assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 96);
 
-  assert.equal(catalog.get('industrial_stone').standardUnitValueAhn, 4000);
-  assert.equal(catalog.get('iron_ore').standardUnitValueAhn, 12000);
-  assert.equal(catalog.get('titanium_ore').standardUnitValueAhn, 75000);
-  assert.equal(catalog.get('rare_earth_concentrate').standardUnitValueAhn, 100000);
-  assert.equal(catalog.get('exotic_industrial_mineral').standardUnitValueAhn, 300000);
+  assert.equal(catalog.get('industrial_stone').standardUnitValueAhn, 10000);
+  assert.equal(catalog.get('iron_ore').standardUnitValueAhn, 30000);
+  assert.equal(catalog.get('titanium_ore').standardUnitValueAhn, 187500);
+  assert.equal(catalog.get('rare_earth_concentrate').standardUnitValueAhn, 250000);
+  assert.equal(catalog.get('exotic_industrial_mineral').standardUnitValueAhn, 750000);
 
-  assert.equal(catalog.get('iron').standardUnitValueAhn, 20000);
-  assert.equal(catalog.get('titanium').standardUnitValueAhn, 120000);
-  assert.equal(catalog.get('titanium_alloy').standardUnitValueAhn, 185000);
-  assert.equal(catalog.get('hardened_steel').standardUnitValueAhn, 90000);
+  assert.equal(catalog.get('iron').standardUnitValueAhn, 50000);
+  assert.equal(catalog.get('titanium').standardUnitValueAhn, 300000);
+  assert.equal(catalog.get('titanium_alloy').standardUnitValueAhn, 462500);
+  assert.equal(catalog.get('hardened_steel').standardUnitValueAhn, 225000);
   assert.equal(catalog.get('hardened_weapon_steel').id, 'hardened_steel');
   assert.equal(catalog.get('armor_steel').id, 'hardened_steel');
-  assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 650000);
+  assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 1625000);
 
   assert.equal(catalog.get('iron_ore').iconFamily, 'ore_raw');
   assert.equal(catalog.get('iron').iconFamily, 'metal_ingot');
   assert.equal(catalog.get('rough_ruby').iconFamily, 'gem_rough');
   assert.equal(catalog.get('ruby').iconFamily, 'gem_cut');
 
-  assert.equal(catalog.get('rough_ruby').standardUnitValueAhn, 15000);
-  assert.equal(catalog.get('ruby').standardUnitValueAhn, 40000);
-  assert.equal(catalog.get('rough_diamond').standardUnitValueAhn, 35000);
+  assert.equal(catalog.get('rough_ruby').standardUnitValueAhn, 37500);
+  assert.equal(catalog.get('ruby').standardUnitValueAhn, 250000);
+  assert.equal(catalog.get('rough_diamond').standardUnitValueAhn, 87500);
   assert.equal(catalog.get('diamond').standardUnitValueAhn, 100000);
-  assert.equal(catalog.get('rough_starstone_exotic_gem').standardUnitValueAhn, 60000);
-  assert.equal(catalog.get('starstone_exotic_gem').standardUnitValueAhn, 180000);
+  assert.equal(catalog.get('rough_starstone_exotic_gem').standardUnitValueAhn, 150000);
+  assert.equal(catalog.get('starstone_exotic_gem').standardUnitValueAhn, 450000);
 
   assert.deepEqual(catalog.get('ruby').resonanceTags, ['fire', 'heat']);
   assert.deepEqual(catalog.get('sapphire').resonanceTags, ['cold', 'ice']);
@@ -62,9 +62,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('starstone').id, 'starstone_exotic_gem');
   assert.equal(catalog.get('rough_starstone').id, 'rough_starstone_exotic_gem');
 
-  assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 200000);
-  assert.equal(catalog.unitValueForQuality('starstone', 'exceptional'), 360000);
-  assert.equal(catalog.unitValueForQuality('iron_ore', 'fine'), 18000);
+  assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 500000);
+  assert.equal(catalog.unitValueForQuality('starstone', 'exceptional'), 900000);
+  assert.equal(catalog.unitValueForQuality('iron_ore', 'fine'), 45000);
 
   assert.equal(catalog.canSourceFromCreatureBody('iron_ore'), true);
   assert.equal(catalog.canSourceFromCreatureBody('rough_ruby'), true);
@@ -87,8 +87,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(golemOre.materialUnits, 3);
   assert.equal(golemOre.lineageId, 'stone_golem');
   assert.equal(golemOre.displayName, 'Stone Golem Iron Ore');
-  assert.equal(golemOre.unitValueAhn, 18000);
-  assert.equal(golemOre.totalValueAhn, 54000);
+  assert.equal(golemOre.unitValueAhn, 45000);
+  assert.equal(golemOre.totalValueAhn, 135000);
 
   const roughGem = catalog.createCreatureHarvestStack('rough_ruby', {
     quantity: 1,
