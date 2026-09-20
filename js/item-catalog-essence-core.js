@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "essence_core";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 3;
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_CORE_SIZE = "medium";
 
@@ -50,7 +51,7 @@
       sourceLine: "special_harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardUnitValueAhn,
+      standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE),
       measure: "essence_unit",
       essenceUnitBased: true,
       pieceBased: false,
@@ -80,7 +81,7 @@
       sourceLine: "special_harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardMediumValueAhn,
+      standardMediumValueAhn: Math.round(standardMediumValueAhn * AHN_ECONOMY_SCALE),
       measure: "piece",
       essenceUnitBased: false,
       pieceBased: true,
