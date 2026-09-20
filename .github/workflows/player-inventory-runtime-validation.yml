@@ -14,6 +14,7 @@ on:
       - js/item-quality-engine.js
       - js/item-affinity-engine.js
       - js/item-culinary-affinity-data.js
+      - js/item-processing-recipe-data.js
       - js/item-processing-engine.js
       - js/item-size-lineage-engine.js
       - js/item-harvest-integrity-engine.js
@@ -103,6 +104,7 @@ jobs:
           node --check js/item-quality-engine.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
+          node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
           node --check js/item-size-lineage-engine.js
           node --check js/item-harvest-integrity-engine.js
