@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "tools";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 4;
   const DEFAULT_QUALITY = "standard";
   const IMPROVISED_THRESHOLD_PENALTY = 3;
   const TOOL_BASE_POWER_STATUS = "deferred_tuning";
@@ -79,7 +80,7 @@
       toolCategory: icon,
       proficiencyType: key,
       currency: CURRENCY,
-      standardValueAhn,
+      standardValueAhn: Math.round(standardValueAhn * AHN_ECONOMY_SCALE),
       purchasable: true,
       stackable: false,
       baseQuality: DEFAULT_QUALITY,
