@@ -135,8 +135,10 @@ Processing Methods V1 is now defined in `js/item-processing-engine.js`. Generic 
 
 PR #777 currently assigns canonical 100-point `culinaryAffinities` distributions to:
 
-- all 76 Plant / Produce / Herb / Fungi catalog Items;
+- all 92 Plant / Produce / Herb / Fungi catalog Items;
 - all 39 Meat catalog Items.
+
+The 13 Culinary Staples carry inline canonical 100-point affinity distributions while this legacy V1 affinity layer remains active.
 
 The 39 simple Cooked Meat definitions expose the source Meat affinity profile, and cooked stacks preserve the already-realized source target/provenance rather than rerolling.
 
