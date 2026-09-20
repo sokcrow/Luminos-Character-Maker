@@ -19,6 +19,11 @@ on:
       - js/item-processing-engine.js
       - js/item-cooking-recipe-catalog.js
       - js/item-cooking-recipe-resolver.js
+      - js/item-cooking-equipment-engine.js
+      - js/item-cooking-runtime.js
+      - js/item-food-rest-runtime.js
+      - js/item-food-rest-ui.js
+      - js/item-cooking-ui.js
       - js/item-size-lineage-engine.js
       - js/item-harvest-integrity-engine.js
       - js/item-catalog-hp-healing.js
@@ -63,6 +68,9 @@ on:
       - tests/item-catalog-culinary-staples-smoke.cjs
       - tests/item-culinary-intermediates-smoke.cjs
       - tests/item-cooking-recipe-resolver-smoke.cjs
+      - tests/item-cooking-equipment-smoke.cjs
+      - tests/item-cooking-runtime-smoke.cjs
+      - tests/item-food-rest-runtime-smoke.cjs
       - tests/item-size-lineage-engine-smoke.cjs
       - tests/item-harvest-integrity-engine-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
@@ -119,6 +127,11 @@ jobs:
           node --check js/item-processing-engine.js
           node --check js/item-cooking-recipe-catalog.js
           node --check js/item-cooking-recipe-resolver.js
+          node --check js/item-cooking-equipment-engine.js
+          node --check js/item-cooking-runtime.js
+          node --check js/item-food-rest-runtime.js
+          node --check js/item-food-rest-ui.js
+          node --check js/item-cooking-ui.js
           node --check js/item-catalog-culinary-staples.js
           node --check js/item-size-lineage-engine.js
           node --check js/item-harvest-integrity-engine.js
@@ -171,6 +184,12 @@ jobs:
         run: node tests/item-culinary-intermediates-smoke.cjs
       - name: Cooking recipe resolver smoke
         run: node tests/item-cooking-recipe-resolver-smoke.cjs
+      - name: Cooking equipment smoke
+        run: node tests/item-cooking-equipment-smoke.cjs
+      - name: Cooking runtime smoke
+        run: node tests/item-cooking-runtime-smoke.cjs
+      - name: Food Rest runtime smoke
+        run: node tests/item-food-rest-runtime-smoke.cjs
       - name: Item size and lineage smoke
         run: node tests/item-size-lineage-engine-smoke.cjs
       - name: Harvest integrity engine smoke
