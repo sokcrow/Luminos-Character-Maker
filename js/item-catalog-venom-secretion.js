@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "venom_secretion";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 5;
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_RESERVOIR_SIZE = "medium";
 
@@ -58,7 +59,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardUnitValueAhn,
+      standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE),
       measure: "secretion_unit",
       secretionUnitBased: true,
       baseQuality: DEFAULT_QUALITY,
