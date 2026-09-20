@@ -33,13 +33,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(wolf.rawItemId, 'meat_wolf');
   assert.equal(wolf.culinarySystem, 'cooking_v1');
   assert.equal(wolf.defaultHungerSlotsRestored, 1);
-  assert.equal(wolf.cookedBaseValueAhn, 2250);
-  assert.equal(wolf.priceAhn, 2810);
+  assert.equal(wolf.cookedBaseValueAhn, 19800);
+  assert.equal(wolf.priceAhn, 26730);
 
   const shark = food.get('food_cooked_shark');
   assert.equal(shark.name, 'Cooked Shark Meat');
-  assert.equal(shark.cookedBaseValueAhn, 3000);
-  assert.equal(shark.priceAhn, 3750);
+  assert.equal(shark.cookedBaseValueAhn, 26400);
+  assert.equal(shark.priceAhn, 35640);
 
   const venison = food.get('food_cooked_venison');
   assert.equal(venison.name, 'Cooked Venison');
@@ -62,7 +62,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(cookedWolf.rationEquivalentPerUnit, 1);
   assert.equal(cookedWolf.inputQuality, 'fine');
   assert.equal(cookedWolf.quality, 'standard');
-  assert.equal(cookedWolf.unitValueAhn, 2810);
+  assert.equal(cookedWolf.unitValueAhn, 26730);
   assert.equal(wolfStack.affinityTarget, 'athletics');
   assert.equal(cookedWolf.affinityTarget, wolfStack.affinityTarget);
   assert.equal(cookedWolf.affinityBranch, wolfStack.affinityBranch);
@@ -73,7 +73,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(hugeWolf.hungerPerUnit, 400);
   assert.equal(hugeWolf.rationEquivalentPerUnit, 4);
   assert.equal(hugeWolf.secondaryEffectMultiplier, 6);
-  assert.equal(hugeWolf.unitValueAhn, 22480);
+  assert.equal(hugeWolf.unitValueAhn, 213840);
 
   assert.equal(food.dailyHungerForCreatureSize('tiny'), 25);
   assert.equal(food.dailyHungerForCreatureSize('small'), 50);
