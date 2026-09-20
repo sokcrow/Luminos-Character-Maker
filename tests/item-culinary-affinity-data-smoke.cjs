@@ -15,8 +15,8 @@ const { pathToFileURL } = require('node:url');
   assert.ok(engine);
   assert.ok(data);
   assert.equal(data.VERSION, 1);
-  assert.equal(data.listItemIds().length, 115);
-  assert.equal(new Set(data.listItemIds()).size, 115);
+  assert.equal(data.listItemIds().length, 131);
+  assert.equal(new Set(data.listItemIds()).size, 131);
 
   for (const itemId of data.listItemIds()) {
     const affinities = data.get(itemId);
@@ -45,11 +45,14 @@ const { pathToFileURL } = require('node:url');
     athletics: 25,
     int_save: 20,
   });
+  assert.deepEqual(data.get('pineapple'), data.PROFILES.fruit_citrus);
+  assert.deepEqual(data.get('sweet_potato'), data.PROFILES.starch);
+  assert.deepEqual(data.get('truffle'), data.PROFILES.fungus_exotic);
 
   const appleBranch = engine.branchAffinityWeights(data.get('apple'));
   assert.deepEqual(appleBranch, { wis: 50, con: 25, int: 25 });
 
-  console.log('Culinary affinity data smoke: OK (115 items, canonical 100-point distributions)');
+  console.log('Culinary affinity data smoke: OK (131 items, canonical 100-point distributions)');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
