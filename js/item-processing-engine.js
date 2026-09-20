@@ -542,7 +542,7 @@
       processingMethod: spec.id,
       processingMethodLabel: spec.label,
       processingBaseTh: spec.baseTh,
-      stabilizationHint: spec.processedStabilization,
+      processedStabilizationHint: spec.stabilizationHint,
       usuallyFinal: spec.usuallyFinal === true,
       culinaryProperties: Object.freeze(properties),
       affinityTarget: properties.length === 1 ? properties[0].target : null,
