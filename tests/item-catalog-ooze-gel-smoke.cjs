@@ -17,13 +17,13 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.FAMILY, 'ooze_gel');
   assert.equal(catalog.ITEMS.length, 7);
 
-  assert.equal(catalog.get('slime').standardUnitValueAhn, 300);
-  assert.equal(catalog.get('mucus').standardUnitValueAhn, 250);
-  assert.equal(catalog.get('gel').standardUnitValueAhn, 500);
-  assert.equal(catalog.get('adhesive_ooze').standardUnitValueAhn, 900);
-  assert.equal(catalog.get('regenerative_gel').standardUnitValueAhn, 1800);
-  assert.equal(catalog.get('conductive_gel').standardUnitValueAhn, 2000);
-  assert.equal(catalog.get('exotic_ooze').standardUnitValueAhn, 3500);
+  assert.equal(catalog.get('slime').standardUnitValueAhn, 1500);
+  assert.equal(catalog.get('mucus').standardUnitValueAhn, 1250);
+  assert.equal(catalog.get('gel').standardUnitValueAhn, 2500);
+  assert.equal(catalog.get('adhesive_ooze').standardUnitValueAhn, 4500);
+  assert.equal(catalog.get('regenerative_gel').standardUnitValueAhn, 9000);
+  assert.equal(catalog.get('conductive_gel').standardUnitValueAhn, 10000);
+  assert.equal(catalog.get('exotic_ooze').standardUnitValueAhn, 17500);
 
   for (const item of catalog.ITEMS) assert.equal(item.iconFamily, 'ooze_gel');
   assert.equal(catalog.list({ materialTag: 'conductive_medium' })[0].id, 'conductive_gel');
@@ -62,8 +62,8 @@ const { pathToFileURL } = require('node:url');
     lineageName: 'Test Slime',
   });
   assert.equal(stack.oozeUnits, 8, 'Quality must not recreate lost OU');
-  assert.equal(stack.unitValueAhn, 600);
-  assert.equal(stack.totalValueAhn, 4800);
+  assert.equal(stack.unitValueAhn, 3000);
+  assert.equal(stack.totalValueAhn, 24000);
   assert.equal(stack.materialTags.includes('binder'), true);
 
   const renewableProfile = catalog.createBodyProfile({
