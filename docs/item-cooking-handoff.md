@@ -10,7 +10,7 @@ Complexity lives in crafting; equipping/consuming stays simple.
 
 Pipeline:
 
-Base Item affinities -> procedural ingredient property -> Ingredient / Processed Item -> Recipe TH -> normal Limbus Check -> star quality -> Taste/SP -> culinary effects -> finished Item.
+Base Item affinities -> procedural ingredient property -> Ingredient / Processed Item -> Recipe TH -> normal Limbus Check -> star quality -> Taste/SP -> culinary effects -> finished Item -> salary-anchored Production Value -> Retail/Restaurant reference price.
 
 Cooking does not introduce a new dice system. Recipes use the existing Check resolver and declare DEX, INT or WIS as their governing ability. Easier/manual preparations generally use DEX. Harder technical or judgment-heavy recipes use INT or WIS. The recipe authors the ability; the player does not freely substitute a preferred Score.
 
@@ -131,6 +131,71 @@ For edible:false Ingredient/Processed consumption:
 | 5+ | -5 |
 
 Non-edible raw/processed consumption may still restore exactly one Hunger or Hydration slot according to its physical consumption type, but it does not grant normal prepared-food culinary effects.
+
+## Finished dish economy
+
+AHN pricing is anchored to `js/item-economy-standard.js` and the canonical monthly salary reference of ₳1,000,000.
+
+Finished recipes add a salary-relative labor value to consumed ingredient Production Value:
+
+```
+Created Dish PV =
+  (sum consumed input PV x Recipe Creation Multiplier)
+  + Recipe Labor Value
+```
+
+Labor classes are:
+
+| Labor class | AHN |
+| --- | ---: |
+| Snack | ₳1,000 |
+| Simple | ₳2,000 |
+| Standard | ₳4,000 |
+| Complex | ₳7,000 |
+| Elaborate | ₳10,000 |
+| Fine | ₳15,000 |
+
+Star execution modifies the realized economic value:
+
+| Stars | Value multiplier |
+| --- | ---: |
+| ★ | x0.70 |
+| ★★ | x0.85 |
+| ★★★ | x1.00 |
+| ★★★★ | x1.20 |
+| ★★★★★ | x1.50 |
+
+Retail/Restaurant markup is a sales-layer concern and is not permanently baked into the Item's Production Value. Canonical venue references range from x1.20 prepared grocery to x4.00 luxury/prestige dining.
+
+Food affordability is checked against salary-relative bands:
+
+- Survival: ₳1,000..₳5,000;
+- Cheap meal: ₳5,000..₳12,000;
+- Normal meal: ₳12,000..₳30,000;
+- Good restaurant: ₳30,000..₳100,000;
+- Luxury meal: ₳100,000..₳800,000.
+
+The full salary table and non-food Item affordability bands are frozen in `docs/item-economy-handoff.md`.
+
+## Master recipe catalog
+
+`js/item-cooking-recipe-catalog.js` now provides the canonical multicultural recipe catalog.
+
+It covers at least 80 recipes across Bakery/Pastry, American, Japanese, Italian, Mexican/Latin, East Asian, South Asian, general comfort food and low-cost City survival food.
+
+Recipes author:
+
+- cuisine/course/dish family;
+- Cooking method and DEX/INT/WIS ability;
+- semantic ingredient requirements rather than one hard-coded creature/produce combination;
+- Creation Multiplier;
+- labor class;
+- target food price class;
+- default Retail/Restaurant venue.
+
+The recipe never hard-codes final Skill/Save buffs. Actual ingredient instances still determine culinary properties.
+
+Some recipes intentionally reference culinary requirements that are not yet represented by the current 115 raw culinary Items, such as Cheese, Egg, Cream, Pasta/Noodles, Seaweed, wrappers and similar intermediate food staples. These are explicit catalog requirements for later Item expansion, not silently invented inventory Items.
 
 ## Hunger / Hydration / Rest
 
@@ -290,6 +355,9 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 
 ## Canonical implementation
 
+- js/item-economy-standard.js
+- tests/item-economy-standard-smoke.cjs
+- docs/item-economy-handoff.md
 - js/item-affinity-engine.js
 - tests/item-affinity-engine-smoke.cjs
 - docs/item-affinity-handoff.md
@@ -298,6 +366,8 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 - tests/item-processing-engine-smoke.cjs
 - docs/item-processing-handoff.md
 - js/item-cooking-engine.js
+- js/item-cooking-recipe-catalog.js
+- tests/item-cooking-recipe-catalog-smoke.cjs
 - tests/item-cooking-engine-smoke.cjs
 - docs/item-cooking-handoff.md
 
@@ -312,7 +382,7 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
 - tool/station requirements and exceptional source-specific processing overrides where concrete recipes need them;
-- full multicultural recipe catalog and exact AHN values;
+- expansion of missing raw/intermediate culinary Items required by some master recipes;
 - final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
 
 Those tasks must consume this V1 contract rather than redefining it.
