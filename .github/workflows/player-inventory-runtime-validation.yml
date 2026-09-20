@@ -12,10 +12,12 @@ on:
       - js/dm-player-dnd-studio-hotfix.js
       - js/item-icon-registry.js
       - js/item-quality-engine.js
+      - js/item-economy-standard.js
       - js/item-affinity-engine.js
       - js/item-culinary-affinity-data.js
       - js/item-processing-recipe-data.js
       - js/item-processing-engine.js
+      - js/item-cooking-recipe-catalog.js
       - js/item-size-lineage-engine.js
       - js/item-harvest-integrity-engine.js
       - js/item-catalog-hp-healing.js
@@ -50,9 +52,11 @@ on:
       - css/dm-item-instance-editor.css
       - tests/item-icon-registry-smoke.cjs
       - tests/item-quality-engine-smoke.cjs
+      - tests/item-economy-standard-smoke.cjs
       - tests/item-affinity-engine-smoke.cjs
       - tests/item-culinary-affinity-data-smoke.cjs
       - tests/item-processing-engine-smoke.cjs
+      - tests/item-cooking-recipe-catalog-smoke.cjs
       - tests/item-size-lineage-engine-smoke.cjs
       - tests/item-harvest-integrity-engine-smoke.cjs
       - tests/item-catalog-hp-healing-smoke.cjs
@@ -102,10 +106,12 @@ jobs:
           node --check js/dm-player-dnd-studio-hotfix.js
           node --check js/item-icon-registry.js
           node --check js/item-quality-engine.js
+          node --check js/item-economy-standard.js
           node --check js/item-affinity-engine.js
           node --check js/item-culinary-affinity-data.js
           node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
+          node --check js/item-cooking-recipe-catalog.js
           node --check js/item-size-lineage-engine.js
           node --check js/item-harvest-integrity-engine.js
           node --check js/item-catalog-hp-healing.js
@@ -139,12 +145,16 @@ jobs:
         run: node tests/item-icon-registry-smoke.cjs
       - name: Item quality engine smoke
         run: node tests/item-quality-engine-smoke.cjs
+      - name: Item economy standard smoke
+        run: node tests/item-economy-standard-smoke.cjs
       - name: Item affinity engine smoke
         run: node tests/item-affinity-engine-smoke.cjs
       - name: Culinary affinity data smoke
         run: node tests/item-culinary-affinity-data-smoke.cjs
       - name: Item processing engine smoke
         run: node tests/item-processing-engine-smoke.cjs
+      - name: Cooking recipe catalog smoke
+        run: node tests/item-cooking-recipe-catalog-smoke.cjs
       - name: Item size and lineage smoke
         run: node tests/item-size-lineage-engine-smoke.cjs
       - name: Harvest integrity engine smoke
