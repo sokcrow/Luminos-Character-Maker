@@ -16,19 +16,19 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.FAMILY, 'organ_gland');
   assert.equal(catalog.ITEMS.length, 10);
 
-  assert.equal(catalog.get('heart').standardMediumValueAhn, 7000);
-  assert.equal(catalog.get('brain').standardMediumValueAhn, 9000);
-  assert.equal(catalog.get('exotic_organ').standardMediumValueAhn, 15000);
+  assert.equal(catalog.get('heart').standardMediumValueAhn, 35000);
+  assert.equal(catalog.get('brain').standardMediumValueAhn, 45000);
+  assert.equal(catalog.get('exotic_organ').standardMediumValueAhn, 75000);
   assert.equal(catalog.get('heart').iconFamily, 'organ_internal');
   assert.equal(catalog.get('eye').iconFamily, 'organ_sensory');
   assert.equal(catalog.get('brain').iconFamily, 'organ_brain');
   assert.equal(catalog.get('gland').iconFamily, 'organ_gland');
 
-  assert.equal(catalog.unitValueForQuality('heart', 'fine', { partSize: 'large' }), 21000);
-  assert.deepEqual(catalog.medicalValueRangeForQuality('heart', 'fine', { partSize: 'large' }), { minAhn: 180000, maxAhn: 180000 });
+  assert.equal(catalog.unitValueForQuality('heart', 'fine', { partSize: 'large' }), 105000);
+  assert.deepEqual(catalog.medicalValueRangeForQuality('heart', 'fine', { partSize: 'large' }), { minAhn: 1800000, maxAhn: 1800000 });
   assert.equal(catalog.medicalValueRangeForQuality('brain', 'standard'), null);
-  assert.deepEqual(catalog.medicalValueRangeForQuality('gland', 'standard'), { minAhn: 10000, maxAhn: 40000 });
-  assert.deepEqual(catalog.medicalValueRangeForQuality('exotic_organ', 'standard'), { minAhn: 50000, maxAhn: null });
+  assert.deepEqual(catalog.medicalValueRangeForQuality('gland', 'standard'), { minAhn: 100000, maxAhn: 400000 });
+  assert.deepEqual(catalog.medicalValueRangeForQuality('exotic_organ', 'standard'), { minAhn: 500000, maxAhn: null });
 
   const humanoid = catalog.createAnatomyProfile({
     id: 'human',
