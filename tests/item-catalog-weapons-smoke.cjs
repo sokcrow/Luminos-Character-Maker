@@ -21,15 +21,15 @@ const { pathToFileURL } = require('node:url');
   assert.equal('damageMultiplier' in catalog.getQuality('fine'), false);
   assert.equal('durabilityMultiplier' in catalog.getQuality('fine'), false);
 
-  assert.equal(catalog.chassisValueForQuality('longsword', 'ruined'), 20000);
-  assert.equal(catalog.chassisValueForQuality('longsword', 'poor'), 55000);
-  assert.equal(catalog.chassisValueForQuality('longsword', 'standard'), 100000);
-  assert.equal(catalog.chassisValueForQuality('longsword', 'fine'), 165000);
-  assert.equal(catalog.chassisValueForQuality('longsword', 'exceptional'), 250000);
-  assert.equal(catalog.chassisValueForQuality('heavy_crossbow', 'exceptional'), 600000);
+  assert.equal(catalog.chassisValueForQuality('longsword', 'ruined'), 100000);
+  assert.equal(catalog.chassisValueForQuality('longsword', 'poor'), 275000);
+  assert.equal(catalog.chassisValueForQuality('longsword', 'standard'), 500000);
+  assert.equal(catalog.chassisValueForQuality('longsword', 'fine'), 825000);
+  assert.equal(catalog.chassisValueForQuality('longsword', 'exceptional'), 1250000);
+  assert.equal(catalog.chassisValueForQuality('heavy_crossbow', 'exceptional'), 3000000);
 
-  assert.equal(catalog.get('dagger').standardChassisValueAhn, 35000);
-  assert.equal(catalog.get('greatsword').standardChassisValueAhn, 160000);
+  assert.equal(catalog.get('dagger').standardChassisValueAhn, 175000);
+  assert.equal(catalog.get('greatsword').standardChassisValueAhn, 800000);
   assert.equal(catalog.get('greatsword').equipment.handCost, 2);
   assert.equal(catalog.get('longsword').equipment.handCost, 1);
   assert.equal(catalog.get('longbow').iconFamily, 'weapon_bow');
