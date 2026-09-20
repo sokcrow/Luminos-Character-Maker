@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 2.5;
   const DEFAULT_QUALITY = "standard";
   const MATERIAL_UNIT = "material_unit";
   const MATERIAL_UNIT_ABBREVIATION = "MU";
@@ -58,7 +59,7 @@
   function rawMineral(id, name, standardUnitValueAhn, useTags = []) {
     return material({
       id, name, materialNoun: name, form: "raw_mineral", materialClass: "mineral",
-      iconFamily: "ore_raw", standardUnitValueAhn, measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
+      iconFamily: "ore_raw", standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
       pieceBased: false, processed: false, rawCraftingReagent: true,
       sourceKinds: ["deposit", "creature_body"], useTags,
       tags: ["ingredient", "raw_mineral", "ore", "mining", "creature_mineral_harvest"],
@@ -68,7 +69,7 @@
   function refinedMetal(id, name, standardUnitValueAhn, form = "refined_metal") {
     return material({
       id, name, materialNoun: name, form, materialClass: form === "alloy" ? "alloy" : "refined_metal",
-      iconFamily: "metal_ingot", standardUnitValueAhn, measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
+      iconFamily: "metal_ingot", standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
       pieceBased: false, processed: true, rawCraftingReagent: false,
       sourceKinds: ["metallurgy"], useTags: ["weapons", "armor", "tools", "augments", "industrial_fabrication", "upgrade_material"],
       tags: ["ingredient", "metal_stock", "ingot", form],
@@ -79,14 +80,14 @@
     return [
       material({
         id: `rough_${baseId}`, name: `Rough ${name}`, materialNoun: name, form: "rough_gem", materialClass: "gemstone",
-        iconFamily: "gem_rough", standardUnitValueAhn: roughValue, measure: "piece", pieceBased: true, processed: false,
+        iconFamily: "gem_rough", standardUnitValueAhn: Math.round(roughValue * AHN_ECONOMY_SCALE), measure: "piece", pieceBased: true, processed: false,
         rawCraftingReagent: true, sourceKinds: ["deposit", "creature_body"], resonanceTags,
         useTags: ["lapidary_input", "enchantment_material"],
         tags: ["ingredient", "gemstone", "rough_gem", "resonant", "creature_mineral_harvest"],
       }),
       material({
         id: baseId, name, materialNoun: name, form: "cut_gem", materialClass: "gemstone",
-        iconFamily: "gem_cut", standardUnitValueAhn: cutValue, measure: "piece", pieceBased: true, processed: true,
+        iconFamily: "gem_cut", standardUnitValueAhn: Math.round(cutValue * AHN_ECONOMY_SCALE), measure: "piece", pieceBased: true, processed: true,
         rawCraftingReagent: false, sourceKinds: ["lapidary"], resonanceTags,
         processedFrom: `rough_${baseId}`, useTags: ["enchantment_material", "accessory_socket", "weapon_socket"],
         tags: ["ingredient", "gemstone", "cut_gem", "resonant", "enchantment"],
