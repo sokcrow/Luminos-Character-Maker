@@ -9,6 +9,7 @@
   const VERSION = 1;
   const FAMILY = "healing_hp";
   const CURRENCY = "AHN";
+  const PRICE_SCALE_BY_SOURCE = Object.freeze({ generic:5, workshop:3, k_corp:2 });
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
   const SOURCE_CAPS = Object.freeze({ generic: 30, workshop: 60, k_corp: 100 });
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
@@ -40,7 +41,7 @@
       tier,
       purchasable: true,
       currency: CURRENCY,
-      priceAhn,
+      priceAhn: Math.round(priceAhn * (PRICE_SCALE_BY_SOURCE[sourceLine] || 2)),
       stackable: true,
       runtime: {
         actionCost,
