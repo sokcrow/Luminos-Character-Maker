@@ -10,6 +10,7 @@
   const FAMILY = "healing_sp";
   const DELIVERY_FAMILY = "sp_gas";
   const CURRENCY = "AHN";
+  const PRICE_SCALE_BY_SOURCE = Object.freeze({ generic:5, m_corp:2, l_corp:1.5 });
   const DEFAULT_MAX_SP = 45;
   const TIERS = Object.freeze(["I", "II", "III", "IV", "V"]);
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
@@ -67,7 +68,7 @@
       tier,
       purchasable: true,
       currency: CURRENCY,
-      priceAhn,
+      priceAhn: Math.round(priceAhn * (PRICE_SCALE_BY_SOURCE[sourceLine] || 2)),
       stackable: true,
       runtime: {
         actionCost,
