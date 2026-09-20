@@ -46,9 +46,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('ruby').iconFamily, 'gem_cut');
 
   assert.equal(catalog.get('rough_ruby').standardUnitValueAhn, 37500);
-  assert.equal(catalog.get('ruby').standardUnitValueAhn, 250000);
+  assert.equal(catalog.get('ruby').standardUnitValueAhn, 100000);
   assert.equal(catalog.get('rough_diamond').standardUnitValueAhn, 87500);
-  assert.equal(catalog.get('diamond').standardUnitValueAhn, 100000);
+  assert.equal(catalog.get('diamond').standardUnitValueAhn, 250000);
   assert.equal(catalog.get('rough_starstone_exotic_gem').standardUnitValueAhn, 150000);
   assert.equal(catalog.get('starstone_exotic_gem').standardUnitValueAhn, 450000);
 
