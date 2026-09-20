@@ -9,6 +9,8 @@
   const VERSION = 1;
   const FAMILY = "organ_gland";
   const CURRENCY = "AHN";
+  const AHN_ECONOMY_SCALE = 5;
+  const MEDICAL_VALUE_SCALE = 10;
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_PART_SIZE = "medium";
 
@@ -39,7 +41,10 @@
 
   function item(id, name, materialNoun, iconFamily, standardMediumValueAhn, harvestIntegrityFamily, transplantMode, medicalValue, tags = []) {
     const medicalRange = Array.isArray(medicalValue)
-      ? Object.freeze({ minAhn: medicalValue[0], maxAhn: medicalValue[1] ?? null })
+      ? Object.freeze({
+          minAhn: Math.round((medicalValue[0] || 0) * MEDICAL_VALUE_SCALE),
+          maxAhn: medicalValue[1] == null ? null : Math.round(medicalValue[1] * MEDICAL_VALUE_SCALE),
+        })
       : null;
     return Object.freeze({
       id,
@@ -52,7 +57,7 @@
       sourceLine: "harvest",
       purchasable: true,
       currency: CURRENCY,
-      standardMediumValueAhn,
+      standardMediumValueAhn: Math.round(standardMediumValueAhn * AHN_ECONOMY_SCALE),
       measure: "piece",
       pieceBased: true,
       baseQuality: DEFAULT_QUALITY,
@@ -64,7 +69,7 @@
       supportsRenewableHarvest: false,
       harvestIntegrityFamily,
       transplantMode,
-      transplantMedicalStandardMediumValueAhn: typeof medicalValue === "number" ? medicalValue : null,
+      transplantMedicalStandardMediumValueAhn: typeof medicalValue === "number" ? Math.round(medicalValue * MEDICAL_VALUE_SCALE) : null,
       transplantMedicalRangeAhn: medicalRange,
       medicalGradeRequires: Object.freeze(["transplant_eligible", "intact", "preserved", "compatible"]),
       tags: Object.freeze(["ingredient", "organic", "raw_harvest", "anatomical_part", ...tags]),
