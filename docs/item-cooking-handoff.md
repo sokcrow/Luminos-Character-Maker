@@ -195,7 +195,49 @@ Recipes author:
 
 The recipe never hard-codes final Skill/Save buffs. Actual ingredient instances still determine culinary properties.
 
-Some recipes intentionally reference culinary requirements that are not yet represented by the current 115 raw culinary Items, such as Cheese, Egg, Cream, Pasta/Noodles, Seaweed, wrappers and similar intermediate food staples. These are explicit catalog requirements for later Item expansion, not silently invented inventory Items.
+The first catalog-expansion pass is now implemented.
+
+Raw culinary coverage is now 122 Items:
+
+- 76 Plant / Produce / Herb / Fungi;
+- 39 Meat;
+- 7 Culinary Staples: Egg, Milk, Seaweed, Avocado, Honey, Sugar Cane and Recycled Protein.
+
+The new staple catalog is canonical in `js/item-catalog-culinary-staples.js`. Each staple has salary-anchored AHN value, culinary affinity distribution, Quality-aware stack creation and a bridge into Processing V1.
+
+Missing recipe concepts that are transformations rather than raw resources are represented as Processed Items instead of inflating the raw catalog. Current added canonical intermediates are:
+
+- Corn Flour;
+- Corn Dough;
+- Cream;
+- Cheese;
+- Batter;
+- Coating;
+- Pasta;
+- Noodles;
+- Wrapper;
+- Ground Meat;
+- Miso Paste.
+
+Generic requirements such as `meat_or_vegetable`, `protein_or_vegetable`, `vegetable_or_seafood`, `filling`, `baked_base` and `processed_meat` are semantic resolver requirements, not inventory definitions.
+
+## Recipe Resolver V1
+
+`js/item-cooking-recipe-resolver.js` is the canonical inventory-to-recipe bridge for Master Recipe Catalog V1.
+
+The resolver:
+
+- enriches inventory stacks from Plant, Meat, Culinary Staples and legacy Food definitions;
+- recognizes exact Item IDs, Processed forms, finished recipe IDs, dish families and semantic aliases;
+- supports union requirements such as `meat_or_vegetable`;
+- reserves real inventory quantities so one unit cannot satisfy multiple recipe requirements;
+- prefers exact/direct matches over broad aliases;
+- returns missing requirements for UI;
+- returns `recipeInputs` already annotated with `Core/Major/Minor/Seasoning/Garnish` roles;
+- returns an explicit `consumptionPlan`;
+- can list currently craftable recipes from an inventory.
+
+This resolver does not perform the Cooking Check itself. It prepares a valid concrete ingredient composition for the existing Cooking V1 engine.
 
 ## Hunger / Hydration / Rest
 
@@ -367,13 +409,16 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 - docs/item-processing-handoff.md
 - js/item-cooking-engine.js
 - js/item-cooking-recipe-catalog.js
+- js/item-cooking-recipe-resolver.js
+- tests/item-cooking-recipe-resolver-smoke.cjs
+- tests/item-culinary-intermediates-smoke.cjs
 - tests/item-cooking-recipe-catalog-smoke.cjs
 - tests/item-cooking-engine-smoke.cjs
 - docs/item-cooking-handoff.md
 
 The older js/item-catalog-food.js 0..100 hunger/ration helpers remain legacy compatibility only until catalog migration. New Cooking/Rest/culinary-effect work must use the Cooking V1 contract above rather than extending the old 100-point Hunger model.
 
-Current PR #777 affinity coverage is 76 Plant / Produce / Herb / Fungi Items plus 39 Meat Items. Canonical catalog distributions total 100 percentage points, and the 39 simple Cooked Meat outputs preserve the realized source affinity instead of rerolling it.
+Current PR #777 culinary affinity coverage is 76 Plant / Produce / Herb / Fungi Items plus 39 Meat Items plus 7 Culinary Staples. Canonical base distributions total 100 percentage points. The 39 simple Cooked Meat outputs and all Processing V1 intermediates preserve realized source affinity/provenance instead of rerolling it.
 
 ## Explicitly not reopened by this handoff
 
@@ -382,7 +427,7 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
 - tool/station requirements and exceptional source-specific processing overrides where concrete recipes need them;
-- expansion of missing raw/intermediate culinary Items required by some master recipes;
+- final live binding of the Recipe Resolver into the Cooking UI/runtime Check execution;
 - final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
 
 Those tasks must consume this V1 contract rather than redefining it.
