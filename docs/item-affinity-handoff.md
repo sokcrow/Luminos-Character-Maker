@@ -121,7 +121,7 @@ Mystic Apple -> Syrup -> Pastry
 
 from turning one original source Item into multiple independent affinity rolls.
 
-The exact Processed Item catalogs and the different preparation outputs that can be produced from one source Item remain a later catalog pass.
+Processing Methods V1 is now defined in `js/item-processing-engine.js`. Generic processing preserves existing `culinaryProperties` and source provenance by default. Concrete source-to-output yields, Taste/economy and exceptional affinity-transforming methods remain later recipe/catalog data.
 
 ## Canonical implementation
 
