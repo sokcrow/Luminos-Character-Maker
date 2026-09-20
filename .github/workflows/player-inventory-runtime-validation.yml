@@ -53,6 +53,7 @@ on:
       - tests/item-icon-registry-smoke.cjs
       - tests/item-quality-engine-smoke.cjs
       - tests/item-economy-standard-smoke.cjs
+      - tests/item-economy-catalog-smoke.cjs
       - tests/item-affinity-engine-smoke.cjs
       - tests/item-culinary-affinity-data-smoke.cjs
       - tests/item-processing-engine-smoke.cjs
@@ -147,6 +148,8 @@ jobs:
         run: node tests/item-quality-engine-smoke.cjs
       - name: Item economy standard smoke
         run: node tests/item-economy-standard-smoke.cjs
+      - name: Economy catalog rebase smoke
+        run: node tests/item-economy-catalog-smoke.cjs
       - name: Item affinity engine smoke
         run: node tests/item-affinity-engine-smoke.cjs
       - name: Culinary affinity data smoke
