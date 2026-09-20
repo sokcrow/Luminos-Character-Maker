@@ -34,6 +34,7 @@
   const persistence = () => global.LuminousItemPersistenceRuntime || null;
   const realtime = () => global.LuminousItemRealtimeSync || null;
   const workshop = () => global.LuminousWorkshopRuntime || null;
+  const foodRest = () => global.LuminousFoodRestRuntime || null;
 
   function resolveDb() {
     try { if (typeof db !== "undefined" && db?.ref) return db; } catch (_) {}
@@ -638,6 +639,7 @@
     }
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
+      if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
       if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected, "", !state.stashUnlocked);
       return;
     }
@@ -646,6 +648,7 @@
     if (equippedSlot) addAction(host, "UNEQUIP", unequipSelected, "primary");
     else if (compatible.length) addAction(host, "EQUIP", equipSelectedAuto, "primary");
     addAction(host, "STORE / GUARDAR", () => moveSelected("active", "stash"), "", !state.stashUnlocked);
+    if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary");
     const canUse = runtime()?.hasFunction?.(item, "use") || itemCategory(item).toLowerCase() === "consumable";
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
@@ -735,6 +738,20 @@
       state.selected = null;
     }
     await saveUnit(`USED // ${itemName(item).toUpperCase()}`);
+  }
+
+  async function eatDrinkSelected() {
+    const item = selectedItem();
+    if (!item || !state.unit || !foodRest()?.consumeFood) return;
+    const result = foodRest().consumeFood(state.unit, item, {});
+    if (!result?.consumed) {
+      showStatus(`BLOCKED // ${String(result?.reason || "EAT / DRINK FAILED").toUpperCase()}`, "error");
+      return;
+    }
+    if (quantityOf(item) <= 0) state.selected = null;
+    const stateNow = foodRest().ensureState?.(state.unit);
+    const suffix = stateNow ? ` // H${stateNow.hungerSlots}/${stateNow.maxHungerSlots} W${stateNow.hydrationSlots}/${stateNow.maxHydrationSlots}` : "";
+    await saveUnit(`EAT / DRINK // ${itemName(item).toUpperCase()}${suffix}`);
   }
 
   function onEquipmentClick(event) {
@@ -884,6 +901,7 @@
     equipSelectedTo,
     moveSelected,
     useSelected,
+    eatDrinkSelected,
     reloadSelected,
   });
 })(window);
