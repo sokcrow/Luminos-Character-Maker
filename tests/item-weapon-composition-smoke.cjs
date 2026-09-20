@@ -30,38 +30,38 @@ const { pathToFileURL } = require('node:url');
   const shortBlade = components.resolveReferenceComponent('short_blade');
   assert.equal(shortBlade.valid, true);
   assert.equal(shortBlade.durability, 25);
-  assert.equal(shortBlade.productionValueAhn, 29000);
+  assert.equal(shortBlade.productionValueAhn, 72000);
   assert.equal(shortBlade.primaryMaterial.materialId, 'iron');
 
   const longBlade = components.resolveReferenceComponent('long_blade');
   assert.equal(longBlade.durability, 50);
-  assert.equal(longBlade.productionValueAhn, 57000);
+  assert.equal(longBlade.productionValueAhn, 143000);
 
   const reinforcedHandle = components.resolveReferenceComponent('reinforced_handle');
   assert.equal(reinforcedHandle.durability, 25);
-  assert.equal(reinforcedHandle.productionValueAhn, 19000);
+  assert.equal(reinforcedHandle.productionValueAhn, 47000);
 
   const dagger = engine.referenceBuild('dagger');
   assert.equal(dagger.valid, true);
   assert.equal(dagger.maxDurability, 40);
-  assert.equal(dagger.productionValueAhn, 47000);
+  assert.equal(dagger.productionValueAhn, 115000);
   assert.equal(dagger.handMode, 'one_handed');
 
   const longsword = engine.referenceBuild('longsword');
   assert.equal(longsword.maxDurability, 85);
-  assert.equal(longsword.productionValueAhn, 109000);
+  assert.equal(longsword.productionValueAhn, 273000);
   assert.equal(longsword.handMode, 'versatile');
   assert.equal(longsword.primaryMaterialId, 'iron');
 
   const greatsword = engine.referenceBuild('greatsword');
   assert.equal(greatsword.maxDurability, 110);
-  assert.equal(greatsword.productionValueAhn, 147000);
+  assert.equal(greatsword.productionValueAhn, 367000);
   assert.equal(greatsword.handMode, 'two_handed');
   assert.equal(greatsword.handCost, 2);
 
   const halberd = engine.referenceBuild('halberd');
   assert.equal(halberd.maxDurability, 105);
-  assert.equal(halberd.productionValueAhn, 122000);
+  assert.equal(halberd.productionValueAhn, 306000);
   assert.equal(halberd.handMode, 'two_handed');
 
   const ironLong = components.resolveComponent('long_blade', { body: { materialId:'iron', unitValueAhn:22000, quality:'standard' } });
