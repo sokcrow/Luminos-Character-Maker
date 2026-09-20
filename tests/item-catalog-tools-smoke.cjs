@@ -44,14 +44,14 @@ const { pathToFileURL } = require('node:url');
     chemical_tools: 3,
   });
 
-  assert.equal(catalog.get('calligraphers_supplies').standardValueAhn, 8000);
-  assert.equal(catalog.get('harvesting_tools').standardValueAhn, 25000);
-  assert.equal(catalog.get('smiths_tools').standardValueAhn, 35000);
-  assert.equal(catalog.get('surgical_tools').standardValueAhn, 60000);
-  assert.equal(catalog.get('diagnostic_tools').standardValueAhn, 65000);
-  assert.equal(catalog.get('repair_kit').standardValueAhn, 30000);
-  assert.equal(catalog.unitValueForQuality('smiths_tools', 'fine'), 52500);
-  assert.equal(catalog.unitValueForQuality('smiths_tools', 'exceptional'), 70000);
+  assert.equal(catalog.get('calligraphers_supplies').standardValueAhn, 32000);
+  assert.equal(catalog.get('harvesting_tools').standardValueAhn, 100000);
+  assert.equal(catalog.get('smiths_tools').standardValueAhn, 140000);
+  assert.equal(catalog.get('surgical_tools').standardValueAhn, 240000);
+  assert.equal(catalog.get('diagnostic_tools').standardValueAhn, 260000);
+  assert.equal(catalog.get('repair_kit').standardValueAhn, 120000);
+  assert.equal(catalog.unitValueForQuality('smiths_tools', 'fine'), 210000);
+  assert.equal(catalog.unitValueForQuality('smiths_tools', 'exceptional'), 280000);
 
   for (const item of catalog.ITEMS) {
     assert.equal(item.itemType, 'tool');
