@@ -78,9 +78,9 @@ const { pathToFileURL } = require('node:url');
   assert.equal(flour.quantity, 2);
   assert.equal(flour.processingTemplateId, 'flour');
   assert.equal(flour.productionMultiplier, 1.10);
-  assert.equal(flour.batchProductionValueAhn, 330);
-  assert.equal(flour.totalProductionValueAhn, 660);
-  assert.equal(flour.unitProductionValueAhn, 330);
+  assert.equal(flour.batchProductionValueAhn, 1650);
+  assert.equal(flour.totalProductionValueAhn, 3300);
+  assert.equal(flour.unitProductionValueAhn, 1650);
   assert.equal(flour.outputMode, 'canonical');
   assert.deepEqual(flour.sourceItemIds, ['wheat']);
   assert.equal(flour.culinaryProperties.length, 1);
@@ -101,8 +101,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(dough.processedStabilizationHint, 2);
   assert.equal(dough.quantity, 2);
   assert.equal(dough.processingTemplateId, 'dough');
-  assert.equal(dough.batchProductionValueAhn, 817);
-  assert.equal(dough.unitProductionValueAhn, 409);
+  assert.equal(dough.batchProductionValueAhn, 3853);
+  assert.equal(dough.unitProductionValueAhn, 1927);
   assert.equal(dough.culinaryProperties.length, 1);
   assert.equal(dough.culinaryProperties[0].sourceInstanceId, 'wheat-a');
   assert.equal(processing.availableMethodIds(dough).includes('bake'), true);
@@ -119,8 +119,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(appleJuice.name, 'Apple Juice');
   assert.equal(appleJuice.quantity, 2);
   assert.equal(appleJuice.processingTemplateId, 'juice');
-  assert.equal(appleJuice.batchProductionValueAhn, 660);
-  assert.equal(appleJuice.unitProductionValueAhn, 660);
+  assert.equal(appleJuice.batchProductionValueAhn, 3300);
+  assert.equal(appleJuice.unitProductionValueAhn, 3300);
   assert.equal(appleJuice.tasteDelta, 1);
   assert.equal(appleJuice.culinaryProperties[0].sourceInstanceId, 'apple-a');
 
@@ -130,8 +130,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(syrup.processedForm, 'syrup');
   assert.equal(syrup.processedStabilizationHint, 2);
   assert.equal(syrup.processingTemplateId, 'syrup');
-  assert.equal(syrup.batchProductionValueAhn, 1584);
-  assert.equal(syrup.unitProductionValueAhn, 1584);
+  assert.equal(syrup.batchProductionValueAhn, 7920);
+  assert.equal(syrup.unitProductionValueAhn, 7920);
   assert.equal(syrup.tasteDelta, 1);
   assert.equal(syrup.culinaryProperties.length, 1);
   assert.equal(syrup.culinaryProperties[0].sourceInstanceId, 'apple-a');
@@ -170,8 +170,8 @@ const { pathToFileURL } = require('node:url');
   assert.equal(stock.outputMode, 'canonical');
   assert.equal(stock.quantity, 2);
   assert.equal(stock.processingTemplateId, 'stock');
-  assert.equal(stock.batchProductionValueAhn, 2588);
-  assert.equal(stock.unitProductionValueAhn, 1294);
+  assert.equal(stock.batchProductionValueAhn, 23288);
+  assert.equal(stock.unitProductionValueAhn, 11644);
   assert.equal(stock.culinaryProperties.length, 3);
   assert.deepEqual(
     new Set(stock.culinaryProperties.map((entry) => entry.sourceInstanceId)),
@@ -207,7 +207,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(friedWolf.created, true);
   assert.equal(friedWolf.processingTemplateId, 'deep_fry');
   assert.equal(friedWolf.consumptionPlan.length, 2);
-  assert.equal(friedWolf.batchProductionValueAhn, 2645);
+  assert.equal(friedWolf.batchProductionValueAhn, 21275);
 
   const processRecipe = processing.buildProcessingRecipe({ ...wheat, ...wheatStack }, 'grind', {
     ability: 'dex',
