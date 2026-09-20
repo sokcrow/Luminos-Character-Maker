@@ -278,7 +278,7 @@ The generic live active-effect replacement UI when three unrelated culinary effe
 
 Processed ingredients are real inventory Items with their own recipes. Processing can be multi-stage. A Processed item carries provenance and inherited culinary properties into later recipes.
 
-Processing Methods V1 is canonical in `js/item-processing-engine.js` / `docs/item-processing-handoff.md`. It derives legal transformations from existing Item families/tags, supports both procedural source-derived forms and shared canonical Processed outputs, and preserves original affinity source provenance without rerolling. Processing stabilization stored on an output is only a hint; the later recipe remains responsible for deciding whether that Processed ingredient is appropriate (-1) or key (-2), subject to the existing -2 total cap.
+Processing Methods V1 is canonical in `js/item-processing-engine.js`, `js/item-processing-recipe-data.js` and `docs/item-processing-handoff.md`. It derives legal transformations from existing Item families/tags, supports both procedural source-derived forms and shared canonical Processed outputs, preserves original affinity source provenance without rerolling, and now freezes integer batch yields, Taste deltas and Production Value multipliers. Processing stabilization stored on an output is only a hint; the later recipe remains responsible for deciding whether that Processed ingredient is appropriate (-1) or key (-2), subject to the existing -2 total cap.
 
 Normal finished names remain compact. UI should show stars and small Skill/Save icons rather than prefix every property into the item name.
 
@@ -293,6 +293,7 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 - js/item-affinity-engine.js
 - tests/item-affinity-engine-smoke.cjs
 - docs/item-affinity-handoff.md
+- js/item-processing-recipe-data.js
 - js/item-processing-engine.js
 - tests/item-processing-engine-smoke.cjs
 - docs/item-processing-handoff.md
@@ -310,7 +311,7 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
-- concrete Processed recipe data for quantities/yields, Taste changes, Production Value and equipment/station requirements;
+- tool/station requirements and exceptional source-specific processing overrides where concrete recipes need them;
 - full multicultural recipe catalog and exact AHN values;
 - final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
 
