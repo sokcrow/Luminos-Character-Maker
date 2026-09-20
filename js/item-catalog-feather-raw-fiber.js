@@ -11,7 +11,7 @@
   const CURRENCY = "AHN";
   const DEFAULT_QUALITY = "standard";
   const DEFAULT_PART_SIZE = "medium";
-  const AHN_ECONOMY_SCALE = 10;
+  const AHN_ECONOMY_SCALE = 100;
 
   const FEATHER_YIELD_BY_CREATURE_SIZE = Object.freeze({
     tiny: 40,
