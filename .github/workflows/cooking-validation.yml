@@ -12,6 +12,7 @@ on:
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-v2-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
       - 'js/item-cooking-equipment-engine.js'
@@ -33,6 +34,7 @@ on:
       - 'tests/item-culinary-intermediates-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-v2-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-cooking-recipe-resolver-smoke.cjs'
       - 'tests/item-cooking-equipment-smoke.cjs'
@@ -55,6 +57,7 @@ on:
       - 'js/item-processing-recipe-data.js'
       - 'js/item-processing-engine.js'
       - 'js/item-cooking-engine.js'
+      - 'js/item-cooking-v2-engine.js'
       - 'js/item-cooking-recipe-catalog.js'
       - 'js/item-cooking-recipe-resolver.js'
       - 'js/item-cooking-equipment-engine.js'
@@ -76,6 +79,7 @@ on:
       - 'tests/item-culinary-intermediates-smoke.cjs'
       - 'tests/item-processing-engine-smoke.cjs'
       - 'tests/item-cooking-engine-smoke.cjs'
+      - 'tests/item-cooking-v2-engine-smoke.cjs'
       - 'tests/item-cooking-recipe-catalog-smoke.cjs'
       - 'tests/item-cooking-recipe-resolver-smoke.cjs'
       - 'tests/item-cooking-equipment-smoke.cjs'
@@ -107,6 +111,7 @@ jobs:
           node --check js/item-processing-recipe-data.js
           node --check js/item-processing-engine.js
           node --check js/item-cooking-engine.js
+          node --check js/item-cooking-v2-engine.js
           node --check js/item-cooking-recipe-catalog.js
           node --check js/item-cooking-recipe-resolver.js
           node --check js/item-cooking-equipment-engine.js
@@ -132,6 +137,8 @@ jobs:
         run: node tests/item-culinary-intermediates-smoke.cjs
       - name: Cooking smoke
         run: node tests/item-cooking-engine-smoke.cjs
+      - name: Cooking V2 function smoke
+        run: node tests/item-cooking-v2-engine-smoke.cjs
       - name: Master cooking recipe catalog smoke
         run: node tests/item-cooking-recipe-catalog-smoke.cjs
       - name: Cooking recipe resolver smoke
