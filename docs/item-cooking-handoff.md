@@ -239,6 +239,65 @@ The resolver:
 
 This resolver does not perform the Cooking Check itself. It prepares a valid concrete ingredient composition for the existing Cooking V1 engine.
 
+## Cooking Execution Runtime V1
+
+`js/item-cooking-runtime.js` closes the Recipe Resolver -> finished inventory Item bridge.
+
+Runtime flow:
+
+```text
+Inventory
+-> Recipe Resolver
+-> concrete Core/Major/Minor/Seasoning/Garnish inputs
+-> Recipe TH
+-> tool/station evaluation
+-> effective TH
+-> normal Cooking Check result
+-> stars / Taste / SP / culinary effects
+-> salary-aware Production Value / Retail reference
+-> consume exact inventory quantities
+-> create finished Food Item in inventory
+```
+
+The runtime performs a preview before mutation, preserves exact resolver consumption quantities, and refuses to cook when the output inventory cannot accept the finished Item.
+
+Finished food stores the resolved result. Rendering the Item later does not reroll affinities, recompute stars or re-resolve effects.
+
+Raw culinary Items that predate explicit Taste authoring receive the V1 runtime fallback Taste 2 unless their authored flavor profile maps to a clearer V1 value. Explicit Item Taste always wins.
+
+`js/item-cooking-ui.js` exposes this runtime from the player Inventory through a COOK control. It lists currently craftable recipes, lets the player declare the available station, displays Recipe TH/effective TH and equipment mismatches, accepts the already-resolved Cooking Check result, executes the recipe and persists the new Food Item.
+
+## Cooking tools and stations V1
+
+`js/item-cooking-equipment-engine.js` is the canonical equipment context for Cooking.
+
+Real inventory tools currently used by Cooking are:
+
+- `cooks_utensils` — normal cooking/prep;
+- `brewers_supplies` — fermentation, brewing and distillation.
+
+Canonical station contexts are:
+
+- Prep Surface;
+- Cooktop;
+- Grill;
+- Steamer;
+- Oven;
+- Fryer;
+- Smoker;
+- Preservation Station;
+- Fermentation Station;
+- Brewery;
+- Distillation Station;
+- Precision Kitchen.
+
+Stations are context, not portable inventory Items.
+
+Missing or inappropriate required tool: +3 effective TH.
+Missing or inappropriate required station: +3 effective TH.
+
+These mismatches stack exactly as already frozen by Cooking V1. Cook's Utensils still apply their normal TH reduction independently when present.
+
 ## Hunger / Hydration / Rest
 
 Medium baseline:
@@ -271,6 +330,29 @@ Long Rest:
 - only one Eat/Drink opportunity is implied by the rest flow.
 
 Food and drink may both be chosen inside one Eat/Drink window when valid inventory consumables are available.
+
+### Live Food / Rest runtime
+
+`js/item-food-rest-runtime.js` now binds the slot contract to real inventory Food Items.
+
+It provides:
+
+- Eat/Drink from Active Inventory or accessible Stash;
+- Hunger/Hydration restoration;
+- SP restoration from finished-food Taste;
+- 6-hour survival-slot decay;
+- 2-hour Short Rest cooldown;
+- Long Rest completion state;
+- culinary-effect duration decay;
+- exact-target culinary Final Power buffs through the Item Runtime modifier bridge.
+
+The player Inventory now exposes an **EAT / DRINK** action for Food.
+
+Short Rest and Long Rest now open `js/item-food-rest-ui.js`, allowing the player to choose Activity only or Eat/Drink and select the actual Food stack consumed.
+
+Rest recovery is applied before the selected Rest meal's SP/effects, so the meal remains meaningful at rest completion.
+
+Same-target culinary effects follow the frozen replacement contract: stronger replaces weaker, weaker does not overwrite stronger, and equal Power may refresh duration. Unrelated targets may coexist. The dedicated active-effect replacement/display UI remains a later presentation task.
 
 ## Culinary property targets
 
@@ -410,7 +492,15 @@ Detailed view may show provenance such as Made with Mystic Apple Syrup.
 - js/item-cooking-engine.js
 - js/item-cooking-recipe-catalog.js
 - js/item-cooking-recipe-resolver.js
+- js/item-cooking-equipment-engine.js
+- js/item-cooking-runtime.js
+- js/item-cooking-ui.js
+- js/item-food-rest-runtime.js
+- js/item-food-rest-ui.js
 - tests/item-cooking-recipe-resolver-smoke.cjs
+- tests/item-cooking-equipment-smoke.cjs
+- tests/item-cooking-runtime-smoke.cjs
+- tests/item-food-rest-runtime-smoke.cjs
 - tests/item-culinary-intermediates-smoke.cjs
 - tests/item-cooking-recipe-catalog-smoke.cjs
 - tests/item-cooking-engine-smoke.cjs
@@ -426,8 +516,8 @@ The following are catalog/runtime follow-ups, not reasons to redesign Cooking V1
 
 - world/shop demand profiles and semantic district tags that consume target/branch affinity data;
 - non-Medium body-size Hunger/Hydration slot scaling;
-- tool/station requirements and exceptional source-specific processing overrides where concrete recipes need them;
-- final live binding of the Recipe Resolver into the Cooking UI/runtime Check execution;
-- final live binding into Rest UI, inventory Eat/Drink selection and active-effect UI.
+- exceptional source-specific processing overrides where a future concrete recipe needs them;
+- dedicated active culinary-effect replacement/display UI when more than three unrelated effects compete for slots;
+- world-owned station availability/permission binding beyond the current explicit station context selector.
 
 Those tasks must consume this V1 contract rather than redefining it.
