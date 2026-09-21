@@ -28,7 +28,7 @@ const { pathToFileURL } = require("node:url");
   const ooze = globalThis.LuminousOozeGelCatalog;
 
   assert.equal(raw.VERSION, 1);
-  assert.equal(raw.ITEMS.length, 45);
+  assert.equal(raw.ITEMS.length, 46);
   assert.equal(raw.validateCatalog().valid, true);
   assert.equal(processed.ITEMS.length, 10);
   assert.equal(processed.validateCatalog().valid, true);
@@ -78,7 +78,7 @@ const { pathToFileURL } = require("node:url");
   const exotic = engine.thresholdFor(processed.getProcess("toxin_extract"), { exotic:true });
   assert.equal(exotic, 28);
 
-  console.log("Medicine crafting smoke: OK (45 raw, 10 processed, 18 finished-form chassis, beast toxin bridge)");
+  console.log("Medicine crafting smoke: OK (46 raw, 10 processed, 18 finished-form chassis, beast + chemical toxin bridge)");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
