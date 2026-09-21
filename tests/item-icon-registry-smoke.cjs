@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 17);
+  assert.equal(registry.VERSION, 18);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 158);
+  assert.equal(Object.keys(registry.GROUPS).length, 202);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -66,6 +66,58 @@ const { pathToFileURL } = require('node:url');
     drink_cocktail: 'https://imgur.com/IKC5vpu.png'
   };
   for (const [id, icon] of Object.entries(culinaryIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
+
+  const medicalIcons = {
+    herb_healing: 'https://imgur.com/MxYeHQj.png',
+    herb_calming: 'https://imgur.com/K3WjGc9.png',
+    herb_antidote: 'https://imgur.com/oJI2jmC.png',
+    herb_stimulant: 'https://imgur.com/1yUNJJK.png',
+    herb_toxic: 'https://imgur.com/UK26wpe.png',
+    fungus_medicinal: 'https://imgur.com/RlLxRue.png',
+    fungus_toxic: 'https://imgur.com/sel7SAk.png',
+    pharma_reagent: 'https://imgur.com/D4hvPjc.png',
+    antiseptic_reagent: 'https://imgur.com/aFf6zkx.png',
+    electrolyte_reagent: 'https://imgur.com/iK5xWGb.png',
+    medical_solvent: 'https://imgur.com/j2ujAaZ.png',
+    medical_buffer: 'https://imgur.com/X0nCYce.png',
+    medical_polymer: 'https://imgur.com/1Az78Cj.png',
+    chemical_toxin: 'https://imgur.com/lub4VM4.png',
+    bio_reagent: 'https://imgur.com/NtN9T9e.png',
+    regenerative_reagent: 'https://imgur.com/uETqg7y.png',
+    medicinal_extract: 'https://imgur.com/zVIhrJx.png',
+    medicinal_concentrate: 'https://imgur.com/JLU1ppg.png',
+    sterile_solution: 'https://imgur.com/RzUAPKm.png',
+    antiseptic_solution: 'https://imgur.com/kk3jRHU.png',
+    antitoxin_base: 'https://imgur.com/xeTT6XR.png',
+    pharmaceutical_powder: 'https://imgur.com/XuqELY5.png',
+    medical_gel_base: 'https://imgur.com/wuprmWD.png',
+    ointment_base: 'https://imgur.com/NL3BAUG.png',
+    stabilized_reagent: 'https://imgur.com/DL8QPJF.png',
+    toxin_extract: 'https://imgur.com/Y3Wfv56.png',
+    medicine_tablet: 'https://imgur.com/RpE4r67.png',
+    medicine_capsule: 'https://imgur.com/loy7XOq.png',
+    medicine_ampoule: 'https://imgur.com/ViP7EkI.png',
+    medicine_vial: 'https://imgur.com/cKupyxd.png',
+    medicine_inhaler: 'https://imgur.com/JKdJjqn.png',
+    medicine_patch: 'https://imgur.com/iox3gDW.png',
+    medicine_topical: 'https://imgur.com/UuvoIW4.png',
+    medicine_dressing: 'https://imgur.com/Hcdd3uo.png',
+    medicine_kit: 'https://imgur.com/EirGGzN.png',
+    antidote_ampoule: 'https://imgur.com/Xo6Yc2Z.png',
+    antidote_tablet: 'https://imgur.com/9dyygcB.png',
+    antidote_vial: 'https://imgur.com/NBfD4Ph.png',
+    antidote_inhaler: 'https://imgur.com/cazx8yG.png',
+    poison_vial: 'https://imgur.com/A9gDv3u.png',
+    poison_capsule: 'https://imgur.com/AXj1bK7.png',
+    poison_coating: 'https://imgur.com/fNbIBAw.png',
+    toxic_aerosol: 'https://imgur.com/t7qoFpM.png',
+    toxic_ampoule: 'https://imgur.com/op7yURL.png'
+  };
+  for (const [id, icon] of Object.entries(medicalIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
   }
@@ -166,7 +218,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(registry.get('missing-family', { fallback: false }), null);
   assert.equal(registry.resolveIcon('healing_hp', { iconOverride: 'https://example.test/custom.png' }), 'https://example.test/custom.png');
 
-  console.log(`Item icon registry smoke: OK (${groups.length} families, culinary + weapon-specific families)`);
+  console.log(`Item icon registry smoke: OK (${groups.length} families, culinary + medical + weapon-specific families)`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
