@@ -64,6 +64,11 @@ assert.ok(angled.physicalAffinity.pierce>plateComponent.physicalAffinity.pierce)
 assert.ok(angled.elementalWear.acid<plateComponent.elementalWear.acid);
 assert.strictEqual(UpgradeEngine.apply(plateComponent,["angled_plating","rounded_plating","impact_channels","segmented_plate"]).valid,false);
 assert.ok(Upgrades.list({componentId:"armor_fittings"}).some((u)=>u.id==="balanced_harness"));
+const antiCorrosionRecipe=Upgrades.get("anti_corrosion_coating").recipe;
+assert.strictEqual(antiCorrosionRecipe.semanticCheck,"chemical_processing");
+assert.strictEqual(antiCorrosionRecipe.requiredToolType,"chemical_tools");
+assert.strictEqual(antiCorrosionRecipe.baseThreshold,22);
+assert.deepStrictEqual(antiCorrosionRecipe.inputRequirements,[{quantity:1,anyIds:["industrial_coating"]}]);
 
 assert.deepStrictEqual(Runtime.baseSpeed(6),{min:2,max:8});
 const speedNoRelief=Runtime.resolveSpeed({dexMod:6,armor:{strengthTarget:13,weightEffect:{min:-1,max:-4}},strengthScore:15});
