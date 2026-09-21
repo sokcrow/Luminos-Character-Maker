@@ -42,7 +42,8 @@ let narrativeReliefCount = 0;
 
 for (const item of catalog.ITEMS) {
   assert.equal(item.family, 'medical_supply');
-  assert.equal(item.iconFamily, 'medical_supply');
+  assert.notEqual(item.iconFamily, 'medical_supply');
+  assert.match(item.iconFamily, /^medicine_/);
   assert.equal(item.category, 'consumable');
   assert.equal(item.purchasable, true);
   assert.equal(item.currency, 'AHN');
