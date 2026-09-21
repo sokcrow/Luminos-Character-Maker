@@ -163,6 +163,15 @@
     return value == null ? value : JSON.parse(JSON.stringify(value));
   }
 
+
+  function visualIconFamily(name) {
+    const n = String(name || "").toLowerCase();
+    if (/dressing|bandage|wrap/.test(n)) return "medicine_dressing";
+    if (/patch|pad|mesh|closure/.test(n)) return "medicine_patch";
+    if (/gel|foam|salve|ointment/.test(n)) return "medicine_topical";
+    return "medicine_kit";
+  }
+
   function item(id, name, sourceLine, tier, actionCost, priceAhn, targets, treatment) {
     const injuryTreatment = Object.freeze({
       method: "medical_supply",
@@ -175,7 +184,7 @@
       id,
       name,
       family: FAMILY,
-      iconFamily: FAMILY,
+      iconFamily: visualIconFamily(name),
       category: "consumable",
       itemType: "consumable",
       sourceLine,
@@ -353,7 +362,8 @@
   function validateItem(entry) {
     const errors = [];
     if (!entry?.id) errors.push("missing_id");
-    if (entry?.family !== FAMILY || entry?.iconFamily !== FAMILY) errors.push("invalid_family");
+    if (entry?.family !== FAMILY) errors.push("invalid_family");
+    if (!entry?.iconFamily) errors.push("missing_icon_family");
     if (entry?.category !== "consumable") errors.push("invalid_category");
     if (!TIERS.includes(entry?.tier)) errors.push("invalid_tier");
     if (entry?.purchasable !== true) errors.push("not_purchasable");
