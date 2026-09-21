@@ -14,6 +14,21 @@
   const SOURCE_CAPS = Object.freeze({ generic: 30, workshop: 60, k_corp: 100 });
   const USE_TIMINGS = Object.freeze(["action", "quick_action", "off_combat"]);
 
+
+  function visualIconFamily(name) {
+    const n = String(name || "").toLowerCase();
+    if (/\btablet\b/.test(n)) return "medicine_tablet";
+    if (/\bcapsule\b/.test(n)) return "medicine_capsule";
+    if (/ampou?le|injector|quickshot|quickdose|dose|cartridge|reconstructor|reweaver/.test(n)) return "medicine_ampoule";
+    if (/\bvial\b/.test(n)) return "medicine_vial";
+    if (/inhaler|aerosol|mist|vapor/.test(n)) return "medicine_inhaler";
+    if (/patch|strip/.test(n)) return "medicine_patch";
+    if (/gel|foam|compound/.test(n)) return "medicine_topical";
+    if (/dressing|bandage/.test(n)) return "medicine_dressing";
+    if (/kit|case|pack|cell|core|frame|lattice|meal/.test(n)) return "medicine_kit";
+    return "medicine_vial";
+  }
+
   function item(id, name, sourceLine, tier, actionCost, priceAhn, flat, maxHpPercent, capMaxHpPercent, options = {}) {
     const healing = {
       mode: options.full === true ? "full" : "hybrid",
@@ -34,7 +49,7 @@
       id,
       name,
       family: FAMILY,
-      iconFamily: FAMILY,
+      iconFamily: visualIconFamily(name),
       category: "consumable",
       itemType: "consumable",
       sourceLine,
@@ -177,7 +192,8 @@
   function validateItem(entry) {
     const errors = [];
     if (!entry?.id) errors.push("missing_id");
-    if (entry?.family !== FAMILY || entry?.iconFamily !== FAMILY) errors.push("invalid_family");
+    if (entry?.family !== FAMILY) errors.push("invalid_family");
+    if (!entry?.iconFamily) errors.push("missing_icon_family");
     if (entry?.category !== "consumable") errors.push("invalid_category");
     if (!TIERS.includes(entry?.tier)) errors.push("invalid_tier");
     if (entry?.purchasable !== true) errors.push("not_purchasable");
