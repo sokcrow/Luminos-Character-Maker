@@ -55,7 +55,7 @@
       {quantity:1,anyTags:["chemical_reactive","reactive_reagent","unstable_reagent"]},
       {quantity:1,anyTags:["chemical_catalyst","catalyst"]},
       {quantity:1,anyTags:["chemical_stabilizer","reactive_stabilizer","stabilizer"]}
-    ],["chemical_component","reactive_compound","payload_input","advanced_material"],["advanced_crafting","throwables"]),
+    ],["chemical_component","reactive_compound","payload_input","advanced_material","combustible_source"],["advanced_crafting","throwables"]),
     corrosive_solution:process("corrosive_solution","Corrosive Solution","corrosive_solution",22,1.40,[
       {quantity:1,anyTags:["chemical_corrosive","corrosive_reagent","acid_secretion","etchant"]},
       {quantity:1,anyTags:["industrial_solvent","solvent","liquid_carrier"]},
@@ -77,7 +77,12 @@
     treatment_solution:process("treatment_solution","Treatment Solution","treatment_solution",18,1.25,[
       {quantity:1,anyTags:["water_treatment_reagent","water_treatment"]},
       {quantity:1,anyTags:["environmental_filter_media","filter_media","environmental_absorbent"]}
-    ],["chemical_component","treatment_solution","water_treatment","infrastructure_input"],["survival","environmental","infrastructure"])
+    ],["chemical_component","treatment_solution","water_treatment","infrastructure_input"],["survival","environmental","infrastructure"]),
+    cryogenic_solution:process("cryogenic_solution","Cryogenic Solution","cryogenic_solution",22,1.40,[
+      {quantity:1,anyTags:["cryogenic_reagent","cold_reagent"]},
+      {quantity:1,anyTags:["industrial_solvent","solvent","liquid_carrier"]},
+      {quantity:1,anyTags:["chemical_stabilizer","stabilizer"]}
+    ],["chemical_component","cryogenic_solution","cold_payload","payload_input","thermal_control_input"],["throwables","thermal_control"])
   });
 
   const ITEMS=Object.freeze(Object.values(PROCESSES).map((p)=>Object.freeze({
