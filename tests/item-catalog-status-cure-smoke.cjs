@@ -47,7 +47,8 @@ const { pathToFileURL } = require('node:url');
 
   for (const item of catalog.ITEMS) {
     assert.equal(item.family, 'status_cure');
-    assert.equal(item.iconFamily, 'status_cure');
+    assert.notEqual(item.iconFamily, 'status_cure');
+    assert.ok(item.iconFamily.startsWith('medicine_') || item.iconFamily.startsWith('antidote_'));
     assert.equal(item.category, 'consumable');
     assert.equal(item.purchasable, true);
     assert.equal(item.currency, 'AHN');
