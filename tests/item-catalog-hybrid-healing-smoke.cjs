@@ -38,7 +38,8 @@ const { pathToFileURL } = require('node:url');
 
   for (const item of catalog.ITEMS) {
     assert.equal(item.family, 'healing_hybrid');
-    assert.equal(item.iconFamily, 'healing_hybrid');
+    assert.notEqual(item.iconFamily, 'healing_hybrid');
+    assert.match(item.iconFamily, /^medicine_/);
     assert.equal(item.purchasable, true);
     assert.equal(item.currency, 'AHN');
     assert.ok(Number.isInteger(item.priceAhn) && item.priceAhn > 0);
