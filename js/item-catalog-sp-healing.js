@@ -32,6 +32,18 @@
     return "inhaler";
   }
 
+
+  function visualIconFamily(name, actionCost, options = {}) {
+    const n = String(name || "").toLowerCase();
+    if (/patch|strip|mesh/.test(n)) return "medicine_patch";
+    if (/case|kit|pack|frame|cell|core|chamber|lattice/.test(n) && actionCost === "off_combat") return "medicine_kit";
+    if (/ampou?le/.test(n)) return "medicine_ampoule";
+    if (/vial|flask/.test(n)) return "medicine_vial";
+    if (/gas|mist|aerosol|vapor|inhaler|cartridge|canister/.test(n)) return "medicine_inhaler";
+    if (options.regen) return "medicine_patch";
+    return "medicine_inhaler";
+  }
+
   function item(id, name, sourceLine, tier, actionCost, priceAhn, spRestore, options = {}) {
     const spHealing = {
       immediate: spRestore,
@@ -54,7 +66,7 @@
       id,
       name,
       family: FAMILY,
-      iconFamily: FAMILY,
+      iconFamily: visualIconFamily(name, actionCost, options),
       category: "consumable",
       itemType: "consumable",
       sourceLine,
@@ -212,7 +224,8 @@
   function validateItem(entry) {
     const errors = [];
     if (!entry?.id) errors.push("missing_id");
-    if (entry?.family !== FAMILY || entry?.iconFamily !== FAMILY) errors.push("invalid_family");
+    if (entry?.family !== FAMILY) errors.push("invalid_family");
+    if (!entry?.iconFamily) errors.push("missing_icon_family");
     if (entry?.category !== "consumable") errors.push("invalid_category");
     if (!TIERS.includes(entry?.tier)) errors.push("invalid_tier");
     if (entry?.purchasable !== true) errors.push("not_purchasable");
