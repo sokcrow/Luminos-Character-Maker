@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 19;
+  const VERSION = 20;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -52,6 +52,20 @@
     ["drink_spirit","Spirit","Destilado","consumable","https://imgur.com/XPOUo7k.png"],
     ["drink_cocktail","Cocktail","Cóctel","consumable","https://imgur.com/IKC5vpu.png"],
     ["throwable","Throwable","Arrojable","consumable","https://imgur.com/3w2YnUX.png"],
+    ["fragmentation_throwable","Fragmentation Throwable","Lanzable de fragmentación","consumable","https://imgur.com/86SI68G.png"],
+    ["incendiary_throwable","Incendiary Throwable","Lanzable incendiario","consumable","https://imgur.com/nxjMC8Q.png"],
+    ["cryogenic_throwable","Cryogenic Throwable","Lanzable criogénico","consumable","https://imgur.com/BS4HOXl.png"],
+    ["shock_throwable","Shock Throwable","Lanzable eléctrico","consumable","https://imgur.com/MzZcjBD.png"],
+    ["concussive_throwable","Concussive Throwable","Lanzable concusivo","consumable","https://imgur.com/Hb5VIiL.png"],
+    ["smoke_throwable","Smoke Throwable","Lanzable de humo","consumable","https://imgur.com/u7E4CBP.png"],
+    ["flash_throwable","Flash Throwable","Lanzable de destello","consumable","https://imgur.com/1khxhvI.png"],
+    ["marking_throwable","Marking Throwable","Lanzable marcador","consumable","https://imgur.com/DmxDyfg.png"],
+    ["grenade_shell","Grenade Shell","Carcasa de granada","material","https://imgur.com/6lp2xrs.png"],
+    ["fragmentation_filler","Fragmentation Filler","Carga de fragmentación","material","https://imgur.com/Mz3ZOb7.png"],
+    ["concussive_charge","Concussive Charge","Carga concusiva","material","https://imgur.com/DZo1Ry5.png"],
+    ["cryogenic_reagent","Cryogenic Reagent","Reactivo criogénico","material","https://imgur.com/ID7ksk9.png"],
+    ["cryogenic_solution","Cryogenic Solution","Solución criogénica","material","https://imgur.com/ID7ksk9.png"],
+    ["shock_charge","Shock Charge","Carga eléctrica","material","https://imgur.com/zo5fDsD.png"],
     ["medical_supply","Medical Supply","Suministro médico","consumable","https://imgur.com/CrWqqZh.png"],
     ["herb_healing","Healing Herb","Hierba curativa","material","https://imgur.com/MxYeHQj.png"],
     ["herb_calming","Calming Herb","Hierba calmante","material","https://imgur.com/K3WjGc9.png"],
