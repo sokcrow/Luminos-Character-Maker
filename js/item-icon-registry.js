@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 20;
+  const VERSION = 21;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -60,6 +60,8 @@
     ["smoke_throwable","Smoke Throwable","Lanzable de humo","consumable","https://imgur.com/u7E4CBP.png"],
     ["flash_throwable","Flash Throwable","Lanzable de destello","consumable","https://imgur.com/1khxhvI.png"],
     ["marking_throwable","Marking Throwable","Lanzable marcador","consumable","https://imgur.com/DmxDyfg.png"],
+    ["corrosive_throwable","Corrosive Throwable","Lanzable corrosivo","consumable","https://imgur.com/4nwStCr.png"],
+    ["toxic_throwable","Toxic Throwable","Lanzable tóxico","consumable","https://imgur.com/mMc6YiQ.png"],
     ["grenade_shell","Grenade Shell","Carcasa de granada","material","https://imgur.com/6lp2xrs.png"],
     ["fragmentation_filler","Fragmentation Filler","Carga de fragmentación","material","https://imgur.com/Mz3ZOb7.png"],
     ["concussive_charge","Concussive Charge","Carga concusiva","material","https://imgur.com/DZo1Ry5.png"],
