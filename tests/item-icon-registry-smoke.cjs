@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 19);
+  assert.equal(registry.VERSION, 20);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 248);
+  assert.equal(Object.keys(registry.GROUPS).length, 262);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -70,6 +70,28 @@ const { pathToFileURL } = require('node:url');
     assert.equal(registry.resolveIcon(id), icon, id);
   }
 
+
+
+  const throwableIcons = {
+    fragmentation_throwable:'https://imgur.com/86SI68G.png',
+    incendiary_throwable:'https://imgur.com/nxjMC8Q.png',
+    cryogenic_throwable:'https://imgur.com/BS4HOXl.png',
+    shock_throwable:'https://imgur.com/MzZcjBD.png',
+    concussive_throwable:'https://imgur.com/Hb5VIiL.png',
+    smoke_throwable:'https://imgur.com/u7E4CBP.png',
+    flash_throwable:'https://imgur.com/1khxhvI.png',
+    marking_throwable:'https://imgur.com/DmxDyfg.png',
+    grenade_shell:'https://imgur.com/6lp2xrs.png',
+    fragmentation_filler:'https://imgur.com/Mz3ZOb7.png',
+    concussive_charge:'https://imgur.com/DZo1Ry5.png',
+    cryogenic_reagent:'https://imgur.com/ID7ksk9.png',
+    cryogenic_solution:'https://imgur.com/ID7ksk9.png',
+    shock_charge:'https://imgur.com/zo5fDsD.png'
+  };
+  for (const [id, icon] of Object.entries(throwableIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
 
   const medicalIcons = {
     herb_healing: 'https://imgur.com/MxYeHQj.png',
