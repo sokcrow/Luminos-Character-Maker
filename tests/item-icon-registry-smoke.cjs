@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 20);
+  assert.equal(registry.VERSION, 21);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 262);
+  assert.equal(Object.keys(registry.GROUPS).length, 264);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -81,6 +81,8 @@ const { pathToFileURL } = require('node:url');
     smoke_throwable:'https://imgur.com/u7E4CBP.png',
     flash_throwable:'https://imgur.com/1khxhvI.png',
     marking_throwable:'https://imgur.com/DmxDyfg.png',
+    corrosive_throwable:'https://imgur.com/4nwStCr.png',
+    toxic_throwable:'https://imgur.com/mMc6YiQ.png',
     grenade_shell:'https://imgur.com/6lp2xrs.png',
     fragmentation_filler:'https://imgur.com/Mz3ZOb7.png',
     concussive_charge:'https://imgur.com/DZo1Ry5.png',
