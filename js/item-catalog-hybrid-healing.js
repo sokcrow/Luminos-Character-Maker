@@ -120,6 +120,21 @@
       .replace(/^_+|_+$/g, "");
   }
 
+
+  function visualIconFamily(name) {
+    const n = String(name || "").toLowerCase();
+    if (/\btablet\b/.test(n)) return "medicine_tablet";
+    if (/\bcapsule\b/.test(n)) return "medicine_capsule";
+    if (/ampou?le|injector|cartridge|reconstructor|reweaver|dose/.test(n)) return "medicine_ampoule";
+    if (/\bvial\b/.test(n)) return "medicine_vial";
+    if (/inhaler|aerosol|mist|vapor/.test(n)) return "medicine_inhaler";
+    if (/patch|strip|mesh/.test(n)) return "medicine_patch";
+    if (/gel|foam|compound/.test(n)) return "medicine_topical";
+    if (/dressing|bandage/.test(n)) return "medicine_dressing";
+    if (/kit|case|pack|cell|core|frame|lattice/.test(n)) return "medicine_kit";
+    return "medicine_vial";
+  }
+
   function item(id, name, sourceLine, tier, actionCost, priceAhn, hpFlat, hpMaxPercent, spRestore, hpRegen = null) {
     const hp = {
       flat: hpFlat,
@@ -138,7 +153,7 @@
       id,
       name,
       family: FAMILY,
-      iconFamily: FAMILY,
+      iconFamily: visualIconFamily(name),
       category: "consumable",
       itemType: "consumable",
       sourceLine,
@@ -261,7 +276,8 @@
   function validateItem(entry) {
     const errors = [];
     if (!entry?.id) errors.push("missing_id");
-    if (entry?.family !== FAMILY || entry?.iconFamily !== FAMILY) errors.push("invalid_family");
+    if (entry?.family !== FAMILY) errors.push("invalid_family");
+    if (!entry?.iconFamily) errors.push("missing_icon_family");
     if (entry?.category !== "consumable") errors.push("invalid_category");
     if (!TIERS.includes(entry?.tier)) errors.push("invalid_tier");
     if (entry?.purchasable !== true) errors.push("not_purchasable");
