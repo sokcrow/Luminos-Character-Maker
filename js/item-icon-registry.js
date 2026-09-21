@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 18;
+  const VERSION = 19;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -98,6 +98,55 @@
     ["toxic_aerosol","Toxic Aerosol","Aerosol tóxico","consumable","https://imgur.com/t7qoFpM.png"],
     ["toxic_ampoule","Toxic Ampoule","Ampolla tóxica","consumable","https://imgur.com/op7yURL.png"],
     ["repair_kit","Repair Kit","Kit de reparación","utility","https://imgur.com/OZdAHys.png"],
+    ["industrial_solvent","Industrial Solvent","Solvente industrial","material","https://imgur.com/ZffaWPf.png"],
+    ["industrial_lubricant","Industrial Lubricant","Lubricante industrial","material","https://imgur.com/4237RQy.png"],
+    ["industrial_resin","Industrial Resin","Resina industrial","material","https://imgur.com/d9IL3TQ.png"],
+    ["industrial_polymer","Industrial Polymer","Polímero industrial","material","https://imgur.com/UuZO4jM.png"],
+    ["industrial_adhesive","Industrial Adhesive","Adhesivo industrial","material","https://imgur.com/YgCZ9xB.png"],
+    ["industrial_pigment","Industrial Pigment","Pigmento industrial","material","https://imgur.com/2TM8f2U.png"],
+    ["chemical_catalyst","Chemical Catalyst","Catalizador químico","material","https://imgur.com/uy5blne.png"],
+    ["chemical_stabilizer","Chemical Stabilizer","Estabilizador químico","material","https://imgur.com/WfynG6n.png"],
+    ["chemical_reactive","Reactive Chemical","Químico reactivo","material","https://imgur.com/mfG1y4T.png"],
+    ["chemical_corrosive","Corrosive Chemical","Químico corrosivo","material","https://imgur.com/vUb0Jzj.png"],
+    ["chemical_conductive","Conductive Chemical","Químico conductor","material","https://imgur.com/QaoKXuj.png"],
+    ["chemical_insulator","Chemical Insulator","Aislante químico","material","https://imgur.com/Vc0QRCu.png"],
+    ["environmental_absorbent","Environmental Absorbent","Absorbente ambiental","material","https://imgur.com/BiqIrzt.png"],
+    ["environmental_neutralizer","Environmental Neutralizer","Neutralizador ambiental","material","https://imgur.com/KSMxxwE.png"],
+    ["environmental_filter_media","Environmental Filter Media","Medio filtrante ambiental","material","https://imgur.com/fi2CGWv.png"],
+    ["water_treatment_reagent","Water Treatment Reagent","Reactivo de tratamiento de agua","material","https://imgur.com/joU55O6.png"],
+
+    ["cleaning_compound","Cleaning Compound","Compuesto de limpieza","material","https://imgur.com/ldloU3y.png"],
+    ["sealant_compound","Sealant Compound","Compuesto sellador","material","https://imgur.com/Tuupj00.png"],
+    ["lubricant_compound","Lubricant Compound","Compuesto lubricante","material","https://imgur.com/4RSPK2U.png"],
+    ["polymer_compound","Polymer Compound","Compuesto polimérico","material","https://imgur.com/2foeDpV.png"],
+    ["adhesive_compound","Adhesive Compound","Compuesto adhesivo","material","https://imgur.com/BAf5rk0.png"],
+    ["pigment_compound","Pigment Compound","Compuesto pigmentario","material","https://imgur.com/0in07BB.png"],
+    ["reactive_compound","Reactive Compound","Compuesto reactivo","material","https://imgur.com/MMBR0SW.png"],
+    ["corrosive_solution","Corrosive Solution","Solución corrosiva","material","https://imgur.com/sH6e9Oj.png"],
+    ["neutralizing_solution","Neutralizing Solution","Solución neutralizante","material","https://imgur.com/GgcgKdR.png"],
+    ["decontamination_solution","Decontamination Solution","Solución descontaminante","material","https://imgur.com/3ejmfgY.png"],
+    ["stabilized_compound","Stabilized Compound","Compuesto estabilizado","material","https://imgur.com/UgUbgiK.png"],
+    ["treatment_solution","Treatment Solution","Solución de tratamiento","material","https://imgur.com/GpubG66.png"],
+
+    ["industrial_cleaner","Industrial Cleaner","Limpiador industrial","utility","https://imgur.com/Lrexv15.png"],
+    ["industrial_sealant","Industrial Sealant","Sellador industrial","utility","https://imgur.com/3Mnzb5K.png"],
+    ["industrial_lubricant_pack","Industrial Lubricant Pack","Paquete de lubricante industrial","utility","https://imgur.com/kE23Jlc.png"],
+    ["industrial_coating","Industrial Coating","Recubrimiento industrial","utility","https://imgur.com/rfpKeST.png"],
+    ["repair_adhesive","Repair Adhesive","Adhesivo de reparación","utility","https://imgur.com/QD4uVsU.png"],
+    ["chemical_cartridge","Chemical Cartridge","Cartucho químico","utility","https://imgur.com/qw8Wokw.png"],
+    ["chemical_canister","Chemical Canister","Canister químico","utility","https://imgur.com/eI69yEk.png"],
+    ["reactive_canister","Reactive Canister","Canister reactivo","utility","https://imgur.com/nUmbKv3.png"],
+    ["corrosive_canister","Corrosive Canister","Canister corrosivo","utility","https://imgur.com/cIFMMNA.png"],
+    ["maintenance_kit","Maintenance Kit","Kit de mantenimiento","utility","https://imgur.com/VE8IfKf.png"],
+
+    ["water_purifier","Water Purifier","Purificador de agua","utility","https://imgur.com/CXwtccN.png"],
+    ["filter_cartridge","Filter Cartridge","Cartucho de filtro","utility","https://imgur.com/o0kvdU7.png"],
+    ["spill_absorbent_kit","Spill Absorbent Kit","Kit absorbente de derrames","utility","https://imgur.com/FLrklb5.png"],
+    ["decontamination_spray","Decontamination Spray","Spray descontaminante","utility","https://imgur.com/lpUIdPZ.png"],
+    ["neutralizer_spray","Neutralizer Spray","Spray neutralizante","utility","https://imgur.com/MgIMGzQ.png"],
+    ["containment_foam","Containment Foam","Espuma de contención","utility","https://imgur.com/u3tOTn6.png"],
+    ["hazard_bag","Hazard Bag","Bolsa para materiales peligrosos","utility","https://imgur.com/BLj9Scr.png"],
+    ["environmental_kit","Environmental Kit","Kit ambiental","utility","https://imgur.com/F5BbEu2.png"],
     ["meat_mammal","Mammal Meat","Carne de mamífero","material","https://imgur.com/GQAGWzK.png"],
     ["meat_bird","Bird Meat","Carne de ave","material","https://imgur.com/4Y6KfFh.png"],
     ["meat_fish","Fish / Soft Aquatic Meat","Carne de pescado / acuática blanda","material","https://imgur.com/KZ6Y7LQ.png"],
