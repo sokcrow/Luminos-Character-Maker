@@ -6,10 +6,10 @@
   }
   function normalizeId(value) { return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,""); }
   function upgrade(def) {
-    return Object.freeze({ id:normalizeId(def.id), name:def.name, family:"armor_upgrades", category:"upgrade", itemType:"armor_upgrade", allowedComponents:Object.freeze((def.allowedComponents || []).map(normalizeId)), effects:Object.freeze(JSON.parse(JSON.stringify(def.effects || {}))), notes:def.notes || "" });
+    return Object.freeze({ id:normalizeId(def.id), name:def.name, family:"armor_upgrades", category:"upgrade", itemType:"armor_upgrade", allowedComponents:Object.freeze((def.allowedComponents || []).map(normalizeId)), effects:Object.freeze(JSON.parse(JSON.stringify(def.effects || {}))), recipe:def.recipe ? Object.freeze(JSON.parse(JSON.stringify(def.recipe))) : null, notes:def.notes || "" });
   }
   const U = [];
-  function add(id,name,allowed,effects,notes="") { U.push(upgrade({id,name,allowedComponents:allowed,effects,notes})); }
+  function add(id,name,allowed,effects,notes="",recipe=null) { U.push(upgrade({id,name,allowedComponents:allowed,effects,notes,recipe})); }
   const PLATE=["armor_plate"], MAIL=["armor_mail"], SCALE=["armor_scale_layer"], LEATHER=["armor_leather_layer"], PAD=["armor_padding"], REIN=["armor_reinforcement"], FIT=["armor_fittings"];
   add("angled_plating","Angled Plating",PLATE,{affinityDelta:{pierce:1,blunt:-1}});
   add("rounded_plating","Rounded Plating",PLATE,{affinityDelta:{slash:1,pierce:-1}});
@@ -43,7 +43,10 @@
   add("lightweight_fittings","Lightweight Fittings",FIT,{weightMultiplier:0.80,durabilityMultiplier:0.90});
   add("silent_fittings","Silent Fittings",FIT,{noiseDelta:-1});
   add("quick_release","Quick Release",FIT,{equipActionStep:-1});
-  add("anti_corrosion_coating","Anti-Corrosion Coating",[...PLATE,...MAIL,...SCALE,...REIN],{elementalWearMultiplier:{acid:0.70}});
+  add("anti_corrosion_coating","Anti-Corrosion Coating",[...PLATE,...MAIL,...SCALE,...REIN],{elementalWearMultiplier:{acid:0.70}},"",{
+    semanticCheck:"chemical_processing",requiredToolType:"chemical_tools",baseThreshold:22,processTier:"workshop",
+    inputRequirements:[{quantity:1,anyIds:["industrial_coating"]}],outputQuality:"craft_check"
+  });
   add("heat_treatment","Heat Treatment",[...PLATE,...MAIL,...SCALE,...REIN],{elementalWearMultiplier:{fire:0.75}});
   add("electrical_insulation","Electrical Insulation",[...PAD,...LEATHER,...FIT],{elementalWearMultiplier:{lightning:0.75}});
 
