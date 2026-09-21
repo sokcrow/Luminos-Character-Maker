@@ -147,13 +147,29 @@
     return detail;
   }
 
+
+  function visualIconFamily(name) {
+    const n = String(name || "").toLowerCase();
+    const antidote = /antitoxin|detox|counteragent|antagonist|neutralizer|purge/.test(n);
+    if (/bandage|dressing/.test(n)) return "medicine_dressing";
+    if (/patch|strip/.test(n)) return "medicine_patch";
+    if (/gel|salve|foam|wash|sealant/.test(n)) return "medicine_topical";
+    if (/ampou?le|injector|dose/.test(n)) return antidote ? "antidote_ampoule" : "medicine_ampoule";
+    if (/tablet|capsule/.test(n)) return antidote ? "antidote_tablet" : "medicine_capsule";
+    if (/inhaler|aerosol|mist|vapor/.test(n)) return antidote ? "antidote_inhaler" : "medicine_inhaler";
+    if (/vial|flask/.test(n)) return antidote ? "antidote_vial" : "medicine_vial";
+    if (/kit|case|cell|core|frame|matrix|lattice|system/.test(n)) return "medicine_kit";
+    if (/compound|suppressor|stabilizer|arrestor|buffer/.test(n)) return antidote ? "antidote_vial" : "medicine_vial";
+    return antidote ? "antidote_vial" : "medicine_vial";
+  }
+
   function item(id, name, sourceLine, tier, actionCost, priceAhn, adjustments) {
     const statusAdjustments = adjustments.map((entry) => Object.freeze({ ...entry }));
     return Object.freeze({
       id,
       name,
       family: FAMILY,
-      iconFamily: FAMILY,
+      iconFamily: visualIconFamily(name),
       category: "consumable",
       itemType: "consumable",
       sourceLine,
@@ -279,7 +295,8 @@
   function validateItem(entry) {
     const errors = [];
     if (!entry?.id) errors.push("missing_id");
-    if (entry?.family !== FAMILY || entry?.iconFamily !== FAMILY) errors.push("invalid_family");
+    if (entry?.family !== FAMILY) errors.push("invalid_family");
+    if (!entry?.iconFamily) errors.push("missing_icon_family");
     if (entry?.category !== "consumable") errors.push("invalid_category");
     if (!TIERS.includes(entry?.tier)) errors.push("invalid_tier");
     if (entry?.purchasable !== true) errors.push("not_purchasable");
