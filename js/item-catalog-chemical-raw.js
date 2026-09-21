@@ -108,7 +108,10 @@
     item("clarifying_reagent","Water Clarifying Reagent","water_treatment_reagent",2400,
       ["water_treatment_reagent","water_treatment","clarifying_agent"],["survival","infrastructure","environmental"]),
     item("purification_reagent","Water Purification Reagent","water_treatment_reagent",3900,
-      ["water_treatment_reagent","water_treatment","purification_agent"],["survival","infrastructure","environmental"])
+      ["water_treatment_reagent","water_treatment","purification_agent"],["survival","infrastructure","environmental"]),
+
+    item("cryogenic_reagent","Cryogenic Reagent","cryogenic_reagent",5200,
+      ["cryogenic_reagent","cold_reagent","thermal_control_input","payload_input"],["chemical_processing","throwables","thermal_control"])
   ]);
 
   const BY_ID=Object.freeze(Object.fromEntries(ITEMS.map((entry)=>[entry.id,entry])));
