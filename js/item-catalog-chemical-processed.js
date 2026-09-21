@@ -16,7 +16,7 @@
     return Object.freeze({
       id,label,outputId:id,iconFamily,
       semanticCheck:"chemical_processing",requiredToolType:"chemical_tools",
-      baseThreshold,complexity:baseThreshold>=28?"corp":"workshop",
+      baseThreshold,complexity:baseThreshold>=28?"corp":baseThreshold>=22?"workshop":"generic",
       craftBaseMultiplier:multiplier,improvisedThresholdDelta:IMPROVISED_THRESHOLD_PENALTY,
       inputRequirements:freeze(inputRequirements),
       outputTags:Object.freeze((outputTags||[]).map(normalizeId)),
