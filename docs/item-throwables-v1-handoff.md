@@ -4,7 +4,7 @@
 
 This pass is **catalog-only**.
 
-Throwables V1 now defines the Items, support components and crafting recipes needed for the offensive/tactical throwable family. It intentionally does **not** define combat damage, Quick Action behavior, ATK Weight, Saves, field hazards, persistent zones or duel behavior.
+Throwables V1 now defines the Items, support components and crafting recipes needed for the offensive/tactical throwable family. The catalog closes at 10 finished throwable families. It intentionally does **not** define combat damage, Quick Action behavior, ATK Weight, Saves, field hazards, persistent zones or duel behavior.
 
 Those combat/runtime rules remain deferred.
 
@@ -166,6 +166,25 @@ Shock Charge is intentionally reusable beyond Throwables through consumer hooks 
 - Pigment Compound
 - Chemical Tools
 - TH 18
+
+### Corrosive Throwable
+
+- Corrosive Canister
+- Grenade Shell
+- Chemical Tools
+- TH 22
+
+The existing Corrosive Canister remains the reusable packaged corrosive payload; the Throwable is the finished delivery item.
+
+### Toxic Throwable
+
+- Chemical Canister **or** Grenade Shell
+- Toxin Extract
+- Stabilized Reagent **or** Stabilized Compound
+- Chemical Tools
+- TH 22
+
+The toxin chain remains shared with Medicine/Pharmaceutical Chemistry instead of creating a duplicate toxic chemistry branch.
 
 ## Existing items reused instead of duplicated
 
