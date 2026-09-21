@@ -28,10 +28,10 @@ const {pathToFileURL}=require("node:url");
   const armor=globalThis.LuminousArmorUpgradeCatalog;
 
   assert.equal(raw.VERSION,1);
-  assert.equal(raw.ITEMS.length,32);
+  assert.equal(raw.ITEMS.length,33);
   assert.equal(raw.validateCatalog().valid,true);
 
-  assert.equal(processed.ITEMS.length,12);
+  assert.equal(processed.ITEMS.length,13);
   assert.equal(processed.validateCatalog().valid,true);
 
   assert.equal(Object.keys(recipes.RECIPES).length,18);
@@ -41,6 +41,7 @@ const {pathToFileURL}=require("node:url");
   assert.equal(raw.list({iconFamily:"industrial_solvent"}).length,2);
   assert.equal(raw.get("conductive_paste_feedstock").tags.includes("conductive_material"),true);
   assert.equal(raw.get("dielectric_feedstock").tags.includes("insulator"),true);
+  assert.equal(raw.get("cryogenic_reagent").iconFamily,"cryogenic_reagent");
 
   const polymer=engine.craftProcessed("polymer_compound",[
     {...raw.get("rigid_polymer_feedstock"),quantity:1},
@@ -82,6 +83,15 @@ const {pathToFileURL}=require("node:url");
   assert.match(electricalRequirement,/conductive_material/);
   assert.match(electricalRequirement,/insulator/);
 
+  const cryogenic=engine.craftProcessed("cryogenic_solution",[
+    {...raw.get("cryogenic_reagent"),quantity:1},
+    {...raw.get("general_industrial_solvent"),quantity:1},
+    {...raw.get("general_chemical_stabilizer"),quantity:1}
+  ],{checkTotal:22});
+  assert.equal(cryogenic.crafted,true);
+  assert.equal(cryogenic.output.iconFamily,"cryogenic_solution");
+  assert.equal(cryogenic.output.tags.includes("cold_payload"),true);
+
   const coatingRecipe=armor.get("anti_corrosion_coating").recipe;
   assert.equal(coatingRecipe.baseThreshold,22);
   assert.equal(coatingRecipe.requiredToolType,"chemical_tools");
@@ -94,5 +104,5 @@ const {pathToFileURL}=require("node:url");
   assert.equal(recipes.get("environmental_kit").integrationStatus,"prepared");
   assert.equal(recipes.get("industrial_sealant").integrationStatus,"active_component");
 
-  console.log("Chemistry crafting smoke: OK (32 raw, 12 processed, 18 products, craft/armor hooks)");
+  console.log("Chemistry crafting smoke: OK (33 raw, 13 processed, 18 products, craft/armor/throwable hooks)");
 })().catch((error)=>{console.error(error);process.exitCode=1;});
