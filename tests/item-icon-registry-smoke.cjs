@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 18);
+  assert.equal(registry.VERSION, 19);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 202);
+  assert.equal(Object.keys(registry.GROUPS).length, 248);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -118,6 +118,60 @@ const { pathToFileURL } = require('node:url');
     toxic_ampoule: 'https://imgur.com/op7yURL.png'
   };
   for (const [id, icon] of Object.entries(medicalIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
+
+  const chemistryIcons = {
+    industrial_solvent:'https://imgur.com/ZffaWPf.png',
+    industrial_lubricant:'https://imgur.com/4237RQy.png',
+    industrial_resin:'https://imgur.com/d9IL3TQ.png',
+    industrial_polymer:'https://imgur.com/UuZO4jM.png',
+    industrial_adhesive:'https://imgur.com/YgCZ9xB.png',
+    industrial_pigment:'https://imgur.com/2TM8f2U.png',
+    chemical_catalyst:'https://imgur.com/uy5blne.png',
+    chemical_stabilizer:'https://imgur.com/WfynG6n.png',
+    chemical_reactive:'https://imgur.com/mfG1y4T.png',
+    chemical_corrosive:'https://imgur.com/vUb0Jzj.png',
+    chemical_conductive:'https://imgur.com/QaoKXuj.png',
+    chemical_insulator:'https://imgur.com/Vc0QRCu.png',
+    environmental_absorbent:'https://imgur.com/BiqIrzt.png',
+    environmental_neutralizer:'https://imgur.com/KSMxxwE.png',
+    environmental_filter_media:'https://imgur.com/fi2CGWv.png',
+    water_treatment_reagent:'https://imgur.com/joU55O6.png',
+    cleaning_compound:'https://imgur.com/ldloU3y.png',
+    sealant_compound:'https://imgur.com/Tuupj00.png',
+    lubricant_compound:'https://imgur.com/4RSPK2U.png',
+    polymer_compound:'https://imgur.com/2foeDpV.png',
+    adhesive_compound:'https://imgur.com/BAf5rk0.png',
+    pigment_compound:'https://imgur.com/0in07BB.png',
+    reactive_compound:'https://imgur.com/MMBR0SW.png',
+    corrosive_solution:'https://imgur.com/sH6e9Oj.png',
+    neutralizing_solution:'https://imgur.com/GgcgKdR.png',
+    decontamination_solution:'https://imgur.com/3ejmfgY.png',
+    stabilized_compound:'https://imgur.com/UgUbgiK.png',
+    treatment_solution:'https://imgur.com/GpubG66.png',
+    industrial_cleaner:'https://imgur.com/Lrexv15.png',
+    industrial_sealant:'https://imgur.com/3Mnzb5K.png',
+    industrial_lubricant_pack:'https://imgur.com/kE23Jlc.png',
+    industrial_coating:'https://imgur.com/rfpKeST.png',
+    repair_adhesive:'https://imgur.com/QD4uVsU.png',
+    chemical_cartridge:'https://imgur.com/qw8Wokw.png',
+    chemical_canister:'https://imgur.com/eI69yEk.png',
+    reactive_canister:'https://imgur.com/nUmbKv3.png',
+    corrosive_canister:'https://imgur.com/cIFMMNA.png',
+    maintenance_kit:'https://imgur.com/VE8IfKf.png',
+    water_purifier:'https://imgur.com/CXwtccN.png',
+    filter_cartridge:'https://imgur.com/o0kvdU7.png',
+    spill_absorbent_kit:'https://imgur.com/FLrklb5.png',
+    decontamination_spray:'https://imgur.com/lpUIdPZ.png',
+    neutralizer_spray:'https://imgur.com/MgIMGzQ.png',
+    containment_foam:'https://imgur.com/u3tOTn6.png',
+    hazard_bag:'https://imgur.com/BLj9Scr.png',
+    environmental_kit:'https://imgur.com/F5BbEu2.png'
+  };
+  for (const [id, icon] of Object.entries(chemistryIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
   }
