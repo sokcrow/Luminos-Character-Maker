@@ -107,6 +107,25 @@
         {quantity:1,anyIds:["pigment_compound"]}
       ],
       payloadTags:["marking_payload","pigment_payload"]
+    }),
+    corrosive_throwable:recipe({
+      id:"corrosive_throwable",name:"Corrosive Throwable",iconFamily:"corrosive_throwable",
+      semanticCheck:"chemical_processing",requiredToolType:"chemical_tools",baseThreshold:22,craftBaseMultiplier:1.35,
+      inputRequirements:[
+        {quantity:1,anyIds:["corrosive_canister"]},
+        {quantity:1,anyIds:["grenade_shell"]}
+      ],
+      payloadTags:["acid_payload","corrosive_payload"]
+    }),
+    toxic_throwable:recipe({
+      id:"toxic_throwable",name:"Toxic Throwable",iconFamily:"toxic_throwable",
+      semanticCheck:"chemical_processing",requiredToolType:"chemical_tools",baseThreshold:22,craftBaseMultiplier:1.35,
+      inputRequirements:[
+        {quantity:1,anyIds:["chemical_canister","grenade_shell"]},
+        {quantity:1,anyIds:["toxin_extract"]},
+        {quantity:1,anyIds:["stabilized_reagent","stabilized_compound"]}
+      ],
+      payloadTags:["poison_payload","toxic_payload"]
     })
   });
 
