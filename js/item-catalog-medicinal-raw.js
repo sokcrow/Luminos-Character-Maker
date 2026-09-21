@@ -58,6 +58,7 @@
     item("suspending_agent","Suspending Agent","pharma_reagent",2100,["excipient"],["pharma_reagent","suspending_agent"]),
     item("preservative_reagent","Pharmaceutical Preservative","pharma_reagent",2300,["preservative"],["pharma_reagent","preservative_reagent"]),
     item("stabilizer_reagent","Pharmaceutical Stabilizer","medical_buffer",2600,["stabilizer"],["medical_buffer","stabilizer_reagent"]),
+    item("chemical_toxin_reagent","Chemical Toxin Reagent","chemical_toxin",3200,["chemical","toxic"],["chemical_toxin","toxin_source","toxin_reagent"]),
     item("absorbent_cotton","Absorbent Cotton","textile",1200,["medical_textile"],["medical_dressing_material"]),
     item("medical_gauze","Medical Gauze","textile",1600,["medical_textile"],["medical_dressing_material"]),
     item("sterile_cloth","Sterile Cloth","textile",1800,["medical_textile","sterile"],["medical_dressing_material","sterile_material"]),
