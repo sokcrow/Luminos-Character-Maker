@@ -373,22 +373,21 @@ function openGameInventory() {
   paper.open();
 }
 
-function goToRoadsideShop() {
-  const tests = gameWindow()?.DM_TEST;
-  if (!tests?.load) {
-    log("game:shop-location-unavailable", {});
+async function goToWorldMap() {
+  const worldMap = gameWindow()?.PaperGlobalMap;
+  if (!worldMap?.activate) {
+    log("game:world-map-unavailable", {});
     return false;
   }
   try {
-    tests.load("swamp");
-    log("game:shop-location", {
-      map: "swampLab",
-      spawnTile: { x: 0.5, z: -6.5 },
-      merchantTile: { x: 4.5, z: -6.4 }
+    if (typeof worldMap.returnToGlobal === "function") await worldMap.returnToGlobal();
+    else worldMap.activate();
+    log("game:world-map", {
+      currentRegion: worldMap.state?.().currentRegionId || null
     });
     return true;
   } catch (error) {
-    log("game:shop-location-error", { message: error?.message || String(error) });
+    log("game:world-map-error", { message: error?.message || String(error) });
     return false;
   }
 }
@@ -421,7 +420,7 @@ function setDebug(open) {
   }));
 
 $("openInventory").addEventListener("click", openGameInventory);
-$("openShop").addEventListener("click", goToRoadsideShop);
+$("openShop").addEventListener("click", goToWorldMap);
 $("grantHerb").addEventListener("click", grantHerbFromDm);
 $("toggleDebug").addEventListener("click", () => setDebug(!$("debugDrawer").classList.contains("open")));
 $("closeDebug").addEventListener("click", () => setDebug(false));
