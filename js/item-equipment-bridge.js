@@ -114,8 +114,8 @@
       if (sameItem(store[slot], item)) delete store[slot];
     });
     if (!store.shield) {
-      if (categoryOf(store.offHand || {}) === "shield") store.shield = store.offHand;
-      else if (categoryOf(store.mainHand || {}) === "shield") store.shield = store.mainHand;
+      if (normalizeId(schemaOf(store.offHand || {}).kind || categoryOf(store.offHand || {})) === "shield") store.shield = store.offHand;
+      else if (normalizeId(schemaOf(store.mainHand || {}).kind || categoryOf(store.mainHand || {})) === "shield") store.shield = store.mainHand;
     }
     store.accessories = asArray(store.accessories).filter((entry) => !sameItem(entry, item));
   }
@@ -136,14 +136,15 @@
   function compatibleSlots(item = {}) {
     const category = categoryOf(item);
     const schema = schemaOf(item);
-    if (category === "weapon") {
+    const kind = normalizeId(schema.kind || category);
+    if (kind === "weapon") {
       const handCost = Math.max(1, Number(schema.handCost || item.handCost || item.handsRequired || 1));
       return handCost >= 2 ? ["mainHand"] : ["mainHand", "offHand"];
     }
-    if (category === "shield") return ["mainHand", "offHand"];
-    if (category === "armor") return ["armor"];
-    if (category === "accessory") return ["accessory0", "accessory1"];
-    if (["augmentation", "augment", "aumento", "alteracion_corporal"].includes(category)) return ["augment0", "augment1"];
+    if (kind === "shield") return ["mainHand", "offHand"];
+    if (kind === "armor") return ["armor"];
+    if (kind === "accessory") return ["accessory0", "accessory1"];
+    if (["augmentation", "augment", "aumento", "alteracion_corporal"].includes(kind)) return ["augment0", "augment1"];
     return [];
   }
 
@@ -151,7 +152,7 @@
     const item = typeof itemInput === "object" ? itemInput : findActiveItem(unit, itemInput);
     let normalized = normalizeSlot(slot);
     if (!unit || !item) return { allowed: false, reason: "missing_unit_or_item", item, slot: normalized };
-    if (categoryOf(item) === "shield" && normalized === "shield") {
+    if (normalizeId(schemaOf(item).kind || categoryOf(item)) === "shield" && normalized === "shield") {
       const store = equipmentStore(unit);
       normalized = !store.offHand ? "offHand" : (!store.mainHand ? "mainHand" : "offHand");
     }
@@ -201,6 +202,7 @@
     const runtime = itemRuntime();
     const schema = schemaOf(item);
     const category = categoryOf(item);
+    const kind = normalizeId(schema.kind || category);
     const store = equipmentStore(unit, true);
 
     const occupied = getSlotItem(unit, normalized);
@@ -209,7 +211,7 @@
       if (removed.unequipped === false) return { equipped: false, reason: removed.reason || "equipment_slot_occupied", item, slot: normalized };
     }
 
-    if (category === "weapon" && Number(schema.handCost || item.handCost || item.handsRequired || 1) >= 2) {
+    if (kind === "weapon" && Number(schema.handCost || item.handCost || item.handsRequired || 1) >= 2) {
       [store.mainHand, store.offHand].filter(Boolean).forEach((entry) => {
         if (!sameItem(entry, item)) unequipItemEverywhere(unit, entry);
       });
@@ -220,7 +222,7 @@
 
     clearPointer(unit, item);
 
-    if (category === "weapon") {
+    if (kind === "weapon") {
       const handCost = Math.max(1, Number(schema.handCost || item.handCost || item.handsRequired || 1));
       if (handCost >= 2) {
         store.mainHand = item;
@@ -230,12 +232,12 @@
       } else {
         store.mainHand = item;
       }
-    } else if (category === "shield") {
+    } else if (kind === "shield") {
       store[normalized] = item;
       store.shield = item;
-    } else if (category === "armor") {
+    } else if (kind === "armor") {
       store.armor = item;
-    } else if (category === "accessory") {
+    } else if (kind === "accessory") {
       const index = Math.max(0, accessoryIndex(normalized));
       if (!Array.isArray(store.accessories)) store.accessories = [];
       const next = [...store.accessories];
@@ -294,7 +296,7 @@
   }
 
   const api = Object.freeze({
-    version: 1,
+    version: 2,
     normalizeSlot,
     categoryOf,
     schemaOf,
