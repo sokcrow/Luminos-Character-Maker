@@ -279,7 +279,6 @@ canvas{display:block}
 }
 #tienda-overlay .tier{position:absolute;left:6px;top:4px;z-index:2;color:var(--brillo-ambar);font:900 10px/1 var(--fuente-tocha);text-shadow:0 1px 2px #000}
 #tienda-overlay .icono-img{width:46px;height:46px;object-fit:contain;filter:drop-shadow(0 0 6px #000)}
-#tienda-overlay .icon-placeholder{width:22px;height:22px;border:3px solid #66533d;transform:rotate(45deg);box-shadow:inset 0 0 0 3px #111}
 #tienda-overlay .item-details{min-width:0;flex:1;display:flex;align-items:center;justify-content:space-between;gap:18px}
 #tienda-overlay .item-name{min-width:0;color:#f3ede3;font:900 clamp(14px,1.7vw,19px)/1.05 var(--fuente-tocha);letter-spacing:.04em;text-transform:uppercase;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
 #tienda-overlay .item-sub{margin-top:5px;color:#776c61;font:700 9px/1.2 var(--fuente-texto);letter-spacing:.11em;text-transform:uppercase}
@@ -391,6 +390,7 @@ canvas{display:block}
 .paper-menu-hex:hover,.paper-menu-hex:focus-visible{color:#ffe17b;filter:drop-shadow(0 0 7px rgba(227,189,99,.7));transform:translateY(-2px);outline:none}
 .paper-menu-hex[disabled]{opacity:.36;cursor:default;filter:grayscale(.6) drop-shadow(0 4px 5px #0009);transform:none}
 .paper-menu-hex svg{position:relative;z-index:1;width:25px;height:25px;stroke:currentColor;fill:none;pointer-events:none}
+.paper-menu-hex img{width:28px;height:28px;display:block;object-fit:contain}
 .paper-menu-hex .paper-menu-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .paper-menu-hex[data-label]::after{
   content:attr(data-label);position:fixed;top:80px;right:18px;z-index:95;display:none;padding:5px 8px;
@@ -585,14 +585,14 @@ body.global-map-mode #globalMapActions{display:block}
 <!-- 0.3.2-25 · Menú del jugador, derivado del patrón de Theatre -->
 <nav id="paperPlayerMenu" aria-label="Menú del jugador">
   <button id="paperPlayerMenuToggle" class="paper-menu-hex" type="button" data-label="Menú" aria-label="Mostrar menú del jugador" aria-expanded="false" aria-controls="paperPlayerMenuStrip">
-    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="square"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span class="paper-menu-label">Menú</span>
+    <img src="../../../Assets/Images/Buttons/Menu.svg" alt=""><span class="paper-menu-label">Menú</span>
   </button>
   <div id="paperPlayerMenuStrip">
     <button class="paper-menu-hex" type="button" data-player-menu-action="inventory" data-label="Inventario" aria-label="Abrir inventario">
-      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="square"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="paper-menu-label">Inventario</span>
+      <img src="../../../Assets/Images/Buttons/Inventory.svg" alt=""><span class="paper-menu-label">Inventario</span>
     </button>
     <button class="paper-menu-hex" type="button" data-player-menu-action="character" data-label="Personaje" aria-label="Personaje" disabled>
-      <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 22c0-4.5 3.6-8 8-8s8 3.5 8 8"/></svg><span class="paper-menu-label">Personaje</span>
+      <img src="../../../Assets/Images/Buttons/Player.svg" alt=""><span class="paper-menu-label">Personaje</span>
     </button>
     <button class="paper-menu-hex" type="button" data-player-menu-action="quests" data-label="Misiones" aria-label="Misiones" disabled>
       <svg viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg><span class="paper-menu-label">Misiones</span>
@@ -8426,9 +8426,6 @@ const LUMINOUS_MAP_ITEM_DEFS=Object.freeze({
     functionalTags:['medicinal','calming','tea'],craftTags:['medicine','alchemy']
   })
 });
-const LUMINOUS_MAP_ICON_FALLBACKS=Object.freeze({
-  medicinal_herb_raw:'https://i.imgur.com/FY3Sda7.png'
-});
 function luminousMapItem(itemId){
   const id=String(itemId);
   const catalogs=[
@@ -8444,9 +8441,7 @@ function luminousMapItem(itemId){
 function luminousMapItemIcon(itemOrId){
   const item=typeof itemOrId==='string'?luminousMapItem(itemOrId):itemOrId;
   if(!item)return null;
-  return window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily)
-    ||LUMINOUS_MAP_ICON_FALLBACKS[item.iconFamily]
-    ||null;
+  return window.LuminousItemIconRegistry?.resolveIcon?.(item.iconFamily,{fallback:false})||null;
 }
 let luminousInventoryAdapter=null;
 const pendingItemGrants=[];
@@ -8615,7 +8610,7 @@ function itemIconNode(item){
   if(icon){
     const img=document.createElement('img');img.className='icono-img';img.alt='';img.src=String(icon);return img;
   }
-  const ph=document.createElement('span');ph.className='icon-placeholder';ph.setAttribute('aria-hidden','true');return ph;
+  return document.createDocumentFragment();
 }
 async function renderLegacyShop(store,provider,{reselect=null}={}){
   if(!shopList)return;
@@ -8924,10 +8919,10 @@ const PAPER_INV_STORAGE_KEY='paperdnd.inventory.v1';
 const PAPER_INV_ACTIVE_LIMIT=10;
 const PAPER_INV_SLOT_LABELS={mainHand:'MAIN HAND',offHand:'OFF HAND',armor:'ARMOR',shield:'SHIELD',accessory0:'ACCESSORY A',accessory1:'ACCESSORY B'};
 const PAPER_ITEM_DEFS={
-  practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:'sword'},
-  woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:'shield'},
+  practiceSword:{id:'practiceSword',name:'Espada de práctica',tier:'I',value:8,category:'weapon',tags:['Arma','Cuerpo a cuerpo'],slots:['mainHand'],quality:'STANDARD',description:'Hoja de entrenamiento equilibrada. Sirve para probar equipamiento antes de conectar el sistema de combate.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('weapon_sword')||'sword'},
+  woodenShield:{id:'woodenShield',name:'Escudo de madera',tier:'I',value:6,category:'weapon',tags:['Arma','Defensa'],slots:['shield','offHand'],quality:'STANDARD',description:'Escudo ligero de tablones. Por ahora registra el slot equipado; sus bonificadores se conectarán al combate después.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('shield')||'shield'},
   travelTorch:{id:'travelTorch',name:'Antorcha de viaje',tier:'I',value:2,category:'utility',tags:['Utilidad','Luz'],quality:'STANDARD',description:'Fuente de luz portátil. Emite 10 pies (2 tiles) de luz brillante y 10 pies adicionales de luz tenue: 20 pies / 4 tiles en total.',icon:'torch',use:'toggleTorch'},
-  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:'ration',use:'consume'},
+  ration:{id:'ration',name:'Ración de viaje',tier:'I',value:1,category:'consumable',tags:['Consumible','Comida'],quality:'STANDARD',description:'Provisión compacta. En esta fase consumirla demuestra el flujo de uso y cantidad; más adelante puede alimentar descansos.',icon:window.LuminousItemIconRegistry?.resolveIcon?.('ration')||'ration',use:'consume'},
   rope:{id:'rope',name:'Cuerda de 50 pies',tier:'I',value:3,category:'utility',tags:['Utilidad','Exploración'],quality:'STANDARD',description:'Cuerda de exploración. Queda preparada para conectarse a interacciones de mapa, desniveles y puzzles.',icon:'rope'}
 };
 function paperDefaultInventory(){
@@ -8946,10 +8941,11 @@ function paperLoadInventory(){
 let paperInventory=paperLoadInventory();
 let paperInvSelection=null;
 function paperSaveInventory(){try{localStorage.setItem(PAPER_INV_STORAGE_KEY,JSON.stringify(paperInventory))}catch(_){}}
-function paperDef(item){return item?PAPER_ITEM_DEFS[item.definitionId]||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:'box'}:null}
+function paperDef(item){return item?PAPER_ITEM_DEFS[item.definitionId]||{id:item.definitionId,name:item.definitionId||'Item',tier:'I',value:0,category:'utility',tags:['Item'],description:'Sin descripción.',icon:null}:null}
 function paperItemName(item){return paperDef(item)?.name||'Item'}
-function paperItemIcon(kind='box'){
-  const raw=String(kind||'box').trim();
+function paperItemIcon(kind=null){
+  const raw=String(kind||'').trim();
+  if(!raw)return '';
   if(/^(https?:|data:|blob:)/i.test(raw)){
     const safe=raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `<img src="${safe}" alt="" loading="lazy" decoding="async">`;
@@ -9058,7 +9054,7 @@ function paperSetInventoryTab(tab){
   document.querySelectorAll('.paper-inv-tab').forEach(b=>b.classList.toggle('active',b.dataset.invTab===tab));document.querySelectorAll('#gameInventoryLeft>.paper-inv-pane').forEach(p=>p.classList.remove('active'));document.getElementById(tab==='stash'?'paperInvStash':tab==='synthesis'?'paperInvSynth':'paperInvActive')?.classList.add('active');paperClearSelection();
 }
 function registerPaperMenuOption({id,label,iconSvg,onSelect,enabled=true}){
-  if(!id)return null;const strip=document.getElementById('paperPlayerMenuStrip');if(strip.querySelector(`[data-player-menu-action="${id}"]`))return null;const b=document.createElement('button');b.type='button';b.className='paper-menu-hex';b.dataset.playerMenuAction=id;b.dataset.label=label||id;b.setAttribute('aria-label',label||id);b.disabled=!enabled;b.innerHTML=`${iconSvg||paperItemIcon('box')}<span class="paper-menu-label">${label||id}</span>`;if(onSelect)b.addEventListener('click',()=>{closePaperPlayerMenu();onSelect()});strip.appendChild(b);return b;
+  if(!id)return null;const strip=document.getElementById('paperPlayerMenuStrip');if(strip.querySelector(`[data-player-menu-action="${id}"]`))return null;const b=document.createElement('button');b.type='button';b.className='paper-menu-hex';b.dataset.playerMenuAction=id;b.dataset.label=label||id;b.setAttribute('aria-label',label||id);b.disabled=!enabled;b.innerHTML=`${iconSvg||''}<span class="paper-menu-label">${label||id}</span>`;if(onSelect)b.addEventListener('click',()=>{closePaperPlayerMenu();onSelect()});strip.appendChild(b);return b;
 }
 function registerPaperItemDefinition(def){if(!def?.id)return false;PAPER_ITEM_DEFS[def.id]={...def};return true}
 
