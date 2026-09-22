@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 21;
+  const VERSION = 22;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -190,6 +190,38 @@
     ["animal_fiber_raw","Raw Animal Fiber","Fibra animal cruda","material","https://imgur.com/A3FpNXr.png"],
     ["silk_raw","Raw Silk / Exotic Fiber","Seda cruda / Fibra exótica","material","https://imgur.com/NYnkd17.png"],
     ["ore_raw","Ore / Raw Mineral","Mena / Mineral crudo","material","https://imgur.com/xR1qk05.png"],
+    ["mineral_industrial_stone","Industrial Stone","Piedra industrial","material","https://imgur.com/QEcF2I8.png"],
+    ["mineral_clay","Clay","Arcilla","material","https://imgur.com/Q8oQ8XT.png"],
+    ["mineral_coal","Coal","Carbón","material","https://imgur.com/ZM4YHZ2.png"],
+    ["ore_lead","Lead Ore","Mena de plomo","material","https://imgur.com/UYRP184.png"],
+    ["ore_iron","Iron Ore","Mena de hierro","material","https://imgur.com/MzKGltz.png"],
+    ["ore_bauxite","Bauxite / Aluminum Ore","Bauxita / mena de aluminio","material","https://imgur.com/DmflUeS.png"],
+    ["ore_zinc","Zinc Ore","Mena de zinc","material","https://imgur.com/j0EvmuY.png"],
+    ["ore_tin","Tin Ore","Mena de estaño","material","https://imgur.com/W0dOmcU.png"],
+    ["ore_copper","Copper Ore","Mena de cobre","material","https://imgur.com/kPTyCDg.png"],
+    ["mineral_graphite","Graphite / Carbon Mineral","Grafito / mineral de carbono","material","https://imgur.com/zMf9RbE.png"],
+    ["ore_manganese","Manganese Ore","Mena de manganeso","material","https://imgur.com/YztCEMj.png"],
+    ["mineral_obsidian","Obsidian","Obsidiana","material","https://imgur.com/pm3WK5T.png"],
+    ["mineral_quartz","Quartz","Cuarzo","material","https://imgur.com/CML9Dvs.png"],
+    ["ore_nickel","Nickel Ore","Mena de níquel","material","https://imgur.com/S6AQ4JM.png"],
+    ["ore_chromium","Chromium Ore","Mena de cromo","material","https://imgur.com/Ejbzsa9.png"],
+    ["ore_lithium","Lithium Ore","Mena de litio","material","https://imgur.com/c2hQYqV.png"],
+    ["ore_molybdenum","Molybdenum Ore","Mena de molibdeno","material","https://imgur.com/c2hQYqV.png"],
+    ["ore_vanadium","Vanadium Ore","Mena de vanadio","material","https://imgur.com/iD7CMiH.png"],
+    ["ore_cobalt","Cobalt Ore","Mena de cobalto","material","https://imgur.com/vfVRYEn.png"],
+    ["ore_silver","Silver Ore","Mena de plata","material","https://imgur.com/RxONKgZ.png"],
+    ["ore_tungsten","Tungsten Ore","Mena de tungsteno","material","https://imgur.com/aN8XBec.png"],
+    ["ore_titanium","Titanium Ore","Mena de titanio","material","https://imgur.com/LIbBUrZ.png"],
+    ["ore_gold","Gold Ore","Mena de oro","material","https://imgur.com/P17ca99.png"],
+    ["ore_niobium","Niobium Ore","Mena de niobio","material","https://imgur.com/qwSqCmC.png"],
+    ["ore_tantalum","Tantalum Ore","Mena de tantalio","material","https://imgur.com/Kuv8fOJ.png"],
+    ["mineral_rare_earth","Rare-Earth Concentrate","Concentrado de tierras raras","material","https://imgur.com/XmtMl7M.png"],
+    ["ore_uranium","Uranium-bearing Ore","Mena con uranio","material","https://imgur.com/bDNbQa1.png"],
+    ["mineral_superconductive","Superconductive Mineral","Mineral superconductor","material","https://imgur.com/8pfzSsf.png"],
+    ["ore_metamaterial","Metamaterial Ore","Mena de metamaterial","material","https://imgur.com/qZYddIy.png"],
+    ["mineral_null_dampening","Null / Dampening Mineral","Mineral nulo / amortiguador","material","https://imgur.com/JVX6zYd.png"],
+    ["mineral_exotic_industrial","Exotic Industrial Mineral","Mineral industrial exótico","material","https://imgur.com/pmHRWNP.png"],
+    ["ore_platinum","Platinum Ore","Mena de platino","material","https://imgur.com/QBXnv0H.png"],
     ["metal_ingot","Ingot / Refined Metal","Lingote / Metal refinado","material","https://imgur.com/BNTZ6FI.png"],
     ["gem_rough","Rough Gem","Gema en bruto","material","https://imgur.com/18tq0PQ.png"],
     ["gem_cut","Cut / Polished Gem","Gema tallada / pulida","material","https://imgur.com/sDAhiUI.png"],
