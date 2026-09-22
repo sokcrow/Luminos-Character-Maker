@@ -373,25 +373,6 @@ function openGameInventory() {
   paper.open();
 }
 
-async function goToWorldMap() {
-  const worldMap = gameWindow()?.PaperGlobalMap;
-  if (!worldMap?.activate) {
-    log("game:world-map-unavailable", {});
-    return false;
-  }
-  try {
-    if (typeof worldMap.returnToGlobal === "function") await worldMap.returnToGlobal();
-    else worldMap.activate();
-    log("game:world-map", {
-      currentRegion: worldMap.state?.().currentRegionId || null
-    });
-    return true;
-  } catch (error) {
-    log("game:world-map-error", { message: error?.message || String(error) });
-    return false;
-  }
-}
-
 async function grantHerbFromDm() {
   const bridge = gameWindow()?.LuminousMapItemBridge;
   if (!bridge?.requestGrant) {
@@ -420,7 +401,6 @@ function setDebug(open) {
   }));
 
 $("openInventory").addEventListener("click", openGameInventory);
-$("openShop").addEventListener("click", goToWorldMap);
 $("grantHerb").addEventListener("click", grantHerbFromDm);
 $("toggleDebug").addEventListener("click", () => setDebug(!$("debugDrawer").classList.contains("open")));
 $("closeDebug").addEventListener("click", () => setDebug(false));
