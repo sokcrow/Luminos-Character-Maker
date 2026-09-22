@@ -37,7 +37,6 @@
         <button id="openInventory" class="lab-icon-action" type="button"><img src="../../Assets/Images/Buttons/Inventory.svg" alt="">Inventario</button>
         <button id="grantHerb" type="button">DM · Dar hierba</button>
         <button id="fullscreenGame" type="button" title="Pantalla completa horizontal" aria-label="Pantalla completa horizontal">Horizontal</button>
-        <button id="toggleDebug" type="button" aria-expanded="false">Estado</button>
       </nav>
     </header>
 
@@ -45,14 +44,14 @@
       <iframe
         id="gameFrame"
         class="lab-game-frame"
-        src="./game/forest-0.3.3.1.html?perf=forest"
+        src="./game/forest-0.3.3.1.html"
         title="Luminous Forest 0.3.3.1"
         allow="fullscreen"
       ></iframe>
 
       <div id="gameLoading" class="lab-loading">
-        <strong>Cargando Forest 0.3.3.1…</strong>
-        <span>Bosque procedural · benchmark móvil + inventario + Game Engine</span>
+        <strong>Cargando mapa global…</strong>
+        <span>Mapa hexagonal · exploración + inventario + Game Engine</span>
       </div>
 
       <div class="lab-hud">
@@ -62,47 +61,6 @@
       </div>
     </main>
 
-    <aside id="debugDrawer" class="lab-debug" aria-hidden="true">
-      <header>
-        <div>
-          <span>GAME ENGINE STATUS</span>
-          <strong>Sesión local</strong>
-        </div>
-        <button id="closeDebug" type="button" aria-label="Cerrar">×</button>
-      </header>
-
-      <section class="lab-debug-grid">
-        <article>
-          <span>ENGINE</span>
-          <strong id="engineSummary">—</strong>
-        </article>
-        <article>
-          <span>ITEM RUNTIME</span>
-          <strong id="itemSummary">—</strong>
-        </article>
-        <article>
-          <span>GAME BRIDGE</span>
-          <strong id="bridgeSummary">—</strong>
-        </article>
-        <article>
-          <span>PLAYER</span>
-          <strong id="playerSummary">—</strong>
-        </article>
-      </section>
-
-      <section class="lab-debug-section">
-        <div class="lab-debug-heading">
-          <strong>DM Director</strong>
-          <button id="inspectPlayer" type="button">Inspeccionar</button>
-        </div>
-        <pre id="dmState">Sin inspección.</pre>
-      </section>
-
-      <section class="lab-debug-section">
-        <strong>Eventos recientes</strong>
-        <pre id="eventLog">Esperando eventos…</pre>
-      </section>
-    </aside>
   </div>
 
   <script src="../../js/item-runtime-engine.js"></script>
