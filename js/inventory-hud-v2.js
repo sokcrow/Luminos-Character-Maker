@@ -223,7 +223,7 @@
     carry.innerHTML = `
       <header class="inventory-v2-carry-header">
         <div><span>FIELD CARRY // QUICK ACCESS</span><strong>ACTIVE INVENTORY</strong></div>
-        <b id="inventory-v2-carry-count">00 / 10</b>
+        <b id="inventory-v2-carry-count">00 / 20</b>
       </header>
       <div class="inventory-v2-grid-host"></div>`;
     carry.querySelector(".inventory-v2-grid-host").appendChild(grid);
@@ -419,7 +419,7 @@
 
     visibleEntries.forEach(([key, item]) => fragment.appendChild(createItemSlot(key, item, containerType)));
     if (active) {
-      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? 10) || 10);
+      const limit = Math.max(0, Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20);
       for (let index = visibleEntries.length + 1; index <= limit; index += 1) fragment.appendChild(createEmptySlot(index));
     }
     grid.appendChild(fragment);
@@ -432,9 +432,25 @@
 
   function renderCarryCount() {
     const count = entries(state.unit?.inventario_activo).filter(([, item]) => item && quantityOf(item) > 0).length;
-    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? 10) || 10;
+    const limit = Number(inventory()?.activeSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_ACTIVE_SLOT_LIMIT ?? 20) || 20;
     const el = doc.getElementById("inventory-v2-carry-count");
     if (el) el.textContent = `${String(count).padStart(2, "0")} / ${limit}`;
+  }
+
+  function renderStashCount() {
+    const toolbar = doc.querySelector("#inv-stash .inventory-toolbar");
+    if (!toolbar) return;
+    let el = doc.getElementById("inventory-v2-stash-count");
+    if (!el) {
+      el = doc.createElement("div");
+      el.id = "inventory-v2-stash-count";
+      el.className = "inventory-v2-stash-count";
+      toolbar.appendChild(el);
+    }
+    const count = entries(state.unit?.inventario_stash).filter(([, item]) => item && quantityOf(item) > 0).length;
+    const limit = Number(inventory()?.stashSlotLimit?.(state.unit) ?? inventory()?.DEFAULT_STASH_SLOT_LIMIT ?? 80) || 80;
+    el.textContent = `STASH // ${String(count).padStart(2, "0")} / ${limit} SLOTS`;
+    el.dataset.full = count >= limit ? "true" : "false";
   }
 
   function slotData(slotId) {
@@ -573,7 +589,9 @@
     };
     const compatible = bridge()?.compatibleSlots?.(item) || [];
     set("category", `${categoryLabel(itemCategory(item))} // ${categoryLabel(equipmentKind(item))}`);
-    set("stack", `x${quantityOf(item)} // ${state.selectedContainer.toUpperCase()}`);
+    const stackContainer = state.selectedContainer === "stash" ? "stash" : "active";
+    const stackMax = inventory()?.stackLimit?.(item, stackContainer);
+    set("stack", stackMax ? `x${quantityOf(item)} / ${stackMax} // ${stackContainer.toUpperCase()}` : `x${quantityOf(item)} // ${stackContainer.toUpperCase()}`);
     set("quality", `${qualityNames[quality] || `Q${quality}`} // Q${quality}`);
     set("condition", `${conditionPercent}% // ${String(conditionState?.state || conditionState || "SERVICEABLE").toUpperCase()}`);
     set("manufacturer", manufacturerName(item));
@@ -652,8 +670,11 @@
       return;
     }
 
+    if (state.selectedContainer !== "active") {
+      showStatus("RELOAD REQUIRES ACTIVE INVENTORY", "error");
+      return;
+    }
     const pools = [state.unit.inventario_activo || {}];
-    if (state.stashUnlocked) pools.push(state.unit.inventario_stash || {});
     let remaining = profile.amount;
     const deductions = [];
     for (const pool of pools) {
@@ -700,7 +721,6 @@
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
       if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
-      if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected, "", !state.stashUnlocked);
       return;
     }
 
@@ -861,6 +881,7 @@
     renderGrid("active");
     renderGrid("stash");
     renderCarryCount();
+    renderStashCount();
     renderEquipment();
     if (state.selected) renderDetail();
   }
@@ -950,7 +971,7 @@
   else boot();
 
   global.LuminousInventoryHudV2 = Object.freeze({
-    version: 4,
+    version: 5,
     state,
     boot,
     dispose,
