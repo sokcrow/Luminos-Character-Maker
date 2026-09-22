@@ -83,7 +83,7 @@ assert.match(game, /minFps:40/);
 assert.match(game, /minScale:\.58/);
 assert.match(game, /MOBILE_FOREST_LOW_POLY=DISPLAY_DEVICE_MOBILE/);
 assert.match(game, /CAMERA_VISIBILITY_REFERENCE_ASPECT=16\/9/);
-assert.match(game, /LOCAL_CAMERA_FIXED_PROFILE=Object\.freeze\(\{distance:\.42,height:\.72,fovBias:-3\.25,deadZone:\.72,lookAhead:\.62\}\)/);
+assert.match(game, /LOCAL_CAMERA_FIXED_PROFILE=Object\.freeze\(\{distance:\.42,height:\.433,fovBias:-3\.25,deadZone:\.72,lookAhead:\.62\}\)/);
 assert.match(game, /function cameraFixedVisibilityFov/);
 assert.match(game, /function viewportCameraProfile\(\)\{\s*return LOCAL_CAMERA_FIXED_PROFILE;\s*\}/);
 assert.match(game, /const eligible=nearSafety\|\|inFrustum/);
