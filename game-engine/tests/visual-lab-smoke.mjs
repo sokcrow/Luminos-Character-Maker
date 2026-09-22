@@ -9,7 +9,8 @@ const [index, main, game, inventoryRuntime, itemBridge] = await Promise.all([
   readFile(new URL("../src/bridges/luminous/LuminousItemsBridge.js", import.meta.url), "utf8")
 ]);
 
-assert.match(index, /forest-0\.3\.3\.1\.html\?map=swampLab/);
+assert.match(index, /src="\.\/game\/forest-0\.3\.3\.1\.html"/);
+assert.doesNotMatch(index, /\?map=swampLab/);
 assert.match(index, /id="gameFrame"/);
 assert.match(index, /id="openInventory"/);
 assert.match(index, /id="openShop"/);
@@ -18,7 +19,6 @@ assert.match(index, /Pantalla completa horizontal/);
 assert.match(index, /id="hpStat"/);
 assert.match(index, />HP<\/i>/);
 assert.match(index, /Assets\/Images\/Buttons\/Inventory\.svg/);
-assert.match(index, /Assets\/Images\/Buttons\/Shop\.svg/);
 assert.match(index, /Offensive Level/);
 assert.match(index, /Defensive Level/);
 
@@ -31,8 +31,9 @@ assert.match(main, /canal-general-store/);
 assert.match(main, /shop:purchased/);
 assert.match(main, /items\.insert\(/);
 assert.match(main, /screen\.orientation/);
-assert.match(main, /goToRoadsideShop/);
-assert.match(main, /merchantTile/);
+assert.match(main, /goToWorldMap/);
+assert.match(main, /PaperGlobalMap/);
+assert.match(main, /returnToGlobal/);
 assert.match(main, /lock\("landscape"\)/);
 assert.match(main, /fullscreenchange/);
 assert.match(main, /engine\.start\(\)/);
@@ -48,6 +49,10 @@ assert.match(game, /Tienda del Canal|canal-general-store/);
 assert.match(game, /makeCanonicalWorldItemDisplay/);
 assert.match(game, /forest-roadside-store/);
 assert.match(game, /canal-general-store/);
+assert.match(game, /makeGlobalSettlementMarker/);
+assert.match(game, /Aldea del Bosque/);
+assert.match(game, /settlement:Object\.freeze\(\{id:\'forest-village\'/);
+assert.match(game, /map:\'canal\'/);
 assert.match(game, /Assets\/Images\/Buttons\/Menu\.svg/);
 assert.match(game, /Assets\/Images\/Buttons\/Inventory\.svg/);
 assert.match(game, /Assets\/Images\/Buttons\/Player\.svg/);
