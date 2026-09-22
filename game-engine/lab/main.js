@@ -68,7 +68,8 @@ function canonicalIcon(win, item = {}) {
   const registry = win?.LuminousItemIconRegistry;
   const family = item.iconFamily || item.iconGroup || item.icon_family || item.group || item.family;
   return registry?.resolveIcon?.(family, {
-    iconOverride: item.icon || item.iconUrl || item.icono || ""
+    iconOverride: item.icon || item.iconUrl || item.icono || "",
+    fallback: false
   }) || item.icon || item.iconUrl || item.icono || null;
 }
 
@@ -111,7 +112,7 @@ function normalizeVisualDefinition(detail) {
       ...(item.functionalTags || []),
       ...(item.craftTags || [])
     ].filter(Boolean).join(" · ") || "Objeto canónico de Luminous.",
-    icon: icon || "box"
+    icon: icon || null
   };
 }
 
@@ -197,10 +198,23 @@ function buildShopProvider(win) {
   const plantItems = plantCatalog?.list?.() || [];
   const toolItems = toolCatalog?.list?.() || [];
 
-  const chosen = [
-    ...plantItems.filter(item => item?.id && canonicalPrice(item) > 0).slice(0, 10),
-    ...toolItems.filter(item => item?.id && canonicalPrice(item) > 0).slice(0, 5)
+  const plantById = new Map(plantItems.map(item => [String(item?.id || ""), item]));
+  const toolById = new Map(toolItems.map(item => [String(item?.id || ""), item]));
+  const preferredIds = [
+    "apple",
+    "carrot",
+    "medicinal_herb",
+    "bitterroot",
+    "feverleaf",
+    "calming_herb",
+    "harvesting_tools",
+    "herbalism_botanical_gathering_kit",
+    "cooks_utensils",
+    "repair_kit"
   ];
+  const chosen = preferredIds
+    .map(id => plantById.get(id) || toolById.get(id))
+    .filter(item => item?.id && canonicalPrice(item) > 0);
 
   const stock = new Map();
   const definitions = new Map();
