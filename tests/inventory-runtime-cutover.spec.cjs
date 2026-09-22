@@ -78,7 +78,7 @@ async function bootHarness(page) {
       setQuantity,
       findItem,
       normalizeId: (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-      equipmentSchema: (item) => ({ kind: categoryOf(item), handCost: categoryOf(item) === "weapon" ? 1 : 0 }),
+      equipmentSchema: (item) => ({ ...(item?.equipment || {}), kind: item?.equipment?.kind || categoryOf(item), handCost: item?.equipment?.handCost ?? (categoryOf(item) === "weapon" ? 1 : 0) }),
       resolveItem: (item) => ({ definitionId: item.definitionId, displayName: item.definitionId }),
       hydrateForEquipment: (item) => item,
       getConditionState: (item) => Number(item.condition ?? 100) <= 50 ? "damaged" : "good",
@@ -141,10 +141,48 @@ test("HUD V2 owns rendering and creates the canonical 5x2 Active grid", async ({
   await bootHarness(page);
   expect(await page.evaluate(() => typeof window.renderInventoryGrid)).toBe("undefined");
   await expect(page.locator(".inventory-v2-equipment")).toHaveCount(1);
+  await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
+  await expect(page.locator('[data-equipment-slot="augment0"]')).toHaveCount(1);
+  await expect(page.locator('[data-equipment-slot="augment1"]')).toHaveCount(1);
   await expect(page.locator("#inv-active-grid .inventory-v2-runtime-slot")).toHaveCount(10);
   await expect(page.locator("#inv-active-grid .inventory-v2-empty-slot")).toHaveCount(8);
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
   expect(columns).toBe(5);
+});
+
+test("equipment compatibility follows equipment.kind instead of hardcoded item category", async ({ page }) => {
+  await bootHarness(page);
+  const result = await page.evaluate(() => window.LuminousItemEquipmentBridge.compatibleSlots({
+    instanceId: "field_scanner_1",
+    category: "tool",
+    equipment: { kind: "accessory" },
+  }));
+  expect(result).toEqual(["accessory0", "accessory1"]);
+});
+
+test("stash filters derive from live item families", async ({ page }) => {
+  await bootHarness(page);
+  await page.evaluate(() => {
+    window.LuminousInventoryHudV2.state.unit.inventario_stash.chem_1 = {
+      instanceId: "chem_1", definitionId: "chemical_sample", nombre: "Chemical Sample",
+      category: "chemical_processed", tier: 1, quantity: 3, qualityTier: 2, condition: 100, conditionMax: 100,
+    };
+    window.LuminousInventoryHudV2.renderAll();
+  });
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="all"]')).toHaveCount(1);
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="consumable"]')).toHaveCount(1);
+  await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
+});
+
+test("inventory becomes a two-column mobile grid without horizontal modal overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await bootHarness(page);
+  await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
+  const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
+  expect(columns).toBe(2);
+  const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
 });
 
 test("equips through the runtime bridge and persists equipment refs", async ({ page }) => {
