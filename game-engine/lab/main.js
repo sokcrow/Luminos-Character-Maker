@@ -394,9 +394,48 @@ $("closeDebug").addEventListener("click", () => setDebug(false));
 $("inspectPlayer").addEventListener("click", () => {
   $("dmState").textContent = JSON.stringify(dm.execute({ type: "inspect_player" }), null, 2);
 });
-$("fullscreenGame").addEventListener("click", async () => {
+async function lockLandscapeForFullscreen() {
+  const orientation = screen.orientation;
+  if (!orientation?.lock) {
+    log("display:landscape-unavailable", { reason: "screen_orientation_api_unavailable" });
+    return false;
+  }
+  try {
+    await orientation.lock("landscape");
+    log("display:landscape-locked", { type: orientation.type || "landscape" });
+    return true;
+  } catch (error) {
+    log("display:landscape-lock-failed", { message: error?.message || String(error) });
+    return false;
+  }
+}
+
+async function enterGameFullscreen() {
   const stage = document.querySelector(".lab-stage");
-  try { await stage?.requestFullscreen?.(); } catch (_) {}
+  if (!stage?.requestFullscreen) {
+    log("display:fullscreen-unavailable", {});
+    return false;
+  }
+  try {
+    await stage.requestFullscreen();
+    await lockLandscapeForFullscreen();
+    return true;
+  } catch (error) {
+    log("display:fullscreen-failed", { message: error?.message || String(error) });
+    return false;
+  }
+}
+
+$("fullscreenGame").addEventListener("click", enterGameFullscreen);
+
+document.addEventListener("fullscreenchange", () => {
+  const stage = document.querySelector(".lab-stage");
+  if (document.fullscreenElement === stage) {
+    lockLandscapeForFullscreen();
+    return;
+  }
+  try { screen.orientation?.unlock?.(); } catch (_) {}
+  log("display:fullscreen-exit", {});
 });
 
 frame.addEventListener("load", () => {
