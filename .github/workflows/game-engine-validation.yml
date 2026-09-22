@@ -1,0 +1,32 @@
+name: Game Engine Lab Validation
+
+on:
+  push:
+    paths:
+      - "game-engine/**"
+      - ".github/workflows/game-engine-validation.yml"
+  pull_request:
+    paths:
+      - "game-engine/**"
+      - ".github/workflows/game-engine-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax check
+        run: node --check game-engine/lab/main.js
+
+      - name: Core smoke
+        run: node game-engine/tests/core-smoke.mjs
+
+      - name: Visual Lab smoke
+        run: node game-engine/tests/visual-lab-smoke.mjs
