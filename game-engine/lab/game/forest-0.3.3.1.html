@@ -16183,8 +16183,8 @@ function forestStressRefreshPanel(){
     `Units active ${activeUnitCount} · stress visible ${stressUnits}/${ForestStressRuntime.stressUnitIds.length}`,
     `budget ${p.fullFt}ft full · ${p.farFt}ft far · streaming ${ForestStressRuntime.streaming?'ON':'OFF'} · yaw ${ForestStressRuntime.cameraQuarter*90}°`,
     captureLine,
-    result?`>16.7ms ${result.over16Pct.toFixed(1)}% · >33.3ms ${result.over33Pct.toFixed(1)}% · p99 ${result.p99Ms.toFixed(2)}ms`,
-    result?`capture draw avg ${result.drawAvg.toFixed(0)} max ${result.drawMax} · tris avg ${Math.round(result.triAvg).toLocaleString()} max ${Math.round(result.triMax).toLocaleString()} · DPR ${result.pixelRatio.toFixed(2)}`:'':''
+    result?`>16.7ms ${result.over16Pct.toFixed(1)}% · >33.3ms ${result.over33Pct.toFixed(1)}% · p99 ${result.p99Ms.toFixed(2)}ms`:'',
+    result?`capture draw avg ${result.drawAvg.toFixed(0)} max ${result.drawMax} · tris avg ${Math.round(result.triAvg).toLocaleString()} max ${Math.round(result.triMax).toLocaleString()} · DPR ${result.pixelRatio.toFixed(2)}`:''
   ].filter(Boolean).join('\n');
 }
 function forestStressButton(label,fn){
