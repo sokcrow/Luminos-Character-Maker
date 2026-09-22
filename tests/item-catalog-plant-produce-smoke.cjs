@@ -92,7 +92,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('tomato').iconFamily, 'vegetable_raw');
   assert.equal(catalog.get('almond').iconFamily, 'grain_seed_raw');
   assert.equal(catalog.get('rosemary').iconFamily, 'spice_herb_raw');
-  assert.equal(catalog.get('nightshade').iconFamily, 'medicinal_herb_raw');
+  assert.equal(catalog.get('nightshade').iconFamily, 'herb_toxic');
   assert.equal(catalog.get('common_mushroom').iconFamily, 'fungus_raw');
   assert.equal(catalog.get('resin').iconFamily, 'botanical_extract_raw');
   assert.equal(catalog.get('pineapple').iconFamily, 'fruit_raw');
