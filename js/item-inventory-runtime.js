@@ -416,6 +416,34 @@
     return { inserted: true, remaining: 0, insertedKeys };
   }
 
+  function insertItem(unit, itemOrDefinition, containerType = "active", options = {}) {
+    const type = normalizeId(containerType) === "stash" ? "stash" : "active";
+    const target = type === "stash" ? stashContainer(unit, true) : activeContainer(unit, true);
+    if (!unit || !target?.value) return { inserted: false, reason: "inventory_container_unavailable", container: target?.key || null };
+
+    const source = itemOrDefinition && typeof itemOrDefinition === "object" && itemOrDefinition.instanceId
+      ? clone(itemOrDefinition)
+      : createItemInstance(itemOrDefinition, options);
+
+    if (!source) return { inserted: false, reason: "invalid_item", container: target.key };
+    const result = insertIntoContainer(target.value, source, type, {
+      activeSlotLimit: activeSlotLimit(unit),
+      stashSlotLimit: stashSlotLimit(unit),
+      ...options,
+    });
+    const insertedQuantity = quantityOf(source) - Math.max(0, result.remaining || 0);
+    const output = {
+      ...result,
+      inserted: insertedQuantity > 0,
+      quantity: insertedQuantity,
+      container: target.key,
+      containerType: type,
+      instanceId: source.instanceId || null,
+    };
+    if (output.inserted) emit("luminous:item-inserted", { unit, item: clone(source), ...output });
+    return output;
+  }
+
   function deleteFromContainer(container, key) {
     if (Array.isArray(container)) {
       const index = intOr(key, -1);
@@ -709,6 +737,7 @@
     stackFamily,
     stackLimit,
     canStack,
+    insertItem,
     splitStack,
     mergeStacks,
     moveItem,
