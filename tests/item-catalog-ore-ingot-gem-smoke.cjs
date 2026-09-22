@@ -13,24 +13,62 @@ const { pathToFileURL } = require('node:url');
 
   const catalog = globalThis.LuminousOreIngotGemCatalog;
   assert.ok(catalog);
-  assert.equal(catalog.VERSION, 1);
+  assert.equal(catalog.VERSION, 2);
   assert.equal(catalog.FAMILY, 'ore_ingot_gem');
   assert.equal(catalog.MATERIAL_UNIT, 'material_unit');
   assert.equal(catalog.MATERIAL_UNIT_ABBREVIATION, 'MU');
 
-  assert.equal(catalog.RAW_MINERALS.length, 31);
+  assert.equal(catalog.RAW_MINERALS.length, 32);
   assert.equal(catalog.REFINED_METALS.length, 25);
   assert.equal(catalog.ALLOYS.length, 16);
   assert.equal(catalog.ROUGH_GEMS.length, 12);
   assert.equal(catalog.CUT_GEMS.length, 12);
-  assert.equal(catalog.ITEMS.length, 96);
-  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 96);
+  assert.equal(catalog.ITEMS.length, 97);
+  assert.equal(new Set(catalog.ITEMS.map((entry) => entry.id)).size, 97);
 
-  assert.equal(catalog.get('industrial_stone').standardUnitValueAhn, 10000);
-  assert.equal(catalog.get('iron_ore').standardUnitValueAhn, 30000);
-  assert.equal(catalog.get('titanium_ore').standardUnitValueAhn, 187500);
-  assert.equal(catalog.get('rare_earth_concentrate').standardUnitValueAhn, 250000);
-  assert.equal(catalog.get('exotic_industrial_mineral').standardUnitValueAhn, 750000);
+  assert.equal(catalog.RAW_MINERAL_PRICING_MODEL, 'ahn_material_unit_tiered_v2');
+  const rawV2 = {
+    industrial_stone: ['mineral_industrial_stone', 10000],
+    clay: ['mineral_clay', 12500],
+    coal: ['mineral_coal', 17500],
+    lead_ore: ['ore_lead', 25000],
+    iron_ore: ['ore_iron', 30000],
+    bauxite_aluminum_ore: ['ore_bauxite', 35000],
+    zinc_ore: ['ore_zinc', 37500],
+    tin_ore: ['ore_tin', 40000],
+    copper_ore: ['ore_copper', 45000],
+    graphite_carbon_mineral: ['mineral_graphite', 47500],
+    manganese_ore: ['ore_manganese', 50000],
+    obsidian: ['mineral_obsidian', 55000],
+    quartz: ['mineral_quartz', 60000],
+    nickel_ore: ['ore_nickel', 65000],
+    chromium_ore: ['ore_chromium', 77500],
+    lithium_ore: ['ore_lithium', 90000],
+    molybdenum_ore: ['ore_molybdenum', 100000],
+    vanadium_ore: ['ore_vanadium', 107500],
+    cobalt_ore: ['ore_cobalt', 115000],
+    silver_ore: ['ore_silver', 150000],
+    tungsten_ore: ['ore_tungsten', 165000],
+    titanium_ore: ['ore_titanium', 190000],
+    niobium_ore: ['ore_niobium', 215000],
+    gold_ore: ['ore_gold', 225000],
+    tantalum_ore: ['ore_tantalum', 235000],
+    rare_earth_concentrate: ['mineral_rare_earth', 275000],
+    platinum_ore: ['ore_platinum', 300000],
+    uranium_bearing_ore: ['ore_uranium', 350000],
+    superconductive_mineral: ['mineral_superconductive', 500000],
+    metamaterial_ore: ['ore_metamaterial', 625000],
+    null_dampening_mineral: ['mineral_null_dampening', 800000],
+    exotic_industrial_mineral: ['mineral_exotic_industrial', 1000000],
+  };
+  for (const [id, [iconFamily, valueAhn]] of Object.entries(rawV2)) {
+    const item = catalog.get(id);
+    assert.ok(item, id);
+    assert.equal(item.iconFamily, iconFamily, id);
+    assert.equal(item.standardUnitValueAhn, valueAhn, id);
+    assert.equal(item.currency, 'AHN', id);
+    assert.equal(item.measure, 'material_unit', id);
+  }
 
   assert.equal(catalog.get('iron').standardUnitValueAhn, 50000);
   assert.equal(catalog.get('titanium').standardUnitValueAhn, 300000);
@@ -40,7 +78,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('armor_steel').id, 'hardened_steel');
   assert.equal(catalog.get('exotic_alloy').standardUnitValueAhn, 1625000);
 
-  assert.equal(catalog.get('iron_ore').iconFamily, 'ore_raw');
+  assert.equal(catalog.get('iron_ore').iconFamily, 'ore_iron');
   assert.equal(catalog.get('iron').iconFamily, 'metal_ingot');
   assert.equal(catalog.get('rough_ruby').iconFamily, 'gem_rough');
   assert.equal(catalog.get('ruby').iconFamily, 'gem_cut');
@@ -60,6 +98,7 @@ const { pathToFileURL } = require('node:url');
   assert.equal(catalog.get('bauxite').id, 'bauxite_aluminum_ore');
   assert.equal(catalog.get('graphite').id, 'graphite_carbon_mineral');
   assert.equal(catalog.get('starstone').id, 'starstone_exotic_gem');
+  assert.equal(catalog.get('raw_platinum').id, 'platinum_ore');
   assert.equal(catalog.get('rough_starstone').id, 'rough_starstone_exotic_gem');
 
   assert.equal(catalog.unitValueForQuality('diamond', 'exceptional'), 500000);
