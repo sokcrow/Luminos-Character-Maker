@@ -13,6 +13,8 @@ assert.match(index, /forest-0\.3\.3\.1\.html/);
 assert.match(index, /id="gameFrame"/);
 assert.match(index, /id="openInventory"/);
 assert.match(index, /id="openShop"/);
+assert.match(index, /id="fullscreenGame"/);
+assert.match(index, /Pantalla completa horizontal/);
 assert.match(index, /id="hpStat"/);
 assert.match(index, />HP<\/i>/);
 assert.match(index, /Assets\/Images\/Buttons\/Inventory\.svg/);
@@ -27,6 +29,9 @@ assert.match(main, /LuminousToolCatalog/);
 assert.match(main, /forest-roadside-store/);
 assert.match(main, /shop:purchased/);
 assert.match(main, /items\.insert\(/);
+assert.match(main, /screen\.orientation/);
+assert.match(main, /lock\("landscape"\)/);
+assert.match(main, /fullscreenchange/);
 assert.match(main, /engine\.start\(\)/);
 
 assert.match(game, /item-icon-registry\.js/);
