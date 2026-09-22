@@ -63,7 +63,7 @@ assert.match(game, /navigator\.userAgentData/);
 assert.match(game, /deviceMobile/);
 assert.match(game, /testMode:new URLSearchParams\(location\.search\)\.get\('perf'\)===\'forest\'/);
 assert.match(game, /mobileLandscape/);
-assert.match(game, /displayBasePixelRatioCap\(\).*displayLandscapeMobile\(\)\?\.80:1\.25/);
+assert.match(game, /displayBasePixelRatioCap\(\).*displayLandscapeMobile\(\)\?0\.80:1\.25/);
 assert.match(game, /antialias:!DISPLAY_DEVICE_MOBILE/);
 assert.match(game, /renderer\.shadowMap\.enabled=!displayLandscapeMobile\(\)/);
 assert.match(game, /mobileLandscape:Object\.freeze\(\{label:'MÓVIL HORIZONTAL',fullFt:58,farFt:92,safetyFt:28,colliderFt:58,preloadCos:\.68,updateFrames:8\}\)/);
