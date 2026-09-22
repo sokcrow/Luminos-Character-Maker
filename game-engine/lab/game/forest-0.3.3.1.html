@@ -913,9 +913,10 @@ function displayDetectMobileDevice(){
   return coarse&&Number(navigator.maxTouchPoints||0)>0;
 }
 const DISPLAY_DEVICE_MOBILE=displayDetectMobileDevice();
-const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:45,minFps:40,minScale:.68};
+const MOBILE_FOREST_LOW_POLY=DISPLAY_DEVICE_MOBILE;
+const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:48,minFps:40,minScale:.58};
 function displayLandscapeMobile(){return DISPLAY_DEVICE_MOBILE&&innerWidth>innerHeight}
-function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?0.80:1.25):1.5}
+function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?0.70:1.25):1.5}
 function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale}
 function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
 
@@ -6591,7 +6592,7 @@ function paperBush(g,xTiles,zTiles,scale=1,slow=true){
   const tex=getPaperBushTexture();
   const m=new THREE.Mesh(
     new THREE.PlaneGeometry(wt(1.10)*scale,wt(.82)*scale),
-    new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.12,side:THREE.DoubleSide,depthWrite:false})
+    new THREE.MeshBasicMaterial({map:tex,transparent:!DISPLAY_DEVICE_MOBILE,alphaTest:.18,side:THREE.DoubleSide,depthWrite:true})
   );
   m.position.y=wt(.40)*scale;
   m.renderOrder=12;
@@ -6665,7 +6666,7 @@ function paperGrassTuft(g,xTiles,zTiles,scale=.7,rot=0){
   scale*=SMALL_FOLK_WORLD_SCALE.nature.grass.visual;
   const m=new THREE.Mesh(
     new THREE.PlaneGeometry(wt(.72)*scale,wt(.72)*scale),
-    new THREE.MeshBasicMaterial({map:getPaperGrassTexture(),transparent:true,alphaTest:.12,side:THREE.DoubleSide})
+    new THREE.MeshBasicMaterial({map:getPaperGrassTexture(),transparent:!DISPLAY_DEVICE_MOBILE,alphaTest:.18,side:THREE.DoubleSide,depthWrite:true})
   );
   m.position.set(wt(xTiles),naturalPlacementYAtTiles(xTiles,zTiles)+wt(.34)*scale,wt(zTiles));
   m.rotation.y=rot;
@@ -11262,10 +11263,10 @@ function paperForestLeafPatch(g,xTiles,zTiles,scale=1,rot=0){
   scale*=SMALL_FOLK_WORLD_SCALE.nature.leafLitter.visual;
   const grp=new THREE.Group();grp.position.set(wt(xTiles),naturalPlacementYAtTiles(xTiles,zTiles)+.016,wt(zTiles));grp.rotation.y=rot;grp.userData.stressStreamCandidate='leaf';g.add(grp);
   const cols=[0x4f7c45,0x76964c,0xa28f47,0x5f8544];
-  const specs=[[-.34,.03,.26,.12,-.5],[.02,-.05,.31,.13,.18],[.30,.08,.24,.11,.72],[-.10,.24,.22,.10,1.25]];
+  const specs=MOBILE_FOREST_LOW_POLY?[[0,.02,.56,.24,.18]]:[[-.34,.03,.26,.12,-.5],[.02,-.05,.31,.13,.18],[.30,.08,.24,.11,.72],[-.10,.24,.22,.10,1.25]];
   for(let i=0;i<specs.length;i++){
     const [x,z,l,wid,a]=specs[i];
-    const leaf=new THREE.Mesh(new THREE.CircleGeometry(.5,8),new THREE.MeshBasicMaterial({color:cols[i%cols.length],side:THREE.DoubleSide,transparent:true,opacity:.88,depthWrite:false}));
+    const leaf=new THREE.Mesh(new THREE.CircleGeometry(.5,MOBILE_FOREST_LOW_POLY?6:8),new THREE.MeshBasicMaterial({color:cols[i%cols.length],side:THREE.DoubleSide,transparent:true,opacity:.88,depthWrite:false}));
     leaf.scale.set(l*scale,wid*scale,1);leaf.rotation.x=-Math.PI/2;leaf.rotation.z=a;leaf.position.set(wt(x)*scale,.004,wt(z)*scale);leaf.renderOrder=-10;grp.add(leaf);
   }
   return grp;
@@ -13176,7 +13177,7 @@ function mushroomAddCoralFormation(parent,spec,{x=0,z=0,scale=1,seed=0}={}){
 function paperMushroomPatchV2(g,xTiles,zTiles,scale=1,{mapId:resolvedMapId=null,field=null,seed=1,speciesId=null}={}){
   const descriptor=mushroomDescriptorAt(resolvedMapId||null,xTiles,zTiles,{seed,field,speciesId});if(!descriptor)return null;
   const spec=descriptor.species,grp=new THREE.Group();grp.position.set(wt(xTiles),naturalPlacementYAtTiles(xTiles,zTiles),wt(zTiles));grp.rotation.y=descriptor.yaw;grp.scale.setScalar(scale);grp.userData.stressStreamCandidate='mushroom';grp.userData.mushroomSpecies=descriptor.speciesId;grp.userData.mushroomRule=descriptor.ruleId;grp.userData.ecologySpecies=descriptor.speciesId;g.add(grp);
-  const radius=wt(Math.max(.24,descriptor.patchRadiusTiles||.52))*0.38,count=Math.max(1,descriptor.count||Math.round(THREE.MathUtils.lerp(3,6,descriptor.intensity||.5)));
+  const radius=wt(Math.max(.24,descriptor.patchRadiusTiles||.52))*0.38,count=MOBILE_FOREST_LOW_POLY?Math.min(2,Math.max(1,descriptor.count||2)):Math.max(1,descriptor.count||Math.round(THREE.MathUtils.lerp(3,6,descriptor.intensity||.5)));
   for(let i=0;i<count;i++){
     const a=i*2.399963+mushroomV2Hash(i,descriptor.variant,2501,spec.id.length)*.65,r=radius*Math.sqrt((i+.35)/Math.max(1,count))*(.42+.74*mushroomV2Hash(i,descriptor.variant,2502,spec.id.length)),px=Math.cos(a)*r,pz=Math.sin(a)*r,itemScale=(.72+.48*mushroomV2Hash(i,descriptor.variant,2503,spec.id.length));
     if(spec.form==='shelf')mushroomAddShelfFormation(grp,spec,{x:px,z:pz,scale:itemScale,seed:descriptor.variant*31+i});
@@ -14441,8 +14442,24 @@ function buildForestV2TreeVisual(grp,descriptor,{scale=1,castShadow=true}={}){
   grp.rotation.y=yaw;
   const lean=(forestV2Hash(descriptor.seed,descriptor.variant,908,spec.canopyRadiusTiles)-.5)*.045;
   forestV2Mesh(grp,forestV2Geometry('trunk'),mats.trunk,{y:h*.50,sx:r,sy:h,sz:r,rz:lean,shadow:castShadow,mobileFarKeep:true});
+  const crownR=wt(spec.canopyRadiusTiles*scale*worldTreeScale.canopy);
+  if(MOBILE_FOREST_LOW_POLY){
+    // Móvil: 1 tronco + 2 masas de copa. Se conserva especie, tamaño, color y silueta general,
+    // pero se evita que un árbol individual cueste 8-20 draw calls.
+    if(['pine','pine-highland','conifer','fir'].includes(spec.form)){
+      forestV2Mesh(grp,forestV2Geometry('cone'),mats.leafA,{y:h*.72,sx:crownR*.94,sy:h*.36,sz:crownR*.94,ry:yaw*.13,shadow:false,mobileFarKeep:true});
+      forestV2Mesh(grp,forestV2Geometry('cone'),mats.leafB,{y:h*.88,sx:crownR*.62,sy:h*.27,sz:crownR*.62,ry:yaw*.13+.41,shadow:false,mobileFarKeep:true});
+    }else{
+      forestV2Mesh(grp,forestV2Geometry('crown'),mats.leafA,{x:-crownR*.16,y:h*.80,z:0,sx:crownR*.88,sy:crownR*.72,sz:crownR*.88,ry:yaw*.21,shadow:false,mobileFarKeep:true});
+      forestV2Mesh(grp,forestV2Geometry('crown'),mats.leafB,{x:crownR*.22,y:h*.89,z:crownR*.08,sx:crownR*.68,sy:crownR*.60,sz:crownR*.68,ry:yaw*.21+.46,shadow:false,mobileFarKeep:true});
+    }
+    grp.userData.forestTreeV2=true;grp.userData.treeSpecies=spec.id;grp.userData.forestType=descriptor.forestType;grp.userData.treeRarity=spec.rarity||'common';
+    grp.userData.treeHarvestVisual=Object.freeze({schemaVersion:'forest-tree-harvest-visual-v2',speciesId:spec.id,stumpVariant:`${spec.id}-stump`,logVariant:`${spec.id}-log`,trunkRadiusTiles:spec.trunkRadiusTiles*worldTreeScale.trunk,heightTiles:spec.heightTiles*worldTreeScale.height,sourceTrunkRadiusTiles:spec.trunkRadiusTiles,sourceHeightTiles:spec.heightTiles});
+    return {heightWorld:h,canopyRadiusWorld:crownR,canopyRadiusTiles:spec.canopyRadiusTiles,trunkRadiusTiles:spec.trunkRadiusTiles};
+  }
+
   forestV2Mesh(grp,forestV2Geometry('root'),mats.trunkDark,{y:wt(.12)*scale*worldTreeScale.trunk,sx:r*1.55,sy:wt(.27)*scale*worldTreeScale.trunk,sz:r*1.55,ry:.18+descriptor.variant*.33,shadow:castShadow,mobileFarKeep:true});
-  const crownR=wt(spec.canopyRadiusTiles*scale*worldTreeScale.canopy);let mobileFarCrownCount=0;
+  let mobileFarCrownCount=0;
   const crown=(x,y,z,s,alt=false,stretchY=1,mat=null)=>forestV2Mesh(grp,forestV2Geometry('crown'),mat||(alt?mats.leafB:mats.leafA),{x:crownR*x,y:h*y,z:crownR*z,sx:crownR*s,sy:crownR*s*stretchY,sz:crownR*s,ry:yaw*.21+x,shadow:castShadow,mobileFarKeep:mobileFarCrownCount++<2});
   const branch=(x,y,z,len,thick,rz,ry=0,rx=0,mat=mats.trunk)=>forestV2Mesh(grp,forestV2Geometry('branch'),mat,{x,y,z,sx:thick,sy:len,sz:thick,rz,ry,rx,shadow:castShadow});
   if(spec.form==='pine'||spec.form==='pine-highland'||spec.form==='conifer'||spec.form==='fir'){
@@ -14589,17 +14606,22 @@ function paperForestSaplingV3(g,id,x,z,scale=1,rot=0,{profileId='mixed-floor',se
 }
 function paperForestFernV3(g,x,z,scale=1,rot=0,{profileId='mixed-floor',moisture=.5}={}){
   const grp=forestFloorV3Group(g,x,z,'fern',rot),green=moisture>.70?0x3f7551:0x55744d,mid=moisture>.70?0x5a8c5b:0x66845b,stem=forestFloorV3Mat('fern-stem',0x3f6246,{basic:true}),leafMats=[forestFloorV3Mat('fern-a',green,{basic:true,transparent:true,opacity:.94}),forestFloorV3Mat('fern-b',mid,{basic:true,transparent:true,opacity:.94})];
-  const arms=4+Math.round(scale*2);for(let arm=0;arm<arms;arm++){const a=arm*Math.PI*2/arms+.25,len=wt(.46+.22*(arm%3))*scale;const s=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.branch,stem);s.scale.set(wt(.016),len,wt(.016));s.rotation.z=Math.PI/2-.28;s.rotation.y=a;s.position.set(Math.cos(a)*len*.18,len*.24,Math.sin(a)*len*.18);grp.add(s);for(let i=1;i<=5;i++){const t=i/6,side=i%2?1:-1,l=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.leaf,leafMats[(i+arm)&1]);l.scale.set(wt(.12)*scale,wt(.040)*scale,1);l.rotation.x=-Math.PI/2;l.rotation.z=a+side*.72;l.position.set(Math.cos(a)*len*t-Math.sin(a)*side*wt(.08)*scale,.03+i*.025*scale,Math.sin(a)*len*t+Math.cos(a)*side*wt(.08)*scale);grp.add(l);}}
+  if(MOBILE_FOREST_LOW_POLY){
+    for(let i=0;i<2;i++){const l=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.leaf,leafMats[i]);l.scale.set(wt(.66)*scale,wt(.26)*scale,1);l.rotation.x=-Math.PI/2;l.rotation.z=i*Math.PI/2+.35;l.position.y=.035;grp.add(l);}
+  }else{
+    const arms=4+Math.round(scale*2);for(let arm=0;arm<arms;arm++){const a=arm*Math.PI*2/arms+.25,len=wt(.46+.22*(arm%3))*scale;const s=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.branch,stem);s.scale.set(wt(.016),len,wt(.016));s.rotation.z=Math.PI/2-.28;s.rotation.y=a;s.position.set(Math.cos(a)*len*.18,len*.24,Math.sin(a)*len*.18);grp.add(s);for(let i=1;i<=5;i++){const t=i/6,side=i%2?1:-1,l=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.leaf,leafMats[(i+arm)&1]);l.scale.set(wt(.12)*scale,wt(.040)*scale,1);l.rotation.x=-Math.PI/2;l.rotation.z=a+side*.72;l.position.set(Math.cos(a)*len*t-Math.sin(a)*side*wt(.08)*scale,.03+i*.025*scale,Math.sin(a)*len*t+Math.cos(a)*side*wt(.08)*scale);grp.add(l);}}
+  }
   forestFloorV3Record('fern',profileId);return grp;
 }
 function paperForestMossV3(g,x,z,scale=1,rot=0,{profileId='mixed-floor',moisture=.5}={}){
   const grp=forestFloorV3Group(g,x,z,'moss',rot),matA=forestFloorV3Mat('moss-floor-a',moisture>.72?0x435f3d:0x59694a,{basic:true,transparent:true,opacity:.56}),matB=forestFloorV3Mat('moss-floor-b',0x71805b,{basic:true,transparent:true,opacity:.34});
-  for(const [ox,oz,sx,sz,m] of [[0,0,1,.62,matA],[.18,-.10,.58,.42,matB],[-.20,.12,.46,.36,matA]]){const p=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.floor,m);p.rotation.x=-Math.PI/2;p.scale.set(wt(.74*sx)*scale,wt(.74*sz)*scale,1);p.position.set(wt(ox)*scale,.022,wt(oz)*scale);p.renderOrder=-10;grp.add(p);}forestFloorV3Record('moss',profileId);return grp;
+  const patches=MOBILE_FOREST_LOW_POLY?[[0,0,1,.62,matA]]:[[0,0,1,.62,matA],[.18,-.10,.58,.42,matB],[-.20,.12,.46,.36,matA]];for(const [ox,oz,sx,sz,m] of patches){const p=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.floor,m);p.rotation.x=-Math.PI/2;p.scale.set(wt(.74*sx)*scale,wt(.74*sz)*scale,1);p.position.set(wt(ox)*scale,.022,wt(oz)*scale);p.renderOrder=-10;grp.add(p);}forestFloorV3Record('moss',profileId);return grp;
 }
 function paperForestDebrisV3(g,x,z,scale=1,rot=0,{profileId='mixed-floor',conifer=false,seed=1}={}){
   const grp=forestFloorV3Group(g,x,z,'debris',rot),twigMat=forestFloorV3Mat('debris-twig',0x58412f),leafMat=forestFloorV3Mat('debris-leaf',conifer?0x594d32:0x72573c,{basic:true,transparent:true,opacity:.78});
-  for(let i=0;i<5;i++){const a=forestFloorV3Hash(i,x+z,3131,seed)*Math.PI*2,len=wt(.18+.28*forestFloorV3Hash(i,z,3132,seed))*scale;const t=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.branch,twigMat);t.scale.set(wt(.014)*scale,len,wt(.014)*scale);t.rotation.z=Math.PI/2;t.rotation.y=a;t.position.set((forestFloorV3Hash(i,x,3133,seed)-.5)*wt(.7)*scale,.025,(forestFloorV3Hash(i,z,3134,seed)-.5)*wt(.7)*scale);grp.add(t);}
-  for(let i=0;i<6;i++){const l=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.leaf,leafMat);l.scale.set(wt(conifer?.15:.20)*scale,wt(conifer?.025:.055)*scale,1);l.rotation.x=-Math.PI/2;l.rotation.z=forestFloorV3Hash(i,x,3135,seed)*Math.PI;l.position.set((forestFloorV3Hash(i,z,3136,seed)-.5)*wt(.8)*scale,.018,(forestFloorV3Hash(i,x+z,3137,seed)-.5)*wt(.8)*scale);grp.add(l);}forestFloorV3Record('debris',profileId);return grp;
+  const twigCount=MOBILE_FOREST_LOW_POLY?1:5,leafCount=MOBILE_FOREST_LOW_POLY?1:6;
+  for(let i=0;i<twigCount;i++){const a=forestFloorV3Hash(i,x+z,3131,seed)*Math.PI*2,len=wt(MOBILE_FOREST_LOW_POLY?.52:(.18+.28*forestFloorV3Hash(i,z,3132,seed)))*scale;const t=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.branch,twigMat);t.scale.set(wt(.014)*scale,len,wt(.014)*scale);t.rotation.z=Math.PI/2;t.rotation.y=a;t.position.set((forestFloorV3Hash(i,x,3133,seed)-.5)*wt(.7)*scale,.025,(forestFloorV3Hash(i,z,3134,seed)-.5)*wt(.7)*scale);grp.add(t);}
+  for(let i=0;i<leafCount;i++){const l=new THREE.Mesh(FOREST_FLOOR_V3_GEOMETRY.leaf,leafMat);l.scale.set(wt(conifer?.15:.20)*scale*(MOBILE_FOREST_LOW_POLY?2.2:1),wt(conifer?.025:.055)*scale*(MOBILE_FOREST_LOW_POLY?2.0:1),1);l.rotation.x=-Math.PI/2;l.rotation.z=forestFloorV3Hash(i,x,3135,seed)*Math.PI;l.position.set((forestFloorV3Hash(i,z,3136,seed)-.5)*wt(.8)*scale,.018,(forestFloorV3Hash(i,x+z,3137,seed)-.5)*wt(.8)*scale);grp.add(l);}forestFloorV3Record('debris',profileId);return grp;
 }
 function paperForestMicroreliefV3(g,x,z,scale=1,rot=0,{profileId='mixed-floor',moisture=.5,seed=1}={}){
   const grp=forestFloorV3Group(g,x,z,'microrelief',rot),mound=forestFloorV3Hash(x,z,3141,seed)>.36,soil=forestFloorV3Mat('micro-soil',moisture>.66?0x4f4a37:0x675438),rim=forestFloorV3Mat('micro-rim',0x536b43,{basic:true,transparent:true,opacity:.48});
@@ -14815,12 +14837,12 @@ function buildOverworldSector(){
     const grp=new THREE.Group();const treeBaseY=formalGroundYAtWorld(wt(x),wt(z),currentWorldLayer);grp.position.set(wt(x),treeBaseY,wt(z));grp.userData.stressStreamCandidate='tree';g.add(grp);
     const metrics=buildForestV2TreeVisual(grp,treeDescriptor,{scale,castShadow});
     const shadeDensity=zoneClamp(.45+((treeDescriptor.environment?.canopy||0)*.30)+((treeDescriptor.environment?.forestDepth||0)*.42),.38,1);
-    addForestCanopyShade(grp,0,0,0,metrics.canopyRadiusWorld*.92,shadeDensity,treeDescriptor.yaw*.25);
+    if(!MOBILE_FOREST_LOW_POLY)addForestCanopyShade(grp,0,0,0,metrics.canopyRadiusWorld*.92,shadeDensity,treeDescriptor.yaw*.25);
     const floorProfile=forestFloorV3Profile(activeProceduralZone?.region),treeEnv=treeDescriptor.environment||{};
     const rootChance=zoneClamp(floorProfile.root*(.55+(treeDescriptor.maturity||1)*.36+(treeDescriptor.species.trunkRadiusTiles||.2)*.72),0,.62);
-    if(forestFloorV3Hash(x,z,3301,procSector?.seed||0)<rootChance)addForestRootFlareV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3301});
+    if(!MOBILE_FOREST_LOW_POLY&&forestFloorV3Hash(x,z,3301,procSector?.seed||0)<rootChance)addForestRootFlareV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3301});
     const vineChance=zoneClamp(floorProfile.vine*(.20+(treeEnv.moisture||0)*.62+(treeEnv.forestDepth||0)*.76),0,.52);
-    if(vineChance>0&&forestFloorV3Hash(x,z,3302,procSector?.seed||0)<vineChance)addForestVinesToTreeV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3302});
+    if(!MOBILE_FOREST_LOW_POLY&&vineChance>0&&forestFloorV3Hash(x,z,3302,procSector?.seed||0)<vineChance)addForestVinesToTreeV3(grp,treeDescriptor,metrics,{scale,seed:(procSector?.seed||0)+3302});
     // El footprint físico se conserva deliberadamente para no alterar navegación mientras
     // preparamos los futuros assets de stump/log/cosecha.
     const trunkDiameterTiles=Math.max(.60,treeDescriptor.species.trunkRadiusTiles*2*treeScaleStd.trunk*treeScaleStd.colliderPadding)*scale;
@@ -15997,7 +16019,7 @@ const ForestStressRuntime={
   chunks:new Map(),candidates:[],streamColliders:[],panel:null,metricsEl:null,
   fullChunks:0,farChunks:0,offChunks:0,visibleProps:0,totalProps:0,
   fpsEMA:60,msEMA:16.67,restoredForOff:false,buildMs:0,stressUnitIds:[],
-  capture:{active:false,start:0,durationMs:30000,samples:[],maxVisibleProps:0,maxActiveUnits:0,lastResult:null}
+  capture:{active:false,start:0,durationMs:30000,samples:[],drawSamples:[],triSamples:[],maxVisibleProps:0,maxActiveUnits:0,lastResult:null}
 };
 const _stressFrustum=new THREE.Frustum(),_stressProj=new THREE.Matrix4(),_stressSphere=new THREE.Sphere(),_stressForward=new THREE.Vector3(),_stressTargetForward=new THREE.Vector3(),_stressToChunk=new THREE.Vector3(),_stressWorldPos=new THREE.Vector3();
 function forestStressDetectMobileDevice(){return DISPLAY_DEVICE_MOBILE}
@@ -16113,7 +16135,7 @@ function forestStressRecordFrame(frameMs,now=performance.now()){
   updateAdaptiveDisplayPerformance(now);
   const cap=ForestStressRuntime.capture;
   if(cap.active){
-    cap.samples.push(ms);cap.maxVisibleProps=Math.max(cap.maxVisibleProps,ForestStressRuntime.visibleProps);
+    cap.samples.push(ms);cap.drawSamples.push(renderer.info.render.calls);cap.triSamples.push(renderer.info.render.triangles);cap.maxVisibleProps=Math.max(cap.maxVisibleProps,ForestStressRuntime.visibleProps);
     cap.maxActiveUnits=Math.max(cap.maxActiveUnits,activeUnits().length);
     if(now-cap.start>=cap.durationMs)forestStressFinishCapture(now);
   }
@@ -16121,16 +16143,19 @@ function forestStressRecordFrame(frameMs,now=performance.now()){
   ForestStressRuntime.lastHud=now;forestStressRefreshPanel();
 }
 function forestStressStartCapture(seconds=30){
-  const cap=ForestStressRuntime.capture;cap.active=true;cap.start=performance.now();cap.durationMs=Math.max(5000,Number(seconds||30)*1000);cap.samples.length=0;cap.maxVisibleProps=0;cap.maxActiveUnits=0;cap.lastResult=null;forestStressRefreshPanel();
+  const cap=ForestStressRuntime.capture;cap.active=true;cap.start=performance.now();cap.durationMs=Math.max(5000,Number(seconds||30)*1000);cap.samples.length=0;cap.drawSamples.length=0;cap.triSamples.length=0;cap.maxVisibleProps=0;cap.maxActiveUnits=0;cap.lastResult=null;forestStressRefreshPanel();
 }
 function forestStressFinishCapture(now=performance.now()){
   const cap=ForestStressRuntime.capture;if(!cap.active)return null;cap.active=false;
   const a=cap.samples.slice().sort((x,y)=>x-y),n=a.length;
-  if(!n)return null;
-  const sum=a.reduce((q,v)=>q+v,0),avg=sum/n,p95=a[Math.min(n-1,Math.floor(n*.95))],p99=a[Math.min(n-1,Math.floor(n*.99))];
-  const worstCount=Math.max(1,Math.ceil(n*.01)),worst=a.slice(-worstCount),worstAvg=worst.reduce((q,v)=>q+v,0)/worst.length;
-  const over16=a.filter(v=>v>16.67).length/n,over33=a.filter(v=>v>33.33).length/n;
-  cap.lastResult={seconds:(now-cap.start)/1000,frames:n,avgMs:avg,p95Ms:p95,p99Ms:p99,avgFps:1000/avg,low1Fps:1000/worstAvg,over16Pct:over16*100,over33Pct:over33*100,maxVisibleProps:cap.maxVisibleProps,maxActiveUnits:cap.maxActiveUnits};
+  const pct=q=>n?a[Math.min(n-1,Math.max(0,Math.floor((n-1)*q)))]:0;
+  const avg=n?cap.samples.reduce((x,y)=>x+y,0)/n:0;
+  const over16=n?cap.samples.filter(x=>x>16.7).length/n*100:0,over33=n?cap.samples.filter(x=>x>33.3).length/n*100:0;
+  const drawAvg=cap.drawSamples.length?cap.drawSamples.reduce((x,y)=>x+y,0)/cap.drawSamples.length:0;
+  const drawMax=cap.drawSamples.length?Math.max(...cap.drawSamples):0;
+  const triAvg=cap.triSamples.length?cap.triSamples.reduce((x,y)=>x+y,0)/cap.triSamples.length:0;
+  const triMax=cap.triSamples.length?Math.max(...cap.triSamples):0;
+  cap.lastResult={durationMs:now-cap.start,frames:n,avgMs:avg,p95Ms:pct(.95),p99Ms:pct(.99),low1Fps:pct(.99)>0?1000/pct(.99):0,over16Pct:over16,over33Pct:over33,maxVisibleProps:cap.maxVisibleProps,maxActiveUnits:cap.maxActiveUnits,drawAvg,drawMax,triAvg,triMax,pixelRatio:renderer.getPixelRatio(),adaptiveScale:DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale,finishedAt:Date.now()};
   forestStressRefreshPanel();return cap.lastResult;
 }
 function forestStressRefreshPanel(){
@@ -16158,7 +16183,8 @@ function forestStressRefreshPanel(){
     `Units active ${activeUnitCount} · stress visible ${stressUnits}/${ForestStressRuntime.stressUnitIds.length}`,
     `budget ${p.fullFt}ft full · ${p.farFt}ft far · streaming ${ForestStressRuntime.streaming?'ON':'OFF'} · yaw ${ForestStressRuntime.cameraQuarter*90}°`,
     captureLine,
-    result?`>16.7ms ${result.over16Pct.toFixed(1)}% · >33.3ms ${result.over33Pct.toFixed(1)}% · p99 ${result.p99Ms.toFixed(2)}ms`:''
+    result?`>16.7ms ${result.over16Pct.toFixed(1)}% · >33.3ms ${result.over33Pct.toFixed(1)}% · p99 ${result.p99Ms.toFixed(2)}ms`,
+    result?`capture draw avg ${result.drawAvg.toFixed(0)} max ${result.drawMax} · tris avg ${Math.round(result.triAvg).toLocaleString()} max ${Math.round(result.triMax).toLocaleString()} · DPR ${result.pixelRatio.toFixed(2)}`:'':''
   ].filter(Boolean).join('\n');
 }
 function forestStressButton(label,fn){
