@@ -8,9 +8,9 @@ const { pathToFileURL } = require('node:url');
   const registry = globalThis.LuminousItemIconRegistry;
 
   assert.ok(registry);
-  assert.equal(registry.VERSION, 21);
+  assert.equal(registry.VERSION, 22);
   assert.equal(registry.DEFAULT_GROUP, 'generic_item');
-  assert.equal(Object.keys(registry.GROUPS).length, 264);
+  assert.equal(Object.keys(registry.GROUPS).length, 296);
 
   const groups = registry.list();
   assert.equal(new Set(groups.map((entry) => entry.id)).size, groups.length);
@@ -93,6 +93,47 @@ const { pathToFileURL } = require('node:url');
   for (const [id, icon] of Object.entries(throwableIcons)) {
     assert.equal(registry.has(id), true, id);
     assert.equal(registry.resolveIcon(id), icon, id);
+  }
+
+
+  const rawMineralIcons = {
+    mineral_industrial_stone:'https://imgur.com/QEcF2I8.png',
+    mineral_clay:'https://imgur.com/Q8oQ8XT.png',
+    mineral_coal:'https://imgur.com/ZM4YHZ2.png',
+    ore_lead:'https://imgur.com/UYRP184.png',
+    ore_iron:'https://imgur.com/MzKGltz.png',
+    ore_bauxite:'https://imgur.com/DmflUeS.png',
+    ore_zinc:'https://imgur.com/j0EvmuY.png',
+    ore_tin:'https://imgur.com/W0dOmcU.png',
+    ore_copper:'https://imgur.com/kPTyCDg.png',
+    mineral_graphite:'https://imgur.com/zMf9RbE.png',
+    ore_manganese:'https://imgur.com/YztCEMj.png',
+    mineral_obsidian:'https://imgur.com/pm3WK5T.png',
+    mineral_quartz:'https://imgur.com/CML9Dvs.png',
+    ore_nickel:'https://imgur.com/S6AQ4JM.png',
+    ore_chromium:'https://imgur.com/Ejbzsa9.png',
+    ore_lithium:'https://imgur.com/c2hQYqV.png',
+    ore_molybdenum:'https://imgur.com/c2hQYqV.png',
+    ore_vanadium:'https://imgur.com/iD7CMiH.png',
+    ore_cobalt:'https://imgur.com/vfVRYEn.png',
+    ore_silver:'https://imgur.com/RxONKgZ.png',
+    ore_tungsten:'https://imgur.com/aN8XBec.png',
+    ore_titanium:'https://imgur.com/LIbBUrZ.png',
+    ore_gold:'https://imgur.com/P17ca99.png',
+    ore_niobium:'https://imgur.com/qwSqCmC.png',
+    ore_tantalum:'https://imgur.com/Kuv8fOJ.png',
+    mineral_rare_earth:'https://imgur.com/XmtMl7M.png',
+    ore_uranium:'https://imgur.com/bDNbQa1.png',
+    mineral_superconductive:'https://imgur.com/8pfzSsf.png',
+    ore_metamaterial:'https://imgur.com/qZYddIy.png',
+    mineral_null_dampening:'https://imgur.com/JVX6zYd.png',
+    mineral_exotic_industrial:'https://imgur.com/pmHRWNP.png',
+    ore_platinum:'https://imgur.com/QBXnv0H.png'
+  };
+  for (const [id, icon] of Object.entries(rawMineralIcons)) {
+    assert.equal(registry.has(id), true, id);
+    assert.equal(registry.resolveIcon(id), icon, id);
+    assert.equal(registry.get(id).domain, 'material');
   }
 
   const medicalIcons = {
