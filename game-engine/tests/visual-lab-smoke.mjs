@@ -9,7 +9,7 @@ const [index, main, game, inventoryRuntime, itemBridge] = await Promise.all([
   readFile(new URL("../src/bridges/luminous/LuminousItemsBridge.js", import.meta.url), "utf8")
 ]);
 
-assert.match(index, /forest-0\.3\.3\.1\.html/);
+assert.match(index, /forest-0\.3\.3\.1\.html\?map=swampLab/);
 assert.match(index, /id="gameFrame"/);
 assert.match(index, /id="openInventory"/);
 assert.match(index, /id="openShop"/);
@@ -62,6 +62,10 @@ assert.match(game, /https\?:\|data:\|blob:/);
 assert.match(game, /FOREST_STRESS_DEVICE_MOBILE/);
 assert.match(game, /navigator\.userAgentData/);
 assert.match(game, /deviceMobile/);
+assert.match(game, /mobileLandscape/);
+assert.match(game, /displayPixelRatioCap/);
+assert.match(game, /LuminousDisplayPerformance/);
+assert.match(game, /DISPLAY_SHADOW_SIZE=DISPLAY_DEVICE_MOBILE\?512:1024/);
 assert.match(game, /Forest Floor Ecology/);
 
 assert.match(inventoryRuntime, /function insertItem\(/);
