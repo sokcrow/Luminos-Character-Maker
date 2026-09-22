@@ -39,6 +39,14 @@ export class LuminousItemsBridge {
     return this.inventory.createItemInstance(definitionOrId, options);
   }
 
+  insert(player, definitionOrInstance, options = {}) {
+    if (!this.inventory?.insertItem) throw new Error("Luminous Item Inventory insertion API is not loaded");
+    const container = options.container === "stash" ? "stash" : "active";
+    const result = this.inventory.insertItem(player, definitionOrInstance, container, options);
+    this.engine?.events.emit("items:inserted", { container, result });
+    return result;
+  }
+
   snapshot(player, options = {}) {
     if (!this.inventory?.inventorySnapshot) throw new Error("Luminous Item Inventory Runtime is not loaded");
     return this.inventory.inventorySnapshot(player, options);
