@@ -16388,15 +16388,14 @@ function viewportCameraProfile(){
   const portraitTarget=.5625; // 9:16
 
   if(displayLandscapeMobile()){
-    // Móvil horizontal: el aspect 16:9/ultrawide abre muchísimo el campo horizontal.
-    // Para aproximar la sensación de retrato no basta mover la cámara: también cerramos
-    // el FOV vertical, que reduce de verdad la anchura de mundo visible en landscape.
+    // Móvil horizontal: encuadre deliberadamente MUY cercano para compensar el ancho 16:9.
+    // Esta pasada reduce 56% la distancia respecto al perfil horizontal anterior.
     return {
-      distance:.50,
-      height:.62,
-      fovBias:-10.5,
-      deadZone:.66,
-      lookAhead:.56
+      distance:.22,
+      height:.42,
+      fovBias:-12.5,
+      deadZone:.56,
+      lookAhead:.38
     };
   }
 
