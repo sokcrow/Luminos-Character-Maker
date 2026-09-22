@@ -43,6 +43,8 @@ button{font:800 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spa
 .lab-icon-action img{width:16px;height:16px;object-fit:contain;display:block}
 .lab-actions button:hover,.lab-debug button:hover{border-color:var(--amber);color:#fff2c8;background:#24190d}
 .lab-stage{position:absolute;left:0;right:0;top:58px;bottom:0;background:#000}
+.lab-stage:fullscreen{inset:0;top:0;width:100vw;height:100vh;background:#000}
+.lab-stage:fullscreen .lab-game-frame{width:100vw;height:100vh}
 .lab-game-frame{display:block;width:100%;height:100%;border:0;background:#090807}
 .lab-loading{
   position:absolute;inset:0;z-index:8;display:grid;place-content:center;gap:8px;text-align:center;
@@ -98,14 +100,16 @@ pre{
   .lab-stat b{font-size:8px}
   .lab-actions{gap:4px}
   .lab-actions button{padding:8px 7px;font-size:9px}
-  #fullscreenGame{display:none}
-  .lab-debug{width:100%;border-left:0}
+  #fullscreenGame{display:inline-flex;align-items:center;justify-content:center}
+    .lab-debug{width:100%;border-left:0}
   .lab-hud{bottom:max(6px,env(safe-area-inset-bottom));right:8px}
 }
 @media(max-width:520px){
   .lab-brand strong{font-size:12px}
   .lab-stat-strip{display:none}
   .lab-actions button{padding:8px 6px;font-size:8px}
+  #fullscreenGame{font-size:0;width:34px;padding:8px 6px}
+  #fullscreenGame::before{content:"↔";font-size:15px}
   .lab-actions #grantHerb{max-width:88px}
   .lab-debug-grid{grid-template-columns:1fr 1fr}
 }
