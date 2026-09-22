@@ -921,6 +921,16 @@ function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFOR
 function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
 
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);
+const CAMERA_VISIBILITY_REFERENCE_ASPECT=16/9;
+const LOCAL_CAMERA_FIXED_PROFILE=Object.freeze({distance:.60,height:.72,fovBias:-3.25,deadZone:.72,lookAhead:.62});
+function cameraFixedVisibilityFov(baseFov,cam=camera){
+  const base=Math.max(10,Number(baseFov)||40);
+  const aspect=Math.max(.35,Number(cam?.aspect)||innerWidth/Math.max(1,innerHeight));
+  if(aspect<=CAMERA_VISIBILITY_REFERENCE_ASPECT)return base;
+  const v=THREE.MathUtils.degToRad(base);
+  const h=2*Math.atan(Math.tan(v/2)*CAMERA_VISIBILITY_REFERENCE_ASPECT);
+  return THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(h/2)/aspect));
+}
 const renderer=new THREE.WebGLRenderer({antialias:!DISPLAY_DEVICE_MOBILE,powerPreference:'high-performance'});
 renderer.setPixelRatio(displayPixelRatio());
 renderer.setSize(innerWidth,innerHeight);
@@ -2122,9 +2132,11 @@ function commitGlobalRegion(region,beforePos){
 }
 function updateGlobalCamera(dt,snap=false){
   if(!globalCamera||!globalActor)return;
-  const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.55);
-  const desired=new THREE.Vector3(target.x,12.4,target.z-14.8);
-  if(snap)globalCamera.position.copy(desired);else globalCamera.position.lerp(desired,1-Math.exp(-dt*4.2));
+  const target=_globalVec.set(globalActor.position.x,.45,globalActor.position.z+.40);
+  const desired=new THREE.Vector3(target.x,8.6,target.z-10.2);
+  globalCamera.fov=cameraFixedVisibilityFov(38,globalCamera);
+  globalCamera.updateProjectionMatrix();
+  if(snap)globalCamera.position.copy(desired);else globalCamera.position.lerp(desired,1-Math.exp(-dt*4.8));
   globalCamera.lookAt(target);faceGlobalBillboardUpright(globalActorBillboard);
 }
 function updateGlobalMap(dt){
@@ -16007,9 +16019,9 @@ const faded=new Set();
 // presupuesto de cámara. El cono objetivo precarga el giro de 90° antes de verlo.
 // ============================================================
 const FOREST_STRESS_PROFILES=Object.freeze({
-  mobile:Object.freeze({label:'MÓVIL',fullFt:100,farFt:160,safetyFt:45,colliderFt:82,preloadCos:.42,updateFrames:4}),
-  mobileLandscape:Object.freeze({label:'MÓVIL HORIZONTAL',fullFt:58,farFt:92,safetyFt:28,colliderFt:58,preloadCos:.68,updateFrames:8}),
-  desktop:Object.freeze({label:'DESKTOP',fullFt:140,farFt:220,safetyFt:55,colliderFt:115,preloadCos:.30,updateFrames:2})
+  mobile:Object.freeze({label:'MÓVIL',fullFt:64,farFt:96,safetyFt:24,colliderFt:60,preloadCos:.72,updateFrames:5}),
+  mobileLandscape:Object.freeze({label:'MÓVIL HORIZONTAL',fullFt:64,farFt:96,safetyFt:24,colliderFt:60,preloadCos:.72,updateFrames:5}),
+  desktop:Object.freeze({label:'DESKTOP',fullFt:64,farFt:96,safetyFt:24,colliderFt:60,preloadCos:.72,updateFrames:3})
 });
 const ForestStressRuntime={
   enabled:FOREST_STRESS_BOOT.enabled,
@@ -16094,8 +16106,6 @@ function forestStressUpdateStreaming(now=performance.now(),force=false){
   camera.updateMatrixWorld(true);
   _stressProj.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
   _stressFrustum.setFromProjectionMatrix(_stressProj);
-  camera.getWorldDirection(_stressForward);_stressForward.y=0;if(_stressForward.lengthSq()>.0001)_stressForward.normalize();
-  _stressTargetForward.set(-Math.sin(ForestStressRuntime.targetYaw),0,Math.cos(ForestStressRuntime.targetYaw)).normalize();
   let full=0,far=0,off=0,visibleProps=0;
   const feetPerWorld=MAP_DATA.tile.feet/TILE;
   for(const ch of ForestStressRuntime.chunks.values()){
@@ -16104,12 +16114,11 @@ function forestStressUpdateStreaming(now=performance.now(),force=false){
     const playerFt=Math.hypot(dx,dz)*feetPerWorld;
     _stressSphere.center.copy(ch.center);_stressSphere.radius=ch.radius+wt(5.2);
     const inFrustum=_stressFrustum.intersectsSphere(_stressSphere);
-    _stressToChunk.set(ch.center.x-camera.position.x,0,ch.center.z-camera.position.z);
-    const len=_stressToChunk.length();if(len>.0001)_stressToChunk.multiplyScalar(1/len);
-    const inCurrentCone=_stressForward.dot(_stressToChunk)>=profile.preloadCos;
-    const inTargetCone=_stressTargetForward.dot(_stressToChunk)>=profile.preloadCos;
     const nearSafety=playerFt<=profile.safetyFt;
-    const eligible=nearSafety||inFrustum||inCurrentCone||inTargetCone;
+    // Carga local = frustum visible + una burbuja corta de seguridad alrededor del jugador.
+    // Ya no se precargan conos lejanos fuera de cámara sólo porque el viewport sea ancho
+    // o porque exista un giro futuro: eso mantiene el presupuesto ligado al punto de vista.
+    const eligible=nearSafety||inFrustum;
     let state='off';
     if(nearSafety||(eligible&&playerFt<=profile.fullFt))state='full';
     else if(eligible&&playerFt<=profile.farFt)state='far';
@@ -16378,49 +16387,13 @@ function resolveDataCameraZone(){
 }
 
 // ============================================================
-// 0.3.2-28 · CÁMARA CERCANA / PERSONAJE COMO FOCO PRINCIPAL
-// Desktop deja de conservar la distancia antigua: a 16:9 usa ~70% de la distancia base.
-// 9:16 se acerca un poco más para que ambos formatos rivalicen en tamaño de personaje.
-// Conservamos suficiente panorama evitando un FOV excesivamente cerrado.
+// 0.3.2-92 · CÁMARA LOCAL FIJA / VISIBILIDAD DE GAMEPLAY BLOQUEADA
+// Distancia, altura, dead-zone y look-ahead ya NO dependen del viewport ni de la
+// orientación. Las pantallas más anchas conservan el mismo ancho lógico visible de
+// referencia 16:9 mediante compensación de FOV; no reciben visión extra del mundo.
 // ============================================================
 function viewportCameraProfile(){
-  const aspect=Math.max(.35,Math.min(2.4,camera.aspect||innerWidth/Math.max(1,innerHeight)));
-  const portraitTarget=.5625; // 9:16
-
-  if(displayLandscapeMobile()){
-    // Móvil horizontal: encuadre deliberadamente MUY cercano para compensar el ancho 16:9.
-    // Esta pasada reduce 56% la distancia respecto al perfil horizontal anterior.
-    return {
-      distance:.22,
-      height:.42,
-      fovBias:-12.5,
-      deadZone:.56,
-      lookAhead:.38
-    };
-  }
-
-  if(aspect>=1){
-    // Desktop landscape conserva su composición propia.
-    const wide=THREE.MathUtils.clamp((aspect-(16/9))/((21/9)-(16/9)),0,1);
-    return {
-      distance:THREE.MathUtils.lerp(.70,.74,wide),
-      height:THREE.MathUtils.lerp(.80,.83,wide),
-      fovBias:THREE.MathUtils.lerp(-1.4,-.8,wide),
-      deadZone:.82,
-      lookAhead:.78
-    };
-  }
-
-  // Portrait: parte ya desde el encuadre cercano de desktop y se aproxima un poco más
-  // hasta 9:16. Así el personaje mantiene protagonismo en ambos formatos.
-  const portrait=THREE.MathUtils.clamp((1-aspect)/(1-portraitTarget),0,1);
-  return {
-    distance:THREE.MathUtils.lerp(.70,.63,portrait),
-    height:THREE.MathUtils.lerp(.80,.72,portrait),
-    fovBias:THREE.MathUtils.lerp(-1.4,-2.4,portrait),
-    deadZone:THREE.MathUtils.lerp(.82,.72,portrait),
-    lookAhead:THREE.MathUtils.lerp(.78,.64,portrait)
-  };
+  return LOCAL_CAMERA_FIXED_PROFILE;
 }
 
 function updateCamera(dt,snap=false){
@@ -16464,7 +16437,7 @@ function updateCamera(dt,snap=false){
 
   if(activeInteriorStage){
     const s=activeInteriorStage;
-    const targetFov=57+viewportCam.fovBias*.45;
+    const targetFov=cameraFixedVisibilityFov(57+viewportCam.fovBias*.45);
     camera.fov=snap?targetFov:THREE.MathUtils.lerp(camera.fov,targetFov,1-Math.exp(-dt*7.5));
     camera.updateProjectionMatrix();
     const vfov=camera.fov*Math.PI/180;
@@ -16488,7 +16461,7 @@ function updateCamera(dt,snap=false){
 
   if(mapId==='room'){
     // Frontal cutaway del núcleo 4×4: muestra profundidad y sección vertical sin isométrico.
-    const fov=52+viewportCam.fovBias*.35;
+    const fov=cameraFixedVisibilityFov(52+viewportCam.fovBias*.35);
     camera.fov=snap?fov:THREE.MathUtils.lerp(camera.fov,fov,1-Math.exp(-dt*8));
     camera.updateProjectionMatrix();
 
@@ -16509,7 +16482,7 @@ function updateCamera(dt,snap=false){
   if(!cameraAnchorReady){cameraAnchor.copy(focusPos);cameraAnchorReady=true;}
 
   if(indoor){
-    const targetFov=36+viewportCam.fovBias*.55;
+    const targetFov=cameraFixedVisibilityFov(36+viewportCam.fovBias*.55);
     camera.fov=snap?targetFov:THREE.MathUtils.lerp(camera.fov,targetFov,1-Math.exp(-dt*7.0));
     camera.updateProjectionMatrix();
 
@@ -16522,7 +16495,7 @@ function updateCamera(dt,snap=false){
     desiredCam.set(cameraAnchor.x+leadX*.50,(3.35*viewportCam.height)+focusPos.y*.62,wt(5.1*viewportCam.distance)+cameraAnchor.z*.24);
   }else{
     const zone=(mapId==='canal')?resolveCanalCameraZone():resolveDataCameraZone();
-    const targetFov=(zone?.fov||42)+viewportCam.fovBias;
+    const targetFov=cameraFixedVisibilityFov((zone?.fov||42)+viewportCam.fovBias);
     camera.fov=snap?targetFov:THREE.MathUtils.lerp(camera.fov,targetFov,1-Math.exp(-dt*5.3));
     camera.updateProjectionMatrix();
 
