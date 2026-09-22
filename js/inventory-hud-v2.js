@@ -438,7 +438,7 @@
   }
 
   function renderStashCount() {
-    const toolbar = doc.querySelector("#inv-stash .inventory-toolbar");
+    const toolbar = doc.querySelector("#inv-stash .inventory-toolbar") || doc.getElementById("inv-stash");
     if (!toolbar) return;
     let el = doc.getElementById("inventory-v2-stash-count");
     if (!el) {
