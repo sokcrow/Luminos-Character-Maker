@@ -373,16 +373,23 @@ function openGameInventory() {
   paper.open();
 }
 
-async function openGameShop() {
-  const shop = gameWindow()?.LuminousShop;
-  if (!shop?.open) {
-    log("game:shop-unavailable", {});
-    return;
+function goToRoadsideShop() {
+  const tests = gameWindow()?.DM_TEST;
+  if (!tests?.load) {
+    log("game:shop-location-unavailable", {});
+    return false;
   }
   try {
-    await shop.open("forest-roadside-store");
+    tests.load("swamp");
+    log("game:shop-location", {
+      map: "swampLab",
+      spawnTile: { x: 0.5, z: -6.5 },
+      merchantTile: { x: 4.5, z: -6.4 }
+    });
+    return true;
   } catch (error) {
-    log("game:shop-open-error", { message: error?.message || String(error) });
+    log("game:shop-location-error", { message: error?.message || String(error) });
+    return false;
   }
 }
 
@@ -414,7 +421,7 @@ function setDebug(open) {
   }));
 
 $("openInventory").addEventListener("click", openGameInventory);
-$("openShop").addEventListener("click", openGameShop);
+$("openShop").addEventListener("click", goToRoadsideShop);
 $("grantHerb").addEventListener("click", grantHerbFromDm);
 $("toggleDebug").addEventListener("click", () => setDebug(!$("debugDrawer").classList.contains("open")));
 $("closeDebug").addEventListener("click", () => setDebug(false));
