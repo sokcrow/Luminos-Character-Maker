@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luminous Game Engine Lab</title>
+  <link rel="stylesheet" href="./lab.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">PR 777 · LOCAL LAB</p>
+      <h1>Luminous Game Engine</h1>
+      <p>Primer slice: Player + Engine + DM Director + Item Runtime real.</p>
+    </header>
+
+    <section class="grid">
+      <article>
+        <h2>Runtime</h2>
+        <pre id="runtimeState">Cargando…</pre>
+        <div class="actions">
+          <button id="startEngine">Start Engine</button>
+          <button id="stopEngine">Stop Engine</button>
+          <button id="inspectPlayer">DM · Inspect Player</button>
+        </div>
+      </article>
+
+      <article>
+        <h2>Items</h2>
+        <p>El seed es sólo para el Lab. El siguiente paso será un canal de adquisición real (loot / shop / harvest).</p>
+        <div class="actions">
+          <button id="seedItem">Seed Test Item</button>
+          <button id="moveStash">Move First → Stash</button>
+          <button id="moveActive">Move First → Active</button>
+        </div>
+        <pre id="inventoryState"></pre>
+      </article>
+
+      <article>
+        <h2>DM Director</h2>
+        <div class="actions">
+          <button id="setFlag">Set lab_ready</button>
+        </div>
+        <pre id="dmState"></pre>
+      </article>
+
+      <article>
+        <h2>Event Log</h2>
+        <pre id="eventLog"></pre>
+      </article>
+    </section>
+  </main>
+
+  <script src="../../js/item-runtime-engine.js"></script>
+  <script src="../../js/item-inventory-runtime.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

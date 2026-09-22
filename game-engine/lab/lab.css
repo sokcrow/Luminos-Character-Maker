@@ -1,0 +1,11 @@
+:root{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#e8e2d5;background:#11100e}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#252016,#11100e 48%);min-height:100vh}
+main{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:36px 0 64px}
+header{margin-bottom:28px}.eyebrow{color:#d9a64c;font-weight:800;letter-spacing:.14em}h1{font:900 clamp(34px,6vw,72px)/.95 Impact,sans-serif;margin:.15em 0}h2{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+article{border:1px solid #4d4232;background:#171512e8;padding:18px;box-shadow:0 14px 36px #0007}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+button{border:1px solid #806331;background:#2a241b;color:#f4e5c7;padding:9px 12px;font:700 13px inherit;cursor:pointer}
+button:hover{background:#3b3020;border-color:#d9a64c}
+pre{white-space:pre-wrap;word-break:break-word;background:#0a0908;border:1px solid #30291f;padding:12px;min-height:96px;max-height:360px;overflow:auto;color:#cfd8c7}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
