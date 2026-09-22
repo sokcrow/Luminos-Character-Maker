@@ -21,10 +21,7 @@
       </div>
 
       <div class="lab-stat-strip" aria-label="Estadísticas del jugador">
-        <span class="lab-stat" title="HP">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13C1.9 10.2 2.3 5.7 5.6 3.9c2.2-1.2 4.8-.6 6.4 1.2 1.6-1.8 4.2-2.4 6.4-1.2 3.3 1.8 3.7 6.3.9 9.1z"/></svg>
-          <b id="hpStat">—</b>
-        </span>
+        <span class="lab-stat lab-stat-text" title="HP"><i>HP</i><b id="hpStat">—</b></span>
         <span class="lab-stat lab-stat-text" title="SP"><i>SP</i><b id="spStat">—</b></span>
         <span class="lab-stat" title="Offensive Level">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 2.2 22 3.4 10.2 15.2 8.8 13.8z" fill="currentColor"/><path d="M7.2 12.2 11.8 16.8M5.7 13.7 10.3 18.3M8 18l-4.3 4.3M2.8 21.2l1 1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -37,8 +34,8 @@
       </div>
 
       <nav class="lab-actions" aria-label="Controles del Lab">
-        <button id="openInventory" type="button">Inventario</button>
-        <button id="openShop" type="button">Tienda</button>
+        <button id="openInventory" class="lab-icon-action" type="button"><img src="../../Assets/Images/Buttons/Inventory.svg" alt="">Inventario</button>
+        <button id="openShop" class="lab-icon-action" type="button"><img src="../../Assets/Images/Buttons/Shop.svg" alt="">Tienda</button>
         <button id="grantHerb" type="button">DM · Dar hierba</button>
         <button id="fullscreenGame" type="button">Pantalla completa</button>
         <button id="toggleDebug" type="button" aria-expanded="false">Estado</button>
