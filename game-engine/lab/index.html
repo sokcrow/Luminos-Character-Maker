@@ -2,54 +2,95 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Luminous Game Engine Lab</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0907">
+  <title>Luminous Game Engine Lab · Forest 0.3.3.1</title>
   <link rel="stylesheet" href="./lab.css">
 </head>
 <body>
-  <main>
-    <header>
-      <p class="eyebrow">PR 777 · LOCAL LAB</p>
-      <h1>Luminous Game Engine</h1>
-      <p>Primer slice: Player + Engine + DM Director + Item Runtime real.</p>
+  <div id="labApp">
+    <header class="lab-topbar">
+      <div class="lab-brand">
+        <span class="lab-kicker">PR 777 · GAME ENGINE</span>
+        <strong>Luminous · Forest 0.3.3.1</strong>
+      </div>
+
+      <div class="lab-runtime-pill" id="runtimePill" title="Estado del Game Engine">
+        <span class="lab-dot" id="runtimeDot"></span>
+        <span id="runtimeLabel">Iniciando…</span>
+      </div>
+
+      <nav class="lab-actions" aria-label="Controles del Lab">
+        <button id="openInventory" type="button">Inventario</button>
+        <button id="grantHerb" type="button">DM · Dar hierba</button>
+        <button id="fullscreenGame" type="button">Pantalla completa</button>
+        <button id="toggleDebug" type="button" aria-expanded="false">Estado</button>
+      </nav>
     </header>
 
-    <section class="grid">
-      <article>
-        <h2>Runtime</h2>
-        <pre id="runtimeState">Cargando…</pre>
-        <div class="actions">
-          <button id="startEngine">Start Engine</button>
-          <button id="stopEngine">Stop Engine</button>
-          <button id="inspectPlayer">DM · Inspect Player</button>
-        </div>
-      </article>
+    <main class="lab-stage">
+      <iframe
+        id="gameFrame"
+        class="lab-game-frame"
+        src="./game/forest-0.3.3.1.html"
+        title="Luminous Forest 0.3.3.1"
+        allow="fullscreen"
+      ></iframe>
 
-      <article>
-        <h2>Items</h2>
-        <p>El seed es sólo para el Lab. El siguiente paso será un canal de adquisición real (loot / shop / harvest).</p>
-        <div class="actions">
-          <button id="seedItem">Seed Test Item</button>
-          <button id="moveStash">Move First → Stash</button>
-          <button id="moveActive">Move First → Active</button>
-        </div>
-        <pre id="inventoryState"></pre>
-      </article>
+      <div id="gameLoading" class="lab-loading">
+        <strong>Cargando Forest 0.3.3.1…</strong>
+        <span>Player + mundo + interfaz + puente de Items</span>
+      </div>
 
-      <article>
-        <h2>DM Director</h2>
-        <div class="actions">
-          <button id="setFlag">Set lab_ready</button>
-        </div>
-        <pre id="dmState"></pre>
-      </article>
+      <div class="lab-hud">
+        <span id="bridgeBadge" class="lab-badge waiting">Conectando juego…</span>
+        <span id="inventoryBadge" class="lab-badge">Inventario 0 · Stash 0</span>
+        <span id="walletBadge" class="lab-badge">₳0</span>
+      </div>
+    </main>
 
-      <article>
-        <h2>Event Log</h2>
-        <pre id="eventLog"></pre>
-      </article>
-    </section>
-  </main>
+    <aside id="debugDrawer" class="lab-debug" aria-hidden="true">
+      <header>
+        <div>
+          <span>GAME ENGINE STATUS</span>
+          <strong>Sesión local</strong>
+        </div>
+        <button id="closeDebug" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <section class="lab-debug-grid">
+        <article>
+          <span>ENGINE</span>
+          <strong id="engineSummary">—</strong>
+        </article>
+        <article>
+          <span>ITEM RUNTIME</span>
+          <strong id="itemSummary">—</strong>
+        </article>
+        <article>
+          <span>GAME BRIDGE</span>
+          <strong id="bridgeSummary">—</strong>
+        </article>
+        <article>
+          <span>PLAYER</span>
+          <strong id="playerSummary">—</strong>
+        </article>
+      </section>
+
+      <section class="lab-debug-section">
+        <div class="lab-debug-heading">
+          <strong>DM Director</strong>
+          <button id="inspectPlayer" type="button">Inspeccionar</button>
+        </div>
+        <pre id="dmState">Sin inspección.</pre>
+      </section>
+
+      <section class="lab-debug-section">
+        <strong>Eventos recientes</strong>
+        <pre id="eventLog">Esperando eventos…</pre>
+      </section>
+    </aside>
+  </div>
 
   <script src="../../js/item-runtime-engine.js"></script>
   <script src="../../js/item-inventory-runtime.js"></script>
