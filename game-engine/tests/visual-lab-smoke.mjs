@@ -12,8 +12,11 @@ const [index, main, game, inventoryRuntime, itemBridge] = await Promise.all([
   readFile(new URL("../src/bridges/luminous/LuminousItemsBridge.js", import.meta.url), "utf8")
 ]);
 
-assert.match(index, /src="\.\/game\/forest-0\.3\.3\.1\.html\?perf=forest"/);
+assert.match(index, /src="\.\/game\/forest-0\.3\.3\.1\.html"/);
+assert.doesNotMatch(index, /\?perf=forest/);
 assert.doesNotMatch(index, /\?map=swampLab/);
+assert.doesNotMatch(index, /id="debugDrawer"|id="toggleDebug"|GAME ENGINE STATUS|benchmark móvil/);
+assert.match(index, /Mapa hexagonal · exploración \+ inventario \+ Game Engine/);
 assert.match(index, /id="gameFrame"/);
 assert.match(index, /id="openInventory"/);
 assert.match(index, /id="fullscreenGame"/);
@@ -36,6 +39,7 @@ assert.match(main, /screen\.orientation/);
 assert.match(main, /lock\("landscape"\)/);
 assert.match(main, /fullscreenchange/);
 assert.match(main, /engine\.start\(\)/);
+assert.doesNotMatch(main, /debugDrawer|toggleDebug|eventLog|inspectPlayer|dmState/);
 
 assert.match(game, /item-icon-registry\.js/);
 assert.match(game, /item-catalog-plant-produce\.js/);
