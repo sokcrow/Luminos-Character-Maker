@@ -15,7 +15,7 @@
   const workshopRuntime = () => global.LuminousWorkshopRuntime || safeRequire("./workshop-runtime.js");
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
   const LEGACY_HUD_FIELDS = Object.freeze([
     "nombre", "name", "displayName", "tipo_categoria", "category", "itemType", "type",
     "tags", "tag", "keywords", "cantidad", "qty", "stack", "count",
@@ -24,6 +24,16 @@
     "weapon_details", "armor_details", "shield_details", "accessory_details", "consumable_details",
     "upgrade_details", "runtime", "function", "functions", "carga_actual", "carga_max", "carga_maxima",
     "vinculo_item", "vinculo_cantidad", "vinculo_stacks_max",
+    "stackable", "stackPolicy", "family", "group", "itemType", "quality",
+    "size", "sizeId", "lineageId", "lineageName", "culinaryProperties", "culinaryAffinities",
+    "culinaryAffinityProfileId", "affinityTarget", "affinityBranch", "processedForm", "processingMethod",
+    "processingMethodId", "processingTemplateId", "templateId", "recipeId", "dishFamily", "mealFocus",
+    "stars", "taste", "sp", "culinaryEffects", "freshness", "materialId", "materialIds", "materialChoices",
+    "composition", "combatGrade", "ammoGrade", "caliber", "ammoType", "projectileType", "payload",
+    "profile", "ammoProfile", "reinforced", "upgradeIds", "durability", "maxDurability", "available",
+    "spent", "destroyed", "sourceLine", "sourceInstanceId", "sourceEntityId", "originCreatureType",
+    "originCreatureId", "originRaceId", "originSubtypeId", "provenance", "unitValueAhn", "totalValueAhn",
+    "productionValueAhn", "productionValue", "retailValueAhn", "variantData",
   ]);
 
   function emit(name, detail) {
