@@ -11084,9 +11084,16 @@ function buildCanal(){
   });
   wallDisplayShelf(shopShell.contentGroup,cellCenter(4),7.85,0);
   wallDisplayShelf(shopShell.contentGroup,cellCenter(7),7.85,0);
+  makeCanonicalWorldItemDisplay(shopShell.contentGroup,'apple',5.45,cellCenter(6),{y:1.38,scale:.44});
+  makeCanonicalWorldItemDisplay(shopShell.contentGroup,'cartographers_tools',6.00,cellCenter(6),{y:1.38,scale:.48});
+  makeCanonicalWorldItemDisplay(shopShell.contentGroup,'repair_kit',6.55,cellCenter(6),{y:1.38,scale:.48});
   withColliderScope(shopShell,()=>makePaperNPC(shopShell.contentGroup,'aldeano',cellCenter(6),7.35,{
     name:'Tendero',radius:2.1,interiorStage:shopShell,
-    message:'La segunda planta está físicamente sobre el techo de esta tienda.'
+    message:'Puedes mirar lo que hay en el mostrador o preguntarme por el resto.',
+    options:[
+      {label:'Comprar',onSelect:()=>window.LuminousShop.open('canal-general-store')},
+      {label:'¿Qué vendes?',response:'Provisiones, herramientas y suministros para la gente del canal.'}
+    ]
   }));
   interactions.push({
     kind:'object',transitionType:'interior',layer:'exterior',label:'Entrar a la tienda',
