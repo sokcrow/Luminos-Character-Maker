@@ -8430,8 +8430,16 @@ const LUMINOUS_MAP_ICON_FALLBACKS=Object.freeze({
   medicinal_herb_raw:'https://i.imgur.com/FY3Sda7.png'
 });
 function luminousMapItem(itemId){
-  const external=window.LuminousPlantProduceCatalog?.get?.(itemId);
-  return external||LUMINOUS_MAP_ITEM_DEFS[String(itemId)]||null;
+  const id=String(itemId);
+  const catalogs=[
+    window.LuminousPlantProduceCatalog,
+    window.LuminousToolCatalog
+  ];
+  for(const catalog of catalogs){
+    const found=catalog?.get?.(id);
+    if(found)return found;
+  }
+  return LUMINOUS_MAP_ITEM_DEFS[id]||null;
 }
 function luminousMapItemIcon(itemOrId){
   const item=typeof itemOrId==='string'?luminousMapItem(itemOrId):itemOrId;
