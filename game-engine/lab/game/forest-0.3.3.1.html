@@ -915,7 +915,7 @@ function displayDetectMobileDevice(){
 const DISPLAY_DEVICE_MOBILE=displayDetectMobileDevice();
 const DISPLAY_PERFORMANCE_RUNTIME={adaptiveScale:1,lastAdjust:0,lowStreak:0,highStreak:0,targetFps:45,minFps:40,minScale:.68};
 function displayLandscapeMobile(){return DISPLAY_DEVICE_MOBILE&&innerWidth>innerHeight}
-function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?.80:1.25):1.5}
+function displayBasePixelRatioCap(){return DISPLAY_DEVICE_MOBILE?(displayLandscapeMobile()?0.80:1.25):1.5}
 function displayPixelRatioCap(){return displayBasePixelRatioCap()*DISPLAY_PERFORMANCE_RUNTIME.adaptiveScale}
 function displayPixelRatio(){return Math.min(Number(devicePixelRatio)||1,displayPixelRatioCap())}
 
