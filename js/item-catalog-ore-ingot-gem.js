@@ -6,13 +6,14 @@
     return;
   }
 
-  const VERSION = 1;
+  const VERSION = 2;
   const FAMILY = "ore_ingot_gem";
   const CURRENCY = "AHN";
   const AHN_ECONOMY_SCALE = 2.5;
   const DEFAULT_QUALITY = "standard";
   const MATERIAL_UNIT = "material_unit";
   const MATERIAL_UNIT_ABBREVIATION = "MU";
+  const RAW_MINERAL_PRICING_MODEL = "ahn_material_unit_tiered_v2";
 
   function safeRequire(path) {
     if (typeof require !== "function") return null;
@@ -56,10 +57,10 @@
     });
   }
 
-  function rawMineral(id, name, standardUnitValueAhn, useTags = []) {
+  function rawMineral(id, name, standardUnitValueAhn, useTags = [], iconFamily = "ore_raw") {
     return material({
       id, name, materialNoun: name, form: "raw_mineral", materialClass: "mineral",
-      iconFamily: "ore_raw", standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
+      iconFamily: normalizeId(iconFamily || "ore_raw"), standardUnitValueAhn: Math.round(standardUnitValueAhn * AHN_ECONOMY_SCALE), measure: MATERIAL_UNIT, unitAbbreviation: MATERIAL_UNIT_ABBREVIATION,
       pieceBased: false, processed: false, rawCraftingReagent: true,
       sourceKinds: ["deposit", "creature_body"], useTags,
       tags: ["ingredient", "raw_mineral", "ore", "mining", "creature_mineral_harvest"],
@@ -96,37 +97,38 @@
   }
 
   const RAW_MINERALS = Object.freeze([
-    rawMineral("industrial_stone", "Industrial Stone", 4000, ["construction", "abrasive", "fabrication"]),
-    rawMineral("clay", "Clay", 5000, ["ceramic", "insulation", "fabrication"]),
-    rawMineral("coal", "Coal", 8000, ["fuel", "carbon", "metallurgy"]),
-    rawMineral("lead_ore", "Lead Ore", 10000, ["shielding", "ammunition", "industry"]),
-    rawMineral("iron_ore", "Iron Ore", 12000, ["weapons", "armor", "structure"]),
-    rawMineral("bauxite_aluminum_ore", "Bauxite / Aluminum Ore", 14000, ["light_structure", "armor", "industry"]),
-    rawMineral("zinc_ore", "Zinc Ore", 15000, ["alloying", "corrosion_protection"]),
-    rawMineral("tin_ore", "Tin Ore", 16000, ["bronze", "soldering", "alloying"]),
-    rawMineral("copper_ore", "Copper Ore", 18000, ["conductive", "electronics", "machinery"]),
-    rawMineral("graphite_carbon_mineral", "Graphite / Carbon Mineral", 18000, ["alloying", "energy", "composite"]),
-    rawMineral("manganese_ore", "Manganese Ore", 20000, ["steel", "alloying"]),
-    rawMineral("obsidian", "Obsidian", 20000, ["cutting", "special_component"]),
-    rawMineral("quartz", "Quartz", 22000, ["optics", "glass", "electronics"]),
-    rawMineral("nickel_ore", "Nickel Ore", 24000, ["alloying", "armor", "energy"]),
-    rawMineral("chromium_ore", "Chromium Ore", 30000, ["hardening", "corrosion_resistance", "alloying"]),
-    rawMineral("lithium_ore", "Lithium Ore", 35000, ["battery", "energy"]),
-    rawMineral("molybdenum_ore", "Molybdenum Ore", 40000, ["high_heat_alloy", "alloying"]),
-    rawMineral("vanadium_ore", "Vanadium Ore", 42000, ["armor", "titanium_alloy", "alloying"]),
-    rawMineral("cobalt_ore", "Cobalt Ore", 45000, ["energy", "motor", "superalloy"]),
-    rawMineral("silver_ore", "Silver Ore", 55000, ["electronics", "precision", "conductive"]),
-    rawMineral("tungsten_ore", "Tungsten Ore", 65000, ["weapon", "penetrator", "tooling", "high_heat"]),
-    rawMineral("titanium_ore", "Titanium Ore", 75000, ["armor", "weapon", "augment", "light_structure"]),
-    rawMineral("gold_ore", "Gold Ore", 80000, ["advanced_electronics", "conductive"]),
-    rawMineral("niobium_ore", "Niobium Ore", 85000, ["superconductive", "alloying"]),
-    rawMineral("tantalum_ore", "Tantalum Ore", 90000, ["electronics", "augment"]),
-    rawMineral("rare_earth_concentrate", "Rare-Earth Concentrate", 100000, ["sensor", "motor", "advanced_technology"]),
-    rawMineral("uranium_bearing_ore", "Uranium-bearing Ore", 120000, ["regulated_energy", "nuclear"]),
-    rawMineral("superconductive_mineral", "Superconductive Mineral", 180000, ["energy", "corp_technology", "superconductive"]),
-    rawMineral("metamaterial_ore", "Metamaterial Ore", 220000, ["advanced_armor", "experimental_technology"]),
-    rawMineral("null_dampening_mineral", "Null / Dampening Mineral", 275000, ["dampening", "isolation", "special_technology"]),
-    rawMineral("exotic_industrial_mineral", "Exotic Industrial Mineral", 300000, ["exotic_industry", "high_tier_crafting"]),
+    rawMineral("industrial_stone", "Industrial Stone", 4000, ["construction", "abrasive", "fabrication"], "mineral_industrial_stone"),
+    rawMineral("clay", "Clay", 5000, ["ceramic", "insulation", "fabrication"], "mineral_clay"),
+    rawMineral("coal", "Coal", 7000, ["fuel", "carbon", "metallurgy"], "mineral_coal"),
+    rawMineral("lead_ore", "Lead Ore", 10000, ["shielding", "ammunition", "industry"], "ore_lead"),
+    rawMineral("iron_ore", "Iron Ore", 12000, ["weapons", "armor", "structure"], "ore_iron"),
+    rawMineral("bauxite_aluminum_ore", "Bauxite / Aluminum Ore", 14000, ["light_structure", "armor", "industry"], "ore_bauxite"),
+    rawMineral("zinc_ore", "Zinc Ore", 15000, ["alloying", "corrosion_protection"], "ore_zinc"),
+    rawMineral("tin_ore", "Tin Ore", 16000, ["bronze", "soldering", "alloying"], "ore_tin"),
+    rawMineral("copper_ore", "Copper Ore", 18000, ["conductive", "electronics", "machinery"], "ore_copper"),
+    rawMineral("graphite_carbon_mineral", "Graphite / Carbon Mineral", 19000, ["alloying", "energy", "composite"], "mineral_graphite"),
+    rawMineral("manganese_ore", "Manganese Ore", 20000, ["steel", "alloying"], "ore_manganese"),
+    rawMineral("obsidian", "Obsidian", 22000, ["cutting", "special_component"], "mineral_obsidian"),
+    rawMineral("quartz", "Quartz", 24000, ["optics", "glass", "electronics"], "mineral_quartz"),
+    rawMineral("nickel_ore", "Nickel Ore", 26000, ["alloying", "armor", "energy"], "ore_nickel"),
+    rawMineral("chromium_ore", "Chromium Ore", 31000, ["hardening", "corrosion_resistance", "alloying"], "ore_chromium"),
+    rawMineral("lithium_ore", "Lithium Ore", 36000, ["battery", "energy"], "ore_lithium"),
+    rawMineral("molybdenum_ore", "Molybdenum Ore", 40000, ["high_heat_alloy", "alloying"], "ore_molybdenum"),
+    rawMineral("vanadium_ore", "Vanadium Ore", 43000, ["armor", "titanium_alloy", "alloying"], "ore_vanadium"),
+    rawMineral("cobalt_ore", "Cobalt Ore", 46000, ["energy", "motor", "superalloy"], "ore_cobalt"),
+    rawMineral("silver_ore", "Silver Ore", 60000, ["electronics", "precision", "conductive", "jewelry_material"], "ore_silver"),
+    rawMineral("tungsten_ore", "Tungsten Ore", 66000, ["weapon", "penetrator", "tooling", "high_heat"], "ore_tungsten"),
+    rawMineral("titanium_ore", "Titanium Ore", 76000, ["armor", "weapon", "augment", "light_structure"], "ore_titanium"),
+    rawMineral("niobium_ore", "Niobium Ore", 86000, ["superconductive", "alloying"], "ore_niobium"),
+    rawMineral("gold_ore", "Gold Ore", 90000, ["advanced_electronics", "conductive", "jewelry_material", "precious_metal"], "ore_gold"),
+    rawMineral("tantalum_ore", "Tantalum Ore", 94000, ["electronics", "augment"], "ore_tantalum"),
+    rawMineral("rare_earth_concentrate", "Rare-Earth Concentrate", 110000, ["sensor", "motor", "advanced_technology"], "mineral_rare_earth"),
+    rawMineral("platinum_ore", "Platinum Ore", 120000, ["precision", "electronics", "jewelry_material", "precious_metal"], "ore_platinum"),
+    rawMineral("uranium_bearing_ore", "Uranium-bearing Ore", 140000, ["regulated_energy", "nuclear"], "ore_uranium"),
+    rawMineral("superconductive_mineral", "Superconductive Mineral", 200000, ["energy", "corp_technology", "superconductive"], "mineral_superconductive"),
+    rawMineral("metamaterial_ore", "Metamaterial Ore", 250000, ["advanced_armor", "experimental_technology"], "ore_metamaterial"),
+    rawMineral("null_dampening_mineral", "Null / Dampening Mineral", 320000, ["dampening", "isolation", "special_technology"], "mineral_null_dampening"),
+    rawMineral("exotic_industrial_mineral", "Exotic Industrial Mineral", 400000, ["exotic_industry", "high_tier_crafting"], "mineral_exotic_industrial"),
   ]);
 
   const REFINED_METALS = Object.freeze([
@@ -212,6 +214,7 @@
     graphite: "graphite_carbon_mineral",
     carbon_mineral: "graphite_carbon_mineral",
     rare_earth: "rare_earth_concentrate",
+    raw_platinum: "platinum_ore",
     uranium_ore: "uranium_bearing_ore",
     null_mineral: "null_dampening_mineral",
     dampening_mineral: "null_dampening_mineral",
@@ -298,7 +301,7 @@
   }
 
   const API = Object.freeze({
-    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION,
+    VERSION, FAMILY, CURRENCY, DEFAULT_QUALITY, MATERIAL_UNIT, MATERIAL_UNIT_ABBREVIATION, RAW_MINERAL_PRICING_MODEL,
     RAW_MINERALS, REFINED_METALS, ALLOYS, ROUGH_GEMS, CUT_GEMS, ITEMS, ALIASES,
     CREATURE_MINERAL_HARVEST_RULE, get, list, unitValueForQuality, canSourceFromCreatureBody, createStack, createCreatureHarvestStack,
   });
